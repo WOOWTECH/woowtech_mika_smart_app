@@ -38,20 +38,23 @@ object IrreversibleDetector {
     /**
      * 名字里出现就算(短名字,或拼起来的名字里的每一段);但前面是「待」「已」、
      * 后面是 [STATUS_SUFFIXES] 的是订单状态或入口(待付款、付款成功、购买记录),不算。
+     * 汇款、下订单、送出订单是台湾界面的说法(匯款、下訂單、送出訂單)。
      */
     val STRONG: Map<String, IrrevAction> = linkedMapOf(
-        "支付" to IrrevAction.pay, "付款" to IrrevAction.pay, "转账" to IrrevAction.pay,
+        "支付" to IrrevAction.pay, "付款" to IrrevAction.pay, "转账" to IrrevAction.pay, "汇款" to IrrevAction.pay,
         "删除" to IrrevAction.delete, "撤回" to IrrevAction.delete,
-        "下单" to IrrevAction.order, "购买" to IrrevAction.order, "结算" to IrrevAction.order, "结账" to IrrevAction.order,
+        "下单" to IrrevAction.order, "下订单" to IrrevAction.order, "送出订单" to IrrevAction.order,
+        "购买" to IrrevAction.order, "结算" to IrrevAction.order, "结账" to IrrevAction.order,
         "取消订单" to IrrevAction.order, "确认收货" to IrrevAction.order, "退款" to IrrevAction.order,
         "转发" to IrrevAction.send,
     )
     private const val STRONG_MAX_LEN = 12
     private val STATUS_PREFIXES = listOf('待', '已')
-    val STATUS_SUFFIXES = listOf("成功", "记录", "售后", "明细", "方式", "列表", "中心", "入口", "码")
+    /** 纪录:台湾界面把「记录」写作「紀錄」(付款紀錄、購買紀錄)。 */
+    val STATUS_SUFFIXES = listOf("成功", "记录", "纪录", "售后", "明细", "方式", "列表", "中心", "入口", "码")
 
-    /** 这些付款词只认按钮本身,或前面是「立即」「确认」「去」(「充值中心」「话费充值」「优惠买单」是入口,不算)。 */
-    val EXACT_PAY = listOf("收银台", "买单", "充值", "储值", "提现", "转出", "打赏", "缴费", "捐赠", "捐款")
+    /** 这些付款词只认按钮本身,或前面是「立即」「确认」「去」(「充值中心」「话费充值」「优惠买单」是入口,不算);加值是台湾的储值说法。 */
+    val EXACT_PAY = listOf("收银台", "买单", "充值", "储值", "加值", "提现", "转出", "打赏", "缴费", "捐赠", "捐款")
     private val EXACT_PAY_PREFIXES = listOf("", "立即", "确认", "去")
 
     /** 红包只认按钮上的这几种说法(「微信红包」一类是聊天里的气泡)。 */
@@ -61,7 +64,7 @@ object IrreversibleDetector {
     val PREFIX_WORDS: Map<IrrevAction, List<String>> = linkedMapOf(
         IrrevAction.send to listOf("发送", "传送", "发布", "发表"),
         IrrevAction.delete to listOf("清空", "移除", "注销", "退出群聊"),
-        IrrevAction.order to listOf("提交订单"),
+        IrrevAction.order to listOf("提交订单", "确认订单"),
     )
     private const val PREFIX_SLACK = 4
 
@@ -72,8 +75,8 @@ object IrreversibleDetector {
     val BOOKING_WORDS = listOf("预约", "报名")
     private val BOOKING_PREFIXES = listOf("", "立即", "确认")
 
-    /** 只认完全相等:「提交搜索」一类不拦。 */
-    val SUBMIT_WORDS = listOf("提交", "确认提交", "送出", "submit")
+    /** 只认完全相等:「提交搜索」一类不拦。确认送出是台湾的「確認送出」。 */
+    val SUBMIT_WORDS = listOf("提交", "确认提交", "送出", "确认送出", "submit")
 
     /**
      * 一点就替用户联系别人、投出申请的按钮(点下去网站就把招呼语、简历发给对方),按提交算:
@@ -108,12 +111,15 @@ object IrreversibleDetector {
     private val AMOUNT = Regex("[¥￥$＄]\\s*\\d|\\d+(\\.\\d+)?\\s*元")
     /** 带这些字的金额是合计,不论在不在可滚动区里都算上下文。 */
     val TOTAL_LABELS = listOf("合计", "实付", "应付", "总计")
-    /** 同屏有金额时,这些字说明是付款面板(付款方式、收银台、验密)。 */
-    val PAY_SHEET_WORDS = listOf("支付方式", "付款方式", "支付宝", "银行卡", "收银台", "免密")
-    /** 这几个字在普通页面上也常见(账户余额、登录密码):只在下半屏、同一区域有确认/支付一类按钮时才算付款面板。 */
-    val WEAK_PAY_SHEET_WORDS = listOf("余额", "密码", "指纹", "零钱")
-    /** 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判。 */
-    private val PAYMENT_ADS = Regex("支持[^\\s，,。]{0,8}?(?:付款|支付)|货到付款|先用后付|花呗|分期|付款方式说明")
+    /** 同屏有金额时,这些字说明是付款面板(付款方式、收银台、验密;台湾的超商代码缴费、ATM 转帐)。 */
+    val PAY_SHEET_WORDS = listOf("支付方式", "付款方式", "支付宝", "银行卡", "收银台", "免密", "超商代码", "ATM转账")
+    /**
+     * 这几个字在普通页面上也常见(账户余额、登录密码;信用卡、金融卡、签帐卡、悠游付常出现在回馈和分期的介绍里):
+     * 只在下半屏、同一区域有确认/支付一类按钮时才算付款面板。
+     */
+    val WEAK_PAY_SHEET_WORDS = listOf("余额", "密码", "指纹", "零钱", "信用卡", "金融卡", "签账卡", "悠游付")
+    /** 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判;支援、超商取货付款是台湾的说法。 */
+    private val PAYMENT_ADS = Regex("(?:支持|支援)[^\\s，,。]{0,8}?(?:付款|支付)|货到付款|取货付款|先用后付|花呗|分期|付款方式说明")
     /** 页面上有这些下单按钮时,是商品页或规格面板:不按付款面板字样判。 */
     private val ORDER_CONTEXT = listOf("立即购买", "加入购物车", "立即下单")
     /** 0–999 里这条线以下算屏幕底部区域(付款面板、底部弹层)。 */

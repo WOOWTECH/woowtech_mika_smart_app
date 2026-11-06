@@ -214,6 +214,122 @@ class IrreversibleDetectorTest {
         assertNotNull(d.paymentPage(pay))
     }
 
+    // 台湾电商的结帐、付款按钮(蝦皮、momo、PChome、foodpanda 一类的写法);订单状态、紀錄和付款方式的选项不是动作
+    @Test fun taiwanCheckoutButtons() {
+        for ((w, a) in listOf(
+            "前往結帳" to IrrevAction.order, "去結帳(2)" to IrrevAction.order, "結帳" to IrrevAction.order, "下單" to IrrevAction.order,
+            "下訂單" to IrrevAction.order, "立即下訂單" to IrrevAction.order, "送出訂單" to IrrevAction.order,
+            "送出訂單 NT$1,280" to IrrevAction.order, "確認訂單" to IrrevAction.order, "立即購買" to IrrevAction.order,
+            "去買單" to IrrevAction.pay, "確認付款" to IrrevAction.pay, "立即付款" to IrrevAction.pay, "前往付款" to IrrevAction.pay,
+            "使用 LINE Pay 付款" to IrrevAction.pay, "轉帳" to IrrevAction.pay, "ATM轉帳" to IrrevAction.pay, "匯款" to IrrevAction.pay,
+            "立即儲值" to IrrevAction.pay, "加值" to IrrevAction.pay, "確認送出" to IrrevAction.submit,
+        )) {
+            assertEquals(w, a, d.matchName(w))
+        }
+        for (w in listOf("待付款", "已付款", "付款紀錄", "購買紀錄", "轉帳紀錄", "匯款紀錄", "下訂單成功", "付款方式", "選擇付款方式",
+            "超商取貨付款", "貨到付款", "信用卡/金融卡", "簽帳卡", "LINE Pay", "Apple Pay", "Google Pay", "Samsung Pay", "icash Pay",
+            "台灣Pay", "悠遊付", "加入購物車", "加值服務", "購物車")) {
+            assertNull(w, d.matchName(w))
+        }
+    }
+
+    // 台湾电商的结帐页:蝦皮按「下單」、foodpanda 按「下訂單」、momo / PChome 一类按「送出訂單」「確認付款」,金额是新台币
+    @Test fun taiwanCheckoutScreens() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val shopee = snap(
+            el("@e1", "結帳", listOf(0, 0, 999, 80), clickable = false),
+            el("@e2", "付款方式", listOf(0, 400, 600, 460), clickable = false),
+            el("@e3", "信用卡/金融卡", listOf(600, 400, 999, 460)),
+            el("@e4", "總付款金額", listOf(0, 880, 400, 940), clickable = false),
+            el("@e5", "$1,280", listOf(400, 880, 640, 940), clickable = false),
+            el("@e6", "下單", listOf(650, 870, 999, 990)),
+        )
+        assertEquals(Irreversible(IrrevAction.order, "下單"), d.classify("phone_tap", tap("@e6"), shopee))
+        // 换付款方式的那一行只是选项
+        assertNull(d.classify("phone_tap", tap("@e3"), shopee))
+        assertNotNull(d.paymentPage(shopee))
+        assertTrue(d.hasPayableAmount(shopee))
+        val food = snap(
+            el("@e1", "小計 $320", listOf(0, 600, 999, 660), clickable = false),
+            el("@e2", "外送費 $29", listOf(0, 670, 999, 730), clickable = false),
+            el("@e3", "總計 $349", listOf(0, 740, 999, 800), clickable = false),
+            el("@e4", "下訂單", listOf(0, 880, 999, 990)),
+        )
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), food)?.action)
+        assertTrue(d.hasPayableAmount(food))
+        val momo = snap(
+            el("@e1", "應付金額", listOf(0, 800, 300, 860), clickable = false),
+            el("@e2", "NT$", listOf(310, 800, 380, 860), clickable = false),
+            el("@e3", "2,590", listOf(390, 800, 600, 860), clickable = false),
+            el("@e4", "送出訂單", listOf(620, 880, 999, 990)),
+            el("@e5", "確認付款", listOf(0, 880, 600, 990)),
+        )
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), momo)?.action)
+        assertEquals(IrrevAction.pay, d.classify("phone_tap", tap("@e5"), momo)?.action)
+        assertTrue(d.hasPayableAmount(momo))
+        assertNotNull(d.paymentPage(momo))
+        // 底部付款面板上的通用「確認」:台湾的卡种、电子支付、超商代码、ATM 转帐都说明是付款面板
+        fun sheet(word: String) = snap(
+            el("@e1", "應付金額 NT$1,280", listOf(0, 600, 999, 660), clickable = false),
+            el("@e2", word, listOf(0, 700, 999, 760), clickable = false),
+            el("@e3", "確認", listOf(500, 850, 999, 950)),
+        )
+        for (w in listOf("信用卡一次付清", "金融卡", "簽帳卡", "悠遊付", "超商代碼繳費", "ATM 轉帳", "街口支付", "全支付", "LINE Pay", "台灣Pay",
+            "icash Pay", "Apple Pay", "Google Pay", "Samsung Pay")) {
+            assertEquals(w, IrrevAction.pay, d.classify("phone_tap", tap("@e3"), sheet(w))?.action)
+        }
+        // 没有付款字样:只按金额算下单
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e3"), sheet("共 2 件商品"))?.action)
+        // 上半屏的信用卡回馈介绍不算付款面板
+        val promo = snap(
+            el("@e1", "刷信用卡最高回饋 10%", listOf(0, 100, 999, 160), clickable = false),
+            el("@e2", "NT$1,280", listOf(0, 200, 999, 260), clickable = false),
+            el("@e3", "確定", listOf(500, 850, 999, 950)),
+        )
+        assertTrue(d.classify("phone_tap", tap("@e3"), promo)?.action != IrrevAction.pay)
+    }
+
+    // 一般的商品列表:到处是价格,另有分期、超商取货付款一类的介绍,本身不是付款页;点商品、筛选面板的「確定」、加入购物车都不拦
+    @Test fun taiwanProductListingIsNotAPaymentScreen() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val list = snap(
+            el("@e1", "搜尋商品", listOf(0, 0, 800, 80), editable = true, hint = true),
+            el("@e2", "", listOf(0, 100, 999, 900), clickable = false, scrollable = true),
+            el("@e3", "【現貨】藍牙耳機 降噪 長續航", listOf(0, 120, 999, 200)),
+            el("@e4", "$390", listOf(0, 210, 300, 260), clickable = false),
+            el("@e5", "已售出 1,234", listOf(320, 210, 999, 260), clickable = false),
+            el("@e6", "支援信用卡分期付款", listOf(0, 270, 999, 320), clickable = false),
+            el("@e7", "可超商取貨付款", listOf(0, 330, 999, 380), clickable = false),
+            el("@e8", "無線耳機 運動款", listOf(0, 400, 999, 480)),
+            el("@e9", "NT$1,280", listOf(0, 490, 300, 540), clickable = false),
+            el("@e10", "免運", listOf(320, 490, 999, 540), clickable = false),
+            el("@e11", "首頁", listOf(0, 920, 300, 999)),
+            el("@e12", "我的", listOf(700, 920, 999, 999)),
+        )
+        assertNull(d.paymentPage(list))
+        assertFalse(d.hasPayableAmount(list))
+        for (ref in listOf("@e3", "@e8", "@e6", "@e7", "@e11")) assertNull(ref, d.classify("phone_tap", tap(ref), list))
+        // 价格区间的筛选面板:价格在可滚动区里,底部的「確定」不按金额判
+        val filter = snap(
+            el("@e1", "", listOf(0, 200, 999, 800), clickable = false, scrollable = true),
+            el("@e2", "$0 - $500", listOf(0, 250, 999, 300)),
+            el("@e3", "$500 - $1,000", listOf(0, 320, 999, 370)),
+            el("@e4", "確定", listOf(500, 850, 999, 950)),
+        )
+        assertNull(d.classify("phone_tap", tap("@e4"), filter))
+        // 商品页有「加入購物車」「立即購買」:分期、LINE Pay 回馈这些字不算付款面板;加入购物车不拦,立即购买按下单
+        val product = snap(
+            el("@e1", "NT$1,280", listOf(0, 300, 999, 360), clickable = false),
+            el("@e2", "信用卡分期 0 利率", listOf(0, 600, 999, 660), clickable = false),
+            el("@e3", "LINE Pay 回饋 5%", listOf(0, 680, 999, 740), clickable = false),
+            el("@e4", "加入購物車", listOf(0, 880, 490, 990)),
+            el("@e5", "立即購買", listOf(500, 880, 999, 990)),
+        )
+        assertNull(d.paymentPage(product))
+        assertNull(d.classify("phone_tap", tap("@e4"), product))
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e5"), product)?.action)
+    }
+
     // I3:够长的横滑从列表行起手 = 滑动删除
     @Test fun longHorizontalSwipeOnRowIsDelete() {
         val s = snap(el("@e1", "张三 昨天", listOf(0, 300, 999, 400)), el("@e2", "", listOf(0, 0, 999, 999), clickable = false, scrollable = true))
