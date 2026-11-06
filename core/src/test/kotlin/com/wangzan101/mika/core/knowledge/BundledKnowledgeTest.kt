@@ -23,7 +23,7 @@ class BundledKnowledgeTest {
     @Test fun bundledTreesPassValidationAndIndexIsCurrent() {
         val r = KnowledgeIndex.build(resources)
         assertTrue(r.errors.joinToString("\n"), r.errors.isEmpty())
-        assertEquals(mapOf("app" to 23, "site" to 18, "skill" to 6), r.entries.groupingBy { it.kind }.eachCount())
+        assertEquals(mapOf("app" to 29, "site" to 18, "skill" to 6), r.entries.groupingBy { it.kind }.eachCount())
         // 类路径上的索引就是按当前文件生成的那份
         assertEquals(r.entries, catalog.rows)
     }
@@ -46,7 +46,7 @@ class BundledKnowledgeTest {
     }
 
     @Test fun everyEntryHasABody() {
-        assertEquals(41, bundled.size)
+        assertEquals(47, bundled.size)
         assertTrue(bundled.all { !it.body.isNullOrBlank() && it.body!!.length <= KnowledgeIndex.BODY_LIMIT })
         assertTrue(bundled.map { it.name }.containsAll(listOf("wechat", "xianyu", "android-settings", "zhihu.com", "weixin.sogou.com")))
     }
@@ -63,6 +63,21 @@ class BundledKnowledgeTest {
         val store = KnowledgeStore(bundled)
         assertEquals("com.taobao.idlefish", store.packageFor("闲鱼"))
         assertEquals("com.tencent.mm", store.packageFor("微信"))
+    }
+
+    // 台湾版加的 App 知识:繁体中文的任务照样认得出来(任务文字不转简体,别名里直接写繁体)
+    @Test fun taiwanAppsMatchTraditionalChineseTasks() {
+        val store = KnowledgeStore(bundled)
+        assertEquals("shopee-tw", store.matchTask("幫我在蝦皮找藍牙耳機,比一下價格").first().name)
+        assertEquals("line", store.matchTask("用LINE傳訊息給媽媽說晚點到").first().name)
+        assertEquals("woowtech-aiot", store.matchTask("打開渥屋科技把客廳的燈關掉").first().name)
+        assertEquals("com.momo.mobile.shoppingv2.android", store.packageFor("momo購物"))
+        assertEquals("com.PChome.Shopping", store.packageFor("PChome"))
+        assertEquals("com.global.foodpanda.android", store.packageFor("熊貓外送"))
+        assertEquals("com.ubercab.eats", store.packageFor("優食"))
+        assertTrue(catalog.find("今晚用 foodpanda 訂便當", minScore = RECOMMEND_MIN_SCORE).any { it.name == "foodpanda" })
+        // 英文的 LINE 按单词边界认:online、deadline 不算
+        assertTrue(store.matchTask("check what is online before the deadline", 5).none { it.name == "line" })
     }
 
     @Test fun longBodyTruncatedWithHint() {
