@@ -54,7 +54,7 @@ object McpUsb {
         val again = "adb shell sh $scriptPath"
         return """
             |#!/system/bin/sh
-            |# Written by Mika. Lets AI tools on a computer use Mika over USB: $again   (turn off: $again off)
+            |# Written by ${Brand.name}. Lets AI tools on a computer use ${Brand.name} over USB: $again   (turn off: $again off)
             |if [ "${'$'}(id -u)" != "2000" ]; then
             |  echo "Run this from a computer over USB: $again"
             |  exit 1

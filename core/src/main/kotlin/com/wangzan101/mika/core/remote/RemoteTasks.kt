@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.remote
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.agent.TaskState
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
@@ -90,23 +91,23 @@ object RemoteStatus {
             is TaskState.Held -> {
                 put("waiting_for", s.reason.code)
                 s.reason.why.takeIf { it.isNotBlank() }?.let { put("progress", it) }
-                if (s.reason.needsYou) put("note", ON_PHONE_NOTE)
+                if (s.reason.needsYou) put("note", Brand.text(ON_PHONE_NOTE))
             }
             is TaskState.WaitingInput -> {
                 put("question", s.prompt)
                 s.options?.takeIf { it.isNotEmpty() }?.let { o -> putJsonArray("options") { o.forEach { add(it) } } }
-                put("note", "Mika is asking a question. Answer this question remotely or on the phone.")
+                put("note", Brand.text("Mika is asking a question. Answer this question remotely or on the phone."))
             }
             is TaskState.WaitingConfirmation -> {
                 put("waiting_for", "confirmation")
                 put("app", s.request.app)
-                put("note", ON_PHONE_NOTE)
+                put("note", Brand.text(ON_PHONE_NOTE))
             }
             is TaskState.WaitingTakeover -> {
                 put("waiting_for", "hand_to_user")
                 put("reason", s.reason)
                 put("message", s.message)
-                put("note", ON_PHONE_NOTE)
+                put("note", Brand.text(ON_PHONE_NOTE))
             }
             is TaskState.Succeeded -> {
                 put("answer", s.answer)
