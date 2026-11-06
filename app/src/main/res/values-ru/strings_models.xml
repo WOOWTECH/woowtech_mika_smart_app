@@ -182,7 +182,7 @@
     <!-- Settings > Models: speech-to-text usage and its picker page -->
     <string name="role_speech">Распознавание речи</string>
     <string name="role_speech_what">Используется, пока вы удерживаете кнопку и говорите</string>
-    <string name="speech_hint">Выберите встроенное распознавание телефона, голосовой сервис с распознаванием на лету или модель провайдера, которая расшифровывает после того, как вы закончите. Онлайн-сервисы расходуют квоту провайдера.</string>
+    <string name="speech_hint">Выберите встроенное распознавание телефона или модель провайдера, которая расшифровывает после того, как вы закончите. Онлайн-сервисы расходуют квоту провайдера.</string>
     <string name="speech_system">Встроено в телефон</string>
     <string name="speech_system_offline">Работает офлайн</string>
     <string name="speech_system_online">Нужен интернет</string>

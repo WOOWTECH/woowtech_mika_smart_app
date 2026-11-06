@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import java.io.IOException
 import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,18 +14,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
  * 录 16k 单声道 16 位 PCM。start 后每约 50ms 更新一次 [level](0..1,按每块 RMS 归一化);
  * stop 返回到目前为止的全部 PCM;录满 [maxMs] 自动停止,之后再 stop 仍返回已录的内容。
  * 录音权限由调用方先检查,这里拿不到麦克风就返回 false。stop 会短暂阻塞(等读循环退出),别在主线程调。
  */
-class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolean = false) : StreamingRecorder {
-    // At most five seconds while a connection is opening. Never silently drop a sample.
-    private val audio = Channel<ShortArray>(100)
-    override val chunks: ReceiveChannel<ShortArray> = audio
+class PcmRecorder(private val maxMs: Int = 60_000) : Recorder {
     private val _level = MutableStateFlow(0f)
     override val level: StateFlow<Float> = _level
 
@@ -82,12 +76,7 @@ class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolea
         val buf = ShortArray(chunk)
         while (scope.isActive) {
             val n = rec.read(buf, 0, chunk)
-            if (n <= 0) {
-                synchronized(lock) {
-                    if (streaming && record === rec) audio.close(IOException("Audio capture failed"))
-                }
-                break // 读失败或已被停掉
-            }
+            if (n <= 0) break // 读失败或已被停掉
             var sum = 0.0
             for (i in 0 until n) sum += buf[i].toDouble() * buf[i]
             val lvl = (sqrt(sum / n) / 8000.0).coerceIn(0.0, 1.0).toFloat()
@@ -98,10 +87,6 @@ class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolea
                 val take = minOf(n, pcm.size - size)
                 System.arraycopy(buf, 0, pcm, size, take)
                 size += take
-                if (streaming && audio.trySend(buf.copyOf(take)).isFailure) {
-                    audio.close(IOException("Audio stream buffer exceeded"))
-                    return@synchronized true
-                }
                 size >= pcm.size
             }
             if (full) break
@@ -114,7 +99,6 @@ class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolea
                 _level.value = 0f // 不录了,波形别停在最后一块的音量上
             }
         }
-        if (streaming) audio.close()
     }
 
     /** 停止并返回到目前为止录到的全部 PCM;没在录(含已自动停止)也安全。 */
@@ -127,7 +111,6 @@ class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolea
         }
         // 等读循环退出,保证之后取到的 PCM 不再变
         if (rec != null) runBlocking { j?.join() }
-        if (streaming) audio.close()
         return synchronized(lock) {
             val out = pcm.copyOf(size)
             pcm = ShortArray(0)
@@ -147,7 +130,6 @@ class PcmRecorder(private val maxMs: Int = 60_000, private val streaming: Boolea
             pcm = ShortArray(0)
             size = 0
             _level.value = 0f
-            audio.cancel()
         }
     }
 

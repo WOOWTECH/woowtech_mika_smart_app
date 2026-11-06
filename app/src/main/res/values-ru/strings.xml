@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">Высокая</string>
     <string name="model_reasoning_xhigh">Очень высокая</string>
     <string name="model_reasoning_max">Максимальная</string>
-    <string name="speech_doubao_provider">Volcengine · распознавание речи</string>
-    <string name="speech_doubao_model">Потоковое распознавание Doubao 2.0</string>
-    <string name="speech_doubao_note">Volcengine · свои учётные данные</string>
-    <string name="speech_doubao_missing">Укажите учётные данные Doubao в разделе Настройки › Модель › Распознавание речи.</string>
-    <string name="speech_doubao_new">Новая консоль</string>
-    <string name="speech_doubao_legacy">Старая консоль</string>
-    <string name="speech_doubao_enter_app">App ID голосового приложения</string>
-    <string name="speech_doubao_enter_key">Введите учётные данные голосового сервиса</string>
-    <string name="speech_doubao_duration">Почасовой тариф</string>
-    <string name="speech_doubao_concurrent">Тариф по потокам</string>
-    <string name="speech_doubao_privacy">При сохранении нет выхода в сеть и доступ пока не проверяется. Пока вы удерживаете кнопку и говорите, звук отправляется в Volcengine, это может быть платно. Учётные данные хранятся на телефоне в зашифрованном виде.</string>
-    <string name="speech_doubao_save">Сохранить и использовать</string>
-    <string name="speech_doubao_remove">Удалить сохранённые данные</string>
-    <string name="speech_doubao_save_failed">Не удалось зашифровать и сохранить учётные данные. Попробуйте ещё раз.</string>
-    <string name="speech_doubao_group">Голосовые сервисы на лету</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">Настройки</string>
-    <string name="speech_doubao_setup_hint">Распознавание речи Volcengine: слова появляются прямо во время разговора. Сначала включите Speech Recognition 2.0 в Volcengine; его учётные данные отдельные от чат-моделей.</string>
-    <string name="speech_doubao_credentials">Учётные данные</string>
-    <string name="speech_doubao_plan">Оплата</string>
-    <string name="speech_doubao_duration_note">Оплата за время распознавания</string>
-    <string name="speech_doubao_concurrent_note">Оплата за одновременные подключения</string>
 </resources>

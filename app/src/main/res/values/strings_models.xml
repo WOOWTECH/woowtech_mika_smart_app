@@ -174,7 +174,7 @@
     <!-- Settings > Models: speech-to-text usage and its picker page -->
     <string name="role_speech">Speech to text</string>
     <string name="role_speech_what">Used while you hold to talk</string>
-    <string name="speech_hint">Choose the phone’s built-in recognition, a live speech service, or a provider model that transcribes after you finish. Online services use your provider quota.</string>
+    <string name="speech_hint">Choose the phone’s built-in recognition or a provider model that transcribes after you finish. Online services use your provider quota.</string>
     <string name="speech_system">Built into the phone</string>
     <string name="speech_system_offline">Works offline</string>
     <string name="speech_system_online">Needs internet</string>

@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">高</string>
     <string name="model_reasoning_xhigh">非常に高い</string>
     <string name="model_reasoning_max">最大</string>
-    <string name="speech_doubao_provider">Volcengine · 音声認識</string>
-    <string name="speech_doubao_model">Doubao ストリーミング音声認識 2.0</string>
-    <string name="speech_doubao_note">Volcengine · 専用の認証情報</string>
-    <string name="speech_doubao_missing">設定 › モデル › 音声文字変換 で Doubao 音声の認証情報を設定してください。</string>
-    <string name="speech_doubao_new">新しいコンソール</string>
-    <string name="speech_doubao_legacy">旧コンソール</string>
-    <string name="speech_doubao_enter_app">音声アプリの App ID</string>
-    <string name="speech_doubao_enter_key">音声サービスの認証情報を入力</string>
-    <string name="speech_doubao_duration">時間課金プラン</string>
-    <string name="speech_doubao_concurrent">同時接続プラン</string>
-    <string name="speech_doubao_privacy">保存時はネットワークに接続せず、使えるかどうかもまだ確認しません。長押しして話している間、音声は Volcengine に送られ、料金がかかることがあります。認証情報はこのスマホに暗号化して保存します。</string>
-    <string name="speech_doubao_save">保存して使う</string>
-    <string name="speech_doubao_remove">保存した認証情報を削除</string>
-    <string name="speech_doubao_save_failed">音声の認証情報を暗号化して保存できませんでした。もう一度お試しください。</string>
-    <string name="speech_doubao_group">話しながら変換する音声サービス</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">設定</string>
-    <string name="speech_doubao_setup_hint">Volcengine の音声認識で、話しながら文字が出ます。先に Volcengine で「音声認識 2.0」を有効にしてください。認証情報はチャットモデルとは別です。</string>
-    <string name="speech_doubao_credentials">認証情報</string>
-    <string name="speech_doubao_plan">課金方式</string>
-    <string name="speech_doubao_duration_note">認識した時間で課金</string>
-    <string name="speech_doubao_concurrent_note">同時接続数で課金</string>
 </resources>

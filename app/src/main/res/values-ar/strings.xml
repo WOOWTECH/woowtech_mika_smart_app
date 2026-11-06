@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">مرتفع</string>
     <string name="model_reasoning_xhigh">مرتفع جداً</string>
     <string name="model_reasoning_max">أقصى حد</string>
-    <string name="speech_doubao_provider">Volcengine · التعرّف على الكلام</string>
-    <string name="speech_doubao_model">Doubao streaming ASR 2.0</string>
-    <string name="speech_doubao_note">Volcengine · بيانات اعتماد منفصلة للكلام</string>
-    <string name="speech_doubao_missing">اضبط بيانات اعتماد Doubao للكلام من الإعدادات › النموذج › تحويل الكلام إلى نص.</string>
-    <string name="speech_doubao_new">وحدة التحكم الجديدة</string>
-    <string name="speech_doubao_legacy">وحدة التحكم القديمة</string>
-    <string name="speech_doubao_enter_app">معرّف تطبيق الكلام</string>
-    <string name="speech_doubao_enter_key">أدخل بيانات اعتماد خدمة الكلام</string>
-    <string name="speech_doubao_duration">باقة المدة</string>
-    <string name="speech_doubao_concurrent">باقة الاتصالات المتزامنة</string>
-    <string name="speech_doubao_privacy">لا يؤدي الحفظ إلى الاتصال بالإنترنت أو التحقق من إمكانية الوصول حالياً. أثناء الضغط للتحدث، يُرسل الصوت إلى Volcengine وقد تُفرض رسوم عليه. تُشفّر بيانات الاعتماد على هذا الهاتف.</string>
-    <string name="speech_doubao_save">حفظ واستخدام</string>
-    <string name="speech_doubao_remove">إزالة بيانات الاعتماد المحفوظة</string>
-    <string name="speech_doubao_save_failed">تعذر تشفير بيانات اعتماد الكلام وحفظها. حاول مجدداً.</string>
-    <string name="speech_doubao_group">خدمات الكلام المباشر</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">الإعدادات</string>
-    <string name="speech_doubao_setup_hint">التعرّف على الكلام عبر Volcengine، مع ظهور الكلمات أثناء تحدثك. فعّل Speech Recognition 2.0 في Volcengine أولاً؛ فبيانات اعتماده منفصلة عن نماذج المحادثة.</string>
-    <string name="speech_doubao_credentials">بيانات الاعتماد</string>
-    <string name="speech_doubao_plan">الفوترة</string>
-    <string name="speech_doubao_duration_note">تُحتسب الرسوم بحسب مدة التعرّف</string>
-    <string name="speech_doubao_concurrent_note">تُحتسب الرسوم بحسب الاتصالات المتزامنة</string>
 </resources>

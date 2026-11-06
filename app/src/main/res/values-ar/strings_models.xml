@@ -190,7 +190,7 @@
     <!-- Settings > Models: speech-to-text usage and its picker page -->
     <string name="role_speech">تحويل الكلام إلى نص</string>
     <string name="role_speech_what">يُستخدم أثناء الضغط المطوّل للتحدث</string>
-    <string name="speech_hint">اختر التعرّف المدمج في الهاتف، أو خدمة كلام مباشرة، أو نموذجًا من المزوّد يفرّغ التسجيل بعد انتهائه. تستخدم الخدمات عبر الإنترنت حصة المزوّد.</string>
+    <string name="speech_hint">اختر التعرّف المدمج في الهاتف، أو نموذجًا من المزوّد يفرّغ التسجيل بعد انتهائه. تستخدم الخدمات عبر الإنترنت حصة المزوّد.</string>
     <string name="speech_system">مدمج في الهاتف</string>
     <string name="speech_system_offline">يعمل دون اتصال بالإنترنت</string>
     <string name="speech_system_online">يتطلب الإنترنت</string>
