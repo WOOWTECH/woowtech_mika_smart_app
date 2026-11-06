@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WOOWTECH fork: 品牌色（官方 Logo Specifications Sheet） -->
+<resources>
+    <color name="woow_icon_bg">#212121</color>
+    <color name="woow_blue">#6183FC</color>
+</resources>

@@ -121,3 +121,6 @@ dependencies {
 tasks.withType<Test>().configureEach {
     inputs.file(rootProject.file("licenses/THIRD_PARTY_NOTICES.md")).withPropertyName("thirdPartyNotices")
 }
+
+// WOOWTECH fork: 品牌层(flavor、品牌字串、签名),见 app/brand.gradle.kts
+apply(from = "brand.gradle.kts")
