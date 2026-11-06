@@ -65,6 +65,19 @@
 - 自檢回報的 issue 標題前綴是上游的「[兼容性]」（簡體用字），範本沿用同一個前綴。
 - `tools/mika/tests/phone_task_recovery.py`（真機手動測試腳本，不在 CI 裡）仍寫死上游套件名。
 
+## 發佈
+
+1. 要發的內容都已合進 `main`，`main` 上的 CI（`ci.yml`、`woowtech.yml`）全綠。
+2. 在 `main` 上手動跑 `woowtech.yml`（`gh workflow run woowtech.yml --ref main`）。同一次會建 APK（`woowtech APK`），也會做 GPL 原始碼包（`GPL sources tarball`，只有手動執行才跑）。
+3. 下載這次的產物，核對 `SHA256SUMS.txt`，再用 `woowtech/tools/brand-check.sh apk` 檢查兩個 release APK。
+4. 在發佈機上用 apksigner 簽章（APK Signature Scheme v3），金鑰不進 repo、不進 CI。簽章憑證的 SHA-256 必須是 `806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8`。檔名：`woowtech-agent-v<版本>-arm64.apk`（arm64 專用）、`woowtech-agent-v<版本>.apk`（通用）。App 的檢查更新靠 `-arm64.apk` 結尾挑檔，檔名格式不能改。
+5. 建 GitHub Release 草稿：tag `v<版本>` 指向步驟 2 的 commit，附上兩個 APK、`mika-<版本>-gpl-sources.tar.gz`、`SHA256SUMS.txt`。核對每個附件的大小和 SHA-256 後再公開。不要標成 prerelease：App 只看 `releases/latest`。
+6. 在下面的發佈紀錄寫一行。下一次在同一個上游版本上再發，要先把 `app/brand.gradle.kts` 的 `woowtechRevision` 加 1；同步到新的上游版本後，改回 1。
+
+| 版本 | 日期 | commit | 說明 |
+|---|---|---|---|
+| `v0.1.37-woow.1` | 2026-11-06 | `b8f79503` | 第一版：品牌層、拿掉中國系服務、台灣知識、電腦端連線說明、授權頁繁中／英文 |
+
 ## 跟上游同步
 
 1. 每週一次：`git fetch upstream --tags`，看這週的上游 tag。
