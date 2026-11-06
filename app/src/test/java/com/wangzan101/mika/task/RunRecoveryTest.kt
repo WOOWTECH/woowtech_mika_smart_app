@@ -94,14 +94,14 @@ class RunRecoveryTest {
     }
 
     @Test fun interruptedChannelRunRecoversToItsOriginalPeer() = runTest(UnconfinedTestDispatcher()) {
-        val rig = Rig(this, "wechat")
-        val peer = ChannelPeer("wechat", "owner", "thread-a")
-        rig.store.save(run("a", RunPhase.Finishing).copy(reply = "微信结果", deliveryId = "d1", channelPeer = peer))
+        val rig = Rig(this, "remote")
+        val peer = ChannelPeer("remote", "owner", "thread-a")
+        rig.store.save(run("a", RunPhase.Finishing).copy(reply = "渠道结果", deliveryId = "d1", channelPeer = peer))
 
         rig.recovery.recover()
 
         assertEquals(listOf("d1"), rig.channel.sent.map { it.id })
-        assertEquals("微信结果", (rig.channel.sent.single() as Delivery.Result).text)
+        assertEquals("渠道结果", (rig.channel.sent.single() as Delivery.Result).text)
         assertEquals(listOf(peer), rig.channel.peers)
         assertEquals(RunPhase.Ended, rig.store.get(RunId("a"))?.phase)
     }

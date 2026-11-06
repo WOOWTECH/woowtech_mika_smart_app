@@ -18,13 +18,13 @@ class FileRunStateStoreTest {
             first.save(StoredRun(RunId("run-1"), "thread-1", "任务原话", RunPhase.Aftercare,
                 reply = "回答原文", deliveryId = "delivery-1", roundInProgress = true,
                 triggerWindowKey = "plan:1000", runSucceeded = false,
-                channelPeer = ChannelPeer("wechat", "owner", "thread-1"), channelMessageId = "message-1"))
+                channelPeer = ChannelPeer("remote", "owner", "thread-1"), channelMessageId = "message-1"))
             val reopened = FileRunStateStore(file)
             assertEquals("回答原文", reopened.get(RunId("run-1"))?.reply)
             assertEquals("delivery-1", reopened.get(RunId("run-1"))?.deliveryId)
             assertEquals("plan:1000", reopened.get(RunId("run-1"))?.triggerWindowKey)
             assertEquals(false, reopened.get(RunId("run-1"))?.runSucceeded)
-            assertEquals(ChannelPeer("wechat", "owner", "thread-1"), reopened.get(RunId("run-1"))?.channelPeer)
+            assertEquals(ChannelPeer("remote", "owner", "thread-1"), reopened.get(RunId("run-1"))?.channelPeer)
             assertEquals("message-1", reopened.get(RunId("run-1"))?.channelMessageId)
             assertEquals(1, reopened.interruptUnfinished().size)
             assertEquals(RunPhase.Interrupted, FileRunStateStore(file).get(RunId("run-1"))?.phase)
