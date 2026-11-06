@@ -1,2 +1,10 @@
 Mika
 Copyright 2026 wangzan101
+
+woowtech agent (渥屋助理)
+Copyright 2026 WOOW TECH CO., LTD. (渥屋科技股份有限公司)
+
+This product is a modified version of Mika (https://github.com/wangzan101/Mika),
+distributed by WOOW TECH CO., LTD. under the Apache License, Version 2.0.
+It is not affiliated with or endorsed by the Mika author. The changes are listed
+in docs-woowtech/FORK.md; files changed by WOOW TECH carry a "WOOWTECH fork" note.
