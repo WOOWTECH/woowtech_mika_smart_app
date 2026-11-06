@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.cap.mcp
 
+import com.wangzan101.mika.core.brand.Brand
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -151,7 +152,7 @@ class StdioMcpEndpoint private constructor(
             launcher: McpStdioLauncher,
             workspace: String,
             timeoutSec: Int = 60,
-            clientName: String = "Mika",
+            clientName: String = Brand.name,
             clientVersion: String = "1",
             protocolVersion: String = PROTOCOL_VERSION,
         ): Result<StdioMcpEndpoint> {

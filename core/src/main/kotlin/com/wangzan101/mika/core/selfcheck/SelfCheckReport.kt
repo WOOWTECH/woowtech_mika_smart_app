@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.selfcheck
 
+import com.wangzan101.mika.core.brand.Brand
 import java.net.URLEncoder
 import java.util.Locale
 
@@ -12,7 +13,7 @@ object SelfCheckReport {
     const val HEADER = "Mika self-check"
     private const val MAX_DETAIL = 200
 
-    fun render(state: SelfCheckState, sanitize: (String) -> String = { it }): String = sanitize(buildString {
+    fun render(state: SelfCheckState, sanitize: (String) -> String = { it }): String = sanitize(Brand.text(buildString {
         val f = state.facts
         appendLine("$HEADER ${f?.appVersion ?: "?"} (build ${f?.appBuild ?: "?"})")
         if (f != null) {
@@ -26,7 +27,7 @@ object SelfCheckReport {
         appendLine(summary(state))
         appendLine()
         for (r in state.results) appendLine(line(r))
-    }.trimEnd() + "\n")
+    }.trimEnd() + "\n"))
 
     /** 一项一行:`8 stays alive: FAIL — frames stopped after 6 s`。 */
     fun line(r: CheckResult): String {

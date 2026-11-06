@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.mcp
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.remote.RemoteAccess
 import com.wangzan101.mika.core.remote.HttpResponse
 import com.wangzan101.mika.core.remote.HttpRequest
@@ -85,7 +86,7 @@ class McpRpc(
             "server/discover" -> buildJsonObject {
                 putJsonArray("supportedVersions") { (MODERN_VERSIONS + LEGACY_VERSIONS).forEach { add(it) } }
                 put("capabilities", capabilities())
-                put("instructions", INSTRUCTIONS)
+                put("instructions", Brand.text(INSTRUCTIONS))
             }
             "ping" -> JsonObject(emptyMap())
             "tools/list" -> buildJsonObject { put("tools", tools.definitions()) }
@@ -123,7 +124,7 @@ class McpRpc(
                     put("protocolVersion", if (asked in LEGACY_VERSIONS) asked!! else LEGACY_VERSIONS.first())
                     put("capabilities", capabilities())
                     put("serverInfo", serverInfo())
-                    put("instructions", INSTRUCTIONS)
+                    put("instructions", Brand.text(INSTRUCTIONS))
                 }
             }
             "ping" -> { onRequest(req.remote, null); JsonObject(emptyMap()) }
@@ -171,7 +172,7 @@ class McpRpc(
     }
 
     private fun capabilities() = buildJsonObject { putJsonObject("tools") { put("listChanged", false) } }
-    private fun serverInfo() = buildJsonObject { put("name", "mika"); put("title", "Mika"); put("version", serverVersion) }
+    private fun serverInfo() = buildJsonObject { put("name", "mika"); put("title", Brand.name); put("version", serverVersion) }
 
     private fun clientName(info: JsonElement?): String? =
         ((info as? JsonObject)?.get("name") as? JsonPrimitive)?.contentOrNull?.take(64)

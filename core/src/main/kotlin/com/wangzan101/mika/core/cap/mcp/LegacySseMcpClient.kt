@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.cap.mcp
 
+import com.wangzan101.mika.core.brand.Brand
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -138,7 +139,7 @@ class LegacySseMcpEndpoint private constructor(
             http: OkHttpClient = OkHttpClient(),
             headers: Map<String, String> = emptyMap(),
             timeoutSec: Int = 60,
-            clientName: String = "Mika",
+            clientName: String = Brand.name,
             clientVersion: String = "1",
             protocolVersion: String = PROTOCOL_VERSION,
         ): Result<LegacySseMcpEndpoint> = runCatching {

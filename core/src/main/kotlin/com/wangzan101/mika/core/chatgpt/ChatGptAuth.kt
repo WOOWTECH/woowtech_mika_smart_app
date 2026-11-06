@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.chatgpt
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.model.HttpSupport
 import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.oauth.Pkce
@@ -231,7 +232,8 @@ class ChatGptAuth(
     companion object {
         const val ISSUER = "https://auth.openai.com"
         const val REGISTER_CLIENT_ID = "dynamic_agent_client"
-        const val APP_NAME = "Mika"
+        // WOOWTECH fork: 品牌名(没有品牌设定时是 Mika)
+        val APP_NAME: String get() = Brand.name
         const val PLAN_SCOPE = "chatgpt.tokens.use.direct"
         const val SCOPES = "openid profile email offline_access resource.invoke $PLAN_SCOPE"
         const val RESOURCE = "https://api.openai.com/v1"

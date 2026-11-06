@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.prompt
 
+import com.wangzan101.mika.core.brand.Brand
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -13,8 +14,9 @@ object Prompts {
 
     /** 资源原文(去掉首尾空白)。 */
     fun read(path: String): String = cache.getOrPut(path) {
-        checkNotNull(Prompts::class.java.getResourceAsStream("/prompts/$path")) { "missing prompts/$path" }
-            .bufferedReader(Charsets.UTF_8).use { it.readText() }.trim()
+        // WOOWTECH fork: 品牌层改身份段的自称(没有品牌设定时原样返回)
+        Brand.prompt(path, checkNotNull(Prompts::class.java.getResourceAsStream("/prompts/$path")) { "missing prompts/$path" }
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }.trim())
     }
 
     fun system(name: String): String = read("system/$name.md")
