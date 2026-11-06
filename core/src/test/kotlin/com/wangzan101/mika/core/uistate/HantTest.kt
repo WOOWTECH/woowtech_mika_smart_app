@@ -18,4 +18,13 @@ class HantTest {
         assertEquals("联系对方", Hant.fold("聯繫對方"))
         assertEquals("已经简体", Hant.fold("已经简体"))
     }
+
+    // 台湾付款界面的字:紀錄、匯款、簽帳卡、悠遊付
+    @Test fun foldsTaiwanPaymentWords() {
+        assertEquals("付款纪录", Hant.fold("付款紀錄"))
+        assertEquals("ATM汇款", Hant.fold("ATM匯款"))
+        assertEquals("签账卡", Hant.fold("簽帳卡"))
+        assertEquals("悠游付", Hant.fold("悠遊付"))
+        assertEquals("送出订单", Hant.fold("送出訂單"))
+    }
 }

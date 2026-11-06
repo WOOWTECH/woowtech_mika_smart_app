@@ -2,7 +2,7 @@
 name: uber-eats
 display: Uber Eats
 packages: ["com.ubercab.eats"]
-aliases: ["Uber Eats", "UberEats", "uber eats", "ubereats"]
+aliases: ["Uber Eats", "UberEats", "uber eats", "ubereats", "優食", "Uber Eats 優食"]
 sites: []
 open: Uber Eats
 description: 外卖:餐厅、菜单与订单
