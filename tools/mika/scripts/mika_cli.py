@@ -19,14 +19,28 @@ import uuid
 
 VERSION = "0.1.0"
 API = "/api/v1"
-PHONE_FILES = "/sdcard/Android/data/com.wangzan101.mika/files"
-INFO_FILE = PHONE_FILES + "/mcp-usb.json"
-CONNECT_SCRIPT = PHONE_FILES + "/connect-computer.sh"
+# WOOWTECH fork: the WOOWTECH build (渥屋助理 / woowtech agent) installs as io.woowtech.agent, upstream Mika as
+# com.wangzan101.mika. ADB uses the first one installed on the phone; MIKA_ANDROID_PACKAGE picks one explicitly.
+PACKAGES = {"io.woowtech.agent": "woowtech agent", "com.wangzan101.mika": "Mika"}
+UPSTREAM_PACKAGE = "com.wangzan101.mika"
+INFO_FILE = "mcp-usb.json"
+CONNECT_SCRIPT = "connect-computer.sh"
 MAX_RESPONSE = 4 * 1024 * 1024
 HANDOFF = {"waiting_for_answer", "waiting_on_phone"}
 TERMINAL = {"done", "failed", "cancelled"}
 STATUSES = TERMINAL | HANDOFF | {"starting", "queued", "running", "paused"}
 RETRY_HINT = "Unlock the phone, open Mika once, then retry connect."
+# WOOWTECH fork: the app name in messages follows the package ADB found (set by connection()).
+APP = {"name": "Mika"}
+
+
+def phone_file(package, name):
+    return "/sdcard/Android/data/" + package + "/files/" + name
+
+
+def app_text(message):
+    # Only the product name: the lowercase `mika` command and identifiers stay.
+    return message if APP["name"] == "Mika" else re.sub(r"\bMika\b", APP["name"], message)
 
 
 class CliError(Exception):
@@ -219,6 +233,24 @@ class Adb:
         if state != "device":
             raise device_state_error(state or listed or "unknown")
 
+    def package(self):
+        # WOOWTECH fork: the installed build decides where its connection files are; upstream's is the fallback.
+        chosen = os.environ.get("MIKA_ANDROID_PACKAGE", "").strip()
+        if chosen:
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+", chosen):
+                raise CliError("arguments", "MIKA_ANDROID_PACKAGE must be an Android package name.")
+            return chosen
+        for package in PACKAGES:
+            if package == UPSTREAM_PACKAGE:
+                continue
+            try:
+                if self.run("shell", "pm", "path", package, timeout=10).startswith("package:"):
+                    return package
+            except CliError as exc:
+                if exc.code != "adb":
+                    raise
+        return UPSTREAM_PACKAGE
+
 
 def base_url(raw):
     try:
@@ -258,16 +290,18 @@ def connection(args, secrets):
     progress(args, "starting ADB server...")
     adb.start_server()
     adb.select()
+    package = adb.package()
+    APP["name"] = PACKAGES.get(package, "Mika")
     if args.command == "connect":
         progress(args, "running phone bootstrap...")
         try:
-            adb.run("shell", "sh", CONNECT_SCRIPT, timeout=60)
+            adb.run("shell", "sh", phone_file(package, CONNECT_SCRIPT), timeout=60)
         except CliError as exc:
             if exc.code != "adb":
                 raise
             raise CliError("adb", "Mika's phone bootstrap did not complete. " + RETRY_HINT) from None
     try:
-        info = json.loads(adb.run("shell", "cat", INFO_FILE))
+        info = json.loads(adb.run("shell", "cat", phone_file(package, INFO_FILE)))
         if not isinstance(info, dict):
             raise ValueError()
     except ValueError:
@@ -496,7 +530,7 @@ def main(argv=None):
         if isinstance(result.get("status"), str) and result["status"] in {"failed", "cancelled"}:
             code = 1
     except CliError as exc:
-        result = {"error": {"code": exc.code, "message": str(exc), **exc.details}}
+        result = {"error": {"code": exc.code, "message": app_text(str(exc)), **exc.details}}
         code = exc.exit_code
     except KeyboardInterrupt:
         result = {"error": {"code": "interrupted", "message": "Stopped waiting locally; no task cancellation was requested."}}

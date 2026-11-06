@@ -1,11 +1,13 @@
 ---
 name: mika
-description: Delegate tasks to Mika on a connected Android phone, follow progress, add instructions to running tasks, answer task questions, and retrieve results through the bundled CLI. Requires an Android phone running Mika, reachable by USB ADB or Wi-Fi. Use when the user wants Mika to operate phone apps, browse, or work with phone files.
+description: Delegate tasks to Mika (including the WOOWTECH build 渥屋助理 / woowtech agent) on a connected Android phone, follow progress, add instructions to running tasks, answer task questions, and retrieve results through the bundled CLI. Requires an Android phone running Mika, reachable by USB ADB or Wi-Fi. Use when the user wants Mika to operate phone apps, browse, or work with phone files.
 ---
 
 # Mika on your phone
 
 Mika runs its own agent on Android. Give it the user's complete goal, target and constraints; it chooses the phone actions. The bundled CLI talks directly to Mika's task API. No MCP client or MCP configuration is required.
+
+WOOWTECH build: on a phone with 渥屋助理 (woowtech agent, package `io.woowtech.agent`), "Mika" below means that app. The CLI finds it over ADB by itself (`MIKA_ANDROID_PACKAGE` picks a package explicitly). When talking to the user, call it 渥屋助理 or woowtech agent.
 
 ## Quick start / first connection
 
