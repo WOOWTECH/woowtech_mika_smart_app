@@ -7,7 +7,8 @@
 // - woowtech UI strings: while Gradle configures the project, every string in src/main/res (values,
 //   values-b+zh+Hant) that names Mika or links the upstream repo is copied with the brand name and repo into
 //   app/.gradle/woowtech-brand-res (git-ignored, survives `clean`), which is added to the woowtech source set.
-//   Keys hand-written in src/woowtech/res/<same folder> are skipped there.
+//   Keys hand-written in src/woowtech/res/<same folder> are skipped there. Links to upstream docs/<file>.md
+//   point to docs-woowtech/<file>.md instead when that file exists (WOOWTECH's own guide, right package name).
 // - Release signing: WOOWTECH_SIGNING_PROPERTIES may point to a properties file outside the repo (storeFile,
 //   storePassword, keyAlias, keyPassword). Without it the woowtech release APK is unsigned (CI) and is signed
 //   afterwards with apksigner on the release machine.
@@ -49,6 +50,14 @@ fun brandText(s: String, name: String, chinese: Boolean): String = brandMika.rep
     lead + name + trail
 }
 
+/** An upstream docs link: (1) up to `blob/main/`, (2) the file name under docs/. */
+val brandDocLink = Regex("""(github\.com/wangzan101/Mika/blob/main/)docs/([A-Za-z0-9._-]+\.md)""")
+
+/** Upstream docs links whose WOOWTECH version exists (docs-woowtech/, same file name) point to it. */
+fun brandDocs(s: String): String = brandDocLink.replace(s) { m ->
+    if (rootProject.file("docs-woowtech/${m.groupValues[2]}").isFile) m.groupValues[1] + "docs-woowtech/" + m.groupValues[2] else m.value
+}
+
 fun generateWoowtechStrings() {
     val upstreamRepo = "github.com/wangzan101/Mika"
     val repoLabel = brandProps.getProperty("repo.label")
@@ -66,7 +75,7 @@ fun generateWoowtechStrings() {
                 brandElement.findAll(f.readText()).forEach { m ->
                     val body = m.groupValues[4]
                     if (m.groupValues[3] !in manual) {
-                        val branded = brandText(body.replace(upstreamRepo, repoLabel), name, chinese)
+                        val branded = brandText(brandDocs(body).replace(upstreamRepo, repoLabel), name, chinese)
                         if (branded != body) out.append("    ").append(m.groupValues[1]).append(branded).append(m.groupValues[5]).append('\n')
                     }
                 }

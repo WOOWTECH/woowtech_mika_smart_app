@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.mcp
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.remote.RemoteStatus
 import com.wangzan101.mika.core.remote.RemoteTasks
 import com.wangzan101.mika.core.remote.RemoteTask
@@ -44,7 +45,7 @@ class McpTaskTools(
                 }
                 putJsonObject("conversation") {
                     put("type", "string")
-                    put("description", "Optional: continue a conversation returned by an earlier task so Mika keeps its context.")
+                    put("description", Brand.text("Optional: continue a conversation returned by an earlier task so Mika keeps its context."))
                 }
             }, readOnly = false),
         Tool(STATUS, "Current state of a task: status, latest progress note, the question it is waiting on, or the final answer.",
@@ -84,7 +85,7 @@ class McpTaskTools(
         tools.forEach { t ->
             add(buildJsonObject {
                 put("name", t.name)
-                put("description", t.description)
+                put("description", Brand.text(t.description))  // WOOWTECH fork: 外部 AI 看到的产品名
                 put("inputSchema", t.schema)
                 putJsonObject("annotations") {
                     put("readOnlyHint", t.readOnly)
@@ -140,7 +141,7 @@ class McpTaskTools(
         throw ToolError(when (e) {
             is RemoteTaskError.NoSuchTask -> "No MCP task with id ${e.id}"
             is RemoteTaskError.BadConversation -> "conversation must be one returned by an earlier MCP task (looks like mcp-<uuid>)"
-            is RemoteTaskError.NeedsPhone -> ON_PHONE_NOTE
+            is RemoteTaskError.NeedsPhone -> Brand.text(ON_PHONE_NOTE)
             is RemoteTaskError.QuestionClosed -> "The question is no longer open; check mika_task_status."
             is RemoteTaskError.General -> e.message.orEmpty()
         })
@@ -151,8 +152,8 @@ class McpTaskTools(
     private fun describe(task: RemoteTask): JsonObject = buildJsonObject {
         RemoteStatus.describe(task).forEach { (k, v) -> put(k, v) }
         when (RemoteStatus.of(task.state)) {
-            RemoteStatus.WAITING_ON_PHONE -> put("note", ON_PHONE_NOTE)
-            RemoteStatus.WAITING_FOR_ANSWER -> put("note", "Mika is asking a question. Reply with mika_answer; the user can also answer on the phone.")
+            RemoteStatus.WAITING_ON_PHONE -> put("note", Brand.text(ON_PHONE_NOTE))
+            RemoteStatus.WAITING_FOR_ANSWER -> put("note", Brand.text("Mika is asking a question. Reply with mika_answer; the user can also answer on the phone."))
         }
     }
 

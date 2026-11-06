@@ -1,86 +1,87 @@
-name: 机型兼容性反馈 / Device compatibility report
-description: 贴上 Mika 里「兼容性自检」的报告,告诉我们这台手机上哪些能用 / Paste the report from Mika's compatibility self-check and tell us what works on your phone
+# WOOWTECH fork: 渥屋助理的版本（繁中＋英文）。檔名與欄位 id 不能改：App 的「去 GitHub 回報」會開 ?template=device-report.yml。
+name: 機型相容性回報 / Device compatibility report
+description: 貼上渥屋助理「相容性自我檢查」的報告，告訴我們這支手機上哪些能用 / Paste the report from woowtech agent's compatibility self-check and tell us what works on your phone
 title: "[兼容性] "
 body:
   - type: markdown
     attributes:
       value: |
-        在 Mika 里打开 **设置 › 恢复与修复 › 兼容性自检**,点「开始自检」,大约 1 分钟。跑完点「去 GitHub 反馈」会复制报告并打开这一页,把报告粘贴到下面的「自检报告」里。
-        报告里只有机型、系统版本和每一项的结果,不含账号、App 列表和你的内容;发出前请再看一遍。
+        在渥屋助理打開 **設定 › 恢復與修復 › 相容性自我檢查**，按「開始檢查」，大約 1 分鐘。跑完按「去 GitHub 回報」會複製報告並打開這一頁，把報告貼到下面的「自我檢查報告」。
+        報告裡只有機型、系統版本和每一項的結果，不含帳號、App 清單和你的內容；送出前請再看一遍。
 
-        In Mika, open **Settings › Recovery & repair › Compatibility self-check** and tap "Start" (about 1 minute). When it finishes, "Report on GitHub" copies the report and opens this page; paste it into "Self-check report" below.
+        In woowtech agent, open **Settings › Recovery & repair › Compatibility self-check** and tap "Start" (about 1 minute). When it finishes, "Report on GitHub" copies the report and opens this page; paste it into "Self-check report" below.
         The report only has the phone model, system version and the result of each check, with no accounts, app lists or your content. Please read it before posting.
   - type: input
     id: model
     attributes:
-      label: 手机型号 / Phone model
-      description: 厂商和型号 / Manufacturer and model
+      label: 手機型號 / Phone model
+      description: 廠牌和型號 / Manufacturer and model
     validations:
       required: true
   - type: input
     id: system
     attributes:
-      label: 安卓与系统版本 / Android and system version
-      description: 安卓版本,以及手机系统自己的版本号(如果有) / Android version, plus the phone's own system version if it has one
+      label: Android 與系統版本 / Android and system version
+      description: Android 版本，以及手機系統自己的版本號（如果有） / Android version, plus the phone's own system version if it has one
     validations:
       required: true
   - type: input
     id: mika-version
     attributes:
-      label: Mika 版本 / Mika version
-      description: 设置 › 关于 Mika / Settings › About Mika
+      label: 渥屋助理版本 / woowtech agent version
+      description: 設定 › 關於渥屋助理 / Settings › About woowtech agent
     validations:
       required: true
   - type: textarea
     id: report
     attributes:
-      label: 自检报告 / Self-check report
-      description: 粘贴「兼容性自检」的报告全文 / Paste the whole self-check report
+      label: 自我檢查報告 / Self-check report
+      description: 貼上「相容性自我檢查」的報告全文 / Paste the whole self-check report
       render: text
     validations:
       required: true
   - type: dropdown
     id: pairing
     attributes:
-      label: 手机操作的配对成功了吗? / Did phone control pairing work?
+      label: 手機操作的配對成功了嗎？ / Did phone control pairing work?
       options:
         - 成功 / Yes
-        - 没成功 / No
-        - 用电脑经 USB 启动 / Started from a computer over USB
-        - 没试 / Didn't try
+        - 沒成功 / No
+        - 用電腦經 USB 啟動 / Started from a computer over USB
+        - 沒試 / Didn't try
     validations:
       required: true
   - type: dropdown
     id: tasks
     attributes:
-      label: 操作手机 App 的任务能跑吗? / Do tasks that use phone apps run?
+      label: 操作手機 App 的任務能跑嗎？ / Do tasks that use phone apps run?
       options:
         - 能 / Yes
         - 部分能 / Partly
         - 不能 / No
-        - 没试 / Didn't try
+        - 沒試 / Didn't try
     validations:
       required: true
   - type: checkboxes
     id: failed
     attributes:
-      label: 哪些没通过? / Which checks didn't pass?
-      description: 按报告勾选(都通过就不用勾) / Tick the ones the report shows as failed or partial (none if all passed)
+      label: 哪些沒通過？ / Which checks didn't pass?
+      description: 照報告勾選（都通過就不用勾） / Tick the ones the report shows as failed or partial (none if all passed)
       options:
-        - label: 设备 / Device
-        - label: 权限 / Permissions
-        - label: 内置助手 / Built-in helper
-        - label: 虚拟屏 / Virtual display
-        - label: 打开 App / Opening apps
-        - label: 读屏 / Reading the screen
-        - label: 点按和打字 / Taps and typing
-        - label: 持续运行 / Keeps running
-        - label: 不打扰你的屏幕 / Your screen undisturbed
-        - label: 内置浏览器 / Built-in browser
+        - label: 裝置 / Device
+        - label: 權限 / Permissions
+        - label: 內建助手 / Built-in helper
+        - label: 虛擬螢幕 / Virtual display
+        - label: 開啟 App / Opening apps
+        - label: 讀取螢幕 / Reading the screen
+        - label: 點按和打字 / Taps and typing
+        - label: 持續運作 / Keeps running
+        - label: 不打擾你的螢幕 / Your screen undisturbed
+        - label: 內建瀏覽器 / Built-in browser
         - label: 沙箱 / Sandbox
-        - label: 分身与工作资料 / App copies
+        - label: 分身與工作資料夾 / App copies
   - type: textarea
     id: notes
     attributes:
-      label: 其他补充 / Anything else
-      description: 你看到了什么、在做什么任务时出的问题(不要贴账号、密码和私人内容) / What you saw and what the task was (no accounts, passwords or private content)
+      label: 其他補充 / Anything else
+      description: 你看到了什麼、在做什麼任務時出問題（不要貼帳號、密碼和私人內容） / What you saw and what the task was (no accounts, passwords or private content)

@@ -2,6 +2,13 @@
 
 English | [简体中文](CONTRIBUTING.zh-CN.md)
 
+> **WOOWTECH build (渥屋助理 / woowtech agent).** This repository is WOOWTECH's branded build of [Mika](https://github.com/wangzan101/Mika).
+> Report problems with the WOOWTECH build (installing, branding, Taiwan app knowledge, updates) in this repository's
+> [Issues](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues); for the compatibility self-check, use "Report on GitHub" in the app.
+> What WOOWTECH changed and how it syncs with upstream: [docs-woowtech/FORK.md](../docs-woowtech/FORK.md).
+> The guide below is upstream's and covers the code shared with upstream; improvements to the agent itself are welcome upstream too.
+> 繁體中文說明見 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) 開頭。
+
 Help make Mika better. The easiest way is to add usage knowledge for an app or website, which needs no code; bug reports and code are welcome too.
 
 ## Add app / website knowledge (no code needed)

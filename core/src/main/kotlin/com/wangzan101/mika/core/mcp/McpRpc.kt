@@ -160,7 +160,7 @@ class McpRpc(
         } catch (e: McpTaskTools.ToolError) {
             return Call.Done(toolResult(e.message ?: "error", null, isError = true))
         } catch (e: Exception) {
-            return Call.Done(toolResult("Mika could not do that: ${e.message ?: e::class.simpleName}", null, isError = true))
+            return Call.Done(toolResult(Brand.text("Mika could not do that: ") + (e.message ?: e::class.simpleName), null, isError = true))
         }
         return Call.Done(toolResult(out.toString(), out, isError = false))
     }

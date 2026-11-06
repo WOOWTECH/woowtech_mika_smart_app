@@ -88,8 +88,8 @@ fun LicensesScreen(onBack: () -> Unit) {
         runCatching { context.assets.open("runtime/packages.json").use { Licenses.runtimePackages(it.readBytes().decodeToString()) } }
             .getOrDefault(emptyList())
     }
-    // WOOWTECH fork: 品牌版把上游 Mika 列成第三方组件、补 ML Kit(没有品牌设定时同上游)
-    val thirdParty = BrandLicenses.thirdParty(Licenses.ENTRIES) + runtime
+    // WOOWTECH fork: 清单按 flavor 取(upstream 同上游;woowtech 列出上游 Mika 署名、补 ML Kit、跟着界面语言翻译)
+    val thirdParty = BrandLicenses.thirdParty(Licenses.ENTRIES, runtime)
     SubPage(AboutCopy.LICENSE_TITLE, onBack) {
         if (licenseText.isNotEmpty()) {
             MikaCard(Modifier.padding(bottom = 12.dp).testTag("license-text")) {
