@@ -58,7 +58,7 @@
     <string name="model_example_gemini">예: gemini-flash-latest</string>
     <string name="model_example_anthropic">예: claude-sonnet-4-5</string>
     <string name="model_example_openai">예: gpt-5-mini</string>
-    <string name="model_example_compat">예: deepseek-chat</string>
+    <string name="model_example_compat">예: mistral-large-latest</string>
     <string name="model_example_grok">예: grok-4</string>
     <string name="model_probe_not_found">모델 “%1$s”이(가) 없어요. 제공업체 문서에 나온 전체 모델 ID를 입력하세요(%2$s).</string>
     <string name="model_probe_not_found_no_list">모델 목록을 가져오지 못했고, “%1$s”로 한 테스트 호출에서도 찾지 못했어요. 주소나 인터페이스 유형이 잘못됐거나 그런 모델이 없을 가능성이 커요(모델 이름 예: %2$s).</string>

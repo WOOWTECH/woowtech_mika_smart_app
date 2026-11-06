@@ -567,7 +567,7 @@ class ModelSetupViewModelTest {
         vm.selectPreset(groq.label); vm.setApiKey("k"); vm.testAndSave(); runCurrent()
         assertTrue(vm.state.value.form.noList)
         vm.setModel("llama-9"); vm.testAndSave(); runCurrent()
-        assertEquals(ListState.Failed("模型「llama-9」不存在。要填服务商文档里完整的模型 ID（例如 deepseek-chat）。"), vm.state.value.form.test)
+        assertEquals(ListState.Failed("模型「llama-9」不存在。要填服务商文档里完整的模型 ID（例如 mistral-large-latest）。"), vm.state.value.form.test)
         assertTrue(store.providers.value.isEmpty())
     }
 
@@ -613,7 +613,7 @@ class ModelSetupViewModelTest {
         vm.pickManual(ModelRole.Main, p.id, "gemini") { picked++ }
         assertEquals(ListState.Running, vm.state.value.manualPick[p.id])
         runCurrent()
-        assertEquals(ListState.Failed("模型「gemini」不存在。要填服务商文档里完整的模型 ID（例如 deepseek-chat）。"), vm.state.value.manualPick[p.id])
+        assertEquals(ListState.Failed("模型「gemini」不存在。要填服务商文档里完整的模型 ID（例如 mistral-large-latest）。"), vm.state.value.manualPick[p.id])
         assertEquals(0, picked)
         assertNull(store.roles.value.main)
         // 只回话不调用工具的,当不了主模型
