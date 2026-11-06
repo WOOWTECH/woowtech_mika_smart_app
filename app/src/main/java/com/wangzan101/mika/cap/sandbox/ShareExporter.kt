@@ -1,5 +1,6 @@
 package com.wangzan101.mika.cap.sandbox
 
+import com.wangzan101.mika.core.brand.Brand
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
@@ -41,7 +42,7 @@ class ShareExporter(private val context: Context) {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
-            put(MediaStore.Downloads.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_DOWNLOADS}/Mika/")
+            put(MediaStore.Downloads.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_DOWNLOADS}/${Brand.downloadFolder}/")
             mimeOf(name)?.let { put(MediaStore.Downloads.MIME_TYPE, it) }
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
@@ -68,7 +69,7 @@ class ShareExporter(private val context: Context) {
             throw e
         }
         val actual = displayName(uri) ?: name
-        return SharedFile(actual, size, "Download/Mika/$actual", uri.toString())
+        return SharedFile(actual, size, "Download/${Brand.downloadFolder}/$actual", uri.toString())
     }
 
     /**
@@ -79,7 +80,7 @@ class ShareExporter(private val context: Context) {
         val args = Bundle().apply {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION,
                 "${MediaStore.MediaColumns.IS_PENDING} = 1 AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ?")
-            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, arrayOf("${android.os.Environment.DIRECTORY_DOWNLOADS}/Mika/%", context.packageName))
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, arrayOf("${android.os.Environment.DIRECTORY_DOWNLOADS}/${Brand.downloadFolder}/%", context.packageName))
             putInt(MediaStore.QUERY_ARG_MATCH_PENDING, MediaStore.MATCH_INCLUDE)
         }
         val ids = resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, arrayOf(MediaStore.MediaColumns._ID), args, null)?.use { c ->

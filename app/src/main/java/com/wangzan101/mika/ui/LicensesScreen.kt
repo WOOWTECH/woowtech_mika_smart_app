@@ -1,5 +1,6 @@
 package com.wangzan101.mika.ui
 
+import com.wangzan101.mika.woowtech.BrandLicenses
 import com.wangzan101.mika.R
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
@@ -88,7 +89,8 @@ fun LicensesScreen(onBack: () -> Unit) {
         runCatching { context.assets.open("runtime/packages.json").use { Licenses.runtimePackages(it.readBytes().decodeToString()) } }
             .getOrDefault(emptyList())
     }
-    val thirdParty = Licenses.ENTRIES.filter { it.name != "Mika" } + runtime
+    // WOOWTECH fork: 品牌版把上游 Mika 列成第三方组件、补 ML Kit(没有品牌设定时同上游)
+    val thirdParty = BrandLicenses.thirdParty(Licenses.ENTRIES) + runtime
     SubPage(AboutCopy.LICENSE_TITLE, onBack) {
         if (licenseText.isNotEmpty()) {
             MikaCard(Modifier.padding(bottom = 12.dp).testTag("license-text")) {

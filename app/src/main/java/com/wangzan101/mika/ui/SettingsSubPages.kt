@@ -1,5 +1,6 @@
 package com.wangzan101.mika.ui
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.i18n.trPlural
 import com.wangzan101.mika.R
@@ -396,7 +397,7 @@ fun LanguageScreen(language: AppLanguage, onLanguage: (AppLanguage) -> Unit, onB
         }
         GroupLabel(stringResource(R.string.language_title))
         GroupCard {
-            AppLanguage.entries.forEachIndexed { i, l ->
+            AppLanguage.entries.filter { it.tag == null || Brand.uiLanguages.isEmpty() || it.tag in Brand.uiLanguages }.forEachIndexed { i, l ->
                 RadioRow(
                     languageLabel(l), selected = l == language, onClick = { if (l != language) onLanguage(l) },
                     subtitle = if (l == AppLanguage.System) stringResource(R.string.language_system_detail) else null, first = i == 0,

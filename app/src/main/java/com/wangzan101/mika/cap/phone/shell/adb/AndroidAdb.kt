@@ -1,5 +1,6 @@
 package com.wangzan101.mika.cap.phone.shell.adb
 
+import com.wangzan101.mika.core.brand.Brand
 import android.content.Context
 import android.net.ssl.SSLSockets
 import android.os.Build
@@ -33,7 +34,7 @@ object AndroidAdb {
 
     /** 本进程唯一的一份身份来源:配对和连接都从这里拿,拿到的是同一把钥匙。 */
     fun identities(context: Context): AdbIdentitySource = source ?: synchronized(this) {
-        source ?: AdbIdentitySource(keyStore(context), { "mika@${Build.MODEL}" }) { msg, e -> Log.w(TAG, msg, e) }.also { source = it }
+        source ?: AdbIdentitySource(keyStore(context), { "${Brand.token.lowercase()}@${Build.MODEL}" }) { msg, e -> Log.w(TAG, msg, e) }.also { source = it }
     }
 
     /** 连接用的身份;存着的钥匙读不出时抛 [com.wangzan101.mika.core.adb.AdbKeyUnreadableException]。 */

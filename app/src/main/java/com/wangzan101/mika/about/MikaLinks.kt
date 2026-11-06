@@ -1,18 +1,20 @@
 package com.wangzan101.mika.about
 
 import com.wangzan101.mika.R
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.i18n.tr
 import java.net.URLEncoder
 
 /** Mika 对外的地址都在这里:仓库、问题、检查更新用的两个来源。换地址只改这一处。 */
 object MikaLinks {
-    const val REPO = "https://github.com/wangzan101/Mika"
-    const val REPO_LABEL = "github.com/wangzan101/Mika"
-    const val README = "$REPO#readme"
-    const val RELEASES = "$REPO/releases"
-    const val NEW_ISSUE = "$REPO/issues/new"
+    // WOOWTECH fork: 地址取自品牌层(没有品牌设定时是上游的 wangzan101/Mika)
+    val REPO = Brand.repo
+    val REPO_LABEL = Brand.repoLabel
+    val README = "$REPO#readme"
+    val RELEASES = "$REPO/releases"
+    val NEW_ISSUE = "$REPO/issues/new"
     /** 检查更新只问 GitHub 发布页(不登录,每小时有次数限制)。 */
-    const val LATEST_RELEASE_API = "https://api.github.com/repos/wangzan101/Mika/releases/latest"
+    val LATEST_RELEASE_API = Brand.latestReleaseApi
 
     /** 反馈时预先填进问题模板的设备与版本信息。 */
     data class Device(

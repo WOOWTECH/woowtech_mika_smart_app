@@ -1,5 +1,6 @@
 package com.wangzan101.mika.about
 
+import com.wangzan101.mika.core.brand.Brand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -116,7 +117,7 @@ class UpdateChecker(
 
     private fun get(url: String): String {
         val req = Request.Builder().url(url)
-            .header("User-Agent", "Mika/$currentVersion")
+            .header("User-Agent", "${Brand.token}/$currentVersion")
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
             .build()

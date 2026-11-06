@@ -518,7 +518,7 @@ private fun Detail(
     val r = card.run
     val sub = listOfNotNull(CapsuleCards.status(r.kind), elapsed(r.startedAt)).joinToString(" · ")
     CardFrame(height, fixed = false) {
-        Header(ScreenCopy.plain(r.run.goal).ifBlank { "Mika" }, sub, actions, handle)
+        Header(ScreenCopy.plain(r.run.goal).ifBlank { tr(R.string.app_name) }, sub, actions, handle)
         val screen = preview?.takeIf { CapsuleCards.showsScreen(card.content) }
         // 步骤那段的高度上限 = 小画面的高;还没有画面时按主屏的宽高比算同样的高,画面来了不跳
         val config = LocalConfiguration.current
@@ -652,7 +652,7 @@ private fun ChatCard(
     CardFrame(height) {
         if (r == null) IdleHeader(card, actions, handle)
         else Header(
-            ScreenCopy.plain(thread?.title ?: r.run.goal).ifBlank { "Mika" },
+            ScreenCopy.plain(thread?.title ?: r.run.goal).ifBlank { tr(R.string.app_name) },
             listOfNotNull(CapsuleCards.status(r.kind), elapsed(r.startedAt)).joinToString(" · "),
             actions, handle,
         )

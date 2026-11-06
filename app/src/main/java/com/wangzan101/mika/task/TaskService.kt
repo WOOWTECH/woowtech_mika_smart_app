@@ -658,7 +658,7 @@ class TaskService : Service() {
     /** 忙着却还没有任务对象时(收尾被打断等)也得马上进前台。 */
     private fun preparingNotification(): Notification = Notification.Builder(this, CHANNEL_PROGRESS)
         .setSmallIcon(R.drawable.ic_notification)
-        .setContentTitle("Mika")
+        .setContentTitle(tr(R.string.app_name))
         .setContentText(PREPARING)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
@@ -856,7 +856,7 @@ class TaskService : Service() {
                     .setAutoCancel(true)
                     .build())
                 is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
-                    .setSmallIcon(R.drawable.ic_notification).setContentTitle("Mika")
+                    .setSmallIcon(R.drawable.ic_notification).setContentTitle(tr(R.string.app_name))
                     .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
                 is Delivery.Ask, is Delivery.Progress -> {}
             }
@@ -1043,7 +1043,7 @@ class TaskService : Service() {
 
         /** 通知的标题和正文;[appLabel] 把包名换成 App 名。 */
         internal fun describe(state: TaskState, appLabel: (String) -> String = { it }): Pair<String, String> = when (state) {
-            TaskState.Idle -> "Mika" to ""
+            TaskState.Idle -> tr(R.string.app_name) to ""
             is TaskState.Running -> tr(R.string.task_running) to (state.progress?.let(StatusCopy::progress) ?: when {
                 state.step == 0 -> state.note
                 else -> tr(R.string.task_step_note, state.step, state.note).trimEnd(':', ' ')

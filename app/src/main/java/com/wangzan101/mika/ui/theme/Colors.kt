@@ -1,5 +1,6 @@
 package com.wangzan101.mika.ui.theme
 
+import com.wangzan101.mika.core.brand.Brand
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -71,8 +72,8 @@ val LightColors = MikaColors(
     ink3 = Color(0xFF9A9BA3),
     hair = Color(0x12000000),
     edge = Color(0x0D000000),
-    accent = Color(0xFF0A7CFF),
-    accentSoft = Color(0x1A0A7CFF),
+    accent = Color(Brand.argb("accent.light", 0xFF0A7CFF)),
+    accentSoft = Color(Brand.argb("accent.light.soft", 0x1A0A7CFF)),
     onAccent = Color(0xFFFFFFFF),
     ok = Color(0xFF1F9D55),
     okSoft = Color(0x1F1F9D55),
@@ -104,8 +105,8 @@ val DarkColors = MikaColors(
     ink3 = Color(0xFF6C6D75),
     hair = Color(0x14FFFFFF),
     edge = Color(0x0FFFFFFF),
-    accent = Color(0xFF3D97FF),
-    accentSoft = Color(0x293D97FF),
+    accent = Color(Brand.argb("accent.dark", 0xFF3D97FF)),
+    accentSoft = Color(Brand.argb("accent.dark.soft", 0x293D97FF)),
     onAccent = Color(0xFFFFFFFF),
     ok = Color(0xFF3CCF7A),
     okSoft = Color(0x243CCF7A),

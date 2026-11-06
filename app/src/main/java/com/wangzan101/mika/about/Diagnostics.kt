@@ -1,5 +1,6 @@
 package com.wangzan101.mika.about
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.adb.ConnectCandidates
 import com.wangzan101.mika.core.record.Redactor
 import com.wangzan101.mika.core.shell.BuiltinShellStatus
@@ -122,7 +123,7 @@ data class DiagnosticsSnapshot(
 
 /** 把 [DiagnosticsSnapshot] 写成一段纯文本:分段顺序固定,英文键,发到微信或 GitHub 都好读。最后整段再过一遍脱敏。 */
 object Diagnostics {
-    const val HEADER = "Mika 诊断信息 / Mika diagnostics"
+    val HEADER: String = Brand.text("Mika 诊断信息 / Mika diagnostics")
 
     fun render(s: DiagnosticsSnapshot): String = sanitize(buildString {
         appendLine(HEADER)

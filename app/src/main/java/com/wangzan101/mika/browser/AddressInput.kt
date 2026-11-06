@@ -1,5 +1,6 @@
 package com.wangzan101.mika.browser
 
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.cap.web.WebUrlPolicy
 import java.net.URLEncoder
 
@@ -11,7 +12,7 @@ import java.net.URLEncoder
  * - 其余(含空格、中文、只有一个词、邮箱这类)用必应搜索。
  */
 object AddressInput {
-    const val SEARCH_PREFIX = "https://www.bing.com/search?q="
+    val SEARCH_PREFIX: String = Brand.searchUrl
 
     private val SCHEME = Regex("^[A-Za-z][A-Za-z0-9+.-]*://")
     private val LABEL = Regex("^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
