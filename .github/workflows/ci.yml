@@ -96,15 +96,16 @@ jobs:
           cache-provider: basic
       # assembleDebug 验证单测碰不到的打包路径：31MB 的 rootfs、jniLibs 旧式解压、AIDL、Compose。
       - name: Unit tests and debug build
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        # WOOWTECH fork: 只跑 upstream flavor(woowtech 版由 woowtech.yml 建);两个 flavor 一起编会超出 2 GB 的编译内存
+        run: ./gradlew :app:testUpstreamDebugUnitTest :app:assembleUpstreamDebug --stacktrace
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: app-test-results
           path: |
-            app/build/test-results/testDebugUnitTest
-            app/build/reports/tests/testDebugUnitTest
+            app/build/test-results/testUpstreamDebugUnitTest
+            app/build/reports/tests/testUpstreamDebugUnitTest
           retention-days: 7
           if-no-files-found: ignore
 

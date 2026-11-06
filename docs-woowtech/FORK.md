@@ -14,7 +14,7 @@
 
 ## 品牌層怎麼運作
 
-- `app/brand.gradle.kts`：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
+- `app/brand.gradle.kts`＋`app/build.gradle.kts` 結尾：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
 - 品牌值只有一個來源：`app/src/woowtech/resources/brand.properties`，由 `core/.../brand/Brand.kt` 讀取。沒有這個檔時，所有值都退回上游原值。
 - 介面字串：Gradle 設定時，把 `src/main/res`（英文、繁中）裡提到 Mika 或上游 repo 的字串，自動換成品牌名和本 repo，產生到 `app/.gradle/woowtech-brand-res`（不進 git）。`app/src/woowtech/res` 裡人工寫的 key 不會被覆蓋。上游新增或修改字串，下次建置會自動跟上。
 - 給模型看的內部文字（工具結果、系統說明）維持「Mika」。人設段（`prompts/system/identity.md`）開頭換成品牌名，並補一段說明：內部說的 Mika 就是它自己，對使用者一律自稱渥屋助理。
@@ -24,7 +24,8 @@
 
 | 檔案 | 改什麼 | 原因 |
 |---|---|---|
-| `app/build.gradle.kts` | 最後一行 `apply(from = "brand.gradle.kts")` | 品牌層入口 |
+| `app/build.gradle.kts` | 結尾一段：`apply(from = "brand.gradle.kts")`，再加 flavor、woowtech 資源目錄、選用的簽章、測試開關（套用的腳本看不到 Android 外掛的型別，所以接線放這裡） | 品牌層入口 |
+| `.github/workflows/ci.yml` | app 工作只跑 upstream flavor（`testUpstreamDebugUnitTest`、`assembleUpstreamDebug`） | 兩個 flavor 一起編會超過 2 GB 編譯記憶體；woowtech 版由 `woowtech.yml` 建 |
 | `core/.../prompt/Prompts.kt` | `read()` 經過 `Brand.prompt()` | 人設改名 |
 | `core/.../chatgpt/ChatGptAuth.kt`、`core/.../oauth/OpenRouterAuth.kt` | 給 OpenAI、OpenRouter 看的 App 名稱 | 第三方同意頁顯示正確產品名 |
 | `core/.../mcp/McpRpc.kt`、`core/.../cap/mcp/{McpOAuth,HttpMcpClient,LegacySseMcpClient,StdioMcpClient}.kt`、`app/.../settings/McpServerStore.kt` | MCP 伺服器與用戶端的名稱、說明、登入結果頁 | 電腦端和外部 MCP 伺服器看得到 |
