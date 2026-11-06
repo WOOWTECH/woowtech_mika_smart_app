@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">Tinggi</string>
     <string name="model_reasoning_xhigh">Sangat tinggi</string>
     <string name="model_reasoning_max">Maksimum</string>
-    <string name="speech_doubao_provider">Volcengine · pengenalan suara</string>
-    <string name="speech_doubao_model">Doubao ASR streaming 2.0</string>
-    <string name="speech_doubao_note">Volcengine · kredensial tersendiri</string>
-    <string name="speech_doubao_missing">Atur kredensial suara Doubao di Pengaturan › Model › Ucapan ke teks.</string>
-    <string name="speech_doubao_new">Konsol baru</string>
-    <string name="speech_doubao_legacy">Konsol lama</string>
-    <string name="speech_doubao_enter_app">App ID aplikasi suara</string>
-    <string name="speech_doubao_enter_key">Masukkan kredensial layanan suara</string>
-    <string name="speech_doubao_duration">Paket durasi</string>
-    <string name="speech_doubao_concurrent">Paket konkurensi</string>
-    <string name="speech_doubao_privacy">Menyimpan tidak terhubung ke internet dan belum memeriksa akses. Selama Anda menahan untuk bicara, audio dikirim ke Volcengine dan mungkin dikenai biaya. Kredensial disimpan terenkripsi di ponsel ini.</string>
-    <string name="speech_doubao_save">Simpan dan gunakan</string>
-    <string name="speech_doubao_remove">Hapus kredensial tersimpan</string>
-    <string name="speech_doubao_save_failed">Tidak dapat mengenkripsi dan menyimpan kredensial suara. Coba lagi.</string>
-    <string name="speech_doubao_group">Layanan suara langsung</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">Pengaturan</string>
-    <string name="speech_doubao_setup_hint">Pengenalan suara Volcengine: kata muncul saat Anda bicara. Aktifkan dulu Speech Recognition 2.0 di Volcengine; kredensialnya terpisah dari model chat.</string>
-    <string name="speech_doubao_credentials">Kredensial</string>
-    <string name="speech_doubao_plan">Penagihan</string>
-    <string name="speech_doubao_duration_note">Ditagih per waktu pengenalan</string>
-    <string name="speech_doubao_concurrent_note">Ditagih per koneksi bersamaan</string>
 </resources>

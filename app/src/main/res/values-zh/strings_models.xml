@@ -171,7 +171,7 @@
     <!-- 设置 › 模型:语音转文字这个用途和它的选择页 -->
     <string name="role_speech">语音转文字</string>
     <string name="role_speech_what">按住说话时用</string>
-    <string name="speech_hint">可使用手机自带识别、边说边转的语音服务，或说完再转的服务商模型；在线服务使用你的服务商额度。</string>
+    <string name="speech_hint">可使用手机自带识别，或说完再转的服务商模型；在线服务使用你的服务商额度。</string>
     <string name="speech_system">手机自带</string>
     <string name="speech_system_offline">可离线</string>
     <string name="speech_system_online">需联网</string>

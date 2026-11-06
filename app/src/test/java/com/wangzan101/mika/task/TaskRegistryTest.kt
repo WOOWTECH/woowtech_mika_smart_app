@@ -119,7 +119,7 @@ class TaskRegistryTest {
     }
 
     @Test fun channelMessageIsExecutedOnlyOnceAndKeepsItsReplyAddress() {
-        val peer = ChannelPeer("wechat", "owner", "thread")
+        val peer = ChannelPeer("remote", "owner", "thread")
         val first = registry.tryStart("thread", "任务", queueInConversation = true,
             channelPeer = peer, channelMessageId = "message-1")
         val duplicate = registry.tryStart("thread", "任务", queueInConversation = true,
@@ -133,7 +133,7 @@ class TaskRegistryTest {
     }
 
     @Test fun consecutiveChannelMessagesQueueInOrderWithoutMergingOrRepeatingRedeliveries() {
-        val peer = ChannelPeer("wechat", "owner", "thread")
+        val peer = ChannelPeer("remote", "owner", "thread")
         val first = registry.tryStart("thread", "相同的话", queueInConversation = true,
             channelPeer = peer, channelMessageId = "message-1")
         val second = registry.tryStart("thread", "相同的话", queueInConversation = true,

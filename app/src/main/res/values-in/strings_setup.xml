@@ -58,7 +58,7 @@
     <string name="model_example_gemini">mis. gemini-flash-latest</string>
     <string name="model_example_anthropic">mis. claude-sonnet-4-5</string>
     <string name="model_example_openai">mis. gpt-5-mini</string>
-    <string name="model_example_compat">mis. deepseek-chat</string>
+    <string name="model_example_compat">mis. mistral-large-latest</string>
     <string name="model_example_grok">mis. grok-4</string>
     <string name="model_probe_not_found">Model “%1$s” tidak ada. Masukkan ID model lengkap dari dokumentasi penyedia (%2$s).</string>
     <string name="model_probe_not_found_no_list">Tidak ada model yang bisa dimuat, dan panggilan uji dengan “%1$s” juga tidak ditemukan: kemungkinan alamat atau jenis antarmuka salah, atau model itu tidak ada (nama model seperti: %2$s).</string>

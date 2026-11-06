@@ -58,7 +58,7 @@
     <string name="model_example_gemini">например, gemini-flash-latest</string>
     <string name="model_example_anthropic">например, claude-sonnet-4-5</string>
     <string name="model_example_openai">например, gpt-5-mini</string>
-    <string name="model_example_compat">например, deepseek-chat</string>
+    <string name="model_example_compat">например, mistral-large-latest</string>
     <string name="model_example_grok">например, grok-4</string>
     <string name="model_probe_not_found">Модели «%1$s» не существует. Введите полный идентификатор модели из документации провайдера (%2$s).</string>
     <string name="model_probe_not_found_no_list">Список моделей получить не удалось, и пробный вызов с «%1$s» тоже ничего не нашёл: вероятно, адрес или тип интерфейса неверны, либо такой модели нет (названия моделей выглядят так: %2$s).</string>

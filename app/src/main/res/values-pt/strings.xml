@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">Alto</string>
     <string name="model_reasoning_xhigh">Muito alto</string>
     <string name="model_reasoning_max">Máximo</string>
-    <string name="speech_doubao_provider">Volcengine · reconhecimento de voz</string>
-    <string name="speech_doubao_model">Doubao ASR em streaming 2.0</string>
-    <string name="speech_doubao_note">Volcengine · credenciais próprias</string>
-    <string name="speech_doubao_missing">Configure as credenciais de voz do Doubao em Configurações › Modelo › Fala para texto.</string>
-    <string name="speech_doubao_new">Console novo</string>
-    <string name="speech_doubao_legacy">Console antigo</string>
-    <string name="speech_doubao_enter_app">App ID do aplicativo de voz</string>
-    <string name="speech_doubao_enter_key">Digite uma credencial do serviço de voz</string>
-    <string name="speech_doubao_duration">Plano por duração</string>
-    <string name="speech_doubao_concurrent">Plano por concorrência</string>
-    <string name="speech_doubao_privacy">Salvar não se conecta à internet nem verifica o acesso ainda. Enquanto você segura para falar, o áudio vai para a Volcengine e pode gerar cobrança. As credenciais ficam criptografadas neste celular.</string>
-    <string name="speech_doubao_save">Salvar e usar</string>
-    <string name="speech_doubao_remove">Remover credenciais salvas</string>
-    <string name="speech_doubao_save_failed">Não foi possível criptografar e salvar as credenciais de voz. Tente de novo.</string>
-    <string name="speech_doubao_group">Serviços de voz ao vivo</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">Configurações</string>
-    <string name="speech_doubao_setup_hint">Reconhecimento de voz da Volcengine: as palavras aparecem enquanto você fala. Ative antes o Speech Recognition 2.0 na Volcengine; as credenciais são separadas das dos modelos de chat.</string>
-    <string name="speech_doubao_credentials">Credenciais</string>
-    <string name="speech_doubao_plan">Cobrança</string>
-    <string name="speech_doubao_duration_note">Cobrado pelo tempo reconhecido</string>
-    <string name="speech_doubao_concurrent_note">Cobrado por conexões simultâneas</string>
 </resources>

@@ -73,14 +73,14 @@ class ModelSetupViewModelTest {
     private fun TestScope.vm(s: ProviderStore = store()) =
         ModelSetupViewModel(s, backgroundScope, io = StandardTestDispatcher(testScheduler))
 
-    private val deepseekUrl = "https://api.deepseek.com"
-    private val qwenUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    private val openRouterUrl = "https://openrouter.ai/api/v1"
+    private val mistralUrl = "https://api.mistral.ai/v1"
     private val deepseek = ModelListResult.Ok(
         listOf(ListedModel("deepseek-chat"), ListedModel("deepseek-reasoner"), ListedModel("deepseek-coder", toolCalls = false)),
     )
 
     @Test fun testAndSaveStoresProviderAndPicksFirstModelAsMain() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         runCurrent()
@@ -92,9 +92,9 @@ class ModelSetupViewModelTest {
         vm.testAndSave()
         assertEquals(ListState.Running, vm.state.value.form.test)
         runCurrent()
-        assertEquals(Triple(ProviderConfig.Kind.OpenAiCompat, deepseekUrl, "sk-1"), listCalls.single())
+        assertEquals(Triple(ProviderConfig.Kind.OpenAiCompat, openRouterUrl, "sk-1"), listCalls.single())
         val p = store.providers.value.single()
-        assertEquals("DeepSeek", p.name)
+        assertEquals("OpenRouter", p.name)
         assertEquals(3, p.models?.size)
         assertEquals("sk-1", store.providerKey(p.id))
         // 自动选第一个模型为主模型(只存这一条配置)
@@ -109,7 +109,7 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun failedTestShowsReasonAndSavesNothing() = runTest {
-        listing[deepseekUrl] = ModelListResult.Failed(ListFailure.Auth)
+        listing[openRouterUrl] = ModelListResult.Failed(ListFailure.Auth)
         val store = store()
         val vm = vm(store)
         vm.setApiKey("bad"); vm.testAndSave(); runCurrent()
@@ -125,7 +125,7 @@ class ModelSetupViewModelTest {
 
     /** 列出模型后让会当主模型的那个调用一次工具:带一个无参数的工具、回复上限够一次调用、带客户端标识;成功才存。 */
     @Test fun testAndSaveSendsOneTinyRequestToTheMainCandidate() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk-1"); vm.testAndSave(); runCurrent()
@@ -133,7 +133,7 @@ class ModelSetupViewModelTest {
         assertEquals("deepseek-chat", model)
         assertEquals(1024, setup.maxOutputTokens)
         assertEquals("Mika/1.2.3", setup.headers["User-Agent"])
-        assertEquals("DeepSeek 没声明会话头", setOf("User-Agent"), setup.headers.keys)
+        assertEquals("OpenRouter 没声明会话头", setOf("User-Agent"), setup.headers.keys)
         val (_, messages, tools) = probes.single()
         assertEquals(1, messages.size)
         assertEquals(listOf("get_time"), tools.map { it.name })
@@ -143,7 +143,7 @@ class ModelSetupViewModelTest {
 
     /** 接口通、模型只回了话:接着试下一个可当主模型的(明说不会调用工具的不试);都只回话就存下服务商、不定主模型,请用户选;选好后提醒收起。 */
     @Test fun modelThatOnlyAnswersTextIsSavedButNotMadeMain() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         reply = { ModelReply(listOf(Part.Text("It is noon.")), StopReason.EndTurn, null) }
         val store = store()
         val vm = vm(store)
@@ -171,28 +171,28 @@ class ModelSetupViewModelTest {
         assertEquals("deepseek-reasoner", store.configFor(ModelRole.Main)?.model)
     }
 
-    /** 通义千问的 Key 下先列出别家的模型:先试自家的(qwen);第一个没开通就接着试下一个,通过的当主模型,说清先试的哪个没通过。 */
+    /** Mistral 的 Key 下先列出别家的模型:先试自家的(mistral);第一个没开通就接着试下一个,通过的当主模型,说清先试的哪个没通过。 */
     @Test fun notActivatedModelFallsBackToTheNextCandidate() = runTest {
-        listing[qwenUrl] = ModelListResult.Ok(listOf(
+        listing[mistralUrl] = ModelListResult.Ok(listOf(
             ListedModel("antdigital/Ling-3.1-flash", toolCalls = true), ListedModel("text-embedding-v4"),
-            ListedModel("qwen3-max-preview"), ListedModel("qwen-plus"),
+            ListedModel("mistral3-max-preview"), ListedModel("mistral-plus"),
         ))
         reply = {
-            if (built.last().first != "qwen-plus") throw ModelError.ModelNotAvailable(built.last().first, "The product is not activated.")
+            if (built.last().first != "mistral-plus") throw ModelError.ModelNotAvailable(built.last().first, "The product is not activated.")
             ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null)
         }
         val store = store()
         val vm = vm(store)
-        vm.selectPreset("通义千问"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
-        assertEquals("自家的先试、向量模型不试", listOf("qwen3-max-preview", "qwen-plus"), built.map { it.first })
+        vm.selectPreset("Mistral"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals("自家的先试、向量模型不试", listOf("mistral3-max-preview", "mistral-plus"), built.map { it.first })
         val p = store.providers.value.single()
-        assertEquals("qwen-plus", store.configFor(ModelRole.Main)?.model)
-        assertTrue("qwen-plus" in p.verifiedModels)
+        assertEquals("mistral-plus", store.configFor(ModelRole.Main)?.model)
+        assertTrue("mistral-plus" in p.verifiedModels)
         val s = vm.state.value
         assertFalse(s.showForm)
         assertNull(s.pickToProbe)
         assertEquals(
-            "先试的 qwen3-max-preview 没测试通过：这个账号没开通或没权限用这个模型（服务商说：The product is not activated.）。主模型用了测试通过的「qwen-plus」。",
+            "先试的 mistral3-max-preview 没测试通过：这个账号没开通或没权限用这个模型（服务商说：The product is not activated.）。主模型用了测试通过的「mistral-plus」。",
             s.probeNote,
         )
     }
@@ -418,14 +418,14 @@ class ModelSetupViewModelTest {
 
     /** 试的几个都没开通:Key 是对的,照样存下服务商,不定主模型,说清试了哪些,请用户从列表里选;选的时候先试调用,不通不选。 */
     @Test fun allCandidatesNotActivatedSavesProviderAndAsksToPick() = runTest {
-        listing[qwenUrl] = ModelListResult.Ok(listOf(
-            ListedModel("antdigital/Ling-3.1-flash", toolCalls = true), ListedModel("qwen-plus"), ListedModel("qwen-max"), ListedModel("qwen-turbo"),
+        listing[mistralUrl] = ModelListResult.Ok(listOf(
+            ListedModel("antdigital/Ling-3.1-flash", toolCalls = true), ListedModel("mistral-plus"), ListedModel("mistral-max"), ListedModel("mistral-turbo"),
         ))
         reply = { throw ModelError.ModelNotAvailable(built.last().first, "The product is not activated.") }
         val store = store()
         val vm = vm(store)
-        vm.selectPreset("通义千问"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
-        assertEquals("至多试 3 个", listOf("qwen-plus", "qwen-max", "qwen-turbo"), built.map { it.first })
+        vm.selectPreset("Mistral"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals("至多试 3 个", listOf("mistral-plus", "mistral-max", "mistral-turbo"), built.map { it.first })
         val p = store.providers.value.single()
         assertEquals(4, p.models?.size)
         assertEquals("sk", store.providerKey(p.id))
@@ -434,8 +434,8 @@ class ModelSetupViewModelTest {
         assertFalse(s.showForm)
         assertEquals(ListState.Idle, s.form.test)
         assertEquals(
-            "服务商已连上，但「qwen-plus」没测试通过：这个账号没开通或没权限用这个模型（服务商说：The product is not activated.）。从列表里选一个你开通了的模型。\n" +
-                "试了 qwen-plus、qwen-max、qwen-turbo，都没开通。",
+            "服务商已连上，但「mistral-plus」没测试通过：这个账号没开通或没权限用这个模型（服务商说：The product is not activated.）。从列表里选一个你开通了的模型。\n" +
+                "试了 mistral-plus、mistral-max、mistral-turbo，都没开通。",
             s.probeNote,
         )
         assertEquals(p.id, s.pickToProbe)
@@ -449,21 +449,21 @@ class ModelSetupViewModelTest {
         assertEquals(0, picked)
         assertNull(store.roles.value.main)
         reply = { ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null) }
-        vm.pickManual(ModelRole.Main, p.id, "qwen-turbo") { picked++ }; runCurrent()
+        vm.pickManual(ModelRole.Main, p.id, "mistral-turbo") { picked++ }; runCurrent()
         assertEquals(1, picked)
-        assertEquals("qwen-turbo", store.configFor(ModelRole.Main)?.model)
+        assertEquals("mistral-turbo", store.configFor(ModelRole.Main)?.model)
         assertNull(vm.state.value.probeNote)
         assertNull(vm.state.value.pickToProbe)
     }
 
     /** 第一个就是 Key 不对(或别的不是模型的问题):不试别的,不存。 */
     @Test fun authErrorOnTheFirstCandidateSavesNothing() = runTest {
-        listing[qwenUrl] = ModelListResult.Ok(listOf(ListedModel("qwen-plus"), ListedModel("qwen-max")))
+        listing[mistralUrl] = ModelListResult.Ok(listOf(ListedModel("mistral-plus"), ListedModel("mistral-max")))
         reply = { throw ModelError.Auth() }
         val store = store()
         val vm = vm(store)
-        vm.selectPreset("通义千问"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
-        assertEquals(listOf("qwen-plus"), built.map { it.first })
+        vm.selectPreset("Mistral"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals(listOf("mistral-plus"), built.map { it.first })
         assertTrue(vm.state.value.form.test is ListState.Failed)
         assertTrue(store.providers.value.isEmpty())
         assertNull(vm.state.value.pickToProbe)
@@ -471,7 +471,7 @@ class ModelSetupViewModelTest {
 
     /** 试调用失败(例如服务商要的请求头没带):服务端的报错原样给人看,什么都不存。 */
     @Test fun failedTinyRequestShowsTheServerErrorAndSavesNothing() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         reply = { throw ModelError.BadResponse("HTTP 400 {\"error\":{\"type\":\"MissingSessionID\"}}") }
         val store = store()
         val vm = vm(store)
@@ -485,7 +485,7 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun tinyRequestThatNeverAnswersTimesOut() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         reply = { awaitCancellation() }
         val store = store()
         val vm = vm(store)
@@ -524,14 +524,14 @@ class ModelSetupViewModelTest {
         assertFalse("没填模型名不能测试", f.canTest)
         vm.setApiKey("k")
         assertTrue("换 Key 不收起模型名", vm.state.value.form.noList)
-        vm.setModel(" qwen3 ")
+        vm.setModel(" mistral3 ")
         assertTrue(vm.state.value.form.canTest)
         vm.testAndSave(); runCurrent()
-        assertEquals("qwen3", built.single().first)
+        assertEquals("mistral3", built.single().first)
         val p = store.providers.value.single()
         assertEquals(emptyList<ListedModel>(), p.models)
-        assertEquals(setOf("qwen3"), p.verifiedModels)
-        assertEquals("qwen3", store.configFor(ModelRole.Main)?.model)
+        assertEquals(setOf("mistral3"), p.verifiedModels)
+        assertEquals("mistral3", store.configFor(ModelRole.Main)?.model)
         assertFalse(vm.state.value.showForm)
         assertEquals(emptyList<String>(), vm.state.value.unverified(p))
     }
@@ -559,15 +559,15 @@ class ModelSetupViewModelTest {
 
     /** 预设(列表接口照理有)没列出模型、手填的找不到:只说模型不存在。 */
     @Test fun presetWithoutListReportsTheMissingModel() = runTest {
-        val ark = ProviderPresets.all.first { it.label == "火山方舟" }
-        listing[ark.baseUrl] = ModelListResult.Failed(ListFailure.NotSupported)
-        reply = { throw ModelError.ModelNotFound("doubao") }
+        val groq = ProviderPresets.all.first { it.label == "Groq" }
+        listing[groq.baseUrl] = ModelListResult.Failed(ListFailure.NotSupported)
+        reply = { throw ModelError.ModelNotFound("llama-9") }
         val store = store()
         val vm = vm(store)
-        vm.selectPreset(ark.label); vm.setApiKey("k"); vm.testAndSave(); runCurrent()
+        vm.selectPreset(groq.label); vm.setApiKey("k"); vm.testAndSave(); runCurrent()
         assertTrue(vm.state.value.form.noList)
-        vm.setModel("doubao"); vm.testAndSave(); runCurrent()
-        assertEquals(ListState.Failed("模型「doubao」不存在。要填服务商文档里完整的模型 ID（例如 deepseek-chat）。"), vm.state.value.form.test)
+        vm.setModel("llama-9"); vm.testAndSave(); runCurrent()
+        assertEquals(ListState.Failed("模型「llama-9」不存在。要填服务商文档里完整的模型 ID（例如 mistral-large-latest）。"), vm.state.value.form.test)
         assertTrue(store.providers.value.isEmpty())
     }
 
@@ -613,7 +613,7 @@ class ModelSetupViewModelTest {
         vm.pickManual(ModelRole.Main, p.id, "gemini") { picked++ }
         assertEquals(ListState.Running, vm.state.value.manualPick[p.id])
         runCurrent()
-        assertEquals(ListState.Failed("模型「gemini」不存在。要填服务商文档里完整的模型 ID（例如 deepseek-chat）。"), vm.state.value.manualPick[p.id])
+        assertEquals(ListState.Failed("模型「gemini」不存在。要填服务商文档里完整的模型 ID（例如 mistral-large-latest）。"), vm.state.value.manualPick[p.id])
         assertEquals(0, picked)
         assertNull(store.roles.value.main)
         // 只回话不调用工具的,当不了主模型
@@ -622,11 +622,11 @@ class ModelSetupViewModelTest {
         assertEquals(ListState.Failed("chatty 没有调用工具，Mika 干活需要会调用工具的模型，换一个当主模型。"), vm.state.value.manualPick[p.id])
         assertNull(store.roles.value.main)
         reply = { ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null) }
-        vm.pickManual(ModelRole.Main, p.id, " qwen3 ") { picked++ }; runCurrent()
+        vm.pickManual(ModelRole.Main, p.id, " mistral3 ") { picked++ }; runCurrent()
         assertEquals(1, picked)
         assertNull(vm.state.value.manualPick[p.id])
-        assertEquals("qwen3", store.configFor(ModelRole.Main)?.model)
-        assertEquals(setOf("qwen3"), store.provider(p.id)?.verifiedModels)
+        assertEquals("mistral3", store.configFor(ModelRole.Main)?.model)
+        assertEquals(setOf("mistral3"), store.provider(p.id)?.verifiedModels)
     }
 
     /** 旧版本存下的不提供列表的服务商(手填的模型从没试过):提醒,「重新测试」通了提醒消失、记下;不通说原因。 */
@@ -649,11 +649,11 @@ class ModelSetupViewModelTest {
         assertNull(vm.state.value.retest[p.id])
         assertEquals(emptyList<String>(), vm.state.value.unverified(vm.state.value.providers.single()))
         // 有列表的服务商不提醒
-        listing[deepseekUrl] = deepseek
-        vm.openForm(); vm.selectPreset("DeepSeek"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
-        val ds = vm.state.value.providers.first { it.name == "DeepSeek" }
+        listing[openRouterUrl] = deepseek
+        vm.openForm(); vm.selectPreset("OpenRouter"); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        val ds = vm.state.value.providers.first { it.name == "OpenRouter" }
         vm.pick(ModelRole.Light, ds.id, "deepseek-coder"); runCurrent()
-        assertEquals(emptyList<String>(), vm.state.value.unverified(vm.state.value.providers.first { it.name == "DeepSeek" }))
+        assertEquals(emptyList<String>(), vm.state.value.unverified(vm.state.value.providers.first { it.name == "OpenRouter" }))
     }
 
     /** 明文 http:本机、局域网的不提示;别的地址提醒一句,照样能测试。 */
@@ -671,17 +671,17 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun addingTwoProvidersInARowKeepsTheFirstMain() = runTest {
-        listing[deepseekUrl] = deepseek
-        listing[qwenUrl] = ModelListResult.Ok(listOf(ListedModel("qwen-vl", vision = true), ListedModel("qwen-max")))
+        listing[openRouterUrl] = deepseek
+        listing[mistralUrl] = ModelListResult.Ok(listOf(ListedModel("mistral-vl", vision = true), ListedModel("mistral-max")))
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
         val main = store.roles.value.main
         vm.openForm()
         assertTrue(vm.state.value.showForm)
-        vm.selectPreset("通义千问")
+        vm.selectPreset("Mistral")
         vm.setApiKey("qk"); vm.testAndSave(); runCurrent()
-        assertEquals(listOf("DeepSeek", "通义千问"), vm.state.value.providers.map { it.name })
+        assertEquals(listOf("OpenRouter", "Mistral"), vm.state.value.providers.map { it.name })
         assertEquals(listOf("sk", "qk"), store.providers.value.map { store.providerKey(it.id) })
         assertEquals("第二家不改主模型", main, store.roles.value.main)
         assertEquals(1, store.list().size)
@@ -689,30 +689,30 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun visionCanComeFromAnotherProvider() = runTest {
-        listing[deepseekUrl] = deepseek
-        listing[qwenUrl] = ModelListResult.Ok(listOf(ListedModel("qwen-max"), ListedModel("qwen-plain", toolCalls = false)))
+        listing[openRouterUrl] = deepseek
+        listing[mistralUrl] = ModelListResult.Ok(listOf(ListedModel("mistral-max"), ListedModel("mistral-plain", toolCalls = false)))
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
-        vm.openForm(); vm.selectPreset("通义千问"); vm.setApiKey("qk"); vm.testAndSave(); runCurrent()
-        val qwen = vm.state.value.providers.first { it.name == "通义千问" }
+        vm.openForm(); vm.selectPreset("Mistral"); vm.setApiKey("qk"); vm.testAndSave(); runCurrent()
+        val mistral = vm.state.value.providers.first { it.name == "Mistral" }
         // 选择页列出所有服务商的全部模型,不按能力过滤
         assertEquals(listOf(3, 2), vm.state.value.providers.map { vm.state.value.options(it).size })
-        vm.pick(ModelRole.Vision, qwen.id, "qwen-plain"); runCurrent()
+        vm.pick(ModelRole.Vision, mistral.id, "mistral-plain"); runCurrent()
         val vision = store.configFor(ModelRole.Vision)!!
-        assertEquals("qwen-plain", vision.model)
-        assertEquals(qwen.id, vision.providerId)
+        assertEquals("mistral-plain", vision.model)
+        assertEquals(mistral.id, vision.providerId)
         assertTrue("选了看图就记看图", vision.capabilities.vision)
         assertEquals("qk", store.apiKey(vision.id))
         assertEquals("deepseek-chat", store.configFor(ModelRole.Main)?.model)
-        assertTrue(vm.state.value.picked(ModelRole.Vision, qwen.id, "qwen-plain"))
-        assertEquals(listOf(ModelRole.Vision), vm.state.value.rolesOf(qwen))
+        assertTrue(vm.state.value.picked(ModelRole.Vision, mistral.id, "mistral-plain"))
+        assertEquals(listOf(ModelRole.Vision), vm.state.value.rolesOf(mistral))
         // 用主模型:看图这一路用主模型,不再有单独的看图配置
         vm.choose(ModelRole.Vision, RoleChoice.SameAsMain); runCurrent()
         assertEquals("deepseek-chat", store.configFor(ModelRole.Vision)?.model)
-        assertFalse(vm.state.value.picked(ModelRole.Vision, qwen.id, "qwen-plain"))
+        assertFalse(vm.state.value.picked(ModelRole.Vision, mistral.id, "mistral-plain"))
         assertEquals(1, store.list().size)
-        assertEquals(emptyList<ModelRole>(), vm.state.value.rolesOf(qwen))
+        assertEquals(emptyList<ModelRole>(), vm.state.value.rolesOf(mistral))
         // 不用
         vm.choose(ModelRole.Vision, RoleChoice.Off); runCurrent()
         assertNull(store.configFor(ModelRole.Vision))
@@ -720,7 +720,7 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun pickingMainMarksToolCallsAndSwitchesProvider() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
@@ -752,11 +752,11 @@ class ModelSetupViewModelTest {
         assertEquals("192.168.1.5", p.name)
         assertEquals(emptyList<ListedModel>(), p.models)
         assertFalse(vm.state.value.canNext)
-        vm.pick(ModelRole.Main, p.id, " qwen3 "); runCurrent()
-        assertEquals("qwen3", store.configFor(ModelRole.Main)?.model)
+        vm.pick(ModelRole.Main, p.id, " mistral3 "); runCurrent()
+        assertEquals("mistral3", store.configFor(ModelRole.Main)?.model)
         assertTrue(vm.state.value.canNext)
         // 手填过的 chatty 没当上主模型也记着,选的时候还在
-        assertEquals(listOf("qwen3", "chatty"), vm.state.value.options(vm.state.value.providers.single()).map { it.id })
+        assertEquals(listOf("mistral3", "chatty"), vm.state.value.options(vm.state.value.providers.single()).map { it.id })
     }
 
     @Test fun pickerListsProvidersWithoutRememberedListOnce() = runTest {
@@ -779,12 +779,12 @@ class ModelSetupViewModelTest {
     }
 
     @Test fun refreshFailureIsShownAndRemovingProviderDropsItsRoles() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
         val p = store.providers.value.single()
-        listing[deepseekUrl] = ModelListResult.Failed(ListFailure.Network)
+        listing[openRouterUrl] = ModelListResult.Failed(ListFailure.Network)
         vm.refresh(p.id); runCurrent()
         assertEquals(ListState.Failed(ListFailure.Network.text), vm.state.value.listing[p.id])
         assertEquals("失败时保留原来的列表", 3, store.providers.value.single().models?.size)
@@ -840,11 +840,11 @@ class ModelSetupViewModelTest {
         val capped = vm.state.value.form.name
         assertEquals(ModelSetupViewModel.MAX_NAME, capped.codePointCount(0, capped.length))
         assertEquals("😀".repeat(ModelSetupViewModel.MAX_NAME), capped)
-        vm.setBaseUrl(deepseekUrl)
-        assertEquals("DeepSeek", vm.state.value.form.defaultName)
-        vm.selectPreset("DeepSeek")
+        vm.setBaseUrl(openRouterUrl)
+        assertEquals("OpenRouter", vm.state.value.form.defaultName)
+        vm.selectPreset("OpenRouter")
         assertEquals("", vm.state.value.form.name)
-        assertEquals("DeepSeek", vm.state.value.form.copy(name = "别的名字").providerName)
+        assertEquals("OpenRouter", vm.state.value.form.copy(name = "别的名字").providerName)
     }
 
     /**
@@ -903,7 +903,7 @@ class ModelSetupViewModelTest {
 
     /** 列表里就有手填的那个:只试它,不标手填。 */
     @Test fun typedModelThatIsListedIsNotMarkedTyped() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk"); vm.setManual(true); vm.setModel("deepseek-reasoner"); vm.testAndSave(); runCurrent()
@@ -919,7 +919,7 @@ class ModelSetupViewModelTest {
     /** 选择页里有列表的那家也能手填;通了记为手填,刷新列表后还在,标「手填」。 */
     @Test fun pickerAllowsTypingAModelForAListedProvider() = runTest {
         val store = store()
-        val p = store.connect("DeepSeek", ProviderConfig.Kind.OpenAiCompat, deepseekUrl, "sk", deepseek.models)
+        val p = store.connect("OpenRouter", ProviderConfig.Kind.OpenAiCompat, openRouterUrl, "sk", deepseek.models)
         val vm = vm(store)
         runCurrent()
         vm.pickManual(ModelRole.Light, p.id, "deepseek-v9"); runCurrent()
@@ -945,7 +945,7 @@ class ModelSetupViewModelTest {
         assertTrue("一次列模型都没调", listCalls.isEmpty())
         assertTrue("一次试调用都没有", built.isEmpty())
         val p = store.providers.value.single()
-        assertEquals("DeepSeek", p.name)
+        assertEquals("OpenRouter", p.name)
         assertEquals("sk-1", store.providerKey(p.id))
         assertEquals(emptyList<ListedModel>(), p.models)
         assertEquals(emptySet<String>(), p.verifiedModels)
@@ -992,7 +992,7 @@ class ModelSetupViewModelTest {
 
     /** 已经有主模型时跳过测试存下另一家:主模型不变。 */
     @Test fun saveWithoutTestKeepsTheCurrentMainModel() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk-1"); vm.testAndSave(); runCurrent()
@@ -1013,7 +1013,7 @@ class ModelSetupViewModelTest {
         vm.saveWithoutTest(); runCurrent()
         assertTrue(store.providers.value.isEmpty())
         vm.selectPreset(ProviderPresets.custom.label)
-        vm.setBaseUrl("api.deepseek.com")
+        vm.setBaseUrl("models.example.com/v1")
         vm.setApiKey("sk")
         assertFalse("地址没写协议", vm.state.value.form.canSaveUntested)
         vm.saveWithoutTest(); runCurrent()
@@ -1026,7 +1026,7 @@ class ModelSetupViewModelTest {
 
     /** 已经测过的那家再跳过测试存一次:服务商不重复,Key 换成新的,已核实过的模型留着。 */
     @Test fun saveWithoutTestKeepsExistingProviderAndItsVerifiedModels() = runTest {
-        listing[deepseekUrl] = deepseek
+        listing[openRouterUrl] = deepseek
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk-1"); vm.testAndSave(); runCurrent()

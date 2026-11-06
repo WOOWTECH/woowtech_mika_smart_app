@@ -58,7 +58,7 @@
     <string name="model_example_gemini">ex.: gemini-flash-latest</string>
     <string name="model_example_anthropic">ex.: claude-sonnet-4-5</string>
     <string name="model_example_openai">ex.: gpt-5-mini</string>
-    <string name="model_example_compat">ex.: deepseek-chat</string>
+    <string name="model_example_compat">ex.: mistral-large-latest</string>
     <string name="model_example_grok">ex.: grok-4</string>
     <string name="model_probe_not_found">O modelo “%1$s” não existe. Digite o ID completo do modelo que consta na documentação do provedor (%2$s).</string>
     <string name="model_probe_not_found_no_list">Não foi possível listar modelos, e uma chamada de teste com “%1$s” também não o encontrou: provavelmente o endereço ou o tipo de interface está errado, ou esse modelo não existe (nomes de modelos são assim: %2$s).</string>

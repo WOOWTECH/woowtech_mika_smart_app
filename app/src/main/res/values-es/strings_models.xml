@@ -178,7 +178,7 @@
     <!-- Settings > Models: speech-to-text usage and its picker page -->
     <string name="role_speech">Voz a texto</string>
     <string name="role_speech_what">Se usa cuando mantienes pulsado para hablar</string>
-    <string name="speech_hint">Elige el reconocimiento integrado del teléfono, un servicio de voz en directo o un modelo de un proveedor que transcribe cuando terminas. Los servicios en línea usan tu cuota del proveedor.</string>
+    <string name="speech_hint">Elige el reconocimiento integrado del teléfono o un modelo de un proveedor que transcribe cuando terminas. Los servicios en línea usan tu cuota del proveedor.</string>
     <string name="speech_system">Integrado en el teléfono</string>
     <string name="speech_system_offline">Funciona sin conexión</string>
     <string name="speech_system_online">Necesita internet</string>

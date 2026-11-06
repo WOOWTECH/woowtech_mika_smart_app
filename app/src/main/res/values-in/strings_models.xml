@@ -168,7 +168,7 @@
 
     <string name="role_speech">Ucapan ke teks</string>
     <string name="role_speech_what">Dipakai saat Anda menahan untuk bicara</string>
-    <string name="speech_hint">Pilih pengenalan bawaan ponsel, layanan suara langsung, atau model penyedia yang mentranskripsi setelah Anda selesai. Layanan online memakai kuota penyedia Anda.</string>
+    <string name="speech_hint">Pilih pengenalan bawaan ponsel atau model penyedia yang mentranskripsi setelah Anda selesai. Layanan online memakai kuota penyedia Anda.</string>
     <string name="speech_system">Bawaan ponsel</string>
     <string name="speech_system_offline">Bisa offline</string>
     <string name="speech_system_online">Perlu internet</string>

@@ -47,26 +47,4 @@
     <string name="model_reasoning_high">높음</string>
     <string name="model_reasoning_xhigh">매우 높음</string>
     <string name="model_reasoning_max">최대</string>
-    <string name="speech_doubao_provider">Volcengine · 음성 인식</string>
-    <string name="speech_doubao_model">Doubao 스트리밍 음성 인식 2.0</string>
-    <string name="speech_doubao_note">Volcengine · 전용 인증 정보</string>
-    <string name="speech_doubao_missing">설정 › 모델 › 음성 텍스트 변환에서 Doubao 음성 인증 정보를 설정해 주세요.</string>
-    <string name="speech_doubao_new">새 콘솔</string>
-    <string name="speech_doubao_legacy">이전 콘솔</string>
-    <string name="speech_doubao_enter_app">음성 앱 App ID</string>
-    <string name="speech_doubao_enter_key">음성 서비스 인증 정보 입력</string>
-    <string name="speech_doubao_duration">시간제</string>
-    <string name="speech_doubao_concurrent">동시 접속제</string>
-    <string name="speech_doubao_privacy">저장할 때는 인터넷에 연결하지 않고, 쓸 수 있는지도 아직 확인하지 않아요. 길게 눌러 말하는 동안 음성이 Volcengine으로 전송되며 요금이 부과될 수 있어요. 인증 정보는 이 휴대전화에 암호화해 저장돼요.</string>
-    <string name="speech_doubao_save">저장하고 사용</string>
-    <string name="speech_doubao_remove">저장된 인증 정보 삭제</string>
-    <string name="speech_doubao_save_failed">음성 인증 정보를 암호화해 저장하지 못했어요. 다시 시도해 주세요.</string>
-    <string name="speech_doubao_group">말하는 동안 바꿔 주는 음성 서비스</string>
-    <string name="speech_doubao_configured">Volcengine · %1$s</string>
-    <string name="speech_doubao_edit">설정</string>
-    <string name="speech_doubao_setup_hint">Volcengine 음성 인식으로, 말하는 동안 글자가 나타나요. 먼저 Volcengine에서 「음성 인식 2.0」을 켜 주세요. 인증 정보는 채팅 모델과 따로예요.</string>
-    <string name="speech_doubao_credentials">인증 정보</string>
-    <string name="speech_doubao_plan">요금 방식</string>
-    <string name="speech_doubao_duration_note">인식한 시간만큼 과금</string>
-    <string name="speech_doubao_concurrent_note">동시 연결 수만큼 과금</string>
 </resources>
