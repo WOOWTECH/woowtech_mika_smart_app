@@ -33,10 +33,6 @@ OpenRouter 官方给第三方应用的登录方式（文档：https://openrouter
 
 Anthropic 写明 OAuth 只给它自己的应用；第三方产品要用 Console 的 API Key 或云厂商凭证，不允许第三方 App 提供 Claude.ai 登录，也不允许把订阅额度接到自己的请求上。Mika 继续用 Anthropic 预设填 API Key。
 
-### MiniMax 账号
-
-MiniMax 的官方文档没有给第三方 App 的 OAuth：没有让第三方自己登记客户端的入口，也没有公开给第三方用的 client_id。能找到的账号登录做法都要借用别家登记的客户端，Mika 不这样做。MiniMax 文档里给第三方工具的正当做法是 Token Plan（Coding Plan）的 API Key，在 Mika 里用 MiniMax 预设填 Key 即可。
-
 ### Google 账号（Gemini）
 
 Google 不允许第三方软件借用它自家工具的 OAuth 客户端去访问后端。第三方要用 AI Studio 或 Vertex AI 的 API Key。Mika 继续用 Gemini 预设填 API Key。

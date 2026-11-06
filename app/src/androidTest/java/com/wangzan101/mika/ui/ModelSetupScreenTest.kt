@@ -82,8 +82,8 @@ class ModelSetupScreenTest {
         compose.onNodeWithTag("setup-next").assertIsNotEnabled()
         // 上面多了「用账号登录」一组,按钮可能在屏幕外:先滚到再点
         compose.onNodeWithTag("setup-test").performScrollTo().assertIsEnabled().performClick()
-        compose.onNodeWithTag("preset-Kimi").performScrollTo().performClick()
-        assertEquals(listOf("test", "preset Kimi"), calls)
+        compose.onNodeWithTag("preset-Mistral").performScrollTo().performClick()
+        assertEquals(listOf("test", "preset Mistral"), calls)
     }
 
     /** 「不测试,直接保存」先问一次:说清后果,取消了就什么都不做,确认了才存。 */

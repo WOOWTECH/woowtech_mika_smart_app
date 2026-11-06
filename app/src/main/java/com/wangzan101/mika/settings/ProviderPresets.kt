@@ -20,11 +20,6 @@ data class ProviderPreset(
     val sessionHeader: String? = null,
     val selfHosted: Boolean = false,
     val familyTokens: List<String> = emptyList(),
-    /**
-     * 这家官方文档写明的思考档位:列表接口不回档位时(OpenAI 兼容协议大多如此),界面上按它给可选档。
-     * 只填官方文档确认过的值,不猜;照服务商写明的顺序。
-     */
-    val reasoningLevels: List<String> = emptyList(),
 )
 
 object ProviderPresets {
@@ -40,35 +35,10 @@ object ProviderPresets {
      */
     fun forHost(url: String): ProviderPreset? {
         val host = url.trim().toHttpUrlOrNull()?.host ?: return null
-        // 智谱的标准 API 和 Coding Plan 同主机不同路径；共同路径更多的是更具体的预设。
-        return all.filter { !it.selfHosted && it.baseUrl.isNotEmpty() && it.baseUrl.toHttpUrlOrNull()?.host == host }
-            .maxByOrNull { pathOverlap(it.baseUrl, url) }
+        return all.firstOrNull { !it.selfHosted && it.baseUrl.isNotEmpty() && it.baseUrl.toHttpUrlOrNull()?.host == host }
     }
 
     val all: List<ProviderPreset> = listOf(
-        // V4 起两个模型(deepseek-flash / deepseek-v4-pro)上下文都是 1M:窗口还按旧默认 64k 时,
-        // 压缩会频繁改写请求前缀,服务商的前缀缓存整段失效,同一任务的花费能差好几倍
-        // 思考档位按官方文档(create-chat-completion):reasoning_effort 可能的值是 none/low/high/max,
-        // none 关掉思考,其余开;省略时服务端默认 thinking 开。不填 minimal/medium/xhigh:官方说它们只是别名
-        ProviderPreset("DeepSeek", ProviderConfig.Kind.OpenAiCompat, "https://api.deepseek.com", caps(context = 1_000_000),
-            familyTokens = listOf("deepseek"), reasoningLevels = listOf("none", "low", "high", "max")),
-        // 这家的 OpenAI 兼容接口上,不少模型(如 qwen3.5 系列)只有显式缓存:不标就从不复用
-        ProviderPreset("通义千问", ProviderConfig.Kind.OpenAiCompat, "https://dashscope.aliyuncs.com/compatible-mode/v1", caps(caching = PromptCaching.Explicit), familyTokens = listOf("qwen")),
-        ProviderPreset("Kimi", ProviderConfig.Kind.OpenAiCompat, "https://api.moonshot.cn/v1", caps(), familyTokens = listOf("kimi", "moonshot")),
-        ProviderPreset("智谱", ProviderConfig.Kind.OpenAiCompat, "https://open.bigmodel.cn/api/paas/v4", caps(), familyTokens = listOf("glm")),
-        // Coding Plan 的 Key 和标准 API 分开；OpenAI Chat Completion 专用地址见智谱的 Coding Plan 接入指南。
-        ProviderPreset("智谱 Coding Plan", ProviderConfig.Kind.OpenAiCompat, "https://open.bigmodel.cn/api/coding/paas/v4", caps(), familyTokens = listOf("glm")),
-        // 托管多家开源模型,能不能看图按模型定
-        ProviderPreset("硅基流动", ProviderConfig.Kind.OpenAiCompat, "https://api.siliconflow.cn/v1", caps()),
-        // 豆包:模型名填模型 ID 或推理接入点 ID(ep-…);这家不一定提供列模型接口,列不出时手填
-        ProviderPreset("火山方舟", ProviderConfig.Kind.OpenAiCompat, "https://ark.cn-beijing.volces.com/api/v3", caps(vision = true, context = 128_000), familyTokens = listOf("doubao")),
-        // 国内站;思考默认写在回复正文的 <think> 里,原样留在历史中
-        ProviderPreset("MiniMax", ProviderConfig.Kind.OpenAiCompat, "https://api.minimax.cn/v1", caps(vision = true, context = 200_000), familyTokens = listOf("minimax")),
-        ProviderPreset("阶跃星辰", ProviderConfig.Kind.OpenAiCompat, "https://api.stepfun.com/v1", caps(), familyTokens = listOf("step")),
-        // 混元的新模型在 TokenHub 上(旧的 api.hunyuan.cloud.tencent.com 不再上新模型)
-        ProviderPreset("腾讯混元", ProviderConfig.Kind.OpenAiCompat, "https://tokenhub.tencentmaas.com/v1", caps(context = 256_000), familyTokens = listOf("hunyuan")),
-        // Key 是控制台生成的 bce-v3/… 那一串,照 Bearer 发
-        ProviderPreset("百度千帆", ProviderConfig.Kind.OpenAiCompat, "https://qianfan.baidubce.com/v2", caps(), familyTokens = listOf("ernie")),
         ProviderPreset("OpenRouter", ProviderConfig.Kind.OpenAiCompat, "https://openrouter.ai/api/v1", caps()),
         ProviderPreset("Requesty", ProviderConfig.Kind.OpenAiCompat, "https://router.requesty.ai/v1", caps()),
         // 订阅制,一个 Key 用多家模型;各模型走哪种协议、哪个地址由模型列表逐个写明,这里的接口类型只是没写明时的退路。
@@ -89,11 +59,4 @@ object ProviderPresets {
     )
 
     val custom: ProviderPreset get() = all.last()
-
-    /** 同主机有多家预设时，按逐段路径相同的长度挑更贴近的一个；根地址并列时保持预设顺序。 */
-    private fun pathOverlap(presetUrl: String, inputUrl: String): Int {
-        val preset = presetUrl.trimEnd('/').toHttpUrlOrNull()?.pathSegments?.filter { it.isNotBlank() } ?: return 0
-        val input = inputUrl.trim().toHttpUrlOrNull()?.pathSegments?.filter { it.isNotBlank() } ?: return 0
-        return preset.indices.count { preset[it] == input.getOrNull(it) }
-    }
 }

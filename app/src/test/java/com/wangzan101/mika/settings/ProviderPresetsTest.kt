@@ -4,7 +4,6 @@ import com.wangzan101.mika.i18n.ChineseTexts
 import com.wangzan101.mika.ui.AddForm
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -47,9 +46,6 @@ class ProviderPresetsTest {
         assertEquals("Gemini", ProviderPresets.forHost(" https://generativelanguage.googleapis.com/v1beta/openai/ ")?.label)
         assertEquals("Anthropic", ProviderPresets.forHost("https://api.anthropic.com/v1")?.label)
         assertEquals("OpenAI", ProviderPresets.forHost("https://api.openai.com")?.label)
-        assertEquals("DeepSeek", ProviderPresets.forHost("https://api.deepseek.com/v1")?.label)
-        assertEquals("智谱", ProviderPresets.forHost("https://open.bigmodel.cn/api/paas/v4")?.label)
-        assertEquals("智谱 Coding Plan", ProviderPresets.forHost("https://open.bigmodel.cn/api/coding/paas/v4")?.label)
         assertNull(ProviderPresets.forHost("https://models.example.com/v1"))
         assertNull(ProviderPresets.forHost("http://127.0.0.1:11434/v1"))
         assertNull(ProviderPresets.forHost("not a url"))
@@ -57,31 +53,6 @@ class ProviderPresetsTest {
         ProviderPresets.all.filter { it.baseUrl.isNotEmpty() && !it.selfHosted }.forEach {
             assertEquals(it.label, ProviderPresets.forHost(it.baseUrl)?.label)
         }
-    }
-
-    /** DeepSeek 的 V4 两个模型上下文都是 1M:窗口按旧默认 64k 时压缩频繁改写前缀,前缀缓存整段失效。 */
-    @Test fun deepSeekPresetUsesTheFullWindow() {
-        val deepseek = preset("DeepSeek")
-        assertEquals(1_000_000, deepseek.capabilities.contextTokens)
-        assertFalse(deepseek.capabilities.vision)
-    }
-
-    /** 预置的思考档位只来自官方文档:DeepSeek 的 reasoning_effort 可能值是 none/low/high/max(none 关思考),别名不预置。 */
-    @Test fun reasoningLevelsAreCuratedAndOfficialOnly() {
-        assertEquals(listOf("none", "low", "high", "max"), preset("DeepSeek").reasoningLevels)
-        // 没核实的店家一律不预置,界面上照旧不出档位(见 ReasoningOptions)
-        ProviderPresets.all.filter { it.label != "DeepSeek" }.forEach { p ->
-            assertEquals(p.label, emptyList<String>(), p.reasoningLevels)
-        }
-    }
-
-    /** Coding Plan 的 Key 和标准 API 不通用;地址要落在官方分开的 OpenAI 兼容端点上。 */
-    @Test fun codingPlanUsesItsOwnDocumentedEndpoint() {
-        val standard = preset("智谱")
-        val coding = preset("智谱 Coding Plan")
-        assertEquals("https://open.bigmodel.cn/api/coding/paas/v4", coding.baseUrl)
-        assertEquals(ProviderConfig.Kind.OpenAiCompat, coding.kind)
-        assertNotEquals(standard.baseUrl, coding.baseUrl)
     }
 
     /** 托管多家模型的 OpenAI 兼容网关:不给 familyTokens,地址认得出是它。 */

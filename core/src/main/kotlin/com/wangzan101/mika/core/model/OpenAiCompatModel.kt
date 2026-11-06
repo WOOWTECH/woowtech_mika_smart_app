@@ -21,7 +21,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * OpenAI Chat Completions 兼容端点(DeepSeek/Qwen/Kimi/GLM/OpenRouter/本地服务等)。差异只放在 [capabilities]。
+ * OpenAI Chat Completions 兼容端点(OpenRouter/Groq/Mistral/本地服务等)。差异只放在 [capabilities]。
  *
  * 思考内容各家放的地方不同:`reasoning_content`、`reasoning`,或者 `content` 是分块数组、思考在 `thinking` 块里。
  * 收到的思考记下从哪个地址、哪个位置来的([ReasoningVia],存在 [Part.Thinking.opaque]),带工具的请求原样放回原处:

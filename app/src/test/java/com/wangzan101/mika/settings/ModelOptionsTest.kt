@@ -57,25 +57,25 @@ class ModelOptionsTest {
             ListedModel("antdigital/Ling-3.1-flash", toolCalls = true),
             ListedModel("text-embedding-v4"),
             ListedModel("gte-rerank-v2"),
-            ListedModel("qwen3-tts-flash"),
+            ListedModel("mistral3-tts-flash"),
             ListedModel("wanx-image", chat = false),
-            ListedModel("qwen-max"),
-            ListedModel("qwen-plus", toolCalls = true),
-            ListedModel("Other/Chat", displayName = "Qwen inside"),
-            ListedModel("qwen-coder", toolCalls = false),
-            ListedModel("moonshot-v1"),
+            ListedModel("mistral-max"),
+            ListedModel("mistral-plus", toolCalls = true),
+            ListedModel("Other/Chat", displayName = "Mistral inside"),
+            ListedModel("mistral-coder", toolCalls = false),
+            ListedModel("llama-v1"),
         )
         val options = ModelOptions.merge(listed, base)
-        val qwen = ProviderPresets.all.single { it.label == "通义千问" }.familyTokens
-        assertEquals(listOf("qwen"), qwen)
+        val mistral = ProviderPresets.all.single { it.label == "Mistral" }.familyTokens
+        assertEquals(listOf("mistral"), mistral)
         assertEquals(
-            listOf("qwen-plus", "qwen-max", "Other/Chat", "antdigital/Ling-3.1-flash", "moonshot-v1"),
-            ModelOptions.candidates(options, qwen),
+            listOf("mistral-plus", "mistral-max", "Other/Chat", "antdigital/Ling-3.1-flash", "llama-v1"),
+            ModelOptions.candidates(options, mistral),
         )
-        assertEquals("qwen-plus", ModelOptions.defaultMain(options, qwen))
+        assertEquals("mistral-plus", ModelOptions.defaultMain(options, mistral))
         // 认不出是哪家:接口明说能调用工具的在前,其余照列表顺序
-        assertEquals(listOf("antdigital/Ling-3.1-flash", "qwen-plus", "qwen-max", "Other/Chat", "moonshot-v1"), ModelOptions.candidates(options))
-        assertEquals(qwen, ModelOptions.familyOf("https://dashscope.aliyuncs.com/compatible-mode/v1/"))
+        assertEquals(listOf("antdigital/Ling-3.1-flash", "mistral-plus", "mistral-max", "Other/Chat", "llama-v1"), ModelOptions.candidates(options))
+        assertEquals(mistral, ModelOptions.familyOf("https://api.mistral.ai/v1/"))
         assertEquals(emptyList<String>(), ModelOptions.familyOf("https://openrouter.ai/api/v1"))
     }
 
