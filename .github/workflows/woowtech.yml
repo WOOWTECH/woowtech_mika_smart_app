@@ -72,3 +72,43 @@ jobs:
             app/build/reports
           retention-days: 7
           if-no-files-found: ignore
+
+  # GPL/LGPL/MPL corresponding source for a release (tools/sandbox/README.md, "发布 APK 时一起发布源码包").
+  # Manual only: it downloads several hundred MB. Attach the tarball to the GitHub Release next to the APKs.
+  gpl-sources:
+    name: GPL sources tarball
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build mika-<version>-gpl-sources.tar.gz
+        run: |
+          set -eu
+          UP=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          REV=$(sed -n 's/^val woowtechRevision = \([0-9][0-9]*\).*/\1/p' app/brand.gradle.kts)
+          VERSION="$UP-woow.$REV"
+          NAME=mika-$VERSION-gpl-sources
+          OUT=build/gpl-sources/$NAME
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          while read -r name version url sum; do
+            case "$name" in ''|'#'*) continue ;; esac
+            curl -fsSL "$url" -o "$OUT/$name-$version.tar.gz"
+            echo "$sum  $OUT/$name-$version.tar.gz" | shasum -a 256 -c -
+          done < tools/sandbox/sources.lock
+          cp -R tools/sandbox/patches tools/sandbox/sources.lock tools/sandbox/build-native.sh tools/sandbox/README.md "$OUT/"
+          cp licenses/GPL-2.0.txt licenses/GPL-3.0.txt licenses/LGPL-3.0.txt "$OUT/"
+          python3 tools/sandbox/runtime-sources.py "$OUT/runtime"
+          cp tools/sandbox/build-runtime.py tools/sandbox/runtime-sources.py app/src/main/assets/runtime/packages.json "$OUT/runtime/"
+          cp -R tools/sandbox/runtime "$OUT/runtime/lock"
+          tar -czf "build/gpl-sources/$NAME.tar.gz" -C build/gpl-sources "$NAME"
+          tar -tzf "build/gpl-sources/$NAME.tar.gz" | head -40
+          sha256sum "build/gpl-sources/$NAME.tar.gz" | tee "build/gpl-sources/$NAME.tar.gz.sha256"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gpl-sources-${{ github.sha }}
+          path: build/gpl-sources/*.tar.gz*
+          retention-days: 30
