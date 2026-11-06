@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WOOWTECH fork: 深灰底（品牌手冊 Black #212121）＋品牌藍 WOOW 標誌；monochrome 給 Android 13 起的主題圖示 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/woow_icon_bg" />
+    <foreground android:drawable="@drawable/woow_launcher_foreground" />
+    <monochrome android:drawable="@drawable/woow_launcher_monochrome" />
+</adaptive-icon>

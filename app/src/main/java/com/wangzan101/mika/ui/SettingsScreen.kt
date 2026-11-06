@@ -1,0 +1,429 @@
+package com.wangzan101.mika.ui
+
+import com.wangzan101.mika.R
+import com.wangzan101.mika.i18n.tr
+import androidx.compose.ui.res.stringResource
+import com.wangzan101.mika.settings.ProviderConnection
+import android.app.ActivityManager
+import androidx.activity.compose.BackHandler
+import com.wangzan101.mika.ui.components.MikaDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import com.wangzan101.mika.BuildConfig
+import com.wangzan101.mika.cap.sandbox.SandboxState
+import com.wangzan101.mika.capsule.CapsuleMode
+import com.wangzan101.mika.core.agent.SpeedFlags
+import com.wangzan101.mika.core.cap.sandbox.SandboxStatus
+import com.wangzan101.mika.core.model.ModelRole
+import com.wangzan101.mika.core.shell.BuiltinShellStatus
+import com.wangzan101.mika.record.RunStore
+import com.wangzan101.mika.settings.AccessibilityState
+import com.wangzan101.mika.settings.FeatureFlags
+import com.wangzan101.mika.settings.Prerequisites
+import com.wangzan101.mika.settings.Problem
+import com.wangzan101.mika.settings.ProviderStore
+import com.wangzan101.mika.settings.NetProxyStore
+import com.wangzan101.mika.cap.web.WebProxy
+import com.wangzan101.mika.settings.SystemStatus
+import com.wangzan101.mika.settings.notificationOverview
+import com.wangzan101.mika.task.ParallelCapability
+import com.wangzan101.mika.ui.components.ButtonKind
+import com.wangzan101.mika.ui.components.ButtonSize
+import com.wangzan101.mika.ui.components.GroupCard
+import com.wangzan101.mika.ui.components.GroupLabel
+import com.wangzan101.mika.ui.components.ListRow
+import com.wangzan101.mika.ui.components.MikaButton
+import com.wangzan101.mika.ui.components.PageScaffold
+import com.wangzan101.mika.ui.components.PillTone
+import com.wangzan101.mika.ui.components.RowChevron
+import com.wangzan101.mika.ui.components.RowValue
+import com.wangzan101.mika.ui.components.StateCard
+import com.wangzan101.mika.ui.components.StatusPill
+import com.wangzan101.mika.ui.components.TileTone
+import com.wangzan101.mika.ui.theme.MikaIcons
+import com.wangzan101.mika.i18n.AppLanguage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/** 设置里能进入的子页面;[Home] 是设置首页,[Advanced] 集中放置连接、维护和工程能力。 */
+private enum class SettingsPage { Home, Advanced, AppAccess, PhoneOps, DuringWork, Capsule, Language, Notifications, Sandbox, Recovery, SelfCheck, ComputerAccess, McpServers, Root, Developer, RunStats }
+
+/**
+ * 设置页:总状态卡 + 常用 / 我的数据 / 其他。高级与其他只增加一层,各子页返回来时的页面。
+ * 模型页由 [onOpenModels]、记忆与数据由 [onOpenMemory]、关于页由 [onOpenAbout] 交给 Activity。
+ * 修复动作由 [onFix] 交给 Activity 去做(请求权限、跳转系统设置)。
+ */
+@Composable
+fun SettingsScreen(
+    store: ProviderStore,
+    status: SystemStatus,
+    androidRelease: String,
+    onFix: (Fix) -> Unit,
+    onBack: () -> Unit,
+    onOpenModels: () -> Unit,
+    onOpenMemory: (() -> Unit)? = null,
+    /** 任务运行里的「自主模式」:当前值和换它的办法。 */
+    autonomous: Boolean = false,
+    onAutonomous: (Boolean) -> Unit = {},
+    /** 查到的新版本号;有它时「关于 Mika」一行写「x 可更新」带红点。 */
+    updateVersion: String? = null,
+    onOpenAbout: () -> Unit = {},
+    /** 外部 MCP server 设置(outbound);为空时不显示入口。 */
+    mcpServers: com.wangzan101.mika.settings.McpServerStore? = null,
+) {
+    val configs by store.configs.collectAsState()
+    val roles by store.roles.collectAsState()
+    // 开发者选项里的「看图定位已验证」跟着看图模型(看图用主模型时是主模型那条配置)
+    val visionConfig = remember(configs, roles) { store.configFor(ModelRole.Vision) }
+    var page by rememberSaveable { mutableStateOf(SettingsPage.Home) }
+    var explaining by remember { mutableStateOf<Problem?>(null) }
+
+    fun fix(f: Fix) = if (f == Fix.AddModel) onOpenModels() else onFix(f)
+    val onProblem: (Problem) -> Unit = { p -> StatusCopy.directFix(p)?.let(::fix) ?: run { explaining = p } }
+
+    // 并行任务的上限只在实验开关 parallelTasks 打开时出现;设备能力按此刻算,第二块屏建失败过就按失败算
+    val context = LocalContext.current
+    val root = remember { com.wangzan101.mika.cap.phone.PhoneServices.of(context).shellManager.root }
+    val rootState by root.state.collectAsState()
+    LaunchedEffect(Unit) { root.refresh() }
+    val flags = remember { FeatureFlags.get(context) }
+    var parallelMax by remember { mutableIntStateOf(flags.parallelMax()) }
+    var keepScreenOn by remember { mutableStateOf(flags.keepScreenOn()) }
+    var muteTarget by remember { mutableStateOf(flags.muteTarget()) }
+    var operatingPace by remember { mutableStateOf(flags.operatingPace()) }
+    var stepLimit by remember { mutableStateOf(flags.taskStepLimit()) }
+    var selfConfig by remember { mutableStateOf(flags.selfConfig()) }
+    var capsuleMode by remember { mutableStateOf(flags.capsuleMode()) }
+    // 换语言时界面会重建,这里每次进来读一次即可
+    val language = remember { AppLanguage.current(context) }
+    val runtimeLimit by (context.applicationContext as com.wangzan101.mika.MikaApp).taskState.parallelLimit.collectAsState()
+    var speed by remember { mutableStateOf(flags.speedFlags()) }
+    val scope = rememberCoroutineScope()
+    val sandboxStatus by remember { SandboxState.get(context) }.status.collectAsState()
+    // 网络代理:只在这里改;读设置要解密、看浏览器支不支持要加载 WebView,都放到后台
+    val proxies = remember { NetProxyStore.get(context) }
+    var proxy by remember { mutableStateOf<String?>(null) }
+    var browserProxy by remember { mutableStateOf<WebProxy.Mode?>(null) }
+    var editingProxy by remember { mutableStateOf(false) }
+    LaunchedEffect(proxy) {
+        if (proxy == null) proxy = withContext(Dispatchers.IO) { proxies.get() }
+        browserProxy = withContext(Dispatchers.IO) { WebProxy.mode() }
+    }
+    val mcp = remember { (context.applicationContext as com.wangzan101.mika.MikaApp).mcp }
+    val mcpNetworkOn by mcp.settings.enabled.collectAsState()
+    val mcpUsbOn by mcp.usb.enabled.collectAsState()
+    val mcpOn = mcpNetworkOn || mcpUsbOn
+    val parallel = if (!speed.parallelTasks) null else ParallelSetting(
+        parallelMax,
+        ParallelCapability.detect(
+            status.sdkInt, context.getSystemService(ActivityManager::class.java).isLowRamDevice, parallelMax,
+            secondDisplayFailed = runtimeLimit.reason == ParallelCapability.SECOND_DISPLAY_FAILED,
+        ),
+    )
+    // 开发者选项只在调试版和性能测试版里列出:发布版的各开关按评测结果统一定默认值
+    val showDeveloper = com.wangzan101.mika.record.DetailedTraces.supportedBuild
+    val toHome = { page = SettingsPage.Home }
+    val toAdvanced = { page = SettingsPage.Advanced }
+    val back = {
+        page = when (page) {
+            SettingsPage.RunStats -> SettingsPage.Developer
+            SettingsPage.SelfCheck -> SettingsPage.Recovery
+            SettingsPage.Sandbox, SettingsPage.Recovery, SettingsPage.ComputerAccess,
+            SettingsPage.McpServers, SettingsPage.Root, SettingsPage.Developer -> SettingsPage.Advanced
+            else -> SettingsPage.Home
+        }
+    }
+
+    if (page != SettingsPage.Home) BackHandler { back() }
+
+    val visiblePage = when {
+        !showDeveloper && (page == SettingsPage.Developer || page == SettingsPage.RunStats) -> SettingsPage.Home
+        page == SettingsPage.Root && !rootState.suPresent -> SettingsPage.Advanced
+        else -> page
+    }
+    when (visiblePage) {
+        SettingsPage.Home -> SettingsContent(
+            status = status, androidRelease = androidRelease,
+            mainModel = roles.main?.let { id -> configs.firstOrNull { it.id == id } }?.let(ProviderConnection::displayName),
+            onBack = onBack, onProblem = onProblem, onOpenModels = onOpenModels,
+            onOpenPhoneOps = { page = SettingsPage.PhoneOps },
+            onOpenAppAccess = { page = SettingsPage.AppAccess },
+            onOpenDuringWork = { page = SettingsPage.DuringWork },
+            capsuleMode = capsuleMode, onOpenCapsule = { page = SettingsPage.Capsule },
+            onOpenNotifications = { page = SettingsPage.Notifications },
+            language = language, onOpenLanguage = { page = SettingsPage.Language },
+            onOpenMemory = onOpenMemory,
+            onOpenAdvanced = { page = SettingsPage.Advanced },
+            versionName = BuildConfig.VERSION_NAME, updateVersion = updateVersion, onOpenAbout = onOpenAbout,
+        )
+        SettingsPage.Advanced -> AdvancedSettingsContent(
+            proxy = proxy, proxyNote = proxy?.let { NetProxyCopy.subtitle(it, browserProxy) }, onOpenProxy = { editingProxy = true },
+            sandbox = sandboxStatus, onOpenSandbox = { page = SettingsPage.Sandbox },
+            showRecovery = status.sdkInt >= Prerequisites.MIN_SDK, onOpenRecovery = { page = SettingsPage.Recovery },
+            computerAccess = mcpOn, onOpenComputerAccess = { page = SettingsPage.ComputerAccess },
+            mcpServersCount = mcpServers?.servers?.value?.size, onOpenMcpServers = { page = SettingsPage.McpServers },
+            showRoot = rootState.suPresent, rootCommands = rootState.commands, onOpenRoot = { page = SettingsPage.Root },
+            showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
+            onBack = toHome,
+        )
+        SettingsPage.AppAccess -> AppAccessScreen(onBack = toHome)
+        SettingsPage.PhoneOps -> PhoneOpsScreen(
+            status, androidRelease, onProblem,
+            onRepair = { onFix(Fix.RepairPhoneHelper) }, onUnpair = { onFix(Fix.UnpairPhoneHelper) }, onBack = toHome,
+        )
+        SettingsPage.Notifications -> NotificationsScreen(status, onFix = ::fix, onBack = back)
+        SettingsPage.DuringWork -> DuringWorkScreen(
+            keepScreenOn, onKeepScreenOn = { flags.setKeepScreenOn(it); keepScreenOn = it },
+            muteTarget, onMuteTarget = { flags.setMuteTarget(it); muteTarget = it },
+            parallel, onParallelMax = { flags.setParallelMax(it); parallelMax = it }, onBack = toHome,
+            autonomous = autonomous, onAutonomous = onAutonomous,
+            operatingPace = operatingPace, onOperatingPace = { flags.setOperatingPace(it); operatingPace = it },
+            stepLimit = stepLimit, onStepLimit = { flags.setTaskStepLimit(it); stepLimit = it },
+            selfConfig = selfConfig, onSelfConfig = { flags.setSelfConfig(it); selfConfig = it },
+        )
+        SettingsPage.Language -> LanguageScreen(language, onLanguage = { AppLanguage.set(context, it) }, onBack = toHome)
+        SettingsPage.Capsule -> CapsuleScreen(capsuleMode, onMode = { flags.setCapsuleMode(it); capsuleMode = it }, onBack = toHome)
+        SettingsPage.Sandbox -> SandboxScreen(onBack = toAdvanced)
+        SettingsPage.Recovery -> RecoveryScreen(onBack = toAdvanced, onOpenSelfCheck = { page = SettingsPage.SelfCheck })
+        SettingsPage.SelfCheck -> SelfCheckScreen(status, onBack = back)
+        SettingsPage.ComputerAccess -> McpScreen(mcp, onBack = toAdvanced)
+        SettingsPage.McpServers -> mcpServers?.let { McpServersScreen(it, onBack = toAdvanced) }
+        SettingsPage.Root -> RootScreen(helperRow = status.sdkInt >= Prerequisites.MIN_SDK, onBack = toAdvanced)
+        SettingsPage.Developer -> DeveloperOptionsScreen(
+            speed, onSpeed = { flags.setSpeed(it); speed = it }, onBack = toAdvanced,
+            grounding = visionConfig?.let { GroundingSetting(it.model, it.capabilities.groundingVerified) },
+            onGrounding = { verified -> scope.launch { withContext(Dispatchers.IO) { store.setVisionGroundingVerified(verified) } } },
+            onOpenRunStats = { page = SettingsPage.RunStats },
+        )
+        SettingsPage.RunStats -> RunStatsScreen(remember { RunStore(context).metrics }, onBack = back)
+    }
+
+    if (editingProxy) NetProxyDialog(
+        initial = proxy.orEmpty(),
+        onDismiss = { editingProxy = false },
+        onSave = { v ->
+            scope.launch {
+                withContext(Dispatchers.IO) { proxies.set(v) }
+                proxy = v.trim()
+                editingProxy = false
+            }
+        },
+    )
+
+    explaining?.let { p ->
+        val e = StatusCopy.explain(p, androidRelease)
+        MikaDialog(
+            onDismissRequest = { explaining = null },
+            title = { Text(e.title) },
+            text = { Text(e.body) },
+            confirmButton = {
+                if (e.action != null && e.fix != null) {
+                    TextButton({ explaining = null; fix(e.fix) }) { Text(e.action) }
+                } else {
+                    TextButton({ explaining = null }) { Text(stringResource(R.string.ok_got_it)) }
+                }
+            },
+            dismissButton = if (e.fix != null) ({ TextButton({ explaining = null }) { Text(stringResource(R.string.cancel)) } }) else null,
+        )
+    }
+}
+
+/** 不带状态的设置首页,便于测试。首页只列常用入口,高级能力统一从 [onOpenAdvanced] 进入。 */
+@Composable
+fun SettingsContent(
+    status: SystemStatus,
+    androidRelease: String,
+    /** 当前主模型的名字;没有可用的主模型时为空。 */
+    mainModel: String?,
+    onBack: () -> Unit,
+    onProblem: (Problem) -> Unit,
+    onOpenModels: () -> Unit,
+    onOpenPhoneOps: () -> Unit = {},
+    onOpenAppAccess: () -> Unit = {},
+    onOpenDuringWork: () -> Unit = {},
+    /** 悬浮胶囊此刻的选择,写在「悬浮胶囊」一行的右边。 */
+    capsuleMode: CapsuleMode = CapsuleMode.DEFAULT,
+    onOpenCapsule: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    /** 此刻选的界面语言,写在「语言与外观」一行的右边。 */
+    language: AppLanguage = AppLanguage.System,
+    onOpenLanguage: () -> Unit = {},
+    onOpenMemory: (() -> Unit)? = null,
+    onOpenAdvanced: () -> Unit = {},
+    versionName: String = "",
+    updateVersion: String? = null,
+    onOpenAbout: () -> Unit = {},
+) {
+    val check = Prerequisites.check(status, hasMainModel = mainModel != null)
+    PageScaffold(stringResource(R.string.settings_title), onBack) {
+        StatusSummary(check, onProblem)
+
+        GroupLabel(stringResource(R.string.settings_basic))
+        GroupCard {
+            ListRow(MikaIcons.Spark, stringResource(R.string.settings_model), stringResource(R.string.settings_model_sub), first = true, onClick = onOpenModels) {
+                RowValue(mainModel ?: stringResource(R.string.settings_not_set))
+                RowChevron()
+            }
+            ListRow(MikaIcons.Phone, stringResource(R.string.settings_phone_ops), onClick = onOpenPhoneOps) {
+                PhoneOpsPill(status)
+                RowChevron()
+            }
+            ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), onClick = onOpenDuringWork) { RowChevron() }
+            ListRow(MikaIcons.Message, CapsuleSettingsCopy.TITLE, CapsuleSettingsCopy.SUBTITLE, onClick = onOpenCapsule) {
+                RowValue(CapsuleSettingsCopy.label(capsuleMode))
+                RowChevron()
+            }
+            ListRow(MikaIcons.Globe, stringResource(R.string.settings_language_appearance), onClick = onOpenLanguage) {
+                RowValue(languageLabel(language))
+                RowChevron()
+            }
+            val (notifText, notifTone) = StatusCopy.notificationSummary(status.notificationOverview().summary)
+            ListRow(MikaIcons.Bell, StatusCopy.NOTIFICATIONS, stringResource(R.string.settings_notif_sub), onClick = onOpenNotifications) {
+                RowValue(notifText, notifTone)
+                RowChevron()
+            }
+        }
+
+        GroupLabel(stringResource(R.string.settings_privacy))
+        GroupCard {
+            onOpenMemory?.let {
+                ListRow(MikaIcons.Heart, stringResource(R.string.settings_memory_data), stringResource(R.string.settings_memory_sub), first = true, onClick = it) { RowChevron() }
+            }
+            ListRow(MikaIcons.Shield, stringResource(R.string.appaccess_title), stringResource(R.string.appaccess_row_sub), first = onOpenMemory == null, onClick = onOpenAppAccess) { RowChevron() }
+        }
+
+        GroupLabel(stringResource(R.string.settings_other))
+        GroupCard {
+            ListRow(MikaIcons.Wrench, stringResource(R.string.settings_advanced), stringResource(R.string.settings_advanced_sub), first = true, onClick = onOpenAdvanced) { RowChevron() }
+        }
+        GroupCard {
+            ListRow(MikaIcons.Info, stringResource(R.string.settings_about), first = true, onClick = onOpenAbout) {
+                TrailingValue(AboutCopy.settingsValue(updateVersion, versionName))
+                RowChevron()
+            }
+        }
+    }
+}
+
+/** 高级与其他:网络与连接、维护、开发者三组;各能力仍使用原来的完整子页。 */
+@Composable
+fun AdvancedSettingsContent(
+    onBack: () -> Unit,
+    proxy: String? = null,
+    proxyNote: String? = null,
+    onOpenProxy: () -> Unit = {},
+    sandbox: SandboxStatus? = null,
+    onOpenSandbox: () -> Unit = {},
+    showRecovery: Boolean = true,
+    onOpenRecovery: () -> Unit = {},
+    computerAccess: Boolean? = null,
+    onOpenComputerAccess: () -> Unit = {},
+    mcpServersCount: Int? = null,
+    onOpenMcpServers: () -> Unit = {},
+    showRoot: Boolean = false,
+    rootCommands: Boolean = false,
+    onOpenRoot: () -> Unit = {},
+    showDeveloper: Boolean = false,
+    onOpenDeveloper: () -> Unit = {},
+) {
+    PageScaffold(stringResource(R.string.settings_advanced), onBack) {
+        val sandboxRow = sandbox?.takeIf { it !is SandboxStatus.Unsupported }
+        if (proxy != null || sandboxRow != null || computerAccess != null || mcpServersCount != null || showRoot) {
+            GroupLabel(stringResource(R.string.settings_connections))
+            GroupCard {
+                var first = true
+                fun take(): Boolean = first.also { first = false }
+                proxy?.let {
+                    ListRow(MikaIcons.Link, NetProxyCopy.TITLE, proxyNote, first = take(), onClick = onOpenProxy) {
+                        RowValue(NetProxyCopy.value(it))
+                        RowChevron()
+                    }
+                }
+                if (sandboxRow != null) {
+                    ListRow(MikaIcons.Terminal, stringResource(R.string.settings_sandbox), first = take(), onClick = onOpenSandbox) {
+                        RowValue(sandboxValue(sandboxRow)); RowChevron()
+                    }
+                }
+                computerAccess?.let { on ->
+                    ListRow(MikaIcons.Desktop, stringResource(R.string.mcp_title), first = take(), onClick = onOpenComputerAccess) {
+                        RowValue(stringResource(if (on) R.string.state_on else R.string.state_off)); RowChevron()
+                    }
+                }
+                mcpServersCount?.let { count ->
+                    ListRow(MikaIcons.Link, stringResource(R.string.mcp_servers_title), first = take(), onClick = onOpenMcpServers) {
+                        RowValue(stringResource(R.string.mcp_servers_count, count)); RowChevron()
+                    }
+                }
+                if (showRoot) {
+                    ListRow(MikaIcons.Key, PhoneSetupCopy.ROOT_GROUP, PhoneSetupCopy.rootEntryLine(rootCommands), first = take(), onClick = onOpenRoot) {
+                        RowChevron()
+                    }
+                }
+            }
+        }
+        if (showRecovery) {
+            GroupLabel(stringResource(R.string.settings_maintenance))
+            GroupCard {
+                ListRow(MikaIcons.Wrench, stringResource(R.string.settings_recovery), first = true, onClick = onOpenRecovery) { RowChevron() }
+            }
+        }
+        if (showDeveloper) {
+            GroupLabel(stringResource(R.string.settings_developer_group))
+            GroupCard {
+                ListRow(MikaIcons.Code, stringResource(R.string.settings_developer), first = true, onClick = onOpenDeveloper) { RowChevron() }
+            }
+        }
+    }
+}
+
+/** 「手机操作」一行尾部的状态胶囊:无障碍和内置助手都就绪才是「可用」。 */
+@Composable
+private fun PhoneOpsPill(status: SystemStatus) {
+    when {
+        status.sdkInt < Prerequisites.MIN_SDK -> StatusPill(stringResource(R.string.pill_unsupported), PillTone.Neutral)
+        status.builtinShell == BuiltinShellStatus.Running && status.accessibility == AccessibilityState.On -> StatusPill(stringResource(R.string.pill_available), PillTone.Ok)
+        else -> StatusPill(stringResource(R.string.pill_needs_attention), PillTone.Warn)
+    }
+}
+
+private fun sandboxValue(s: SandboxStatus): String = when (s) {
+    is SandboxStatus.Ready -> tr(R.string.sandbox_ready)
+    is SandboxStatus.Installing -> tr(R.string.sandbox_preparing)
+    is SandboxStatus.Broken -> tr(R.string.pill_needs_attention)
+    else -> tr(R.string.sandbox_not_prepared)
+}
+
+/**
+ * 页面顶上的总状态:一切正常是「一切就绪」;否则变成第一个问题的提示,带修复按钮。
+ * 焦点提醒改不了,只在手机操作页的「系统版本」一行里提示,不占这里。
+ */
+@Composable
+private fun StatusSummary(check: Prerequisites.Check, onProblem: (Problem) -> Unit) {
+    val problem = check.problems.firstOrNull { it != Problem.FocusMayLeak }
+    if (problem == null) {
+        StateCard(MikaIcons.Check, stringResource(R.string.all_ready), stringResource(R.string.settings_all_ready_detail), TileTone.Ok, Modifier.testTag("settings-status"))
+    } else {
+        val copy = StatusCopy.banner(problem)
+        StateCard(
+            MikaIcons.Exclaim, copy.title, copy.detail,
+            if (problem in check.blockers) TileTone.Bad else TileTone.Warn,
+            Modifier.testTag("settings-status"),
+        ) {
+            MikaButton(copy.link, { onProblem(problem) }, kind = ButtonKind.Tonal, size = ButtonSize.Small)
+        }
+    }
+}

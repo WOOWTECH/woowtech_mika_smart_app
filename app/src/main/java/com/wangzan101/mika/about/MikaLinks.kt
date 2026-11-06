@@ -1,0 +1,41 @@
+package com.wangzan101.mika.about
+
+import com.wangzan101.mika.R
+import com.wangzan101.mika.core.brand.Brand
+import com.wangzan101.mika.i18n.tr
+import java.net.URLEncoder
+
+/** Mika 对外的地址都在这里:仓库、问题、检查更新用的两个来源。换地址只改这一处。 */
+object MikaLinks {
+    // WOOWTECH fork: 地址取自品牌层(没有品牌设定时是上游的 wangzan101/Mika)
+    val REPO = Brand.repo
+    val REPO_LABEL = Brand.repoLabel
+    val README = "$REPO#readme"
+    val RELEASES = "$REPO/releases"
+    val NEW_ISSUE = "$REPO/issues/new"
+    /** 检查更新只问 GitHub 发布页(不登录,每小时有次数限制)。 */
+    val LATEST_RELEASE_API = Brand.latestReleaseApi
+
+    /** 反馈时预先填进问题模板的设备与版本信息。 */
+    data class Device(
+        val manufacturer: String,
+        val model: String,
+        val androidRelease: String,
+        val sdk: Int,
+        val versionName: String,
+        val build: String,
+    )
+
+    /** 预先填好的问题正文:机型、安卓版本、Mika 版本三行,下面留空几段给用户写。 */
+    fun issueBody(d: Device): String {
+        val model = if (d.model.startsWith(d.manufacturer, ignoreCase = true)) d.model else "${d.manufacturer} ${d.model}"
+        return buildString {
+            append(tr(R.string.issue_body, model.trim(), d.androidRelease, d.sdk, d.versionName, d.build))
+        }
+    }
+
+    /** 新建问题的地址,标题留空、正文预先填好;参数按 URL 编码(空格写成 %20)。 */
+    fun issueUrl(d: Device): String = "$NEW_ISSUE?title=&body=${encode(issueBody(d))}"
+
+    private fun encode(s: String): String = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+}
