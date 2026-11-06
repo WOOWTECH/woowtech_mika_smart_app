@@ -105,7 +105,7 @@ jobs:
           cp tools/sandbox/build-runtime.py tools/sandbox/runtime-sources.py app/src/main/assets/runtime/packages.json "$OUT/runtime/"
           cp -R tools/sandbox/runtime "$OUT/runtime/lock"
           tar -czf "build/gpl-sources/$NAME.tar.gz" -C build/gpl-sources "$NAME"
-          tar -tzf "build/gpl-sources/$NAME.tar.gz" | head -40
+          tar -tzf "build/gpl-sources/$NAME.tar.gz" | head -40 || true  # head closes the pipe early; pipefail is on
           sha256sum "build/gpl-sources/$NAME.tar.gz" | tee "build/gpl-sources/$NAME.tar.gz.sha256"
       - uses: actions/upload-artifact@v7
         with:
