@@ -2,6 +2,11 @@
 
 [English](CONTRIBUTING.md) | 简体中文
 
+> **渥屋助理（woowtech agent）版。** 這個 repo 是 WOOWTECH 以 [Mika](https://github.com/wangzan101/Mika) 為基礎的品牌版。
+> 渥屋助理本身的問題（安裝、品牌、台灣 App 知識、更新）請到本 repo 的 [Issues](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues) 回報；
+> 相容性自我檢查請用 App 裡的「去 GitHub 回報」。WOOWTECH 改了什麼、怎麼跟上游同步，見 [docs-woowtech/FORK.md](../docs-woowtech/FORK.md)。
+> 下面是上游的貢獻指南（簡體中文），適用於跟上游共用的程式；改進代理本身的修改，也歡迎直接送到上游。
+
 欢迎一起把 Mika 做得更好。最简单的是补一份 App、网站的使用知识，不用写代码；也欢迎报告问题、贡献代码。
 
 ## 补充 App / 网站知识（不用写代码）
