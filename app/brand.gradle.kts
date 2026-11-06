@@ -1,5 +1,6 @@
 // WOOWTECH fork: brand layer (渥屋助理 / woowtech agent). Not part of upstream Mika; see docs-woowtech/FORK.md.
-// Upstream app/build.gradle.kts only gains `apply(from = "brand.gradle.kts")` at its end.
+// Applied at the end of app/build.gradle.kts, which then wires the flavors with what this script leaves in `extra`
+// (a script plugin cannot see the Android Gradle plugin's classes, so nothing here uses its types).
 //
 // - Flavor dimension "brand": `upstream` is upstream Mika unchanged (the baseline for upstream's unit and golden
 //   tests); `woowtech` builds io.woowtech.agent. Unit and instrumented tests run on `upstream` only.
@@ -11,8 +12,6 @@
 //   storePassword, keyAlias, keyPassword). Without it the woowtech release APK is unsigned (CI) and is signed
 //   afterwards with apksigner on the release machine.
 
-import com.android.build.api.dsl.ApplicationExtension
-import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import java.io.File
 import java.util.Properties
 
@@ -84,46 +83,9 @@ fun generateWoowtechStrings() {
 
 generateWoowtechStrings()
 
-// ---- flavors, versions, signing ---------------------------------------------------------------------------
+// ---- handed to app/build.gradle.kts ------------------------------------------------------------------------
 
-configure<ApplicationExtension> {
-    flavorDimensions += "brand"
-    productFlavors {
-        create("upstream") {
-            dimension = "brand"
-            isDefault = true
-        }
-        create("woowtech") {
-            dimension = "brand"
-            applicationId = "io.woowtech.agent"
-            versionCode = (defaultConfig.versionCode ?: 0) * 100 + woowtechRevision
-            versionName = "${defaultConfig.versionName}-woow.$woowtechRevision"
-            // 只出有正式文案的语言:英文、繁体中文(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)
-            resourceConfigurations += listOf("en", "b+zh+Hant")
-        }
-    }
-    sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
-
-    val signing = System.getenv("WOOWTECH_SIGNING_PROPERTIES")?.let { file(it) }?.takeIf { it.isFile }
-    if (signing != null) {
-        val p = Properties().apply { signing.reader(Charsets.UTF_8).use { load(it) } }
-        val config = signingConfigs.create("woowtech") {
-            storeFile = file(p.getProperty("storeFile"))
-            storePassword = p.getProperty("storePassword")
-            keyAlias = p.getProperty("keyAlias")
-            keyPassword = p.getProperty("keyPassword")
-        }
-        productFlavors.getByName("woowtech").signingConfig = config
-    }
-}
-
-// Upstream's unit, golden and instrumented tests assume the Mika brand and package: run them on `upstream`.
-// The brand layer has its own checks (core BrandValuesTest, woowtech/tools/brand-check.sh).
-extensions.configure<ApplicationAndroidComponentsExtension> {
-    beforeVariants { v ->
-        if (v.flavorName == "woowtech") {
-            v.enableUnitTest = false
-            v.enableAndroidTest = false
-        }
-    }
-}
+extra["woowtechRevision"] = woowtechRevision
+extra["woowtechBrandRes"] = woowtechBrandRes
+extra["woowtechSigning"] = System.getenv("WOOWTECH_SIGNING_PROPERTIES")?.let { file(it) }?.takeIf { it.isFile }
+    ?.let { f -> Properties().apply { f.reader(Charsets.UTF_8).use { load(it) } } }

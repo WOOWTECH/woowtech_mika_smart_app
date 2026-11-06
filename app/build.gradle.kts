@@ -120,5 +120,44 @@ tasks.withType<Test>().configureEach {
     inputs.file(rootProject.file("licenses/THIRD_PARTY_NOTICES.md")).withPropertyName("thirdPartyNotices")
 }
 
-// WOOWTECH fork: 品牌层(flavor、品牌字串、签名),见 app/brand.gradle.kts
+// WOOWTECH fork: 品牌层(flavor、品牌字串、签名),见 app/brand.gradle.kts 与 docs-woowtech/FORK.md
 apply(from = "brand.gradle.kts")
+val woowtechRevision = extra["woowtechRevision"] as Int
+val woowtechBrandRes = extra["woowtechBrandRes"] as java.io.File
+val woowtechSigning = extra["woowtechSigning"] as java.util.Properties?
+android {
+    // upstream:上游原样,单测与金样的基准;woowtech:发行用的渥屋助理
+    flavorDimensions += "brand"
+    productFlavors {
+        create("upstream") {
+            dimension = "brand"
+            isDefault = true
+        }
+        create("woowtech") {
+            dimension = "brand"
+            applicationId = "io.woowtech.agent"
+            versionCode = (defaultConfig.versionCode ?: 0) * 100 + woowtechRevision
+            versionName = "${defaultConfig.versionName}-woow.$woowtechRevision"
+            // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)
+            resourceConfigurations += listOf("en", "b+zh+Hant")
+        }
+    }
+    sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
+    if (woowtechSigning != null) {
+        productFlavors.getByName("woowtech").signingConfig = signingConfigs.create("woowtech") {
+            storeFile = file(woowtechSigning.getProperty("storeFile"))
+            storePassword = woowtechSigning.getProperty("storePassword")
+            keyAlias = woowtechSigning.getProperty("keyAlias")
+            keyPassword = woowtechSigning.getProperty("keyPassword")
+        }
+    }
+}
+// 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
+androidComponents {
+    beforeVariants { variant ->
+        if (variant.flavorName == "woowtech") {
+            variant.enableUnitTest = false
+            variant.androidTest.enable = false
+        }
+    }
+}
