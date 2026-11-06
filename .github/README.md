@@ -20,7 +20,7 @@
 - **排程與條件**：「明天早上 9 點提醒我」「每週五幫我做這件事」。
 - **檔案與運算**：每段對話有一個 Linux 沙盒，可執行 Python、Node 和 shell（需要 arm64 手機）。
 - **台灣在地化**：繁體中文介面，內建 LINE、蝦皮、momo、PChome、foodpanda、渥屋科技 App 等使用知識。
-- **從電腦交辦**：電腦上的 AI 工具可以透過 MCP 把任務交給手機。
+- **從電腦交辦**：電腦上的 AI 工具可以透過 CLI、Skill 或 MCP 把任務交給手機，見 [電腦端 AI 快速連線](../docs-woowtech/agent-quickstart.md)、[電腦連線（MCP）](../docs-woowtech/mcp.md)。
 
 預設是「詢問模式」：付款、下單前一定先問你，其他動作直接做。也可以切到「自主模式」。
 
@@ -64,6 +64,7 @@
 
 - **Download**: APKs only, from this repository's [Releases](https://github.com/WOOWTECH/woowtech_mika_smart_app/releases) (first release in preparation). Google Play does not allow apps that use the Accessibility API to let an AI plan and operate other apps, which is the core of this app.
 - **Differences from Mika**: WOOWTECH brand and update channel; English and Traditional Chinese UI; Taiwan app knowledge (LINE, Shopee, momo, PChome, foodpanda, woowtech aiot); China-based model presets, the WeChat channel and Doubao speech removed. Details: [docs-woowtech/FORK.md](../docs-woowtech/FORK.md).
+- **From a computer**: AI tools on a computer can hand tasks to the phone through the CLI, the Skill or MCP; see [Agent quick path](../docs-woowtech/agent-quickstart.en.md) and [Computer access (MCP)](../docs-woowtech/mcp.en.md).
 - **Privacy**: WOOW TECH runs no servers for this app and collects no data; what you send goes only to the model provider you choose.
 - **License**: Apache-2.0 ([LICENSE](../LICENSE), [NOTICE](../NOTICE)). GPL/LGPL components (PRoot, talloc, Alpine packages) ship with their corresponding source on every release page.
 - **Contact**: [issues](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues) · woowtech@designsmart.com.tw
