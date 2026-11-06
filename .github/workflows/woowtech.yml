@@ -88,9 +88,12 @@ jobs:
       - name: Build mika-<version>-gpl-sources.tar.gz
         run: |
           set -eu
-          UP=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          # defaultConfig's numeric versionName only: the woowtech flavor's own versionName line also matches "versionName = ".
+          UP=$(sed -n 's/^ *versionName = "\([0-9][0-9.]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
           REV=$(sed -n 's/^val woowtechRevision = \([0-9][0-9]*\).*/\1/p' app/brand.gradle.kts)
           VERSION="$UP-woow.$REV"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)+-woow\.[0-9]+$ ]] || { echo "unexpected version: $VERSION"; exit 1; }
+          echo "version $VERSION"
           NAME=mika-$VERSION-gpl-sources
           OUT=build/gpl-sources/$NAME
           rm -rf "$OUT" && mkdir -p "$OUT"
