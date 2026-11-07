@@ -126,6 +126,20 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
         }
 
         /**
+         * WOOWTECH fork: 无障碍浮层(OverlayHost)建界面用的 Context:同 [wrap],但安卓 13 起也套上 App 语言。浮层借的是无障碍服务的
+         * Context,服务一启动,系统就不再把 App 语言套到进程上(见 [applyDefaultLocale]),服务的资源退回系统语言:
+         * 浮层里 stringResource 取的字(按住说话、屏幕分享的同意框、胶囊上的按钮)就成了系统语言。跟随系统时原样返回。
+         */
+        fun wrapOverlay(base: Context): Context {
+            val locales = if (systemManaged) {
+                base.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
+            } else {
+                legacyLocales(base)
+            }
+            return locales?.let { base.createConfigurationContext(Configuration().apply { setLocales(it) }) } ?: base
+        }
+
+        /**
          * 界面以外取文字用的资源:跟着 App 语言。安卓 13 起也按系统记下的应用语言另建一份,
          * 不直接用 Application 的资源:进程不是系统按 App 正常拉起时(如测试启动),那份资源还是系统语言。
          */

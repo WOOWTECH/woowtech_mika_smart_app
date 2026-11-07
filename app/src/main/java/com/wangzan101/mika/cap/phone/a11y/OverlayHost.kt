@@ -132,7 +132,8 @@ class OverlayHost internal constructor(private val service: ScreenAccessibility)
             setViewTreeSavedStateRegistryOwner(owners)
             setViewTreeViewModelStoreOwner(owners)
             addView(
-                ComposeView(AppLanguage.wrap(service)).apply { setContent(content) },
+                // WOOWTECH fork: 安卓 13 起也套上 App 语言(上游用 wrap,13 起原样返回服务的 Context,无障碍服务一启动就是系统语言)
+                ComposeView(AppLanguage.wrapOverlay(service)).apply { setContent(content) },
                 FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
             )
             this.onOutside = onOutside
