@@ -1069,6 +1069,24 @@ class ChatViewModelTest {
         assertTrue(vm.ui.value.exchanges.single().memoryNotes.isEmpty())
     }
 
+    /** WOOWTECH fork: 记忆提示跟着界面语言写(上游写死了简体中文),英文、繁中各看一遍,说法和简体那份一样。 */
+    @Test fun memoryNotesFollowTheUiLanguage() {
+        fun note(kind: com.wangzan101.mika.core.memory.NoteKind) = com.wangzan101.mika.core.memory.MemoryNote(kind, "t", null, null)
+        val tea = item("t", "Likes unsweetened green tea").copy(replaces = "Likes milk tea")
+        com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.english
+        assertEquals("Remembered: Likes unsweetened green tea", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), tea))
+        assertEquals("Updated: Likes unsweetened green tea (was: Likes milk tea)", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.updated), tea))
+        assertEquals("Forgot a memory", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.forgot), null))
+        assertEquals("Remembered: a deleted memory", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), null))
+        assertEquals("Do it this way from now on? Likes unsweetened green tea", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.pending), tea))
+        com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.traditional
+        val hant = item("t", "使用者喜歡無糖綠茶")
+        assertEquals("記住了：使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), hant))
+        assertEquals("忘掉了：使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.forgot), hant))
+        assertEquals("要我以後都這樣做嗎？使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.pending), hant))
+        assertEquals("記住了：一條已刪除的記憶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), null))
+    }
+
     @Test fun usedMemoryCountShown() = runTest {
         val vm = vmWithHistory()
         notesFlow.value = mapOf("r1" to com.wangzan101.mika.memory.RunNotes("c1", "r1", usedMemory = listOf("a", "b")))

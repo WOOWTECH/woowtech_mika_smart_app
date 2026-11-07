@@ -88,4 +88,12 @@
     <string name="skills_imported">مستوردة</string>
     <string name="skill_builtin_name">توجد مهارة مدمجة بهذا الاسم بالفعل. غيّر الاسم وحاول مجددًا.</string>
     <string name="skill_draft_pending">توجد مسودة بهذا الاسم بانتظار المراجعة بالفعل. تعامل معها أولًا.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">سأتذكّر: %1$s</string>
+    <string name="memory_note_updated">حدّثتُ: %1$s</string>
+    <string name="memory_note_updated_was">حدّثتُ: %1$s (كان: %2$s)</string>
+    <string name="memory_note_forgot">نسيتُ: %1$s</string>
+    <string name="memory_note_forgot_unknown">نسيتُ ذكرى واحدة</string>
+    <string name="memory_note_pending">هل أفعلها هكذا من الآن فصاعدًا؟ %1$s</string>
+    <string name="memory_note_deleted">ذكرى محذوفة</string>
 </resources>

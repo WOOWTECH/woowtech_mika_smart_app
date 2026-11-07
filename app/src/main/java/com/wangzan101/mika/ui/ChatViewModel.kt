@@ -24,6 +24,7 @@ import com.wangzan101.mika.task.TaskGate
 import com.wangzan101.mika.core.agent.Turn
 import com.wangzan101.mika.core.memory.MemoryItem
 import com.wangzan101.mika.core.memory.MemoryNote
+import com.wangzan101.mika.core.memory.NoteKind
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.skills.SkillNote
 import com.wangzan101.mika.memory.RunNotes
@@ -526,7 +527,7 @@ class ChatViewModel(
     }
 
     /** 提示这一行的文字,内容从此刻的记忆里取;那条已经删掉时写「一条已删除的记忆」。 */
-    fun noteText(note: MemoryNote): String = note.text(memoryItems.value.find { it.id == note.memoryId })
+    fun noteText(note: MemoryNote): String = noteText(note, memoryItems.value.find { it.id == note.memoryId })
 
     /** 撤销这条记忆改动;令牌已失效(重启过)时只把「撤销」去掉。 */
     fun undoNote(runId: String, note: MemoryNote) {
@@ -1347,6 +1348,20 @@ class ChatViewModel(
             target.startsWith(SITE_PREFIX) -> target.removePrefix(SITE_PREFIX)
             com.wangzan101.mika.core.tool.PACKAGE_NAME_RE.matches(target) -> appLabel(target)
             else -> target
+        }
+
+        /**
+         * WOOWTECH fork: 结果卡片下记忆提示那一行,按界面语言写(上游用 core 的 [MemoryNote.text],写死了简体中文),说法和它一样。
+         * [item] 是那条记忆此刻的样子;已经不在了(删掉、清空)时为 null,内容写「一条已删除的记忆」。
+         */
+        internal fun noteText(note: MemoryNote, item: MemoryItem?): String {
+            val content = item?.content ?: tr(R.string.memory_note_deleted)
+            return when (note.kind) {
+                NoteKind.added -> tr(R.string.memory_note_added, content)
+                NoteKind.updated -> item?.replaces?.let { tr(R.string.memory_note_updated_was, content, it) } ?: tr(R.string.memory_note_updated, content)
+                NoteKind.forgot -> if (item == null) tr(R.string.memory_note_forgot_unknown) else tr(R.string.memory_note_forgot, content)
+                NoteKind.pending -> tr(R.string.memory_note_pending, content)
+            }
         }
 
         private fun fromTurn(t: Turn): Exchange {

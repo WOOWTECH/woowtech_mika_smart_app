@@ -88,4 +88,12 @@
     <string name="skills_imported">Imported</string>
     <string name="skill_builtin_name">A built-in skill already has this name. Rename it and try again.</string>
     <string name="skill_draft_pending">A draft with this name is already waiting for review. Handle that one first.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">Remembered: %1$s</string>
+    <string name="memory_note_updated">Updated: %1$s</string>
+    <string name="memory_note_updated_was">Updated: %1$s (was: %2$s)</string>
+    <string name="memory_note_forgot">Forgot: %1$s</string>
+    <string name="memory_note_forgot_unknown">Forgot a memory</string>
+    <string name="memory_note_pending">Do it this way from now on? %1$s</string>
+    <string name="memory_note_deleted">a deleted memory</string>
 </resources>
