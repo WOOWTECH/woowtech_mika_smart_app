@@ -236,6 +236,28 @@ class AgentLoopGateTest {
         }
         assertTrue(UserExchange.CONFIRMATION_REMOTE.startsWith("This task was not started on the phone"))
         assertEquals(listOf("declined_remote", "declined_remote"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
+        // WOOWTECH fork: 每次拒绝都带着申报的那一步(执行过程据此挂标签)
+        assertEquals(listOf(3, 4), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.step })
+        assertTrue(s.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 确认事件带着申报、被拦下的那一次调用所在的一步。申报那一步的回复和结果要等你回答完才记,
+    // 确认事件记在它们前面:执行过程按步号挂标签,不挂到前一步(11/07 模拟器 P8:〔你没同意〕挂在填好优惠码的那一步)
+    @Test fun confirmationEventsCarryTheStepThatRaisedThem() = runTest {
+        val s = ChatScreen(); val sink = ListSink()
+        val m = FakeModel(OBSERVE, TYPE, ask(), tapSend(), failure("你没同意,没有发送"))
+        val l = loop(m, s, sink)
+        val run = async { l.run("给张三发明天见") }
+        advanceUntilIdle()
+        fun confirmations() = sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision to it.step }
+        // 还在等你回答:申报那一步(第 3 步)的回复还没记,确认事件已经带着它的步号
+        assertEquals(listOf(null to 3), confirmations())
+        assertTrue(sink.events.none { it is RunEvent.ModelReply && it.step == 3 })
+        l.answerConfirmation(false)
+        assertEquals(TaskState.Failed("你没同意,没有发送", FailKind.GaveUp), run.await())
+        // 第 4 步点发送被关卡拦下:那一条带的是第 4 步
+        assertEquals("confirmation_required", m.result(4).s("error"))
+        assertEquals(listOf(null to 3, "declined" to 3, "required" to 4), confirmations())
         assertTrue(s.taps.isEmpty())
     }
 

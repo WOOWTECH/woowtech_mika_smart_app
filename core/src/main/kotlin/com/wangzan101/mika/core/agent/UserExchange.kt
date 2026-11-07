@@ -178,7 +178,8 @@ internal class UserExchange(
             put("message", Feedback["confirmation_unavailable"]); put("recoverable", true)
         })
         val r = o.request
-        fun event(decision: String?) = RunEvent.Confirmation(now(), r.action.name, detail(r.target), detail(r.content), r.amount?.let(::detail), decision)
+        // WOOWTECH fork: 带上申报的这一步:它的回复和结果要等用户回答完才记,执行过程按步号把标签挂在这一步上
+        fun event(decision: String?) = RunEvent.Confirmation(now(), r.action.name, detail(r.target), detail(r.content), r.amount?.let(::detail), decision, step)
         fun error(code: String, message: String, recoverable: Boolean) = ToolExecution(buildJsonObject {
             put("ok", false); put("error", code); put("message", message)
             put("recoverable", recoverable); put("counts_as_failure", false)
