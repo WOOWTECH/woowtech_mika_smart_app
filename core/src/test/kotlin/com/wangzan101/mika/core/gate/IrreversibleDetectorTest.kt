@@ -756,7 +756,7 @@ class IrreversibleDetectorTest {
     // 同屏的通用「確定」也就跟着成了付款
     @Test fun longPaymentMethodListsAreAds() {
         for (w in listOf("支援 LINE Pay、街口支付付款", "支援 LINE Pay、街口支付", "支援 Apple Pay、Google Pay、LINE Pay、街口支付、全支付付款",
-            "支持微信、支付寶付款", "支援 LINE Pay、街口支付付款")) {
+            "支持微信、支付寶付款", "支援\u00A0LINE\u00A0Pay、街口支付付款")) {
             assertNull(w, d.matchName(w))
         }
         // 动作字、句读后面的付款键照常算;介绍只跨挨着英文字的空白,别的空白后面的付款键也照常算
