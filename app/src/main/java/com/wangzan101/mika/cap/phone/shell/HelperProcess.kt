@@ -89,6 +89,8 @@ object HelperProcess {
         /** WOOWTECH fork: Mika 不在时定时看它的包(见 [checkApp]);[appChecks] 是这次死后已排过几次,定下一次等多久。 */
         private val appCheck = Runnable { checkApp() }
         private var appChecks = 0
+        /** WOOWTECH fork: 读不到包信息的原因记过日志了(见 [pinState]);读到一次就清掉。 */
+        private var unreadableLogged = false
 
         init {
             service.onRestoreWish = { flags ->
@@ -319,13 +321,16 @@ object HelperProcess {
             else pm.javaClass.getMethod("getPackageInfoAsUser", String::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
                 .invoke(pm, packageName, flags, userId) as PackageInfo
             val signers = info.signingInfo?.apkContentsSigners?.map { it.toByteArray() }
+            unreadableLogged = false
             HelperAppCheck.state(info.applicationInfo?.uid, HelperHandoff.certPin(signers), appUid, certPin)
         } catch (t: Throwable) {
             val cause = (t as? InvocationTargetException)?.targetException ?: t
             if (cause is PackageManager.NameNotFoundException) {
                 HelperAppCheck.State.Gone
             } else {
-                Log.w(TAG, "cannot read signing info of $packageName", cause)
+                // 定时检查一直查不清时,不每隔几秒记一遍
+                if (!unreadableLogged) Log.w(TAG, "cannot read signing info of $packageName", cause)
+                unreadableLogged = true
                 HelperAppCheck.State.Unknown
             }
         }
