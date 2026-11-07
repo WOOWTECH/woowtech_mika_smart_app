@@ -33,6 +33,18 @@ class BrandValuesTest {
         assertFalse(Brand.branded)
     }
 
+    @Test fun capsuleDefaultIsBoundedAndInvalidValuesFallBack() {
+        fun fraction(value: String) = BrandValues(Properties().apply {
+            setProperty("capsule.default.fraction", value)
+        }).capsuleDefaultFraction
+        assertEquals(0f, upstream.capsuleDefaultFraction)
+        assertEquals(0.5f, fraction("0.5"))
+        assertEquals(1f, fraction("2"))
+        assertEquals(0f, fraction("-1"))
+        assertEquals(0f, fraction("NaN"))
+        assertEquals(0f, fraction("Infinity"))
+    }
+
     @Test
     fun englishTextUsesTheEnglishName() {
         assertEquals("Open woowtech agent once, then run this again.", woowtech.text("Open Mika once, then run this again."))

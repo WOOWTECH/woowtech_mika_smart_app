@@ -1,5 +1,6 @@
 package com.wangzan101.mika.settings
 
+import com.wangzan101.mika.core.brand.Brand
 import android.content.Context
 import android.content.SharedPreferences
 import com.wangzan101.mika.capsule.CapsuleDock
@@ -112,10 +113,10 @@ class FeatureFlags(private val prefs: SharedPreferences) {
         awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }.distinctUntilChanged()
 
-    /** 胶囊停在哪:左边还是右边、高度占可摆范围的比例;没拖过时在右上角。 */
+    /** 胶囊停在哪:左边还是右边、高度占可摆范围的比例;未拖动时使用品牌默认高度。 */
     fun capsuleDock(): CapsuleDock = CapsuleDock(
         if (prefs.getString(CAPSULE_SIDE, null) == DockSide.Left.name) DockSide.Left else DockSide.Right,
-        prefs.getFloat(CAPSULE_HEIGHT, 0f).coerceIn(0f, 1f),
+        prefs.getFloat(CAPSULE_HEIGHT, Brand.capsuleDefaultFraction).coerceIn(0f, 1f),
     )
 
     fun setCapsuleDock(dock: CapsuleDock) {
