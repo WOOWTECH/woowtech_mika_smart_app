@@ -41,6 +41,8 @@ class PairingCoordinator(context: Context, private val control: BuiltinShellCont
     private val deadline = SlidingDeadline(WINDOW_MS) { SystemClock.elapsedRealtime() }
     /** 通知上此刻显示的;再次提醒前对一下,已经换成别的(比如刚填了码)就不再弹旧的。 */
     @Volatile private var shown: PairingNotice? = null
+    /** WOOWTECH fork: [shown] 发出时被系统丢掉了(没允许通知、配对频道关着),见 [repostDropped]。 */
+    @Volatile private var dropped = false
     private val _repairing = MutableStateFlow(false)
     /** 用户点了「重新配对」且新的配对还没开始:助手即便在运行也要等新配对。 */
     val repairing: StateFlow<Boolean> = _repairing
@@ -115,15 +117,30 @@ class PairingCoordinator(context: Context, private val control: BuiltinShellCont
         }
     }
 
+    // WOOWTECH fork: 发、撤、补发在同一把锁里,补发的总是此刻那一条;记下这一条有没有被系统丢掉
+    @Synchronized
     private fun show(notice: PairingNotice) {
         Log.i(TAG, "show notification ${notice::class.simpleName}")
         shown = notice
-        PairingNotifier.show(app, notice)
+        dropped = !PairingNotifier.show(app, notice)
     }
 
+    @Synchronized
     private fun cancelNotice() {
         shown = null
+        dropped = false
         PairingNotifier.cancel(app)
+    }
+
+    /**
+     * WOOWTECH fork: 通知刚变得发得出去(引导页到配对一步才请用户允许通知,或用户打开了配对通知)。之前发的那条被系统丢掉了,
+     * 不会自己出现:静静备好的填码通知不再提醒,「跳过无障碍」时用户下拉通知栏就找不到填码的地方。还在看着配对就补发一次。
+     */
+    @Synchronized
+    fun repostDropped() {
+        val notice = PairingNotice.repostWhenAllowed(shown, dropped, watching = watch?.isActive == true) ?: return
+        Log.i(TAG, "notifications can be posted now; reposting ${notice::class.simpleName}")
+        show(notice)
     }
 
     @Synchronized
