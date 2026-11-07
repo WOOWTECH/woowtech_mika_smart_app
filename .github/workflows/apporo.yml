@@ -32,10 +32,11 @@ jobs:
       # ci.yml runs the full core, Android, CLI and relay suites for the same PR.
       # Keep APK compilation separate so it does not repeat those suites in a third build graph.
       - name: Build Apporo debug and unsigned release
-        run: ./gradlew :app:assembleApporoDebug :app:assembleApporoRelease --stacktrace
+        run: ./gradlew :app:assembleApporoDebug :app:assembleApporoRelease --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g --stacktrace
       - name: Verify packaged Apporo identity
         run: python3 apporo/tools/check-apk.py app/build/outputs/apk/apporo/release/*.apk
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: apporo-assistant-${{ github.sha }}
           path: app/build/outputs/apk/apporo/**/*.apk
