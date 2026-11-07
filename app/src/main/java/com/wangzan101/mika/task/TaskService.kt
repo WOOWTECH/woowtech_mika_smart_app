@@ -50,6 +50,7 @@ import com.wangzan101.mika.settings.FeatureFlags
 import com.wangzan101.mika.takeover.Takeover
 import com.wangzan101.mika.takeover.TakeoverActivity
 import com.wangzan101.mika.ui.MainActivity
+import com.wangzan101.mika.ui.MarkdownModel
 import com.wangzan101.mika.ui.ScreenCopy
 import com.wangzan101.mika.ui.StatusCopy
 import kotlinx.coroutines.CancellationException
@@ -230,8 +231,9 @@ class TaskService : Service() {
                     provenance = RunProvenance(RunOrigin.Channel, Attendance.Reachable),
                     channelPeer = peer, channelMessageId = intent.getStringExtra(EXTRA_CHANNEL_MESSAGE_ID))
             }
+            // WOOWTECH fork: 记下是电脑端停的,结果通知不写「你停止了这个任务」
             ACTION_CANCEL_MCP -> intent.getStringExtra(EXTRA_MCP_ID)?.let { id -> center.runs().firstOrNull { it.mcpExternalId == id } }
-                ?.let { r -> if (center.cancelIfQueued(r)) cancelQueued(r) else r.cancel() }
+                ?.let { r -> if (center.cancelIfQueued(r)) cancelQueued(r) else r.cancel(fromComputer = true) }
             ACTION_CANCEL -> if (run != null && center.cancelIfQueued(run)) cancelQueued(run) else run?.cancel()
             ACTION_RESUME -> run?.resume()
             ACTION_TAKE_OVER -> run?.takeOver(waitKeyOf(intent))
@@ -414,7 +416,8 @@ class TaskService : Service() {
                 return@launch
             }
             val deliveryId = "result:${run.key}"
-            center.markResult(run, describe(end).second, deliveryId, successful = end is TaskState.Succeeded)
+            // WOOWTECH fork: 电脑端停掉的照实说(见 describeResult);恢复时补发的也是这句
+            center.markResult(run, describeResult(end, run.stoppedFromComputer).second, deliveryId, successful = end is TaskState.Succeeded)
             run.clearTakeoverStage()
             synchronized(notifyLock) { getSystemService(NotificationManager::class.java).cancel(id(ID_ATTENTION, run)) }
             // 先发结果通知,再在后台学(提取记忆、记技能结果、起草技能);用进程级作用域,服务退出也做完
@@ -624,7 +627,8 @@ class TaskService : Service() {
     }
 
     private fun progressNotification(run: TaskRun, state: TaskState): Notification {
-        val (_, text) = describe(state) { ConfirmationNotifier.appLabel(this, it) }
+        // WOOWTECH fork: 模型写的说明、提问去掉 Markdown 符号;确认摘要照原样(见 progressText)
+        val text = progressText(state) { ConfirmationNotifier.appLabel(this, it) }
         val warning = run.muteFailedFor?.let { "\n" + tr(R.string.task_may_make_sound) }.orEmpty() +
             (if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) "\n$TAKEOVER_QUEUED" else "")
         val b = Notification.Builder(this, CHANNEL_PROGRESS)
@@ -663,8 +667,9 @@ class TaskService : Service() {
         .setContentIntent(openApp())
         .build()
 
+    // WOOWTECH fork: 服务里的文字一律经 tr() 按 App 语言取;服务自己的 getString 可能是系统语言(App 选繁中、系统是英文时通知写成英文)
     private fun answerTooLate() = Handler(Looper.getMainLooper()).post {
-        Toast.makeText(this, getString(R.string.input_too_late, INPUT_TIMEOUT_MINUTES), Toast.LENGTH_LONG).show()
+        Toast.makeText(this, tr(R.string.input_too_late, INPUT_TIMEOUT_MINUTES), Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -681,21 +686,23 @@ class TaskService : Service() {
             )
         }
         if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) return null
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
         val (title, text) = when (state) {
             is TaskState.WaitingTakeover -> {
                 val extra = when (run.takeover?.problem?.value) {
-                    Takeover.Problem.MoveToMainFailed -> getString(R.string.takeover_move_to_main_failed)
-                    Takeover.Problem.WebBusy -> getString(R.string.takeover_web_busy)
-                    Takeover.Problem.MoveBackFailed -> getString(R.string.takeover_move_back_failed)
-                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) getString(R.string.takeover_handed_over_hint) else null
+                    Takeover.Problem.MoveToMainFailed -> tr(R.string.takeover_move_to_main_failed)
+                    Takeover.Problem.WebBusy -> tr(R.string.takeover_web_busy)
+                    Takeover.Problem.MoveBackFailed -> tr(R.string.takeover_move_back_failed)
+                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) tr(R.string.takeover_handed_over_hint) else null
                 }
                 val payment = StatusCopy.paymentLines(state.item, state.amount, state.address)
                 val behind = run.takeover?.let(takeoverQueue::behind) ?: 0
                 val waiting = if (behind > 0) trPlural(R.plurals.task_behind, behind) else null
-                takeoverTitle(state.reason) to listOfNotNull(state.message, payment, extra, waiting).joinToString("\n")
+                // WOOWTECH fork: 模型写的话去掉 Markdown 符号
+                takeoverTitle(state.reason) to listOfNotNull(notificationText(state.message), payment, extra, waiting).joinToString("\n")
             }
-            is TaskState.WaitingInput -> getString(R.string.input_title) to
-                "${state.prompt}\n${getString(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
+            is TaskState.WaitingInput -> tr(R.string.input_title) to
+                "${notificationText(state.prompt)}\n${tr(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
             else -> return null
         }
         val b = Notification.Builder(this, CHANNEL_ATTENTION)
@@ -729,20 +736,22 @@ class TaskService : Service() {
             "access_blocked" -> R.string.takeover_reason_access_blocked
             "payment" -> R.string.takeover_reason_payment
             "decision" -> R.string.takeover_reason_decision
-            else -> return getString(R.string.takeover_title)
+            else -> return tr(R.string.takeover_title)
         }
-        return getString(R.string.takeover_title_reason, getString(label))
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
+        return tr(R.string.takeover_title_reason, tr(label))
     }
 
+    // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
     private fun takeoverActions(run: TaskRun): List<Notification.Action> {
-        val cancel = action(run, getString(R.string.action_cancel_task), ACTION_CANCEL, 2)
+        val cancel = action(run, tr(R.string.action_cancel_task), ACTION_CANCEL, 2)
         return if (run.takeoverStage.value == Takeover.Stage.HandedOver) listOf(
-            takeoverAction(run, getString(R.string.action_hand_back), ACTION_HAND_BACK, 4),
-            takeoverAction(run, getString(R.string.action_finished_myself), ACTION_FINISHED_MYSELF, 5),
+            takeoverAction(run, tr(R.string.action_hand_back), ACTION_HAND_BACK, 4),
+            takeoverAction(run, tr(R.string.action_finished_myself), ACTION_FINISHED_MYSELF, 5),
             cancel,
         ) else listOf(
-            takeoverAction(run, getString(R.string.action_take_over), ACTION_TAKE_OVER, 3),
-            takeoverAction(run, getString(R.string.action_skip), ACTION_SKIP, 7),
+            takeoverAction(run, tr(R.string.action_take_over), ACTION_TAKE_OVER, 3),
+            takeoverAction(run, tr(R.string.action_skip), ACTION_SKIP, 7),
             cancel,
         )
     }
@@ -759,7 +768,8 @@ class TaskService : Service() {
     }
 
     private fun replyAction(run: TaskRun, options: List<String>?): Notification.Action {
-        val input = RemoteInput.Builder(KEY_REPLY).setLabel(getString(R.string.reply_hint))
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
+        val input = RemoteInput.Builder(KEY_REPLY).setLabel(tr(R.string.reply_hint))
             .apply { if (!options.isNullOrEmpty()) setChoices(options.toTypedArray()) }
             .build()
         // 回复内容要由系统填进 Intent,只能用可变的 PendingIntent(Intent 是显式的)
@@ -767,7 +777,7 @@ class TaskService : Service() {
             this, 6 + SLOT_STRIDE * run.slot, Intent(this, TaskService::class.java).setAction(ACTION_ANSWER).putExtra(EXTRA_RUN, run.key),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return Notification.Action.Builder(null, getString(R.string.action_reply), pi).addRemoteInput(input).build()
+        return Notification.Action.Builder(null, tr(R.string.action_reply), pi).addRemoteInput(input).build()
     }
 
     private fun answerAction(run: TaskRun, option: String, index: Int): Notification.Action {
@@ -780,7 +790,8 @@ class TaskService : Service() {
     }
 
     private suspend fun notifyResult(run: TaskRun, end: TaskState, deliveryId: String): DeliveryState {
-        val (title, text) = describe(end)
+        // WOOWTECH fork: 电脑端停掉的任务说是电脑停的
+        val (title, text) = describeResult(end, run.stoppedFromComputer)
         val peer = run.channelPeer ?: ChannelPeer(LocalChannel.ID, "phone-owner", run.conversationId)
         val started = SystemClock.elapsedRealtime()
         val delivered = outbox.deliver(channelFor(peer), peer, Delivery.Result(deliveryId, run.conversationId, text, title = title))
@@ -847,20 +858,42 @@ class TaskService : Service() {
         internal fun notifyDelivery(context: Context, delivery: Delivery, resultId: Int): SendOutcome {
             val nm = context.getSystemService(NotificationManager::class.java)
             when (delivery) {
-                is Delivery.Result -> nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
-                    .setSmallIcon(R.drawable.ic_notification)
-                    .setContentTitle(delivery.title)
-                    .setContentText(delivery.text)
-                    .setStyle(Notification.BigTextStyle().bigText(delivery.text))
-                    .setContentIntent(openApp(context, delivery.threadId))
-                    .setAutoCancel(true)
-                    .build())
+                is Delivery.Result -> {
+                    // WOOWTECH fork: 回答按 Markdown 写,通知里只放纯文字
+                    val text = notificationText(delivery.text)
+                    nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
+                        .setSmallIcon(R.drawable.ic_notification)
+                        .setContentTitle(delivery.title)
+                        .setContentText(text)
+                        .setStyle(Notification.BigTextStyle().bigText(text))
+                        .setContentIntent(openApp(context, delivery.threadId))
+                        .setAutoCancel(true)
+                        .build())
+                }
                 is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
                     .setSmallIcon(R.drawable.ic_notification).setContentTitle(tr(R.string.app_name))
                     .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
                 is Delivery.Ask, is Delivery.Progress -> {}
             }
             return SendOutcome.Delivered
+        }
+
+        /**
+         * WOOWTECH fork: 通知里显示的文字去掉 Markdown 符号。回答、提问按 Markdown 写,通知不渲染,`**`、`#`、反引号、
+         * 表格的 | 会原样露出来。和复制回答用同一份转换([MarkdownModel.toPlainText]),表格格子之间的制表符换成「 · 」;
+         * 挨着中文标点的 `**`(如 `**「重点」**的`)CommonMark 认不成粗体,剩下的也去掉。
+         */
+        internal fun notificationText(markdown: String): String =
+            MarkdownModel.toPlainText(markdown).replace("\t", " · ").replace("**", "")
+
+        /**
+         * WOOWTECH fork: 进度通知的正文:[describe] 的正文去掉 Markdown 符号([notificationText])。等你同意时不转:
+         * 确认摘要是 [ConfirmationCopy] 消毒过的纯文字(不解析任何标记),当 Markdown 转时 `&middot;`、`&#58;` 一类实体
+         * 会还原成它特意换掉的「·」「:」,拼出假的「· 金额:」字段;root 命令里的 `*`、反斜杠也会被吃掉,显示的命令和要同意的不一样。
+         */
+        internal fun progressText(state: TaskState, appLabel: (String) -> String = { it }): String {
+            val text = describe(state, appLabel).second
+            return if (state is TaskState.WaitingConfirmation) text else notificationText(text)
         }
 
         /** 追问等回答的时限:交给 AgentLoop,通知和卡片上写的分钟数也从这里来。 */
@@ -1063,5 +1096,13 @@ class TaskService : Service() {
             is TaskState.Failed -> tr(R.string.task_not_done) to state.reason
             TaskState.Cancelled -> tr(R.string.task_stopped) to tr(R.string.task_stopped_body)
         }
+
+        /**
+         * WOOWTECH fork: 结果通知的标题和正文,同 [describe];[fromComputer] 是电脑端取消了它交来的任务,
+         * 这时照实说是电脑停的,不写「你停止了这个任务」。
+         */
+        internal fun describeResult(end: TaskState, fromComputer: Boolean): Pair<String, String> =
+            if (end == TaskState.Cancelled && fromComputer) tr(R.string.task_stopped) to tr(R.string.task_stopped_remote_body)
+            else describe(end)
     }
 }

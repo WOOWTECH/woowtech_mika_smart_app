@@ -152,6 +152,21 @@ class PairingNoticeTest {
         assertEquals(PairingNotice.REALERT_MS[0], PairingNotice.realertAfter(steps[1].first!!, 0))
     }
 
+    /**
+     * WOOWTECH fork: 引导页到配对一步才请用户允许通知,那时静静备好的填码通知已被丢掉、之后也不再提醒:
+     * 通知变得发得出去时,还在看着配对就补发那一条;没丢过、已经不看了都不发。
+     */
+    @Test
+    fun aDroppedNoticeIsRepostedOnceNotificationsCanBePosted() {
+        val quiet = PairingNotice.EnterCode(null, quiet = true)
+        assertNull(PairingNotice.realertAfter(quiet, 0))
+        assertEquals(quiet, PairingNotice.repostWhenAllowed(quiet, dropped = true, watching = true))
+        assertEquals(PairingNotice.Working, PairingNotice.repostWhenAllowed(PairingNotice.Working, dropped = true, watching = true))
+        assertNull(PairingNotice.repostWhenAllowed(quiet, dropped = false, watching = true))
+        assertNull(PairingNotice.repostWhenAllowed(quiet, dropped = true, watching = false))
+        assertNull(PairingNotice.repostWhenAllowed(null, dropped = true, watching = true))
+    }
+
     @Test
     fun channelIsCreatedHighWhenMissing() {
         assertEquals(ChannelPlan.Create(PairingChannel.IDS.last()), PairingChannel.plan(emptyList()))

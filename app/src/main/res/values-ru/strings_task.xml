@@ -71,6 +71,7 @@
     <string name="task_not_done">Задача не завершена</string>
     <string name="task_stopped">Задача остановлена</string>
     <string name="task_stopped_body">Вы остановили эту задачу</string>
+    <string name="task_stopped_remote_body">Задача остановлена с компьютера</string>
     <string name="gate_user_on_page">Вы работаете со страницей, поэтому Mika приостановилась</string>
     <string name="task_no_phone_helper_usb">Помощник управления телефоном остановился (обычно после перезагрузки телефона). Откройте Mika и снова выполните команду запуска по USB; её можно скопировать в разделе «Настройка управления телефоном». Задачи с сайтами и файлами это не затрагивает.</string>
     <string name="drawer_screens">Фоновые экраны</string>

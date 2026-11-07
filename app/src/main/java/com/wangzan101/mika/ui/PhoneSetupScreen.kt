@@ -58,6 +58,7 @@ import com.wangzan101.mika.core.shell.BuiltinShellFailure
 import com.wangzan101.mika.core.shell.BuiltinShellFix
 import com.wangzan101.mika.core.shell.BuiltinShellStatus
 import com.wangzan101.mika.core.shell.HelperRestart
+import com.wangzan101.mika.core.shell.PairingChannelHealth
 import com.wangzan101.mika.core.shell.PairingCode
 import com.wangzan101.mika.core.shell.PairingNotifyIssue
 import com.wangzan101.mika.core.shell.PhoneSetupFlow
@@ -165,6 +166,12 @@ fun PhoneSetupScreen(status: SystemStatus, repair: Boolean, onFix: (Fix) -> Unit
             askedNotifications = true
             onFix(Fix.AllowNotifications)
         }
+    }
+    // WOOWTECH fork: 通知这时才允许(或配对通知这时才打开):在那之前发的填码通知被系统丢掉了,不会自己再发,
+    // 「跳过无障碍」时就找不到填码的地方。变得发得出去时补发一次(没丢过就不发)
+    val canNotify = status.notificationsAllowed && status.pairingChannel != PairingChannelHealth.Off
+    LaunchedEffect(canNotify) {
+        if (canNotify) pairing.repostDropped()
     }
     LaunchedEffect(view.phase) { if (view.phase == SetupPhase.Success) phone.setupPrompt.clear() }
     // 打开引导页时把「用电脑启动」的脚本备好(助手不在时带新口令)

@@ -3,6 +3,7 @@
     <string name="timeline_expired">Este registro expirou</string>
     <string name="tag_approved">Você aprovou</string>
     <string name="tag_declined">Você recusou</string>
+    <string name="tag_remote_declined">Tarefas vindas do computador não podem pagar nem fazer pedidos</string>
     <string name="tag_needs_ok">Precisou da sua aprovação</string>
     <string name="tag_takeover">Pediu para você assumir</string>
     <string name="tag_barrier">Encontrou um obstáculo</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">Precisa primeiro da sua aprovação</string>
     <string name="err_confirm_mismatch">Não corresponde ao que você aprovou</string>
     <string name="err_confirm_declined">Você não aprovou</string>
+    <string name="err_confirm_remote">Não dá para pagar pelo computador</string>
     <string name="err_not_applied">O texto não entrou</string>
     <string name="verify_failed">Falha na verificação</string>
     <string name="err_parallel_skipped">Só uma ação por vez</string>

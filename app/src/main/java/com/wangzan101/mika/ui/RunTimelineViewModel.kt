@@ -178,6 +178,8 @@ class RunTimelineViewModel(
                     when (e.decision) {
                         "approved" -> Tag(tr(R.string.tag_approved), TagTone.Ok)
                         "declined", "declined_before" -> Tag(tr(R.string.tag_declined), TagTone.Bad)
+                        // WOOWTECH fork: 电脑交办等不在手机上发起的任务直接拒绝,没有问过你:不写「要你同意」
+                        "declined_remote" -> Tag(tr(R.string.tag_remote_declined), TagTone.Bad)
                         else -> Tag(tr(R.string.tag_needs_ok), TagTone.Warn)
                     },
                 )
@@ -290,6 +292,8 @@ class RunTimelineViewModel(
             "confirmation_required" to tr(R.string.err_confirm_required),
             "confirmation_mismatch" to tr(R.string.err_confirm_mismatch),
             "confirmation_declined" to tr(R.string.err_confirm_declined),
+            // WOOWTECH fork: 不在手机上发起的任务里申报同意,直接拒绝(没有人被问过)
+            "confirmation_remote" to tr(R.string.err_confirm_remote),
             "action_not_applied" to tr(R.string.err_not_applied),
             "verification_failed" to tr(R.string.verify_failed),
             "parallel_tool_call_skipped" to tr(R.string.err_parallel_skipped),

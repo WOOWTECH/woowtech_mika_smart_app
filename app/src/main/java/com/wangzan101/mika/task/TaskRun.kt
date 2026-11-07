@@ -274,6 +274,9 @@ class TaskRun(
     @Volatile private var cancelRequested = false
     /** 用户点了停止:还没交给模型的插话一起作废,不当成下一件事。 */
     @Volatile private var stopPressed = false
+    /** WOOWTECH fork: 是电脑端停的(取消了它交来的任务):结果通知照实说;手机上先点了停止的仍算手机停的。 */
+    @Volatile var stoppedFromComputer = false
+        private set
     @Volatile private var loop: AgentLoop? = null
     val activeAsk: Delivery.Ask? get() = loop?.activeAsk
     @Volatile private var gate: TaskGate? = null
@@ -297,7 +300,9 @@ class TaskRun(
     private val publishLock = Any()
     private var ended = false
 
-    fun cancel() {
+    /** [fromComputer]:电脑端取消了它交来的任务(WOOWTECH fork)。 */
+    fun cancel(fromComputer: Boolean = false) {
+        if (!stopPressed) stoppedFromComputer = fromComputer
         stopPressed = true
         children?.cancelAll(RunId(key))
         val running = loop

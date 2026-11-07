@@ -68,6 +68,7 @@
     <string name="task_not_done">Tarea sin terminar</string>
     <string name="task_stopped">Tarea detenida</string>
     <string name="task_stopped_body">Detuviste esta tarea</string>
+    <string name="task_stopped_remote_body">Esta tarea se detuvo desde el ordenador</string>
     <string name="gate_user_on_page">Estás usando la página, así que Mika se detuvo</string>
     <string name="task_no_phone_helper_usb">El asistente del teléfono se ha detenido (normalmente tras reiniciar el teléfono). Abre Mika y vuelve a ejecutar el comando de inicio por USB; puedes copiarlo en “Configurar el control del teléfono”. Las tareas web y de archivos no se ven afectadas.</string>
     <string name="drawer_screens">Pantallas en segundo plano</string>

@@ -3,6 +3,7 @@
     <string name="timeline_expired">انتهت صلاحية هذا السجل</string>
     <string name="tag_approved">وافقتَ</string>
     <string name="tag_declined">رفضتَ</string>
+    <string name="tag_remote_declined">لا يمكن للمهام القادمة من كمبيوتر الدفع أو الطلب</string>
     <string name="tag_needs_ok">يتطلب موافقتك</string>
     <string name="tag_takeover">طلب منك تولّي المهمة</string>
     <string name="tag_barrier">واجه عائقًا</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">يلزم الحصول على موافقتك أولًا</string>
     <string name="err_confirm_mismatch">لا يتطابق مع ما وافقت عليه</string>
     <string name="err_confirm_declined">لم توافق</string>
+    <string name="err_confirm_remote">لا يمكن الدفع من الكمبيوتر</string>
     <string name="err_not_applied">لم يُدخَل النص</string>
     <string name="verify_failed">فشل التحقق</string>
     <string name="err_parallel_skipped">يُسمح بإجراء واحد فقط في كل مرة</string>

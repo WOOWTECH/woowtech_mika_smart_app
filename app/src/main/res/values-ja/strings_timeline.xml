@@ -3,6 +3,7 @@
     <string name="timeline_expired">この記録は期限切れです</string>
     <string name="tag_approved">許可しました</string>
     <string name="tag_declined">拒否しました</string>
+    <string name="tag_remote_declined">パソコンから頼んだタスクでは支払い・注文はできません</string>
     <string name="tag_needs_ok">許可が必要でした</string>
     <string name="tag_takeover">引き継ぎをお願いしました</string>
     <string name="tag_barrier">障害にぶつかりました</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">先にあなたの許可が必要です</string>
     <string name="err_confirm_mismatch">許可された内容と一致しません</string>
     <string name="err_confirm_declined">許可されませんでした</string>
+    <string name="err_confirm_remote">パソコンからは支払えません</string>
     <string name="err_not_applied">テキストが入力されませんでした</string>
     <string name="verify_failed">確認に失敗しました</string>
     <string name="err_parallel_skipped">操作は一度に 1 つだけです</string>

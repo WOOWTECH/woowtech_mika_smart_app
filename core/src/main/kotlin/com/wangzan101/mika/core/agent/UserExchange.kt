@@ -182,6 +182,11 @@ internal class UserExchange(
             put("ok", false); put("error", code); put("message", message)
             put("recoverable", recoverable); put("counts_as_failure", false)
         })
+        // WOOWTECH fork: 不在手机上发起的任务(电脑交办等)不问用户、直接拒绝:用自己的错误码和说明,不说成用户没同意
+        fun remoteRefusal(): ToolExecution {
+            emit(event("declined_remote"))
+            return error("confirmation_remote", CONFIRMATION_REMOTE, recoverable = false)
+        }
         when (g.declare(r, o.foregroundApp)) {
             DeclareResult.Mismatch -> {
                 emit(event("mismatch"))
@@ -192,6 +197,8 @@ internal class UserExchange(
                 })
             }
             DeclareResult.Declined -> {
+                // WOOWTECH fork: 这类任务里上一次也是直接拒绝的(没有人被问过),再申报照样这么说
+                if (provenance.origin != RunOrigin.Ui) return remoteRefusal()
                 emit(event("declined_before"))
                 return error("confirmation_declined", CONFIRMATION_DECLINED, recoverable = false)
             }
@@ -206,8 +213,7 @@ internal class UserExchange(
         // 付款只在手机上同意:渠道、定时、MCP 发起的任务不问
         if (provenance.origin != RunOrigin.Ui) {
             g.decide(ConfirmChoice.Deny, step)
-            emit(event("declined_remote"))
-            return error("confirmation_declined", CONFIRMATION_DECLINED, recoverable = false)
+            return remoteRefusal()
         }
         val pending = CompletableDeferred<ConfirmChoice>().also { confirmationReply = it }
         val ask = ask(Delivery.Ask.Kind.Confirm, "${r.action.name}: ${r.target} ${r.content}")
@@ -240,6 +246,8 @@ internal class UserExchange(
         val NO_HANDBACK_NOTE: String get() = Feedback["no_handback_note"]
         val USER_FINISHED_PROMPT: String get() = Feedback["user_finished_prompt"]
         val CONFIRMATION_DECLINED: String get() = Feedback["confirmation_declined"]
+        // WOOWTECH fork: 不在手机上发起的任务里申报同意(没有人被问过)
+        val CONFIRMATION_REMOTE: String get() = Feedback["confirmation_remote"]
         val CONFIRMATION_APPROVED: String get() = Feedback["confirmation_approved"]
     }
 }

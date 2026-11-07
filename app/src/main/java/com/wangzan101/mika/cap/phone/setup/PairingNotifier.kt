@@ -72,6 +72,13 @@ sealed interface PairingNotice {
         fun realertAfter(notice: PairingNotice, sent: Int): Long? = if (notice is EnterCode && !notice.quiet) REALERT_MS.getOrNull(sent) else null
 
         /**
+         * WOOWTECH fork: 通知刚变得发得出去(允许了通知、打开了配对通知)时补发哪一条:还在看着配对([watching])、
+         * 上一条([shown])发出时被系统丢掉了([dropped])就补发它;没丢过的不再发,免得又响一次。
+         */
+        fun repostWhenAllowed(shown: PairingNotice?, dropped: Boolean, watching: Boolean): PairingNotice? =
+            shown?.takeIf { dropped && watching }
+
+        /**
          * [PairingCoordinator] 跟着状态更新通知时的一次计算:这时该显示哪条,显示完是否不再跟。
          * 填了码、配对还没开始([submitted])时一律是「正在配对」,也不在这时结束(助手原本就在运行也一样,配对开始后状态还会变);
          * 「重新配对」时运行中的旧状态不算配好([PhoneSetupFlow.effectiveStatus]),助手在运行、又不在重新配对才结束。
@@ -160,7 +167,11 @@ object PairingNotifier {
         return plan
     }
 
-    fun show(context: Context, notice: PairingNotice) {
+    /**
+     * 发出 [notice]。WOOWTECH fork: 返回系统有没有收下:没允许通知、配对频道被关掉时它被丢掉,
+     * 之后不会自己出现,允许后要补发(见 [PairingCoordinator.repostDropped])。
+     */
+    fun show(context: Context, notice: PairingNotice): Boolean {
         val nm = context.getSystemService(NotificationManager::class.java)
         val channel = ensureChannel(context).id
         val open = PendingIntent.getActivity(
@@ -206,10 +217,15 @@ object PairingNotifier {
         // 静静备好的那个:放进通知栏,不响不弹(高优先级频道上也是,minSdk 30 没有 setSilent)
         if (notice is PairingNotice.EnterCode && notice.quiet) b.setOnlyAlertOnce(true).setGroup(QUIET_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
         // 没允许通知时系统会丢掉它;引导页在配对这一步先请用户允许
-        runCatching { nm.notify(ID, b.build()) }.onFailure { Log.w(TAG, "pairing notification not posted", it) }
+        val posted = runCatching { nm.notify(ID, b.build()) }.onFailure { Log.w(TAG, "pairing notification not posted", it) }.isSuccess
         // 发出去了也可能不弹:总开关、频道的重要程度都记一句(厂商另外的「悬浮通知」开关读不到)
-        if (!nm.areNotificationsEnabled()) Log.w(TAG, "notifications are off for Mika; the pairing notice is dropped")
-        else nm.getNotificationChannel(channel)?.let { if (it.importance < NotificationManager.IMPORTANCE_HIGH) Log.i(TAG, "pairing channel importance ${it.importance}; it won't pop up") }
+        if (!nm.areNotificationsEnabled()) {
+            Log.w(TAG, "notifications are off for Mika; the pairing notice is dropped")
+            return false
+        }
+        val importance = nm.getNotificationChannel(channel)?.importance
+        if (importance != null && importance < NotificationManager.IMPORTANCE_HIGH) Log.i(TAG, "pairing channel importance $importance; it won't pop up")
+        return posted && importance != NotificationManager.IMPORTANCE_NONE
     }
 
     fun cancel(context: Context) {
