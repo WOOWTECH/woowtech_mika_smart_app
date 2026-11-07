@@ -61,11 +61,13 @@ class ConfirmationGate {
 
     /**
      * WOOWTECH fork: 要同意的这一步按关卡自己的判定是付款:刚在这个 App 里被拦下的那一步是付款;
-     * 没有被拦下过时,这一屏上点得到的不可逆动作里有付款、却没有申报的那一种。
+     * 没有被拦下过时,这一屏上要花钱的只有付款:点得到付款,没有下单、提交,也没有申报的那一种。
+     * 屏上另有下单、提交时照常出同意卡(申报和判定对不上由 [permits] 作废,再申报一次)。
      */
     private fun paymentPending(req: ConfirmationRequest, screenActions: Set<IrrevAction>?): Boolean {
         refused?.takeIf { it.app == req.app }?.let { return it.hit.action == IrrevAction.pay }
-        return screenActions != null && IrrevAction.pay in screenActions && req.action !in screenActions
+        return screenActions != null && IrrevAction.pay in screenActions && req.action !in screenActions &&
+            screenActions.none { it == IrrevAction.order || it == IrrevAction.submit }
     }
 
     /**

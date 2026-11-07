@@ -186,6 +186,9 @@ class ConfirmationGateTest {
         // P5:没被拦下过、先申报成提交,这一屏要花钱的只有「立即加值」(付款)
         assertEquals(DeclareResult.Unsupported, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay)))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
+        // 屏上另有下单、提交时不只付款要花钱:P1 的「確認送出」(提交)常被报成下单,照常出同意卡,对不上时再申报
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.order)))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", emptySet()))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", null))
         // 前台对不上照旧先报对不上;任务结束就忘掉被拦下的那一步
