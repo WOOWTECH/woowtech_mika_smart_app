@@ -15,4 +15,8 @@
     <string name="chat_example_multi_step">Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.</string>
     <!-- The remote gateway field's example address, without a product name (upstream's is mika.example.com). -->
     <string name="relay_gateway_hint" translatable="false">https://gateway.example.com</string>
+    <!-- The browser searches with brand.properties' search.url (Google), not upstream's Bing. -->
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">Search with Google</string>
+    <string name="browser_typing_note">URLs open directly; anything else is searched with Google</string>
 </resources>

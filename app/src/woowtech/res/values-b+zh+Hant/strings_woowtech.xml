@@ -12,4 +12,10 @@
     <string name="chat_example_group_summary">幫我整理 LINE 群組今天的未讀訊息，標出需要我回覆的重點</string>
     <string name="chat_example_jobs">在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較</string>
     <string name="chat_example_multi_step">在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點</string>
+    <!-- 內建瀏覽器用 brand.properties 的 search.url（Google）搜尋，不是上游的 Bing。 -->
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">用 Google 搜尋</string>
+    <string name="browser_typing_note">輸入網址直接開啟，其他內容用 Google 搜尋</string>
+    <!-- OpenRouter 上那把 Key 的名稱是 Brand.name（OpenRouterAuth 的 key_label），不是中文名。 -->
+    <string name="signin_openrouter_signed_in_note">用量從你的 OpenRouter 餘額裡扣。Key 加密存在這台手機上；不想用了，可以在 OpenRouter 的 Keys 頁面刪掉名為「woowtech agent」的那把。</string>
 </resources>
