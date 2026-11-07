@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.remote
 
+import com.wangzan101.mika.core.brand.Brand
 import kotlinx.coroutines.delay
 import java.util.UUID
 
@@ -16,7 +17,7 @@ sealed class RemoteTaskError(val code: Code, message: String) : Exception(messag
     class BadConversation : RemoteTaskError(Code.INVALID_ARGUMENT,
         "conversation must be one returned by an earlier remote task (looks like mcp-<uuid>)")
     /** 这一步要用户在手机上处理,不能远程回答。 */
-    class NeedsPhone : RemoteTaskError(Code.CONFLICT, RemoteStatus.ON_PHONE_NOTE)
+    class NeedsPhone : RemoteTaskError(Code.CONFLICT, Brand.text(RemoteStatus.ON_PHONE_NOTE))  // WOOWTECH fork: CLI 任务 API 原样交出这句
     /** 查到时还在问,交回答时问题已经没了。 */
     class QuestionClosed : RemoteTaskError(Code.CONFLICT, "The question is no longer open; check the task's status.")
 }
