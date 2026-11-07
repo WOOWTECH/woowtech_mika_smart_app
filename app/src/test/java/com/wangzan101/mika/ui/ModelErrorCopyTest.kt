@@ -55,7 +55,8 @@ class ModelErrorCopyTest {
             assertTrue("$f: $r", r.isNotBlank() && !cjk.containsMatchIn(r))
         }
         assertEquals("the server returned an error (HTTP 502)", ModelErrorCopy.reason(ModelError.Server(502)))
-        assertEquals("the server returned an error (HTTP 500)", ModelErrorCopy.listFailure(ModelListResult.Failed(ListFailure.Server, "HTTP 500")))
+        assertEquals("the service had a temporary error; try again later (HTTP 500)",
+            ModelErrorCopy.listFailure(ModelListResult.Failed(ListFailure.Server, "HTTP 500")))
     }
 
     /** 简体中文那份和 core 的说法逐字相同:上游的中文界面不变。 */
@@ -65,8 +66,9 @@ class ModelErrorCopyTest {
             ModelError.Auth(), ModelError.QuotaExceeded(), ModelError.RateLimited(null), ModelError.ContextTooLong(), ModelError.Network(),
             ModelError.StreamCut(), ModelError.ContentRefused(), ModelError.ChatGptLimitReached(), ModelError.ChatGptNotEligible(),
         )) assertEquals(e.message, ModelErrorCopy.reason(e))
-        for (f in listOf(ListFailure.Auth, ListFailure.RateLimited, ListFailure.Network, ListFailure.NotSupported, ListFailure.Server)) {
+        for (f in listOf(ListFailure.Auth, ListFailure.RateLimited, ListFailure.Network, ListFailure.NotSupported, ListFailure.Server, ListFailure.BadResponse)) {
             assertEquals(f.text, ModelErrorCopy.listFailure(ModelListResult.Failed(f)))
+            assertEquals(ModelListResult.Failed(f, "HTTP 500").message, ModelErrorCopy.listFailure(ModelListResult.Failed(f, "HTTP 500")))
         }
     }
 

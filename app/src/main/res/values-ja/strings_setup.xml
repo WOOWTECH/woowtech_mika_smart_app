@@ -97,4 +97,6 @@
     <string name="list_error_network">このアドレスに接続できません。ネットワークとベース URL を確認してください</string>
     <string name="list_error_not_supported">このサービスはモデル一覧を提供していません</string>
     <string name="list_error_server">サービスで一時的なエラーが起きました。しばらくしてからもう一度お試しください</string>
+    <string name="list_error_bad_response">返ってきた内容を読み取れません。ベース URL と API の種類を確認してください</string>
+    <string name="list_error_with_detail">%1$s(%2$s)</string>
 </resources>

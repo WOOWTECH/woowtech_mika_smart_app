@@ -40,18 +40,21 @@ object ModelErrorCopy {
         }
     }
 
-    /** 列模型没成功的原因;[ModelListResult.Failed.detail] 是状态码(「HTTP 500」)时一并说。 */
-    fun listFailure(r: ModelListResult.Failed): String = when (r.reason) {
-        ListFailure.BadUrl -> tr(R.string.model_url_scheme)
-        ListFailure.Auth -> tr(R.string.model_error_auth)
-        ListFailure.Quota -> tr(R.string.model_error_quota)
-        ListFailure.RateLimited -> tr(R.string.model_error_rate_limited)
-        ListFailure.Network -> tr(R.string.list_error_network)
-        ListFailure.ProxyUnreachable -> proxy(ProxyFailure.Unreachable)
-        ListFailure.ProxyAuth -> proxy(ProxyFailure.AuthFailed)
-        ListFailure.NotSupported -> tr(R.string.list_error_not_supported)
-        ListFailure.Server -> if (r.detail.isEmpty()) tr(R.string.list_error_server) else tr(R.string.model_reason_server, r.detail)
-        ListFailure.BadResponse -> if (r.detail.isEmpty()) tr(R.string.model_error_unreadable) else tr(R.string.model_reason_server, r.detail)
+    /** 列模型没成功的原因;带着细节(状态码「HTTP 500」)时接在后面括起来,和 [ModelListResult.Failed.message] 一样。 */
+    fun listFailure(r: ModelListResult.Failed): String {
+        val reason = when (r.reason) {
+            ListFailure.BadUrl -> tr(R.string.model_url_scheme)
+            ListFailure.Auth -> tr(R.string.model_error_auth)
+            ListFailure.Quota -> tr(R.string.model_error_quota)
+            ListFailure.RateLimited -> tr(R.string.model_error_rate_limited)
+            ListFailure.Network -> tr(R.string.list_error_network)
+            ListFailure.ProxyUnreachable -> proxy(ProxyFailure.Unreachable)
+            ListFailure.ProxyAuth -> proxy(ProxyFailure.AuthFailed)
+            ListFailure.NotSupported -> tr(R.string.list_error_not_supported)
+            ListFailure.Server -> tr(R.string.list_error_server)
+            ListFailure.BadResponse -> tr(R.string.list_error_bad_response)
+        }
+        return if (r.detail.isEmpty()) reason else tr(R.string.list_error_with_detail, reason, r.detail)
     }
 
     private fun proxy(f: ProxyFailure): String =

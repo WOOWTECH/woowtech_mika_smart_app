@@ -97,4 +97,6 @@
     <string name="list_error_network">no se pudo llegar a esta dirección; comprueba la red y la URL base</string>
     <string name="list_error_not_supported">este servicio no ofrece una lista de modelos</string>
     <string name="list_error_server">el servicio tuvo un error temporal; inténtalo más tarde</string>
+    <string name="list_error_bad_response">no se pudo leer la respuesta; comprueba la URL base y el tipo de API</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

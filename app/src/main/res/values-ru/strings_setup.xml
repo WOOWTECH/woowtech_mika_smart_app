@@ -97,4 +97,6 @@
     <string name="list_error_network">не удалось связаться с этим адресом; проверьте сеть и базовый URL</string>
     <string name="list_error_not_supported">этот сервис не даёт списка моделей</string>
     <string name="list_error_server">временная ошибка сервиса; попробуйте позже</string>
+    <string name="list_error_bad_response">не удалось прочитать ответ; проверьте базовый URL и тип API</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

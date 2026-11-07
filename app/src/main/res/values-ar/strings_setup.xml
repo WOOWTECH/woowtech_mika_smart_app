@@ -97,4 +97,6 @@
     <string name="list_error_network">تعذّر الوصول إلى هذا العنوان؛ تحقّق من الشبكة ومن Base URL</string>
     <string name="list_error_not_supported">لا تقدّم هذه الخدمة قائمة بالنماذج</string>
     <string name="list_error_server">حدث خطأ مؤقت في الخدمة؛ حاول لاحقًا</string>
+    <string name="list_error_bad_response">تعذّرت قراءة الرد؛ تحقّق من Base URL ومن API type</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

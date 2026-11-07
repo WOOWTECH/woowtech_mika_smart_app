@@ -97,4 +97,6 @@
     <string name="list_error_network">連不上這個位址，請檢查網路和介面網址</string>
     <string name="list_error_not_supported">這個服務不提供模型清單</string>
     <string name="list_error_server">服務暫時出錯，請稍後再試</string>
+    <string name="list_error_bad_response">看不懂回傳的內容，請檢查介面網址和介面類型</string>
+    <string name="list_error_with_detail">%1$s（%2$s）</string>
 </resources>

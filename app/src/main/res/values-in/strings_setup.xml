@@ -97,4 +97,6 @@
     <string name="list_error_network">tidak bisa menjangkau alamat ini; periksa jaringan dan URL dasar</string>
     <string name="list_error_not_supported">layanan ini tidak menyediakan daftar model</string>
     <string name="list_error_server">layanan mengalami galat sementara; coba lagi nanti</string>
+    <string name="list_error_bad_response">balasannya tidak bisa dibaca; periksa URL dasar dan jenis API</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

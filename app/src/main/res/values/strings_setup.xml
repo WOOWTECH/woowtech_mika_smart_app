@@ -97,4 +97,6 @@
     <string name="list_error_network">couldn’t reach this address; check the network and the base URL</string>
     <string name="list_error_not_supported">this service doesn’t offer a model list</string>
     <string name="list_error_server">the service had a temporary error; try again later</string>
+    <string name="list_error_bad_response">its reply couldn’t be read; check the base URL and API type</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>
