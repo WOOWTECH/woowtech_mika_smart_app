@@ -138,8 +138,11 @@ android {
             applicationId = "io.woowtech.agent"
             versionCode = (defaultConfig.versionCode ?: 0) * 100 + woowtechRevision
             versionName = "${defaultConfig.versionName}-woow.$woowtechRevision"
-            // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)
-            resourceConfigurations += listOf("en", "b+zh+Hant")
+            // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
+            // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
+            // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
+            // Compose UI 的 zh-rTW 也有 state_on/state_off:系统语言是 zh-TW 时这两句用它的「已開啟」「已關閉」,和上游一样。
+            resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
     }
     sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)

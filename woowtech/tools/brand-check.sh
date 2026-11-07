@@ -43,7 +43,11 @@ apk)
     say "$badging" | grep -q "^package: name='io.woowtech.agent'" || bad "package is not io.woowtech.agent"
     say "$badging" | grep -q "^application-label:'woowtech agent'" || bad "default label is not 'woowtech agent'"
     say "$badging" | grep -q "^application-label-[^:]*Hant[^:]*:'渥屋助理'" || bad "zh-Hant label is not '渥屋助理'"
-    locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant)$' || true)
+    # zh-TW is not a UI language of its own: it carries the AndroidX, Material and Play services translations
+    # (app/build.gradle.kts). Every Chinese label still has to be the one from values-b+zh+Hant.
+    labels=$(say "$badging" | grep "^application-label-zh" | grep -v ":'渥屋助理'$" || true)
+    [ -z "$labels" ] || bad "Chinese labels other than '渥屋助理': $labels"
+    locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW)$' || true)
     [ -z "$locales" ] || bad "unexpected UI locales: $(say "$locales" | tr '\n' ' ')"
     say "$badging" | grep -E "^(package|application-label|locales)" | sed 's/^/  /'
     strings=$("$aapt2" dump strings "$apk")
