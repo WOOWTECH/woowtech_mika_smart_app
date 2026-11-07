@@ -168,6 +168,10 @@ sealed interface RunEvent {
     @Serializable @SerialName("state")
     data class State(override val atMs: Long, val name: String, val detail: String) : RunEvent
 
+    /**
+     * WOOWTECH fork: [step] 是申报同意、或被确认关卡拦下的那一次调用所在的一步(经验回放是 0)。那一步的回复和结果
+     * 要等执行完(问完用户)才记,这条事件记在它们前面;执行过程按它挂到那一步上。旧记录没有。
+     */
     @Serializable @SerialName("confirmation")
     data class Confirmation(
         override val atMs: Long,
@@ -176,6 +180,7 @@ sealed interface RunEvent {
         val content: String?,
         val amount: String?,
         val decision: String?,
+        val step: Int? = null,
     ) : RunEvent
 
     /**

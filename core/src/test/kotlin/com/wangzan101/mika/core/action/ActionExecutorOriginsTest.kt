@@ -56,7 +56,8 @@ class ActionExecutorOriginsTest(private val label: String, private val action: I
         assertEquals(label, out.hit?.matched)
         assertTrue("没有执行", screen.taps.isEmpty())
         val confirmations = events.filterIsInstance<RunEvent.Confirmation>().map { it.copy(atMs = 0) }
-        assertEquals(listOf(RunEvent.Confirmation(0, action.name, label, null, null, "required")), confirmations)
+        // WOOWTECH fork: 确认事件带着这次调用所在的一步(回放是 0),和工具结果记的步号一样
+        assertEquals(listOf(RunEvent.Confirmation(0, action.name, label, null, null, "required", origin.step)), confirmations)
         // 没执行的动作不记成执行结果;模型单步的拦下说明本身就是交给模型的结果,照常记一条
         val results = events.filterIsInstance<RunEvent.ToolResult>()
         assertTrue(results.all { it.changed == null && it.callId == "c1" && "confirmation_required" in it.resultJson })

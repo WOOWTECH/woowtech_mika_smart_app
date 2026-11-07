@@ -236,6 +236,28 @@ class AgentLoopGateTest {
         }
         assertTrue(UserExchange.CONFIRMATION_REMOTE.startsWith("This task was not started on the phone"))
         assertEquals(listOf("declined_remote", "declined_remote"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
+        // WOOWTECH fork: 每次拒绝都带着申报的那一步(执行过程据此挂标签)
+        assertEquals(listOf(3, 4), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.step })
+        assertTrue(s.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 确认事件带着申报、被拦下的那一次调用所在的一步。申报那一步的回复和结果要等你回答完才记,
+    // 确认事件记在它们前面:执行过程按步号挂标签,不挂到前一步(11/07 模拟器 P8:〔你没同意〕挂在填好优惠码的那一步)
+    @Test fun confirmationEventsCarryTheStepThatRaisedThem() = runTest {
+        val s = ChatScreen(); val sink = ListSink()
+        val m = FakeModel(OBSERVE, TYPE, ask(), tapSend(), failure("你没同意,没有发送"))
+        val l = loop(m, s, sink)
+        val run = async { l.run("给张三发明天见") }
+        advanceUntilIdle()
+        fun confirmations() = sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision to it.step }
+        // 还在等你回答:申报那一步(第 3 步)的回复还没记,确认事件已经带着它的步号
+        assertEquals(listOf(null to 3), confirmations())
+        assertTrue(sink.events.none { it is RunEvent.ModelReply && it.step == 3 })
+        l.answerConfirmation(false)
+        assertEquals(TaskState.Failed("你没同意,没有发送", FailKind.GaveUp), run.await())
+        // 第 4 步点发送被关卡拦下:那一条带的是第 4 步
+        assertEquals("confirmation_required", m.result(4).s("error"))
+        assertEquals(listOf(null to 3, "declined" to 3, "required" to 4), confirmations())
         assertTrue(s.taps.isEmpty())
     }
 
@@ -374,6 +396,80 @@ class AgentLoopGateTest {
         l.answerConfirmation(true)
         run.await()
         assertTrue(web.calls.toString(), web.calls.any { it.startsWith("type @e3") })
+    }
+
+    // WOOWTECH fork: 测试商店 P1(超商代码缴费):模型申报下单,用户同意一次;结账页的「確認送出」按词表是提交,照样放行,
+    // 也只放行这一下:再按一次又要同意。以前这一下被当成对不上挡下,要再申报提交、再同意一次
+    @Test fun approvedOrderReleasesTheCheckoutSubmitOnce() = runTest {
+        val web = FakeWebPort().apply {
+            elements = listOf(
+                UiElement("@e1", "text", "渥屋測試商店", 540, 100, listOf(0, 20, 300, 60), null, false, false, false),
+                UiElement("@e2", "text", "訂單金額 NT$590", 540, 600, listOf(310, 250, 690, 280), null, false, false, false),
+                UiElement("@e3", "text", "繳費方式 超商代碼繳費", 540, 700, listOf(310, 290, 690, 320), null, false, false, false),
+                UiElement("@e4", "button", "確認送出", 540, 900, listOf(310, 360, 690, 410), null, true, false, false),
+            )
+        }
+        val sink = ListSink()
+        val submit = call("web_tap", """{"ref":"@e4","snapshotId":"wt1-1"}""")
+        val m = FakeModel(
+            tools(call("web_navigate", """{"url":"https://shop.example.com/checkout/cvs"}""")),
+            tools(call("web_observe")),
+            tools(call("request_confirmation", """{"action":"order","target":"渥屋測試商店","content":"渥屋 藍牙耳機 Lite × 1,超商代碼繳費","amount":"NT$590","app":"shop.example.com"}""")),
+            tools(submit),
+            tools(submit.copy(id = "again")),
+            FINISH,
+        )
+        val l = AgentLoop(m, toolDispatcher(FakeScreen(), web = web), "BASE", sink = sink, confirmations = ConfirmationGate())
+        val run = async { l.run("t") }
+        advanceUntilIdle()
+        assertTrue("${l.state.value}", l.state.value is TaskState.WaitingConfirmation)
+        l.answerConfirmation(true)
+        run.await()
+        assertEquals("true", m.result(3).s("approved"))
+        assertEquals(m.result(4).toString(), null, m.result(4)["error"])
+        assertEquals(web.calls.toString(), 1, web.calls.count { it.startsWith("tapRef @e4") })
+        val again = m.result(5)
+        assertEquals("confirmation_required", again.s("error")); assertEquals("submit", again.s("action"))
+        assertEquals(listOf(null, "approved", "required"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
+    }
+
+    // WOOWTECH fork: 反过来:模型申报的是提交,「提交订单」按词表是下单:同意一次照样放行,也只放行这一下
+    @Test fun approvedSubmitReleasesTheOrderButtonOnce() = runTest {
+        val s = ChatScreen(); val sink = ListSink()
+        val m = FakeModel(OBSERVE, TYPE, ask(action = "submit"), tapSend(), tapSend(), FINISH)
+        val l = loop(m, s, sink)
+        val run = async { l.run("给张三发明天见") }
+        advanceUntilIdle()
+        assertEquals(TaskState.WaitingConfirmation(ConfirmationRequest(IrrevAction.submit, "张三", "明天见", "¥25", "com.chat")), l.state.value)
+        l.answerConfirmation(true)
+        com.wangzan101.mika.core.testing.assertAnswered(DONE, run.await())
+        assertEquals(listOf("@e3"), s.taps)
+        assertEquals("confirmation_required", m.result(5).s("error")); assertEquals("order", m.result(5).s("action"))
+        assertEquals(listOf(null, "approved", "required"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
+    }
+
+    // WOOWTECH fork: 同意了下单或提交,下一步点的却是付款键:照样不放行(付款只交给用户亲手付),同意随之用掉;
+    // 再申报就按刚被拦下的付款走接管,不出同意卡;之后点下单键又要同意
+    @Test fun anApprovedOrderOrSubmitNeverReleasesAPayment() = runTest {
+        for (kind in listOf("order", "submit")) {
+            val pay = UiElement("@e5", "button", "立即支付", 500, 1500, listOf(0, 600, 999, 660), null, true, false, false)
+            val s = ChatScreen().apply { extra = listOf(pay) }; val sink = ListSink()
+            val tapPay = tools(call("phone_tap", """{"ref":"@e5","snapshotId":"s1"}"""))
+            val m = FakeModel(OBSERVE, TYPE, ask(action = kind), tapPay, ask(action = kind), tapSend(), FINISH)
+            val l = loop(m, s, sink)
+            val run = async { l.run("t") }
+            advanceUntilIdle()
+            assertTrue(kind, l.state.value is TaskState.WaitingConfirmation)
+            l.answerConfirmation(true)
+            run.await()
+            assertTrue(kind, s.taps.isEmpty())
+            assertEquals(kind, "true", m.result(3).s("approved"))
+            val paid = m.result(4)
+            assertEquals(kind, "confirmation_mismatch", paid.s("error")); assertEquals(kind, "pay", paid.s("action"))
+            assertEquals(kind, "payment_requires_takeover", m.result(5).s("error"))
+            assertEquals(kind, "confirmation_required", m.result(6).s("error"))
+            assertEquals(kind, listOf(null, "approved", "mismatch", "required"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
+        }
     }
 
     @Test fun cancelWhileWaitingConfirmation() = runTest {

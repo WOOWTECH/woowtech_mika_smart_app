@@ -37,6 +37,7 @@ sealed interface Permit {
  * 下一次命中的不可逆操作无论对不对得上都用掉它。中间做了打字以外的写操作(包括返回、打开 App)、
  * 或过了 [MAX_STEPS] 步,同意作废。只能同意这一次;只在一次任务内有效,任务开始和结束时 [reset]。
  * 任务循环和界面回答可能在不同线程,读写都加锁。
+ * WOOWTECH fork: 下单和提交算同一类(见 [covers])。
  */
 class ConfirmationGate {
     private class Grant(val request: ConfirmationRequest, val step: Int)
@@ -62,7 +63,7 @@ class ConfirmationGate {
     /**
      * WOOWTECH fork: 要同意的这一步按关卡自己的判定是付款:刚在这个 App 里被拦下的那一步是付款;
      * 没有被拦下过时,这一屏上要花钱的只有付款:点得到付款,没有下单、提交,也没有申报的那一种。
-     * 屏上另有下单、提交时照常出同意卡(申报和判定对不上由 [permits] 作废,再申报一次)。
+     * 屏上另有下单、提交时照常出同意卡:同意的下单、提交两种都放得过(见 [covers]),点付款照样不放行,再申报就走接管。
      */
     private fun paymentPending(req: ConfirmationRequest, screenActions: Set<IrrevAction>?): Boolean {
         refused?.takeIf { it.app == req.app }?.let { return it.hit.action == IrrevAction.pay }
@@ -106,15 +107,26 @@ class ConfirmationGate {
         val reason = when {
             hit.action == IrrevAction.pay -> "payment is never approved here"
             step - g.step > MAX_STEPS -> "the approval expired ($MAX_STEPS steps)"
-            hit.action != r.action -> "approved ${r.action.name} but this step is ${hit.action.name}"
+            // WOOWTECH fork: 同意的下单也放得过提交,反过来也一样(见 [covers]);别的动作仍要同一种
+            !covers(r.action, hit.action) -> "approved ${r.action.name} but this step is ${hit.action.name}"
             screen?.packageName == null || screen.packageName != r.app -> "approved in ${r.app} but the screen shows ${screen?.packageName ?: "unknown"}"
             !targetShown(r, screen) && !(textless(screen) && seenShows(r, seen)) -> "the target \"${r.target}\" is not shown " + (if (r.action == IrrevAction.send) "in the title area" else "on the screen")
             r.action == IrrevAction.send && !contentMatches(r.content, screen, typing) && !(textless(screen) && seenShows(r, seen)) -> "the text to send is not exactly what was approved"
-            amountBinds(hit, screen) && !amountShown(r.amount, screen, hit.matched) -> "the approved amount ${r.amount ?: "(none)"} is not on the screen"
+            // WOOWTECH fork: 换了一种放行时(下单、提交互换)金额一律要核,和同意的是下单时一样
+            (amountBinds(hit, screen) || hit.action != r.action) && !amountShown(r.amount, screen, hit.matched) -> "the approved amount ${r.amount ?: "(none)"} is not on the screen"
             else -> return Permit.Allowed
         }
         return Permit.Mismatch(reason)
     }
+
+    /**
+     * WOOWTECH fork: 同意的那一种动作放得过判定出的这一步:同一种;或下单、提交互换。结账页最后一步算哪种是词表的事
+     * (台湾的「確認送出」按词表是提交,模型常报成下单;「送出訂單」是下单,也有报成提交的),
+     * 用户同意的是在这个 App、给这个对象、花这笔金额的这一次。App、对象、金额照样核对,也只放行紧接着的一次;
+     * 付款不在里面,永远不放行。
+     */
+    private fun covers(approved: IrrevAction, step: IrrevAction): Boolean =
+        approved == step || (approved in INTERCHANGEABLE && step in INTERCHANGEABLE)
 
     /**
      * 不在屏上的一步(工具声明了要问,如会改动东西的 root 命令):同意的就是这一条,申报一字不差才放行。
@@ -265,5 +277,7 @@ class ConfirmationGate {
         private val DISCOUNTS = listOf("优惠", "减", "抵扣", "运费", "券", "红包", "已省")
         private const val DISCOUNT_WINDOW = 4
         private val KEEPS_GRANT = setOf(Verb.TypeText, Verb.ClearText)
+        /** WOOWTECH fork: 互相放得过的两种花钱动作(见 [covers]);付款不在里面。 */
+        private val INTERCHANGEABLE = setOf(IrrevAction.order, IrrevAction.submit)
     }
 }

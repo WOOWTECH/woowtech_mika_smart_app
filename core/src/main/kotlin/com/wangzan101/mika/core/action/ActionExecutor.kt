@@ -334,7 +334,8 @@ class ActionExecutor(
         call: Part.ToolCall, args: JsonObject, origin: Origin, before: List<GuardVerdict>, hit: Irreversible, answer: ToolExecution, followUp: FollowUp,
         code: String,
     ): ActionOutcome {
-        recorder.confirmation(hit, if (code == "confirmation_declined") "declined" else "denied")
+        // WOOWTECH fork: 确认事件带上这次调用所在的一步
+        recorder.confirmation(origin, hit, if (code == "confirmation_declined") "declined" else "denied")
         if (origin.policy.recordsRefusal) {
             followUp.refused(answer.content)
             recorder.result(origin.step, call.name, tools.verb(call.name), answer.content, tools.portRecord(call.name, args), null, null, 0, origin.policy.source, call.id)
@@ -345,7 +346,8 @@ class ActionExecutor(
     private fun blocked(
         call: Part.ToolCall, args: JsonObject, origin: Origin, before: List<GuardVerdict>, hit: Irreversible, reason: String?, followUp: FollowUp,
     ): ActionOutcome {
-        recorder.confirmation(hit, if (reason != null) "mismatch" else "required")
+        // WOOWTECH fork: 同上
+        recorder.confirmation(origin, hit, if (reason != null) "mismatch" else "required")
         val code = if (reason != null) "confirmation_mismatch" else "confirmation_required"
         val content = Refusals.content(code, origin.policy.refusals, before, hit, reason)
         if (origin.policy.recordsRefusal) {
