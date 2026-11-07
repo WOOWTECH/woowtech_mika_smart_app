@@ -31,6 +31,10 @@
     </plurals>
     <string name="fail_no_main_model">Пригодной основной модели пока нет. Добавьте в настройках модель с вызовом инструментов.</string>
     <string name="fail_model_untested">Основная модель ещё не прошла проверку у провайдера %1$s. Откройте «Настройки» › «Модели» › %1$s и нажмите «Проверить снова».</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">Не удалось вызвать модель: %1$s. Проверьте «Настройки» › «Модели».</string>
+    <string name="fail_model_later">Не удалось вызвать модель: %1$s. Попробуйте позже.</string>
+    <string name="fail_model_plain">Не удалось вызвать модель: %1$s.</string>
     <string name="fail_no_web">На этом устройстве нет доступа к интернету, поэтому проверить условие нельзя</string>
     <string name="task_waiting_display">В очереди: начнётся после завершения другой задачи</string>
     <string name="task_no_phone_helper">Управление телефоном не готово. Завершите «Настройку управления телефоном» в Mika. Задачи с сайтами и файлами это не затрагивает.</string>
@@ -71,6 +75,7 @@
     <string name="task_not_done">Задача не завершена</string>
     <string name="task_stopped">Задача остановлена</string>
     <string name="task_stopped_body">Вы остановили эту задачу</string>
+    <string name="task_stopped_remote_body">Задача остановлена с компьютера</string>
     <string name="gate_user_on_page">Вы работаете со страницей, поэтому Mika приостановилась</string>
     <string name="task_no_phone_helper_usb">Помощник управления телефоном остановился (обычно после перезагрузки телефона). Откройте Mika и снова выполните команду запуска по USB; её можно скопировать в разделе «Настройка управления телефоном». Задачи с сайтами и файлами это не затрагивает.</string>
     <string name="drawer_screens">Фоновые экраны</string>

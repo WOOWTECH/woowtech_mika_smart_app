@@ -33,7 +33,8 @@ internal object StopRules {
 
     /** 模型调用失败(重试过仍不行,或重试也没用)。 */
     fun modelFailed(e: Throwable): TaskState.Failed =
-        if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model)
+        // WOOWTECH fork: 带上那个错,App 按界面语言说原因(见 TaskState.Failed.modelError)
+        if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model, e)
         else TaskState.Failed("模型调用异常:${e.message ?: e::class.simpleName}", FailKind.Model)
 
     fun guard(v: GuardVerdict): TaskState.Failed {
@@ -80,7 +81,12 @@ internal fun userReason(e: ModelError): String = when (e) {
     is ModelError.Server -> "模型服务出错(HTTP ${e.status}),请稍后再试。"
     is ModelError.StreamCut ->
         "模型的回复还没传完,连接就在上游被断开了,重试后仍然如此。常见原因是网络不稳,或中转服务、网关的空闲超时太短(模型长时间思考时容易碰上)。请稍后再试。"
-    is ModelError.BadResponse -> "${e.message}。请检查 Base URL 和接口类型是否匹配。"
+    // WOOWTECH fork: HTTP 报错只说状态码和原话,不贴整段报文(message 里带着报文开头)
+    is ModelError.BadResponse -> if (e.status != null) {
+        "模型服务出错(HTTP ${e.status})" + (if (e.said.isEmpty()) "" else ":${quoted(e.said)}") + "。请检查 Base URL 和接口类型是否匹配。"
+    } else {
+        "${e.message}。请检查 Base URL 和接口类型是否匹配。"
+    }
     is ModelError.ChatGptLimitReached ->
         "ChatGPT 额度用完了,稍后再试。用量可以在 ChatGPT 设置 › 用量(chatgpt.com/settings/usage)查看;Plus 每 5 小时的额度和其他用 ChatGPT 登录的 App 共用。也可以先换一个模型。"
     is ModelError.ChatGptNotEligible ->

@@ -3,6 +3,7 @@
     <string name="timeline_expired">Este registro ha caducado</string>
     <string name="tag_approved">Aprobaste</string>
     <string name="tag_declined">Rechazaste</string>
+    <string name="tag_remote_declined">Las tareas desde un ordenador no pueden pagar ni pedir</string>
     <string name="tag_needs_ok">Necesitó tu visto bueno</string>
     <string name="tag_takeover">Te pidió que tomaras el control</string>
     <string name="tag_barrier">Se topó con un obstáculo</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">Antes necesita tu visto bueno</string>
     <string name="err_confirm_mismatch">No coincide con lo que aprobaste</string>
     <string name="err_confirm_declined">No lo aprobaste</string>
+    <string name="err_confirm_remote">No se puede pagar desde el ordenador</string>
     <string name="err_not_applied">El texto no se introdujo</string>
     <string name="verify_failed">Falló la verificación</string>
     <string name="err_parallel_skipped">Solo una acción a la vez</string>

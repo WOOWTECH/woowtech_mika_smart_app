@@ -1,10 +1,7 @@
 package com.wangzan101.mika.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -82,10 +79,9 @@ fun DiagnosticsSheet(load: () -> String, onDismiss: () -> Unit) {
     }
 }
 
-private fun copyDiagnostics(context: Context, text: String) {
-    context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(Diagnostics.HEADER, text))
-    Toast.makeText(context, AboutCopy.DIAGNOSTICS_COPIED, Toast.LENGTH_SHORT).show()
-}
+// WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+private fun copyDiagnostics(context: Context, text: String) =
+    copyToClipboard(context, Diagnostics.HEADER, text, AboutCopy.DIAGNOSTICS_COPIED)
 
 private fun shareDiagnostics(context: Context, text: String) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)

@@ -49,6 +49,37 @@ class ModelAccessErrorsTest {
         assertEquals("<html><head><title>404 Not Found</title></head></html>", ModelAccessErrors.detail("<html><head><title>404 Not Found</title></head></html>"))
     }
 
+    /** WOOWTECH fork: 网关(如 LiteLLM)把上游的 JSON 报错包在原话里转述时,取里面那句,不把 JSON 原样给人看。 */
+    @Test fun nestedJsonErrorIsUnwrapped() {
+        val litellm = """{"error":{"message":"litellm.BadRequestError: AnthropicException - {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API.\"},\"request_id\":\"req_1\"}","type":null,"param":null,"code":"400"}}"""
+        assertEquals("Your credit balance is too low to access the Anthropic API.", ModelAccessErrors.detail(litellm))
+        assertEquals("Your credit balance is too low to access the Anthropic API.", ModelAccessErrors.jsonDetail(litellm))
+        // 花括号里不是 JSON 的照原样
+        assertEquals("Invalid value {name} for tools", ModelAccessErrors.detail("""{"error":{"message":"Invalid value {name} for tools"}}"""))
+    }
+
+    /** WOOWTECH fork: 认不出是哪一类的报错给人看的原话:先要原话,没有原话只有错误代码时给代码;HTML 错误页不算原话。 */
+    @Test fun shownDetailPrefersWordsThenCodes() {
+        assertEquals("Bad things", ModelAccessErrors.shownDetail("""{"error":{"code":"x","message":"Bad things"}}"""))
+        assertEquals("MissingSessionID", ModelAccessErrors.shownDetail("""{"error":{"type":"MissingSessionID"}}"""))
+        // 是 JSON 却没有原话、也没有代码:什么也不引
+        assertEquals("", ModelAccessErrors.shownDetail("""{"id":"x","object":"error"}"""))
+        assertEquals("upstream timeout", ModelAccessErrors.shownDetail("upstream timeout"))
+        assertEquals("", ModelAccessErrors.shownDetail("<html><head><title>400 Bad Request</title></head></html>"))
+        assertEquals("", ModelAccessErrors.shownDetail(""))
+    }
+
+    /** WOOWTECH fork: 认不出的 HTTP 报错带着状态码和原话,界面据此说原因;message 照旧(给开发看)。 */
+    @Test fun unrecognizedHttpErrorKeepsStatusAndWords() {
+        val e = ModelHttp.openAiError(400, null, """{"error":{"message":"Your credit balance is too low"}}""", "m") as ModelError.BadResponse
+        assertEquals(400, e.status)
+        assertEquals("Your credit balance is too low", e.said)
+        assertTrue(e.message!!, e.message!!.startsWith("模型返回了无法解析的内容: HTTP 400 {\"error\""))
+        val unreadable = ModelError.BadResponse("缺少 choices")
+        assertNull(unreadable.status)
+        assertEquals("", unreadable.said)
+    }
+
     /** 原话去掉首尾空白;太长的截短,末尾加「…」。 */
     @Test fun longDetailIsClippedWithAnEllipsis() {
         assertEquals("short", ModelAccessErrors.jsonDetail("""{"error":{"message":"  short \n"}}"""))

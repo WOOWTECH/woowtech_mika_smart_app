@@ -105,7 +105,8 @@ object ConfirmationNotifier {
                     .apply { runExtra?.let { (k, v) -> putExtra(k, v) } },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT,
             )
-            return Notification.Action.Builder(null, context.getString(title), pi).apply {
+            // WOOWTECH fork: 按钮和锁屏上的字经 tr() 按 App 语言取(context 是任务服务,getString 可能还是系统语言)
+            return Notification.Action.Builder(null, tr(title), pi).apply {
                 // 锁屏上点「同意」要先解锁
                 if (approve && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true)
             }.build()
@@ -114,7 +115,7 @@ object ConfirmationNotifier {
         val public = Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(ConfirmationCopy.title(r))
-            .setContentText(context.getString(R.string.confirmation_locked_hint))
+            .setContentText(tr(R.string.confirmation_locked_hint))
             .build()
         return Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)

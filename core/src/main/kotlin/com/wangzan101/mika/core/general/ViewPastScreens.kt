@@ -20,6 +20,7 @@ import kotlinx.serialization.json.put
 /** 回看之前的读屏(哪块屏的都行):能看图的主模型拿到当时的截图,其余给当时的元素文字。 */
 internal object ViewPastScreens : AgentTool {
     override val verb = Verb.ViewPastScreens
+    override val label = "回看之前的画面" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     override val withScreens = true
     override val concurrency = Concurrency.ParallelSafe

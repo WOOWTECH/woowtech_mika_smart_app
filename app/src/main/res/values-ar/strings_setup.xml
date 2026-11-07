@@ -72,10 +72,32 @@
     <string name="model_reason_no_tools">it doesn’t call tools, and Mika needs a model that can call tools</string>
     <string name="model_reason_wrong_protocol">it isn’t served over the interface type you picked, so the request never reaches it</string>
     <string name="model_reason_server">the server returned an error (%1$s)</string>
+    <string name="model_reason_refused">رفض المزوّد الطلب (%1$s)</string>
     <string name="model_probe_none_usable">The provider is connected, but “%1$s” didn’t pass the test: %2$s. Pick a model from the list that your account has activated.</string>
     <string name="model_probe_none_usable_protocol">المزوّد متصل، لكن النموذج «%1$s» لم يجتز الاختبار: %2$s. اختر نموذجًا يمكن لهذا النوع من الواجهات الوصول إليه، أو غيّر نوع الواجهة.</string>
     <string name="model_probe_tried_unavailable">Tried %1$s; none of them is activated.</string>
     <string name="model_probe_tried">Tried %1$s; none of them passed the test.</string>
     <string name="model_probe_fallback">%1$s, tried first, didn’t pass the test: %2$s. The main model is “%3$s”, which passed.</string>
     <string name="model_pick_main">Choose main model</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">مفتاح API غير صالح أو لا يملك صلاحية</string>
+    <string name="model_error_quota">نفد رصيد الحساب</string>
+    <string name="model_error_rate_limited">طلبات كثيرة جدًا؛ حاول لاحقًا</string>
+    <string name="model_error_context">المحادثة أطول من سياق النموذج</string>
+    <string name="model_error_not_available">لا يمكن لهذا الحساب استخدام هذا النموذج (غير مفعّل أو بلا صلاحية)</string>
+    <string name="model_error_network">تعذّر الاتصال بخدمة النموذج</string>
+    <string name="model_error_stream_cut">انقطع الاتصال قبل اكتمال الرد</string>
+    <string name="model_error_refused">رفض النموذج معالجة هذا المحتوى</string>
+    <string name="model_error_chatgpt_limit">تم بلوغ حد استخدام ChatGPT</string>
+    <string name="model_error_chatgpt_not_eligible">لا يمكن لهذا الحساب استخدام خطة ChatGPT في تطبيقات أخرى</string>
+    <string name="model_error_signed_out">انتهت صلاحية تسجيل الدخول إلى %1$s؛ سجّل الدخول مجددًا</string>
+    <string name="model_error_plan">لا تسمح خطة %1$s لديك باستخدام واجهة API هذه</string>
+    <string name="model_error_server_said">أعاد الخادم خطأً (%1$s): %2$s</string>
+    <string name="model_error_said">أبلغت خدمة النموذج عن خطأ: %1$s</string>
+    <string name="model_error_unreadable">تعذّرت قراءة الرد؛ تحقّق من تطابق Base URL مع API type</string>
+    <string name="list_error_network">تعذّر الوصول إلى هذا العنوان؛ تحقّق من الشبكة ومن Base URL</string>
+    <string name="list_error_not_supported">لا تقدّم هذه الخدمة قائمة بالنماذج</string>
+    <string name="list_error_server">حدث خطأ مؤقت في الخدمة؛ حاول لاحقًا</string>
+    <string name="list_error_bad_response">تعذّرت قراءة الرد؛ تحقّق من Base URL ومن API type</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

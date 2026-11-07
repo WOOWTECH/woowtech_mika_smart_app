@@ -164,6 +164,40 @@ class ConfirmationGateTest {
         assertTrue(g.permits(hit(IrrevAction.pay), chat(), 1) is Permit.Mismatch)
     }
 
+    // WOOWTECH fork: 关卡自己判的是付款(刚被拦下的那一步,或这屏上要花钱的只有付款)时,申报成下单、提交也走接管,不出同意卡
+    @Test fun lighterDeclarationOfAPaymentGoesToTakeover() {
+        fun request(action: IrrevAction, app: String = "127.0.0.1") =
+            ConfirmationRequest(action, "渥屋測試商店", "藍牙耳機 運動版 × 1,ATM轉帳", "NT$890", app)
+        // P10:点「ATM轉帳」被拦下(付款),模型改申报成下单、提交
+        val g = ConfirmationGate()
+        g.noteRefused(Irreversible(IrrevAction.pay, "ATM轉帳"), "127.0.0.1")
+        assertEquals(DeclareResult.Unsupported, g.declare(request(IrrevAction.order), "127.0.0.1"))
+        assertEquals(DeclareResult.Unsupported, g.declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.submit)))
+        // 打字不改变要同意的那一步;别的写操作之后按此刻这一屏判
+        g.noteWrite(verb("phone_type_text"))
+        assertEquals(DeclareResult.Unsupported, g.declare(request(IrrevAction.order), "127.0.0.1"))
+        g.noteWrite(verb("phone_tap"))
+        assertEquals(DeclareResult.Pending, g.declare(request(IrrevAction.order), "127.0.0.1"))
+        // 别的 App 里拦下的付款不算;被拦下的是下单时照常出同意卡,屏上另有付款键也一样
+        val other = ConfirmationGate().apply { noteRefused(Irreversible(IrrevAction.pay, "立即支付"), "com.b") }
+        assertEquals(DeclareResult.Pending, other.declare(request(IrrevAction.order, "com.a"), "com.a"))
+        val refusedOrder = ConfirmationGate().apply { noteRefused(Irreversible(IrrevAction.order, "送出訂單"), "127.0.0.1") }
+        assertEquals(DeclareResult.Pending, refusedOrder.declare(request(IrrevAction.order), "127.0.0.1", setOf(IrrevAction.order, IrrevAction.pay)))
+        // P5:没被拦下过、先申报成提交,这一屏要花钱的只有「立即加值」(付款)
+        assertEquals(DeclareResult.Unsupported, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay)))
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
+        // 屏上另有下单、提交时不只付款要花钱:P1 的「確認送出」(提交)常被报成下单,照常出同意卡,对不上时再申报
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.order)))
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", emptySet()))
+        assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", null))
+        // 前台对不上照旧先报对不上;任务结束就忘掉被拦下的那一步
+        val ended = ConfirmationGate().apply { noteRefused(Irreversible(IrrevAction.pay, "ATM轉帳"), "127.0.0.1") }
+        assertEquals(DeclareResult.Mismatch, ended.declare(request(IrrevAction.order), "com.other"))
+        ended.reset()
+        assertEquals(DeclareResult.Pending, ended.declare(request(IrrevAction.order), "127.0.0.1"))
+    }
+
     // 0b-2:金额只和带币种的数比;有合计按合计,没有按滚动区外最大的那个
     @Test fun orderAmountComparedWithCurrencyAmountsAndTotal() {
         fun order(amount: String) = ConfirmationRequest(IrrevAction.order, "耳机", "买一副耳机", amount, "com.a")

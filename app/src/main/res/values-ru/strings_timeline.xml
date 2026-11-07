@@ -3,6 +3,7 @@
     <string name="timeline_expired">Срок хранения этой записи истёк</string>
     <string name="tag_approved">Вы одобрили</string>
     <string name="tag_declined">Вы отклонили</string>
+    <string name="tag_remote_declined">Задачи с компьютера не могут платить или оформлять заказы</string>
     <string name="tag_needs_ok">Нужно было ваше согласие</string>
     <string name="tag_takeover">Попросила вас взять управление</string>
     <string name="tag_barrier">Встретилось препятствие</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">Сначала нужно ваше согласие</string>
     <string name="err_confirm_mismatch">Не совпадает с тем, что вы одобрили</string>
     <string name="err_confirm_declined">Вы не одобрили</string>
+    <string name="err_confirm_remote">С компьютера платить нельзя</string>
     <string name="err_not_applied">Текст не введён</string>
     <string name="verify_failed">Проверка не пройдена</string>
     <string name="err_parallel_skipped">Только одно действие за раз</string>

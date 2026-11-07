@@ -118,8 +118,13 @@ object IrreversibleDetector {
      * 只在下半屏、同一区域有确认/支付一类按钮时才算付款面板。
      */
     val WEAK_PAY_SHEET_WORDS = listOf("余额", "密码", "指纹", "零钱", "信用卡", "金融卡", "签账卡", "悠游付")
-    /** 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判;支援、超商取货付款是台湾的说法。 */
-    private val PAYMENT_ADS = Regex("(?:支持|支援)[^\\s，,。]{0,8}?(?:付款|支付)|货到付款|取货付款|先用后付|花呗|分期|付款方式说明")
+    /**
+     * 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判;支援、超商取货付款是台湾的说法。
+     * WOOWTECH fork: 「支持/支援」后面可以是一串付款方式(「支援 LINE Pay、街口支付付款」),到最后一个付款/支付为止;
+     * 只跨挨着英文字的空白(LINE Pay、Apple Pay),遇到别的空白、句读或「立即」「确认」一类动作字就停,
+     * 不吞掉后面真正的付款键(「支持作者 支付 ¥6」「本店支援 LINE Pay 付款 点此付款」)。空白也认不换行空格、全形空格。
+     */
+    private val PAYMENT_ADS = Regex("(?:支持|支援)(?:(?!立即|确认|马上|一键|前往|去)(?:[^\\s\u00A0\u3000，,。；;！!？?：:]|(?<=[A-Za-z])[\\s\u00A0\u3000]+|[\\s\u00A0\u3000]+(?=[A-Za-z]))){0,40}(?:付款|支付(?!宝))+|货到付款|取货付款|先用后付|花呗|分期|付款方式说明")
     /** 页面上有这些下单按钮时,是商品页或规格面板:不按付款面板字样判。 */
     private val ORDER_CONTEXT = listOf("立即购买", "加入购物车", "立即下单")
     /** 0–999 里这条线以下算屏幕底部区域(付款面板、底部弹层)。 */
@@ -140,6 +145,12 @@ object IrreversibleDetector {
     /** 输入框明确是搜索框才不算发送:其余输入框里回车一律按发送拦。提示语里找这些字,资源 ID 里按单词找 search。 */
     private val SEARCH_FIELD = listOf("search", "搜索", "搜寻")
     private val SEARCH_BUTTONS = setOf("搜索", "搜寻", "search")
+    /** WOOWTECH fork: 网页表单里回车替表单按下的花钱的键,按这个先后取(有付款键就按付款)。 */
+    private val FORM_SUBMITS = listOf(IrrevAction.pay, IrrevAction.order, IrrevAction.submit)
+    /** WOOWTECH fork: 浏览器 App:用 phone_* 操作时读的是无障碍树(不是内置浏览器的读屏),里面的网页表单一样会隐式提交。 */
+    private val BROWSER_PACKAGES = setOf(
+        "com.android.chrome", "com.chrome.beta", "org.mozilla.firefox", "com.sec.android.app.sbrowser", "com.microsoft.emmx", "com.brave.browser",
+    )
 
     private const val KEY_ENTER = 66
     private const val KEY_NUMPAD_ENTER = 160
@@ -163,6 +174,11 @@ object IrreversibleDetector {
         "clear", "cleartext", "clearsearch", "clearquery", "×", "✕", "x")
     /** 清空键离输入框左右边至多这么远(0–999)。 */
     private const val FIELD_NEAR = 80
+    /**
+     * WOOWTECH fork: 输入框那一行写着这些字时,填的是要付的钱(转账金额,或「储值 [500] 元」这类没写金额的加值、储值行),
+     * 旁边的确认不算套用框里的值。要声明在 [EXACT_PAY] 之后(object 按声明顺序初始化)。
+     */
+    private val AMOUNT_FIELD_WORDS = listOf("金额", "amount") + EXACT_PAY
 
     // 判哪些、按什么判,由工具声明([GateTarget],只有 External 的工具有);返回、清空输入框、打开 App 不会提交任何东西,不判
     /** 改选中项的键:方向键、Home/End、翻页。 */
@@ -171,6 +187,11 @@ object IrreversibleDetector {
     private val SELECTION_ROLES = setOf("combobox", "listbox", "option", "radio", "radiogroup", "menu", "menubar", "menuitem",
         "menuitemradio", "menuitemcheckbox", "tree", "treeitem")
     private val OPTION_ROLES = setOf("option", "radio", "menuitem", "menuitemradio", "menuitemcheckbox", "treeitem")
+    /**
+     * WOOWTECH fork: 网页表单里回车不会替表单按下的控件(隐式提交只按送出键):选择类控件、勾选框、开关。
+     * 手机读屏的角色是类名短名(RadioButton、CheckBox、Switch、Spinner),比较时转小写。要声明在 [SELECTION_ROLES] 之后。
+     */
+    private val NOT_SUBMITTERS = SELECTION_ROLES + setOf("checkbox", "switch", "radiobutton", "spinner")
 
     /** 这次调用要不要判(要判才去读屏)。 */
     fun needsCheck(target: GateTarget?, args: JsonObject): Boolean = when (target) {
@@ -314,6 +335,13 @@ object IrreversibleDetector {
             ScreenDiagnosis.paymentText(shown.map { it.name }) != null || paySheet(shown)
     }
 
+    /**
+     * WOOWTECH fork: 这一屏上点得到的不可逆动作:每个可点元素按点它时的判法判(见 [classify])。
+     * 只用来认出申报同意的那一步其实是付款(屏上要花钱的只有付款),动作能不能做仍只由执行入口判。
+     */
+    fun tapActions(s: ScreenSnapshot): Set<IrrevAction> =
+        s.elements.filter { it.clickable }.mapNotNullTo(linkedSetOf<IrrevAction>()) { e -> elementHit(e, s)?.action }
+
     /** 点击找不到作用在哪个元素上(读屏缺失、编号不属于这次读屏、坐标处没有元素);供运行记录留痕。 */
     fun unresolved(target: GateTarget?, args: JsonObject, snapshot: ScreenSnapshot?, fresh: ScreenSnapshot? = null): Boolean =
         target == GateTarget.Tap && tapTargets(args, snapshot, fresh).isEmpty()
@@ -356,7 +384,8 @@ object IrreversibleDetector {
 
     /** 短名字整体、或拼起来的名字的每一段里出现强词;先去掉付款方式一类的词。 */
     private fun strong(label: String): IrrevAction? {
-        val folded = Hant.fold(label)
+        // WOOWTECH fork: 介绍付款方式的字样可能跨空格,拆段前先整句去掉(否则「Pay、街口支付付款」这一段会被当成付款)
+        val folded = withoutAds(Hant.fold(label))
         for (p in listOf(folded) + folded.split(Regex("\\s+"))) {
             var t = p.filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
             EXCLUDED.forEach { t = t.replace(it, "") }
@@ -365,6 +394,9 @@ object IrreversibleDetector {
         }
         return null
     }
+
+    /** WOOWTECH fork: 整句去掉介绍付款方式的字样([PAYMENT_ADS]),换成空格,拆段、英文按词认都不受影响。 */
+    private fun withoutAds(text: String) = text.replace(PAYMENT_ADS, " ")
 
     private fun occurrences(t: String, w: String) = generateSequence(t.indexOf(w).takeIf { it >= 0 }) { i -> t.indexOf(w, i + 1).takeIf { it >= 0 } }
 
@@ -380,6 +412,7 @@ object IrreversibleDetector {
      * 有金额且同屏有付款方式、收银台、验密一类字样(或任意长度的一段里有支付/付款)也是付款;
      * 再否则有下单词或金额,按下单(下单的同意要和屏上金额对得上,见 [ConfirmationGate]);都没有就不是。
      * 金额:合计一类总算;别的金额在可滚动区里、而被点的元素不在那个区里时不算(筛选面板的价格档、商品列表)。
+     * 紧挨着输入框的确认只套用框里的值(见 [appliesField]),不按下单算。
      */
     private fun contextAction(screen: ScreenSnapshot, hit: UiElement?): IrrevAction? {
         val found = screen.elements.mapNotNull { strong(it.name) }
@@ -393,7 +426,28 @@ object IrreversibleDetector {
                 (AMOUNT.containsMatchIn(rowText(e, shown)) && scrollables.none { s -> inside(e, s) && hit != null && !inside(hit, s) })
         }
         if (amount && paySheet(shown)) return IrrevAction.pay
+        // WOOWTECH fork: 网页的商品列表不在可滚动区里,价格区间筛选的「确认」会被满屏的价格当成下单(momo 实测);
+        // 套用输入框的确认不是下单。付款字样、付款面板在上面照常按付款
+        if (hit != null && appliesField(hit, screen)) return null
         return if (IrrevAction.order in found || amount) IrrevAction.order else null
+    }
+
+    /**
+     * WOOWTECH fork: 按钮在输入框同一行、紧挨着它(「最低价 – 最高价 确认」「到第 _ 页 确定」),套用的是框里填的值,
+     * 和搜索框旁的搜索键一样。框是密码一类的框,或这一行写着金额、加值一类的字(加值金额、储值)时不算:那是在填要付的钱。
+     */
+    private fun appliesField(e: UiElement, s: ScreenSnapshot): Boolean {
+        if (e.editable || e.bounds.size != 4) return false
+        val cy = (e.bounds[1] + e.bounds[3]) / 2
+        val fields = s.elements.filter { f ->
+            f.editable && f !== e && f.bounds.size == 4 && cy in f.bounds[1]..f.bounds[3] &&
+                e.bounds[0] >= f.bounds[0] - FIELD_NEAR && e.bounds[0] <= f.bounds[2] + FIELD_NEAR
+        }
+        if (fields.isEmpty() || fields.any { it.secret }) return false
+        return (ElementContext.row(e, s) + e).none { x ->
+            val t = Hant.fold(listOfNotNull(x.name, x.placeholder).joinToString(" ")).lowercase()
+            AMOUNT_FIELD_WORDS.any { it in t }
+        }
     }
 
     /**
@@ -409,8 +463,10 @@ object IrreversibleDetector {
             }
         }
         return shown.any { e ->
-            val t = Hant.fold(e.name).filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
-            PAY_SHEET_WORDS.any { it in t } || PAY_SHEET_ENGLISH.containsMatchIn(e.name) ||
+            // WOOWTECH fork: 介绍付款方式的字样整句去掉(可能跨空格),里面的英文 Pay 也不算
+            val name = withoutAds(Hant.fold(e.name))
+            val t = name.filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
+            PAY_SHEET_WORDS.any { it in t } || PAY_SHEET_ENGLISH.containsMatchIn(name) ||
                 listOf("支付", "付款").any { w -> occurrences(t, w).any { actionAt(t, w, it) } } ||
                 (bottomButton && top(e) >= BOTTOM_REGION && WEAK_PAY_SHEET_WORDS.any { it in t })
         }
@@ -523,6 +579,7 @@ object IrreversibleDetector {
      * 回车、确认键、空格作用在焦点上:焦点是输入框时,除非明确是搜索框,一律按发送算(空格只是打字,不算);
      * 焦点是按钮时按词表判;看不出焦点在哪时,屏上的输入框全是搜索框才放行,否则算命中。
      * type_text 给了 ref 时,作用的就是那个输入框。输入法的「搜索」回车键类型读不到,不作依据。
+     * 网页上要花钱的表单里回车按点它的送出键判(见 [formSubmit])。
      */
     private fun enterHit(args: JsonObject, snapshot: ScreenSnapshot?, s: ScreenSnapshot?, key: Int): Irreversible? {
         val keyName = if (key == KEY_SPACE) "空格" else "回车"
@@ -533,13 +590,32 @@ object IrreversibleDetector {
         if (focused != null) {
             if (focused.editable) {
                 if (key == KEY_SPACE || isSearch(focused, s ?: snapshot)) return null
-                return Irreversible(IrrevAction.send, "$keyName:${label(focused)}")
+                val enter = "$keyName:${label(focused)}"
+                return (s ?: snapshot)?.let { formSubmit(it, focused, enter) } ?: Irreversible(IrrevAction.send, enter)
             }
             return (s ?: snapshot)?.let { elementHit(focused, it) }
         }
         val fields = s?.elements?.filter { it.editable }.orEmpty()
         if (fields.isNotEmpty() && fields.all { isSearch(it, s) }) return null
-        return Irreversible(IrrevAction.send, "$keyName:焦点不明")
+        val unknown = "$keyName:焦点不明"
+        return s?.takeIf { key != KEY_SPACE }?.let { formSubmit(it, null, unknown) } ?: Irreversible(IrrevAction.send, unknown)
+    }
+
+    /**
+     * WOOWTECH fork: 网页上在输入框里按回车,浏览器会替表单按下它的送出键(隐式提交,测试商店 P8 在优惠码栏回车就直接下单了)。
+     * 网页:内置浏览器,用 phone_* 操作的浏览器 App,或输入框在 App 里的 WebView 里(手机读屏的角色是类名短名,见 ScreenReader)。
+     * 这一页有应付金额(合计、付款字样、付款面板)、又有花钱的键(付款、下单、提交)时,回车按点那个键判,询问时要先同意;
+     * 有付款键时按付款;单选、勾选、下拉([NOT_SUBMITTERS])不是送出键,付款方式的单选「ATM转账」不会让回车成了付款。
+     * 同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 自己的输入框,都照旧按发送。
+     */
+    private fun formSubmit(s: ScreenSnapshot, field: UiElement?, enter: String): Irreversible? {
+        val webPage = s.web != null || s.packageName in BROWSER_PACKAGES ||
+            (field != null && s.elements.any { it.role == "WebView" && inside(field, it) })
+        if (!webPage || !hasPayableAmount(s)) return null
+        if (field != null && ElementContext.row(field, s).any { b -> b.clickable && !b.editable && sendLike(b.name) }) return null
+        val hits = s.elements.filter { it.clickable && !it.editable && it.role.lowercase() !in NOT_SUBMITTERS }.mapNotNull { elementHit(it, s) }
+        val hit = FORM_SUBMITS.firstNotNullOfOrNull { a -> hits.firstOrNull { it.action == a } } ?: return null
+        return Irreversible(hit.action, "$enter→${hit.matched}")
     }
 
     /**

@@ -61,4 +61,19 @@
     <string name="tool_tap">نقر</string>
     <string name="tool_type">كتابة نص</string>
     <string name="tool_clear">مسح الحقل</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">مراجعة الشاشات السابقة</string>
+    <string name="tool_view_user_screen">النظر إلى الشاشة التي أرسلتها</string>
+    <string name="tool_search_memory">البحث في الذاكرة</string>
+    <string name="tool_save_memory">حفظ أمر في الذاكرة</string>
+    <string name="tool_edit_profile">تعديل «عنّك»</string>
+    <string name="tool_read_history">قراءة الجولات السابقة من المحادثة</string>
+    <string name="tool_schedule_task">جدولة مهمة</string>
+    <string name="tool_spawn_agent">تفويض مهمة فرعية</string>
+    <string name="tool_open_link">فتح رابط</string>
+    <string name="tool_page_script">تشغيل نص برمجي في الصفحة</string>
+    <string name="tool_page_action">إجراء في الصفحة</string>
+    <string name="tool_describe_screen">وصف الشاشة</string>
+    <string name="tool_find_visually">البحث بالنظر إلى الشاشة</string>
+    <string name="tool_do_steps">عدة خطوات متتالية</string>
 </resources>

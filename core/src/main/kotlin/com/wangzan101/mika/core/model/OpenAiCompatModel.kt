@@ -344,7 +344,10 @@ private class OpenAiStream(
         val root = try { json.parseToJsonElement(data).jsonObject }
         catch (e: Exception) { throw ModelError.BadResponse("流式响应不是合法 JSON", e) }
         // 有的服务流式请求一开头就出错时回 200,在事件流里给一帧错误;说的是超长,和 400 一样按超长处理
-        root["error"]?.toString()?.let { e -> throw if (ModelHttp.saysContextTooLong(e)) ModelError.ContextTooLong() else ModelError.BadResponse(e.take(200)) }
+        // WOOWTECH fork: 带上这一帧里的原话,界面引它(message 不变)
+        root["error"]?.toString()?.let { e ->
+            throw if (ModelHttp.saysContextTooLong(e)) ModelError.ContextTooLong() else ModelError.BadResponse(e.take(200), said = ModelAccessErrors.shownDetail(data))
+        }
         chunks++
         usageOf(root["usage"])?.let { usage = it }
         val choice = (root["choices"] as? JsonArray)?.firstOrNull() as? JsonObject ?: return false

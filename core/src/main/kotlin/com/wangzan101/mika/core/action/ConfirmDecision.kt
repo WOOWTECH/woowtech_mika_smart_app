@@ -128,13 +128,21 @@ class ConfirmDecision(
             Approval.Ask -> Unit
         }
         val required = Decision.Required(asked, risk.ask)
-        val gate = confirmations?.takeIf { policy.usesGrant } ?: return required.also { audit("required") }
+        val gate = confirmations?.takeIf { policy.usesGrant } ?: return required.also { refused(hit, screen); audit("required") }
         val permit = risk.ask?.let { gate.permitsExactly(it, origin.step) } ?: gate.permits(asked, screen, origin.step, typing, listOfNotNull(seen))
         return when (val p = permit) {
             Permit.Allowed -> null.also { audit("allowed") }
-            Permit.NoGrant -> required.also { audit("required") }
-            is Permit.Mismatch -> Decision.Mismatch(asked, p.reason).also { audit("mismatch") }
+            Permit.NoGrant -> required.also { refused(hit, screen); audit("required") }
+            is Permit.Mismatch -> Decision.Mismatch(asked, p.reason).also { refused(hit, screen); audit("mismatch") }
         }
+    }
+
+    /**
+     * WOOWTECH fork: 屏上的一步因为没有可用的同意被拦下:交给关卡记着(批、脚本里的也记),
+     * 模型接着申报同意时关卡按自己的判定核对,判的是付款就走接管。
+     */
+    private fun refused(hit: Irreversible?, screen: ScreenSnapshot?) {
+        if (hit != null) confirmations?.noteRefused(hit, screen?.packageName)
     }
 
     /** 执行了一个写操作:同意按它的规则作废或保留。 */

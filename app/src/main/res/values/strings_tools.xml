@@ -61,4 +61,19 @@
     <string name="tool_tap">Tap</string>
     <string name="tool_type">Type text</string>
     <string name="tool_clear">Clear field</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">Look back at earlier screens</string>
+    <string name="tool_view_user_screen">Look at the screen you sent</string>
+    <string name="tool_search_memory">Search memory</string>
+    <string name="tool_save_memory">Remember something</string>
+    <string name="tool_edit_profile">Edit “About you”</string>
+    <string name="tool_read_history">Read earlier turns</string>
+    <string name="tool_schedule_task">Schedule a task</string>
+    <string name="tool_spawn_agent">Hand off a subtask</string>
+    <string name="tool_open_link">Open link</string>
+    <string name="tool_page_script">Run page script</string>
+    <string name="tool_page_action">Page action</string>
+    <string name="tool_describe_screen">Describe the screen</string>
+    <string name="tool_find_visually">Find by looking at the screen</string>
+    <string name="tool_do_steps">Several steps in a row</string>
 </resources>

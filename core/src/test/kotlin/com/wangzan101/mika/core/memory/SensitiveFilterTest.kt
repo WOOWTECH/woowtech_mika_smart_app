@@ -14,6 +14,14 @@ class SensitiveFilterTest {
         assertNull(SensitiveFilter.hit("用户忘了密码时会找客服")) // 只有关键词,不带数字字母串
     }
 
+    @Test fun traditionalChineseHit() {
+        assertEquals("password", SensitiveFilter.hit("支付密碼是123456"))
+        assertNotNull(SensitiveFilter.hit("驗證碼 4821"))
+        assertNotNull(SensitiveFilter.hit("使用者的網銀密碼為 abcd1234"))
+        assertNotNull(SensitiveFilter.hit("abcd1234 是使用者的密碼"))
+        assertNull(SensitiveFilter.hit("使用者忘了密碼時會找客服"))
+    }
+
     @Test fun verificationCodeHit() {
         assertNotNull(SensitiveFilter.hit("验证码 4821"))
         assertNotNull(SensitiveFilter.hit("信用卡 CVV 是 1234"))

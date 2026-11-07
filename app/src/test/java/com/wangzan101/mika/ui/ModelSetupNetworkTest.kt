@@ -185,6 +185,33 @@ class ModelSetupNetworkTest {
         assertTrue(store.providers.value.isEmpty())
     }
 
+    /**
+     * WOOWTECH fork: 自建的 LiteLLM 网关,排第一的线路(上游 Anthropic)没额度:网关回 400,上游的 JSON 包在 message 里。
+     * 经真的适配器和错误映射,接着试下一个,通了就存下、它当主模型;提示里只有那一句话的摘要,不贴整段 JSON。
+     */
+    @Test fun gatewayRouteWithoutCreditFallsBackToTheNext() {
+        routes["/models"] = {
+            MockResponse().setHeader("Content-Type", "application/json")
+                .setBody("""{"object":"list","data":[{"id":"team/claude-a","object":"model"},{"id":"chatgpt/gpt-x","object":"model"}]}""")
+        }
+        chat = { model -> if (model == "chatgpt/gpt-x") toolCall() else noCredit(model) }
+        val (store, vm) = setUp()
+        vm.testAndWait()
+        assertEquals(listOf("team/claude-a", "chatgpt/gpt-x"), chatModels)
+        assertEquals("chatgpt/gpt-x", store.configFor(ModelRole.Main)?.model)
+        assertFalse(vm.state.value.showForm)
+        val note = vm.state.value.probeNote.orEmpty()
+        assertTrue(note, note.startsWith("先试的 team/claude-a 没测试通过：服务商拒绝了这个请求（HTTP 400: Your credit balance is too low"))
+        assertTrue(note, note.endsWith("主模型用了测试通过的「chatgpt/gpt-x」。"))
+        assertFalse("不贴整段 JSON: $note", note.contains("{"))
+    }
+
+    private fun noCredit(model: String) = MockResponse().setResponseCode(400).setHeader("Content-Type", "application/json").setBody(
+        """{"error":{"message":"litellm.BadRequestError: AnthropicException - {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",""" +
+            """\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"}}.""" +
+            """ Received Model Group=$model\nAvailable Model Group Fallbacks=None","type":null,"param":null,"code":"400"}}""",
+    )
+
     private fun quotaZero() = MockResponse().setResponseCode(429).setHeader("Content-Type", "application/json").setBody(
         """[{"error":{"code":429,"message":"You exceeded your current quota. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: paid-only","status":"RESOURCE_EXHAUSTED"}}]""",
     )

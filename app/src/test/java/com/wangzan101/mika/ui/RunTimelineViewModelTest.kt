@@ -216,6 +216,25 @@ class RunTimelineViewModelTest {
         assertEquals(listOf("act", "act"), rows.drop(1).map { it.kind })
     }
 
+    /**
+     * WOOWTECH fork: 对象和对话里的步骤一样给人看的说法:网页那一步(运行记录里写成「网站 域名」)只显示域名,
+     * 连着读同一站照样合成一行;命令只留命令。
+     */
+    @Test fun activityTargetsReadLikeTheChatSteps() {
+        val id = run("看网页") {
+            event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(1), callId = "r1"))
+            event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(2), callId = "r2"))
+            event(RunEvent.Activity(clock, 1, "act", "web_tap", "网站 127.0.0.1", "changed", callId = "a1"))
+        }
+        val rows = ready(id).steps.single().activities
+        assertEquals(listOf("127.0.0.1", "127.0.0.1"), rows.map { it.target })
+        assertEquals(2, rows.first().count)
+        // 命令的对象只留命令,旁边写的是工具的说法,不露 run_command
+        val cmd = run("算一下") { event(RunEvent.Activity(clock, 1, "act", "run_command", "run_command「ls -l」", "completed", callId = "c1")) }
+        val act = ready(cmd).steps.single().activities.single()
+        assertEquals("处理文件" to "ls -l", act.label to act.target)
+    }
+
     @Test fun showsVerifierAndGuardTags() {
         // 和 AgentLoop 一样用守卫自己的序列化拼结果
         fun withGuard(vararg v: GuardVerdict) =
@@ -249,6 +268,22 @@ class RunTimelineViewModelTest {
         assertFalse(ui.toString().contains("brand_new") || ui.toString().contains("some_new_code"))
         assertEquals("核查没通过", ui.header.verdict)
         assertEquals("没有完成", ui.header.outcome)
+    }
+
+    // WOOWTECH fork: 电脑交来的任务里申报同意被直接拒绝(没有人被问过):标签和结果照实说,不写「要你同意」「你没有同意」
+    @Test fun remoteRefusalIsNotShownAsTheUsersDecision() {
+        val id = run("买耳机") {
+            event(RunEvent.ModelReply(clock, 1, "", "phone_tap", """{"ref":"@e3"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 1, "phone_tap", """{"ok":true}""", true, null))
+            // 申报在执行那一步时记下,那一步的回复执行完才记:标签挂在前一步上
+            event(RunEvent.Confirmation(clock, "order", "耳机店", "一副耳机", "¥25", "declined_remote"))
+            event(RunEvent.ModelReply(clock, 2, "请你同意", "request_confirmation", """{"action":"order"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 2, "request_confirmation", """{"ok":false,"error":"confirmation_remote","message":"x"}""", null, null))
+            event(RunEvent.TaskEnded(clock, "failed", "不能下单"))
+        }
+        val (tap, ask) = ready(id).steps
+        assertEquals(listOf(Tag("从电脑交办的任务不能付款或下单", TagTone.Bad)), tap.tags)
+        assertEquals("出错:不能从电脑付款", ask.result)
     }
 
     @Test fun missingRunShowsExpired() {

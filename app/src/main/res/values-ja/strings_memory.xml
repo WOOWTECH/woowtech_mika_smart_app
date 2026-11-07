@@ -88,4 +88,12 @@
     <string name="skills_imported">インポート済み</string>
     <string name="skill_builtin_name">同じ名前の組み込みスキルがあります。名前を変えてもう一度試してください。</string>
     <string name="skill_draft_pending">同じ名前の下書きが確認待ちです。先にそちらを処理してください。</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">覚えました: %1$s</string>
+    <string name="memory_note_updated">更新しました: %1$s</string>
+    <string name="memory_note_updated_was">更新しました: %1$s(以前: %2$s)</string>
+    <string name="memory_note_forgot">忘れました: %1$s</string>
+    <string name="memory_note_forgot_unknown">メモリを 1 件忘れました</string>
+    <string name="memory_note_pending">今後もこのやり方にしますか？%1$s</string>
+    <string name="memory_note_deleted">削除済みのメモリ</string>
 </resources>

@@ -179,4 +179,6 @@
     <string name="pip_reopen">عرض الشاشة</string>
     <string name="pip_closed_needs_you">تتطلب تدخّلك</string>
     <string name="pip_closed_hint">أُغلقت لهذه المهمة. انقر على «عرض الشاشة» أسفل اليمين، أو افتح «الشاشات في الخلفية» من القائمة الجانبية.</string>
+    <!-- WOOWTECH fork: a command or file place (run record) shown with its tool label: label, then the command in quotes -->
+    <string name="source_command">%1$s «%2$s»</string>
 </resources>

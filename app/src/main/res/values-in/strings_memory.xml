@@ -88,4 +88,12 @@
     <string name="skills_imported">Diimpor</string>
     <string name="skill_builtin_name">Sudah ada keterampilan bawaan dengan nama ini. Ganti namanya lalu coba lagi.</string>
     <string name="skill_draft_pending">Draf dengan nama ini masih menunggu ditinjau. Selesaikan yang itu dulu.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">Diingat: %1$s</string>
+    <string name="memory_note_updated">Diperbarui: %1$s</string>
+    <string name="memory_note_updated_was">Diperbarui: %1$s (sebelumnya: %2$s)</string>
+    <string name="memory_note_forgot">Dilupakan: %1$s</string>
+    <string name="memory_note_forgot_unknown">Satu memori dilupakan</string>
+    <string name="memory_note_pending">Lakukan cara ini mulai sekarang? %1$s</string>
+    <string name="memory_note_deleted">memori yang sudah dihapus</string>
 </resources>

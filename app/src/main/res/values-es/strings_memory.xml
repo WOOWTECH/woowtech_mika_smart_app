@@ -88,4 +88,12 @@
     <string name="skills_imported">Importada</string>
     <string name="skill_builtin_name">Ya hay una habilidad integrada con este nombre. Cámbialo y vuelve a intentarlo.</string>
     <string name="skill_draft_pending">Ya hay un borrador con este nombre esperando revisión. Resuelve ese primero.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">Lo recordaré: %1$s</string>
+    <string name="memory_note_updated">Actualizado: %1$s</string>
+    <string name="memory_note_updated_was">Actualizado: %1$s (antes: %2$s)</string>
+    <string name="memory_note_forgot">Olvidado: %1$s</string>
+    <string name="memory_note_forgot_unknown">Se olvidó un recuerdo</string>
+    <string name="memory_note_pending">¿Lo hago así a partir de ahora? %1$s</string>
+    <string name="memory_note_deleted">un recuerdo eliminado</string>
 </resources>

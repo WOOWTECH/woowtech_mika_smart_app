@@ -7,7 +7,7 @@ description: Delegate tasks to Mika (including the WOOWTECH build 渥屋助理 /
 
 Mika runs its own agent on Android. Give it the user's complete goal, target and constraints; it chooses the phone actions. The bundled CLI talks directly to Mika's task API. No MCP client or MCP configuration is required.
 
-WOOWTECH build: on a phone with 渥屋助理 (woowtech agent, package `io.woowtech.agent`), "Mika" below means that app. The CLI finds it over ADB by itself (`MIKA_ANDROID_PACKAGE` picks a package explicitly). When talking to the user, call it 渥屋助理 or woowtech agent.
+WOOWTECH build: on a phone with 渥屋助理 (woowtech agent, package `io.woowtech.agent`), "Mika" below means that app. The CLI finds it over ADB by itself (`MIKA_ANDROID_PACKAGE` picks a package explicitly); over `--url` it recognizes it by the version the phone reports (ending in `-woow.<N>`). CLI messages call the app woowtech agent unless the phone turns out to run upstream Mika. When talking to the user, call it 渥屋助理 or woowtech agent.
 
 ## Quick start / first connection
 

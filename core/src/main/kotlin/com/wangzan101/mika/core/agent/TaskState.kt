@@ -1,6 +1,7 @@
 package com.wangzan101.mika.core.agent
 
 import com.wangzan101.mika.core.gate.ConfirmationRequest
+import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.verify.AnswerSource
 
 /** 不经模型、一下做好几步时的进度,任务卡片和通知据此写明在干什么。 */
@@ -63,7 +64,18 @@ sealed interface TaskState {
         val doubtful: Boolean get() = reviewed && !verified
     }
     /** [kind] 由产生失败的代码自己给出,不从 [reason] 文字里猜。 */
-    data class Failed(val reason: String, val kind: FailKind) : Terminal
+    data class Failed(val reason: String, val kind: FailKind) : Terminal {
+        /**
+         * WOOWTECH fork: 模型调用出错时是那个错(见 [StopRules.modelFailed]),别的失败为 null:App 据此按界面语言说原因,
+         * [reason] 是写死的简体中文。只是附带的,不算进相等比较,[copy] 也不带。
+         */
+        var modelError: ModelError? = null
+            private set
+
+        constructor(reason: String, kind: FailKind, modelError: ModelError?) : this(reason, kind) {
+            this.modelError = modelError
+        }
+    }
     data object Cancelled : Terminal
 }
 

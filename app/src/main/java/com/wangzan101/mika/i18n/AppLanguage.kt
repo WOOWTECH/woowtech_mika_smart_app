@@ -88,6 +88,8 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
             if (systemManaged) {
                 context.getSystemService(LocaleManager::class.java).applicationLocales =
                     language.tag?.let(LocaleList::forLanguageTags) ?: LocaleList.getEmptyLocaleList()
+                // WOOWTECH fork: 进程的默认语言马上跟着换:无障碍服务在跑时系统不再替进程换(见 [applyDefaultLocale])
+                LocaleList.setDefault(language.tag?.let(LocaleList::forLanguageTags) ?: Resources.getSystem().configuration.locales)
                 return
             }
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_TAG, language.tag).commit()
@@ -98,9 +100,21 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
             context.activity()?.recreate()
         }
 
-        /** App 启动时调:安卓 12 及以前选了语言时,把进程的默认 Locale(日期、数字的格式)也换成它。 */
+        /**
+         * App 启动时调:安卓 12 及以前选了语言时,把进程的默认 Locale(日期、数字的格式)也换成它。
+         *
+         * WOOWTECH fork: 进程配置变了时(MikaApp.onConfigurationChanged)也调;安卓 13 起选了语言时也设。本来系统会把选的语言
+         * 套到整个进程,但同一进程里的无障碍服务一启动,系统就不再让进程的配置跟着界面走(AOSP 的 WindowProcessController.onServiceStarted
+         * 对 BIND_ACCESSIBILITY_SERVICE 清掉进程的覆盖配置),进程的默认语言退回系统语言:界面的字照旧(界面和 [resources] 各按
+         * App 语言取),排版、字形却按系统语言——繁中的全形「，。」不再置中,内置浏览器向网站要的页面语言也跟着变。
+         * 跟随系统时不动。
+         */
         fun applyDefaultLocale(context: Context) {
-            if (systemManaged) return
+            if (systemManaged) {
+                val app = context.getSystemService(LocaleManager::class.java).applicationLocales
+                if (!app.isEmpty && LocaleList.getDefault()[0] != app[0]) LocaleList.setDefault(app)
+                return
+            }
             val locales = legacyLocales(context) ?: Resources.getSystem().configuration.locales
             Locale.setDefault(locales[0])
         }
@@ -109,6 +123,20 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
         fun wrap(base: Context): Context {
             val locales = legacyLocales(base) ?: return base
             return base.createConfigurationContext(Configuration().apply { setLocales(locales) })
+        }
+
+        /**
+         * WOOWTECH fork: 无障碍浮层(OverlayHost)建界面用的 Context:同 [wrap],但安卓 13 起也套上 App 语言。浮层借的是无障碍服务的
+         * Context,服务一启动,系统就不再把 App 语言套到进程上(见 [applyDefaultLocale]),服务的资源退回系统语言:
+         * 浮层里 stringResource 取的字(按住说话、屏幕分享的同意框、胶囊上的按钮)就成了系统语言。跟随系统时原样返回。
+         */
+        fun wrapOverlay(base: Context): Context {
+            val locales = if (systemManaged) {
+                base.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
+            } else {
+                legacyLocales(base)
+            }
+            return locales?.let { base.createConfigurationContext(Configuration().apply { setLocales(it) }) } ?: base
         }
 
         /**

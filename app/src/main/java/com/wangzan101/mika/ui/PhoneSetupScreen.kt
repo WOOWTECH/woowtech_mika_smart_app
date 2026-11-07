@@ -6,10 +6,7 @@ import com.wangzan101.mika.ui.components.keepsKeyboard
 import com.wangzan101.mika.about.Diagnostics
 import com.wangzan101.mika.about.DiagnosticsCollector
 import com.wangzan101.mika.about.setupInputs
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.os.SystemClock
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,6 +58,7 @@ import com.wangzan101.mika.core.shell.BuiltinShellFailure
 import com.wangzan101.mika.core.shell.BuiltinShellFix
 import com.wangzan101.mika.core.shell.BuiltinShellStatus
 import com.wangzan101.mika.core.shell.HelperRestart
+import com.wangzan101.mika.core.shell.PairingChannelHealth
 import com.wangzan101.mika.core.shell.PairingCode
 import com.wangzan101.mika.core.shell.PairingNotifyIssue
 import com.wangzan101.mika.core.shell.PhoneSetupFlow
@@ -169,15 +167,19 @@ fun PhoneSetupScreen(status: SystemStatus, repair: Boolean, onFix: (Fix) -> Unit
             onFix(Fix.AllowNotifications)
         }
     }
+    // WOOWTECH fork: 通知这时才允许(或配对通知这时才打开):在那之前发的填码通知被系统丢掉了,不会自己再发,
+    // 「跳过无障碍」时就找不到填码的地方。变得发得出去时补发一次(没丢过就不发)
+    val canNotify = status.notificationsAllowed && status.pairingChannel != PairingChannelHealth.Off
+    LaunchedEffect(canNotify) {
+        if (canNotify) pairing.repostDropped()
+    }
     LaunchedEffect(view.phase) { if (view.phase == SetupPhase.Success) phone.setupPrompt.clear() }
     // 打开引导页时把「用电脑启动」的脚本备好(助手不在时带新口令)
     LaunchedEffect(Unit) { phone.shellManager.usbScript.refresh() }
     val usbCommand = remember { phone.shellManager.usbScript.command() }
 
-    val copyUsbCommand = {
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(PhoneSetupCopy.USB_TITLE, usbCommand))
-        Toast.makeText(context, PhoneSetupCopy.USB_COPIED, Toast.LENGTH_SHORT).show()
-    }
+    // WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+    val copyUsbCommand = { copyToClipboard(context, PhoneSetupCopy.USB_TITLE, usbCommand, PhoneSetupCopy.USB_COPIED) }
     // 没配好就不设置了:撤掉配对通知、不再找配对窗口(填码通知一到配对一步就放进通知栏,不撤会挂着;end 也结束重新配对)。
     // 正在配对、连接时让它做完,配好了留着「配对成功」
     val close = {

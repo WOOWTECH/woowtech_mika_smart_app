@@ -72,10 +72,32 @@
     <string name="model_reason_no_tools">ツールを呼び出さず、Mika にはツールを呼び出せるモデルが必要です</string>
     <string name="model_reason_wrong_protocol">選んだインターフェースの種類では提供されていないため、リクエストが届きません</string>
     <string name="model_reason_server">サーバーがエラーを返しました(%1$s)</string>
+    <string name="model_reason_refused">プロバイダーがリクエストを拒否しました(%1$s)</string>
     <string name="model_probe_none_usable">プロバイダーには接続できましたが、「%1$s」はテストに通りませんでした: %2$s。一覧から、アカウントで有効になっているモデルを選んでください。</string>
     <string name="model_probe_none_usable_protocol">プロバイダーには接続できましたが、「%1$s」はテストに通りませんでした: %2$s。このインターフェースの種類で届くモデルに変えるか、インターフェースの種類を変えてください。</string>
     <string name="model_probe_tried_unavailable">%1$s を試しましたが、どれも有効になっていません。</string>
     <string name="model_probe_tried">%1$s を試しましたが、どれもテストに通りませんでした。</string>
     <string name="model_probe_fallback">最初に試した %1$s はテストに通りませんでした: %2$s。メインモデルは、テストに通った「%3$s」です。</string>
     <string name="model_pick_main">メインモデルを選択</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">API キーが無効か、権限がありません</string>
+    <string name="model_error_quota">利用枠を使い切りました</string>
+    <string name="model_error_rate_limited">リクエストが多すぎます。しばらくしてからもう一度お試しください</string>
+    <string name="model_error_context">会話がモデルのコンテキスト長を超えています</string>
+    <string name="model_error_not_available">このアカウントではこのモデルを使えません(未有効化か権限なし)</string>
+    <string name="model_error_network">モデルサービスに接続できませんでした</string>
+    <string name="model_error_stream_cut">返信が届ききる前に接続が切れました</string>
+    <string name="model_error_refused">モデルがこの内容の処理を拒否しました</string>
+    <string name="model_error_chatgpt_limit">ChatGPT の利用上限に達しました</string>
+    <string name="model_error_chatgpt_not_eligible">このアカウントは他のアプリで ChatGPT のプランを使えません</string>
+    <string name="model_error_signed_out">%1$s のログインが切れました。もう一度ログインしてください</string>
+    <string name="model_error_plan">お使いの %1$s のプランではこの API を使えません</string>
+    <string name="model_error_server_said">サーバーがエラーを返しました(%1$s): %2$s</string>
+    <string name="model_error_said">モデルサービスがエラーを報告しました: %1$s</string>
+    <string name="model_error_unreadable">返ってきた内容を読み取れませんでした。ベース URL と API の種類が合っているか確認してください</string>
+    <string name="list_error_network">このアドレスに接続できません。ネットワークとベース URL を確認してください</string>
+    <string name="list_error_not_supported">このサービスはモデル一覧を提供していません</string>
+    <string name="list_error_server">サービスで一時的なエラーが起きました。しばらくしてからもう一度お試しください</string>
+    <string name="list_error_bad_response">返ってきた内容を読み取れません。ベース URL と API の種類を確認してください</string>
+    <string name="list_error_with_detail">%1$s(%2$s)</string>
 </resources>

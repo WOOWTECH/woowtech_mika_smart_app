@@ -3,6 +3,7 @@
     <string name="timeline_expired">이 기록은 만료됐어요</string>
     <string name="tag_approved">승인함</string>
     <string name="tag_declined">거절함</string>
+    <string name="tag_remote_declined">컴퓨터에서 맡긴 작업은 결제나 주문을 할 수 없어요</string>
     <string name="tag_needs_ok">승인이 필요했어요</string>
     <string name="tag_takeover">직접 처리를 요청했어요</string>
     <string name="tag_barrier">장애물을 만남</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">먼저 승인이 필요해요</string>
     <string name="err_confirm_mismatch">승인한 내용과 달라요</string>
     <string name="err_confirm_declined">승인하지 않았어요</string>
+    <string name="err_confirm_remote">컴퓨터에서는 결제할 수 없어요</string>
     <string name="err_not_applied">텍스트가 입력되지 않았어요</string>
     <string name="verify_failed">점검 실패</string>
     <string name="err_parallel_skipped">한 번에 동작 하나만 가능해요</string>

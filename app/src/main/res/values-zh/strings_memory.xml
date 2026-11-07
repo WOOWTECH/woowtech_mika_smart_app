@@ -88,4 +88,12 @@
     <string name="skills_imported">导入的</string>
     <string name="skill_builtin_name">和内置技能重名了，改个名字再试。</string>
     <string name="skill_draft_pending">已经有一份同名草稿在等你确认，先处理那份。</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">记住了:%1$s</string>
+    <string name="memory_note_updated">更新了:%1$s</string>
+    <string name="memory_note_updated_was">更新了:%1$s(原来:%2$s)</string>
+    <string name="memory_note_forgot">忘掉了:%1$s</string>
+    <string name="memory_note_forgot_unknown">忘掉了一条记忆</string>
+    <string name="memory_note_pending">要我以后都这样做吗?%1$s</string>
+    <string name="memory_note_deleted">一条已删除的记忆</string>
 </resources>

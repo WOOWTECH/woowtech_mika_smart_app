@@ -61,4 +61,19 @@
     <string name="tool_tap">タップ</string>
     <string name="tool_type">テキストを入力</string>
     <string name="tool_clear">入力欄をクリア</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">前の画面を見返す</string>
+    <string name="tool_view_user_screen">送ってもらった画面を見る</string>
+    <string name="tool_search_memory">メモリを検索</string>
+    <string name="tool_save_memory">覚えておく</string>
+    <string name="tool_edit_profile">「あなたについて」を編集</string>
+    <string name="tool_read_history">以前のやり取りを読む</string>
+    <string name="tool_schedule_task">タスクをスケジュール</string>
+    <string name="tool_spawn_agent">サブタスクを任せる</string>
+    <string name="tool_open_link">リンクを開く</string>
+    <string name="tool_page_script">ページのスクリプトを実行</string>
+    <string name="tool_page_action">ページの操作</string>
+    <string name="tool_describe_screen">画像から画面を説明</string>
+    <string name="tool_find_visually">画像から要素を探す</string>
+    <string name="tool_do_steps">続けて数ステップ</string>
 </resources>

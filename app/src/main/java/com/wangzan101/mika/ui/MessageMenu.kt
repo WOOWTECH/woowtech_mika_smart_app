@@ -1,9 +1,6 @@
 package com.wangzan101.mika.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -162,11 +159,9 @@ internal fun Modifier.behindMenu(open: Boolean, progress: () -> Float): Modifier
         )
         .clearAndSetSemantics {}
 
-/** 把消息的纯文字放进剪贴板,提示一句「已复制」。 */
-internal fun copyMessage(context: Context, text: String) {
-    context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Mika", text))
-    Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
-}
+/** 把消息的纯文字放进剪贴板,提示一句「已复制」(WOOWTECH fork: 安卓 13 起由系统提示,见 [copyToClipboard])。 */
+internal fun copyMessage(context: Context, text: String) =
+    copyToClipboard(context, "Mika", text, context.getString(R.string.chat_copied))
 
 /** 引用怎么念给读屏:「引用 Mika:……」「引用你的话:……」。 */
 @Composable

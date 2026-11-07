@@ -686,6 +686,59 @@ object ModelSetupCopy {
 
     fun failed(reason: String) = tr(R.string.model_failed, reason)
 
+    /**
+     * WOOWTECH fork: 服务商拒了请求时给人看的一句「HTTP 400: Your credit balance is too low…」,代替报错的整段原文。
+     * 原文常是截断的 JSON(适配器只留前 200 个字),网关还会把上游的 JSON 当成字符串再包一层(引号转义成 \"):
+     * 取最里面那一层最后一个说了话的 message,没有就找 msg / detail / error_description / error,再没有找 type / code;
+     * 都没有、原文又不像 JSON 或网页时用原文。截短到 [REFUSAL_MAX] 个字,原文在这句中间断了的末尾加「…」。
+     * [error] 里没有 HTTP 状态码(回了 200 却看不懂之类)时为 null,由调用方照原话说。
+     */
+    fun refusal(error: String): String? {
+        val status = HTTP_STATUS.find(error) ?: return null
+        val body = error.substring(status.range.last + 1).trim()
+        val said = SAID_KEYS.firstNotNullOfOrNull { keys -> saidIn(body, keys) }
+            ?: body.takeIf { it.isNotEmpty() && it.first() !in "{[<" }?.let { clipSaid(it, cut = false) }
+        return "HTTP ${status.groupValues[1]}" + said?.let { ": $it" }.orEmpty()
+    }
+
+    /**
+     * [body] 里 [keys] 这几个键最后一个有内容的字符串值。引号前的反斜杠个数是它在第几层(外层 0 个、包进字符串的一层 1 个),
+     * 值到同一层或更外层的下一个引号为止,更深一层转义的引号算内容。
+     */
+    private fun saidIn(body: String, keys: String): String? =
+        Regex("""(\\*)"(?:$keys)\1"\s*:\s*\1"""").findAll(body).mapNotNull { m ->
+            val level = m.groupValues[1].length
+            val start = m.range.last + 1
+            var end = -1
+            var i = start
+            while (end < 0 && i < body.length) {
+                if (body[i] == '"') {
+                    var slashes = 0
+                    while (i - slashes - 1 >= start && body[i - slashes - 1] == '\\') slashes++
+                    if (slashes <= level) end = i - slashes
+                }
+                i++
+            }
+            val text = (if (end < 0) body.substring(start) else body.substring(start, end))
+                .replace(ESCAPED_BREAK, " ").replace(ESCAPED_QUOTE, "\"").trim().trimEnd('-', ':', '{', '[', ',', ' ')
+            text.takeIf { it.isNotEmpty() && it.lowercase() !in GENERIC_SAID && !it.all(Char::isDigit) }?.let { clipSaid(it, cut = end < 0) }
+        }.lastOrNull()
+
+    private fun clipSaid(text: String, cut: Boolean): String = when {
+        text.length > REFUSAL_MAX -> text.take(REFUSAL_MAX).trimEnd() + "…"
+        cut -> "$text…"
+        else -> text
+    }
+
+    private val HTTP_STATUS = Regex("""HTTP (\d{3})\b""")
+    private val SAID_KEYS = listOf("message", "msg|detail|error_description|error", "type|code")
+    /** 只说了是哪一大类、没说为什么的值。 */
+    private val GENERIC_SAID = setOf("error", "invalid_request_error", "api_error", "bad_request", "null", "none")
+    /** 转义过一层或几层的引号、换行、制表。 */
+    private val ESCAPED_QUOTE = Regex("""\\+"""")
+    private val ESCAPED_BREAK = Regex("""\\+[nrt]""")
+    private const val REFUSAL_MAX = 120
+
     /** 模型的能力标签:(文字, 是否强调色)。接口没给、用户也没说、按预设推断的标「未确认」。只作参考,不拦选择。 */
     fun tags(o: ModelOption, forVision: Boolean = false): List<Pair<String, Boolean>> = buildList {
         val caps = o.capabilities

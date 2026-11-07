@@ -61,4 +61,19 @@
     <string name="tool_tap">Нажать</string>
     <string name="tool_type">Ввести текст</string>
     <string name="tool_clear">Очистить поле</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">Пересмотреть прежние экраны</string>
+    <string name="tool_view_user_screen">Посмотреть присланный вами экран</string>
+    <string name="tool_search_memory">Поиск в памяти</string>
+    <string name="tool_save_memory">Запомнить</string>
+    <string name="tool_edit_profile">Изменить «О вас»</string>
+    <string name="tool_read_history">Прочитать прошлые части разговора</string>
+    <string name="tool_schedule_task">Запланировать задачу</string>
+    <string name="tool_spawn_agent">Поручить подзадачу</string>
+    <string name="tool_open_link">Открыть ссылку</string>
+    <string name="tool_page_script">Запустить скрипт на странице</string>
+    <string name="tool_page_action">Действие на странице</string>
+    <string name="tool_describe_screen">Описать экран</string>
+    <string name="tool_find_visually">Найти по изображению экрана</string>
+    <string name="tool_do_steps">Несколько шагов подряд</string>
 </resources>

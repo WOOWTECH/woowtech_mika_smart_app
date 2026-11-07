@@ -472,7 +472,8 @@ class ModelSetupViewModelTest {
     /** 试调用失败(例如服务商要的请求头没带):服务端的报错原样给人看,什么都不存。 */
     @Test fun failedTinyRequestShowsTheServerErrorAndSavesNothing() = runTest {
         listing[openRouterUrl] = deepseek
-        reply = { throw ModelError.BadResponse("HTTP 400 {\"error\":{\"type\":\"MissingSessionID\"}}") }
+        // WOOWTECH fork: 照适配器那样把 HTTP 报错转成 ModelError(带状态码和原话);界面只引原话,不再贴 message 里的整段报文
+        reply = { throw ModelHttp.openAiError(400, null, "{\"error\":{\"type\":\"MissingSessionID\"}}", built.last().first) }
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk-1"); vm.testAndSave(); runCurrent()
@@ -482,6 +483,144 @@ class ModelSetupViewModelTest {
         assertTrue(store.providers.value.isEmpty())
         assertTrue(store.list().isEmpty())
         assertTrue(vm.state.value.showForm)
+    }
+
+    /** LiteLLM 网关转上游 Anthropic 时,那条线路没额度的回复:上游的 JSON 当成字符串包在网关的 message 里。 */
+    private val gatewayNoCredit =
+        """{"error":{"message":"litellm.BadRequestError: AnthropicException - {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",""" +
+            """\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},""" +
+            """\"request_id\":\"req_1\"}. Received Model Group=team/claude-a\nAvailable Model Group Fallbacks=None","type":null,"param":null,"code":"400"}}"""
+
+    /**
+     * WOOWTECH fork: 网关里排在最前面的那条线路没额度(服务商拒了请求,HTTP 400):不当成整家不能用,接着试下一个,
+     * 通了就存下、它当主模型;提示里只有服务商那一句话的摘要,不贴整段 JSON。
+     */
+    @Test fun refusedFirstRouteFallsBackToTheNext() = runTest {
+        val url = "https://gateway.example.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("team/claude-a"), ListedModel("chatgpt/gpt-x")))
+        reply = {
+            val m = built.last().first
+            if (m == "team/claude-a") throw ModelHttp.openAiError(400, null, gatewayNoCredit, m)
+            ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null)
+        }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals(listOf("team/claude-a", "chatgpt/gpt-x"), built.map { it.first })
+        assertEquals("chatgpt/gpt-x", store.configFor(ModelRole.Main)?.model)
+        assertFalse(vm.state.value.showForm)
+        assertEquals(
+            "先试的 team/claude-a 没测试通过：服务商拒绝了这个请求（HTTP 400: Your credit balance is too low to access the Anthropi…）。" +
+                "主模型用了测试通过的「chatgpt/gpt-x」。",
+            vm.state.value.probeNote,
+        )
+    }
+
+    /** WOOWTECH fork: 先试的那条线路额度用完(402):和服务端出错一样接着试下一个。 */
+    @Test fun quotaExceededFirstRouteFallsBackToTheNext() = runTest {
+        val url = "https://gateway.example.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("paid/model-a"), ListedModel("free/model-b")))
+        reply = {
+            val m = built.last().first
+            if (m == "paid/model-a") throw ModelHttp.openAiError(402, null, """{"error":{"message":"Insufficient credits","code":402}}""", m)
+            ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null)
+        }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals(listOf("paid/model-a", "free/model-b"), built.map { it.first })
+        assertEquals("free/model-b", store.configFor(ModelRole.Main)?.model)
+        assertEquals(
+            "先试的 paid/model-a 没测试通过：${ModelError.QuotaExceeded().message}。主模型用了测试通过的「free/model-b」。",
+            vm.state.value.probeNote,
+        )
+    }
+
+    /**
+     * WOOWTECH fork: 试的几个都被服务商拒了:多半整家都不行,照旧不存;说一句摘要和试了哪些,并展开模型名一栏,
+     * 用户填一个确定能用的,再测就只试它。
+     */
+    @Test fun everyCandidateRefusedSavesNothingAndAsksForAModel() = runTest {
+        val url = "https://gateway.example.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(
+            ListedModel("team/claude-a"), ListedModel("team/claude-b"), ListedModel("team/claude-c"), ListedModel("chatgpt/gpt-x"),
+        ))
+        reply = { throw ModelHttp.openAiError(400, null, gatewayNoCredit, built.last().first) }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals("至多试 3 个", listOf("team/claude-a", "team/claude-b", "team/claude-c"), built.map { it.first })
+        assertTrue(store.providers.value.isEmpty())
+        val f = vm.state.value.form
+        assertEquals(
+            ListState.Failed(
+                "试着让 team/claude-a 调用一个工具没成功：服务商拒绝了这个请求（HTTP 400: Your credit balance is too low to access the Anthropi…）\n" +
+                    "试了 team/claude-a、team/claude-b、team/claude-c，都没测试通过。",
+            ),
+            f.test,
+        )
+        assertTrue("展开模型名一栏", f.showModel)
+        reply = { ModelReply(listOf(Part.ToolCall("c1", "get_time", "{}")), StopReason.ToolUse, null) }
+        vm.setModel("chatgpt/gpt-x"); vm.testAndSave(); runCurrent()
+        assertEquals("chatgpt/gpt-x", built.last().first)
+        assertEquals("chatgpt/gpt-x", store.configFor(ModelRole.Main)?.model)
+    }
+
+    /**
+     * WOOWTECH fork: 只有服务商回了状态码的拒绝才接着试下一个。回了 200 却看不懂(没有状态码,如缺少 choices)照上游:
+     * 第一个就停、原话照说,不展开模型名一栏。
+     */
+    @Test fun unreadableReplyOnTheFirstCandidateStillStopsThere() = runTest {
+        val url = "https://api.qnaigc.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("a-model"), ListedModel("b-model"), ListedModel("c-model")))
+        reply = { throw ModelError.BadResponse("缺少 choices") }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals("只试第一个", listOf("a-model"), built.map { it.first })
+        val f = vm.state.value.form
+        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelError.BadResponse("缺少 choices").message}"), f.test)
+        assertFalse(f.showModel)
+        assertTrue(store.providers.value.isEmpty())
+    }
+
+    /** WOOWTECH fork: 试的全是 5xx 照上游(多半整家没起来,换模型也没用):只说第一个的原因,不加「试了哪些」,不展开模型名一栏。 */
+    @Test fun serverErrorOnEveryCandidateDoesNotAskForAModel() = runTest {
+        val url = "https://api.qnaigc.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("a-model"), ListedModel("b-model"), ListedModel("c-model")))
+        reply = { throw ModelError.Server(502) }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals(listOf("a-model", "b-model", "c-model"), built.map { it.first })
+        val f = vm.state.value.form
+        // 原因走 ModelErrorCopy(按界面语言的短句),不是 core 的 message
+        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelErrorCopy.reason(ModelError.Server(502))}"), f.test)
+        assertFalse(f.showModel)
+        assertTrue(store.providers.value.isEmpty())
+    }
+
+    /** WOOWTECH fork: 服务商拒绝请求时只留它那一句话(最里面那层的 message,没有就 type 之类),不贴整段原文。 */
+    @Test fun refusalKeepsOnlyWhatTheProviderSaid() {
+        fun said(body: String) = ModelSetupCopy.refusal(ModelError.BadResponse("HTTP 400 ${body.take(200)}").message.orEmpty())
+        // 截断在上游那句话中间:末尾加「…」
+        assertEquals("HTTP 400: Your credit balance is too low to access the Anthropi…", said(gatewayNoCredit))
+        assertEquals(
+            "HTTP 400: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+            ModelSetupCopy.refusal("HTTP 400 $gatewayNoCredit"),
+        )
+        assertEquals("HTTP 400: MissingSessionID", said("""{"error":{"type":"MissingSessionID"}}"""))
+        // 原话里转义的引号是内容,不是结尾
+        assertEquals(
+            "HTTP 400: Invalid value: \"tools[0].type\". Supported values are: 'function'.",
+            said("""{"error":{"message":"Invalid value: \"tools[0].type\". Supported values are: 'function'.","type":"invalid_request_error"}}"""),
+        )
+        assertEquals("HTTP 422: Unprocessable Entity", ModelSetupCopy.refusal("HTTP 422 Unprocessable Entity"))
+        assertEquals("HTTP 400", said("<html><body>Bad Request</body></html>"))
+        assertEquals("HTTP 400", said(""))
+        // 不是服务商回的拒绝(没有状态码):由调用方照原话说
+        assertNull(ModelSetupCopy.refusal(ModelError.BadResponse("缺少 choices").message.orEmpty()))
+        assertNull(ModelSetupCopy.refusal(ModelError.QuotaExceeded().message.orEmpty()))
     }
 
     @Test fun tinyRequestThatNeverAnswersTimesOut() = runTest {

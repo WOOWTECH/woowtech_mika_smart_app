@@ -88,4 +88,12 @@
     <string name="skills_imported">가져옴</string>
     <string name="skill_builtin_name">같은 이름의 기본 스킬이 있습니다. 이름을 바꿔 다시 시도하세요.</string>
     <string name="skill_draft_pending">같은 이름의 초안이 이미 검토를 기다리고 있습니다. 그것부터 처리하세요.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">기억했어요: %1$s</string>
+    <string name="memory_note_updated">업데이트했어요: %1$s</string>
+    <string name="memory_note_updated_was">업데이트했어요: %1$s(이전: %2$s)</string>
+    <string name="memory_note_forgot">잊었어요: %1$s</string>
+    <string name="memory_note_forgot_unknown">메모리 하나를 잊었어요</string>
+    <string name="memory_note_pending">앞으로도 이렇게 할까요? %1$s</string>
+    <string name="memory_note_deleted">삭제된 메모리</string>
 </resources>

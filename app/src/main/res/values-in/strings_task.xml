@@ -28,6 +28,10 @@
     </plurals>
     <string name="fail_no_main_model">Belum ada model utama yang bisa dipakai. Tambahkan model dengan pemanggilan alat di Pengaturan.</string>
     <string name="fail_model_untested">Model utama belum lulus pengujian di %1$s. Buka Pengaturan › Model › %1$s dan ketuk “Uji lagi” untuk memeriksanya.</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">Panggilan model gagal: %1$s. Periksa Pengaturan › Model.</string>
+    <string name="fail_model_later">Panggilan model gagal: %1$s. Coba lagi nanti.</string>
+    <string name="fail_model_plain">Panggilan model gagal: %1$s.</string>
     <string name="fail_no_web">Web tidak tersedia di perangkat ini, jadi pemeriksaan kondisi tidak bisa dijalankan</string>
     <string name="task_waiting_display">Dalam antrean: dimulai setelah tugas lain selesai</string>
     <string name="task_no_phone_helper">Kontrol ponsel belum siap. Selesaikan “Siapkan kontrol ponsel” di Mika. Tugas web dan berkas tidak terpengaruh.</string>
@@ -62,6 +66,7 @@
     <string name="task_not_done">Tugas belum selesai</string>
     <string name="task_stopped">Tugas dihentikan</string>
     <string name="task_stopped_body">Anda menghentikan tugas ini</string>
+    <string name="task_stopped_remote_body">Tugas ini dihentikan dari komputer</string>
     <string name="gate_user_on_page">Anda sedang memakai halaman, jadi Mika berhenti sejenak</string>
     <string name="task_no_phone_helper_usb">Pembantu ponsel berhenti (biasanya setelah ponsel dimulai ulang). Buka Mika dan jalankan lagi perintah mulai USB; bisa disalin di “Siapkan kontrol ponsel”. Tugas web dan berkas tidak terpengaruh.</string>
     <string name="drawer_screens">Layar latar belakang</string>

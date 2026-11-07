@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteException
 import android.util.Log
 import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.core.brand.Brand
 import com.wangzan101.mika.core.mcp.McpTaskHost
 import com.wangzan101.mika.core.mcp.McpTaskLink
 import com.wangzan101.mika.core.remote.RemoteTaskService
@@ -51,7 +52,8 @@ class RemoteTaskHub(
         throw e
     } catch (e: Exception) {
         Log.w(TAG, "could not start remote task", e)
-        StartOutcome.Refused("Mika could not start the task on the phone. Check its status before trying again.")
+        // WOOWTECH fork: 这几句电脑那边看得到(错误、任务状态的 reason),产品名经 Brand.text
+        StartOutcome.Refused(Brand.text("Mika could not start the task on the phone. Check its status before trying again."))
     }
 
     @Synchronized private fun launch(id: String, goal: String, conversation: String?, attendance: Attendance): RemoteTask {
@@ -60,7 +62,7 @@ class RemoteTaskHub(
         receipts.insert(task, newChat = conversation == null)
         try { TaskService.startMcp(context, goal, task.conversation, id, attendance) }
         catch (e: Exception) {
-            receipts.finish(id, TaskState.Failed("Mika could not start the task on the phone.", FailKind.Environment), emptyList())
+            receipts.finish(id, TaskState.Failed(Brand.text("Mika could not start the task on the phone."), FailKind.Environment), emptyList())
             throw e
         }
         return task
@@ -70,7 +72,7 @@ class RemoteTaskHub(
         receipts.claimStart(id)
     } catch (e: SQLiteException) {
         Log.e(TAG, "Could not claim remote task", e)
-        ended(id, TaskState.Failed("Mika could not record this task's start. Check phone storage.", FailKind.Environment), emptyList())
+        ended(id, TaskState.Failed(Brand.text("Mika could not record this task's start. Check phone storage."), FailKind.Environment), emptyList())
         false
     }
     @Synchronized fun forget(conversation: String) {

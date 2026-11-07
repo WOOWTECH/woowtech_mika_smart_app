@@ -27,6 +27,7 @@ import kotlinx.serialization.json.put
 
 internal object ScheduleTask : AgentTool {
     override val verb = Verb.ScheduleTask
+    override val label = "安排定时任务" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.External
     override val approvalRisk = ApprovalRisk(ActionRisk.External)
     override val offScreen = true
