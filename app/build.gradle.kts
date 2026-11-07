@@ -142,6 +142,7 @@ android {
             // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
             // Compose UI 的 zh-rTW 也有 state_on/state_off:系统语言是 zh-TW 时这两句用它的「已開啟」「已關閉」,和上游一样。
+            // aapt2 留 zh-rTW 时会连带留下上游简体的 values-zh,所以 woowtech 变体另外传 --exclude-configs zh(文件末尾的 onVariants)。
             resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
     }
@@ -155,12 +156,19 @@ android {
         }
     }
 }
-// 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
 androidComponents {
+    // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
     beforeVariants { variant ->
         if (variant.flavorName == "woowtech") {
             variant.enableUnitTest = false
             variant.androidTest.enable = false
+        }
+    }
+    // WOOWTECH fork: -c 里有 zh-rTW 时,aapt2 连它的上层 values-zh(上游的简体界面,没换品牌名)也留下,woowtech 变体排除它。
+    // --exclude-configs zh 只去掉语言正好是 zh 的值(含 zh-night、zh-v26),b+zh+Hant、zh-rTW 不受影响
+    onVariants { variant ->
+        if (variant.flavorName == "woowtech") {
+            variant.androidResources.aaptAdditionalParameters.addAll("--exclude-configs", "zh")
         }
     }
 }
