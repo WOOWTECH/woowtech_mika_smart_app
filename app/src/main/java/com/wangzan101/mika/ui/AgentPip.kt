@@ -89,8 +89,8 @@ private val Ease = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
 
 /**
  * 悬浮画中画:盖在对话上,只显示 Agent 虚拟屏的实时画面,只看不点;上面不放文字和按钮,要你做的事都在对话卡片里。
- * 状态只靠边框光:干活中细绿边,需要你时橙色呼吸光晕(接管开始时由 [ChatViewModel] 自动展开)。
- * 平时停在右下角、输入栏上方,不挡顶栏和最新的消息。
+ * 状态只靠边框光:干活中细绿边,需要你时橙色呼吸光晕。
+ * 平时停在右下角、输入栏上方,不挡顶栏和最新的消息;需要你时挪到同侧上方,让开卡片上的按钮(WOOWTECH fork)。
  * 拖动 1:1 跟手;松手按速度投射落点吸到最近的角(临界阻尼弹簧,见 [PipPhysics]);
  * 点一下展开,点 × 或外面收起;需要你时点一下交给 [onAttention](收起并滚到那张卡片)。
  * 展开时左上角「关掉小画面」([onClose]):这个任务结束前只剩右下角一个小按钮([PipUi.closed]),
@@ -222,6 +222,8 @@ private fun PipWindow(
     var free by remember { mutableStateOf<Offset?>(null) }
     val scope = rememberCoroutineScope()
     var settle by remember { mutableStateOf<Job?>(null) }
+    // WOOWTECH fork: 要你处理时从下方挪上去之前的那个角;处理完挪回去。用户自己拖过就清掉,不再替他挪
+    var raisedFrom by rememberSaveable { mutableStateOf<Corner?>(null) }
 
     /** 从 [start] 以速度 (vx, vy) 弹到角 [c];关了动画时直接到位。 */
     fun springTo(c: Corner, start: Offset, vx: Float, vy: Float) {
@@ -252,18 +254,28 @@ private fun PipWindow(
 
     fun release(vx: Float, vy: Float) {
         val start = free ?: return
+        raisedFrom = null
         springTo(PipPhysics.snapCorner(start.x, start.y, vx, vy, currentBounds), start, vx, vy)
     }
 
     // 完成时如果停在下方两个角,先挪到同侧上方,免得盖住刚出来的结果卡片
+    // WOOWTECH fork: 要你处理时也一样:卡片的按钮(「允许这一次」「我来处理」…)就在输入栏上方,停在下方的小窗会盖住它们;
+    // 回到干活时挪回原来的角
     LaunchedEffect(pip.mode) {
-        if (pip.mode != PipMode.Done) return@LaunchedEffect
+        val from = free ?: currentBounds.position(corner).let { (x, y) -> Offset(x, y) }
+        if (pip.mode == PipMode.Running) {
+            val back = raisedFrom ?: return@LaunchedEffect
+            raisedFrom = null
+            springTo(back, from, 0f, 0f)
+            return@LaunchedEffect
+        }
         val up = when (corner) {
             Corner.BottomStart -> Corner.TopStart
             Corner.BottomEnd -> Corner.TopEnd
             else -> return@LaunchedEffect
         }
-        springTo(up, free ?: currentBounds.position(corner).let { (x, y) -> Offset(x, y) }, 0f, 0f)
+        if (pip.mode == PipMode.NeedsYou) raisedFrom = corner
+        springTo(up, from, 0f, 0f)
     }
 
     val pos = free ?: bounds.position(corner).let { (x, y) -> Offset(x, y) }

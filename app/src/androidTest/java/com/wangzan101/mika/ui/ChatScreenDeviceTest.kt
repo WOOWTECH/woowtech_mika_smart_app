@@ -43,6 +43,7 @@ import com.wangzan101.mika.task.ScriptedModel
 import com.wangzan101.mika.task.TaskService
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -55,7 +56,7 @@ import com.wangzan101.mika.task.testTasks
 import com.wangzan101.mika.task.TaskEnvironment
 
 /**
- * 真机走一遍对话页:脚本模型在虚拟屏上打开设置,检查步骤、小窗(收起、展开、拖动、需要你时自动展开)和结果卡片,
+ * 真机走一遍对话页:脚本模型在虚拟屏上打开设置,检查步骤、小窗(收起、展开、拖动、需要你时不展开)和结果卡片,
  * 每个阶段截一张图到 App 的外部文件目录 shots/(由开发机 adb pull 出来人工查看)。
  * 需要内置助手在运行、Mika 无障碍服务已开启。
  */
@@ -182,14 +183,12 @@ class ChatScreenDeviceTest {
         model.feed("hand_to_user", """{"reason":"captcha","message":"设置里弹出了验证(脚本演示),需要你处理。"}""")
         awaitState { it is TaskState.WaitingTakeover }
         compose.waitForIdle()
-        assertTrue(vm.ui.value.pip.expanded)
+        // WOOWTECH fork: 要你处理时小窗不自动展开(展开的大窗和遮罩会盖住卡片),卡片上的按钮直接按得到
+        assertFalse(vm.ui.value.pip.expanded)
         compose.onNodeWithText("需要你处理:验证码").assertExists()
         compose.onNodeWithText("已暂停").assertExists()
         shot("06-takeover")
 
-        // 展开的小窗和遮罩盖住了对话里的卡片:先收起再点卡片上的按钮
-        compose.onNodeWithContentDescription("收起").performClick()
-        compose.waitForIdle()
         compose.onNodeWithText("取消任务").performClick()
         awaitState { it == TaskState.Cancelled }
         // 停止后补上的交代(脚本模型不写,按记录直接拼)排在「已停止。」下面
