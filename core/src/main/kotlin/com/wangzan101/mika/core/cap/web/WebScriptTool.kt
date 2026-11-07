@@ -25,6 +25,7 @@ import com.wangzan101.mika.core.uistate.lastSnapshot
  */
 internal object WebScriptTool : WebTool {
     override val verb = Verb.Script
+    override val label = "运行网页脚本" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Write
     override val composite = true
     override val def = ToolDef("web_script",

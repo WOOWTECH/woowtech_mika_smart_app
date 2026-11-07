@@ -28,6 +28,7 @@ import com.wangzan101.mika.core.uistate.locator
 /** 看图类工具:要设置里有看图模型(视觉角色)才提供,和主模型能不能看图无关。 */
 internal class Describe(f: ScreenFamily) : ScreenTool(f, "describe") {
     override val verb = Verb.Describe
+    override val label = "看图描述屏幕" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     // 只问看图模型、不动界面:用户插话时撤掉,先读那句话
     override val yieldsToSteer = true
@@ -66,6 +67,7 @@ internal class Describe(f: ScreenFamily) : ScreenTool(f, "describe") {
 
 internal class FindVisually(f: ScreenFamily) : ScreenTool(f, "find_visually") {
     override val verb = Verb.FindVisually
+    override val label = "看图找控件" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     override val yieldsToSteer = true
     override val def by lazy { ToolDef(name,

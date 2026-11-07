@@ -34,6 +34,7 @@ internal object SpawnAgent : AgentTool {
     const val MIN_RESULT_CHARS = 500
 
     override val verb = Verb.SpawnAgent
+    override val label = "派出子任务" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Write
     override val offScreen = true
     override val def = ToolDef("spawn_agent", Prompts.tool("spawn_agent",

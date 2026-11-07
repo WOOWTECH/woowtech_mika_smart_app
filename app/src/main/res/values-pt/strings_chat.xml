@@ -164,4 +164,6 @@
     <string name="pip_closed_hint">Fechada para esta tarefa. Toque em “Mostrar tela” no canto inferior direito ou abra “Telas em segundo plano” no menu lateral.</string>
     <string name="chat_conversation_tokens">Esta conversa: %1$s</string>
     <string name="chat_conversation_tokens_partial">Esta conversa: pelo menos %1$s</string>
+    <!-- WOOWTECH fork: a command or file place (run record) shown with its tool label: label, then the command in quotes -->
+    <string name="source_command">%1$s “%2$s”</string>
 </resources>

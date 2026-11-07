@@ -25,6 +25,7 @@ import com.wangzan101.mika.core.uistate.session
  */
 internal object OpenLink : PhoneTool {
     override val verb = Verb.OpenLink
+    override val label = "打开链接" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val batchable = true
     override val routable = true
     override val risk = Risk.Write
