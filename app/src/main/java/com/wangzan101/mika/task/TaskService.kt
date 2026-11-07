@@ -863,22 +863,26 @@ class TaskService : Service() {
         /** 结果与提示发成通知(服务里的与 App 启动时恢复用的共用);[resultId] 是结果通知的编号。 */
         internal fun notifyDelivery(context: Context, delivery: Delivery, resultId: Int): SendOutcome {
             val nm = context.getSystemService(NotificationManager::class.java)
+            // WOOWTECH fork: 结果和提示放进结果组(组里有摘要),系统不会把它和别的通知叠进自动组、标成静音(见 AlertGroup)
+            val results = AlertGroup.RESULTS
             when (delivery) {
                 is Delivery.Result -> {
                     // WOOWTECH fork: 回答按 Markdown 写,通知里只放纯文字
                     val text = notificationText(delivery.text)
-                    nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
+                    results.notify(context, nm, resultId, Notification.Builder(context, CHANNEL_RESULT)
                         .setSmallIcon(R.drawable.ic_notification)
                         .setContentTitle(delivery.title)
                         .setContentText(text)
                         .setStyle(Notification.BigTextStyle().bigText(text))
                         .setContentIntent(openApp(context, delivery.threadId))
                         .setAutoCancel(true)
+                        .inGroup(results)
                         .build())
                 }
-                is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
+                is Delivery.Notice -> results.notify(context, nm, nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
                     .setSmallIcon(R.drawable.ic_notification).setContentTitle(tr(R.string.app_name))
-                    .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
+                    .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true)
+                    .inGroup(results).build())
                 is Delivery.Ask, is Delivery.Progress -> {}
             }
             return SendOutcome.Delivered
