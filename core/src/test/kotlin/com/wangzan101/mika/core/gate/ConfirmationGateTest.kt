@@ -186,7 +186,7 @@ class ConfirmationGateTest {
         // P5:没被拦下过、先申报成提交,这一屏要花钱的只有「立即加值」(付款)
         assertEquals(DeclareResult.Unsupported, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay)))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
-        // 屏上另有下单、提交时不只付款要花钱:P1 的「確認送出」(提交)常被报成下单,照常出同意卡,对不上时再申报
+        // 屏上另有下单、提交时不只付款要花钱:P1 的「確認送出」(提交)常被报成下单,照常出同意卡(同意后放得过它,见下一个测试)
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.submit)))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.submit), "127.0.0.1", setOf(IrrevAction.pay, IrrevAction.order)))
         assertEquals(DeclareResult.Pending, ConfirmationGate().declare(request(IrrevAction.order), "127.0.0.1", emptySet()))
@@ -196,6 +196,48 @@ class ConfirmationGateTest {
         assertEquals(DeclareResult.Mismatch, ended.declare(request(IrrevAction.order), "com.other"))
         ended.reset()
         assertEquals(DeclareResult.Pending, ended.declare(request(IrrevAction.order), "127.0.0.1"))
+    }
+
+    // WOOWTECH fork: 测试商店 P1:同意的是下单,结账页的「確認送出」按词表是提交;以前要再申报提交、再同意一次。
+    // 下单、提交互相放得过:只放行紧接着的一次,App、对象、金额照样要对上;别的动作仍要同一种,付款永远不放行
+    @Test fun anApprovedOrderOrSubmitReleasesTheOtherKindOnce() {
+        fun request(action: IrrevAction, amount: String = "NT$590", target: String = "渥屋測試商店") =
+            ConfirmationRequest(action, target, "渥屋 藍牙耳機 Lite × 1,超商代碼繳費", amount, "127.0.0.1")
+        // P1 的结账页:没有合计,「訂單金額」加上「超商代碼繳費」就是应付上下文,提交要花钱
+        val cvs = ScreenSnapshot("s", "127.0.0.1", listOf(
+            el("渥屋測試商店", top = 100), el("訂單金額 NT$590", top = 300), el("繳費方式 超商代碼繳費", top = 400), el("確認送出", top = 600),
+        ), 1080, 2400)
+        assertTrue(IrreversibleDetector.hasPayableAmount(cvs))
+        val submit = Irreversible(IrrevAction.submit, "確認送出")
+        val ordered = approved(request(IrrevAction.order))
+        assertEquals(Permit.Allowed, ordered.permits(submit, cvs, 2))
+        // 只放行一次:再按一次「確認送出」又要同意
+        assertEquals(Permit.NoGrant, ordered.permits(submit, cvs, 2))
+        // 金额、对象、App 对不上,或过了期,照样不放行
+        assertTrue(approved(request(IrrevAction.order, amount = "NT$890")).permits(submit, cvs, 2) is Permit.Mismatch)
+        assertTrue(approved(request(IrrevAction.order, target = "別家商店")).permits(submit, cvs, 2) is Permit.Mismatch)
+        assertTrue(approved(request(IrrevAction.order)).permits(submit, cvs.copy(packageName = "shop.example.com"), 2) is Permit.Mismatch)
+        assertTrue(approved(request(IrrevAction.order), step = 1).permits(submit, cvs, 5) is Permit.Mismatch)
+        // P2 反过来:同意的是提交,「送出訂單」按词表是下单
+        val cod = ScreenSnapshot("s", "127.0.0.1", listOf(
+            el("渥屋測試商店", top = 100), el("付款方式 貨到付款", top = 300), el("應付金額 NT$290", top = 400), el("送出訂單", top = 600),
+        ), 1080, 2400)
+        val placeOrder = Irreversible(IrrevAction.order, "送出訂單")
+        val submitted = approved(request(IrrevAction.submit, amount = "NT$290"))
+        assertEquals(Permit.Allowed, submitted.permits(placeOrder, cod, 2))
+        assertEquals(Permit.NoGrant, submitted.permits(placeOrder, cod, 2))
+        assertTrue(approved(request(IrrevAction.submit, amount = "NT$590")).permits(placeOrder, cod, 2) is Permit.Mismatch)
+        // 同意了下单或提交,付款也不放行,同意随之用掉
+        for (kind in listOf(IrrevAction.order, IrrevAction.submit)) {
+            val g = approved(request(kind))
+            assertTrue(kind.name, g.permits(Irreversible(IrrevAction.pay, "立即付款"), cvs, 2) is Permit.Mismatch)
+            assertEquals(kind.name, Permit.NoGrant, g.permits(submit, cvs, 2))
+        }
+        // 只有下单、提交互换:发送、删除、其他仍要同一种
+        for (kind in listOf(IrrevAction.order, IrrevAction.submit)) for (other in listOf(IrrevAction.send, IrrevAction.delete, IrrevAction.other)) {
+            assertTrue("$kind→$other", approved(request(kind)).permits(Irreversible(other, "x"), cvs, 2) is Permit.Mismatch)
+            assertTrue("$other→$kind", approved(request(other)).permits(Irreversible(kind, "x"), cvs, 2) is Permit.Mismatch)
+        }
     }
 
     // 0b-2:金额只和带币种的数比;有合计按合计,没有按滚动区外最大的那个
