@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- WOOWTECH fork: 授權頁的繁體中文（上游這頁寫死簡體中文）。每個上游 Licenses.ENTRIES 條目一組，由 woowtech flavor 的 BrandLicenses.kt 使用。 -->
 <resources>
-    <string name="woow_lic_mika">本 App 以開源專案 Mika（Copyright 2026 wangzan101，https://github.com/wangzan101/Mika）為基礎，由 WOOW TECH CO., LTD. 修改與發行，包括運行環境的啟動器、其中的 mika 指令與技能腳本。授權條款全文見本頁頂端；修改內容見原始碼儲存庫的 docs-woowtech/FORK.md，上游的 NOTICE 隨原始碼保留。</string>
+    <string name="woow_lic_mika">本 App 以開源專案 Mika（Copyright 2026 wangzan101，https://github.com/wangzan101/Mika）為基礎，由 WOOW TECH CO., LTD. 修改與發行，包括執行環境的啟動器、其中的 mika 指令與技能腳本。授權條款全文見本頁頂端；修改內容見原始碼儲存庫的 docs-woowtech/FORK.md，上游的 NOTICE 隨原始碼保留。</string>
     <string name="woow_lic_proot">執行 Python、Node 等程式用的環境，版本 5.4.0，打了一個修補（PRoot 結束時一併結束所有子行程）。PRoot（GPL-2.0-or-later）與 talloc（LGPL-3.0-or-later）以獨立程式的形式隨本 App 的安裝檔發行，本 App 不連結它們。它們的完整原始碼、修補與編譯腳本隨每個版本放在本 App 的 GitHub Releases 頁，檔名 mika-&lt;版本&gt;-gpl-sources.tar.gz；原始碼儲存庫的 tools/sandbox/ 也有原始碼位址、校驗值、修補與編譯腳本，可以自行重新編譯。</string>
     <string name="woow_lic_talloc">版本 2.4.3，未修改，靜態連結進 PRoot 程式。可用 tools/sandbox/ 的原始碼與腳本重新連結。</string>
-    <string name="woow_lic_commons_compress">第一次啟動時解開內建的運行環境。Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_compress">第一次啟動時解開內建的執行環境。Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_codec">Apache Commons Compress 的相依套件。Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_io">Apache Commons Compress 的相依套件。Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_lang">Apache Commons Compress 的相依套件。Copyright 2001-2025 The Apache Software Foundation.</string>
@@ -23,11 +23,11 @@
     <string name="woow_lic_scrcpy">以 shell 身分取得系統 Context 的做法仿照 scrcpy，相關原始檔的開頭保留出處。</string>
     <string name="woow_lic_alpine_license">各套件各自的授權條款</string>
     <string name="woow_lic_alpine">執行 Python、Node 等程式用的系統隨本 App 的安裝檔發行，來自 Alpine Linux 3.22，下面逐一列出其中的套件與授權條款。其中 GPL、LGPL、MPL 套件的原始碼（Alpine 的建置配方與上游原始碼）同樣放在 mika-&lt;版本&gt;-gpl-sources.tar.gz 裡。</string>
-    <string name="woow_lic_xz">版本 1.10，第一次啟動時解壓內建的運行環境。https://tukaani.org/xz/java.html</string>
+    <string name="woow_lic_xz">版本 1.10，第一次啟動時解壓內建的執行環境。https://tukaani.org/xz/java.html</string>
     <string name="woow_lic_commonmark">版本 0.30.1（含表格、刪除線擴充），把回答裡的 Markdown 解析成結構後顯示。Copyright (c) 2015, Atlassian Pty Ltd. https://github.com/commonmark/commonmark-java</string>
     <string name="woow_lic_mlkit_name">Google ML Kit 文字辨識</string>
     <string name="woow_lic_mlkit_license">Google APIs 服務條款與 ML Kit 服務條款</string>
     <string name="woow_lic_mlkit">辨識畫面上文字（含中文）的模型隨安裝檔提供，不經過 Google Play 服務下載。https://developers.google.com/ml-kit/terms</string>
-    <!-- 運行環境裡的一個套件：版本，接著是首頁網址（可能沒有）。 -->
+    <!-- 執行環境裡的一個套件：版本，接著是首頁網址（可能沒有）。 -->
     <string name="woow_lic_runtime_package">版本 %1$s。%2$s</string>
 </resources>

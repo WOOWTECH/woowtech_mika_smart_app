@@ -79,7 +79,8 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
         GroupCard {
             ListRow(MikaIcons.Link, stringResource(R.string.relay_pair_title), stringResource(R.string.relay_pair_sub), first = true)
             InputRow(stringResource(R.string.relay_gateway), gateway, { if (!busy) gateway = it.take(2048) },
-                "https://mika.example.com", keyboard = KeyboardType.Uri, modifier = Modifier.testTag("relay-gateway"))
+                // WOOWTECH fork: 示例地址放进字符串资源,品牌版换成不带产品名的
+                stringResource(R.string.relay_gateway_hint), keyboard = KeyboardType.Uri, modifier = Modifier.testTag("relay-gateway"))
             InputRow(stringResource(R.string.relay_code), code, { if (!busy) code = it.take(64) },
                 stringResource(R.string.relay_code_hint), secret = true, keyboard = KeyboardType.Password, modifier = Modifier.testTag("relay-code"))
             RowActions {

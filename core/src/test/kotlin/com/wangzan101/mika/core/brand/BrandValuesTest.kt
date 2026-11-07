@@ -1,6 +1,7 @@
 // WOOWTECH fork: brand layer tests. Not part of upstream Mika.
 package com.wangzan101.mika.core.brand
 
+import com.wangzan101.mika.core.skills.SkillDrafter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -68,11 +69,13 @@ class BrandValuesTest {
         assertTrue(identity.take(80), identity.startsWith(BrandValues.IDENTITY_OPENING))
     }
 
+    private fun brandFile(): Properties =
+        Properties().apply { File("../app/src/woowtech/resources/brand.properties").reader(Charsets.UTF_8).use(::load) }
+
     /** woowtech flavor 的品牌设定能读、必填的值都在,而且不再指向上游的发布页。 */
     @Test
     fun woowtechBrandFileIsComplete() {
-        val f = File("../app/src/woowtech/resources/brand.properties")
-        val props = Properties().apply { f.reader(Charsets.UTF_8).use(::load) }
+        val props = brandFile()
         val b = BrandValues(props)
         listOf("name", "name.zh", "token", "persona", "repo", "repo.label", "releases.api", "search.url", "download.folder", "ui.languages")
             .forEach { assertTrue("brand.properties misses $it", !props.getProperty(it).isNullOrBlank()) }
@@ -80,5 +83,24 @@ class BrandValuesTest {
         assertTrue(b.latestReleaseApi, b.latestReleaseApi.startsWith("https://api.github.com/repos/") && "wangzan101" !in b.latestReleaseApi)
         assertTrue(b.repo, b.repo.startsWith("https://github.com/") && "wangzan101" !in b.repo)
         assertTrue(props.getProperty("prompt.append.${BrandValues.IDENTITY}").orEmpty().isNotBlank())
+    }
+
+    /**
+     * 用户读得到的那几种角色输出(技能草稿、记忆、停下后的总结、App 知识)要用繁体中文:补充都在,
+     * 而且每个 prompt.append.<路径> 都还是现有的提示词;同步上游后提示词改名或搬走,补充就会悄悄失效。
+     */
+    @Test
+    fun promptAppendsNameExistingPrompts() {
+        val paths = brandFile().stringPropertyNames().filter { it.startsWith("prompt.append.") }.map { it.removePrefix("prompt.append.") }
+        val readByUser = listOf("roles/skill_draft.md", "roles/memory_extract.md", "roles/stop_summary.md", "roles/app_knowledge.md")
+        assertTrue(paths.toString(), paths.containsAll(readByUser + BrandValues.IDENTITY))
+        paths.forEach { assertTrue("prompts/$it", File("src/main/resources/prompts/$it").isFile) }
+    }
+
+    /** 技能草稿的补充要模型照抄五个小节的标题,得和 SkillDrafter 核对的一样;对不上,草稿会因为缺小节被丢掉。 */
+    @Test
+    fun skillDraftAppendKeepsTheCheckedHeadings() {
+        val extra = brandFile().getProperty("prompt.append.roles/skill_draft.md").orEmpty()
+        SkillDrafter.SECTIONS.forEach { assertTrue(it, "## $it" in extra) }
     }
 }

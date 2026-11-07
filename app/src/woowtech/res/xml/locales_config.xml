@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WOOWTECH fork: 系統「應用程式語言」只列有正式文案的語言（和 brand.properties 的 ui.languages、建置的 resourceConfigurations 一致） -->
+<!-- WOOWTECH fork: 系統「應用程式語言」只列有正式文案的語言（和 brand.properties 的 ui.languages、建置的 resourceConfigurations 一致；resourceConfigurations 另外留的 zh-rTW 只是程式庫的繁中譯文） -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
     <locale android:name="zh-Hant" />

@@ -1,14 +1,16 @@
-"""WOOWTECH fork: the CLI finds the WOOWTECH build (io.woowtech.agent) over ADB. Not part of upstream Mika."""
+"""WOOWTECH fork: the CLI finds the WOOWTECH build (io.woowtech.agent) over ADB and names it over --url too.
+Not part of upstream Mika."""
 
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import tempfile
 import unittest
 
-from test_mika_cli import SCRIPT, TOKEN, api
+from test_mika_cli import DISCOVERY, SCRIPT, TOKEN, api
 
 WOOWTECH = "io.woowtech.agent"
 FILES = "/sdcard/Android/data/%s/files/"
@@ -115,6 +117,53 @@ class WoowtechPackageTest(unittest.TestCase):
 
             result, body = self.invoke("doctor", "--adb", str(adb), env={**env, "MIKA_ANDROID_PACKAGE": "../etc"})
             self.assertEqual("arguments", body["error"]["code"])
+
+    def over_url(self, port, *args, token=TOKEN):
+        token_file = self.directory / "token"
+        token_file.write_text(token)
+        return self.invoke("--url", "http://127.0.0.1:%d" % port, "--token-file", str(token_file), *args, env={})
+
+    def test_url_messages_name_the_woowtech_build_before_the_phone_answers(self):
+        # Nothing listens on a port that was just released: the phone never answers, so its version is unknown.
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            closed = probe.getsockname()[1]
+        result, body = self.over_url(closed, "doctor")
+        self.assertEqual("connection", body["error"]["code"])
+        self.assertIn("from woowtech agent", body["error"]["message"])
+        self.assertIn("run mika connect", body["error"]["message"])
+        self.assertNotIn("Mika", body["error"]["message"])
+
+        result, body = self.over_url(closed, "doctor", token="not a token")
+        self.assertEqual("credentials", body["error"]["code"])
+        self.assertIn("reconnect to woowtech agent", body["error"]["message"])
+
+    def test_url_names_the_app_by_the_version_it_reports(self):
+        for version, name in [("0.1.37-woow.2", "woowtech agent"), ("0.1.37", "Mika")]:
+            def respond(method, path, body, version=version):
+                if path == "/api/v1":
+                    return 200, {**DISCOVERY, "server_version": version}, {}
+                return 200, {}, {}  # not a task snapshot
+            with self.subTest(version=version), api(respond) as server:
+                result, body = self.over_url(server.server_port, "task", "status", "t1")
+                self.assertEqual("protocol", body["error"]["code"])
+                self.assertEqual(name + " returned an invalid task snapshot.", body["error"]["message"])
+
+    def test_package_adb_does_not_recognize_is_named_by_the_reported_version(self):
+        def respond(method, path, body):
+            if path == "/api/v1":
+                return 200, {**DISCOVERY, "server_version": "0.1.37-woow.2"}, {}
+            return 200, {}, {}
+        with api(respond) as server:
+            adb, env, _ = self.adb(server, installed=[], readable=["com.example.mika"])
+            result, body = self.invoke("task", "status", "t1", "--adb", str(adb), env={**env, "MIKA_ANDROID_PACKAGE": "com.example.mika"})
+            self.assertEqual("woowtech agent returned an invalid task snapshot.", body["error"]["message"])
+
+    def test_help_names_the_woowtech_build(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "--help"], text=True, encoding="utf-8", capture_output=True,
+                                cwd=self.directory, env={**os.environ, "PYTHONUTF8": "1"}, timeout=15)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("woowtech agent", result.stdout)
 
 
 if __name__ == "__main__":
