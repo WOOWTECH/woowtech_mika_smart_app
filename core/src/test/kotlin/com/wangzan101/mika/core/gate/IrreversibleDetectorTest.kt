@@ -802,7 +802,22 @@ class IrreversibleDetectorTest {
         assertEquals(IrrevAction.pay, d.classify("web_type_text", enter, pay)?.action)
     }
 
-    // WOOWTECH fork: 搜索框、和发送键同一行的留言框、没有应付金额或没有花钱键的网页、手机 App 的输入框:回车照旧
+    // WOOWTECH fork: 用 phone_* 操作 Chrome 一类的浏览器 App、App 里的 WebView 时,网页表单一样会隐式提交:回车照样按点送出键判
+    @Test fun enterInAPhoneBrowserOrWebViewFormIsLikeItsSubmit() {
+        val enter = args("""{"text":"WOOW50","pressEnter":true}""")
+        val total = el("@e1", "合計 NT$790", listOf(0, 700, 999, 760), clickable = false)
+        val note = el("@e2", "備註", listOf(0, 300, 999, 360), editable = true, focused = true)
+        val order = el("@e4", "送出訂單", listOf(310, 800, 690, 860))
+        val chrome = ScreenSnapshot("s1", "com.android.chrome", listOf(total, note, order), 1080, 2400)
+        assertEquals(Irreversible(IrrevAction.order, "回车:備註→送出訂單"), d.classify("phone_type_text", enter, chrome))
+        // App 里的 WebView(手机读屏的角色是类名短名):框在 WebView 里才算网页,App 自己的输入框照旧按发送
+        val webView = UiElement("@e9", "WebView", "訂單明細", 0, 0, listOf(0, 100, 999, 999), null, false, false, true)
+        assertEquals(IrrevAction.order, d.classify("phone_type_text", enter, snap(webView, total, note, order))?.action)
+        val own = note.copy(bounds = listOf(0, 20, 999, 90))
+        assertEquals(IrrevAction.send, d.classify("phone_type_text", enter, snap(webView, total, own, order))?.action)
+    }
+
+    // WOOWTECH fork: 搜索框、和发送键同一行的留言框、没有应付金额或没有花钱键的网页、手机 App 自己的输入框:回车照旧
     @Test fun enterOutsideAWebSpendingFormIsUnchanged() {
         val enter = args("""{"text":"x","pressEnter":true}""")
         val total = el("@e1", "合計 NT$790", listOf(0, 700, 999, 760), clickable = false)

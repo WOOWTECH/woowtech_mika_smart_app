@@ -147,6 +147,10 @@ object IrreversibleDetector {
     private val SEARCH_BUTTONS = setOf("搜索", "搜寻", "search")
     /** WOOWTECH fork: 网页表单里回车替表单按下的花钱的键,按这个先后取(有付款键就按付款)。 */
     private val FORM_SUBMITS = listOf(IrrevAction.pay, IrrevAction.order, IrrevAction.submit)
+    /** WOOWTECH fork: 浏览器 App:用 phone_* 操作时读的是无障碍树(不是内置浏览器的读屏),里面的网页表单一样会隐式提交。 */
+    private val BROWSER_PACKAGES = setOf(
+        "com.android.chrome", "com.chrome.beta", "org.mozilla.firefox", "com.sec.android.app.sbrowser", "com.microsoft.emmx", "com.brave.browser",
+    )
 
     private const val KEY_ENTER = 66
     private const val KEY_NUMPAD_ENTER = 160
@@ -594,11 +598,14 @@ object IrreversibleDetector {
 
     /**
      * WOOWTECH fork: 网页上在输入框里按回车,浏览器会替表单按下它的送出键(隐式提交,测试商店 P8 在优惠码栏回车就直接下单了)。
+     * 网页:内置浏览器,用 phone_* 操作的浏览器 App,或输入框在 App 里的 WebView 里(手机读屏的角色是类名短名,见 ScreenReader)。
      * 这一页有应付金额(合计、付款字样、付款面板)、又有花钱的键(付款、下单、提交)时,回车按点那个键判,询问时要先同意;
-     * 有付款键时按付款。同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 的输入框,都照旧按发送。
+     * 有付款键时按付款。同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 自己的输入框,都照旧按发送。
      */
     private fun formSubmit(s: ScreenSnapshot, field: UiElement?, enter: String): Irreversible? {
-        if (s.web == null || !hasPayableAmount(s)) return null
+        val webPage = s.web != null || s.packageName in BROWSER_PACKAGES ||
+            (field != null && s.elements.any { it.role == "WebView" && inside(field, it) })
+        if (!webPage || !hasPayableAmount(s)) return null
         if (field != null && ElementContext.row(field, s).any { b -> b.clickable && !b.editable && sendLike(b.name) }) return null
         val hits = s.elements.filter { it.clickable && !it.editable }.mapNotNull { elementHit(it, s) }
         val hit = FORM_SUBMITS.firstNotNullOfOrNull { a -> hits.firstOrNull { it.action == a } } ?: return null
