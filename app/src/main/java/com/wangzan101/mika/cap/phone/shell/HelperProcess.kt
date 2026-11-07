@@ -214,6 +214,13 @@ object HelperProcess {
                     return
                 }
             }
+            // WOOWTECH fork: 写系统设置之前先核对包还是启动时那个 App(原本写回无障碍之后、交接时才核对):
+            // 这期间卸载了 Mika、又装上同名的别的 App 时,系统可能替那个 App 绑定列表里同名的无障碍服务
+            if (!signedAsPinned()) {
+                Log.e(TAG, "$packageName is missing or not signed with the pinned certificate; not restoring, exiting")
+                runCatching { service.releaseAll() }
+                exitProcess(0)
+            }
             Log.i(TAG, "restoring $packageName (${restorePolicy.report(now).recent} in the last window)")
             if (wish.accessibility) restoreAccessibility()
             retrying = true
