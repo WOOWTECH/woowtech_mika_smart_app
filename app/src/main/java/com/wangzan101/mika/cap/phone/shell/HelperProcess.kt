@@ -15,12 +15,14 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Process
 import android.util.Log
+import com.wangzan101.mika.core.shell.HelperAppCheck
 import com.wangzan101.mika.core.shell.HelperHandoff
 import com.wangzan101.mika.core.shell.HelperRestorePolicy
 import com.wangzan101.mika.core.shell.PermissionCommands
 import com.wangzan101.mika.core.shell.RestoreCommands
 import com.wangzan101.mika.core.shell.RestoreWish
 import java.io.File
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import kotlin.system.exitProcess
 
@@ -84,6 +86,9 @@ object HelperProcess {
         private val restorePolicy = HelperRestorePolicy()
         /** 每次 Mika 死去加一:等的这一会儿里 Mika 回来又死了,前一次的等待作废。 */
         private var deaths = 0
+        /** WOOWTECH fork: Mika 不在时定时看它的包(见 [checkApp]);[appChecks] 是这次死后已排过几次,定下一次等多久。 */
+        private val appCheck = Runnable { checkApp() }
+        private var appChecks = 0
 
         init {
             service.onRestoreWish = { flags ->
@@ -186,10 +191,9 @@ object HelperProcess {
             if (appToken !== token) return
             appToken = null
             runCatching { service.releaseAll() }.onFailure { Log.w(TAG, "cleanup failed", it) }
-            if (!installed()) {
-                Log.i(TAG, "$packageName is gone; exiting")
-                exitProcess(0)
-            }
+            // WOOWTECH fork: 包不在了(或换了人)就退出;还在就在 Mika 回来之前定时再看,不只看这一次
+            appChecks = 0
+            checkApp()
             Log.i(TAG, "$packageName died; waiting for it to come back")
             val death = ++deaths
             worker.postDelayed({ if (death == deaths) maybeRestore() }, HelperRestorePolicy.GRACE_MS)
@@ -230,15 +234,22 @@ object HelperProcess {
             Log.i(TAG, "accessibility service of $packageName written back")
         }
 
-        @SuppressLint("DiscouragedPrivateApi")
-        private fun installed(): Boolean = runCatching {
-            context.packageManager.javaClass.getMethod("getPackageUidAsUser", String::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
-                .invoke(context.packageManager, packageName, 0, userId)
-            true
-        }.getOrElse { t ->
-            // 包不在了才退出;反射不可用时看不清,当作还在
-            val cause = (t as? java.lang.reflect.InvocationTargetException)?.targetException ?: t
-            cause !is android.content.pm.PackageManager.NameNotFoundException
+        /**
+         * WOOWTECH fork: Mika 不在的时候(死亡通知当下一次,之后按 [HelperAppCheck.delayMs] 再排)看它的包还是不是启动时那个 App。
+         * 卸载时系统先结束 Mika 的进程、随后才删包,只在死亡通知当下查一次的话,助手会一直留到手机重启;同名包换成了别的 App 也一样。
+         * 确定不在、确定换了人就撤掉改动退出;查不清时当作还在(和原来一样),接着等。
+         * Mika 连着时不查:卸载、被别的 App 顶替之前,它的进程一定先被结束,死亡通知会来。
+         */
+        private fun checkApp() {
+            worker.removeCallbacks(appCheck)
+            if (appToken != null) return
+            val state = pinState()
+            if (HelperAppCheck.exits(state)) {
+                Log.i(TAG, if (state == HelperAppCheck.State.Gone) "$packageName is gone; exiting" else "$packageName is now another app; exiting")
+                runCatching { service.releaseAll() }
+                exitProcess(0)
+            }
+            worker.postDelayed(appCheck, HelperAppCheck.delayMs(appChecks++))
         }
 
         /**
@@ -287,18 +298,29 @@ object HelperProcess {
         }
 
         /** 现在装着的 [packageName] 仍是这个 uid、签名证书指纹与启动时 Mika 给的一致。看不清一律当不一致。 */
+        private fun signedAsPinned(): Boolean = pinState() == HelperAppCheck.State.Same
+
+        /**
+         * WOOWTECH fork: [signedAsPinned] 拆成四种结果:交接、拉起 Mika 只认 [HelperAppCheck.State.Same];
+         * Mika 不在时的定时检查([checkApp])要分清「确定不在、换了人」和「查不清」。
+         */
         @SuppressLint("DiscouragedPrivateApi")
-        private fun signedAsPinned(): Boolean = runCatching {
+        private fun pinState(): HelperAppCheck.State = try {
             val pm = context.packageManager
             val flags = PackageManager.GET_SIGNING_CERTIFICATES
             val info = if (userId == 0) pm.getPackageInfo(packageName, flags)
             else pm.javaClass.getMethod("getPackageInfoAsUser", String::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
                 .invoke(pm, packageName, flags, userId) as PackageInfo
             val signers = info.signingInfo?.apkContentsSigners?.map { it.toByteArray() }
-            info.applicationInfo?.uid == appUid && HelperHandoff.certPin(signers) == certPin
-        }.getOrElse { t ->
-            Log.w(TAG, "cannot read signing info of $packageName", t)
-            false
+            HelperAppCheck.state(info.applicationInfo?.uid, HelperHandoff.certPin(signers), appUid, certPin)
+        } catch (t: Throwable) {
+            val cause = (t as? InvocationTargetException)?.targetException ?: t
+            if (cause is PackageManager.NameNotFoundException) {
+                HelperAppCheck.State.Gone
+            } else {
+                Log.w(TAG, "cannot read signing info of $packageName", cause)
+                HelperAppCheck.State.Unknown
+            }
         }
 
         /** 只认进程名完全相同的同 uid 进程:别的 app_process 不能误伤。 */
