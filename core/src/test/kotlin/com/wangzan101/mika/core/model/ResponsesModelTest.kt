@@ -193,6 +193,8 @@ class ResponsesModelTest {
         server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error":{"code":"subscription_sharing_unsupported_capability","param":"tools[0]"}}"""))
         val bad = expect<ModelError.BadResponse> { model(plan = true).complete("s", user, emptyList()) }
         assertTrue(bad.message!!.contains("tools[0]"))
+        // WOOWTECH fork: 界面引的原话(这里没有原话,是错误代码和参数)也说得出是哪一项
+        assertTrue(bad.said, "tools[0]" in bad.said)
         // 不用套餐额度的 429 照常是限流(会重试)
         server.enqueue(MockResponse().setResponseCode(429).setHeader("retry-after", "2").setBody("{}"))
         assertEquals(2000L, expect<ModelError.RateLimited> { model().complete("s", user, emptyList()) }.retryAfterMs)
