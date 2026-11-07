@@ -30,8 +30,13 @@ HANDOFF = {"waiting_for_answer", "waiting_on_phone"}
 TERMINAL = {"done", "failed", "cancelled"}
 STATUSES = TERMINAL | HANDOFF | {"starting", "queued", "running", "paused"}
 RETRY_HINT = "Unlock the phone, open Mika once, then retry connect."
-# WOOWTECH fork: the app name in messages follows the package ADB found (set by connection()).
-APP = {"name": "Mika"}
+# WOOWTECH fork: the app name in messages follows the app that answered: the package ADB found (connection()) or,
+# when ADB did not recognize one (--url, MIKA_ANDROID_PACKAGE), the version the phone reports (identify(); the
+# WOOWTECH build's is <upstream>-woow.<N>). Until then (--url before the phone answers, --help) it is the WOOWTECH
+# build's name: this copy of the CLI ships with that build.
+WOOWTECH_NAME = PACKAGES["io.woowtech.agent"]
+WOOWTECH_VERSION = re.compile(r"-woow\.\d+")
+APP = {"name": WOOWTECH_NAME, "package": None}
 
 
 def phone_file(package, name):
@@ -41,6 +46,14 @@ def phone_file(package, name):
 def app_text(message):
     # Only the product name: the lowercase `mika` command and identifiers stay.
     return message if APP["name"] == "Mika" else re.sub(r"\bMika\b", APP["name"], message)
+
+
+def identify(info):
+    # WOOWTECH fork: over --url nothing but the discovery response says which app answered; a package ADB recognized
+    # already named it.
+    version = info.get("server_version")
+    if APP["package"] not in PACKAGES and isinstance(version, str):
+        APP["name"] = WOOWTECH_NAME if WOOWTECH_VERSION.search(version) else "Mika"
 
 
 class CliError(Exception):
@@ -139,6 +152,7 @@ class Client:
             if exc.details.get("http_status") == 404:
                 raise CliError("incompatible_api", "This Mika APK does not provide task API v1. Install a build with CLI support; no MCP fallback is used.") from None
             raise
+        identify(info)
         capabilities = info.get("capabilities")
         if (type(info.get("api_version")) is not int or info["api_version"] != 1
                 or not isinstance(capabilities, list) or "tasks" not in capabilities):
@@ -291,7 +305,7 @@ def connection(args, secrets):
     adb.start_server()
     adb.select()
     package = adb.package()
-    APP["name"] = PACKAGES.get(package, "Mika")
+    APP.update(name=PACKAGES.get(package, "Mika"), package=package)
     if args.command == "connect":
         progress(args, "running phone bootstrap...")
         try:
@@ -467,7 +481,9 @@ def parser():
         common.add_argument(flag, help=help_text, default=argparse.SUPPRESS)
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Compact JSON output, including errors")
     common.add_argument("--request-timeout", type=request_timeout, default=argparse.SUPPRESS, help="HTTP timeout in seconds (default: 15; bounded waits get at least timeout + 5)")
-    p = Parser(prog="mika", description="Delegate tasks to Mika on Android using task API v1.", parents=[common])
+    # WOOWTECH fork: the help names the build this copy ships with (upstream Mika phones work the same)
+    p = Parser(prog="mika", description="Delegate tasks to woowtech agent (WOOWTECH's build of Mika) on Android using task API v1.",
+               parents=[common])
     p.add_argument("--version", action="version", version="mika " + VERSION)
     sub = p.add_subparsers(dest="command", required=True)
     for name, help_text in [("connect", "Enable ADB computer access and verify task API"),
