@@ -182,7 +182,8 @@ internal class UserExchange(
             put("ok", false); put("error", code); put("message", message)
             put("recoverable", recoverable); put("counts_as_failure", false)
         })
-        when (g.declare(r, o.foregroundApp)) {
+        // WOOWTECH fork: 带上申报时那一屏点得到的动作,关卡判出是付款时走接管(Unsupported),不出同意卡
+        when (g.declare(r, o.foregroundApp, o.screenActions)) {
             DeclareResult.Mismatch -> {
                 emit(event("mismatch"))
                 return ToolExecution(buildJsonObject {

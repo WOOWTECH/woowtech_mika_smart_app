@@ -682,6 +682,29 @@ class IrreversibleDetectorTest {
         assertEquals(IrrevAction.delete, d.classify(tool, args("""{"action":"select","ref":"@e3","snapshotId":"s1","option":"x"}"""), form)?.action)
     }
 
+    // WOOWTECH fork: 屏上点得到的不可逆动作(申报同意时关卡拿它认出付款):测试商店的加值页、付款方式单选、确认送出页
+    @Test fun tapActionsListWhatEachTappableDoes() {
+        val wallet = snap(
+            el("@e1", "目前餘額", listOf(320, 130, 370, 160), clickable = false), el("@e2", "NT$120", listOf(630, 130, 680, 160), clickable = false),
+            el("@e3", "NT$500", listOf(320, 230, 330, 240)), el("@e4", "NT$1,000", listOf(320, 275, 330, 285)),
+            el("@e5", "扣款方式:信用卡 ****1234", listOf(310, 375, 690, 405), clickable = false),
+            el("@e6", "立即加值", listOf(310, 420, 690, 477)), el("@e7", "加值紀錄", listOf(310, 493, 360, 515)),
+        )
+        assertEquals(setOf(IrrevAction.pay), d.tapActions(wallet))
+        val methods = snap(
+            el("@e1", "超商代碼繳費", listOf(320, 470, 330, 485)), el("@e2", "ATM轉帳", listOf(320, 515, 330, 530)),
+            el("@e3", "貨到付款", listOf(320, 560, 330, 575)), el("@e4", "門市自取(到店付現)", listOf(320, 650, 330, 665)),
+            el("@e5", "下一步", listOf(310, 700, 690, 757)),
+        )
+        assertEquals(setOf(IrrevAction.pay), d.tapActions(methods))
+        val atm = snap(
+            el("@e1", "訂單金額", listOf(320, 250, 370, 280), clickable = false), el("@e2", "NT$890", listOf(630, 250, 680, 280), clickable = false),
+            el("@e3", "ATM轉帳", listOf(630, 287, 680, 317), clickable = false),
+            el("@e4", "確認送出", listOf(310, 380, 690, 437)), el("@e5", "返回修改", listOf(310, 450, 690, 510)),
+        )
+        assertEquals(setOf(IrrevAction.submit), d.tapActions(atm))
+    }
+
     // WOOWTECH fork: momo 网页的搜索结果(2026-11-07 模拟器实测):在价格区间「最高價」填 1000,再点旁边的「確認」被拦成要同意。
     // 网页的商品列表随整页滚动,不在可滚动区里,满屏的价格把套用价格区间的「確認」当成了下单
     @Test fun priceRangeConfirmOnAWebListingIsNotAnOrder() {

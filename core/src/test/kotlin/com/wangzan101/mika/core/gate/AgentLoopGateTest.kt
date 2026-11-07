@@ -252,6 +252,34 @@ class AgentLoopGateTest {
         assertTrue(msg, "item" in msg && "amount" in msg && "address" in msg)
     }
 
+    // WOOWTECH fork: 测试商店 P5:屏上要花钱的只有「立即加值」(付款),模型没先点就申报成提交:不出同意卡,叫它交给用户亲手付
+    @Test fun lighterDeclarationOnAPayOnlyScreenGoesToTakeover() = runTest {
+        val s = ChatScreen().apply { button = "立即加值" }
+        val m = FakeModel(OBSERVE, ask(action = "submit"), FINISH)
+        val l = loop(m, s)
+        com.wangzan101.mika.core.testing.assertAnswered(DONE, l.run("t"))
+        val r = m.result(2)
+        assertEquals("payment_requires_takeover", r.s("error"))
+        assertTrue(r.s("message"), "hand_to_user" in r.s("message"))
+        assertTrue(s.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 测试商店 P10:在 do_steps 里点「ATM轉帳」被拦下(付款),模型改申报成下单:关卡按刚才的判定走接管
+    @Test fun lighterDeclarationAfterARefusedPaymentGoesToTakeover() = runTest {
+        val single = ChatScreen().apply { button = "ATM轉帳" }
+        val m = FakeModel(OBSERVE, tapSend(), ask(action = "order"), FINISH)
+        com.wangzan101.mika.core.testing.assertAnswered(DONE, loop(m, single).run("t"))
+        assertEquals("confirmation_required", m.result(2).s("error")); assertEquals("pay", m.result(2).s("action"))
+        assertEquals("payment_requires_takeover", m.result(3).s("error"))
+        val batched = ChatScreen().apply { button = "ATM轉帳" }
+        val batch = tools(call("do_steps", """{"steps":[{"tool":"phone_tap","args":{"ref":"@e3","snapshotId":"s1"}},{"tool":"phone_back","args":{}}]}"""))
+        val b = FakeModel(OBSERVE, batch, ask(action = "order"), FINISH)
+        AgentLoop(b, toolDispatcher(batched), "BASE", confirmations = ConfirmationGate(), flags = SpeedFlags(batchSteps = true)).run("t")
+        assertEquals("confirmation_required", b.result(2).s("error"))
+        assertEquals("payment_requires_takeover", b.result(3).s("error"))
+        assertTrue(single.taps.isEmpty() && batched.taps.isEmpty())
+    }
+
     @Test fun cancelWhileWaitingConfirmation() = runTest {
         val m = FakeModel(OBSERVE, ask())
         val l = loop(m, ChatScreen())

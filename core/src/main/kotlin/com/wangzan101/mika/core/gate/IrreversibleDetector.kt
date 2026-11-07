@@ -320,6 +320,13 @@ object IrreversibleDetector {
             ScreenDiagnosis.paymentText(shown.map { it.name }) != null || paySheet(shown)
     }
 
+    /**
+     * WOOWTECH fork: 这一屏上点得到的不可逆动作:每个可点元素按点它时的判法判(见 [classify])。
+     * 只用来认出申报同意的那一步其实是付款(屏上要花钱的只有付款),动作能不能做仍只由执行入口判。
+     */
+    fun tapActions(s: ScreenSnapshot): Set<IrrevAction> =
+        s.elements.filter { it.clickable }.mapNotNullTo(linkedSetOf<IrrevAction>()) { e -> elementHit(e, s)?.action }
+
     /** 点击找不到作用在哪个元素上(读屏缺失、编号不属于这次读屏、坐标处没有元素);供运行记录留痕。 */
     fun unresolved(target: GateTarget?, args: JsonObject, snapshot: ScreenSnapshot?, fresh: ScreenSnapshot? = null): Boolean =
         target == GateTarget.Tap && tapTargets(args, snapshot, fresh).isEmpty()

@@ -1,6 +1,7 @@
 package com.wangzan101.mika.core.general
 
 import com.wangzan101.mika.core.gate.ConfirmationRequest
+import com.wangzan101.mika.core.gate.IrreversibleDetector
 import com.wangzan101.mika.core.risk.IrrevAction
 import com.wangzan101.mika.core.prompt.Prompts
 import com.wangzan101.mika.core.tool.ArgError
@@ -71,7 +72,10 @@ internal object RequestConfirmation : SurfaceAware {
             kind, capField(a.str("target", max = 10000)!!), capField(a.str("content", max = 10000)!!),
             a.str("amount", max = 10000)?.let(::capField), app,
         )
-        val fg = ctx.session.peek()?.packageName ?: ctx.lastSnapshot?.packageName
-        return ToolExecution(okObj { put("asked", true) }, outcome = Outcome.Confirm(req, fg))
+        val now = ctx.session.peek()
+        val fg = now?.packageName ?: ctx.lastSnapshot?.packageName
+        // WOOWTECH fork: 这一屏上点得到哪些不可逆动作,关卡据此认出申报成下单、提交的付款(屏上要花钱的只有付款)
+        val actions = (now ?: ctx.lastSnapshot)?.let(IrreversibleDetector::tapActions)
+        return ToolExecution(okObj { put("asked", true) }, outcome = Outcome.Confirm(req, fg, actions))
     }
 }

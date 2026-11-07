@@ -40,17 +40,40 @@ sealed interface Permit {
  */
 class ConfirmationGate {
     private class Grant(val request: ConfirmationRequest, val step: Int)
+    /** WOOWTECH fork: 最近一次因为没有可用的同意被拦下的那一步(关卡自己的判定)和它所在的 App。 */
+    private class Refused(val hit: Irreversible, val app: String?)
 
     private var pending: ConfirmationRequest? = null
     private var grant: Grant? = null
+    private var refused: Refused? = null
     private val declined = mutableSetOf<Pair<IrrevAction, String>>()
 
-    @Synchronized fun declare(req: ConfirmationRequest, foregroundApp: String?): DeclareResult {
+    /** [screenActions]:申报时那一屏上点得到的不可逆动作(见 [IrreversibleDetector.tapActions]);不知道为 null。 */
+    @Synchronized fun declare(req: ConfirmationRequest, foregroundApp: String?, screenActions: Set<IrrevAction>? = null): DeclareResult {
         if (req.action == IrrevAction.pay) return DeclareResult.Unsupported
         if (req.action to req.app in declined) return DeclareResult.Declined
         if (foregroundApp == null || foregroundApp != req.app) return DeclareResult.Mismatch
+        // WOOWTECH fork: 关卡自己判这一步是付款时,申报成下单、提交也走接管:付款永远不经同意放行,同意卡是死路
+        if (paymentPending(req, screenActions)) return DeclareResult.Unsupported
         pending = req
         return DeclareResult.Pending
+    }
+
+    /**
+     * WOOWTECH fork: 要同意的这一步按关卡自己的判定是付款:刚在这个 App 里被拦下的那一步是付款;
+     * 没有被拦下过时,这一屏上点得到的不可逆动作里有付款、却没有申报的那一种。
+     */
+    private fun paymentPending(req: ConfirmationRequest, screenActions: Set<IrrevAction>?): Boolean {
+        refused?.takeIf { it.app == req.app }?.let { return it.hit.action == IrrevAction.pay }
+        return screenActions != null && IrrevAction.pay in screenActions && req.action !in screenActions
+    }
+
+    /**
+     * WOOWTECH fork: 花钱的一步因为没有可用的同意被拦下了([app] 是那一屏的 App);模型接着申报同意时按它核对。
+     * 和同意一样,打字以外的写操作让它作废。
+     */
+    @Synchronized fun noteRefused(hit: Irreversible, app: String?) {
+        refused = Refused(hit, app)
     }
 
     /** [step] 是回答所在的步数,过期按它算。 */
@@ -123,12 +146,17 @@ class ConfirmationGate {
 
     /** [verb]:刚执行的写操作做的动作;输入、清空不作废同意(同意的就是要输入的这一步)。 */
     @Synchronized fun noteWrite(verb: Verb?) {
-        if (verb !in KEEPS_GRANT) grant = null
+        if (verb !in KEEPS_GRANT) {
+            grant = null
+            // WOOWTECH fork: 界面可能已经变了,被拦下的那一步不再代表要同意的是什么
+            refused = null
+        }
     }
 
     @Synchronized fun reset() {
         pending = null
         grant = null
+        refused = null
         declined.clear()
     }
 
