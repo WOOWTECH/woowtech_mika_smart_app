@@ -663,8 +663,9 @@ class TaskService : Service() {
         .setContentIntent(openApp())
         .build()
 
+    // WOOWTECH fork: 服务里的文字一律经 tr() 按 App 语言取;服务自己的 getString 可能是系统语言(App 选繁中、系统是英文时通知写成英文)
     private fun answerTooLate() = Handler(Looper.getMainLooper()).post {
-        Toast.makeText(this, getString(R.string.input_too_late, INPUT_TIMEOUT_MINUTES), Toast.LENGTH_LONG).show()
+        Toast.makeText(this, tr(R.string.input_too_late, INPUT_TIMEOUT_MINUTES), Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -681,21 +682,22 @@ class TaskService : Service() {
             )
         }
         if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) return null
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
         val (title, text) = when (state) {
             is TaskState.WaitingTakeover -> {
                 val extra = when (run.takeover?.problem?.value) {
-                    Takeover.Problem.MoveToMainFailed -> getString(R.string.takeover_move_to_main_failed)
-                    Takeover.Problem.WebBusy -> getString(R.string.takeover_web_busy)
-                    Takeover.Problem.MoveBackFailed -> getString(R.string.takeover_move_back_failed)
-                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) getString(R.string.takeover_handed_over_hint) else null
+                    Takeover.Problem.MoveToMainFailed -> tr(R.string.takeover_move_to_main_failed)
+                    Takeover.Problem.WebBusy -> tr(R.string.takeover_web_busy)
+                    Takeover.Problem.MoveBackFailed -> tr(R.string.takeover_move_back_failed)
+                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) tr(R.string.takeover_handed_over_hint) else null
                 }
                 val payment = StatusCopy.paymentLines(state.item, state.amount, state.address)
                 val behind = run.takeover?.let(takeoverQueue::behind) ?: 0
                 val waiting = if (behind > 0) trPlural(R.plurals.task_behind, behind) else null
                 takeoverTitle(state.reason) to listOfNotNull(state.message, payment, extra, waiting).joinToString("\n")
             }
-            is TaskState.WaitingInput -> getString(R.string.input_title) to
-                "${state.prompt}\n${getString(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
+            is TaskState.WaitingInput -> tr(R.string.input_title) to
+                "${state.prompt}\n${tr(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
             else -> return null
         }
         val b = Notification.Builder(this, CHANNEL_ATTENTION)
@@ -727,20 +729,22 @@ class TaskService : Service() {
             "access_blocked" -> R.string.takeover_reason_access_blocked
             "payment" -> R.string.takeover_reason_payment
             "decision" -> R.string.takeover_reason_decision
-            else -> return getString(R.string.takeover_title)
+            else -> return tr(R.string.takeover_title)
         }
-        return getString(R.string.takeover_title_reason, getString(label))
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
+        return tr(R.string.takeover_title_reason, tr(label))
     }
 
+    // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
     private fun takeoverActions(run: TaskRun): List<Notification.Action> {
-        val cancel = action(run, getString(R.string.action_cancel_task), ACTION_CANCEL, 2)
+        val cancel = action(run, tr(R.string.action_cancel_task), ACTION_CANCEL, 2)
         return if (run.takeoverStage.value == Takeover.Stage.HandedOver) listOf(
-            takeoverAction(run, getString(R.string.action_hand_back), ACTION_HAND_BACK, 4),
-            takeoverAction(run, getString(R.string.action_finished_myself), ACTION_FINISHED_MYSELF, 5),
+            takeoverAction(run, tr(R.string.action_hand_back), ACTION_HAND_BACK, 4),
+            takeoverAction(run, tr(R.string.action_finished_myself), ACTION_FINISHED_MYSELF, 5),
             cancel,
         ) else listOf(
-            takeoverAction(run, getString(R.string.action_take_over), ACTION_TAKE_OVER, 3),
-            takeoverAction(run, getString(R.string.action_skip), ACTION_SKIP, 7),
+            takeoverAction(run, tr(R.string.action_take_over), ACTION_TAKE_OVER, 3),
+            takeoverAction(run, tr(R.string.action_skip), ACTION_SKIP, 7),
             cancel,
         )
     }
@@ -757,7 +761,8 @@ class TaskService : Service() {
     }
 
     private fun replyAction(run: TaskRun, options: List<String>?): Notification.Action {
-        val input = RemoteInput.Builder(KEY_REPLY).setLabel(getString(R.string.reply_hint))
+        // WOOWTECH fork: 经 tr() 按 App 语言取(见 answerTooLate)
+        val input = RemoteInput.Builder(KEY_REPLY).setLabel(tr(R.string.reply_hint))
             .apply { if (!options.isNullOrEmpty()) setChoices(options.toTypedArray()) }
             .build()
         // 回复内容要由系统填进 Intent,只能用可变的 PendingIntent(Intent 是显式的)
@@ -765,7 +770,7 @@ class TaskService : Service() {
             this, 6 + SLOT_STRIDE * run.slot, Intent(this, TaskService::class.java).setAction(ACTION_ANSWER).putExtra(EXTRA_RUN, run.key),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return Notification.Action.Builder(null, getString(R.string.action_reply), pi).addRemoteInput(input).build()
+        return Notification.Action.Builder(null, tr(R.string.action_reply), pi).addRemoteInput(input).build()
     }
 
     private fun answerAction(run: TaskRun, option: String, index: Int): Notification.Action {
