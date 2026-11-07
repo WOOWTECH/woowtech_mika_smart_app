@@ -55,6 +55,10 @@ class ToolLabelsTest {
         assertEquals("Work with files “ls -l”", labels.place("run_command「ls -l」"))
         assertEquals("Search files “*.csv”", labels.place("search_files「*.csv」"))
         assertEquals("Run built-in script office/xlsx.py", labels.place("run_bundled_script office/xlsx.py"))
+        // 旁边已经写着工具的说法时只要命令
+        assertEquals("ls -l", labels.command("run_command「ls -l」"))
+        assertEquals("office/xlsx.py", labels.command("run_bundled_script office/xlsx.py"))
+        assertNull(labels.command("wait 5 seconds"))
         assertNull(labels.place("wait 5 seconds"))
         assertNull(labels.place("tap the button"))
         assertNull(labels.place("/workspace/a.txt"))

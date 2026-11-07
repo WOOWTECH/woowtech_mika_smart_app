@@ -382,7 +382,10 @@ class ChatViewModelTest {
         assertEquals("来源", sourceLabel(null))
     }
 
-    /** WOOWTECH fork: 命令的来源(运行记录里写成 run_command「…」)用工具的界面说法,不露工具名;对话里步骤的对象也一样。 */
+    /**
+     * WOOWTECH fork: 命令的来源(运行记录里写成 run_command「…」)用工具的界面说法,不露工具名;
+     * 对话里步骤的对象只留命令(旁边已经写着工具的说法)。
+     */
     @Test fun commandSourceUsesTheToolLabel() {
         val events = listOf(RunEvent.Sources(1, listOf(
             com.wangzan101.mika.core.verify.AnswerSource(1, "output", "run_command「python -c 'print(2 ** 20)'」", null, 2),
@@ -390,7 +393,9 @@ class ChatViewModelTest {
         val source = evidenceSource(events)
         assertEquals(EvidenceSource("处理文件「python -c 'print(2 ** 20)'」", emptyList(), listOf("第 2 步 · 处理文件「python -c 'print(2 ** 20)'」")), source)
         assertEquals("来源 · 处理文件「python -c 'print(2 ** 20)'」", sourceLabel(source))
-        assertEquals("处理文件「ls」", ChatViewModel.where("run_command「ls」") { it })
+        val ex = Exchange("算一下", emptyList(), ExchangeStatus.Working, live = true,
+            activities = listOf(RunEvent.Activity(1, 1, "act", "run_command", "run_command「ls -l」", "completed")))
+        assertEquals("处理文件 · ls -l", ChatViewModel.rows(ex, ToolLabels(com.wangzan101.mika.core.assembly.knownTools())::label) { it }.single().title)
         // 查询词碰巧以工具名开头的不是命令,原样
         assertEquals("wait times", ChatViewModel.where("wait times") { it })
     }

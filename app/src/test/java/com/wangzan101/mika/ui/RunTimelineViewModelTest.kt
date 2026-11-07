@@ -216,8 +216,11 @@ class RunTimelineViewModelTest {
         assertEquals(listOf("act", "act"), rows.drop(1).map { it.kind })
     }
 
-    /** WOOWTECH fork: 网页那一步的对象在运行记录里写成「网站 域名」,时间线上和对话里的步骤一样只显示域名;连着读同一站照样合成一行。 */
-    @Test fun siteTargetsShowOnlyTheDomain() {
+    /**
+     * WOOWTECH fork: 对象和对话里的步骤一样给人看的说法:网页那一步(运行记录里写成「网站 域名」)只显示域名,
+     * 连着读同一站照样合成一行;命令只留命令。
+     */
+    @Test fun activityTargetsReadLikeTheChatSteps() {
         val id = run("看网页") {
             event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(1), callId = "r1"))
             event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(2), callId = "r2"))
@@ -226,6 +229,10 @@ class RunTimelineViewModelTest {
         val rows = ready(id).steps.single().activities
         assertEquals(listOf("127.0.0.1", "127.0.0.1"), rows.map { it.target })
         assertEquals(2, rows.first().count)
+        // 命令的对象只留命令,旁边写的是工具的说法,不露 run_command
+        val cmd = run("算一下") { event(RunEvent.Activity(clock, 1, "act", "run_command", "run_command「ls -l」", "completed", callId = "c1")) }
+        val act = ready(cmd).steps.single().activities.single()
+        assertEquals("处理文件" to "ls -l", act.label to act.target)
     }
 
     @Test fun showsVerifierAndGuardTags() {

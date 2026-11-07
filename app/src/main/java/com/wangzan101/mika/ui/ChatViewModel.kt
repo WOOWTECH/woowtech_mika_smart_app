@@ -1345,12 +1345,12 @@ class ChatViewModel(
 
         /** 活动对象给人看的说法:包名换成 App 名,「网站 域名」只留域名。 */
         // WOOWTECH fork: 运行过程页也用它(上游那里原样显示「网站 域名」),所以不再是 private;
-        // 命令前的工具名(run_command「…」)换成界面上的说法
+        // 命令这类对象(run_command「…」)只留命令:旁边已经写着工具的说法,上游这里露出工具名
         internal fun where(target: String, appLabel: (String) -> String): String? = when {
             target.isBlank() -> null
             target.startsWith(SITE_PREFIX) -> target.removePrefix(SITE_PREFIX)
             com.wangzan101.mika.core.tool.PACKAGE_NAME_RE.matches(target) -> appLabel(target)
-            else -> ToolLabels.shared.place(target) ?: target
+            else -> ToolLabels.shared.command(target) ?: target
         }
 
         /**
@@ -1473,11 +1473,19 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
      * 见 SandboxGroup、RootGroup):工具名换成界面上的说法,命令照原样。不是这种写法、或不是这几个工具时为 null,调用处原样显示。
      */
     fun place(place: String): String? {
+        val (tool, quoted, rest) = commandOf(place) ?: return null
+        return if (quoted != null) tr(R.string.source_command, label(tool), quoted) else label(tool) + " " + rest
+    }
+
+    /** WOOWTECH fork: 同 [place],但只要命令本身:旁边已经写着工具的说法时用(步骤、运行过程),免得说两遍。 */
+    fun command(place: String): String? = commandOf(place)?.let { (_, quoted, rest) -> quoted ?: rest }
+
+    /** 命令这类地方拆成(工具名, 「」里的命令, 空格后的脚本);不是这种写法、或不是那几个工具时为 null。 */
+    private fun commandOf(place: String): Triple<String, String?, String>? {
         val m = COMMAND_PLACE.matchEntire(place) ?: return null
         val tool = m.groupValues[1]
         if (tools.verb(tool) !in COMMAND_VERBS) return null
-        val quoted = m.groups[2]?.value
-        return if (quoted != null) tr(R.string.source_command, label(tool), quoted) else label(tool) + " " + m.groupValues[3]
+        return Triple(tool, m.groups[2]?.value, m.groupValues[3])
     }
 
     companion object {
