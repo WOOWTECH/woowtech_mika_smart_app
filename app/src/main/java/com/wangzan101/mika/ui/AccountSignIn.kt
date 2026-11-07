@@ -1,9 +1,6 @@
 package com.wangzan101.mika.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -221,7 +218,7 @@ private fun Note(text: String, bg: Color, fg: Color, modifier: Modifier = Modifi
 }
 
 private fun copyAndReopen(context: Context, code: String, url: String) {
-    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("code", code))
-    Toast.makeText(context, tr(R.string.account_signin_copied), Toast.LENGTH_SHORT).show()
+    // WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+    copyToClipboard(context, "code", code, tr(R.string.account_signin_copied))
     if (url.isNotBlank()) openInBrowser(context, url)
 }

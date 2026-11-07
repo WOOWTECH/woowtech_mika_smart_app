@@ -1,9 +1,6 @@
 package com.wangzan101.mika.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import com.wangzan101.mika.ui.components.MikaDialog
@@ -289,7 +286,5 @@ internal fun CommandText(text: String, modifier: Modifier = Modifier) {
 private fun clock(ms: Long): String =
     DateTimeFormatter.ofPattern("HH:mm:ss").format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
 
-private fun copy(context: Context, text: String) {
-    context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Mika", text))
-    Toast.makeText(context, context.getString(R.string.mcp_copied), Toast.LENGTH_SHORT).show()
-}
+// WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+private fun copy(context: Context, text: String) = copyToClipboard(context, "Mika", text, context.getString(R.string.mcp_copied))

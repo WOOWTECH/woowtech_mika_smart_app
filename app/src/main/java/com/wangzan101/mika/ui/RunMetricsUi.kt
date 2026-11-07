@@ -3,8 +3,6 @@ package com.wangzan101.mika.ui
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.i18n.trPlural
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -196,10 +194,11 @@ fun RunStatsContent(
 }
 
 private fun copyJson(context: Context, list: List<RunMetrics>) {
+    // WOOWTECH fork: 复制成了的那句安卓 13 起由系统提示(见 [copyToClipboard]);没复制成照旧说
     val ok = runCatching {
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(RunMetricsCopy.STATS_TITLE, RunMetricsStore.export(list)))
+        copyToClipboard(context, RunMetricsCopy.STATS_TITLE, RunMetricsStore.export(list), RunMetricsCopy.copied(list.size))
     }.isSuccess
-    Toast.makeText(context, if (ok) RunMetricsCopy.copied(list.size) else RunMetricsCopy.EXPORT_FAILED, Toast.LENGTH_SHORT).show()
+    if (!ok) Toast.makeText(context, RunMetricsCopy.EXPORT_FAILED, Toast.LENGTH_SHORT).show()
 }
 
 private fun shareJson(context: Context, list: List<RunMetrics>) {
