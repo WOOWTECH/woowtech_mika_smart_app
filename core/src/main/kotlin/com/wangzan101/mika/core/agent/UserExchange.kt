@@ -9,6 +9,7 @@ import com.wangzan101.mika.core.memory.UserUtterances
 import com.wangzan101.mika.core.prompt.Feedback
 import com.wangzan101.mika.core.record.Redactor
 import com.wangzan101.mika.core.record.RunEvent
+import com.wangzan101.mika.core.risk.IrrevAction
 import com.wangzan101.mika.core.tool.HandBack
 import com.wangzan101.mika.core.tool.HandBackOutcome
 import com.wangzan101.mika.core.tool.Outcome
@@ -187,7 +188,8 @@ internal class UserExchange(
             emit(event("declined_remote"))
             return error("confirmation_remote", CONFIRMATION_REMOTE, recoverable = false)
         }
-        when (g.declare(r, o.foregroundApp)) {
+        // WOOWTECH fork: 带上申报时那一屏点得到的动作,关卡判出是付款时走接管(Unsupported),不出同意卡
+        when (g.declare(r, o.foregroundApp, o.screenActions)) {
             DeclareResult.Mismatch -> {
                 emit(event("mismatch"))
                 return ToolExecution(buildJsonObject {
@@ -202,7 +204,11 @@ internal class UserExchange(
                 emit(event("declined_before"))
                 return error("confirmation_declined", CONFIRMATION_DECLINED, recoverable = false)
             }
-            DeclareResult.Unsupported -> return error("payment_requires_takeover", Refusals.PAYMENT_TAKEOVER, recoverable = true)
+            DeclareResult.Unsupported -> {
+                // WOOWTECH fork: 关卡把申报的下单、提交认成付款时,和申报成付款一样记下这份申报,接管卡补上模型没写的商品和金额
+                if (r.action != IrrevAction.pay) tools.ctx.refusedPay = r.copy(action = IrrevAction.pay)
+                return error("payment_requires_takeover", Refusals.PAYMENT_TAKEOVER, recoverable = true)
+            }
             DeclareResult.Pending -> Unit
         }
         if (provenance.attendance == Attendance.Unattended || provenance.origin == RunOrigin.Child) {

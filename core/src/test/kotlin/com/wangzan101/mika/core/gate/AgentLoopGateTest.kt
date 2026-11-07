@@ -38,13 +38,22 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import com.wangzan101.mika.core.assembly.toolDispatcher
+import com.wangzan101.mika.core.cap.web.FakeWebPort
+import com.wangzan101.mika.core.cap.web.ScriptRun
+import com.wangzan101.mika.core.testing.WEB_SCRIPT_TOOL
+import com.wangzan101.mika.core.tool.FakeScreen
+import com.wangzan101.mika.core.tool.HandBack
+import com.wangzan101.mika.core.tool.HandBackOutcome
+import com.wangzan101.mika.core.tool.ScriptWebPort
 
 /**
  * 和张三的聊天页:标题、输入框、右下角按钮,聊天里有一笔要付的「转账 ¥25」:屏上有应付金额,这里的「提交订单」就要花钱,询问时要先同意。
@@ -63,12 +72,14 @@ private class ChatScreen(var app: String = "com.chat") : ScreenPort {
     var blank = false
     /** 替换第三个按钮上的字(例如付款按钮)。 */
     var button: String? = null
+    /** WOOWTECH fork: 接在后面的元素(例如屏上另有的下单键)。 */
+    var extra: List<UiElement> = emptyList()
     private fun read(id: String) = ScreenSnapshot(id, app, if (blank) emptyList() else listOf(
         UiElement("@e1", "text", "张三", 500, 100, listOf(0, 0, 999, 80), null, false, false, false),
         UiElement("@e2", "edit", typed.ifEmpty { "发消息" }, 400, 2300, listOf(0, 900, 790, 999), null, true, true, false, hint = typed.isEmpty()),
         UiElement("@e3", "button", button ?: if (typed.isEmpty()) "+" else "提交订单", 950, 2300, listOf(800, 900, 990, 990), null, true, false, false),
         UiElement("@e4", "text", "转账 ¥25", 500, 1000, listOf(0, 400, 600, 460), null, false, false, false),
-    ), 1080, 2400)
+    ) + extra, 1080, 2400)
     override suspend fun snapshot(): ScreenSnapshot = read("s${++reads}")
     override suspend fun peek(): ScreenSnapshot {
         if (peeks >= peekFailsAfter) throw IllegalStateException("screen unreadable")
@@ -274,6 +285,95 @@ class AgentLoopGateTest {
         assertTrue(msg, "First call request_confirmation" !in msg)
         assertTrue(msg, "hand_to_user" in msg && "reason=payment" in msg)
         assertTrue(msg, "item" in msg && "amount" in msg && "address" in msg)
+    }
+
+    // WOOWTECH fork: 测试商店 P5:屏上要花钱的只有「立即加值」(付款),模型没先点就申报成提交:不出同意卡,叫它交给用户亲手付;
+    // 模型交给用户时没写商品和金额,接管卡和申报成付款(P4)时一样用申报里的
+    @Test fun lighterDeclarationOnAPayOnlyScreenGoesToTakeover() = runTest {
+        val s = ChatScreen().apply { button = "立即加值" }
+        val m = FakeModel(OBSERVE, ask(action = "submit"), tools(call("hand_to_user", """{"reason":"payment","message":"請你付款"}""")), FINISH)
+        val l = loop(m, s)
+        val run = async { l.run("t") }
+        advanceUntilIdle()
+        val r = m.result(2)
+        assertEquals("payment_requires_takeover", r.s("error"))
+        assertTrue(r.s("message"), "hand_to_user" in r.s("message"))
+        assertEquals(TaskState.WaitingTakeover("payment", "請你付款", item = "明天见", amount = "¥25"), l.state.value)
+        l.resumeAfterTakeover(HandBack(HandBackOutcome.complete))
+        run.await()
+        assertTrue(s.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 测试商店 P10:在 do_steps 里点「ATM轉帳」被拦下(付款),模型改申报成下单:关卡按刚才的判定走接管。
+    // 屏上另有下单键,只看这一屏的话会照常出同意卡:走接管只能是因为被拦下的那一步(单步、批、页面脚本都记)
+    @Test fun lighterDeclarationAfterARefusedPaymentGoesToTakeover() = runTest {
+        val order = UiElement("@e5", "button", "提交订单", 500, 1500, listOf(0, 600, 999, 660), null, true, false, false)
+        val single = ChatScreen().apply { button = "ATM轉帳"; extra = listOf(order) }
+        val m = FakeModel(OBSERVE, tapSend(), ask(action = "order"), FINISH)
+        com.wangzan101.mika.core.testing.assertAnswered(DONE, loop(m, single).run("t"))
+        assertEquals("confirmation_required", m.result(2).s("error")); assertEquals("pay", m.result(2).s("action"))
+        assertEquals("payment_requires_takeover", m.result(3).s("error"))
+        val batched = ChatScreen().apply { button = "ATM轉帳"; extra = listOf(order) }
+        val batch = tools(call("do_steps", """{"steps":[{"tool":"phone_tap","args":{"ref":"@e3","snapshotId":"s1"}},{"tool":"phone_back","args":{}}]}"""))
+        val b = FakeModel(OBSERVE, batch, ask(action = "order"), FINISH)
+        AgentLoop(b, toolDispatcher(batched), "BASE", confirmations = ConfirmationGate(), flags = SpeedFlags(batchSteps = true)).run("t")
+        assertEquals("confirmation_required", b.result(2).s("error"))
+        assertEquals("payment_requires_takeover", b.result(3).s("error"))
+        assertTrue(single.taps.isEmpty() && batched.taps.isEmpty())
+        // 网页脚本里的 mika.tap 被拦下也一样
+        val page = FakeWebPort().apply {
+            elements = listOf(
+                UiElement("@e1", "text", "訂單金額 NT$890", 540, 300, listOf(310, 250, 690, 280), null, false, false, false),
+                UiElement("@e2", "radio", "ATM轉帳", 540, 520, listOf(320, 515, 330, 530), null, true, false, false),
+                UiElement("@e3", "button", "送出訂單", 540, 730, listOf(310, 700, 690, 757), null, true, false, false),
+            )
+        }
+        val scripted = ScriptWebPort(page) { bridge ->
+            bridge.call("snapshot", JsonObject(emptyMap()))
+            bridge.call("tap", buildJsonObject { put("ref", "@e2") })
+            ScriptRun.Done(null)
+        }
+        val w = FakeModel(
+            tools(call("web_navigate", """{"url":"https://shop.example.com/checkout"}""")),
+            tools(call(WEB_SCRIPT_TOOL, """{"code":"await mika.tap('@e2')"}""")),
+            tools(call("request_confirmation", """{"action":"order","target":"渥屋測試商店","content":"藍牙耳機 運動版 × 1","amount":"NT$890","app":"shop.example.com"}""")),
+            FINISH,
+        )
+        AgentLoop(w, toolDispatcher(FakeScreen(), web = scripted), "BASE", confirmations = ConfirmationGate()).run("t")
+        assertEquals("confirmation_required", w.result(2).s("error"))
+        assertEquals("payment_requires_takeover", w.result(3).s("error"))
+        assertTrue(page.calls.toString(), page.calls.none { it.startsWith("tapRef") })
+    }
+
+    // WOOWTECH fork: 测试商店 P8:网页结帐表单的优惠码栏里回车会直接送出订单:按下单拦下,用户同意后这一下回车才按下去
+    @Test fun enterInAWebCheckoutFieldWaitsForApproval() = runTest {
+        val web = FakeWebPort().apply {
+            elements = listOf(
+                UiElement("@e1", "text", "渥屋測試商店", 540, 100, listOf(0, 20, 300, 60), null, false, false, false),
+                UiElement("@e2", "text", "應付金額 NT$790", 540, 780, listOf(310, 306, 690, 340), null, false, false, false),
+                UiElement("@e3", "textbox", "優惠碼", 540, 980, listOf(310, 386, 690, 434), null, false, true, false, focused = true),
+                UiElement("@e4", "button", "送出訂單", 540, 1220, listOf(310, 480, 690, 537), null, true, false, false),
+            )
+        }
+        val enter = call("web_type_text", """{"text":"WOOW50","ref":"@e3","snapshotId":"wt1-1","pressEnter":true}""")
+        val m = FakeModel(
+            tools(call("web_navigate", """{"url":"https://shop.example.com/checkout"}""")),
+            tools(call("web_observe")),
+            tools(enter),
+            tools(call("request_confirmation", """{"action":"order","target":"渥屋測試商店","content":"行動電源 × 1","amount":"NT$790","app":"shop.example.com"}""")),
+            tools(enter.copy(id = "again")),
+            tools(call("web_observe")),
+            FINISH,
+        )
+        val l = AgentLoop(m, toolDispatcher(FakeScreen(), web = web), "BASE", confirmations = ConfirmationGate())
+        val run = async { l.run("t") }
+        advanceUntilIdle()
+        assertEquals("confirmation_required", m.result(3).s("error")); assertEquals("order", m.result(3).s("action"))
+        assertTrue(web.calls.toString(), web.calls.none { it.startsWith("type") })
+        assertTrue("${l.state.value}", l.state.value is TaskState.WaitingConfirmation)
+        l.answerConfirmation(true)
+        run.await()
+        assertTrue(web.calls.toString(), web.calls.any { it.startsWith("type @e3") })
     }
 
     @Test fun cancelWhileWaitingConfirmation() = runTest {

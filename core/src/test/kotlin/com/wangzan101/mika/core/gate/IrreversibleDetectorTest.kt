@@ -3,6 +3,7 @@ package com.wangzan101.mika.core.gate
 import com.wangzan101.mika.core.risk.IrrevAction
 import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.uistate.UiElement
+import com.wangzan101.mika.core.uistate.WebInfo
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -680,5 +681,164 @@ class IrreversibleDetectorTest {
         assertEquals(Irreversible(IrrevAction.delete, "option:删除账户"),
             d.classify(tool, args("""{"action":"select","ref":"@e1","snapshotId":"s1","option":"删除账户"}"""), form))
         assertEquals(IrrevAction.delete, d.classify(tool, args("""{"action":"select","ref":"@e3","snapshotId":"s1","option":"x"}"""), form)?.action)
+    }
+
+    // WOOWTECH fork: 屏上点得到的不可逆动作(申报同意时关卡拿它认出付款):测试商店的加值页、付款方式单选、确认送出页
+    @Test fun tapActionsListWhatEachTappableDoes() {
+        val wallet = snap(
+            el("@e1", "目前餘額", listOf(320, 130, 370, 160), clickable = false), el("@e2", "NT$120", listOf(630, 130, 680, 160), clickable = false),
+            el("@e3", "NT$500", listOf(320, 230, 330, 240)), el("@e4", "NT$1,000", listOf(320, 275, 330, 285)),
+            el("@e5", "扣款方式:信用卡 ****1234", listOf(310, 375, 690, 405), clickable = false),
+            el("@e6", "立即加值", listOf(310, 420, 690, 477)), el("@e7", "加值紀錄", listOf(310, 493, 360, 515)),
+        )
+        assertEquals(setOf(IrrevAction.pay), d.tapActions(wallet))
+        val methods = snap(
+            el("@e1", "超商代碼繳費", listOf(320, 470, 330, 485)), el("@e2", "ATM轉帳", listOf(320, 515, 330, 530)),
+            el("@e3", "貨到付款", listOf(320, 560, 330, 575)), el("@e4", "門市自取(到店付現)", listOf(320, 650, 330, 665)),
+            el("@e5", "下一步", listOf(310, 700, 690, 757)),
+        )
+        assertEquals(setOf(IrrevAction.pay), d.tapActions(methods))
+        val atm = snap(
+            el("@e1", "訂單金額", listOf(320, 250, 370, 280), clickable = false), el("@e2", "NT$890", listOf(630, 250, 680, 280), clickable = false),
+            el("@e3", "ATM轉帳", listOf(630, 287, 680, 317), clickable = false),
+            el("@e4", "確認送出", listOf(310, 380, 690, 437)), el("@e5", "返回修改", listOf(310, 450, 690, 510)),
+        )
+        assertEquals(setOf(IrrevAction.submit), d.tapActions(atm))
+    }
+
+    // WOOWTECH fork: momo 网页的搜索结果(2026-11-07 模拟器实测):在价格区间「最高價」填 1000,再点旁边的「確認」被拦成要同意。
+    // 网页的商品列表随整页滚动,不在可滚动区里,满屏的价格把套用价格区间的「確認」当成了下单
+    @Test fun priceRangeConfirmOnAWebListingIsNotAnOrder() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val listing = listOf(
+            el("@e1", "藍牙耳機", listOf(150, 20, 520, 50), editable = true),
+            el("@e2", "搜尋", listOf(525, 20, 580, 50)),
+            el("@e3", "價格", listOf(220, 470, 260, 500)),
+            el("@e4", "最低價", listOf(300, 472, 360, 498), editable = true, hint = true),
+            el("@e5", "1000", listOf(370, 472, 430, 498), editable = true),
+            el("@e6", "確認", listOf(435, 472, 470, 498)),
+            el("@e7", "【SONY】WF-C510 真無線藍牙耳機", listOf(40, 700, 230, 740)),
+            el("@e8", "$2,290", listOf(40, 750, 120, 780), clickable = false),
+            el("@e9", "【JLab】Go POP+ 真無線藍牙耳機", listOf(560, 700, 760, 740)),
+            el("@e10", "$799", listOf(560, 750, 620, 780), clickable = false),
+        )
+        val s = snap(*listing.toTypedArray())
+        assertNull(d.classify("web_tap", tap("@e6"), s))
+        assertNull(d.classify("web_tap", args("""{"x":452,"y":485}"""), s))
+        // 不挨着输入框的「確認」照旧:有金额就按下单
+        val apart = snap(*listing.map { if (it.ref == "@e6") it.copy(bounds = listOf(700, 880, 990, 960)) else it }.toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_tap", tap("@e6"), apart)?.action)
+    }
+
+    // WOOWTECH fork: 输入框旁的确认只在填的不是钱时算套用:密码框、写着金额或储值一类字的那一行照常按同屏判;同屏有付款面板仍是付款
+    @Test fun confirmNextToAMoneyFieldIsStillJudgedByTheScreen() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val field = el("@e3", "", listOf(300, 400, 700, 460), editable = true)
+        fun row(f: UiElement, label: String, vararg more: UiElement) = snap(
+            el("@e1", "目前餘額 NT$120", listOf(0, 100, 999, 160), clickable = false),
+            el("@e2", label, listOf(0, 400, 280, 460), clickable = false),
+            f,
+            el("@e4", "確認", listOf(720, 400, 900, 460)),
+            *more,
+        )
+        assertNull(d.classify("phone_tap", tap("@e4"), row(field, "跳至第")))
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "加值金額"))?.action)
+        // 没写「金额」的储值、加值行(「儲值 [500] 元 〔確認〕」)填的也是要付的钱
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "儲值"))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "加值"))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(placeholder = "請輸入金額"), ""))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(secret = true), "交易密碼"))?.action)
+        val sheet = row(field, "跳至第", el("@e5", "付款方式:信用卡 ****1234", listOf(0, 200, 999, 260), clickable = false))
+        assertEquals(IrrevAction.pay, d.classify("phone_tap", tap("@e4"), sheet)?.action)
+    }
+
+    // WOOWTECH fork: 一串付款方式的介绍(跨空格、超过 8 个字)不是付款动作:测试商店商品页的「支援 LINE Pay、街口支付付款」曾被当成付款,
+    // 同屏的通用「確定」也就跟着成了付款
+    @Test fun longPaymentMethodListsAreAds() {
+        for (w in listOf("支援 LINE Pay、街口支付付款", "支援 LINE Pay、街口支付", "支援 Apple Pay、Google Pay、LINE Pay、街口支付、全支付付款",
+            "支持微信、支付寶付款", "支援\u00A0LINE\u00A0Pay、街口支付付款")) {
+            assertNull(w, d.matchName(w))
+        }
+        // 动作字、句读后面的付款键照常算;介绍只跨挨着英文字的空白,别的空白后面的付款键也照常算
+        for (w in listOf("支援 Apple Pay 立即付款", "支援 LINE Pay、街口支付付款 立即付款", "感謝支持！立即付款", "使用 LINE Pay 付款",
+            "支持微信支付 支付¥39.9", "支持作者 支付 ¥6", "本店支援 LINE Pay 付款 點此付款", "感謝您的支持 支付 NT$100")) {
+            assertEquals(w, IrrevAction.pay, d.matchName(w))
+        }
+        val product = snap(
+            el("@e1", "NT$590", listOf(0, 120, 999, 160), clickable = false),
+            el("@e2", "支援 LINE Pay、街口支付付款", listOf(0, 220, 999, 260), clickable = false),
+            el("@e3", "確定", listOf(500, 850, 999, 950)),
+        )
+        assertNull(d.paymentPage(product))
+        assertFalse(d.hasPayableAmount(product))
+        assertEquals(IrrevAction.order, d.classify("phone_tap", args("""{"ref":"@e3","snapshotId":"s1"}"""), product)?.action)
+    }
+
+    private fun web(vararg e: UiElement) =
+        ScreenSnapshot("s1", "127.0.0.1", e.toList(), 1080, 2400, web = WebInfo("http://127.0.0.1:18765/checkout/pickup", "訂單明細", "t1", 200))
+
+    // WOOWTECH fork: 网页表单里回车会替表单按下送出键(测试商店 P8:在优惠码栏回车,不经同意就下单了)。
+    // 有应付金额、有花钱的键的网页上,回车按点那个键判
+    @Test fun enterInAWebCheckoutFormIsLikeItsSubmit() {
+        val enter = args("""{"text":"WOOW50","pressEnter":true}""")
+        val pickup = web(
+            el("@e1", "應付金額 NT$790", listOf(310, 306, 690, 340), clickable = false),
+            el("@e2", "優惠碼", listOf(310, 352, 690, 382), clickable = false),
+            el("@e3", "優惠碼", listOf(310, 386, 690, 434), editable = true, focused = true),
+            el("@e4", "送出訂單", listOf(310, 480, 690, 537)),
+            el("@e5", "返回修改", listOf(310, 550, 690, 610)),
+        )
+        assertEquals(Irreversible(IrrevAction.order, "回车:優惠碼→送出訂單"), d.classify("web_type_text", enter, pickup))
+        assertEquals(IrrevAction.order, d.classify("web_type_text", args("""{"text":"WOOW50","pressEnter":true,"ref":"@e3","snapshotId":"s1"}"""), pickup)?.action)
+        assertEquals(IrrevAction.order, d.classify("web_interact", args("""{"action":"key","key":"Enter"}"""), pickup)?.action)
+        // 看不出焦点在哪也一样
+        val unfocused = web(*pickup.elements.map { it.copy(focused = false) }.toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_type_text", enter, unfocused)?.action)
+        // 只打字、在输入框里按空格:不判
+        assertNull(d.classify("web_type_text", args("""{"text":"WOOW50","ref":"@e3","snapshotId":"s1"}"""), pickup))
+        assertNull(d.classify("web_interact", args("""{"action":"key","key":"Space"}"""), pickup))
+        // 有付款键时按付款
+        val pay = web(*(pickup.elements + el("@e6", "確認付款", listOf(310, 620, 690, 677))).toTypedArray())
+        assertEquals(IrrevAction.pay, d.classify("web_type_text", enter, pay)?.action)
+        // 单选、勾选不是送出键:付款方式单选「ATM轉帳」、勾选「使用 LINE Pay 付款」在旁边,回车仍按送出訂單判(询问时要先同意,不是只能接手)
+        val methods = web(*(pickup.elements + listOf(
+            UiElement("@e7", "radio", "ATM轉帳", 0, 0, listOf(310, 620, 340, 650), null, true, false, false),
+            UiElement("@e8", "checkbox", "使用 LINE Pay 付款", 0, 0, listOf(310, 660, 340, 690), null, true, false, false),
+        )).toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_type_text", enter, methods)?.action)
+    }
+
+    // WOOWTECH fork: 用 phone_* 操作 Chrome 一类的浏览器 App、App 里的 WebView 时,网页表单一样会隐式提交:回车照样按点送出键判
+    @Test fun enterInAPhoneBrowserOrWebViewFormIsLikeItsSubmit() {
+        val enter = args("""{"text":"WOOW50","pressEnter":true}""")
+        val total = el("@e1", "合計 NT$790", listOf(0, 700, 999, 760), clickable = false)
+        val note = el("@e2", "備註", listOf(0, 300, 999, 360), editable = true, focused = true)
+        val order = el("@e4", "送出訂單", listOf(310, 800, 690, 860))
+        val chrome = ScreenSnapshot("s1", "com.android.chrome", listOf(total, note, order), 1080, 2400)
+        assertEquals(Irreversible(IrrevAction.order, "回车:備註→送出訂單"), d.classify("phone_type_text", enter, chrome))
+        // 手机读屏的单选是类名短名(RadioButton):付款方式单选同样不是送出键
+        val atm = UiElement("@e5", "RadioButton", "ATM轉帳", 0, 0, listOf(310, 620, 340, 650), null, true, false, false)
+        assertEquals(IrrevAction.order, d.classify("phone_type_text", enter, chrome.copy(elements = chrome.elements + atm))?.action)
+        // App 里的 WebView(手机读屏的角色是类名短名):框在 WebView 里才算网页,App 自己的输入框照旧按发送
+        val webView = UiElement("@e9", "WebView", "訂單明細", 0, 0, listOf(0, 100, 999, 999), null, false, false, true)
+        assertEquals(IrrevAction.order, d.classify("phone_type_text", enter, snap(webView, total, note, order))?.action)
+        val own = note.copy(bounds = listOf(0, 20, 999, 90))
+        assertEquals(IrrevAction.send, d.classify("phone_type_text", enter, snap(webView, total, own, order))?.action)
+    }
+
+    // WOOWTECH fork: 搜索框、和发送键同一行的留言框、没有应付金额或没有花钱键的网页、手机 App 自己的输入框:回车照旧
+    @Test fun enterOutsideAWebSpendingFormIsUnchanged() {
+        val enter = args("""{"text":"x","pressEnter":true}""")
+        val total = el("@e1", "合計 NT$790", listOf(0, 700, 999, 760), clickable = false)
+        val order = el("@e4", "送出訂單", listOf(310, 800, 690, 860))
+        val search = el("@e2", "藍牙耳機", listOf(0, 20, 800, 80), editable = true, focused = true).copy(searchField = true)
+        assertNull(d.classify("web_type_text", enter, web(search, total, order)))
+        val chat = el("@e2", "留言", listOf(0, 600, 790, 660), editable = true, focused = true)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(chat, el("@e3", "傳送", listOf(800, 600, 990, 660)), total, order))?.action)
+        val note = el("@e2", "備註", listOf(0, 300, 999, 360), editable = true, focused = true)
+        val price = el("@e1", "NT$790", listOf(0, 700, 999, 760), clickable = false)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(note, price, el("@e4", "立即購買", listOf(310, 800, 690, 860))))?.action)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(note, total))?.action)
+        assertEquals(IrrevAction.send, d.classify("phone_type_text", enter, snap(note, total, order))?.action)
     }
 }

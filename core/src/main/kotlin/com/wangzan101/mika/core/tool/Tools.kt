@@ -16,8 +16,11 @@ sealed interface Outcome {
         val item: String? = null, val amount: String? = null, val address: String? = null,
     ) : Outcome
     data class Input(val prompt: String, val options: List<String>? = null) : Outcome
-    /** 模型申报不可逆操作;[foregroundApp] 是申报时读到的前台包名,读不到为 null。 */
-    data class Confirm(val request: ConfirmationRequest, val foregroundApp: String?) : Outcome
+    /**
+     * 模型申报不可逆操作;[foregroundApp] 是申报时读到的前台包名,读不到为 null。
+     * [screenActions](WOOWTECH fork):申报时那一屏上点得到的不可逆动作,关卡按它认出申报成别的付款;没读为 null。
+     */
+    data class Confirm(val request: ConfirmationRequest, val foregroundApp: String?, val screenActions: Set<IrrevAction>? = null) : Outcome
 }
 
 /**
