@@ -383,7 +383,7 @@ class ChatViewModelTest {
     }
 
     /**
-     * WOOWTECH fork: 命令的来源(运行记录里写成 run_command「…」)用工具的界面说法,不露工具名;
+     * WOOWTECH fork: 命令、文件的来源(运行记录里写成 run_command「…」、read_file <路径>)用工具的界面说法,不露工具名;
      * 对话里步骤的对象只留命令(旁边已经写着工具的说法)。
      */
     @Test fun commandSourceUsesTheToolLabel() {
@@ -393,6 +393,11 @@ class ChatViewModelTest {
         val source = evidenceSource(events)
         assertEquals(EvidenceSource("处理文件「python -c 'print(2 ** 20)'」", emptyList(), listOf("第 2 步 · 处理文件「python -c 'print(2 ** 20)'」")), source)
         assertEquals("来源 · 处理文件「python -c 'print(2 ** 20)'」", sourceLabel(source))
+        // 读文件的来源也一样
+        val read = evidenceSource(listOf(RunEvent.Sources(1, listOf(
+            com.wangzan101.mika.core.verify.AnswerSource(1, "output", "read_file /workspace/report.csv", null, 2),
+        ))))
+        assertEquals("来源 · 读文件 /workspace/report.csv", sourceLabel(read))
         val ex = Exchange("算一下", emptyList(), ExchangeStatus.Working, live = true,
             activities = listOf(RunEvent.Activity(1, 1, "act", "run_command", "run_command「ls -l」", "completed")))
         assertEquals("处理文件 · ls -l", ChatViewModel.rows(ex, ToolLabels(com.wangzan101.mika.core.assembly.knownTools())::label) { it }.single().title)

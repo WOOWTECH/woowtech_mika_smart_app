@@ -45,19 +45,23 @@ class ToolLabelsTest {
         assertEquals("看圖找控制項", labels.label("web_find_visually"))
     }
 
-    /** WOOWTECH fork: 运行记录里写成「工具名「命令」」的地方,工具名换成界面上的说法;查询词、路径、包名不是这种地方。 */
+    /** WOOWTECH fork: 运行记录里写成「工具名「命令」」「工具名 路径」的地方,工具名换成界面上的说法;查询词、单独的路径、包名不是这种地方。 */
     @Test
     fun commandPlacesUseTheToolLabel() {
         val labels = ToolLabels(knownTools())
         UiText.source = ResFileTexts.traditional
         assertEquals("處理檔案「python -c 'print(2 ** 20)'」", labels.place("run_command「python -c 'print(2 ** 20)'」"))
+        assertEquals("讀檔案 /workspace/a.txt", labels.place("read_file /workspace/a.txt"))
         UiText.source = ResFileTexts.english
         assertEquals("Work with files “ls -l”", labels.place("run_command「ls -l」"))
         assertEquals("Search files “*.csv”", labels.place("search_files「*.csv」"))
         assertEquals("Run built-in script office/xlsx.py", labels.place("run_bundled_script office/xlsx.py"))
+        // 读文件的证据记成「read_file <路径>」
+        assertEquals("Read file /workspace/a.txt", labels.place("read_file /workspace/a.txt"))
         // 旁边已经写着工具的说法时只要命令
         assertEquals("ls -l", labels.command("run_command「ls -l」"))
         assertEquals("office/xlsx.py", labels.command("run_bundled_script office/xlsx.py"))
+        assertEquals("/workspace/a.txt", labels.command("read_file /workspace/a.txt"))
         assertNull(labels.command("wait 5 seconds"))
         assertNull(labels.place("wait 5 seconds"))
         assertNull(labels.place("tap the button"))

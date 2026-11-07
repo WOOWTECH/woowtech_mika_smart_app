@@ -1469,8 +1469,9 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
     }
 
     /**
-     * WOOWTECH fork: 命令、文件这类「地方」在运行记录里写成工具名加命令(`run_command「ls -l」`、`run_bundled_script office/xlsx.py`,
-     * 见 SandboxGroup、RootGroup):工具名换成界面上的说法,命令照原样。不是这种写法、或不是这几个工具时为 null,调用处原样显示。
+     * WOOWTECH fork: 命令、文件这类「地方」在运行记录里写成工具名加命令或路径(`run_command「ls -l」`、`run_bundled_script office/xlsx.py`、
+     * `read_file /workspace/a.txt`,见 SandboxGroup、RootGroup):工具名换成界面上的说法,命令、路径照原样。不是这种写法、或不是这几个工具时为 null,
+     * 调用处原样显示。
      */
     fun place(place: String): String? {
         val (tool, quoted, rest) = commandOf(place) ?: return null
@@ -1480,7 +1481,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
     /** WOOWTECH fork: 同 [place],但只要命令本身:旁边已经写着工具的说法时用(步骤、运行过程),免得说两遍。 */
     fun command(place: String): String? = commandOf(place)?.let { (_, quoted, rest) -> quoted ?: rest }
 
-    /** 命令这类地方拆成(工具名, 「」里的命令, 空格后的脚本);不是这种写法、或不是那几个工具时为 null。 */
+    /** 命令这类地方拆成(工具名, 「」里的命令, 空格后的脚本或路径);不是这种写法、或不是那几个工具时为 null。 */
     private fun commandOf(place: String): Triple<String, String?, String>? {
         val m = COMMAND_PLACE.matchEntire(place) ?: return null
         val tool = m.groupValues[1]
@@ -1492,9 +1493,10 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
         /** WOOWTECH fork: 手上没有一份的地方(来源、通知、对话里的步骤对象)共用这一份。 */
         val shared: ToolLabels by lazy { ToolLabels(knownTools()) }
 
-        /** 运行记录里命令、文件这类地方的写法:工具名,后面是「」包着的命令,或空格后的脚本。 */
+        /** 运行记录里命令、文件这类地方的写法:工具名,后面是「」包着的命令,或空格后的脚本、路径。 */
         private val COMMAND_PLACE = Regex("""([a-z][a-z0-9_]*)(?:「(.*)」| (.+))""", RegexOption.DOT_MATCHES_ALL)
-        private val COMMAND_VERBS = setOf(Verb.RunCommand, Verb.RootCommand, Verb.SearchFiles, Verb.RunBundledScript)
+        // 读文件的证据记成「read_file <路径>」(SandboxGroup 的 ReadFile、RecordedEvidence)
+        private val COMMAND_VERBS = setOf(Verb.RunCommand, Verb.RootCommand, Verb.SearchFiles, Verb.RunBundledScript, Verb.ReadFile)
 
         /** 工具声明里的 label → 界面文字;中文资源与 label 一字不差(ToolLabelsTest 核对每个工具都有)。 */
         val TOOL_LABELS: Map<String, Int> = mapOf(
