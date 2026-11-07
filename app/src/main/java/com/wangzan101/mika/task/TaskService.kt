@@ -50,6 +50,7 @@ import com.wangzan101.mika.settings.FeatureFlags
 import com.wangzan101.mika.takeover.Takeover
 import com.wangzan101.mika.takeover.TakeoverActivity
 import com.wangzan101.mika.ui.MainActivity
+import com.wangzan101.mika.ui.MarkdownModel
 import com.wangzan101.mika.ui.ScreenCopy
 import com.wangzan101.mika.ui.StatusCopy
 import kotlinx.coroutines.CancellationException
@@ -626,7 +627,8 @@ class TaskService : Service() {
     }
 
     private fun progressNotification(run: TaskRun, state: TaskState): Notification {
-        val (_, text) = describe(state) { ConfirmationNotifier.appLabel(this, it) }
+        // WOOWTECH fork: 模型写的说明、提问去掉 Markdown 符号
+        val text = notificationText(describe(state) { ConfirmationNotifier.appLabel(this, it) }.second)
         val warning = run.muteFailedFor?.let { "\n" + tr(R.string.task_may_make_sound) }.orEmpty() +
             (if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) "\n$TAKEOVER_QUEUED" else "")
         val b = Notification.Builder(this, CHANNEL_PROGRESS)
@@ -696,10 +698,11 @@ class TaskService : Service() {
                 val payment = StatusCopy.paymentLines(state.item, state.amount, state.address)
                 val behind = run.takeover?.let(takeoverQueue::behind) ?: 0
                 val waiting = if (behind > 0) trPlural(R.plurals.task_behind, behind) else null
-                takeoverTitle(state.reason) to listOfNotNull(state.message, payment, extra, waiting).joinToString("\n")
+                // WOOWTECH fork: 模型写的话去掉 Markdown 符号
+                takeoverTitle(state.reason) to listOfNotNull(notificationText(state.message), payment, extra, waiting).joinToString("\n")
             }
             is TaskState.WaitingInput -> tr(R.string.input_title) to
-                "${state.prompt}\n${tr(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
+                "${notificationText(state.prompt)}\n${tr(R.string.no_answer_note, INPUT_TIMEOUT_MINUTES)}"
             else -> return null
         }
         val b = Notification.Builder(this, CHANNEL_ATTENTION)
@@ -853,14 +856,18 @@ class TaskService : Service() {
         internal fun notifyDelivery(context: Context, delivery: Delivery, resultId: Int): SendOutcome {
             val nm = context.getSystemService(NotificationManager::class.java)
             when (delivery) {
-                is Delivery.Result -> nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
-                    .setSmallIcon(R.drawable.ic_notification)
-                    .setContentTitle(delivery.title)
-                    .setContentText(delivery.text)
-                    .setStyle(Notification.BigTextStyle().bigText(delivery.text))
-                    .setContentIntent(openApp(context, delivery.threadId))
-                    .setAutoCancel(true)
-                    .build())
+                is Delivery.Result -> {
+                    // WOOWTECH fork: 回答按 Markdown 写,通知里只放纯文字
+                    val text = notificationText(delivery.text)
+                    nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
+                        .setSmallIcon(R.drawable.ic_notification)
+                        .setContentTitle(delivery.title)
+                        .setContentText(text)
+                        .setStyle(Notification.BigTextStyle().bigText(text))
+                        .setContentIntent(openApp(context, delivery.threadId))
+                        .setAutoCancel(true)
+                        .build())
+                }
                 is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
                     .setSmallIcon(R.drawable.ic_notification).setContentTitle(tr(R.string.app_name))
                     .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
@@ -868,6 +875,14 @@ class TaskService : Service() {
             }
             return SendOutcome.Delivered
         }
+
+        /**
+         * WOOWTECH fork: 通知里显示的文字去掉 Markdown 符号。回答、提问按 Markdown 写,通知不渲染,`**`、`#`、反引号、
+         * 表格的 | 会原样露出来。和复制回答用同一份转换([MarkdownModel.toPlainText]),表格格子之间的制表符换成「 · 」;
+         * 挨着中文标点的 `**`(如 `**「重点」**的`)CommonMark 认不成粗体,剩下的也去掉。
+         */
+        internal fun notificationText(markdown: String): String =
+            MarkdownModel.toPlainText(markdown).replace("\t", " · ").replace("**", "")
 
         /** 追问等回答的时限:交给 AgentLoop,通知和卡片上写的分钟数也从这里来。 */
         const val INPUT_TIMEOUT_MS = AgentLoop.DEFAULT_INPUT_TIMEOUT_MS

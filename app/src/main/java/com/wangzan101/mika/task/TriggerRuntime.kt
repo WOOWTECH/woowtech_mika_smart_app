@@ -246,9 +246,11 @@ object TriggerRuntime {
                 .putExtra(MainActivity.EXTRA_OPEN_CONVERSATION, threadId),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         if (notifications.areNotificationsEnabled()) {
+            // WOOWTECH fork: 提醒的话是模型写的,去掉 Markdown 符号
+            val shown = TaskService.notificationText(text)
             runCatching { notifications.notify(key.hashCode(), Notification.Builder(context, TaskService.CHANNEL_RESULT)
                 .setSmallIcon(R.drawable.ic_notification).setContentTitle(title)
-                .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text))
+                .setContentText(shown).setStyle(Notification.BigTextStyle().bigText(shown))
                 .setContentIntent(open).setAutoCancel(true).build()) }
                 .onFailure { Log.w("MikaTrigger", "reminder notification failed", it) }
         }
