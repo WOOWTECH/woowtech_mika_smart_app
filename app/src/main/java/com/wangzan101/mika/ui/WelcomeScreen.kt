@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.wangzan101.mika.R
 import com.wangzan101.mika.ui.components.GroupCard
 import com.wangzan101.mika.ui.components.Hairline
+import androidx.compose.ui.res.dimensionResource
 import com.wangzan101.mika.ui.components.IconTile
 import com.wangzan101.mika.ui.components.MikaButton
 import com.wangzan101.mika.ui.components.PageBackground
@@ -51,7 +52,7 @@ fun WelcomeScreen(onStart: () -> Unit) {
                 Column(Modifier.fillMaxWidth().padding(top = 40.dp, start = 8.dp, end = 8.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(
                         painterResource(R.drawable.mika_launcher_art), null,
-                        Modifier.size(76.dp).shadow(14.dp, LogoShape, clip = false).clip(LogoShape),
+                        Modifier.size(76.dp).shadow(dimensionResource(R.dimen.welcome_logo_elevation), LogoShape, clip = false).clip(LogoShape),
                         contentScale = ContentScale.Crop,
                     )
                     Text(WelcomeCopy.TITLE, Modifier.padding(top = 20.dp), style = MikaType.LargeTitle, fontSize = 26.sp, color = c.ink, textAlign = TextAlign.Center)

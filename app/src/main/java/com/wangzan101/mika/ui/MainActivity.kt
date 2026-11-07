@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
         monitor.refresh()
     }
 
-    // 安卓 12 及以前套上 App 里选的语言;13 起系统自己套
+    // Also cover a brand default selected before the first Activity is attached.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguage.wrap(newBase))
     }
