@@ -4,8 +4,6 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
@@ -160,10 +158,8 @@ fun BrowserScreen(browser: UserBrowser, onBack: () -> Unit) {
                     face = host?.let(face), host = host, favorite = favorite, desktop = p.desktop,
                     onDismiss = { moreOpen = false },
                     onReload = browser::reload,
-                    onCopy = {
-                        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(p.title.ifBlank { p.url }, p.url))
-                        toast(tr(R.string.browser_link_copied))
-                    },
+                    // WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+                    onCopy = { copyToClipboard(context, p.title.ifBlank { p.url }, p.url, tr(R.string.browser_link_copied)) },
                     onOpenOutside = { openOutside(context, p.url)?.let(toast) },
                     onToggleFavorite = {
                         if (host == null) return@BrowserMoreSheet

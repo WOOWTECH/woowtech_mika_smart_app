@@ -711,9 +711,11 @@ class TaskService : Service() {
             is TaskState.WaitingTakeover -> takeoverActions(run).forEach(b::addAction)
             is TaskState.WaitingInput -> {
                 b.addAction(replyAction(run, state.options))
-                // 安卓通知最多显示 3 个按钮,所以是「回复」+ 前两个选项;
-                // 全部选项都放进回复的快捷选项(RemoteInput choices),多出的选项在那里能选到
-                state.options.orEmpty().take(2).forEachIndexed { i, o -> b.addAction(answerAction(run, o, i)) }
+                // 安卓通知最多显示 3 个按钮,所以是「回复」+ 第一个选项 +「取消任务」;
+                // 全部选项都放进回复的快捷选项(RemoteInput choices),其余的选项在那里能选到
+                // WOOWTECH fork: 上游是「回复」+ 前两个选项,有选项时这条通知里取消不了任务;和接管的通知一样带上「取消任务」
+                state.options.orEmpty().take(1).forEachIndexed { i, o -> b.addAction(answerAction(run, o, i)) }
+                b.addAction(action(run, tr(R.string.action_cancel_task), ACTION_CANCEL, 2))
             }
             else -> Unit
         }

@@ -72,6 +72,7 @@
     <string name="model_reason_no_tools">tidak memanggil alat, dan Mika memerlukan model yang bisa memanggil alat</string>
     <string name="model_reason_wrong_protocol">tidak tersedia lewat jenis antarmuka yang Anda pilih, jadi permintaan tidak pernah sampai</string>
     <string name="model_reason_server">server mengembalikan galat (%1$s)</string>
+    <string name="model_reason_refused">penyedia menolak permintaan (%1$s)</string>
     <string name="model_probe_none_usable">Penyedia tersambung, tetapi “%1$s” tidak lulus pengujian: %2$s. Pilih model dari daftar yang sudah diaktifkan akun Anda.</string>
     <string name="model_probe_none_usable_protocol">Penyedia tersambung, tetapi “%1$s” tidak lulus pengujian: %2$s. Pilih model yang bisa dijangkau jenis antarmuka ini, atau ganti jenis antarmuka.</string>
     <string name="model_probe_tried_unavailable">Sudah mencoba %1$s; tidak satu pun diaktifkan.</string>

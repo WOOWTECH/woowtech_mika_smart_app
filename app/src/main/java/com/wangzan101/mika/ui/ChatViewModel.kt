@@ -1221,15 +1221,10 @@ class ChatViewModel(
             is ExchangeStatus.Failed, is ExchangeStatus.Cancelled -> PipUi()
             else -> {
                 val needs = st.needsUser()
-                // 只有接管刚开始时自动展开(提问、暂停要让输入框和卡片按钮留在眼前);接管结束时收起;
-                // 同一次接管里用户收起后不再弹开
-                val takeover = st is ExchangeStatus.NeedsTakeover
-                val wasTakeover = before is ExchangeStatus.NeedsTakeover
-                val expanded = when {
-                    takeover && !wasTakeover -> true
-                    !takeover && wasTakeover -> false
-                    else -> old.expanded
-                }
+                // WOOWTECH fork: 开始等你时不自动展开、展开着的也收起(上游是接管一开始就展开)。展开的大窗和它下面
+                // 点了收起用的那层盖住整页,卡片上的「跳过」「我来处理」「取消任务」「允许这一次」要先关掉它才按得到。
+                // 要你处理时点小窗只会滚到卡片、不会展开,所以等你的这段时间里它一直是收起的。
+                val expanded = if (needs && !before.needsUser()) false else old.expanded
                 PipUi(true, if (needs) PipMode.NeedsYou else PipMode.Running, expanded)
             }
         }

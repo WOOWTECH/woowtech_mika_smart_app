@@ -6,10 +6,7 @@ import com.wangzan101.mika.ui.components.keepsKeyboard
 import com.wangzan101.mika.about.Diagnostics
 import com.wangzan101.mika.about.DiagnosticsCollector
 import com.wangzan101.mika.about.setupInputs
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.os.SystemClock
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -174,10 +171,8 @@ fun PhoneSetupScreen(status: SystemStatus, repair: Boolean, onFix: (Fix) -> Unit
     LaunchedEffect(Unit) { phone.shellManager.usbScript.refresh() }
     val usbCommand = remember { phone.shellManager.usbScript.command() }
 
-    val copyUsbCommand = {
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(PhoneSetupCopy.USB_TITLE, usbCommand))
-        Toast.makeText(context, PhoneSetupCopy.USB_COPIED, Toast.LENGTH_SHORT).show()
-    }
+    // WOOWTECH fork: 安卓 13 起「已复制」由系统提示,见 [copyToClipboard]
+    val copyUsbCommand = { copyToClipboard(context, PhoneSetupCopy.USB_TITLE, usbCommand, PhoneSetupCopy.USB_COPIED) }
     // 没配好就不设置了:撤掉配对通知、不再找配对窗口(填码通知一到配对一步就放进通知栏,不撤会挂着;end 也结束重新配对)。
     // 正在配对、连接时让它做完,配好了留着「配对成功」
     val close = {

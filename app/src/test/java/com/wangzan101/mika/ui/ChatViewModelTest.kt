@@ -482,7 +482,11 @@ class ChatViewModelTest {
         assertTrue("overshoot $max", max <= 100.5f)
     }
 
-    @Test fun pipAutoExpandsWhenNeedsUser() = runTest {
+    /**
+     * WOOWTECH fork: 要你处理时小窗不自动展开(上游是接管一开始就展开):展开的大窗盖住卡片上的「跳过」「我来处理」「取消任务」。
+     * 干活时用户自己点开的大窗,开始等你时也收起。
+     */
+    @Test fun pipStaysCollapsedWhileItNeedsYou() = runTest {
         val screen = MutableStateFlow(false)
         val vm = ChatViewModel(backgroundScope, state, stage, actions, ConversationStore(tmp.newFolder()), screenOpen = screen).also { runCurrent() }
         vm.send("任务", ok)
@@ -492,25 +496,31 @@ class ChatViewModelTest {
         assertFalse(vm.ui.value.pip.expanded)
 
         emit(TaskState.WaitingTakeover("login", "需要登录"))
-        assertTrue(vm.ui.value.pip.expanded)
+        assertFalse("接管开始时不展开", vm.ui.value.pip.expanded)
         assertEquals(PipMode.NeedsYou, vm.ui.value.pip.mode)
-
-        vm.collapsePip()
-        assertFalse(vm.ui.value.pip.expanded)
         stage.value = Takeover.Stage.HandedOver
         runCurrent()
-        assertFalse(vm.ui.value.pip.expanded) // 同一次等待里不反复弹开
+        assertFalse(vm.ui.value.pip.expanded)
         assertEquals(Takeover.Stage.HandedOver, vm.ui.value.takeoverStage)
 
         emit(TaskState.Running(2, "", null))
         assertFalse(vm.ui.value.pip.expanded)
-        // 只有接管自动展开:提问时要让输入框和选项留在眼前
+        vm.expandPip()
+        assertTrue("干活时点小窗照常展开", vm.ui.value.pip.expanded)
+        // 提问时要让输入框、选项和卡片按钮留在眼前
         emit(TaskState.WaitingInput("选哪个?", listOf("A", "B")))
         assertFalse(vm.ui.value.pip.expanded)
         assertEquals(PipMode.NeedsYou, vm.ui.value.pip.mode)
         assertEquals(ComposerMode.Answer, vm.ui.value.composer)
         assertTrue(vm.send("A", ok))
         assertEquals("answer:A", calls.last())
+
+        // 展开着时转成接管(要你付款)也一样收起
+        emit(TaskState.Running(3, "", null))
+        vm.expandPip()
+        assertTrue(vm.ui.value.pip.expanded)
+        emit(TaskState.WaitingTakeover("payment", "要你付款"))
+        assertFalse(vm.ui.value.pip.expanded)
     }
 
     @Test fun startWaitsUntilServiceFinishedPreviousTask() = runTest {
