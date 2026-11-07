@@ -16,23 +16,23 @@
 
 - `app/brand.gradle.kts`＋`app/build.gradle.kts` 結尾：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
 - 品牌值只有一個來源：`app/src/woowtech/resources/brand.properties`，由 `core/.../brand/Brand.kt` 讀取。沒有這個檔時，所有值都退回上游原值。
-- 介面字串：Gradle 設定時，把 `src/main/res`（英文、繁中）裡提到 Mika 或上游 repo 的字串，自動換成品牌名和本 repo，產生到 `app/.gradle/woowtech-brand-res`（不進 git）。`app/src/woowtech/res` 裡人工寫的 key 不會被覆蓋。上游新增或修改字串，下次建置會自動跟上。
+- 介面字串：Gradle 設定時，把 `src/main/res`（英文、繁中）裡提到 Mika 或上游 repo 的字串，自動換成品牌名和本 repo，產生到 `app/.gradle/woowtech-brand-res`（不進 git）。`app/src/woowtech/res` 裡人工寫的 key 不會被覆蓋。上游新增或修改字串，下次建置會自動跟上。上游繁中翻譯的錯字和大陸用語（隻、早上好、重啟、運行、獲取、自定義、應用訪問、退出登入……）在 `app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml` 人工覆蓋；瀏覽器寫 Google（跟 `search.url` 一致）、OpenRouter Key 名稱寫 woowtech agent，在 `strings_woowtech.xml`。`BrandStringsTest` 核對每個人工覆蓋的 key 上游還在、佔位符一樣；上游改了原文的意思，同步時要自己看
 - 說明文件連結：字串裡指向上游 `docs/<檔名>.md` 的連結，如果 `docs-woowtech/` 有同名檔，就改指 WOOWTECH 自己的版本（目前有 `agent-quickstart`、`mcp` 的繁中與英文版，套件名是 `io.woowtech.agent`）。沒有同名檔的連結照舊指本 repo 的 `docs/`（上游原文）。
 - 程式碼依 flavor 分：`app/src/upstream/java` 和 `app/src/woowtech/java` 各放一份同名類別（目前只有授權頁的 `BrandLicenses`），上游版的行為跟上游一模一樣。
-- 給模型看的內部文字（工具結果、系統說明）維持「Mika」。人設段（`prompts/system/identity.md`）開頭換成品牌名，並補一段說明：內部說的 Mika 就是它自己，對使用者一律自稱渥屋助理。
-- 語言：woowtech 版只出英文和繁中（`resourceConfigurations`、`res/xml/locales_config.xml`、`ui.languages` 三處一致）。
+- 給模型看的內部文字（工具結果、系統說明）維持「Mika」。人設段（`prompts/system/identity.md`）開頭換成品牌名，並補一段說明：內部說的 Mika 就是它自己，對使用者一律自稱渥屋助理。使用者讀得到的角色輸出（技能草稿、記憶、停下後的總結、App 知識）由 `brand.properties` 的 `prompt.append.roles/*.md` 要求用台灣繁體中文，使用者寫英文時仍用英文；技能草稿的五個小節標題照上游簡體，`SkillDrafter` 靠它們核對格式（`BrandValuesTest` 會檢查）
+- 語言：woowtech 版的介面只有英文和繁中（`resourceConfigurations`、`res/xml/locales_config.xml`、`ui.languages` 三處一致）。`resourceConfigurations` 另外留 `zh-rTW`，那是 AndroidX、Material、Play 服務的繁中譯文，不是另一種介面語言，香港、澳門的手機也用它；`zh-rHK` 不收（Compose UI 那份是粵語口語）。系統語言是 zh-TW 時，`state_on`／`state_off` 用 Compose UI 的譯文（已開啟／已關閉），和上游一樣
 
 ## 上游檔案的改動（都標了 `WOOWTECH fork` 註解，或在 `Brand.*` 呼叫處）
 
 | 檔案 | 改什麼 | 原因 |
 |---|---|---|
-| `app/build.gradle.kts` | 結尾一段：`apply(from = "brand.gradle.kts")`，再加 flavor、woowtech 資源目錄、選用的簽章、測試開關（套用的腳本看不到 Android 外掛的型別，所以接線放這裡） | 品牌層入口 |
+| `app/build.gradle.kts` | 結尾一段：`apply(from = "brand.gradle.kts")`，再加 flavor、woowtech 資源目錄、要打包的語言（`en`、`b+zh+Hant`，另加 `zh-rTW` 收 AndroidX／Material／Play 服務的繁中譯文）、選用的簽章、測試開關（套用的腳本看不到 Android 外掛的型別，所以接線放這裡） | 品牌層入口；少了 `zh-rTW`，讀螢幕軟體在繁中介面念英文（Close navigation menu） |
 | `.github/workflows/ci.yml` | app 工作只跑 upstream flavor（`testUpstreamDebugUnitTest`、`assembleUpstreamDebug`） | 兩個 flavor 一起編會超過 2 GB 編譯記憶體；woowtech 版由 `woowtech.yml` 建 |
 | `core/.../prompt/Prompts.kt` | `read()` 經過 `Brand.prompt()` | 人設改名 |
 | `core/.../chatgpt/ChatGptAuth.kt`、`core/.../oauth/OpenRouterAuth.kt` | 給 OpenAI、OpenRouter 看的 App 名稱 | 第三方同意頁顯示正確產品名 |
 | `core/.../mcp/McpRpc.kt`、`core/.../cap/mcp/{McpOAuth,HttpMcpClient,LegacySseMcpClient,StdioMcpClient}.kt`、`app/.../settings/McpServerStore.kt` | MCP 伺服器與用戶端的名稱、說明、登入結果頁 | 電腦端和外部 MCP 伺服器看得到 |
-| `core/.../mcp/McpTaskTools.kt`、`core/.../remote/RemoteTasks.kt` | MCP 工具說明、任務狀態提示（`note`）、錯誤訊息裡的產品名經 `Brand.text`；任務內容（使用者的話、模型的回答）不動 | 外部 AI 會照這些字稱呼 App |
-| `tools/mika/scripts/mika_cli.py`、`tools/mika/SKILL.md` | CLI 經 ADB 先找 `io.woowtech.agent`、沒有才用上游套件名（`MIKA_ANDROID_PACKAGE` 可指定）；找到品牌版時錯誤訊息改稱 woowtech agent；Skill 說明補一段品牌版說明 | 電腦端 CLI 用 USB 才連得到品牌版 |
+| `core/.../mcp/McpTaskTools.kt`、`core/.../remote/{RemoteTasks,RemoteTaskService}.kt`、`app/.../task/RemoteTaskHub.kt` | MCP 工具說明、任務狀態提示（`note`）、錯誤訊息裡的產品名經 `Brand.text`（含 CLI 任務 API 原樣交出的「要在手機上處理」，以及任務開不起來的原因）；任務內容（使用者的話、模型的回答）不動 | 外部 AI 會照這些字稱呼 App |
+| `tools/mika/scripts/mika_cli.py`、`tools/mika/SKILL.md` | CLI 經 ADB 先找 `io.woowtech.agent`，沒有才用上游套件名（`MIKA_ANDROID_PACKAGE` 可指定）；ADB 認不出套件時（`--url`、自訂套件）看手機回報的 `server_version`，結尾是 `-woow.<N>` 就是品牌版；手機回應前（例如 `--url` 連不上）和 `--help` 都稱 woowtech agent，認出上游 Mika 才稱 Mika；Skill 說明補一段品牌版說明 | 電腦端 CLI 用 USB 才連得到品牌版；Wi-Fi、VPN、遠端閘道的錯誤訊息也要寫對名字 |
 | `.github/ISSUE_TEMPLATE/device-report.yml` | 改成繁中＋英文、品牌名；檔名和欄位 id 不變 | App 的「去 GitHub 回報」開這個範本 |
 | `.github/CONTRIBUTING.md`、`.github/CONTRIBUTING.zh-CN.md` | 開頭加一段 WOOWTECH 說明，下面保留上游原文 | 回報管道換成本 repo；上游文件連到這兩份的錨點不能壞 |
 | `core/.../shell/HelperHandoff.kt`、`core/.../mcp/McpUsb.kt` | USB 腳本印給使用者的訊息 | 使用者看得到 |
@@ -47,9 +47,40 @@
 | `app/.../browser/AddressInput.kt` | 預設搜尋改 Google | 台灣使用習慣 |
 | `app/.../ui/SettingsSubPages.kt` | 語言清單只列品牌支援的語言 | 跟出貨語言一致 |
 | `app/.../ui/LicensesScreen.kt` | 第三方清單經 `BrandLicenses`（依 flavor 各一份） | woowtech 版列出上游 Mika 署名、補 ML Kit，並跟著介面語言顯示英文或繁中（上游寫死簡體中文） |
+| `core/.../gate/IrreversibleDetector.kt`（台灣用語）、`core/.../uistate/Hant.kt` | 付款關卡認台灣的結帳用語（匯款、下訂單、送出訂單、確認訂單、確認送出、加值、超商代碼、ATM轉帳、取貨付款等），繁簡對照補「紀匯簽遊」 | 台灣 App 和網站的付款、下單要先問（6f650f7f，woow.1 起） |
+| `app/.../ui/RelaySection.kt`、`app/src/main/res/values/strings_relay.xml` | 遠端閘道位址的示例改成不翻譯的字串 `relay_gateway_hint`（上游的值不變），woowtech 版覆蓋成 `https://gateway.example.com` | 品牌版畫面上不出現 mika |
+| `core/.../memory/SensitiveFilter.kt`、`core/src/test/.../memory/SensitiveFilterTest.kt` | 敏感關鍵詞也認繁體：密碼、驗證碼、校驗碼、動態碼、安全碼、安全問題，以及「為」「用戶的／使用者的」 | 繁體寫的記憶、技能草稿、App 知識也要攔住密碼；這是上游的漏洞，可以回報上游 |
+| `app/.../ui/RunTimelineViewModel.kt`、`app/.../ui/ChatViewModel.kt`（`where` 改成 internal） | 運行過程頁的步驟對象改用對話步驟同一套說法：「网站 域名」只留域名，命令只留命令 | 每個網頁步驟都寫「開啟網頁 · 网站 127.0.0.1」 |
+| `app/.../ui/ChatViewModel.kt`（`noteText`）、`app/src/main/res/values*/strings_memory.xml`（`memory_note_*`） | 回答下方的記憶小字改用字串資源；簡體逐字同 core 的 `MemoryNote.text` | 上游直接用 core 寫死的簡體「记住了:…」（K2） |
+| `core/.../model/{ModelError,ModelAccessErrors,ModelHttp,OpenAiCompatModel,AnthropicModel,ResponsesModel}.kt` | `BadResponse` 多帶 HTTP 狀態碼和服務端原話（`BadResponse.http`、串流錯誤幀），`message` 不變；`detail`／`jsonDetail` 拆開閘道（LiteLLM）包在原話裡的 JSON；新增 `shownDetail` | 介面只引原話，不貼整段報文 |
+| `app/.../ui/ModelErrorCopy.kt`（新）、`app/.../ui/ModelSetupViewModel.kt`、`app/.../ui/VoiceHold.kt`、`app/src/main/res/values*/strings_setup.xml`（`model_error_*`、`list_error_*`） | 模型設定頁（測試並儲存、選模型、重新測試、試轉語音）和語音輸入的錯誤原因跟著介面語言；簡體逐字同 core | 英文介面也顯示「模型返回了无法解析的内容: HTTP 400 {…}」 |
+| `core/.../brand/Brand.kt`、`app/src/woowtech/resources/brand.properties`、`app/.../about/Diagnostics.kt`、`core/.../selfcheck/SelfCheckReport.kt` | 新品牌值 `diagnostics.header`、`issue.title.prefix`（沒設時同上游）：woowtech 診斷資訊抬頭「渥屋助理診斷資訊 / woowtech agent diagnostics」、自檢回報標題前綴「[相容性]」 | 簡體的「诊断信息」（K3）、「[兼容性]」（K8） |
+| `.github/ISSUE_TEMPLATE/device-report.yml` | title 改成「[相容性] 」，要和 `issue.title.prefix` 一致（檔頭註解有寫） | App 預填的標題和範本一致（K8） |
+| 13 個工具的宣告：`core/.../general/{ViewPastScreens,ViewUserScreen,MemoryTools,ProfileEdit,HistoryRead,ScheduleTask,SpawnAgent}.kt`、`core/.../cap/phone/OpenLink.kt`、`core/.../cap/web/{WebScriptTool,Interact}.kt`、`core/.../uistate/tools/VisionTools.kt`；`app/src/main/res/values*/strings_tools.xml` | 補上 `label`（上游沒有），10 個語系都有譯文 | 運行過程、步驟露出 phone_find_visually、web_script 等工具名 |
+| `app/.../ui/ChatViewModel.kt`（`ToolLabels`）、`app/.../ui/SourceViewModel.kt`、`app/src/main/res/values*/strings_chat.xml`（`source_command`） | `do_steps` 有說法；新增 `ToolLabels.shared`、`place()`、`command()`：命令這類地方（`run_command「…」`、`root_run_command`、`search_files`、`run_bundled_script`）的工具名，在來源標籤換成說法，在步驟對象只留命令 | 「do_steps · …」「來源 · run_command「…」」 |
+| `app/.../task/TaskService.kt`（`describe`） | 進行中通知的步驟說明，工具名換成工具的說法 | 「第 2 步:phone_set_alarm」 |
+| `app/.../i18n/AppLanguage.kt`、`app/.../MikaApp.kt`（新增 `onConfigurationChanged`） | 安卓 13 起，啟動、程序設定變更、App 內換語言時，把程序的預設語言設回 App 語言（跟隨系統時不動） | 無障礙服務連上後，系統把程序設定換回系統語言（AOSP `WindowProcessController.onServiceStarted`），排版按 en-US，繁中全形標點靠左下 |
+| `app/.../task/TaskService.kt`、`app/.../confirm/ConfirmationNotifier.kt` | 通知上的字（接管標題、提問、各按鈕、Reply、確認通知的按鈕和鎖屏提示）和「回答太晚」Toast 改用 `tr()`；測試 `NotificationTextsTest` 確保發通知的程式不用 `getString` 取介面文字 | 服務的 `getString` 可能是系統語言：App 選繁中、系統是英文時，通知寫成〔Needs you: Payment〕〔Reply〕（上游問題） |
+| `core/.../agent/UserExchange.kt`、`core/src/main/resources/prompts/feedback/loop.md`、`app/.../ui/RunTimelineViewModel.kt` | 不在手機上發起的任務（電腦交辦）申報同意時，自動拒絕改用自己的錯誤碼 `confirmation_remote`、給模型的說明（新鍵 `confirmation_remote`）、執行過程的標籤和出錯說明；同一任務再申報也一樣 | 原本和使用者拒絕共用 `confirmation_declined`：執行過程寫〔要你同意〕〔出錯:你沒有同意〕，回答說「你未核准」，其實沒有人被問過（上游問題） |
+| `app/.../task/TaskRun.kt`、`app/.../task/TaskService.kt` | 電腦端取消它交辦的任務時記下（`cancel(fromComputer = true)`、`stoppedFromComputer`），結果通知寫〔電腦端停止了這個任務〕；手機上先按停止的照舊 | 原本寫〔你停止了這個任務〕（上游問題） |
+| `app/.../cap/phone/setup/{PairingNotifier,PairingCoordinator}.kt`、`app/.../ui/PhoneSetupScreen.kt` | 填碼通知被系統丟掉（沒允許通知、配對頻道關著）時記下；通知變得發得出去時補發一次 | 引導頁到配對一步才請使用者允許通知，先發的填碼通知被丟掉、之後不會補發；「跳過無障礙」時找不到填碼的地方（上游問題） |
+| `app/.../task/TaskService.kt`、`app/.../task/TriggerRuntime.kt` | 結果、進度、提問／接管、提醒通知的文字經 `notificationText()` 去掉 Markdown（沿用 `MarkdownModel.toPlainText`，表格格子用「 · 」隔開） | 通知不渲染 Markdown，原本露出 `**`、`#`、反引號和表格直線（上游問題） |
+| `app/.../task/TriggerRuntime.kt` | 定時任務自己的通知（到點提醒、沒能開始、結果待確認）放進自己的通知組 `com.wangzan101.mika.schedule`（沒有摘要，照常響鈴、跳出）；提醒標成 `CATEGORY_REMINDER` | 安卓 16 模擬器上，提醒到點時通知欄還有前一則〔任務完成〕，系統把兩則自動疊成一組，提醒被標成 SILENT、沒跳出來（上游問題；待實機補測） |
+| `app/src/main/res/values*/strings_timeline.xml`、`app/src/main/res/values*/strings_task.xml`（10 種語言） | 新字串 `tag_remote_declined`、`err_confirm_remote`、`task_stopped_remote_body`（英文檔裡標了 WOOWTECH fork 註解） | 上面第 2、3 列用到；繁中為「從電腦交辦的任務不能付款或下單」「不能從電腦付款」「電腦端停止了這個任務」 |
+| `app/src/test/.../i18n/NotificationTextsTest.kt`、`app/src/test/.../task/TaskNotificationCopyTest.kt`（新增） | 確保發通知的程式不用 `getString`；電腦端停止的說法、通知去 Markdown | 守著上面幾項；既有的 AgentLoopGateTest、RunTimelineViewModelTest、PairingNoticeTest 補了案例，金樣 `feedback-loop.txt`、`sizes.txt` 一併更新 |
+| `core/.../gate/IrreversibleDetector.kt` | 付款方式介紹（「支持／支援…付款」）先整句去掉：可跨空格，到最後一個付款／支付為止，遇到句讀或「立即、確認」一類動作字就停；輸入框同一行、緊挨著它的通用確認（價格區間、跳頁）只算套用框裡的值，不按下單判（框是密碼框、或那一行寫著金額時照舊）；網頁上有應付金額、又有付款／下單／提交按鍵時，輸入欄裡按 Enter 按點那個按鍵判；新增 `tapActions`（這個畫面點得到的不可逆動作） | 11/07 模擬器實測：momo 價格區間的「確認」被當成下單擋下；測試商店商品頁「支援 LINE Pay、街口支付付款」會被當成付款；P8 在優惠碼欄按 Enter 會不經同意就下單 |
+| `core/.../gate/ConfirmationGate.kt` | `declare` 先拿關卡自己的判定核對申報：剛在同一個 App 被擋下的那一步是付款，或（沒被擋過時）申報當下這個畫面點得到的不可逆動作有付款、沒有申報的那一種，就回 `Unsupported`，模型收到 `payment_requires_takeover` 改交給使用者；新增 `noteRefused`，打字以外的寫操作和 `reset` 會清掉 | P5（立即加值）、P10（選 ATM轉帳）模型把付款申報成提交、下單，出了按了也沒用的〔允許這一次〕 |
+| `core/.../action/ConfirmDecision.kt` | 因為沒有可用的同意而擋下的一步（單步、do_steps、網頁腳本都算）交給關卡記著 | 同上；P10 是在 do_steps 裡被擋 |
+| `core/.../general/RequestConfirmation.kt`、`core/.../tool/Tools.kt`（`Outcome.Confirm.screenActions`）、`core/.../agent/UserExchange.kt` | 申報同意時帶上這個畫面點得到的不可逆動作，交給 `ConfirmationGate.declare` 判 | 同上；P5 是沒先點就申報 |
+| `core/src/test/.../gate/{IrreversibleDetectorTest,ConfirmationGateTest,AgentLoopGateTest}.kt` | 只新增測試，沒改原有斷言 | 守住上面三項關卡修正 |
+| `app/.../ui/ChatViewModel.kt`、`app/.../ui/AgentPip.kt` | 開始等你處理時小畫面不自動展開，展開著的也收起（上游是接管一開始就展開）；等你處理時從下方的角挪到同側上方，回到執行時挪回原來的角（使用者拖過就不再挪） | 小畫面蓋住同意卡、接手卡的按鈕；展開時連遮罩一起蓋住〔跳過〕〔我來處理〕〔取消任務〕（2026-11-07 模擬器測試問題 5） |
+| `app/.../ui/ChatScreen.kt`（提問卡）、`app/.../task/TaskService.kt`（提問通知的按鈕） | 有選項的〔需要你回答〕卡最下面加〔取消任務〕小字（和接管卡一樣）；提問通知改成「回覆」＋第一個選項＋〔取消任務〕，其餘選項在「回覆」的快捷選項裡 | 有選項時卡片和通知都取消不了任務（問題 6） |
+| `app/.../ui/{MessageMenu,McpScreen,SelfCheckScreen,DiagnosticsSheet,AccountSignIn,PhoneSetupScreen,RunMetricsUi,BrowserScreen}.kt` | 複製一律改走新增的 `app/.../ui/ClipboardCopy.kt` 的 `copyToClipboard()`：安卓 13 起不再跳「已複製」Toast，複製失敗的提示照舊 | 系統自己有剪貼簿浮層，Toast 疊在上面、字被蓋住（小問題表） |
+| `app/.../ui/ModelSetupViewModel.kt`、`app/.../ui/ModelSetupScreen.kt`（`ModelSetupCopy.refusal`）、`app/src/main/res/values*/strings_setup.xml`（新 key `model_reason_refused`，10 種語言） | 「測試並儲存」試呼叫遇到服務商拒絕（HTTP 4xx、認不出原因）或額度用完，和 5xx 一樣接著試下一個；都不通過時照舊不存，另外列出試了哪些、自動展開模型名一欄；錯誤只留服務商那一句話的摘要（例：HTTP 400: Your credit balance is too low…） | 閘道（LiteLLM）第一條線路沒額度就整個失敗，錯誤顯示截斷的原始 JSON（小問題表、S2） |
+| `app/src/test/.../ui/{ChatViewModelTest,ModelSetupViewModelTest,ModelSetupNetworkTest}.kt`、`app/src/androidTest/.../ui/ChatScreenDeviceTest.kt` | 上游的 `pipAutoExpandsWhenNeedsUser` 改寫成 `pipStaysCollapsedWhileItNeedsYou`；真機測試接管時不再先收起小窗；新增閘道線路被拒、額度用完、全部被拒、錯誤摘要的測試 | 跟著上面的行為改動；同步上游時這幾處要對照 |
 | `NOTICE` | 加 WOOWTECH 段落 | Apache-2.0 §4(d) |
 
-新增的檔案：`core/.../brand/Brand.kt`、`core/src/test/.../brand/BrandValuesTest.kt`、`app/brand.gradle.kts`、`app/src/woowtech/**`（含 `java/.../woowtech/BrandLicenses.kt`、`res/values*/strings_woowtech_licenses.xml`）、`app/src/upstream/java/.../woowtech/BrandLicenses.kt`、`tools/mika/tests/test_woowtech_package.py`、`.github/README.md`（repo 首頁）、`.github/workflows/woowtech.yml`、`docs-woowtech/**`、`woowtech/tools/**`。
+新增的檔案：`core/.../brand/Brand.kt`、`core/src/test/.../brand/BrandValuesTest.kt`、`app/brand.gradle.kts`、`app/src/woowtech/**`（含 `java/.../woowtech/BrandLicenses.kt`、`res/values*/strings_woowtech_licenses.xml`）、`app/src/upstream/java/.../woowtech/BrandLicenses.kt`、`tools/mika/tests/test_woowtech_package.py`、`core/src/test/.../brand/BrandStringsTest.kt`、`app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml`、`app/.../ui/ModelErrorCopy.kt`（＋`ModelErrorCopyTest.kt`）、`app/.../ui/ClipboardCopy.kt`（＋`ClipboardCopyTest.kt`）、`app/src/test/.../task/{ProgressNoteTest,TaskNotificationCopyTest}.kt`、`app/src/test/.../i18n/NotificationTextsTest.kt`、`.github/README.md`（repo 首頁）、`.github/workflows/woowtech.yml`、`docs-woowtech/**`、`woowtech/tools/**`。
 
 ## 刻意不改的
 
@@ -62,8 +93,12 @@
 
 - 電腦端的本機任務面板（`mika ui`，`tools/mika/scripts/mika_desk/`）介面仍寫 Mika、用上游圖示；連線已會找到品牌版。
 - `docs/` 裡其他上游文件（安裝、模型、常見問題等）沒有 WOOWTECH 版；App 內只連到已有 WOOWTECH 版的兩份。
-- 自檢回報的 issue 標題前綴是上游的「[兼容性]」（簡體用字），範本沿用同一個前綴。
 - `tools/mika/tests/phone_task_recovery.py`（真機手動測試腳本，不在 CI 裡）仍寫死上游套件名。
+- 聊天裡任務失敗的原因（core `StopRules.userReason`）仍是寫死的簡體；要先在 core 加結構化的失敗代碼，App 才能翻譯。
+- 付款關卡：用 `phone_*` 操作 Chrome 結帳頁時按 Enter 還沒涵蓋（這版只涵蓋內建瀏覽器 `web_*`）；申報被改判成付款時，要模型自己呼叫 `hand_to_user(reason=payment)` 才會出接手卡。
+- 無障礙服務連上後，服務與浮層的 Resources 仍可能是系統語言（服務內的 `getString`、浮層的 `stringResource`）；這版已把程序預設語言設回 App 語言。
+- 診斷資訊會寫出自訂服務商的完整主機名；自主模式一點就開、沒有確認（owner 決定保留功能）。
+- 繁中用詞還沒整批統一：重置、禁用、這臺／這台、半形標點。
 
 ## 發佈
 
