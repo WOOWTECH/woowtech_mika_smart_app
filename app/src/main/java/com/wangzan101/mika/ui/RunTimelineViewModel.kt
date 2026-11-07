@@ -129,7 +129,10 @@ class RunTimelineViewModel(
     companion object {
         const val SAID_MAX = 80
 
-        /** 按步号归组;没有步号的事件(核查、确认、接管、障碍)挂在它之前最近的一步上。 */
+        /**
+         * 按步号归组;没有步号的事件(核查、确认、接管、障碍)挂在它之前最近的一步上。
+         * WOOWTECH fork: 确认事件带着步号时挂在那一步上(见 [RunEvent.Confirmation.step])。
+         */
         internal fun steps(events: List<RunEvent>, toolLabel: (String) -> String = { it }): List<TimelineStep> {
             val rows = LinkedHashMap<Int, TimelineStep>()
             val modelTimes = mutableMapOf<Int, Long>()
@@ -137,7 +140,11 @@ class RunTimelineViewModel(
             val toolTimes = mutableMapOf<Int, MutableList<RunEvent.ToolResult>>()
             var current: Int? = null
             fun at(step: Int) = rows.getOrPut(step) { TimelineStep(step, "", null, null, null, emptyList(), null) }.also { current = step }
-            fun tag(t: Tag) { current?.let { s -> rows[s] = rows.getValue(s).let { it.copy(tags = it.tags + t) } } }
+            // WOOWTECH fork: 给了 [step] 就挂在那一步上(那一步还没有别的记录、正在等你回答时,先开出这一行)
+            fun tag(t: Tag, step: Int? = null) {
+                val s = step?.let { at(it).step } ?: current ?: return
+                rows[s] = rows.getValue(s).let { it.copy(tags = it.tags + t) }
+            }
             for (e in events) when (e) {
                 // 改派掉的轻量模型回复没执行,不进步骤;调用次数照算
                 is RunEvent.ModelReply -> {
@@ -184,6 +191,9 @@ class RunTimelineViewModel(
                         "declined_remote" -> Tag(tr(R.string.tag_remote_declined), TagTone.Bad)
                         else -> Tag(tr(R.string.tag_needs_ok), TagTone.Warn)
                     },
+                    // WOOWTECH fork: 申报、被拦下的那一步自己的回复和结果要等问完你才记,这条记在它们前面:
+                    // 按它带的步号挂,不挂到前一步上(前一步生效了,带着「你没同意」像是被拒绝的那一步做成了);旧记录没有步号
+                    e.step,
                 )
                 is RunEvent.Takeover -> tag(Tag(tr(R.string.tag_takeover), TagTone.Warn))
                 is RunEvent.Barrier -> tag(Tag(tr(R.string.tag_barrier), TagTone.Warn))

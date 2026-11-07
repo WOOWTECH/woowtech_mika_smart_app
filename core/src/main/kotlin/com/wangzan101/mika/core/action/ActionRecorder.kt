@@ -36,8 +36,9 @@ class ActionRecorder(
         }
     }
 
-    fun confirmation(hit: Irreversible, decision: String) =
-        event(RunEvent.Confirmation(clock(), hit.action.name, RunEvent.clip(Redactor.text(hit.matched)), null, null, decision))
+    // WOOWTECH fork: 带上这次调用所在的一步(见 RunEvent.Confirmation.step)
+    fun confirmation(origin: Origin, hit: Irreversible, decision: String) =
+        event(RunEvent.Confirmation(clock(), hit.action.name, RunEvent.clip(Redactor.text(hit.matched)), null, null, decision, origin.step))
 
     /**
      * 最近一次改了状态的动作(界面上改东西、对外、不可逆,或沙箱里的写操作;报了失败、也没说界面变了的不算)执行之前证据账本的位置;

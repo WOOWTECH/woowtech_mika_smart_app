@@ -270,20 +270,87 @@ class RunTimelineViewModelTest {
         assertEquals("没有完成", ui.header.outcome)
     }
 
-    // WOOWTECH fork: 电脑交来的任务里申报同意被直接拒绝(没有人被问过):标签和结果照实说,不写「要你同意」「你没有同意」
+    // WOOWTECH fork: 电脑交来的任务里申报同意被直接拒绝(没有人被问过):标签和结果照实说,不写「要你同意」「你没有同意」;
+    // 标签挂在申报的那一步上,前一步(真的点成了)只标它自己的结果
     @Test fun remoteRefusalIsNotShownAsTheUsersDecision() {
         val id = run("买耳机") {
             event(RunEvent.ModelReply(clock, 1, "", "phone_tap", """{"ref":"@e3"}""", null, null, null))
             event(RunEvent.ToolResult(clock, 1, "phone_tap", """{"ok":true}""", true, null))
-            // 申报在执行那一步时记下,那一步的回复执行完才记:标签挂在前一步上
-            event(RunEvent.Confirmation(clock, "order", "耳机店", "一副耳机", "¥25", "declined_remote"))
+            // 申报在执行那一步时记下,那一步的回复执行完才记:事件带着它的步号
+            event(RunEvent.Confirmation(clock, "order", "耳机店", "一副耳机", "¥25", "declined_remote", step = 2))
             event(RunEvent.ModelReply(clock, 2, "请你同意", "request_confirmation", """{"action":"order"}""", null, null, null))
             event(RunEvent.ToolResult(clock, 2, "request_confirmation", """{"ok":false,"error":"confirmation_remote","message":"x"}""", null, null))
             event(RunEvent.TaskEnded(clock, "failed", "不能下单"))
         }
         val (tap, ask) = ready(id).steps
-        assertEquals(listOf(Tag("从电脑交办的任务不能付款或下单", TagTone.Bad)), tap.tags)
+        assertEquals("生效" to emptyList<Tag>(), tap.result to tap.tags)
+        assertEquals(listOf(Tag("从电脑交办的任务不能付款或下单", TagTone.Bad)), ask.tags)
         assertEquals("出错:不能从电脑付款", ask.result)
+    }
+
+    /**
+     * WOOWTECH fork: 申报同意的那一步,问完你才记它的回复和结果,确认事件在它们前面。〔要你同意〕〔你没同意〕挂在申报的那一步上;
+     * 前一步填好了优惠码,真的生效了,只标生效,不带着「你没同意」让人以为被拒绝的下单做成了(11/07 模拟器 P8 第 9、10 步)。
+     */
+    @Test fun aDeclinedRequestIsTaggedOnTheStepThatAsked() {
+        val id = run("填优惠码后送出") {
+            event(RunEvent.ModelReply(clock, 9, "", "web_type_text", """{"ref":"@e7","text":"WOOW50"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 9, "web_type_text", """{"ok":true,"typed":6,"pressedEnter":false}""", true, null))
+            event(RunEvent.Activity(clock, 9, "act", "web_type_text", "网站 127.0.0.1", "small_change", callId = "t9"))
+            event(RunEvent.Confirmation(clock, "order", "测试商店", "优惠码 WOOW50,按 Enter 送出订单", "NT$790", null, step = 10))
+            event(RunEvent.Confirmation(clock, "order", "测试商店", "优惠码 WOOW50,按 Enter 送出订单", "NT$790", "declined", step = 10))
+            event(RunEvent.ModelReply(clock, 10, "", "request_confirmation", """{"action":"order"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 10, "request_confirmation", """{"ok":false,"error":"confirmation_declined","message":"x"}""", null, null))
+            event(RunEvent.TaskEnded(clock, "failed", "你没同意,没有送出"))
+        }
+        val (typed, ask) = ready(id).steps
+        assertEquals(9 to 10, typed.step to ask.step)
+        assertEquals("生效" to emptyList<Tag>(), typed.result to typed.tags)
+        assertEquals(listOf(Tag("要你同意", TagTone.Warn), Tag("你没同意", TagTone.Bad)), ask.tags)
+        assertEquals("出错:你没有同意", ask.result)
+    }
+
+    /** WOOWTECH fork: 被确认关卡拦下的那一步自己带〔要你同意〕;一批里第一步就被拦下时,那一步先由这条开出来。 */
+    @Test fun aBlockedStepCarriesItsOwnNeedsOkTag() {
+        val id = run("选 ATM 转账") {
+            event(RunEvent.ModelReply(clock, 7, "", "web_tap", """{"ref":"@e3"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 7, "web_tap", """{"ok":true}""", true, null))
+            event(RunEvent.Confirmation(clock, "pay", "ATM转账", null, null, "required", step = 8))
+            event(RunEvent.ModelReply(clock, 8, "", "do_steps", "{}", null, null, null))
+            event(RunEvent.ToolResult(clock, 8, "do_steps", """{"ok":false,"error":"confirmation_required","message":"x"}""", null, null))
+        }
+        val (tap, batch) = ready(id).steps
+        assertEquals("生效" to emptyList<Tag>(), tap.result to tap.tags)
+        assertEquals("出错:要先征得你同意" to listOf(Tag("要你同意", TagTone.Warn)), batch.result to batch.tags)
+    }
+
+    /** WOOWTECH fork: 还在等你回答时,申报那一步的回复和结果都还没记:先开出这一行挂〔要你同意〕,不挂到前一步。 */
+    @Test fun aRequestWaitingForYouShowsOnItsOwnStep() {
+        val h = store.open("买耳机")
+        store.append(h.runId, RunEvent.ModelReply(clock, 1, "", "web_tap", """{"ref":"@e3"}""", null, null, null))
+        store.append(h.runId, RunEvent.ToolResult(clock, 1, "web_tap", """{"ok":true}""", true, null))
+        store.append(h.runId, RunEvent.Confirmation(clock, "order", "测试商店", "一副耳机", "NT$590", null, step = 2))
+        val ui = RunTimelineViewModel(store, h.runId, alive = { it == h.runId }).load() as TimelineUi.Ready
+        assertTrue(ui.header.running)
+        val (tap, ask) = ui.steps
+        assertTrue(tap.tags.isEmpty())
+        assertEquals(2, ask.step)
+        assertEquals(listOf(Tag("要你同意", TagTone.Warn)), ask.tags)
+        assertNull(ask.result)
+    }
+
+    /** 旧记录里的确认事件没有步号:照旧挂在它之前最近的一步上。 */
+    @Test fun oldConfirmationsWithoutAStepStayOnTheStepBefore() {
+        val id = run("发消息") {
+            event(RunEvent.ModelReply(clock, 1, "", "phone_type_text", """{"text":"明天见"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 1, "phone_type_text", """{"ok":true}""", true, null))
+            event(RunEvent.Confirmation(clock, "send", "张三", "明天见", null, "approved"))
+            event(RunEvent.ModelReply(clock, 2, "", "request_confirmation", """{"action":"send"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 2, "request_confirmation", """{"ok":true,"approved":true}""", null, null))
+        }
+        val (typed, ask) = ready(id).steps
+        assertEquals(listOf(Tag("你同意了", TagTone.Ok)), typed.tags)
+        assertTrue(ask.tags.isEmpty())
     }
 
     @Test fun missingRunShowsExpired() {
