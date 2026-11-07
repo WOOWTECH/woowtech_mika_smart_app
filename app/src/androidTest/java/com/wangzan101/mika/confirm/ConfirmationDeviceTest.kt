@@ -94,9 +94,10 @@ class ConfirmationDeviceTest {
     fun notificationHasApproveDecline() {
         startAndRequest()
         val n = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
-        assertEquals("要你同意:下单", n.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        // WOOWTECH fork: 标题带金额,收起的一行金额排最前(横幅上的「同意」点一下就生效,金额不能被截掉)
+        assertEquals("要你同意:下单 ¥25", n.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         val text = n.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
-        assertTrue(text, text.startsWith("在 ") && "对象:测试项" in text && "内容:买测试项 第二行" in text && "金额:¥25" in text)
+        assertTrue(text, text.startsWith("金额:¥25 · 在 ") && "对象:测试项" in text && "内容:买测试项 第二行" in text)
         assertEquals(listOf("同意", "不同意"), n.actions.map { it.title.toString() })
         // 和接管同一个频道。建频道时是高优先级;用户或系统之后可能调低(App 改不回来),这里只要求不低于默认,并记下实际级别
         assertEquals(TaskService.CHANNEL_ATTENTION, n.channelId)
@@ -108,6 +109,8 @@ class ConfirmationDeviceTest {
         // 通用提示里本来就有「对象」两个字,要查的是具体的对象和内容没露出来
         val publicText = n.publicVersion.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
         assertTrue(publicText, "测试项" !in publicText && "第二行" !in publicText)
+        // WOOWTECH fork: 锁屏的公开版本标题照旧只有动作,不带金额
+        assertEquals("要你同意:下单", n.publicVersion.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         // 系统通知列表里也看得到这两个按钮
         val dump = sh("dumpsys notification --noredact")
         assertTrue("buttons not in dumpsys notification", "同意" in dump && "不同意" in dump)
@@ -168,7 +171,8 @@ class ConfirmationDeviceTest {
         // 换一类动作再申报一次(同类同 App 被拒过就不会再问)
         model.feed("request_confirmation", """{"action":"submit","target":"测试项","content":"提交测试项","amount":"¥25","app":"$SETTINGS"}""")
         awaitState { it is TaskState.WaitingConfirmation && it.request.action.name == "submit" }
-        pollUntil(5_000) { attention()?.takeIf { it.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == "要你同意:提交" } }
+        // WOOWTECH fork: 标题带金额
+        pollUntil(5_000) { attention()?.takeIf { it.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == "要你同意:提交 ¥25" } }
         runCatching { firstApprove.send() } // 旧按钮可能已被系统作废,作废也算通过
         Thread.sleep(1_500)
         assertTrue(DeviceTaskState.state.value.toString(), DeviceTaskState.state.value is TaskState.WaitingConfirmation)
