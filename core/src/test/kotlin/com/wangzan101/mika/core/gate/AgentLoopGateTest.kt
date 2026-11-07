@@ -38,6 +38,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import com.wangzan101.mika.core.assembly.toolDispatcher
+import com.wangzan101.mika.core.cap.web.FakeWebPort
+import com.wangzan101.mika.core.tool.FakeScreen
 
 /**
  * 和张三的聊天页:标题、输入框、右下角按钮,聊天里有一笔要付的「转账 ¥25」:屏上有应付金额,这里的「提交订单」就要花钱,询问时要先同意。
@@ -278,6 +280,37 @@ class AgentLoopGateTest {
         assertEquals("confirmation_required", b.result(2).s("error"))
         assertEquals("payment_requires_takeover", b.result(3).s("error"))
         assertTrue(single.taps.isEmpty() && batched.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 测试商店 P8:网页结帐表单的优惠码栏里回车会直接送出订单:按下单拦下,用户同意后这一下回车才按下去
+    @Test fun enterInAWebCheckoutFieldWaitsForApproval() = runTest {
+        val web = FakeWebPort().apply {
+            elements = listOf(
+                UiElement("@e1", "text", "渥屋測試商店", 540, 100, listOf(0, 20, 300, 60), null, false, false, false),
+                UiElement("@e2", "text", "應付金額 NT$790", 540, 780, listOf(310, 306, 690, 340), null, false, false, false),
+                UiElement("@e3", "textbox", "優惠碼", 540, 980, listOf(310, 386, 690, 434), null, false, true, false, focused = true),
+                UiElement("@e4", "button", "送出訂單", 540, 1220, listOf(310, 480, 690, 537), null, true, false, false),
+            )
+        }
+        val enter = call("web_type_text", """{"text":"WOOW50","ref":"@e3","snapshotId":"wt1-1","pressEnter":true}""")
+        val m = FakeModel(
+            tools(call("web_navigate", """{"url":"https://shop.example.com/checkout"}""")),
+            tools(call("web_observe")),
+            tools(enter),
+            tools(call("request_confirmation", """{"action":"order","target":"渥屋測試商店","content":"行動電源 × 1","amount":"NT$790","app":"shop.example.com"}""")),
+            tools(enter.copy(id = "again")),
+            tools(call("web_observe")),
+            FINISH,
+        )
+        val l = AgentLoop(m, toolDispatcher(FakeScreen(), web = web), "BASE", confirmations = ConfirmationGate())
+        val run = async { l.run("t") }
+        advanceUntilIdle()
+        assertEquals("confirmation_required", m.result(3).s("error")); assertEquals("order", m.result(3).s("action"))
+        assertTrue(web.calls.toString(), web.calls.none { it.startsWith("type") })
+        assertTrue("${l.state.value}", l.state.value is TaskState.WaitingConfirmation)
+        l.answerConfirmation(true)
+        run.await()
+        assertTrue(web.calls.toString(), web.calls.any { it.startsWith("type @e3") })
     }
 
     @Test fun cancelWhileWaitingConfirmation() = runTest {

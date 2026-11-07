@@ -144,6 +144,8 @@ object IrreversibleDetector {
     /** 输入框明确是搜索框才不算发送:其余输入框里回车一律按发送拦。提示语里找这些字,资源 ID 里按单词找 search。 */
     private val SEARCH_FIELD = listOf("search", "搜索", "搜寻")
     private val SEARCH_BUTTONS = setOf("搜索", "搜寻", "search")
+    /** WOOWTECH fork: 网页表单里回车替表单按下的花钱的键,按这个先后取(有付款键就按付款)。 */
+    private val FORM_SUBMITS = listOf(IrrevAction.pay, IrrevAction.order, IrrevAction.submit)
 
     private const val KEY_ENTER = 66
     private const val KEY_NUMPAD_ENTER = 160
@@ -564,6 +566,7 @@ object IrreversibleDetector {
      * 回车、确认键、空格作用在焦点上:焦点是输入框时,除非明确是搜索框,一律按发送算(空格只是打字,不算);
      * 焦点是按钮时按词表判;看不出焦点在哪时,屏上的输入框全是搜索框才放行,否则算命中。
      * type_text 给了 ref 时,作用的就是那个输入框。输入法的「搜索」回车键类型读不到,不作依据。
+     * 网页上要花钱的表单里回车按点它的送出键判(见 [formSubmit])。
      */
     private fun enterHit(args: JsonObject, snapshot: ScreenSnapshot?, s: ScreenSnapshot?, key: Int): Irreversible? {
         val keyName = if (key == KEY_SPACE) "空格" else "回车"
@@ -574,13 +577,28 @@ object IrreversibleDetector {
         if (focused != null) {
             if (focused.editable) {
                 if (key == KEY_SPACE || isSearch(focused, s ?: snapshot)) return null
-                return Irreversible(IrrevAction.send, "$keyName:${label(focused)}")
+                val enter = "$keyName:${label(focused)}"
+                return (s ?: snapshot)?.let { formSubmit(it, focused, enter) } ?: Irreversible(IrrevAction.send, enter)
             }
             return (s ?: snapshot)?.let { elementHit(focused, it) }
         }
         val fields = s?.elements?.filter { it.editable }.orEmpty()
         if (fields.isNotEmpty() && fields.all { isSearch(it, s) }) return null
-        return Irreversible(IrrevAction.send, "$keyName:焦点不明")
+        val unknown = "$keyName:焦点不明"
+        return s?.takeIf { key != KEY_SPACE }?.let { formSubmit(it, null, unknown) } ?: Irreversible(IrrevAction.send, unknown)
+    }
+
+    /**
+     * WOOWTECH fork: 网页上在输入框里按回车,浏览器会替表单按下它的送出键(隐式提交,测试商店 P8 在优惠码栏回车就直接下单了)。
+     * 这一页有应付金额(合计、付款字样、付款面板)、又有花钱的键(付款、下单、提交)时,回车按点那个键判,询问时要先同意;
+     * 有付款键时按付款。同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 的输入框,都照旧按发送。
+     */
+    private fun formSubmit(s: ScreenSnapshot, field: UiElement?, enter: String): Irreversible? {
+        if (s.web == null || !hasPayableAmount(s)) return null
+        if (field != null && ElementContext.row(field, s).any { b -> b.clickable && !b.editable && sendLike(b.name) }) return null
+        val hits = s.elements.filter { it.clickable && !it.editable }.mapNotNull { elementHit(it, s) }
+        val hit = FORM_SUBMITS.firstNotNullOfOrNull { a -> hits.firstOrNull { it.action == a } } ?: return null
+        return Irreversible(hit.action, "$enter→${hit.matched}")
     }
 
     /**

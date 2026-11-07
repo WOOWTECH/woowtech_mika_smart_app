@@ -3,6 +3,7 @@ package com.wangzan101.mika.core.gate
 import com.wangzan101.mika.core.risk.IrrevAction
 import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.uistate.UiElement
+import com.wangzan101.mika.core.uistate.WebInfo
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -767,5 +768,49 @@ class IrreversibleDetectorTest {
         assertNull(d.paymentPage(product))
         assertFalse(d.hasPayableAmount(product))
         assertEquals(IrrevAction.order, d.classify("phone_tap", args("""{"ref":"@e3","snapshotId":"s1"}"""), product)?.action)
+    }
+
+    private fun web(vararg e: UiElement) =
+        ScreenSnapshot("s1", "127.0.0.1", e.toList(), 1080, 2400, web = WebInfo("http://127.0.0.1:18765/checkout/pickup", "訂單明細", "t1", 200))
+
+    // WOOWTECH fork: 网页表单里回车会替表单按下送出键(测试商店 P8:在优惠码栏回车,不经同意就下单了)。
+    // 有应付金额、有花钱的键的网页上,回车按点那个键判
+    @Test fun enterInAWebCheckoutFormIsLikeItsSubmit() {
+        val enter = args("""{"text":"WOOW50","pressEnter":true}""")
+        val pickup = web(
+            el("@e1", "應付金額 NT$790", listOf(310, 306, 690, 340), clickable = false),
+            el("@e2", "優惠碼", listOf(310, 352, 690, 382), clickable = false),
+            el("@e3", "優惠碼", listOf(310, 386, 690, 434), editable = true, focused = true),
+            el("@e4", "送出訂單", listOf(310, 480, 690, 537)),
+            el("@e5", "返回修改", listOf(310, 550, 690, 610)),
+        )
+        assertEquals(Irreversible(IrrevAction.order, "回车:優惠碼→送出訂單"), d.classify("web_type_text", enter, pickup))
+        assertEquals(IrrevAction.order, d.classify("web_type_text", args("""{"text":"WOOW50","pressEnter":true,"ref":"@e3","snapshotId":"s1"}"""), pickup)?.action)
+        assertEquals(IrrevAction.order, d.classify("web_interact", args("""{"action":"key","key":"Enter"}"""), pickup)?.action)
+        // 看不出焦点在哪也一样
+        val unfocused = web(*pickup.elements.map { it.copy(focused = false) }.toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_type_text", enter, unfocused)?.action)
+        // 只打字、在输入框里按空格:不判
+        assertNull(d.classify("web_type_text", args("""{"text":"WOOW50","ref":"@e3","snapshotId":"s1"}"""), pickup))
+        assertNull(d.classify("web_interact", args("""{"action":"key","key":"Space"}"""), pickup))
+        // 有付款键时按付款
+        val pay = web(*(pickup.elements + el("@e6", "確認付款", listOf(310, 620, 690, 677))).toTypedArray())
+        assertEquals(IrrevAction.pay, d.classify("web_type_text", enter, pay)?.action)
+    }
+
+    // WOOWTECH fork: 搜索框、和发送键同一行的留言框、没有应付金额或没有花钱键的网页、手机 App 的输入框:回车照旧
+    @Test fun enterOutsideAWebSpendingFormIsUnchanged() {
+        val enter = args("""{"text":"x","pressEnter":true}""")
+        val total = el("@e1", "合計 NT$790", listOf(0, 700, 999, 760), clickable = false)
+        val order = el("@e4", "送出訂單", listOf(310, 800, 690, 860))
+        val search = el("@e2", "藍牙耳機", listOf(0, 20, 800, 80), editable = true, focused = true).copy(searchField = true)
+        assertNull(d.classify("web_type_text", enter, web(search, total, order)))
+        val chat = el("@e2", "留言", listOf(0, 600, 790, 660), editable = true, focused = true)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(chat, el("@e3", "傳送", listOf(800, 600, 990, 660)), total, order))?.action)
+        val note = el("@e2", "備註", listOf(0, 300, 999, 360), editable = true, focused = true)
+        val price = el("@e1", "NT$790", listOf(0, 700, 999, 760), clickable = false)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(note, price, el("@e4", "立即購買", listOf(310, 800, 690, 860))))?.action)
+        assertEquals(IrrevAction.send, d.classify("web_type_text", enter, web(note, total))?.action)
+        assertEquals(IrrevAction.send, d.classify("phone_type_text", enter, snap(note, total, order))?.action)
     }
 }
