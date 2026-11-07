@@ -1,9 +1,15 @@
 package com.wangzan101.mika.task
 
+import com.wangzan101.mika.confirm.ConfirmationCopy
 import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.core.cap.root.ROOT_CONFIRM_APP
+import com.wangzan101.mika.core.gate.ConfirmationRequest
+import com.wangzan101.mika.core.risk.IrrevAction
 import com.wangzan101.mika.i18n.ChineseTexts
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -31,5 +37,20 @@ class TaskNotificationCopyTest {
         // 本来就是纯文字的原样
         assertEquals("该喝水啰!\n记得起来走走", TaskService.notificationText("该喝水啰!\n记得起来走走"))
         assertEquals("", TaskService.notificationText(""))
+    }
+
+    /**
+     * 等你同意时,进度通知的摘要和确认通知一样照 [ConfirmationCopy] 原样,不当 Markdown 转:
+     * 实体还原不出「·」「:」拼假的金额字段,root 命令里的星号不被当成斜体吃掉。别的状态照样去掉 Markdown 符号。
+     */
+    @Test fun confirmationSummaryIsNotMarkdown() {
+        val order = ConfirmationRequest(IrrevAction.order, "店", "耳机 &middot; 金额&#58;¥0", "¥2500", "com.shop")
+        val shown = TaskService.progressText(TaskState.WaitingConfirmation(order))
+        assertEquals(ConfirmationCopy.body(order, "com.shop"), shown)
+        assertFalse(shown, "金额:¥0" in shown)
+        val root = ConfirmationRequest(IrrevAction.other, "", "rm /a/*.apk /b/*.tmp", null, ROOT_CONFIRM_APP)
+        val command = TaskService.progressText(TaskState.WaitingConfirmation(root))
+        assertTrue(command, "rm /a/*.apk /b/*.tmp" in command)
+        assertEquals("要哪一款?", TaskService.progressText(TaskState.WaitingInput("要**哪一款**?")))
     }
 }

@@ -627,8 +627,8 @@ class TaskService : Service() {
     }
 
     private fun progressNotification(run: TaskRun, state: TaskState): Notification {
-        // WOOWTECH fork: 模型写的说明、提问去掉 Markdown 符号
-        val text = notificationText(describe(state) { ConfirmationNotifier.appLabel(this, it) }.second)
+        // WOOWTECH fork: 模型写的说明、提问去掉 Markdown 符号;确认摘要照原样(见 progressText)
+        val text = progressText(state) { ConfirmationNotifier.appLabel(this, it) }
         val warning = run.muteFailedFor?.let { "\n" + tr(R.string.task_may_make_sound) }.orEmpty() +
             (if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) "\n$TAKEOVER_QUEUED" else "")
         val b = Notification.Builder(this, CHANNEL_PROGRESS)
@@ -883,6 +883,16 @@ class TaskService : Service() {
          */
         internal fun notificationText(markdown: String): String =
             MarkdownModel.toPlainText(markdown).replace("\t", " · ").replace("**", "")
+
+        /**
+         * WOOWTECH fork: 进度通知的正文:[describe] 的正文去掉 Markdown 符号([notificationText])。等你同意时不转:
+         * 确认摘要是 [ConfirmationCopy] 消毒过的纯文字(不解析任何标记),当 Markdown 转时 `&middot;`、`&#58;` 一类实体
+         * 会还原成它特意换掉的「·」「:」,拼出假的「· 金额:」字段;root 命令里的 `*`、反斜杠也会被吃掉,显示的命令和要同意的不一样。
+         */
+        internal fun progressText(state: TaskState, appLabel: (String) -> String = { it }): String {
+            val text = describe(state, appLabel).second
+            return if (state is TaskState.WaitingConfirmation) text else notificationText(text)
+        }
 
         /** 追问等回答的时限:交给 AgentLoop,通知和卡片上写的分钟数也从这里来。 */
         const val INPUT_TIMEOUT_MS = AgentLoop.DEFAULT_INPUT_TIMEOUT_MS
