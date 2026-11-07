@@ -46,6 +46,14 @@ open class BrandValues(private val props: Properties) {
     val uiLanguages: List<String> =
         props.getProperty("ui.languages")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
 
+    /** 「复制诊断信息」的第一行(用户会贴到 issue 里);没设为 null,用上游那句、换上产品名。 */
+    val diagnosticsHeader: String? = optional("diagnostics.header")
+
+    /** 自检「去 GitHub 回报」预填的问题标题前缀;没设为 null,用上游的。要和 .github/ISSUE_TEMPLATE/device-report.yml 的 title 一致。 */
+    val issueTitlePrefix: String? = optional("issue.title.prefix")
+
+    private fun optional(key: String): String? = props.getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+
     /** 配色(ARGB 十六进制,如 FF4069FB);没设时用 [upstream]。 */
     fun argb(key: String, upstream: Long): Long =
         props.getProperty(key)?.trim()?.removePrefix("#")?.toLongOrNull(16) ?: upstream

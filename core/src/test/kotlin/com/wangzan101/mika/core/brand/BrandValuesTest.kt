@@ -3,6 +3,7 @@ package com.wangzan101.mika.core.brand
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -24,6 +25,9 @@ class BrandValuesTest {
         assertEquals("https://api.github.com/repos/wangzan101/Mika/releases/latest", upstream.latestReleaseApi)
         assertEquals("Open Mika once", upstream.text("Open Mika once"))
         assertEquals("You are Mika, the user's assistant", upstream.prompt(BrandValues.IDENTITY, "You are Mika, the user's assistant"))
+        // 没设的文字为 null:调用处用上游原值
+        assertNull(upstream.diagnosticsHeader)
+        assertNull(upstream.issueTitlePrefix)
         // core 的单测不带 brand.properties,所以全局的 Brand 也是上游原值
         assertFalse(Brand.branded)
     }
@@ -80,5 +84,16 @@ class BrandValuesTest {
         assertTrue(b.latestReleaseApi, b.latestReleaseApi.startsWith("https://api.github.com/repos/") && "wangzan101" !in b.latestReleaseApi)
         assertTrue(b.repo, b.repo.startsWith("https://github.com/") && "wangzan101" !in b.repo)
         assertTrue(props.getProperty("prompt.append.${BrandValues.IDENTITY}").orEmpty().isNotBlank())
+    }
+
+    /** 用户会贴到 GitHub 的文字(诊断信息抬头、自检回报的标题前缀)写繁中;前缀和 issue 范本的 title 一致。 */
+    @Test
+    fun woowtechIssueTextIsTraditionalChinese() {
+        val props = Properties().apply { File("../app/src/woowtech/resources/brand.properties").reader(Charsets.UTF_8).use(::load) }
+        val b = BrandValues(props)
+        assertEquals("渥屋助理診斷資訊 / woowtech agent diagnostics", b.diagnosticsHeader)
+        assertEquals("[相容性]", b.issueTitlePrefix)
+        val template = File("../.github/ISSUE_TEMPLATE/device-report.yml").readLines()
+        assertTrue(template.joinToString("\n"), "title: \"${b.issueTitlePrefix} \"" in template)
     }
 }

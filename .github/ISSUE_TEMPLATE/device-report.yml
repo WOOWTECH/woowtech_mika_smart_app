@@ -1,7 +1,8 @@
 # WOOWTECH fork: 渥屋助理的版本（繁中＋英文）。檔名與欄位 id 不能改：App 的「去 GitHub 回報」會開 ?template=device-report.yml。
+# title 要和 app/src/woowtech/resources/brand.properties 的 issue.title.prefix 一致（App 預填的標題用它）。
 name: 機型相容性回報 / Device compatibility report
 description: 貼上渥屋助理「相容性自我檢查」的報告，告訴我們這支手機上哪些能用 / Paste the report from woowtech agent's compatibility self-check and tell us what works on your phone
-title: "[兼容性] "
+title: "[相容性] "
 body:
   - type: markdown
     attributes:
