@@ -25,6 +25,7 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Apps | Apporo smart | Show available paired sessions; no task sent until selected |
 | Login | User handoff | Actual target server / app login is shown; no credentials enter logs or reports |
 | Browser | Research | Read two sources, compare facts, preserve source links |
+| Shopping | momo, Shopee and PChome | Run [shopping acceptance](SHOPPING-ACCEPTANCE.md); independently verify visible prices and distinguish blocked searches from successful handoffs |
 | Files | Compute and export | Calculate known values, export to Apporo Assistant Downloads folder, reopen file |
 | Memory | Learn and remove | Confirm a harmless preference, observe reuse, remove it |
 | Schedule | Permissions | Test granted and denied exact-alarm access; report actual due and delivery times |
