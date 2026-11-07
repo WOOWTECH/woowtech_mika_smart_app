@@ -72,6 +72,19 @@ class MemoryToolsTest {
         assertEquals("先比价再下单", store.items.value[1].source.quote!!.trim())
     }
 
+    @Test fun englishPreferencePreservesUserWordsAndRejectsAddedSpecifics() {
+        val store = memStore()
+        val quote = "I prefer metric units when presenting measurements."
+        val d = dispatcher(store, UserUtterances().apply { add("Please remember: $quote") })
+        fun args(content: String) = buildJsonObject {
+            put("kind", "preference"); put("content", content); put("quote", quote)
+        }
+        assertEquals("true", d.run("memory_save", args(quote)).s("ok"))
+        assertEquals(quote, store.items.value.single().content)
+        assertEquals("content_not_from_user", d.run("memory_save", args("I prefer metric units at Acme." )).s("error"))
+        assertEquals(1, store.items.value.size)
+    }
+
     @Test fun quoteFromScreenRejected() {
         val screen = object : ScreenPort by FakeScreen() {
             override suspend fun snapshot() = ScreenSnapshot("s1", "com.x",
