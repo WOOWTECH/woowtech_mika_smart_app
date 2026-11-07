@@ -965,14 +965,17 @@ private fun StatusCard(
         is ExchangeStatus.NeedsInput -> {
             val options = status.options.orEmpty()
             val note = stringResource(R.string.no_answer_note, TaskService.INPUT_TIMEOUT_MINUTES)
+            val cancel = stringResource(R.string.action_cancel_task)
             NeedCard(
                 stringResource(R.string.input_title), stringResource(R.string.chat_input_body, status.prompt, note),
+                // WOOWTECH fork: 有选项时也能取消任务(上游这时没有取消,输入栏也没有停止,只能回答或等超时);
+                // 和接管卡一样放在最下面一行小字,不和选项混在一起
+                footer = if (options.isEmpty()) null else ({ TextLink(cancel, vm::cancel) }),
                 options = if (options.isEmpty()) null else ({
                     options.forEach { o -> MikaButton(o, { vm.answer(o) }, Modifier.fillMaxWidth(), kind = ButtonKind.Tonal, size = ButtonSize.Medium) }
                 }),
-            ) {
-                if (options.isEmpty()) CardButton(stringResource(R.string.action_cancel_task), onClick = vm::cancel)
-            }
+                buttons = if (options.isEmpty()) ({ CardButton(cancel, onClick = vm::cancel) }) else null,
+            )
         }
         // 只有花钱的操作要你同意,每次只同意这一次
         is ExchangeStatus.NeedsConfirmation -> NeedCard(status.title, status.body + "\n" + ConfirmationCopy.NOTE) {
