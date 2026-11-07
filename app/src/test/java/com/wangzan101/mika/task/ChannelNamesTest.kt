@@ -82,4 +82,15 @@ class ChannelNamesTest {
         val own = code(sources.single { it.name == "ChannelNames.kt" })
         assertFalse(own, Regex("""(?i)importance|vibration|setSound|setShowBadge|enableLights|setBypassDnd|setGroup|setLockscreen""").containsMatchIn(own))
     }
+
+    /**
+     * 启动、进程配置变了、App 内换语言(安卓 13 起和 12 及以前两个分支各一次)都调改名;同步上游时这几行容易被改掉。
+     * 安卓 13 起进程里有无障碍服务时,系统不会为 App 语言换了通知进程,所以 [com.wangzan101.mika.i18n.AppLanguage.set] 里那两次不能省。
+     */
+    @Test fun namesAreRefreshedAtStartAndWhenTheLanguageChanges() {
+        val call = Regex("""\bChannelNames\.refresh\(""")
+        fun calls(file: String) = call.findAll(code(sources.single { it.name == file })).count()
+        assertEquals(2, calls("MikaApp.kt"))
+        assertEquals(2, calls("AppLanguage.kt"))
+    }
 }

@@ -9,6 +9,7 @@ import android.content.res.Resources
 import android.icu.util.ULocale
 import android.os.Build
 import android.os.LocaleList
+import com.wangzan101.mika.task.ChannelNames
 import java.util.Locale
 
 /**
@@ -90,6 +91,8 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
                     language.tag?.let(LocaleList::forLanguageTags) ?: LocaleList.getEmptyLocaleList()
                 // WOOWTECH fork: 进程的默认语言马上跟着换:无障碍服务在跑时系统不再替进程换(见 [applyDefaultLocale])
                 LocaleList.setDefault(language.tag?.let(LocaleList::forLanguageTags) ?: Resources.getSystem().configuration.locales)
+                // WOOWTECH fork: 已有的通知频道名也马上换成这个语言的(无障碍服务在跑时,系统不会为这次换语言通知进程;见 [ChannelNames])
+                ChannelNames.refresh(context)
                 return
             }
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_TAG, language.tag).commit()
@@ -97,6 +100,8 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
             legacyLoaded = true
             cached = null
             applyDefaultLocale(context)
+            // WOOWTECH fork: 安卓 12 及以前语言只记在本地,系统不知道换了;已有的通知频道名在这里换成这个语言的(见 [ChannelNames])
+            ChannelNames.refresh(context)
             context.activity()?.recreate()
         }
 
