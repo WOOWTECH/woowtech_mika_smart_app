@@ -187,6 +187,11 @@ object IrreversibleDetector {
     private val SELECTION_ROLES = setOf("combobox", "listbox", "option", "radio", "radiogroup", "menu", "menubar", "menuitem",
         "menuitemradio", "menuitemcheckbox", "tree", "treeitem")
     private val OPTION_ROLES = setOf("option", "radio", "menuitem", "menuitemradio", "menuitemcheckbox", "treeitem")
+    /**
+     * WOOWTECH fork: 网页表单里回车不会替表单按下的控件(隐式提交只按送出键):选择类控件、勾选框、开关。
+     * 手机读屏的角色是类名短名(RadioButton、CheckBox、Switch、Spinner),比较时转小写。要声明在 [SELECTION_ROLES] 之后。
+     */
+    private val NOT_SUBMITTERS = SELECTION_ROLES + setOf("checkbox", "switch", "radiobutton", "spinner")
 
     /** 这次调用要不要判(要判才去读屏)。 */
     fun needsCheck(target: GateTarget?, args: JsonObject): Boolean = when (target) {
@@ -600,14 +605,15 @@ object IrreversibleDetector {
      * WOOWTECH fork: 网页上在输入框里按回车,浏览器会替表单按下它的送出键(隐式提交,测试商店 P8 在优惠码栏回车就直接下单了)。
      * 网页:内置浏览器,用 phone_* 操作的浏览器 App,或输入框在 App 里的 WebView 里(手机读屏的角色是类名短名,见 ScreenReader)。
      * 这一页有应付金额(合计、付款字样、付款面板)、又有花钱的键(付款、下单、提交)时,回车按点那个键判,询问时要先同意;
-     * 有付款键时按付款。同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 自己的输入框,都照旧按发送。
+     * 有付款键时按付款;单选、勾选、下拉([NOT_SUBMITTERS])不是送出键,付款方式的单选「ATM转账」不会让回车成了付款。
+     * 同一行有发送键的输入框是发消息的框,没有应付金额的网页(聊天、留言、搜索结果)和手机 App 自己的输入框,都照旧按发送。
      */
     private fun formSubmit(s: ScreenSnapshot, field: UiElement?, enter: String): Irreversible? {
         val webPage = s.web != null || s.packageName in BROWSER_PACKAGES ||
             (field != null && s.elements.any { it.role == "WebView" && inside(field, it) })
         if (!webPage || !hasPayableAmount(s)) return null
         if (field != null && ElementContext.row(field, s).any { b -> b.clickable && !b.editable && sendLike(b.name) }) return null
-        val hits = s.elements.filter { it.clickable && !it.editable }.mapNotNull { elementHit(it, s) }
+        val hits = s.elements.filter { it.clickable && !it.editable && it.role.lowercase() !in NOT_SUBMITTERS }.mapNotNull { elementHit(it, s) }
         val hit = FORM_SUBMITS.firstNotNullOfOrNull { a -> hits.firstOrNull { it.action == a } } ?: return null
         return Irreversible(hit.action, "$enter→${hit.matched}")
     }

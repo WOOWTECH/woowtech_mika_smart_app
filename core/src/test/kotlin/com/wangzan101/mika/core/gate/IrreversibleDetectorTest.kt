@@ -800,6 +800,12 @@ class IrreversibleDetectorTest {
         // 有付款键时按付款
         val pay = web(*(pickup.elements + el("@e6", "確認付款", listOf(310, 620, 690, 677))).toTypedArray())
         assertEquals(IrrevAction.pay, d.classify("web_type_text", enter, pay)?.action)
+        // 单选、勾选不是送出键:付款方式单选「ATM轉帳」、勾选「使用 LINE Pay 付款」在旁边,回车仍按送出訂單判(询问时要先同意,不是只能接手)
+        val methods = web(*(pickup.elements + listOf(
+            UiElement("@e7", "radio", "ATM轉帳", 0, 0, listOf(310, 620, 340, 650), null, true, false, false),
+            UiElement("@e8", "checkbox", "使用 LINE Pay 付款", 0, 0, listOf(310, 660, 340, 690), null, true, false, false),
+        )).toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_type_text", enter, methods)?.action)
     }
 
     // WOOWTECH fork: 用 phone_* 操作 Chrome 一类的浏览器 App、App 里的 WebView 时,网页表单一样会隐式提交:回车照样按点送出键判
@@ -810,6 +816,9 @@ class IrreversibleDetectorTest {
         val order = el("@e4", "送出訂單", listOf(310, 800, 690, 860))
         val chrome = ScreenSnapshot("s1", "com.android.chrome", listOf(total, note, order), 1080, 2400)
         assertEquals(Irreversible(IrrevAction.order, "回车:備註→送出訂單"), d.classify("phone_type_text", enter, chrome))
+        // 手机读屏的单选是类名短名(RadioButton):付款方式单选同样不是送出键
+        val atm = UiElement("@e5", "RadioButton", "ATM轉帳", 0, 0, listOf(310, 620, 340, 650), null, true, false, false)
+        assertEquals(IrrevAction.order, d.classify("phone_type_text", enter, chrome.copy(elements = chrome.elements + atm))?.action)
         // App 里的 WebView(手机读屏的角色是类名短名):框在 WebView 里才算网页,App 自己的输入框照旧按发送
         val webView = UiElement("@e9", "WebView", "訂單明細", 0, 0, listOf(0, 100, 999, 999), null, false, false, true)
         assertEquals(IrrevAction.order, d.classify("phone_type_text", enter, snap(webView, total, note, order))?.action)
