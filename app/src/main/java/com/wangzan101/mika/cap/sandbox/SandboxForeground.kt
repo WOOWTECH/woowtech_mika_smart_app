@@ -32,7 +32,7 @@ open class SandboxForeground : Service() {
     override fun onCreate() {
         super.onCreate()
         getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(CHANNEL, tr(R.string.notif_channel_prepare), NotificationManager.IMPORTANCE_MIN))
+            .createNotificationChannel(NotificationChannel(CHANNEL, CHANNEL_NAME, NotificationManager.IMPORTANCE_MIN))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -68,7 +68,9 @@ open class SandboxForeground : Service() {
         .build()
 
     companion object {
-        private const val CHANNEL = "runtime_prepare"
+        // WOOWTECH fork: internal,ChannelNames 要按语言给已有的这个频道改名;名字也只在 CHANNEL_NAME 一处取(建频道和改名用同一个)
+        internal const val CHANNEL = "runtime_prepare"
+        internal val CHANNEL_NAME: String get() = tr(R.string.notif_channel_prepare)
         private const val ID = 20
 
         /** 进入前台、等 [RuntimePreparer] 当前的准备结束。只由 [RuntimePreparer] 调用。 */
