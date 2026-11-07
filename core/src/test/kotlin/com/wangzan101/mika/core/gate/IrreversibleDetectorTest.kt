@@ -756,11 +756,12 @@ class IrreversibleDetectorTest {
     // 同屏的通用「確定」也就跟着成了付款
     @Test fun longPaymentMethodListsAreAds() {
         for (w in listOf("支援 LINE Pay、街口支付付款", "支援 LINE Pay、街口支付", "支援 Apple Pay、Google Pay、LINE Pay、街口支付、全支付付款",
-            "支持微信、支付寶付款")) {
+            "支持微信、支付寶付款", "支援 LINE Pay、街口支付付款")) {
             assertNull(w, d.matchName(w))
         }
-        // 动作字、句读后面的付款键照常算
-        for (w in listOf("支援 Apple Pay 立即付款", "支援 LINE Pay、街口支付付款 立即付款", "感謝支持！立即付款", "使用 LINE Pay 付款")) {
+        // 动作字、句读后面的付款键照常算;介绍只跨挨着英文字的空白,别的空白后面的付款键也照常算
+        for (w in listOf("支援 Apple Pay 立即付款", "支援 LINE Pay、街口支付付款 立即付款", "感謝支持！立即付款", "使用 LINE Pay 付款",
+            "支持微信支付 支付¥39.9", "支持作者 支付 ¥6", "本店支援 LINE Pay 付款 點此付款", "感謝您的支持 支付 NT$100")) {
             assertEquals(w, IrrevAction.pay, d.matchName(w))
         }
         val product = snap(
