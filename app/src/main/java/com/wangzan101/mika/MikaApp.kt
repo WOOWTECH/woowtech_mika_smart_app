@@ -9,6 +9,7 @@ import com.wangzan101.mika.i18n.AppLanguage
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.ui.ChatCopy
 import android.app.Application
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import com.wangzan101.mika.chat.AndroidBranchWorkspace
@@ -364,5 +365,12 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             val state = SandboxState.get(this@MikaApp)
             runCatching { SkillsSync.sync(SandboxDirs(this@MikaApp)) { state.status.value is SandboxStatus.Ready } }
         }
+    }
+
+    // WOOWTECH fork: 进程配置一变(无障碍服务连上时系统会把进程配置换回系统语言),就把进程的默认语言设回 App 语言,
+    // 不然排版和全形标点按系统语言,见 AppLanguage.applyDefaultLocale
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        AppLanguage.applyDefaultLocale(this)
     }
 }
