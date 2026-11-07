@@ -68,6 +68,7 @@
     <string name="task_not_done">Tarefa não concluída</string>
     <string name="task_stopped">Tarefa interrompida</string>
     <string name="task_stopped_body">Você interrompeu esta tarefa</string>
+    <string name="task_stopped_remote_body">Esta tarefa foi interrompida pelo computador</string>
     <string name="gate_user_on_page">Você está usando a página, então o Mika pausou</string>
     <string name="task_no_phone_helper_usb">O assistente do celular parou (geralmente depois que o celular reinicia). Abra o Mika e execute de novo o comando de início por USB; você pode copiá-lo em “Configurar o controle do celular”. Tarefas de web e de arquivos não são afetadas.</string>
     <string name="drawer_screens">Telas em segundo plano</string>

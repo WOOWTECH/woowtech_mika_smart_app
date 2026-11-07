@@ -230,8 +230,9 @@ class TaskService : Service() {
                     provenance = RunProvenance(RunOrigin.Channel, Attendance.Reachable),
                     channelPeer = peer, channelMessageId = intent.getStringExtra(EXTRA_CHANNEL_MESSAGE_ID))
             }
+            // WOOWTECH fork: 记下是电脑端停的,结果通知不写「你停止了这个任务」
             ACTION_CANCEL_MCP -> intent.getStringExtra(EXTRA_MCP_ID)?.let { id -> center.runs().firstOrNull { it.mcpExternalId == id } }
-                ?.let { r -> if (center.cancelIfQueued(r)) cancelQueued(r) else r.cancel() }
+                ?.let { r -> if (center.cancelIfQueued(r)) cancelQueued(r) else r.cancel(fromComputer = true) }
             ACTION_CANCEL -> if (run != null && center.cancelIfQueued(run)) cancelQueued(run) else run?.cancel()
             ACTION_RESUME -> run?.resume()
             ACTION_TAKE_OVER -> run?.takeOver(waitKeyOf(intent))
@@ -414,7 +415,8 @@ class TaskService : Service() {
                 return@launch
             }
             val deliveryId = "result:${run.key}"
-            center.markResult(run, describe(end).second, deliveryId, successful = end is TaskState.Succeeded)
+            // WOOWTECH fork: 电脑端停掉的照实说(见 describeResult);恢复时补发的也是这句
+            center.markResult(run, describeResult(end, run.stoppedFromComputer).second, deliveryId, successful = end is TaskState.Succeeded)
             run.clearTakeoverStage()
             synchronized(notifyLock) { getSystemService(NotificationManager::class.java).cancel(id(ID_ATTENTION, run)) }
             // 先发结果通知,再在后台学(提取记忆、记技能结果、起草技能);用进程级作用域,服务退出也做完
@@ -783,7 +785,8 @@ class TaskService : Service() {
     }
 
     private suspend fun notifyResult(run: TaskRun, end: TaskState, deliveryId: String): DeliveryState {
-        val (title, text) = describe(end)
+        // WOOWTECH fork: 电脑端停掉的任务说是电脑停的
+        val (title, text) = describeResult(end, run.stoppedFromComputer)
         val peer = run.channelPeer ?: ChannelPeer(LocalChannel.ID, "phone-owner", run.conversationId)
         val started = SystemClock.elapsedRealtime()
         val delivered = outbox.deliver(channelFor(peer), peer, Delivery.Result(deliveryId, run.conversationId, text, title = title))
@@ -1066,5 +1069,13 @@ class TaskService : Service() {
             is TaskState.Failed -> tr(R.string.task_not_done) to state.reason
             TaskState.Cancelled -> tr(R.string.task_stopped) to tr(R.string.task_stopped_body)
         }
+
+        /**
+         * WOOWTECH fork: 结果通知的标题和正文,同 [describe];[fromComputer] 是电脑端取消了它交来的任务,
+         * 这时照实说是电脑停的,不写「你停止了这个任务」。
+         */
+        internal fun describeResult(end: TaskState, fromComputer: Boolean): Pair<String, String> =
+            if (end == TaskState.Cancelled && fromComputer) tr(R.string.task_stopped) to tr(R.string.task_stopped_remote_body)
+            else describe(end)
     }
 }
