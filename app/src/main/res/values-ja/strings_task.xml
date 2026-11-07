@@ -28,6 +28,10 @@
     </plurals>
     <string name="fail_no_main_model">使えるメインモデルがまだありません。設定で、ツール呼び出しに対応したモデルを追加してください。</string>
     <string name="fail_model_untested">メインモデルは、%1$s でのテストにまだ通っていません。「設定 › モデル › %1$s」で「もう一度テスト」をタップして確認してください。</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">モデルの呼び出しに失敗しました: %1$s。「設定 › モデル」を確認してください。</string>
+    <string name="fail_model_later">モデルの呼び出しに失敗しました: %1$s。しばらくしてからもう一度お試しください。</string>
+    <string name="fail_model_plain">モデルの呼び出しに失敗しました: %1$s。</string>
     <string name="fail_no_web">この端末ではウェブを使えないため、条件の確認を実行できません</string>
     <string name="task_waiting_display">待機中: 別のタスクが終わってから始まります</string>
     <string name="task_no_phone_helper">スマホの操作の準備ができていません。Mika で「スマホの操作を設定」を済ませてください。ウェブとファイルのタスクには影響しません。</string>

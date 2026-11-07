@@ -29,6 +29,10 @@
     </plurals>
     <string name="fail_no_main_model">No usable main model yet. Add a model with tool calling in Settings.</string>
     <string name="fail_model_untested">The main model hasn’t passed a test on %1$s yet. Go to Settings › Models › %1$s and tap “Test again” to check it.</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">The model call failed: %1$s. Check Settings › Models.</string>
+    <string name="fail_model_later">The model call failed: %1$s. Try again later.</string>
+    <string name="fail_model_plain">The model call failed: %1$s.</string>
     <string name="fail_no_web">Web isn’t available on this device, so the condition check can’t run</string>
     <string name="task_waiting_display">Queued: starts after the other task finishes</string>
     <string name="task_no_phone_helper">Phone control isn’t ready. Finish “Set up phone control” in Mika. Web and file tasks aren’t affected.</string>

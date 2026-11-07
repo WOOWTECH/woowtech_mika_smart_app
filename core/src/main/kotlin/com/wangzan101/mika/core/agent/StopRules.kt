@@ -33,7 +33,8 @@ internal object StopRules {
 
     /** 模型调用失败(重试过仍不行,或重试也没用)。 */
     fun modelFailed(e: Throwable): TaskState.Failed =
-        if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model)
+        // WOOWTECH fork: 带上那个错,App 按界面语言说原因(见 TaskState.Failed.modelError)
+        if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model, e)
         else TaskState.Failed("模型调用异常:${e.message ?: e::class.simpleName}", FailKind.Model)
 
     fun guard(v: GuardVerdict): TaskState.Failed {

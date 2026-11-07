@@ -30,6 +30,10 @@
     </plurals>
     <string name="fail_no_main_model">Nenhum modelo principal utilizável ainda. Adicione um modelo com chamada de ferramentas em Configurações.</string>
     <string name="fail_model_untested">O modelo principal ainda não passou em um teste em %1$s. Vá em Configurações › Modelos › %1$s e toque em “Testar de novo” para verificá-lo.</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">A chamada ao modelo falhou: %1$s. Confira Configurações › Modelos.</string>
+    <string name="fail_model_later">A chamada ao modelo falhou: %1$s. Tente de novo mais tarde.</string>
+    <string name="fail_model_plain">A chamada ao modelo falhou: %1$s.</string>
     <string name="fail_no_web">A web não está disponível neste dispositivo, então a verificação da condição não pode ser executada</string>
     <string name="task_waiting_display">Na fila: começa quando a outra tarefa terminar</string>
     <string name="task_no_phone_helper">O controle do celular não está pronto. Conclua “Configurar o controle do celular” no Mika. Tarefas de web e de arquivos não são afetadas.</string>

@@ -28,6 +28,10 @@
     </plurals>
     <string name="fail_no_main_model">還沒有能用的主模型:請在設定裡新增一個支援工具呼叫的模型。</string>
     <string name="fail_model_untested">主模型在 %1$s 還沒測試通過。去設定 › 模型 › %1$s 點「重新測試」查一下它能不能用。</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">呼叫模型失敗：%1$s。請到設定 › 模型檢查。</string>
+    <string name="fail_model_later">呼叫模型失敗：%1$s。請稍後再試。</string>
+    <string name="fail_model_plain">呼叫模型失敗：%1$s。</string>
     <string name="fail_no_web">裝置沒有可用的網頁能力，條件檢查無法執行</string>
     <string name="task_waiting_display">排隊中:等另一個任務做完再開始</string>
     <string name="task_no_phone_helper">手機操作還沒準備好:請在 Mika 裡完成「設定手機操作」。網頁和檔案類的事不受影響。</string>

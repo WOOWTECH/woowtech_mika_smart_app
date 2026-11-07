@@ -4,6 +4,8 @@ import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.model.ModelHttp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -81,5 +83,15 @@ class ModelErrorReasonTest {
             "模型服务出错(HTTP 418)。请检查 Base URL 和接口类型是否匹配。",
             StopRules.modelFailed(ModelHttp.openAiError(418, null, "<html>teapot</html>", "m")).reason,
         )
+    }
+
+    /** WOOWTECH fork: 模型出错的结局带着那个错(App 按界面语言说原因);相等比较照旧只看原因和种类。 */
+    @Test fun modelFailureCarriesTheError() {
+        val e = ModelError.Auth()
+        val failed = StopRules.modelFailed(e)
+        assertSame(e, failed.modelError)
+        assertEquals(TaskState.Failed(failed.reason, FailKind.Model), failed)
+        assertNull(StopRules.modelFailed(IllegalStateException("boom")).modelError)
+        assertNull(StopRules.noAnswer().modelError)
     }
 }
