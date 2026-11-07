@@ -681,4 +681,68 @@ class IrreversibleDetectorTest {
             d.classify(tool, args("""{"action":"select","ref":"@e1","snapshotId":"s1","option":"删除账户"}"""), form))
         assertEquals(IrrevAction.delete, d.classify(tool, args("""{"action":"select","ref":"@e3","snapshotId":"s1","option":"x"}"""), form)?.action)
     }
+
+    // WOOWTECH fork: momo 网页的搜索结果(2026-11-07 模拟器实测):在价格区间「最高價」填 1000,再点旁边的「確認」被拦成要同意。
+    // 网页的商品列表随整页滚动,不在可滚动区里,满屏的价格把套用价格区间的「確認」当成了下单
+    @Test fun priceRangeConfirmOnAWebListingIsNotAnOrder() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val listing = listOf(
+            el("@e1", "藍牙耳機", listOf(150, 20, 520, 50), editable = true),
+            el("@e2", "搜尋", listOf(525, 20, 580, 50)),
+            el("@e3", "價格", listOf(220, 470, 260, 500)),
+            el("@e4", "最低價", listOf(300, 472, 360, 498), editable = true, hint = true),
+            el("@e5", "1000", listOf(370, 472, 430, 498), editable = true),
+            el("@e6", "確認", listOf(435, 472, 470, 498)),
+            el("@e7", "【SONY】WF-C510 真無線藍牙耳機", listOf(40, 700, 230, 740)),
+            el("@e8", "$2,290", listOf(40, 750, 120, 780), clickable = false),
+            el("@e9", "【JLab】Go POP+ 真無線藍牙耳機", listOf(560, 700, 760, 740)),
+            el("@e10", "$799", listOf(560, 750, 620, 780), clickable = false),
+        )
+        val s = snap(*listing.toTypedArray())
+        assertNull(d.classify("web_tap", tap("@e6"), s))
+        assertNull(d.classify("web_tap", args("""{"x":452,"y":485}"""), s))
+        // 不挨着输入框的「確認」照旧:有金额就按下单
+        val apart = snap(*listing.map { if (it.ref == "@e6") it.copy(bounds = listOf(700, 880, 990, 960)) else it }.toTypedArray())
+        assertEquals(IrrevAction.order, d.classify("web_tap", tap("@e6"), apart)?.action)
+    }
+
+    // WOOWTECH fork: 输入框旁的确认只在填的不是钱时算套用:密码框、写着金额的那一行照常按同屏判;同屏有付款面板仍是付款
+    @Test fun confirmNextToAMoneyFieldIsStillJudgedByTheScreen() {
+        fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
+        val field = el("@e3", "", listOf(300, 400, 700, 460), editable = true)
+        fun row(f: UiElement, label: String, vararg more: UiElement) = snap(
+            el("@e1", "目前餘額 NT$120", listOf(0, 100, 999, 160), clickable = false),
+            el("@e2", label, listOf(0, 400, 280, 460), clickable = false),
+            f,
+            el("@e4", "確認", listOf(720, 400, 900, 460)),
+            *more,
+        )
+        assertNull(d.classify("phone_tap", tap("@e4"), row(field, "跳至第")))
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "加值金額"))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(placeholder = "請輸入金額"), ""))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(secret = true), "交易密碼"))?.action)
+        val sheet = row(field, "跳至第", el("@e5", "付款方式:信用卡 ****1234", listOf(0, 200, 999, 260), clickable = false))
+        assertEquals(IrrevAction.pay, d.classify("phone_tap", tap("@e4"), sheet)?.action)
+    }
+
+    // WOOWTECH fork: 一串付款方式的介绍(跨空格、超过 8 个字)不是付款动作:测试商店商品页的「支援 LINE Pay、街口支付付款」曾被当成付款,
+    // 同屏的通用「確定」也就跟着成了付款
+    @Test fun longPaymentMethodListsAreAds() {
+        for (w in listOf("支援 LINE Pay、街口支付付款", "支援 LINE Pay、街口支付", "支援 Apple Pay、Google Pay、LINE Pay、街口支付、全支付付款",
+            "支持微信、支付寶付款")) {
+            assertNull(w, d.matchName(w))
+        }
+        // 动作字、句读后面的付款键照常算
+        for (w in listOf("支援 Apple Pay 立即付款", "支援 LINE Pay、街口支付付款 立即付款", "感謝支持！立即付款", "使用 LINE Pay 付款")) {
+            assertEquals(w, IrrevAction.pay, d.matchName(w))
+        }
+        val product = snap(
+            el("@e1", "NT$590", listOf(0, 120, 999, 160), clickable = false),
+            el("@e2", "支援 LINE Pay、街口支付付款", listOf(0, 220, 999, 260), clickable = false),
+            el("@e3", "確定", listOf(500, 850, 999, 950)),
+        )
+        assertNull(d.paymentPage(product))
+        assertFalse(d.hasPayableAmount(product))
+        assertEquals(IrrevAction.order, d.classify("phone_tap", args("""{"ref":"@e3","snapshotId":"s1"}"""), product)?.action)
+    }
 }

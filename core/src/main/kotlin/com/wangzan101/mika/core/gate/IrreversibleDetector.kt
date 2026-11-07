@@ -118,8 +118,12 @@ object IrreversibleDetector {
      * 只在下半屏、同一区域有确认/支付一类按钮时才算付款面板。
      */
     val WEAK_PAY_SHEET_WORDS = listOf("余额", "密码", "指纹", "零钱", "信用卡", "金融卡", "签账卡", "悠游付")
-    /** 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判;支援、超商取货付款是台湾的说法。 */
-    private val PAYMENT_ADS = Regex("(?:支持|支援)[^\\s，,。]{0,8}?(?:付款|支付)|货到付款|取货付款|先用后付|花呗|分期|付款方式说明")
+    /**
+     * 介绍付款方式的字样(商品页、规格面板上常见),不是付款动作,先去掉再判;支援、超商取货付款是台湾的说法。
+     * WOOWTECH fork: 「支持/支援」后面可以是一串付款方式(「支援 LINE Pay、街口支付付款」),可跨空格,
+     * 到最后一个付款/支付为止;遇到句读或「立即」「确认」一类动作字就停,不吞掉后面真正的付款键。
+     */
+    private val PAYMENT_ADS = Regex("(?:支持|支援)(?:(?!立即|确认|马上|一键|前往|去)[^，,。；;！!？?：:\\n]){0,40}(?:付款|支付(?!宝))+|货到付款|取货付款|先用后付|花呗|分期|付款方式说明")
     /** 页面上有这些下单按钮时,是商品页或规格面板:不按付款面板字样判。 */
     private val ORDER_CONTEXT = listOf("立即购买", "加入购物车", "立即下单")
     /** 0–999 里这条线以下算屏幕底部区域(付款面板、底部弹层)。 */
@@ -163,6 +167,8 @@ object IrreversibleDetector {
         "clear", "cleartext", "clearsearch", "clearquery", "×", "✕", "x")
     /** 清空键离输入框左右边至多这么远(0–999)。 */
     private const val FIELD_NEAR = 80
+    /** WOOWTECH fork: 输入框那一行写着这些字时,填的是要付的钱(加值、转账金额),旁边的确认不算套用框里的值。 */
+    private val AMOUNT_FIELD_WORDS = listOf("金额", "amount")
 
     // 判哪些、按什么判,由工具声明([GateTarget],只有 External 的工具有);返回、清空输入框、打开 App 不会提交任何东西,不判
     /** 改选中项的键:方向键、Home/End、翻页。 */
@@ -356,7 +362,8 @@ object IrreversibleDetector {
 
     /** 短名字整体、或拼起来的名字的每一段里出现强词;先去掉付款方式一类的词。 */
     private fun strong(label: String): IrrevAction? {
-        val folded = Hant.fold(label)
+        // WOOWTECH fork: 介绍付款方式的字样可能跨空格,拆段前先整句去掉(否则「Pay、街口支付付款」这一段会被当成付款)
+        val folded = withoutAds(Hant.fold(label))
         for (p in listOf(folded) + folded.split(Regex("\\s+"))) {
             var t = p.filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
             EXCLUDED.forEach { t = t.replace(it, "") }
@@ -365,6 +372,9 @@ object IrreversibleDetector {
         }
         return null
     }
+
+    /** WOOWTECH fork: 整句去掉介绍付款方式的字样([PAYMENT_ADS]),换成空格,拆段、英文按词认都不受影响。 */
+    private fun withoutAds(text: String) = text.replace(PAYMENT_ADS, " ")
 
     private fun occurrences(t: String, w: String) = generateSequence(t.indexOf(w).takeIf { it >= 0 }) { i -> t.indexOf(w, i + 1).takeIf { it >= 0 } }
 
@@ -380,6 +390,7 @@ object IrreversibleDetector {
      * 有金额且同屏有付款方式、收银台、验密一类字样(或任意长度的一段里有支付/付款)也是付款;
      * 再否则有下单词或金额,按下单(下单的同意要和屏上金额对得上,见 [ConfirmationGate]);都没有就不是。
      * 金额:合计一类总算;别的金额在可滚动区里、而被点的元素不在那个区里时不算(筛选面板的价格档、商品列表)。
+     * 紧挨着输入框的确认只套用框里的值(见 [appliesField]),不按下单算。
      */
     private fun contextAction(screen: ScreenSnapshot, hit: UiElement?): IrrevAction? {
         val found = screen.elements.mapNotNull { strong(it.name) }
@@ -393,7 +404,28 @@ object IrreversibleDetector {
                 (AMOUNT.containsMatchIn(rowText(e, shown)) && scrollables.none { s -> inside(e, s) && hit != null && !inside(hit, s) })
         }
         if (amount && paySheet(shown)) return IrrevAction.pay
+        // WOOWTECH fork: 网页的商品列表不在可滚动区里,价格区间筛选的「确认」会被满屏的价格当成下单(momo 实测);
+        // 套用输入框的确认不是下单。付款字样、付款面板在上面照常按付款
+        if (hit != null && appliesField(hit, screen)) return null
         return if (IrrevAction.order in found || amount) IrrevAction.order else null
+    }
+
+    /**
+     * WOOWTECH fork: 按钮在输入框同一行、紧挨着它(「最低价 – 最高价 确认」「到第 _ 页 确定」),套用的是框里填的值,
+     * 和搜索框旁的搜索键一样。框是密码一类的框,或这一行写着金额(加值、转账金额)时不算:那是在填要付的钱。
+     */
+    private fun appliesField(e: UiElement, s: ScreenSnapshot): Boolean {
+        if (e.editable || e.bounds.size != 4) return false
+        val cy = (e.bounds[1] + e.bounds[3]) / 2
+        val fields = s.elements.filter { f ->
+            f.editable && f !== e && f.bounds.size == 4 && cy in f.bounds[1]..f.bounds[3] &&
+                e.bounds[0] >= f.bounds[0] - FIELD_NEAR && e.bounds[0] <= f.bounds[2] + FIELD_NEAR
+        }
+        if (fields.isEmpty() || fields.any { it.secret }) return false
+        return (ElementContext.row(e, s) + e).none { x ->
+            val t = Hant.fold(listOfNotNull(x.name, x.placeholder).joinToString(" ")).lowercase()
+            AMOUNT_FIELD_WORDS.any { it in t }
+        }
     }
 
     /**
@@ -409,8 +441,10 @@ object IrreversibleDetector {
             }
         }
         return shown.any { e ->
-            val t = Hant.fold(e.name).filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
-            PAY_SHEET_WORDS.any { it in t } || PAY_SHEET_ENGLISH.containsMatchIn(e.name) ||
+            // WOOWTECH fork: 介绍付款方式的字样整句去掉(可能跨空格),里面的英文 Pay 也不算
+            val name = withoutAds(Hant.fold(e.name))
+            val t = name.filterNot(Char::isWhitespace).replace(PAYMENT_ADS, "")
+            PAY_SHEET_WORDS.any { it in t } || PAY_SHEET_ENGLISH.containsMatchIn(name) ||
                 listOf("支付", "付款").any { w -> occurrences(t, w).any { actionAt(t, w, it) } } ||
                 (bottomButton && top(e) >= BOTTOM_REGION && WEAK_PAY_SHEET_WORDS.any { it in t })
         }
