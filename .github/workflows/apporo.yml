@@ -1,7 +1,5 @@
 name: apporo
 on:
-  push:
-    branches: ['apporo/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -31,8 +29,10 @@ jobs:
           python3 -m unittest discover -s tools/mika/tests
           sh woowtech/tools/brand-check.sh sources
           sh woowtech/tools/check-no-cn-services.sh
-      - name: Shared tests and Apporo build
-        run: ./gradlew :core:test :app:testUpstreamDebugUnitTest :app:assembleApporoDebug :app:assembleApporoRelease --stacktrace
+      # ci.yml runs the full core, Android, CLI and relay suites for the same PR.
+      # Keep APK compilation separate so it does not repeat those suites in a third build graph.
+      - name: Build Apporo debug and unsigned release
+        run: ./gradlew :app:assembleApporoDebug :app:assembleApporoRelease --stacktrace
       - name: Verify packaged Apporo identity
         run: python3 apporo/tools/check-apk.py app/build/outputs/apk/apporo/release/*.apk
       - uses: actions/upload-artifact@v7
