@@ -61,4 +61,19 @@
     <string name="tool_tap">탭</string>
     <string name="tool_type">텍스트 입력</string>
     <string name="tool_clear">입력란 지우기</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">이전 화면 다시 보기</string>
+    <string name="tool_view_user_screen">보낸 화면 보기</string>
+    <string name="tool_search_memory">메모리 검색</string>
+    <string name="tool_save_memory">기억해 두기</string>
+    <string name="tool_edit_profile">‘나에 대해’ 수정</string>
+    <string name="tool_read_history">이전 대화 기록 보기</string>
+    <string name="tool_schedule_task">예약 작업 만들기</string>
+    <string name="tool_spawn_agent">하위 작업 맡기기</string>
+    <string name="tool_open_link">링크 열기</string>
+    <string name="tool_page_script">페이지 스크립트 실행</string>
+    <string name="tool_page_action">페이지 조작</string>
+    <string name="tool_describe_screen">이미지로 화면 설명</string>
+    <string name="tool_find_visually">이미지로 요소 찾기</string>
+    <string name="tool_do_steps">여러 단계를 이어서</string>
 </resources>

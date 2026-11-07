@@ -1,8 +1,11 @@
 package com.wangzan101.mika.core.agent
 
 import com.wangzan101.mika.core.model.ModelError
+import com.wangzan101.mika.core.model.ModelHttp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -66,5 +69,29 @@ class ModelErrorReasonTest {
         assertFalse(cut.contains("Base URL"))
         assertFalse(cut.contains("接口类型"))
         assertTrue(StopRules.modelFailed(ModelError.BadResponse("流式响应不是合法 JSON")).reason.contains("请检查 Base URL 和接口类型是否匹配"))
+    }
+
+    /** WOOWTECH fork: 认不出的 HTTP 报错只说状态码和服务端的原话,不贴整段报文(网关包着的上游 JSON 也不贴)。 */
+    @Test fun unrecognizedHttpErrorQuotesTheServerNotTheBody() {
+        val litellm = """{"error":{"message":"litellm.BadRequestError: AnthropicException - {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API.\"}}","type":null,"param":null,"code":"400"}}"""
+        assertEquals(
+            "模型服务出错(HTTP 400):Your credit balance is too low to access the Anthropic API。请检查 Base URL 和接口类型是否匹配。",
+            StopRules.modelFailed(ModelHttp.openAiError(400, null, litellm, "m")).reason,
+        )
+        // 没有原话(反向代理的 HTML 错误页)只说状态码
+        assertEquals(
+            "模型服务出错(HTTP 418)。请检查 Base URL 和接口类型是否匹配。",
+            StopRules.modelFailed(ModelHttp.openAiError(418, null, "<html>teapot</html>", "m")).reason,
+        )
+    }
+
+    /** WOOWTECH fork: 模型出错的结局带着那个错(App 按界面语言说原因);相等比较照旧只看原因和种类。 */
+    @Test fun modelFailureCarriesTheError() {
+        val e = ModelError.Auth()
+        val failed = StopRules.modelFailed(e)
+        assertSame(e, failed.modelError)
+        assertEquals(TaskState.Failed(failed.reason, FailKind.Model), failed)
+        assertNull(StopRules.modelFailed(IllegalStateException("boom")).modelError)
+        assertNull(StopRules.noAnswer().modelError)
     }
 }

@@ -61,4 +61,19 @@
     <string name="tool_tap">Ketuk</string>
     <string name="tool_type">Ketik teks</string>
     <string name="tool_clear">Kosongkan kolom</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">Lihat lagi layar sebelumnya</string>
+    <string name="tool_view_user_screen">Lihat layar yang Anda kirim</string>
+    <string name="tool_search_memory">Cari di memori</string>
+    <string name="tool_save_memory">Ingat sesuatu</string>
+    <string name="tool_edit_profile">Ubah “Tentang Anda”</string>
+    <string name="tool_read_history">Baca percakapan sebelumnya</string>
+    <string name="tool_schedule_task">Jadwalkan tugas</string>
+    <string name="tool_spawn_agent">Delegasikan subtugas</string>
+    <string name="tool_open_link">Buka tautan</string>
+    <string name="tool_page_script">Jalankan skrip halaman</string>
+    <string name="tool_page_action">Tindakan di halaman</string>
+    <string name="tool_describe_screen">Jelaskan layar</string>
+    <string name="tool_find_visually">Cari dengan melihat layar</string>
+    <string name="tool_do_steps">Beberapa langkah berturut-turut</string>
 </resources>

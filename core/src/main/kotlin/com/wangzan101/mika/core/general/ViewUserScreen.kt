@@ -34,6 +34,7 @@ const val VIEW_USER_SCREEN = "view_user_screen"
  */
 internal object ViewUserScreen : AgentTool {
     override val verb = Verb.ViewUserScreen
+    override val label = "看你发来的屏幕" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     override val concurrency = Concurrency.ParallelSafe
     override val def = ToolDef(VIEW_USER_SCREEN,

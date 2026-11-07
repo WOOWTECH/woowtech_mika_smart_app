@@ -24,6 +24,7 @@ import com.wangzan101.mika.task.TaskGate
 import com.wangzan101.mika.core.agent.Turn
 import com.wangzan101.mika.core.memory.MemoryItem
 import com.wangzan101.mika.core.memory.MemoryNote
+import com.wangzan101.mika.core.memory.NoteKind
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.skills.SkillNote
 import com.wangzan101.mika.memory.RunNotes
@@ -51,6 +52,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.wangzan101.mika.core.tool.ToolIndex
+import com.wangzan101.mika.core.tool.Verb
+import com.wangzan101.mika.core.agent.DO_STEPS_TOOL
 import com.wangzan101.mika.core.assembly.knownTools
 import com.wangzan101.mika.core.cap.web.AttachedPage
 import com.wangzan101.mika.core.userscreen.UserScreenMessage
@@ -526,7 +529,7 @@ class ChatViewModel(
     }
 
     /** 提示这一行的文字,内容从此刻的记忆里取;那条已经删掉时写「一条已删除的记忆」。 */
-    fun noteText(note: MemoryNote): String = note.text(memoryItems.value.find { it.id == note.memoryId })
+    fun noteText(note: MemoryNote): String = noteText(note, memoryItems.value.find { it.id == note.memoryId })
 
     /** 撤销这条记忆改动;令牌已失效(重启过)时只把「撤销」去掉。 */
     fun undoNote(runId: String, note: MemoryNote) {
@@ -1336,11 +1339,27 @@ class ChatViewModel(
         }
 
         /** 活动对象给人看的说法:包名换成 App 名,「网站 域名」只留域名。 */
-        private fun where(target: String, appLabel: (String) -> String): String? = when {
+        // WOOWTECH fork: 运行过程页也用它(上游那里原样显示「网站 域名」),所以不再是 private;
+        // 命令这类对象(run_command「…」)只留命令:旁边已经写着工具的说法,上游这里露出工具名
+        internal fun where(target: String, appLabel: (String) -> String): String? = when {
             target.isBlank() -> null
             target.startsWith(SITE_PREFIX) -> target.removePrefix(SITE_PREFIX)
             com.wangzan101.mika.core.tool.PACKAGE_NAME_RE.matches(target) -> appLabel(target)
-            else -> target
+            else -> ToolLabels.shared.command(target) ?: target
+        }
+
+        /**
+         * WOOWTECH fork: 结果卡片下记忆提示那一行,按界面语言写(上游用 core 的 [MemoryNote.text],写死了简体中文),说法和它一样。
+         * [item] 是那条记忆此刻的样子;已经不在了(删掉、清空)时为 null,内容写「一条已删除的记忆」。
+         */
+        internal fun noteText(note: MemoryNote, item: MemoryItem?): String {
+            val content = item?.content ?: tr(R.string.memory_note_deleted)
+            return when (note.kind) {
+                NoteKind.added -> tr(R.string.memory_note_added, content)
+                NoteKind.updated -> item?.replaces?.let { tr(R.string.memory_note_updated_was, content, it) } ?: tr(R.string.memory_note_updated, content)
+                NoteKind.forgot -> if (item == null) tr(R.string.memory_note_forgot_unknown) else tr(R.string.memory_note_forgot, content)
+                NoteKind.pending -> tr(R.string.memory_note_pending, content)
+            }
         }
 
         private fun fromTurn(t: Turn): Exchange {
@@ -1403,11 +1422,12 @@ fun evidenceSource(events: List<RunEvent>, appLabel: (String) -> String = { it }
 private const val SITE_PREFIX = "网站 "
 
 /** 来源里的地方:「网站 域名」和网址显示域名,包名换成 App 名,别的(命令、文件)原样。 */
+// WOOWTECH fork: 命令、文件前的工具名(run_command「…」)换成界面上的说法,上游原样露出工具名
 private fun placeLabel(place: String, appLabel: (String) -> String): String = when {
     place.startsWith(SITE_PREFIX) -> place.removePrefix(SITE_PREFIX)
     place.startsWith("http://") || place.startsWith("https://") -> runCatching { java.net.URI(place).host }.getOrNull() ?: place
     com.wangzan101.mika.core.tool.PACKAGE_NAME_RE.matches(place) -> appLabel(place)
-    else -> place
+    else -> ToolLabels.shared.place(place) ?: place
 }
 
 /** 「来源」那一行:「来源 · 12306 · 2 张截图」;没有地方、没有截图时省掉那一段。 */
@@ -1437,11 +1457,42 @@ private val EVIDENCE = Regex("""(^|\n|[。.!！?？]\s*)[\s*#>\-]*\**(?:依据|�
  */
 class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames = legacyNames()) {
     fun label(tool: String): String {
+        // WOOWTECH fork: 一次连做几步(do_steps)不是登记的工具,上游界面上直接露出 do_steps
+        if (tool == DO_STEPS_TOOL) return tr(R.string.tool_do_steps)
         val declared = (tools[tool] ?: legacy.resolve(tool)?.let { tools[it] })?.label ?: return tool
         return TOOL_LABELS[declared]?.let { tr(it) } ?: declared
     }
 
+    /**
+     * WOOWTECH fork: 命令、文件这类「地方」在运行记录里写成工具名加命令或路径(`run_command「ls -l」`、`run_bundled_script office/xlsx.py`、
+     * `read_file /workspace/a.txt`,见 SandboxGroup、RootGroup):工具名换成界面上的说法,命令、路径照原样。不是这种写法、或不是这几个工具时为 null,
+     * 调用处原样显示。
+     */
+    fun place(place: String): String? {
+        val (tool, quoted, rest) = commandOf(place) ?: return null
+        return if (quoted != null) tr(R.string.source_command, label(tool), quoted) else label(tool) + " " + rest
+    }
+
+    /** WOOWTECH fork: 同 [place],但只要命令本身:旁边已经写着工具的说法时用(步骤、运行过程),免得说两遍。 */
+    fun command(place: String): String? = commandOf(place)?.let { (_, quoted, rest) -> quoted ?: rest }
+
+    /** 命令这类地方拆成(工具名, 「」里的命令, 空格后的脚本或路径);不是这种写法、或不是那几个工具时为 null。 */
+    private fun commandOf(place: String): Triple<String, String?, String>? {
+        val m = COMMAND_PLACE.matchEntire(place) ?: return null
+        val tool = m.groupValues[1]
+        if (tools.verb(tool) !in COMMAND_VERBS) return null
+        return Triple(tool, m.groups[2]?.value, m.groupValues[3])
+    }
+
     companion object {
+        /** WOOWTECH fork: 手上没有一份的地方(来源、通知、对话里的步骤对象)共用这一份。 */
+        val shared: ToolLabels by lazy { ToolLabels(knownTools()) }
+
+        /** 运行记录里命令、文件这类地方的写法:工具名,后面是「」包着的命令,或空格后的脚本、路径。 */
+        private val COMMAND_PLACE = Regex("""([a-z][a-z0-9_]*)(?:「(.*)」| (.+))""", RegexOption.DOT_MATCHES_ALL)
+        // 读文件的证据记成「read_file <路径>」(SandboxGroup 的 ReadFile、RecordedEvidence)
+        private val COMMAND_VERBS = setOf(Verb.RunCommand, Verb.RootCommand, Verb.SearchFiles, Verb.RunBundledScript, Verb.ReadFile)
+
         /** 工具声明里的 label → 界面文字;中文资源与 label 一字不差(ToolLabelsTest 核对每个工具都有)。 */
         val TOOL_LABELS: Map<String, Int> = mapOf(
             "查看已装的 App" to R.string.tool_list_apps,
@@ -1505,6 +1556,20 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "点击" to R.string.tool_tap,
             "输入文字" to R.string.tool_type,
             "清空输入框" to R.string.tool_clear,
+            // WOOWTECH fork: 上游没有说法、界面上露出工具名的那几个
+            "回看之前的画面" to R.string.tool_view_past_screens,
+            "看你发来的屏幕" to R.string.tool_view_user_screen,
+            "查找记忆" to R.string.tool_search_memory,
+            "记住一件事" to R.string.tool_save_memory,
+            "修改「关于你」" to R.string.tool_edit_profile,
+            "查看之前几轮的记录" to R.string.tool_read_history,
+            "安排定时任务" to R.string.tool_schedule_task,
+            "派出子任务" to R.string.tool_spawn_agent,
+            "打开链接" to R.string.tool_open_link,
+            "运行网页脚本" to R.string.tool_page_script,
+            "网页操作" to R.string.tool_page_action,
+            "看图描述屏幕" to R.string.tool_describe_screen,
+            "看图找控件" to R.string.tool_find_visually,
         )
     }
 }

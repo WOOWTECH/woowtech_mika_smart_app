@@ -166,9 +166,11 @@ class RunTimelineViewModel(
                 is RunEvent.Media -> at(e.step).let { rows[e.step] = it.copy(screenshotId = it.screenshotId ?: e.mediaId) }
                 is RunEvent.Activity -> {
                     val row = at(e.step)
-                    val next = TimelineActivity(e.kind, toolLabel(e.label), e.target, e.effect, obsIds = e.obsIds)
+                    // WOOWTECH fork: 对象和对话里的步骤一样给人看的说法(「网站 域名」只留域名),不露运行记录里的写法
+                    val target = e.target?.let { ChatViewModel.where(it) { app -> app } }
+                    val next = TimelineActivity(e.kind, toolLabel(e.label), target, e.effect, obsIds = e.obsIds)
                     val last = row.activities.lastOrNull()
-                    val activities = if (e.kind == "observe" && last?.kind == "observe" && last.target == e.target) {
+                    val activities = if (e.kind == "observe" && last?.kind == "observe" && last.target == target) {
                         row.activities.dropLast(1) + last.copy(count = last.count + 1, obsIds = (last.obsIds + e.obsIds).distinct())
                     } else row.activities + next
                     rows[e.step] = row.copy(activities = activities)

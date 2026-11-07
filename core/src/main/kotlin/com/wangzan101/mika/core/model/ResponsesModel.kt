@@ -183,8 +183,11 @@ class ResponsesModel(
         "subscription_sharing_user_not_eligible" -> ModelError.ChatGptNotEligible(message.take(200))
         // 服务端一时不可用:保留登录,过一会儿再试
         "subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable" -> ModelError.Server(503)
-        "subscription_sharing_unsupported_capability" -> ModelError.BadResponse("服务端不支持请求里的 ${param ?: "某项内容"}")
-        "subscription_sharing_route_not_supported" -> ModelError.BadResponse("服务端不支持这个接口")
+        // WOOWTECH fork: 带上原话(没有就是错误代码),界面引它(message 不变);不带的话界面只能泛泛地说看不懂回复
+        "subscription_sharing_unsupported_capability" -> ModelError.BadResponse("服务端不支持请求里的 ${param ?: "某项内容"}",
+            said = ModelAccessErrors.clip(message.ifEmpty { listOfNotNull(code, param).joinToString(" ") }))
+        "subscription_sharing_route_not_supported" -> ModelError.BadResponse("服务端不支持这个接口",
+            said = ModelAccessErrors.clip(message.ifEmpty { code.orEmpty() }))
         "subscription_sharing_invalid_user", "chatpass_v2_scope_not_authorized", "chatpass_v2_invalid_authorization_context" ->
             ModelError.Auth()
         "context_length_exceeded" -> ModelError.ContextTooLong()
@@ -207,7 +210,7 @@ class ResponsesModel(
             ModelHttp.contextTooLong(status, body) -> ModelError.ContextTooLong()
             status == 404 -> ModelError.ModelNotFound(model, ModelAccessErrors.jsonDetail(body))
             status in 500..599 -> ModelError.Server(status)
-            else -> ModelError.BadResponse("HTTP $status ${body.take(200)}")
+            else -> ModelError.BadResponse.http(status, body) // WOOWTECH fork: 带上状态码和原话(message 不变)
         }
 
     private companion object {
@@ -256,7 +259,10 @@ private class ResponsesStream(
     private fun failure(e: JsonObject?): ModelError {
         val code = e?.str("code")
         val message = e?.str("message").orEmpty()
-        return errorOf(code, message, e?.str("param")) ?: ModelError.BadResponse(listOfNotNull(code, message.take(200)).joinToString(" "))
+        // WOOWTECH fork: 带上原话(没有就是错误代码),界面引它(message 不变)
+        return errorOf(code, message, e?.str("param")) ?: ModelError.BadResponse(
+            listOfNotNull(code, message.take(200)).joinToString(" "), said = ModelAccessErrors.clip(message.ifEmpty { code.orEmpty() }),
+        )
     }
 
     /** 服务端没按流式回、直接给了整个 response 对象。 */

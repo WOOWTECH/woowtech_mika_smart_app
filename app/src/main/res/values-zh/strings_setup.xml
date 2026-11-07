@@ -79,4 +79,25 @@
     <string name="model_probe_tried">试了 %1$s，都没测试通过。</string>
     <string name="model_probe_fallback">先试的 %1$s 没测试通过：%2$s。主模型用了测试通过的「%3$s」。</string>
     <string name="model_pick_main">选主模型</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">API Key 无效或没有权限</string>
+    <string name="model_error_quota">额度已用完</string>
+    <string name="model_error_rate_limited">请求太频繁,请稍后再试</string>
+    <string name="model_error_context">对话内容超出模型上下文长度</string>
+    <string name="model_error_not_available">这个账号用不了该模型(没开通或没权限)</string>
+    <string name="model_error_network">网络连接失败</string>
+    <string name="model_error_stream_cut">回复还没传完,连接就被断开了</string>
+    <string name="model_error_refused">模型拒绝处理该内容</string>
+    <string name="model_error_chatgpt_limit">ChatGPT 额度用完了</string>
+    <string name="model_error_chatgpt_not_eligible">这个账号不能在其他 App 里用 ChatGPT 额度</string>
+    <string name="model_error_signed_out">%1$s 登录已失效,请重新登录</string>
+    <string name="model_error_plan">你的 %1$s 订阅档位不能用这个接口</string>
+    <string name="model_error_server_said">服务端出错（%1$s）：%2$s</string>
+    <string name="model_error_said">模型服务报错：%1$s</string>
+    <string name="model_error_unreadable">返回的内容看不懂,请检查接口地址和接口类型是否匹配</string>
+    <string name="list_error_network">连不上这个地址,请检查网络和接口地址</string>
+    <string name="list_error_not_supported">这个服务不提供模型列表</string>
+    <string name="list_error_server">服务暂时出错,请稍后再试</string>
+    <string name="list_error_bad_response">返回的内容看不懂,请检查接口地址和接口类型</string>
+    <string name="list_error_with_detail">%1$s(%2$s)</string>
 </resources>

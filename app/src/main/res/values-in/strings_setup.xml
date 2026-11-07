@@ -79,4 +79,25 @@
     <string name="model_probe_tried">Sudah mencoba %1$s; tidak satu pun lulus pengujian.</string>
     <string name="model_probe_fallback">%1$s, yang dicoba pertama, tidak lulus pengujian: %2$s. Model utamanya “%3$s”, yang lulus.</string>
     <string name="model_pick_main">Pilih model utama</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">kunci API tidak valid atau tidak punya akses</string>
+    <string name="model_error_quota">kuota akun sudah habis</string>
+    <string name="model_error_rate_limited">terlalu banyak permintaan; coba lagi nanti</string>
+    <string name="model_error_context">percakapan melebihi panjang konteks model</string>
+    <string name="model_error_not_available">akun ini tidak bisa memakai model ini (belum diaktifkan atau tidak punya akses)</string>
+    <string name="model_error_network">tidak bisa terhubung ke layanan model</string>
+    <string name="model_error_stream_cut">koneksi terputus sebelum balasan selesai</string>
+    <string name="model_error_refused">model menolak memproses konten ini</string>
+    <string name="model_error_chatgpt_limit">batas penggunaan ChatGPT sudah tercapai</string>
+    <string name="model_error_chatgpt_not_eligible">akun ini tidak bisa memakai paket ChatGPT di aplikasi lain</string>
+    <string name="model_error_signed_out">login %1$s sudah kedaluwarsa; masuk lagi</string>
+    <string name="model_error_plan">paket %1$s Anda tidak bisa memakai API ini</string>
+    <string name="model_error_server_said">server mengembalikan galat (%1$s): %2$s</string>
+    <string name="model_error_said">layanan model melaporkan galat: %1$s</string>
+    <string name="model_error_unreadable">balasannya tidak bisa dibaca; pastikan URL dasar dan jenis API cocok</string>
+    <string name="list_error_network">tidak bisa menjangkau alamat ini; periksa jaringan dan URL dasar</string>
+    <string name="list_error_not_supported">layanan ini tidak menyediakan daftar model</string>
+    <string name="list_error_server">layanan mengalami galat sementara; coba lagi nanti</string>
+    <string name="list_error_bad_response">balasannya tidak bisa dibaca; periksa URL dasar dan jenis API</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

@@ -61,4 +61,19 @@
     <string name="tool_tap">Tocar</string>
     <string name="tool_type">Digitar texto</string>
     <string name="tool_clear">Limpar campo</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">Rever telas anteriores</string>
+    <string name="tool_view_user_screen">Olhar a tela que você enviou</string>
+    <string name="tool_search_memory">Procurar na memória</string>
+    <string name="tool_save_memory">Lembrar algo</string>
+    <string name="tool_edit_profile">Editar “Sobre você”</string>
+    <string name="tool_read_history">Ler as rodadas anteriores</string>
+    <string name="tool_schedule_task">Agendar uma tarefa</string>
+    <string name="tool_spawn_agent">Delegar uma subtarefa</string>
+    <string name="tool_open_link">Abrir link</string>
+    <string name="tool_page_script">Executar script na página</string>
+    <string name="tool_page_action">Ação na página</string>
+    <string name="tool_describe_screen">Descrever a tela</string>
+    <string name="tool_find_visually">Procurar olhando a tela</string>
+    <string name="tool_do_steps">Vários passos seguidos</string>
 </resources>

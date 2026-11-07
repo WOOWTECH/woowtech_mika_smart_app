@@ -61,4 +61,19 @@
     <string name="tool_tap">点击</string>
     <string name="tool_type">输入文字</string>
     <string name="tool_clear">清空输入框</string>
+    <!-- WOOWTECH fork: tools that had no label upstream, so the UI showed their raw names -->
+    <string name="tool_view_past_screens">回看之前的画面</string>
+    <string name="tool_view_user_screen">看你发来的屏幕</string>
+    <string name="tool_search_memory">查找记忆</string>
+    <string name="tool_save_memory">记住一件事</string>
+    <string name="tool_edit_profile">修改「关于你」</string>
+    <string name="tool_read_history">查看之前几轮的记录</string>
+    <string name="tool_schedule_task">安排定时任务</string>
+    <string name="tool_spawn_agent">派出子任务</string>
+    <string name="tool_open_link">打开链接</string>
+    <string name="tool_page_script">运行网页脚本</string>
+    <string name="tool_page_action">网页操作</string>
+    <string name="tool_describe_screen">看图描述屏幕</string>
+    <string name="tool_find_visually">看图找控件</string>
+    <string name="tool_do_steps">连续做几步</string>
 </resources>

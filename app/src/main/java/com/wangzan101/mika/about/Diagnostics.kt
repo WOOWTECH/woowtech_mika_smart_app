@@ -123,7 +123,8 @@ data class DiagnosticsSnapshot(
 
 /** 把 [DiagnosticsSnapshot] 写成一段纯文本:分段顺序固定,英文键,发到微信或 GitHub 都好读。最后整段再过一遍脱敏。 */
 object Diagnostics {
-    val HEADER: String = Brand.text("Mika 诊断信息 / Mika diagnostics")
+    // WOOWTECH fork: 品牌设定里另写了抬头就用它(woowtech 写繁中);没写时同上游,只换产品名
+    val HEADER: String = Brand.diagnosticsHeader ?: Brand.text("Mika 诊断信息 / Mika diagnostics")
 
     fun render(s: DiagnosticsSnapshot): String = sanitize(buildString {
         appendLine(HEADER)

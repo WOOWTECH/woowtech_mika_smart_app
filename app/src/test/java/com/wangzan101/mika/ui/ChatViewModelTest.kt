@@ -382,6 +382,29 @@ class ChatViewModelTest {
         assertEquals("来源", sourceLabel(null))
     }
 
+    /**
+     * WOOWTECH fork: 命令、文件的来源(运行记录里写成 run_command「…」、read_file <路径>)用工具的界面说法,不露工具名;
+     * 对话里步骤的对象只留命令(旁边已经写着工具的说法)。
+     */
+    @Test fun commandSourceUsesTheToolLabel() {
+        val events = listOf(RunEvent.Sources(1, listOf(
+            com.wangzan101.mika.core.verify.AnswerSource(1, "output", "run_command「python -c 'print(2 ** 20)'」", null, 2),
+        )))
+        val source = evidenceSource(events)
+        assertEquals(EvidenceSource("处理文件「python -c 'print(2 ** 20)'」", emptyList(), listOf("第 2 步 · 处理文件「python -c 'print(2 ** 20)'」")), source)
+        assertEquals("来源 · 处理文件「python -c 'print(2 ** 20)'」", sourceLabel(source))
+        // 读文件的来源也一样
+        val read = evidenceSource(listOf(RunEvent.Sources(1, listOf(
+            com.wangzan101.mika.core.verify.AnswerSource(1, "output", "read_file /workspace/report.csv", null, 2),
+        ))))
+        assertEquals("来源 · 读文件 /workspace/report.csv", sourceLabel(read))
+        val ex = Exchange("算一下", emptyList(), ExchangeStatus.Working, live = true,
+            activities = listOf(RunEvent.Activity(1, 1, "act", "run_command", "run_command「ls -l」", "completed")))
+        assertEquals("处理文件 · ls -l", ChatViewModel.rows(ex, ToolLabels(com.wangzan101.mika.core.assembly.knownTools())::label) { it }.single().title)
+        // 查询词碰巧以工具名开头的不是命令,原样
+        assertEquals("wait times", ChatViewModel.where("wait times") { it })
+    }
+
     @Test fun livePreviewVisibleOnlyWhileRunning() = runTest {
         val screen = MutableStateFlow(false)
         val vm = ChatViewModel(backgroundScope, state, stage, actions, ConversationStore(tmp.newFolder()), screenOpen = screen).also { runCurrent() }
@@ -1077,6 +1100,24 @@ class ChatViewModelTest {
         vm.rejectNote("r1", vm.ui.value.exchanges.single().memoryNotes.single()); runCurrent()
         assertEquals(listOf("approve:p1", "undo:expired", "forget:p2"), learnCalls)
         assertTrue(vm.ui.value.exchanges.single().memoryNotes.isEmpty())
+    }
+
+    /** WOOWTECH fork: 记忆提示跟着界面语言写(上游写死了简体中文),英文、繁中各看一遍,说法和简体那份一样。 */
+    @Test fun memoryNotesFollowTheUiLanguage() {
+        fun note(kind: com.wangzan101.mika.core.memory.NoteKind) = com.wangzan101.mika.core.memory.MemoryNote(kind, "t", null, null)
+        val tea = item("t", "Likes unsweetened green tea").copy(replaces = "Likes milk tea")
+        com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.english
+        assertEquals("Remembered: Likes unsweetened green tea", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), tea))
+        assertEquals("Updated: Likes unsweetened green tea (was: Likes milk tea)", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.updated), tea))
+        assertEquals("Forgot a memory", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.forgot), null))
+        assertEquals("Remembered: a deleted memory", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), null))
+        assertEquals("Do it this way from now on? Likes unsweetened green tea", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.pending), tea))
+        com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.traditional
+        val hant = item("t", "使用者喜歡無糖綠茶")
+        assertEquals("記住了：使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), hant))
+        assertEquals("忘掉了：使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.forgot), hant))
+        assertEquals("要我以後都這樣做嗎？使用者喜歡無糖綠茶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.pending), hant))
+        assertEquals("記住了：一條已刪除的記憶", ChatViewModel.noteText(note(com.wangzan101.mika.core.memory.NoteKind.added), null))
     }
 
     @Test fun usedMemoryCountShown() = runTest {

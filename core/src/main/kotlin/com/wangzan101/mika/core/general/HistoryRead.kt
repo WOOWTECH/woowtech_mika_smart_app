@@ -54,6 +54,7 @@ internal object HistoryRead : AgentTool {
     private val TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH)
 
     override val verb = Verb.HistoryRead
+    override val label = "查看之前几轮的记录" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     override val concurrency = Concurrency.ParallelSafe
     override val def = ToolDef(HISTORY_READ,

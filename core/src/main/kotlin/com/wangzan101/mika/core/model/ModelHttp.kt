@@ -31,7 +31,7 @@ object ModelHttp {
             status == 404 -> ModelError.ModelNotFound(model, ModelAccessErrors.jsonDetail(body))
             status in 500..599 -> ModelError.Server(status)
             status == 403 -> ModelError.Auth()
-            else -> ModelError.BadResponse("HTTP $status ${body.take(200)}")
+            else -> ModelError.BadResponse.http(status, body) // WOOWTECH fork: 带上状态码和原话(message 不变)
         }
 
     /** HTTP 400 的报错说请求超出了模型的上下文(见 [saysContextTooLong])。OpenAI 兼容、Responses、Anthropic 三种接口共用;本机跑的服务三种接口都可能开。 */
@@ -69,7 +69,7 @@ object ModelHttp {
             status == 413 || (status == 400 && lower.contains("token") &&
                 (lower.contains("exceed") || lower.contains("too long") || lower.contains("maximum"))) -> ModelError.ContextTooLong()
             status in 500..599 -> ModelError.Server(status)
-            else -> ModelError.BadResponse("HTTP $status ${body.take(200)}")
+            else -> ModelError.BadResponse.http(status, body) // WOOWTECH fork: 带上状态码和原话(message 不变)
         }
     }
 }

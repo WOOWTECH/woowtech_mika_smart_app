@@ -53,6 +53,7 @@ import com.wangzan101.mika.ui.MainActivity
 import com.wangzan101.mika.ui.MarkdownModel
 import com.wangzan101.mika.ui.ScreenCopy
 import com.wangzan101.mika.ui.StatusCopy
+import com.wangzan101.mika.ui.ToolLabels
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -1079,7 +1080,8 @@ class TaskService : Service() {
             TaskState.Idle -> tr(R.string.app_name) to ""
             is TaskState.Running -> tr(R.string.task_running) to (state.progress?.let(StatusCopy::progress) ?: when {
                 state.step == 0 -> state.note
-                else -> tr(R.string.task_step_note, state.step, state.note).trimEnd(':', ' ')
+                // WOOWTECH fork: 模型没写话时 note 是工具名(上游原样显示「第 2 步:phone_set_alarm」),换成工具的界面说法
+                else -> tr(R.string.task_step_note, state.step, ToolLabels.shared.label(state.note)).trimEnd(':', ' ')
             })
             is TaskState.Held -> when {
                 state.reason == TaskGate.LOCKED -> tr(R.string.task_wait_unlock) to tr(R.string.task_wait_unlock_body)

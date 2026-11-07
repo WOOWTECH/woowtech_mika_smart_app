@@ -79,4 +79,25 @@
     <string name="model_probe_tried">Tentou %1$s; nenhum deles passou no teste.</string>
     <string name="model_probe_fallback">%1$s, testado primeiro, não passou no teste: %2$s. O modelo principal é “%3$s”, que passou.</string>
     <string name="model_pick_main">Escolher modelo principal</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">a chave de API é inválida ou não tem acesso</string>
+    <string name="model_error_quota">a conta ficou sem saldo</string>
+    <string name="model_error_rate_limited">solicitações demais; tente de novo mais tarde</string>
+    <string name="model_error_context">a conversa é maior que o contexto do modelo</string>
+    <string name="model_error_not_available">esta conta não pode usar este modelo (não ativado ou sem acesso)</string>
+    <string name="model_error_network">não foi possível conectar ao serviço do modelo</string>
+    <string name="model_error_stream_cut">a conexão caiu antes de a resposta terminar</string>
+    <string name="model_error_refused">o modelo se recusou a processar este conteúdo</string>
+    <string name="model_error_chatgpt_limit">o limite de uso do ChatGPT foi atingido</string>
+    <string name="model_error_chatgpt_not_eligible">esta conta não pode usar o plano do ChatGPT em outros apps</string>
+    <string name="model_error_signed_out">o login do %1$s expirou; entre de novo</string>
+    <string name="model_error_plan">seu plano do %1$s não pode usar esta API</string>
+    <string name="model_error_server_said">o servidor retornou um erro (%1$s): %2$s</string>
+    <string name="model_error_said">o serviço do modelo informou um erro: %1$s</string>
+    <string name="model_error_unreadable">não foi possível ler a resposta; verifique se a URL base e o tipo de API combinam</string>
+    <string name="list_error_network">não foi possível acessar este endereço; verifique a rede e a URL base</string>
+    <string name="list_error_not_supported">este serviço não oferece uma lista de modelos</string>
+    <string name="list_error_server">o serviço teve um erro temporário; tente de novo mais tarde</string>
+    <string name="list_error_bad_response">não foi possível ler a resposta; verifique a URL base e o tipo de API</string>
+    <string name="list_error_with_detail">%1$s (%2$s)</string>
 </resources>

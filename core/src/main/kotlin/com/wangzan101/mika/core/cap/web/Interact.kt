@@ -39,6 +39,7 @@ private val CLIPBOARD_KEYS = setOf("KeyC", "KeyX", "KeyV")
  */
 internal object Interact : WebTool {
     override val verb = Verb.Interact
+    override val label = "网页操作" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.External
     override val gateTarget = GateTarget.Interact
     override val showsScreenAfter = true

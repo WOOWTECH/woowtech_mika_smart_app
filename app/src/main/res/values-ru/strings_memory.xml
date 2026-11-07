@@ -88,4 +88,12 @@
     <string name="skills_imported">Импортирован</string>
     <string name="skill_builtin_name">Встроенный навык с таким названием уже есть. Переименуйте и попробуйте снова.</string>
     <string name="skill_draft_pending">Черновик с таким названием уже ждёт проверки. Сначала разберитесь с ним.</string>
+    <!-- WOOWTECH fork: memory notes under an answer, in the UI language (upstream shows core's hard-coded MemoryNote.text) -->
+    <string name="memory_note_added">Запомнено: %1$s</string>
+    <string name="memory_note_updated">Обновлено: %1$s</string>
+    <string name="memory_note_updated_was">Обновлено: %1$s (было: %2$s)</string>
+    <string name="memory_note_forgot">Забыто: %1$s</string>
+    <string name="memory_note_forgot_unknown">Одна запись забыта</string>
+    <string name="memory_note_pending">Делать так и дальше? %1$s</string>
+    <string name="memory_note_deleted">удалённая запись</string>
 </resources>

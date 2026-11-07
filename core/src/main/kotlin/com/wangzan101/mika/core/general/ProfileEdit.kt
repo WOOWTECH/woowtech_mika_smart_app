@@ -20,6 +20,7 @@ import kotlinx.serialization.json.put
 /** 只接受本轮用户原话支持的画像修改，失败时带出现有条目供用户选择。 */
 internal object ProfileEdit : AgentTool {
     override val verb = Verb.ProfileEdit
+    override val label = "修改「关于你」" // WOOWTECH fork: 上游没有说法,界面上露出工具名
     override val risk = Risk.Read
     override val def = ToolDef("profile_edit", Prompts.tool("profile_edit"), mapOf(
         "op" to str("add, replace, or delete", listOf("add", "replace", "delete")),

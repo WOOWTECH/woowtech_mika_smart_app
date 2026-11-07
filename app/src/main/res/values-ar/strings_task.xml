@@ -33,6 +33,10 @@
     </plurals>
     <string name="fail_no_main_model">لا يوجد نموذج رئيسي صالح للاستخدام بعد. أضف نموذجًا يدعم استدعاء الأدوات من الإعدادات.</string>
     <string name="fail_model_untested">لم يجتز النموذج الرئيسي اختبارًا على %1$s بعد. انتقل إلى الإعدادات › النماذج › %1$s وانقر على «اختبر مجددًا» للتحقق منه.</string>
+    <!-- WOOWTECH fork: why a task failed on a model error, in the UI language (upstream shows core's hard-coded Simplified Chinese) -->
+    <string name="fail_model">فشل استدعاء النموذج: %1$s. تحقّق من الإعدادات › النماذج.</string>
+    <string name="fail_model_later">فشل استدعاء النموذج: %1$s. حاول لاحقًا.</string>
+    <string name="fail_model_plain">فشل استدعاء النموذج: %1$s.</string>
     <string name="fail_no_web">الويب غير متاح على هذا الجهاز، لذا لا يمكن تشغيل فحص الشرط</string>
     <string name="task_waiting_display">في قائمة الانتظار: تبدأ بعد انتهاء المهمة الأخرى</string>
     <string name="task_no_phone_helper">التحكم بالهاتف غير جاهز. أكمل «إعداد التحكم بالهاتف» في Mika. لا تتأثر مهام الويب والملفات.</string>
