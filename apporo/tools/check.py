@@ -33,4 +33,12 @@ for slug in ('apporo-aiot', 'apporo-platform', 'apporo-smart'):
     description = re.search(r'^description: (.*)$', meta, re.M).group(1)
     assert len(description) <= 60, slug
     assert len(body) <= 2500, slug
+def luminance(rgb):
+    values = [int(rgb[i:i+2], 16) / 255 for i in (0, 2, 4)]
+    return sum(w * (v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4)
+               for w, v in zip((.2126, .7152, .0722), values))
+properties = dict(line.split('=', 1) for line in props.splitlines() if '=' in line and not line.startswith('#'))
+for theme in ('light', 'dark'):
+    a, b = sorted(luminance(properties[k][-6:]) for k in (f'accent.{theme}', f'accent.{theme}.on'))
+    assert (b + .05) / (a + .05) >= 4.5, (theme, 'button text contrast')
 print('Apporo source contracts: OK (XML, format arguments, branding, update isolation, knowledge bounds)')

@@ -33,6 +33,8 @@ jobs:
           sh woowtech/tools/check-no-cn-services.sh
       - name: Shared tests and Apporo build
         run: ./gradlew :core:test :app:testUpstreamDebugUnitTest :app:assembleApporoDebug :app:assembleApporoRelease --stacktrace
+      - name: Verify packaged Apporo identity
+        run: python3 apporo/tools/check-apk.py app/build/outputs/apk/apporo/release/*.apk
       - uses: actions/upload-artifact@v7
         with:
           name: apporo-assistant-${{ github.sha }}
