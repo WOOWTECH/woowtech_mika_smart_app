@@ -78,4 +78,23 @@
     <string name="model_probe_tried">Пробовали: %1$s; ни одна не прошла проверку.</string>
     <string name="model_probe_fallback">%1$s, которую пробовали первой, не прошла проверку: %2$s. Основная модель — «%3$s», она проверку прошла.</string>
     <string name="model_pick_main">Выбрать основную модель</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">ключ API недействителен или не даёт доступа</string>
+    <string name="model_error_quota">на счёте закончились средства</string>
+    <string name="model_error_rate_limited">слишком много запросов; попробуйте позже</string>
+    <string name="model_error_context">разговор длиннее контекста модели</string>
+    <string name="model_error_not_available">этот аккаунт не может пользоваться этой моделью (не подключена или нет доступа)</string>
+    <string name="model_error_network">не удалось подключиться к сервису модели</string>
+    <string name="model_error_stream_cut">соединение оборвалось до конца ответа</string>
+    <string name="model_error_refused">модель отказалась обрабатывать это содержимое</string>
+    <string name="model_error_chatgpt_limit">достигнут лимит использования ChatGPT</string>
+    <string name="model_error_chatgpt_not_eligible">этот аккаунт не может использовать тариф ChatGPT в других приложениях</string>
+    <string name="model_error_signed_out">вход в %1$s истёк; войдите снова</string>
+    <string name="model_error_plan">ваш тариф %1$s не позволяет пользоваться этим API</string>
+    <string name="model_error_server_said">сервер вернул ошибку (%1$s): %2$s</string>
+    <string name="model_error_said">сервис модели сообщил об ошибке: %1$s</string>
+    <string name="model_error_unreadable">не удалось прочитать ответ; проверьте, что базовый URL и тип API совпадают</string>
+    <string name="list_error_network">не удалось связаться с этим адресом; проверьте сеть и базовый URL</string>
+    <string name="list_error_not_supported">этот сервис не даёт списка моделей</string>
+    <string name="list_error_server">временная ошибка сервиса; попробуйте позже</string>
 </resources>

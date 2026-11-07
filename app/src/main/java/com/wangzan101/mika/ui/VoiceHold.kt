@@ -147,7 +147,8 @@ internal object VoiceCopy {
         SpeechFailure.Network -> tr(R.string.voice_network)
         SpeechFailure.MicUnavailable, SpeechFailure.AudioError -> tr(R.string.voice_mic_unavailable)
         // 服务商的错沿用模型出错时的说法(额度、Key、找不到模型……)
-        is SpeechFailure.Provider -> tr(R.string.voice_provider_failed, why.error.message.orEmpty())
+        // WOOWTECH fork: 按界面语言写(上游是 error.message:简体中文,认不出的报错还带整段报文),见 ModelErrorCopy
+        is SpeechFailure.Provider -> tr(R.string.voice_provider_failed, ModelErrorCopy.reason(why.error))
         SpeechFailure.NoPermission -> tr(R.string.voice_permission_title)
         is SpeechFailure.Unavailable -> tr(R.string.voice_unavailable_title)
     }

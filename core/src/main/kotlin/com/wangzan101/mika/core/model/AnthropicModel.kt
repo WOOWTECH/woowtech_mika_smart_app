@@ -153,7 +153,7 @@ class AnthropicModel(
         status == 404 -> ModelError.ModelNotFound(model, ModelAccessErrors.jsonDetail(body))
         status == 529 || body.contains("overloaded_error") -> ModelError.Server(529)
         status in 500..599 -> ModelError.Server(status)
-        else -> ModelError.BadResponse("HTTP $status ${body.take(200)}")
+        else -> ModelError.BadResponse.http(status, body) // WOOWTECH fork: 带上状态码和原话(message 不变)
     }
 
     private fun toolJson(t: ToolSpec, last: Boolean): JsonObject = buildJsonObject {
@@ -333,7 +333,8 @@ private class AnthropicStream(
                 }
             }
             "message_stop" -> stopped = true
-            "error" -> throw ModelError.BadResponse(root["error"].toString().take(200))
+            // WOOWTECH fork: 带上这一帧里的原话,界面引它(message 不变)
+            "error" -> throw ModelError.BadResponse(root["error"].toString().take(200), said = ModelAccessErrors.shownDetail(data))
         }
         return stopped
     }

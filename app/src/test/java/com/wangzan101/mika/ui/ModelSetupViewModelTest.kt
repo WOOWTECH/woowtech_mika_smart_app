@@ -472,7 +472,8 @@ class ModelSetupViewModelTest {
     /** 试调用失败(例如服务商要的请求头没带):服务端的报错原样给人看,什么都不存。 */
     @Test fun failedTinyRequestShowsTheServerErrorAndSavesNothing() = runTest {
         listing[openRouterUrl] = deepseek
-        reply = { throw ModelError.BadResponse("HTTP 400 {\"error\":{\"type\":\"MissingSessionID\"}}") }
+        // WOOWTECH fork: 照适配器那样把 HTTP 报错转成 ModelError(带状态码和原话);界面只引原话,不再贴 message 里的整段报文
+        reply = { throw ModelHttp.openAiError(400, null, "{\"error\":{\"type\":\"MissingSessionID\"}}", built.last().first) }
         val store = store()
         val vm = vm(store)
         vm.setApiKey("sk-1"); vm.testAndSave(); runCurrent()

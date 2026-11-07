@@ -467,7 +467,8 @@ class ModelSetupViewModel(
                 is ModelListResult.Ok -> r.models
                 is ModelListResult.Failed -> {
                     if (r.reason != ListFailure.NotSupported && typed.isEmpty()) {
-                        _state.update { it.copy(form = it.form.copy(test = ListState.Failed(r.message), manual = true)) }
+                        // WOOWTECH fork: 列表失败的原因按界面语言写(上游是 ListFailure 写死的简体中文),见 ModelErrorCopy
+                        _state.update { it.copy(form = it.form.copy(test = ListState.Failed(ModelErrorCopy.listFailure(r)), manual = true)) }
                         return@launch
                     }
                     emptyList()
@@ -712,13 +713,14 @@ class ModelSetupViewModel(
                     tr(R.string.model_reason_not_found),
                 )
                 // 5xx:可能只是这一个模型的上游挂了,先按它没通过算,由 [probe] 决定还试不试下一个
+                // WOOWTECH fork: 原因按界面语言写(上游是 e.message:简体中文,认不出的报错还带整段报文),见 ModelErrorCopy
                 is ModelError.Server -> ProbeOutcome.Failed(
-                    tr(R.string.model_probe_failed, model, e.message.orEmpty()),
+                    tr(R.string.model_probe_failed, model, ModelErrorCopy.reason(e)),
                     tr(R.string.model_reason_server, "HTTP ${e.status}"), serverSide = true,
                 )
                 // 代理那一段的问题:说是代理,不说成模型或服务商不行
                 is ModelError.Proxy -> ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, proxyReason(e)))
-                else -> ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, e.message.orEmpty()))
+                else -> ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, ModelErrorCopy.reason(e)))
             }
         }
     }
@@ -759,7 +761,7 @@ class ModelSetupViewModel(
                         val options = ModelOptions.ofProvider(p, store.list())
                         (ModelOptions.defaultMain(options) ?: options.firstOrNull()?.id)?.let { m -> use(ModelRole.Main, p, m, options) }
                     }
-                    (listed as? ModelListResult.Failed)?.message to (clientId == null)
+                    (listed as? ModelListResult.Failed)?.let(ModelErrorCopy::listFailure) to (clientId == null)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -818,7 +820,7 @@ class ModelSetupViewModel(
                 }
                 browser.returnToApp()
                 _state.update {
-                    it.copy(listing = if (failed != null) it.listing + (p.id to ListState.Failed(failed.message)) else it.listing - p.id)
+                    it.copy(listing = if (failed != null) it.listing + (p.id to ListState.Failed(ModelErrorCopy.listFailure(failed))) else it.listing - p.id)
                 }
                 signIns.finishAccount(AccountOutcome(provider.target, providerId = p.id))
             } catch (e: CancellationException) {
@@ -1018,7 +1020,8 @@ class ModelSetupViewModel(
         is ModelError.ModelNotAvailable -> tr(R.string.model_probe_not_available, model, e.detail.ifEmpty { e.message.orEmpty() })
         is ModelError.ModelNotFound -> tr(R.string.model_probe_not_found, model, ModelSetupCopy.modelExample(ProviderPresets.forHost(p.baseUrl)?.kind ?: p.kind))
         is ModelError.Proxy -> tr(R.string.speech_pick_failed, proxyReason(e))
-        else -> tr(R.string.speech_pick_failed, e.message.orEmpty())
+        // WOOWTECH fork: 原因按界面语言写,见 ModelErrorCopy
+        else -> tr(R.string.speech_pick_failed, ModelErrorCopy.reason(e))
     }
 
     private fun proxyReason(e: ModelError.Proxy): String = tr(
@@ -1072,7 +1075,7 @@ class ModelSetupViewModel(
                 is ModelListResult.Failed -> if (r.reason == ListFailure.NotSupported) emptyList() else null
             }
             if (models != null) withContext(io) { store.rememberModels(p.id, models) }
-            val after = if (r is ModelListResult.Failed && models == null) ListState.Failed(r.message) else ListState.Idle
+            val after = if (r is ModelListResult.Failed && models == null) ListState.Failed(ModelErrorCopy.listFailure(r)) else ListState.Idle
             _state.update { snapshot(it.copy(listing = it.listing + (providerId to after))) }
         }
     }

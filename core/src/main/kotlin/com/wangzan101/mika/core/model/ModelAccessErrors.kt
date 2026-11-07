@@ -91,10 +91,43 @@ object ModelAccessErrors {
         "model" in lower || (model.isNotBlank() && model.lowercase() in (said(body) ?: body).lowercase())
 
     /** 服务端的原话:JSON 里的([said]),不是 JSON 就是整段;太长的截短([clip])。 */
-    internal fun detail(body: String): String = clip(said(body) ?: body)
+    // WOOWTECH fork: 原话里包着的 JSON 报错先拆开([unwrap]),不把 JSON 原样给人看
+    internal fun detail(body: String): String = clip(unwrap(said(body) ?: body))
 
     /** 同 [detail],但只要 JSON 里的原话:不是 JSON 的(地址不对时反向代理回的 HTML 页、空内容)为空。 */
-    internal fun jsonDetail(body: String): String = said(body)?.let(::clip).orEmpty()
+    internal fun jsonDetail(body: String): String = said(body)?.let(::unwrap)?.let(::clip).orEmpty()
+
+    /**
+     * WOOWTECH fork: 认不出是哪一类的报错([ModelError.BadResponse])给人看的原话:同 [detail];JSON 里没有原话时
+     * 给错误代码(`error.code`、`error.type`),连代码也没有就为空,不给整段 JSON;HTML 页(反向代理的错误页)不算原话。
+     */
+    internal fun shownDetail(body: String): String {
+        if (said(body) == null) {
+            val parsed = runCatching { json.parseToJsonElement(body) }.getOrNull()
+            if (parsed is JsonObject || parsed is JsonArray) {
+                val root = parsed as? JsonObject ?: (parsed as? JsonArray)?.firstOrNull() as? JsonObject
+                val err = root?.get("error") as? JsonObject
+                return (err?.str("code") ?: err?.str("type"))?.let(::clip).orEmpty()
+            }
+        }
+        return detail(body).takeUnless { it.startsWith("<") }.orEmpty()
+    }
+
+    /**
+     * WOOWTECH fork: 原话里又包着一段 JSON 报错时(网关转述上游的报错,如 LiteLLM 的
+     * `litellm.BadRequestError: AnthropicException - {"type":"error","error":{"message":"…"}}`)取里面那句;
+     * 拆不开(不是完整的 JSON、里面没有原话)就原样。至多拆 [UNWRAP_MAX] 层。
+     */
+    private fun unwrap(text: String): String {
+        var current = text
+        repeat(UNWRAP_MAX) {
+            val start = current.indexOf('{')
+            val end = current.lastIndexOf('}')
+            if (start < 0 || end <= start) return current
+            current = said(current.substring(start, end + 1))?.takeIf { it.isNotBlank() } ?: return current
+        }
+        return current
+    }
 
     /** 去掉首尾空白;超过 [DETAIL_MAX] 个字时截短,末尾加「…」,看得出后面还有。 */
     internal fun clip(text: String): String =
@@ -112,4 +145,6 @@ object ModelAccessErrors {
     private fun JsonObject.str(k: String): String? = (this[k] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 
     private const val DETAIL_MAX = 160
+
+    private const val UNWRAP_MAX = 3
 }

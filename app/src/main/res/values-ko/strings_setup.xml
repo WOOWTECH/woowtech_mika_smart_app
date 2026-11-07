@@ -78,4 +78,23 @@
     <string name="model_probe_tried">%1$s을(를) 시도했지만 테스트를 통과한 모델이 없어요.</string>
     <string name="model_probe_fallback">먼저 시도한 %1$s이(가) 테스트를 통과하지 못했어요: %2$s. 메인 모델은 테스트를 통과한 “%3$s”이에요.</string>
     <string name="model_pick_main">메인 모델 선택</string>
+    <!-- WOOWTECH fork: model and model-list errors in the UI language (upstream shows core's hard-coded Simplified Chinese, with raw response bodies) -->
+    <string name="model_error_auth">API 키가 잘못되었거나 권한이 없어요</string>
+    <string name="model_error_quota">계정 한도를 다 썼어요</string>
+    <string name="model_error_rate_limited">요청이 너무 많아요. 잠시 후 다시 시도하세요</string>
+    <string name="model_error_context">대화가 모델의 컨텍스트 길이를 넘었어요</string>
+    <string name="model_error_not_available">이 계정은 이 모델을 쓸 수 없어요(미활성화 또는 권한 없음)</string>
+    <string name="model_error_network">모델 서비스에 연결하지 못했어요</string>
+    <string name="model_error_stream_cut">응답이 끝나기 전에 연결이 끊겼어요</string>
+    <string name="model_error_refused">모델이 이 내용의 처리를 거부했어요</string>
+    <string name="model_error_chatgpt_limit">ChatGPT 사용 한도에 도달했어요</string>
+    <string name="model_error_chatgpt_not_eligible">이 계정은 다른 앱에서 ChatGPT 요금제를 쓸 수 없어요</string>
+    <string name="model_error_signed_out">%1$s 로그인이 만료됐어요. 다시 로그인하세요</string>
+    <string name="model_error_plan">사용 중인 %1$s 요금제로는 이 API를 쓸 수 없어요</string>
+    <string name="model_error_server_said">서버가 오류를 반환했어요(%1$s): %2$s</string>
+    <string name="model_error_said">모델 서비스가 오류를 알렸어요: %1$s</string>
+    <string name="model_error_unreadable">응답 내용을 읽지 못했어요. 기본 URL과 API 유형이 맞는지 확인하세요</string>
+    <string name="list_error_network">이 주소에 연결할 수 없어요. 네트워크와 기본 URL을 확인하세요</string>
+    <string name="list_error_not_supported">이 서비스는 모델 목록을 제공하지 않아요</string>
+    <string name="list_error_server">서비스에 일시적인 오류가 있어요. 잠시 후 다시 시도하세요</string>
 </resources>

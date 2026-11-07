@@ -54,6 +54,17 @@ sealed class ModelError(message: String, cause: Throwable? = null) : Exception(m
      */
     class AccountPlanNotAllowed(val account: String, val detail: String = "") :
         ModelError("你的${account}订阅档位不能用这个接口")
-    class BadResponse(detail: String = "", cause: Throwable? = null) :
-        ModelError(if (detail.isEmpty()) "模型返回了无法解析的内容" else "模型返回了无法解析的内容: $detail", cause)
+    /**
+     * 回复用不了:内容看不懂,或服务端报了上面几类以外的错。[detail] 只进 [message](给开发看,可能带着报文开头)。
+     * WOOWTECH fork: [status] 是 HTTP 报错的状态码(不是 HTTP 报错为 null),[said] 是服务端报错里的原话(截短,见
+     * [ModelAccessErrors.shownDetail]),没有为空:界面上说原因时按界面语言写、引这句原话,不把 [message] 的整段报文给人看。
+     */
+    class BadResponse(detail: String = "", cause: Throwable? = null, val status: Int? = null, val said: String = "") :
+        ModelError(if (detail.isEmpty()) "模型返回了无法解析的内容" else "模型返回了无法解析的内容: $detail", cause) {
+        companion object {
+            /** 认不出是哪一类的 HTTP 报错:[message] 照旧带状态码和报文开头,[said] 从整段报文里取原话。 */
+            fun http(status: Int, body: String) =
+                BadResponse("HTTP $status ${body.take(200)}", status = status, said = ModelAccessErrors.shownDetail(body))
+        }
+    }
 }
