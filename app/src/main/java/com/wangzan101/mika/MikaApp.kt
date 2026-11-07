@@ -329,8 +329,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         // 界面以外的文字(通知、服务、悬浮胶囊)按 App 语言取
         AppLanguage.applyDefaultLocale(this)
         UiText.source = ResourceTexts { AppLanguage.resources(this) }
-        // WOOWTECH fork: 通知频道的名字是系统建频道时存下的,换了语言不会自己变;启动时把已有的「配对」「背景准备」频道名对到当前语言
-        // (语言在 App 不运行时换的,或升级上来时旧名字还留着),见 ChannelNames
+        // WOOWTECH fork: 通知频道的名字是系统建频道时存下的,换了语言不会自己变;启动时把已有的频道(配对、背景准备、任务的三个)的名字
+        // 对到当前语言(语言在 App 不运行时换的,或升级上来时旧名字还留着),见 ChannelNames
         scope.launch(Dispatchers.IO) { ChannelNames.refresh(this@MikaApp) }
         registerActivityLifecycleCallbacks(foreground)
         // 设置 › 网络代理:Mika 自己的连接从第一个请求起就按它走;SOCKS 代理的账号密码经全进程的认证器给
