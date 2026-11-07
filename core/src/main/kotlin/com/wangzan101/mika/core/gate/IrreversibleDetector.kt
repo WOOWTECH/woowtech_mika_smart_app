@@ -169,8 +169,11 @@ object IrreversibleDetector {
         "clear", "cleartext", "clearsearch", "clearquery", "×", "✕", "x")
     /** 清空键离输入框左右边至多这么远(0–999)。 */
     private const val FIELD_NEAR = 80
-    /** WOOWTECH fork: 输入框那一行写着这些字时,填的是要付的钱(加值、转账金额),旁边的确认不算套用框里的值。 */
-    private val AMOUNT_FIELD_WORDS = listOf("金额", "amount")
+    /**
+     * WOOWTECH fork: 输入框那一行写着这些字时,填的是要付的钱(转账金额,或「储值 [500] 元」这类没写金额的加值、储值行),
+     * 旁边的确认不算套用框里的值。要声明在 [EXACT_PAY] 之后(object 按声明顺序初始化)。
+     */
+    private val AMOUNT_FIELD_WORDS = listOf("金额", "amount") + EXACT_PAY
 
     // 判哪些、按什么判,由工具声明([GateTarget],只有 External 的工具有);返回、清空输入框、打开 App 不会提交任何东西,不判
     /** 改选中项的键:方向键、Home/End、翻页。 */
@@ -421,7 +424,7 @@ object IrreversibleDetector {
 
     /**
      * WOOWTECH fork: 按钮在输入框同一行、紧挨着它(「最低价 – 最高价 确认」「到第 _ 页 确定」),套用的是框里填的值,
-     * 和搜索框旁的搜索键一样。框是密码一类的框,或这一行写着金额(加值、转账金额)时不算:那是在填要付的钱。
+     * 和搜索框旁的搜索键一样。框是密码一类的框,或这一行写着金额、加值一类的字(加值金额、储值)时不算:那是在填要付的钱。
      */
     private fun appliesField(e: UiElement, s: ScreenSnapshot): Boolean {
         if (e.editable || e.bounds.size != 4) return false

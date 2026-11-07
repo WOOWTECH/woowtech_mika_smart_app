@@ -730,7 +730,7 @@ class IrreversibleDetectorTest {
         assertEquals(IrrevAction.order, d.classify("web_tap", tap("@e6"), apart)?.action)
     }
 
-    // WOOWTECH fork: 输入框旁的确认只在填的不是钱时算套用:密码框、写着金额的那一行照常按同屏判;同屏有付款面板仍是付款
+    // WOOWTECH fork: 输入框旁的确认只在填的不是钱时算套用:密码框、写着金额或储值一类字的那一行照常按同屏判;同屏有付款面板仍是付款
     @Test fun confirmNextToAMoneyFieldIsStillJudgedByTheScreen() {
         fun tap(ref: String) = args("""{"ref":"$ref","snapshotId":"s1"}""")
         val field = el("@e3", "", listOf(300, 400, 700, 460), editable = true)
@@ -743,6 +743,9 @@ class IrreversibleDetectorTest {
         )
         assertNull(d.classify("phone_tap", tap("@e4"), row(field, "跳至第")))
         assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "加值金額"))?.action)
+        // 没写「金额」的储值、加值行(「儲值 [500] 元 〔確認〕」)填的也是要付的钱
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "儲值"))?.action)
+        assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field, "加值"))?.action)
         assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(placeholder = "請輸入金額"), ""))?.action)
         assertEquals(IrrevAction.order, d.classify("phone_tap", tap("@e4"), row(field.copy(secret = true), "交易密碼"))?.action)
         val sheet = row(field, "跳至第", el("@e5", "付款方式:信用卡 ****1234", listOf(0, 200, 999, 260), clickable = false))
