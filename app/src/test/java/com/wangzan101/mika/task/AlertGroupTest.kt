@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * WOOWTECH fork: 要响铃、弹出的通知都放进有摘要的组([AlertGroup]),安卓 16 不会把它们叠进系统的自动组、标成静音。
@@ -42,6 +43,28 @@ class AlertGroupTest {
     @Test fun staysBelowTheSystemsSparseGroupLimit() {
         val tasks = ParallelCapability.detect(sdk = 36, lowRam = false, userMax = Int.MAX_VALUE, secondDisplayFailed = false).max
         assertTrue("$tasks tasks", tasks + 2 < SYSTEM_SPARSE_GROUPS)
+    }
+
+    /**
+     * 会提醒的频道上的通知都经 [AlertGroup] 发、撤。直接 notify 的没有组摘要,安卓 16 会把它叠进自动组、标成静音;
+     * 直接 cancel 的会留下没有子通知的摘要。同步上游时这几行容易被改回去。
+     */
+    @Test fun alertingNotificationsGoThroughTheirGroups() {
+        val files = File("src/main/java").walk().filter { it.extension == "kt" }.toList()
+        // 确认真的找到了发通知的代码(路径不对、同名文件时不会悄悄通过)
+        fun source(name: String) = files.single { it.name == name }.readText()
+        assertTrue(source("AlertGroup.kt").isNotEmpty())
+        // 在「需要你」、结果频道上建通知的只有这两个文件;新加的也要放进有摘要的组,再加进这里
+        val alerting = Regex("""Notification\.Builder\([^)]*CHANNEL_(ATTENTION|RESULT)\b""")
+        assertEquals(setOf("TaskService.kt", "TriggerRuntime.kt"), files.filter { alerting.containsMatchIn(it.readText()) }.map { it.name }.toSet())
+        // 直接 notify、cancel 的只剩静音的进度通知和留页通知
+        val raw = Regex("""(?:\b(?:nm|notifications)|NotificationManager::class\.java\))\.(?:notify|cancel)\(\s*([^,)]+)""")
+        fun rawIds(name: String) = raw.findAll(source(name)).map { it.groupValues[1].trim() }.toSet()
+        assertEquals(setOf("id(ID_PROGRESS", "ID_KEPT"), rawIds("TaskService.kt"))
+        assertEquals(emptySet<String>(), rawIds("TriggerRuntime.kt"))
+        assertEquals(emptySet<String>(), rawIds("PairingNotifier.kt"))
+        // 要你同意的通知也放进任务的组
+        assertTrue(source("TaskService.kt").contains("group = AlertGroup.attention(run.slot)"))
     }
 
     private companion object {
