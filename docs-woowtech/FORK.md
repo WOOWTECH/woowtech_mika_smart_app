@@ -14,6 +14,8 @@
 
 ## 品牌層怎麼運作
 
+Apporo 共用分支的補充：`BrandValues.capsuleDefaultFraction` 讀取可選 `capsule.default.fraction`，`FeatureFlags` 僅在沒有儲存位置時採用它；渥屋未設定，仍為0。`ui/components/Logo.kt` 可依 `brand_monochrome_logo` 使用 App 主題的標誌顏色，渥屋／上游預設false，原圖不變。Apporo 為0.5與true；理由與裝置驗證見 `docs-apporo/EMULATOR-WAVE2-20261108.zh-TW.md`。
+
 - `app/brand.gradle.kts`＋`app/build.gradle.kts` 結尾：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
 - 品牌值只有一個來源：`app/src/woowtech/resources/brand.properties`，由 `core/.../brand/Brand.kt` 讀取。沒有這個檔時，所有值都退回上游原值。
 - 介面字串：Gradle 設定時，把 `src/main/res`（英文、繁中）裡提到 Mika 或上游 repo 的字串，自動換成品牌名和本 repo，產生到 `app/.gradle/woowtech-brand-res`（不進 git）。`app/src/woowtech/res` 裡人工寫的 key 不會被覆蓋。上游新增或修改字串，下次建置會自動跟上。上游繁中翻譯的錯字和大陸用語（隻、早上好、重啟、運行、獲取、自定義、應用訪問、退出登入……）在 `app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml` 人工覆蓋；瀏覽器寫 Google（跟 `search.url` 一致）、OpenRouter Key 名稱寫 woowtech agent，在 `strings_woowtech.xml`。`BrandStringsTest` 核對每個人工覆蓋的 key 上游還在、佔位符一樣；上游改了原文的意思，同步時要自己看
