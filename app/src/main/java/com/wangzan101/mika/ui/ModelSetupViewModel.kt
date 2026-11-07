@@ -107,8 +107,9 @@ interface SignInBrowser {
 
 /**
  * 「添加服务商」表单。[noList] 为真时上次测试没列出模型:要先填 [model](手填的模型名),再测试就用它试调用。
- * [manual] 为真是用户点了「手动填写模型名」(或列模型出错后自动展开;WOOWTECH fork: 试的几个模型都说不准时也展开):
- * 随时都能填,填了就用它试调用,列表有没有、列不列得出都不影响。[name] 是自定义服务商的名字(只有自定义才填,可不填,见 [providerName])。
+ * [manual] 为真是用户点了「手动填写模型名」(或列模型出错后自动展开):随时都能填,填了就用它试调用,列表有没有、
+ * 列不列得出都不影响。[name] 是自定义服务商的名字(只有自定义才填,可不填,见 [providerName])。
+ * WOOWTECH fork: 试的几个模型都被服务商拒了时 [manual] 也自动展开(见 [ModelSetupViewModel.testAndSave])。
  */
 data class AddForm(
     val preset: String,
@@ -444,8 +445,9 @@ class ModelSetupViewModel(
      * 没有这个模型、不会调用工具)时,接着试下一个,至多试 [PROBE_CANDIDATES] 个:Key 已经证明是对的,
      * 通过了的当主模型并说一句先试的哪些没通过;都没通过也存下服务商、不定主模型,说明原因并请用户从列表里选
      * ([ModelSetupUi.probeNote]、[ModelSetupUi.pickToProbe],选的时候先试调用)。
-     * 第一个就因为别的原因失败(Key、网络、地址、超时)说原因、不存。服务端出错、服务商拒了请求、额度用完说不准是不是
-     * 那个模型的问题,也接着试下一个;试的都是这样才不存,并展开模型名一栏(见 [probe])。
+     * 第一个就因为别的原因失败(Key、网络、地址、超时、服务端出错)说原因、不存。
+     * WOOWTECH fork: 服务商拒了请求又说不出是哪一类(HTTP 4xx)、额度用完时,和服务端出错一样接着试下一个;
+     * 试的全是这样、其中有被拒的,不存,说一声试了哪些,并展开模型名一栏(见 [probe])。
      *
      * 没列出模型(列表接口不存在,或列出来是空的):可能这家真不提供列表,也可能地址、接口类型填错了,单看列表分不出来。
      * 所以不直接存,要用户填一个模型名([AddForm.noList]),再测试时用它试调用:通了才存成不提供列表的服务商,
@@ -505,7 +507,7 @@ class ModelSetupViewModel(
             }
             val probed = when (val r = probe(f, baseUrl, key.ifEmpty { null }, models)) {
                 is ListProbe.Blocked -> {
-                    // WOOWTECH fork: 试的几个都说不准时展开模型名一栏,用户填一个确定能用的再测
+                    // WOOWTECH fork: 试的几个都被服务商拒了时展开模型名一栏,用户填一个确定能用的再测
                     _state.update { it.copy(form = it.form.copy(test = ListState.Failed(r.message), manual = it.form.manual || r.pickModel)) }
                     return@launch
                 }
@@ -569,32 +571,33 @@ class ModelSetupViewModel(
     /**
      * 试调用的结论:通过、[model] 没调用工具、失败([message] 是给人看的原因)。
      * 失败是那个模型自己的问题(这个账号用不了、没有这个模型、不支持工具)时 [modelReason] 是短的原因,换一个模型可能就行;
-     * [notAvailable] 为真是没开通或没权限;[inconclusive] 为真是说不准只是这个模型还是整家都不行:服务端出错(5xx),
-     * 或服务商拒了请求、额度用完(WOOWTECH fork),见 [probe]。
+     * [notAvailable] 为真是没开通或没权限;[serverSide] 为真是服务端出错(5xx),可能只是这一个模型的上游挂了,见 [probe]。
+     * WOOWTECH fork: [refused] 为真是服务商拒了请求又说不出是哪一类(HTTP 4xx)、额度用完,也可能只是这一个模型的线路不行,见 [probe]。
      */
     private sealed interface ProbeOutcome {
         data object Passed : ProbeOutcome
         data class NoToolCall(val model: String) : ProbeOutcome
         data class Failed(
             val message: String, val modelReason: String? = null,
-            val notAvailable: Boolean = false, val inconclusive: Boolean = false,
+            val notAvailable: Boolean = false, val serverSide: Boolean = false,
+            val refused: Boolean = false,
         ) : ProbeOutcome
     }
 
     /**
-     * 先试、没通过的一个模型:[reason] 是短的原因;[inconclusive] 见 [ProbeOutcome.Failed]、[probe]。
+     * 先试、没通过的一个模型:[reason] 是短的原因;[serverSide] 为真是服务端出错(5xx),见 [probe]。
      * [skipped] 为真是压根没试(接口写明了它不走这个接口类型),文案里不能说「试了」。
+     * WOOWTECH fork: [refused] 为真是服务商拒了请求、额度用完,见 [ProbeOutcome.Failed]、[probe]。
      */
     private data class Rejected(
-        val model: String, val reason: String, val notAvailable: Boolean, val inconclusive: Boolean = false,
+        val model: String, val reason: String, val notAvailable: Boolean, val serverSide: Boolean = false,
         val skipped: Boolean = false,
+        val refused: Boolean = false,
     )
 
-    /**
-     * 有列表时试调用的结果:[Blocked] 是第一个就因为模型以外的原因失败,或试的几个都说不准,不存;[Done] 见 [probe]。
-     * [Blocked.pickModel] 为真是试的几个都说不准(WOOWTECH fork):展开模型名一栏,请用户填一个确定能用的。
-     */
+    /** 有列表时试调用的结果:[Blocked] 是第一个就因为模型以外的原因失败,不存;[Done] 见 [probe]。 */
     private sealed interface ListProbe {
+        // WOOWTECH fork: [pickModel] 为真是试的几个都没通过、里面有服务商拒了请求的(见 [probe]):展开模型名一栏,请用户填一个确定能用的
         data class Blocked(val message: String, val pickModel: Boolean = false) : ListProbe
         /** [main] 是通过了的模型;[rejected] 是在它之前试过、没通过的。都为空是没有可试的模型。 */
         data class Done(val main: String?, val rejected: List<Rejected>) : ListProbe
@@ -608,9 +611,10 @@ class ModelSetupViewModel(
      * 服务端出错(5xx)不一定整家不可用:聚合服务商把很多上游的模型放在同一个列表里,其中一个上游挂了也会这样。
      * 所以 5xx 先按这个模型没通过记下、接着试下一个:后面有通过的,就说明是那个模型的问题,照常保存;
      * 试的全都是这样,才当成整家不可用,不存。只碰到过 5xx 时 Key 还没证明是对的,这之后再碰到别的原因失败也照旧不存。
-     * WOOWTECH fork: 服务商拒了请求又说不出是哪一类(HTTP 4xx)、额度用完,也和 5xx 一样处理:网关、聚合服务里
-     * 常常只是排在前面的那条线路没开通或没额度(比如上游回「credit balance is too low」),后面的照样能用。
-     * 试的全都说不准时说一声试了哪些,并请用户自己填一个模型名([ListProbe.Blocked.pickModel])。
+     * WOOWTECH fork: 服务商拒了请求又说不出是哪一类(HTTP 4xx)、额度用完([ProbeOutcome.Failed.refused]),也和 5xx 一样处理:
+     * 网关、聚合服务里常常只是排在前面的那条线路没开通或没额度(比如上游回「credit balance is too low」),后面的照样能用。
+     * 试的全是这样、里面有被拒的,不存,说一声试了哪些,并请用户自己填一个模型名([ListProbe.Blocked.pickModel]);
+     * 试的全是 5xx 照上游。
      */
     private suspend fun probe(f: AddForm, baseUrl: String, key: String?, models: List<ListedModel>): ListProbe {
         // 用 ChatGPT 登录不走这张表单(登录本身就核对过了);表单只给 Key 的接口类型,这里再挡一次
@@ -636,7 +640,7 @@ class ModelSetupViewModel(
         }
         val order = usable.ifEmpty { listOfNotNull(options.firstOrNull()?.id) }
         val rejected = mutableListOf<Rejected>()
-        var firstInconclusive: String? = null
+        var firstServerError: String? = null
         for ((i, model) in order.take(PROBE_CANDIDATES).withIndex()) {
             val caps = options.first { it.id == model }.capabilities
             val endpoint = models.firstOrNull { it.id == model }?.endpoint
@@ -645,11 +649,12 @@ class ModelSetupViewModel(
                 is ProbeOutcome.NoToolCall -> rejected += Rejected(model, tr(R.string.model_reason_no_tools), notAvailable = false)
                 is ProbeOutcome.Failed -> when {
                     o.modelReason != null -> {
-                        rejected += Rejected(model, o.modelReason, o.notAvailable, o.inconclusive)
-                        if (o.inconclusive && firstInconclusive == null) firstInconclusive = o.message
+                        rejected += Rejected(model, o.modelReason, o.notAvailable, o.serverSide, refused = o.refused)
+                        // WOOWTECH fork: 服务商拒了的也和 5xx 一样记下(Key 同样还没证明是对的)
+                        if ((o.serverSide || o.refused) && firstServerError == null) firstServerError = o.message
                     }
-                    // 前面只有说不准的失败(5xx 等)时 Key 还没证明是对的:再碰到 Key、网络、地址、超时这类,照旧不存
-                    firstInconclusive != null || i == 0 -> return ListProbe.Blocked(o.message)
+                    // 前面只有 5xx 时 Key 还没证明是对的:再碰到 Key、网络、地址、超时这类,照旧不存
+                    firstServerError != null || i == 0 -> return ListProbe.Blocked(o.message)
                     else -> {
                         rejected += Rejected(model, o.message, notAvailable = false)
                         break
@@ -657,11 +662,14 @@ class ModelSetupViewModel(
                 }
             }
         }
-        // 试的全都说不准(服务端出错、服务商拒了请求):多半整家不可用,不存
-        if (rejected.isNotEmpty() && rejected.all { it.inconclusive }) {
-            // WOOWTECH fork: 试了不止一个就说试了哪些,并展开模型名一栏
-            val tried = if (rejected.size > 1) "\n" + tr(R.string.model_probe_tried, rejected.joinToString(tr(R.string.list_sep)) { it.model }) else ""
-            return ListProbe.Blocked((firstInconclusive ?: rejected.first().reason) + tried, pickModel = true)
+        // 试的全都是服务端出错:多半整家不可用,不存
+        // WOOWTECH fork: 服务商拒了的也算;里面有被拒的,说一声试了哪些,并展开模型名一栏。全是 5xx 照上游
+        if (rejected.isNotEmpty() && rejected.all { it.serverSide || it.refused }) {
+            if (rejected.any { it.refused }) {
+                val tried = if (rejected.size > 1) "\n" + tr(R.string.model_probe_tried, rejected.joinToString(tr(R.string.list_sep)) { it.model }) else ""
+                return ListProbe.Blocked((firstServerError ?: rejected.first().reason) + tried, pickModel = true)
+            }
+            return ListProbe.Blocked(firstServerError ?: rejected.first().reason)
         }
         return ListProbe.Done(null, rejected)
     }
@@ -725,14 +733,19 @@ class ModelSetupViewModel(
                 // 5xx:可能只是这一个模型的上游挂了,先按它没通过算,由 [probe] 决定还试不试下一个
                 is ModelError.Server -> ProbeOutcome.Failed(
                     tr(R.string.model_probe_failed, model, e.message.orEmpty()),
-                    tr(R.string.model_reason_server, "HTTP ${e.status}"), inconclusive = true,
+                    tr(R.string.model_reason_server, "HTTP ${e.status}"), serverSide = true,
                 )
                 // WOOWTECH fork: 服务商拒了请求又说不出是哪一类(HTTP 4xx)、额度用完:网关里常常只是这一条线路没开通或没额度,
-                // 和 5xx 一样先按它没通过算;报错只说一句摘要([ModelSetupCopy.refusal]),不贴整段 JSON。
-                // 回了 200 却看不懂的(没有状态码)照原话说
+                // 和 5xx 一样先按它没通过算,由 [probe] 决定还试不试下一个;报错只说一句摘要([ModelSetupCopy.refusal]),不贴整段 JSON。
+                // 没有状态码的(回了 200 却看不懂、缺少 choices 之类)照上游:原话照说,不再试下一个
                 is ModelError.BadResponse, is ModelError.QuotaExceeded -> {
-                    val reason = ModelSetupCopy.refusal(e.message.orEmpty())?.let { tr(R.string.model_reason_refused, it) } ?: e.message.orEmpty()
-                    ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, reason), reason, inconclusive = true)
+                    val said = ModelSetupCopy.refusal(e.message.orEmpty())
+                    if (e is ModelError.BadResponse && said == null) {
+                        ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, e.message.orEmpty()))
+                    } else {
+                        val reason = said?.let { tr(R.string.model_reason_refused, it) } ?: e.message.orEmpty()
+                        ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, reason), reason, refused = true)
+                    }
                 }
                 // 代理那一段的问题:说是代理,不说成模型或服务商不行
                 is ModelError.Proxy -> ProbeOutcome.Failed(tr(R.string.model_probe_failed, model, proxyReason(e)))

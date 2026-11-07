@@ -565,6 +565,39 @@ class ModelSetupViewModelTest {
         assertEquals("chatgpt/gpt-x", store.configFor(ModelRole.Main)?.model)
     }
 
+    /**
+     * WOOWTECH fork: 只有服务商回了状态码的拒绝才接着试下一个。回了 200 却看不懂(没有状态码,如缺少 choices)照上游:
+     * 第一个就停、原话照说,不展开模型名一栏。
+     */
+    @Test fun unreadableReplyOnTheFirstCandidateStillStopsThere() = runTest {
+        val url = "https://api.qnaigc.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("a-model"), ListedModel("b-model"), ListedModel("c-model")))
+        reply = { throw ModelError.BadResponse("缺少 choices") }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals("只试第一个", listOf("a-model"), built.map { it.first })
+        val f = vm.state.value.form
+        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelError.BadResponse("缺少 choices").message}"), f.test)
+        assertFalse(f.showModel)
+        assertTrue(store.providers.value.isEmpty())
+    }
+
+    /** WOOWTECH fork: 试的全是 5xx 照上游(多半整家没起来,换模型也没用):只说第一个的原因,不加「试了哪些」,不展开模型名一栏。 */
+    @Test fun serverErrorOnEveryCandidateDoesNotAskForAModel() = runTest {
+        val url = "https://api.qnaigc.com/v1"
+        listing[url] = ModelListResult.Ok(listOf(ListedModel("a-model"), ListedModel("b-model"), ListedModel("c-model")))
+        reply = { throw ModelError.Server(502) }
+        val store = store()
+        val vm = vm(store)
+        vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
+        assertEquals(listOf("a-model", "b-model", "c-model"), built.map { it.first })
+        val f = vm.state.value.form
+        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelError.Server(502).message}"), f.test)
+        assertFalse(f.showModel)
+        assertTrue(store.providers.value.isEmpty())
+    }
+
     /** WOOWTECH fork: 服务商拒绝请求时只留它那一句话(最里面那层的 message,没有就 type 之类),不贴整段原文。 */
     @Test fun refusalKeepsOnlyWhatTheProviderSaid() {
         fun said(body: String) = ModelSetupCopy.refusal(ModelError.BadResponse("HTTP 400 ${body.take(200)}").message.orEmpty())
