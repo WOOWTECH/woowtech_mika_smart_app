@@ -44,6 +44,8 @@ import com.wangzan101.mika.core.cap.web.FakeWebPort
 import com.wangzan101.mika.core.cap.web.ScriptRun
 import com.wangzan101.mika.core.testing.WEB_SCRIPT_TOOL
 import com.wangzan101.mika.core.tool.FakeScreen
+import com.wangzan101.mika.core.tool.HandBack
+import com.wangzan101.mika.core.tool.HandBackOutcome
 import com.wangzan101.mika.core.tool.ScriptWebPort
 
 /**
@@ -261,15 +263,20 @@ class AgentLoopGateTest {
         assertTrue(msg, "item" in msg && "amount" in msg && "address" in msg)
     }
 
-    // WOOWTECH fork: 测试商店 P5:屏上要花钱的只有「立即加值」(付款),模型没先点就申报成提交:不出同意卡,叫它交给用户亲手付
+    // WOOWTECH fork: 测试商店 P5:屏上要花钱的只有「立即加值」(付款),模型没先点就申报成提交:不出同意卡,叫它交给用户亲手付;
+    // 模型交给用户时没写商品和金额,接管卡和申报成付款(P4)时一样用申报里的
     @Test fun lighterDeclarationOnAPayOnlyScreenGoesToTakeover() = runTest {
         val s = ChatScreen().apply { button = "立即加值" }
-        val m = FakeModel(OBSERVE, ask(action = "submit"), FINISH)
+        val m = FakeModel(OBSERVE, ask(action = "submit"), tools(call("hand_to_user", """{"reason":"payment","message":"請你付款"}""")), FINISH)
         val l = loop(m, s)
-        com.wangzan101.mika.core.testing.assertAnswered(DONE, l.run("t"))
+        val run = async { l.run("t") }
+        advanceUntilIdle()
         val r = m.result(2)
         assertEquals("payment_requires_takeover", r.s("error"))
         assertTrue(r.s("message"), "hand_to_user" in r.s("message"))
+        assertEquals(TaskState.WaitingTakeover("payment", "請你付款", item = "明天见", amount = "¥25"), l.state.value)
+        l.resumeAfterTakeover(HandBack(HandBackOutcome.complete))
+        run.await()
         assertTrue(s.taps.isEmpty())
     }
 
