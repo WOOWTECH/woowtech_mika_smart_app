@@ -420,7 +420,8 @@ class TaskService : Service() {
             // WOOWTECH fork: 电脑端停掉的照实说(见 describeResult);恢复时补发的也是这句
             center.markResult(run, describeResult(end, run.stoppedFromComputer).second, deliveryId, successful = end is TaskState.Succeeded)
             run.clearTakeoverStage()
-            synchronized(notifyLock) { getSystemService(NotificationManager::class.java).cancel(id(ID_ATTENTION, run)) }
+            // WOOWTECH fork: 连同它的组摘要一起撤(见 AlertGroup)
+            synchronized(notifyLock) { AlertGroup.attention(run.slot).cancel(getSystemService(NotificationManager::class.java), id(ID_ATTENTION, run)) }
             // 先发结果通知,再在后台学(提取记忆、记技能结果、起草技能);用进程级作用域,服务退出也做完
             var delivered = false
             val app = applicationContext
@@ -606,7 +607,9 @@ class TaskService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             nm.notify(id(ID_PROGRESS, run), progressNotification(run, shown))
             val attention = attentionNotification(run, shown)
-            if (attention != null) nm.notify(id(ID_ATTENTION, run), attention) else nm.cancel(id(ID_ATTENTION, run))
+            // WOOWTECH fork: 「需要你」的通知每个任务一组,和组摘要一起发、一起撤;不分组时安卓 16 会把它叠进系统的自动组、标成静音(见 AlertGroup)
+            val group = AlertGroup.attention(run.slot)
+            if (attention != null) group.notify(this, nm, id(ID_ATTENTION, run), attention) else group.cancel(nm, id(ID_ATTENTION, run))
         }
     }
 
@@ -684,6 +687,7 @@ class TaskService : Service() {
             return ConfirmationNotifier.build(
                 this, CHANNEL_ATTENTION, state, TaskService::class.java, ACTION_APPROVE, ACTION_DECLINE, openApp(),
                 codeOffset = SLOT_STRIDE * run.slot, runExtra = EXTRA_RUN to run.key, quiet = quiet,
+                group = AlertGroup.attention(run.slot),
             )
         }
         if (state is TaskState.WaitingTakeover && !takeoverFirst(run)) return null
@@ -714,7 +718,8 @@ class TaskService : Service() {
             .setCategory(Notification.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true) // 同一次等待里换按钮不再响铃;离开等待时撤掉,下一次会重新提醒
             .setContentIntent(openApp())
-        if (quiet) b.alertQuietly()
+        // WOOWTECH fork: 放进这个任务自己的通知组(组里有摘要);安静时在组里不提醒,不再另放进没有摘要的静音组(见 AlertGroup)
+        b.inGroup(AlertGroup.attention(run.slot), quiet)
         when (state) {
             is TaskState.WaitingTakeover -> takeoverActions(run).forEach(b::addAction)
             is TaskState.WaitingInput -> {
@@ -858,22 +863,26 @@ class TaskService : Service() {
         /** 结果与提示发成通知(服务里的与 App 启动时恢复用的共用);[resultId] 是结果通知的编号。 */
         internal fun notifyDelivery(context: Context, delivery: Delivery, resultId: Int): SendOutcome {
             val nm = context.getSystemService(NotificationManager::class.java)
+            // WOOWTECH fork: 结果和提示放进结果组(组里有摘要),系统不会把它和别的通知叠进自动组、标成静音(见 AlertGroup)
+            val results = AlertGroup.RESULTS
             when (delivery) {
                 is Delivery.Result -> {
                     // WOOWTECH fork: 回答按 Markdown 写,通知里只放纯文字
                     val text = notificationText(delivery.text)
-                    nm.notify(resultId, Notification.Builder(context, CHANNEL_RESULT)
+                    results.notify(context, nm, resultId, Notification.Builder(context, CHANNEL_RESULT)
                         .setSmallIcon(R.drawable.ic_notification)
                         .setContentTitle(delivery.title)
                         .setContentText(text)
                         .setStyle(Notification.BigTextStyle().bigText(text))
                         .setContentIntent(openApp(context, delivery.threadId))
                         .setAutoCancel(true)
+                        .inGroup(results)
                         .build())
                 }
-                is Delivery.Notice -> nm.notify(nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
+                is Delivery.Notice -> results.notify(context, nm, nextResultId(), Notification.Builder(context, CHANNEL_RESULT)
                     .setSmallIcon(R.drawable.ic_notification).setContentTitle(tr(R.string.app_name))
-                    .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true).build())
+                    .setContentText(delivery.text).setContentIntent(openApp(context, delivery.threadId)).setAutoCancel(true)
+                    .inGroup(results).build())
                 is Delivery.Ask, is Delivery.Progress -> {}
             }
             return SendOutcome.Delivered

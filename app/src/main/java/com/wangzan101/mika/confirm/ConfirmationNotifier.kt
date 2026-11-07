@@ -10,7 +10,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import com.wangzan101.mika.R
+import com.wangzan101.mika.task.AlertGroup
 import com.wangzan101.mika.task.alertQuietly
+import com.wangzan101.mika.task.inGroup
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.core.gate.ConfirmationRequest
 import com.wangzan101.mika.core.risk.IrrevAction
@@ -94,6 +96,8 @@ object ConfirmationNotifier {
         runExtra: Pair<String, String>? = null,
         /** 照发但不响、不弹横幅(悬浮胶囊正在显示时),见 [alertQuietly]。 */
         quiet: Boolean = false,
+        /** WOOWTECH fork: 放进这个通知组(组里有摘要,见 [AlertGroup]),[quiet] 时在组里不提醒;不给时照上游的做法。 */
+        group: AlertGroup? = null,
     ): Notification {
         val r = state.request
         val key = requestKey(state)
@@ -129,7 +133,8 @@ object ConfirmationNotifier {
             .setContentIntent(contentIntent)
             .addAction(button(R.string.action_approve, approveAction, true, 20))
             .addAction(button(R.string.action_decline, declineAction, false, 21))
-            .apply { if (quiet) alertQuietly() }
+            // WOOWTECH fork: 有组时放进组里(组里有摘要,安卓 16 不会把它叠进系统的自动组、标成静音)
+            .apply { if (group != null) inGroup(group, quiet) else if (quiet) alertQuietly() }
             .build()
     }
 }

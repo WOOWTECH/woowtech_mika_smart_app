@@ -58,10 +58,11 @@ object TriggerRuntime {
         TaskService.ensureChannels(context)
         val open = PendingIntent.getActivity(context, PROMPTED.hashCode(), exactAlarmSettings(context),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return runCatching { notifications.notify(PROMPTED.hashCode(), Notification.Builder(context, TaskService.CHANNEL_RESULT)
+        // WOOWTECH fork: 放进结果组(组里有摘要),不被系统叠进自动组、标成静音(见 AlertGroup)
+        return runCatching { AlertGroup.RESULTS.notify(context, notifications, PROMPTED.hashCode(), Notification.Builder(context, TaskService.CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_notification).setContentTitle(ExactAlarmGuide.TITLE)
             .setContentText(ExactAlarmGuide.BODY).setStyle(Notification.BigTextStyle().bigText(ExactAlarmGuide.BODY))
-            .setContentIntent(open).setAutoCancel(true).build()) }
+            .setContentIntent(open).setAutoCancel(true).inGroup(AlertGroup.RESULTS).build()) }
             .onFailure { Log.w("MikaTrigger", "exact alarm prompt failed", it) }.isSuccess
     }
 
@@ -249,11 +250,12 @@ object TriggerRuntime {
         if (notifications.areNotificationsEnabled()) {
             // WOOWTECH fork: 提醒的话是模型写的,去掉 Markdown 符号
             val shown = TaskService.notificationText(text)
-            runCatching { notifications.notify(key.hashCode(), Notification.Builder(context, TaskService.CHANNEL_RESULT)
+            runCatching { AlertGroup.RESULTS.notify(context, notifications, key.hashCode(), Notification.Builder(context, TaskService.CHANNEL_RESULT)
                 .setSmallIcon(R.drawable.ic_notification).setContentTitle(title)
                 .setContentText(shown).setStyle(Notification.BigTextStyle().bigText(shown))
-                // WOOWTECH fork: 单放一组,不被系统和任务结果叠成一组而静音(见 SCHEDULE_GROUP);提醒标成提醒类,勿扰时照系统的「提醒」设定
-                .setGroup(SCHEDULE_GROUP)
+                // WOOWTECH fork: 和任务结果放进同一个结果组,组里有摘要:单放一组却没有摘要时,安卓 16 发出 3 秒后
+                // 把它强制叠进系统的自动组、标成静音,横幅提早收掉(见 AlertGroup);提醒标成提醒类,勿扰时照系统的「提醒」设定
+                .inGroup(AlertGroup.RESULTS)
                 .apply { if (reminder) setCategory(Notification.CATEGORY_REMINDER) }
                 .setContentIntent(open).setAutoCancel(true).build()) }
                 .onFailure { Log.w("MikaTrigger", "reminder notification failed", it) }
@@ -272,13 +274,6 @@ object TriggerRuntime {
     }
 
     private const val ACTION = "com.wangzan101.mika.task.TRIGGER_ALARM"
-    /**
-     * WOOWTECH fork: 定时任务自己发的通知(到点的提醒、没能开始、结果待确认)单放一组,不算 App 不成组的通知。
-     * 系统把 App 不成组的通知自动叠成一组时,触发它的那条被标成静音、不弹横幅:安卓 16 模拟器上,提醒到点时通知栏里
-     * 还有前一条「任务完成」,两条被叠成一组,提醒没跳出来(记录上标着 SILENT)。提醒常在旧结果还没清掉时到点。
-     * 组里不放摘要、不改提醒方式(GROUP_ALERT_ALL):每条照常响铃、弹出;和 alertQuietly 的静音组不是同一组。
-     */
-    private const val SCHEDULE_GROUP = "com.wangzan101.mika.schedule"
     private const val PREFS = "triggers"
     private const val PROMPTED = "exact_alarm_prompted"
     private const val KEY_DEVICE_ZONE = "device_timezone"
