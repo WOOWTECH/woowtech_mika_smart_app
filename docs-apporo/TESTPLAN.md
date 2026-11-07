@@ -39,4 +39,4 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Update | Signed upgrade | After channel / signing provision: preserve data during Apporo-to-Apporo upgrade |
 | Cleanup | Test environment | Stop fake shop, remove forwards, restore IME, remove test data, confirm host state |
 
-Current device cases are **NOT RUN**. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. Real Apporo servers and credentials must be selected by the user; do not operate production equipment as a test fixture.
+Device acceptance is in progress; see [2026-11-08 emulator evidence and limitations](EMULATOR-20261108.zh-TW.md). Several cases passed, while real Apporo integrations and complete UI coverage remain unverified. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. Real Apporo servers and credentials must be selected by the user; do not operate production equipment as a test fixture.
