@@ -193,6 +193,8 @@ internal object PromptSurfaceFeedback {
             "replay_screen_header" to fileCall("RouteReplayKt", "getREPLAY_SCREEN_HEADER"),
             "replay_no_screen" to fileCall("RouteReplayKt", "getREPLAY_NO_SCREEN"),
             "confirmation_declined" to UserExchange.CONFIRMATION_DECLINED,
+            // WOOWTECH fork: 不在手机上发起的任务里申报同意
+            "confirmation_remote" to UserExchange.CONFIRMATION_REMOTE,
             "confirmation_approved" to UserExchange.CONFIRMATION_APPROVED,
             "no_answer_message" to UserExchange.INPUT_TIMEOUT_MESSAGE,
             "handback_note" to UserExchange.HANDBACK_NOTE,

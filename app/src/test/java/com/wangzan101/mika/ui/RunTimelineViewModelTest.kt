@@ -251,6 +251,22 @@ class RunTimelineViewModelTest {
         assertEquals("没有完成", ui.header.outcome)
     }
 
+    // WOOWTECH fork: 电脑交来的任务里申报同意被直接拒绝(没有人被问过):标签和结果照实说,不写「要你同意」「你没有同意」
+    @Test fun remoteRefusalIsNotShownAsTheUsersDecision() {
+        val id = run("买耳机") {
+            event(RunEvent.ModelReply(clock, 1, "", "phone_tap", """{"ref":"@e3"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 1, "phone_tap", """{"ok":true}""", true, null))
+            // 申报在执行那一步时记下,那一步的回复执行完才记:标签挂在前一步上
+            event(RunEvent.Confirmation(clock, "order", "耳机店", "一副耳机", "¥25", "declined_remote"))
+            event(RunEvent.ModelReply(clock, 2, "请你同意", "request_confirmation", """{"action":"order"}""", null, null, null))
+            event(RunEvent.ToolResult(clock, 2, "request_confirmation", """{"ok":false,"error":"confirmation_remote","message":"x"}""", null, null))
+            event(RunEvent.TaskEnded(clock, "failed", "不能下单"))
+        }
+        val (tap, ask) = ready(id).steps
+        assertEquals(listOf(Tag("从电脑交办的任务不能付款或下单", TagTone.Bad)), tap.tags)
+        assertEquals("出错:不能从电脑付款", ask.result)
+    }
+
     @Test fun missingRunShowsExpired() {
         assertEquals(TimelineUi.Expired, RunTimelineViewModel(store, "20250101-000000-abcdef").load())
         assertEquals(TimelineUi.Expired, RunTimelineViewModel(store, "../../etc").load())

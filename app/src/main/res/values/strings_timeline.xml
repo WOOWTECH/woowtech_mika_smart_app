@@ -3,6 +3,8 @@
     <string name="timeline_expired">This record has expired</string>
     <string name="tag_approved">You approved</string>
     <string name="tag_declined">You declined</string>
+    <!-- WOOWTECH fork: 不在手机上发起的任务(电脑交办等)申报同意时直接拒绝,没有问过用户 -->
+    <string name="tag_remote_declined">Tasks from a computer can’t pay or place orders</string>
     <string name="tag_needs_ok">Needed your OK</string>
     <string name="tag_takeover">Asked you to take over</string>
     <string name="tag_barrier">Hit an obstacle</string>
@@ -34,6 +36,8 @@
     <string name="err_confirm_required">Needs your OK first</string>
     <string name="err_confirm_mismatch">Doesn’t match what you approved</string>
     <string name="err_confirm_declined">You didn’t approve</string>
+    <!-- WOOWTECH fork: 同上,那一步的出错说明(confirmation_remote) -->
+    <string name="err_confirm_remote">Can’t pay from a computer</string>
     <string name="err_not_applied">Text didn’t go in</string>
     <string name="verify_failed">Check failed</string>
     <string name="err_parallel_skipped">Only one action at a time</string>

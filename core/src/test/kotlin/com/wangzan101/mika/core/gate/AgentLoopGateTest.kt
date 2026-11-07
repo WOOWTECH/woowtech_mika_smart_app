@@ -6,6 +6,13 @@ import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.FakeModel
 import com.wangzan101.mika.core.agent.SpeedFlags
 import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.core.agent.UserExchange
+import com.wangzan101.mika.core.run.Attendance
+import com.wangzan101.mika.core.run.RunId
+import com.wangzan101.mika.core.run.RunInbox
+import com.wangzan101.mika.core.run.RunOrigin
+import com.wangzan101.mika.core.run.RunProvenance
+import com.wangzan101.mika.core.run.RunSpec
 import com.wangzan101.mika.core.model.ModelReply
 import com.wangzan101.mika.core.model.Part
 import com.wangzan101.mika.core.model.Role
@@ -201,6 +208,23 @@ class AgentLoopGateTest {
         assertEquals("confirmation_required", m.result(4).s("error"))
         // M2:同一 App 同类操作不再问,直接拒
         assertEquals("confirmation_declined", m.result(5).s("error"))
+        assertTrue(s.taps.isEmpty())
+    }
+
+    // WOOWTECH fork: 电脑交来的任务里申报同意:不问人、直接拒绝,说明是电脑交办的任务不能下单,不说成用户没同意;再申报一次也一样
+    @Test fun remoteRunIsRefusedWithoutAskingAnyone() = runTest {
+        val s = ChatScreen(); val sink = ListSink()
+        val m = FakeModel(OBSERVE, TYPE, ask(), ask(), failure("电脑交来的任务不能下单"))
+        val spec = RunSpec(RunId("remote"), "给张三发明天见", "t", provenance = RunProvenance(RunOrigin.Mcp, Attendance.Reachable))
+        assertEquals(TaskState.Failed("电脑交来的任务不能下单", FailKind.GaveUp), loop(m, s, sink).run(spec, RunInbox()))
+        for (i in listOf(3, 4)) {
+            val r = m.result(i)
+            assertEquals("confirmation_remote", r.s("error"))
+            assertEquals(UserExchange.CONFIRMATION_REMOTE, r.s("message"))
+            assertEquals("false", r.s("recoverable"))
+        }
+        assertTrue(UserExchange.CONFIRMATION_REMOTE.startsWith("This task was not started on the phone"))
+        assertEquals(listOf("declined_remote", "declined_remote"), sink.events.filterIsInstance<RunEvent.Confirmation>().map { it.decision })
         assertTrue(s.taps.isEmpty())
     }
 

@@ -3,6 +3,7 @@
     <string name="timeline_expired">Catatan ini sudah kedaluwarsa</string>
     <string name="tag_approved">Anda menyetujui</string>
     <string name="tag_declined">Anda menolak</string>
+    <string name="tag_remote_declined">Tugas dari komputer tidak bisa membayar atau memesan</string>
     <string name="tag_needs_ok">Perlu persetujuan Anda</string>
     <string name="tag_takeover">Meminta Anda mengambil alih</string>
     <string name="tag_barrier">Terhalang</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">Perlu persetujuan Anda dulu</string>
     <string name="err_confirm_mismatch">Tidak sesuai dengan yang Anda setujui</string>
     <string name="err_confirm_declined">Anda tidak menyetujui</string>
+    <string name="err_confirm_remote">Tak bisa bayar dari komputer</string>
     <string name="err_not_applied">Teks tidak masuk</string>
     <string name="verify_failed">Pemeriksaan gagal</string>
     <string name="err_parallel_skipped">Hanya satu tindakan sekaligus</string>

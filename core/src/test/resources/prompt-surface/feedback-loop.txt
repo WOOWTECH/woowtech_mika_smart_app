@@ -55,6 +55,8 @@ Current screen (read result; its refs can be used directly):
 The current screen could not be read: observe first, then continue.
 ### confirmation_declined
 The user did not approve. Do not try this action again; report where things stand, then end.
+### confirmation_remote
+This task was not started on the phone (it was handed over from a computer, for example), so payments and orders in it cannot be approved: the user was not asked, and this action was not done. Do not try it again in this task. Report where things stand and tell the user to finish this step themselves on the phone, then end.
 ### confirmation_approved
 The user approved this once. Do this one action right away, without tapping anything else, scrolling, going back or switching apps in between (typing is fine). The approval is valid for 3 steps; the next matching action uses it up whether it succeeds or not, and doing it again needs a new request.
 ### no_answer_message

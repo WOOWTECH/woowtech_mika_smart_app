@@ -3,6 +3,7 @@
     <string name="timeline_expired">這次的記錄已過期</string>
     <string name="tag_approved">你同意了</string>
     <string name="tag_declined">你沒同意</string>
+    <string name="tag_remote_declined">從電腦交辦的任務不能付款或下單</string>
     <string name="tag_needs_ok">要你同意</string>
     <string name="tag_takeover">請你接手</string>
     <string name="tag_barrier">遇到障礙</string>
@@ -34,6 +35,7 @@
     <string name="err_confirm_required">要先徵得你同意</string>
     <string name="err_confirm_mismatch">和你同意的內容對不上</string>
     <string name="err_confirm_declined">你沒有同意</string>
+    <string name="err_confirm_remote">不能從電腦付款</string>
     <string name="err_not_applied">字沒輸進去</string>
     <string name="verify_failed">核查沒通過</string>
     <string name="err_parallel_skipped">一次只能做一個操作</string>
