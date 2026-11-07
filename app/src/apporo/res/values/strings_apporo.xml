@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Apporo Assistant</string>
+    <string name="welcome_title">Meet Apporo Assistant</string>
+    <string name="welcome_lead">Your spaces. Your work. Your next step.\nTurn a request into an action, with results you can check.</string>
+    <string name="welcome_note">Connect your AI model first. Enable phone control when you want help using other apps.</string>
+    <string name="welcome_apps">Work across your apps</string>
+    <string name="welcome_apps_body">Inspect connected spaces and business workflows through apps you already use.</string>
+    <string name="welcome_web">Research with context</string>
+    <string name="welcome_web_body">Read sources, compare options and bring the findings back to your task.</string>
+    <string name="welcome_files">Make information useful</string>
+    <string name="welcome_files_body">Analyze spreadsheets, organize documents and prepare reports in a separate environment.</string>
+    <string name="welcome_schedule">Keep track of what matters</string>
+    <string name="welcome_schedule_body">Set reminders and recurring tasks. Review the result and take over when needed.</string>
+    <string name="about_author">© 2026 APPORO UNION INC. · Based on wangzan101/Mika (Apache-2.0)</string>
+    <string name="about_repo_sub">%1$s · source code and build documentation</string>
+    <string name="about_data_note">Your selected model provider receives the messages and screen content needed for a task. Websites, connected apps and services have their own data practices. Review the content before sharing it, and keep passwords and verification codes out of conversations.</string>
+    <string name="chat_example_follow">Open Apporo aiot and summarize the visible status of the meeting room. Do not change any devices.</string>
+    <string name="chat_example_group_summary">Open Apporo platform and summarize the tasks assigned to me, highlighting overdue items. Do not edit any records.</string>
+    <string name="chat_example_jobs">Open Apporo smart and show the available computer sessions. Ask me which session to use before sending a task.</string>
+    <string name="chat_example_multi_step">Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.</string>
+    <string name="chat_example_alarms">Remind me in 30 minutes to review the maintenance checklist.</string>
+    <string name="chat_example_ai_apps">Find the AI apps installed on my phone and explain what each can help me do.</string>
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">Search with Google</string>
+    <string name="browser_typing_note">URLs open directly; anything else is searched with Google</string>
+    <string name="relay_gateway_hint">https://gateway.example.com</string>
+    <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
+    <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Apporo Assistant</string>
+    <string name="welcome_title">認識 Apporo Assistant</string>
+    <string name="welcome_lead">管理空間、協調工作、完成下一步。\n把需求化為行動，並核對實際結果。</string>
+    <string name="welcome_note">先連接 AI 模型；需要操作其他 App 時，再啟用手機操作。</string>
+    <string name="welcome_apps">協助使用各種 App</string>
+    <string name="welcome_apps_body">透過你已使用的 App，查看空間狀態與工作流程。</string>
+    <string name="welcome_web">查找有根據的資訊</string>
+    <string name="welcome_web_body">閱讀來源、比較選項，整理與任務相關的資訊。</string>
+    <string name="welcome_files">整理可用的資訊</string>
+    <string name="welcome_files_body">在獨立環境分析試算表、整理文件與準備報告。</string>
+    <string name="welcome_schedule">追蹤重要事項</string>
+    <string name="welcome_schedule_body">設定提醒與週期任務，查看結果，並在需要時接手。</string>
+    <string name="about_author">© 2026 APPORO UNION INC. · 以 wangzan101/Mika（Apache-2.0）為基礎</string>
+    <string name="about_repo_sub">%1$s · 原始碼與建置文件</string>
+    <string name="about_data_note">你選擇的模型服務商會接收執行任務所需的訊息與畫面內容。網站、連接的 App 與服務各有資料處理方式。分享前請核對內容，不要在對話中提供密碼或驗證碼。</string>
+    <string name="chat_example_follow">打開 Apporo aiot，整理會議室畫面上可見的狀態，不要改動設備。</string>
+    <string name="chat_example_group_summary">打開 Apporo platform，整理指派給我的任務並標出逾期項目，不要修改紀錄。</string>
+    <string name="chat_example_jobs">打開 Apporo smart，列出可用的電腦工作階段，先問我要用哪一個，再交辦任務。</string>
+    <string name="chat_example_multi_step">比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。</string>
+    <string name="chat_example_alarms">30 分鐘後提醒我查看維護檢查清單。</string>
+    <string name="chat_example_ai_apps">找出手機已安裝的 AI App，說明各自能協助做什麼。</string>
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">使用 Google 搜尋</string>
+    <string name="browser_typing_note">網址直接開啟，其他文字使用 Google 搜尋</string>
+    <string name="relay_gateway_hint">https://gateway.example.com</string>
+    <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
+    <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
+</resources>

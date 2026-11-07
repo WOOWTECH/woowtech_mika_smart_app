@@ -52,6 +52,18 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
 
         private val systemManaged get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
+        /** Brand default is applied once; a later choice to follow the system is preserved. */
+        fun initializeBrandDefault(context: Context) {
+            val tag = com.wangzan101.mika.core.brand.Brand.defaultLanguage ?: return
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (prefs.getBoolean("brand_default_initialized", false)) return
+            val hasSelection = if (systemManaged) {
+                !context.getSystemService(LocaleManager::class.java).applicationLocales.isEmpty
+            } else prefs.contains(KEY_TAG)
+            if (!hasSelection) set(context, fromTag(tag))
+            prefs.edit().putBoolean("brand_default_initialized", true).commit()
+        }
+
         fun current(context: Context): AppLanguage = fromTag(
             if (systemManaged) {
                 context.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }?.get(0)?.toLanguageTag()
