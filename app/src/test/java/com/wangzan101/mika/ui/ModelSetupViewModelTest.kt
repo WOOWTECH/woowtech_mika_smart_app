@@ -594,7 +594,8 @@ class ModelSetupViewModelTest {
         vm.selectPreset(ProviderPresets.custom.label); vm.setBaseUrl(url); vm.setApiKey("sk"); vm.testAndSave(); runCurrent()
         assertEquals(listOf("a-model", "b-model", "c-model"), built.map { it.first })
         val f = vm.state.value.form
-        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelError.Server(502).message}"), f.test)
+        // 原因走 ModelErrorCopy(按界面语言的短句),不是 core 的 message
+        assertEquals(ListState.Failed("试着让 a-model 调用一个工具没成功：${ModelErrorCopy.reason(ModelError.Server(502))}"), f.test)
         assertFalse(f.showModel)
         assertTrue(store.providers.value.isEmpty())
     }
