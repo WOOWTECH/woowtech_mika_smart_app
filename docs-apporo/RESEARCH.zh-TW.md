@@ -7,7 +7,7 @@
 
 Apporo Assistant 是英文優先的 Android 行動助手：協助使用者理解空間狀態、協調工作、研究資訊、完成手機與文件任務。
 保留 Mika 的一般用途，並以 Apporo 的空間與工作情境作為引導入口。
-暫採「場域管理與日常工作兼顧」，等待使用者對主要受眾的回覆。
+使用者於 2026-11-08 確認「場域管理與日常工作兼顧」（1A）。同時確認共用程式碼、獨立安裝，英文預設並可切換繁體中文（2A）；產品名稱 Apporo Assistant，package `com.apporo.assistant`（3 確認）。此決策確認不代表模擬器或實機驗收已完成。
 
 核心敘事：**Your spaces. Your work. Your next step.**
 內容分成四個入口：
@@ -72,7 +72,7 @@ Assistant 將其轉成具體工作場景；不把整個平台的硬體、備份�
 ## 5. 技術決策
 
 - 同一 Gradle brand dimension 新增 `apporo`，保留 upstream 與 woowtech。
-- 暫定 package `com.apporo.assistant`，版本 `0.1.37-apporo.1`；尚未註冊商店身分。
+- 已確認 package `com.apporo.assistant`，開發版本 `0.1.37-apporo.1`；尚未註冊商店身分。
 - 英文在第一次啟動設定一次；之後繁中或跟隨系統的選擇不能被重設。
 - 品牌資源由同一生成器處理，手寫 Apporo 文案優先；namespace 與協定識別碼不改。
 - 三款產品知識放共用知識庫：其他品牌也能操作已安裝的 Apporo App，這不改變助手身分。
