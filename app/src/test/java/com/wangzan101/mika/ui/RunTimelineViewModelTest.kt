@@ -216,6 +216,18 @@ class RunTimelineViewModelTest {
         assertEquals(listOf("act", "act"), rows.drop(1).map { it.kind })
     }
 
+    /** WOOWTECH fork: 网页那一步的对象在运行记录里写成「网站 域名」,时间线上和对话里的步骤一样只显示域名;连着读同一站照样合成一行。 */
+    @Test fun siteTargetsShowOnlyTheDomain() {
+        val id = run("看网页") {
+            event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(1), callId = "r1"))
+            event(RunEvent.Activity(clock, 1, "observe", "web_read_page", "网站 127.0.0.1", "completed", listOf(2), callId = "r2"))
+            event(RunEvent.Activity(clock, 1, "act", "web_tap", "网站 127.0.0.1", "changed", callId = "a1"))
+        }
+        val rows = ready(id).steps.single().activities
+        assertEquals(listOf("127.0.0.1", "127.0.0.1"), rows.map { it.target })
+        assertEquals(2, rows.first().count)
+    }
+
     @Test fun showsVerifierAndGuardTags() {
         // 和 AgentLoop 一样用守卫自己的序列化拼结果
         fun withGuard(vararg v: GuardVerdict) =

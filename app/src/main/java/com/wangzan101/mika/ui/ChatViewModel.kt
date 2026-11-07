@@ -1341,7 +1341,8 @@ class ChatViewModel(
         }
 
         /** 活动对象给人看的说法:包名换成 App 名,「网站 域名」只留域名。 */
-        private fun where(target: String, appLabel: (String) -> String): String? = when {
+        // WOOWTECH fork: 运行过程页也用它(上游那里原样显示「网站 域名」),所以不再是 private
+        internal fun where(target: String, appLabel: (String) -> String): String? = when {
             target.isBlank() -> null
             target.startsWith(SITE_PREFIX) -> target.removePrefix(SITE_PREFIX)
             com.wangzan101.mika.core.tool.PACKAGE_NAME_RE.matches(target) -> appLabel(target)
