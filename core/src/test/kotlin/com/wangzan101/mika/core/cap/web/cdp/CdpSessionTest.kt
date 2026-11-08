@@ -1,6 +1,7 @@
 package com.wangzan101.mika.core.cap.web.cdp
 
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.filter
@@ -205,6 +206,23 @@ class CdpSessionTest {
         assertTrue(e.message, e.message!!.contains("1001") && e.message!!.contains("going away"))
         assertTrue(s.closed.value)
         assertFails<CdpConnectionClosedException> { s.send("Page.reload") }
+    }
+
+    @Test
+    fun closedObserverCanReenterCloseAndSend() = test {
+        val server = FakeDevTools()
+        val s = session(server)
+        // Unconfined resumes inline inside the state publication, including under shutdown's lock.
+        val observed = async(Dispatchers.Unconfined, start = CoroutineStart.UNDISPATCHED) {
+            s.closed.first { it }
+            assertTrue(s.closed.value)
+            s.close()
+            assertFails<CdpConnectionClosedException> { s.send("Page.reload") }
+        }
+        s.close()
+        assertTrue("closed observer must finish during publication", observed.isCompleted)
+        assertEquals("CDP session closed", observed.await().message)
+        assertTrue(server.connections.single().received.isEmpty())
     }
 
     @Test
