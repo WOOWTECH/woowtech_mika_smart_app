@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
 import android.graphics.Path
 import android.app.Notification
@@ -13,6 +14,7 @@ import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 import com.wangzan101.mika.core.uistate.ScreenEvent
+import com.wangzan101.mika.core.capsule.SystemPanelPolicy
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,6 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -69,8 +74,8 @@ open class ScreenAccessibility : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (instance.value !== this) return
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) windowChanges.tryEmit(Unit)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            windowChanges.tryEmit(Unit)
             windowGeneration.incrementAndGet()
         }
         val access = (application as com.wangzan101.mika.MikaApp).appAccess.current()
@@ -186,6 +191,35 @@ open class ScreenAccessibility : AccessibilityService() {
     /** 窗口变了的信号(见 [windowChanges]);通道跨服务实例保留。 */
     fun windowChanges(): Flow<Unit> = windowChanges
 
+    /** Remains observed while capsule windows are absent; our overlay windows are excluded.
+     * Read only the default display and only candidate system roots, never localized node text.
+     */
+    fun expandedSystemPanel(): Flow<Boolean> = flow {
+        val tracker = SystemPanelPolicy.Tracker()
+        windowChanges().onStart { emit(Unit) }.collect {
+            val candidates = runCatching {
+                val area = overlays().area()
+                windowsOn(Display.DEFAULT_DISPLAY).mapNotNull { window ->
+                    val bounds = Rect().also(window::getBoundsInScreen)
+                    if (!SystemPanelPolicy.isPanelWindow(
+                        window.type == AccessibilityWindowInfo.TYPE_SYSTEM, window.isFocused,
+                        bounds.left, bounds.top, bounds.right, bounds.bottom,
+                        area.width, area.height,
+                    )) return@mapNotNull null
+                    val owner = runCatching {
+                        val root = window.root
+                        try { root?.packageName?.toString() } finally {
+                            @Suppress("DEPRECATION")
+                            root?.recycle()
+                        }
+                    }.getOrNull()
+                    SystemPanelPolicy.Candidate(window.id, owner)
+                }
+            }.getOrNull()
+            emit(tracker.update(candidates))
+        }
+    }.distinctUntilChanged()
+
     /**
      * 事件所在的屏。API 33 起事件自带屏号;更早的系统按事件的窗口号去各屏窗口里找,
      * 找不到(如没有窗口号的通知类事件)就丢弃。
@@ -212,7 +246,7 @@ open class ScreenAccessibility : AccessibilityService() {
             extraBufferCapacity = EVENT_BUFFER,
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
-        /** 窗口变了(加上、拿掉、挪动,包括输入法弹出收起):只是个信号,订阅方自己去读窗口。 */
+        /** 窗口或窗口状态变了(包括焦点、输入法弹出收起):只是个信号,订阅方自己去读窗口。 */
         private val windowChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val windowGeneration = java.util.concurrent.atomic.AtomicLong()
 
