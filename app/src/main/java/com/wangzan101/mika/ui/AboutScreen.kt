@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -170,6 +172,7 @@ fun AboutScreen(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun Hero(versionName: String, build: String, beta: Boolean) {
     val c = MikaTheme.colors
     Column(
@@ -182,12 +185,16 @@ private fun Hero(versionName: String, build: String, beta: Boolean) {
         )
         Text(stringResource(R.string.app_name), Modifier.padding(top = 12.dp), style = MikaType.Title, fontWeight = FontWeight.Bold, color = c.ink)
         Text(AboutCopy.TAGLINE, Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2, textAlign = TextAlign.Center)
-        Row(Modifier.padding(top = 10.dp).testTag("about-version"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(AboutCopy.version(versionName), style = MikaType.Hint, color = c.ink3)
+        FlowRow(
+            Modifier.fillMaxWidth().padding(top = 10.dp).testTag("about-version"),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(AboutCopy.version(versionName), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
             if (beta) {
                 Text(
                     AboutCopy.BETA, Modifier.background(c.accentSoft, RoundedCornerShape(7.dp)).padding(horizontal = 7.dp, vertical = 1.dp),
-                    style = MikaType.Hint, fontWeight = FontWeight.SemiBold, color = c.accent,
+                    style = MikaType.Hint, fontWeight = FontWeight.SemiBold, color = c.accent, maxLines = 1, softWrap = false,
                 )
             }
             Text("· ${AboutCopy.buildLabel(build)}", style = MikaType.Hint, color = c.ink3)
