@@ -217,6 +217,7 @@ private fun RadioMark(selected: Boolean, enabled: Boolean = true) {
 /**
  * 卡片里的输入行:左边固定宽的标题,右边单行输入框(空时显示 [placeholder])。
  * [secret] 为真时按密码显示;[trailing] 放在输入框右边(例如「显示」)。
+ * [stacked] 把标题、输入框和操作分行，给长模型名和大字体留出整行宽度。
  */
 @Composable
 fun InputRow(
@@ -229,9 +230,35 @@ fun InputRow(
     secret: Boolean = false,
     labelWidth: Dp = 84.dp,
     modifier: Modifier = Modifier,
+    stacked: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = MikaTheme.colors
+    if (stacked) {
+        Column(
+            Modifier.fillMaxWidth().topHairline(first, TextStartPlain, c.hair).keepsKeyboard()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Text(label, style = MikaType.Body, color = c.ink)
+            Box(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                BasicTextField(
+                    value, onChange, modifier.fillMaxWidth(), singleLine = true,
+                    textStyle = MikaType.Body.copy(color = c.ink),
+                    cursorBrush = SolidColor(c.accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
+                    visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (value.isEmpty()) Text(placeholder, style = MikaType.Body, color = c.ink3)
+                            innerTextField()
+                        }
+                    },
+                )
+            }
+            if (trailing != null) Box(Modifier.align(Alignment.End).heightIn(min = 48.dp), contentAlignment = Alignment.Center) { trailing() }
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().topHairline(first, TextStartPlain, c.hair).keepsKeyboard()
             .heightIn(min = MikaSize.RowMin).padding(horizontal = 16.dp, vertical = 12.dp),
