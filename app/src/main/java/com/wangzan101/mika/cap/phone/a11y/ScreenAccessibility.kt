@@ -205,22 +205,28 @@ open class ScreenAccessibility : AccessibilityService() {
         // Also guard every delayed read so an old service can never read the replacement's windows.
         if (instance.value !== this) throw CancellationException("Accessibility service replaced")
         val diagnostic = Log.isLoggable(PANEL_DIAGNOSTIC_TAG, Log.DEBUG)
-        runCatching {
+        runCatching readSnapshot@{
             val area = overlays().area()
             val visibleWindows = windowsOn(Display.DEFAULT_DISPLAY)
             val applicationVisible = visibleWindows.any { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
             // A focusable composer can keep focus even after SystemUI covers the app below it.
             // Only our own focused overlay qualifies, and only when no app window is exposed.
-            val ownOverlayFocused = !applicationVisible && visibleWindows.any { window ->
-                if (window.type != AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY || !window.isFocused) false
-                else runCatching {
+            val overlayOwners = if (applicationVisible) emptyList() else visibleWindows.filter {
+                it.type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY && it.isFocused
+            }.map { window ->
+                runCatching {
                     val root = window.root
-                    try { root?.packageName?.toString() == packageName } finally {
+                    try { root?.packageName?.toString()?.takeIf(String::isNotBlank) } finally {
                         @Suppress("DEPRECATION")
                         root?.recycle()
                     }
-                }.getOrDefault(false)
+                }.getOrNull()
             }
+            val ownOverlayFocused = SystemPanelPolicy.ownOverlayFocus(applicationVisible, overlayOwners, packageName)
+                ?: run {
+                    if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "snapshot=focused-overlay-owner-unavailable")
+                    return@readSnapshot null
+                }
             if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "readTime=${SystemClock.uptimeMillis()} display=0 size=${area.width}x${area.height}")
             visibleWindows.mapNotNull { window ->
                 val bounds = Rect().also(window::getBoundsInScreen)

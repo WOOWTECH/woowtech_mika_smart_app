@@ -13,6 +13,15 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SystemPanelPolicyTest {
+    @Test fun focusedOverlayOwnershipRemainsUnknownUntilConfirmedOrAnAppReturns() {
+        val own = "com.apporo.assistant"
+        assertEquals(null, SystemPanelPolicy.ownOverlayFocus(false, listOf(null), own))
+        assertEquals(true, SystemPanelPolicy.ownOverlayFocus(false, listOf(own), own))
+        assertEquals(null, SystemPanelPolicy.ownOverlayFocus(false, listOf(null), own))
+        assertEquals(false, SystemPanelPolicy.ownOverlayFocus(false, listOf("other.overlay"), own))
+        assertEquals(false, SystemPanelPolicy.ownOverlayFocus(true, listOf(null), own))
+        assertEquals(false, SystemPanelPolicy.ownOverlayFocus(false, emptyList(), own))
+    }
     @Test fun composerKeepingFocusOverAnOccludingShadeStillHidesTheCapsule() {
         assertTrue(SystemPanelPolicy.panelHasFocus(false, true, false))
         assertTrue(SystemPanelPolicy.panelHasFocus(true, false, false))

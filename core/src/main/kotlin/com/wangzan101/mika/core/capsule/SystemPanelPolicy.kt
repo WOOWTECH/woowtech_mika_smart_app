@@ -15,6 +15,14 @@ import kotlinx.coroutines.flow.onStart
  * must also occlude all application windows; a normal keyboard over an app is not enough.
  */
 object SystemPanelPolicy {
+    /** null preserves uncertainty so the observer can retry without trusting another overlay. */
+    fun ownOverlayFocus(applicationVisible: Boolean, focusedOverlayOwners: List<String?>, ownPackage: String): Boolean? = when {
+        applicationVisible -> false
+        ownPackage in focusedOverlayOwners -> true
+        focusedOverlayOwners.any { it == null } -> null
+        else -> false
+    }
+
     fun panelHasFocus(systemFocused: Boolean, ownOverlayFocused: Boolean, applicationVisible: Boolean): Boolean =
         systemFocused || (ownOverlayFocused && !applicationVisible)
 
