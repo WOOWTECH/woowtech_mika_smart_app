@@ -26,9 +26,9 @@ jobs:
       - name: Bootstrap verified Gradle distribution
         timeout-minutes: 7
         run: python3 .github/scripts/bootstrap-gradle.py
-      - name: Seed verified Kotlin compiler candidate
-        timeout-minutes: 3
-        run: python3 .github/scripts/seed-kotlin-compiler.py
+      - name: Prepare verified private compiler repository
+        timeout-minutes: 6
+        run: python3 .github/scripts/prepare-compiler-repository.py
       - name: Source and CLI contracts
         run: |
           python3 apporo/tools/check.py
@@ -40,7 +40,7 @@ jobs:
       # ci.yml runs the full core, Android, CLI and relay suites for the same PR.
       # Keep APK compilation separate so it does not repeat those suites in a third build graph.
       - name: Build Apporo debug and unsigned release
-        run: ./gradlew :app:assembleApporoDebug :app:assembleApporoRelease --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g --stacktrace
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleApporoDebug :app:assembleApporoRelease --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g --stacktrace
       - name: Verify packaged Apporo identity
         run: python3 apporo/tools/check-apk.py app/build/outputs/apk/apporo/release/*.apk
       - name: Upload universal debug startup candidate

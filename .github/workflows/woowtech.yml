@@ -47,13 +47,13 @@ jobs:
       - name: Bootstrap verified Gradle distribution
         timeout-minutes: 7
         run: python3 .github/scripts/bootstrap-gradle.py
-      - name: Seed verified Kotlin compiler candidate
-        timeout-minutes: 3
-        run: python3 .github/scripts/seed-kotlin-compiler.py
+      - name: Prepare verified private compiler repository
+        timeout-minutes: 6
+        run: python3 .github/scripts/prepare-compiler-repository.py
       - name: Brand layer tests
-        run: ./gradlew :core:test --tests "com.wangzan101.mika.core.brand.*" --stacktrace
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :core:test --tests "com.wangzan101.mika.core.brand.*" --stacktrace
       - name: Build woowtech release (unsigned) and debug
-        run: ./gradlew :app:assembleWoowtechRelease :app:assembleWoowtechDebug --stacktrace
+        run: ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleWoowtechRelease :app:assembleWoowtechDebug --stacktrace
       - name: Brand checks (APK)
         run: |
           for apk in app/build/outputs/apk/woowtech/release/*.apk; do
