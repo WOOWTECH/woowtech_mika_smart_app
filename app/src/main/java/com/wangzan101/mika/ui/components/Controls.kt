@@ -322,10 +322,11 @@ enum class TagTone { Neutral, Accent }
 
 /** 能力小标签(工具调用、看图、64K):11 / 600,圆角 7。 */
 @Composable
-fun CapabilityTag(text: String, tone: TagTone = TagTone.Neutral) {
+fun CapabilityTag(text: String, tone: TagTone = TagTone.Neutral, wrapLabel: Boolean = false) {
     val c = MikaTheme.colors
     val (bg, fg) = if (tone == TagTone.Accent) c.accentSoft to c.accent else c.greySoft to c.ink2
-    Text(text, Modifier.background(bg, TagShape).padding(horizontal = 7.dp, vertical = 2.dp), style = TagText, color = fg, maxLines = 1)
+    Text(text, Modifier.background(bg, TagShape).padding(horizontal = 7.dp, vertical = 2.dp),
+        style = TagText, color = fg, maxLines = if (wrapLabel) Int.MAX_VALUE else 1)
 }
 
 private val TagShape = RoundedCornerShape(7.dp)

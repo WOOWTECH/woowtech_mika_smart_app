@@ -625,9 +625,11 @@ private fun ModelContextControl(ui: ModelSetupUi, role: ModelRole,
 /** 模型的能力标签;[accent] 为假时一律中性色(列表行里强调色留给「在用」的胶囊)。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun Tags(o: ModelOption, forVision: Boolean = false, accent: Boolean = true) {
+internal fun Tags(o: ModelOption, forVision: Boolean = false, accent: Boolean = true, wrapLabel: Boolean = false) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        ModelSetupCopy.tags(o, forVision).forEach { (text, strong) -> CapabilityTag(text, if (strong && accent) TagTone.Accent else TagTone.Neutral) }
+        ModelSetupCopy.tags(o, forVision).forEach { (text, strong) ->
+            CapabilityTag(text, if (strong && accent) TagTone.Accent else TagTone.Neutral, wrapLabel = wrapLabel)
+        }
     }
 }
 

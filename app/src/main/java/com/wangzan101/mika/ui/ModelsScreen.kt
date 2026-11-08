@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -545,7 +547,8 @@ private fun rowShape(i: Int, n: Int): RoundedCornerShape {
         bottomStart = if (i == n - 1) r else 0.dp, bottomEnd = if (i == n - 1) r else 0.dp)
 }
 
-/** 模型一行:模型名(等宽)和标签,右边标着它在给哪些用途干活。 */
+/** 模型一行:模型名(等宽)和能力标签,用途标签另起一行并自动换行。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModelRow(o: ModelOption, roles: List<ModelRole>, first: Boolean, onClick: () -> Unit) {
     Column {
@@ -555,10 +558,18 @@ private fun ModelRow(o: ModelOption, roles: List<ModelRole>, first: Boolean, onC
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text(o.id, style = ModelIdStyle, color = MikaTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Box(Modifier.padding(top = 4.dp)) { Tags(o, accent = false) }
+                Text(o.id, Modifier.fillMaxWidth(), style = ModelIdStyle, color = MikaTheme.colors.ink)
+                Box(Modifier.padding(top = 4.dp)) { Tags(o, accent = false, wrapLabel = true) }
+                if (roles.isNotEmpty()) {
+                    FlowRow(
+                        Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        roles.forEach { StatusPill(ModelsCopy.roleName(it), PillTone.Accent) }
+                    }
+                }
             }
-            roles.forEach { StatusPill(ModelsCopy.roleName(it), PillTone.Accent) }
             RowChevron()
         }
     }
