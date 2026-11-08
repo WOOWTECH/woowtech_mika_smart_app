@@ -2,9 +2,187 @@ package com.wangzan101.mika.core.capsule
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SystemPanelPolicyTest {
+    @Test fun knownNonSystemUiOwnerAndEmptySnapshotDoNotStartRetries() = runTest {
+        for (snapshot in listOf(listOf(SystemPanelPolicy.Candidate(7, "com.example.other")), emptyList())) {
+            var reads = 0
+            val results = mutableListOf<Boolean>()
+            val job = backgroundScope.launch {
+                SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                    reads++
+                    snapshot
+                }.collect { results += it }
+            }
+            runCurrent()
+            advanceTimeBy(1_000); runCurrent()
+            assertEquals(1, reads)
+            assertEquals(listOf(false), results)
+            job.cancel()
+        }
+    }
+
+    @Test fun failedSnapshotIsRetriedAndCanRecoverWithoutAnotherEvent() = runTest {
+        val reads = mutableListOf<Long>()
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                reads += testScheduler.currentTime
+                if (reads.size == 1) null else listOf(SystemPanelPolicy.Candidate(7, "com.android.systemui"))
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(listOf(50L, 200L), reads)
+        assertEquals(listOf(false, true), results)
+    }
+
+    @Test fun permanentlyFailedSnapshotHasOnlyTwoRetries() = runTest {
+        val reads = mutableListOf<Long>()
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                reads += testScheduler.currentTime
+                null
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(listOf(50L, 200L, 550L), reads)
+        assertEquals(listOf(false), results)
+    }
+
+    @Test fun unknownOwnerIsRetriedWithoutAnotherEventAndThenStops() = runTest {
+        val events = MutableSharedFlow<Unit>()
+        val reads = mutableListOf<Long>()
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(events) {
+                reads += testScheduler.currentTime
+                listOf(SystemPanelPolicy.Candidate(7, if (reads.size == 1) null else "com.android.systemui"))
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(listOf(50L, 200L), reads)
+        assertEquals(listOf(false, true), results)
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(2, reads.size)
+    }
+
+    @Test fun permanentlyUnknownOwnerHasOnlyTwoRetries() = runTest {
+        val reads = mutableListOf<Long>()
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                reads += testScheduler.currentTime
+                listOf(SystemPanelPolicy.Candidate(7, null))
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(listOf(50L, 200L, 550L), reads)
+        assertEquals(listOf(false), results)
+    }
+
+    @Test fun dismissalDuringRetryUsesFreshSnapshotAndStops() = runTest {
+        var reads = 0
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                reads++
+                if (reads == 1) listOf(SystemPanelPolicy.Candidate(7, null)) else emptyList()
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(2, reads)
+        assertEquals(listOf(false), results)
+    }
+
+    @Test fun contentSignalCanRecoverAfterRetryBudgetIsExhausted() = runTest {
+        val events = MutableSharedFlow<Unit>()
+        var owner: String? = null
+        var reads = 0
+        val results = mutableListOf<Boolean>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(events) {
+                reads++
+                listOf(SystemPanelPolicy.Candidate(7, owner))
+            }.collect { results += it }
+        }
+        runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(3, reads)
+        owner = "com.android.systemui"
+        events.emit(Unit)
+        advanceTimeBy(51); runCurrent()
+        assertEquals(4, reads)
+        assertEquals(listOf(false, true), results)
+    }
+
+    @Test fun burstDuringInitialReadIsConflatedButNotLost() = runTest {
+        val events = MutableSharedFlow<Unit>()
+        val reads = mutableListOf<Long>()
+        backgroundScope.launch {
+            SystemPanelPolicy.observe(events) {
+                reads += testScheduler.currentTime
+                emptyList()
+            }.collect {}
+        }
+        runCurrent()
+        // The upstream must already be subscribed while the initial 50ms delay is pending.
+        repeat(100) { events.emit(Unit) }
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(listOf(50L, 100L), reads)
+    }
+
+    @Test fun cancellationStopsInitialDelayAndPendingRetries() {
+        for (cancelAt in listOf(25L, 100L, 250L)) runTest {
+            var reads = 0
+            val job = backgroundScope.launch {
+                SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+                    reads++
+                    listOf(SystemPanelPolicy.Candidate(7, null))
+                }.collect {}
+            }
+            runCurrent()
+            advanceTimeBy(cancelAt); runCurrent()
+            val beforeCancel = reads
+            job.cancel()
+            advanceTimeBy(10_000); runCurrent()
+            assertEquals(beforeCancel, reads)
+        }
+    }
+
+    @Test fun newServiceCollectionDoesNotInheritConfirmedOwner() = runTest {
+        var owner: String? = "com.android.systemui"
+        val observer = SystemPanelPolicy.observe(MutableSharedFlow<Unit>()) {
+            listOf(SystemPanelPolicy.Candidate(7, owner))
+        }
+        val oldResults = mutableListOf<Boolean>()
+        val old = backgroundScope.launch { observer.collect { oldResults += it } }
+        runCurrent()
+        advanceTimeBy(51); runCurrent()
+        assertEquals(listOf(true), oldResults)
+        old.cancel()
+        owner = null
+        val newResults = mutableListOf<Boolean>()
+        backgroundScope.launch { observer.collect { newResults += it } }
+        runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(listOf(false), newResults)
+    }
+
     @Test fun missingRootOnConfirmedWindowDoesNotFlashTheCapsule() {
         val tracker = SystemPanelPolicy.Tracker()
         assertTrue(tracker.update(listOf(SystemPanelPolicy.Candidate(7, "com.android.systemui"))))

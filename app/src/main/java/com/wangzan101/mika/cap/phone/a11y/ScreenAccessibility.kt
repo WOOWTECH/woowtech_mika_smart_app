@@ -10,21 +10,21 @@ import android.util.Log
 import android.graphics.Path
 import android.app.Notification
 import android.os.Build
+import android.os.SystemClock
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 import com.wangzan101.mika.core.uistate.ScreenEvent
 import com.wangzan101.mika.core.capsule.SystemPanelPolicy
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -68,6 +68,8 @@ open class ScreenAccessibility : AccessibilityService() {
     }
 
     private var overlayHost: OverlayHost? = null
+    // Per-service signals; content readiness must not drive the shared IME/window observers.
+    private val panelChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /** 在用户屏幕上画浮层用的宿主(只在主线程用);服务断开时它加的窗口一起拆掉。 */
     fun overlays(): OverlayHost = overlayHost ?: OverlayHost(this).also { overlayHost = it }
@@ -76,7 +78,11 @@ open class ScreenAccessibility : AccessibilityService() {
         if (instance.value !== this) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             windowChanges.tryEmit(Unit)
+            panelChanges.tryEmit(Unit)
             windowGeneration.incrementAndGet()
+        } else if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            event.packageName?.toString() == "com.android.systemui") {
+            panelChanges.tryEmit(Unit)
         }
         val access = (application as com.wangzan101.mika.MikaApp).appAccess.current()
         if (access.denial(event.packageName?.toString()) != null) return
@@ -194,31 +200,54 @@ open class ScreenAccessibility : AccessibilityService() {
     /** Remains observed while capsule windows are absent; our overlay windows are excluded.
      * Read only the default display and only candidate system roots, never localized node text.
      */
-    fun expandedSystemPanel(): Flow<Boolean> = flow {
-        val tracker = SystemPanelPolicy.Tracker()
-        windowChanges().onStart { emit(Unit) }.collect {
-            val candidates = runCatching {
-                val area = overlays().area()
-                windowsOn(Display.DEFAULT_DISPLAY).mapNotNull { window ->
-                    val bounds = Rect().also(window::getBoundsInScreen)
-                    if (!SystemPanelPolicy.isPanelWindow(
-                        window.type == AccessibilityWindowInfo.TYPE_SYSTEM, window.isFocused,
-                        bounds.left, bounds.top, bounds.right, bounds.bottom,
-                        area.width, area.height,
-                    )) return@mapNotNull null
-                    val owner = runCatching {
-                        val root = window.root
-                        try { root?.packageName?.toString() } finally {
-                            @Suppress("DEPRECATION")
-                            root?.recycle()
+    fun expandedSystemPanel(): Flow<Boolean> = SystemPanelPolicy.observe(panelChanges) {
+        // The controller's instance.flatMapLatest cancels this collection on disconnect/rebind.
+        // Also guard every delayed read so an old service can never read the replacement's windows.
+        if (instance.value !== this) throw CancellationException("Accessibility service replaced")
+        val diagnostic = Log.isLoggable(PANEL_DIAGNOSTIC_TAG, Log.DEBUG)
+        runCatching {
+            val area = overlays().area()
+            if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "readTime=${SystemClock.uptimeMillis()} display=0 size=${area.width}x${area.height}")
+            windowsOn(Display.DEFAULT_DISPLAY).mapNotNull { window ->
+                val bounds = Rect().also(window::getBoundsInScreen)
+                if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "id=${window.id} type=${window.type} focused=${window.isFocused} bounds=${bounds.toShortString()}")
+                if (!SystemPanelPolicy.isPanelWindow(
+                    window.type == AccessibilityWindowInfo.TYPE_SYSTEM, window.isFocused,
+                    bounds.left, bounds.top, bounds.right, bounds.bottom,
+                    area.width, area.height,
+                )) return@mapNotNull null
+                val owner = runCatching {
+                    val root = window.root
+                    try {
+                        val owner = root?.packageName?.toString()
+                        if (diagnostic) {
+                            // Fixed categories only: no titles, text, descriptions or app names.
+                            val category = when (owner) {
+                                null -> "unknown"
+                                "com.android.systemui" -> "systemui"
+                                else -> "other"
+                            }
+                            val visible = runCatching { root?.isVisibleToUser }.getOrNull()
+                            Log.d(PANEL_DIAGNOSTIC_TAG, "id=${window.id} owner=$category rootVisible=$visible")
                         }
-                    }.getOrNull()
-                    SystemPanelPolicy.Candidate(window.id, owner)
-                }
-            }.getOrNull()
-            emit(tracker.update(candidates))
+                        owner
+                    } finally {
+                        @Suppress("DEPRECATION")
+                        root?.recycle()
+                    }
+                }.onFailure {
+                    if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "id=${window.id} owner=unavailable")
+                }.getOrNull()
+                SystemPanelPolicy.Candidate(window.id, owner)
+            }
+        }.onFailure {
+            if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "snapshot=unavailable")
+        }.getOrNull()
+    }.onEach {
+        if (Log.isLoggable(PANEL_DIAGNOSTIC_TAG, Log.DEBUG)) {
+            Log.d(PANEL_DIAGNOSTIC_TAG, "decisionTime=${SystemClock.uptimeMillis()} yield=$it")
         }
-    }.distinctUntilChanged()
+    }
 
     /**
      * 事件所在的屏。API 33 起事件自带屏号;更早的系统按事件的窗口号去各屏窗口里找,
@@ -258,6 +287,8 @@ open class ScreenAccessibility : AccessibilityService() {
         )
 
         private const val TAG = "MikaA11y"
+        /** Opt in with log.tag.MikaPanel=DEBUG; diagnostics have no effect on the policy. */
+        private const val PANEL_DIAGNOSTIC_TAG = "MikaPanel"
         private val _instance = MutableStateFlow<ScreenAccessibility?>(null)
         /** 已连接的服务实例;服务未开启或已断开时为 null。 */
         val instance: StateFlow<ScreenAccessibility?> = _instance.asStateFlow()

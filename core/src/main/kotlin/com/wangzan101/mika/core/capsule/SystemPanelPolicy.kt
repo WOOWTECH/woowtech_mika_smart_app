@@ -1,5 +1,14 @@
 package com.wangzan101.mika.core.capsule
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onStart
+
 /** Conservative window-based proxy for an expanded notification / quick-settings panel.
  * No titles, text, accessibility focus, or active-window state: those can change on overlay events.
  * OEMs that do not expose a focused System UI window with these bounds are not detected.
@@ -7,6 +16,28 @@ package com.wangzan101.mika.core.capsule
 object SystemPanelPolicy {
     /** Only windows already passing type, input-focus and geometry checks enter this tracker. */
     data class Candidate(val id: Int, val ownerPackage: String?)
+
+    /** One reader, one conflated pending event, and at most two retries per event batch.
+     * Unknown owners and failed snapshots are retried. A retry reads fresh windows: it must
+     * never reuse a candidate after focus loss/dismissal.
+     * Collection belongs to the connected service; cancellation also cancels pending delays.
+     */
+    fun observe(events: Flow<Unit>, read: () -> List<Candidate>?): Flow<Boolean> = flow {
+        val tracker = Tracker()
+        events.onStart { emit(Unit) }.conflate().collect {
+            delay(50L)
+            currentCoroutineContext().ensureActive()
+            var candidates = read()
+            emit(tracker.update(candidates))
+            for (waitMs in listOf(150L, 350L)) {
+                if (candidates != null && candidates.none { it.ownerPackage == null }) break
+                delay(waitMs)
+                currentCoroutineContext().ensureActive()
+                candidates = read()
+                emit(tracker.update(candidates))
+            }
+        }
+    }.distinctUntilChanged()
 
     class Tracker {
         private var confirmedIds = emptySet<Int>()

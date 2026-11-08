@@ -229,6 +229,17 @@ class OverlayWindow internal constructor(
     val width: Int get() = frame.width
     val height: Int get() = frame.height
 
+    private var resized: (() -> Unit)? = null
+    private val afterResize = Runnable {
+        if (isOpen) {
+            resized?.invoke()
+            // Re-submit after traversal even when gravity/coordinates did not change.
+            // An empty wrap-content overlay can otherwise keep its zero-sized WM frame
+            // while Compose already draws the expanded card, leaving it off-screen.
+            if (isOpen) update()
+        }
+    }
+
     /** 换位置。 */
     fun place(placement: OverlayPlacement) {
         if (!isOpen || params.gravity == placement.gravity && params.x == placement.x && params.y == placement.y) return
@@ -290,7 +301,15 @@ class OverlayWindow internal constructor(
 
     /** 内容大小变了(胶囊换成卡片、转屏后重排)时调 [onResize],调用方据此重新摆位置。 */
     fun onResize(onResize: (() -> Unit)?) {
-        if (isOpen) frame.onResize = onResize
+        if (!isOpen) return
+        resized = onResize
+        frame.removeCallbacks(afterResize)
+        frame.onResize = if (onResize == null) null else ({
+            // Layout callbacks run inside traversal. Defer WM updates and coalesce sizes.
+            frame.removeCallbacks(afterResize)
+            frame.post(afterResize)
+            Unit
+        })
     }
 
     /**
@@ -336,6 +355,8 @@ class OverlayWindow internal constructor(
     fun close() {
         if (!isOpen) return
         isOpen = false
+        frame.removeCallbacks(afterResize)
+        resized = null
         frame.release()
         host.forget(this)
         runCatching { host.wm().removeViewImmediate(frame) }
