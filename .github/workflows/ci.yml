@@ -30,6 +30,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
       - name: Unit tests
         run: ./gradlew :core:test --stacktrace
       - name: Upload test reports
@@ -59,6 +62,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
       # cliTest 先跑 cliContractTest（经真实子进程调 Python CLI），再跑 tools/mika/tests 下的 unittest。
       - name: CLI tests
         run: ./gradlew :core:cliTest -PmikaPython=python3 --stacktrace
@@ -94,6 +100,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
       # assembleDebug 验证单测碰不到的打包路径：31MB 的 rootfs、jniLibs 旧式解压、AIDL、Compose。
       - name: Unit tests, debug build and device-test compilation
         # WOOWTECH fork: 只跑 upstream flavor(woowtech 版由 woowtech.yml 建);两个 flavor 一起编会超出 2 GB 的编译内存
@@ -128,6 +137,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
       # relayTest 会先 go build 出真实网关，再在回环上跑 Kotlin→网关→隧道全链路。
       - name: Relay integration test
         run: ./gradlew :core:relayTest --stacktrace

@@ -44,6 +44,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py
       - name: Brand layer tests
         run: ./gradlew :core:test --tests "com.wangzan101.mika.core.brand.*" --stacktrace
       - name: Build woowtech release (unsigned) and debug
