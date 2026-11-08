@@ -717,7 +717,7 @@ class TaskService : Service() {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true) // 同一次等待里换按钮不再响铃;离开等待时撤掉,下一次会重新提醒
-            .setContentIntent(openApp())
+            .setContentIntent(openApp(run.conversationId))
         // WOOWTECH fork: 放进这个任务自己的通知组(组里有摘要);安静时在组里不提醒,不再另放进没有摘要的静音组(见 AlertGroup)
         b.inGroup(AlertGroup.attention(run.slot), quiet)
         when (state) {
