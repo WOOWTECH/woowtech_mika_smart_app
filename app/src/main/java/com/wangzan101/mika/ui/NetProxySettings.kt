@@ -3,6 +3,8 @@ package com.wangzan101.mika.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.wangzan101.mika.ui.components.MikaDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -60,7 +62,7 @@ fun NetProxyDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> U
         onDismissRequest = onDismiss,
         title = { Text(NetProxyCopy.TITLE) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(NetProxyCopy.HINT, style = MikaType.Caption, color = MikaTheme.colors.ink3)
                 OutlinedTextField(
                     text, { text = it }, Modifier.fillMaxWidth().padding(top = 8.dp).testTag("net-proxy-input"),

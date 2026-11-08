@@ -175,13 +175,15 @@ fun SegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     tags: List<String>? = null,
+    wrapLabels: Boolean = false,
 ) {
     val c = MikaTheme.colors
-    Row(modifier.fillMaxWidth().background(c.fill, SegmentOuter).padding(2.dp)) {
+    Row(modifier.fillMaxWidth().background(c.fill, SegmentOuter).padding(2.dp), verticalAlignment = Alignment.CenterVertically) {
         options.forEachIndexed { i, label ->
             val on = i == selected
             Box(
-                Modifier.weight(1f).height(32.dp)
+                Modifier.weight(1f)
+                    .then(if (wrapLabels) Modifier.heightIn(min = 32.dp) else Modifier.height(32.dp))
                     .then(
                         if (on) Modifier.shadow(1.dp, SegmentInner, clip = false, ambientColor = c.cardShadow, spotColor = c.cardShadow)
                             .background(c.surface, SegmentInner)
@@ -192,7 +194,14 @@ fun SegmentedControl(
                     .then(if (tags != null) Modifier.testTag(tags[i]) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = SegmentText, color = if (on) c.ink else c.ink2, maxLines = 1)
+                Text(
+                    label,
+                    modifier = if (wrapLabels) Modifier.padding(horizontal = 4.dp, vertical = 4.dp) else Modifier,
+                    style = SegmentText,
+                    color = if (on) c.ink else c.ink2,
+                    maxLines = if (wrapLabels) Int.MAX_VALUE else 1,
+                    textAlign = if (wrapLabels) TextAlign.Center else TextAlign.Unspecified,
+                )
             }
         }
     }

@@ -121,13 +121,14 @@ internal fun ComputerAccessPage(
         ConnectionStatus(ui)
         GroupLabel(stringResource(R.string.mcp_choose_client))
         SegmentedControl(listOf("CLI / Skill", "MCP"), client, { client = it },
-            Modifier.padding(bottom = 12.dp), tags = listOf("computer-cli", "computer-mcp"))
+            Modifier.padding(bottom = 12.dp), tags = listOf("computer-cli", "computer-mcp"), wrapLabels = true)
         GroupLabel(stringResource(R.string.mcp_choose_transport))
         val remoteChoice = relayGuide != null
         SegmentedControl(listOf(stringResource(R.string.mcp_transport_usb), stringResource(R.string.mcp_transport_network)) +
             if (remoteChoice) listOf(stringResource(R.string.relay_transport)) else emptyList(),
             transport, { transport = it }, Modifier.padding(bottom = 12.dp),
-            tags = listOf("computer-usb", "computer-network") + if (remoteChoice) listOf("computer-remote") else emptyList())
+            tags = listOf("computer-usb", "computer-network") + if (remoteChoice) listOf("computer-remote") else emptyList(),
+            wrapLabels = true)
         if (client == 0) CliInstallGuide(onCopy)
         when {
             transport == 2 -> relayGuide?.invoke(client == 1)
@@ -273,7 +274,7 @@ private fun GuideStep(title: String, body: String, button: String, onClick: () -
     GroupCard {
         ListRow(null, title, body, first = true)
         if (command != null) CommandText(command)
-        RowActions { MikaButton(button, onClick, size = ButtonSize.Small) }
+        RowActions { MikaButton(button, onClick, size = ButtonSize.Small, wrapLabel = true) }
     }
 }
 

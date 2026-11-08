@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.wangzan101.mika.ui.components.MikaDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
@@ -174,13 +176,14 @@ private fun McpServerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (initial == null) R.string.mcp_servers_add else R.string.mcp_servers_edit)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(name, { feedback.edited(); name = it }, label = { Text(stringResource(R.string.mcp_servers_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 SegmentedControl(
                     options = transportLabels,
                     selected = transportIds.indexOf(transport).coerceAtLeast(0),
                     onSelect = { feedback.edited(); transport = transportIds[it] },
                     modifier = Modifier.padding(top = 8.dp),
+                    wrapLabels = true,
                 )
                 if (transport == "stdio") {
                     OutlinedTextField(
