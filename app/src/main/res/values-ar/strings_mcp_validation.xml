@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">أدخل اسم الخادم.</string>
+    <string name="mcp_validation_command_required">أدخل أمراً.</string>
+    <string name="mcp_validation_command_too_long">يجب ألا يتجاوز الأمر 4000 حرف.</string>
+    <string name="mcp_validation_command_one_line">استخدم أمراً من سطر واحد دون محارف فارغة.</string>
+    <string name="mcp_validation_invalid_url">أدخل عنوان HTTP أو HTTPS صالحاً.</string>
+    <string name="mcp_validation_url_user_info">لا تضمّن اسم مستخدم أو كلمة مرور في العنوان.</string>
+    <string name="mcp_validation_blocked_host">هذا المضيف غير مسموح به.</string>
+    <string name="mcp_validation_http_opt_in">فعّل وصول HTTP المحلي أو الخاص قبل استخدام هذا العنوان.</string>
+    <string name="mcp_validation_http_local_only">يُسمح بـ HTTP للمضيفين المحليين أو الخاصين فقط.</string>
+    <string name="mcp_validation_https_required">استخدم HTTPS، أو HTTP لخادم محلي.</string>
+</resources>

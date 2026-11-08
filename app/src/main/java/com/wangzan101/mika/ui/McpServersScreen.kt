@@ -125,7 +125,7 @@ private fun McpServerDialog(
     var transport by remember { mutableStateOf(initial?.transport ?: "streamable-http") }
     var command by remember { mutableStateOf(initial?.command.orEmpty()) }
     var allowlist by remember { mutableStateOf(initial?.allowedTools?.joinToString(", ").orEmpty()) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val feedback = remember { McpEditorFeedback() }
     var testing by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf(false) }
     var savedId by remember { mutableStateOf(initial?.id) }
@@ -162,8 +162,11 @@ private fun McpServerDialog(
                 if (it.isSuccess && !oauth && initial?.auth == "oauth") store.clearOAuth(cfg.id)
             }
         }
-        result.exceptionOrNull()?.let { error = it.message; return null }
-        error = null
+        result.exceptionOrNull()?.let {
+            feedback.publish(feedback.revision, mcpValidationMessage(it.message, context::getString))
+            return null
+        }
+        feedback.publish(feedback.revision, null)
         return cfg
     }
 
@@ -172,41 +175,42 @@ private fun McpServerDialog(
         title = { Text(stringResource(if (initial == null) R.string.mcp_servers_add else R.string.mcp_servers_edit)) },
         text = {
             Column {
-                OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.mcp_servers_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(name, { feedback.edited(); name = it }, label = { Text(stringResource(R.string.mcp_servers_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 SegmentedControl(
                     options = transportLabels,
                     selected = transportIds.indexOf(transport).coerceAtLeast(0),
-                    onSelect = { transport = transportIds[it] },
+                    onSelect = { feedback.edited(); transport = transportIds[it] },
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 if (transport == "stdio") {
                     OutlinedTextField(
-                        command, { command = it },
+                        command, { feedback.edited(); command = it },
                         label = { Text(stringResource(R.string.mcp_servers_command)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                     Text(stringResource(R.string.mcp_servers_stdio_help), Modifier.padding(top = 4.dp))
                 } else {
-                    OutlinedTextField(url, { url = it }, label = { Text(stringResource(R.string.mcp_servers_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    OutlinedTextField(url, { feedback.edited(); url = it }, label = { Text(stringResource(R.string.mcp_servers_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                     if (!oauth) {
                         OutlinedTextField(
-                            token, { token = it }, label = { Text(stringResource(R.string.mcp_servers_token)) },
+                            token, { feedback.edited(); token = it }, label = { Text(stringResource(R.string.mcp_servers_token)) },
                             singleLine = true, visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         )
                     }
                 }
                 OutlinedTextField(
-                    allowlist, { allowlist = it },
+                    allowlist, { feedback.edited(); allowlist = it },
                     label = { Text(stringResource(R.string.mcp_servers_allowlist)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
-                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_use_oauth), oauth) { oauth = it }
+                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_use_oauth), oauth) { feedback.edited(); oauth = it }
                 if (oauth && transport != "stdio") {
                     TextButton({
                         val saved = save() ?: return@TextButton
+                        val revision = feedback.revision
                         signingIn = true
                         scope.launch {
                             val result = store.authorize(saved) { link ->
@@ -218,20 +222,20 @@ private fun McpServerDialog(
                             }
                             signingIn = false
                             result.fold(
-                                onSuccess = { error = signInOk },
+                                onSuccess = { feedback.publish(revision, signInOk) },
                                 onFailure = {
-                                    error = context.getString(
+                                    feedback.publish(revision, context.getString(
                                         R.string.mcp_servers_sign_in_failed,
                                         it.message ?: it.javaClass.simpleName,
-                                    )
+                                    ))
                                 },
                             )
                         }
                     }) { Text(signInLabel) }
                 }
-                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_allow_local_http), allowLocal) { allowLocal = it }
-                ToggleRow(stringResource(R.string.mcp_servers_trust_annotations), trustAnnotations) { trustAnnotations = it }
-                error?.let { Text(it, Modifier.padding(top = 6.dp)) }
+                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_allow_local_http), allowLocal) { feedback.edited(); allowLocal = it }
+                ToggleRow(stringResource(R.string.mcp_servers_trust_annotations), trustAnnotations) { feedback.edited(); trustAnnotations = it }
+                feedback.message?.let { Text(it, Modifier.padding(top = 6.dp)) }
                 if (testing) Text(stringResource(R.string.mcp_servers_testing), Modifier.padding(top = 6.dp))
                 if (signingIn) Text(stringResource(R.string.mcp_servers_signing_in), Modifier.padding(top = 6.dp))
                 if (initial != null) TextButton({ store.remove(initial.id); onChanged() }) { Text(stringResource(R.string.mcp_servers_delete)) }
@@ -245,13 +249,14 @@ private fun McpServerDialog(
         dismissButton = {
             TextButton({
                 val saved = save() ?: return@TextButton
+                val revision = feedback.revision
                 testing = true
                 scope.launch {
                     val result = store.test(saved)
                     testing = false
                     result.fold(
-                        onSuccess = { error = "OK: ${it.serverName ?: ""} · ${it.tools.size}" },
-                        onFailure = { error = it.message ?: it.javaClass.simpleName },
+                        onSuccess = { feedback.publish(revision, "OK: ${it.serverName ?: ""} · ${it.tools.size}") },
+                        onFailure = { feedback.publish(revision, it.message ?: it.javaClass.simpleName) },
                     )
                 }
             }) { Text(stringResource(R.string.mcp_servers_save_test)) }

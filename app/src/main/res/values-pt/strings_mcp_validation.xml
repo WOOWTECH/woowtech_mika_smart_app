@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">Insira um nome de servidor.</string>
+    <string name="mcp_validation_command_required">Insira um comando.</string>
+    <string name="mcp_validation_command_too_long">O comando deve ter no máximo 4000 caracteres.</string>
+    <string name="mcp_validation_command_one_line">Use um comando de uma única linha sem caracteres nulos.</string>
+    <string name="mcp_validation_invalid_url">Insira um URL HTTP ou HTTPS válido.</string>
+    <string name="mcp_validation_url_user_info">Não inclua usuário ou senha no URL.</string>
+    <string name="mcp_validation_blocked_host">Este host não é permitido.</string>
+    <string name="mcp_validation_http_opt_in">Ative o acesso HTTP local/privado antes de usar este endereço.</string>
+    <string name="mcp_validation_http_local_only">HTTP é permitido apenas para hosts locais ou privados.</string>
+    <string name="mcp_validation_https_required">Use HTTPS, ou HTTP para um servidor local.</string>
+</resources>
