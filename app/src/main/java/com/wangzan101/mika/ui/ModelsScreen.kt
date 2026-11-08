@@ -234,7 +234,7 @@ fun RolePickerContent(ui: ModelSetupUi, role: ModelRole, actions: RolePickerActi
                 shown.take(PICK_AT_MOST).forEachIndexed { i, o ->
                     RadioRow(
                         o.id, selected = ui.picked(role, p.id, o.id), onClick = { actions.pick(p.id, o.id) }, first = i == 0,
-                        titleStyle = ModelIdStyle, below = { Tags(o, forVision = role == ModelRole.Vision) },
+                        titleStyle = ModelIdStyle, below = { Tags(o, forVision = role == ModelRole.Vision, wrapLabel = true) },
                     )
                 }
                 ManualModel(p, ui.manualPick[p.id], first = shown.isEmpty()) { actions.pickManual(p.id, it) }

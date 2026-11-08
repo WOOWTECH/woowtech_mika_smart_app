@@ -98,7 +98,7 @@ fun SpeechModelContent(ui: ModelSetupUi, probe: Map<String, String>, actions: Sp
                         else -> R.string.speech_system_note_online
                     },
                 ),
-                trailing = {
+                below = {
                     when {
                         system.usable -> StatusPill(tr(R.string.speech_tag_ok), PillTone.Ok)
                         system.available -> StatusPill(tr(R.string.speech_tag_silent), PillTone.Neutral)
@@ -123,7 +123,7 @@ fun SpeechModelContent(ui: ModelSetupUi, probe: Map<String, String>, actions: Sp
                     RadioRow(
                         id, selected = id == picked, onClick = { actions.pickModel(p.id, id) }, first = i == 0,
                         titleStyle = ModelIdStyle, enabled = ui.speechTesting == null,
-                        trailing = { CapabilityTag(tr(R.string.speech_tag_speech)) },
+                        below = { CapabilityTag(tr(R.string.speech_tag_speech), wrapLabel = true) },
                     )
                 }
                 // 列表里没有的(列表不全、或这家不给列表)手填
