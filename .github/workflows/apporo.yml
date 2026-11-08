@@ -35,6 +35,13 @@ jobs:
         run: ./gradlew :app:assembleApporoDebug :app:assembleApporoRelease --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g --stacktrace
       - name: Verify packaged Apporo identity
         run: python3 apporo/tools/check-apk.py app/build/outputs/apk/apporo/release/*.apk
+      - name: Upload arm64 emulator candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: apporo-arm64-unsigned-${{ github.sha }}
+          path: app/build/outputs/apk/apporo/release/*arm64-v8a-release-unsigned.apk
+          retention-days: 7
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         if: always()
         with:
