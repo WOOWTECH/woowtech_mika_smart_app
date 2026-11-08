@@ -327,8 +327,8 @@ fun ProviderDetailContent(ui: ModelSetupUi, p: Provider, actions: ProviderDetail
                         else -> RowValue(ModelsCopy.CONNECTED, ValueTone.Ok)
                     }
                 }
-                ListRow(null, ModelsCopy.KIND) { RowValue(ModelsCopy.kindLabel(p.kind)) }
-                ListRow(null, ModelsCopy.BASE_URL) { RowValue(ModelsCopy.shortUrl(p.baseUrl)) }
+                ListRow(null, ModelsCopy.KIND, subtitle = ModelsCopy.kindLabel(p.kind))
+                ListRow(null, ModelsCopy.BASE_URL, subtitle = ModelsCopy.shortUrl(p.baseUrl))
                 ListRow(null, ModelsCopy.API_KEY, onClick = { changingKey = true }) {
                     RowValue(if (p.id in ui.keyed) ModelsCopy.KEY_SAVED else ModelsCopy.KEY_NONE)
                     RowValue(ModelsCopy.CHANGE, ValueTone.Link)
