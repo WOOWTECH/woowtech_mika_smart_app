@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -123,44 +124,54 @@ private fun TableBlock(t: MdBlock.Table, style: TextStyle) {
     if (cols == 0) return
     val cellStyle = style.copy(fontSize = 13.5.sp, lineHeight = 19.sp)
     val rows = listOf(t.header) + t.rows
-    Box(Modifier.horizontalScroll(rememberScrollState())) {
-        Layout(
-            content = {
-                rows.forEachIndexed { r, row ->
-                    row.forEach { cell ->
-                        Box(
-                            Modifier.border(0.5.dp, MikaTheme.colors.hair)
-                                .then(if (r == 0) Modifier.background(MikaTheme.colors.fill) else Modifier)
-                                .padding(horizontal = 9.dp, vertical = 6.dp),
-                        ) {
-                            Text(cell, style = if (r == 0) cellStyle.copy(fontWeight = FontWeight.SemiBold) else cellStyle)
+    val scroll = rememberScrollState()
+    Column {
+        Box(Modifier.horizontalScroll(scroll)) {
+            Layout(
+                content = {
+                    rows.forEachIndexed { r, row ->
+                        row.forEach { cell ->
+                            Box(
+                                Modifier.border(0.5.dp, MikaTheme.colors.hair)
+                                    .then(if (r == 0) Modifier.background(MikaTheme.colors.fill) else Modifier)
+                                    .padding(horizontal = 9.dp, vertical = 6.dp),
+                            ) {
+                                Text(cell, style = if (r == 0) cellStyle.copy(fontWeight = FontWeight.SemiBold) else cellStyle)
+                            }
                         }
                     }
+                },
+                modifier = Modifier.border(0.5.dp, MikaTheme.colors.hair, RoundedCornerShape(2.dp)),
+            ) { measurables, _ ->
+                val maxCol = 240.dp.roundToPx()
+                val minCol = 48.dp.roundToPx()
+                val widths = IntArray(cols)
+                measurables.forEachIndexed { i, m ->
+                    val c = i % cols
+                    widths[c] = maxOf(widths[c], m.maxIntrinsicWidth(Constraints.Infinity).coerceIn(minCol, maxCol))
                 }
-            },
-            modifier = Modifier.border(0.5.dp, MikaTheme.colors.hair, RoundedCornerShape(2.dp)),
-        ) { measurables, _ ->
-            val maxCol = 240.dp.roundToPx()
-            val minCol = 48.dp.roundToPx()
-            val widths = IntArray(cols)
-            measurables.forEachIndexed { i, m ->
-                val c = i % cols
-                widths[c] = maxOf(widths[c], m.maxIntrinsicWidth(Constraints.Infinity).coerceIn(minCol, maxCol))
-            }
-            val heights = measurables.chunked(cols).map { row -> row.withIndex().maxOf { (c, m) -> m.minIntrinsicHeight(widths[c]) } }
-            // 同一行的格一样高,边框和表头底色才对齐
-            val placeables = measurables.mapIndexed { i, m -> m.measure(Constraints.fixed(widths[i % cols], heights[i / cols])) }
-            layout(widths.sum(), heights.sum()) {
-                var y = 0
-                placeables.chunked(cols).forEachIndexed { r, row ->
-                    var x = 0
-                    row.forEachIndexed { c, p ->
-                        p.place(x, y)
-                        x += widths[c]
+                val heights = measurables.chunked(cols).map { row -> row.withIndex().maxOf { (c, m) -> m.minIntrinsicHeight(widths[c]) } }
+                // 同一行的格一样高,边框和表头底色才对齐
+                val placeables = measurables.mapIndexed { i, m -> m.measure(Constraints.fixed(widths[i % cols], heights[i / cols])) }
+                layout(widths.sum(), heights.sum()) {
+                    var y = 0
+                    placeables.chunked(cols).forEachIndexed { r, row ->
+                        var x = 0
+                        row.forEachIndexed { c, p ->
+                            p.place(x, y)
+                            x += widths[c]
+                        }
+                        y += heights[r]
                     }
-                    y += heights[r]
                 }
             }
+        }
+        if (scroll.canScrollForward || scroll.canScrollBackward) {
+            Text(
+                stringResource(R.string.markdown_table_scroll_hint),
+                modifier = Modifier.padding(top = 4.dp),
+                style = style.copy(fontSize = 12.sp, color = MikaTheme.colors.ink2),
+            )
         }
     }
 }

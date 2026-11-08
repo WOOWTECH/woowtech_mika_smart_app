@@ -78,6 +78,7 @@
     <string name="steer_interrupted_reply">メッセージにより中断されました</string>
     <string name="steer_next">次のタスクとして待機しています</string>
     <string name="steer_cancelled">キャンセルしました</string>
+    <string name="chat_activity_summary">@string/chat_expand_steps</string>
     <plurals name="chat_steps_done">
         <item quantity="other">%1$d ステップ</item>
     </plurals>

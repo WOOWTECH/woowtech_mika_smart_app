@@ -84,6 +84,7 @@
     <string name="steer_interrupted_reply">Прервано вашим сообщением</string>
     <string name="steer_next">Поставлено в очередь как следующая задача</string>
     <string name="steer_cancelled">Отменено</string>
+    <string name="chat_activity_summary">@string/chat_expand_steps</string>
     <plurals name="chat_steps_done">
         <item quantity="one">%1$d шаг</item>
         <item quantity="few">%1$d шага</item>

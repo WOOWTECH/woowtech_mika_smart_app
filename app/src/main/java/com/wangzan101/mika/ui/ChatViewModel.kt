@@ -219,9 +219,12 @@ fun steerLabel(state: SteerState): String? = when (state) {
  */
 internal fun editableSteer(text: String): Boolean = !UserScreenMessage.has(text) && AttachedPage.parse(text).page == null
 
-/** 结束后收起的那一行:「做了 12 步 · 1 分 20 秒」;不知道用时就只说步数。 */
+/**
+ * Expandable activity summary. Do not count these filtered/grouped rows as completed steps:
+ * they differ from timeline step numbers and can include failed actions.
+ */
 fun stepsSummary(ex: Exchange): String =
-    trPlural(R.plurals.chat_steps_done, ex.steps.size) + ex.elapsedMs?.let { " · " + RunTimelineViewModel.duration(it) }.orEmpty()
+    tr(R.string.chat_activity_summary) + ex.elapsedMs?.let { " · " + RunTimelineViewModel.duration(it) }.orEmpty()
 
 /** 结果卡片上记忆与技能提示的按钮;真机上由记忆存储与个人技能实现(读写在后台线程),测试里换成记录调用。 */
 interface LearningActions {

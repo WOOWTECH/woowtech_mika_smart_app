@@ -1,5 +1,8 @@
 package com.wangzan101.mika.ui
 
+import com.wangzan101.mika.i18n.ResFileTexts
+import com.wangzan101.mika.i18n.UiText
+import com.wangzan101.mika.i18n.trPlural
 import com.wangzan101.mika.i18n.ChineseTexts
 import com.wangzan101.mika.task.TaskGate
 
@@ -269,10 +272,72 @@ class ChatViewModelTest {
         emit(TaskState.Succeeded("有 3 趟\n依据:12306 查询结果页"))
         ex = vm.ui.value.exchanges.single()
         assertEquals(80_000L, ex.elapsedMs)
-        assertEquals("做了 3 步 · 1 分 20 秒", stepsSummary(ex))
+        assertEquals(tr(R.string.chat_activity_summary) + " · 1 分 20 秒", stepsSummary(ex))
         assertFalse(vm.ui.value.operatingPhone)
-        // 不知道用时就只说步数
-        assertEquals("做了 3 步", stepsSummary(ex.copy(elapsedMs = null)))
+        // 不知道用时就只显示摘要标签
+        assertEquals(tr(R.string.chat_activity_summary), stepsSummary(ex.copy(elapsedMs = null)))
+    }
+
+    @Test fun activitySummaryOmitsCountWhileTimelineKeepsModelTurns() {
+        val activities = (1..9).map { RunEvent.Activity(0L, it, "act", "phone_tap", "example.app") }
+        val events = buildList<RunEvent> {
+            // A rejected light reply is a model call, but does not create a timeline entry.
+            add(RunEvent.ModelReply(0L, 1, "", null, null, null, null, null, role = "light_rejected"))
+            for (step in 1..11) {
+                add(RunEvent.ModelReply(0L, step, "reply", null, null, null, null, null))
+                activities.filter { it.step == step }.forEach { add(it) }
+            }
+        }
+        val ex = Exchange("goal", emptyList(), ExchangeStatus.Done("done", null), live = false,
+            activities = activities, elapsedMs = 80_000L)
+        val rows = ChatViewModel.rows(ex, { it }, { it })
+        val timeline = RunTimelineViewModel.steps(events)
+        assertEquals(9, rows.size)
+        assertEquals(11, timeline.size)
+        assertEquals(12, events.count { it is RunEvent.ModelReply })
+
+        val previous = UiText.source
+        try {
+            for ((locale, chat, detail, elapsed) in listOf(
+                listOf("en", "Activity", "11 steps", "1 min 20 s"),
+                listOf("hant", "執行摘要", "共 11 步", "1 分 20 秒"),
+            )) {
+                UiText.source = if (locale == "en") ResFileTexts.english else ResFileTexts.traditional
+                assertEquals(chat, stepsSummary(ex.copy(steps = rows, elapsedMs = null)))
+                assertEquals("$chat · $elapsed", stepsSummary(ex.copy(steps = rows)))
+                // The label is neutral even if an action or the run failed.
+                assertEquals(chat, stepsSummary(ex.copy(
+                    steps = listOf(rows.first().copy(subtitle = "Failed", state = StepState.Dim)),
+                    status = ExchangeStatus.Failed("failed"), elapsedMs = null,
+                )))
+                assertEquals(detail, trPlural(R.plurals.timeline_total_steps, timeline.size))
+                assertEquals(chat,
+                    stepsSummary(ex.copy(steps = rows.take(1), elapsedMs = null)))
+                assertEquals(chat,
+                    stepsSummary(ex.copy(steps = emptyList(), elapsedMs = null)))
+            }
+        } finally {
+            UiText.source = previous
+        }
+    }
+
+    @Test fun displayedActivityCountIncludesBatchActionsAndFailuresButGroupsAndFiltersReads() {
+        val activities = listOf(
+            RunEvent.Activity(0L, 1, "act", "phone_tap", "example.app"),
+            RunEvent.Activity(0L, 1, "act", "phone_tap", "example.app"),
+            RunEvent.Activity(0L, 2, "observe", "phone_observe", "example.app"),
+            RunEvent.Activity(0L, 2, "observe", "phone_observe", "example.app"),
+            RunEvent.Activity(0L, 3, "observe", "phone_observe"),
+            RunEvent.Activity(0L, 4, "observe", "phone_observe", failed = true),
+        )
+        val ex = Exchange("goal", emptyList(), ExchangeStatus.Done("done", null), live = false, activities = activities)
+        val rows = ChatViewModel.rows(ex, { it }, { it })
+        assertEquals(listOf(1, 1, 2, 4), rows.map { it.step })
+        assertEquals(tr(R.string.step_failed), rows.last().subtitle)
+        val timeline = RunTimelineViewModel.steps(activities)
+        assertEquals(listOf(1, 2, 3, 4), timeline.map { it.step })
+        assertEquals(2, timeline[0].activities.size)
+        assertEquals(2, timeline[1].activities.single().count)
     }
 
     /** 顶栏副标题「正在操作 …」:最近一件有对象的事所在的 App(包名换成 App 名)。 */

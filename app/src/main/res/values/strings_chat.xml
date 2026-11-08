@@ -80,6 +80,7 @@
     <string name="steer_interrupted_reply">Interrupted by your message</string>
     <string name="steer_next">Queued as the next task</string>
     <string name="steer_cancelled">Cancelled</string>
+    <string name="chat_activity_summary">Activity</string>
     <plurals name="chat_steps_done">
         <item quantity="one">%1$d step</item>
         <item quantity="other">%1$d steps</item>

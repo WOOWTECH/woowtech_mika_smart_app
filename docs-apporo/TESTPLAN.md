@@ -28,7 +28,7 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Shopping | momo, Shopee and PChome | Run [shopping acceptance](SHOPPING-ACCEPTANCE.md); independently verify visible prices and distinguish blocked searches from successful handoffs |
 | Files | Compute and export | Calculate known values, export to Apporo Assistant Downloads folder, reopen file |
 | Memory | Learn and remove | Confirm a harmless preference, observe reuse, remove it |
-| Schedule | Permissions | Test granted and denied exact-alarm access; report actual due and delivery times |
+| Schedule | Permissions | On Android 13+ direct APK, verify USE_EXACT_ALARM on fresh install and upgrade; test denial/regrant of SCHEDULE_EXACT_ALARM on Android 12/12L separately. Report due and delivery times |
 | Notify | Background approval | Existing result notification remains; approval banner appears and is actionable |
 | Notify | Reminder | Capture event log and screen recording; device audio still needs physical testing |
 | Gate | Decline | Local fixture only; decline produces zero final submissions and correct step label |
@@ -37,17 +37,17 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Remote | CLI and MCP | Explicit Apporo package; inspect response identity and request time on phone |
 | Remote | Cancel and revoke | Cancel task; disable access; old token no longer authorizes calls |
 | Update | Channel isolation | Never offer a WOOWTECH APK; reserved Apporo endpoint is not yet a release |
-| Update | Signed upgrade | After channel / signing provision: preserve data during Apporo-to-Apporo upgrade |
+| Update | Signed upgrade | Same test certificate: preserve data during Apporo-to-Apporo upgrade; distinguish USB helper recovery from data retention. Official update-channel acceptance remains separate |
 | Cleanup | Test environment | Stop fake shop, remove forwards, restore IME, remove test data, confirm host state |
 
-Device acceptance is in progress; see [2026-11-08 emulator evidence and limitations](EMULATOR-20261108.zh-TW.md). Several cases passed, while real Apporo integrations and complete UI coverage remain unverified. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. The user authorized reusing existing WOOWTECH test data and environments. Use the established demo services below; do not operate production equipment as a test fixture.
+Device acceptance is in progress; see [wave4 results](EMULATOR-WAVE4-20261108.zh-TW.md) and [baseline alignment](PARITY-WOOW4-20261108.zh-TW.md). Actual Assistant tasks for aiot, smart, momo Android and PChome desktop passed within the documented visibility limits. Platform and Shopee product access remain blocked; complete UI and accessibility coverage is still being expanded. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. The user authorized reusing existing WOOWTECH test data and environments. Use the established demo services below; do not operate production equipment as a test fixture.
 
 The [second emulator wave](EMULATOR-WAVE2-20261108.zh-TW.md) covers all three installed Apporo products' connection entry points, the initial capsule position, English UI inspection and the background approval banner. The [service reuse checks](SERVICE-REUSE-20261108.zh-TW.md) establish usable aiot and smart demo backends; these API results do not establish Android UI or Assistant task acceptance. Use MAIN + LAUNCHER when starting the aiot activity on Android 16, and explicitly use `adb shell input -d 0` for the main display. Fill credentials by verified password-field identity, never by coordinates retained across keyboard/layout changes; do not dump an unverified form containing secrets.
 
 | Integration | Existing fixture | Next device acceptance |
 | --- | --- | --- |
-| aiot | Established family demo; backend login and entity read passed | Sign in through the app, inspect dashboard and select a demo room; compare visible states to backend. Do not change devices in this first pass. |
+| aiot | Established family demo; backend login and entity read passed | Wave4 authenticated and autonomously read Overview; temporary registration cleaned up. Further device-control tests require an explicit demo target and reversible expected state. |
 | platform | Existing demo111 review server/database; old review account returns AccessDenied | Obtain a working replacement credential through a private file, complete app sign-in, read permitted records. Do not report an empty result as successful authentication. |
-| smart | Existing Apporo review demo and protected pairing link; relay project/agent listing passed | Pair the Android app, verify two projects and two agents against the backend snapshot, open a demo project without sending a task. Counts may change; take a new backend snapshot for comparison. |
+| smart | Existing Apporo review demo and protected pairing link; relay project/agent listing passed | Wave4 paired and autonomously read projects and README; pending requests preserved and local connection removed. Counts may change; take a new backend snapshot for further comparisons. |
 
 Keep credentials, refresh tokens and pairing links out of evidence and repository files. Revoke temporary aiot tokens after backend checks. Retain the shared smart review pairing identity. Use the emulator only after the existing owner releases the heavy slot; do not share UI input between runs.
