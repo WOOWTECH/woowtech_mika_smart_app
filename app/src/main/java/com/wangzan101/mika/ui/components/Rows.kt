@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.ui.theme.MikaColors
@@ -109,6 +110,8 @@ fun ListRow(
     detail: String? = null,
     detailColor: Color = Color.Unspecified,
     onClick: (() -> Unit)? = null,
+    subtitleMaxLines: Int = Int.MAX_VALUE,
+    detailMaxLines: Int = Int.MAX_VALUE,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val c = MikaTheme.colors
@@ -124,8 +127,16 @@ fun ListRow(
         if (icon != null) IconTile(icon, tone)
         Column(Modifier.weight(1f).padding(vertical = 11.dp)) {
             Text(title, style = MikaType.Body, color = titleColor.takeOrElse { c.ink })
-            if (!subtitle.isNullOrEmpty()) Text(subtitle, Modifier.padding(top = 2.dp), style = MikaType.Caption, color = c.ink3)
-            if (!detail.isNullOrEmpty()) Text(detail, Modifier.padding(top = 2.dp), style = MikaType.Hint, color = detailColor.takeOrElse { c.ink3 })
+            if (!subtitle.isNullOrEmpty()) Text(
+                subtitle, Modifier.padding(top = 2.dp), style = MikaType.Caption, color = c.ink3,
+                maxLines = subtitleMaxLines,
+                overflow = if (subtitleMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
+            )
+            if (!detail.isNullOrEmpty()) Text(
+                detail, Modifier.padding(top = 2.dp), style = MikaType.Hint, color = detailColor.takeOrElse { c.ink3 },
+                maxLines = detailMaxLines,
+                overflow = if (detailMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
+            )
         }
         trailing()
     }

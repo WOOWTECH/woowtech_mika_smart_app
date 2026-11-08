@@ -66,6 +66,9 @@ fun McpServersScreen(store: McpServerStore, onBack: () -> Unit) {
                             else stringResource(R.string.mcp_servers_status_fail, it.message.orEmpty())
                         } ?: address),
                         detail = state?.let { address },
+                        // The full command remains available in the editor, not every list row.
+                        subtitleMaxLines = if (state == null && server.transport == "stdio") 2 else Int.MAX_VALUE,
+                        detailMaxLines = if (server.transport == "stdio") 2 else Int.MAX_VALUE,
                         first = i == 0,
                         onClick = { editing = server },
                     ) {
