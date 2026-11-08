@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -233,10 +234,12 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     val app = context.applicationContext as MikaApp
     // 查到的新版本:侧栏、设置首页、关于页的红点都看它
     val updateState by app.updates.state.collectAsState()
+    var conversationOpenRevision by remember { mutableIntStateOf(0) }
     LaunchedEffect(requestedConversation) {
         if (requestedConversation != null) {
             app.chat.openConversation(requestedConversation)
             nav.reset()
+            conversationOpenRevision++
             onConversationOpened()
         }
     }
@@ -314,6 +317,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 updateAvailable = AboutCopy.drawerDot(updateState),
                 reopen = nav.reopenDrawer,
                 onReopened = nav::drawerReopened,
+                externalOpenRevision = conversationOpenRevision,
             ) { openDrawer ->
                 ChatScreen(
                     vm = app.chat,

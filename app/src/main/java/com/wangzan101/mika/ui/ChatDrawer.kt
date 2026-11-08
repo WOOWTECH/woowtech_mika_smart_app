@@ -496,10 +496,19 @@ fun ChatWithDrawer(
     /** 从侧栏进去的页面刚退回来:当场打开侧栏,回到进去之前的样子。 */
     reopen: Boolean = false,
     onReopened: () -> Unit = {},
+    /** A notification/deep-link request should reveal the conversation beneath an open drawer. */
+    externalOpenRevision: Int = 0,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var handledOpenRevision by remember { mutableIntStateOf(externalOpenRevision) }
+    LaunchedEffect(externalOpenRevision) {
+        if (handledOpenRevision != externalOpenRevision) {
+            drawer.snapTo(DrawerValue.Closed)
+            handledOpenRevision = externalOpenRevision
+        }
+    }
     LaunchedEffect(reopen) {
         if (reopen) {
             drawer.snapTo(DrawerValue.Open)
