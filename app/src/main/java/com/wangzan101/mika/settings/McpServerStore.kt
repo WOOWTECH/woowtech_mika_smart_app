@@ -13,6 +13,8 @@ import com.wangzan101.mika.core.cap.mcp.parseStdioCommand
 import com.wangzan101.mika.core.cap.mcp.McpClientException
 import com.wangzan101.mika.core.cap.mcp.McpConnection
 import com.wangzan101.mika.core.cap.mcp.McpTrust
+import com.wangzan101.mika.core.cap.mcp.McpProvenance
+import com.wangzan101.mika.core.cap.mcp.McpTransport
 import com.wangzan101.mika.core.net.NetProxy
 import com.wangzan101.mika.core.oauth.LoopbackCallback
 import com.wangzan101.mika.core.resource.ResourceScope
@@ -278,6 +280,11 @@ class McpServerStore(
                 previewChars = config.previewChars,
                 trust = if (config.trust == "trust-annotations") McpTrust.TrustAnnotations else McpTrust.Restricted,
                 allowedTools = config.allowedTools?.toSet(),
+                provenance = McpProvenance(config.name, when (config.transport) {
+                    "stdio" -> McpTransport.Stdio
+                    "http-sse" -> McpTransport.SSE
+                    else -> McpTransport.HTTP
+                }),
             )
         }
         _health.update {

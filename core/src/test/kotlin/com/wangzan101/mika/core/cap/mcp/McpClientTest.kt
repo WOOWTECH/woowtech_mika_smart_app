@@ -31,8 +31,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class McpClientTest {
-    private class FakeEndpoint : McpEndpoint {
-        override val serverId = "demo"
+    private class FakeEndpoint(override val serverId: String = "demo") : McpEndpoint {
         var offered = listOf(McpToolDescriptor("search", "Search", buildJsonObject { put("type", "object") }, McpAnnotations(readOnlyHint = true)))
         var result = McpResult("found")
         var calls = 0
@@ -50,6 +49,43 @@ class McpClientTest {
 
     private fun endpointWithSchema(schema: String) = FakeEndpoint().apply {
         offered = listOf(McpToolDescriptor("search", "Search", Json.parseToJsonElement(schema).jsonObject))
+    }
+
+    @Test fun sameNamedToolsExposeConfiguredProvenanceWithoutChangingRoutingOrTrust() = runBlocking {
+        val echo = McpToolDescriptor("echo", "Echo text", buildJsonObject { put("type", "object") }, McpAnnotations(readOnlyHint = true))
+        val http = FakeEndpoint("opaque_a").apply { offered = listOf(echo, echo.copy(name = "hidden")) }
+        val stdio = FakeEndpoint("opaque_b").apply { offered = listOf(echo) }
+        val tools = toolDispatcher(FakeScreen(), mcpServers = listOf(
+            McpConnection(http, allowedTools = setOf("echo"), provenance = McpProvenance("Office echo", McpTransport.HTTP)),
+            McpConnection(stdio, trust = McpTrust.TrustAnnotations, provenance = McpProvenance("Local echo", McpTransport.Stdio)),
+        ))
+        val definitions = tools.definitions().filter { it.name.startsWith("mcp_") }
+        assertEquals(setOf("mcp_opaque_a__echo", "mcp_opaque_b__echo"), definitions.map { it.name }.toSet())
+        val local = definitions.single { it.description.contains("\"Local echo\"; transport: Stdio") }
+        val remote = definitions.single { it.description.contains("\"Office echo\"; transport: HTTP") }
+        assertTrue(local.description.endsWith("Echo text"))
+        assertEquals(ActionRisk.Change, tools.approvalRisk(remote.name)?.level)
+        assertEquals(ActionRisk.Read, tools.approvalRisk(local.name)?.level)
+        tools.execute(Part.ToolCall("local", local.name, "{}"), ActionPass())
+        assertEquals(0, http.calls)
+        assertEquals(1, stdio.calls)
+        tools.execute(Part.ToolCall("remote", remote.name, "{}"), ActionPass())
+        assertEquals(1, http.calls)
+        assertEquals(1, stdio.calls)
+    }
+
+    @Test fun provenanceIsBoundedQuotedDataAndAbsentMetadataPreservesDescription() {
+        val endpoint = FakeEndpoint()
+        val original = toolDispatcher(FakeScreen(), mcpServers = listOf(McpConnection(endpoint)))
+            .definitions().single { it.name == "mcp_demo__search" }
+        assertEquals("Search", original.description)
+        val name = "quoted\"\nserver " + "x".repeat(300)
+        val described = toolDispatcher(FakeScreen(), mcpServers = listOf(
+            McpConnection(endpoint, provenance = McpProvenance(name, McpTransport.SSE)),
+        )).definitions().single { it.name == original.name }
+        assertEquals("Configured MCP server: ${JsonPrimitive(name.take(200))}; transport: SSE.\nSearch", described.description)
+        assertEquals(2, described.description.lines().size)
+        assertEquals(original.parametersJsonSchema, described.parametersJsonSchema)
     }
 
     private fun parameters(tools: ToolDispatcher): JsonObject = Json.parseToJsonElement(
