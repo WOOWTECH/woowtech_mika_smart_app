@@ -13,6 +13,18 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SystemPanelPolicyTest {
+    @Test fun composerKeepingFocusOverAnOccludingShadeStillHidesTheCapsule() {
+        assertTrue(SystemPanelPolicy.panelHasFocus(false, true, false))
+        assertTrue(SystemPanelPolicy.panelHasFocus(true, false, false))
+        // Dismissal exposes the underlying app, even while the composer keeps focus.
+        assertFalse(SystemPanelPolicy.panelHasFocus(false, true, true))
+    }
+
+    @Test fun anOrdinaryKeyboardOrAnotherOverlayCannotSubstituteForPanelFocus() {
+        assertFalse(SystemPanelPolicy.panelHasFocus(false, false, false))
+        assertFalse(SystemPanelPolicy.panelHasFocus(false, false, true))
+        assertTrue(SystemPanelPolicy.panelHasFocus(true, false, true))
+    }
     @Test fun knownNonSystemUiOwnerAndEmptySnapshotDoNotStartRetries() = runTest {
         for (snapshot in listOf(listOf(SystemPanelPolicy.Candidate(7, "com.example.other")), emptyList())) {
             var reads = 0

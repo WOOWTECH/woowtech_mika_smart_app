@@ -11,9 +11,13 @@ import kotlinx.coroutines.flow.onStart
 
 /** Conservative window-based proxy for an expanded notification / quick-settings panel.
  * No titles, text, accessibility focus, or active-window state: those can change on overlay events.
- * OEMs that do not expose a focused System UI window with these bounds are not detected.
+ * An input-focused overlay can retain focus over the shade. In that case the system panel
+ * must also occlude all application windows; a normal keyboard over an app is not enough.
  */
 object SystemPanelPolicy {
+    fun panelHasFocus(systemFocused: Boolean, ownOverlayFocused: Boolean, applicationVisible: Boolean): Boolean =
+        systemFocused || (ownOverlayFocused && !applicationVisible)
+
     /** Only windows already passing type, input-focus and geometry checks enter this tracker. */
     data class Candidate(val id: Int, val ownerPackage: String?)
 

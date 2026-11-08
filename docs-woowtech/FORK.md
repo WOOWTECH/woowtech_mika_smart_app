@@ -20,7 +20,7 @@ Apporo 對齊 woow.4：共用同意通知金額與分類改名修正；`app/src/
 
 Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/EMULATOR-WAVE5-20261108.zh-TW.md`）：
 
-- `ScreenAccessibility.expandedSystemPanel` 與 `core/capsule/SystemPanelPolicy` 偵測預設螢幕的大型、取得輸入焦點的 SystemUI 視窗；通知／快速設定展開時暫時收起膠囊，保留未送出草稿、附件與對話，視窗收合後恢復。SystemUI 內容事件使用獨立、合併的訊號；首次讀不到視窗或套件時只有限次延後重讀，服務替換會取消舊讀取，不用空值猜測 SystemUI。可選 MikaPanel 診斷僅記幾何、焦點與固定 owner 類別，不記畫面文字。不同 OEM 若不提供相同視窗資訊仍可能漏判，待實機補驗。
+- `ScreenAccessibility.expandedSystemPanel` 與 `core/capsule/SystemPanelPolicy` 偵測預設螢幕的大型 SystemUI 視窗：通常須取得輸入焦點；若 App 自己的輸入浮層仍持有焦點，則另要求沒有應用程式視窗可見，才視為系統面板遮住底下畫面；通知／快速設定展開時暫時收起膠囊，保留未送出草稿、附件與對話，視窗收合後恢復。SystemUI 內容事件使用獨立、合併的訊號；首次讀不到視窗或套件時只有限次延後重讀，服務替換會取消舊讀取，不用空值猜測 SystemUI。可選 MikaPanel 診斷僅記幾何、焦點與固定 owner 類別，不記畫面文字。不同 OEM 若不提供相同視窗資訊仍可能漏判，待實機補驗。
 - `OverlayHost` 的尺寸回呼延後至排版完成後合併執行，再向 WindowManager 更新視窗，即使位置沒變也重送尺寸；處理空視窗展開後仍沿用零寬高、卡片偏出螢幕的情況。關閉視窗會撤銷待執行回呼。
 - 需要使用者處理的卡片按鈕及回答選項啟用 `MikaButton.wrapLabel`，讓大字體下的「Allow this once」等完整顯示、按鈕高度隨內容增加（最小 48dp），其他按鈕維持原樣。
 - 聊天摘要改為「Activity／執行摘要」＋耗時，不再把合併／過濾後的顯示列數稱為已完成步數；詳細時間軸的步數保持原值。

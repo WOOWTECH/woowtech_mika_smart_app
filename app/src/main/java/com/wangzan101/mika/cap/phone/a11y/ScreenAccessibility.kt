@@ -207,12 +207,27 @@ open class ScreenAccessibility : AccessibilityService() {
         val diagnostic = Log.isLoggable(PANEL_DIAGNOSTIC_TAG, Log.DEBUG)
         runCatching {
             val area = overlays().area()
+            val visibleWindows = windowsOn(Display.DEFAULT_DISPLAY)
+            val applicationVisible = visibleWindows.any { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            // A focusable composer can keep focus even after SystemUI covers the app below it.
+            // Only our own focused overlay qualifies, and only when no app window is exposed.
+            val ownOverlayFocused = !applicationVisible && visibleWindows.any { window ->
+                if (window.type != AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY || !window.isFocused) false
+                else runCatching {
+                    val root = window.root
+                    try { root?.packageName?.toString() == packageName } finally {
+                        @Suppress("DEPRECATION")
+                        root?.recycle()
+                    }
+                }.getOrDefault(false)
+            }
             if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "readTime=${SystemClock.uptimeMillis()} display=0 size=${area.width}x${area.height}")
-            windowsOn(Display.DEFAULT_DISPLAY).mapNotNull { window ->
+            visibleWindows.mapNotNull { window ->
                 val bounds = Rect().also(window::getBoundsInScreen)
                 if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "id=${window.id} type=${window.type} focused=${window.isFocused} bounds=${bounds.toShortString()}")
                 if (!SystemPanelPolicy.isPanelWindow(
-                    window.type == AccessibilityWindowInfo.TYPE_SYSTEM, window.isFocused,
+                    window.type == AccessibilityWindowInfo.TYPE_SYSTEM,
+                    SystemPanelPolicy.panelHasFocus(window.isFocused, ownOverlayFocused, applicationVisible),
                     bounds.left, bounds.top, bounds.right, bounds.bottom,
                     area.width, area.height,
                 )) return@mapNotNull null
