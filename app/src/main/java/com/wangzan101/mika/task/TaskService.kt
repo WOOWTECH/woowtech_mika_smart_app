@@ -838,10 +838,23 @@ class TaskService : Service() {
     }
 
     companion object {
-        /** 建通知频道;重复建没有副作用。App 启动时的恢复也要用,所以不依赖服务实例。 */
+        /**
+         * WOOWTECH fork: 三个任务频道此刻在 App 语言下该叫什么。建频道([ensureChannels])和给已有频道改名([ChannelNames])
+         * 取的是这同一份,名字只在这一处定。不含 [OLD_CHANNEL_RESULT]:它是要删掉的旧频道,改名交回会把它救活。
+         */
+        internal fun channelNames(): Map<String, String> = mapOf(
+            CHANNEL_PROGRESS to tr(R.string.channel_progress),
+            CHANNEL_RESULT to tr(R.string.channel_result),
+            CHANNEL_ATTENTION to tr(R.string.channel_attention),
+        )
+
+        /**
+         * 建通知频道;重复建没有副作用。App 启动时的恢复也要用,所以不依赖服务实例。
+         * WOOWTECH fork: 只在起服务、有结果要发时才跑,App 启动和换语言时不跑;那两个时刻已有频道的名字对到当前语言由 [ChannelNames] 管。
+         */
         internal fun ensureChannels(context: Context) {
             val nm = context.getSystemService(NotificationManager::class.java)
-            val names = mapOf(CHANNEL_PROGRESS to tr(R.string.channel_progress), CHANNEL_RESULT to tr(R.string.channel_result), CHANNEL_ATTENTION to tr(R.string.channel_attention))
+            val names = channelNames()
             // 旧的结果频道建成了较低级别,App 调不高;换新 id,旧的删掉免得设置里多一项
             nm.deleteNotificationChannel(OLD_CHANNEL_RESULT)
             CHANNEL_IMPORTANCE.forEach { (id, importance) -> nm.createNotificationChannel(NotificationChannel(id, names.getValue(id), importance)) }

@@ -9,6 +9,8 @@
     <string name="confirm_root">Root command</string>
     <string name="confirm_root_where">the whole phone (root)</string>
     <string name="confirm_title">Needs your OK: %1$s</string>
+    <!-- WOOWTECH fork: the title of the approval notification when the request has an amount: the confirm_title wording, the action (%1$s), then the amount (%2$s), e.g. "Needs your OK: Place order NT$590". Other languages derive it from their confirm_title -->
+    <string name="confirm_title_amount">Needs your OK: %1$s %2$s</string>
     <string name="confirm_in_app">In %1$s</string>
     <string name="confirm_target">To: %1$s</string>
     <string name="confirm_content">Content: %1$s</string>

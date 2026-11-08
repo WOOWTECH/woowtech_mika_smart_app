@@ -17,7 +17,7 @@ import java.io.File
 import java.util.Properties
 
 /** Brand releases made on the current upstream version: versionName gets `-woow.<N>`, versionCode `×100 + N`. */
-val woowtechRevision = 3
+val woowtechRevision = 4
 
 val brandProps = Properties().apply {
     file("src/woowtech/resources/brand.properties").reader(Charsets.UTF_8).use { load(it) }

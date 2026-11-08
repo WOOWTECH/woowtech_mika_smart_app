@@ -27,6 +27,8 @@ object ConfirmationCopy {
     const val CONTENT_MAX = 60
     /** 展开的卡片和通知里内容最多显示的字数(和申报时的上限一致)。 */
     const val DETAIL_MAX = 200
+    /** WOOWTECH fork: 通知标题里金额显示的字数;更长的截断加「…」(标题只有一行;收起的一行和展开的大字里金额是完整的)。 */
+    const val TITLE_AMOUNT_MAX = 30
     /** 确认卡片上的说明:只有花钱的操作要你同意,每次只同意这一次。 */
     val NOTE: String get() = tr(R.string.confirm_note)
 
@@ -50,14 +52,39 @@ object ConfirmationCopy {
     /** 展开的卡片和通知大字:一行一个字段,内容显示完整(最多 200 字)。 */
     fun detail(r: ConfirmationRequest, appName: String): String = fields(r, appName, if (root(r)) Int.MAX_VALUE else DETAIL_MAX).joinToString("\n")
 
-    private fun fields(r: ConfirmationRequest, appName: String, contentMax: Int): List<String> {
+    /**
+     * WOOWTECH fork: 确认通知收起的那一行(横幅、折叠的通知),和 [body] 一样,只是金额排最前:「金额:<多少> · 在 <App 名> · 对象:… · 内容:…」。
+     * 这一行放不下全部字段,金额排最后就被截掉,可横幅上的〔同意〕点一下就生效。其余字段的顺序不变,没有金额时和 [body] 一样。
+     * 进度通知([com.wangzan101.mika.task.TaskService.describe])等别的调用方仍用 [body]。
+     */
+    fun notificationBody(r: ConfirmationRequest, appName: String): String =
+        fields(r, appName, CONTENT_MAX, amountFirst = true).joinToString(" · ")
+
+    /**
+     * WOOWTECH fork: 确认通知的标题,有金额时带上:「要你同意:下单 NT$590」;没有金额时和 [title] 一样。锁屏上的公开版本不用它(不露金额)。
+     * 金额是模型写的,和别的字段一样当纯文本消毒([plain]);标题只有一行,超过 [TITLE_AMOUNT_MAX] 个字的截断加「…」。
+     */
+    fun notificationTitle(r: ConfirmationRequest): String {
+        val amount = amountText(r) ?: return title(r)
+        // 按码点数截,不劈开代理对(同 StatusCopy.sandboxLine);截在空格后时去掉空格再加「…」
+        val shown = if (amount.codePointCount(0, amount.length) <= TITLE_AMOUNT_MAX) amount
+        else amount.substring(0, amount.offsetByCodePoints(0, TITLE_AMOUNT_MAX)).trimEnd() + "…"
+        return tr(R.string.confirm_title_amount, if (root(r)) tr(R.string.confirm_root) else actionLabel(r.action), shown)
+    }
+
+    /** WOOWTECH fork: 申报里的金额(模型写的)消毒后的纯文字;没写、或消毒后是空的为 null。 */
+    private fun amountText(r: ConfirmationRequest): String? = r.amount?.let(::plain)?.takeIf { it.isNotEmpty() }
+
+    private fun fields(r: ConfirmationRequest, appName: String, contentMax: Int, amountFirst: Boolean = false): List<String> {
         val content = plain(r.content).let { if (it.length > contentMax) it.take(contentMax) + "…" else it }
-        return listOfNotNull(
+        val amount = amountText(r)?.let { tr(R.string.payment_amount, it) }
+        val others = listOfNotNull(
             tr(R.string.confirm_in_app, if (root(r)) tr(R.string.confirm_root_where) else plain(appName)),
             plain(r.target).takeIf { it.isNotEmpty() }?.let { tr(R.string.confirm_target, it) },
             content.takeIf { it.isNotEmpty() }?.let { tr(R.string.confirm_content, it) },
-            r.amount?.let(::plain)?.takeIf { it.isNotEmpty() }?.let { tr(R.string.payment_amount, it) },
         )
+        // WOOWTECH fork: [amountFirst] 时金额排最前([notificationBody]);上游和别的调用方金额排最后
+        return if (amountFirst) listOfNotNull(amount) + others else others + listOfNotNull(amount)
     }
 
     private val INVISIBLE = Regex("[\\u061C\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2069\\uFEFF]")
@@ -123,8 +150,9 @@ object ConfirmationNotifier {
             .build()
         return Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(ConfirmationCopy.title(r))
-            .setContentText(ConfirmationCopy.body(r, app))
+            // WOOWTECH fork: 标题和收起的一行都带金额、金额排最前:横幅上的〔同意〕点一下就生效,金额不能被截掉;锁屏的公开版本(上面的 public)照旧不写金额
+            .setContentTitle(ConfirmationCopy.notificationTitle(r))
+            .setContentText(ConfirmationCopy.notificationBody(r, app))
             .setStyle(Notification.BigTextStyle().bigText(ConfirmationCopy.detail(r, app)))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
