@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -12,6 +13,28 @@ spec.loader.exec_module(smoke)
 
 
 class StartupEvidenceTest(unittest.TestCase):
+    def test_avd_requires_registration_config_and_emulator_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            avd_root = Path(directory).resolve()
+            name = 'apporo-smoke-35'
+            avd = avd_root / (name + '.avd')
+            avd.mkdir()
+            registration = avd_root / (name + '.ini')
+            registration.write_text('path=' + str(avd) + '\n')
+            with self.assertRaisesRegex(RuntimeError, 'missing'):
+                smoke.verify_avd(avd_root, name, name + '\n')
+            (avd / 'config.ini').write_text('AvdId=' + name + '\n')
+            with self.assertRaisesRegex(RuntimeError, 'discovery mismatch'):
+                smoke.verify_avd(avd_root, name, 'other-avd\n')
+            registration.write_text('path=/wrong/avd\n')
+            with self.assertRaisesRegex(RuntimeError, 'discovery mismatch'):
+                smoke.verify_avd(avd_root, name, name + '\n')
+            registration.write_text('path=' + str(avd) + '\n')
+            smoke.verify_avd(avd_root, name, name + '\n')
+            registration.unlink()
+            with self.assertRaisesRegex(RuntimeError, 'missing'):
+                smoke.verify_avd(avd_root, name, name + '\n')
+
     def test_brand_and_action_must_belong_to_app(self):
         def xml(package, title, action):
             root = ET.Element('hierarchy')

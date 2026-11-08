@@ -43,6 +43,18 @@ def app_crash(log):
     ))
 
 
+def verify_avd(avd_home, name, listing):
+    """Do not attempt boot unless creation and emulator discovery agree."""
+    registration = avd_home / (name + '.ini')
+    config = avd_home / (name + '.avd') / 'config.ini'
+    if not registration.is_file() or not config.is_file():
+        raise RuntimeError('AVD registration/config missing; see avd-paths.json')
+    paths = [line.partition('=')[2].strip() for line in registration.read_text().splitlines()
+             if line.startswith('path=')]
+    if paths != [str(config.parent)] or name not in listing.splitlines():
+        raise RuntimeError('AVD registration/discovery mismatch; see avd-paths.json and avd-list.log')
+
+
 def run(argv, timeout=30, check=True, input_data=None):
     """Kill the whole command group on timeout/cancellation (including SDK Java)."""
     proc = subprocess.Popen([str(x) for x in argv], stdin=subprocess.PIPE,
@@ -152,8 +164,26 @@ def main():
         devices = command_log('devices-before.txt', [adb, 'devices'])
         if len(devices.strip().splitlines()) != 1:
             raise RuntimeError('runner already has devices; refusing to touch them')
+        stage('avd-create')
+        # Do not rely on differing Java/native tool defaults or alter HOME.
+        path_keys = ('HOME', 'ANDROID_HOME', 'ANDROID_SDK_ROOT', 'ANDROID_SDK_HOME',
+                     'ANDROID_USER_HOME', 'ANDROID_EMULATOR_HOME', 'ANDROID_AVD_HOME', 'RUNNER_TEMP')
+        original_paths = {key: os.environ.get(key) for key in path_keys}
+        avd_home = (Path(os.environ['RUNNER_TEMP']) / 'apporo-smoke-avd').resolve()
+        avd_home.mkdir(parents=True, exist_ok=True)
+        os.environ['ANDROID_AVD_HOME'] = str(avd_home)
+        avd_path = avd_home / (avd + '.avd')
+        save('avd-paths.json', json.dumps(dict(original=original_paths,
+             effective_avd_home=str(avd_home), avd_path=str(avd_path)), indent=2))
         command_log('avd-create.log', [avdmanager, 'create', 'avd', '--force', '--name', avd,
-                                      '--package', image, '--device', 'pixel_2'], input_data=b'no\n', timeout=60)
+                                      '--path', avd_path, '--package', image, '--device', 'pixel_2'],
+                    input_data=b'no\n', timeout=60)
+        listing = command_log('avd-list.log', [emulator, '-list-avds'])
+        for label, path in [('avd-registration.ini', avd_home / (avd + '.ini')),
+                            ('avd-config.ini', avd_path / 'config.ini')]:
+            if path.is_file():
+                save(label, path.read_bytes())
+        verify_avd(avd_home, avd, listing)
         stage('boot')
         emulator_log = (args.out / 'emulator.log').open('wb')
         emulator_proc = subprocess.Popen([str(emulator), '-avd', avd, '-port', '5554',

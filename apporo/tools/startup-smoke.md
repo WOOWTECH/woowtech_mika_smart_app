@@ -29,7 +29,7 @@ SDK stable-channel packages are installed via sdkmanager, with actual emulator
 and image source.properties archived. Tool/image revisions are not immutable:
 a setup/image regression is a failed job with evidence, never a skipped PASS.
 Existing setup-android is reused; no new emulator action. GitHub's documented
-udev KVM permissions are applied only on the disposable hosted runner.
+udev KVM permissions are applied only on the disposable hosted runner, with bounded settle/permission checks and retained diagnostics. AVD creation and launch share an explicit temporary ANDROID_AVD_HOME; registration, configuration and emulator discovery must agree before boot. HOME is not modified.
 
 Each fresh AVD installs the universal debug APK, explicitly launches
 `com.apporo.assistant/com.wangzan101.mika.ui.MainActivity`, waits for the actual
