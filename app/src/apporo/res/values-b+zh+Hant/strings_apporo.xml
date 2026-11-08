@@ -28,8 +28,8 @@
     <string name="task_app_blocked">「%1$s」已被設為禁用，Apporo Assistant 不能自動讀取或操作它。到 設定 › 應用程式存取 裡允許後再試。</string>
     <string name="task_app_access_unavailable">應用程式存取設定無法讀取。請到 設定 › 應用程式存取 裡重設後再試。</string>
     <string name="err_app_unavailable">應用程式存取設定無法使用</string>
-    <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
-    <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
+    <string name="mcp_cli_install_prompt">請使用這份 Apporo Assistant 原始碼工作目錄中的 CLI（tools/mika/scripts/mika_cli.py）。透過已授權的 USB ADB 連線前，先設定 MIKA_ANDROID_PACKAGE=com.apporo.assistant。若使用 Wi-Fi 或私人 VPN，請使用手機上顯示的位址，並將權杖保存在私人檔案中。執行 connect 或 doctor 確認連線。不要提交任務，也不要輸出權杖。請參閱原始碼工作目錄中的英文文件 docs-apporo/agent-quickstart.en.md。</string>
+    <string name="mcp_usb_client_instructions">新增 Streamable HTTP MCP 伺服器，位址為 http://127.0.0.1:%1$d/mcp。使用 Apporo Assistant 的連線權杖作為 Authorization 標頭的 Bearer 值，並妥善私下保存。絕對不要在對話中輸出權杖。重新整理工具清單，並在手機上核對請求時間。請參閱原始碼工作目錄中的英文文件 docs-apporo/mcp.en.md。</string>
     <string name="task_no_phone_helper_usb">手機操作已停止，可能發生在 Apporo Assistant 更新或手機重新開機後。請開啟 Apporo Assistant，將手機連接電腦，再執行「設定手機操作」裡目前的 USB 啟動指令。確認手機操作顯示「已就緒」後再試。網頁與檔案任務不受影響。</string>
     <string name="fail_usb_stopped_body">USB 小幫手在 Apporo Assistant 更新或手機重新開機後，不會自行恢復。請開啟 Apporo Assistant，連接電腦，再執行「設定手機操作」裡目前的 USB 啟動指令。確認手機操作顯示「已就緒」後繼續。</string>
     <string name="phone_usb_body">用 USB 將手機連接電腦，在電腦執行這個指令。Apporo Assistant 更新或手機重新開機後，請先開啟 Apporo Assistant，再執行目前的指令。</string>

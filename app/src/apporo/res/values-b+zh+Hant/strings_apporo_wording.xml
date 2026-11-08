@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apporo-only Taiwan wording parity; retain existing Apporo examples and recovery overrides. -->
+<resources>
+    <string name="chat_greeting_morning">早安</string>
+    <string name="chat_greeting_noon">午安</string>
+    <string name="chat_greeting_afternoon">午安</string>
+    <string name="chat_greeting_evening">晚安</string>
+    <string name="skills_get">取得技能</string>
+    <string name="settings_during_work">任務執行</string>
+    <string name="preset_custom">自訂</string>
+    <string name="usage_custom">自訂</string>
+    <string name="mcp_servers_transport_stdio">本機程式</string>
+    <string name="plans_footer">在對話裡說「每天 8 點…」「降價了告訴我」也能建，結果會發回建它的那個對話。定時觸發可能受系統省電影響；停用或刪除只影響後續觸發。</string>
+    <string name="phone_success_note">請保持 USB 偵錯開啟；手機重新開機後，開啟無線偵錯即可自動重連</string>
+    <string name="phone_usage_note">配對一次之後，Apporo Assistant 的內建助手會常駐背景，Wi-Fi 斷線也能繼續操作手機。「USB 偵錯」（在開發人員選項裡）要一直開著，關掉後手機操作會停下。手機重新開機後，連上 Wi-Fi 並開啟「無線偵錯」，Apporo Assistant 會自己重新連上，不用再輸入配對碼。</string>
+    <string name="phone_root_start_sub">已授權。不用配對、不用電腦，手機重新開機後 Apporo Assistant 會自己重新啟動助手。</string>
+    <string name="chatgpt_signed_out">已登出</string>
+    <string name="chatgpt_sign_out">登出</string>
+    <string name="chatgpt_signed_out_note">這台手機上已登出。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。</string>
+    <string name="chatgpt_revoke_unconfirmed">這台手機上已登出，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與 Apporo Assistant 的連線。</string>
+    <string name="account_signed_out_note">這台手機上已登出。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。</string>
+    <string name="web_logout_all">全部登出</string>
+    <string name="web_logout_all_title">全部登出並清除網頁資料</string>
+    <string name="web_logout_all_q">全部登出並清除網頁資料？</string>
+    <string name="web_logout_all_body">會登出內建瀏覽器裡的所有網站，並清除它們存在 Apporo Assistant 裡的網頁資料。之後 Apporo Assistant 用網頁辦事時要重新登入。</string>
+    <string name="web_logged_out_all">已全部登出並清除網頁資料。</string>
+    <string name="web_logout_partial">個別網站的登入可能仍在，如需徹底清除請用「全部登出」。</string>
+    <string name="web_cleared">已清除 %1$s 的 Cookie 與網頁儲存，下次用要重新登入。個別資料可能仍在，如需徹底清除請用「全部登出」。</string>
+    <string name="web_sign_out_site">登出這個網站</string>
+    <string name="web_signed_out">已登出 %1$s。%2$s</string>
+    <string name="settings_pace_foot">有的 App 發現操作太快，會把你登出或要求驗證。節奏越慢，任務用時越長。</string>
+    <string name="install_exit_code">結束代碼 %1$d</string>
+    <string name="rec_boot">重新開機後自動恢復</string>
+    <string name="rec_boot_body">手機重新開機後「無線偵錯」會自己關掉。開啟後，Apporo Assistant 會在開機時替你重新開啟無線偵錯並自動連上。為此 Apporo Assistant 需要「修改系統設定」的授權，只用來開啟無線偵錯。只在你信任過的 Wi-Fi 上有效。關掉這裡或解除配對，Apporo Assistant 都會交還這項授權。</string>
+    <string name="rec_auto_wireless_body">Wi-Fi 斷線或手機重新開機後，系統會把「無線偵錯」關掉。手機操作平時用不著它，只在重新啟動時（比如 Apporo Assistant 更新之後）要它開著。開啟後，遇到這種時候、又連著 Wi-Fi，Apporo Assistant 會替你開啟無線偵錯並自動連上，但不會替你關掉它。這和「重新開機後自動恢復」用同一項「修改系統設定」的授權，只在你允許過的 Wi-Fi 上有效。關掉這裡，Apporo Assistant 就不再替你開啟。</string>
+    <string name="rec_restarted_at">上次在 %1$s 自動重新啟動過無障礙服務。</string>
+    <string name="rec_setting_unavailable">這台手機不允許 Apporo Assistant 在開機時開啟無線偵錯。重新開機後請手動開啟，Apporo Assistant 會自己連上。</string>
+    <string name="rec_needs_pairing">要先配對過無線偵錯才用得上。現在的助手是用 USB 指令啟動的，手機重新開機後請再執行一次指令。</string>
+</resources>
