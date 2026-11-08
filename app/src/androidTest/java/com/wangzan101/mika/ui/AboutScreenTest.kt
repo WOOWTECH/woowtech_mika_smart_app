@@ -240,7 +240,7 @@ class AboutScreenTest {
         assertEquals(listOf(MikaLinks.RELEASES), calls.urls)
     }
 
-    /** 侧栏最底下一行两个:设置靠左、关于 Mika 靠右(红点在最右边);有新版时关于带红点。 */
+    /** Footer destinations have separate full-width rows; update dot remains beside About. */
     @Test
     fun drawerFooterHasSettingsAndAbout() {
         val calls = mutableListOf<String>()
@@ -258,13 +258,13 @@ class AboutScreenTest {
         compose.onNodeWithText("关于 Mika").assertIsDisplayed()
         compose.onNodeWithTag("update-dot", useUnmergedTree = true).assertExists()
         val footer = compose.onNodeWithTag("drawer-footer").getUnclippedBoundsInRoot()
-        // 量文字本身(未合并的树):合并后的可点行节点比文字宽,量它判断不了左右半边
+        // Measure the text nodes rather than merged clickable row bounds.
         val settings = compose.onNodeWithText("设置", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val about = compose.onNodeWithText("关于 Mika", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val dot = compose.onNodeWithTag("update-dot", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        val mid = (footer.left + footer.right) / 2
-        assertTrue(settings.right < mid)
-        assertTrue(about.left > mid)
+        assertTrue(settings.bottom <= about.top)
+        assertEquals(settings.left, about.left)
+        assertTrue(about.right <= footer.right)
         // 关于那一项贴着右边:红点离行的右边只隔两层内边距(行 12dp + 项 12dp)
         assertTrue(footer.right - dot.right <= 25.dp)
         compose.onNodeWithText("设置").performClick()

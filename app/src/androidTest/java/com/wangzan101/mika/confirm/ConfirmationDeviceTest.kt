@@ -32,7 +32,7 @@ import com.wangzan101.mika.task.TaskEnvironment
 
 /**
  * 真机测试:脚本模型在虚拟屏的设置里申报一次花钱的操作(只是申报,从不真的去做;只有花钱要同意,申报都带金额),
- * 检查高优先级通知的标题、正文和「同意」「不同意」按钮,以及不同意、同意、评测自动拒绝三条路。
+ * 检查高优先级通知的标题、正文和「查看」「不同意」按钮,以及不同意、同意、评测自动拒绝三条路。
  * 需要内置助手在运行、Mika 无障碍服务已开启。
  */
 @RunWith(AndroidJUnit4::class)
@@ -91,14 +91,14 @@ class ConfirmationDeviceTest {
     }
 
     @Test
-    fun notificationHasApproveDecline() {
+    fun notificationHasViewAndDecline() {
         startAndRequest()
         val n = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
-        // WOOWTECH fork: 标题带金额,收起的一行金额排最前(横幅上的「同意」点一下就生效,金额不能被截掉)
+        // Amount is shown first, but approval requires opening the full card.
         assertEquals("要你同意:下单 ¥25", n.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         val text = n.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
         assertTrue(text, text.startsWith("金额:¥25 · 在 ") && "对象:测试项" in text && "内容:买测试项 第二行" in text)
-        assertEquals(listOf("同意", "不同意"), n.actions.map { it.title.toString() })
+        assertEquals(listOf("查看", "不同意"), n.actions.map { it.title.toString() })
         // 和接管同一个频道。建频道时是高优先级;用户或系统之后可能调低(App 改不回来),这里只要求不低于默认,并记下实际级别
         assertEquals(TaskService.CHANNEL_ATTENTION, n.channelId)
         val importance = context.getSystemService(NotificationManager::class.java).getNotificationChannel(TaskService.CHANNEL_ATTENTION).importance
@@ -113,7 +113,7 @@ class ConfirmationDeviceTest {
         assertEquals("要你同意:下单", n.publicVersion.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         // 系统通知列表里也看得到这两个按钮
         val dump = sh("dumpsys notification --noredact")
-        assertTrue("buttons not in dumpsys notification", "同意" in dump && "不同意" in dump)
+        assertTrue("buttons not in dumpsys notification", "查看" in dump && "不同意" in dump)
 
         // 点在旧通知上的回答(申报对不上)不算数
         context.startService(Intent(context, TaskService::class.java).setAction(TaskService.ACTION_APPROVE)
@@ -131,11 +131,14 @@ class ConfirmationDeviceTest {
     }
 
     @Test
-    fun approveButtonAnswersTheLoop() {
+    fun viewingNotificationDoesNotApproveUntilCardDecision() {
         startAndRequest()
         val n = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
-        // 按通知上的「同意」按钮本身发出的 Intent
-        n.actions.first { it.title.toString() == "同意" }.actionIntent.send()
+        // View opens the task without granting approval.
+        n.actions.first { it.title.toString() == "查看" }.actionIntent.send()
+        Thread.sleep(1_000)
+        val waiting = DeviceTaskState.state.value as? TaskState.WaitingConfirmation ?: error("view granted approval")
+        TaskService.approve(context, ConfirmationNotifier.requestKey(waiting))
         val result = lastToolResult(model.awaitCall())
         assertTrue(result, "\"approved\":true" in result)
         assertTrue(DeviceTaskState.state.value.toString(), DeviceTaskState.state.value !is TaskState.WaitingConfirmation)
@@ -160,12 +163,12 @@ class ConfirmationDeviceTest {
         assertTrue(end.toString(), end is TaskState.Failed)
     }
 
-    /** 第二次申报之后,点第一条通知自己的「同意」按钮不算数。 */
+    /** An old decline notification cannot answer a different request. */
     @Test
-    fun firstNotificationCannotApproveSecondRequest() {
+    fun firstNotificationCannotDeclineSecondRequest() {
         startAndRequest()
         val first = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
-        val firstApprove = first.actions.first { it.title.toString() == "同意" }.actionIntent
+        val firstDecline = first.actions.first { it.title.toString() == "不同意" }.actionIntent
         TaskService.decline(context, ConfirmationNotifier.requestKey(DeviceTaskState.state.value as TaskState.WaitingConfirmation))
         assertTrue(lastToolResult(model.awaitCall()).contains("confirmation_declined"))
         // 换一类动作再申报一次(同类同 App 被拒过就不会再问)
@@ -173,7 +176,7 @@ class ConfirmationDeviceTest {
         awaitState { it is TaskState.WaitingConfirmation && it.request.action.name == "submit" }
         // WOOWTECH fork: 标题带金额
         pollUntil(5_000) { attention()?.takeIf { it.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == "要你同意:提交 ¥25" } }
-        runCatching { firstApprove.send() } // 旧按钮可能已被系统作废,作废也算通过
+        runCatching { firstDecline.send() } // 旧按钮可能已被系统作废,作废也算通过
         Thread.sleep(1_500)
         assertTrue(DeviceTaskState.state.value.toString(), DeviceTaskState.state.value is TaskState.WaitingConfirmation)
     }

@@ -96,7 +96,7 @@ object ConfirmationCopy {
         .trim()
 }
 
-/** 确认关卡的醒目通知:和接管同一个高优先级频道,按钮「同意」「不同意」。 */
+/** Confirmation notifications open the full decision card; declining remains available directly. */
 object ConfirmationNotifier {
     /** 通知按钮和卡片按钮带上它,服务据此丢掉点在旧通知、旧卡片上的回答。 */
     const val EXTRA_REQUEST = "confirmation_request"
@@ -116,7 +116,7 @@ object ConfirmationNotifier {
     fun intentData(key: Int, approve: Boolean) = "mika-confirm://request/$key/" + if (approve) "approve" else "decline"
 
     fun build(
-        context: Context, channel: String, state: TaskState.WaitingConfirmation, service: Class<*>, approveAction: String, declineAction: String,
+        context: Context, channel: String, state: TaskState.WaitingConfirmation, service: Class<*>, declineAction: String,
         contentIntent: PendingIntent,
         /** 几个任务同时等确认时各用一段请求码,按钮再带上 [runExtra] 标明是哪个任务的。 */
         codeOffset: Int = 0,
@@ -150,7 +150,8 @@ object ConfirmationNotifier {
             .build()
         return Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
-            // WOOWTECH fork: 标题和收起的一行都带金额、金额排最前:横幅上的〔同意〕点一下就生效,金额不能被截掉;锁屏的公开版本(上面的 public)照旧不写金额
+            // Amount first helps scanning, but SystemUI may still truncate it at large fonts.
+            // Approval therefore happens on the full card, never from a clipped notification.
             .setContentTitle(ConfirmationCopy.notificationTitle(r))
             .setContentText(ConfirmationCopy.notificationBody(r, app))
             .setStyle(Notification.BigTextStyle().bigText(ConfirmationCopy.detail(r, app)))
@@ -159,7 +160,9 @@ object ConfirmationNotifier {
             .setPublicVersion(public)
             .setOnlyAlertOnce(true)
             .setContentIntent(contentIntent)
-            .addAction(button(R.string.action_approve, approveAction, true, 20))
+            .addAction(Notification.Action.Builder(null, tr(R.string.view), contentIntent).apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true)
+            }.build())
             .addAction(button(R.string.action_decline, declineAction, false, 21))
             // WOOWTECH fork: 有组时放进组里(组里有摘要,安卓 16 不会把它叠进系统的自动组、标成静音)
             .apply { if (group != null) inGroup(group, quiet) else if (quiet) alertQuietly() }

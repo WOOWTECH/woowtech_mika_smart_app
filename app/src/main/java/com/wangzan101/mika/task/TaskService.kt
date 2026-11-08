@@ -685,7 +685,7 @@ class TaskService : Service() {
         val quiet = (application as com.wangzan101.mika.MikaApp).capsule.showing.value
         if (state is TaskState.WaitingConfirmation) {
             return ConfirmationNotifier.build(
-                this, CHANNEL_ATTENTION, state, TaskService::class.java, ACTION_APPROVE, ACTION_DECLINE, openApp(),
+                this, CHANNEL_ATTENTION, state, TaskService::class.java, ACTION_DECLINE, openApp(run.conversationId),
                 codeOffset = SLOT_STRIDE * run.slot, runExtra = EXTRA_RUN to run.key, quiet = quiet,
                 group = AlertGroup.attention(run.slot),
             )

@@ -197,7 +197,7 @@ fun readiness(check: Prerequisites.Check): Pair<String, Boolean> = when {
 private const val MAX_RECENT = 50
 
 /**
- * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于并排。
+ * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于各占一行。
  * 打开和关上由外面的抽屉管,这里只摆内容,点了什么交给回调。
  */
 @Composable
