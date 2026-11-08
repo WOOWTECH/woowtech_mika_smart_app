@@ -36,6 +36,8 @@ open class BrandValues(private val props: Properties) {
     val downloadFolder: String = value("download.folder", "Mika")
 
     val repo: String = value("repo", "https://github.com/wangzan101/Mika")
+    val readmeUrl: String = value("readme.url", "$repo#readme")
+    val releasesUrl: String = value("releases.url", "$repo/releases")
     val repoLabel: String = value("repo.label", "github.com/wangzan101/Mika")
     val latestReleaseApi: String = value("releases.api", "https://api.github.com/repos/wangzan101/Mika/releases/latest")
 
@@ -47,6 +49,12 @@ open class BrandValues(private val props: Properties) {
         props.getProperty("ui.languages")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
 
     /** 「复制诊断信息」的第一行(用户会贴到 issue 里);没设为 null,用上游那句、换上产品名。 */
+    val defaultLanguage: String? = optional("ui.default.language")
+
+    /** Initial capsule height; saved user positions take precedence. */
+    val capsuleDefaultFraction: Float = optional("capsule.default.fraction")
+        ?.toFloatOrNull()?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
+
     val diagnosticsHeader: String? = optional("diagnostics.header")
 
     /** 自检「去 GitHub 回报」预填的问题标题前缀;没设为 null,用上游的。要和 .github/ISSUE_TEMPLATE/device-report.yml 的 title 一致。 */

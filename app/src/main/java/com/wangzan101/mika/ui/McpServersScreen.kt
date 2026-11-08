@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.wangzan101.mika.ui.components.MikaDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.R
@@ -66,6 +71,9 @@ fun McpServersScreen(store: McpServerStore, onBack: () -> Unit) {
                             else stringResource(R.string.mcp_servers_status_fail, it.message.orEmpty())
                         } ?: address),
                         detail = state?.let { address },
+                        // The full command remains available in the editor, not every list row.
+                        subtitleMaxLines = if (state == null && server.transport == "stdio") 2 else Int.MAX_VALUE,
+                        detailMaxLines = if (server.transport == "stdio") 2 else Int.MAX_VALUE,
                         first = i == 0,
                         onClick = { editing = server },
                     ) {
@@ -122,7 +130,7 @@ private fun McpServerDialog(
     var transport by remember { mutableStateOf(initial?.transport ?: "streamable-http") }
     var command by remember { mutableStateOf(initial?.command.orEmpty()) }
     var allowlist by remember { mutableStateOf(initial?.allowedTools?.joinToString(", ").orEmpty()) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val feedback = remember { McpEditorFeedback() }
     var testing by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf(false) }
     var savedId by remember { mutableStateOf(initial?.id) }
@@ -159,8 +167,11 @@ private fun McpServerDialog(
                 if (it.isSuccess && !oauth && initial?.auth == "oauth") store.clearOAuth(cfg.id)
             }
         }
-        result.exceptionOrNull()?.let { error = it.message; return null }
-        error = null
+        result.exceptionOrNull()?.let {
+            feedback.publish(feedback.revision, mcpValidationMessage(it.message, context::getString))
+            return null
+        }
+        feedback.publish(feedback.revision, null)
         return cfg
     }
 
@@ -168,42 +179,30 @@ private fun McpServerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (initial == null) R.string.mcp_servers_add else R.string.mcp_servers_edit)) },
         text = {
-            Column {
-                OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.mcp_servers_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                McpEditorField(name, { feedback.edited(); name = it }, stringResource(R.string.mcp_servers_name))
                 SegmentedControl(
                     options = transportLabels,
                     selected = transportIds.indexOf(transport).coerceAtLeast(0),
-                    onSelect = { transport = transportIds[it] },
+                    onSelect = { feedback.edited(); transport = transportIds[it] },
                     modifier = Modifier.padding(top = 8.dp),
+                    wrapLabels = true,
                 )
                 if (transport == "stdio") {
-                    OutlinedTextField(
-                        command, { command = it },
-                        label = { Text(stringResource(R.string.mcp_servers_command)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    )
+                    McpEditorField(command, { feedback.edited(); command = it }, stringResource(R.string.mcp_servers_command))
                     Text(stringResource(R.string.mcp_servers_stdio_help), Modifier.padding(top = 4.dp))
                 } else {
-                    OutlinedTextField(url, { url = it }, label = { Text(stringResource(R.string.mcp_servers_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    McpEditorField(url, { feedback.edited(); url = it }, stringResource(R.string.mcp_servers_url))
                     if (!oauth) {
-                        OutlinedTextField(
-                            token, { token = it }, label = { Text(stringResource(R.string.mcp_servers_token)) },
-                            singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        )
+                        McpEditorField(token, { feedback.edited(); token = it }, stringResource(R.string.mcp_servers_token), secret = true)
                     }
                 }
-                OutlinedTextField(
-                    allowlist, { allowlist = it },
-                    label = { Text(stringResource(R.string.mcp_servers_allowlist)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_use_oauth), oauth) { oauth = it }
+                McpEditorField(allowlist, { feedback.edited(); allowlist = it }, stringResource(R.string.mcp_servers_allowlist))
+                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_use_oauth), oauth) { feedback.edited(); oauth = it }
                 if (oauth && transport != "stdio") {
                     TextButton({
                         val saved = save() ?: return@TextButton
+                        val revision = feedback.revision
                         signingIn = true
                         scope.launch {
                             val result = store.authorize(saved) { link ->
@@ -215,20 +214,20 @@ private fun McpServerDialog(
                             }
                             signingIn = false
                             result.fold(
-                                onSuccess = { error = signInOk },
+                                onSuccess = { feedback.publish(revision, signInOk) },
                                 onFailure = {
-                                    error = context.getString(
+                                    feedback.publish(revision, context.getString(
                                         R.string.mcp_servers_sign_in_failed,
                                         it.message ?: it.javaClass.simpleName,
-                                    )
+                                    ))
                                 },
                             )
                         }
                     }) { Text(signInLabel) }
                 }
-                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_allow_local_http), allowLocal) { allowLocal = it }
-                ToggleRow(stringResource(R.string.mcp_servers_trust_annotations), trustAnnotations) { trustAnnotations = it }
-                error?.let { Text(it, Modifier.padding(top = 6.dp)) }
+                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_allow_local_http), allowLocal) { feedback.edited(); allowLocal = it }
+                ToggleRow(stringResource(R.string.mcp_servers_trust_annotations), trustAnnotations) { feedback.edited(); trustAnnotations = it }
+                feedback.message?.let { Text(it, Modifier.padding(top = 6.dp)) }
                 if (testing) Text(stringResource(R.string.mcp_servers_testing), Modifier.padding(top = 6.dp))
                 if (signingIn) Text(stringResource(R.string.mcp_servers_signing_in), Modifier.padding(top = 6.dp))
                 if (initial != null) TextButton({ store.remove(initial.id); onChanged() }) { Text(stringResource(R.string.mcp_servers_delete)) }
@@ -242,13 +241,14 @@ private fun McpServerDialog(
         dismissButton = {
             TextButton({
                 val saved = save() ?: return@TextButton
+                val revision = feedback.revision
                 testing = true
                 scope.launch {
                     val result = store.test(saved)
                     testing = false
                     result.fold(
-                        onSuccess = { error = "OK: ${it.serverName ?: ""} · ${it.tools.size}" },
-                        onFailure = { error = it.message ?: it.javaClass.simpleName },
+                        onSuccess = { feedback.publish(revision, "OK: ${it.serverName ?: ""} · ${it.tools.size}") },
+                        onFailure = { feedback.publish(revision, it.message ?: it.javaClass.simpleName) },
                     )
                 }
             }) { Text(stringResource(R.string.mcp_servers_save_test)) }
@@ -261,5 +261,19 @@ private fun ToggleRow(title: String, checked: Boolean, onChecked: (Boolean) -> U
     androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Checkbox(checked, onCheckedChange = onChecked)
         Text(title, Modifier.padding(start = 4.dp))
+    }
+}
+
+/** Keep long localized labels outside the outline so focus cannot move them over adjacent controls. */
+@Composable
+private fun McpEditorField(value: String, onChange: (String) -> Unit, label: String, secret: Boolean = false) {
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(label, Modifier.padding(bottom = 4.dp))
+        OutlinedTextField(
+            value, onChange,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+            singleLine = true,
+            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+        )
     }
 }

@@ -2,6 +2,9 @@ package com.wangzan101.mika.core.cap.web.cdp
 
 import com.wangzan101.mika.core.cap.web.EvalJs
 import com.wangzan101.mika.core.cap.web.ReadScriptProtocol
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -11,6 +14,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -95,6 +99,36 @@ class ReadScriptRunnerTest {
         assertTrue(sent.toString(), "Page.stopLoading" in sent)
         // 收尾时让脚本之后的 fetch、sleep 失败
         assertTrue(srv.connections.single().received.any { it["params"]?.jsonObject?.get("expression")?.jsonPrimitive?.content == ReadScriptProtocol.STOP })
+    }
+
+    @Test fun cancellationDuringNavigationStopStillStopsTheScript() {
+        val stopRequested = CompletableDeferred<Pair<FakeDevTools.Conn, JsonObject>>()
+        val srv = server { c, _ ->
+            c.event("Page.frameRequestedNavigation", buildJsonObject { put("frameId", "M") })
+        }
+        val respond = srv.onMessage
+        srv.onMessage = { c, m ->
+            if (m.getValue("method").jsonPrimitive.content == "Page.stopLoading") {
+                // Hold the response so cancellation happens during safety cleanup, without sleeps.
+                stopRequested.complete(c to m)
+            } else respond(c, m)
+        }
+        withRunner(srv) { runner ->
+            coroutineScope {
+                val run = async { runner.run("1", null, 5_000) }
+                val (connection, request) = stopRequested.await()
+                run.cancel()
+                assertFalse("cleanup must await the stopLoading response", run.isCompleted)
+                connection.reply(request, JsonObject(emptyMap()))
+                run.join()
+                assertTrue(run.isCancelled)
+            }
+        }
+        val received = srv.connections.single().received
+        val navigationStop = received.indexOfFirst { it.getValue("method").jsonPrimitive.content == "Page.stopLoading" }
+        val scriptStop = received.indexOfFirst { it["params"]?.jsonObject?.get("expression")?.jsonPrimitive?.content == ReadScriptProtocol.STOP }
+        assertTrue("navigation stop must be sent", navigationStop >= 0)
+        assertTrue("script stop must follow navigation stop despite cancellation", scriptStop > navigationStop)
     }
 
     @Test fun postFromTheScriptEndsTheRun() {

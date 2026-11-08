@@ -151,5 +151,9 @@ class ConfirmationNotificationCopyTest {
         val shown = chain("return Notification.Builder(context, channel)")
         assertTrue(shown, "ConfirmationCopy.notificationTitle(r)" in shown && "ConfirmationCopy.notificationBody(r, app)" in shown)
         assertTrue(shown, "ConfirmationCopy.detail(r, app)" in shown && ".setPublicVersion(public)" in shown)
+        val actions = source.substring(source.indexOf("return Notification.Builder(context, channel)"))
+        assertTrue(actions, "tr(R.string.view), contentIntent" in actions)
+        assertFalse(actions, "R.string.action_approve" in actions)
+        assertTrue(actions, "button(R.string.action_decline" in actions)
     }
 }

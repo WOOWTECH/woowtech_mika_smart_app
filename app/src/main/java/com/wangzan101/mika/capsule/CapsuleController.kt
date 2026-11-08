@@ -81,6 +81,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -234,11 +235,20 @@ class CapsuleController(
     /** 胶囊此刻真的显示在亮着的屏幕上;任务服务据此把「需要你」通知发得安静些。 */
     val showing: StateFlow<Boolean> = _showing.asStateFlow()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun start() {
         val screen = DeviceStateWatcher(context) { -1 }
+        // Keep the window observer independent of openWindows()/hide(), so dismissal restores us.
+        // Pair service and panel state to avoid opening on a new service before its first window read.
+        val systemPanels: Flow<Pair<ScreenAccessibility?, Boolean>> = ScreenAccessibility.instance.flatMapLatest { service ->
+            if (service == null) flowOf(null to false)
+            else service.expandedSystemPanel().map { service to it }
+        }
         scope.launch {
             combine(
-                combine(runs(), flags.capsuleModeChanges(), foreground.visible, screen.locked, ScreenAccessibility.instance) { r, m, f, l, a -> Snapshot(r, m, f, l, a) },
+                combine(runs(), flags.capsuleModeChanges(), foreground.visible, screen.locked, systemPanels) { r, m, f, l, panel ->
+                    Snapshot(r, m, f, l, panel.first, systemPanelExpanded = panel.second)
+                },
                 ticks,
                 keeper.page,
             ) { s, _, kept -> s.copy(kept = kept) }.collect(::render)
@@ -280,6 +290,7 @@ class CapsuleController(
     private data class Snapshot(
         val runs: List<CapsuleRun>, val mode: CapsuleMode, val mikaInForeground: Boolean, val locked: Boolean,
         val service: ScreenAccessibility?,
+        val systemPanelExpanded: Boolean = false,
         /** 任务结束后留在后台运行的那一页。 */
         val kept: KeptPage? = null,
     )
@@ -338,8 +349,9 @@ class CapsuleController(
         )
         val shown = model.update(inputs, System.currentTimeMillis()) as? CapsuleView.Shown
         schedule(model.nextChangeAt)
-        if (shown == null || service == null) {
-            hide()
+        // Transient visibility only: continue updating the model and never mutate tasks or mode.
+        if (shown == null || service == null || s.systemPanelExpanded) {
+            hide(preserveCardContext = s.systemPanelExpanded)
             return
         }
         // App 已交到你手上:顶部那一条代替卡片
@@ -419,7 +431,7 @@ class CapsuleController(
         refresh()
     }
 
-    private fun hide() {
+    private fun hide(preserveCardContext: Boolean = false) {
         resetTaps()
         snap?.cancel()
         fadeJob?.cancel()
@@ -440,20 +452,22 @@ class CapsuleController(
         panelWindow = null
         windowOn = null
         view = null
-        resetCard()
+        resetCard(preserveContext = preserveCardContext)
         card = null
         _showing.value = false
     }
 
-    private fun resetCard() {
+    private fun resetCard(preserveContext: Boolean = false) {
         expanded = false
         closing = false
         cardOut = false
-        follow = null
+        if (!preserveContext) follow = null
         zoomed = false
         cardHandle = null
         closeInput()
-        inputUi = inputUi.collapsed()
+        // A system panel only obscures us: keep the draft, attachment and followed conversation.
+        // closeInput() above changes only focus/open; ordinary collapse retains its existing policy.
+        if (!preserveContext) inputUi = inputUi.collapsed()
         watchPreview(null)
         updateThread(null, emptyList())
     }

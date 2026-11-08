@@ -78,6 +78,7 @@
     <string name="steer_interrupted_reply">Terpotong oleh pesan Anda</string>
     <string name="steer_next">Masuk antrean sebagai tugas berikutnya</string>
     <string name="steer_cancelled">Dibatalkan</string>
+    <string name="chat_activity_summary">@string/chat_expand_steps</string>
     <plurals name="chat_steps_done">
         <item quantity="other">%1$d langkah</item>
     </plurals>

@@ -122,6 +122,7 @@ tasks.withType<Test>().configureEach {
 
 // WOOWTECH fork: 品牌层(flavor、品牌字串、签名),见 app/brand.gradle.kts 与 docs-woowtech/FORK.md
 apply(from = "brand.gradle.kts")
+val apporoBrandRes = extra["apporoBrandRes"] as java.io.File
 val woowtechRevision = extra["woowtechRevision"] as Int
 val woowtechBrandRes = extra["woowtechBrandRes"] as java.io.File
 val woowtechSigning = extra["woowtechSigning"] as java.util.Properties?
@@ -132,6 +133,13 @@ android {
         create("upstream") {
             dimension = "brand"
             isDefault = true
+        }
+        create("apporo") {
+            dimension = "brand"
+            applicationId = "com.apporo.assistant"
+            versionCode = (defaultConfig.versionCode ?: 0) * 100 + 3
+            versionName = "${defaultConfig.versionName}-apporo.3"
+            resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
         create("woowtech") {
             dimension = "brand"
@@ -146,6 +154,7 @@ android {
             resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
     }
+    sourceSets.getByName("apporo").res.srcDir(apporoBrandRes)
     sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
     if (woowtechSigning != null) {
         productFlavors.getByName("woowtech").signingConfig = signingConfigs.create("woowtech") {
@@ -159,7 +168,7 @@ android {
 androidComponents {
     // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
     beforeVariants { variant ->
-        if (variant.flavorName == "woowtech") {
+        if (variant.flavorName in setOf("woowtech", "apporo")) {
             variant.enableUnitTest = false
             variant.androidTest.enable = false
         }
@@ -167,7 +176,7 @@ androidComponents {
     // WOOWTECH fork: -c 里有 zh-rTW 时,aapt2 连它的上层 values-zh(上游的简体界面,没换品牌名)也留下,woowtech 变体排除它。
     // --exclude-configs zh 只去掉语言正好是 zh 的值(含 zh-night、zh-v26),b+zh+Hant、zh-rTW 不受影响
     onVariants { variant ->
-        if (variant.flavorName == "woowtech") {
+        if (variant.flavorName in setOf("woowtech", "apporo")) {
             variant.androidResources.aaptAdditionalParameters.addAll("--exclude-configs", "zh")
         }
     }

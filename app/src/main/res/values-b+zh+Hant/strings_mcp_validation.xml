@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">請輸入伺服器名稱。</string>
+    <string name="mcp_validation_command_required">請輸入命令。</string>
+    <string name="mcp_validation_command_too_long">命令不得超過 4000 個字元。</string>
+    <string name="mcp_validation_command_one_line">命令必須為單行，且不能包含空字元。</string>
+    <string name="mcp_validation_invalid_url">請輸入有效的 HTTP 或 HTTPS 網址。</string>
+    <string name="mcp_validation_url_user_info">網址不能包含使用者名稱或密碼。</string>
+    <string name="mcp_validation_blocked_host">不允許連線至此主機。</string>
+    <string name="mcp_validation_http_opt_in">使用此位址前，請先允許本機／區域網路 HTTP。</string>
+    <string name="mcp_validation_http_local_only">HTTP 僅允許用於本機或私人網路主機。</string>
+    <string name="mcp_validation_https_required">請使用 HTTPS；本機伺服器可使用 HTTP。</string>
+</resources>

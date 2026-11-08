@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">Masukkan nama server.</string>
+    <string name="mcp_validation_command_required">Masukkan perintah.</string>
+    <string name="mcp_validation_command_too_long">Batasi perintah hingga 4000 karakter.</string>
+    <string name="mcp_validation_command_one_line">Gunakan perintah satu baris tanpa karakter null.</string>
+    <string name="mcp_validation_invalid_url">Masukkan URL HTTP atau HTTPS yang valid.</string>
+    <string name="mcp_validation_url_user_info">Jangan sertakan nama pengguna atau kata sandi dalam URL.</string>
+    <string name="mcp_validation_blocked_host">Host ini tidak diizinkan.</string>
+    <string name="mcp_validation_http_opt_in">Aktifkan akses HTTP lokal/pribadi sebelum memakai alamat ini.</string>
+    <string name="mcp_validation_http_local_only">HTTP hanya diizinkan untuk host lokal atau pribadi.</string>
+    <string name="mcp_validation_https_required">Gunakan HTTPS, atau HTTP untuk server lokal.</string>
+</resources>

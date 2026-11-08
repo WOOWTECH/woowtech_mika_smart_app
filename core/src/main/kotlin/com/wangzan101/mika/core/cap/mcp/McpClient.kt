@@ -82,6 +82,14 @@ data class McpPromptArgument(
 /** 每个服务独立配置；Restricted 不采信服务自称的只读注解。 */
 enum class McpTrust { Restricted, TrustAnnotations }
 
+enum class McpTransport { HTTP, SSE, Stdio }
+
+/** Model-visible identity only; never include connection URLs, commands or credentials. */
+data class McpProvenance(val name: String, val transport: McpTransport) {
+    internal fun describe(description: String): String =
+        "Configured MCP server: ${JsonPrimitive(name.take(200))}; transport: ${transport.name}.\n$description"
+}
+
 /** 长结果的完整文本由宿主保存；返回的引用只含文件路径或资源 ID。 */
 fun interface McpResultStore { fun save(serverId: String, toolName: String, content: String): String }
 
@@ -93,9 +101,13 @@ data class McpConnection(
     val trust: McpTrust = McpTrust.Restricted,
     /** 只暴露这些工具;null 表示全部,空集表示一个都不给。 */
     val allowedTools: Set<String>? = null,
+    val provenance: McpProvenance? = null,
 ) {
     init { require(previewChars > 0 && (maxCostUnits == null || maxCostUnits >= 0)) }
 }
+
+private fun describe(connection: McpConnection, description: String): String =
+    connection.provenance?.describe(description) ?: description
 
 /** 没有只读注解就按可写处理；破坏性与开放世界操作记成不可逆、对外(审批记录据此知道任务做过对外的事)。 */
 fun mcpApprovalRisk(a: McpAnnotations, trust: McpTrust = McpTrust.TrustAnnotations): ApprovalRisk = when {
@@ -110,6 +122,9 @@ internal class McpCapability(connection: McpConnection, override val id: String)
     private val budget = McpBudget(connection.maxCostUnits)
     private val listed = endpoint.tools()
         .filter { connection.allowedTools == null || it.name in connection.allowedTools }
+        .map { descriptor ->
+            connection.provenance?.let { descriptor.copy(description = it.describe(descriptor.description)) } ?: descriptor
+        }
     private val descriptors = listed.distinctBy { it.name }
     private val toolNames = mcpToolNames(endpoint.serverId, descriptors.map { it.name })
     private val serverToolNames = descriptors.map { mcpSafe(it.name) }.toSet()
@@ -155,7 +170,7 @@ internal class McpCapability(connection: McpConnection, override val id: String)
             serverId = endpoint.serverId,
             def = ToolDef(
                 name = mcpToolName(endpoint.serverId, "resource_read"),
-                description = "Read a resource from the MCP server. Available: $available".take(4000),
+                description = describe(connection, "Read a resource from the MCP server. Available: $available".take(4000)),
                 props = mapOf("uri" to buildJsonObject {
                     put("type", "string")
                     put("description", "Resource URI from the list: $available".take(4000))
@@ -180,7 +195,7 @@ internal class McpCapability(connection: McpConnection, override val id: String)
             serverId = endpoint.serverId,
             def = ToolDef(
                 name = mcpToolName(endpoint.serverId, "prompt_get"),
-                description = "Get a prompt template from the MCP server. Available: $names".take(4000),
+                description = describe(connection, "Get a prompt template from the MCP server. Available: $names".take(4000)),
                 props = mapOf(
                     "name" to buildJsonObject {
                         put("type", "string")

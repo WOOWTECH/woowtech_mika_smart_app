@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -129,7 +130,7 @@ enum class ButtonSize(val height: Dp, val shape: RoundedCornerShape, val text: T
     Small(32.dp, RoundedCornerShape(16.dp), TextStyle(fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold), 14.dp),
 }
 
-/** 按钮。宽度由 [modifier] 定(铺满、按权重分或包住文字)。 */
+/** 按钮。宽度由 [modifier] 定。重要操作可用 [wrapLabel] 保留完整文字，并让高度随大字体增长。 */
 @Composable
 fun MikaButton(
     text: String,
@@ -138,6 +139,7 @@ fun MikaButton(
     kind: ButtonKind = ButtonKind.Primary,
     size: ButtonSize = ButtonSize.Large,
     enabled: Boolean = true,
+    wrapLabel: Boolean = false,
 ) {
     val c = MikaTheme.colors
     val shape = size.shape
@@ -153,11 +155,13 @@ fun MikaButton(
             .clip(shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else 0.45f)
-            .height(size.height)
-            .padding(horizontal = size.padding),
+            .then(if (wrapLabel) Modifier.heightIn(min = size.height.coerceAtLeast(48.dp)) else Modifier.height(size.height))
+            .padding(horizontal = size.padding, vertical = if (wrapLabel) 10.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = size.text, color = fg, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = size.text, color = fg, textAlign = TextAlign.Center,
+            maxLines = if (wrapLabel) Int.MAX_VALUE else 1,
+            overflow = if (wrapLabel) TextOverflow.Clip else TextOverflow.Ellipsis)
     }
 }
 
@@ -171,13 +175,15 @@ fun SegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     tags: List<String>? = null,
+    wrapLabels: Boolean = false,
 ) {
     val c = MikaTheme.colors
-    Row(modifier.fillMaxWidth().background(c.fill, SegmentOuter).padding(2.dp)) {
+    Row(modifier.fillMaxWidth().background(c.fill, SegmentOuter).padding(2.dp), verticalAlignment = Alignment.CenterVertically) {
         options.forEachIndexed { i, label ->
             val on = i == selected
             Box(
-                Modifier.weight(1f).height(32.dp)
+                Modifier.weight(1f)
+                    .then(if (wrapLabels) Modifier.heightIn(min = 32.dp) else Modifier.height(32.dp))
                     .then(
                         if (on) Modifier.shadow(1.dp, SegmentInner, clip = false, ambientColor = c.cardShadow, spotColor = c.cardShadow)
                             .background(c.surface, SegmentInner)
@@ -188,7 +194,14 @@ fun SegmentedControl(
                     .then(if (tags != null) Modifier.testTag(tags[i]) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = SegmentText, color = if (on) c.ink else c.ink2, maxLines = 1)
+                Text(
+                    label,
+                    modifier = if (wrapLabels) Modifier.padding(horizontal = 4.dp, vertical = 4.dp) else Modifier,
+                    style = SegmentText,
+                    color = if (on) c.ink else c.ink2,
+                    maxLines = if (wrapLabels) Int.MAX_VALUE else 1,
+                    textAlign = if (wrapLabels) TextAlign.Center else TextAlign.Unspecified,
+                )
             }
         }
     }
@@ -283,7 +296,7 @@ fun TopBar(
 
 /** 可选的胶囊(服务商、接口类型):34 高,白卡底;选中时深色实底、反色字。[small] 是行内的小号。 */
 @Composable
-fun SelectChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false) {
+fun SelectChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false, wrapLabel: Boolean = false) {
     val c = MikaTheme.colors
     val shape = if (small) SmallChipShape else MikaShapes.Pill
     Box(
@@ -297,12 +310,13 @@ fun SelectChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: M
             )
             .clip(shape)
             .selectable(selected, role = Role.RadioButton, onClick = onClick)
-            .height(if (small) 28.dp else 34.dp)
-            .padding(horizontal = if (small) 10.dp else 14.dp),
+            .then(if (wrapLabel) Modifier.heightIn(min = if (small) 28.dp else 34.dp) else Modifier.height(if (small) 28.dp else 34.dp))
+            .padding(horizontal = if (small) 10.dp else 14.dp, vertical = if (wrapLabel) 4.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text, style = if (small) SmallChipText else ChipText, maxLines = 1, softWrap = false,
+            text, style = if (small) SmallChipText else ChipText,
+            maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel,
             color = if (selected) c.bg else c.ink,
         )
     }
@@ -318,10 +332,11 @@ enum class TagTone { Neutral, Accent }
 
 /** 能力小标签(工具调用、看图、64K):11 / 600,圆角 7。 */
 @Composable
-fun CapabilityTag(text: String, tone: TagTone = TagTone.Neutral) {
+fun CapabilityTag(text: String, tone: TagTone = TagTone.Neutral, wrapLabel: Boolean = false) {
     val c = MikaTheme.colors
     val (bg, fg) = if (tone == TagTone.Accent) c.accentSoft to c.accent else c.greySoft to c.ink2
-    Text(text, Modifier.background(bg, TagShape).padding(horizontal = 7.dp, vertical = 2.dp), style = TagText, color = fg, maxLines = 1)
+    Text(text, Modifier.background(bg, TagShape).padding(horizontal = 7.dp, vertical = 2.dp),
+        style = TagText, color = fg, maxLines = if (wrapLabel) Int.MAX_VALUE else 1)
 }
 
 private val TagShape = RoundedCornerShape(7.dp)

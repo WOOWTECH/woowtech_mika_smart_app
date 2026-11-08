@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -113,27 +114,34 @@ fun AgentPip(
     onReopen: () -> Unit = {},
     onUnmute: () -> Unit = {},
 ) {
+    val previewState = rememberSaveableStateHolder()
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val fade = if (reduceMotion) tween<Float>(150) else tween(300)
-        // 关掉了:只留右下角的小按钮(任务做完那几秒不留)
-        AnimatedVisibility(
-            pip.visible && pip.closed && pip.mode != PipMode.Done, Modifier.align(Alignment.BottomEnd),
-            enter = fadeIn(fade), exit = fadeOut(fade),
-        ) {
-            val bottom = with(LocalDensity.current) { bottomInset.toDp() }
-            ClosedPip(pip.mode == PipMode.NeedsYou, reduceMotion, Modifier.padding(end = 12.dp, bottom = bottom + 12.dp), onReopen, onAttention)
-        }
-        AnimatedVisibility(pip.visible && !pip.closed && pip.expanded, enter = fadeIn(fade), exit = fadeOut(fade)) {
-            Box(Modifier.fillMaxSize().background(MikaTheme.colors.floatShadow.copy(alpha = 0.12f)).pointerInput(Unit) { detectTapGestures { onCollapse() } })
-        }
-        AnimatedVisibility(pip.visible && !pip.closed, enter = fadeIn(fade), exit = fadeOut(if (reduceMotion) tween(150) else tween(500))) {
-            PipWindow(
-                pip, frame, webContent, reduceMotion,
-                areaWidth = constraints.maxWidth.toFloat(), areaHeight = constraints.maxHeight.toFloat(),
-                topInset = topInset, bottomInset = bottomInset, onExpand = onExpand, onCollapse = onCollapse, onAttention = onAttention,
-                onClose = onClose,
-                onUnmute = onUnmute,
-            )
+        // A large preview can obscure the decision's recipient/details even at the top corner.
+        // Remove its drawing AND touch targets immediately; retain its saved corner/preferences
+        // while the card needs the full viewport. Running resumes the normal preview.
+        if (pip.needsUnobstructedCard(LocalDensity.current.fontScale, maxWidth.value)) return@BoxWithConstraints
+        previewState.SaveableStateProvider("preview") {
+            val fade = if (reduceMotion) tween<Float>(150) else tween(300)
+            // 关掉了:只留右下角的小按钮(任务做完那几秒不留)
+            AnimatedVisibility(
+                pip.visible && pip.closed && pip.mode != PipMode.Done, Modifier.align(Alignment.BottomEnd),
+                enter = fadeIn(fade), exit = fadeOut(fade),
+            ) {
+                val bottom = with(LocalDensity.current) { bottomInset.toDp() }
+                ClosedPip(pip.mode == PipMode.NeedsYou, reduceMotion, Modifier.padding(end = 12.dp, bottom = bottom + 12.dp), onReopen, onAttention)
+            }
+            AnimatedVisibility(pip.visible && !pip.closed && pip.expanded, enter = fadeIn(fade), exit = fadeOut(fade)) {
+                Box(Modifier.fillMaxSize().background(MikaTheme.colors.floatShadow.copy(alpha = 0.12f)).pointerInput(Unit) { detectTapGestures { onCollapse() } })
+            }
+            AnimatedVisibility(pip.visible && !pip.closed, enter = fadeIn(fade), exit = fadeOut(if (reduceMotion) tween(150) else tween(500))) {
+                PipWindow(
+                    pip, frame, webContent, reduceMotion,
+                    areaWidth = constraints.maxWidth.toFloat(), areaHeight = constraints.maxHeight.toFloat(),
+                    topInset = topInset, bottomInset = bottomInset, onExpand = onExpand, onCollapse = onCollapse, onAttention = onAttention,
+                    onClose = onClose,
+                    onUnmute = onUnmute,
+                )
+            }
         }
     }
 }

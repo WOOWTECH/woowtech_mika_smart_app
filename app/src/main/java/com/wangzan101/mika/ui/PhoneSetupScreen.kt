@@ -45,12 +45,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -380,10 +382,12 @@ private fun UsbStartCard(restart: HelperRestart, command: String, onCopy: () -> 
 private fun StepRow(step: SetupStep, mark: StepMark, current: Boolean, first: Boolean, onClick: (() -> Unit)?, body: @Composable () -> Unit) {
     val copy = PhoneSetupCopy.step(step)
     val c = MikaTheme.colors
+    // Convert the line height through Density to respect nonlinear font scaling.
+    val badgeSize = with(LocalDensity.current) { (18.sp.toDp() + 10.dp).coerceAtLeast(28.dp) }
     Box(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).testTag("setup-step-${step.name}")) {
-        if (!first) Box(Modifier.padding(start = 58.dp).fillMaxWidth().height(0.5.dp).background(c.hair))
+        if (!first) Box(Modifier.padding(start = 16.dp + badgeSize + 14.dp).fillMaxWidth().height(0.5.dp).background(c.hair))
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            StepBadge(step.ordinal + 1, mark)
+            StepBadge(step.ordinal + 1, mark, badgeSize)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -402,7 +406,7 @@ private fun StepRow(step: SetupStep, mark: StepMark, current: Boolean, first: Bo
 }
 
 @Composable
-private fun StepBadge(n: Int, mark: StepMark) {
+private fun StepBadge(n: Int, mark: StepMark, size: Dp) {
     val c = MikaTheme.colors
     val bg = when (mark) {
         StepMark.Done -> c.ok
@@ -410,11 +414,11 @@ private fun StepBadge(n: Int, mark: StepMark) {
         StepMark.Failed -> c.bad
         StepMark.Todo, StepMark.Skipped -> c.greySoft
     }
-    Box(Modifier.size(28.dp).background(bg, CircleShape), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(size).background(bg, CircleShape), contentAlignment = Alignment.Center) {
         when (mark) {
             StepMark.Done -> Icon(MikaIcons.Check, null, Modifier.size(15.dp), tint = c.onAccent)
             StepMark.Failed -> Icon(MikaIcons.Exclaim, null, Modifier.size(15.dp), tint = c.onAccent)
-            else -> Text("$n", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (mark == StepMark.Todo || mark == StepMark.Skipped) c.ink3 else c.onAccent)
+            else -> Text("$n", fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold, color = if (mark == StepMark.Todo || mark == StepMark.Skipped) c.ink3 else c.onAccent)
         }
     }
 }
@@ -644,6 +648,7 @@ private fun PillButton(text: String, primary: Boolean, tag: String? = null, onCl
     MikaButton(
         text, onClick, Modifier.padding(top = 10.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier),
         kind = if (primary) ButtonKind.Primary else ButtonKind.Tonal, size = ButtonSize.Small,
+        wrapLabel = true,
     )
 }
 

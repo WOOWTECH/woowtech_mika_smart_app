@@ -1,6 +1,8 @@
 package com.wangzan101.mika.settings
 
 import com.wangzan101.mika.core.cap.mcp.McpOAuthTokens
+import com.wangzan101.mika.core.cap.mcp.McpProvenance
+import com.wangzan101.mika.core.cap.mcp.McpTransport
 import com.wangzan101.mika.core.cap.mcp.McpStdioLauncher
 import com.wangzan101.mika.core.cap.mcp.McpStdioProcess
 import com.wangzan101.mika.core.resource.ResourceScope
@@ -110,12 +112,14 @@ class McpServerStoreTest {
                 """{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search","description":"s","inputSchema":{"type":"object"}}]}}"""
             ))
             val s = McpServerStore(tmp.root, ReverseCipher(), OkHttpClient())
-            val added = s.add("demo", "https://localhost/mcp").getOrThrow()
+            val added = s.add("demo", "https://localhost/mcp", "private-token").getOrThrow()
             val url = server.url("/mcp").newBuilder().host("127.0.0.1").build().toString()
             s.update(added.copy(url = url, allowLocalHttp = true)).getOrThrow()
             val connections = s.connections()
             assertEquals(0, connections.failures.size)
             assertEquals(1, connections.connections.size)
+            // Only the configured display name and transport cross into prompt metadata.
+            assertEquals(McpProvenance("demo", McpTransport.HTTP), connections.connections.single().provenance)
             assertEquals(listOf("search"), connections.connections.single().endpoint.tools().map { it.name })
             connections.close()
         } finally {
@@ -183,6 +187,7 @@ class McpServerStoreTest {
         val connections = s.connections(workspace = "ws")
         assertEquals(0, connections.failures.size)
         assertEquals(listOf("search"), connections.connections.single().endpoint.tools().map { it.name })
+        assertEquals(McpProvenance("local", McpTransport.Stdio), connections.connections.single().provenance)
         connections.close()
     }
 

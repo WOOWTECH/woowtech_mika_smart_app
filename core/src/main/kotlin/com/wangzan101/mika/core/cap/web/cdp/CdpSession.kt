@@ -170,13 +170,15 @@ class CdpSession(
         synchronized(this) {
             if (closeError != null) return
             closeError = error
+            // Publish the state before failing pending calls: their continuations can run inline.
+            // Set closeError first so inline closed observers can safely close/send again.
+            _closed.value = true
         }
         for (id in pending.keys.toList()) {
             pending.remove(id)?.result?.completeExceptionally(
                 CdpConnectionClosedException(error.message ?: "closed", error.cause),
             )
         }
-        _closed.value = true
     }
 
     companion object {

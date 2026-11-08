@@ -78,6 +78,7 @@
     <string name="steer_interrupted_reply">被你的新消息打断</string>
     <string name="steer_next">将作为下一件事</string>
     <string name="steer_cancelled">已取消</string>
+    <string name="chat_activity_summary">@string/chat_expand_steps</string>
     <plurals name="chat_steps_done">
         <item quantity="other">做了 %1$d 步</item>
     </plurals>

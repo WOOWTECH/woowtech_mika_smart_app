@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">请输入服务器名称。</string>
+    <string name="mcp_validation_command_required">请输入命令。</string>
+    <string name="mcp_validation_command_too_long">命令不能超过 4000 个字符。</string>
+    <string name="mcp_validation_command_one_line">命令必须为单行，且不能包含空字符。</string>
+    <string name="mcp_validation_invalid_url">请输入有效的 HTTP 或 HTTPS 网址。</string>
+    <string name="mcp_validation_url_user_info">网址不能包含用户名或密码。</string>
+    <string name="mcp_validation_blocked_host">不允许连接此主机。</string>
+    <string name="mcp_validation_http_opt_in">使用此地址前，请先允许本机/局域网 HTTP。</string>
+    <string name="mcp_validation_http_local_only">HTTP 仅允许用于本机或私有网络主机。</string>
+    <string name="mcp_validation_https_required">请使用 HTTPS；本机服务器可以使用 HTTP。</string>
+</resources>

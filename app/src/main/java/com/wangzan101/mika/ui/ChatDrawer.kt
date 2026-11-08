@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -51,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.Flow
@@ -196,7 +198,7 @@ fun readiness(check: Prerequisites.Check): Pair<String, Boolean> = when {
 private const val MAX_RECENT = 50
 
 /**
- * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于并排。
+ * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于各占一行。
  * 打开和关上由外面的抽屉管,这里只摆内容,点了什么交给回调。
  */
 @Composable
@@ -283,14 +285,13 @@ fun ChatDrawer(
             }
             item("end") { Box(Modifier.height(12.dp)) }
         }
-        // 设置和关于并排固定在侧栏最底下,对话再多也不被挤走:设置靠左,关于靠右,中间留空
-        Row(
+        // Keep both destinations fixed at the bottom, with a full row for long brand names.
+        Column(
             Modifier.fillMaxWidth().drawBehind { drawLine(c.hair, Offset(0f, 0f), Offset(size.width, 0f), 0.5.dp.toPx()) }
                 .padding(horizontal = 12.dp, vertical = 6.dp).testTag("drawer-footer"),
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), Modifier, onClick = onSettings)
-            NavEntry(MikaIcons.Info, AboutCopy.TITLE, Modifier, dot = aboutDot, onClick = onAbout)
+            NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), wrapLabel = true, onClick = onSettings)
+            NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, dot = aboutDot, onClick = onAbout)
         }
     }
 }
@@ -298,20 +299,22 @@ fun ChatDrawer(
 @Composable
 private fun NavEntry(
     icon: ImageVector, text: String, modifier: Modifier = Modifier.fillMaxWidth(),
-    enabled: Boolean = true, dot: Boolean = false, onClick: () -> Unit,
+    enabled: Boolean = true, dot: Boolean = false, wrapLabel: Boolean = false, onClick: () -> Unit,
 ) {
     val c = MikaTheme.colors
     Row(
-        modifier.height(46.dp).clip(NavShape)
+        modifier.then(if (wrapLabel) Modifier.heightIn(min = 48.dp) else Modifier.height(46.dp)).clip(NavShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else 0.4f)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = if (wrapLabel) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Icon(icon, null, Modifier.size(MikaSize.Icon), tint = c.ink2)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(text, style = MikaType.Body, color = c.ink, maxLines = 1, softWrap = false)
+        Row(Modifier.then(if (wrapLabel) Modifier.weight(1f) else Modifier),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(text, modifier = if (wrapLabel) Modifier.weight(1f) else Modifier,
+                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel)
             if (dot) UpdateDot()
         }
     }
@@ -494,10 +497,19 @@ fun ChatWithDrawer(
     /** 从侧栏进去的页面刚退回来:当场打开侧栏,回到进去之前的样子。 */
     reopen: Boolean = false,
     onReopened: () -> Unit = {},
+    /** A notification/deep-link request should reveal the conversation beneath an open drawer. */
+    externalOpenRevision: Int = 0,
     content: @Composable (openDrawer: () -> Unit) -> Unit,
 ) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var handledOpenRevision by rememberSaveable { mutableIntStateOf(externalOpenRevision) }
+    LaunchedEffect(externalOpenRevision) {
+        if (handledOpenRevision != externalOpenRevision) {
+            drawer.snapTo(DrawerValue.Closed)
+            handledOpenRevision = externalOpenRevision
+        }
+    }
     LaunchedEffect(reopen) {
         if (reopen) {
             drawer.snapTo(DrawerValue.Open)

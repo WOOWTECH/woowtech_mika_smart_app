@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.ui.theme.MikaColors
@@ -109,6 +110,8 @@ fun ListRow(
     detail: String? = null,
     detailColor: Color = Color.Unspecified,
     onClick: (() -> Unit)? = null,
+    subtitleMaxLines: Int = Int.MAX_VALUE,
+    detailMaxLines: Int = Int.MAX_VALUE,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val c = MikaTheme.colors
@@ -124,8 +127,16 @@ fun ListRow(
         if (icon != null) IconTile(icon, tone)
         Column(Modifier.weight(1f).padding(vertical = 11.dp)) {
             Text(title, style = MikaType.Body, color = titleColor.takeOrElse { c.ink })
-            if (!subtitle.isNullOrEmpty()) Text(subtitle, Modifier.padding(top = 2.dp), style = MikaType.Caption, color = c.ink3)
-            if (!detail.isNullOrEmpty()) Text(detail, Modifier.padding(top = 2.dp), style = MikaType.Hint, color = detailColor.takeOrElse { c.ink3 })
+            if (!subtitle.isNullOrEmpty()) Text(
+                subtitle, Modifier.padding(top = 2.dp), style = MikaType.Caption, color = c.ink3,
+                maxLines = subtitleMaxLines,
+                overflow = if (subtitleMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
+            )
+            if (!detail.isNullOrEmpty()) Text(
+                detail, Modifier.padding(top = 2.dp), style = MikaType.Hint, color = detailColor.takeOrElse { c.ink3 },
+                maxLines = detailMaxLines,
+                overflow = if (detailMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
+            )
         }
         trailing()
     }
@@ -206,6 +217,7 @@ private fun RadioMark(selected: Boolean, enabled: Boolean = true) {
 /**
  * 卡片里的输入行:左边固定宽的标题,右边单行输入框(空时显示 [placeholder])。
  * [secret] 为真时按密码显示;[trailing] 放在输入框右边(例如「显示」)。
+ * [stacked] 把标题、输入框和操作分行，给长模型名和大字体留出整行宽度。
  */
 @Composable
 fun InputRow(
@@ -218,9 +230,35 @@ fun InputRow(
     secret: Boolean = false,
     labelWidth: Dp = 84.dp,
     modifier: Modifier = Modifier,
+    stacked: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = MikaTheme.colors
+    if (stacked) {
+        Column(
+            Modifier.fillMaxWidth().topHairline(first, TextStartPlain, c.hair).keepsKeyboard()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Text(label, style = MikaType.Body, color = c.ink)
+            Box(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                BasicTextField(
+                    value, onChange, modifier.fillMaxWidth(), singleLine = true,
+                    textStyle = MikaType.Body.copy(color = c.ink),
+                    cursorBrush = SolidColor(c.accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
+                    visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (value.isEmpty()) Text(placeholder, style = MikaType.Body, color = c.ink3)
+                            innerTextField()
+                        }
+                    },
+                )
+            }
+            if (trailing != null) Box(Modifier.align(Alignment.End).heightIn(min = 48.dp), contentAlignment = Alignment.Center) { trailing() }
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().topHairline(first, TextStartPlain, c.hair).keepsKeyboard()
             .heightIn(min = MikaSize.RowMin).padding(horizontal = 16.dp, vertical = 12.dp),

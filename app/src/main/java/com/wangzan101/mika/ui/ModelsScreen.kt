@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -232,7 +234,7 @@ fun RolePickerContent(ui: ModelSetupUi, role: ModelRole, actions: RolePickerActi
                 shown.take(PICK_AT_MOST).forEachIndexed { i, o ->
                     RadioRow(
                         o.id, selected = ui.picked(role, p.id, o.id), onClick = { actions.pick(p.id, o.id) }, first = i == 0,
-                        titleStyle = ModelIdStyle, below = { Tags(o, forVision = role == ModelRole.Vision) },
+                        titleStyle = ModelIdStyle, below = { Tags(o, forVision = role == ModelRole.Vision, wrapLabel = true) },
                     )
                 }
                 ManualModel(p, ui.manualPick[p.id], first = shown.isEmpty()) { actions.pickManual(p.id, it) }
@@ -263,7 +265,7 @@ internal fun ManualModel(p: Provider, state: ListState?, first: Boolean, onUse: 
     val running = state == ListState.Running
     val enabled = name.isNotBlank() && !running
     val example = ModelSetupCopy.modelExample(ProviderPresets.forHost(p.baseUrl)?.kind ?: p.kind)
-    InputRow(ModelsCopy.MODEL_NAME, name, { name = it }, example, first = first, modifier = Modifier.testTag("manual-model")) {
+    InputRow(ModelsCopy.MODEL_NAME, name, { name = it }, example, first = first, modifier = Modifier.testTag("manual-model"), stacked = true) {
         Text(
             if (running) ModelSetupCopy.TESTING else ModelsCopy.USE, Modifier.clickable(enabled = enabled) { onUse(name.trim()) }.testTag("manual-model-use"),
             fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (enabled) MikaTheme.colors.accent else MikaTheme.colors.ink3,
@@ -325,8 +327,8 @@ fun ProviderDetailContent(ui: ModelSetupUi, p: Provider, actions: ProviderDetail
                         else -> RowValue(ModelsCopy.CONNECTED, ValueTone.Ok)
                     }
                 }
-                ListRow(null, ModelsCopy.KIND) { RowValue(ModelsCopy.kindLabel(p.kind)) }
-                ListRow(null, ModelsCopy.BASE_URL) { RowValue(ModelsCopy.shortUrl(p.baseUrl)) }
+                ListRow(null, ModelsCopy.KIND, subtitle = ModelsCopy.kindLabel(p.kind))
+                ListRow(null, ModelsCopy.BASE_URL, subtitle = ModelsCopy.shortUrl(p.baseUrl))
                 ListRow(null, ModelsCopy.API_KEY, onClick = { changingKey = true }) {
                     RowValue(if (p.id in ui.keyed) ModelsCopy.KEY_SAVED else ModelsCopy.KEY_NONE)
                     RowValue(ModelsCopy.CHANGE, ValueTone.Link)
@@ -545,7 +547,8 @@ private fun rowShape(i: Int, n: Int): RoundedCornerShape {
         bottomStart = if (i == n - 1) r else 0.dp, bottomEnd = if (i == n - 1) r else 0.dp)
 }
 
-/** 模型一行:模型名(等宽)和标签,右边标着它在给哪些用途干活。 */
+/** 模型一行:模型名(等宽)和能力标签,用途标签另起一行并自动换行。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModelRow(o: ModelOption, roles: List<ModelRole>, first: Boolean, onClick: () -> Unit) {
     Column {
@@ -555,10 +558,18 @@ private fun ModelRow(o: ModelOption, roles: List<ModelRole>, first: Boolean, onC
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text(o.id, style = ModelIdStyle, color = MikaTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Box(Modifier.padding(top = 4.dp)) { Tags(o, accent = false) }
+                Text(o.id, Modifier.fillMaxWidth(), style = ModelIdStyle, color = MikaTheme.colors.ink)
+                Box(Modifier.padding(top = 4.dp)) { Tags(o, accent = false, wrapLabel = true) }
+                if (roles.isNotEmpty()) {
+                    FlowRow(
+                        Modifier.fillMaxWidth().padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        roles.forEach { StatusPill(ModelsCopy.roleName(it), PillTone.Accent) }
+                    }
+                }
             }
-            roles.forEach { StatusPill(ModelsCopy.roleName(it), PillTone.Accent) }
             RowChevron()
         }
     }

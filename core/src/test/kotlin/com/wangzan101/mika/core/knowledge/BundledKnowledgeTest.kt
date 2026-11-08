@@ -23,7 +23,7 @@ class BundledKnowledgeTest {
     @Test fun bundledTreesPassValidationAndIndexIsCurrent() {
         val r = KnowledgeIndex.build(resources)
         assertTrue(r.errors.joinToString("\n"), r.errors.isEmpty())
-        assertEquals(mapOf("app" to 29, "site" to 18, "skill" to 6), r.entries.groupingBy { it.kind }.eachCount())
+        assertEquals(mapOf("app" to 32, "site" to 18, "skill" to 6), r.entries.groupingBy { it.kind }.eachCount())
         // 类路径上的索引就是按当前文件生成的那份
         assertEquals(r.entries, catalog.rows)
     }
@@ -46,7 +46,7 @@ class BundledKnowledgeTest {
     }
 
     @Test fun everyEntryHasABody() {
-        assertEquals(47, bundled.size)
+        assertEquals(50, bundled.size)
         assertTrue(bundled.all { !it.body.isNullOrBlank() && it.body!!.length <= KnowledgeIndex.BODY_LIMIT })
         assertTrue(bundled.map { it.name }.containsAll(listOf("wechat", "xianyu", "android-settings", "zhihu.com", "weixin.sogou.com")))
     }
@@ -78,6 +78,16 @@ class BundledKnowledgeTest {
         assertTrue(catalog.find("今晚用 foodpanda 訂便當", minScore = RECOMMEND_MIN_SCORE).any { it.name == "foodpanda" })
         // 英文的 LINE 按单词边界认:online、deadline 不算
         assertTrue(store.matchTask("check what is online before the deadline", 5).none { it.name == "line" })
+    }
+
+    @Test fun apporoProductsResolveToDistinctApps() {
+        val store = KnowledgeStore(bundled)
+        val products = mapOf("Apporo aiot" to "com.apporo.aiot",
+            "Apporo platform" to "com.apporo.odoo", "Apporo smart" to "com.apporo.smart")
+        products.forEach { (name, pkg) -> assertEquals(name, pkg, store.packageFor(name)) }
+        assertEquals("apporo-aiot", store.matchTask("Open Apporo aiot and inspect the meeting room", 5).first().name)
+        assertEquals("apporo-platform", store.matchTask("Open Apporo platform and list my tasks", 5).first().name)
+        assertEquals("apporo-smart", store.matchTask("Open Apporo smart and show computer sessions", 5).first().name)
     }
 
     @Test fun longBodyTruncatedWithHint() {

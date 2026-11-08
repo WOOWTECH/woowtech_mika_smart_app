@@ -147,10 +147,11 @@ fun NotificationsScreen(status: SystemStatus, onFix: (Fix) -> Unit, onBack: () -
             ListRow(
                 MikaIcons.Bell, stringResource(R.string.settings_notif_master),
                 if (o.appAllowed) StatusCopy.NOTIF_APP_SUBTITLE_ON else StatusCopy.NOTIF_APP_SUBTITLE_OFF,
+                detail = if (o.appAllowed) stringResource(R.string.settings_allowed) else StatusCopy.HEADS_UP_ACTION,
                 first = true, tone = if (o.appAllowed) TileTone.Neutral else TileTone.Bad,
                 onClick = if (o.appAllowed) null else ({ onFix(Fix.AllowNotifications) }),
             ) {
-                if (o.appAllowed) RowValue(stringResource(R.string.settings_allowed), ValueTone.Ok) else RowValue(StatusCopy.HEADS_UP_ACTION, ValueTone.Link)
+                if (!o.appAllowed) RowChevron()
             }
         }
         GroupLabel(stringResource(R.string.settings_task_notifs))
@@ -165,13 +166,13 @@ fun NotificationsScreen(status: SystemStatus, onFix: (Fix) -> Unit, onBack: () -
 
 @Composable
 private fun ChannelRowItem(title: String, whenText: String, row: ChannelRow, fix: Fix, onFix: (Fix) -> Unit, first: Boolean = false) {
-    val (text, tone) = StatusCopy.channelLevelValue(row)
+    val (text, _) = StatusCopy.channelLevelValue(row)
     ListRow(
         MikaIcons.Bell, title, whenText, first = first,
+        detail = text,
         tone = if (row.warn) TileTone.Warn else TileTone.Neutral,
         onClick = { onFix(fix) },
     ) {
-        RowValue(text, tone)
         RowChevron()
     }
 }

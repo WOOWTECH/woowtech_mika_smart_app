@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.PowerManager
 import android.view.Display
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.cap.phone.a11y.DeviceSupport
@@ -15,6 +16,7 @@ import com.wangzan101.mika.cap.phone.a11y.DeviceSupport.SETTINGS
 import com.wangzan101.mika.cap.phone.a11y.DeviceSupport.pollUntil
 import com.wangzan101.mika.cap.phone.a11y.DeviceSupport.sh
 import com.wangzan101.mika.MikaApp
+import com.wangzan101.mika.ui.MainActivity
 import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.core.model.Capabilities
@@ -92,6 +94,47 @@ class TaskServiceTest {
     }
 
     private fun TaskState.running() = this !is TaskState.Succeeded && this !is TaskState.Failed && this !is TaskState.Cancelled
+
+    @Test fun waitingInputNotificationOpensItsConversation() = waitingNotificationOpensConversation(takeover = false)
+
+    @Test fun waitingTakeoverNotificationOpensItsConversation() = waitingNotificationOpensConversation(takeover = true)
+
+    private fun waitingNotificationOpensConversation(takeover: Boolean) {
+        // Keep an idle A selected while the service starts B: no parallel-mode switch needed.
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val chat = (context.applicationContext as MikaApp).chat
+            val a = "notification-a-${java.util.UUID.randomUUID()}"
+            scenario.onActivity { chat.openConversation(a) }
+            assertEquals(a, chat.ui.value.conversationId)
+            if (takeover) startWithSettingsOpen() else {
+                start("测试通知打开等待回答的对话")
+                model.awaitCall()
+            }
+            val b = DeviceTaskState.conversationId.value ?: error("no task conversation")
+            if (takeover) model.feed("hand_to_user", """{"reason":"captcha","message":"测试接管"}""")
+            else model.feed("ask_user", """{"prompt":"测试问题","options":["甲","乙"]}""")
+            fun waiting() = if (takeover) DeviceTaskState.state.value is TaskState.WaitingTakeover
+                else DeviceTaskState.state.value is TaskState.WaitingInput
+            assertEquals(true, pollUntil(10_000) { true.takeIf { waiting() } })
+            assertEquals(a, chat.ui.value.conversationId)
+            val notifications = context.getSystemService(NotificationManager::class.java)
+            val notification = pollUntil(5_000) {
+                notifications.activeNotifications.firstOrNull {
+                    it.notification.channelId == TaskService.CHANNEL_ATTENTION &&
+                        it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0
+                }?.notification
+            } ?: error("no waiting notification")
+            // Activity is foreground, so this exercises the actual PendingIntent and onNewIntent.
+            scenario.onActivity { notification.contentIntent.send() }
+            assertEquals(b, pollUntil(5_000) { chat.ui.value.conversationId.takeIf { it == b } })
+            assertTrue("opening must not answer or take over", waiting())
+            assertEquals(true, pollUntil(5_000) {
+                var consumed = false
+                scenario.onActivity { consumed = !it.intent.hasExtra(MainActivity.EXTRA_OPEN_CONVERSATION) }
+                true.takeIf { consumed }
+            })
+        }
+    }
 
     /** 开任务并让它在虚拟屏上打开设置,返回虚拟屏编号;此时模型正等着第二步。 */
     private fun startWithSettingsOpen(): Int {

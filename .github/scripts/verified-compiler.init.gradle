@@ -1,0 +1,61 @@
+// CI only; no global init.d or product settings changes.
+// Gradle8.11.1 official APIs: ExclusiveContentRepository, includeVersion,
+// MavenArtifactRepository.MetadataSources.mavenPom(), Gradle.settingsEvaluated.
+// https://github.com/gradle/gradle/blob/v8.11.1/platforms/documentation/docs/src/docs/userguide/dep-man/declaring-repositories/filtering_repository_content.adoc
+import java.security.MessageDigest
+
+if (System.getenv('CI') != 'true' || System.getenv('GITHUB_ACTIONS') != 'true') {
+    throw new GradleException('Verified compiler repository is CI-only')
+}
+if (gradle.gradleVersion != '8.11.1') {
+    throw new GradleException('Verified compiler repository requires Gradle8.11.1')
+}
+def path = System.getenv('CI_VERIFIED_COMPILER_REPO')
+def temp = System.getenv('RUNNER_TEMP')
+if (!path || !temp) throw new GradleException('Verified compiler repository environment missing')
+def repo = new File(path).canonicalFile
+def runnerTemp = new File(temp).canonicalFile
+if (!repo.toPath().startsWith(runnerTemp.toPath()) || repo == runnerTemp || !repo.isDirectory()) {
+    throw new GradleException('Verified compiler repository must be private under RUNNER_TEMP')
+}
+def moduleDir = new File(repo, 'org/jetbrains/kotlin/kotlin-compiler-embeddable/2.1.20')
+// Box the size: Gradle's instrumented Groovy closure must not use a two-slot
+// primitive argument between reference arguments (JVM VerifyError in CI).
+def verify = { String name, Long size, String expected ->
+    def file = new File(moduleDir, name)
+    if (!file.isFile() || file.length() != size || !file.canonicalFile.toPath().startsWith(repo.toPath())) {
+        throw new GradleException('Verified compiler repository file missing or invalid')
+    }
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.withInputStream { input ->
+        byte[] buffer = new byte[1024 * 1024]
+        int count
+        while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+    }
+    if (digest.digest().encodeHex().toString() != expected) {
+        throw new GradleException('Verified compiler repository checksum mismatch')
+    }
+}
+verify('kotlin-compiler-embeddable-2.1.20.jar', 56909275L, 'c54a00718c8c0e3ee858bf42771c7f401c5e3c1738861e18e9536371042fa1b3')
+verify('kotlin-compiler-embeddable-2.1.20.pom', 2666L, '227404eac6d809bc0d94def89336dfdf7d9a7d538792a234d52bdbafc2ae85af')
+
+gradle.settingsEvaluated { settings ->
+    def catalog = new File(settings.settingsDir, 'gradle/libs.versions.toml')
+    if (!catalog.isFile() || !(catalog.getText('UTF-8') =~ /(?m)^kotlin\s*=\s*"2\.1\.20"\s*$/).find()) {
+        throw new GradleException('Verified compiler repository requires Kotlin2.1.20')
+    }
+    // Settings-level repository respects FAIL_ON_PROJECT_REPOS; plugin repositories untouched.
+    settings.dependencyResolutionManagement.repositories.exclusiveContent {
+        forRepository {
+            settings.dependencyResolutionManagement.repositories.maven {
+                name = 'ciVerifiedCompilerOnly'
+                url = repo.toURI()
+                metadataSources { mavenPom() }
+            }
+        }
+        filter {
+            includeVersion('org.jetbrains.kotlin', 'kotlin-compiler-embeddable', '2.1.20')
+        }
+    }
+    logger.lifecycle('CI verified compiler repository enabled for org.jetbrains.kotlin:kotlin-compiler-embeddable:2.1.20 only')
+}

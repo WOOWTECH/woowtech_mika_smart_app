@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Apporo Assistant</string>
+    <string name="welcome_title">Meet Apporo Assistant</string>
+    <string name="welcome_lead">Your spaces. Your work. Your next step.\nTurn a request into an action, with results you can check.</string>
+    <string name="welcome_note">Connect your AI model first. Enable phone control when you want help using other apps.</string>
+    <string name="welcome_apps">Work across your apps</string>
+    <string name="welcome_apps_body">Inspect connected spaces and business workflows through apps you already use.</string>
+    <string name="welcome_web">Research with context</string>
+    <string name="welcome_web_body">Read sources, compare options and bring the findings back to your task.</string>
+    <string name="welcome_files">Make information useful</string>
+    <string name="welcome_files_body">Analyze spreadsheets, organize documents and prepare reports in a separate environment.</string>
+    <string name="welcome_schedule">Keep track of what matters</string>
+    <string name="welcome_schedule_body">Set reminders and recurring tasks. Review the result and take over when needed.</string>
+    <string name="about_author">© 2026 APPORO UNION INC. · Based on wangzan101/Mika (Apache-2.0)</string>
+    <string name="about_repo_sub">%1$s · source code and build documentation</string>
+    <string name="about_data_note">Your selected model provider receives the messages and screen content needed for a task. Websites, connected apps and services have their own data practices. Review the content before sharing it, and keep passwords and verification codes out of conversations.</string>
+    <string name="chat_example_follow">Open Apporo aiot and summarize the visible status of the meeting room. Do not change any devices.</string>
+    <string name="chat_example_group_summary">Open Apporo platform and summarize the tasks assigned to me, highlighting overdue items. Do not edit any records.</string>
+    <string name="chat_example_jobs">Open Apporo smart and show the available computer sessions. Ask me which session to use before sending a task.</string>
+    <string name="chat_example_multi_step">Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.</string>
+    <string name="chat_example_alarms">Remind me in 30 minutes to review the maintenance checklist.</string>
+    <string name="chat_example_ai_apps">Find the AI apps installed on my phone and explain what each can help me do.</string>
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">Search with Google</string>
+    <string name="browser_typing_note">URLs open directly; anything else is searched with Google</string>
+    <string name="relay_gateway_hint">https://gateway.example.com</string>
+    <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
+    <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
+    <string name="capsule_mode_always_detail">Keeps an Apporo Assistant icon on screen even with no tasks</string>
+    <string name="rec_auto_wireless_body">After Wi-Fi drops or the phone restarts, the system turns “Wireless debugging” off. Phone control normally doesn’t need it — only when restarting (for example after an Apporo Assistant update). With this on, in those moments and while on Wi-Fi, Apporo Assistant turns it on and reconnects, but never turns it off for you. This uses the same “Modify system settings” permission as “Restore after restart” and works only on Wi-Fi you’ve allowed. Turn it off and Apporo Assistant stops doing this.</string>
+    <string name="task_no_phone_helper_usb">Phone control has stopped. This can happen after an Apporo Assistant update or a phone restart. Open Apporo Assistant, connect the phone to your computer, and rerun the current USB start command from “Set up phone control”. Confirm that Phone control shows Ready before retrying. Web and file tasks are not affected.</string>
+    <string name="fail_usb_stopped_body">The USB helper cannot restart itself after an Apporo Assistant update or a phone restart. Open Apporo Assistant, connect to your computer, and rerun the current USB start command in “Set up phone control”. Continue when Phone control shows Ready.</string>
+    <string name="phone_usb_body">Connect the phone to a computer with USB and run this command on the computer. After an Apporo Assistant update or a phone restart, open Apporo Assistant and run the current command again.</string>
+    <string name="phone_usb_again_body">Connect the phone to a computer with USB and run the command shown here. On most phones the helper keeps running after unplugging. If it stops, or after an Apporo Assistant update or phone restart, open Apporo Assistant and run the current command again. Check that Phone control shows Ready.</string>
+    <string name="phone_success_note_usb">Keep USB debugging on. The helper was started with the USB command. On most phones it keeps running after unplugging. After an Apporo Assistant update or a phone restart, open Apporo Assistant and run the current USB start command again; confirm that Phone control shows Ready.</string>
+    <string name="phone_usage_note_usb">The helper was started with the USB command. Keep USB debugging on. On most phones it keeps running after unplugging; some systems stop it. After an Apporo Assistant update, a phone restart, or a stopped helper, open Apporo Assistant, connect to your computer, and rerun the current command from “Set up phone control”. Check that Phone control shows Ready. If Wireless debugging works on this phone, pairing allows automatic reconnection.</string>
+</resources>

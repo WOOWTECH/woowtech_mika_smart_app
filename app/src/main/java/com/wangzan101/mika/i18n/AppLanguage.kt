@@ -53,6 +53,18 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
 
         private val systemManaged get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
+        /** Brand default is applied once; a later choice to follow the system is preserved. */
+        fun initializeBrandDefault(context: Context) {
+            val tag = com.wangzan101.mika.core.brand.Brand.defaultLanguage ?: return
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (prefs.getBoolean("brand_default_initialized", false)) return
+            val hasSelection = if (systemManaged) {
+                !context.getSystemService(LocaleManager::class.java).applicationLocales.isEmpty
+            } else prefs.contains(KEY_TAG)
+            if (!hasSelection) set(context, fromTag(tag))
+            prefs.edit().putBoolean("brand_default_initialized", true).commit()
+        }
+
         fun current(context: Context): AppLanguage = fromTag(
             if (systemManaged) {
                 context.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }?.get(0)?.toLanguageTag()
@@ -124,9 +136,12 @@ enum class AppLanguage(val tag: String?, val speechTag: String?) {
             Locale.setDefault(locales[0])
         }
 
-        /** 套上 App 语言的 Context:在 Activity 的 attachBaseContext 和非 Activity 建界面的地方用。安卓 13 起原样返回。 */
+        /** Apply the selected locale even while Android is delivering a first-launch locale change. */
         fun wrap(base: Context): Context {
-            val locales = legacyLocales(base) ?: return base
+            val locales = if (systemManaged) {
+                base.getSystemService(LocaleManager::class.java).applicationLocales.takeUnless { it.isEmpty }
+            } else legacyLocales(base)
+            if (locales == null || base.resources.configuration.locales == locales) return base
             return base.createConfigurationContext(Configuration().apply { setLocales(locales) })
         }
 

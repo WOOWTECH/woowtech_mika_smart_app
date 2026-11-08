@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">サーバー名を入力してください。</string>
+    <string name="mcp_validation_command_required">コマンドを入力してください。</string>
+    <string name="mcp_validation_command_too_long">コマンドは4000文字以内にしてください。</string>
+    <string name="mcp_validation_command_one_line">コマンドは改行やヌル文字を含めず1行で入力してください。</string>
+    <string name="mcp_validation_invalid_url">有効なHTTPまたはHTTPSのURLを入力してください。</string>
+    <string name="mcp_validation_url_user_info">URLにユーザー名やパスワードを含めないでください。</string>
+    <string name="mcp_validation_blocked_host">このホストは許可されていません。</string>
+    <string name="mcp_validation_http_opt_in">このアドレスを使う前にローカル・プライベートHTTP接続を許可してください。</string>
+    <string name="mcp_validation_http_local_only">HTTPはローカルまたはプライベートホストでのみ使用できます。</string>
+    <string name="mcp_validation_https_required">HTTPSを使用してください。ローカルサーバーではHTTPも使用できます。</string>
+</resources>

@@ -219,9 +219,12 @@ fun steerLabel(state: SteerState): String? = when (state) {
  */
 internal fun editableSteer(text: String): Boolean = !UserScreenMessage.has(text) && AttachedPage.parse(text).page == null
 
-/** 结束后收起的那一行:「做了 12 步 · 1 分 20 秒」;不知道用时就只说步数。 */
+/**
+ * Expandable activity summary. Do not count these filtered/grouped rows as completed steps:
+ * they differ from timeline step numbers and can include failed actions.
+ */
 fun stepsSummary(ex: Exchange): String =
-    trPlural(R.plurals.chat_steps_done, ex.steps.size) + ex.elapsedMs?.let { " · " + RunTimelineViewModel.duration(it) }.orEmpty()
+    tr(R.string.chat_activity_summary) + ex.elapsedMs?.let { " · " + RunTimelineViewModel.duration(it) }.orEmpty()
 
 /** 结果卡片上记忆与技能提示的按钮;真机上由记忆存储与个人技能实现(读写在后台线程),测试里换成记录调用。 */
 interface LearningActions {
@@ -254,7 +257,13 @@ data class PipUi(
     val mode: PipMode = PipMode.Running,
     val expanded: Boolean = false,
     val closed: Boolean = false,
-)
+) {
+    /** Keep decision details unobstructed on enlarged text or compact-width screens.
+     * This is temporary layout suppression, not a change to the user's preview preference.
+     */
+    fun needsUnobstructedCard(fontScale: Float, widthDp: Float): Boolean =
+        mode == PipMode.NeedsYou && (fontScale >= 1.3f || widthDp < 360f)
+}
 
 enum class ComposerMode {
     /** 没有任务,发出去就是新任务。 */

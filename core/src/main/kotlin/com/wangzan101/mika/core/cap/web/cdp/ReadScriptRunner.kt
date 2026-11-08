@@ -44,6 +44,7 @@ class ReadScriptRunner(val session: CdpSession, private val sessionId: String? =
             val outcome = CompletableDeferred<EvalJs>()
             val running = AtomicBoolean(false)
             val answered = AtomicBoolean(false)
+            val navigationRequested = AtomicBoolean(false)
             var world: World? = null
 
             // 先订阅再动手:事件流不重放
@@ -61,7 +62,7 @@ class ReadScriptRunner(val session: CdpSession, private val sessionId: String? =
                             outcome.complete(EvalJs.Failed(BLOCKED_NETWORK, it))
                         }
                         "Page.frameRequestedNavigation" -> if (running.get() && (p["frameId"] as? JsonPrimitive)?.contentOrNull == w.frameId) {
-                            launch { runCatching { session.send("Page.stopLoading", JsonObject(emptyMap()), sessionId, STEP_TIMEOUT_MS) } }
+                            navigationRequested.set(true)
                             outcome.complete(EvalJs.Failed(BLOCKED_NAVIGATION,
                                 "the page tried to navigate to ${(p["url"] as? JsonPrimitive)?.contentOrNull.orEmpty().take(200)} while the read script ran; it was stopped. Read scripts cannot navigate: use web_navigate or web_tap"))
                         }
@@ -109,6 +110,10 @@ class ReadScriptRunner(val session: CdpSession, private val sessionId: String? =
                 running.set(false)
                 val w = world
                 withContext(NonCancellable) {
+                    // Do not launch this as a child: outcome completion can cancel it before it sends.
+                    if (navigationRequested.get()) {
+                        runCatching { session.send("Page.stopLoading", JsonObject(emptyMap()), sessionId, STEP_TIMEOUT_MS) }
+                    }
                     if (w != null && !answered.get() && context == w.context) stop(w.context)
                 }
                 coroutineContext.cancelChildren()

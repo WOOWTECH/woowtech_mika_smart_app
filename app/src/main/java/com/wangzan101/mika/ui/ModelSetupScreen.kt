@@ -377,14 +377,13 @@ private fun AddProviderForm(ui: ModelSetupUi, actions: ModelSetupActions) {
     }
     GroupCard {
         if (f.isCustom) {
-            Row(
+            Column(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(ModelSetupCopy.KIND, Modifier.padding(end = 12.dp), style = MikaType.Body, color = c.ink)
+                Text(ModelSetupCopy.KIND, Modifier.padding(bottom = 8.dp), style = MikaType.Body, color = c.ink)
                 // 四种接口一行放不下时折到下一行
-                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ProviderConfig.Kind.withApiKey.forEach { k -> SelectChip(ModelsCopy.kindLabel(k), f.kind == k, { actions.setKind(k) }, small = true) }
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ProviderConfig.Kind.withApiKey.forEach { k -> SelectChip(ModelsCopy.kindLabel(k), f.kind == k, { actions.setKind(k) }, small = true, wrapLabel = true) }
                 }
             }
         }
@@ -625,9 +624,11 @@ private fun ModelContextControl(ui: ModelSetupUi, role: ModelRole,
 /** 模型的能力标签;[accent] 为假时一律中性色(列表行里强调色留给「在用」的胶囊)。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun Tags(o: ModelOption, forVision: Boolean = false, accent: Boolean = true) {
+internal fun Tags(o: ModelOption, forVision: Boolean = false, accent: Boolean = true, wrapLabel: Boolean = false) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        ModelSetupCopy.tags(o, forVision).forEach { (text, strong) -> CapabilityTag(text, if (strong && accent) TagTone.Accent else TagTone.Neutral) }
+        ModelSetupCopy.tags(o, forVision).forEach { (text, strong) ->
+            CapabilityTag(text, if (strong && accent) TagTone.Accent else TagTone.Neutral, wrapLabel = wrapLabel)
+        }
     }
 }
 

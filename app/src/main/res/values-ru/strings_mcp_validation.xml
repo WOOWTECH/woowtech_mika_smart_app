@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_validation_name_required">Введите имя сервера.</string>
+    <string name="mcp_validation_command_required">Введите команду.</string>
+    <string name="mcp_validation_command_too_long">Команда не должна превышать 4000 символов.</string>
+    <string name="mcp_validation_command_one_line">Введите команду в одну строку без нулевых символов.</string>
+    <string name="mcp_validation_invalid_url">Введите корректный URL HTTP или HTTPS.</string>
+    <string name="mcp_validation_url_user_info">Не указывайте имя пользователя или пароль в URL.</string>
+    <string name="mcp_validation_blocked_host">Этот хост запрещён.</string>
+    <string name="mcp_validation_http_opt_in">Перед использованием адреса разрешите HTTP для локальной или частной сети.</string>
+    <string name="mcp_validation_http_local_only">HTTP разрешён только для локальных или частных хостов.</string>
+    <string name="mcp_validation_https_required">Используйте HTTPS или HTTP для локального сервера.</string>
+</resources>

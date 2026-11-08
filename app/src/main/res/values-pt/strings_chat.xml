@@ -82,6 +82,7 @@
     <string name="steer_interrupted_reply">Interrompido pela sua mensagem</string>
     <string name="steer_next">Na fila como próxima tarefa</string>
     <string name="steer_cancelled">Cancelado</string>
+    <string name="chat_activity_summary">@string/chat_expand_steps</string>
     <plurals name="chat_steps_done">
         <item quantity="one">%1$d passo</item>
         <item quantity="many">%1$d passos</item>

@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -63,9 +64,43 @@ import com.wangzan101.mika.ui.theme.animationsOff
 import com.wangzan101.mika.ui.theme.appearanceDark
 import com.wangzan101.mika.ui.theme.systemBarsFor
 
+/** Each delivery has its own identity, including repeated taps for the same conversation. */
+internal class ConversationOpenRequest(val conversationId: String, val source: Intent)
+
+internal class ConversationOpenRequests {
+    var pending by mutableStateOf<ConversationOpenRequest?>(null)
+        private set
+
+    fun receive(intent: Intent) {
+        intent.getStringExtra(MainActivity.EXTRA_OPEN_CONVERSATION)?.let {
+            pending = ConversationOpenRequest(it, intent)
+        }
+    }
+
+    fun restore(intent: Intent, saved: Bundle?) {
+        if (saved?.containsKey(SAVED_PENDING) == true) {
+            // A null saved value means consumed; do not replay the original launch intent.
+            pending = saved.getString(SAVED_PENDING)?.let { ConversationOpenRequest(it, intent) }
+            if (pending == null) intent.removeExtra(MainActivity.EXTRA_OPEN_CONVERSATION)
+        } else receive(intent)
+    }
+
+    fun save(out: Bundle) = out.putString(SAVED_PENDING, pending?.conversationId)
+
+    fun consumed(request: ConversationOpenRequest) {
+        if (pending !== request) return // A later delivery must survive an older completion.
+        if (request.source.getStringExtra(MainActivity.EXTRA_OPEN_CONVERSATION) == request.conversationId) {
+            request.source.removeExtra(MainActivity.EXTRA_OPEN_CONVERSATION)
+        }
+        pending = null
+    }
+
+    private companion object { const val SAVED_PENDING = "pending_notification_conversation" }
+}
+
 class MainActivity : ComponentActivity() {
     private lateinit var monitor: SystemStatusMonitor
-    private var requestedConversation by mutableStateOf<String?>(null)
+    private val conversationRequests = ConversationOpenRequests()
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         // 用户选过「不再询问」时系统不再弹窗,只能去设置里打开
@@ -73,7 +108,7 @@ class MainActivity : ComponentActivity() {
         monitor.refresh()
     }
 
-    // 安卓 12 及以前套上 App 里选的语言;13 起系统自己套
+    // Also cover a brand default selected before the first Activity is attached.
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguage.wrap(newBase))
     }
@@ -81,7 +116,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        requestedConversation = intent.getStringExtra(EXTRA_OPEN_CONVERSATION)
+        conversationRequests.restore(intent, savedInstanceState)
         monitor = SystemStatusMonitor(this, PhoneServices.of(this).shellControl)
         val store = ProviderStore.get(this)
         setContent {
@@ -91,7 +126,7 @@ class MainActivity : ComponentActivity() {
             MikaTheme(dark = dark, reduceMotion = animationsOff(this)) {
                 // 在输入框外面点一下或拖动就收起键盘,全 App 统一
                 KeyboardDismissArea(Modifier.fillMaxSize()) {
-                    MikaRoot(store, monitor, ::perform, requestedConversation) { requestedConversation = null }
+                    MikaRoot(store, monitor, ::perform, conversationRequests.pending, conversationRequests::consumed)
                 }
             }
         }
@@ -100,7 +135,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        requestedConversation = intent.getStringExtra(EXTRA_OPEN_CONVERSATION)
+        conversationRequests.receive(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        conversationRequests.save(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onStart() {
@@ -206,7 +246,7 @@ internal fun <T> firstThatStarts(candidates: List<T>, start: (T) -> Boolean): Bo
  */
 @Composable
 private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activityFix: (Fix) -> Unit,
-    requestedConversation: String?, onConversationOpened: () -> Unit) {
+    requestedConversation: ConversationOpenRequest?, onConversationOpened: (ConversationOpenRequest) -> Unit) {
     val nav = rememberNavStack()
     // 从设置页「重新配对」进来时先回到配对一步
     var setupRepair by rememberSaveable { mutableStateOf(false) }
@@ -233,11 +273,17 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     val app = context.applicationContext as MikaApp
     // 查到的新版本:侧栏、设置首页、关于页的红点都看它
     val updateState by app.updates.state.collectAsState()
-    LaunchedEffect(requestedConversation) {
+    var conversationOpenRevision by rememberSaveable { mutableIntStateOf(0) }
+    val chatUi by app.chat.ui.collectAsState()
+    LaunchedEffect(requestedConversation, chatUi.composer) {
         if (requestedConversation != null) {
-            app.chat.openConversation(requestedConversation)
+            app.chat.openConversation(requestedConversation.conversationId)
+            // Serial mode can reject a switch while another conversation is busy.
+            // Keep the request until the target is actually selected.
+            if (app.chat.ui.value.conversationId != requestedConversation.conversationId) return@LaunchedEffect
             nav.reset()
-            onConversationOpened()
+            conversationOpenRevision++
+            onConversationOpened(requestedConversation)
         }
     }
     val release = remember { Build.VERSION.RELEASE }
@@ -314,6 +360,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 updateAvailable = AboutCopy.drawerDot(updateState),
                 reopen = nav.reopenDrawer,
                 onReopened = nav::drawerReopened,
+                externalOpenRevision = conversationOpenRevision,
             ) { openDrawer ->
                 ChatScreen(
                     vm = app.chat,

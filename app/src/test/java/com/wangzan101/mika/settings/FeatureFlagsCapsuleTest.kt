@@ -12,6 +12,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FeatureFlagsCapsuleTest {
+    @Test fun userDockPositionSurvivesNewFeatureFlagsInstance() {
+        val prefs = MemoryPrefs()
+        val dock = com.wangzan101.mika.capsule.CapsuleDock(com.wangzan101.mika.capsule.DockSide.Left, 0.25f)
+        FeatureFlags(prefs).setCapsuleDock(dock)
+        assertEquals(dock, FeatureFlags(prefs).capsuleDock())
+    }
+
     @Test fun capsuleDefaultsToAlways() {
         assertEquals(CapsuleMode.Always, FeatureFlags(MemoryPrefs()).capsuleMode())
     }

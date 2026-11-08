@@ -14,6 +14,24 @@
 
 ## 品牌層怎麼運作
 
+Apporo 共用分支的補充：`BrandValues.capsuleDefaultFraction` 讀取可選 `capsule.default.fraction`，`FeatureFlags` 僅在沒有儲存位置時採用它；渥屋未設定，仍為0。`ui/components/Logo.kt` 可依 `brand_monochrome_logo` 使用 App 主題的標誌顏色，渥屋／上游預設false，原圖不變。Apporo 為0.5與true；理由與裝置驗證見 `docs-apporo/EMULATOR-WAVE2-20261108.zh-TW.md`。
+
+Apporo 對齊 woow.4：共用同意通知金額與分類改名修正；`app/src/apporo/AndroidManifest.xml` 為直接安裝 APK 加上相同準時提醒權限分流，`apporo/tools/check.py` 與 `check-apk.py` 核對來源及成品。Apporo 繁中權限錯誤指引也覆蓋為實際「應用程式存取」頁名。版本為 apporo.2；詳細範圍見 `docs-apporo/PARITY-WOOW4-20261108.zh-TW.md`。這不代表 Google Play 權限資格已核准。
+
+Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/EMULATOR-WAVE5-20261108.zh-TW.md`）：
+
+- `ScreenAccessibility.expandedSystemPanel` 與 `core/capsule/SystemPanelPolicy` 偵測預設螢幕的大型 SystemUI 視窗：通常須取得輸入焦點；若 App 自己的輸入浮層仍持有焦點，則另要求沒有應用程式視窗可見，才視為系統面板遮住底下畫面；通知／快速設定展開時暫時收起膠囊，保留未送出草稿、附件與對話，視窗收合後恢復。SystemUI 內容事件使用獨立、合併的訊號；首次讀不到視窗或套件時只有限次延後重讀，服務替換會取消舊讀取，不用空值猜測 SystemUI。可選 MikaPanel 診斷僅記幾何、焦點與固定 owner 類別，不記畫面文字。不同 OEM 若不提供相同視窗資訊仍可能漏判，待實機補驗。
+- 短暫提醒橫幅使用獨立判定：預設螢幕頂部、至少八成寬、高度至少一成但小於半屏的系統視窗，且 root owner 必須驗證為 SystemUI；不要求輸入焦點。wave5 同步證據的橫幅為 (42,0)-(1038,375)，一般狀態列僅高136px（螢幕1080×2400）。沿用有限重試與暫時收起膠囊，避免背景頁面膠囊蓋住橫幅；不放寬已驗證的全屏面板焦點規則，不以固定計時器猜通知顯示時間。其他 OEM 幾何仍需實測。
+- `OverlayHost` 的尺寸回呼延後至排版完成後合併執行，再向 WindowManager 更新視窗，即使位置沒變也重送尺寸；處理空視窗展開後仍沿用零寬高、卡片偏出螢幕的情況。關閉視窗會撤銷待執行回呼。
+- 需要使用者處理的卡片按鈕及回答選項啟用 `MikaButton.wrapLabel`，讓大字體下的「Allow this once」等完整顯示、按鈕高度隨內容增加（最小 48dp），其他按鈕維持原樣。
+- 側欄底部的設定與關於入口改為各自一整列，名稱可換行、列高隨內容增加；避免較長品牌名稱（About Apporo Assistant）在一般縮放下被裁掉。關於頁的版本、Beta、Build 改為可換列排版，避免極大字體把 Beta 擠成直排並藏掉 Build。
+- 同意通知保留不同意，原本的一鍵同意改為「View／檢視」開啟該任務的完整卡片後再決定；系統橫幅在兩倍字體仍可能裁切金額（wave5 的227截圖），不能保證將金額移到最前就完整可見。通知明細、鎖屏隱私、拒絕及 App 內一次性核准維持；檢視按鈕要求解鎖，並以 conversationId 開啟對應任務。外部開啟對話請求會收起原本開著的側欄，讓確認卡直接可見；從設定返回側欄的既有行為不變。
+- `AgentPip` 在等待使用者決定、且字體倍率至少 1.3 或視窗窄於 360dp 時，暫時移除浮動預覽與其觸控區，讓核准／付款／提問卡片本文完整可讀；保留預覽偏好與角落位置，任務繼續後恢復。一般字體與足夠寬的畫面維持原行為。
+- 聊天摘要改為「Activity／執行摘要」＋耗時，不再把合併／過濾後的顯示列數稱為已完成步數；詳細時間軸的步數保持原值。
+- `ui/MarkdownText.kt` 只在表格超出可見寬度時顯示左右滑動提示，避免價格等右側欄位被誤認為缺失；各語言的提示放在 `strings_markdown.xml`。
+- Apporo 的 USB 操作說明補上 App 更新後要重跑目前啟動指令並確認 Ready。舊小幫手仍依原本 `StaleApk` 驗證退出，沒有放寬 APK、簽章、Binder 或口令驗證。
+- Apporo 購物提示要求區分組合數量、規格、列表價與優惠條件；未觀察到的數量須明說未知，不能只憑重複型號推定。這是模型指引，仍須以來源核對回答。
+
 - `app/brand.gradle.kts`＋`app/build.gradle.kts` 結尾：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
 - 品牌值只有一個來源：`app/src/woowtech/resources/brand.properties`，由 `core/.../brand/Brand.kt` 讀取。沒有這個檔時，所有值都退回上游原值。
 - 介面字串：Gradle 設定時，把 `src/main/res`（英文、繁中）裡提到 Mika 或上游 repo 的字串，自動換成品牌名和本 repo，產生到 `app/.gradle/woowtech-brand-res`（不進 git）。`app/src/woowtech/res` 裡人工寫的 key 不會被覆蓋。上游新增或修改字串，下次建置會自動跟上。上游繁中翻譯的錯字和大陸用語（隻、早上好、重啟、運行、獲取、自定義、應用訪問、退出登入……）在 `app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml` 人工覆蓋；瀏覽器寫 Google（跟 `search.url` 一致）、OpenRouter Key 名稱寫 woowtech agent，在 `strings_woowtech.xml`。`BrandStringsTest` 核對每個人工覆蓋的 key 上游還在、佔位符一樣；上游改了原文的意思，同步時要自己看
@@ -99,6 +117,30 @@
 | `NOTICE` | 加 WOOWTECH 段落 | Apache-2.0 §4(d) |
 
 新增的檔案：`core/.../brand/Brand.kt`、`core/src/test/.../brand/BrandValuesTest.kt`、`app/brand.gradle.kts`、`app/src/woowtech/**`（含 `java/.../woowtech/BrandLicenses.kt`、`res/values*/strings_woowtech_licenses.xml`）、`app/src/upstream/java/.../woowtech/BrandLicenses.kt`、`tools/mika/tests/test_woowtech_package.py`、`core/src/test/.../brand/BrandStringsTest.kt`、`app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml`、`app/.../ui/ModelErrorCopy.kt`（＋`ModelErrorCopyTest.kt`）、`app/.../ui/ClipboardCopy.kt`（＋`ClipboardCopyTest.kt`）、`app/src/test/.../task/{ProgressNoteTest,TaskNotificationCopyTest}.kt`、`app/src/test/.../i18n/NotificationTextsTest.kt`、`app/.../task/AlertGroup.kt`（＋`AlertGroupTest.kt`）、`core/.../shell/HelperAppCheck.kt`（＋`HelperAppCheckTest.kt`）、`.github/README.md`（repo 首頁）、`.github/workflows/woowtech.yml`、`docs-woowtech/**`、`woowtech/tools/**`、`app/src/woowtech/AndroidManifest.xml`（woowtech flavor 的清單）、`core/src/test/.../brand/WoowtechManifestTest.kt`、`app/.../task/ChannelNames.kt`（＋`ChannelNamesTest.kt`）、`app/src/test/.../confirm/ConfirmationNotificationCopyTest.kt`。
+
+## Apporo 分支實測後的共用修正
+
+以下仍在 Apporo 草稿分支，不能視為已發佈的 WOOWTECH 功能。裝置結果與限制另見 `docs-apporo/EMULATOR-WAVE5-20261108.zh-TW.md` 與 `EMULATOR-WAVE6-20261108.zh-TW.md`。
+
+- `ChatScreen`、`AgentPip`：重要決策按鈕可換行；大字體或窄視窗等待使用者時暫時隱藏縮圖，恢復時保留原角落。`ChatDrawer` 的設定與關於各用完整一列，`AboutScreen` 的版本／Beta／Build 可換行。
+- `CapsuleController`、`OverlayHost`、`ScreenAccessibility`、`SystemPanelPolicy`：暫避已確認的系統通知欄、快速設定與 heads-up 視窗，保留草稿，版面完成後更新浮層尺寸。Android 尚未暴露 heads-up 視窗時仍可能短暫重疊，未宣稱零遮擋。
+- `ConfirmationNotifier`、`TaskService`：確認通知改為 View／Decline；View 開完整確認卡而不核准，因系統橫幅在大字體下仍可能截斷金額。需要回答／接手的通知也帶所屬對話 ID。
+- `MainActivity`、`ChatDrawer`：外部對話要求收合側欄；要求有獨立身分，只有選到目標對話後才消費。已處理／尚未處理狀態隨 Activity 保存，避免旋轉後重播舊通知，也不讓舊要求的完成回呼清掉新要求。普通設定返回仍保留側欄行為。
+- `ChatCopy`、`Markdown`、手機設定字串：摘要使用 Activity／時間，不把篩選後的列數叫完成步數；寬表格顯示橫向捲動提示；USB 小幫手在 APK 更新後需重新執行新版啟動腳本的說明保持明確。
+- `PhoneSetupScreen`：長操作按鈕可換行；步驟圓圈依文字行高與系統字級縮放增加尺寸，分隔線同步對齊，預設維持 28dp。
+- `ModelsScreen`、`ModelSetupScreen`、`Controls`：服務商的模型名稱可換行，主／看圖／輕量角色徽章另列；只有該模型列啟用能力標籤換行，避免三個角色擠到名稱只剩 `appo…`，角色選單也啟用完整標籤換行，避免極大字體隱藏「尚未確認」；其他標籤呼叫處保留原樣。語音設定的狀態與能力標籤移到說明下方，避免擠壓左側說明。自訂服務商的 API type／URL 改為標籤在上、值在下，避免極大字體把標籤擠掉或地址硬裁切。
+- `McpServerStore`、`McpClient`：工具描述附使用者設定的伺服器名稱與固定傳輸類型，名稱限長並以 JSON 引用，避免多台同名工具無法辨識；不附連線網址、命令或憑證，工具 ID、路由、信任及允許清單保持不變。`McpServersScreen` 的 stdio 命令清單只預覽兩行，完整內容仍在編輯框。
+- `ReadScriptRunner`：讀取腳本要求換頁時，停止載入改在不可取消且有逾時的收尾中等待，再停止腳本；避免子工作還未執行就被 `cancelChildren` 取消。保留原本換頁阻擋測試，另測停止載入等待期間取消任務仍完成安全收尾。
+- `CdpSession`：連線關閉時先發布原因及 `closed=true`，再喚醒等待中的失敗呼叫，避免呼叫已收到關閉例外、觀察狀態卻仍顯示未關閉；測試關閉觀察者同步重入 close／send 的行為。
+- `McpServersScreen`、`McpEditorFeedback`：表單將儲存層的十種固定驗證錯誤映射到語系資源，未知後端診斷保留原文；編輯欄位或切換傳輸會清掉舊訊息，非同步測試／授權結果只可回寫到同一版欄位。驗證與主機限制不變，測試涵蓋非法設定仍被拒絕、有效設定仍可接受，以及舊結果不可覆蓋新欄位。
+- `McpServersScreen`、`NetProxySettings`：對話框內文可垂直捲動，讓極大字體下的欄位與選項仍可抵達；儲存／取消留在既有操作區。MCP 編輯欄位的長標籤固定放在框上方並保留欄位的無障礙名稱，避免聚焦時浮動標籤與前一列重疊；token 遮罩與單行編輯不變。`SegmentedControl` 新增預設關閉的標籤換行選項，由 MCP 伺服器與連接電腦的選擇列啟用，避免 Local process、USB 建議及 Wi-Fi / VPN 被裁切；`McpScreen` 的指引複製按鈕也啟用既有完整標籤模式。
+- `SettingsSubPages` 的通知設定：通知總開關與三個分類的狀態改列在說明下方，避免極大字體的右側狀態把左文擠成每行一字；分類狀態仍由系統讀取，設定跳轉與警告圖示不變。
+- `ModelsScreen.ManualModel`、`InputRow`：手填模型名稱使用可選的縱向排版，標題、整行輸入框及操作分開，提示可換行並放在輸入框的 decorationBox 內；一般輸入列不變。單行編輯、空白／執行中禁用及使用前 trim 保留。共用於角色模型選單與語音模型設定。新增服務商的 API type 標題與選項也分行；只有此處的 `SelectChip` 啟用換行與自適應高度，類型選擇 callback 不變。
+- `.github/scripts/bootstrap-gradle.py`、三個 CI workflow、wrapper 設定：Gradle 8.11.1 發佈網頁下載反覆 504 時，CI 使用同一官方 GitHub asset API 取得 ZIP，核對大小與官方 SHA-256 後原子放入既有 wrapper 快取；已由 wrapper 安裝的 Actions 快取沿用原有信任模式。下載有限次重試與總逾時，不輸出臨時簽名網址；原測試／建置命令不變。本機 wrapper 下載逾時改為60秒並釘選同一 SHA。升級 Gradle 時必須一起更新版本、asset ID、大小、checksum 與 cache 測試。
+
+- `.github/scripts/prepare-compiler-repository.py`／`verified-compiler.init.gradle`：CI 以有總逾時的官方 JetBrains asset API 下載固定 Kotlin 2.1.20 compiler JAR，並下載原樣 Maven POM；大小、官方 SHA-256 與 JAR SHA-1 驗證後才發布 runner 私有暫存 repository。每個 Gradle 命令顯式指定 init script，重驗摘要、CI／版本／路徑，透過 settings `exclusiveContent/includeVersion` 僅導向這一個座標；六項 transitive dependencies 保留原 POM 與原 repositories。沒有 binary metadata 偽造、全域 init.d、產品 settings 修改或測試省略。舊 candidate seed 雖下載成功，Gradle 仍因遠端 HEAD 504 失敗，因此已替換；其失敗證據保留。其他依賴故障不自動擴大此 repo。
+
+`41567bf5` 起 CI 會編譯 upstream instrumentation；新增的通知 Intent／等待任務測試已隨 CI `42450063615` 編譯通過，但尚未執行這組裝置測試，不把編譯成功當成執行通過。
 
 ## 刻意不改的
 

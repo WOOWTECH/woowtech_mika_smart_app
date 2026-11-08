@@ -21,7 +21,7 @@ VERSION = "0.1.0"
 API = "/api/v1"
 # WOOWTECH fork: the WOOWTECH build (渥屋助理 / woowtech agent) installs as io.woowtech.agent, upstream Mika as
 # com.wangzan101.mika. ADB uses the first one installed on the phone; MIKA_ANDROID_PACKAGE picks one explicitly.
-PACKAGES = {"io.woowtech.agent": "woowtech agent", "com.wangzan101.mika": "Mika"}
+PACKAGES = {"io.woowtech.agent": "woowtech agent", "com.wangzan101.mika": "Mika", "com.apporo.assistant": "Apporo Assistant"}
 UPSTREAM_PACKAGE = "com.wangzan101.mika"
 INFO_FILE = "mcp-usb.json"
 CONNECT_SCRIPT = "connect-computer.sh"
@@ -36,7 +36,7 @@ RETRY_HINT = "Unlock the phone, open Mika once, then retry connect."
 # build's name: this copy of the CLI ships with that build.
 WOOWTECH_NAME = PACKAGES["io.woowtech.agent"]
 WOOWTECH_VERSION = re.compile(r"-woow\.\d+")
-APP = {"name": WOOWTECH_NAME, "package": None}
+APP = {"name": PACKAGES.get(os.environ.get("MIKA_ANDROID_PACKAGE"), WOOWTECH_NAME), "package": None}
 
 
 def phone_file(package, name):
@@ -53,7 +53,8 @@ def identify(info):
     # already named it.
     version = info.get("server_version")
     if APP["package"] not in PACKAGES and isinstance(version, str):
-        APP["name"] = WOOWTECH_NAME if WOOWTECH_VERSION.search(version) else "Mika"
+        APP["name"] = ("Apporo Assistant" if re.search(r"-apporo\.\d+", version)
+                       else WOOWTECH_NAME if WOOWTECH_VERSION.search(version) else "Mika")
 
 
 class CliError(Exception):
@@ -482,7 +483,7 @@ def parser():
     common.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Compact JSON output, including errors")
     common.add_argument("--request-timeout", type=request_timeout, default=argparse.SUPPRESS, help="HTTP timeout in seconds (default: 15; bounded waits get at least timeout + 5)")
     # WOOWTECH fork: the help names the build this copy ships with (upstream Mika phones work the same)
-    p = Parser(prog="mika", description="Delegate tasks to woowtech agent (WOOWTECH's build of Mika) on Android using task API v1.",
+    p = Parser(prog="mika", description=f"Delegate tasks to {APP['name']} on Android using task API v1. Supports Apporo Assistant, woowtech agent and Mika.",
                parents=[common])
     p.add_argument("--version", action="version", version="mika " + VERSION)
     sub = p.add_subparsers(dest="command", required=True)
