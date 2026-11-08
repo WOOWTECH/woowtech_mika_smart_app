@@ -18,7 +18,7 @@ Apporo 共用分支的補充：`BrandValues.capsuleDefaultFraction` 讀取可選
 
 Apporo 對齊 woow.4：共用同意通知金額與分類改名修正；`app/src/apporo/AndroidManifest.xml` 為直接安裝 APK 加上相同準時提醒權限分流，`apporo/tools/check.py` 與 `check-apk.py` 核對來源及成品。Apporo 繁中權限錯誤指引也覆蓋為實際「應用程式存取」頁名。版本為 apporo.2；詳細範圍見 `docs-apporo/PARITY-WOOW4-20261108.zh-TW.md`。這不代表 Google Play 權限資格已核准。
 
-Apporo 實測後的共用介面補強：聊天摘要改為「Activity／執行摘要」＋耗時，不再把合併／過濾後的顯示列數稱為已完成步數；詳細時間軸的步數保持原值。`ui/MarkdownText.kt` 只在表格超出可見寬度時顯示左右滑動提示，避免價格等右側欄位被誤認為缺失；各語言的提示放在 `strings_markdown.xml`。Apporo 的 USB 操作說明補上 App 更新後要重跑目前啟動指令並確認 Ready。舊小幫手仍依原本 `StaleApk` 驗證退出，沒有放寬 APK、簽章、Binder 或口令驗證。
+Apporo 實測後的共用介面補強：需要使用者處理的卡片按鈕及回答選項啟用 `MikaButton.wrapLabel`，讓大字體下的「Allow this once」等完整顯示、按鈕高度隨內容增加（最小 48dp），其他按鈕維持原樣。聊天摘要改為「Activity／執行摘要」＋耗時，不再把合併／過濾後的顯示列數稱為已完成步數；詳細時間軸的步數保持原值。`ui/MarkdownText.kt` 只在表格超出可見寬度時顯示左右滑動提示，避免價格等右側欄位被誤認為缺失；各語言的提示放在 `strings_markdown.xml`。Apporo 的 USB 操作說明補上 App 更新後要重跑目前啟動指令並確認 Ready。舊小幫手仍依原本 `StaleApk` 驗證退出，沒有放寬 APK、簽章、Binder 或口令驗證。
 
 - `app/brand.gradle.kts`＋`app/build.gradle.kts` 結尾：flavor 維度 `brand`。`upstream` 就是上游原樣，上游的單元測試、金樣測試、儀器測試都跑在它上面；`woowtech` 是發行用的版本（`assembleWoowtechRelease`）。
 - 品牌值只有一個來源：`app/src/woowtech/resources/brand.properties`，由 `core/.../brand/Brand.kt` 讀取。沒有這個檔時，所有值都退回上游原值。

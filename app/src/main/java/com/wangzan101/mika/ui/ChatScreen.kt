@@ -972,7 +972,7 @@ private fun StatusCard(
                 // 和接管卡一样放在最下面一行小字,不和选项混在一起
                 footer = if (options.isEmpty()) null else ({ TextLink(cancel, vm::cancel) }),
                 options = if (options.isEmpty()) null else ({
-                    options.forEach { o -> MikaButton(o, { vm.answer(o) }, Modifier.fillMaxWidth(), kind = ButtonKind.Tonal, size = ButtonSize.Medium) }
+                    options.forEach { o -> MikaButton(o, { vm.answer(o) }, Modifier.fillMaxWidth(), kind = ButtonKind.Tonal, size = ButtonSize.Medium, wrapLabel = true) }
                 }),
                 buttons = if (options.isEmpty()) ({ CardButton(cancel, onClick = vm::cancel) }) else null,
             )
@@ -1087,6 +1087,7 @@ private fun RowScope.CardButton(text: String, primary: Boolean = false, onClick:
     MikaButton(
         text, onClick, Modifier.weight(1f),
         kind = if (primary) ButtonKind.Primary else ButtonKind.Tonal, size = ButtonSize.Medium,
+        wrapLabel = true,
     )
 }
 

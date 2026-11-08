@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -129,7 +130,7 @@ enum class ButtonSize(val height: Dp, val shape: RoundedCornerShape, val text: T
     Small(32.dp, RoundedCornerShape(16.dp), TextStyle(fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold), 14.dp),
 }
 
-/** 按钮。宽度由 [modifier] 定(铺满、按权重分或包住文字)。 */
+/** 按钮。宽度由 [modifier] 定。重要操作可用 [wrapLabel] 保留完整文字，并让高度随大字体增长。 */
 @Composable
 fun MikaButton(
     text: String,
@@ -138,6 +139,7 @@ fun MikaButton(
     kind: ButtonKind = ButtonKind.Primary,
     size: ButtonSize = ButtonSize.Large,
     enabled: Boolean = true,
+    wrapLabel: Boolean = false,
 ) {
     val c = MikaTheme.colors
     val shape = size.shape
@@ -153,11 +155,13 @@ fun MikaButton(
             .clip(shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else 0.45f)
-            .height(size.height)
-            .padding(horizontal = size.padding),
+            .then(if (wrapLabel) Modifier.heightIn(min = size.height.coerceAtLeast(48.dp)) else Modifier.height(size.height))
+            .padding(horizontal = size.padding, vertical = if (wrapLabel) 10.dp else 0.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = size.text, color = fg, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = size.text, color = fg, textAlign = TextAlign.Center,
+            maxLines = if (wrapLabel) Int.MAX_VALUE else 1,
+            overflow = if (wrapLabel) TextOverflow.Clip else TextOverflow.Ellipsis)
     }
 }
 
