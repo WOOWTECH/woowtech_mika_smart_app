@@ -470,6 +470,28 @@ class ChatViewModelTest {
         assertEquals("wait times", ChatViewModel.where("wait times") { it })
     }
 
+    @Test fun decisionDetailsAreNotCoveredAtTheObservedLargeFontAndNarrowWidths() {
+        val waiting = PipUi(visible = true, mode = PipMode.NeedsYou)
+        assertTrue(waiting.needsUnobstructedCard(2f, 320f))
+        assertTrue(waiting.needsUnobstructedCard(1.5f, 360f))
+        assertTrue(waiting.needsUnobstructedCard(1f, 320f))
+        assertTrue(waiting.needsUnobstructedCard(1.3f, 411f))
+        assertFalse(waiting.needsUnobstructedCard(1f, 411f))
+        assertFalse(waiting.needsUnobstructedCard(1.29f, 360f))
+    }
+
+    @Test fun readabilitySuppressionDoesNotClosePreviewOrPersistIntoRunningAndDone() {
+        for (closed in listOf(false, true)) {
+            val waiting = PipUi(visible = true, mode = PipMode.NeedsYou, expanded = false, closed = closed)
+            assertTrue(waiting.needsUnobstructedCard(2f, 320f))
+            val resumed = waiting.copy(mode = PipMode.Running)
+            assertFalse(resumed.needsUnobstructedCard(2f, 320f))
+            assertEquals(closed, resumed.closed)
+            assertTrue(resumed.visible)
+            assertFalse(waiting.copy(mode = PipMode.Done).needsUnobstructedCard(2f, 320f))
+        }
+    }
+
     @Test fun livePreviewVisibleOnlyWhileRunning() = runTest {
         val screen = MutableStateFlow(false)
         val vm = ChatViewModel(backgroundScope, state, stage, actions, ConversationStore(tmp.newFolder()), screenOpen = screen).also { runCurrent() }

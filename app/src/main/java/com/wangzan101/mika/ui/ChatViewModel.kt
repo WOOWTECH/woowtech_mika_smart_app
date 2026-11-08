@@ -257,7 +257,13 @@ data class PipUi(
     val mode: PipMode = PipMode.Running,
     val expanded: Boolean = false,
     val closed: Boolean = false,
-)
+) {
+    /** Keep decision details unobstructed on enlarged text or compact-width screens.
+     * This is temporary layout suppression, not a change to the user's preview preference.
+     */
+    fun needsUnobstructedCard(fontScale: Float, widthDp: Float): Boolean =
+        mode == PipMode.NeedsYou && (fontScale >= 1.3f || widthDp < 360f)
+}
 
 enum class ComposerMode {
     /** 没有任务,发出去就是新任务。 */
