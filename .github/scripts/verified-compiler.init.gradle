@@ -19,7 +19,9 @@ if (!repo.toPath().startsWith(runnerTemp.toPath()) || repo == runnerTemp || !rep
     throw new GradleException('Verified compiler repository must be private under RUNNER_TEMP')
 }
 def moduleDir = new File(repo, 'org/jetbrains/kotlin/kotlin-compiler-embeddable/2.1.20')
-def verify = { String name, long size, String expected ->
+// Box the size: Gradle's instrumented Groovy closure must not use a two-slot
+// primitive argument between reference arguments (JVM VerifyError in CI).
+def verify = { String name, Long size, String expected ->
     def file = new File(moduleDir, name)
     if (!file.isFile() || file.length() != size || !file.canonicalFile.toPath().startsWith(repo.toPath())) {
         throw new GradleException('Verified compiler repository file missing or invalid')
