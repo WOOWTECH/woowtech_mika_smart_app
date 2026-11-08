@@ -26,7 +26,7 @@ object SystemPanelPolicy {
     fun panelHasFocus(systemFocused: Boolean, ownOverlayFocused: Boolean, applicationVisible: Boolean): Boolean =
         systemFocused || (ownOverlayFocused && !applicationVisible)
 
-    /** Only windows already passing type, input-focus and geometry checks enter this tracker. */
+    /** Only windows passing the panel or heads-up geometry policy enter this owner tracker. */
     data class Candidate(val id: Int, val ownerPackage: String?)
 
     /** One reader, one conflated pending event, and at most two retries per event batch.
@@ -64,6 +64,22 @@ object SystemPanelPolicy {
             }
             return confirmedIds.isNotEmpty()
         }
+    }
+
+    /** Conservative heads-up geometry from the default-display accessibility touchable region.
+     * Heads-up notifications need not take focus from the application underneath.
+     * Ownership must still be verified by Tracker; full-screen shade uses isPanelWindow.
+     */
+    fun isHeadsUpWindow(
+        systemWindow: Boolean,
+        left: Int, top: Int, right: Int, bottom: Int,
+        displayWidth: Int, displayHeight: Int,
+    ): Boolean {
+        if (!systemWindow || displayWidth <= 0 || displayHeight <= 0 || top > 0) return false
+        val width = (minOf(right, displayWidth).toLong() - maxOf(left, 0)).coerceAtLeast(0)
+        val height = (minOf(bottom, displayHeight).toLong() - maxOf(top, 0)).coerceAtLeast(0)
+        return width * 5 >= displayWidth.toLong() * 4 &&
+            height * 10 >= displayHeight && height * 2 < displayHeight
     }
 
     fun isPanelWindow(

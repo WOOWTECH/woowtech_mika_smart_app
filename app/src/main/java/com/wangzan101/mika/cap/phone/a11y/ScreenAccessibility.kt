@@ -231,12 +231,20 @@ open class ScreenAccessibility : AccessibilityService() {
             visibleWindows.mapNotNull { window ->
                 val bounds = Rect().also(window::getBoundsInScreen)
                 if (diagnostic) Log.d(PANEL_DIAGNOSTIC_TAG, "id=${window.id} type=${window.type} focused=${window.isFocused} bounds=${bounds.toShortString()}")
-                if (!SystemPanelPolicy.isPanelWindow(
+                val expanded = SystemPanelPolicy.isPanelWindow(
                     window.type == AccessibilityWindowInfo.TYPE_SYSTEM,
                     SystemPanelPolicy.panelHasFocus(window.isFocused, ownOverlayFocused, applicationVisible),
                     bounds.left, bounds.top, bounds.right, bounds.bottom,
                     area.width, area.height,
-                )) return@mapNotNull null
+                )
+                // Heads-up notifications expose a separate compact top region and do not
+                // take focus from the app. Keep the expanded-panel focus checks unchanged.
+                val headsUp = SystemPanelPolicy.isHeadsUpWindow(
+                    window.type == AccessibilityWindowInfo.TYPE_SYSTEM,
+                    bounds.left, bounds.top, bounds.right, bounds.bottom,
+                    area.width, area.height,
+                )
+                if (!expanded && !headsUp) return@mapNotNull null
                 val owner = runCatching {
                     val root = window.root
                     try {

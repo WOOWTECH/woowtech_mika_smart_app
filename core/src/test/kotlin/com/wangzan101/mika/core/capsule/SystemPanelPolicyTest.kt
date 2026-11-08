@@ -13,6 +13,55 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SystemPanelPolicyTest {
+    private fun headsUp(
+        system: Boolean = true,
+        left: Int = 42, top: Int = 0, right: Int = 1038, bottom: Int = 375,
+        width: Int = 1080, height: Int = 2400,
+    ) = SystemPanelPolicy.isHeadsUpWindow(system, left, top, right, bottom, width, height)
+
+    @Test fun observedHeadsUpRegionQualifiesWithoutSystemFocus() {
+        // capsule-sync/21: id1177, TYPE_SYSTEM, focused=false, Home remains focused.
+        assertTrue(headsUp())
+        assertFalse(SystemPanelPolicy.isPanelWindow(true, false, 42, 0, 1038, 375, 1080, 2400))
+        assertTrue(SystemPanelPolicy.Tracker().update(listOf(SystemPanelPolicy.Candidate(1177, "com.android.systemui"))))
+    }
+
+    @Test fun headsUpExcludesStatusNavigationImeVolumeAndFullScreenWindows() {
+        assertFalse(headsUp(left = 0, right = 1080, bottom = 136)) // actual statusbar id1180
+        assertFalse(headsUp(left = 0, top = 2337, right = 1080, bottom = 2400)) // navigation
+        assertFalse(headsUp(system = false)) // even matching IME/app/overlay geometry
+        assertFalse(headsUp(system = false, top = 1600, bottom = 2400)) // keyboard
+        assertFalse(headsUp(left = 800, right = 1080, bottom = 900)) // narrow volume panel
+        assertFalse(headsUp(top = 1)) // floating/off-top dialog
+        assertFalse(headsUp(left = 0, right = 1080, bottom = 2400)) // persistent full shade
+    }
+
+    @Test fun headsUpThresholdsUseClippedDisplayPixelsWithExplicitBoundaries() {
+        assertTrue(headsUp(left = 0, right = 864, bottom = 240))
+        assertFalse(headsUp(left = 0, right = 863, bottom = 240))
+        assertFalse(headsUp(bottom = 239))
+        assertTrue(headsUp(bottom = 1199))
+        assertFalse(headsUp(bottom = 1200))
+        assertFalse(headsUp(left = -2000, right = 100))
+        assertFalse(headsUp(top = -1000, bottom = -1))
+        assertFalse(headsUp(width = 0))
+        assertFalse(headsUp(height = -1))
+        assertTrue(headsUp(left = 84, right = 2076, bottom = 750, width = 2160, height = 4800))
+    }
+
+    @Test fun headsUpGeometryDoesNotAuthorizeUnknownOrUnrelatedOwnersAndDismissalClears() {
+        val tracker = SystemPanelPolicy.Tracker()
+        fun observe(owner: String?, bottom: Int = 375): Boolean = tracker.update(
+            if (headsUp(bottom = bottom)) listOf(SystemPanelPolicy.Candidate(1177, owner)) else emptyList(),
+        )
+        assertFalse(observe(null))
+        assertFalse(observe("com.example.other"))
+        assertTrue(observe("com.android.systemui"))
+        assertTrue(observe(null)) // same confirmed heads-up, transient root failure
+        assertFalse(observe("com.android.systemui", bottom = 136)) // retracts to statusbar
+        assertFalse(observe(null)) // no stale ownership after retraction
+    }
+
     @Test fun focusedOverlayOwnershipRemainsUnknownUntilConfirmedOrAnAppReturns() {
         val own = "com.apporo.assistant"
         assertEquals(null, SystemPanelPolicy.ownOverlayFocus(false, listOf(null), own))
