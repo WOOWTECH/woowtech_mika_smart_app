@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -283,14 +284,13 @@ fun ChatDrawer(
             }
             item("end") { Box(Modifier.height(12.dp)) }
         }
-        // 设置和关于并排固定在侧栏最底下,对话再多也不被挤走:设置靠左,关于靠右,中间留空
-        Row(
+        // Keep both destinations fixed at the bottom, with a full row for long brand names.
+        Column(
             Modifier.fillMaxWidth().drawBehind { drawLine(c.hair, Offset(0f, 0f), Offset(size.width, 0f), 0.5.dp.toPx()) }
                 .padding(horizontal = 12.dp, vertical = 6.dp).testTag("drawer-footer"),
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), Modifier, onClick = onSettings)
-            NavEntry(MikaIcons.Info, AboutCopy.TITLE, Modifier, dot = aboutDot, onClick = onAbout)
+            NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), wrapLabel = true, onClick = onSettings)
+            NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, dot = aboutDot, onClick = onAbout)
         }
     }
 }
@@ -298,20 +298,22 @@ fun ChatDrawer(
 @Composable
 private fun NavEntry(
     icon: ImageVector, text: String, modifier: Modifier = Modifier.fillMaxWidth(),
-    enabled: Boolean = true, dot: Boolean = false, onClick: () -> Unit,
+    enabled: Boolean = true, dot: Boolean = false, wrapLabel: Boolean = false, onClick: () -> Unit,
 ) {
     val c = MikaTheme.colors
     Row(
-        modifier.height(46.dp).clip(NavShape)
+        modifier.then(if (wrapLabel) Modifier.heightIn(min = 48.dp) else Modifier.height(46.dp)).clip(NavShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else 0.4f)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = if (wrapLabel) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Icon(icon, null, Modifier.size(MikaSize.Icon), tint = c.ink2)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(text, style = MikaType.Body, color = c.ink, maxLines = 1, softWrap = false)
+        Row(Modifier.then(if (wrapLabel) Modifier.weight(1f) else Modifier),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(text, modifier = if (wrapLabel) Modifier.weight(1f) else Modifier,
+                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel)
             if (dot) UpdateDot()
         }
     }
