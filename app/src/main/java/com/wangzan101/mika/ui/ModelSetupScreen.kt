@@ -377,14 +377,13 @@ private fun AddProviderForm(ui: ModelSetupUi, actions: ModelSetupActions) {
     }
     GroupCard {
         if (f.isCustom) {
-            Row(
+            Column(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(ModelSetupCopy.KIND, Modifier.padding(end = 12.dp), style = MikaType.Body, color = c.ink)
+                Text(ModelSetupCopy.KIND, Modifier.padding(bottom = 8.dp), style = MikaType.Body, color = c.ink)
                 // 四种接口一行放不下时折到下一行
-                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ProviderConfig.Kind.withApiKey.forEach { k -> SelectChip(ModelsCopy.kindLabel(k), f.kind == k, { actions.setKind(k) }, small = true) }
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ProviderConfig.Kind.withApiKey.forEach { k -> SelectChip(ModelsCopy.kindLabel(k), f.kind == k, { actions.setKind(k) }, small = true, wrapLabel = true) }
                 }
             }
         }

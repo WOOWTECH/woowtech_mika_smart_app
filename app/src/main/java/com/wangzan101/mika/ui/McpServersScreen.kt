@@ -22,6 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.R
@@ -177,7 +180,7 @@ private fun McpServerDialog(
         title = { Text(stringResource(if (initial == null) R.string.mcp_servers_add else R.string.mcp_servers_edit)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(name, { feedback.edited(); name = it }, label = { Text(stringResource(R.string.mcp_servers_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                McpEditorField(name, { feedback.edited(); name = it }, stringResource(R.string.mcp_servers_name))
                 SegmentedControl(
                     options = transportLabels,
                     selected = transportIds.indexOf(transport).coerceAtLeast(0),
@@ -186,29 +189,15 @@ private fun McpServerDialog(
                     wrapLabels = true,
                 )
                 if (transport == "stdio") {
-                    OutlinedTextField(
-                        command, { feedback.edited(); command = it },
-                        label = { Text(stringResource(R.string.mcp_servers_command)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    )
+                    McpEditorField(command, { feedback.edited(); command = it }, stringResource(R.string.mcp_servers_command))
                     Text(stringResource(R.string.mcp_servers_stdio_help), Modifier.padding(top = 4.dp))
                 } else {
-                    OutlinedTextField(url, { feedback.edited(); url = it }, label = { Text(stringResource(R.string.mcp_servers_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                    McpEditorField(url, { feedback.edited(); url = it }, stringResource(R.string.mcp_servers_url))
                     if (!oauth) {
-                        OutlinedTextField(
-                            token, { feedback.edited(); token = it }, label = { Text(stringResource(R.string.mcp_servers_token)) },
-                            singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        )
+                        McpEditorField(token, { feedback.edited(); token = it }, stringResource(R.string.mcp_servers_token), secret = true)
                     }
                 }
-                OutlinedTextField(
-                    allowlist, { feedback.edited(); allowlist = it },
-                    label = { Text(stringResource(R.string.mcp_servers_allowlist)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
+                McpEditorField(allowlist, { feedback.edited(); allowlist = it }, stringResource(R.string.mcp_servers_allowlist))
                 if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_use_oauth), oauth) { feedback.edited(); oauth = it }
                 if (oauth && transport != "stdio") {
                     TextButton({
@@ -272,5 +261,19 @@ private fun ToggleRow(title: String, checked: Boolean, onChecked: (Boolean) -> U
     androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Checkbox(checked, onCheckedChange = onChecked)
         Text(title, Modifier.padding(start = 4.dp))
+    }
+}
+
+/** Keep long localized labels outside the outline so focus cannot move them over adjacent controls. */
+@Composable
+private fun McpEditorField(value: String, onChange: (String) -> Unit, label: String, secret: Boolean = false) {
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(label, Modifier.padding(bottom = 4.dp))
+        OutlinedTextField(
+            value, onChange,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+            singleLine = true,
+            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+        )
     }
 }
