@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Match woow.4 reminder timing for the directly distributed Apporo APK.
+     Android 13+ uses USE_EXACT_ALARM; Android 12/12L retain SCHEDULE_EXACT_ALARM.
+     Before a Google Play release, review that store's exact-alarm eligibility;
+     this test/distribution manifest is not evidence of Play approval. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+</manifest>

@@ -24,6 +24,14 @@ for p in RES.rglob('*.xml'):
             assert sorted(placeholder.findall(body)) == sorted(placeholder.findall(upstream[key])), (p, key, 'format mismatch')
         assert not re.search(r'渥屋|woowtech agent|io\.woowtech\.agent|6183[Ff][Cc]', body), (p, key, 'brand leak')
 props = (ROOT / 'app/src/apporo/resources/brand.properties').read_text()
+android = '{http://schemas.android.com/apk/res/android}'
+permissions = {e.attrib[android + 'name']: e.attrib.get(android + 'maxSdkVersion')
+               for e in ET.parse(ROOT / 'app/src/apporo/AndroidManifest.xml').getroot()
+               if e.tag == 'uses-permission'}
+assert permissions == {
+    'android.permission.USE_EXACT_ALARM': None,
+    'android.permission.SCHEDULE_EXACT_ALARM': '32',
+}, 'Apporo exact-alarm permissions must match the woow.4 direct APK'
 assert 'releases.api=https://api.github.com/repos/WOOWTECH/apporo-assistant-releases/' in props
 assert 'ui.default.language=en' in props
 assert 'name.zh=Apporo Assistant' in props
