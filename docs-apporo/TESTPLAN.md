@@ -2,6 +2,8 @@
 
 This matrix is for the Apporo package, not evidence copied from the WOOWTECH build. A check is only PASS when its own artifact or observation is recorded.
 
+The [cloud startup checks](../apporo/tools/startup-smoke.md) use fresh AOSP x86_64 images on API 30/32/35/36. Their scope is installation, the English welcome screen, force-stop/relaunch and startup crash/ANR detection. Each run must retain its own screenshots and receipt; this does not replace the arm64 assistant tasks, permission flows or sandbox acceptance below.
+
 | Area | Check | Evidence / expected result |
 | --- | --- | --- |
 | Source | XML and string arguments | `python3 apporo/tools/check.py`; no unknown keys, placeholder mismatches or product-name leaks |
@@ -29,7 +31,7 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Files | Compute and export | Calculate known values, export to Apporo Assistant Downloads folder, reopen file |
 | Memory | Learn and remove | Confirm a harmless preference, observe reuse, remove it |
 | Schedule | Permissions | On Android 13+ direct APK, verify USE_EXACT_ALARM on fresh install and upgrade; test denial/regrant of SCHEDULE_EXACT_ALARM on Android 12/12L separately. Report due and delivery times |
-| Notify | Background approval | Existing result notification remains; approval banner appears and is actionable |
+| Notify | Background approval | Existing result notification remains; approval banner appears. View opens the corresponding task without approval, including when another conversation is shown; full-card approval remains explicit. Decline is available directly. Check enlarged fonts and lockscreen authentication |
 | Notify | Reminder | Capture event log and screen recording; device audio still needs physical testing |
 | Gate | Decline | Local fixture only; decline produces zero final submissions and correct step label |
 | Gate | Approve once | Local fixture only; one approval results in exactly one final submission |
@@ -40,7 +42,7 @@ This matrix is for the Apporo package, not evidence copied from the WOOWTECH bui
 | Update | Signed upgrade | Same test certificate: preserve data during Apporo-to-Apporo upgrade; distinguish USB helper recovery from data retention. Official update-channel acceptance remains separate |
 | Cleanup | Test environment | Stop fake shop, remove forwards, restore IME, remove test data, confirm host state |
 
-Device acceptance is in progress; see [wave4 results](EMULATOR-WAVE4-20261108.zh-TW.md) and [baseline alignment](PARITY-WOOW4-20261108.zh-TW.md). Actual Assistant tasks for aiot, smart, momo Android and PChome desktop passed within the documented visibility limits. Platform and Shopee product access remain blocked; complete UI and accessibility coverage is still being expanded. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. The user authorized reusing existing WOOWTECH test data and environments. Use the established demo services below; do not operate production equipment as a test fixture.
+Recorded device acceptance and remaining limits: see [wave6 results](EMULATOR-WAVE6-20261108.zh-TW.md), [wave5 results](EMULATOR-WAVE5-20261108.zh-TW.md), [wave4 results](EMULATOR-WAVE4-20261108.zh-TW.md) and [baseline alignment](PARITY-WOOW4-20261108.zh-TW.md). The [remaining matrix](WAVE6-REMAINING-PLAN.zh-TW.md) separates English/Traditional Chinese and light/dark screen states, outbound MCP, voice entry and form validation; it is a plan, not a passing test report. Actual Assistant tasks for aiot, smart, momo Android and PChome desktop passed within the documented visibility limits. Platform and Shopee product access remain blocked. Screen-state coverage and targeted larger-font regressions are recorded separately from complete functional, physical-device and other-version acceptance. Do not infer results from the source contract checks. Use screenshots and dumpsys during agent tasks; uiautomator dumps can interrupt the accessibility service. The user authorized reusing existing WOOWTECH test data and environments. Use the established demo services below; do not operate production equipment as a test fixture.
 
 The [second emulator wave](EMULATOR-WAVE2-20261108.zh-TW.md) covers all three installed Apporo products' connection entry points, the initial capsule position, English UI inspection and the background approval banner. The [service reuse checks](SERVICE-REUSE-20261108.zh-TW.md) establish usable aiot and smart demo backends; these API results do not establish Android UI or Assistant task acceptance. Use MAIN + LAUNCHER when starting the aiot activity on Android 16, and explicitly use `adb shell input -d 0` for the main display. Fill credentials by verified password-field identity, never by coordinates retained across keyboard/layout changes; do not dump an unverified form containing secrets.
 

@@ -6,6 +6,10 @@ An English-first Android assistant for your spaces, your work and your next step
 - [Connect a computer](agent-quickstart.en.md)
 - [MCP setup](mcp.en.md)
 - [WOOWTECH woow.4 alignment](PARITY-WOOW4-20261108.zh-TW.md)
+- [Emulator wave5: accessibility, system panels, shopping quantities and remote control](EMULATOR-WAVE5-20261108.zh-TW.md)
+- [Emulator wave6: remaining screens and notification regression](EMULATOR-WAVE6-20261108.zh-TW.md) (recorded scope and remaining limits)
+- [Remaining emulator acceptance matrix](WAVE6-REMAINING-PLAN.zh-TW.md) (plan, not test results)
+- [Cloud Android startup checks](../apporo/tools/startup-smoke.md) (API 30/32/35/36, startup scope only)
 - [Emulator wave4: upgrade, notifications, shopping and product integrations](EMULATOR-WAVE4-20261108.zh-TW.md)
 
 Build: `./gradlew :app:assembleApporoDebug :app:assembleApporoRelease`.
@@ -15,6 +19,6 @@ The Apporo aiot, platform and smart examples require those apps, their configure
 
 Source licensing remains Apache-2.0 with upstream attribution. Bundled components retain their own licenses; distribute corresponding GPL sources with a release. The reserved Apporo update channel has not been provisioned yet.
 
-Product decisions confirmed by the owner on 2026-11-08: serve both space/workplace management and everyday tasks; share the engine with an independently installed brand; default to English with optional Traditional Chinese; name Apporo Assistant, package `com.apporo.assistant`. Four emulator rounds distinguish Assistant tasks from manual product checks. The latest round covers apporo.2 upgrades, notifications, shopping, smart and aiot; platform login, Shopee product access and physical-device audio remain unverified.
+Product decisions confirmed by the owner on 2026-11-08: serve both space/workplace management and everyday tasks; share the engine with an independently installed brand; default to English with optional Traditional Chinese; name Apporo Assistant, package `com.apporo.assistant`. The emulator reports distinguish Assistant tasks from manual product checks. Wave4 covers apporo.2 upgrades, notifications, shopping, smart and aiot. Wave5 covers apporo.3 accessibility and system-panel fixes, shopping quantities, coexistence and remote-control acceptance. Notifications open the corresponding full decision card for approval, and enlarged decision cards temporarily hide the live preview. Wave6 adds English/Traditional Chinese and light/dark screen-state checks, larger-font form fixes, notification navigation, outbound HTTP/stdio MCP execution and fresh permission flows. Platform login, Shopee product access and physical-device audio remain unverified.
 
-The apporo.2 direct APK matches woow.4's exact-alarm permission split: Android 13+ uses USE_EXACT_ALARM, while Android 12/12L retain SCHEDULE_EXACT_ALARM. This is not a Google Play release configuration approval. Review that distribution channel's requirements before submitting to a store.
+Since apporo.2, the direct APK matches woow.4's exact-alarm permission split: Android 13+ uses USE_EXACT_ALARM, while Android 12/12L retain SCHEDULE_EXACT_ALARM. This is not a Google Play release configuration approval. Review that distribution channel's requirements before submitting to a store.

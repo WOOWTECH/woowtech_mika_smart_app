@@ -118,6 +118,30 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 
 新增的檔案：`core/.../brand/Brand.kt`、`core/src/test/.../brand/BrandValuesTest.kt`、`app/brand.gradle.kts`、`app/src/woowtech/**`（含 `java/.../woowtech/BrandLicenses.kt`、`res/values*/strings_woowtech_licenses.xml`）、`app/src/upstream/java/.../woowtech/BrandLicenses.kt`、`tools/mika/tests/test_woowtech_package.py`、`core/src/test/.../brand/BrandStringsTest.kt`、`app/src/woowtech/res/values-b+zh+Hant/strings_woowtech_wording.xml`、`app/.../ui/ModelErrorCopy.kt`（＋`ModelErrorCopyTest.kt`）、`app/.../ui/ClipboardCopy.kt`（＋`ClipboardCopyTest.kt`）、`app/src/test/.../task/{ProgressNoteTest,TaskNotificationCopyTest}.kt`、`app/src/test/.../i18n/NotificationTextsTest.kt`、`app/.../task/AlertGroup.kt`（＋`AlertGroupTest.kt`）、`core/.../shell/HelperAppCheck.kt`（＋`HelperAppCheckTest.kt`）、`.github/README.md`（repo 首頁）、`.github/workflows/woowtech.yml`、`docs-woowtech/**`、`woowtech/tools/**`、`app/src/woowtech/AndroidManifest.xml`（woowtech flavor 的清單）、`core/src/test/.../brand/WoowtechManifestTest.kt`、`app/.../task/ChannelNames.kt`（＋`ChannelNamesTest.kt`）、`app/src/test/.../confirm/ConfirmationNotificationCopyTest.kt`。
 
+## Apporo 分支實測後的共用修正
+
+以下仍在 Apporo 草稿分支，不能視為已發佈的 WOOWTECH 功能。裝置結果與限制另見 `docs-apporo/EMULATOR-WAVE5-20261108.zh-TW.md` 與 `EMULATOR-WAVE6-20261108.zh-TW.md`。
+
+- `ChatScreen`、`AgentPip`：重要決策按鈕可換行；大字體或窄視窗等待使用者時暫時隱藏縮圖，恢復時保留原角落。`ChatDrawer` 的設定與關於各用完整一列，`AboutScreen` 的版本／Beta／Build 可換行。
+- `CapsuleController`、`OverlayHost`、`ScreenAccessibility`、`SystemPanelPolicy`：暫避已確認的系統通知欄、快速設定與 heads-up 視窗，保留草稿，版面完成後更新浮層尺寸。Android 尚未暴露 heads-up 視窗時仍可能短暫重疊，未宣稱零遮擋。
+- `ConfirmationNotifier`、`TaskService`：確認通知改為 View／Decline；View 開完整確認卡而不核准，因系統橫幅在大字體下仍可能截斷金額。需要回答／接手的通知也帶所屬對話 ID。
+- `MainActivity`、`ChatDrawer`：外部對話要求收合側欄；要求有獨立身分，只有選到目標對話後才消費。已處理／尚未處理狀態隨 Activity 保存，避免旋轉後重播舊通知，也不讓舊要求的完成回呼清掉新要求。普通設定返回仍保留側欄行為。
+- `ChatCopy`、`Markdown`、手機設定字串：摘要使用 Activity／時間，不把篩選後的列數叫完成步數；寬表格顯示橫向捲動提示；USB 小幫手在 APK 更新後需重新執行新版啟動腳本的說明保持明確。
+- `PhoneSetupScreen`：長操作按鈕可換行；步驟圓圈依文字行高與系統字級縮放增加尺寸，分隔線同步對齊，預設維持 28dp。
+- `ModelsScreen`、`ModelSetupScreen`、`Controls`：服務商的模型名稱可換行，主／看圖／輕量角色徽章另列；只有該模型列啟用能力標籤換行，避免三個角色擠到名稱只剩 `appo…`，角色選單也啟用完整標籤換行，避免極大字體隱藏「尚未確認」；其他標籤呼叫處保留原樣。語音設定的狀態與能力標籤移到說明下方，避免擠壓左側說明。自訂服務商的 API type／URL 改為標籤在上、值在下，避免極大字體把標籤擠掉或地址硬裁切。
+- `McpServerStore`、`McpClient`：工具描述附使用者設定的伺服器名稱與固定傳輸類型，名稱限長並以 JSON 引用，避免多台同名工具無法辨識；不附連線網址、命令或憑證，工具 ID、路由、信任及允許清單保持不變。`McpServersScreen` 的 stdio 命令清單只預覽兩行，完整內容仍在編輯框。
+- `ReadScriptRunner`：讀取腳本要求換頁時，停止載入改在不可取消且有逾時的收尾中等待，再停止腳本；避免子工作還未執行就被 `cancelChildren` 取消。保留原本換頁阻擋測試，另測停止載入等待期間取消任務仍完成安全收尾。
+- `CdpSession`：連線關閉時先發布原因及 `closed=true`，再喚醒等待中的失敗呼叫，避免呼叫已收到關閉例外、觀察狀態卻仍顯示未關閉；測試關閉觀察者同步重入 close／send 的行為。
+- `McpServersScreen`、`McpEditorFeedback`：表單將儲存層的十種固定驗證錯誤映射到語系資源，未知後端診斷保留原文；編輯欄位或切換傳輸會清掉舊訊息，非同步測試／授權結果只可回寫到同一版欄位。驗證與主機限制不變，測試涵蓋非法設定仍被拒絕、有效設定仍可接受，以及舊結果不可覆蓋新欄位。
+- `McpServersScreen`、`NetProxySettings`：對話框內文可垂直捲動，讓極大字體下的欄位與選項仍可抵達；儲存／取消留在既有操作區。MCP 編輯欄位的長標籤固定放在框上方並保留欄位的無障礙名稱，避免聚焦時浮動標籤與前一列重疊；token 遮罩與單行編輯不變。`SegmentedControl` 新增預設關閉的標籤換行選項，由 MCP 伺服器與連接電腦的選擇列啟用，避免 Local process、USB 建議及 Wi-Fi / VPN 被裁切；`McpScreen` 的指引複製按鈕也啟用既有完整標籤模式。
+- `SettingsSubPages` 的通知設定：通知總開關與三個分類的狀態改列在說明下方，避免極大字體的右側狀態把左文擠成每行一字；分類狀態仍由系統讀取，設定跳轉與警告圖示不變。
+- `ModelsScreen.ManualModel`、`InputRow`：手填模型名稱使用可選的縱向排版，標題、整行輸入框及操作分開，提示可換行並放在輸入框的 decorationBox 內；一般輸入列不變。單行編輯、空白／執行中禁用及使用前 trim 保留。共用於角色模型選單與語音模型設定。新增服務商的 API type 標題與選項也分行；只有此處的 `SelectChip` 啟用換行與自適應高度，類型選擇 callback 不變。
+- `.github/scripts/bootstrap-gradle.py`、三個 CI workflow、wrapper 設定：Gradle 8.11.1 發佈網頁下載反覆 504 時，CI 使用同一官方 GitHub asset API 取得 ZIP，核對大小與官方 SHA-256 後原子放入既有 wrapper 快取；已由 wrapper 安裝的 Actions 快取沿用原有信任模式。下載有限次重試與總逾時，不輸出臨時簽名網址；原測試／建置命令不變。本機 wrapper 下載逾時改為60秒並釘選同一 SHA。升級 Gradle 時必須一起更新版本、asset ID、大小、checksum 與 cache 測試。
+
+- `.github/scripts/prepare-compiler-repository.py`／`verified-compiler.init.gradle`：CI 以有總逾時的官方 JetBrains asset API 下載固定 Kotlin 2.1.20 compiler JAR，並下載原樣 Maven POM；大小、官方 SHA-256 與 JAR SHA-1 驗證後才發布 runner 私有暫存 repository。每個 Gradle 命令顯式指定 init script，重驗摘要、CI／版本／路徑，透過 settings `exclusiveContent/includeVersion` 僅導向這一個座標；六項 transitive dependencies 保留原 POM 與原 repositories。沒有 binary metadata 偽造、全域 init.d、產品 settings 修改或測試省略。舊 candidate seed 雖下載成功，Gradle 仍因遠端 HEAD 504 失敗，因此已替換；其失敗證據保留。其他依賴故障不自動擴大此 repo。
+
+`41567bf5` 起 CI 會編譯 upstream instrumentation；新增的通知 Intent／等待任務測試已隨 CI `42450063615` 編譯通過，但尚未執行這組裝置測試，不把編譯成功當成執行通過。
+
 ## 刻意不改的
 
 - Kotlin package、類別名稱、Keystore alias、SharedPreferences 名稱、虛擬螢幕名稱、OTel 屬性：使用者看不到，改了只會增加同步衝突。
