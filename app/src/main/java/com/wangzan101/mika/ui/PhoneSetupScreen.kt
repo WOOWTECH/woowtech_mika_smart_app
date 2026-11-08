@@ -644,6 +644,7 @@ private fun PillButton(text: String, primary: Boolean, tag: String? = null, onCl
     MikaButton(
         text, onClick, Modifier.padding(top = 10.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier),
         kind = if (primary) ButtonKind.Primary else ButtonKind.Tonal, size = ButtonSize.Small,
+        wrapLabel = true,
     )
 }
 
