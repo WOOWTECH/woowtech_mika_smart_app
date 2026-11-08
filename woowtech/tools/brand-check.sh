@@ -2,7 +2,7 @@
 # WOOWTECH fork: brand leak checks. Not part of upstream Mika; see docs-woowtech/FORK.md.
 #
 #   sh woowtech/tools/brand-check.sh sources      # shipped sources must not point at the upstream repo
-#   sh woowtech/tools/brand-check.sh apk <file>   # a built woowtech APK: package, labels, locales, strings
+#   sh woowtech/tools/brand-check.sh apk <file>   # a built woowtech APK: package, labels, locales, exact alarm permissions, strings
 #
 # Allowed on purpose: Brand.kt's upstream defaults, the attribution on the licenses page (woow_lic_mika,
 # "Copyright 2026 wangzan101") and in the about_author string ("Based on wangzan101/Mika" / "基於 wangzan101/Mika").
@@ -52,6 +52,16 @@ apk)
     locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW)$' || true)
     [ -z "$locales" ] || bad "unexpected UI locales: $(say "$locales" | tr '\n' ' ')"
     say "$badging" | grep -E "^(package|application-label|locales)" | sed 's/^/  /'
+    # Reminders and scheduled tasks need an exact alarm that does not depend on the user granting "Alarms & reminders"
+    # (app/src/woowtech/AndroidManifest.xml). USE_EXACT_ALARM must be there without a maxSdkVersion (the system ignores a
+    # permission above it), and SCHEDULE_EXACT_ALARM, which src/main declares, is limited to API 32 so that only one of the
+    # two is requested on a device. If either line is gone, Android 14+ users get inexact, late alarms again.
+    perms=$("$aapt2" dump permissions "$apk")
+    say "$perms" | grep -q -F -x "uses-permission: name='android.permission.USE_EXACT_ALARM'" \
+        || bad "android.permission.USE_EXACT_ALARM is not declared for every API level (app/src/woowtech/AndroidManifest.xml): reminders would be late unless the user grants Alarms & reminders"
+    say "$perms" | grep -q -F -x "uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM' maxSdkVersion='32'" \
+        || bad "android.permission.SCHEDULE_EXACT_ALARM is not declared with maxSdkVersion 32 (Android 12 and 12L only; Android 13+ uses USE_EXACT_ALARM alone)"
+    say "$perms" | grep "EXACT_ALARM" | sed 's/^/  /'
     strings=$("$aapt2" dump strings "$apk")
     leaks=$(say "$strings" | grep -E '(^|[^A-Za-z0-9_/.@-])Mika([^A-Za-z0-9_/-]|$)|wangzan101' \
         | grep -v -E 'Based on wangzan101/Mika \(Apache-2\.0\)|基於 wangzan101/Mika（Apache-2\.0）|Copyright 2026 wangzan101' || true)

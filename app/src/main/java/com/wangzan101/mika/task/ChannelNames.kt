@@ -1,0 +1,79 @@
+package com.wangzan101.mika.task
+
+import android.app.NotificationManager
+import android.content.Context
+import android.util.Log
+import com.wangzan101.mika.cap.phone.setup.PairingChannel
+import com.wangzan101.mika.cap.sandbox.SandboxForeground
+import com.wangzan101.mika.ui.PhoneSetupCopy
+
+/**
+ * WOOWTECH fork: 让已经存在的通知频道(配对 2 个 id、背景准备、任务的 3 个)的名字跟着 App 语言走。
+ *
+ * 安卓在建频道时把名字存下来,之后 App 换了语言它不会自己变,只有用同一个 id 再建一次才会换名。任务的三个频道由
+ * [TaskService.ensureChannels] 再建,但它只在起任务服务、电脑接入服务、ChatGPT 登录服务,或定时任务、启动时补送要发通知时才跑,
+ * App 启动和换语言时不跑:换了语言之后没再跑过任务的,这三个频道在系统设置 › 应用 › 通知里还是旧语言。配对频道(用到才建)和
+ * 背景准备频道(只在准备运行环境时才建)建好后更没人再碰。于是设置里几个频道的名字各停在建它或再建它那一刻的语言,
+ * 同一个 App 里中英混杂:繁中界面下「Pairing」「Background setup」和「任務進度」排在一起,或者反过来(上游问题)。
+ *
+ * 这里只给系统里已经有的频道改名:取出那一个、只改名字、原样交回 createNotificationChannel。官方说明:频道已存在时,
+ * 名字和说明会更新(名字本来就只该在语言变了时改),分组只在它原来没有分组时才设;重要程度只会调低、而且只在用户没动过这个
+ * 频道的设置时;其余字段一概忽略。交回的是取出来的那一个(分组、重要程度都没变),所以重要程度、声音、振动、角标和用户在
+ * 系统设置里改过的都不受影响:任务的三个频道也一样,用户调低过的仍是调低的,建它们时给的重要程度([TaskService.CHANNEL_IMPORTANCE])这里不碰。
+ * 不建不存在的频道:没用到的不必有;用户或 App 删掉的,按同一个 id 再建会连同删除前的设置一起恢复。所以只动「取出来时还在」的:
+ * 唯一的空隙是取出到交回之间正好被删([com.wangzan101.mika.cap.phone.setup.PairingNotifier.ensureChannel] 删掉不用的旧 id),
+ * 那样会把它又恢复出来、等下一次 ensureChannel 再删;现在碰不到(woow 版只建过最新的 id,旧的 pairing_code 不存在),
+ * 以后给 [PairingChannel.IDS] 再加新 id、让现在的 id 变成旧的时,要想到这一点。
+ * 名单里没有 [TaskService.OLD_CHANNEL_RESULT]:[TaskService.ensureChannels] 要把它删掉,改名交回反而会把它救活。
+ *
+ * 谁来调(都是幂等的:名字已经对了就一次写都不做):
+ * - App 启动([com.wangzan101.mika.MikaApp.onCreate]):语言是在 App 不运行时换的(系统设置里),或这一版升级上来时旧名字还留着;
+ * - 进程配置变了([com.wangzan101.mika.MikaApp.onConfigurationChanged]):跟随系统语言时,系统语言换了;
+ * - App 内换语言([com.wangzan101.mika.i18n.AppLanguage.set]):安卓 12 及以前语言只记在本地,系统不会通知进程;
+ *   安卓 13 起、进程里有无障碍服务时,系统也不再因 App 语言变了通知进程(AOSP 的 WindowProcessController.onServiceStarted,
+ *   见 [com.wangzan101.mika.i18n.AppLanguage.applyDefaultLocale]),所以换语言的这一刻要自己调一次。
+ */
+object ChannelNames {
+    private const val TAG = "MikaNotify"
+    private val LOCK = Any()
+
+    /**
+     * 要跟着语言改名的频道:id 到当前语言下该叫什么(配对 2 个 id、背景准备、任务的 3 个)。
+     * 名字和建这些频道时用的是同一个来源:[PhoneSetupCopy.CHANNEL_NAME]、[SandboxForeground.CHANNEL_NAME]、[TaskService.channelNames]。
+     */
+    internal fun names(): Map<String, String> {
+        val pairing = PhoneSetupCopy.CHANNEL_NAME
+        return PairingChannel.IDS.associateWith { pairing } +
+            (SandboxForeground.CHANNEL to SandboxForeground.CHANNEL_NAME) +
+            TaskService.channelNames()
+    }
+
+    /**
+     * 该改哪些频道的名字(纯函数,便于测试):[existing] 是系统里已有的频道(id 到它现在的名字),[wanted] 是各 id 该叫什么。
+     * 返回要改的 id 到新名字:只有已经存在、名字不一样的才在里面。系统里没有的不列(这里只改名,不建频道);
+     * [wanted] 以外的频道不看;空名字不用(系统不收空名字,会抛错)。
+     */
+    internal fun renames(existing: Map<String, CharSequence>, wanted: Map<String, String>): Map<String, String> =
+        wanted.filter { (id, name) ->
+            val current = existing[id]?.toString()
+            name.isNotBlank() && current != null && current != name
+        }
+
+    /** 把已有频道的名字对到当前的 App 语言。不抛错:改不了就记一句,下次再对。 */
+    fun refresh(context: Context) {
+        runCatching {
+            val nm = context.getSystemService(NotificationManager::class.java)
+            // 几处会同时调(启动在后台线程、换语言在主线程):排队做,每次都按此刻的语言取名,最后一次一定是最新的语言
+            synchronized(LOCK) {
+                val wanted = names()
+                val existing = nm.notificationChannels.filter { it.id in wanted }.associateBy { it.id }
+                renames(existing.mapValues { it.value.name }, wanted).forEach { (id, name) ->
+                    val channel = existing.getValue(id)
+                    Log.i(TAG, "notification channel $id renamed from \"${channel.name}\" to \"$name\"")
+                    channel.name = name
+                    nm.createNotificationChannel(channel)
+                }
+            }
+        }.onFailure { Log.w(TAG, "could not refresh the notification channel names", it) }
+    }
+}
