@@ -234,7 +234,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     val app = context.applicationContext as MikaApp
     // 查到的新版本:侧栏、设置首页、关于页的红点都看它
     val updateState by app.updates.state.collectAsState()
-    var conversationOpenRevision by remember { mutableIntStateOf(0) }
+    var conversationOpenRevision by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(requestedConversation) {
         if (requestedConversation != null) {
             app.chat.openConversation(requestedConversation)

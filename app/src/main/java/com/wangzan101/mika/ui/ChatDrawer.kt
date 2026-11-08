@@ -52,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.Flow
@@ -502,7 +503,7 @@ fun ChatWithDrawer(
 ) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var handledOpenRevision by remember { mutableIntStateOf(externalOpenRevision) }
+    var handledOpenRevision by rememberSaveable { mutableIntStateOf(externalOpenRevision) }
     LaunchedEffect(externalOpenRevision) {
         if (handledOpenRevision != externalOpenRevision) {
             drawer.snapTo(DrawerValue.Closed)
