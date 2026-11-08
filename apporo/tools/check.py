@@ -35,6 +35,10 @@ assert permissions == {
 assert 'releases.api=https://api.github.com/repos/WOOWTECH/apporo-assistant-releases/' in props
 assert 'ui.default.language=en' in props
 assert 'name.zh=Apporo Assistant' in props
+zh = {e.attrib['name']: ''.join(e.itertext()) for e in ET.parse(RES / 'values-b+zh+Hant/strings_apporo.xml').getroot() if e.tag == 'string'}
+access_title = next(''.join(e.itertext()) for e in ET.parse(ROOT / 'app/src/main/res/values-b+zh+Hant/strings_appaccess.xml').getroot() if e.attrib.get('name') == 'appaccess_title')
+for key in ('task_app_blocked', 'task_app_access_unavailable', 'err_app_unavailable'):
+    assert access_title in zh[key], (key, 'recovery guidance must match the settings page title')
 for slug in ('apporo-aiot', 'apporo-platform', 'apporo-smart'):
     text = (ROOT / 'core/src/main/resources/knowledge/apps' / slug / 'APP.md').read_text()
     _, meta, body = text.split('---', 2)

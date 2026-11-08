@@ -25,6 +25,9 @@
     <string name="browser_engine_note">使用 Google 搜尋</string>
     <string name="browser_typing_note">網址直接開啟，其他文字使用 Google 搜尋</string>
     <string name="relay_gateway_hint">https://gateway.example.com</string>
+    <string name="task_app_blocked">「%1$s」已被設為禁用，Apporo Assistant 不能自動讀取或操作它。到 設定 › 應用程式存取 裡允許後再試。</string>
+    <string name="task_app_access_unavailable">應用程式存取設定無法讀取。請到 設定 › 應用程式存取 裡重設後再試。</string>
+    <string name="err_app_unavailable">應用程式存取設定無法使用</string>
     <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
     <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
 </resources>
