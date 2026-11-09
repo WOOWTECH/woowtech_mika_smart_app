@@ -16,7 +16,7 @@ data class TaskBudget(
 /** Deliberately narrow: only a standalone instruction from the user, never a tool result.
  * Questions, quoted instructions and negations must not silently stop a task.
  */
-internal object DeliverNow {
+object DeliverNow {
     private val requests = setOf(
         "先給目前結果", "先給我目前結果", "先給我目前的結果", "先交付目前成果", "先給目前成果",
         "你直接給我目前現況的網頁", "直接給我目前現況的網頁", "先給我目前的網頁",

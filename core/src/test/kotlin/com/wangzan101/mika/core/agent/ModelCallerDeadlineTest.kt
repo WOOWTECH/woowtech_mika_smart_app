@@ -45,10 +45,11 @@ class ModelCallerDeadlineTest {
         retry: RetryPolicy = RetryPolicy(maxRetries = 100, baseMs = 200, jitter = { 1.0 }),
         light: ChatModel? = null,
         usage: (ModelReply, Int) -> Unit = { _, _ -> },
+        mayResearch: () -> Boolean = { true },
     ) = ModelCaller(
         model, toolDispatcher(FakeScreen()), light?.let { ModelRouter(model, it) },
         SpeedFlags(lightSteps = light != null), retry, { events.add(it) }, { testScheduler.currentTime },
-        callBudgetMs = budgetMs, onReplyUsage = usage,
+        callBudgetMs = budgetMs, onReplyUsage = usage, mayResearch = mayResearch,
     )
 
     private suspend fun deadline(block: suspend () -> Unit): ModelCallDeadlineExceeded {
@@ -254,6 +255,58 @@ class ModelCallerDeadlineTest {
         assertSame(reply, caller.routed(emptyList(), emptyList(), lightTrack(), 3, {}).first)
         assertEquals(360_002L, testScheduler.currentTime)
         assertFalse(events.filterIsInstance<RunEvent.State>().any { it.name == "model_retry_stopped" })
+    }
+
+    private suspend fun workBudgetExceeded(block: suspend () -> Unit) {
+        try { block(); fail("Expected exhausted work budget") }
+        catch (_: TaskWorkBudgetExceeded) { }
+    }
+
+    @Test fun successfulLightReplyExhaustsBudgetBeforeMainFallback() = runTest {
+        var allowed = true
+        val light = Model { answerReply("light answer") }
+        val main = Model { answerReply("must not run") }
+        var replies = 0
+        val caller = caller(main, light = light, mayResearch = { allowed }, usage = { _, _ ->
+            replies++
+            allowed = false
+        })
+        workBudgetExceeded { caller.routed(emptyList(), emptyList(), lightTrack(), 3, {}) }
+        assertEquals(1, light.calls)
+        assertEquals(0, main.calls)
+        assertEquals(1, replies)
+    }
+
+    @Test fun exhaustedBudgetBeforeLightAttemptPropagatesWithoutFallback() = runTest {
+        val light = Model { answerReply("must not run") }
+        val main = Model { answerReply("must not run") }
+        var checks = 0
+        val caller = caller(main, light = light, mayResearch = { checks++; false })
+        workBudgetExceeded { caller.routed(emptyList(), emptyList(), lightTrack(), 3, {}) }
+        assertEquals(0, light.calls)
+        assertEquals(0, main.calls)
+        assertEquals(1, checks)
+    }
+
+    @Test fun exhaustedBudgetAfterFailureDoesNotScheduleRetry() = runTest {
+        var allowed = true
+        val events = mutableListOf<RunEvent>()
+        val model = Model { allowed = false; throw ModelError.Network() }
+        val caller = caller(model, events = events, mayResearch = { allowed })
+        workBudgetExceeded { caller.ask(emptyList(), emptyList(), 1) }
+        assertEquals(1, model.calls)
+        assertEquals(0L, testScheduler.currentTime)
+        assertFalse(events.filterIsInstance<RunEvent.State>().any { it.name == "model_retry" })
+    }
+
+    @Test fun budgetExhaustedDuringRetryWaitPreventsNextRequest() = runTest {
+        var allowed = true
+        val model = Model { throw ModelError.Network() }
+        val caller = caller(model, mayResearch = { allowed })
+        launch { delay(100); allowed = false }
+        workBudgetExceeded { caller.ask(emptyList(), emptyList(), 1) }
+        assertEquals(1, model.calls)
+        assertEquals(200L, testScheduler.currentTime)
     }
 
     @Test fun budgetMustBePositive() = runTest {

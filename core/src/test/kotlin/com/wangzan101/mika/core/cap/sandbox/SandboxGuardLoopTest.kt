@@ -3,6 +3,7 @@ package com.wangzan101.mika.core.cap.sandbox
 import com.wangzan101.mika.core.agent.AgentLoop
 import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.FakeModel
+import com.wangzan101.mika.core.agent.TaskBudget
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.core.assembly.toolDispatcher
 import com.wangzan101.mika.core.model.ModelReply
@@ -33,12 +34,14 @@ class SandboxGuardLoopTest {
             val model = FakeModel(ModelReply(
                 listOf(Part.ToolCall("read", "run_command", args.toString())), StopReason.ToolUse, null),
                 repeatLast = true)
-            val result = AgentLoop(model, toolDispatcher(FakeScreen(), sandbox = sandbox), "BASE")
+            // Exercise the opt-in task-delivery path used by the branded app.
+            val result = AgentLoop(model, toolDispatcher(FakeScreen(), sandbox = sandbox), "BASE",
+                taskBudget = TaskBudget())
                 .run("Inspect /workspace and produce the report")
 
             assertTrue(result.toString(), result is TaskState.Failed)
             result as TaskState.Failed
-            assertEquals(FailKind.GaveUp, result.kind)
+            assertEquals(result.reason, FailKind.GaveUp, result.kind)
             assertTrue(result.reason, result.reason.contains("Repeated reads"))
             assertEquals(7, sandbox.runs.size)
             // The last reply still proposes a command, but the tool-free delivery call cannot run it.

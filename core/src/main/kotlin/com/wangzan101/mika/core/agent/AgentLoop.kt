@@ -189,6 +189,7 @@ class AgentLoop(
     private var delivering = false
     private val caller = ModelCaller(model, tools, router, flags, retry, ::emit, ::now, autonomous, trace,
         callBudgetMs = if (taskBudget != null) 180_000L else null,
+        mayResearch = { taskBudget == null || budgetTokens < budgetPolicy.explorationTokens },
         onReplyUsage = { reply, estimate ->
             val usage = reply.usage
             val amount = if (usage != null) usage.inputTokens.coerceAtLeast(0).toLong() + usage.outputTokens.coerceAtLeast(0)
@@ -260,7 +261,13 @@ class AgentLoop(
         provenance = runProvenance
         user.begin(threadId, runProvenance, interaction)
         inbox?.bind(object : RunInbox.Handler {
-            override suspend fun answer(text: String, askId: String?) = user.answerInput(text, askId)
+            override suspend fun answer(text: String, askId: String?): Boolean {
+                if (taskBudget != null && DeliverNow.matches(text) && _state.value is TaskState.WaitingInput &&
+                    (askId == null || user.activeAsk?.askId == askId)) {
+                    return inbox.steer("delivery-" + java.util.UUID.randomUUID(), text) == com.wangzan101.mika.core.run.InputReceipt.Accepted
+                }
+                return user.answerInput(text, askId)
+            }
             override suspend fun confirm(choice: ConfirmChoice, askId: String?) = user.answerConfirmation(choice, askId)
             override suspend fun handBack(result: HandBack, askId: String?) = user.resumeAfterTakeover(result, askId)
             override fun cancel() = this@AgentLoop.cancel()
@@ -509,6 +516,7 @@ class AgentLoop(
         if (flags.replay && replay != null && !task.trimStart().startsWith(WEB_CHANNEL_PREFIX)) {
             val reviewRoute = provenance.origin == RunOrigin.Ui && intentGate != null && routeMatcher?.candidates(task)?.isNotEmpty() == true
             if (reviewRoute) intent = assessIntent()
+            if (taskBudget != null && budgetTokens >= budgetPolicy.explorationTokens) return deliverAvailable("token_budget")
             if (!reviewRoute || intent == IntentGate.Intent.Read || intent == IntentGate.Intent.Act) {
                 replay.run(task, history, executor, ctx, track)?.let { place = it; acted = true }
             }
@@ -532,6 +540,8 @@ class AgentLoop(
                 routedOrRedirect(inbox, history, specs, track, step, { asked = it }, previewFor(step))
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: TaskWorkBudgetExceeded) {
+                return deliverAvailable("token_budget")
             } catch (e: Exception) {
                 return StopRules.modelFailed(e)
             }
@@ -541,6 +551,11 @@ class AgentLoop(
             }
             var (reply, used) = routed
             val proposed = reply.parts.filterIsInstance<Part.ToolCall>().firstOrNull()
+            if (proposed != null && taskBudget != null && budgetTokens >= budgetPolicy.explorationTokens) {
+                emit(RunEvent.ModelReply(now(), step, "", proposed.name, null,
+                    reply.usage?.inputTokens, reply.usage?.outputTokens, reply.usage?.cachedInputTokens, now() - asked))
+                return deliverAvailable("token_budget")
+            }
             if (provenance.origin == RunOrigin.Ui && intentGate != null && proposed != null &&
                 tools.verb(proposed.name) !in DISCUSSION_LOOKUP_VERBS) {
                 if (!intentAssessed) intent = assessIntent()
@@ -550,6 +565,7 @@ class AgentLoop(
                         "The user is discussing or reviewing this time. Answer this question directly, without reading or operating apps, websites or other outside content.")
                     reply = try { caller.ask(discussion, emptyList(), step, using = model, onText = previewFor(step)) }
                     catch (e: CancellationException) { throw e }
+                    catch (e: TaskWorkBudgetExceeded) { return deliverAvailable("token_budget") }
                     catch (e: Exception) { return StopRules.modelFailed(e) }
                     used = model
                 }
@@ -1035,6 +1051,8 @@ class AgentLoop(
                 caller.ask(history, TurnPolicy.finalTools(specs, tools::verb), step, onText = previewFor(step))
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: TaskWorkBudgetExceeded) {
+                return deliverAvailable("token_budget")
             } catch (e: Exception) {
                 return StopRules.stepLimit(maxSteps)
             }

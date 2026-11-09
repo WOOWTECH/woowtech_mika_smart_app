@@ -65,7 +65,7 @@ class TaskBudgetDeviceTest {
         val loop = AgentLoop(model, toolDispatcher(BudgetScreen()), "BASE", taskBudget = TaskBudget())
         val job = async { loop.run(RunSpec(RunId("device-question"), "Read a file", "thread"), inbox) }
         withTimeout(5000) { while (loop.state.value !is TaskState.WaitingInput) delay(20) }
-        inbox.steer("deliver", "give me the results so far")
+        assertEquals(InputReceipt.Accepted, inbox.send(RunInput.Answer("give me the results so far")))
         val end = withTimeout(5000) { job.await() }
         assertTrue(end is TaskState.Failed)
         assertEquals(2, calls)

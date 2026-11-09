@@ -114,7 +114,7 @@ class TaskBudgetTest {
         val job = async { loop.run(RunSpec(com.wangzan101.mika.core.run.RunId("budget-question"), "read a file", "thread"), inbox) }
         runCurrent()
         assertTrue(loop.state.value is TaskState.WaitingInput)
-        inbox.steer("deliver", "先給我目前結果")
+        inbox.send(com.wangzan101.mika.core.run.RunInput.Answer("先給我目前結果"))
         assertTrue(job.await() is TaskState.Failed)
         assertTrue(currentTime <= 100)
         assertEquals(2, calls)
@@ -155,7 +155,7 @@ class TaskBudgetTest {
             override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
                 calls++
                 return if (calls == 1) ModelReply(listOf(Part.ToolCall("approval", "request_confirmation",
-                    """{"action":"order","target":"test item","content":"test order","amount":"NT$10","app":"test"}""")), StopReason.ToolUse, Usage(20, 10))
+                    """{"action":"order","target":"test item","content":"test order","amount":"NT$10","app":"com.x"}""")), StopReason.ToolUse, Usage(20, 10))
                 else { assertTrue(tools.isEmpty()); answer("The order was not approved or placed.") }
             }
         }

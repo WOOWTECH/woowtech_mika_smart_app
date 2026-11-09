@@ -27,6 +27,34 @@ SERIAL = 'emulator-5554'
 SCOPE = 'Deterministic model / real Android runtime; not live gateway or full UI acceptance'
 
 
+def attached_devices(output):
+    """Parse adb rows, not line counts; daemon startup diagnostics are not devices.
+
+    Unknown output fails closed instead of treating an unrecognised transport as safe.
+    Also accept the historical combined stdout/stderr log for regression checking.
+    """
+    rows = []
+    header = False
+    for raw in output.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line == 'List of devices attached':
+            header = True
+            continue
+        if re.fullmatch(r'\* daemon (?:not running; starting now at tcp:\d+|started successfully)', line):
+            continue
+        if header and re.fullmatch(
+                r'\S+\s+(?:device|offline|unauthorized|authorizing|connecting|recovery|'
+                r'sideload|bootloader|host|rescue|unknown|no permissions)(?:\s+.*)?', line):
+            rows.append(line)
+            continue
+        raise RuntimeError('Unrecognised adb devices output; see devices-before.log')
+    if not header:
+        raise RuntimeError('Missing adb devices header; see devices-before.log')
+    return rows
+
+
 def select_apk(directory, package):
     """Unsplit debug APKs are universal too; never select an ABI-specific output."""
     metadata = json.loads((directory / 'output-metadata.json').read_text())
@@ -95,7 +123,8 @@ def main():
         save(name, out + err)
         if code:
             raise RuntimeError(f'{name}: exit {code}; see artifact')
-        return (out + err).decode(errors='replace')
+        # Keep stderr in evidence, but never feed daemon diagnostics into stdout parsers.
+        return out.decode(errors='replace')
 
     def device(*argv, timeout=30):
         return smoke.run([adb, '-s', SERIAL, *argv], timeout=timeout)[0].decode(errors='replace').strip()
@@ -134,7 +163,8 @@ def main():
         command('accel-check.log', [emulator, '-accel-check'])
         command('adb-version.log', [adb, 'version'])
         devices = command('devices-before.log', [adb, 'devices'])
-        if len(devices.strip().splitlines()) != 1:
+        receipt['existing_devices'] = attached_devices(devices)
+        if receipt['existing_devices']:
             raise RuntimeError('Runner already has devices; refusing to touch them')
         avd_home = Path(tempfile.mkdtemp(prefix='task-budget-avd-', dir=os.environ['RUNNER_TEMP'])).resolve()
         os.environ['ANDROID_AVD_HOME'] = str(avd_home)

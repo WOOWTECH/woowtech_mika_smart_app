@@ -18,6 +18,7 @@ import com.wangzan101.mika.confirm.ConfirmationCopy
 import com.wangzan101.mika.confirm.ConfirmationNotifier
 import com.wangzan101.mika.core.agent.AttachmentLines
 import com.wangzan101.mika.core.agent.Conversation
+import com.wangzan101.mika.core.agent.DeliverNow
 import com.wangzan101.mika.core.agent.QuoteMessage
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.task.TaskGate
@@ -682,6 +683,11 @@ class ChatViewModel(
         // 只有引用、没写话时不发
         if (words.isEmpty()) return false
         val goal = QuoteMessage.compose(ui.quote, words)
+        // An authored standalone handoff request withdraws the question instead of answering it.
+        // Attached quotes and quoted/negated text keep the normal answer path.
+        if (ui.composer == ComposerMode.Answer && ui.quote == null && DeliverNow.matches(words)) {
+            return steer(words, check)
+        }
         when (ui.composer) {
             ComposerMode.Answer -> {
                 act({ actions.answer(goal) }) { actions.answerIn(it, goal) }

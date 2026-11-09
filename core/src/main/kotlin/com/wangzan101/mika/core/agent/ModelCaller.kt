@@ -46,6 +46,8 @@ internal class ModelCaller(
     private val callBudgetMs: Long? = null,
     /** Every successful reply, including rejected light replies; estimate covers the whole sent input. */
     private val onReplyUsage: (ModelReply, Int) -> Unit = { _, _ -> },
+    /** Rechecked before each attempt and fallback; task settlement owns the exhausted-budget path. */
+    private val mayResearch: () -> Boolean = { true },
 ) {
     init { require(callBudgetMs == null || callBudgetMs > 0) { "callBudgetMs must be positive" } }
 
@@ -127,6 +129,8 @@ internal class ModelCaller(
             complete(viewFor(history, picked), specs, picked, RetryPolicy.NONE, step, onText)
         } catch (e: CancellationException) {
             throw e
+        } catch (e: TaskWorkBudgetExceeded) {
+            throw e
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
             // Key、额度、模型名、请求本身不对,重试也没用:本任务余下的步都用主模型
@@ -138,6 +142,7 @@ internal class ModelCaller(
         }
         val first = light?.parts?.filterIsInstance<Part.ToolCall>()?.firstOrNull()
         if (first != null && !needsMain(first)) return light to picked
+        requireResearchBudget()
         r.noteTrouble()
         val text = light?.parts?.filterIsInstance<Part.Text>()?.joinToString("") { it.text }?.trim().orEmpty()
         emit(RunEvent.ModelReply(
@@ -163,6 +168,10 @@ internal class ModelCaller(
         history: List<Message>, specs: List<ToolSpec>, step: Int, using: ChatModel = model,
         onText: ((String) -> Unit)? = null,
     ): ModelReply = complete(viewFor(history, using), specs, using, retry, step, onText)
+
+    private fun requireResearchBudget() {
+        if (!mayResearch()) throw TaskWorkBudgetExceeded()
+    }
 
     private suspend fun <T : Any> withinDeadline(block: suspend () -> T): T {
         val budgetMs = callBudgetMs ?: return block()
@@ -207,6 +216,7 @@ internal class ModelCaller(
         var overflowRewrote = false
         while (true) {
             currentCoroutineContext().ensureActive()
+            requireResearchBudget()
             val current = ContextRecovery.ensure(history, compressor.current(history, contextTokens))
             val currentTokens = requestTokens(current, using, overhead, compressor.scale)
             val raw = compressor.compress(history, contextTokens, currentTokens, compaction.aggressive, overhead, using.capabilities.maxImages)
@@ -257,6 +267,7 @@ internal class ModelCaller(
                 currentCoroutineContext().ensureActive()
                 onText?.invoke("")
                 val wait = policy.delayFor(e, retries, taskRetryWaitMs) ?: throw e
+                requireResearchBudget()
                 retries += 1
                 taskRetryWaitMs += wait
                 emit(RunEvent.State(now(), "model_retry", "${roleOf(using)} ${RetryPolicy.label(e)} #$retries ${wait}ms"))
