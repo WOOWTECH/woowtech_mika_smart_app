@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">手机识别服务不支持当前语言，或缺少对应的语音识别语言包。请检查手机的语音识别语言设置，或在「语音转文字」中自行选择转写服务商。单纯打开麦克风权限无法解决此问题。</string>
+</resources>

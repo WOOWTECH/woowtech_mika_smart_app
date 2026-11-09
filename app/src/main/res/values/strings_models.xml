@@ -176,9 +176,9 @@
     <string name="role_speech_what">Used while you hold to talk</string>
     <string name="speech_hint">Choose the phone’s built-in recognition or a provider model that transcribes after you finish. Online services use your provider quota.</string>
     <string name="speech_system">Built into the phone</string>
-    <string name="speech_system_offline">Works offline</string>
+    <string name="speech_system_offline">Offline depends on language</string>
     <string name="speech_system_online">Needs internet</string>
-    <string name="speech_system_note">Shows words as you speak; can work offline</string>
+    <string name="speech_system_note">Shows words as you speak; offline recognition requires a supported language pack</string>
     <string name="speech_system_note_online">Shows words as you speak; needs internet</string>
     <string name="speech_system_none_note">This phone has no usable speech recognition</string>
     <string name="speech_system_gone">Not on this phone</string>

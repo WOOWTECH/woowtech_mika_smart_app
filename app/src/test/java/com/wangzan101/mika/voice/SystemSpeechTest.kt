@@ -19,6 +19,28 @@ class SystemSpeechTest {
     }
 
     @Test
+    fun missingOfflineLanguageRetriesOnceWithoutOfflinePreference() {
+        val fallback = SpeechLanguageFallback(true)
+        assertEquals(true, fallback.preferOffline)
+        assertEquals(true, fallback.retryOnline(12, usingOnDevice = true, heardText = false))
+        assertEquals(false, fallback.preferOffline)
+        assertEquals(false, fallback.retryOnline(12, usingOnDevice = false, heardText = false))
+        assertEquals(false, fallback.retryOnline(13, usingOnDevice = true, heardText = false))
+        assertEquals(false, SpeechLanguageFallback(true).retryOnline(12, usingOnDevice = true, heardText = true))
+        assertEquals(false, SpeechLanguageFallback(true).retryOnline(3, usingOnDevice = true, heardText = false))
+    }
+
+    @Test
+    fun unsupportedAndMissingLanguageAreNotMissingRecognizer() {
+        for (code in listOf(12, 13)) {
+            val failure = SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable)
+            assertEquals(failure, SystemSpeech.failureOf(code))
+            assertEquals(SystemSpeech.Outcome.Fail(failure), SystemSpeech.afterError(code, holding = true, heard = false))
+            assertEquals(SystemSpeech.Outcome.Finish, SystemSpeech.afterError(code, holding = false, heard = true))
+        }
+    }
+
+    @Test
     fun silenceFromAServiceThatNeverAnsweredIsNoResponse() {
         assertEquals(
             SystemSpeech.Outcome.Fail(SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemNoResponse)),

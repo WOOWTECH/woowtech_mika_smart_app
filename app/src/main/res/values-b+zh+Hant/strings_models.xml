@@ -172,9 +172,9 @@
     <string name="role_speech_what">按住說話時用</string>
     <string name="speech_hint">可使用手機自帶識別，或說完再轉的服務商模型；線上服務使用你的服務商額度。</string>
     <string name="speech_system">手機自帶</string>
-    <string name="speech_system_offline">可離線</string>
+    <string name="speech_system_offline">離線依語言支援</string>
     <string name="speech_system_online">需連網</string>
-    <string name="speech_system_note">邊說邊出字，中文可離線</string>
+    <string name="speech_system_note">邊說邊出字；離線辨識需支援目前語言並具備語言包</string>
     <string name="speech_system_note_online">邊說邊出字，需要連網</string>
     <string name="speech_system_none_note">這臺手機沒有可用的語音辨識</string>
     <string name="speech_system_gone">這臺手機沒有</string>

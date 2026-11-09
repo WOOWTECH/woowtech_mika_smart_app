@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">The phone recognition service does not support the current language, or its speech recognition language pack is unavailable. Check the speech recognition language settings, or explicitly select a transcription provider in Voice to text. Microphone permission alone cannot fix this.</string>
+</resources>

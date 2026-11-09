@@ -17,7 +17,7 @@ sealed interface SpeechEngineSpec {
     data class Provider(val provider: com.wangzan101.mika.settings.Provider, val model: String, val method: TranscribeMethod) : SpeechEngineSpec
     data class Unavailable(val why: Why) : SpeechEngineSpec
     /** [SystemNoResponse]:手机自带识别系统说有,但请求发过去一直没有回应(已记下,用户重新选它时清掉)。 */
-    enum class Why { Off, NoSystemNoModel, SystemGone, SystemNoResponse, ProviderGone }
+    enum class Why { Off, NoSystemNoModel, SystemGone, SystemNoResponse, SystemLanguageUnavailable, ProviderGone }
 }
 
 /** 把用户的选择、手机能力和现有服务商对起来,得出这次用哪个引擎。纯函数,不碰系统。 */

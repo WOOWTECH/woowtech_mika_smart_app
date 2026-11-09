@@ -78,3 +78,7 @@ Pixel 仍未接入實機，不能宣稱 Pixel 實測通過。正式簽章公開 
 
 變更位於 `fix/accessibility-install-guide`，基於公開版 `v0.1.37-woow.4`。未更新版本號、未覆蓋手機正式 APK、未發布新的 GitHub Release。Debug APK 供本機測試，不能當成正式簽章的覆蓋更新包。
 
+
+## 後續正式包與語音測試
+
+已用公開版相同 SHA-256 的正式簽章 APK 重做同版本覆蓋安裝，亦被 Play 安全防護攔截。另已重現 zh-TW 語音錯誤並完成程式修正，尚未取得實機成功轉寫。詳見[後續測試紀錄](poco-install-and-speech-test.md)。

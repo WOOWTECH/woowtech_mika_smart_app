@@ -173,9 +173,9 @@
     <string name="role_speech_what">按住说话时用</string>
     <string name="speech_hint">可使用手机自带识别，或说完再转的服务商模型；在线服务使用你的服务商额度。</string>
     <string name="speech_system">手机自带</string>
-    <string name="speech_system_offline">可离线</string>
+    <string name="speech_system_offline">离线依语言支持</string>
     <string name="speech_system_online">需联网</string>
-    <string name="speech_system_note">边说边出字，中文可离线</string>
+    <string name="speech_system_note">边说边出字；离线识别需支持当前语言并具备语言包</string>
     <string name="speech_system_note_online">边说边出字，需要联网</string>
     <string name="speech_system_none_note">这台手机没有可用的语音识别</string>
     <string name="speech_system_gone">这台手机没有</string>
