@@ -66,3 +66,11 @@ Android 官方定義：12 = ERROR_LANGUAGE_NOT_SUPPORTED；13 = ERROR_LANGUAGE_U
 `checkRecognitionSupport` 的回呼包含 supportError=14，且後續又收到支援清單；installed/pending 為空、supportedDevice 包含 `cmn-Hant-TW`、online 為空。此服務回呼不一致，不能只用 online 空清單斷言不支援連網。實際 `zh-TW + PREFER_OFFLINE=false` 已收到最終中文字串，也不能只因離線清單沒有 zh-TW 就直接更改 App 的語言代碼。另試 cmn-Hant-TW 收到 error 11；因前一個 session 曾被中止，不作為語言相容性的決定性證據。
 
 這些測試支持撤銷回退後的離線偏好，但尚未證明修正版在正式 App 裡正確完成整條語音輸入流程。診斷收音沒有自動送出聊天或執行任務，也沒有切換付費轉寫服務。
+
+## 使用者重試後的 error 11 與診斷程式修正
+
+使用者回報連按仍 error。14:41:59–14:42:10 共七次 `recognitionError=11`，發生於獨立診斷程式的預設辨識器／zh-TW／允許連網配置。Android 定義 11 為 ERROR_SERVER_DISCONNECTED，不能與原版的語言錯誤 12 混為一談，也不能據單次非空 RESULT 宣稱可穩定使用。
+
+舊診斷程式在建立畫面時建立辨識器，並在斷線後沿用同一個物件。已修正為按開始時才建立全新辨識器、終止時銷毀、使用 session generation 過濾舊回呼、收音中禁用重複開始、30 秒截止。查詢支援清單與實際收音分開，本次手動收音畫面不再同時執行支援查詢。
+
+更新診斷程式後，實機連續兩次按開始均收到 READY、畫面顯示「請說話」。第一次未要求使用者說話，按結束後 error 7（未匹配文字）；第二次仍可重新進入 READY。這只證實診斷程式可重新連線，語音準確率與正式 App 修復仍待驗證。未替換或移除正式 App。
