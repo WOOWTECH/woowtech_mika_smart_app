@@ -21,6 +21,7 @@ import kotlinx.serialization.json.put
 import com.wangzan101.mika.core.workspace.WorkspacePathCheck
 import com.wangzan101.mika.core.uistate.action
 import com.wangzan101.mika.core.uistate.session
+import com.wangzan101.mika.core.uistate.withPortRef
 
 /** 页面脚本给文件选择控件(input type=file)的角色。 */
 private const val FILE_ROLE = "file"
@@ -62,7 +63,9 @@ internal object Upload : WebTool {
                 WorkspacePathCheck.Ok -> Unit
             }
         }
-        return ctx.action(ctx.web!!.upload(ref.first, ref.second, paths))
+        return ctx.withPortRef(ref) { port ->
+            ctx.action(ctx.web!!.upload(port!!.first, port.second, paths))
+        }
     }
 
     /** /workspace/ 下、没有 . 和 .. 段、没有连续斜杠的路径;其余交给 app 侧规范化后再判。 */

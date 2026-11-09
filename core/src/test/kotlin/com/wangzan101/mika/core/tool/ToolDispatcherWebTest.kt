@@ -364,6 +364,28 @@ class ToolDispatcherWebTest {
         assertTrue(web.calls.none { it.startsWith("upload") })
     }
 
+    @Test fun uploadTranslatesStableSnapshotToBrowserSnapshot() = runTest {
+        val fake = FakeWebPort()
+        var portSnapshot: com.wangzan101.mika.core.uistate.ScreenSnapshot? = null
+        var receivedSnapshot: String? = null
+        val web = object : com.wangzan101.mika.core.cap.web.WebPort by fake {
+            override suspend fun snapshot() = fake.snapshot().also { portSnapshot = it }
+            override suspend fun upload(ref: String, snapshotId: String, paths: List<String>): ActionResult {
+                receivedSnapshot = snapshotId
+                return if (snapshotId == portSnapshot?.snapshotId && ref == "@e2") ActionResult.Ok(changed = true)
+                else ActionResult.Failed("ref_expired")
+            }
+        }
+        val t = toolDispatcher(FakeScreen(), web = web, stableRefs = true, workspacePath = { WorkspacePathCheck.Ok })
+        t.go()
+        val observed = t.execute(call("web_observe")).content
+        val sid = observed.s("snapshotId")
+        assertTrue("test must exercise different model/port ids", sid != portSnapshot?.snapshotId)
+        val result = t.execute(call("web_upload", """{"ref":"@e2","snapshotId":"$sid","paths":["/workspace/upload.txt"]}""")).content
+        assertEquals(result.toString(), "true", result.s("ok"))
+        assertEquals(portSnapshot?.snapshotId, receivedSnapshot)
+    }
+
     @Test fun webPressKeyLimitedAndDownloadsListed() = runTest {
         val web = FakeWebPort(); val t = d(web = web); t.go()
         assertEquals("true", t.execute(call("web_press_key", """{"key":"KEYCODE_TAB"}""")).content.s("ok"))
