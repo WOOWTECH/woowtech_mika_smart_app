@@ -160,3 +160,12 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - AuthSpill根因為Android16拒絕shell更改其他套件元件狀態，pm enable實際拋SecurityException。改run-as測試套件自己的UID切換，並檢查命令成功；系統AccountManager的獨立dumpsys確認認證器由4增加為5，測後關回。完整登入頁保留主屏案例通過，未更改產品登入處理防護。
 - InstallDeviceTest、SkillScriptsDeviceTest、LocateDeviceTest、BitmapImageOpsTest、TakeoverTest完整組均通過。
 - ScreenAccuracy無障礙不重要文字案例穩定失敗；點擊後再讀仍為0，尚需截圖分辨實際畫面未變或節點快取陳舊。此前對使用者說「按鈕沒有真正改變內容」僅根據讀屏，須以獨立畫面核對，不能提前定論。
+
+
+### 確認通知修正與後續驗證
+
+- 發現同一筆確認通知重建會以FLAG_CANCEL_CURRENT作廢既有按鈕。新增rebuildingSameRequestKeepsExistingApprovalButtonUsable先穩定重現舊／新PendingIntent不相等；修正為FLAG_UPDATE_CURRENT，保留每次請求不同的data URI及請求編號核對。模擬器ConfirmationDeviceTest五項全通過，包含同意、拒絕、評測拒絕、舊通知不能核准新請求及重建後原按鈕仍可使用。沒有實際下單或付款。
+- 修正後Android JVM1502項全過；目前只裝模擬器，POCO USB仍不在線，正式手機尚未套用這項新增修正。
+- ScreenAccuracy全組與AndroidScreen13案已通過。啟動測試Activity補-W等待；設定首頁前提明確cold啟動。前次讀屏只見0不能證明按鈕無效果：診斷的啟動前截圖尚為空白，後續取得截圖後該案通過；未修改產品的畫面變更判斷，也未因此宣布不存在時序風險。
+- 滾輪原「鎖住」前提只擋焦點，Android16仍可能接受SET_TEXT，曾走text而非預期actions。測試頁改實際停用內部EditText，保留NumberPicker滾動。此時穩定到40但81次嘗試／24.879秒，效率要求失敗；產品已加入每個接受的無障礙步驟後等待動畫，待新APK實測，未降低原20–24次門檻。
+- 並行與快速取消的ScriptedModel改按ModelSession固定分配，避免背景對話標題提早取走下一個任務的模型。強制終止恢復案例改由externalKillTest參數控制，主機二階段腳本已備妥，尚待實際執行。

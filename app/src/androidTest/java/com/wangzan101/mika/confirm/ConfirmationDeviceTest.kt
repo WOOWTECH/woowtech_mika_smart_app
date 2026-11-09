@@ -145,6 +145,25 @@ class ConfirmationDeviceTest {
     }
 
     @Test
+    fun rebuildingSameRequestKeepsExistingApprovalButtonUsable() {
+        startAndRequest()
+        val notification = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
+        val state = DeviceTaskState.state.value as TaskState.WaitingConfirmation
+        fun rebuild() = ConfirmationNotifier.build(
+            context, TaskService.CHANNEL_ATTENTION, state, TaskService::class.java,
+            TaskService.ACTION_APPROVE, TaskService.ACTION_DECLINE, notification.contentIntent,
+            codeOffset = 500_000,
+        )
+        val old = rebuild().actions.first { it.title.toString() == "同意" }.actionIntent
+        val current = rebuild().actions.first { it.title.toString() == "同意" }.actionIntent
+        assertEquals("refreshing one request must retain its live button", old, current)
+        old.send()
+        assertTrue(lastToolResult(model.awaitCall()).contains("\"approved\":true"))
+        model.feed("end_not_done", """{"message":"测试到此为止"}""")
+        pollUntil(15_000) { DeviceTaskState.state.value.takeIf { !it.running() } }
+    }
+
+    @Test
     fun evalAutoDeclineSkipsTheUser() {
         testTasks.evalHooks.autoDecideConfirmation = { false }
         TaskService.start(context, "测试确认关卡")
