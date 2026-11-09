@@ -88,7 +88,15 @@ internal class WheelDriver(
                     is WheelSteps.Step.Act -> {
                         val action = if (s.forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
                         var done = 0
-                        repeat(s.count) { if (wheel.performAction(action)) done++ }
+                        repeat(s.count) {
+                            if (wheel.performAction(action)) {
+                                done++
+                                // NumberPicker animates each accessibility step. Back-to-back
+                                // requests can be accepted while replacing the previous animation.
+                                // Let one step complete before requesting the next one.
+                                delay(SETTLE_MS)
+                            }
+                        }
                         attempts += s.count
                         quiet(STEP_QUIET_MS, STEP_CAP_MS)
                         wheel.refresh()
@@ -98,7 +106,7 @@ internal class WheelDriver(
                     }
                 }
             }
-            if (stopped == "at_end" || stopped == "unknown_value") return outcome(false, now.current, from, "actions", stopped)
+            if (stopped == "at_end" || stopped == "unknown_value" || stopped == "not_reached") return outcome(false, now.current, from, "actions", stopped)
         }
 
         // 3. 拖动

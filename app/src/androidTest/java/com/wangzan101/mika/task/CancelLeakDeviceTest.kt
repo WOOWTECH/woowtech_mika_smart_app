@@ -32,7 +32,10 @@ class CancelLeakDeviceTest {
         DeviceSupport.shell()
         DeviceSupport.service()
         sh("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
-        testTasks.modelFactory = { _, _ -> models[handed.getAndIncrement().coerceAtMost(ROUNDS - 1)] }
+        val bySession = java.util.concurrent.ConcurrentHashMap<String, ScriptedModel>()
+        testTasks.modelFactory = { _, session ->
+            bySession.computeIfAbsent(session.id) { models[handed.getAndIncrement().coerceAtMost(ROUNDS - 1)] }
+        }
         testTasks.lightModelFactory = { _, _ -> null }
         testTasks.visionModelFactory = { _, _ -> null }
     }

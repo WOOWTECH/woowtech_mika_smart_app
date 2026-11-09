@@ -24,7 +24,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -53,7 +52,10 @@ class ParallelDeviceTest {
         priorFlags = killRecord.takeIf { it.exists() }?.let { runCatching { SpeedFlags.parse(JSONObject(it.readText()).getString(FLAGS_KEY)) }.getOrNull() }
             ?: flags.speedFlags()
         flags.setSpeed(priorFlags.copy(parallelTasks = true))
-        testTasks.modelFactory = { _, _ -> models[handedOut.getAndIncrement().coerceAtMost(1)] }
+        val bySession = java.util.concurrent.ConcurrentHashMap<String, ScriptedModel>()
+        testTasks.modelFactory = { _, session ->
+            bySession.computeIfAbsent(session.id) { models[handedOut.getAndIncrement().coerceAtMost(1)] }
+        }
         testTasks.lightModelFactory = { _, _ -> null }
         testTasks.visionModelFactory = { _, _ -> null }
     }
@@ -156,9 +158,10 @@ class ParallelDeviceTest {
      */
     private val killRecord get() = File(context.filesDir, "parallel-kill-test.json")
 
-    @Ignore("two-run manual procedure: needs an external `adb shell am force-stop` while this test waits; a normal run would sit for 120 s and then fail")
     @Test
     fun killDuringTwoTasksRecovers() {
+        assumeTrue("requires the host-controlled two-run kill procedure",
+            InstrumentationRegistry.getArguments().getString("externalKillTest") == "true")
         val record = killRecord
         if (record.exists()) {
             val saved = JSONObject(record.readText())

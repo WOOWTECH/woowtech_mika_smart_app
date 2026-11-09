@@ -29,7 +29,7 @@ class AndroidScreenTest {
     fun tearDown() = agent.release()
 
     private suspend fun openSettings(): ScreenSnapshot {
-        val r = screen.openApp(SETTINGS)
+        val r = screen.openApp(SETTINGS, cold = true)
         assertTrue("openApp: $r", r is ActionResult.Ok)
         assertNull((r as ActionResult.Ok).appSwitched)
         return snapUntil { s -> s.elements.any { DeviceSupport.networkEntry(it) } }

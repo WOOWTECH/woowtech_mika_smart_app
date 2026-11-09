@@ -49,6 +49,22 @@ class WheelStepsTest {
         assertEquals(40, actions)
     }
 
+    @Test fun missingValueDoesNotKeepSteppingPastItsModuloEquivalent() {
+        val w = Wheel(minutes, 0, wrap = true)
+        val (step, actions) = run(w, "75")
+        assertEquals(WheelSteps.Step.Stop("not_reached"), step)
+        assertEquals("15", w.current)
+        assertEquals(15, actions)
+    }
+
+    @Test fun nonZeroBasedWrappingWheelStillReachesItsRealValue() {
+        val w = Wheel((101..160).map { "$it" }, 0, wrap = true)
+        val (step, actions) = run(w, "141")
+        assertEquals(WheelSteps.Step.Done, step)
+        assertEquals("141", w.current)
+        assertEquals(20, actions)
+    }
+
     @Test fun alreadyThereDoesNothing() {
         val w = Wheel(minutes, 9, wrap = true)
         assertEquals(WheelSteps.Step.Done to 0, run(w, "9"))

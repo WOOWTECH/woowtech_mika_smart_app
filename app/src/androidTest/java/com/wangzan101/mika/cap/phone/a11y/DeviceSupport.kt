@@ -101,7 +101,7 @@ object DeviceSupport {
 
     /** 在虚拟屏上打开测试包里的页面(按类给,类名和清单里登记的一致)。 */
     fun startTestActivity(displayId: Int, activity: Class<out android.app.Activity>) {
-        sh("am start --display $displayId -n $TEST_PACKAGE/${activity.name}")
+        sh("am start -W --display $displayId -n $TEST_PACKAGE/${activity.name}")
     }
 
     /**

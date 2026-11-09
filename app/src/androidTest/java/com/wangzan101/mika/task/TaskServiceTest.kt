@@ -196,7 +196,7 @@ class TaskServiceTest {
         assertTrue(shell.moveTask(settingsTask, Display.DEFAULT_DISPLAY))
         // 模型还在「推理」(没走到 gate)时就应立即显示暂停
         assertEquals(TaskState.Held(TaskGate.paused(TaskGate.MOVED_AWAY)), awaitState { it is TaskState.Held })
-        model.feed("phone_back")
+        model.feed("phone_launch_app", """{"package":"$SETTINGS"}""")
         assertEquals(TaskState.Held(TaskGate.paused(TaskGate.MOVED_AWAY)), awaitState { it is TaskState.Held })
         // 暂停期间不自动挪回
         Thread.sleep(1_500)
@@ -329,7 +329,7 @@ class TaskServiceTest {
         val wasEnabled = access.settings.config.value.enabled
         val power = context.getSystemService(PowerManager::class.java)
         val notifications = context.getSystemService(NotificationManager::class.java)
-        val before = notifications.activeNotifications.map { it.key }.toSet()
+        val before = notifications.activeNotifications.associate { it.key to it.postTime }
         val conversation = "test-scheduled-unlock-${System.nanoTime()}"
         access.settings.setEnabled(false)
         try {
@@ -346,7 +346,7 @@ class TaskServiceTest {
 
             val posted = pollUntil(5_000) {
                 notifications.activeNotifications.firstOrNull {
-                    it.key !in before && it.notification.channelId == TaskService.CHANNEL_RESULT &&
+                    it.postTime > (before[it.key] ?: Long.MIN_VALUE) && it.notification.channelId == TaskService.CHANNEL_RESULT &&
                         it.notification.extras.getCharSequence(Notification.EXTRA_TEXT) == expected
                 }
             }
