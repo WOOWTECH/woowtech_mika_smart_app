@@ -145,6 +145,31 @@ class ModelErrorCopyTest {
         assertEquals(traditional, ModelErrorCopy.retryStopped(event))
     }
 
+    @Test fun retryStatesExplainOnlyTrustedReasons() {
+        fun retry(detail: String) = ModelErrorCopy.retryState(RunEvent.State(0, "model_retry", detail))
+        for (reason in listOf("network", "stream_cut", "proxy_unreachable")) {
+            assertEquals("The connection to the model was interrupted. Waiting to retry.", retry("main $reason #1 1000ms"))
+        }
+        assertEquals("The model service is limiting requests. Waiting to retry.", retry("light rate_limited #2 0ms"))
+        assertEquals("The model service encountered a temporary error. Waiting to retry.", retry("main server_503 #3 8000ms"))
+        UiText.source = ResFileTexts.traditional
+        assertEquals("模型連線中斷，正在等待重試。", retry("main network #1 1000ms"))
+        assertEquals("模型服務限制了請求頻率，正在等待重試。", retry("main rate_limited #1 1000ms"))
+        assertEquals("模型服務暫時發生錯誤，正在等待重試。", retry("main server_502 #1 1000ms"))
+    }
+
+    @Test fun malformedRetryDetailsAreNeverShown() {
+        for (detail in listOf("secret", "main unknown #1 1000ms", "main server_401 #1 1000ms",
+            "main network #0 1000ms", "main network #1 -1ms", "main network #1 1000ms secret",
+            "main network #1 1000ms\n", "provider network #1 1000ms", "main proxy_auth #1 1000ms",
+            "main network #999999999999999999999 1ms", "main network #1 999999999999999999999ms")) {
+            assertNull(detail, ModelErrorCopy.retryState(RunEvent.State(0, "model_retry", detail)))
+        }
+        assertNull(ModelErrorCopy.retryState(RunEvent.State(0, "other", "main network #1 1000ms")))
+        val stopped = RunEvent.State(0, "model_retry_stopped", "call_deadline 1000ms")
+        assertEquals(ModelErrorCopy.retryStopped(stopped), ModelErrorCopy.retryState(stopped))
+    }
+
     @Test fun deadlineMappingDoesNotRewriteReceiptsOrExposeUnknownStateDetails() {
         val reason = ModelCallDeadlineExceeded(12345).message.orEmpty()
         val receipt = TaskState.Failed("Partial result: [page](https://example.com). $reason", FailKind.GaveUp)

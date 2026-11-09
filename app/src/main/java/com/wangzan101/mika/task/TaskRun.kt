@@ -453,6 +453,15 @@ class TaskRun(
                 e is RunEvent.State && e.name == "reply_interrupted" -> steerJoin.interrupted(e.detail)
                 e is RunEvent.State && e.name == "reply_finished_before_steer" -> steerJoin.finished(e.detail)
                 e is RunEvent.State && e.name == "steer_received" -> joinSteer(e.detail)
+                e is RunEvent.State && e.name in setOf("model_retry", "model_retry_stopped") -> {
+                    ModelErrorCopy.retryState(e)?.let { message ->
+                        synchronized(publishLock) {
+                            (_state.value as? TaskState.Running)?.let { running ->
+                                publish(running.copy(note = message, reason = message, narration = message))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -797,7 +806,7 @@ class TaskRun(
                         sandbox = sandbox, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision)
-                    AgentLoop(model, childTools, SystemPrompt.identity(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
+                    AgentLoop(model, childTools, SystemPrompt.identity(), taskBudget = com.wangzan101.mika.core.agent.TaskBudget(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
                         reviewFinalAnswer = false, flags = speed, outwardPacing = OutwardPacing.human())
@@ -863,6 +872,7 @@ class TaskRun(
                     )
                 },
                 maxSteps = env.evalHooks.maxSteps ?: runSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
+                taskBudget = com.wangzan101.mika.core.agent.TaskBudget(),
                 reviewFinalAnswer = false,
                 inputTimeoutMs = TaskService.INPUT_TIMEOUT_MS,
                 // 询问 / 自主:询问时只有花钱的一步先问(有确认关卡和 request_confirmation);自主时连付款也不问。

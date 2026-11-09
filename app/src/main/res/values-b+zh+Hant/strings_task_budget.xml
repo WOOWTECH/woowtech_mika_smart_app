@@ -1,3 +1,7 @@
 <resources>
     <string name="model_call_deadline">等待模型回覆的時間已達上限（包含重試等待）。已停止重試，任務尚未完成。</string>
+    <string name="settings_task_budget_explanation">「不限制」僅指步數。每個任務的總時間預算為 15 分鐘，包含等待使用者的時間，並預留 30 秒整理摘要。取消後的清理可能延長時間，因此不保證精確於時限結束。工作額度為 200 萬 Token，依服務商回報的用量計算，包含快取 Token；未回報用量時採估算。已在進行中的一次模型呼叫可能超出 Token 額度。這不是費用上限。</string>
+    <string name="model_retry_wait_network">模型連線中斷，正在等待重試。</string>
+    <string name="model_retry_wait_rate">模型服務限制了請求頻率，正在等待重試。</string>
+    <string name="model_retry_wait_server">模型服務暫時發生錯誤，正在等待重試。</string>
 </resources>

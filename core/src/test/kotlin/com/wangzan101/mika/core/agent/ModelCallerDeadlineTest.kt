@@ -146,7 +146,10 @@ class ModelCallerDeadlineTest {
             advanceTimeBy(100)
             job.cancel(cause)
             job.join()
-            assertSame(cause, observed)
+            // Coroutine stack-trace recovery may copy the exception across a suspension boundary.
+            assertEquals(cause.javaClass, observed?.javaClass)
+            assertEquals(cause.message, observed?.message)
+            assertTrue(job.isCancelled)
             assertFalse(events.filterIsInstance<RunEvent.State>().any { it.name == "model_retry_stopped" })
             assertEquals(1, model.calls)
         }
@@ -231,13 +234,26 @@ class ModelCallerDeadlineTest {
         assertSame(reply, recorded.single().first)
     }
 
-    @Test fun defaultBudgetIsThreeMinutes() = runTest {
+    @Test fun explicitProductBudgetIsThreeMinutes() = runTest {
         val model = Model { awaitCancellation() }
         val caller = ModelCaller(model, toolDispatcher(FakeScreen()), null, SpeedFlags.OFF,
-            RetryPolicy.NONE, {}, { testScheduler.currentTime })
+            RetryPolicy.NONE, {}, { testScheduler.currentTime }, callBudgetMs = 180_000)
         val error = deadline { caller.ask(emptyList(), emptyList(), 1) }
         assertEquals(180_000L, error.budgetMs)
         assertEquals(180_000L, testScheduler.currentTime)
+    }
+
+    @Test fun defaultHasNoDeadlineForLegacyEmbedding() = runTest {
+        val reply = answerReply("legacy reply")
+        val model = Model { delay(180_001); reply }
+        val events = mutableListOf<RunEvent>()
+        val caller = ModelCaller(model, toolDispatcher(FakeScreen()), null, SpeedFlags.OFF,
+            RetryPolicy.NONE, { events.add(it) }, { testScheduler.currentTime })
+        assertSame(reply, caller.ask(emptyList(), emptyList(), 1))
+        assertEquals(180_001L, testScheduler.currentTime)
+        assertSame(reply, caller.routed(emptyList(), emptyList(), lightTrack(), 3, {}).first)
+        assertEquals(360_002L, testScheduler.currentTime)
+        assertFalse(events.filterIsInstance<RunEvent.State>().any { it.name == "model_retry_stopped" })
     }
 
     @Test fun budgetMustBePositive() = runTest {

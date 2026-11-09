@@ -41,12 +41,13 @@ internal class ModelCaller(
     private val now: () -> Long,
     private val autonomous: Boolean = false,
     private val trace: RunTrace? = null,
-    /** Total elapsed budget for ask/routed, including all attempts, streams, fallback and backoff. */
-    private val callBudgetMs: Long = 180_000,
+    /** Total elapsed budget for ask/routed, including attempts, streams, fallback and backoff.
+     * Null preserves legacy embedding behavior; product callers supply their explicit policy. */
+    private val callBudgetMs: Long? = null,
     /** Every successful reply, including rejected light replies; estimate covers the whole sent input. */
     private val onReplyUsage: (ModelReply, Int) -> Unit = { _, _ -> },
 ) {
-    init { require(callBudgetMs > 0) { "callBudgetMs must be positive" } }
+    init { require(callBudgetMs == null || callBudgetMs > 0) { "callBudgetMs must be positive" } }
 
     /** 每个模型一份压缩状态:各自的上下文、各自发出的那份历史,轻量模型那次压缩不连累主模型的请求前缀。 */
     private val compressors = java.util.IdentityHashMap<ChatModel, ContextCompressor>()
@@ -164,12 +165,13 @@ internal class ModelCaller(
     ): ModelReply = complete(viewFor(history, using), specs, using, retry, step, onText)
 
     private suspend fun <T : Any> withinDeadline(block: suspend () -> T): T {
+        val budgetMs = callBudgetMs ?: return block()
         // withTimeoutOrNull only consumes its own timeout; parent cancellation/timeouts propagate.
-        val result = withTimeoutOrNull(callBudgetMs) { block() }
+        val result = withTimeoutOrNull(budgetMs) { block() }
         if (result != null) return result
         currentCoroutineContext().ensureActive()
-        emit(RunEvent.State(now(), "model_retry_stopped", "call_deadline ${callBudgetMs}ms"))
-        throw ModelCallDeadlineExceeded(callBudgetMs)
+        emit(RunEvent.State(now(), "model_retry_stopped", "call_deadline ${budgetMs}ms"))
+        throw ModelCallDeadlineExceeded(budgetMs)
     }
 
     /**

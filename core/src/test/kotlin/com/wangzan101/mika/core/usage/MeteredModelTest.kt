@@ -195,7 +195,11 @@ class MeteredModelTest {
             for (failure in listOf(ModelError.Network(), CancellationException("cancelled"))) {
                 val model = Plain { throw failure }.metered(source, sink)
                 try { model.complete("system", user, emptyList()); fail("Expected failure") }
-                catch (caught: Exception) { assertSame(failure, caught) }
+                catch (caught: Exception) {
+                    // Stack-trace recovery may copy exceptions thrown through withContext.
+                    assertEquals(failure.javaClass, caught.javaClass)
+                    assertEquals(failure.message, caught.message)
+                }
             }
         }
         assertEquals(0L, ledger.totalTokens)

@@ -62,7 +62,7 @@ class TaskBudgetDeviceTest {
                 else { assertTrue(tools.isEmpty()); answer("Selection remains unanswered.") }
             }
         }
-        val loop = AgentLoop(model, toolDispatcher(BudgetScreen()), "BASE")
+        val loop = AgentLoop(model, toolDispatcher(BudgetScreen()), "BASE", taskBudget = TaskBudget())
         val job = async { loop.run(RunSpec(RunId("device-question"), "Read a file", "thread"), inbox) }
         withTimeout(5000) { while (loop.state.value !is TaskState.WaitingInput) delay(20) }
         inbox.steer("deliver", "give me the results so far")
@@ -83,7 +83,7 @@ class TaskBudgetDeviceTest {
                     return answer("No additional work performed.")
                 }
             }
-            assertTrue(AgentLoop(model, toolDispatcher(BudgetScreen()), "BASE").run("先給我目前結果") is TaskState.Failed)
+            assertTrue(AgentLoop(model, toolDispatcher(BudgetScreen()), "BASE", taskBudget = TaskBudget()).run("先給我目前結果") is TaskState.Failed)
             assertEquals("<h1>Existing result</h1>", file.readText())
         } finally { file.delete() }
     }

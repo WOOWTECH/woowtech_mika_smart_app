@@ -1,3 +1,7 @@
 <resources>
     <string name="model_call_deadline">Model terlalu lama merespons, termasuk waktu untuk mencoba ulang. Percobaan ulang telah dihentikan; tugas belum selesai.</string>
+    <string name="settings_task_budget_explanation">Tanpa batas hanya berlaku untuk jumlah langkah. Setiap tugas memiliki anggaran waktu total 15 menit, termasuk menunggu pengguna dan 30 detik untuk ringkasan. Pembersihan setelah pembatalan dapat memperpanjang waktu ini, sehingga waktu selesai yang tepat tidak dijamin. Jatah kerja adalah 2 juta token berdasarkan penggunaan yang dilaporkan penyedia, termasuk token dalam cache, atau perkiraan jika data penggunaan tidak tersedia. Satu panggilan model yang sedang berlangsung dapat melampaui jatah token. Ini bukan batas biaya tagihan.</string>
+    <string name="model_retry_wait_network">Koneksi ke model terputus. Menunggu untuk mencoba ulang.</string>
+    <string name="model_retry_wait_rate">Layanan model sedang membatasi permintaan. Menunggu untuk mencoba ulang.</string>
+    <string name="model_retry_wait_server">Layanan model mengalami kesalahan sementara. Menunggu untuk mencoba ulang.</string>
 </resources>

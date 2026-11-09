@@ -86,6 +86,20 @@ object ModelErrorCopy {
             tr(R.string.model_call_deadline)
         else null
 
+    /** Parse only the internal retry grammar; provider text is never UI copy. */
+    fun retryState(event: RunEvent.State): String? {
+        if (event.name == "model_retry_stopped") return retryStopped(event)
+        if (event.name != "model_retry") return null
+        val match = Regex("(?:main|light) (network|stream_cut|proxy_unreachable|rate_limited|server_5[0-9]{2}) #([1-9][0-9]*) ([0-9]+)ms")
+            .matchEntire(event.detail) ?: return null
+        if (match.groupValues[2].toIntOrNull() == null || match.groupValues[3].toLongOrNull() == null) return null
+        return tr(when (match.groupValues[1]) {
+            "rate_limited" -> R.string.model_retry_wait_rate
+            "network", "stream_cut", "proxy_unreachable" -> R.string.model_retry_wait_network
+            else -> R.string.model_retry_wait_server
+        })
+    }
+
     /** 列模型没成功的原因;带着细节(状态码「HTTP 500」)时接在后面括起来,和 [ModelListResult.Failed.message] 一样。 */
     fun listFailure(r: ModelListResult.Failed): String {
         val reason = when (r.reason) {

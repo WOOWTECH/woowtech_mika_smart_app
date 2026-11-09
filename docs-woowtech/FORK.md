@@ -193,3 +193,13 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 | 日期 | 上游基準 | 說明 |
 |---|---|---|
 | 2026-11-06 | `v0.1.37` | 初版品牌層 |
+
+### 共用任務預算與收斂交付
+
+Apporo 與渥屋助理共用 `TaskBudget`、`AgentLoop` 的有時限交付、
+`ModelCaller` 的整體請求截止時間，以及 `SandboxReadProgress` 成功重讀防護。
+`TaskUsageBudget` 沿協程傳給子任務，`MeteredModel` 計入回報用量或缺失時的估值。
+預設任務總額度 15 分鐘（包含 30 秒收尾保留）、200 萬 Token 工作量門檻；
+模型單次邏輯呼叫 180 秒。這不是精確費用上限，取消中的外部操作仍須確認結果。
+設定頁揭露限制，未完成收據可複製及開啟 Markdown 連結。
+完整行為、限制與測試範圍見 [TASK-BUDGETS.md](../docs-apporo/TASK-BUDGETS.md)。

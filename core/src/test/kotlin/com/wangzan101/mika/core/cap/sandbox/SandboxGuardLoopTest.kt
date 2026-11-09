@@ -44,7 +44,8 @@ class SandboxGuardLoopTest {
             // The last reply still proposes a command, but the tool-free delivery call cannot run it.
             assertEquals(8, model.requests.size)
             assertTrue(model.offeredTools.last().isEmpty())
-            val results = model.requests.last().flatMap { it.parts }.filterIsInstance<Part.ToolResult>()
+            // Delivery flattens evidence into text; inspect the final exploration request instead.
+            val results = model.requests[6].flatMap { it.parts }.filterIsInstance<Part.ToolResult>()
                 .map { Json.parseToJsonElement(it.content).jsonObject }
             val warning = results[3]["guard"]!!.jsonArray.single().jsonObject
             assertEquals("sandbox_no_progress", warning["code"]!!.jsonPrimitive.content)

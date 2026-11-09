@@ -62,7 +62,7 @@ class TaskBudgetTest {
                 return ModelReply(listOf(Part.ToolCall("c1", "phone_list_apps", "{}")), StopReason.ToolUse, null)
             }
         }
-        val end = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE").run("先給我目前結果") as TaskState.Failed
+        val end = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", taskBudget = TaskBudget()).run("先給我目前結果") as TaskState.Failed
         assertTrue(end.reason.contains("既有工作區檔案未刪除"))
     }
 
@@ -89,7 +89,7 @@ class TaskBudgetTest {
                 return answer("No artifact has been created yet.")
             }
         }
-        val loop = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", clock = { currentTime })
+        val loop = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", clock = { currentTime }, taskBudget = TaskBudget())
         val job = async { loop.run(RunSpec(com.wangzan101.mika.core.run.RunId("budget-steer"), "research", "thread"), inbox) }
         runCurrent()
         inbox.steer("deliver", "give me the results so far")
@@ -110,13 +110,64 @@ class TaskBudgetTest {
                 return answer("The file selection remains unanswered.")
             }
         }
-        val loop = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", clock = { currentTime })
+        val loop = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", clock = { currentTime }, taskBudget = TaskBudget())
         val job = async { loop.run(RunSpec(com.wangzan101.mika.core.run.RunId("budget-question"), "read a file", "thread"), inbox) }
         runCurrent()
         assertTrue(loop.state.value is TaskState.WaitingInput)
         inbox.steer("deliver", "先給我目前結果")
         assertTrue(job.await() is TaskState.Failed)
         assertTrue(currentTime <= 100)
+        assertEquals(2, calls)
+    }
+
+    @Test fun longConversationStopsGrowingBeforeMillionsBecomeHundredsOfMillions() = runTest {
+        var calls = 0
+        val events = mutableListOf<RunEvent>()
+        val model = object : Model() {
+            override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
+                calls++
+                delay(25)
+                return if (tools.isEmpty()) answer("Partial result: existing notes; webpage remains incomplete.")
+                    else ModelReply(listOf(Part.Text("I am still checking the same source.")), StopReason.EndTurn, Usage(200_000, 100, 150_000))
+            }
+        }
+        val end = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", taskBudget = TaskBudget(), maxSteps = AgentLoop.UNLIMITED_STEPS,
+            clock = { currentTime }, beforeAccept = { BeforeAccept.Continue("A webpage is still missing.") },
+            sink = object : RunSink { override fun event(e: RunEvent) { events += e } }).run("Research and prepare a webpage")
+        assertTrue(end is TaskState.Failed)
+        assertEquals(11, calls) // ten exploratory calls, then one tool-free delivery
+        val metrics = com.wangzan101.mika.core.record.RunMetrics.of(events)!!
+        assertEquals(11, metrics.modelCalls)
+        assertEquals(275L, metrics.totalMs)
+        assertEquals(275L, metrics.modelMs)
+        assertEquals(0L, metrics.actMs)
+        assertEquals(0L, metrics.observeMs)
+        assertTrue(metrics.tokens in 2_001_000L..2_001_100L)
+        assertTrue((end as TaskState.Failed).reason.contains("webpage remains incomplete"))
+    }
+
+    @Test fun deliverySteerWithdrawsPendingApprovalWithoutGrantingIt() = runTest {
+        val inbox = RunInbox()
+        val gate = com.wangzan101.mika.core.gate.ConfirmationGate()
+        var calls = 0
+        val events = mutableListOf<RunEvent>()
+        val model = object : Model() {
+            override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
+                calls++
+                return if (calls == 1) ModelReply(listOf(Part.ToolCall("approval", "request_confirmation",
+                    """{"action":"order","target":"test item","content":"test order","amount":"NT$10","app":"test"}""")), StopReason.ToolUse, Usage(20, 10))
+                else { assertTrue(tools.isEmpty()); answer("The order was not approved or placed.") }
+            }
+        }
+        val loop = AgentLoop(model, toolDispatcher(FakeScreen()), "BASE", taskBudget = TaskBudget(), confirmations = gate,
+            clock = { currentTime }, sink = object : RunSink { override fun event(e: RunEvent) { events += e } })
+        val job = async { loop.run(RunSpec(com.wangzan101.mika.core.run.RunId("budget-approval"), "order a test item", "thread"), inbox) }
+        runCurrent()
+        assertTrue(loop.state.value is TaskState.WaitingConfirmation)
+        inbox.steer("deliver", "先給我目前結果")
+        assertTrue(job.await() is TaskState.Failed)
+        assertNull(gate.granted)
+        assertFalse(events.filterIsInstance<RunEvent.Confirmation>().any { it.decision == "approved" })
         assertEquals(2, calls)
     }
 

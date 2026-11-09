@@ -1,3 +1,7 @@
 <resources>
     <string name="model_call_deadline">再試行の待ち時間を含め、モデルの応答待ちが制限時間に達しました。再試行を停止しました。タスクは完了していません。</string>
+    <string name="settings_task_budget_explanation">「無制限」はステップ数のみに適用されます。各タスクの時間枠は合計15分で、ユーザーの応答待ちと要約用の30秒を含みます。キャンセル後の終了処理で時間が延びる場合があり、厳密な終了時刻は保証されません。作業枠は200万トークンで、キャッシュ分を含むプロバイダー報告の使用量に基づき、使用量が不明な場合は推定値を使います。進行中のモデル呼び出し1回分がトークン枠を超える場合があります。これは請求額の上限ではありません。</string>
+    <string name="model_retry_wait_network">モデルとの接続が中断されました。再試行を待っています。</string>
+    <string name="model_retry_wait_rate">モデルサービスがリクエストを制限しています。再試行を待っています。</string>
+    <string name="model_retry_wait_server">モデルサービスで一時的なエラーが発生しました。再試行を待っています。</string>
 </resources>
