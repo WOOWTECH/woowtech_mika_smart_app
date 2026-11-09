@@ -95,9 +95,11 @@ class MemoryStore(
         Result.success(remember { Change.Updated(item, before, it) })
     }
 
-    fun forget(id: String): Result<Change.Forgot> = synchronized(lock) {
+    fun forget(id: String, expectedContent: String? = null): Result<Change.Forgot> = synchronized(lock) {
         if (!reloadIfNeeded()) return Result.failure(MemoryRejected("unavailable"))
         val before = _items.value.find { it.id == id } ?: return Result.failure(MemoryRejected("not_found"))
+        if (expectedContent != null && before.content != expectedContent)
+            return Result.failure(MemoryRejected("content_changed"))
         commit(_items.value.filter { it.id != id })
         Result.success(remember { Change.Forgot(before, it) })
     }

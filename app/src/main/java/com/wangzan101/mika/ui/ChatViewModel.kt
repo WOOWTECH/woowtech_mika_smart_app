@@ -1561,6 +1561,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "看你发来的屏幕" to R.string.tool_view_user_screen,
             "查找记忆" to R.string.tool_search_memory,
             "记住一件事" to R.string.tool_save_memory,
+            "删除一条记忆" to R.string.tool_forget_memory,
             "修改「关于你」" to R.string.tool_edit_profile,
             "查看之前几轮的记录" to R.string.tool_read_history,
             "安排定时任务" to R.string.tool_schedule_task,

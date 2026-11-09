@@ -35,6 +35,43 @@ private const val MEMORY_SEARCH_LIMIT = 8
 /** 记忆和用户本次说过的话都给了才提供。 */
 private fun memoryOn(ctx: ToolContext) = ctx.config.memory != null && ctx.config.utterances != null
 
+/** Delete exactly the reviewed record, never a bulk UI operation or another app's data. */
+internal object MemoryForget : AgentTool {
+    override val verb = Verb.MemoryForget
+    override val label = "删除一条记忆"
+    override val risk = Risk.Write
+    override val offScreen = true
+    override val def = ToolDef("memory_forget", Prompts.tool("memory_forget"), mapOf(
+        "id" to str("The exact id returned by memory_search."),
+        "content" to str("The exact current content returned by memory_search; changed records are not deleted."),
+        "quote" to str("The user's exact words asking to forget this memory, from the current task."),
+    ), listOf("id", "content", "quote"))
+
+    override fun available(ctx: ToolContext) = memoryOn(ctx)
+
+    override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
+        val id = a.str("id", max = 200)!!
+        val content = a.str("content", max = MemoryStore.MAX_CONTENT)!!
+        val quote = a.str("quote", max = 1000)!!
+        if (!ctx.config.utterances!!.contains(quote))
+            return fail("quote_not_from_user", Feedback["memory.quote_not_from_user"], recoverable = false)
+        return ctx.config.memory!!.forget(id, expectedContent = content).fold(
+            onSuccess = { change ->
+                ctx.noteSaved(change)
+                ok { put("id", id); put("deleted", true) }
+            },
+            onFailure = { e ->
+                when ((e as? MemoryRejected)?.code) {
+                    "not_found" -> fail("not_found", "This memory no longer exists. Search again; nothing was deleted.", recoverable = false)
+                    "content_changed" -> fail("content_changed", "The memory changed since it was read. Search again before deciding whether it still matches the user's deletion request.", recoverable = true)
+                    "unavailable" -> fail("memory_unavailable", Feedback["memory.unavailable"], recoverable = false)
+                    else -> throw e
+                }
+            },
+        )
+    }
+}
+
 internal object MemorySearch : AgentTool {
     override val verb = Verb.MemorySearch
     override val label = "查找记忆" // WOOWTECH fork: 上游没有说法,界面上露出工具名
