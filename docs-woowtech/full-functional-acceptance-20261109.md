@@ -30,10 +30,10 @@
 | 浮動膠囊、接管、目前畫面 | 未完整實測 | 顯示、暫停／恢復、截圖詢問、權限拒絕 |
 | 內建瀏覽器 | 表單、分頁、上傳、靜態／動態 Blob 下載、分享及實際內容比對通過 | 來源卡、錯誤恢復、接管；儀器整套仍執行中 |
 | 網站登入與模型登入 | 使用現有設定 | 不動既有登入；登入新增需對應測試帳號與使用者完成驗證 |
-| 附件、圖片、PDF | 未完整實測 | 合成檔案選取、解析、來源展示、遺失與格式錯誤 |
+| 附件、圖片、PDF | F19 真實選檔、拒絕照片權限、PDF/CSV/圖片解析及來源通過 | 遺失與格式錯誤恢復補驗 |
 | 沙箱、程式與檔案 | 基線通過 | 工作區隔離、長命令取消、離線限制、成果保留與清理 |
-| 來源、過程與用量 | 基線部分 UI 讀回 | 開啟來源、匯出用量、前後一致性 |
-| USB、Wi-Fi、CLI、MCP | 基線 USB API 通過 | MCP 握手／工具、CLI、錯誤權杖、Wi-Fi、連線恢復 |
+| 來源、過程與用量 | F19 開來源、過程、匯出用量及UI總數核對通過 | 詳細Trace為debug功能，release另按限制驗證 |
+| USB、Wi-Fi、CLI、MCP | USB/Wi-Fi任務、MCP握手／工具、CLI、錯誤權杖、邏輯重連通過 | 實體重啟後恢復補驗 |
 | 遠端中繼與喚醒 | 未完整實測 | 本地整合回歸與實際服務連線；不可把模擬測試當外網通過 |
 | 語言、主題與設定保存 | 中英／外觀切換、覆蓋更新持久化、通知分類使用者設定保留通過 | 長時間背景與其他設定補驗 |
 | 模型斷線、重試與串流 | 未完整實測 | 回歸測試、具體斷線路徑與成果保留 |
@@ -117,3 +117,21 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 完整核心2969項，1項快照大小失敗、3略過；差異僅 schedule_task 補充329 bytes（44247→44576），已核對更新並另跑提示／排程／等待策略回歸。不能將這次全套原始失敗抹除。
 - 原介面／瀏覽器清單48組之外，再盤點出55組儀器測試；LiveRun/Eval需指定真實評測配置，另外53組納入擴充測試，包含沙箱、手機控制、虛擬螢幕、確認、任務恢復。進行中，未提前列通過。
 - F17 UI 顯示其中一筆為「檢查失敗」，另筆為「條件未變化」；兩筆皆未交付目標。F18 的假條件排程也保留為已停用，並非所有一次性排程均自動移除。已開始逐筆刪除這三筆合成排程。
+
+### 新版覆蓋安裝
+
+- 提交 f211ac60，正式憑證SHA-256仍為806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8。APK SHA-256為95fe1e719144cf95ab1b5d3520e50f58784740f967cd2a078ed1e89f767f7e57。已ADB保留資料更新POCO，尚未公開發布。
+- F25 在新版Python計算、寫檔、讀回、分享成功；從手機Download獨立取回31bytes：FQA-UPDATE-957及17*7+11*3 = 152。
+- 更新後CLI doctor連線成功、helper_available/user_unlocked/ready為true；無障礙服務仍啟用，ACCESS_RESTRICTED_SETTINGS仍allow；輸入法仍為原Google LatinIME。
+- F24 三筆F17/F18停用排程均經UI確認後刪除，最終進行中0、已停用0；階層證據已保存。
+- Android JVM1501項全過；核心針對PromptLayout/ScheduleTask/SettlePolicy共27項全過。完整核心前次2969項唯一快照失敗已於這批修正重驗。
+- 浮動卡片30案的第一輪在第23案被測試執行器240秒總限中止（exit124），無斷言失敗；調整執行器上限後整組重新執行。原中斷紀錄保留，不算產品通過。
+
+### 18:05 補驗與修正
+
+- F26/F27 新版背景實機任務同時送出，依目前設定排隊。系統設定實際讀到 POCO C85 / Android 15 AP3A.240905.015.A2；接續計算機真實按鍵17×7+11×3，畫面結果152，兩任務皆done。這不是同時並行的通過證據。
+- F28 遠端喚醒成功，鎖屏仍在；兩次解鎖在輸入前回unsupported_keyguard，attempt_blocked=false。XML只核對SystemUI PIN欄位結構，不輸出密碼。找到KeyguardFields的歧義：stock PasswordTextView若editable且未宣告TYPE_CLASS_NUMBER，可同時匹配Pin和Password，singleOrNull將它拒絕。新增回歸先失敗，再令Password分類排除已識別pinView。
+- 修正後Android JVM1502項全過，正式簽章候選APK SHA-256：76c41facb92e4a1a28545b4427b64e9cc4a27ec5ea5c51e6e8417c6b27629612，已覆蓋安裝POCO。F28 API回unlocked，keyguard_showing/device_locked=false、ready=true。此前已請使用者手動解鎖但未收到回覆；需重新建立一次鎖屏循環，排除人工同時介入的可能。之後USB裝置從adb清單消失，後續實機驗收待重連。
+- 本輪首次完整lint實際失敗32 errors/182 warnings；之前的成功打包不能代替完整lint。修正API31守衛、受限制常數的使用、Settings StateFlow訂閱及BOM字元；Compose produceState誤報對應Google issue368420773（https://developer.android.com/studio/releases/fixed-bugs/studio/2024.2.2），升AGP8.8.2，沿用Gradle8.11.1/JDK17。完整lint、release、1502項JVM回歸在同一串行建置成功。未關閉檢查或新增baseline。
+- 曾同時啟動兩個同工作目錄Gradle建置，造成knowledgeIndex class在編譯產出變動時找不到；保留失敗log，改串行後成功，非產品驗收通過證據。後續禁止同目錄Gradle並行。
+- 擴充測試的助手重啟案例會讓USB啟動的helper停止；這種模式需要重跑USB命令，後續依賴測試曾受污染。執行器改每組啟動instrumentation後補起helper。原helper_missing失敗保留、需重跑，不能當產品故障或通過。部分系統設定頁斷言只認原手機WLAN版面，尚待適配測試前置；未跳過宣稱通過。

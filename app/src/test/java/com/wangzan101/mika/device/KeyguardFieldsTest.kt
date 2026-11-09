@@ -15,6 +15,17 @@ class KeyguardFieldsTest {
             "com.android.keyguard.PasswordTextView", true, false, false))
     }
 
+    @Test fun editableStockPinWithVariationOnlyInputTypeHasExactlyOneKind() {
+        // PasswordTextView can report editable=true and TYPE_NUMBER_VARIATION_PASSWORD
+        // without TYPE_CLASS_NUMBER. It must not match both Pin and Password.
+        val matches = CredentialKind.entries.filter { kind ->
+            KeyguardFields.matches(kind, "com.android.systemui:id/pinEntry",
+                "com.android.keyguard.PasswordTextView", password = true, editable = true,
+                numeric = false, untyped = false, digitPad = true)
+        }
+        assertEquals(listOf(CredentialKind.Pin), matches)
+    }
+
     @Test fun editablePasswordAndPinHaveDistinctTypes() {
         assertTrue(KeyguardFields.matches(CredentialKind.Password, "com.android.systemui:id/passwordEntry", "android.widget.EditText", true, true, false))
         assertTrue(KeyguardFields.matches(CredentialKind.Pin, "com.android.systemui:id/pinEntry", "android.widget.EditText", true, true, true))

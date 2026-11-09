@@ -78,6 +78,7 @@ internal class AndroidDeviceAccessPort(context: Context, private val helper: () 
         val systemUi = service.windowsOn(Display.DEFAULT_DISPLAY).mapNotNull { w ->
             w.root?.takeIf { it.packageName?.toString() == SYSTEM_UI }?.let { w to it }
         }
+        if (systemUi.isEmpty()) Log.i(TAG, "keyguard scan: no SystemUI root accessible")
         for ((window, root) in systemUi) {
             val digits = mutableSetOf<Char>()
             val candidates = mutableListOf<AccessibilityNodeInfo>()
@@ -93,6 +94,7 @@ internal class AndroidDeviceAccessPort(context: Context, private val helper: () 
             }
             visit(root, 0)
             val pad = KeyguardFields.isDigitPad(digits)
+            if (candidates.isEmpty()) Log.i(TAG, "keyguard scan: SystemUI windows=${systemUi.size}, visible password fields=0, digitPad=$pad")
             for (n in candidates) {
                 val cls = n.inputType and InputType.TYPE_MASK_CLASS
                 val kind = CredentialKind.entries.singleOrNull { kind ->
