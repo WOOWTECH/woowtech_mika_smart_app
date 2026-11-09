@@ -1,0 +1,7 @@
+<resources>
+    <string name="model_call_deadline">El modelo tardó demasiado en responder, incluido el tiempo de los reintentos. Se han detenido los reintentos; la tarea no está completa.</string>
+    <string name="settings_task_budget_explanation">Sin límite se refiere solo al número de pasos. Cada tarea tiene un presupuesto total de 15 minutos, incluidas las esperas al usuario y 30 segundos reservados para un resumen. La limpieza tras cancelar puede prolongar este tiempo, por lo que no se garantiza un plazo exacto. La cuota de trabajo es de 2 millones de tokens, según el uso informado por el proveedor, incluidos los tokens en caché, o estimaciones si faltan datos de uso. Una llamada al modelo ya en curso puede superar la cuota de tokens. No es un límite de facturación.</string>
+    <string name="model_retry_wait_network">Se interrumpió la conexión con el modelo. Esperando para reintentar.</string>
+    <string name="model_retry_wait_rate">El servicio del modelo está limitando las solicitudes. Esperando para reintentar.</string>
+    <string name="model_retry_wait_server">El servicio del modelo tuvo un error temporal. Esperando para reintentar.</string>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="model_call_deadline">O modelo demorou demais para responder, incluindo o tempo das novas tentativas. As novas tentativas foram interrompidas; a tarefa não foi concluída.</string>
+    <string name="settings_task_budget_explanation">Sem limite se aplica apenas ao número de etapas. Cada tarefa tem um orçamento total de 15 minutos, incluindo a espera pelo usuário e 30 segundos reservados para um resumo. A limpeza após o cancelamento pode prolongar esse tempo, portanto não há garantia de um prazo exato. A cota de trabalho é de 2 milhões de tokens com base no uso informado pelo provedor, incluindo tokens em cache, ou em estimativas quando não há dados de uso. Uma chamada ao modelo já em andamento pode exceder a cota de tokens. Isso não é um limite de cobrança.</string>
+    <string name="model_retry_wait_network">A conexão com o modelo foi interrompida. Aguardando para tentar novamente.</string>
+    <string name="model_retry_wait_rate">O serviço do modelo está limitando as solicitações. Aguardando para tentar novamente.</string>
+    <string name="model_retry_wait_server">O serviço do modelo apresentou um erro temporário. Aguardando para tentar novamente.</string>
+</resources>

@@ -1013,7 +1013,10 @@ private fun StatusCard(
                 Box(Modifier.size(8.dp).background(MikaTheme.colors.bad, CircleShape))
                 Text(stringResource(R.string.chat_not_done), style = MikaType.BodyStrong, color = MikaTheme.colors.ink)
             }
-            Text(status.reason, Modifier.padding(top = 4.dp), style = CardBody, color = MikaTheme.colors.ink2)
+            // Keep the failure label above; only the user-facing receipt is selectable/copyable.
+            AnswerArea(key, status.reason, Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                MarkdownText(status.reason, CardBody.copy(color = MikaTheme.colors.ink2), streaming = false)
+            }
         }
         // 停止后补上的交代当作这一轮的回答,排在「已停止」下面;还在写时一行小字
         is ExchangeStatus.Cancelled -> Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {

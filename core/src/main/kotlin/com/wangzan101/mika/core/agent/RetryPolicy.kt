@@ -54,6 +54,7 @@ class RetryPolicy(
 
         /** 运行记录里这次故障的名字。 */
         fun label(e: Throwable): String = when (e) {
+            is ModelCallDeadlineExceeded -> "call_deadline"
             is ModelError.RateLimited -> "rate_limited"
             is ModelError.Network -> "network"
             is ModelError.StreamCut -> "stream_cut"

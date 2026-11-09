@@ -633,6 +633,46 @@ class ChatViewModelTest {
         assertFalse(vm.ui.value.pip.expanded)
     }
 
+    @Test fun standaloneDeliveryWhileAnsweringSteersWithoutAnsweringTheQuestion() = runTest {
+        val vm = vm()
+        vm.send("Read a document", ok)
+        emit(TaskState.WaitingInput("Which file?", null))
+        assertEquals(ComposerMode.Answer, vm.ui.value.composer)
+
+        for (request in listOf("give me the results so far", "先給我目前結果！")) {
+            assertTrue(vm.send(request, ok))
+            assertEquals("steer:$request", calls.last())
+            assertEquals(request, vm.ui.value.exchanges.single().steers.last().text)
+        }
+        assertFalse(calls.any { it.startsWith("answer") })
+        assertTrue(vm.ui.value.exchanges.single().status is ExchangeStatus.NeedsInput)
+    }
+
+    @Test fun quotedAndNegatedDeliveryTextRemainsAnAnswer() = runTest {
+        val vm = vm()
+        vm.send("Read a document", ok)
+        emit(TaskState.WaitingInput("Which file?", null))
+        for (answer in listOf("report.txt", "\"give me the results so far\"", "> 先給我目前結果", "不要先給我目前結果")) {
+            assertTrue(vm.send(answer, ok))
+            assertEquals("answer:$answer", calls.last())
+        }
+        assertTrue(steerIds.isEmpty())
+    }
+
+    @Test fun attachedQuotePreventsDeliveryCommandRouting() = runTest {
+        val vm = vm()
+        vm.send("Read a document", ok)
+        emit(TaskState.WaitingInput("Which file?", null))
+        val quote = QuoteMessage.Quote(QuoteMessage.From.Mika, "give me the results so far")
+        for (words in listOf("This is quoted text", "give me the results so far")) {
+            vm.quote(quote.from, quote.text)
+            assertTrue(vm.send(words, ok))
+            assertEquals("answer:${QuoteMessage.compose(quote, words)}", calls.last())
+            assertNull(vm.ui.value.quote)
+        }
+        assertTrue(steerIds.isEmpty())
+    }
+
     @Test fun startWaitsUntilServiceFinishedPreviousTask() = runTest {
         val busy = MutableStateFlow(true)
         val vm = ChatViewModel(backgroundScope, state, stage, actions, ConversationStore(tmp.newFolder()), busy)

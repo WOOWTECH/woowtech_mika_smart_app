@@ -221,6 +221,7 @@ fun DuringWorkScreen(
             )
             parallel?.let { ParallelRow(it, onParallelMax) }
         }
+        FooterNote(stringResource(R.string.settings_task_budget_explanation))
         if (editingLimit) StepLimitDialog(
             current = stepLimit,
             custom = customLimit,

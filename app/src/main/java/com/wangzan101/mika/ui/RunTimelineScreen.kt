@@ -145,6 +145,9 @@ private fun HeaderGroup(h: TimelineHeader, onExport: () -> Unit) {
     GroupCard {
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
             Text(h.goal, style = MikaType.Title, color = c.ink)
+            h.modelStopReason?.let { reason ->
+                Text(reason, Modifier.padding(top = 10.dp), style = MikaType.Caption, color = c.ink2)
+            }
             if (h.criteria.isNotEmpty()) {
                 Text(stringResource(R.string.timeline_criteria), Modifier.padding(top = 10.dp), style = MikaType.Label, color = c.ink3)
                 h.criteria.forEachIndexed { i, text ->

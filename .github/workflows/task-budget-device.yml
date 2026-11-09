@@ -1,0 +1,90 @@
+name: task-budget-device
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-budget-device-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-android-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Initialize evidence
+        run: mkdir -p budget-device-evidence
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py 2>&1 | tee budget-device-evidence/bootstrap-gradle.log
+      - name: Prepare verified private compiler repository
+        timeout-minutes: 6
+        run: python3 .github/scripts/prepare-compiler-repository.py 2>&1 | tee budget-device-evidence/compiler-repository.log
+      - name: Enable KVM on disposable hosted Linux runner
+        timeout-minutes: 2
+        run: |
+          exec > >(tee budget-device-evidence/kvm-setup.log) 2>&1
+          id
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          for attempt in {1..10}; do
+            if test -r /dev/kvm && test -w /dev/kvm; then break; fi
+            sleep 1
+          done
+          ls -l /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Build both branded debug apps and opt-in Android tests
+        timeout-minutes: 44
+        shell: bash
+        run: |
+          timeout --signal=TERM --kill-after=30s 42m ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleApporoDebug :app:assembleApporoDebugAndroidTest :app:assembleWoowtechDebug :app:assembleWoowtechDebugAndroidTest -PbrandBudgetTests --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g 2>&1 | tee budget-device-evidence/build.log
+      - name: Deterministic model tests on real API 36 x86_64 Android runtime
+        timeout-minutes: 28
+        run: python3 .github/scripts/budget-device-test.py --out budget-device-evidence
+      - name: Record setup or build failure if device runner did not start
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          out = Path('budget-device-evidence')
+          out.mkdir(exist_ok=True)
+          receipt = out / 'receipt.json'
+          if not receipt.exists():
+              receipt.write_text(json.dumps(dict(
+                  status='NOT_RUN_SETUP_BUILD_FAILED_OR_CANCELLED', api=36, abi='x86_64',
+                  source_sha=os.environ['GITHUB_SHA'],
+                  test_class='com.wangzan101.mika.task.TaskBudgetDeviceTest',
+                  scope='Deterministic model / real Android runtime; not live gateway or full UI acceptance'
+              ), indent=2) + '\n')
+          PY
+      - name: Upload logs and receipts (not live gateway or full UI acceptance)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: task-budget-api36-x86_64-${{ github.sha }}
+          path: |
+            budget-device-evidence/
+            app/build/outputs/apk/**/output-metadata.json
+          retention-days: 7
+          if-no-files-found: error

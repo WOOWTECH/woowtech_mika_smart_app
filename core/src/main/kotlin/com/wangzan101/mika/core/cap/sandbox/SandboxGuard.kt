@@ -20,11 +20,12 @@ private const val SANDBOX_LOOP_WARN = 3
 private const val SANDBOX_LOOP_STOP = 5
 private const val SANDBOX_LOOP_HINT = "This exact command has failed several times in a row. Do not repeat it unchanged: read the error, then try a different approach."
 
-/** 沙箱命令的守卫(每次任务一份):同一条命令原样重复且失败的次数,和累计运行时长。屏幕守卫不看沙箱工具。 */
+/** Per-task command budget, repeated failures, and successful reads with no new evidence. */
 class SandboxGuard(private val budgetMs: Long = SANDBOX_BUDGET_MS) : OffScreenGuard {
     private var usedMs = 0L
     private var lastSignature: String? = null
     private var repeats = 0
+    private val readProgress = SandboxReadProgress()
 
     override var stop: GuardVerdict? = null
         private set
@@ -51,11 +52,13 @@ class SandboxGuard(private val budgetMs: Long = SANDBOX_BUDGET_MS) : OffScreenGu
     }
 
     override fun result(tool: String, args: JsonObject, content: JsonObject): List<GuardVerdict> {
-        if (tool !in SANDBOX_COMMANDS) return emptyList()
+        val progress = readProgress.result(tool, args, content)
+        if (progress?.severity == Severity.Stop) stop = progress
+        if (tool !in SANDBOX_COMMANDS) return listOfNotNull(progress)
         (content["durationMs"] as? JsonPrimitive)?.longOrNull?.let { usedMs += it }
         if ((content["ok"] as? JsonPrimitive)?.booleanOrNull != false) {
             lastSignature = null; repeats = 0
-            return emptyList()
+            return listOfNotNull(progress)
         }
         val sig = actionSignature(tool, args)
         repeats = if (sig == lastSignature) repeats + 1 else 1

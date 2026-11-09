@@ -16,6 +16,9 @@ import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.tool.ToolDispatcher
 import com.wangzan101.mika.core.tool.parseArgs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -38,7 +41,16 @@ internal class ModelCaller(
     private val now: () -> Long,
     private val autonomous: Boolean = false,
     private val trace: RunTrace? = null,
+    /** Total elapsed budget for ask/routed, including attempts, streams, fallback and backoff.
+     * Null preserves legacy embedding behavior; product callers supply their explicit policy. */
+    private val callBudgetMs: Long? = null,
+    /** Every successful reply, including rejected light replies; estimate covers the whole sent input. */
+    private val onReplyUsage: (ModelReply, Int) -> Unit = { _, _ -> },
+    /** Rechecked before each attempt and fallback; task settlement owns the exhausted-budget path. */
+    private val mayResearch: () -> Boolean = { true },
 ) {
+    init { require(callBudgetMs == null || callBudgetMs > 0) { "callBudgetMs must be positive" } }
+
     /** 每个模型一份压缩状态:各自的上下文、各自发出的那份历史,轻量模型那次压缩不连累主模型的请求前缀。 */
     private val compressors = java.util.IdentityHashMap<ChatModel, ContextCompressor>()
     private fun compressorFor(m: ChatModel) =
@@ -100,17 +112,27 @@ internal class ModelCaller(
     suspend fun routed(
         history: List<Message>, specs: List<ToolSpec>, track: StepTrack, step: Int, restarted: (Long) -> Unit,
         onText: ((String) -> Unit)? = null,
+    ): Pair<ModelReply, ChatModel> = withinDeadline {
+        routedWithinDeadline(history, specs, track, step, restarted, onText)
+    }
+
+    private suspend fun routedWithinDeadline(
+        history: List<Message>, specs: List<ToolSpec>, track: StepTrack, step: Int, restarted: (Long) -> Unit,
+        onText: ((String) -> Unit)?,
     ): Pair<ModelReply, ChatModel> {
-        val r = router?.takeIf { routing } ?: return ask(history, specs, step, onText = onText) to model
+        val r = router?.takeIf { routing } ?: return askWithinDeadline(history, specs, step, onText = onText) to model
         val picked = r.pick(track.context(step, history.any { m -> m.parts.any { it is Part.Image } }))
-        if (!r.isLight(picked)) return ask(history, specs, step, onText = onText) to model
+        if (!r.isLight(picked)) return askWithinDeadline(history, specs, step, onText = onText) to model
         // 轻量模型的上下文可能更小:它报超长、它那次折叠多少,都不连累主模型(压缩状态按模型分开记)
         val asked = now()
         val light = try {
             complete(viewFor(history, picked), specs, picked, RetryPolicy.NONE, step, onText)
         } catch (e: CancellationException) {
             throw e
+        } catch (e: TaskWorkBudgetExceeded) {
+            throw e
         } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
             // Key、额度、模型名、请求本身不对,重试也没用:本任务余下的步都用主模型
             if (e is ModelError.Auth || e is ModelError.QuotaExceeded || e is ModelError.ModelNotFound ||
                 e is ModelError.ModelNotAvailable || e is ModelError.ToolsUnsupported ||
@@ -120,6 +142,7 @@ internal class ModelCaller(
         }
         val first = light?.parts?.filterIsInstance<Part.ToolCall>()?.firstOrNull()
         if (first != null && !needsMain(first)) return light to picked
+        requireResearchBudget()
         r.noteTrouble()
         val text = light?.parts?.filterIsInstance<Part.Text>()?.joinToString("") { it.text }?.trim().orEmpty()
         emit(RunEvent.ModelReply(
@@ -130,7 +153,7 @@ internal class ModelCaller(
         emit(RunEvent.State(now(), "light_to_main", first?.name ?: if (light == null) "light_error" else "no_tool"))
         onText?.invoke("")
         restarted(now())
-        return ask(history, specs, step, onText = onText) to model
+        return askWithinDeadline(history, specs, step, onText = onText) to model
     }
 
     private fun needsMain(call: Part.ToolCall): Boolean =
@@ -139,7 +162,26 @@ internal class ModelCaller(
 
     /** 问 [using](默认主模型):发出的是给它看的那份历史([viewFor])压缩后的副本。 */
     suspend fun ask(history: List<Message>, specs: List<ToolSpec>, step: Int, using: ChatModel = model, onText: ((String) -> Unit)? = null): ModelReply =
-        complete(viewFor(history, using), specs, using, retry, step, onText)
+        withinDeadline { askWithinDeadline(history, specs, step, using, onText) }
+
+    private suspend fun askWithinDeadline(
+        history: List<Message>, specs: List<ToolSpec>, step: Int, using: ChatModel = model,
+        onText: ((String) -> Unit)? = null,
+    ): ModelReply = complete(viewFor(history, using), specs, using, retry, step, onText)
+
+    private fun requireResearchBudget() {
+        if (!mayResearch()) throw TaskWorkBudgetExceeded()
+    }
+
+    private suspend fun <T : Any> withinDeadline(block: suspend () -> T): T {
+        val budgetMs = callBudgetMs ?: return block()
+        // withTimeoutOrNull only consumes its own timeout; parent cancellation/timeouts propagate.
+        val result = withTimeoutOrNull(budgetMs) { block() }
+        if (result != null) return result
+        currentCoroutineContext().ensureActive()
+        emit(RunEvent.State(now(), "model_retry_stopped", "call_deadline ${budgetMs}ms"))
+        throw ModelCallDeadlineExceeded(budgetMs)
+    }
 
     /**
      * 发给 [to] 的历史:别的模型给出的回复去掉思考内容和调用上的私有数据(这些只能原样回给产生它的那个模型)。
@@ -173,6 +215,8 @@ internal class ModelCaller(
         var overflowRetried = false
         var overflowRewrote = false
         while (true) {
+            currentCoroutineContext().ensureActive()
+            requireResearchBudget()
             val current = ContextRecovery.ensure(history, compressor.current(history, contextTokens))
             val currentTokens = requestTokens(current, using, overhead, compressor.scale)
             val raw = compressor.compress(history, contextTokens, currentTokens, compaction.aggressive, overhead, using.capabilities.maxImages)
@@ -204,10 +248,12 @@ internal class ModelCaller(
                     trace.modelCall(step, using, tools::verb, change, sent.messages) { send() }
                 }
                 return reply.also { r ->
+                    onReplyUsage(r, sent.estimate + overhead)
                     lastOverhead[using] = overhead
                     r.usage?.let { compressor.calibrate(sent.estimate + overhead, it.inputTokens) }
                 }
             } catch (e: ModelError.ContextTooLong) {
+                currentCoroutineContext().ensureActive()
                 onText?.invoke("")
                 val (after, again) = CompactionPolicy.overflow(compaction, overflowRetried) {
                     compressor.overflow(history, contextTokens, overhead)
@@ -218,8 +264,10 @@ internal class ModelCaller(
                 if (again) { anchors.clear(); overflowRewrote = true }
                 if (!again) throw e
             } catch (e: ModelError) {
+                currentCoroutineContext().ensureActive()
                 onText?.invoke("")
                 val wait = policy.delayFor(e, retries, taskRetryWaitMs) ?: throw e
+                requireResearchBudget()
                 retries += 1
                 taskRetryWaitMs += wait
                 emit(RunEvent.State(now(), "model_retry", "${roleOf(using)} ${RetryPolicy.label(e)} #$retries ${wait}ms"))

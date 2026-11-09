@@ -1,0 +1,7 @@
+<resources>
+    <string name="model_call_deadline">The model took too long to respond, including time spent retrying. Retries have stopped; the task is not complete.</string>
+    <string name="settings_task_budget_explanation">No limit applies only to the number of steps. Each task has a 15-minute total budget, including user waits and 30 seconds reserved for a summary. Cancellation cleanup may extend this time; an exact wall-clock cutoff is not guaranteed. The work allowance is 2 million tokens using provider-reported usage, including cached tokens, or estimates when usage is missing. One model call already in progress may exceed the token allowance. This is not a billing cap.</string>
+    <string name="model_retry_wait_network">The connection to the model was interrupted. Waiting to retry.</string>
+    <string name="model_retry_wait_rate">The model service is limiting requests. Waiting to retry.</string>
+    <string name="model_retry_wait_server">The model service encountered a temporary error. Waiting to retry.</string>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="model_call_deadline">재시도 시간을 포함하여 모델 응답 대기 시간이 제한에 도달했습니다. 재시도가 중단되었으며 작업은 완료되지 않았습니다.</string>
+    <string name="settings_task_budget_explanation">제한 없음은 단계 수에만 적용됩니다. 각 작업의 총 시간 예산은 사용자 응답 대기와 요약용 30초를 포함해 15분입니다. 취소 후 정리 작업으로 시간이 늘어날 수 있어 정확한 종료 시각은 보장되지 않습니다. 작업 한도는 캐시된 토큰을 포함하여 제공업체가 보고한 사용량 기준 200만 토큰이며, 사용량 정보가 없으면 추정치를 사용합니다. 이미 진행 중인 모델 호출 한 번으로 토큰 한도를 초과할 수 있습니다. 이는 청구 금액의 상한이 아닙니다.</string>
+    <string name="model_retry_wait_network">모델 연결이 중단되었습니다. 재시도를 기다리는 중입니다.</string>
+    <string name="model_retry_wait_rate">모델 서비스가 요청을 제한하고 있습니다. 재시도를 기다리는 중입니다.</string>
+    <string name="model_retry_wait_server">모델 서비스에 일시적인 오류가 발생했습니다. 재시도를 기다리는 중입니다.</string>
+</resources>
