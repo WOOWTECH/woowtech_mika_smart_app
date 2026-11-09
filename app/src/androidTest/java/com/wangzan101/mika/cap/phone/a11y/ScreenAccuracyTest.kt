@@ -54,7 +54,11 @@ class ScreenAccuracyTest {
     fun notImportantResultTextIsReadAndItsChangeCounts() = runBlocking<Unit> {
         val s = openFields()
         assertTrue("result text not read: ${s.elements.map { it.name }}", s.elements.any { it.name == "0" })
+        println("seven bounds=${s.named("7").bounds}")
+        val shots = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "accuracy-shots").apply { mkdirs() }
+        screen.screenshotPng()?.let { java.io.File(shots, "before.png").writeBytes(it) }
         val r = ok(screen.tapRef(s.named("7").ref, s.snapshotId))
+        screen.screenshotPng()?.let { java.io.File(shots, "after.png").writeBytes(it) }
         val after = snapUntil { snap -> snap.elements.any { it.name == "07" } }
         assertEquals("tap result=$r; before=${s.elements.map { it.name }}; after=${after.elements.map { it.name }}", true, r.changed)
     }

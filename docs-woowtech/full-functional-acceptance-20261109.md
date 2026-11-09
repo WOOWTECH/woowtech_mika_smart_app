@@ -151,3 +151,12 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 逐案例清單與來源日誌在私有證據目錄 instrumentation-latest.csv；統計只表示已收集日誌，尚有舊案例改名、拆分與啟動器錯誤需要對照，不能等同產品缺陷數量。
 
 - 18:53 完整核心重新執行2969項：0失敗、3略過，串行Gradle成功（8m22s），XML保存在core-tests-final。原快照失敗已由這次完整重跑確認修復。ShellParity46項、ShellDestroy清理與USB明確恢復、A11yOnDisplay、StaleNodeId均在第二輪通過。
+
+
+### 19:03 獨立重測
+
+- 第二輪滾輪4案耗時348.85秒，無效值有返回、3案通過；0→40雖到達正確值卻52次操作，原20–24次效率要求失敗。曾用JDWP短暫暫停取得執行緒堆疊並立即resume/exit，因此本輪耗時包含診斷介入，不能當純效能基準。模擬器當時有約1GB swap使用，已重啟保留資料；需隔離負載再次測量。
+- 重啟後單獨網頁剪貼簿還原、AgentDisplay.releaseClearsFrames通過；尚不能只憑一次成功宣稱前次偶發因素完全消失。
+- AuthSpill根因為Android16拒絕shell更改其他套件元件狀態，pm enable實際拋SecurityException。改run-as測試套件自己的UID切換，並檢查命令成功；系統AccountManager的獨立dumpsys確認認證器由4增加為5，測後關回。完整登入頁保留主屏案例通過，未更改產品登入處理防護。
+- InstallDeviceTest、SkillScriptsDeviceTest、LocateDeviceTest、BitmapImageOpsTest、TakeoverTest完整組均通過。
+- ScreenAccuracy無障礙不重要文字案例穩定失敗；點擊後再讀仍為0，尚需截圖分辨實際畫面未變或節點快取陳舊。此前對使用者說「按鈕沒有真正改變內容」僅根據讀屏，須以獨立畫面核對，不能提前定論。
