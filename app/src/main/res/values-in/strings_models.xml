@@ -170,9 +170,9 @@
     <string name="role_speech_what">Dipakai saat Anda menahan untuk bicara</string>
     <string name="speech_hint">Pilih pengenalan bawaan ponsel atau model penyedia yang mentranskripsi setelah Anda selesai. Layanan online memakai kuota penyedia Anda.</string>
     <string name="speech_system">Bawaan ponsel</string>
-    <string name="speech_system_offline">Bisa offline</string>
+    <string name="speech_system_offline">Penggunaan offline bergantung pada bahasa</string>
     <string name="speech_system_online">Perlu internet</string>
-    <string name="speech_system_note">Menampilkan kata saat Anda bicara; bisa bekerja offline</string>
+    <string name="speech_system_note">Menampilkan kata saat Anda bicara; pengenalan offline memerlukan paket bahasa yang didukung</string>
     <string name="speech_system_note_online">Menampilkan kata saat Anda bicara; perlu internet</string>
     <string name="speech_system_none_note">Ponsel ini tidak punya pengenalan ucapan yang bisa dipakai</string>
     <string name="speech_system_gone">Tidak ada di ponsel ini</string>

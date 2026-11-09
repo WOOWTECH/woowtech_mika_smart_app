@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">Tidak bisa mengaktifkan aksesibilitas?</string>
+    <string name="a11y_install_steps">1. Buka setelan aksesibilitas terlebih dahulu, lalu pilih Mika. Jika sistem memblokirnya, kembali ke sini.\n2. Buka Info aplikasi untuk Mika, lalu pilih Izinkan setelan dibatasi. Di Pixel, cari di menu Lainnya di kanan atas; di Xiaomi / POCO, gulir ke bagian bawah Info aplikasi. Konfirmasikan di ponsel jika diminta.\n3. Kembali ke setelan aksesibilitas, lalu aktifkan Mika. Mengizinkan setelan dibatasi saja tidak mengaktifkan layanan.</string>
+    <string name="a11y_install_missing">Jika opsi tidak muncul: coba pilih Mika di setelan aksesibilitas terlebih dahulu, lalu buka kembali Info aplikasi dan periksa bagian bawah halaman serta menu Lainnya. Jika Anda sudah bisa mengaktifkannya melalui setelan aksesibilitas, lewati langkah ini. Nama menu berbeda-beda tergantung ponsel. Jangan uninstal aplikasi atau hapus datanya.</string>
+    <string name="a11y_install_app_info">Buka Info aplikasi</string>
+    <string name="a11y_install_open">Buka setelan aksesibilitas</string>
+</resources>

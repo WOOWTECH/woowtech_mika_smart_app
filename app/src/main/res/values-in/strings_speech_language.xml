@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">Layanan pengenalan ucapan di ponsel tidak mendukung bahasa saat ini, atau paket pengenalan ucapan untuk bahasa tersebut tidak tersedia. Periksa setelan bahasa pengenalan ucapan, atau pilih penyedia transkripsi secara langsung di Ucapan ke teks. Izin mikrofon saja tidak dapat mengatasi masalah ini.</string>
+</resources>

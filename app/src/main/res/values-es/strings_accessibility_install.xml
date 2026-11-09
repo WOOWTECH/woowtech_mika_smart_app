@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">¿No puedes activar la accesibilidad?</string>
+    <string name="a11y_install_steps">1. Primero abre los ajustes de accesibilidad y selecciona Mika. Si el sistema lo bloquea, vuelve aquí.\n2. Abre la información de la aplicación de Mika y elige Permitir ajustes restringidos. En Pixel, busca en el menú Más de la esquina superior derecha; en Xiaomi / POCO, desplázate hasta el final de la información de la aplicación. Confirma en el teléfono si se te solicita.\n3. Vuelve a los ajustes de accesibilidad y activa Mika. Permitir los ajustes restringidos no activa el servicio por sí solo.</string>
+    <string name="a11y_install_missing">Si no aparece la opción: primero intenta seleccionar Mika en los ajustes de accesibilidad; después vuelve a abrir la información de la aplicación y revisa tanto el final de la página como el menú Más. Si los ajustes de accesibilidad ya te permiten activarlo, omite este paso. Los nombres de los menús varían según el teléfono. No desinstales la aplicación ni borres sus datos.</string>
+    <string name="a11y_install_app_info">Abrir información de la aplicación</string>
+    <string name="a11y_install_open">Abrir ajustes de accesibilidad</string>
+</resources>

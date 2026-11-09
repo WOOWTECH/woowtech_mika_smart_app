@@ -178,9 +178,9 @@
     <string name="role_speech_what">Usado quando você segura para falar</string>
     <string name="speech_hint">Escolha o reconhecimento integrado do celular ou um modelo de um provedor que transcreve quando você termina. Os serviços on-line usam a cota do seu provedor.</string>
     <string name="speech_system">Integrado ao celular</string>
-    <string name="speech_system_offline">Funciona offline</string>
+    <string name="speech_system_offline">O uso offline depende do idioma</string>
     <string name="speech_system_online">Precisa de internet</string>
-    <string name="speech_system_note">Mostra as palavras enquanto você fala; pode funcionar offline</string>
+    <string name="speech_system_note">Mostra as palavras enquanto você fala; o reconhecimento offline requer um pacote de idioma compatível</string>
     <string name="speech_system_note_online">Mostra as palavras enquanto você fala; precisa de internet</string>
     <string name="speech_system_none_note">Este celular não tem reconhecimento de fala utilizável</string>
     <string name="speech_system_gone">Não está neste celular</string>

@@ -134,8 +134,8 @@ class PhoneSetupScreenTest {
         compose.onNodeWithText(PhoneSetupCopy.step(SetupStep.Accessibility).title).assertIsDisplayed()
         compose.onNodeWithText(PhoneSetupCopy.ACCESSIBILITY_SKIP).assertIsDisplayed()
         compose.onNodeWithTag("setup-action").performClick()
-        compose.onNodeWithTag("setup-app-info").performClick()
-        compose.onNodeWithTag("setup-skip-a11y").performClick()
+        compose.onNodeWithTag("setup-app-info").performScrollTo().performClick()
+        compose.onNodeWithTag("setup-skip-a11y").performScrollTo().performClick()
         assertEquals(listOf("step Accessibility", "appInfo", "skipA11y"), calls)
         // 无障碍靠跳过往下走,不另给「已打开」
         compose.onNodeWithTag("setup-confirm").assertDoesNotExist()
@@ -233,16 +233,16 @@ class PhoneSetupScreenTest {
         show(SetupInputs(true, true, BuiltinShellStatus.NotPaired, PairingDiscovery.Searching, notificationsAllowed = true), headsUpLowered = true)
         compose.onNodeWithTag("setup-heads-up").assertIsDisplayed()
         compose.onNodeWithText(PhoneSetupCopy.HEADS_UP_LOWERED).assertIsDisplayed()
-        compose.onNodeWithTag("setup-heads-up-open").performClick()
+        compose.onNodeWithTag("setup-heads-up-open").performScrollTo().performClick()
         assertEquals(listOf("headsUp"), calls)
     }
 
     @Test
     fun pairingStepTakesAManualCode() {
         show(SetupInputs(true, true, BuiltinShellStatus.NotPaired, PairingDiscovery.Searching))
-        compose.onNodeWithTag("setup-manual").performClick()
-        compose.onNodeWithTag("setup-code").performTextInput("123 456")
-        compose.onNodeWithTag("setup-port").performTextInput("37001")
+        compose.onNodeWithTag("setup-manual").performScrollTo().performClick()
+        compose.onNodeWithTag("setup-code").performScrollTo().performTextInput("123 456")
+        compose.onNodeWithTag("setup-port").performScrollTo().performTextInput("37001")
         // 真机上键盘弹出来会把按钮挤到可见区下面,先滚过去再点
         compose.onNodeWithTag("setup-submit").performScrollTo().performClick()
         assertEquals(listOf("submit 123456 37001"), calls)
@@ -251,8 +251,8 @@ class PhoneSetupScreenTest {
     @Test
     fun failureShowsReasonAndOneTapFix() {
         show(SetupInputs(true, true, BuiltinShellStatus.Failed(BuiltinShellFailure.HelperStartFailed)))
-        compose.onNodeWithText(PhoneSetupCopy.failure(BuiltinShellFailure.HelperStartFailed).title).assertIsDisplayed()
-        compose.onNodeWithTag("setup-fix").performClick()
+        compose.onNodeWithText(PhoneSetupCopy.failure(BuiltinShellFailure.HelperStartFailed).title).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("setup-fix").performScrollTo().performClick()
         assertEquals(listOf("fix ${BuiltinShellFix.Retry}"), calls)
     }
 

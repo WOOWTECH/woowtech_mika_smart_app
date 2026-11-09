@@ -37,10 +37,10 @@ class SpeechOptionsTest {
         assertTrue(g.models.isEmpty())
     }
 
-    @Test fun autoWithSystemShowsPhoneAndOffline() {
+    @Test fun autoWithSystemQualifiesOfflineSupportByLanguage() {
         val s = SpeechOptions.summary(SpeechChoice.Auto, SystemCapability(available = true, onDevice = true), listOf(openAi))
         assertEquals("手机自带", s.title)
-        assertEquals("可离线", s.sub)
+        assertEquals("离线依语言支持", s.sub)
         assertTrue(s.subOk)
     }
 

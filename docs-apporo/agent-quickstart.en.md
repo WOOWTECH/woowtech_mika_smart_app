@@ -1,6 +1,6 @@
 # Connect a computer to Apporo Assistant
 
-This branch is a development build. No public Apporo Assistant installer or release channel has been published by this work.
+Install the [public Apporo Assistant APK](https://github.com/WOOWTECH/apporo-assistant-releases/releases/latest). Use an update signed with the same Apporo release certificate; Mika and woowtech agent are separate apps and cannot replace it.
 
 Use the CLI bundled in this source checkout. Python 3.10+ and authorized USB ADB are required for USB access. On the phone, open **Settings → Connect a computer**, select USB and enable access.
 

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">スマホの音声認識サービスが現在の言語に対応していないか、その言語の音声認識パックを利用できません。音声認識の言語設定を確認するか、「音声文字変換」で文字起こしのプロバイダーを明示的に選んでください。マイクの使用を許可するだけでは解決できません。</string>
+</resources>

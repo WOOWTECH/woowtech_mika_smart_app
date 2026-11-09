@@ -172,9 +172,9 @@
     <string name="role_speech_what">長押しして話すときに使う</string>
     <string name="speech_hint">スマホ内蔵の音声認識か、話し終えてから変換するプロバイダーのモデルから選べます。オンラインのサービスはプロバイダーの利用枠を使います。</string>
     <string name="speech_system">スマホ内蔵</string>
-    <string name="speech_system_offline">オフラインで使えます</string>
+    <string name="speech_system_offline">オフラインで使えるかは言語によります</string>
     <string name="speech_system_online">インターネット接続が必要</string>
-    <string name="speech_system_note">話しながら文字が表示されます。オフラインでも使えます</string>
+    <string name="speech_system_note">話しながら文字が表示されます。オフラインの音声認識には、対応する言語パックが必要です</string>
     <string name="speech_system_note_online">話しながら文字が表示されます。インターネット接続が必要です</string>
     <string name="speech_system_none_note">このスマホには、使える音声認識がありません</string>
     <string name="speech_system_gone">このスマホにはありません</string>

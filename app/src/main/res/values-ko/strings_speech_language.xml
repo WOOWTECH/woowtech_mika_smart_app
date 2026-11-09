@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">휴대전화의 음성 인식 서비스가 현재 언어를 지원하지 않거나 해당 언어의 음성 인식 팩을 사용할 수 없어요. 음성 인식 언어 설정을 확인하거나 음성 텍스트 변환에서 음성을 텍스트로 변환할 제공업체를 직접 선택하세요. 마이크 권한만 허용해서는 해결할 수 없어요.</string>
+</resources>

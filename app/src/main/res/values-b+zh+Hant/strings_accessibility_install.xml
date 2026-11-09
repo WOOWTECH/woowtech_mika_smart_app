@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">無障礙開關反灰或無法開啟？</string>
+    <string name="a11y_install_steps">1. 先前往無障礙設定，選擇 Mika；若出現受限制提示，再返回這裡。\n2. 開啟 Mika 的應用程式資訊，選擇「允許受限制的設定」。Pixel：查看右上角「更多／⋮」；小米／POCO：向下捲到資訊頁面底部，依手機提示確認。\n3. 返回無障礙設定，再手動開啟 Mika。允許受限制的設定並不代表服務已開啟。</string>
+    <string name="a11y_install_missing">找不到選項？先在無障礙設定點選 Mika，再重新開啟應用程式資訊，查看頁面底部與右上角選單。若已能直接開啟無障礙，可略過解除限制。不同手機的選單名稱可能不同，無須解除安裝或清除資料。</string>
+    <string name="a11y_install_app_info">開啟應用程式資訊</string>
+    <string name="a11y_install_open">前往無障礙設定</string>
+</resources>

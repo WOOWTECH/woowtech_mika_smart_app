@@ -1,0 +1,148 @@
+name: apporo-alignment
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apporo-alignment-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v7
+      - name: Initialize build evidence
+        run: mkdir -p alignment-build-evidence
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+      - name: Bootstrap verified Gradle distribution
+        timeout-minutes: 7
+        run: python3 .github/scripts/bootstrap-gradle.py 2>&1 | tee alignment-build-evidence/bootstrap-gradle.log
+      - name: Prepare verified private compiler repository
+        timeout-minutes: 6
+        run: python3 .github/scripts/prepare-compiler-repository.py 2>&1 | tee alignment-build-evidence/compiler-repository.log
+      - name: Build Apporo debug and opt-in English alignment tests
+        timeout-minutes: 44
+        run: |
+          timeout --signal=TERM --kill-after=30s 42m ./gradlew --init-script .github/scripts/verified-compiler.init.gradle :app:assembleApporoDebug :app:assembleApporoDebugAndroidTest -PapporoAlignmentTests --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g 2>&1 | tee alignment-build-evidence/build.log
+      # Debug-only builds produce app-apporo-debug.apk (unsplit), not *universal-debug.apk.
+      # Preserve the common apk/ root so the runner can validate Gradle output metadata.
+      - name: Upload installable APKs and metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: apporo-alignment-apks-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/apporo/debug/
+            app/build/outputs/apk/androidTest/apporo/debug/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Record build receipt
+        if: always()
+        env:
+          BUILD_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          out = Path('alignment-build-evidence')
+          out.mkdir(exist_ok=True)
+          (out / 'receipt.json').write_text(json.dumps(dict(
+              status=os.environ['BUILD_STATUS'], source_sha=os.environ['GITHUB_SHA'],
+              package='com.apporo.assistant', expected_version_code=3804,
+              flag='apporoAlignmentTests', scope='Build only; Android runtime acceptance runs in separate jobs'
+          ), indent=2) + '\n')
+          PY
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apporo-alignment-build-${{ github.sha }}
+          path: alignment-build-evidence/
+          retention-days: 7
+          if-no-files-found: error
+
+  english-runtime:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [35, 36]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Initialize runtime evidence
+        run: mkdir -p alignment-evidence
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - uses: actions/download-artifact@v8
+        with:
+          name: apporo-alignment-apks-${{ github.sha }}
+          path: alignment-apks
+      - name: Enable KVM on disposable hosted Linux runner
+        timeout-minutes: 2
+        run: |
+          exec > >(tee alignment-evidence/kvm-setup.log) 2>&1
+          id
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          for attempt in {1..10}; do
+            if test -r /dev/kvm && test -w /dev/kvm; then break; fi
+            sleep 1
+          done
+          ls -l /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Bounded English Apporo acceptance (fake voice; real Android accessibility)
+        timeout-minutes: 28
+        run: python3 .github/scripts/apporo-alignment-device.py --api ${{ matrix.api }} --apks alignment-apks --out alignment-evidence
+      - name: Record setup failure if runner did not start
+        if: always()
+        env:
+          ALIGNMENT_API: ${{ matrix.api }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          out = Path('alignment-evidence')
+          out.mkdir(exist_ok=True)
+          receipt = out / 'receipt.json'
+          if not receipt.exists():
+              receipt.write_text(json.dumps(dict(
+                  status='NOT_RUN_SETUP_FAILED_OR_CANCELLED', api=int(os.environ['ALIGNMENT_API']), abi='x86_64',
+                  package='com.apporo.assistant', source_sha=os.environ['GITHUB_SHA'],
+                  scope='English Compose UI and real accessibility lifecycle; fake voice; no live mic/model or OEM Settings UI acceptance'
+              ), indent=2) + '\n')
+          PY
+      - name: Upload receipts, instrumentation, screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apporo-alignment-api${{ matrix.api }}-x86_64-${{ github.sha }}
+          path: alignment-evidence/
+          retention-days: 7
+          if-no-files-found: error

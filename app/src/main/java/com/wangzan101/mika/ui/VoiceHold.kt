@@ -136,7 +136,7 @@ internal sealed interface VoiceSheet {
 internal object VoiceCopy {
     /** 卡片顶上的小标签:用的是哪个转文字。 */
     fun engine(spec: SpeechEngineSpec): String = when (spec) {
-        is SpeechEngineSpec.System -> tr(if (spec.onDevice) R.string.voice_engine_phone_offline else R.string.voice_engine_phone)
+        is SpeechEngineSpec.System -> tr(R.string.voice_engine_phone)
         is SpeechEngineSpec.Provider -> spec.model
         is SpeechEngineSpec.Unavailable -> ""
     }
@@ -158,6 +158,7 @@ internal object VoiceCopy {
     fun unavailable(why: SpeechEngineSpec.Why): String = when (why) {
         SpeechEngineSpec.Why.NoSystemNoModel -> tr(R.string.voice_unavailable_no_engine)
         SpeechEngineSpec.Why.SystemGone -> tr(R.string.voice_unavailable_system_gone)
+        SpeechEngineSpec.Why.SystemLanguageUnavailable -> tr(R.string.voice_unavailable_language)
         SpeechEngineSpec.Why.SystemNoResponse -> tr(R.string.voice_unavailable_system_silent)
         SpeechEngineSpec.Why.ProviderGone -> tr(R.string.voice_unavailable_provider_gone)
         SpeechEngineSpec.Why.Off -> tr(R.string.voice_unavailable_off)

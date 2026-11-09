@@ -75,3 +75,7 @@ Image selection evidence:
 - https://dl.google.com/android/repository/sys-img/android/sys-img2-3.xml (default x86_64 API30/32/35/36 available)
 - https://android.googlesource.com/platform/prebuilts/android-emulator-build/system-images/+/refs/heads/main/generic/system-images/android-30/google_apis/x86_64/build.prop
 - https://android.googlesource.com/platform/prebuilts/android-emulator-build/system-images/+/refs/heads/main/generic/system-images/android-35/google_apis/x86_64/build.prop
+# AOSP System UI obstruction
+
+If the disposable emulator shows the exact system-owned “System UI isn't responding” dialog, the runner records its XML, screenshot and log and may press **Wait once** for the entire run. It keeps the original 90-second deadline and requires the Apporo welcome page, stable process, resumed activity and no Apporo crash/ANR. App-specific ANRs, ambiguous controls and security dialogs never qualify. A recovery is listed in `receipt.json.environment_recoveries`; it is not a pristine-boot result. Repeated obstruction still fails.
+

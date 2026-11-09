@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">手機辨識服務不支援目前語言，或缺少對應的語音辨識語言包。請檢查手機的語音辨識語言設定，或在「語音轉文字」中自行選擇轉寫服務商。單純開啟麥克風權限無法解決此問題。</string>
+</resources>
