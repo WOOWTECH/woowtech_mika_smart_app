@@ -32,6 +32,25 @@ def welcome_visible(xml):
     return all(text in texts for text in WELCOME)
 
 
+def system_ui_wait_target(xml):
+    """Recognize only the AOSP System UI ANR dialog, never an app or security dialog."""
+    nodes = list(ET.fromstring(xml).iter('node'))
+    titles = [n for n in nodes if n.get('resource-id') == 'android:id/alertTitle']
+    if (len(titles) != 1 or titles[0].get('package') != 'android' or
+            titles[0].get('text') != "System UI isn't responding"):
+        return None
+    buttons = [n for n in nodes if n.get('resource-id') == 'android:id/aerr_wait' and
+               n.get('package') == 'android' and n.get('text') == 'Wait' and
+               n.get('enabled') == 'true' and n.get('clickable') == 'true']
+    if len(buttons) != 1:
+        return None
+    match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', buttons[0].get('bounds', ''))
+    if not match:
+        return None
+    x1, y1, x2, y2 = map(int, match.groups())
+    return ((x1 + x2) // 2, (y1 + y2) // 2) if x2 > x1 and y2 > y1 else None
+
+
 def app_crash(log):
     # AndroidRuntime Java crashes, debuggerd native crashes, ActivityManager events.
     name = re.escape(PACKAGE) + r'(?=[:\s,\]>]|$)'
@@ -220,6 +239,7 @@ def main():
         save('package.txt', device('shell', 'dumpsys', 'package', PACKAGE))
         # Fresh AVD, no clear-data or permission grants. Start log window before app launch.
         device('logcat', '-b', 'all', '-c')
+        system_ui_recovered = False
         for attempt in ('cold-start', 'relaunch'):
             stage(attempt)
             if attempt == 'relaunch':
@@ -234,10 +254,29 @@ def main():
             while time.monotonic() < deadline:
                 try:
                     xml = read_ui(attempt + '.xml')
-                    if welcome_visible(xml):
-                        break
+                    target = system_ui_wait_target(xml)
+                    visible = welcome_visible(xml)
                 except (RuntimeError, subprocess.TimeoutExpired, ET.ParseError):
-                    pass
+                    time.sleep(2)
+                    continue
+                if target and not system_ui_recovered:
+                    # Disposable AOSP sometimes stalls System UI during first boot.
+                    # Preserve the obstruction, allow one normal Wait action, and keep
+                    # the original deadline and all app-crash/stability requirements.
+                    log = device('logcat', '-b', 'all', '-d', '-v', 'threadtime')
+                    save('system-ui-before-wait.log', log)
+                    if app_crash(log):
+                        raise RuntimeError('Apporo crash/ANR before System UI recovery')
+                    save('system-ui-before-wait.xml', xml)
+                    save('system-ui-before-wait.png', run([adb, '-s', 'emulator-5554', 'exec-out', 'screencap', '-p'])[0])
+                    system_ui_recovered = True
+                    receipt.setdefault('environment_recoveries', []).append(dict(
+                        stage=attempt, dialog="System UI isn't responding", action='Wait once',
+                        deadline_extended=False, app_crash_detected=False))
+                    save('receipt.json', json.dumps(receipt, indent=2))
+                    device('shell', 'input', 'tap', str(target[0]), str(target[1]))
+                elif visible:
+                    break
                 time.sleep(2)
             else:
                 raise RuntimeError('English Apporo welcome not visible within90s')

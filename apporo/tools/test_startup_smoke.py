@@ -13,6 +13,21 @@ spec.loader.exec_module(smoke)
 
 
 class StartupEvidenceTest(unittest.TestCase):
+    def test_recovery_only_allows_system_ui_wait_with_unambiguous_system_controls(self):
+        def dialog(title="System UI isn't responding", package='android', bounds='[70,996][1010,1122]', count=1):
+            root = ET.Element('hierarchy')
+            ET.SubElement(root, 'node', {'package': package, 'resource-id': 'android:id/alertTitle', 'text': title})
+            for _ in range(count):
+                ET.SubElement(root, 'node', {'package': package, 'resource-id': 'android:id/aerr_wait',
+                    'text': 'Wait', 'enabled': 'true', 'clickable': 'true', 'bounds': bounds})
+            return ET.tostring(root)
+        self.assertEqual((540, 1059), smoke.system_ui_wait_target(dialog()))
+        for xml in (dialog(title="Apporo Assistant isn't responding"),
+                    dialog(title='Harmful app blocked'), dialog(package=smoke.PACKAGE),
+                    dialog(count=2), dialog(count=0), dialog(bounds='[10,10][1,1]'), dialog(bounds='invalid')):
+            with self.subTest(xml=xml):
+                self.assertIsNone(smoke.system_ui_wait_target(xml))
+
     def test_avd_requires_registration_config_and_emulator_discovery(self):
         with tempfile.TemporaryDirectory() as directory:
             avd_root = Path(directory).resolve()
