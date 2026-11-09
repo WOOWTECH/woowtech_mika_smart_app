@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
@@ -159,7 +161,7 @@ class ApporoAlignmentTest {
             MikaTheme {
                 val density = LocalDensity.current.density
                 CompositionLocalProvider(LocalDensity provides Density(density, fontScale = 2f)) {
-                    Column(Modifier.width(220.dp).verticalScroll(rememberScrollState())) {
+                    Column(Modifier.width(220.dp).systemBarsPadding().verticalScroll(rememberScrollState())) {
                         AccessibilityInstallHelp({}, {})
                     }
                 }
@@ -167,6 +169,7 @@ class ApporoAlignmentTest {
         }
         for ((id, tag) in listOf(R.string.a11y_install_app_info to "setup-app-info",
                 R.string.a11y_install_open to "a11y-install-open")) {
+            compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
             val label = compose.onNodeWithText(context.getString(id), useUnmergedTree = true)
             label.performScrollTo().assertIsDisplayed()
             val layouts = mutableListOf<TextLayoutResult>()
@@ -177,6 +180,10 @@ class ApporoAlignmentTest {
             if (id == R.string.a11y_install_open) assertTrue("Long label must wrap", layout.lineCount > 1)
             val button = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
             assertTrue("Button must grow to fit its label", button.height >= layout.size.height)
+            val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+            assertTrue("Help button must be inside the captured Compose surface",
+                button.left >= root.left && button.right <= root.right &&
+                    button.top >= root.top && button.bottom <= root.bottom)
         }
         shot("help-large-font")
         receipt("large-font", "220dp help width, 2x font scale: labels fit, long label wraps, no ellipsis")
@@ -293,7 +300,8 @@ class ApporoAlignmentTest {
 
     private fun shot(name: String) {
         compose.waitForIdle()
-        val bitmap = checkNotNull(automation.takeScreenshot()) { "No screenshot for $name" }
+        // Capture this Compose surface directly, not whichever window UiAutomation sees first.
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         try { File(evidence, "$name.png").outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) } }
         finally { bitmap.recycle() }
     }
@@ -302,6 +310,7 @@ class ApporoAlignmentTest {
         File(evidence, "$name.json").writeText(JSONObject().put("status", "PASS")
             .put("package", context.packageName).put("api", Build.VERSION.SDK_INT).put("locale", "en")
             .put("checked", checked).put("voice", "fake events only; no live mic/model")
+            .put("screenshot_scope", "App Compose surface; excludes system bars and other windows")
             .put("automatic_sends", sent).toString(2))
     }
 
