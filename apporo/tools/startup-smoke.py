@@ -275,6 +275,8 @@ def main():
                         deadline_extended=False, app_crash_detected=False))
                     save('receipt.json', json.dumps(receipt, indent=2))
                     device('shell', 'input', 'tap', str(target[0]), str(target[1]))
+                elif target is not None:
+                    raise RuntimeError('System UI obstruction remained or returned after the single Wait')
                 elif target is None and visible:
                     break
                 time.sleep(2)
