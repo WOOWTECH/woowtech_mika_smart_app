@@ -1,0 +1,3 @@
+<resources>
+    <string name="model_call_deadline">等待模型回复的时间已达上限（包含重试等待）。已停止重试，任务尚未完成。</string>
+</resources>

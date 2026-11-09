@@ -1,0 +1,3 @@
+<resources>
+    <string name="model_call_deadline">El modelo tardó demasiado en responder, incluido el tiempo de los reintentos. Se han detenido los reintentos; la tarea no está completa.</string>
+</resources>

@@ -1,5 +1,8 @@
 package com.wangzan101.mika.core.usage
 
+import com.wangzan101.mika.core.agent.TokenEstimate
+import com.wangzan101.mika.core.model.Author
+import com.wangzan101.mika.core.model.Role
 import com.wangzan101.mika.core.model.ChatModel
 import com.wangzan101.mika.core.model.Message
 import com.wangzan101.mika.core.model.ModelReply
@@ -52,17 +55,35 @@ private open class MeteredModel(private val inner: ChatModel, protected val sour
     override val name: String get() = inner.name
 
     override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply =
-        counted { inner.complete(system, messages, tools) }
+        counted(system, messages, tools) { inner.complete(system, messages, tools) }
 
-    protected suspend fun counted(call: suspend () -> ModelReply): ModelReply {
+    protected suspend fun counted(
+        system: String, messages: List<Message>, tools: List<ToolSpec>, call: suspend () -> ModelReply,
+    ): ModelReply {
         // 在一次运行里调用的,也记到这次运行名下(见 RunUsageTally)
-        val tally = currentCoroutineContext()[RunUsageTally]
+        val context = currentCoroutineContext()
+        val tally = context[RunUsageTally]
+        val budget = context[TaskUsageBudget]
         val attempts = ModelHttpAttempts()
         val reply = try {
             withContext(attempts) { call() }
         } catch (e: Throwable) {
             note(null, tally, attempts.started)
             throw e
+        }
+        // Independent of persistent usage accounting: only successful logical calls consume the
+        // task ledger. Missing provider usage is estimated from the actual request and full reply.
+        budget?.let {
+            val usage = reply.usage
+            if (usage != null) it.add(usage.inputTokens.toLong(), usage.outputTokens.toLong())
+            else {
+                val input = TokenEstimate.of(system).coerceAtLeast(0).toLong() +
+                    TokenEstimate.of(messages).coerceAtLeast(0).toLong() + tools.sumOf { tool ->
+                        TokenEstimate.of(tool.name + tool.description + tool.parametersJsonSchema).coerceAtLeast(0).toLong()
+                    }
+                val output = TokenEstimate.of(listOf(Message(Role.Assistant, reply.parts, Author.Mika)))
+                it.add(input, output.toLong())
+            }
         }
         note(reply.usage, tally, attempts.started)
         return reply
@@ -78,5 +99,5 @@ private class MeteredStreamingModel(private val inner: StreamingChatModel, sourc
     MeteredModel(inner, source, sink), StreamingChatModel {
     override suspend fun completeStreaming(
         system: String, messages: List<Message>, tools: List<ToolSpec>, onText: (String) -> Unit,
-    ): ModelReply = counted { inner.completeStreaming(system, messages, tools, onText) }
+    ): ModelReply = counted(system, messages, tools) { inner.completeStreaming(system, messages, tools, onText) }
 }

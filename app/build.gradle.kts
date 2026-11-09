@@ -170,7 +170,7 @@ androidComponents {
     beforeVariants { variant ->
         if (variant.flavorName in setOf("woowtech", "apporo")) {
             variant.enableUnitTest = false
-            variant.androidTest.enable = false
+            variant.androidTest.enable = providers.gradleProperty("brandBudgetTests").isPresent
         }
     }
     // WOOWTECH fork: -c 里有 zh-rTW 时,aapt2 连它的上层 values-zh(上游的简体界面,没换品牌名)也留下,woowtech 变体排除它。

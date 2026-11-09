@@ -70,6 +70,7 @@ data class TimelineHeader(
     val usedMemory: List<String> = emptyList(),
     /** 这次运行的小结;记录里没有开始事件时为 null(只显示用时)。 */
     val metrics: RunMetrics? = null,
+    val modelStopReason: String? = null,
 )
 
 sealed interface TimelineUi {
@@ -118,6 +119,8 @@ class RunTimelineViewModel(
             stepsUsed = metrics?.steps?.let { n -> started?.stepLimit?.let { minOf(n, it) } ?: n } ?: 0,
             usedMemory = resolveMemory(events.filterIsInstance<RunEvent.MemoryUsed>().lastOrNull()?.ids.orEmpty()),
             metrics = metrics,
+            modelStopReason = events.filterIsInstance<RunEvent.State>().lastOrNull { it.name == "model_retry_stopped" }
+                ?.let(ModelErrorCopy::retryStopped),
         )
         return TimelineUi.Ready(header, steps(events, toolLabels::label))
     }

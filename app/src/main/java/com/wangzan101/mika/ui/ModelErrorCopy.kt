@@ -3,6 +3,9 @@ package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.R
 import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.core.agent.FailKind
+import com.wangzan101.mika.core.agent.ModelCallDeadlineExceeded
+import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.model.ListFailure
 import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.model.ModelListResult
@@ -65,9 +68,23 @@ object ModelErrorCopy {
      */
     fun localized(end: TaskState): TaskState {
         if (end !is TaskState.Failed) return end
+        // Core currently preserves this exception as text, without a typed modelError.
+        // Compare the entire generated message so ordinary receipts are never rewritten.
+        if (end.kind == FailKind.Model && end.modelError == null) {
+            val budget = Regex("([0-9]+)ms").find(end.reason)?.groupValues?.get(1)?.toLongOrNull()
+            if (budget != null && end.reason == ModelCallDeadlineExceeded(budget).message) {
+                return end.copy(reason = tr(R.string.model_call_deadline))
+            }
+        }
         val e = end.modelError ?: return end
         return end.copy(reason = failure(e))
     }
+
+    /** Only recognized state codes become UI copy; never render raw diagnostic details. */
+    fun retryStopped(event: RunEvent.State): String? =
+        if (event.name == "model_retry_stopped" && Regex("call_deadline [0-9]+ms").matches(event.detail))
+            tr(R.string.model_call_deadline)
+        else null
 
     /** 列模型没成功的原因;带着细节(状态码「HTTP 500」)时接在后面括起来,和 [ModelListResult.Failed.message] 一样。 */
     fun listFailure(r: ModelListResult.Failed): String {

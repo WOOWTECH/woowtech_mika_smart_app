@@ -1,5 +1,6 @@
 package com.wangzan101.mika.core.usage
 
+import com.wangzan101.mika.core.agent.TokenEstimate
 import com.wangzan101.mika.core.model.Author
 import com.wangzan101.mika.core.model.Capabilities
 import com.wangzan101.mika.core.model.ChatModel
@@ -13,6 +14,10 @@ import com.wangzan101.mika.core.model.StopReason
 import com.wangzan101.mika.core.model.StreamingChatModel
 import com.wangzan101.mika.core.model.ToolSpec
 import com.wangzan101.mika.core.model.Usage
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -139,4 +144,79 @@ class MeteredModelTest {
         // 总账照记每一次
         assertEquals(4, recorded.size)
     }
+
+    @Test fun taskLedgerIsSharedByChildrenAndAcrossModelPurposes() = runTest {
+        val ledger = TaskUsageBudget()
+        val r = reply(Usage(100, 20, cachedInputTokens = 60, reasoningTokens = 10))
+        val main = Plain { r }.metered(source.copy(purpose = UsagePurpose.Main), sink)
+        val verifier = Plain { r }.metered(source.copy(purpose = UsagePurpose.Other), sink)
+        withContext(ledger) {
+            main.complete("s", user, emptyList())
+            withContext(CoroutineName("verifier")) {
+                assertSame(ledger, currentCoroutineContext()[TaskUsageBudget])
+                verifier.complete("s", user, emptyList())
+                launch(CoroutineName("child task")) {
+                    assertSame(ledger, currentCoroutineContext()[TaskUsageBudget])
+                    main.complete("s", user, emptyList())
+                }
+            }
+        }
+        // Cached/reasoning tokens are subsets, not extra charges. Outside calls do not enter this ledger.
+        main.complete("s", user, emptyList())
+        assertEquals(360L, ledger.totalTokens)
+        assertEquals(4, recorded.size)
+    }
+
+    @Test fun nullUsageEstimatesActualRequestAndReplyOnBothPaths() = runTest {
+        val ledger = TaskUsageBudget()
+        val tally = RunUsageTally()
+        val r = ModelReply(listOf(Part.Thinking("reasoning"), Part.Text("answer"),
+            Part.ToolCall("id", "tool", "{}")), StopReason.ToolUse, null)
+        val specs = listOf(ToolSpec("tool", "description", "{}"))
+        val expected = TokenEstimate.of("system prompt").toLong() + TokenEstimate.of(user) +
+            specs.sumOf { TokenEstimate.of(it.name + it.description + it.parametersJsonSchema).toLong() } +
+            TokenEstimate.of(listOf(Message(Role.Assistant, r.parts, Author.Mika)))
+        withContext(ledger + tally) {
+            assertSame(r, Plain { r }.metered(source, sink).complete("system prompt", user, specs))
+            assertEquals(expected, ledger.totalTokens)
+            val streaming = Streaming(r).metered(source, sink) as StreamingChatModel
+            assertSame(r, streaming.completeStreaming("system prompt", user, specs) {})
+        }
+        assertEquals(expected * 2, ledger.totalTokens)
+        // Estimates are only for the task guard; persistent usage still reports missing usage as null.
+        assertEquals(listOf(source to null, source to null), recorded)
+        assertEquals(2, tally.event(1).unreported)
+        assertEquals(0L, tally.event(1).inputTokens)
+    }
+
+    @Test fun taskLedgerIgnoresFailuresAndCancellation() = runTest {
+        val ledger = TaskUsageBudget()
+        withContext(ledger) {
+            for (failure in listOf(ModelError.Network(), CancellationException("cancelled"))) {
+                val model = Plain { throw failure }.metered(source, sink)
+                try { model.complete("system", user, emptyList()); fail("Expected failure") }
+                catch (caught: Exception) { assertSame(failure, caught) }
+            }
+        }
+        assertEquals(0L, ledger.totalTokens)
+    }
+
+    @Test fun reportedUsageIsClampedAndNotReplacedByAnEstimate() = runTest {
+        val ledger = TaskUsageBudget()
+        withContext(ledger) {
+            Plain { reply(Usage(-100, 5)) }.metered(source, sink).complete("large input", user, emptyList())
+            val streaming = Streaming(reply(Usage(7, -50))).metered(source, sink) as StreamingChatModel
+            streaming.completeStreaming("large input", user, emptyList()) {}
+            Plain { reply(Usage(0, 0)) }.metered(source, sink).complete("large input", user, emptyList())
+        }
+        assertEquals(12L, ledger.totalTokens)
+    }
+
+    @Test fun brokenPersistentSinkDoesNotPreventTaskAccounting() = runTest {
+        val ledger = TaskUsageBudget()
+        val model = Plain { reply(Usage(10, 2)) }.metered(source) { _, _ -> error("disk full") }
+        withContext(ledger) { model.complete("s", user, emptyList()) }
+        assertEquals(12L, ledger.totalTokens)
+    }
+
 }

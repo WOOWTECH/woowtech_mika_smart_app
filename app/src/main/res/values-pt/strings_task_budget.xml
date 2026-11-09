@@ -1,0 +1,3 @@
+<resources>
+    <string name="model_call_deadline">O modelo demorou demais para responder, incluindo o tempo das novas tentativas. As novas tentativas foram interrompidas; a tarefa não foi concluída.</string>
+</resources>

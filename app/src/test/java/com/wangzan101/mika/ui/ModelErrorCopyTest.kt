@@ -3,6 +3,8 @@ package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.core.agent.FailKind
 import com.wangzan101.mika.core.agent.TaskState
+import com.wangzan101.mika.core.agent.ModelCallDeadlineExceeded
+import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.model.ListFailure
 import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.model.ModelHttp
@@ -13,6 +15,7 @@ import com.wangzan101.mika.i18n.ResFileTexts
 import com.wangzan101.mika.i18n.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -127,5 +130,30 @@ class ModelErrorCopyTest {
         val noAnswer = TaskState.Failed("模型停止了操作,没有给出回答。", FailKind.Model)
         assertSame(noAnswer, ModelErrorCopy.localized(noAnswer))
         assertSame(TaskState.Cancelled, ModelErrorCopy.localized(TaskState.Cancelled))
+    }
+
+    @Test fun deadlineFailureAndStoppedEventUseLocalizedCopyWithoutDiagnostics() {
+        val reason = ModelCallDeadlineExceeded(12345).message.orEmpty()
+        val failed = TaskState.Failed(reason, FailKind.Model)
+        val event = RunEvent.State(0, "model_retry_stopped", "call_deadline 12345ms")
+        val expected = "The model took too long to respond, including time spent retrying. Retries have stopped; the task is not complete."
+        assertEquals(TaskState.Failed(expected, FailKind.Model), ModelErrorCopy.localized(failed))
+        assertEquals(expected, ModelErrorCopy.retryStopped(event))
+        UiText.source = ResFileTexts.traditional
+        val traditional = "等待模型回覆的時間已達上限（包含重試等待）。已停止重試，任務尚未完成。"
+        assertEquals(TaskState.Failed(traditional, FailKind.Model), ModelErrorCopy.localized(failed))
+        assertEquals(traditional, ModelErrorCopy.retryStopped(event))
+    }
+
+    @Test fun deadlineMappingDoesNotRewriteReceiptsOrExposeUnknownStateDetails() {
+        val reason = ModelCallDeadlineExceeded(12345).message.orEmpty()
+        val receipt = TaskState.Failed("Partial result: [page](https://example.com). $reason", FailKind.GaveUp)
+        assertSame(receipt, ModelErrorCopy.localized(receipt))
+        val quoted = TaskState.Failed("Quoted error: $reason", FailKind.Model)
+        assertSame(quoted, ModelErrorCopy.localized(quoted))
+        val otherKind = TaskState.Failed(reason, FailKind.Environment)
+        assertSame(otherKind, ModelErrorCopy.localized(otherKind))
+        assertNull(ModelErrorCopy.retryStopped(RunEvent.State(0, "model_retry_stopped", "internal result: secret")))
+        assertNull(ModelErrorCopy.retryStopped(RunEvent.State(0, "other", "call_deadline 12345ms")))
     }
 }

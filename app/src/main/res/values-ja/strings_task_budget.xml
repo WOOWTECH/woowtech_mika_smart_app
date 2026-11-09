@@ -1,0 +1,3 @@
+<resources>
+    <string name="model_call_deadline">再試行の待ち時間を含め、モデルの応答待ちが制限時間に達しました。再試行を停止しました。タスクは完了していません。</string>
+</resources>

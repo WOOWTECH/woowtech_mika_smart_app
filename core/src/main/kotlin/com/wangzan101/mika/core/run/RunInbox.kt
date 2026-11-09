@@ -84,6 +84,8 @@ class RunInbox {
         true
     }
 
+    internal fun hasSteer(predicate: (UserSteer) -> Boolean): Boolean = synchronized(lock) { steers.any(predicate) }
+
     /** 有没有还没交给模型的插话;只看不取(批量执行在子步之间据此停下)。 */
     fun hasSteers(): Boolean = synchronized(lock) { steers.isNotEmpty() }
 

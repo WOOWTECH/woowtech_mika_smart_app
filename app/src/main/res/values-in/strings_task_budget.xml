@@ -1,0 +1,3 @@
+<resources>
+    <string name="model_call_deadline">Model terlalu lama merespons, termasuk waktu untuk mencoba ulang. Percobaan ulang telah dihentikan; tugas belum selesai.</string>
+</resources>

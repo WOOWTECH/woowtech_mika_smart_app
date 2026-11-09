@@ -35,6 +35,7 @@ internal object StopRules {
     fun modelFailed(e: Throwable): TaskState.Failed =
         // WOOWTECH fork: 带上那个错,App 按界面语言说原因(见 TaskState.Failed.modelError)
         if (e is ModelError) TaskState.Failed(userReason(e), FailKind.Model, e)
+        else if (e is ModelCallDeadlineExceeded) TaskState.Failed(e.message.orEmpty(), FailKind.Model)
         else TaskState.Failed("模型调用异常:${e.message ?: e::class.simpleName}", FailKind.Model)
 
     fun guard(v: GuardVerdict): TaskState.Failed {
