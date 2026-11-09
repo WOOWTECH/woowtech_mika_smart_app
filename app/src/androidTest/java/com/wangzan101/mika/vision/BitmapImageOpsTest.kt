@@ -59,7 +59,7 @@ class BitmapImageOpsTest {
     private fun DeviceSupport.Agent.openSettingsHome(): ScreenSnapshot {
         val r = runBlocking { screen.openApp(SETTINGS) }
         assertTrue("openApp: $r", r is ActionResult.Ok)
-        return snapUntil { s -> s.elements.any { it.name.startsWith("WLAN") && it.clickable } }
+        return snapUntil { s -> s.elements.any { DeviceSupport.networkEntry(it) } }
     }
 
     @Test
@@ -67,10 +67,10 @@ class BitmapImageOpsTest {
         val a = newAgent()
         val home = a.openSettingsHome()
         val homeHash = ops.aHash(a.settledFrame())
-        val wlanEntry = home.elements.first { it.clickable && it.name.startsWith("WLAN") }
+        val wlanEntry = home.elements.first { DeviceSupport.networkEntry(it) }
         val r = runBlocking { a.screen.tapRef(wlanEntry.ref, home.snapshotId) }
         assertTrue("tap: $r", r is ActionResult.Ok)
-        a.snapUntil { s -> s.elements.any { it.role == "Switch" } }
+        a.snapUntil(DeviceSupport::networkDetail)
         val d = hamming(homeHash, ops.aHash(a.settledFrame()))
         assertTrue("home vs WLAN distance $d", d > 8)
     }

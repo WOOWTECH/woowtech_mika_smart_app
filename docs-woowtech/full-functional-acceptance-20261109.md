@@ -135,3 +135,19 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 本輪首次完整lint實際失敗32 errors/182 warnings；之前的成功打包不能代替完整lint。修正API31守衛、受限制常數的使用、Settings StateFlow訂閱及BOM字元；Compose produceState誤報對應Google issue368420773（https://developer.android.com/studio/releases/fixed-bugs/studio/2024.2.2），升AGP8.8.2，沿用Gradle8.11.1/JDK17。完整lint、release、1502項JVM回歸在同一串行建置成功。未關閉檢查或新增baseline。
 - 曾同時啟動兩個同工作目錄Gradle建置，造成knowledgeIndex class在編譯產出變動時找不到；保留失敗log，改串行後成功，非產品驗收通過證據。後續禁止同目錄Gradle並行。
 - 擴充測試的助手重啟案例會讓USB啟動的helper停止；這種模式需要重跑USB命令，後續依賴測試曾受污染。執行器改每組啟動instrumentation後補起helper。原helper_missing失敗保留、需重跑，不能當產品故障或通過。部分系統設定頁斷言只認原手機WLAN版面，尚待適配測試前置；未跳過宣稱通過。
+
+
+### 擴充驗收第二輪（18:45，尚未完成）
+
+- 正式手機 USB 仍未出現在 adb 清單；沒有新增真人語音、聲音或獨立鎖屏循環通過證據。所有此輪 Debug APK 僅安裝 emulator-5554。
+- 擴充裝置測試新增已完成的組：手機 OCR、浮窗拖曳、畫面擷取、VirtualDisplayWindowing；原始逐案日誌保存在 full-functional-20261109/instrument-remaining。LegacyPhone 等受 API 前提限制的案例獨立列為 assumption，不能算實測通過。
+- 部分舊測試只辨識小米設定首頁 WLAN；改辨識實際網路入口、AOSP Network & internet 詳細頁及可點擊父列內的文字。虛擬螢幕隔離、點擊結果、舊 ref 失效、視覺模型呼叫次數等斷言保留。尚待新版重跑的修正不列通過。
+- Shell 音訊恢復現有規格將未設值 default 還原為 allow；改對照實際有效模式，明確 ignore/deny 仍須保留，非法模式輸入仍要求原始值完全不變。連結策略已允許 tel 交由 App 開啟，舊拒絕案例改測真正禁止的 javascript 協定，未改生產政策。
+- USB 模式助手死亡後需明確執行 USB 啟動命令；死亡測試先觀察 UsbHelperStopped，再由測試主機角色執行命令，確認新 Binder 及可用畫面。無線模式不使用此補啟動。不能把 USB 恢復當作無線自動恢復證據。
+- 沙箱 MikarunDeviceTest 整組已通過：TCP on 使用真實本地 TCP server 驗證，不再依賴 1.1.1.1:80 是否回 HTTP。SandboxTaskDeviceTest 明確設定 ACT 意圖後整組通過。
+- InstallDeviceTest 的 Python/Node/CLI 與斷網拒絕通過，稽核僅剩 host /proc 不可讀檔案；修正稽核前提時逐筆對照 Alpine installed 資料庫，只有未被套件擁有的 /proc 讀取錯誤可排除，套件檔案讀取失敗仍失敗。待重測。
+- SkillScriptsDeviceTest 的真實 PDF 解析通過；拒絕未提供的授權腳本已回 script_unavailable，測試仍比對舊中文提示，修正為檢查錯誤、不可恢復及腳本名稱。待重測。
+- 舊批次 ParallelDeviceTest 在模型模擬前提仍未更新時發生等待逾時，已中止並保留 interrupted.txt；新批次會完整重跑，不沿用中止結果。
+- 逐案例清單與來源日誌在私有證據目錄 instrumentation-latest.csv；統計只表示已收集日誌，尚有舊案例改名、拆分與啟動器錯誤需要對照，不能等同產品缺陷數量。
+
+- 18:53 完整核心重新執行2969項：0失敗、3略過，串行Gradle成功（8m22s），XML保存在core-tests-final。原快照失敗已由這次完整重跑確認修復。ShellParity46項、ShellDestroy清理與USB明確恢復、A11yOnDisplay、StaleNodeId均在第二輪通過。

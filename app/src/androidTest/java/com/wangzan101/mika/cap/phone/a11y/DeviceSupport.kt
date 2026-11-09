@@ -17,6 +17,16 @@ import com.wangzan101.mika.a11y.MikaAccessibilityService
 /** 真机测试共用:shell 连接、无障碍服务、虚拟屏上的 AndroidScreen。需要内置助手在运行(已配对、无线调试开着)且 Mika 无障碍服务已开启。 */
 object DeviceSupport {
     const val SETTINGS = "com.android.settings"
+    // OEM Settings may expose Wi-Fi directly; AOSP groups it under Network & internet.
+    val NETWORK_LABELS = listOf("WLAN", "Wi-Fi", "Wi‑Fi", "Network & internet", "网络和互联网", "網路和網際網路")
+    fun networkEntry(e: com.wangzan101.mika.core.uistate.UiElement): Boolean =
+        e.clickable && NETWORK_LABELS.any { e.name.startsWith(it) }
+
+    fun networkDetail(s: com.wangzan101.mika.core.uistate.ScreenSnapshot): Boolean =
+        s.packageName == SETTINGS && (s.elements.any { it.role == "Switch" } ||
+            (s.elements.any { it.name == "Network & internet" } &&
+                s.elements.any { it.name == "Internet" } && s.elements.any { it.name == "VPN" }))
+
     const val TEST_PACKAGE = "com.wangzan101.mika.test"
     private var connection: ShellBinding? = null
     private val phone get() = PhoneServices.of(InstrumentationRegistry.getInstrumentation().targetContext)
@@ -109,6 +119,16 @@ object DeviceSupport {
         val focusedApp = section.firstOrNull { it.startsWith("mFocusedApp=") }
             ?.let { Regex("u0 (\\S+)").find(it)?.groupValues?.get(1) }
         return "$topDisplay $focus focusedApp=$focusedApp topTask=${shell.topTaskId(android.view.Display.DEFAULT_DISPLAY)}"
+    }
+
+    /** USB startup is explicitly host-driven; only restart after observing the documented stopped state. */
+    fun restartUsbHelperIfRequired() {
+        val stopped = com.wangzan101.mika.core.shell.BuiltinShellStatus.Failed(
+            com.wangzan101.mika.core.shell.BuiltinShellFailure.UsbHelperStopped,
+        )
+        pollUntil(5_000) { phone.shellControl.status.value.takeIf { it == stopped } } ?: return
+        val pkg = InstrumentationRegistry.getInstrumentation().targetContext.packageName
+        sh("sh /sdcard/Android/data/$pkg/files/usb-start.sh")
     }
 
     fun <T : Any> pollUntil(timeoutMs: Long, block: () -> T?): T? {

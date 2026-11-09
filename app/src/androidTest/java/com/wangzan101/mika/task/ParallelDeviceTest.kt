@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class ParallelDeviceTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var shell: IMikaShell
-    private val models = listOf(ScriptedModel(), ScriptedModel())
+    private val models = listOf(ScriptedModel().apply { intent = "ACT" }, ScriptedModel().apply { intent = "ACT" })
     private val handedOut = AtomicInteger()
     private lateinit var priorFlags: SpeedFlags
 

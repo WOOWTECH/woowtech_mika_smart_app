@@ -55,8 +55,8 @@ class ScreenAccuracyTest {
         val s = openFields()
         assertTrue("result text not read: ${s.elements.map { it.name }}", s.elements.any { it.name == "0" })
         val r = ok(screen.tapRef(s.named("7").ref, s.snapshotId))
-        assertEquals(true, r.changed)
-        snapUntil { snap -> snap.elements.any { it.name == "07" } }
+        val after = snapUntil { snap -> snap.elements.any { it.name == "07" } }
+        assertEquals("tap result=$r; before=${s.elements.map { it.name }}; after=${after.elements.map { it.name }}", true, r.changed)
     }
 
     @Test
@@ -107,15 +107,15 @@ class ScreenAccuracyTest {
     @Test
     fun scrollDownShowsContentFurtherDown() = runBlocking<Unit> {
         ok(screen.openApp(DeviceSupport.SETTINGS, cold = true))
-        val before = snapUntil { s -> s.elements.any { it.clickable && it.name.startsWith("WLAN") } }
+        val before = snapUntil { s -> s.elements.any { DeviceSupport.networkEntry(it) } }
         val tools = com.wangzan101.mika.core.assembly.toolDispatcher(screen)
         val r = tools.runAction(com.wangzan101.mika.core.model.Part.ToolCall("c1", "phone_scroll", """{"direction":"down"}""")).content
         assertEquals(r.toString(), "true", r["changed"].toString())
         assertEquals(r.toString(), "\"up\"", r["fingerMoved"].toString())
         val after = screen.snapshot()
         val newNames = after.elements.map { it.name }.toSet() - before.elements.map { it.name }.toSet()
-        val wlan = after.elements.firstOrNull { it.name.startsWith("WLAN") }
-        val wlanBefore = before.elements.first { it.name.startsWith("WLAN") }
+        val wlanBefore = before.elements.first { DeviceSupport.networkEntry(it) }
+        val wlan = after.elements.firstOrNull { it.name == wlanBefore.name }
         assertTrue("content did not move up: new=$newNames", newNames.isNotEmpty() && (wlan == null || wlan.centerY < wlanBefore.centerY))
     }
 

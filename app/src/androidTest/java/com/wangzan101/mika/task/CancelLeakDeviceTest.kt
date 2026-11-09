@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 class CancelLeakDeviceTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val models = List(ROUNDS) { ScriptedModel() }
+    private val models = List(ROUNDS) { ScriptedModel().apply { intent = "ACT" } }
     private val handed = AtomicInteger()
 
     @Before

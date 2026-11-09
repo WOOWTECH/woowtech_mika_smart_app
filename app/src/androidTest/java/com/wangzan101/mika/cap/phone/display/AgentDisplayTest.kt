@@ -362,6 +362,7 @@ class AgentDisplayTest {
         val pid = shellPid()
         assertNotNull("no $SHELL_PROCESS process", pid)
         shellCommand("kill $pid")
+        DeviceSupport.restartUsbHelperIfRequired()
         val after = pollUntil(30_000) {
             connection.shell.value?.takeIf { it.asBinder() != before.asBinder() && it.asBinder().pingBinder() }
         }

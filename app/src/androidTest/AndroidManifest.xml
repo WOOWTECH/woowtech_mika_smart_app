@@ -32,6 +32,7 @@
         <!-- 测试包的账号认证器:默认关着,只在 AuthSpillDeviceTest 里打开、测完关掉,别的挪回测试不受它影响。
              测试包没有 LAUNCHER 入口,打开后它就是一个没有桌面图标的账号认证器包 -->
         <service android:name="com.wangzan101.mika.cap.phone.a11y.TestAuthenticatorService" android:exported="true"
+            android:permission="android.permission.BIND_ACCOUNT_AUTHENTICATOR"
             android:enabled="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />

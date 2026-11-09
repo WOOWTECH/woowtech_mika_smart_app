@@ -32,7 +32,7 @@ class AndroidScreenTest {
         val r = screen.openApp(SETTINGS)
         assertTrue("openApp: $r", r is ActionResult.Ok)
         assertNull((r as ActionResult.Ok).appSwitched)
-        return snapUntil { s -> s.elements.any { it.name.startsWith("WLAN") && it.clickable } }
+        return snapUntil { s -> s.elements.any { DeviceSupport.networkEntry(it) } }
     }
 
     private suspend fun snapUntil(timeoutMs: Long = 5_000, test: (ScreenSnapshot) -> Boolean): ScreenSnapshot {
@@ -44,6 +44,13 @@ class AndroidScreenTest {
         }
         assertTrue("screen never matched: ${s.elements.map { it.name }}", test(s))
         return s
+    }
+
+    private suspend fun searchField(initial: ScreenSnapshot): ScreenSnapshot {
+        if (initial.elements.any { it.editable }) return initial
+        val search = initial.elements.first { it.clickable && (it.name.contains("搜索") || it.name.contains("Search", ignoreCase = true)) }
+        ok(screen.tapRef(search.ref, initial.snapshotId))
+        return snapUntil { it.elements.any { e -> e.editable } }
     }
 
     private fun ScreenSnapshot.clickable(prefix: String): UiElement =
@@ -89,11 +96,12 @@ class AndroidScreenTest {
     fun tapReportsChangedAndUnchanged() = runBlocking<Unit> {
         val s = openSettings()
         // 标题文字不可点,点上去页面不变
-        val title = s.elements.first { !it.clickable && !it.editable && !it.scrollable && it.name == "设置" }
-        val miss = ok(screen.tapXY(title.centerX, title.centerY))
+        val title = s.elements.firstOrNull { !it.clickable && !it.editable && !it.scrollable && it.name in listOf("设置", "Settings") }
+        // AOSP can replace the static title with a search bar; the outer margin is inert.
+        val miss = ok(screen.tapXY(title?.centerX ?: 4, title?.centerY ?: 4))
         assertEquals(false, miss.changed)
 
-        val hit = ok(screen.tapRef(s.clickable("WLAN").ref, s.snapshotId))
+        val hit = ok(screen.tapRef(s.elements.first { DeviceSupport.networkEntry(it) }.ref, s.snapshotId))
         assertEquals(true, hit.changed)
         assertFalse(hit.relocated)
 
@@ -116,12 +124,12 @@ class AndroidScreenTest {
         val r = ok(screen.tapRef(target.ref, old.snapshotId))
         assertTrue(r.relocated)
         assertEquals(true, r.changed)
-        snapUntil { s -> s.elements.none { it.name.startsWith("WLAN") && it.clickable } }
+        snapUntil { s -> s.elements.none { DeviceSupport.networkEntry(it) } }
     }
 
     @Test
     fun typeTextVerifiesReadback() = runBlocking<Unit> {
-        val s = openSettings()
+        val s = searchField(openSettings())
         val field = s.elements.first { it.editable }
         val r = ok(screen.typeText(field.ref, s.snapshotId, "蓝牙"))
         assertEquals(Verification.MATCH, r.verification)
@@ -142,10 +150,10 @@ class AndroidScreenTest {
     fun peekDoesNotRegisterRefsAndReportsFocus() = runBlocking<Unit> {
         val s = openSettings()
         val p = screen.peek()
-        val wlan = p.elements.first { it.clickable && it.name.startsWith("WLAN") }
+        val wlan = p.elements.first { DeviceSupport.networkEntry(it) }
         // peek 的读屏不进编号登记表
         assertEquals(ActionResult.Failed("ref_expired"), screen.tapRef(wlan.ref, p.snapshotId))
-        val search = s.elements.first { it.editable || it.name.contains("搜索") }
+        val search = s.elements.first { it.editable || it.clickable && (it.name.contains("搜索") || it.name.contains("Search", ignoreCase = true)) }
         ok(screen.tapRef(search.ref, s.snapshotId))
         // 搜索框拿到输入焦点后,读屏标出 focused
         assertNotNull("no focused field", pollUntil(5_000) { runBlocking { screen.peek() }.elements.firstOrNull { it.editable && it.focused } })
@@ -154,7 +162,7 @@ class AndroidScreenTest {
     @Test
     fun typeTextInSearch() = runBlocking<Unit> {
         val s = openSettings()
-        val search = s.elements.first { it.editable || it.name.contains("搜索") }
+        val search = s.elements.first { it.editable || it.clickable && (it.name.contains("搜索") || it.name.contains("Search", ignoreCase = true)) }
         ok(screen.tapRef(search.ref, s.snapshotId))
         // 搜索页的输入框拿到焦点后直接往焦点框里打字
         val typed = pollUntil(5_000) {
@@ -196,10 +204,10 @@ class AndroidScreenTest {
         val shell = DeviceSupport.shell()
         val main = DeviceSupport.mainScreenState(shell)
         val s = openSettings()
-        val r = ok(screen.tapRef(s.clickable("WLAN").ref, s.snapshotId))
+        val r = ok(screen.tapRef(s.elements.first { DeviceSupport.networkEntry(it) }.ref, s.snapshotId))
         assertEquals(true, r.changed)
-        val wlan = snapUntil { snap -> snap.elements.any { it.role == "Switch" } }
-        assertTrue(wlan.elements.any { it.name == "WLAN" && !it.clickable })
+        val wlan = snapUntil { DeviceSupport.networkDetail(it) }
+        assertTrue(wlan.elements.any { it.name.trim() in DeviceSupport.NETWORK_LABELS && !it.clickable })
         assertTrue("still on the home page", wlan.elements.none { it.clickable && it.name.startsWith("蓝牙") })
         assertEquals("main screen changed", main, DeviceSupport.mainScreenState(shell))
     }
@@ -211,10 +219,10 @@ class AndroidScreenTest {
         fun check(step: String) = assertEquals("main screen changed after $step", main, DeviceSupport.mainScreenState(shell))
 
         val s = openSettings(); check("openApp")
-        ok(screen.tapRef(s.clickable("WLAN").ref, s.snapshotId)); check("phone_tap")
+        ok(screen.tapRef(s.elements.first { DeviceSupport.networkEntry(it) }.ref, s.snapshotId)); check("phone_tap")
         ok(screen.swipe(360, 1200, 360, 600)); check("phone_swipe")
         ok(screen.back()); check("phone_back")
-        val home = snapUntil { snap -> snap.elements.any { it.editable } }
+        val home = searchField(snapUntil { snap -> snap.elements.any { DeviceSupport.networkEntry(it) } })
         ok(screen.typeText(home.elements.first { it.editable }.ref, home.snapshotId, "WLAN")); check("typeText")
         ok(screen.pressKey(android.view.KeyEvent.KEYCODE_BACK)); check("pressKey")
         ok(screen.openApp(SETTINGS, cold = true)); check("cold openApp")
@@ -223,10 +231,10 @@ class AndroidScreenTest {
     @Test
     fun coldLaunchReturnsToFirstPage() = runBlocking<Unit> {
         val s = openSettings()
-        ok(screen.tapRef(s.clickable("WLAN").ref, s.snapshotId))
-        snapUntil { snap -> snap.elements.any { it.role == "Switch" } }
+        ok(screen.tapRef(s.elements.first { DeviceSupport.networkEntry(it) }.ref, s.snapshotId))
+        snapUntil { DeviceSupport.networkDetail(it) }
         // 普通启动回到上次的页面,冷启动回到首页
         ok(screen.openApp(SETTINGS, cold = true))
-        snapUntil { snap -> snap.elements.any { it.clickable && it.name.startsWith("WLAN") } }
+        snapUntil { snap -> snap.elements.any { DeviceSupport.networkEntry(it) } }
     }
 }
