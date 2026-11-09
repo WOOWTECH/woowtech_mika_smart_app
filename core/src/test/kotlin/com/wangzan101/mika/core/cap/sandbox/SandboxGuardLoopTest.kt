@@ -41,15 +41,18 @@ class SandboxGuardLoopTest {
 
             assertTrue(result.toString(), result is TaskState.Failed)
             result as TaskState.Failed
+            assertEquals(result.reason, 7, sandbox.runs.size)
             assertEquals(result.reason, FailKind.GaveUp, result.kind)
             assertTrue(result.reason, result.reason.contains("Repeated reads"))
-            assertEquals(7, sandbox.runs.size)
             // The last reply still proposes a command, but the tool-free delivery call cannot run it.
             assertEquals(8, model.requests.size)
             assertTrue(model.offeredTools.last().isEmpty())
             // Delivery flattens evidence into text; inspect the final exploration request instead.
             val results = model.requests[6].flatMap { it.parts }.filterIsInstance<Part.ToolResult>()
                 .map { Json.parseToJsonElement(it.content).jsonObject }
+            // Keep the original task without a /workspace/ path so this covers lazy group opening.
+            assertTrue(results.first().containsKey("moreTools"))
+            assertTrue(results[1].containsKey("moreTools").not())
             val warning = results[3]["guard"]!!.jsonArray.single().jsonObject
             assertEquals("sandbox_no_progress", warning["code"]!!.jsonPrimitive.content)
             assertEquals("warn", warning["severity"]!!.jsonPrimitive.content)

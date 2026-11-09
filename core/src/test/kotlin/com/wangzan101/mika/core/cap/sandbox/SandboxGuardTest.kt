@@ -54,6 +54,19 @@ class SandboxGuardTest {
         assertEquals("sandbox_no_progress", guard.stop?.code)
     }
 
+    @Test fun oneTimeGroupOpeningNoticeDoesNotResetIdenticalReadEvidence() {
+        val guard = SandboxGuard()
+        val args = command("pwd; ls -lah /workspace")
+        val opening = JsonObject(output() + ("moreTools" to JsonPrimitive("Sandbox tools are now available.")))
+        assertTrue(guard.read(args, opening).isEmpty())
+        repeat(2) { assertTrue(guard.read(args).isEmpty()) }
+        assertEquals(Severity.Warn, guard.read(args).single().severity)
+        assertNull(guard.stop)
+        repeat(2) { assertEquals(Severity.Warn, guard.read(args).single().severity) }
+        assertEquals(Severity.Stop, guard.read(args).single().severity)
+        assertEquals("sandbox_no_progress", guard.stop?.code)
+    }
+
     @Test fun genuinelyChangingOutputNeverStops() {
         val guard = SandboxGuard()
         repeat(30) { assertTrue(guard.read(result = output("row $it")).isEmpty()) }

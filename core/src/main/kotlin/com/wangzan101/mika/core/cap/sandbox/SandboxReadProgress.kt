@@ -75,7 +75,8 @@ internal class SandboxReadProgress {
         }
         // Keep all semantic fields, including ls timestamps. Stripping timestamps could hide a
         // genuine external write. Per-execution duration and advisory notes are nondeterministic.
-        return JsonObject(content - setOf("durationMs", "hint", "networkNote"))
+        // The dispatcher adds moreTools only when a folded group first opens; it is not read data.
+        return JsonObject(content - setOf("durationMs", "hint", "networkNote", "moreTools"))
     }
 
     private fun simpleRead(command: String): Boolean {
