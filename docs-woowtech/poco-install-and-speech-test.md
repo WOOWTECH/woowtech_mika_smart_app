@@ -43,7 +43,26 @@ Android 官方定義：12 = ERROR_LANGUAGE_NOT_SUPPORTED；13 = ERROR_LANGUAGE_U
 
 ## 尚未完成與限制
 
-- 尚未取得成功語音轉寫；不能宣稱手機語音功能已恢復。
-- 已詢問使用者實際說話時段，仍待回覆。測試途中出現其他畫面操作與擷取程序被中止，已請使用者確認手機由本次測試獨占操作。
+- 獨立診斷程式已收到最終中文字串，但與指定測試句不符；正式 App 尚未取得正確語音轉寫，不能宣稱已恢復。
+- 使用者已同意實機操作與配合語音。已通知說話並執行兩個 App 的長按測試；尚待確認 14:38 診斷收音時實際說的內容。
 - 修正版只在工作分支完成，未安裝到正式版手機、未發布。撤銷離線偏好只是允許預設服務自行選擇；不保證預設服務具備該語言的線上能力。
 - 原版成功執行的無障礙手動解除與 USB API 測試，不能當成語音成功證據。
+
+
+## 接續實機測試（14:34–14:40）
+
+使用者確認可接續操作後，重新測試原版與 Mika：
+
+| 測試 | 實測結果 |
+| --- | --- |
+| 渥屋助理原版長按 15 秒 | 14:34:24.319 開始；14:34:24.674 本機 error 12，14:34:24.970 預設服務再回報 error 12；未產生輸入文字 |
+| 同機 Mika 長按 | 14:35:53 本機與預設服務均回報 zh-TW / error 12；未產生輸入文字 |
+| ADB 開啟 Google RECOGNIZE_SPEECH Activity，指定允許連網 | Activity 隨即關閉，不能算有效的 SpeechRecognizer API 測試 |
+| 獨立診斷程式，預設辨識器、zh-TW、PREFER_OFFLINE=false | 14:38 收到 READY、SPEECH_START、PARTIAL、SPEECH_END，14:38:40 收到非空 RESULT；文字與指定句不符，準確率未通過 |
+| 同一診斷程式、zh-TW、PREFER_OFFLINE=true | 14:40:00.999 回報 error 12，其後又收到 READY；應用程式不能因後續 READY 就忽略已收到的終止錯誤 |
+
+獨立診斷程式套件 `io.woowtech.speechprobe`，只要求麥克風／網路，透過 ADB 安裝，沒有無障礙服務、沒有替換渥屋助理或 Mika。原始碼與重建腳本暫存在 `/tmp/woow-speech-probe/`；實機紀錄 `/tmp/poco-voice-authorized.log`。這項診斷程式的 ADB 安裝成功，不代表正式 APK 經 Files 安裝通過 Play 安全防護。
+
+`checkRecognitionSupport` 的回呼包含 supportError=14，且後續又收到支援清單；installed/pending 為空、supportedDevice 包含 `cmn-Hant-TW`、online 為空。此服務回呼不一致，不能只用 online 空清單斷言不支援連網。實際 `zh-TW + PREFER_OFFLINE=false` 已收到最終中文字串，也不能只因離線清單沒有 zh-TW 就直接更改 App 的語言代碼。另試 cmn-Hant-TW 收到 error 11；因前一個 session 曾被中止，不作為語言相容性的決定性證據。
+
+這些測試支持撤銷回退後的離線偏好，但尚未證明修正版在正式 App 裡正確完成整條語音輸入流程。診斷收音沒有自動送出聊天或執行任務，也沒有切換付費轉寫服務。
