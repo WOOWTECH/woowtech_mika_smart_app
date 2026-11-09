@@ -507,7 +507,10 @@ private fun CurrentStepBody(
     if (view.failure == null && copy.action != null) {
         PillButton(copy.action, primary = !a11y && !fixNotificationsFirst, tag = "setup-action") { onStepAction(step) }
     }
-    if (a11y && view.showAppInfo) PillButton(PhoneSetupCopy.APP_INFO, primary = false, tag = "setup-app-info", onClick = onAppInfo)
+    if (a11y && view.showAppInfo) AccessibilityInstallHelp(
+        onAppInfo = onAppInfo,
+        onAccessibility = { onStepAction(SetupStep.Accessibility) },
+    )
     // 读到的开关只是参考:用户说打开了就往下走,哪一步都不会卡死
     if (step in PhoneSetupFlow.CONFIRMABLE) PillButton(PhoneSetupCopy.TURNED_ON_NEXT, primary = false, tag = "setup-confirm") { onConfirmStep(step) }
     if (step == SetupStep.PairingCode) ManualCode(askPort = !view.portFound, onSubmit = onSubmit)

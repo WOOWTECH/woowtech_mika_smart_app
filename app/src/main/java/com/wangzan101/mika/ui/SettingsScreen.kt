@@ -183,7 +183,7 @@ fun SettingsScreen(
         SettingsPage.AppAccess -> AppAccessScreen(onBack = toHome)
         SettingsPage.PhoneOps -> PhoneOpsScreen(
             status, androidRelease, onProblem,
-            onRepair = { onFix(Fix.RepairPhoneHelper) }, onUnpair = { onFix(Fix.UnpairPhoneHelper) }, onBack = toHome,
+            onRepair = { onFix(Fix.RepairPhoneHelper) }, onUnpair = { onFix(Fix.UnpairPhoneHelper) }, onBack = toHome, onFix = ::fix,
         )
         SettingsPage.Notifications -> NotificationsScreen(status, onFix = ::fix, onBack = back)
         SettingsPage.DuringWork -> DuringWorkScreen(

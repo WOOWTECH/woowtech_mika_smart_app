@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">Can’t enable accessibility?</string>
+    <string name="a11y_install_steps">1. First open accessibility settings and select Mika. If the system blocks it, return here.\n2. Open App info for Mika, then choose Allow restricted settings. On Pixel, look in the top-right More menu; on Xiaomi / POCO, scroll to the bottom of App info. Confirm on the phone if asked.\n3. Return to accessibility settings and enable Mika. Allowing restricted settings alone does not enable the service.</string>
+    <string name="a11y_install_missing">If the option is missing: first try selecting Mika in accessibility settings, then reopen App info and check both the bottom of the page and the More menu. If accessibility already lets you enable it, skip this step. Menu names vary by phone. Do not uninstall the app or clear its data.</string>
+    <string name="a11y_install_app_info">Open App info</string>
+    <string name="a11y_install_open">Open accessibility settings</string>
+</resources>

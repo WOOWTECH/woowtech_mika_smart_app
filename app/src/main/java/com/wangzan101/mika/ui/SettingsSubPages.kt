@@ -62,6 +62,7 @@ fun PhoneOpsScreen(
     onRepair: () -> Unit,
     onUnpair: () -> Unit,
     onBack: () -> Unit,
+    onFix: (Fix) -> Unit = {},
 ) {
     val check = Prerequisites.check(status, hasMainModel = true)
     var confirmUnpair by remember { mutableStateOf(false) }
@@ -73,6 +74,12 @@ fun PhoneOpsScreen(
                 MikaIcons.Hand, stringResource(R.string.settings_a11y), stringResource(R.string.settings_a11y_sub), first = true,
                 onClick = check.problems.firstOrNull { it is Problem.Accessibility }?.let { { onProblem(it) } },
             ) { RowValue(a11yText, a11yTone) }
+            if (status.sdkInt >= 33 && status.accessibility != com.wangzan101.mika.settings.AccessibilityState.On) {
+                AccessibilityInstallHelp(
+                    onAppInfo = { onFix(Fix.OpenAppInfo) },
+                    onAccessibility = { onFix(Fix.OpenAccessibility) },
+                )
+            }
             // 安卓 12 以下手机功能不可用,不列这一行(系统版本那一行已说明)
             if (status.sdkInt >= Prerequisites.MIN_SDK) {
                 val helper = status.builtinShell
