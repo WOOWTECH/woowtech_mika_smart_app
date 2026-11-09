@@ -80,3 +80,26 @@ Android 官方定義：12 = ERROR_LANGUAGE_NOT_SUPPORTED；13 = ERROR_LANGUAGE_U
 使用者按開始後，14:48:03.920 READY、14:48:05.498 SPEECH_START、14:48:09.610 SPEECH_END，14:48:09.690 收到 RESULT：`今天測試我無助理語音輸入`。畫面亦顯示同一文字，這次 session 未記錄 error 11/12。
 
 指定句為「今天測試渥屋助理語音輸入」；品牌「渥屋」被辨識為「我無」，其餘文字相符。因此本次診斷程式的實際收音到文字流程通過，逐字準確率未完全通過。手機閒置約四分鐘後才按開始，新的按鍵時建立連線方式本次仍能完成辨識。這不等於正式 App 修復已驗證；正式 App 尚未安裝修正版，且尚須驗證長按、鬆手、連續多次輸入的整合流程。
+
+
+## 正式簽章修正版覆蓋安裝（14:54）
+
+使用者要求套用正式 App 並完整驗證後，從本分支 `8f61ffb3` 建置 `assembleWoowtechRelease`，BUILD SUCCESSFUL（2m34s）。以原正式憑證簽署 arm64 APK，再透過已授權 ADB `install --no-incremental -r` 成功覆蓋 `io.woowtech.agent`，沒有移除套件或清除資料。
+
+- 本機驗證包：`woowtech-agent-woow4-speech-8f61ffb3-arm64.apk`。
+- APK SHA-256：`169407a72c1e5ed22e7218a70b4dccb90cc490e36ff0dc1bf3582c131f8e7d2c`。
+- apksigner 憑證比對原正式版通過；安裝後從手機讀回 base APK 的 SHA-256 與上述完全相同。
+- firstInstallTime 保持 2026-11-09 13:12:33；lastUpdateTime 更新為 2026-11-09 14:54:39。
+- 版本名稱／代碼仍為 `0.1.37-woow.4` / 3804，本機測試包用來源 commit 與 APK 雜湊區分，**不是 GitHub 上原公開 APK**，尚未公開發布。
+- 主畫面啟動成功，未進入首次安裝流程。
+- ADB 覆蓋成功不能取代 Files／GitHub 下載安裝的 Play Protect 測試；先前正式公開 APK 被擋的問題仍未解決。
+
+已請使用者在正式 App 新對話長按輸入列，說「今天測試語音輸入，一二三四五」，鬆手後不送出；等待實際語音與輸入回填驗證。仍須區分模擬語音的介面測試與實機 Google 辨識，不能僅根據前者宣布後者通過。
+
+### 修正版介面與無聲實機檢查
+
+API 36 模擬器執行 `VoiceHoldTest`：7 項全部通過（47.89 秒）。新增／強化驗證取消保留原文、取消後遲到結果不回填、失敗後新會話可輸入，以及回填不觸發 onSend。既有案例驗證長按鬆手、聚焦後使用獨立麥克風、聚焦後長按保留系統選字、上滑取消、不同麥克風錯誤提示。這些使用 FakeVoice，不能當作 Google 辨識準確率證據。結果：`/tmp/woow-voicehold-ui-results.log`。
+
+POCO 實機檢查：短按可開鍵盤並顯示「按住說話」按鈕；無聲長按 4.5 秒後回到空白輸入框，未留下卡住的收音視窗；DOWN→等待→向上 MOVE→UP 後亦回到空白輸入框。修正版日誌明確顯示原本本機 zh-TW error 12 後，預設 Google 服務開始 `Online recognizer - start listening`。
+
+14:57:49 與 14:58:00 另有實機收音紀錄，14:58:02.585 Google 回報 `onResults withSpeech: true`。未取得該兩次對應的輸入框文字及使用者確認，不據此宣稱語音輸入準確或完整流程通過。正式 App 的實際語句回填、多次追加與送出流程仍待驗證。
