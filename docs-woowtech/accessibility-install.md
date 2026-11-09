@@ -81,4 +81,6 @@ Pixel 仍未接入實機，不能宣稱 Pixel 實測通過。正式簽章公開 
 
 ## 後續正式包與語音測試
 
-已用公開版相同 SHA-256 的正式簽章 APK 重做同版本覆蓋安裝，亦被 Play 安全防護攔截。另已重現 zh-TW 語音錯誤並完成程式修正，尚未取得實機成功轉寫。詳見[後續測試紀錄](poco-install-and-speech-test.md)。
+已用公開版相同 SHA-256 的正式簽章 APK 重做同版本覆蓋安裝，亦被 Play 安全防護攔截。另已重現 zh-TW 語音錯誤，修正版已安裝並通過實際語音回填、追加及手動送出測試。詳見[後續測試紀錄](poco-install-and-speech-test.md)。
+
+Play Protect 後續已取得 `POTENTIALLY_UNWANTED / generic_malware` 掃描結果，詳見[專項調查與影響](play-protect-investigation.md)。一般下載安裝尚不能列為無警告通過。
