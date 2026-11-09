@@ -43,6 +43,7 @@ object SystemSpeech {
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> SpeechFailure.NoPermission
         SpeechRecognizer.ERROR_AUDIO -> SpeechFailure.AudioError
         SpeechRecognizer.ERROR_CLIENT -> SpeechFailure.MicUnavailable
+        ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE -> SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable)
         else -> SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemGone)
     }
 
@@ -165,6 +166,7 @@ class SystemSpeechSession(
     // 下面这些只在主线程读写
     private var recognizer: SpeechRecognizer? = null
     private var usingOnDevice = false
+    private val languageFallback = SpeechLanguageFallback(onDevice)
     /** 正在试 [attempts] 里的第几个。 */
     private var attempt = 0
     private var holding = true
@@ -279,8 +281,8 @@ class SystemSpeechSession(
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-            // 联网识别时:手机有本机识别能力就请服务尽量离线识别
-            if (!usingOnDevice && onDevice) putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            // 默认识别器可以偏好离线；本机语言失败后的回退必须明确撤销该偏好。
+            if (!usingOnDevice) putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, languageFallback.preferOffline)
         }
         main.removeCallbacks(silence)
         main.postDelayed(silence, NO_RESPONSE_MS)
@@ -384,7 +386,7 @@ class SystemSpeechSession(
             if (recognizer == null || done()) return
             heard()
             if (recognizer == null || done()) return
-            if (usingOnDevice && SystemSpeech.languageMissing(error) && segments.full().isEmpty()) {
+            if (languageFallback.retryOnline(error, usingOnDevice, segments.full().isNotEmpty())) {
                 open(preferOnDevice = false)
                 if (!holding && !done()) {
                     // 已经松开了:新识别器只收尾,等待上限重新算
@@ -415,5 +417,17 @@ class SystemSpeechSession(
          * 留出识别服务进程冷启动的时间;超过就当这一段没响应。
          */
         const val NO_RESPONSE_MS = 3_000L
+    }
+}
+
+/** Retry a missing on-device language once without forcing the fallback recognizer offline. */
+internal class SpeechLanguageFallback(private val onDeviceAvailable: Boolean) {
+    private var retried = false
+    val preferOffline: Boolean get() = onDeviceAvailable && !retried
+
+    fun retryOnline(error: Int, usingOnDevice: Boolean, heardText: Boolean): Boolean {
+        if (retried || !usingOnDevice || heardText || !SystemSpeech.languageMissing(error)) return false
+        retried = true
+        return true
     }
 }

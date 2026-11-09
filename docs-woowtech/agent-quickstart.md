@@ -6,6 +6,8 @@
 
 渥屋助理是開源專案 [Mika](https://github.com/wangzan101/Mika) 的 WOOWTECH 品牌版。CLI 和 Skill 沿用上游的 `mika` 名稱。手機上的套件名是 `io.woowtech.agent`，CLI 經 ADB 會自己找到它。
 
+GitHub APK 安裝後若無障礙反灰，請先查看[受限制設定操作說明](accessibility-install.md)，其中包含 Pixel 與小米／POCO 的不同入口。
+
 ## 1. 查最新版本
 
 ```sh

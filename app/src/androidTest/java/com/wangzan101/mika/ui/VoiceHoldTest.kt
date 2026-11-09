@@ -60,6 +60,7 @@ class VoiceHoldTest {
     }
 
     private val voice = FakeVoice()
+    private var sent = 0
 
     @Before fun grantMic() {
         val inst = InstrumentationRegistry.getInstrumentation()
@@ -71,7 +72,7 @@ class VoiceHoldTest {
             var t by remember { mutableStateOf(text) }
             Box(Modifier.fillMaxSize()) {
                 Composer(
-                    Modifier, t, { t = it }, ComposerMode.Idle, hasHistory = false, onSend = {}, onStop = {},
+                    Modifier, t, { t = it }, ComposerMode.Idle, hasHistory = false, onSend = { sent++ }, onStop = {},
                     voice = voice,
                     onVoiceText = { t = com.wangzan101.mika.voice.HoldToTalk.join(t, it) },
                 )
@@ -96,6 +97,7 @@ class VoiceHoldTest {
         session.out.close()
         waitNoTag("voice-listen")
         compose.onNodeWithTag("composer-field").assertTextEquals("帮我订明天的票")
+        assertEquals("Transcription must not submit a task", 0, sent)
     }
 
     @Test fun focusedFieldKeepsLongPressForTheSystem() {
@@ -129,6 +131,7 @@ class VoiceHoldTest {
         session.out.close()
         waitNoTag("voice-listen")
         compose.onNodeWithTag("composer-field").assertTextEquals("帮我订明天的票")
+        assertEquals("Transcription must not submit a task", 0, sent)
     }
 
     /** 已允许录音,识别服务仍报录音出错:弹说明(麦克风总开关、权限管理);别的麦克风起不来照旧只提示一句。 */
@@ -163,4 +166,46 @@ class VoiceHoldTest {
         waitNoTag("voice-listen")
         compose.onNodeWithTag("composer-field").assertTextEquals("")
     }
+
+    @Test fun cancellingKeepsExistingTextAndIgnoresLateResults() {
+        composer("保留原文")
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        val session = voice.sessions.single()
+        session.out.trySend(SpeechEvent.Partial("不要加入", ""))
+        Thread.sleep(700)
+        compose.onNodeWithTag("composer-field").performTouchInput {
+            moveBy(androidx.compose.ui.geometry.Offset(0f, -400f))
+        }
+        waitTag("voice-cancel-hint")
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        compose.waitUntil(5_000) { session.cancelled == 1 }
+        session.out.trySend(SpeechEvent.Final("迟来的结果"))
+        waitNoTag("voice-listen")
+        compose.onNodeWithTag("composer-field").assertTextEquals("保留原文")
+        assertEquals(0, sent)
+    }
+
+    @Test fun retryAfterFailureCreatesANewSessionAndFillsText() {
+        composer()
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        voice.sessions.single().out.trySend(SpeechEvent.Failed(SpeechFailure.MicUnavailable))
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        waitNoTag("voice-listen")
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        assertEquals(2, voice.sessions.size)
+        val retry = voice.sessions.last()
+        retry.out.trySend(SpeechEvent.Partial("再次", "输入"))
+        Thread.sleep(700)
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        compose.waitUntil(5_000) { retry.released == 1 }
+        retry.out.trySend(SpeechEvent.Final("再次输入"))
+        retry.out.close()
+        waitNoTag("voice-listen")
+        compose.onNodeWithTag("composer-field").assertTextEquals("再次输入")
+        assertEquals(0, sent)
+    }
+
 }

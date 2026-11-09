@@ -273,8 +273,8 @@ class SettingsScreenTest {
         compose.onNodeWithText("操作节奏").assertIsDisplayed()
         compose.onNodeWithText("快").assertIsDisplayed()
         compose.onNodeWithText("标准（默认）").assertIsDisplayed()
-        compose.onNodeWithText("像人").performClick()
-        compose.onNodeWithText("快").performClick()
+        compose.onNodeWithText("像人").performScrollTo().performClick()
+        compose.onNodeWithText("快").performScrollTo().performClick()
         assertEquals(listOf(OperatingPace.HUMAN, OperatingPace.FAST), picked)
     }
 
