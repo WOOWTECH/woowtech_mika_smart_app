@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">O serviço de reconhecimento de fala do celular não oferece suporte ao idioma atual ou o pacote de reconhecimento de fala desse idioma não está disponível. Confira as configurações de idioma do reconhecimento de fala ou selecione explicitamente um provedor de transcrição em Fala para texto. Apenas conceder a permissão do microfone não resolve o problema.</string>
+</resources>

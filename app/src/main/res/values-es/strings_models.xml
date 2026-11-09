@@ -180,9 +180,9 @@
     <string name="role_speech_what">Se usa cuando mantienes pulsado para hablar</string>
     <string name="speech_hint">Elige el reconocimiento integrado del teléfono o un modelo de un proveedor que transcribe cuando terminas. Los servicios en línea usan tu cuota del proveedor.</string>
     <string name="speech_system">Integrado en el teléfono</string>
-    <string name="speech_system_offline">Funciona sin conexión</string>
+    <string name="speech_system_offline">El uso sin conexión depende del idioma</string>
     <string name="speech_system_online">Necesita internet</string>
-    <string name="speech_system_note">Muestra las palabras mientras hablas; puede funcionar sin conexión</string>
+    <string name="speech_system_note">Muestra las palabras mientras hablas; el reconocimiento sin conexión requiere un paquete de idioma compatible</string>
     <string name="speech_system_note_online">Muestra las palabras mientras hablas; necesita internet</string>
     <string name="speech_system_none_note">Este teléfono no tiene reconocimiento de voz utilizable</string>
     <string name="speech_system_gone">No está en este teléfono</string>

@@ -170,9 +170,9 @@
     <string name="role_speech_what">길게 눌러 말할 때 사용해요</string>
     <string name="speech_hint">휴대전화 내장 인식과 말을 마친 뒤 변환하는 제공업체 모델 중에서 고를 수 있어요. 온라인 서비스는 제공업체 사용량을 써요.</string>
     <string name="speech_system">휴대전화 내장</string>
-    <string name="speech_system_offline">오프라인에서 작동</string>
+    <string name="speech_system_offline">오프라인 사용 가능 여부는 언어에 따라 달라요</string>
     <string name="speech_system_online">인터넷 필요</string>
-    <string name="speech_system_note">말하는 동안 글자가 나타나고, 오프라인에서도 작동할 수 있어요</string>
+    <string name="speech_system_note">말하는 동안 글자가 나타나요. 오프라인 음성 인식에는 지원되는 언어 팩이 필요해요</string>
     <string name="speech_system_note_online">말하는 동안 글자가 나타나요. 인터넷이 필요해요</string>
     <string name="speech_system_none_note">이 휴대전화에는 사용할 수 있는 음성 인식이 없어요</string>
     <string name="speech_system_gone">이 휴대전화에 없음</string>

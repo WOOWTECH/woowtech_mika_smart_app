@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">접근성을 켤 수 없나요?</string>
+    <string name="a11y_install_steps">1. 먼저 접근성 설정을 열고 Mika를 선택하세요. 시스템에서 차단하면 여기로 돌아오세요.\n2. Mika의 앱 정보를 열고 제한된 설정 허용을 선택하세요. Pixel에서는 오른쪽 위의 더보기 메뉴를 확인하고, Xiaomi / POCO에서는 앱 정보의 맨 아래로 스크롤하세요. 휴대전화에서 확인을 요청하면 확인해 주세요.\n3. 접근성 설정으로 돌아가 Mika를 켜세요. 제한된 설정을 허용하는 것만으로는 서비스가 켜지지 않아요.</string>
+    <string name="a11y_install_missing">옵션이 보이지 않으면 먼저 접근성 설정에서 Mika를 선택해 보세요. 그런 다음 앱 정보를 다시 열고 페이지 맨 아래와 더보기 메뉴를 모두 확인하세요. 접근성 설정에서 이미 켤 수 있다면 이 단계는 건너뛰세요. 메뉴 이름은 휴대전화마다 다를 수 있어요. 앱을 삭제하거나 앱 데이터를 지우지 마세요.</string>
+    <string name="a11y_install_app_info">앱 정보 열기</string>
+    <string name="a11y_install_open">접근성 설정 열기</string>
+</resources>

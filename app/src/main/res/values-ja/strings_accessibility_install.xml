@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_install_title">ユーザー補助を有効にできませんか？</string>
+    <string name="a11y_install_steps">1. まずユーザー補助の設定を開き、Mika を選んでください。システムにブロックされた場合は、ここに戻ってください。\n2. Mika の「アプリ情報」を開き、「制限付き設定を許可」を選んでください。Pixel では右上のその他メニューを、Xiaomi / POCO ではアプリ情報の一番下を確認してください。確認を求められた場合は、スマホで操作してください。\n3. ユーザー補助の設定に戻り、Mika を有効にしてください。制限付き設定を許可するだけでは、サービスは有効になりません。</string>
+    <string name="a11y_install_missing">項目が見つからない場合は、まずユーザー補助の設定で Mika を選んでから、アプリ情報を開き直し、ページの一番下とその他メニューの両方を確認してください。ユーザー補助の設定ですでに有効にできる場合は、この手順は不要です。メニューの名前は機種によって異なります。アプリをアンインストールしたり、データを削除したりしないでください。</string>
+    <string name="a11y_install_app_info">アプリ情報を開く</string>
+    <string name="a11y_install_open">ユーザー補助の設定を開く</string>
+</resources>

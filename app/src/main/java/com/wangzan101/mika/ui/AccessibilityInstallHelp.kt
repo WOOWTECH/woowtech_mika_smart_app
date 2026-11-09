@@ -24,11 +24,11 @@ internal fun AccessibilityInstallHelp(onAppInfo: () -> Unit, onAccessibility: ()
         Text(stringResource(R.string.a11y_install_missing), Modifier.padding(top = 8.dp), style = MikaType.Caption, color = MikaTheme.colors.ink2)
         MikaButton(
             stringResource(R.string.a11y_install_app_info), onAppInfo, Modifier.testTag("setup-app-info"),
-            kind = ButtonKind.Tonal, size = ButtonSize.Small,
+            kind = ButtonKind.Tonal, size = ButtonSize.Small, wrapLabel = true,
         )
         MikaButton(
             stringResource(R.string.a11y_install_open), onAccessibility, Modifier.testTag("a11y-install-open"),
-            kind = ButtonKind.Text, size = ButtonSize.Small,
+            kind = ButtonKind.Text, size = ButtonSize.Small, wrapLabel = true,
         )
     }
 }

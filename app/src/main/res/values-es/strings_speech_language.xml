@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_unavailable_language">El servicio de reconocimiento de voz del teléfono no admite el idioma actual o su paquete de reconocimiento de voz no está disponible. Revisa los ajustes de idioma del reconocimiento de voz o selecciona expresamente un proveedor de transcripción en Voz a texto. Conceder el permiso del micrófono no basta para solucionar esto.</string>
+</resources>
