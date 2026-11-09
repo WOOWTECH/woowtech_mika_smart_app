@@ -28,6 +28,7 @@ class KeptPageUiTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val page = KeptPage(1, "c1", "r1", "把这门课点开,从第 3 节开始播,挂着别关", "course.example.com", null, "第 3 节",
         System.currentTimeMillis(), System.currentTimeMillis() + 2 * 3_600_000L - 30_000)

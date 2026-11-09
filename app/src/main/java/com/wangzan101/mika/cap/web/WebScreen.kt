@@ -1288,7 +1288,13 @@ class WebScreen(
     }
 
     /** 连续 [quietMs] 没有页面变动、地址不变且主文档不在加载时为安静;到 [capMs] 还不安静就返回 false。 */
-    private suspend fun awaitQuiet(tab: WebTab, quietMs: Long, capMs: Long): Boolean {
+    private suspend fun awaitQuiet(tab: WebTab, quietMs: Long, capMs: Long): Boolean =
+        kotlinx.coroutines.withTimeoutOrNull(capMs.coerceAtLeast(0)) {
+            awaitQuietWithinDeadline(tab, quietMs, capMs)
+        } ?: false
+
+    // Include slow evaluateJavascript callbacks in the cap, not just delays between polls.
+    private suspend fun awaitQuietWithinDeadline(tab: WebTab, quietMs: Long, capMs: Long): Boolean {
         // 页面弹框挂着:页面停着,不会再变,也读不动
         if (tab.dialogs.current != null) return true
         val s = script(tab)

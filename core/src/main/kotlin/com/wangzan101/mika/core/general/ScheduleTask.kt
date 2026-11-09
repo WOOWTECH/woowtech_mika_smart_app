@@ -42,7 +42,7 @@ internal object ScheduleTask : AgentTool {
         "repeatAt" to str("Optional daily local clock time HH:mm, e.g. 09:00. Use for 'every day at 9' rather than a 1440-minute interval."),
         "repeatZone" to str("IANA time zone for repeatAt, e.g. Asia/Shanghai; defaults to this device's zone."),
         "weekdays" to strArray("Optional days for repeatAt: MON,TUE,WED,THU,FRI,SAT,SUN. Omit for every day.", 7),
-        "condition" to str("Optional read only condition to check using web or sandbox before running the goal."),
+        "condition" to str("Optional read-only condition using web or existing workspace files before running the goal; no shell commands, scripts, writes, or phone operations."),
         "reminder" to str("Optional fixed reminder text. If provided, deliver it directly at the scheduled time without running the model."),
         "whenIdle" to bool("If true, run only while no foreground task is active; the watchdog retries while busy."),
     ), emptyList())

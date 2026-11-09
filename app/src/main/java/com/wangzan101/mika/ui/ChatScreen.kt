@@ -146,6 +146,8 @@ import com.wangzan101.mika.ui.theme.MikaType
 import com.wangzan101.mika.voice.HoldToTalk
 import com.wangzan101.mika.voice.VoiceSource
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -431,7 +433,9 @@ fun ChatScreen(
                                 else -> R.string.chat_branch_done
                             }
                             if (id != null) input = ""
-                            Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                            withContext(Dispatchers.Main.immediate) {
+                                Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                            }
                             vm.clearBranchCopy()
                         }
                     }
@@ -447,7 +451,9 @@ fun ChatScreen(
                                 else -> R.string.chat_branch_done
                             }
                             if (result != null) input = result.prefill
-                            Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                            withContext(Dispatchers.Main.immediate) {
+                                Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                            }
                             vm.clearBranchCopy()
                         }
                     }
@@ -596,7 +602,11 @@ internal fun UserBubble(text: String, conversationId: String?, note: String? = n
             if (attached.hasAttachments) {
                 SentAttachments(attached, conversationId, max) { item ->
                     val id = conversationId ?: return@SentAttachments
-                    scope.launch { if (!AttachFiles.openSent(context, id, item.path)) Toast.makeText(context, AttachCopy.GONE, Toast.LENGTH_SHORT).show() }
+                    scope.launch {
+                        if (!AttachFiles.openSent(context, id, item.path)) withContext(Dispatchers.Main.immediate) {
+                            Toast.makeText(context, AttachCopy.GONE, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
             if (attached.hasAttachments && attached.words.isNotEmpty()) Spacer(Modifier.size(6.dp))

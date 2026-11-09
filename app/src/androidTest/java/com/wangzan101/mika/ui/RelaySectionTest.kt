@@ -23,6 +23,7 @@ import org.junit.Test
 class RelaySectionTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
     private val config = mutableStateOf(RelayConfig())
     private val state = mutableStateOf(RelayState.Off)
     private val changes = mutableListOf<Boolean>()

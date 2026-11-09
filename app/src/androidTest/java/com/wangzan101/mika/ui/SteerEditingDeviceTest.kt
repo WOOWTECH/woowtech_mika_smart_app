@@ -47,25 +47,41 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class SteerEditingDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
+    @get:Rule(order = Int.MIN_VALUE + 1) val existingUser = com.wangzan101.mika.ExistingChatUser()
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val app get() = context.applicationContext as MikaApp
     private val vm get() = app.chat
-    private val script = ScriptedModel()
+    private val script = ScriptedModel().apply { intent = "ACT" }
     private val release = CompletableDeferred<Unit>()
     private val first = AtomicBoolean(true)
     private var priorParallel = false
+    private var fixtureProvider: String? = null
     private lateinit var conversation: String
 
     @Before fun setUp() {
         check(pollUntil(10_000) { true.takeIf { !vm.busy() && !app.taskState.busy.value } } != null)
+        // UI send checks configured models even when TaskEnvironment injects a scripted model.
+        val providers = com.wangzan101.mika.settings.ProviderStore.get(context)
+        if (providers.roles.value.main == null) {
+            val cfg = com.wangzan101.mika.settings.ProviderConfig(
+                "steer-fixture", com.wangzan101.mika.settings.ProviderConfig.Kind.OpenAiCompat,
+                "http://127.0.0.1:1/v1", "steer-fixture", script.capabilities, "Steer fixture",
+            )
+            providers.save(cfg, null)
+            fixtureProvider = providers.configs.value.first { it.id == cfg.id }.providerId
+            check(providers.choose(com.wangzan101.mika.core.model.ModelRole.Main,
+                com.wangzan101.mika.settings.RoleChoice.Model(cfg.id)))
+        }
         val flags = FeatureFlags.get(context)
         priorParallel = flags.speedFlags().parallelTasks
         flags.setSpeed(flags.speedFlags().copy(parallelTasks = false))
         val model = object : ChatModel {
             override val capabilities = script.capabilities
             override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
-                val hold = first.compareAndSet(true, false)
+                val hold = system != com.wangzan101.mika.core.prompt.Prompts.role("intent_gate") &&
+                    first.compareAndSet(true, false)
                 try {
                     return script.complete(system, messages, tools)
                 } finally {
@@ -94,6 +110,7 @@ class SteerEditingDeviceTest {
         if (::conversation.isInitialized) app.taskState.run(conversation)?.let { TaskService.cancel(context, it.key) }
         pollUntil(15_000) { true.takeIf { !app.taskState.busy.value && app.taskState.summarizing.value.isEmpty() } }
         FeatureFlags.get(context).let { it.setSpeed(it.speedFlags().copy(parallelTasks = priorParallel)) }
+        fixtureProvider?.let { com.wangzan101.mika.settings.ProviderStore.get(context).removeProvider(it) }
         app.tasks.evalHooks.reset()
         app.tasks.modelFactory = TaskEnvironment.defaultModelFactory
         app.tasks.lightModelFactory = TaskEnvironment.defaultLightModelFactory

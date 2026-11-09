@@ -42,17 +42,19 @@ class BrowserScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
+
 
     private val calls = mutableListOf<String>()
     private val looks = mapOf("shop.example.com" to SiteLook("购物", 3, null), "example.org" to SiteLook("新闻", 3, null))
     private val face = { host: String -> SiteLooks.faceOf(host, looks) { null } }
     private val sites = listOf(FavoriteSite("shop.example.com", true), FavoriteSite("news.example.org", false))
-    private val recent = StartPageModel.recentRows(
+    private val recent by lazy { StartPageModel.recentRows(
         listOf(
             RecentPage(AddressInput.search("周末去哪玩"), "", 3_000),
             RecentPage("https://docs.example.net/guide", "使用指南", 2_000),
         ),
-    ) { face(it).name }
+    ) { face(it).name } }
 
     private fun start() {
         compose.setContent {
@@ -156,7 +158,7 @@ class BrowserScreenTest {
         }
         compose.onNodeWithText(BROWSER_DESKTOP_TAG).assertIsDisplayed()
         compose.onNodeWithTag("browser-progress").assertIsDisplayed()
-        compose.onNodeWithContentDescription("后退").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("返回").assertIsNotEnabled()
         compose.onNodeWithContentDescription("停止").performClick()
         compose.onNodeWithContentDescription("起始页").performClick()
         compose.onNodeWithContentDescription("分享").performClick()
