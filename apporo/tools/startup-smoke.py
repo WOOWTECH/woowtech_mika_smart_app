@@ -275,7 +275,7 @@ def main():
                         deadline_extended=False, app_crash_detected=False))
                     save('receipt.json', json.dumps(receipt, indent=2))
                     device('shell', 'input', 'tap', str(target[0]), str(target[1]))
-                elif visible:
+                elif target is None and visible:
                     break
                 time.sleep(2)
             else:
@@ -286,7 +286,8 @@ def main():
             time.sleep(5)
             if device('shell', 'pidof', PACKAGE) != pid:
                 raise RuntimeError('process died/restarted during startup observation')
-            if not welcome_visible(read_ui(attempt + '.xml')):
+            observed_xml = read_ui(attempt + '.xml')
+            if system_ui_wait_target(observed_xml) is not None or not welcome_visible(observed_xml):
                 raise RuntimeError('welcome disappeared during startup observation')
             activities = device('shell', 'dumpsys', 'activity', 'activities')
             save(attempt + '-activities.txt', activities)
