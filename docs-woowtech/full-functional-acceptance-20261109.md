@@ -260,3 +260,13 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - POCO已安裝com.tailscale.ipn；開啟後為login.tailscale.com登入頁，沒有tun介面或VPN位址。Mac沒有執行中的Tailscale或已找到的安裝。未選擇使用者帳號、未登入或加入未知網路。已請使用者在手機登入指定tailnet並提供可用測試端。
 - McpAccessTest、McpUsbTest、LocalHostsTest、NetProxyTest定向回歸完成：30項，0失敗。程式允許100.64/10及IPv6私有網段；此為回歸證據，不是VPN真實連線通過。
 - 尚待：同網VPN端點、手機非USB／非LAN直連的MCP握手、權杖拒絕、真實任務、VPN中斷與重連。證據vpn-20261110/status.json及JUnit XML。
+
+### Tailscale VPN實際連線驗收通過（2026-11-10）
+
+- 使用者登入後，POCO Tailscale為Connected，VPN IPv4=100.69.108.26。Mac透過Homebrew安裝Tailscale，建立獨立userspace測試端woow-poco-vpn-qa（100.101.148.77），使用手機既有登入將此測試端加入相同tailnet，未修改ACL、路由或exit node。
+- 實際請求由本機SOCKS5 127.0.0.1:11055經Tailscale至100.69.108.26:8765；ping顯示DERP(hkg)，沒有建立直接peer UDP。已移除ADB tcp:18765轉送；ADB僅作UI操作與獨立檔案核對。
+- 缺少權杖、錯誤權杖均401；正確網路權杖200；USB專用權杖經VPN亦401。MCP initialize及device state正常。權杖未寫入驗收日誌或提交。
+- 經VPN送出任務8bff677c，手機實際Python計算23*19=437、寫入並分享vpn-check.txt；主機從手機Download獨立讀回13 bytes，逐位元組等於VPN-POCO-437加換行。
+- 暫時關閉手機Tailscale，VPN HTTP請求失敗（SOCKS無法連線、HTTP000）；重開後首次請求仍在重連期而失敗，隨後task status與device state恢復200、ready=true，原任務仍done，未重送。VPN介面由tun0重建為tun1，位址不變。
+- 範圍限制：兩端底層仍在同一Wi-Fi，驗證的是VPN位址與overlay路徑；尚未驗證行動網路／不同底層網路切換。不能將此等同自架HTTPS遠端閘道已通過。
+- 證據vpn-20261110：vpn-access-results.json、vpn-initialize.json、usb-token-vpn-rejected.json、vpn-task-status.json、disconnected-http.log、reconnected-state-final.json、vpn-final.json。
