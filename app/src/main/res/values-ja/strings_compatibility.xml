@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tool_forget_memory">記憶を1件削除</string>
-    <string name="a11y_install_title">ユーザー補助を有効にできませんか？</string>
-    <string name="a11y_install_open">ユーザー補助の設定を開く</string>
-    <string name="a11y_install_app_info">アプリ情報を開く</string>
-    <string name="a11y_install_steps">1. ユーザー補助の設定で Mika を選択します。システムにブロックされた場合は、ここに戻ります。\n2. Mika のアプリ情報で「制限付き設定を許可」を選択します。Pixel では右上のメニュー、Xiaomi / POCO ではページの下部を確認してください。確認を求められたらスマートフォンで承認します。\n3. ユーザー補助の設定に戻り、Mika を有効にします。制限付き設定を許可するだけではサービスは有効になりません。</string>
-    <string name="a11y_install_missing">項目がない場合は、まずユーザー補助の設定で Mika を選択し、アプリ情報を開き直してページ下部とメニューを確認してください。すでに有効にできる場合は、この手順を省略できます。項目名は機種によって異なります。アプリのアンインストールやデータの消去はしないでください。</string>
-    <string name="voice_unavailable_language">スマートフォンの音声認識サービスが現在の言語に対応していないか、言語パックを利用できません。音声認識の言語設定を確認するか、「音声をテキストに」で文字起こしサービスを明示的に選択してください。マイクの権限だけでは解決しません。</string>
 </resources>
