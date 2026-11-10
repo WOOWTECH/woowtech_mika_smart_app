@@ -1,4 +1,4 @@
-<!-- translated-from: README.md @ 84f9797eaed8 -->
+<!-- translated-from: README.md @ a10d20ab3916 -->
 <div align="center">
 
 <img src="../media/logo.png" alt="Mika" width="88" />
@@ -29,6 +29,8 @@
 </div>
 
 ## ひと言で、用事がひとつ片づく
+
+WOOWTECH フォーク：[渥屋助理の中継サイト：構成・デプロイ・セキュリティ・App 連携](../../docs-woowtech/assistant-relay.md) · [Cloudflare Worker ソースコード](../../tools/woowtech-relay-worker/)
 
 <table>
 <tr>
