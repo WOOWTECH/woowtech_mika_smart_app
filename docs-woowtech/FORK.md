@@ -197,6 +197,7 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 | 日期 | 上游基準 | 說明 |
 |---|---|---|
 | 2026-11-06 | `v0.1.37` | 初版品牌層 |
+| 2026-11-10 | WOOWTECH `3d419172` | Apporo .7 對齊安全瀏覽器入口；獨立 flavor Activity、package scheme、英文灰金開啟頁，保留 .6 草稿與語音恢復。未將 WOOWTECH 的 LINE 帳號、Odoo 頁面或 VPN 驗收結果當成 Apporo 驗收。詳見 `docs-apporo/browser-open.md`。 |
 
 ## 待發布：側載安裝的無障礙引導
 

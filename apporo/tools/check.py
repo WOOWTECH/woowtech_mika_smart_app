@@ -32,6 +32,23 @@ assert permissions == {
     'android.permission.USE_EXACT_ALARM': None,
     'android.permission.SCHEDULE_EXACT_ALARM': '32',
 }, 'Apporo exact-alarm permissions must match the woow.4 direct APK'
+manifest = ET.parse(ROOT / 'app/src/apporo/AndroidManifest.xml').getroot()
+entries = manifest.findall('application/activity')
+assert len(entries) == 1, 'Expected one isolated browser entry'
+entry = entries[0]
+for key, value in {'name': '.apporo.BrowserOpenActivity', 'exported': 'true',
+                   'noHistory': 'true', 'excludeFromRecents': 'true', 'taskAffinity': '',
+                   'theme': '@android:style/Theme.NoDisplay'}.items():
+    assert entry.attrib.get(android + key) == value, (key, 'unsafe browser entry')
+filters = entry.findall('intent-filter')
+assert len(filters) == 1
+assert [e.attrib[android + 'name'] for e in filters[0].findall('action')] == ['android.intent.action.VIEW']
+assert {e.attrib[android + 'name'] for e in filters[0].findall('category')} == {
+    'android.intent.category.DEFAULT', 'android.intent.category.BROWSABLE'}
+assert [e.attrib for e in filters[0].findall('data')] == [
+    {android + 'scheme': '${applicationId}', android + 'host': 'open'}]
+assert not ET.parse(ROOT / 'app/src/main/AndroidManifest.xml').getroot().findall(
+    './/category[@' + android + 'name="android.intent.category.BROWSABLE"]'), 'Do not expose upstream entry points'
 assert 'releases.api=https://api.github.com/repos/WOOWTECH/apporo-assistant-releases/' in props
 assert 'ui.default.language=en' in props
 assert 'name.zh=Apporo Assistant' in props
