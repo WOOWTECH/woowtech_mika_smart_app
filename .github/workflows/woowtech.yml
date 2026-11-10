@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+      - name: Release worker safety tests
+        run: python3 -m unittest discover -s woowtech/release -v
       - name: No China-based services
         run: sh woowtech/tools/check-no-cn-services.sh
       - name: Brand leaks in sources
@@ -79,11 +81,24 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  release-plan:
+    name: WOOW release plan
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.plan.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 woowtech/release/plan.py
+
   # GPL/LGPL/MPL corresponding source for a release (tools/sandbox/README.md, "发布 APK 时一起发布源码包").
-  # Manual only: it downloads several hundred MB. Attach the tarball to the GitHub Release next to the APKs.
+  # New main version or manual run: publish the corresponding source next to both signed APKs.
   gpl-sources:
     name: GPL sources tarball
-    if: github.event_name == 'workflow_dispatch'
+    needs: release-plan
+    if: needs.release-plan.outputs.needed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
