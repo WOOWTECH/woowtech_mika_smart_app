@@ -223,3 +223,20 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 受控鎖屏：主機KEYCODE_SLEEP→MCP確認device_locked=true→mika_wake_device回awake且仍鎖定→mika_unlock_device回unlocked→MCP ready=true。獨立dumpsys trust確認deviceLocked=0；期間getevent未記錄ABS_MT_TRACKING_ID實體觸控，沒有讀出或回傳解鎖憑證，僅使用手機既有授權設定。這是USB轉送MCP測試，不是外網喚醒證據。
 - 新版MCP任務9c897b3e實際Python運算152、寫檔、讀回及share_file成功。主機獨立讀取手機Download內deploy-check.txt，逐位元組等於QA-20261110=152加換行（16 bytes）。
 - 已向使用者請求新版真人語音句「今天更新驗收，一二三四五」，鬆手不送出，尚待實際回填核對。通知音訊目前系統靜音（STREAM_NOTIFICATION Muted=true、zen_mode=0），尚不能把無聲歸因App。
+
+
+### 2026-11-10 17:06 新版真人語音回填核對
+
+- 使用者在渥屋助理完成指定語音後，實機UI套件確認為io.woowtech.agent，輸入框為「今天更新驗收一二三四五」，與指定句內容一致（未自動加入逗號）。既有對話未新增此訊息，文字仍為草稿，沒有自動送出。
+- 隨後主機長按輸入框2秒、向上移動再鬆手；取消後草稿逐字不變，既有對話顯示文字亦不變。這證明本次操作後草稿保留；取消後重新真人收音追加仍待下一次操作。
+- 證據voice-human-result.xml、voice-human-after-cancel.xml、voice-human-verification.json，位於mcp-deploy-20261110私人證據目錄。未將本輪結果外推為通知聲音或外網中繼通過。
+
+### 2026-11-10 17:08 取消後真人追加通過
+
+- 使用者再次說「第二段完成」後，io.woowtech.agent輸入框實際為「今天更新驗收一二三四五第二段完成」。第一段完整保留，第二段正確追加一次；既有對話顯示文字不變，仍未送出。
+- 本候選版已驗證真人語音回填、取消操作後草稿保留、再次收音追加與未自動送出。最新候選版此草稿的傳送／模型回覆尚未執行，不沿用舊版結果宣稱本輪完成。證據voice-human-appended.xml、voice-append-verification.json。
+
+### 2026-11-10 新版真人語音完整流程通過
+
+- 使用者確認手動按傳送後，實機io.woowtech.agent對話顯示已送出的「今天更新驗收一二三四五第二段完成」，助理已回覆確認收到，輸入框清空。證據voice-human-sent.xml及voice-send-verification.json。
+- 此候選版在POCO完成真人收音→文字回填→取消保留草稿→重新收音追加→手動送出→模型回覆的完整流程。此結論限本輪實測情境；通知聲音、外網中繼及其他未測功能仍須分別驗收，不宣稱全功能通過。
