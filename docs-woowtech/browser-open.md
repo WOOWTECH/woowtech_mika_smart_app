@@ -34,3 +34,10 @@ POCO C85／Android 15，正式簽章、保留原資料覆蓋安裝：
 尚未驗收：LINE 內建瀏覽器 A／B／C、未安裝時的實際 fallback、其他手機品牌。公開 `aiot.woowtech.io/open-woowtech-agent` 尚未替換，不能把本機通過宣稱為公開 LINE 選單已通過。
 
 私有證據：`~/.local/share/woowtech-mika/test-evidence/browser-wake-20261110/`（reference-items、device-results、草稿前後與冷啟動 UI XML）。
+
+## 候選版交付
+
+- 原始碼：`3d419172`；正式簽章 APK 已覆蓋 POCO，最終檔再經 Chrome 按鈕驗證成功，手機 base.apk SHA 與候選檔一致。
+- [下載頁與 HTML 範本](https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/tag/v0.1.37-woow.4-browser.20261110)。獨立 prerelease，不替換 stable/latest；Android 版本仍是 `0.1.37-woow.4`／3804。
+- APK SHA-256：`008da1f00978d846a533671980ab6cb623ced32aa1d97b89baa6049f0d664efe`。
+- 測試 HTTP 服務與 USB reverse 已關閉；POCO 無障礙服務重新核對為 Bound，無 Crashed service。
