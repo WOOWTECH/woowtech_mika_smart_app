@@ -254,3 +254,9 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 ### 背景通知聲音真人確認
 
 使用者回覆「有聽到」，確認上述POCO測試通知實際有聲音。結合17:13:23提醒送達、系統響鈴紀錄與通知入口驗證，本次候選版背景通知送達、發聲及點擊回到原對話均通過。測試後原靜音設定已恢復；此結論不代表靜音或勿擾模式也應發聲，亦不代表外網中繼等未測項目通過。
+
+### VPN連線驗收前置（2026-11-10）
+
+- POCO已安裝com.tailscale.ipn；開啟後為login.tailscale.com登入頁，沒有tun介面或VPN位址。Mac沒有執行中的Tailscale或已找到的安裝。未選擇使用者帳號、未登入或加入未知網路。已請使用者在手機登入指定tailnet並提供可用測試端。
+- McpAccessTest、McpUsbTest、LocalHostsTest、NetProxyTest定向回歸完成：30項，0失敗。程式允許100.64/10及IPv6私有網段；此為回歸證據，不是VPN真實連線通過。
+- 尚待：同網VPN端點、手機非USB／非LAN直連的MCP握手、權杖拒絕、真實任務、VPN中斷與重連。證據vpn-20261110/status.json及JUnit XML。
