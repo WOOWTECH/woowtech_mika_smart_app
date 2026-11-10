@@ -26,4 +26,18 @@
     <string name="relay_intro">Шлюз передаёт на ваш телефон запросы CLI и MCP, которые обычно идут по Wi-Fi / локальной сети, для удалённого доступа. Перед сопряжением разверните его на собственном публичном сервере.</string>
     <string name="relay_device_access">Разрешить пробуждение и разблокировку через шлюз</string>
     <string name="relay_device_access_sub">По умолчанию выключено. Также нужно включить «Разрешить удалённое пробуждение и разблокировку» на этой странице. Когда включено и то и другое, любой, у кого есть токен доступа, сможет разбудить и разблокировать этот телефон через интернет.</string>
+    <string name="relay_channel">Канал аккаунта</string>
+    <string name="relay_info_missing">Адреса клиента ещё не проверены</string>
+    <string name="relay_channel_personal">Личный канал аккаунта</string>
+    <string name="relay_channel_shared">Общий канал для одного телефона</string>
+    <string name="relay_client_mcp">Адрес MCP для компьютера</string>
+    <string name="relay_client_api">Адрес API CLI для компьютера</string>
+    <string name="relay_copy_api">Копировать адрес API CLI</string>
+    <string name="relay_info_refresh">Обновить адреса клиента</string>
+    <string name="relay_info_unsupported">Этот шлюз не поддерживает получение адресов. Используйте адреса с сайта управления. Общий адрес не обязательно принадлежит вашему аккаунту.</string>
+    <string name="relay_info_invalid">Шлюз вернул несовместимые или небезопасные параметры. Обновите шлюз или проверьте его настройки.</string>
+    <string name="relay_info_rate_limited">Слишком много запросов. Подождите не менее минуты перед обновлением.</string>
+    <string name="relay_info_cached">Не удалось обновить. Последние проверенные адреса сохранены.</string>
+    <string name="relay_info_failed">Не удалось получить адреса. Проверьте соединение и обновите; сопряжение сохранено.</string>
+    <string name="relay_connection_scope">Сопряжение, соединение со шлюзом и доступ с компьютера — отдельные состояния. Проверьте подключение в клиенте CLI или MCP. Для смены аккаунта отмените сопряжение здесь и используйте код нужного аккаунта.</string>
 </resources>

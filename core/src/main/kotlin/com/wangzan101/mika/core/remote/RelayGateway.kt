@@ -19,7 +19,7 @@ import kotlin.coroutines.resumeWithException
 
 /** 远程网关仅接受 HTTPS 源地址。HTTP 回环只供 JVM 集成测试显式打开,产品没有降级开关。 */
 class RelayGateway(val url: HttpUrl, private val http: OkHttpClient) {
-    class Failure(val unauthorized: Boolean = false) : IOException("Remote gateway request failed")
+    class Failure(val unauthorized: Boolean = false, val status: Int? = null) : IOException("Remote gateway request failed")
 
     suspend fun pair(code: String): RelayPairing {
         require(code.length in 8..64)
@@ -29,6 +29,18 @@ class RelayGateway(val url: HttpUrl, private val http: OkHttpClient) {
         val paired = runCatching { Json.decodeFromString<PairResponse>(result) }.getOrElse { throw Failure() }
         if (!Regex("[A-Za-z0-9_-]{43}").matches(paired.deviceToken) || paired.mcpUrl != url.newBuilder().encodedPath("/mcp").build().toString()) throw Failure()
         return RelayPairing(url.toString(), paired.deviceToken)
+    }
+
+    /** This uses the pairing credential, never the phone's MCP access token. */
+    suspend fun connectionInfo(deviceToken: String): RelayConnectionInfo {
+        val body = exchange(Request.Builder().url(url.newBuilder().encodedPath("/device/info").build())
+            .header("Authorization", "Bearer $deviceToken").header("Accept", "application/json").get().build())
+        return try {
+            val info = Json { ignoreUnknownKeys = true }.decodeFromString<InfoResponse>(body)
+            require(info.schemaVersion == 1 && info.relayProtocol == RelayClient.PROTOCOL)
+            require(info.gatewayUrl == url.toString())
+            RelayConnectionInfo.checked(url, info.mcpUrl, info.apiBaseUrl)
+        } catch (_: Exception) { throw Failure(status = 200) }
     }
 
     suspend fun unpair(deviceToken: String) {
@@ -45,7 +57,7 @@ class RelayGateway(val url: HttpUrl, private val http: OkHttpClient) {
                 response.use {
                     try {
                         if (acceptRevoked && it.code == 401) { if (cont.isActive) cont.resume(""); return }
-                        if (!it.isSuccessful || (it.body?.contentLength() ?: 0) > 16_384) throw Failure(it.code in listOf(401, 403))
+                        if (!it.isSuccessful || (it.body?.contentLength() ?: 0) > 16_384) throw Failure(it.code == 401, it.code)
                         val source = it.body?.source()
                         if (source?.request(16_385) == true) throw Failure()
                         val body = source?.readUtf8().orEmpty()
@@ -71,7 +83,12 @@ class RelayGateway(val url: HttpUrl, private val http: OkHttpClient) {
 }
 
 /** 不用 data class,避免生成带凭据的 toString。整个配置只经手机的加密存储保留。 */
-class RelayPairing(val gateway: String, val deviceToken: String)
+class RelayPairing(val gateway: String, val deviceToken: String, val connectionInfo: RelayConnectionInfo? = null)
 
 @Serializable private data class PairRequest(val code: String)
 @Serializable private data class PairResponse(val deviceToken: String, val mcpUrl: String)
+
+@Serializable private data class InfoResponse(
+    val schemaVersion: Int, val gatewayUrl: String, val mcpUrl: String,
+    val apiBaseUrl: String, val relayProtocol: String,
+)

@@ -12,6 +12,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.wangzan101.mika.ChineseUi
+import com.wangzan101.mika.core.remote.RelayConnectionInfo
+import com.wangzan101.mika.core.remote.RelayGateway
+import com.wangzan101.mika.settings.RelayInfoState
 import com.wangzan101.mika.core.remote.RelayState
 import com.wangzan101.mika.settings.RelayConfig
 import com.wangzan101.mika.ui.components.PageScaffold
@@ -26,6 +29,7 @@ class RelaySectionTest {
     @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
     private val config = mutableStateOf(RelayConfig())
     private val state = mutableStateOf(RelayState.Off)
+    private val infoState = mutableStateOf(RelayInfoState.Idle)
     private val changes = mutableListOf<Boolean>()
     private val deviceChanges = mutableListOf<Boolean>()
     private var paired: Pair<String, String>? = null
@@ -37,7 +41,7 @@ class RelaySectionTest {
             PageScaffold("远程", {}) {
                 RelayControls(config.value, state.value, false, false,
                     { url, code -> paired = url to code }, changes::add, { unpaired++ }, { copied++ }, { copied++ },
-                    onDeviceAccess = deviceChanges::add)
+                    onDeviceAccess = deviceChanges::add, infoState = infoState.value)
             }
         } }
     }
@@ -55,7 +59,7 @@ class RelaySectionTest {
     }
 
     @Test fun pairedSettingsKeepTokensHiddenAndRequireExplicitEnableAndUnpair() {
-        config.value = RelayConfig(gateway = "https://relay.example/")
+        config.value = RelayConfig(gateway = "https://relay.example/", connectionInfo = personalInfo())
         page()
         compose.onNodeWithText("已配对，远程访问未开启").assertIsDisplayed()
         compose.onNodeWithTag("relay-code").assertDoesNotExist()
@@ -81,4 +85,29 @@ class RelaySectionTest {
         compose.runOnIdle { state.value = RelayState.Incompatible }
         compose.onNodeWithText("请将 Mika 与网关更新到匹配的版本").assertIsDisplayed()
     }
+    private fun personalInfo() = RelayConnectionInfo.checked(RelayGateway.parse("https://relay.example/"),
+        "https://relay.example/r/AAAAAAAAAAAAAAAAAAAAAA/mcp", "https://relay.example/r/AAAAAAAAAAAAAAAAAAAAAA/api/v1")
+
+    @Test fun unresolvedAndRevokedDiscoveryCannotCopyUnverifiedAddresses() {
+        config.value = RelayConfig(gateway = "https://relay.example/")
+        page()
+        compose.onNodeWithTag("relay-copy-address").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("relay-copy-config").assertIsNotEnabled()
+        compose.runOnIdle { config.value = config.value.copy(connectionInfo = personalInfo()); infoState.value = RelayInfoState.Ready }
+        compose.onNodeWithTag("relay-copy-address").performClick()
+        assertEquals(1, copied)
+        compose.runOnIdle { infoState.value = RelayInfoState.Unauthorized }
+        compose.onNodeWithTag("relay-copy-address").assertIsNotEnabled()
+        compose.onNodeWithTag("relay-copy-config").assertIsNotEnabled()
+    }
+
+    @Test fun personalEndpointIsVisibleWhileOfflineAndTemporaryFailureKeepsCopyAvailable() {
+        config.value = RelayConfig(gateway = "https://relay.example/", connectionInfo = personalInfo())
+        infoState.value = RelayInfoState.Unavailable
+        page()
+        compose.onNodeWithText(personalInfo().mcpUrl).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("relay-copy-address").performScrollTo().performClick()
+        assertEquals(1, copied)
+    }
+
 }

@@ -4,6 +4,7 @@ import com.wangzan101.mika.ui.components.MikaDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +20,7 @@ import com.wangzan101.mika.core.remote.RelayGateway
 import com.wangzan101.mika.core.remote.RelayState
 import com.wangzan101.mika.mcp.McpRuntime
 import com.wangzan101.mika.settings.RelayConfig
+import com.wangzan101.mika.settings.RelayInfoState
 import com.wangzan101.mika.ui.components.ButtonKind
 import com.wangzan101.mika.ui.components.ButtonSize
 import com.wangzan101.mika.ui.components.FooterNote
@@ -37,6 +39,11 @@ import kotlinx.coroutines.withContext
 internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) -> Unit) {
     val config by runtime.relaySettings.config.collectAsState()
     val state by runtime.relayState.collectAsState()
+    val infoState by runtime.relayDiscovery.state.collectAsState()
+    // Also migrates existing encrypted pairings when this page is first opened after an upgrade.
+    LaunchedEffect(runtime) {
+        withContext(Dispatchers.IO) { runtime.relayDiscovery.refresh() }
+    }
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
@@ -55,14 +62,17 @@ internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) ->
         onEnabled = { on -> change { runtime.setRelayEnabled(on) } },
         onDeviceAccess = { on -> change { runtime.setRelayDeviceAccess(on) } },
         onUnpair = { change { runtime.unpairRelay() } },
-        onCopyAddress = { config.gateway?.let { onCopy(RelayGateway.parse(it).newBuilder().encodedPath(if (mcp) "/mcp" else "/").build().toString()) } },
+        onCopyAddress = { runtime.relaySettings.config.value.connectionInfo?.let {
+            onCopy(if (mcp) it.mcpUrl else it.apiBaseUrl)
+        } },
         onCopyConfig = { change {
-            runtime.relaySettings.pairing()?.let { p ->
-                val text = if (mcp) McpRuntime.clientConfig(RelayGateway.parse(p.gateway).newBuilder().encodedPath("/mcp").build().toString(), runtime.settings.token())
-                else "mika connect --url ${p.gateway.removeSuffix("/")} --token-file /path/to/token"
+            runtime.relaySettings.pairing()?.connectionInfo?.let { info ->
+                val text = if (mcp) McpRuntime.clientConfig(info.mcpUrl, runtime.settings.token())
+                else info.cliCommand
                 withContext(Dispatchers.Main) { onCopy(text) }
             }
-        } }, mcp = mcp,
+        } }, mcp = mcp, infoState = infoState,
+        onRefresh = { change { runtime.relayDiscovery.refresh() } },
         onCopyToken = { change { val token = runtime.settings.token(); withContext(Dispatchers.Main) { onCopy(token) } } })
 }
 
@@ -71,10 +81,15 @@ internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) ->
 internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean, failed: Boolean,
     onPair: (String, String) -> Unit, onEnabled: (Boolean) -> Unit, onUnpair: () -> Unit,
     onCopyAddress: () -> Unit, onCopyConfig: () -> Unit, mcp: Boolean = true, onCopyToken: () -> Unit = {},
-    onDeviceAccess: (Boolean) -> Unit = {}) {
+    onDeviceAccess: (Boolean) -> Unit = {}, infoState: RelayInfoState = RelayInfoState.Idle,
+    onRefresh: () -> Unit = {}) {
     var gateway by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
+    val info = config.connectionInfo
+    val reading = busy || infoState == RelayInfoState.Loading
+    val canCopy = info != null && !reading && state != RelayState.Unauthorized && infoState !in setOf(RelayInfoState.Unauthorized, RelayInfoState.Invalid)
+
     if (!config.paired) {
         GroupCard {
             ListRow(MikaIcons.Link, stringResource(R.string.relay_pair_title), stringResource(R.string.relay_pair_sub), first = true)
@@ -107,9 +122,21 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
                 MikaSwitch(config.deviceAccess, onDeviceAccess, Modifier.testTag("relay-device-access"), enabled = !busy)
             }
             ListRow(null, stringResource(R.string.relay_gateway), config.gateway)
+            ListRow(null, stringResource(R.string.relay_channel), stringResource(when {
+                info == null -> R.string.relay_info_missing
+                info.personal -> R.string.relay_channel_personal
+                else -> R.string.relay_channel_shared
+            }))
+            if (info != null) ListRow(null, stringResource(if (mcp) R.string.relay_client_mcp else R.string.relay_client_api),
+                if (mcp) info.mcpUrl else info.apiBaseUrl)
             RowActions {
-                MikaButton(stringResource(if (mcp) R.string.relay_copy_address else R.string.relay_copy_gateway), onCopyAddress, size = ButtonSize.Small, enabled = !busy)
-                MikaButton(stringResource(if (mcp) R.string.mcp_copy_config else R.string.mcp_copy_command), onCopyConfig, kind = ButtonKind.Tonal, size = ButtonSize.Small, enabled = !busy)
+                MikaButton(stringResource(if (infoState == RelayInfoState.Loading) R.string.relay_busy else R.string.relay_info_refresh),
+                    onRefresh, kind = ButtonKind.Tonal, size = ButtonSize.Small, enabled = !reading,
+                    modifier = Modifier.testTag("relay-info-refresh"))
+            }
+            RowActions {
+                MikaButton(stringResource(if (mcp) R.string.relay_copy_address else R.string.relay_copy_api), onCopyAddress, size = ButtonSize.Small, enabled = canCopy, modifier = Modifier.testTag("relay-copy-address"))
+                MikaButton(stringResource(if (mcp) R.string.mcp_copy_config else R.string.mcp_copy_command), onCopyConfig, kind = ButtonKind.Tonal, size = ButtonSize.Small, enabled = canCopy, modifier = Modifier.testTag("relay-copy-config"))
             }
             if (!mcp) RowActions {
                 MikaButton(stringResource(R.string.mcp_copy_token), onCopyToken, kind = ButtonKind.Tonal, size = ButtonSize.Small, enabled = !busy)
@@ -118,7 +145,17 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
                 MikaButton(stringResource(R.string.relay_unpair), { confirm = true }, kind = ButtonKind.Text, size = ButtonSize.Small, enabled = !busy)
             }
         }
-        if (!mcp) CommandText("mika connect --url ${config.gateway!!.removeSuffix("/")} --token-file /path/to/token")
+        val infoMessage = when (infoState) {
+            RelayInfoState.Unsupported -> R.string.relay_info_unsupported
+            RelayInfoState.Unauthorized -> R.string.relay_unauthorized
+            RelayInfoState.Invalid -> R.string.relay_info_invalid
+            RelayInfoState.RateLimited -> R.string.relay_info_rate_limited
+            RelayInfoState.Unavailable -> if (info != null) R.string.relay_info_cached else R.string.relay_info_failed
+            else -> null
+        }
+        infoMessage?.let { FooterNote(stringResource(it)) }
+        if (!mcp && info != null) CommandText(info.cliCommand)
+        FooterNote(stringResource(R.string.relay_connection_scope))
         FooterNote(stringResource(if (mcp) R.string.relay_client_help else R.string.relay_cli_help))
     }
     FooterNote(stringResource(R.string.relay_intro))

@@ -154,6 +154,27 @@ else:
         env = {"FAKE_ADB_CONFIG": str(config), "FAKE_ADB_LOG": str(log)}
         return executable, env, config, lambda: [json.loads(line) for line in log.read_text().splitlines()]
 
+    def test_personal_channels_keep_their_prefix_for_discovery_and_tasks(self):
+        for tenant in ("A" * 22, "B" * 22):
+            prefix = "/r/" + tenant + "/api/v1"
+            with api(lambda method, path, body: (200, DISCOVERY if path == prefix else SNAPSHOT, {})) as server:
+                url = "http://127.0.0.1:" + str(server.server_port) + prefix
+                result, body = self.invoke("--url", url, "--token-file", str(self.token_file),
+                                           "task", "run", "--goal", "synthetic test")
+                self.assertEqual(0, result.returncode, body)
+                self.assertEqual([("GET", prefix, None), ("POST", prefix + "/tasks", {"goal": "synthetic test"})], server.calls)
+
+    def test_personal_url_validation(self):
+        cli = load_cli()
+        prefix = "https://relay.example:8443/r/" + "A" * 22
+        self.assertEqual(prefix + "/api/v1", cli.base_url(prefix))
+        self.assertEqual(prefix + "/api/v1", cli.base_url(prefix + "/api/v1"))
+        for url in (prefix + "/mcp", prefix + "x/api/v1", prefix + "/api/v1?token=secret",
+                    prefix + "/api/v1#fragment", prefix.replace("relay.example", "user@relay.example"),
+                    prefix + "/../api/v1", prefix.replace("/r/", "/r%2f")):
+            with self.assertRaises(cli.CliError):
+                cli.base_url(url)
+
     def test_submit_unicode_from_stdin_once_without_mcp(self):
         text = '查询版本\n保留 "引号"、$符号和 emoji 👋'
         with api() as server:

@@ -26,4 +26,18 @@
     <string name="relay_intro">تحوّل البوابة إلى هاتفك طلبات CLI وMCP التي تُرسل عادةً عبر Wi-Fi / LAN لتمكين الوصول عن بُعد. انشرها على خادم عام تملكه قبل الإقران.</string>
     <string name="relay_device_access">السماح بالإيقاظ وإلغاء القفل عبر البوابة</string>
     <string name="relay_device_access_sub">متوقف افتراضيًا. ويتطلب أيضًا تفعيل «السماح بالإيقاظ وإلغاء القفل عن بُعد» في هذه الصفحة. عند تفعيل الخيارين، يستطيع أي شخص يملك رمز الوصول إيقاظ هذا الهاتف وإلغاء قفله عبر الإنترنت.</string>
+    <string name="relay_channel">قناة الحساب</string>
+    <string name="relay_info_missing">لم يتم التحقق من عناوين العميل بعد</string>
+    <string name="relay_channel_personal">قناة الحساب الشخصي</string>
+    <string name="relay_channel_shared">قناة مشتركة لهاتف واحد</string>
+    <string name="relay_client_mcp">عنوان MCP للكمبيوتر</string>
+    <string name="relay_client_api">عنوان API الخاص بعميل CLI للكمبيوتر</string>
+    <string name="relay_copy_api">نسخ عنوان API لعميل CLI</string>
+    <string name="relay_info_refresh">تحديث عناوين العميل</string>
+    <string name="relay_info_unsupported">لا تدعم هذه البوابة جلب العناوين. استخدم العناوين المعروضة في موقع الإدارة. لا تفترض أن العنوان المشترك يخص حسابك.</string>
+    <string name="relay_info_invalid">أعادت البوابة معلومات اتصال غير متوافقة أو غير آمنة. حدّث البوابة أو تحقق من إعداداتها.</string>
+    <string name="relay_info_rate_limited">طلبات كثيرة جدًا. انتظر دقيقة واحدة على الأقل قبل التحديث.</string>
+    <string name="relay_info_cached">تعذر التحديث. تم الاحتفاظ بآخر عناوين تم التحقق منها.</string>
+    <string name="relay_info_failed">تعذر جلب عناوين العميل. تحقق من الاتصال ثم حدّث؛ تم الاحتفاظ بالاقتران.</string>
+    <string name="relay_connection_scope">الاقتران والاتصال بالبوابة والوصول من الكمبيوتر حالات منفصلة. تحقق من الاتصال في عميل CLI أو MCP. لتغيير الحساب، ألغِ الاقتران هنا واستخدم رمزًا من الحساب المطلوب.</string>
 </resources>

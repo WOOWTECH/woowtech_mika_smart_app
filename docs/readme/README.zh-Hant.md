@@ -1,4 +1,4 @@
-<!-- translated-from: README.md @ 84f9797eaed8 -->
+<!-- translated-from: README.md @ a10d20ab3916 -->
 <div align="center">
 
 <img src="../media/logo.png" alt="Mika" width="88" />
@@ -29,6 +29,8 @@
 </div>
 
 ## 一句話，辦好一件事
+
+WOOWTECH 分支：[渥屋助理中繼網站：架構、部署、資安與 App 整合](../../docs-woowtech/assistant-relay.md) · [Cloudflare Worker 原始碼](../../tools/woowtech-relay-worker/)
 
 <table>
 <tr>

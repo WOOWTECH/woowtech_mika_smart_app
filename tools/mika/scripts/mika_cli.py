@@ -270,14 +270,17 @@ class Adb:
 def base_url(raw):
     try:
         url = urllib.parse.urlsplit(raw)
+        path = url.path.rstrip("/")
+        personal = re.fullmatch(r"/r/[A-Za-z0-9_-]{22}(?:/api/v1)?", path) is not None
         valid = (not any(ord(c) < 32 for c in raw) and url.scheme in {"http", "https"} and url.hostname and url.port != 0
                  and url.username is None and url.password is None and not url.query and not url.fragment
-                 and url.path.rstrip("/") in {"", API})
+                 and (path in {"", API} or personal))
     except ValueError:
         valid = False
     if not valid:
-        raise CliError("arguments", "--url must be an HTTP(S) origin or /api/v1 URL, without credentials, query or fragment.")
-    return urllib.parse.urlunsplit((url.scheme, url.netloc, API, "", ""))
+        raise CliError("arguments", "--url must be an HTTP(S) origin, API URL or personal relay /r/<channel>/api/v1 URL, without credentials, query or fragment.")
+    api_path = path if path.endswith(API) else path + API
+    return urllib.parse.urlunsplit((url.scheme, url.netloc, api_path, "", ""))
 
 
 def progress(args, message):

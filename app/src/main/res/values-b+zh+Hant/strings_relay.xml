@@ -26,4 +26,18 @@
     <string name="relay_intro">閘道將原本透過 Wi-Fi / 區域網路傳送的 CLI 和 MCP 請求轉送到手機，實現遠端存取。使用前，需在自有公網伺服器上部署閘道。</string>
     <string name="relay_device_access">允許經閘道喚醒和解鎖</string>
     <string name="relay_device_access_sub">預設關閉。還需開啟本頁的「允許遠端喚醒螢幕與解鎖」；兩項都開啟時，持有存取權杖的人可以經網際網路喚醒並解鎖這支手機。</string>
+    <string name="relay_channel">帳號通道</string>
+    <string name="relay_info_missing">尚未驗證電腦連線位址</string>
+    <string name="relay_channel_personal">個人帳號通道</string>
+    <string name="relay_channel_shared">單手機共用通道</string>
+    <string name="relay_client_mcp">電腦端 MCP 位址</string>
+    <string name="relay_client_api">電腦端 CLI API 位址</string>
+    <string name="relay_copy_api">複製 CLI API 位址</string>
+    <string name="relay_info_refresh">重新取得連線位址</string>
+    <string name="relay_info_unsupported">此閘道不支援自動取得位址，請使用管理網站提供的位址。不能將共用入口當作個人帳號通道。</string>
+    <string name="relay_info_invalid">閘道回傳的連線資訊不相容或不安全，請更新閘道或檢查設定。</string>
+    <string name="relay_info_rate_limited">請求過於頻繁，請至少等一分鐘後再試。</string>
+    <string name="relay_info_cached">暫時無法更新，仍保留上次驗證的連線位址。</string>
+    <string name="relay_info_failed">無法取得電腦連線位址，請檢查網路並重試；原配對仍保留。</string>
+    <string name="relay_connection_scope">已配對、閘道在線與電腦可用是不同狀態，請在 CLI 或 MCP 用戶端驗證連線。切換帳號時，先解除此處配對，再使用目標帳號產生的配對碼。</string>
 </resources>

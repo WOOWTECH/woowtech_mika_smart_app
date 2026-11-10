@@ -1,4 +1,4 @@
-<!-- translated-from: README.md @ 84f9797eaed8 -->
+<!-- translated-from: README.md @ a10d20ab3916 -->
 <div align="center">
 
 <img src="../media/logo.png" alt="Mika" width="88" />
@@ -29,6 +29,8 @@
 </div>
 
 ## 한마디로 일 하나를 끝내기
+
+WOOWTECH 포크: [渥屋助理 중계 사이트: 구조, 배포, 보안 및 앱 연동](../../docs-woowtech/assistant-relay.md) · [Cloudflare Worker 소스 코드](../../tools/woowtech-relay-worker/)
 
 <table>
 <tr>

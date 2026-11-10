@@ -1,4 +1,4 @@
-<!-- translated-from: README.md @ 84f9797eaed8 -->
+<!-- translated-from: README.md @ a10d20ab3916 -->
 <div align="center">
 
 <img src="../media/logo.png" alt="Mika" width="88" />
@@ -29,6 +29,8 @@ Trabaja en una pantalla en segundo plano que no ves, así que puedes seguir usan
 </div>
 
 ## Una frase, una tarea resuelta
+
+Fork de WOOWTECH: [Sitio de retransmisión de 渥屋助理: arquitectura, despliegue, seguridad e integración con la app](../../docs-woowtech/assistant-relay.md) · [Código de Cloudflare Worker](../../tools/woowtech-relay-worker/)
 
 <table>
 <tr>

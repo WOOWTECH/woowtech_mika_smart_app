@@ -26,4 +26,18 @@
     <string name="relay_intro">ゲートウェイは、通常 Wi-Fi / LAN で送られる CLI と MCP のリクエストを、リモートアクセス用にスマホへ転送します。ペア設定の前に、ご自身の公開サーバーに設置してください。</string>
     <string name="relay_device_access">ゲートウェイ経由のスリープ解除とロック解除を許可</string>
     <string name="relay_device_access_sub">デフォルトではオフです。このページの「リモートでのスリープ解除とロック解除を許可」もオンにする必要があります。両方オンにすると、アクセストークンを持つ人なら誰でも、インターネット経由でこのスマホのスリープ解除とロック解除ができます。</string>
+    <string name="relay_channel">アカウントのチャンネル</string>
+    <string name="relay_info_missing">接続先アドレスは未確認です</string>
+    <string name="relay_channel_personal">個人アカウントのチャンネル</string>
+    <string name="relay_channel_shared">1台の端末用の共有チャンネル</string>
+    <string name="relay_client_mcp">パソコン用 MCP アドレス</string>
+    <string name="relay_client_api">パソコン用 CLI API アドレス</string>
+    <string name="relay_copy_api">CLI API アドレスをコピー</string>
+    <string name="relay_info_refresh">接続先アドレスを更新</string>
+    <string name="relay_info_unsupported">このゲートウェイはアドレスの自動取得に対応していません。管理サイトに表示されるアドレスを使用してください。共有アドレスが自分のアカウント用とは限りません。</string>
+    <string name="relay_info_invalid">互換性のない、または安全でない接続情報が返されました。ゲートウェイを更新するか設定を確認してください。</string>
+    <string name="relay_info_rate_limited">リクエストが多すぎます。1分以上待ってから更新してください。</string>
+    <string name="relay_info_cached">更新できませんでした。前回確認済みのアドレスを保持しています。</string>
+    <string name="relay_info_failed">接続先を取得できませんでした。ネットワークを確認して更新してください。ペアリングは保持されています。</string>
+    <string name="relay_connection_scope">ペアリング、ゲートウェイ接続、パソコンからのアクセスは別の状態です。CLI または MCP クライアントで接続を確認してください。アカウントを変更するには、ここでペアリングを解除し、目的のアカウントのコードを使用してください。</string>
 </resources>
