@@ -76,4 +76,5 @@
     <string name="tool_describe_screen">看圖描述螢幕</string>
     <string name="tool_find_visually">看圖找控制項</string>
     <string name="tool_do_steps">連續做幾步</string>
+    <string name="tool_forget_memory">刪除一筆記憶</string>
 </resources>

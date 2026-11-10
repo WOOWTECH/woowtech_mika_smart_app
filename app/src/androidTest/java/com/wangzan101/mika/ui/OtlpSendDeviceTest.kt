@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit
 class OtlpSendDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     @Test fun confirmedSendSurvivesCollapseAndActivityRecreation() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

@@ -10,6 +10,7 @@ import com.wangzan101.mika.core.run.RunSpec
 import com.wangzan101.mika.core.tool.ActionPass
 import com.wangzan101.mika.core.tool.FakeScreen
 import com.wangzan101.mika.core.cap.web.FakeWebPort
+import com.wangzan101.mika.core.cap.sandbox.FakeSandbox
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -119,10 +120,15 @@ class ScheduleTaskTest {
         val spec = RunSpec(RunId("condition"), "check", "thread",
             provenance = RunProvenance(RunOrigin.Trigger, Attendance.Unattended),
             capabilities = setOf("web", "sandbox"), readOnly = true)
-        val tools = toolDispatcher(FakeScreen(), web = FakeWebPort(), runSpec = spec, scheduleTrigger = { Scheduled(true) })
+        val tools = toolDispatcher(FakeScreen(), web = FakeWebPort(), sandbox = FakeSandbox(),
+            workspace = { "thread" }, runSpec = spec, scheduleTrigger = { Scheduled(true) })
         val names = tools.definitions().map { it.name }
         assertTrue("web_read_page" in names)
         assertTrue("web_navigate" in names)
+        assertTrue("read_file" in names)
+        assertTrue("search_files" in names)
+        assertFalse("run_bundled_script" in names)
+        assertFalse("share_file" in names)
         assertFalse(names.any { it.startsWith("phone_") || it == "run_command" || it == "write_file" || it == "web_interact" })
     }
 }

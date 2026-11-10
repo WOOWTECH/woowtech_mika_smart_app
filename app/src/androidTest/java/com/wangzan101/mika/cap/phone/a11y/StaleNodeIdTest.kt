@@ -18,15 +18,18 @@ class StaleNodeIdTest {
     @After
     fun tearDown() = agent.release()
 
+    private fun isBluetoothEntry(e: com.wangzan101.mika.core.uistate.UiElement) = e.clickable &&
+        listOf("蓝牙", "藍牙", "Bluetooth", "Connected devices", "已连接的设备", "已連接的裝置").any { e.name.startsWith(it) }
+
     @Test
     fun oldIdAfterNavigationFails() = runBlocking<Unit> {
         val screen = agent.screen
         assertTrue(screen.openApp(SETTINGS) is ActionResult.Ok)
         val home = DeviceSupport.pollUntil(5_000) {
-            runBlocking { screen.snapshot() }.takeIf { s -> s.elements.any { it.clickable && it.name.startsWith("蓝牙") } }
+            runBlocking { screen.snapshot() }.takeIf { s -> s.elements.any { isBluetoothEntry(it) } }
         }!!
-        val bluetooth = home.elements.first { it.clickable && it.name.startsWith("蓝牙") }
-        val wlan = home.elements.first { it.clickable && it.name.startsWith("WLAN") }
+        val bluetooth = home.elements.first { isBluetoothEntry(it) }
+        val wlan = home.elements.first { DeviceSupport.networkEntry(it) }
 
         val went = screen.tapRef(wlan.ref, home.snapshotId)
         assertTrue("$went", went is ActionResult.Ok && went.changed == true)

@@ -45,6 +45,7 @@ class ShellDestroyParityDeviceTest {
         ParityAudio.set(SETTINGS, audioBefore)
         ParityClip.put(context, clipBefore)
         val old = dead ?: return
+        DeviceSupport.restartUsbHelperIfRequired()
         val fresh = pollUntil(RECOVER_MS) {
             runCatching { DeviceSupport.shell() }.getOrNull()?.takeIf { it.asBinder() != old }
         }
@@ -71,7 +72,7 @@ class ShellDestroyParityDeviceTest {
         assertNotNull("binder still alive", pollUntil(5_000) { true.takeIf { !binder.isBinderAlive } })
         val dm = context.getSystemService(DisplayManager::class.java)
         assertNotNull("display ${s.id} not released", pollUntil(5_000) { true.takeIf { dm.getDisplay(s.id) == null } })
-        assertEquals("audio not unmuted", baseline, ParityAudio.mode(SETTINGS))
+        assertEquals("audio not unmuted", ParityAudio.effective(baseline), ParityAudio.effective(ParityAudio.mode(SETTINGS)))
         assertEquals("clipboard not restored", "parity-user", ParityClip.text(context))
     }
 

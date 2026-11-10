@@ -109,12 +109,13 @@ class A11yOnDisplayTest {
         val found = pollUntil(5_000) {
             a11y.windowsOn(d.displayId).firstNotNullOfOrNull { w ->
                 w.root?.let { root ->
-                    (root.findAccessibilityNodeInfosByText("WLAN") + root.findAccessibilityNodeInfosByText("设置"))
-                        .firstOrNull()
+                    if (root.packageName?.toString() != SETTINGS) null else
+                        (DeviceSupport.NETWORK_LABELS + listOf("设置", "Settings", "Search Settings"))
+                            .flatMap { root.findAccessibilityNodeInfosByText(it) }.firstOrNull()
                 }
             }
         }
-        assertNotNull("no WLAN/设置 node in windows on display ${d.displayId}", found)
+        assertNotNull("no Settings content node in windows on display ${d.displayId}", found)
         // 主屏的窗口不会混进虚拟屏的列表
         assertTrue(a11y.windowsOn(d.displayId).none { it.displayId != d.displayId })
     }

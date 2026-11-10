@@ -30,6 +30,7 @@ import java.util.concurrent.Executors
 @RunWith(AndroidJUnit4::class)
 class RemoteTaskRecoveryDeviceTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(ui)
     private val app get() = ApplicationProvider.getApplicationContext<MikaApp>()
 
     @Test fun retainedIdsAndTerminalResultsSurviveReopening() {

@@ -127,6 +127,7 @@ fun SettingsScreen(
     val mcpNetworkOn by mcp.settings.enabled.collectAsState()
     val mcpUsbOn by mcp.usb.enabled.collectAsState()
     val mcpOn = mcpNetworkOn || mcpUsbOn
+    val mcpServerCount = mcpServers?.servers?.collectAsState()?.value?.size
     val parallel = if (!speed.parallelTasks) null else ParallelSetting(
         parallelMax,
         ParallelCapability.detect(
@@ -175,7 +176,7 @@ fun SettingsScreen(
             sandbox = sandboxStatus, onOpenSandbox = { page = SettingsPage.Sandbox },
             showRecovery = status.sdkInt >= Prerequisites.MIN_SDK, onOpenRecovery = { page = SettingsPage.Recovery },
             computerAccess = mcpOn, onOpenComputerAccess = { page = SettingsPage.ComputerAccess },
-            mcpServersCount = mcpServers?.servers?.value?.size, onOpenMcpServers = { page = SettingsPage.McpServers },
+            mcpServersCount = mcpServerCount, onOpenMcpServers = { page = SettingsPage.McpServers },
             showRoot = rootState.suPresent, rootCommands = rootState.commands, onOpenRoot = { page = SettingsPage.Root },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             onBack = toHome,

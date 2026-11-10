@@ -119,6 +119,7 @@ object HelperProcess {
         /** 经 ActivityManager 拿 Mika 的 provider(同 `content call` 的做法),把 Binder 和自报的 uid/pid 交过去。 */
         @SuppressLint("PrivateApi", "DiscouragedPrivateApi")
         private fun deliver(n: String?): Outcome {
+            if (android.os.Build.VERSION.SDK_INT < 31) return Outcome.Failed
             if (n == null) return Outcome.Rejected
             // 包名和 uid 可能被重装的别的 App 占用:签名对不上就不交 Binder,撤掉改动退出
             if (!signedAsPinned()) {

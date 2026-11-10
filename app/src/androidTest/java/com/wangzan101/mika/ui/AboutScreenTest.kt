@@ -36,6 +36,7 @@ class AboutScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val r020 = ReleaseInfo(
         "0.2.0", "Mika 0.2.0", "### 新增\n- 附件面板", "2026-11-05",

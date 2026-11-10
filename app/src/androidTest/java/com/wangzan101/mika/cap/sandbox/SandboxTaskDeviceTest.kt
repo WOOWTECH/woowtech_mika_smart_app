@@ -40,7 +40,7 @@ import com.wangzan101.mika.task.TaskEnvironment
 class SandboxTaskDeviceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val args = InstrumentationRegistry.getArguments()
-    private val model = ScriptedModel()
+    private val model = ScriptedModel().apply { intent = "ACT" }
     private val states = Collections.synchronizedList(mutableListOf<TaskState>())
     private val watch = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

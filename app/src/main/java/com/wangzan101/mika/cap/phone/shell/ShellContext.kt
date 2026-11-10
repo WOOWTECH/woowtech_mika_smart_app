@@ -33,6 +33,7 @@ import android.os.Build
 internal class ShellContext private constructor(base: Context) : ContextWrapper(base) {
     override fun getPackageName(): String = SHELL_PACKAGE
     override fun getOpPackageName(): String = SHELL_PACKAGE
+    @androidx.annotation.RequiresApi(31)
     override fun getAttributionSource(): AttributionSource =
         AttributionSource.Builder(SHELL_UID).setPackageName(SHELL_PACKAGE).build()
     override fun getApplicationContext(): Context = this

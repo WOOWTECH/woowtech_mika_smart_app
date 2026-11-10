@@ -46,9 +46,25 @@ class InstallDeviceTest {
         // 联网关着时 apk 会在标准错误抱怨读不到软件源缓存,只看标准输出
         // 解包器不带扩展属性(设计如此),所以只差扩展属性的条目(代码 x)不算;内容、权限、属主有差仍然算
         sh("apk audit --system 2>/dev/null").let { r ->
-            assertEquals(r.output, 0, r.exitCode)
-            val drift = r.output.lines().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("x ") }
-            assertEquals(r.output, emptyList<String>(), drift)
+            // /proc is the host kernel bind, not Alpine package content. Only tolerate
+            // unreadable proc entries after independently proving no package owns them.
+            var directory = ""
+            val packageFiles = java.io.File(SandboxDirs(context).rootfs, "lib/apk/db/installed")
+                .readLines().mapNotNull { line ->
+                    when {
+                        line.startsWith("F:") -> { directory = line.removePrefix("F:"); null }
+                        line.startsWith("R:") -> "$directory/${line.removePrefix("R:")}"
+                        else -> null
+                    }
+                }.toSet()
+            val lines = r.output.lines().map(String::trim)
+            val hostProcErrors = lines.filter { it.startsWith("e proc/") }
+            hostProcErrors.forEach { line ->
+                assertTrue("unreadable packaged file: $line", line.removePrefix("e ") !in packageFiles)
+            }
+            val drift = lines.filter { it.isNotEmpty() && !it.startsWith("x ") && it !in hostProcErrors }
+            assertEquals("apk audit exit=${r.exitCode}; non-xattr changes=${drift.take(20)}; output chars=${r.output.length}", 0, r.exitCode)
+            assertEquals(emptyList<String>(), drift)
         }
     }
 

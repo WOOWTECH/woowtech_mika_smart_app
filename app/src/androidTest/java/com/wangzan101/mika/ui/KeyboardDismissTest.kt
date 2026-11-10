@@ -34,6 +34,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class KeyboardDismissTest {
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private var clicks = 0
 

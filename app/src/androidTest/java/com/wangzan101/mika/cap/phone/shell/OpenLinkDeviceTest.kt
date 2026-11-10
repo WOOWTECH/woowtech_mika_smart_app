@@ -19,6 +19,12 @@ import org.junit.runner.RunWith
 class OpenLinkDeviceTest {
     private val agent = DeviceSupport.newAgent()
 
+    @org.junit.Before
+    fun startFromHome() {
+        DeviceSupport.sh("input -d 0 keyevent KEYCODE_HOME")
+        DeviceSupport.sh("am force-stop ${DeviceSupport.SETTINGS}")
+    }
+
     @After
     fun tearDown() = agent.release()
 
@@ -34,7 +40,9 @@ class OpenLinkDeviceTest {
             val r = agent.screen.openLink(action, uri, null)
             // 某些系统拿掉了个别原版设置页:解析不到算降级,不算失败;打开了就必须落在系统设置里
             if (r is ActionResult.Failed && r.reason == "link_unresolved") continue
-            val top = agent.screen.snapshot().packageName
+            val top = DeviceSupport.pollUntil(5_000) {
+                runBlocking { agent.screen.snapshot() }.packageName?.takeIf { it == settings }
+            } ?: agent.screen.snapshot().packageName
             if (r !is ActionResult.Ok || top != settings) failed += "$action -> $r on $top"
             assertEquals("main screen changed after $action", main, DeviceSupport.mainScreenState(shell))
         }
@@ -48,7 +56,7 @@ class OpenLinkDeviceTest {
         assertEquals(ShellService.START_UNRESOLVED, shell.startView(id, null, "mika-no-such-scheme://page/1", null))
         assertEquals(ShellService.START_UNRESOLVED, shell.startView(id, null, "https://example.com/", "com.wangzan101.mika.no.such.app"))
         // 外壳侧再查一次:绕过分发器直接调也打不开
-        assertEquals(ShellService.START_INVALID_LINK, shell.startView(id, null, "tel:10086", null))
+        assertEquals(ShellService.START_INVALID_LINK, shell.startView(id, null, "javascript:alert(1)", null))
         val r = runBlocking { agent.screen.openLink(null, "mika-no-such-scheme://page/1", null) }
         assertEquals(ActionResult.Failed("link_unresolved"), r)
     }

@@ -44,6 +44,7 @@ class ModelSetupScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
     @get:Rule val tmp = TemporaryFolder()
     private val calls = mutableListOf<String>()
     private val caps = Capabilities(toolCalls = true, vision = false, contextTokens = 64_000, reasoning = false)
@@ -130,11 +131,13 @@ class ModelSetupScreenTest {
         assertEquals(listOf("role Light"), calls)
     }
 
-    @Test fun settingsPageOpensTokenUsageButOnboardingDoesNotShowIt() {
+    @Test fun settingsPageOpensTokenUsage() {
         show(connected(), onboarding = false)
         compose.onNodeWithText(UsageCopy.TITLE).performScrollTo().performClick()
         assertEquals(listOf("usage"), calls)
-        calls.clear()
+    }
+
+    @Test fun onboardingDoesNotShowTokenUsage() {
         show(connected(), onboarding = true)
         compose.onNodeWithText(UsageCopy.TITLE).assertDoesNotExist()
     }
