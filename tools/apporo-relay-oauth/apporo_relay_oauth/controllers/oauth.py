@@ -43,7 +43,10 @@ def _headers():
         ('Pragma', 'no-cache'),
         ('X-Content-Type-Options', 'nosniff'),
         ('Referrer-Policy', 'no-referrer'),
-        ('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"),
+        # Chromium applies form-action to the POST's redirect as well. Keep the
+        # OAuth callback explicit so consent can leave www.apporo.ai without
+        # allowing an arbitrary form destination.
+        ('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://assistant-relay.apporo.ai; frame-ancestors 'none'; base-uri 'none'"),
     ]
 
 

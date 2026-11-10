@@ -31,6 +31,10 @@ class TestApporoRelayOAuth(HttpCase):
         consent = self.url_open('/oauth2/authorize?' + urlencode(params), allow_redirects=False)
         self.assertEqual(consent.status_code, 200)
         self.assertIn('Allow Apporo Assistant remote access?', consent.text)
+        self.assertIn(
+            "form-action 'self' https://assistant-relay.apporo.ai;",
+            consent.headers['Content-Security-Policy'],
+        )
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', consent.text)
         self.assertIsNotNone(csrf)
 
@@ -38,6 +42,10 @@ class TestApporoRelayOAuth(HttpCase):
             **params, 'csrf_token': csrf.group(1), 'decision': 'approve',
         }, allow_redirects=False)
         self.assertIn(approved.status_code, (302, 303))
+        self.assertIn(
+            "form-action 'self' https://assistant-relay.apporo.ai;",
+            approved.headers['Content-Security-Policy'],
+        )
         callback = urlsplit(approved.headers['Location'])
         self.assertEqual(callback.scheme + '://' + callback.netloc + callback.path, params['redirect_uri'])
         query = parse_qs(callback.query)

@@ -1,16 +1,22 @@
 # Deployment record
 
-Status as of 2026-11-11: Apporo Odoo OAuth is installed on www.apporo.ai; the Cloudflare custom domain and release APK are not yet deployed. An apporo .8 arm64 APK with the final relay input layout has been locally built and signed as an unpublished test candidate. Its package identity and certificate match with the installed apporo .7 package were checked; an actual upgrade has not yet been tested. A public release needs a fresh artifact from the final reviewed commit. Update this record with real Worker version IDs and acceptance evidence after deployment.
+As of 2026-11-11, the Apporo OAuth provider is installed on production Odoo at www.apporo.ai and the independent `apporo-assistant-relay` Worker is live at https://assistant-relay.apporo.ai/. The custom domain belongs to the Cloudflare account that owns apporo.ai. The Worker has its own `OWNER_KEY`, `RELAY` and `AUTH` Durable Objects; none of the WOOWTECH relay's credentials or storage are shared. The current Worker version is `cccd2d44-9366-4bed-8af5-c9778b1d8e20` (first deployment: `1090e28b-8c8f-44c2-b68c-7584e71e02a1`).
 
-The Odoo addon passed two post-install HttpCase tests in an isolated database: consent approval/denial with exact callback and PKCE, and one-time code, introspection and revoke. The test database was removed. Before production installation, a pg_dump custom-format backup was made and verified with pg_restore -l. Production module state is installed; the website home returned HTTP 200 and the introspection route returned an inactive response for a fake token. The Worker provider transport test also reached the real Odoo token route and got the expected rejection.
+The Apporo .8 signed candidate was installed over .7 on a physical Android 15 phone. Its package identity, signing certificate, model settings and chat draft survived the upgrade. Odoo consent, browser callback, account page, one-use pairing, phone WebSocket, personal CLI, MCP and a model-driven remote task were exercised against the live Worker. See [the acceptance record](../../docs-apporo/RELAY-ACCEPTANCE-20261111.md). This is not yet a public Apporo APK release.
 
-## Order
+## Production notes
 
-1. Authenticate Wrangler to the Cloudflare account that owns apporo.ai. Confirm the zone/account before deploying. The copied WOOWTECH account ID has deliberately been removed from wrangler.toml.
-2. Create the independent Worker apporo-assistant-relay, bindings RELAY and AUTH, and a unique 32-byte-or-longer OWNER_KEY secret. Do not reuse the WOOWTECH key. Preserve Durable Object data during later deploys.
-3. Deploy assistant-relay.apporo.ai. Check DNS and HTTPS, /healthz, anonymous login redirect, Odoo consent, account page, pairing, WebSocket, personal MCP/CLI paths, device discovery, revocation and logout.
-4. Release an Apporo APK with the new gateway link and prefilled address through the existing Apporo release channel. Confirm it upgrades the installed Apporo package without changing its certificate or data.
+- Before Odoo installation, a verified custom-format database backup was made. Two post-install `HttpCase` tests passed in an isolated database. The production addon lives in the `apun-odoo` deployment in the `apun` Kubernetes namespace.
+- Chromium initially blocked the consent POST's redirect because the Odoo page's `form-action 'self'` CSP did not include the Worker callback origin. The Odoo controller now permits only `https://assistant-relay.apporo.ai` in addition to `'self'`; production was patched and restarted, and a fresh browser authorization completed through `/auth/callback` to `/account`.
+- The Cloudflare browser-integrity check rejected the downloadable CLI's default `Python-urllib` User-Agent with HTTP 403. The Apporo relay CLI now sends `User-Agent: apporo-relay-cli/<version>`. A regression test checks this header. The corrected public download was byte-for-byte checked against source and used to connect to the physical phone.
+- A private phone access token is required for personal MCP and CLI calls. A pairing code, the website session and the phone's gateway device token are different credentials. Keep tokens out of reports, command output and source control.
+- The gateway's remote wake/unlock switch is off by default. With it off, MCP exposes seven task tools; when temporarily enabled on the physical phone it exposed the same ten tool names as the current WOOWTECH relay. It was turned off again after that check.
 
-Local tests passing are not evidence for production OAuth, DNS, actual Android connection or a model-driven remote task. Those checks remain outstanding until their own receipts are recorded.
+## Release and recovery
+
+1. Review and merge the source change. Run the Worker TypeScript, protocol, account-isolation and CLI-header tests, plus the Android and Odoo source checks. Verify the production Odoo addon matches the reviewed source.
+2. Deploy the reviewed Worker with Wrangler in the apporo.ai Cloudflare account. Do not reset Durable Object data or replace its unique `OWNER_KEY`. Verify DNS/HTTPS, `/healthz`, Odoo login, the downloaded CLI's `User-Agent`, and a personal MCP `initialize` and `tools/list` call.
+3. Build the Apporo release APK from the merged commit, sign with the existing Apporo certificate, check package/version/signature and GPL source archive, then publish through the existing Apporo release channel. Confirm the public asset hash and .7 → .8 update path.
+4. If the Worker is unavailable, inspect deployment logs and redeploy a reviewed prior Worker version without deleting Durable Objects. If a phone must be disconnected, revoke it in the authenticated account page; the computer then receives `device_offline`. Pair again with a fresh one-use code on the phone.
 
 Do not deploy this Worker on relay.apporo.io, assistant-relay.woowtech.io, or a Cloudflare account selected solely by a copied configuration value.

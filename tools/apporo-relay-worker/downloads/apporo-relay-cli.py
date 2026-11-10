@@ -105,6 +105,8 @@ class Client:
         req = urllib.request.Request(self.base + path, data=data, method=method, headers={
             "Authorization": "Bearer " + self.token,
             "Accept": "application/json", "Content-Type": "application/json",
+            # Cloudflare's browser-integrity check rejects urllib's default Python-urllib User-Agent.
+            "User-Agent": "apporo-relay-cli/" + VERSION,
             "X-Mika-Client": "mika-cli/" + VERSION,
         })
         try:
