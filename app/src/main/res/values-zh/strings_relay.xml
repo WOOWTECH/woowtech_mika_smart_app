@@ -26,4 +26,18 @@
     <string name="relay_intro">网关将原本通过 Wi-Fi / 局域网发送的 CLI 和 MCP 请求转发到手机，实现远程访问。使用前，需在自有公网服务器上部署网关。</string>
     <string name="relay_device_access">允许经网关唤醒和解锁</string>
     <string name="relay_device_access_sub">默认关闭。还需打开本页的「允许远程亮屏与解锁」；两项都开时，持有访问令牌的人可以经互联网唤醒并解锁这台手机。</string>
+    <string name="relay_channel">账号通道</string>
+    <string name="relay_info_missing">尚未验证电脑连接地址</string>
+    <string name="relay_channel_personal">个人账号通道</string>
+    <string name="relay_channel_shared">单手机共享通道</string>
+    <string name="relay_client_mcp">电脑端 MCP 地址</string>
+    <string name="relay_client_api">电脑端 CLI API 地址</string>
+    <string name="relay_copy_api">复制 CLI API 地址</string>
+    <string name="relay_info_refresh">重新获取连接地址</string>
+    <string name="relay_info_unsupported">此网关不支持自动获取地址，请使用管理网站提供的地址。不能将共享入口当作个人账号通道。</string>
+    <string name="relay_info_invalid">网关返回的连接信息不兼容或不安全，请更新网关或检查配置。</string>
+    <string name="relay_info_rate_limited">请求过于频繁，请至少等一分钟后重试。</string>
+    <string name="relay_info_cached">暂时无法更新，仍保留上次验证的连接地址。</string>
+    <string name="relay_info_failed">无法获取电脑连接地址，请检查网络并重试；原配对仍保留。</string>
+    <string name="relay_connection_scope">已配对、网关在线与电脑可用是不同状态，请在 CLI 或 MCP 客户端验证连接。切换账号时，先解除此处配对，再使用目标账号生成的配对码。</string>
 </resources>

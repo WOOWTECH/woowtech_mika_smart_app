@@ -26,4 +26,18 @@
     <string name="relay_intro">La pasarela reenvía a tu teléfono, para el acceso remoto, las solicitudes de CLI y MCP que normalmente van por Wi-Fi / red local. Despliégala en tu propio servidor público antes de vincular.</string>
     <string name="relay_device_access">Permitir activar y desbloquear a través de la pasarela</string>
     <string name="relay_device_access_sub">Desactivado por defecto. También requiere “Permitir activación y desbloqueo remotos” en esta página. Con ambos activados, cualquiera con el token de acceso puede activar y desbloquear este teléfono por internet.</string>
+    <string name="relay_channel">Canal de la cuenta</string>
+    <string name="relay_info_missing">Direcciones de cliente aún sin verificar</string>
+    <string name="relay_channel_personal">Canal de cuenta personal</string>
+    <string name="relay_channel_shared">Canal compartido para un teléfono</string>
+    <string name="relay_client_mcp">Dirección MCP del ordenador</string>
+    <string name="relay_client_api">Dirección de API CLI del ordenador</string>
+    <string name="relay_copy_api">Copiar dirección de API CLI</string>
+    <string name="relay_info_refresh">Actualizar direcciones de cliente</string>
+    <string name="relay_info_unsupported">Esta pasarela no permite consultar las direcciones. Usa las de su sitio de administración. No supongas que la dirección compartida pertenece a tu cuenta.</string>
+    <string name="relay_info_invalid">La pasarela devolvió información incompatible o insegura. Actualízala o revisa su configuración.</string>
+    <string name="relay_info_rate_limited">Demasiadas solicitudes. Espera al menos un minuto antes de actualizar.</string>
+    <string name="relay_info_cached">No se pudo actualizar. Se conservan las últimas direcciones verificadas.</string>
+    <string name="relay_info_failed">No se pudieron obtener las direcciones. Comprueba la conexión y actualiza; el emparejamiento se conserva.</string>
+    <string name="relay_connection_scope">El emparejamiento, la conexión a la pasarela y el acceso desde el ordenador son estados distintos. Verifica la conexión en tu cliente CLI o MCP. Para cambiar de cuenta, desempareja aquí y usa un código de la cuenta deseada.</string>
 </resources>

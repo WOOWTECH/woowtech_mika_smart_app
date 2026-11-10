@@ -26,4 +26,18 @@
     <string name="relay_intro">Gateway meneruskan permintaan CLI dan MCP yang biasanya lewat Wi-Fi / LAN ke ponsel Anda untuk akses jarak jauh. Pasang di server publik Anda sendiri sebelum memasangkan.</string>
     <string name="relay_device_access">Izinkan bangun dan buka kunci lewat gateway</string>
     <string name="relay_device_access_sub">Nonaktif secara default. Juga memerlukan “Izinkan bangun dan buka kunci jarak jauh” di halaman ini. Jika keduanya aktif, siapa pun yang memegang token akses dapat membangunkan dan membuka kunci ponsel ini lewat internet.</string>
+    <string name="relay_channel">Saluran akun</string>
+    <string name="relay_info_missing">Alamat klien belum diverifikasi</string>
+    <string name="relay_channel_personal">Saluran akun pribadi</string>
+    <string name="relay_channel_shared">Saluran bersama untuk satu ponsel</string>
+    <string name="relay_client_mcp">Alamat MCP komputer</string>
+    <string name="relay_client_api">Alamat API CLI komputer</string>
+    <string name="relay_copy_api">Salin alamat API CLI</string>
+    <string name="relay_info_refresh">Perbarui alamat klien</string>
+    <string name="relay_info_unsupported">Gateway ini tidak mendukung pencarian alamat. Gunakan alamat di situs pengelolaannya. Jangan menganggap alamat bersama milik akun Anda.</string>
+    <string name="relay_info_invalid">Gateway mengembalikan informasi koneksi yang tidak kompatibel atau tidak aman. Perbarui gateway atau periksa konfigurasinya.</string>
+    <string name="relay_info_rate_limited">Terlalu banyak permintaan. Tunggu setidaknya satu menit sebelum memperbarui.</string>
+    <string name="relay_info_cached">Tidak dapat memperbarui. Alamat terakhir yang terverifikasi tetap disimpan.</string>
+    <string name="relay_info_failed">Tidak dapat memperoleh alamat klien. Periksa koneksi lalu perbarui; pemasangan tetap tersimpan.</string>
+    <string name="relay_connection_scope">Pemasangan, koneksi gateway, dan akses komputer adalah status terpisah. Verifikasi koneksi di klien CLI atau MCP. Untuk mengganti akun, lepas pemasangan di sini lalu gunakan kode dari akun yang diinginkan.</string>
 </resources>

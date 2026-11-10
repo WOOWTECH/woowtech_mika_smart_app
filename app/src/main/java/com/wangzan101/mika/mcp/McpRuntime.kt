@@ -57,12 +57,13 @@ class McpRuntime(
     })
     private val relayNetwork = RelayNetwork(context, relay::networkChanged)
     val relayState get() = relay.state
+    val relayDiscovery = com.wangzan101.mika.settings.RelayDiscovery(relaySettings)
     private val active get() = listen() != McpModes.Listen.Off || relaySettings.config.value.enabled
 
     /** 最近连过的客户端和最后一次请求;没在监听时为空。 */
     val activity: RemoteActivity get() = if (active) endpoints.activity.value else RemoteActivity()
 
-    /** 配对只保存凭据,必须用户另行开启远程访问。 */
+    /** 配对先保存凭据再查询客户端网址;必须用户另行开启远程访问。 */
     suspend fun pairRelay(gateway: String, code: String) {
         check(!relaySettings.config.value.paired) { "Unpair the previous gateway first" }
         val remote = RelayGateway(RelayGateway.parse(gateway), RelayGateway.http())
@@ -72,6 +73,7 @@ class McpRuntime(
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { runCatching { remote.unpair(paired.deviceToken) } }
             throw e
         }
+        relayDiscovery.refresh()
     }
 
     fun setRelayDeviceAccess(on: Boolean) = relaySettings.setDeviceAccess(on)
@@ -86,6 +88,7 @@ class McpRuntime(
         setRelayEnabled(false)
         relaySettings.pairing()?.let { RelayGateway(RelayGateway.parse(it.gateway), RelayGateway.http()).unpair(it.deviceToken) }
         relaySettings.clear()
+        relayDiscovery.refresh()
     }
 
     fun listen(): McpModes.Listen = McpModes.listen(settings.enabled.value, usb.enabled.value)

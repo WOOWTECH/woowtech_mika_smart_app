@@ -1,5 +1,6 @@
 package com.wangzan101.mika.settings
 
+import com.wangzan101.mika.core.remote.RelayConnectionInfo
 import com.wangzan101.mika.core.remote.RelayGateway
 import com.wangzan101.mika.core.remote.RelayPairing
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,8 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 /** [deviceAccess]:经网关来的请求能否唤醒、解锁手机、读锁屏状态。默认关,配对或重新配对都回到关。 */
-data class RelayConfig(val enabled: Boolean = false, val gateway: String? = null, val deviceAccess: Boolean = false) {
+data class RelayConfig(val enabled: Boolean = false, val gateway: String? = null, val deviceAccess: Boolean = false,
+    val connectionInfo: RelayConnectionInfo? = null) {
     val paired get() = gateway != null
 }
 
@@ -28,10 +30,18 @@ class RelaySettings(private val dir: File, private val cipher: KeyCipher) {
     @Synchronized fun pairing(): RelayPairing? = runCatching {
         val o = read() ?: return null
         if (config(o) != config.value) return null
-        RelayPairing(string(o, "gateway"), string(o, "deviceToken"))
+        RelayPairing(string(o, "gateway"), string(o, "deviceToken"), config(o).connectionInfo)
     }.getOrNull()
 
     @Synchronized fun save(pairing: RelayPairing) { write(pairing, false, false) }
+
+    /** A late discovery response must not overwrite a different pairing or permission change. */
+    @Synchronized fun updateConnectionInfo(expected: RelayPairing, info: RelayConnectionInfo?): Boolean {
+        val current = pairing() ?: return false
+        if (current.gateway != expected.gateway || current.deviceToken != expected.deviceToken) return false
+        write(RelayPairing(current.gateway, current.deviceToken, info), config.value.enabled, config.value.deviceAccess)
+        return true
+    }
 
     @Synchronized fun setEnabled(on: Boolean) {
         try {
@@ -64,7 +74,12 @@ class RelaySettings(private val dir: File, private val cipher: KeyCipher) {
         val gateway = RelayGateway.parse(string(o, "gateway")).toString()
         check(Regex("[A-Za-z0-9_-]{43}").matches(string(o, "deviceToken")))
         return RelayConfig((o["enabled"] as? JsonPrimitive)?.booleanOrNull == true, gateway,
-            (o["deviceAccess"] as? JsonPrimitive)?.booleanOrNull == true)
+            (o["deviceAccess"] as? JsonPrimitive)?.booleanOrNull == true,
+            (o["connectionInfo"] as? JsonObject)?.let { info ->
+                // Invalid cached endpoints must not destroy the existing pairing.
+                runCatching { RelayConnectionInfo.checked(RelayGateway.parse(gateway), string(info, "mcpUrl"),
+                    string(info, "apiBaseUrl")) }.getOrNull()
+            })
     }
 
     private fun read(): JsonObject? {
@@ -77,6 +92,12 @@ class RelaySettings(private val dir: File, private val cipher: KeyCipher) {
         val o = buildJsonObject {
             put("enabled", enabled); put("gateway", pairing.gateway); put("deviceAccess", deviceAccess)
             put("deviceToken", pairing.deviceToken)
+            pairing.connectionInfo?.let { info ->
+                val checked = RelayConnectionInfo.checked(RelayGateway.parse(pairing.gateway), info.mcpUrl, info.apiBaseUrl)
+                put("connectionInfo", buildJsonObject {
+                    put("mcpUrl", checked.mcpUrl); put("apiBaseUrl", checked.apiBaseUrl)
+                })
+            }
         }
         val next = config(o)
         val bytes = o.toString().toByteArray(Charsets.UTF_8)

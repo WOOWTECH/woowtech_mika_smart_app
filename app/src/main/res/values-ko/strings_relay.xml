@@ -26,4 +26,18 @@
     <string name="relay_intro">게이트웨이는 보통 Wi-Fi / LAN으로 보내는 CLI와 MCP 요청을 원격으로 휴대전화에 전달해요. 페어링하기 전에 직접 운영하는 공개 서버에 배포하세요.</string>
     <string name="relay_device_access">게이트웨이를 통한 깨우기 및 잠금 해제 허용</string>
     <string name="relay_device_access_sub">기본적으로 꺼져 있어요. 이 페이지의 “원격 깨우기 및 잠금 해제 허용”도 켜야 해요. 둘 다 켜면 액세스 토큰이 있는 누구나 인터넷으로 이 휴대전화를 깨우고 잠금을 해제할 수 있어요.</string>
+    <string name="relay_channel">계정 채널</string>
+    <string name="relay_info_missing">클라이언트 주소가 아직 확인되지 않았습니다</string>
+    <string name="relay_channel_personal">개인 계정 채널</string>
+    <string name="relay_channel_shared">휴대폰 한 대용 공유 채널</string>
+    <string name="relay_client_mcp">컴퓨터 MCP 주소</string>
+    <string name="relay_client_api">컴퓨터 CLI API 주소</string>
+    <string name="relay_copy_api">CLI API 주소 복사</string>
+    <string name="relay_info_refresh">클라이언트 주소 새로고침</string>
+    <string name="relay_info_unsupported">이 게이트웨이는 주소 자동 조회를 지원하지 않습니다. 관리 웹사이트의 주소를 사용하세요. 공유 주소가 내 계정에 속한다고 가정하지 마세요.</string>
+    <string name="relay_info_invalid">호환되지 않거나 안전하지 않은 연결 정보입니다. 게이트웨이를 업데이트하거나 설정을 확인하세요.</string>
+    <string name="relay_info_rate_limited">요청이 너무 많습니다. 최소 1분 후에 새로고침하세요.</string>
+    <string name="relay_info_cached">새로고침하지 못했습니다. 마지막으로 확인된 주소를 유지합니다.</string>
+    <string name="relay_info_failed">클라이언트 주소를 가져오지 못했습니다. 연결을 확인하고 새로고침하세요. 페어링은 유지됩니다.</string>
+    <string name="relay_connection_scope">페어링, 게이트웨이 연결, 컴퓨터 접근은 별개입니다. CLI 또는 MCP 클라이언트에서 연결을 확인하세요. 계정을 변경하려면 여기에서 페어링을 해제한 뒤 원하는 계정의 페어링 코드를 사용하세요.</string>
 </resources>

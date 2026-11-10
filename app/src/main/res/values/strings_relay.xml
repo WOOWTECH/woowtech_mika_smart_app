@@ -28,4 +28,18 @@
     <string name="relay_intro">The gateway forwards the CLI and MCP requests normally sent over Wi-Fi / LAN to your phone for remote access. Deploy it on your own public server before pairing.</string>
     <string name="relay_device_access">Allow wake and unlock through the gateway</string>
     <string name="relay_device_access_sub">Off by default. Also needs “Allow remote wake and unlock” on this page. When both are on, anyone with the access token can wake and unlock this phone over the internet.</string>
+    <string name="relay_channel">Account channel</string>
+    <string name="relay_info_missing">Client addresses not yet verified</string>
+    <string name="relay_channel_personal">Personal account channel</string>
+    <string name="relay_channel_shared">Shared single-phone channel</string>
+    <string name="relay_client_mcp">Computer MCP address</string>
+    <string name="relay_client_api">Computer CLI API address</string>
+    <string name="relay_copy_api">Copy CLI API address</string>
+    <string name="relay_info_refresh">Refresh client addresses</string>
+    <string name="relay_info_unsupported">This gateway does not support address discovery. Use the addresses shown on its management website. Do not assume the shared address belongs to your account.</string>
+    <string name="relay_info_invalid">The gateway returned incompatible or unsafe connection information. Update the gateway or check its configuration.</string>
+    <string name="relay_info_rate_limited">Too many requests. Wait at least one minute before refreshing.</string>
+    <string name="relay_info_cached">Could not refresh. The last verified addresses are retained.</string>
+    <string name="relay_info_failed">Could not obtain client addresses. Check your connection and refresh; your pairing is retained.</string>
+    <string name="relay_connection_scope">Pairing, gateway connectivity and computer access are separate. Verify the connection in your CLI or MCP client. To change accounts, unpair here and use a pairing code from the intended account.</string>
 </resources>

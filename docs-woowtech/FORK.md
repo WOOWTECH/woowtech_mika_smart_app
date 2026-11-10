@@ -210,3 +210,7 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 ## 自動更新發布（woow.5）
 
 第五版起，新版本進 main 後由 `woowtech.yml` 自動準備原始碼，經同一 commit 的 main CI 驗證後，由本機發佈 worker 簽章、驗證附件並公開 latest。正式金鑰仍只留發佈機；原手動流程保留供復原。版本遞增、發佈機運作條件及 App 提示語意詳見 [automatic-updates.md](automatic-updates.md)。此修改不新增背景即時推播服務。
+
+## 個人帳號中繼設定（2026-11-10）
+
+共用 RelayGateway/RelaySettings 新增契約 v1 的 `/device/info` 查詢與加密端點保存。新配對及既有配對取得個人 MCP/API 網址，顯示驗證狀態並防止跨帳號的延遲回應覆寫。CLI 保留個人通道前綴；根 `/pair`、`/device` 及手機 MCP 權杖語意不變。設定頁與全部十種 UI 語言一起更新。操作、錯誤處理與驗收界線見 [relay-accounts.md](relay-accounts.md)。

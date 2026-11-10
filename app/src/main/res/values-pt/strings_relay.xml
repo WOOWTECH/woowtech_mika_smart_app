@@ -26,4 +26,18 @@
     <string name="relay_intro">O gateway encaminha para o seu celular, para acesso remoto, as solicitações da CLI e do MCP que normalmente passam por Wi-Fi / rede local. Instale-o no seu próprio servidor público antes de parear.</string>
     <string name="relay_device_access">Permitir ativação e desbloqueio pelo gateway</string>
     <string name="relay_device_access_sub">Desativado por padrão. Também exige “Permitir ativação e desbloqueio remotos” nesta página. Com as duas opções ativadas, qualquer pessoa com o token de acesso pode ativar e desbloquear este celular pela internet.</string>
+    <string name="relay_channel">Canal da conta</string>
+    <string name="relay_info_missing">Endereços do cliente ainda não verificados</string>
+    <string name="relay_channel_personal">Canal de conta pessoal</string>
+    <string name="relay_channel_shared">Canal compartilhado para um celular</string>
+    <string name="relay_client_mcp">Endereço MCP do computador</string>
+    <string name="relay_client_api">Endereço da API CLI do computador</string>
+    <string name="relay_copy_api">Copiar endereço da API CLI</string>
+    <string name="relay_info_refresh">Atualizar endereços do cliente</string>
+    <string name="relay_info_unsupported">Este gateway não permite consultar endereços. Use os endereços do site de administração. Não presuma que o endereço compartilhado pertence à sua conta.</string>
+    <string name="relay_info_invalid">O gateway retornou informações incompatíveis ou inseguras. Atualize o gateway ou verifique a configuração.</string>
+    <string name="relay_info_rate_limited">Muitas solicitações. Aguarde pelo menos um minuto antes de atualizar.</string>
+    <string name="relay_info_cached">Não foi possível atualizar. Os últimos endereços verificados foram mantidos.</string>
+    <string name="relay_info_failed">Não foi possível obter os endereços. Verifique a conexão e atualize; o pareamento foi mantido.</string>
+    <string name="relay_connection_scope">Pareamento, conexão ao gateway e acesso pelo computador são estados distintos. Verifique a conexão no cliente CLI ou MCP. Para mudar de conta, desfaça o pareamento aqui e use um código da conta desejada.</string>
 </resources>
