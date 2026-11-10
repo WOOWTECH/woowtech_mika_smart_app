@@ -202,3 +202,24 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - WebDevtools強制helper代連已等到helper，仍因系統拒絕socket連接而列assumption；Route.None的降級斷言通過，不宣稱代連功能可用。這與對外遠端中繼是不同測試。
 - 正式簽章候選檔位於本機artifacts/fullqa-20261109/woowtech-agent-woow4-fullqa-candidate-arm64.apk，SHA-256：95634d65e639c891086492b3f8f1edbc0f01d4ba9e568185ba996ac97f38a6cd；憑證806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8，與正式版一致。尚未發布、未裝POCO；版本仍0.1.37-woow.4/3804，僅供保留資料驗收，不能冒充公開更新版本。
 - 最終正式release與完整lint串行成功（3m11s），0 errors、182 warnings、3 information；未新增baseline或關閉規則。警告仍保留在lint-final.xml，不以建置成功宣稱警告清零。
+
+
+## 2026-11-10 MCP 遠端部署補驗（進行中）
+
+- 使用者明確排除Play Protect一般下載安裝攔截；標記為「本輪排除，未修復」，不再作為其餘功能驗收的停止條件。
+- 使用者要求上傳候選檔，透過MCP在POCO下載部署驗證。已將cfec696e來源分支推送GitHub，發布獨立prerelease：v0.1.37-woow.4-qa.20261110。原穩定latest經API核對仍是v0.1.37-woow.4。
+- 候選APK公開下載：https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/download/v0.1.37-woow.4-qa.20261110/woowtech-agent-woow4-qa20261110-arm64.apk ，77,183,103 bytes，SHA-256 95634d65e639c891086492b3f8f1edbc0f01d4ba9e568185ba996ac97f38a6cd。
+- POCO USB重新可見，起初RUNNING_LOCKED，使用者首次解鎖後恢復RUNNING_UNLOCKED。重開機的USB MCP權杖按設計失效，重新啟動USB服務與forward後，MCP device state回helper_available/user_unlocked/ready=true。這次MCP走USB轉送，不能稱為外網中繼成功。
+- 第一個MCP下載任務6081e817失敗：手機沙箱腳本聯網未開啟且curl不存在。另核對產品明確禁止share_file匯出APK，因此不更改限制、不以改副檔名繞過，改送MCP任務6bf1442e由Chrome正常下載指定公開APK。
+- 更新前安裝檔仍是76c41fac…629612（163bcff7候選）；firstInstallTime=2026-11-09 13:12:33。已保存無障礙服務、輸入法與任務歷史供更新後比對。實際安裝與新版驗收尚未完成。
+- 私人證據：~/.local/share/woowtech-mika/test-evidence/mcp-deploy-20261110/，下載／部署結果將接續補記。
+
+
+### MCP下載與安裝完成，鎖屏循環通過
+
+- Chrome下載任務6bf1442e完成；主機在POCO /sdcard/Download獨立確認77,183,103 bytes與候選SHA-256相符。使用此手機已下載檔案，複製到暫存安裝位置後執行ADB `pm install -r`成功。並非用MCP遠端核准安裝，亦非電腦重傳另一份APK。
+- 安裝後base APK SHA-256再次等於95634d65…f38a6cd；lastUpdateTime=2026-11-10 12:47:25，firstInstallTime保持2026-11-09 13:12:33。暫存APK已移除；Download候選檔保留供使用者使用。
+- 更新後MCP重新連線正常，既有50筆任務ID全部保留，無障礙服務列表與Google輸入法設定完全一致。
+- 受控鎖屏：主機KEYCODE_SLEEP→MCP確認device_locked=true→mika_wake_device回awake且仍鎖定→mika_unlock_device回unlocked→MCP ready=true。獨立dumpsys trust確認deviceLocked=0；期間getevent未記錄ABS_MT_TRACKING_ID實體觸控，沒有讀出或回傳解鎖憑證，僅使用手機既有授權設定。這是USB轉送MCP測試，不是外網喚醒證據。
+- 新版MCP任務9c897b3e實際Python運算152、寫檔、讀回及share_file成功。主機獨立讀取手機Download內deploy-check.txt，逐位元組等於QA-20261110=152加換行（16 bytes）。
+- 已向使用者請求新版真人語音句「今天更新驗收，一二三四五」，鬆手不送出，尚待實際回填核對。通知音訊目前系統靜音（STREAM_NOTIFICATION Muted=true、zen_mode=0），尚不能把無聲歸因App。
