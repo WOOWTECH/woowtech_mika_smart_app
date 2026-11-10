@@ -44,7 +44,7 @@ class AuthSpillDeviceTest {
         val main = shell.topTaskId(Display.DEFAULT_DISPLAY)
         if (main >= 0 && shell.packageOfTask(main) == DeviceSupport.TEST_PACKAGE) DeviceSupport.sh("input keyevent 4")
         // 关回去,等它从认证器表里下去:别的挪回测试里测试包的页面不能被当成账号登录页
-        DeviceSupport.sh("pm disable $authenticatorService")
+        DeviceSupport.sh("run-as ${DeviceSupport.TEST_PACKAGE} pm disable $authenticatorService")
         DeviceSupport.pollUntil(10_000) { (!testAuthenticatorListed()).takeIf { it } }
         agent.release()
     }
@@ -56,7 +56,8 @@ class AuthSpillDeviceTest {
 
     /** 打开测试包的认证器,等它出现在系统的账号认证器表里,这条用例才有意义。 */
     private fun registerTestAuthenticator(): Boolean {
-        DeviceSupport.sh("pm enable $authenticatorService")
+        val enabled = DeviceSupport.sh("run-as ${DeviceSupport.TEST_PACKAGE} pm enable $authenticatorService")
+        assertTrue("authenticator enable failed: $enabled", enabled.contains("new state: enabled"))
         return DeviceSupport.pollUntil(10_000) { testAuthenticatorListed().takeIf { it } } == true
     }
 

@@ -33,6 +33,7 @@ class MemoryScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val store = MemoryStore(object : MemoryPersistence {
         override fun load() = emptyList<MemoryItem>()

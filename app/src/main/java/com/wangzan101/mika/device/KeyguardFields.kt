@@ -16,7 +16,7 @@ internal object KeyguardFields {
         val pinField = numeric || untyped && digitPad
         return when (kind) {
             CredentialKind.Pin -> pinView || editable && pinField
-            CredentialKind.Password -> editable && !pinField
+            CredentialKind.Password -> !pinView && editable && !pinField
         }
     }
 

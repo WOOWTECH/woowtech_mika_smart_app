@@ -26,6 +26,7 @@ import java.util.UUID
 class OlderAndroidTaskDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val model = ScriptedModel().apply { intent = "ACT" }

@@ -32,6 +32,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PhoneSetupScreenTest {
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
     private val calls = mutableListOf<String>()
 
     private fun show(inputs: SetupInputs, headsUpLowered: Boolean = false, diagnostics: Boolean = false, scanning: Boolean = false) = compose.setContent {

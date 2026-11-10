@@ -139,6 +139,8 @@ class WebStackTakeoverTest {
         assertEquals("请登录示例商城\n金额:9.90", WebHandover.session.value?.message)
         assertEquals("\"填了一半\"", js(tab, "document.getElementById('plain').value"))
 
+        // 模拟用户完成登录后的可见页面；仅点「处理好了」不能证明已登录。
+        js(tab, "document.getElementById('pwform').remove(); document.body.insertAdjacentHTML('afterbegin', '<header><button>Log out</button></header>');")
         DeviceSupport.pollUntil(3_000) { WebHandover.session.value?.url }
         click(tab, "处理好了")
         assertNotNull(DeviceSupport.pollUntil(5_000) { results.firstOrNull() })
@@ -147,7 +149,9 @@ class WebStackTakeoverTest {
         assertEquals("inputs", results.single().stoppedAt)
         assertFalse(withContext(Dispatchers.Main) { stack.pool.isLocked(tab.id) })
         assertEquals("\"填了一半\"", js(tab, "document.getElementById('plain').value"))
-        assertTrue(WebSites.registry(ctx).list().any { it.host == "appassets.androidplatform.net" && it.loggedInByUser })
+        assertNotNull(DeviceSupport.pollUntil(5_000) {
+            WebSites.registry(ctx).list().firstOrNull { it.host == "appassets.androidplatform.net" && it.loggedInByUser }
+        })
         assertEquals(Takeover.Stage.None, takeover.stage.value)
     }
 

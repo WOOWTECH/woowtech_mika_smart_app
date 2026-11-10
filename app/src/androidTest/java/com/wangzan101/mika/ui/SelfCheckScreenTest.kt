@@ -26,6 +26,7 @@ class SelfCheckScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val calls = mutableListOf<String>()
     private val facts = DeviceFacts("Acme", "Phone 7", "14", 34, listOf("arm64-v8a"), 8L shl 30, 1080, 2400, true, "0.1.21", "abc1234")

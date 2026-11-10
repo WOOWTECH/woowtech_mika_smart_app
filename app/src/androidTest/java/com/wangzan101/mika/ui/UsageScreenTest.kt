@@ -39,6 +39,7 @@ class UsageScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val now = Instant.parse("2026-10-27T10:00:00Z")
     private val today = LocalDate.of(2026, 10, 27)

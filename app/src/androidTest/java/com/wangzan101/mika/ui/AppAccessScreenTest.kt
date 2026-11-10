@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 class AppAccessScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     @Test fun appAccessLoadsWithoutModelAndRecommendedCanBeCancelled() {
         compose.setContent { com.wangzan101.mika.ui.theme.MikaTheme { AppAccessScreen(onBack = {}, classifyApps = false) } }

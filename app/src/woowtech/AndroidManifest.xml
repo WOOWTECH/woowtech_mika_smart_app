@@ -17,7 +17,8 @@
 
   Distribution: the woowtech build is released as an APK on GitHub only, never on Google Play. Play limits
   USE_EXACT_ALARM to apps whose core function is an alarm, a timer or a calendar. If this app is ever published on Play,
-  delete this file: SCHEDULE_EXACT_ALARM from src/main then applies to every API level again, with the user-granted flow
+  remove these alarm permission overrides (keep the browser entry below): SCHEDULE_EXACT_ALARM from src/main then applies
+  to every API level again, with the user-granted flow
   (ExactAlarmGuide, the note on the scheduled tasks page).
 
   Guards: core WoowtechManifestTest (this file) and woowtech/tools/brand-check.sh apk (the built APK).
@@ -32,4 +33,21 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
 
+    <application>
+        <!-- Browser input stops here; MainActivity must never receive its extras or URI grants. -->
+        <activity
+            android:name=".woowtech.BrowserOpenActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:host="open" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>

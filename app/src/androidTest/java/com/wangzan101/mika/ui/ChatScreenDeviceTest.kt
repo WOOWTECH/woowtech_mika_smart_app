@@ -64,7 +64,10 @@ import com.wangzan101.mika.task.TaskEnvironment
 class ChatScreenDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
+    @get:Rule(order = Int.MIN_VALUE + 1) val existingUser = com.wangzan101.mika.ExistingChatUser()
+
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     // 从界面发起的任务在第一个动作前要另问一次意图;固定答「要操作」,脚本里每一问都是任务循环本身的一步
@@ -158,7 +161,7 @@ class ChatScreenDeviceTest {
         compose.onNodeWithText("看了设置").assertExists()
         compose.onNodeWithText(ChatCopy.BACKGROUND_NOTE).assertExists()
         compose.onNodeWithText("先打开系统设置").assertExists()
-        compose.onNodeWithText(ChatCopy.placeholder(ComposerMode.Busy, hasHistory = true)).assertExists()
+        compose.onNodeWithText(ChatCopy.voicePlaceholder(ComposerMode.Busy)).assertExists()
         assertTrue(vm.ui.value.pip.visible)
         shot("03-running-collapsed")
 

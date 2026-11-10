@@ -113,10 +113,23 @@ class MikarunDeviceTest {
 
     @Test
     fun netOnAllowsTcp() {
-        assumeTrue("device has no network", hostReaches("1.1.1.1", 80))
-        val script = "printf 'HEAD / HTTP/1.0\\r\\n\\r\\n' | nc -w 3 1.1.1.1 80"
-        val r = run(launcher("--timeout", "20", "--net", "on") + proot("/bin/sh", "-c", script))
-        assertTrue(r.output, r.output.contains("HTTP/"))
+        // Exercise TCP permission against a real local peer, independently of WAN/HTTP policy.
+        java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { server ->
+            server.soTimeout = 20_000
+            val peer = java.util.concurrent.Executors.newSingleThreadExecutor()
+            try {
+                val served = peer.submit<Boolean> {
+                    server.accept().use { socket ->
+                        socket.getOutputStream().write("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                    }
+                    true
+                }
+                val script = "printf 'HEAD / HTTP/1.0\\r\\n\\r\\n' | nc -w 3 127.0.0.1 ${server.localPort}"
+                val r = run(launcher("--timeout", "20", "--net", "on") + proot("/bin/sh", "-c", script))
+                assertTrue(r.output, r.output.contains("HTTP/1.0 200 OK"))
+                assertTrue(served.get(5, java.util.concurrent.TimeUnit.SECONDS))
+            } finally { peer.shutdownNow() }
+        }
     }
 
     @Test

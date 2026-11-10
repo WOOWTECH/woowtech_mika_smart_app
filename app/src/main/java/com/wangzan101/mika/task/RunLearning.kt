@@ -98,7 +98,7 @@ class RunLearning(
         // 没有运行编号就没处挂提示,用户看不到也撤销不了:不提取
         val learnable = a.origin == RunOrigin.Ui && a.end is TaskState.Succeeded
         val readWeb = events.filterIsInstance<RunEvent.Observed>().any { it.place?.kind in setOf(PlaceKind.Site, PlaceKind.Page) }
-        if (learnable && !readWeb && a.runId != null && store != null && extractor != null && switches.autoRemember && a.utterances.isNotEmpty()) {
+        if (learnable && a.saved.none { it is Change.Forgot } && !readWeb && a.runId != null && store != null && extractor != null && switches.autoRemember && a.utterances.isNotEmpty()) {
             val now = store.clock()
             changes += guarded(emptyList()) {
                 yieldToForeground()

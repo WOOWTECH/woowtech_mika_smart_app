@@ -76,4 +76,5 @@
     <string name="tool_describe_screen">Describe the screen</string>
     <string name="tool_find_visually">Find by looking at the screen</string>
     <string name="tool_do_steps">Several steps in a row</string>
+    <string name="tool_forget_memory">Forget a memory</string>
 </resources>

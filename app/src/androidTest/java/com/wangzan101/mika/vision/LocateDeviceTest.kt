@@ -16,6 +16,8 @@ import com.wangzan101.mika.core.uistate.ScreenSnapshot
 import com.wangzan101.mika.core.tool.ToolDispatcher
 import com.wangzan101.mika.core.vision.VisionService
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
@@ -65,7 +67,7 @@ class LocateDeviceTest {
         val a = DeviceSupport.newAgent().also { agent = it }
         val r = runBlocking { a.screen.openApp(SETTINGS) }
         assertTrue("openApp: $r", r is ActionResult.Ok)
-        val home = a.snapUntil { s -> s.elements.any { it.name.trim() == "WLAN" } }
+        val home = a.snapUntil { s -> s.elements.any { it.name.trim() in DeviceSupport.NETWORK_LABELS } }
         // 过渡动画结束,两次截图才对得上
         Thread.sleep(1_000)
         return a to home
@@ -79,15 +81,16 @@ class LocateDeviceTest {
     private fun tapAndExpectWlanPage(a: DeviceSupport.Agent, d: ToolDispatcher, r: JsonObject) {
         val tap = d.run("phone_tap", """{"ref":"${r.s("ref")}","snapshotId":"${r.s("snapshotId")}"}""")
         assertEquals(tap.toString(), "true", tap.s("ok"))
-        a.snapUntil { s -> s.elements.any { it.role == "Switch" } }
+        a.snapUntil(DeviceSupport::networkDetail)
     }
 
     @Test
     fun treePathFindsWlan() {
-        val (a, _) = openSettingsHome()
+        val (a, home) = openSettingsHome()
         val model = ScriptedVision()
         val d = toolDispatcher(a.screen, vision = VisionService(model, BitmapImageOps))
-        val r = d.run("phone_find_visually", """{"target":"WLAN","text":"WLAN"}""")
+        val label = home.elements.first { it.name.trim() in DeviceSupport.NETWORK_LABELS }.name.trim()
+        val r = d.run("phone_find_visually", buildJsonObject { put("target", label); put("text", label) }.toString())
         assertEquals(r.toString(), "true", r.s("found"))
         assertEquals("elements", r.s("source"))
         assertEquals("控件树命中不问视觉模型", 0, model.asked)
@@ -97,7 +100,7 @@ class LocateDeviceTest {
     @Test
     fun visionPathTapsWlan() {
         val (a, home) = openSettingsHome()
-        val row = home.elements.first { it.name.trim() == "WLAN" }.bounds
+        val row = home.elements.first { it.name.trim() in DeviceSupport.NETWORK_LABELS }.bounds
         // 读屏的 0–999 换成模型用的 0–1000
         val box = row.map { (it * 1000 / 999.0).roundToInt() }
         val model = ScriptedVision("""{"bbox_2d": [${box.joinToString(", ")}], "seen": "WLAN"}""", "是")
@@ -113,7 +116,7 @@ class LocateDeviceTest {
     @Test
     fun unverifiedVisionNeedsSecondLook() {
         val (a, home) = openSettingsHome()
-        val row = home.elements.first { it.name.trim() == "WLAN" }.bounds
+        val row = home.elements.first { it.name.trim() in DeviceSupport.NETWORK_LABELS }.bounds
         val box = """{"bbox_2d": [${row.map { (it * 1000 / 999.0).roundToInt() }.joinToString(", ")}], "seen": "WLAN"}"""
         // 定位准度没验证过:再框一次、两次复看都确认才交出去
         val model = ScriptedVision(box, "是", box, "是", verified = false)

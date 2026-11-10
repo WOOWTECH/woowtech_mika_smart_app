@@ -25,7 +25,7 @@ class WheelPickerDeviceTest {
     fun tearDown() = agent.release()
 
     private fun open(): ScreenSnapshot {
-        DeviceSupport.sh("am start --display ${agent.display.displayId} -n $TEST_PACKAGE/${WheelPickerTestActivity::class.java.name}")
+        DeviceSupport.sh("am start -W --display ${agent.display.displayId} -n $TEST_PACKAGE/${WheelPickerTestActivity::class.java.name}")
         val s = DeviceSupport.pollUntil(8_000) {
             runBlocking { screen.snapshot() }.takeIf { s -> s.elements.count { it.role == "NumberPicker" } == 2 }
         }

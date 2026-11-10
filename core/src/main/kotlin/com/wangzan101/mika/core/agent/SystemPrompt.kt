@@ -11,7 +11,11 @@ import com.wangzan101.mika.core.prompt.Prompts
  * 任务开始时拼一次,任务内一字不变。
  */
 object SystemPrompt {
-    fun identity(): String = listOf(Prompts.system("identity"), Prompts.system("principles"), read(GENERAL)).joinToString("\n\n")
+    fun identity(selfPackage: String? = null): String = listOfNotNull(
+        Prompts.system("identity"),
+        selfPackage?.let { "This assistant is running in Android package $it. Other installed assistant packages have separate memories and settings. Use memory tools for this assistant's memory; never operate another app to manage it." },
+        Prompts.system("principles"), read(GENERAL),
+    ).joinToString("\n\n")
 
     fun assemble(identity: String, sections: List<String>): String = (listOf(identity) + sections).joinToString("\n\n")
 

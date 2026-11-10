@@ -106,9 +106,8 @@ class WebDevtools(private val relay: ((String) -> ParcelFileDescriptor?)?) {
         tab.view.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) onViewResized(link)
         }
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
-            runCatching { WebSettingsCompat.setRequestedWithHeaderOriginAllowList(st, emptySet()) }
-        }
+        // This public setter checks support itself and throws if unavailable.
+        runCatching { WebSettingsCompat.setRequestedWithHeaderOriginAllowList(st, emptySet()) }
         applySettings(st, mobile = false)
         applyIdentityScript(link)
         link.acceptLanguage = chosenAcceptLanguage()

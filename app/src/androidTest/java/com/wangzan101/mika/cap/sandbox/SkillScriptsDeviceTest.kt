@@ -36,7 +36,8 @@ class SkillScriptsDeviceTest {
 
     /** run_bundled_script 不碰屏幕;任何屏幕调用都算测试写错了。 */
     private val noScreen = Proxy.newProxyInstance(ScreenPort::class.java.classLoader, arrayOf(ScreenPort::class.java)) { _, m, _ ->
-        throw AssertionError("screen not expected: ${m.name}")
+        if (m.name == "getAppAccess") com.wangzan101.mika.core.access.AppAccessPolicy.ALLOW
+        else throw AssertionError("screen not expected: ${m.name}")
     } as ScreenPort
     private val tools = toolDispatcher(noScreen, sandbox = sb, workspace = { ws })
 
@@ -95,6 +96,8 @@ class SkillScriptsDeviceTest {
     @Test fun authScriptIsUnavailable() {
         val r = runScript("sites/github.com", "scripts/api.mjs", "GET", "/user")
         assertEquals(r.toString(), "script_unavailable", r.s("error"))
-        assertTrue(r.toString(), r.s("message")!!.contains("需要账号授权,Mika 暂不支持"))
+        assertEquals(r.toString(), "false", r.s("ok"))
+        assertTrue(r.toString(), r.s("message")!!.contains("scripts/api.mjs"))
+        assertEquals(r.toString(), "false", r.s("recoverable"))
     }
 }
