@@ -84,7 +84,7 @@ class GitHub:
             headers['Content-Type'] = 'application/json'
         with self.opener.open(urllib.request.Request(url, data=body, headers=headers, method=method), timeout=180) as response:
             data = response.read()
-        return data if binary else json.loads(data)
+        return data if binary else (json.loads(data) if data else None)
 
     def optional(self, path):
         try:
@@ -98,6 +98,22 @@ class GitHub:
         import base64
         obj = self.request('/contents/' + path + '?ref=' + sha)
         return base64.b64decode(obj['content']).decode()
+
+
+def find_release(gh, tag):
+    release = gh.optional('/releases/tags/' + tag)
+    if release is not None:
+        return release
+    # GitHub's tag endpoint returns 404 for drafts, even to the release owner.
+    page = 1
+    while True:
+        releases = gh.request(f'/releases?per_page=100&page={page}')
+        for candidate in releases:
+            if candidate['tag_name'] == tag:
+                return candidate
+        if len(releases) < 100:
+            return None
+        page += 1
 
 
 def unpack_verified(data, digest, destination):
@@ -147,7 +163,7 @@ def publish(gh, state, check=False):
     sha = gh.request('/git/ref/heads/main')['object']['sha']
     version, code = version_from_sources(gh.source('app/build.gradle.kts', sha), gh.source('app/brand.gradle.kts', sha))
     tag = 'v' + version
-    release = gh.optional('/releases/tags/' + tag)
+    release = find_release(gh, tag)
     if release and not release['draft']:
         print(tag, 'already published', flush=True)
         return
@@ -212,6 +228,11 @@ def publish(gh, state, check=False):
         data = path.read_bytes()
         digest = 'sha256:' + hashlib.sha256(data).hexdigest()
         a = assets.get(path.name)
+        if a is not None and a.get('state') == 'starter':
+            # A failed upload can leave an empty starter asset occupying its name.
+            # Only unpublished draft assets reach here; never replace a complete APK.
+            gh.request('/releases/assets/' + str(a['id']), method='DELETE')
+            a = None
         if a is None:
             a = gh.request(release['upload_url'].split('{')[0] + '?name=' + urllib.parse.quote(path.name), data, 'POST')
         if a['size'] != len(data) or a.get('digest') != digest:
