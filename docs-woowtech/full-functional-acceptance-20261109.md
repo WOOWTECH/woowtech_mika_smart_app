@@ -270,3 +270,4 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 暫時關閉手機Tailscale，VPN HTTP請求失敗（SOCKS無法連線、HTTP000）；重開後首次請求仍在重連期而失敗，隨後task status與device state恢復200、ready=true，原任務仍done，未重送。VPN介面由tun0重建為tun1，位址不變。
 - 範圍限制：兩端底層仍在同一Wi-Fi，驗證的是VPN位址與overlay路徑；尚未驗證行動網路／不同底層網路切換。不能將此等同自架HTTPS遠端閘道已通過。
 - 證據vpn-20261110：vpn-access-results.json、vpn-initialize.json、usb-token-vpn-rejected.json、vpn-task-status.json、disconnected-http.log、reconnected-state-final.json、vpn-final.json。
+- 測後保留手機Tailscale連線；Mac獨立測試端已down並終止daemon，移除本機測試用MCP權杖副本。tailnet仍保留woow-poco-vpn-qa裝置登記（目前離線），未變更其他裝置。
