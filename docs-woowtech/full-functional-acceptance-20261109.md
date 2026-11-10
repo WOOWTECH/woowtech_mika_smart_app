@@ -10,9 +10,9 @@
 - 所有測試只處理明確標記的合成資料；真實付款與對外訊息需具體對象及授權。
 - 私人證據目錄：`~/.local/share/woowtech-mika/test-evidence/full-functional-20261109/`。
 
-## 最新驗收摘要（19:37，仍未全數通過）
+## 最新驗收摘要（2026-11-10，仍未全數通過）
 
-- 真實 POCO 已完成 F01–F28 中有證據的正常／錯誤路徑；逐案限制見下文。手機 USB 現已離線，後續新增通知與滾輪修正尚未裝到正式手機。
+- 真實 POCO 已完成 F01–F28 中有證據的正常／錯誤路徑；逐案限制見下文。2026-11-10已透過MCP操作Chrome下載候選版、ADB保留資料安裝；安裝後雜湊核對、50筆任務保存及受控鎖屏／MCP解鎖通過。
 - 完整核心最近一輪 2969 項，0 失敗、3 略過；Android JVM 1502 項全過。之後新增滾輪回歸，相關核心42項全過，Android JVM1502項再次全過；全核心數字仍是新增2案之前的完整執行結果。
 - 儀器逐案最新收集結果 587 通過、11 項前提不符、1 項人工解鎖程序未執行。另保留 1 個舊執行器類別參數錯誤及 1 個已拆分案例，不計為通過。這是跨批次最新案例彙整，不是單次全套執行，也不是所有產品功能覆蓋率。
 - final-v5 的滾輪4項、設定連結、任務服務可執行案例、確認通知5項通過。滾輪0→40維持20–24次門檻；最初整組319.174秒，補正模數距離為零卻仍步進的問題後，最新整組39.68秒全過；不存在值單案12.493秒（含測試前置），不強迫到達錯值。
@@ -23,10 +23,10 @@
 
 | 項目 | 缺少的證據或條件 |
 |---|---|
-| GitHub APK 一般安裝 / Play Protect | 原正式APK被攔截；外部分類複核尚未完成，不能用ADB安裝成功代替 |
-| 最新候選版 POCO 完整流程 | USB須重新連上，保留資料更新後補驗新增修正 |
-| 實機語音取消、追加、重試與聲音 | 最新版真人輸入及聽覺確認；模擬器不代替麥克風與喇叭 |
-| 鎖屏喚醒與解鎖 | 需獨立受控循環，排除先前使用者手動解鎖介入 |
+| GitHub APK 一般安裝 / Play Protect | 使用者已明確排除本輪驗收；未修復、不列通過 |
+| 最新候選版 POCO 完整流程 | 已更新並驗證資料保留、MCP任務、檔案分享、真人語音；其餘按項驗收 |
+| 實機語音與通知聲音 | 新版真人語音回填、取消後追加、手動送出及回覆已通過；背景提醒送達、系統響鈴紀錄及真人聽見已通過 |
+| 鎖屏喚醒與解鎖 | 已完成受控循環，系統鎖定狀態獨立確認，期間無實體觸控事件；不代表外網喚醒 |
 | 遠端外網中繼、實體重啟恢復 | 本地回歸不能代替外網服務與實體重啟 |
 | 新模型／網站帳號登入 | 現有帳號流程可保留；新增登入需測試帳號及驗證步驟 |
 | Root、分身與特定系統能力 | 當前非Root／無分身；硬連結建立經實測被系統拒絕，相關案例前提不成立 |
@@ -223,3 +223,51 @@ Play Protect 複核草稿已備妥；已向使用者詢問公開 APK 上傳 Viru
 - 受控鎖屏：主機KEYCODE_SLEEP→MCP確認device_locked=true→mika_wake_device回awake且仍鎖定→mika_unlock_device回unlocked→MCP ready=true。獨立dumpsys trust確認deviceLocked=0；期間getevent未記錄ABS_MT_TRACKING_ID實體觸控，沒有讀出或回傳解鎖憑證，僅使用手機既有授權設定。這是USB轉送MCP測試，不是外網喚醒證據。
 - 新版MCP任務9c897b3e實際Python運算152、寫檔、讀回及share_file成功。主機獨立讀取手機Download內deploy-check.txt，逐位元組等於QA-20261110=152加換行（16 bytes）。
 - 已向使用者請求新版真人語音句「今天更新驗收，一二三四五」，鬆手不送出，尚待實際回填核對。通知音訊目前系統靜音（STREAM_NOTIFICATION Muted=true、zen_mode=0），尚不能把無聲歸因App。
+
+
+### 2026-11-10 17:06 新版真人語音回填核對
+
+- 使用者在渥屋助理完成指定語音後，實機UI套件確認為io.woowtech.agent，輸入框為「今天更新驗收一二三四五」，與指定句內容一致（未自動加入逗號）。既有對話未新增此訊息，文字仍為草稿，沒有自動送出。
+- 隨後主機長按輸入框2秒、向上移動再鬆手；取消後草稿逐字不變，既有對話顯示文字亦不變。這證明本次操作後草稿保留；取消後重新真人收音追加仍待下一次操作。
+- 證據voice-human-result.xml、voice-human-after-cancel.xml、voice-human-verification.json，位於mcp-deploy-20261110私人證據目錄。未將本輪結果外推為通知聲音或外網中繼通過。
+
+### 2026-11-10 17:08 取消後真人追加通過
+
+- 使用者再次說「第二段完成」後，io.woowtech.agent輸入框實際為「今天更新驗收一二三四五第二段完成」。第一段完整保留，第二段正確追加一次；既有對話顯示文字不變，仍未送出。
+- 本候選版已驗證真人語音回填、取消操作後草稿保留、再次收音追加與未自動送出。最新候選版此草稿的傳送／模型回覆尚未執行，不沿用舊版結果宣稱本輪完成。證據voice-human-appended.xml、voice-append-verification.json。
+
+### 2026-11-10 新版真人語音完整流程通過
+
+- 使用者確認手動按傳送後，實機io.woowtech.agent對話顯示已送出的「今天更新驗收一二三四五第二段完成」，助理已回覆確認收到，輸入框清空。證據voice-human-sent.xml及voice-send-verification.json。
+- 此候選版在POCO完成真人收音→文字回填→取消保留草稿→重新收音追加→手動送出→模型回覆的完整流程。此結論限本輪實測情境；通知聲音、外網中繼及其他未測功能仍須分別驗收，不宣稱全功能通過。
+
+### 2026-11-10 背景通知、響鈴紀錄與入口驗收
+
+- 開始時 POCO 靜音模式開啟；透過系統設定暫時關閉，實測通知音量8/15、Muted=false，未更改勿擾或通知分類。
+- 手機UI建立唯一一次性提醒「渥屋通知驗收 N1710」，App退到背景。建立結果通知與到時提醒均送達；提醒建立時間1794302003053（17:13:23.053），系統mLastAudiblyAlertedMs=1794302003729（17:13:23.729），mIntercept=false。這是系統響鈴紀錄，真人是否聽見仍待回覆，不能等同實體喇叭聽覺驗證。
+- 展開通知群組後點擊提醒，實際回到io.woowtech.agent原始對話。定時任務UI確認進行中0／已停用0，沒有殘留測試提醒。
+- 五個通知分類設定前後完全一致；測後已恢復原靜音模式，確認Muted=true、音量索引仍8。
+- 外網連線頁實查尚未配對閘道，位址與配對碼空白；真正外網中繼驗收缺少可信HTTPS閘道。未更改網路／遠端權限。
+- UI階層擷取期間App曾顯示無障礙暫停；結束後dumpsys確認渥屋助理已Bound、Crashed services為空，MCP device state ready=true，未將此當作產品崩潰。
+- 證據位於mcp-deploy-20261110：notification-watch.jsonl、notification-shade.xml、notification-conversation.xml、notification-schedules-after.xml、notification-verification.json、remote-settings.xml。
+
+### 背景通知聲音真人確認
+
+使用者回覆「有聽到」，確認上述POCO測試通知實際有聲音。結合17:13:23提醒送達、系統響鈴紀錄與通知入口驗證，本次候選版背景通知送達、發聲及點擊回到原對話均通過。測試後原靜音設定已恢復；此結論不代表靜音或勿擾模式也應發聲，亦不代表外網中繼等未測項目通過。
+
+### VPN連線驗收前置（2026-11-10）
+
+- POCO已安裝com.tailscale.ipn；開啟後為login.tailscale.com登入頁，沒有tun介面或VPN位址。Mac沒有執行中的Tailscale或已找到的安裝。未選擇使用者帳號、未登入或加入未知網路。已請使用者在手機登入指定tailnet並提供可用測試端。
+- McpAccessTest、McpUsbTest、LocalHostsTest、NetProxyTest定向回歸完成：30項，0失敗。程式允許100.64/10及IPv6私有網段；此為回歸證據，不是VPN真實連線通過。
+- 尚待：同網VPN端點、手機非USB／非LAN直連的MCP握手、權杖拒絕、真實任務、VPN中斷與重連。證據vpn-20261110/status.json及JUnit XML。
+
+### Tailscale VPN實際連線驗收通過（2026-11-10）
+
+- 使用者登入後，POCO Tailscale為Connected，VPN IPv4=100.69.108.26。Mac透過Homebrew安裝Tailscale，建立獨立userspace測試端woow-poco-vpn-qa（100.101.148.77），使用手機既有登入將此測試端加入相同tailnet，未修改ACL、路由或exit node。
+- 實際請求由本機SOCKS5 127.0.0.1:11055經Tailscale至100.69.108.26:8765；ping顯示DERP(hkg)，沒有建立直接peer UDP。已移除ADB tcp:18765轉送；ADB僅作UI操作與獨立檔案核對。
+- 缺少權杖、錯誤權杖均401；正確網路權杖200；USB專用權杖經VPN亦401。MCP initialize及device state正常。權杖未寫入驗收日誌或提交。
+- 經VPN送出任務8bff677c，手機實際Python計算23*19=437、寫入並分享vpn-check.txt；主機從手機Download獨立讀回13 bytes，逐位元組等於VPN-POCO-437加換行。
+- 暫時關閉手機Tailscale，VPN HTTP請求失敗（SOCKS無法連線、HTTP000）；重開後首次請求仍在重連期而失敗，隨後task status與device state恢復200、ready=true，原任務仍done，未重送。VPN介面由tun0重建為tun1，位址不變。
+- 範圍限制：兩端底層仍在同一Wi-Fi，驗證的是VPN位址與overlay路徑；尚未驗證行動網路／不同底層網路切換。不能將此等同自架HTTPS遠端閘道已通過。
+- 證據vpn-20261110：vpn-access-results.json、vpn-initialize.json、usb-token-vpn-rejected.json、vpn-task-status.json、disconnected-http.log、reconnected-state-final.json、vpn-final.json。
+- 測後保留手機Tailscale連線；Mac獨立測試端已down並終止daemon，移除本機測試用MCP權杖副本。tailnet仍保留woow-poco-vpn-qa裝置登記（目前離線），未變更其他裝置。

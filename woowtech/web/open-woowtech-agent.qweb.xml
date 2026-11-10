@@ -1,0 +1,46 @@
+<t name="Open woowtech agent (LINE test)">
+<html lang="zh-Hant"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>打開渥屋助理</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 0; padding: 32px 20px; background: #F8FAFC; color: #0F172A; text-align: center; }
+h1 { font-size: 22px; margin: 24px 0 8px; }
+p { font-size: 16px; line-height: 1.6; color: #334155; }
+.btn { display: block; margin: 24px auto; max-width: 320px; padding: 16px; border-radius: 12px; background: #0E7490; color: #fff; font-size: 18px; font-weight: 700; text-decoration: none; }
+.note { margin: 16px auto; max-width: 360px; padding: 14px; border-radius: 10px; background: #FEF3C7; color: #78350F; font-size: 15px; text-align: left; }
+.small { font-size: 13px; color: #64748B; }
+</style></head>
+<body>
+<h1>正在打開渥屋助理…</h1>
+<p>如果沒有自動打開，請按下面的按鈕。</p>
+<a id="open" class="btn" href="intent://open#Intent;scheme=io.woowtech.agent;package=io.woowtech.agent;S.browser_fallback_url=https%3A%2F%2Faiot.woowtech.io%2Fopen-woowtech-agent%3Fv%3Dfb;end">打開渥屋助理</a>
+<div id="fail" class="note" hidden="hidden">沒有打開？請再按一次上方按鈕。仍無反應時，請確認 App 版本，或從 LINE 右下角選單改用外部瀏覽器。</div>
+<div id="fallback" class="note" hidden="hidden">瀏覽器未能自動開啟 App。請按上方按鈕再試；仍無法開啟時，請確認已安裝支援網頁開啟的候選版，或改用 Chrome。</div>
+<div id="ios" class="note" hidden="hidden">渥屋助理目前只有 Android 版。</div>
+<p class="small"><a href="https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/tag/v0.1.37-woow.4-browser.20261110">下載支援網頁開啟的測試版</a></p>
+<p class="small">這是 woowtech 的測試頁。只開啟 App，不傳送訊息或執行任務。</p>
+<script>
+(function () {
+  var PATH = '/open-woowtech-agent';
+  var INTENT = 'intent://open#Intent;scheme=io.woowtech.agent;package=io.woowtech.agent;S.browser_fallback_url=https%3A%2F%2Faiot.woowtech.io%2Fopen-woowtech-agent%3Fv%3Dfb;end';
+  var v = 'x';
+  var m = location.search.match(/v=([a-z0-9_]+)/);
+  if (m) { v = m[1]; }
+  var ua = navigator.userAgent;
+  var where = ua.indexOf(' Line/') !== -1 ? 'line' : (ua.indexOf('Chrome/') !== -1 ? 'chrome' : 'other');
+  var android = ua.indexOf('Android') !== -1;
+  function ping(ev) { var i = new Image(); i.src = PATH + '?ping=' + ev + '-' + v + '-' + where + '-' + Date.now(); }
+  function show(id) { document.getElementById(id).hidden = false; }
+  ping('load');
+  if (!android) { show('ios'); return; }
+  if (v === 'fb') { document.querySelector('h1').textContent = '請手動開啟渥屋助理'; show('fallback'); return; }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { ping('hidden'); } });
+  document.getElementById('open').addEventListener('click', function () { ping('tap'); });
+  if (v === 'b') { document.querySelector('h1').textContent = '請按下面的按鈕打開渥屋助理'; return; }
+  setTimeout(function () { ping('auto'); location.href = INTENT; }, 500);
+  setTimeout(function () { if (!document.hidden) { ping('stayed'); show('fail'); } }, 3500);
+})();
+</script>
+</body></html>
+</t>

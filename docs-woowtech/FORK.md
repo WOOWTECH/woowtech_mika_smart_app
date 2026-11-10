@@ -202,3 +202,7 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 ## 待發布：側載安裝的無障礙引導
 
 共用 `AccessibilityInstallHelp` 補充 Pixel 右上角選單與 POCO 資訊頁底部的不同入口，接入初次設定及手機操作頁。提供 App 資訊與無障礙設定按鈕；不變更權限，不將返回頁面視為服務已啟用。繁中、簡中、英文皆有說明，品牌名稱沿用現有替換機制。詳見 [實測與操作說明](accessibility-install.md)。
+
+## 瀏覽器開啟入口（2026-11-10）
+
+只在 woowtech flavor 清單與 `BrowserOpenActivity` 加上 `${applicationId}://open` 的 VIEW／DEFAULT／BROWSABLE 入口。Activity 核對 action、scheme、完整 authority、空路徑或 `/`，再以全新明確 Intent 開啟 MainActivity；不傳遞外部 extras、URI、ClipData、授權旗標、query 或 fragment。正式與 dev scheme 分離，上游清單不變。`WoowtechManifestTest` 和 `brand-check.sh apk` 防止入口遺漏。網頁按鈕範本及實測見 [browser-open.md](browser-open.md)。先前「上 Play 就刪掉 flavor 清單」的描述現在應改為僅移除精確鬧鐘權限差異，保留此入口。

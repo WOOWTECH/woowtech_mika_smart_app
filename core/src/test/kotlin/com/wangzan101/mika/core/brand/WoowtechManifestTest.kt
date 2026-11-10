@@ -74,6 +74,38 @@ class WoowtechManifestTest {
         assertFalse("the upstream flavor must not get a manifest of its own", File(app, "upstream/AndroidManifest.xml").exists())
     }
 
+    @Test
+    fun browserEntryIsIsolatedAndUsesTheInstalledPackageScheme() {
+        val root = manifest("woowtech/AndroidManifest.xml")
+        val activities = root.getElementsByTagName("activity")
+        assertEquals(1, activities.length)
+        val entry = activities.item(0) as Element
+        assertEquals(".woowtech.BrowserOpenActivity", entry.getAttributeNS(androidNs, "name"))
+        assertEquals("true", entry.getAttributeNS(androidNs, "exported"))
+        assertEquals("true", entry.getAttributeNS(androidNs, "noHistory"))
+        assertEquals("", entry.getAttributeNS(androidNs, "taskAffinity"))
+        val filter = entry.getElementsByTagName("intent-filter")
+        assertEquals(1, filter.length)
+        val data = entry.getElementsByTagName("data").item(0) as Element
+        assertEquals("${'$'}{applicationId}", data.getAttributeNS(androidNs, "scheme"))
+        assertEquals("open", data.getAttributeNS(androidNs, "host"))
+        val actions = entry.getElementsByTagName("action")
+        assertEquals(1, actions.length)
+        assertEquals("android.intent.action.VIEW", (actions.item(0) as Element).getAttributeNS(androidNs, "name"))
+        val categories = entry.getElementsByTagName("category")
+        assertEquals(setOf("android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"),
+            (0 until categories.length).map { (categories.item(it) as Element).getAttributeNS(androidNs, "name") }.toSet())
+        val mainActivities = manifest("main/AndroidManifest.xml").getElementsByTagName("activity")
+        for (i in 0 until mainActivities.length) {
+            val activity = mainActivities.item(i) as Element
+            assertFalse(activity.getAttributeNS(androidNs, "name").contains("BrowserOpenActivity"))
+            val cats = activity.getElementsByTagName("category")
+            for (j in 0 until cats.length) {
+                assertFalse((cats.item(j) as Element).getAttributeNS(androidNs, "name") == "android.intent.category.BROWSABLE")
+            }
+        }
+    }
+
     private companion object {
         const val USE_EXACT_ALARM = "android.permission.USE_EXACT_ALARM"
         const val SCHEDULE_EXACT_ALARM = "android.permission.SCHEDULE_EXACT_ALARM"
