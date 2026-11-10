@@ -3,6 +3,7 @@ package com.wangzan101.mika.cap.phone.a11y;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.TextView;
@@ -40,7 +41,14 @@ public class WheelPickerTestActivity extends Activity {
         picker.setValue(0);
         picker.setFormatter(v -> String.format(Locale.ROOT, "%02d", v));
         picker.setContentDescription(label);
-        if (block) picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        if (block) {
+            picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            // Blocking focus alone does not reject accessibility SET_TEXT on newer Android.
+            // This fixture must really require scrolling, while the left picker remains editable.
+            for (int i = 0; i < picker.getChildCount(); i++) {
+                if (picker.getChildAt(i) instanceof EditText) picker.getChildAt(i).setEnabled(false);
+            }
+        }
         col.addView(picker);
         row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
     }

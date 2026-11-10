@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>開啟渥屋助理</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1.5rem;color:#0f172a;background:#f8fafc;line-height:1.7}h1{font-size:1.6rem}a.button{display:block;background:#0e7490;color:white;text-decoration:none;text-align:center;border-radius:.8rem;padding:1rem;margin:1.5rem 0}#status{background:#fef3c7;padding:1rem;border-radius:.6rem}small{color:#475569}
+</style>
+</head>
+<body>
+<h1>開啟渥屋助理</h1>
+<p>已安裝支援網頁開啟的 Android 版本後，請點下面的按鈕。</p>
+<a class="button" id="open" href="intent://open#Intent;scheme=io.woowtech.agent;package=io.woowtech.agent;S.browser_fallback_url=https%3A%2F%2Faiot.woowtech.io%2Fopen-woowtech-agent%3Fv%3Dfb;end">開啟渥屋助理</a>
+<p id="status" role="status" hidden></p>
+<p>在 LINE 中沒有反應？請從右上角選單選擇「以其他應用程式開啟」，改用 Chrome，再點一次按鈕。</p>
+<p><small>本頁只開啟 App，不會傳送訊息或執行任務。電腦與 iPhone 無法開啟 Android App。</small></p>
+<script>
+(function () {
+  var button = document.getElementById('open');
+  var status = document.getElementById('status');
+  var timer;
+  function show(text) { status.textContent = text; status.hidden = false; }
+  if (!/Android/i.test(navigator.userAgent)) {
+    button.hidden = true;
+    button.style.display = 'none';
+    show('請在安裝渥屋助理的 Android 手機上開啟此頁。');
+    return;
+  }
+  if (new URLSearchParams(location.search).get('v') === 'fb') {
+    show('瀏覽器未能開啟 App。請確認已安裝支援網頁開啟的版本，或改用 Chrome 後再試。');
+  }
+  button.addEventListener('click', function () {
+    clearTimeout(timer);
+    status.hidden = true;
+    timer = setTimeout(function () {
+      if (!document.hidden) show('若 App 尚未開啟，請確認版本，或從 LINE 選單改用 Chrome。');
+    }, 2500);
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) clearTimeout(timer);
+  });
+})();
+</script>
+</body>
+</html>

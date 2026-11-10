@@ -40,6 +40,7 @@ class ChatAttachmentsTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     /** 假的图:每张都是一块 40×30 的空图,不读手机。 */
     private val images = AttachImages { _, _ -> ImageBitmap(40, 30) }

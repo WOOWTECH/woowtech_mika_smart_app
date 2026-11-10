@@ -293,7 +293,10 @@ class PageScriptTest {
         val r = com.wangzan101.mika.core.cap.web.PageDigest.render(d, unfold = false)
         assertTrue(r.text, r.text.contains("# Rain expected tomorrow"))
         assertTrue(r.text, r.text.contains("<<collapsed"))
-        assertFalse(r.text, r.text.contains("Story four"))
+        // A collapsed block includes a short preview, but not expanded story rows.
+        assertFalse(r.text, r.text.lineSequence().any { it.trim() == "Story four" })
+        val expanded = com.wangzan101.mika.core.cap.web.PageDigest.render(d, unfold = true)
+        assertTrue(expanded.text, expanded.text.lineSequence().any { it.trim() == "Story four" })
         assertTrue(r.links.any { it.second == "https://agency.example.org/report" })
         val (published, updated) = com.wangzan101.mika.core.cap.web.PageDigest.dates(d.signals)
         assertEquals("2026-10-20T08:30:00+08:00", published)

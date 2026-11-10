@@ -259,9 +259,12 @@ class WebTakeoverTest {
         showTask()
         awaitOnMain()
         DeviceSupport.pollUntil(3_000) { WebHandover.session.value?.url }
+        js("document.getElementById('pwform').remove(); document.body.insertAdjacentHTML('afterbegin', '<header><button>Log out</button></header>');")
         click("我自己做完了")
         awaitBackHome()
-        val e = registry.list().single()
+        val e = DeviceSupport.pollUntil(5_000) { registry.list().singleOrNull() }
+        assertNotNull(e)
+        e!!
         assertEquals("appassets.androidplatform.net", e.host)
         assertTrue(e.loggedInByUser)
     }

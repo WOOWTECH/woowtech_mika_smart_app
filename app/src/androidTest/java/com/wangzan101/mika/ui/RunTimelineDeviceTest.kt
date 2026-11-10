@@ -39,10 +39,12 @@ import com.wangzan101.mika.task.TaskEnvironment
 class RunTimelineDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
+    @get:Rule(order = Int.MIN_VALUE + 1) val existingUser = com.wangzan101.mika.ExistingChatUser()
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val model = ScriptedModel()
+    private val model = ScriptedModel().apply { intent = "ACT" }
     private val vm get() = (context.applicationContext as MikaApp).chat
 
     @Before

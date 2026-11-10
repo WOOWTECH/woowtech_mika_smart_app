@@ -28,6 +28,7 @@ import org.junit.runner.RunWith
 class ComputerAccessScreenTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     private val example = ComputerAccessUi(
         McpServerState.Listening(8765), networkEnabled = true, usbEnabled = false, port = 8765,
@@ -93,7 +94,7 @@ class ComputerAccessScreenTest {
         tap("复制安装指引")
         compose.onAllNodesWithText("复制命令")[0].performScrollTo().performClick()
         compose.onNodeWithText("mika doctor").assertDoesNotExist()
-        assertTrue(copied[0].contains("docs/cli.md"))
+        assertTrue(copied[0].contains("docs/agent-quickstart.md"))
         assertEquals(listOf("mika connect"), copied.drop(1))
         networkGuide()
         assertTrue(networkChanges.isEmpty())

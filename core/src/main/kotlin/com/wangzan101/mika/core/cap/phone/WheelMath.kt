@@ -277,6 +277,9 @@ class WheelSteps(private val target: String, private val cap: Int = 80, private 
                 }
             }
             val d = WheelMath.distance(WheelMath.number(current)!!, numeric, modulus).let { if (increasingForward) it else -it }
+            // A modulo-equivalent value is not the requested value (15 != 75).
+            // As in WheelDrags, stop instead of forcing a zero-distance step.
+            if (d == 0) return Step.Stop("not_reached")
             val forward = d > 0
             val turned = prev != null && forward != prev.forward
             if (turned && ++reversals > 3) return Step.Stop("overshoot")

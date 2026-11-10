@@ -134,7 +134,9 @@ object ConfirmationNotifier {
                 context, code + codeOffset,
                 Intent(context, service).setAction(action).setData(Uri.parse(intentData(key, approve))).putExtra(EXTRA_REQUEST, key)
                     .apply { runExtra?.let { (k, v) -> putExtra(k, v) } },
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT,
+                // The data URI already separates requests. Refreshing this same request must
+                // preserve a button the notification shade may still be displaying.
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             // WOOWTECH fork: 按钮和锁屏上的字经 tr() 按 App 语言取(context 是任务服务,getString 可能还是系统语言)
             return Notification.Action.Builder(null, tr(title), pi).apply {

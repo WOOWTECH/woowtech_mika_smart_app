@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class WebEditorInputTest {
+    @get:org.junit.Rule val existingUser = com.wangzan101.mika.ExistingChatUser()
     private val agent = DeviceSupport.newAgent()
     private val screen get() = agent.screen
 

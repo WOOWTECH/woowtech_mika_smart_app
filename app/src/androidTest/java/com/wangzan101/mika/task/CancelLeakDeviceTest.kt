@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(AndroidJUnit4::class)
 class CancelLeakDeviceTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val models = List(ROUNDS) { ScriptedModel() }
+    private val models = List(ROUNDS) { ScriptedModel().apply { intent = "ACT" } }
     private val handed = AtomicInteger()
 
     @Before
@@ -32,7 +32,10 @@ class CancelLeakDeviceTest {
         DeviceSupport.shell()
         DeviceSupport.service()
         sh("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
-        testTasks.modelFactory = { _, _ -> models[handed.getAndIncrement().coerceAtMost(ROUNDS - 1)] }
+        val bySession = java.util.concurrent.ConcurrentHashMap<String, ScriptedModel>()
+        testTasks.modelFactory = { _, session ->
+            bySession.computeIfAbsent(session.id) { models[handed.getAndIncrement().coerceAtMost(ROUNDS - 1)] }
+        }
         testTasks.lightModelFactory = { _, _ -> null }
         testTasks.visionModelFactory = { _, _ -> null }
     }

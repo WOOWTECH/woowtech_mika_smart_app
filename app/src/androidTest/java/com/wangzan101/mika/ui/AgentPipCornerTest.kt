@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AgentPipCornerTest {
     @get:Rule val compose = createComposeRule()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     @Test fun movesUpWhileItNeedsYouAndBackWhenRunning() {
         var pip by mutableStateOf(PipUi(visible = true))

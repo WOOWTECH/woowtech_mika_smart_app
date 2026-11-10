@@ -27,6 +27,7 @@ object AndroidAdb {
 
     // 设备端导出时不带 context;TLS 1.3 里空 context 与不带 context 的结果相同(RFC 8446 §7.5)
     val exporter = KeyingMaterialExporter { socket, label, length ->
+        if (Build.VERSION.SDK_INT < 31) throw SSLException("ADB TLS pairing requires Android 12 or later")
         SSLSockets.exportKeyingMaterial(socket, label, ByteArray(0), length) ?: throw SSLException("keying material export failed")
     }
 

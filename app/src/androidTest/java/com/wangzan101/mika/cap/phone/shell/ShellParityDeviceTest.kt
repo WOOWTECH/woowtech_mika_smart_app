@@ -262,7 +262,7 @@ class ShellParityDeviceTest {
     @Test
     fun startViewRefusesBlockedLink() {
         val s = newScreen()
-        assertEquals(ShellService.START_INVALID_LINK, shell.startView(s.id, null, "tel:10086", null))
+        assertEquals(ShellService.START_INVALID_LINK, shell.startView(s.id, null, "javascript:alert(1)", null))
     }
 
     @Test
@@ -398,7 +398,7 @@ class ShellParityDeviceTest {
         assertTrue(shell.setAudioMode(SETTINGS, "ignore"))
         assertEquals("ignore", ParityAudio.mode(SETTINGS))
         assertTrue(shell.setAudioMode(SETTINGS, audioBefore))
-        assertEquals(audioBefore, ParityAudio.mode(SETTINGS))
+        assertEquals(ParityAudio.effective(audioBefore), ParityAudio.effective(ParityAudio.mode(SETTINGS)))
     }
 
     @Test
@@ -415,7 +415,7 @@ class ShellParityDeviceTest {
         assertTrue(shell.setAudioMuted(SETTINGS, true))
         assertEquals("ignore", ParityAudio.mode(SETTINGS))
         assertTrue(shell.setAudioMuted(SETTINGS, false))
-        assertEquals(baseline, ParityAudio.mode(SETTINGS))
+        assertEquals(ParityAudio.effective(baseline), ParityAudio.effective(ParityAudio.mode(SETTINGS)))
     }
 
     @Test
@@ -424,7 +424,7 @@ class ShellParityDeviceTest {
         assertTrue(shell.setAudioMuted(SETTINGS, true))
         assertTrue(shell.setAudioMuted(SETTINGS, true))
         assertTrue(shell.setAudioMuted(SETTINGS, false))
-        assertEquals(baseline, ParityAudio.mode(SETTINGS))
+        assertEquals(ParityAudio.effective(baseline), ParityAudio.effective(ParityAudio.mode(SETTINGS)))
     }
 
     @Test
@@ -554,6 +554,9 @@ class ParityScreen(private val shell: IMikaShell, width: Int, height: Int, dpi: 
 
 /** 不经外壳,直接用 appops 命令读写 PLAY_AUDIO。 */
 object ParityAudio {
+    // An unset PLAY_AUDIO operation allows audio; Android versions differ in how appops prints it.
+    fun effective(mode: String): String = if (mode == "default") "allow" else mode
+
     fun mode(pkg: String): String =
         Regex("""PLAY_AUDIO:\s*([a-z_]+)""").find(sh("appops get $pkg PLAY_AUDIO"))?.groupValues?.get(1) ?: "default"
 

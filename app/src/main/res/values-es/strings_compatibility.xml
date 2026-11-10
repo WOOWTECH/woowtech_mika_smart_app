@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tool_forget_memory">Eliminar un recuerdo</string>
+    <string name="a11y_install_title">¿No puedes activar la accesibilidad?</string>
+    <string name="a11y_install_open">Abrir ajustes de accesibilidad</string>
+    <string name="a11y_install_app_info">Abrir información de la aplicación</string>
+    <string name="a11y_install_steps">1. Abre los ajustes de accesibilidad y selecciona Mika. Si el sistema lo bloquea, vuelve aquí.\n2. Abre la información de Mika y selecciona Permitir ajustes restringidos. En Pixel, busca en el menú superior derecho; en Xiaomi / POCO, al final de la página. Confirma en el teléfono si se solicita.\n3. Vuelve a accesibilidad y activa Mika. Permitir los ajustes restringidos no activa el servicio por sí solo.</string>
+    <string name="a11y_install_missing">Si falta la opción, selecciona primero Mika en accesibilidad y vuelve a abrir su información. Revisa el final de la página y el menú. Si ya puedes activar la accesibilidad, omite este paso. Los nombres varían según el teléfono. No desinstales la aplicación ni borres sus datos.</string>
+    <string name="voice_unavailable_language">El servicio de reconocimiento del teléfono no admite el idioma actual o su paquete de idioma no está disponible. Revisa el idioma de reconocimiento o selecciona explícitamente un proveedor de transcripción en Voz a texto. El permiso del micrófono por sí solo no soluciona esto.</string>
+</resources>

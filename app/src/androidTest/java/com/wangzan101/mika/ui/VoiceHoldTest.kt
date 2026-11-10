@@ -41,6 +41,7 @@ class VoiceHoldTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
 
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     /** 假会话:事件由测试喂;记下松开、取消的次数。 */
     private class FakeSession : SpeechSession {

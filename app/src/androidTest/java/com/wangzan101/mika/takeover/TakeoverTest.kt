@@ -46,7 +46,7 @@ class TakeoverTest {
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var shell: IMikaShell
-    private val model = ScriptedModel()
+    private val model = ScriptedModel().apply { intent = "ACT" }
     private var settingsTask = -1
     private lateinit var priorAudio: String
 
@@ -151,13 +151,17 @@ class TakeoverTest {
         val result = afterObserve.last { it.role == Role.Tool }.parts.filterIsInstance<Part.ToolResult>().single()
         assertTrue(result.content, "\"currentApp\":\"$SETTINGS\"" in result.content)
 
-        // 回答引用刚读到的一个元素名:它真读到过,字面核对对得上,结局是已核实的完成
+        // 产品任务不另做最终核查；仍保留来自交还后真实读屏的来源。
         val quote = Regex("\"name\":\"([^\"\\\\]{2,40})\"").findAll(result.content).map { it.groupValues[1] }
             .firstOrNull { n -> n.count { it.isLetter() } >= 2 && n.none { it.isDigit() } } ?: error("no element name on screen: ${result.content}")
         val answer = "done,设置里有「$quote」"
         model.answer(answer)
         val end = pollUntil(15_000) { DeviceTaskState.state.value.takeIf { !it.running() } }
-        assertTrue("$end", end is TaskState.Succeeded && end.answer == answer && end.verified)
+        assertTrue("$end", end is TaskState.Succeeded && end.answer == answer)
+        end as TaskState.Succeeded
+        assertEquals(false, end.verified)
+        assertEquals(false, end.reviewed)
+        assertTrue("missing post-handback screen source: $end", end.sources.any { it.place == SETTINGS && it.kind == "read" })
         // 状态先一步变成结束,恢复声音在收尾里做,等 busy 变回 false 再看
         pollUntil(10_000) { DeviceTaskState.busy.value.takeIf { !it } }
         assertEquals(priorAudio, shell.getAudioMode(SETTINGS))
@@ -189,8 +193,11 @@ class TakeoverTest {
     private fun clickableOnMainScreen(): Rect? = DeviceSupport.service().windowsOn(Display.DEFAULT_DISPLAY)
         .mapNotNull { it.root }.firstOrNull { it.packageName?.toString() == SETTINGS }
         ?.let { root ->
+            fun hasNetworkLabel(n: AccessibilityNodeInfo): Boolean =
+                n.text?.toString()?.trim() in DeviceSupport.NETWORK_LABELS ||
+                    (0 until n.childCount).any { n.getChild(it)?.let(::hasNetworkLabel) == true }
             fun find(n: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-                if (n.isClickable && !n.isCheckable && n.isVisibleToUser && !n.text.isNullOrBlank()) return n
+                if (n.isClickable && !n.isCheckable && n.isVisibleToUser && hasNetworkLabel(n)) return n
                 for (i in 0 until n.childCount) n.getChild(i)?.let { c -> find(c)?.let { return it } }
                 return null
             }

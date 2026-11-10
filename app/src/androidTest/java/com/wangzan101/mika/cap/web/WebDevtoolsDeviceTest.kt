@@ -242,7 +242,12 @@ class WebDevtoolsDeviceTest {
 
     @Test
     fun relayWhenForced() {
-        assumeTrue("phone helper is not running", PhoneServices.of(InstrumentationRegistry.getInstrumentation().targetContext).hub.shell.value != null)
+        val helperReady = runBlocking {
+            withTimeoutOrNull(10_000) {
+                PhoneServices.of(ctx).hub.shell.first { it != null }
+            } != null
+        }
+        assumeTrue("phone helper is not running", helperReady)
         devtools.forceRoute = WebDevtools.Route.Relay
         devtools.resetRoute()
         val tab = open()

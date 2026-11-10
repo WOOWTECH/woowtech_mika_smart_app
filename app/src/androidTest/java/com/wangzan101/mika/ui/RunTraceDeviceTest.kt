@@ -30,7 +30,9 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RunTraceDeviceTest {
     @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
+    @get:Rule(order = Int.MIN_VALUE + 1) val existingUser = com.wangzan101.mika.ExistingChatUser()
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = Int.MAX_VALUE) val closeActivity = com.wangzan101.mika.CloseComposeActivity(compose)
 
     @Test fun releaseIgnoresAPreviouslyEnabledRecordingPreference() {
         org.junit.Assume.assumeFalse(com.wangzan101.mika.record.DetailedTraces.supportedBuild)
@@ -79,6 +81,7 @@ class RunTraceDeviceTest {
                 compose.onNodeWithContentDescription("菜单").performClick()
                 compose.onNodeWithText("设置").performClick()
                 compose.onNodeWithText("记录详细 Trace").assertDoesNotExist()
+                compose.onNodeWithText("高级与其他").performScrollTo().performClick()
                 compose.onNodeWithText("开发者选项").performScrollTo().performClick()
                 compose.onNodeWithText("Trace 存储上限").performScrollTo().performClick()
                 compose.onNode(hasSetTextAction()).performTextReplacement("0")
@@ -89,6 +92,8 @@ class RunTraceDeviceTest {
                 assertTrue(com.wangzan101.mika.record.DetailedTraces(app).limitMiB == 37)
                 compose.onNodeWithText("记录详细 Trace").performScrollTo().performClick()
                 assertTrue(app.detailedTraces.enabled)
+                compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+                compose.awaitOne("高级与其他").assertExists()
                 compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
                 compose.awaitOne("设置").assertExists()
                 compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
