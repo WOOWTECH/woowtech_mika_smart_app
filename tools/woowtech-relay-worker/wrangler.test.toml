@@ -1,0 +1,18 @@
+name = "relay-account-local-test"
+main = "test/accounts-harness.ts"
+compatibility_date = "2026-11-10"
+workers_dev = false
+routes = [{ pattern = "assistant-relay.woowtech.io", custom_domain = true }]
+[[rules]]
+type = "Text"
+globs = ["**/*.py", "**/*.txt", "**/*.md"]
+fallthrough = true
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "RelayDurableObject"
+[[durable_objects.bindings]]
+name = "AUTH"
+class_name = "AccountAuth"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayDurableObject", "AccountAuth"]

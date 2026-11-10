@@ -27,6 +27,8 @@ English · [简体中文](docs/readme/README.zh-CN.md) · [繁體中文](docs/re
 
 ## Get things done with one sentence
 
+WOOWTECH fork: [渥屋助理中繼網站：架構、部署、資安與 App 整合](docs-woowtech/assistant-relay.md) · [Cloudflare Worker source](tools/woowtech-relay-worker/)
+
 <table>
 <tr>
 <td align="center" width="33%"><img src="docs/media/wechat-group.gif" width="230" alt="Reads through a WeChat group and summarizes today's chat" /><br/><b>"What did the group talk about today?"</b><br/><sub>Scrolls through the chat in the background, then sums it up</sub></td>
