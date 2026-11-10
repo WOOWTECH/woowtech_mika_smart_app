@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 import zipfile
-from publish import successful_run, unpack_verified, version_from_sources, version_key, publish, Redirect
+from publish import successful_run, unpack_verified, version_from_sources, version_key, publish, Redirect, find_release
 import urllib.request
 
 class ReleaseTest(unittest.TestCase):
@@ -67,7 +67,7 @@ class ReleaseTest(unittest.TestCase):
     def gh(self):
         gh=Mock()
         gh.source.side_effect=['versionCode = 38\nversionName = "0.1.37"','val woowtechRevision = 5']
-        gh.request.return_value={'object':{'sha':'abc'}}
+        gh.request.side_effect=lambda path: [] if path.startswith('/releases?') else {'object':{'sha':'abc'}}
         return gh
 
     def test_published_version_is_idempotent(self):
@@ -81,18 +81,18 @@ class ReleaseTest(unittest.TestCase):
 
     def test_missing_ci_does_not_publish(self):
         gh=self.gh();gh.optional.side_effect=[None,{'tag_name':'v0.1.37-woow.4'}]
-        gh.request.side_effect=[{'object':{'sha':'abc'}},{'workflow_runs':[]}]
+        gh.request.side_effect=[{'object':{'sha':'abc'}},[],{'workflow_runs':[]}]
         publish(gh,Path('/unused'))
-        self.assertEqual(2,gh.request.call_count)
+        self.assertEqual(3,gh.request.call_count)
 
     def test_check_mode_never_downloads_or_publishes(self):
         gh=self.gh();gh.optional.side_effect=[None,{'tag_name':'v0.1.37-woow.4'}]
-        gh.request.side_effect=[{'object':{'sha':'abc'}},{'workflow_runs':[self.run_record()]},{'workflow_runs':[self.run_record()]}]
+        gh.request.side_effect=[{'object':{'sha':'abc'}},[],{'workflow_runs':[self.run_record()]},{'workflow_runs':[self.run_record()]}]
         publish(gh,Path('/unused'),check=True)
-        self.assertEqual(3,gh.request.call_count)
+        self.assertEqual(4,gh.request.call_count)
 
 class PublicationTest(unittest.TestCase):
-    def exercise(self, fail_upload=False, advanced=False):
+    def exercise(self, fail_upload=False, advanced=False, existing_draft=False, starter=False):
         gh = Mock()
         sha = 'abc'
         events = []
@@ -100,6 +100,7 @@ class PublicationTest(unittest.TestCase):
                     status='completed', conclusion='success', id=10)
         gh.source.side_effect = ['versionCode = 38\nversionName = "0.1.37"', 'val woowtechRevision = 5', 'notes']
         gh.optional.side_effect = [None, {'tag_name': 'v0.1.37-woow.4'}]
+        draft = dict(id=11, tag_name='v0.1.37-woow.5', draft=True, target_commitish=sha, assets_url='/assets', upload_url='https://uploads.github.com/assets{?name}')
         heads = 0
         def request(path, body=None, method=None, **kw):
             nonlocal heads
@@ -107,11 +108,13 @@ class PublicationTest(unittest.TestCase):
             if path == '/git/ref/heads/main':
                 heads += 1
                 return {'object': {'sha': 'new' if advanced and heads > 1 else sha}}
+            if path.startswith('/releases?'): return [draft] if existing_draft else []
             if path.startswith('/actions/workflows/'):
                 return {'workflow_runs': [runs]}
             if path == '/releases':
-                return dict(id=11, target_commitish=sha, assets_url='/assets', upload_url='https://uploads.github.com/assets{?name}')
-            if path == '/assets': return []
+                return draft
+            if path == '/assets': return [dict(name='SHA256SUMS.txt', state='starter', id=99)] if starter else []
+            if path == '/releases/assets/99' and method == 'DELETE': return None
             if path.startswith('https://uploads.github.com/'):
                 if fail_upload: raise ValueError('simulated upload failure')
                 return dict(size=len(body), digest='sha256:' + hashlib.sha256(body).hexdigest())
@@ -131,6 +134,23 @@ class PublicationTest(unittest.TestCase):
                 with self.assertRaises(ValueError): publish(gh, Path(tmp))
             else: publish(gh, Path(tmp))
         return events
+
+    def test_draft_tag_404_resumes_without_creating_duplicate_release(self):
+        events=self.exercise(existing_draft=True)
+        self.assertNotIn(('/releases',None),events)
+        self.assertIn(('/releases/11','PATCH'),events)
+
+    def test_orphaned_starter_asset_can_be_retried(self):
+        events=self.exercise(existing_draft=True,starter=True)
+        self.assertIn(('/releases/assets/99','DELETE'),events)
+        self.assertIn(('/releases/11','PATCH'),events)
+
+    def test_paginated_draft_lookup(self):
+        gh=Mock();gh.optional.return_value=None
+        draft={'tag_name':'v0.1.37-woow.5','draft':True}
+        gh.request.side_effect=[[{'tag_name':'other'}]*100,[draft]]
+        self.assertEqual(draft,find_release(gh,draft['tag_name']))
+        self.assertEqual('/releases?per_page=100&page=2',gh.request.call_args.args[0])
 
     def test_complete_assets_before_publication(self):
         events=self.exercise()

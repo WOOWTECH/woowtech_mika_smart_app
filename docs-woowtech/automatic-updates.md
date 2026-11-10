@@ -22,3 +22,5 @@ App 使用本儲存庫 `/releases/latest`。候選 prerelease、GitHub Actions a
 停止：`launchctl bootout gui/$(id -u)/io.woowtech.mika-release`。
 
 若新版本停留草稿，先看 worker 日誌與對應 commit 的 CI；若草稿的來源與 main 不同，人工確認後移除未公開草稿／標籤再重試，或改用新的版本號。不能覆寫已公開 APK。
+
+草稿恢復：GitHub 的依 tag 查詢對未公開草稿會回傳404，worker 另查分頁發佈清單以找回同一草稿；失敗上傳遺留的 `starter` 附件會先清理再重傳。已完整上傳但摘要不同的附件仍停止發布，不能靜默替換。
