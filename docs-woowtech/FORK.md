@@ -206,3 +206,7 @@ Apporo 實測後的共用介面補強（apporo.3；裝置結果見 `docs-apporo/
 ## 瀏覽器開啟入口（2026-11-10）
 
 只在 woowtech flavor 清單與 `BrowserOpenActivity` 加上 `${applicationId}://open` 的 VIEW／DEFAULT／BROWSABLE 入口。Activity 核對 action、scheme、完整 authority、空路徑或 `/`，再以全新明確 Intent 開啟 MainActivity；不傳遞外部 extras、URI、ClipData、授權旗標、query 或 fragment。正式與 dev scheme 分離，上游清單不變。`WoowtechManifestTest` 和 `brand-check.sh apk` 防止入口遺漏。網頁按鈕範本及實測見 [browser-open.md](browser-open.md)。先前「上 Play 就刪掉 flavor 清單」的描述現在應改為僅移除精確鬧鐘權限差異，保留此入口。
+
+## 自動更新發布（woow.5）
+
+第五版起，新版本進 main 後由 `woowtech.yml` 自動準備原始碼，經同一 commit 的 main CI 驗證後，由本機發佈 worker 簽章、驗證附件並公開 latest。正式金鑰仍只留發佈機；原手動流程保留供復原。版本遞增、發佈機運作條件及 App 提示語意詳見 [automatic-updates.md](automatic-updates.md)。此修改不新增背景即時推播服務。

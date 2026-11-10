@@ -66,6 +66,21 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun woowFourthCandidateReceivesFifthStableAndInstalledFifthIsCurrent() = runTest {
+        github = MockResponse().setBody("""{"tag_name":"v0.1.37-woow.5","assets":[{"name":"woowtech-agent-v0.1.37-woow.5.apk","browser_download_url":"https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/download/v0.1.37-woow.5/woowtech-agent-v0.1.37-woow.5.apk"}]}""")
+        val old = checker("0.1.37-woow.4")
+        old.check(manual = true)
+        assertEquals("0.1.37-woow.5", old.state.value.update?.version)
+        assertNotNull(old.state.value.update?.apkUrl)
+        val installed = checker("0.1.37-woow.5")
+        installed.load()
+        assertFalse(installed.state.value.hasUpdate)
+        installed.check(manual = true)
+        assertEquals(CheckStatus.Done, installed.state.value.status)
+        assertFalse(installed.state.value.hasUpdate)
+    }
+
+    @Test
     fun sameVersionIsUpToDate() = runTest {
         github = release("v0.1.0")
         val c = checker()
