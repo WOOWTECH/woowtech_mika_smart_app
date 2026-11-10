@@ -61,8 +61,8 @@ def select_apk(directory, package):
     if len(outputs) != 1:
         raise RuntimeError(f'Expected one unsplit/universal APK in {directory}')
     entry = outputs[0]
-    if package == PACKAGE and entry.get('versionCode') != 3804:
-        raise RuntimeError('Expected Apporo .4 versionCode 3804')
+    if package == PACKAGE and entry.get('versionCode') != 3805:
+        raise RuntimeError('Expected Apporo .5 versionCode 3805')
     apk = (directory / entry['outputFile']).resolve()
     if apk.parent != directory.resolve() or apk.suffix != '.apk' or not apk.is_file():
         raise RuntimeError('Invalid APK output path')
@@ -103,7 +103,7 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     receipt = dict(status='FAIL', scope=SCOPE, source_sha=os.environ.get('GITHUB_SHA'),
-        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE, version_code=3804,
+        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE, version_code=3805,
         test_class=TEST_CLASS, expected_tests=5, stages=[], cleanup=[])
     process = emulator_log = adb = avd_home = None
     instrument_started = False

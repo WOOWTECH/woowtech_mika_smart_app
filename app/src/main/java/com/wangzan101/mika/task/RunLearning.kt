@@ -186,10 +186,17 @@ class RunLearning(
     }
 
     companion object {
-        /** 先发结果通知,再在后台学:用户先看到结果,学东西慢一点没关系。 */
-        suspend fun launchAfter(scope: CoroutineScope, notify: suspend () -> Unit, learn: suspend () -> Unit): Job {
+        /** Saved changes finalize independently of delivery; judging/learning wait for delivery and finalization. */
+        suspend fun launchAfter(
+            scope: CoroutineScope,
+            notify: suspend () -> Unit,
+            finalizeSaved: (suspend () -> Unit)? = null,
+            learn: suspend () -> Unit,
+        ): Job {
+            // The application scope survives notification failure or cancellation of the service job.
+            val finalized = finalizeSaved?.let { finish -> scope.launch { finish() } }
             notify()
-            return scope.launch { learn() }
+            return scope.launch { finalized?.join(); learn() }
         }
     }
 }

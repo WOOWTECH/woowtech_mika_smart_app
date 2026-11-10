@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tool_forget_memory">Hapus satu ingatan</string>
-    <string name="a11y_install_title">Tidak dapat mengaktifkan aksesibilitas?</string>
-    <string name="a11y_install_open">Buka setelan aksesibilitas</string>
-    <string name="a11y_install_app_info">Buka info aplikasi</string>
-    <string name="a11y_install_steps">1. Buka setelan aksesibilitas dan pilih Mika. Jika sistem memblokirnya, kembali ke sini.\n2. Buka info aplikasi Mika lalu pilih Izinkan setelan terbatas. Di Pixel, periksa menu kanan atas; di Xiaomi / POCO, gulir ke bagian bawah halaman. Konfirmasikan di ponsel jika diminta.\n3. Kembali ke aksesibilitas dan aktifkan Mika. Mengizinkan setelan terbatas saja tidak mengaktifkan layanan.</string>
-    <string name="a11y_install_missing">Jika opsi tidak ada, coba pilih Mika di aksesibilitas lalu buka kembali info aplikasi. Periksa bagian bawah halaman dan menu. Jika aksesibilitas sudah dapat diaktifkan, lewati langkah ini. Nama menu berbeda menurut ponsel. Jangan hapus aplikasi atau datanya.</string>
-    <string name="voice_unavailable_language">Layanan pengenalan suara ponsel tidak mendukung bahasa saat ini atau paket bahasanya tidak tersedia. Periksa bahasa pengenalan suara atau pilih penyedia transkripsi secara eksplisit di Suara ke teks. Izin mikrofon saja tidak dapat memperbaikinya.</string>
 </resources>

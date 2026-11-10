@@ -435,6 +435,9 @@ class TaskService : Service() {
                             else TriggerRuntime.actionFailed(app, key, describe(end).second)
                         }.onFailure { Log.w(TAG, "could not record trigger result", it) }
                     }
+                }, finalizeSaved = {
+                    runCatching { run.finalizeRemoteMemory(store) }
+                        .onFailure { Log.w(TAG, "saved memory finalization failed", it) }
                 }) {
                     // 交出之后:回答按用户的要求判结局(记进运行记录和这一轮对话),只从办成的学
                     val judged = runCatching { run.settleOutcome(end, store) }.onFailure { Log.w(TAG, "outcome judging failed", it) }.getOrNull()
