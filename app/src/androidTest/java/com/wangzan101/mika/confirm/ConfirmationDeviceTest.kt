@@ -1,7 +1,7 @@
 package com.wangzan101.mika.confirm
 
 import org.junit.Rule
-import com.wangzan101.mika.ChineseUi
+import com.wangzan101.mika.BrandTestUi
 import com.wangzan101.mika.DeviceTaskState
 import android.app.Notification
 import android.app.NotificationManager
@@ -37,9 +37,10 @@ import com.wangzan101.mika.task.TaskEnvironment
  */
 @RunWith(AndroidJUnit4::class)
 class ConfirmationDeviceTest {
-    @get:Rule(order = Int.MIN_VALUE) val chinese = ChineseUi()
+    @get:Rule(order = Int.MIN_VALUE) val language = BrandTestUi()
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private fun copy(zh: String, en: String) = if (context.packageName == "com.apporo.assistant") en else zh
     private lateinit var shell: IMikaShell
     // 界面发起的任务在第一个工具调用前另问一次意图(没配轻量模型时问的就是这个模型):固定答 ACT,不占脚本
     private val model = ScriptedModel().apply { intent = "ACT" }
@@ -95,10 +96,10 @@ class ConfirmationDeviceTest {
         startAndRequest()
         val n = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
         // Amount is shown first, but approval requires opening the full card.
-        assertEquals("要你同意:下单 ¥25", n.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals(copy("要你同意:下单 ¥25", "Needs your OK: Place order ¥25"), n.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         val text = n.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
-        assertTrue(text, text.startsWith("金额:¥25 · 在 ") && "对象:测试项" in text && "内容:买测试项 第二行" in text)
-        assertEquals(listOf("查看", "不同意"), n.actions.map { it.title.toString() })
+        assertTrue(text, text.startsWith(copy("金额:¥25 · 在 ", "Amount: ¥25 · In ")) && copy("对象:测试项", "To: 测试项") in text && copy("内容:买测试项 第二行", "Content: 买测试项 第二行") in text)
+        assertEquals(listOf(copy("查看", "View"), copy("不同意", "Decline")), n.actions.map { it.title.toString() })
         // 和接管同一个频道。建频道时是高优先级;用户或系统之后可能调低(App 改不回来),这里只要求不低于默认,并记下实际级别
         assertEquals(TaskService.CHANNEL_ATTENTION, n.channelId)
         val importance = context.getSystemService(NotificationManager::class.java).getNotificationChannel(TaskService.CHANNEL_ATTENTION).importance
@@ -110,10 +111,10 @@ class ConfirmationDeviceTest {
         val publicText = n.publicVersion.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
         assertTrue(publicText, "测试项" !in publicText && "第二行" !in publicText)
         // WOOWTECH fork: 锁屏的公开版本标题照旧只有动作,不带金额
-        assertEquals("要你同意:下单", n.publicVersion.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals(copy("要你同意:下单", "Needs your OK: Place order"), n.publicVersion.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         // 系统通知列表里也看得到这两个按钮
         val dump = sh("dumpsys notification --noredact")
-        assertTrue("buttons not in dumpsys notification", "查看" in dump && "不同意" in dump)
+        assertTrue("buttons not in dumpsys notification", copy("查看", "View") in dump && copy("不同意", "Decline") in dump)
 
         // 点在旧通知上的回答(申报对不上)不算数
         context.startService(Intent(context, TaskService::class.java).setAction(TaskService.ACTION_APPROVE)
@@ -135,7 +136,7 @@ class ConfirmationDeviceTest {
         startAndRequest()
         val n = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
         // View opens the task without granting approval.
-        n.actions.first { it.title.toString() == "查看" }.actionIntent.send()
+        n.actions.first { it.title.toString() == copy("查看", "View") }.actionIntent.send()
         Thread.sleep(1_000)
         val waiting = DeviceTaskState.state.value as? TaskState.WaitingConfirmation ?: error("view granted approval")
         TaskService.approve(context, ConfirmationNotifier.requestKey(waiting))
@@ -157,8 +158,8 @@ class ConfirmationDeviceTest {
             TaskService.ACTION_DECLINE, notification.contentIntent,
             codeOffset = 500_000,
         )
-        val old = rebuild().actions.first { it.title.toString() == "不同意" }.actionIntent
-        val current = rebuild().actions.first { it.title.toString() == "不同意" }.actionIntent
+        val old = rebuild().actions.first { it.title.toString() == copy("不同意", "Decline") }.actionIntent
+        val current = rebuild().actions.first { it.title.toString() == copy("不同意", "Decline") }.actionIntent
         assertEquals("refreshing one request must retain its live button", old, current)
         old.send()
         assertTrue(lastToolResult(model.awaitCall()).contains("confirmation_declined"))
@@ -187,14 +188,14 @@ class ConfirmationDeviceTest {
     fun firstNotificationCannotDeclineSecondRequest() {
         startAndRequest()
         val first = pollUntil(5_000) { attention()?.takeIf { it.actions?.size == 2 } } ?: error("no confirmation notification")
-        val firstDecline = first.actions.first { it.title.toString() == "不同意" }.actionIntent
+        val firstDecline = first.actions.first { it.title.toString() == copy("不同意", "Decline") }.actionIntent
         TaskService.decline(context, ConfirmationNotifier.requestKey(DeviceTaskState.state.value as TaskState.WaitingConfirmation))
         assertTrue(lastToolResult(model.awaitCall()).contains("confirmation_declined"))
         // 换一类动作再申报一次(同类同 App 被拒过就不会再问)
         model.feed("request_confirmation", """{"action":"submit","target":"测试项","content":"提交测试项","amount":"¥25","app":"$SETTINGS"}""")
         awaitState { it is TaskState.WaitingConfirmation && it.request.action.name == "submit" }
         // WOOWTECH fork: 标题带金额
-        pollUntil(5_000) { attention()?.takeIf { it.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == "要你同意:提交 ¥25" } }
+        pollUntil(5_000) { attention()?.takeIf { it.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == copy("要你同意:提交 ¥25", "Needs your OK: Submit ¥25") } }
         runCatching { firstDecline.send() } // 旧按钮可能已被系统作废,作废也算通过
         Thread.sleep(1_500)
         assertTrue(DeviceTaskState.state.value.toString(), DeviceTaskState.state.value is TaskState.WaitingConfirmation)

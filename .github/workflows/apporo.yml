@@ -32,6 +32,7 @@ jobs:
       - name: Source and CLI contracts
         run: |
           python3 apporo/tools/check.py
+          node --test apporo/tools/test_browser_page.cjs
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s apporo/tools -p 'test_startup_smoke.py'
           python3 -m unittest discover -s tools/mika/tests

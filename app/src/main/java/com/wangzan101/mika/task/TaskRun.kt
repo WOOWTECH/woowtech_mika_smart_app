@@ -1193,11 +1193,22 @@ class TaskRun(
         return judged
     }
 
+    /** Remote origins only publish changes their tools already made; they never enter automatic learning. */
+    internal suspend fun finalizeRemoteMemory(conversations: ConversationStore) {
+        if (provenance.origin == RunOrigin.Ui) return
+        val saved = kit?.dispatcher?.savedChanges ?: return
+        SavedMemoryFinalizer.finish(conversationId, _runId.value, saved,
+            strip = { ids -> withContext(Dispatchers.IO) { memoryRuntime.stripMemory(ids) } },
+            publish = { notes -> publishNotes(notes, conversations) },
+        )
+    }
+
     /**
      * 结果通知发出之后调用:记下用到的个人技能的结果、提取记忆、起草技能,提示挂到这一轮的结果卡片上并存进对话。
      * 在进程级的作用域里跑,服务退出也不中断。
      */
     suspend fun learnAfter(end: TaskState, outcome: RunOutcome?, conversations: ConversationStore) {
+        if (provenance.origin != RunOrigin.Ui) return
         val k = kit ?: return
         val runId = _runId.value
         val learning = RunLearning(
@@ -1220,11 +1231,15 @@ class TaskRun(
             knowledge = k.knowledge,
             outcome = outcome ?: RunOutcome.Unknown,
         ))
-        if (runId == null || notes.memoryNotes.isEmpty() && notes.usedMemory.isEmpty() && notes.skillNotes.isEmpty()) return
+        publishNotes(notes, conversations)
+    }
+
+    private suspend fun publishNotes(notes: com.wangzan101.mika.memory.RunNotes, conversations: ConversationStore) {
+        if (notes.runId.isEmpty() || notes.memoryNotes.isEmpty() && notes.usedMemory.isEmpty() && notes.skillNotes.isEmpty()) return
         memoryRuntime.publish(notes)
         withContext(Dispatchers.IO) {
             runCatching {
-                conversations.updateTurn(conversationId, runId) { it.copy(memoryNotes = notes.memoryNotes, usedMemory = notes.usedMemory, skillNotes = notes.skillNotes) }
+                conversations.updateTurn(notes.conversationId, notes.runId) { it.copy(memoryNotes = notes.memoryNotes, usedMemory = notes.usedMemory, skillNotes = notes.skillNotes) }
             }.onFailure { Log.w(TAG, "could not save memory notes", it) }
         }
     }

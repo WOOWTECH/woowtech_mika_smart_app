@@ -20,7 +20,7 @@
     <string name="voice_converting">Преобразование…</string>
     <string name="voice_no_match">Не расслышала. Удерживайте и повторите</string>
     <string name="voice_busy">Распознавание речи занято. Попробуйте через минуту</string>
-    <string name="voice_network">Нет сети, превратить в текст не удалось</string>
+    <string name="voice_network">Проверьте Wi-Fi или мобильный интернет и повторите голосовой ввод.</string>
     <string name="voice_mic_unavailable">Микрофон недоступен. Возможно, его использует другое приложение</string>
     <string name="voice_hold_to_talk">Удерживайте, чтобы говорить</string>
     <string name="voice_mic_blocked_title">Микрофон по-прежнему недоступен</string>

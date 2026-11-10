@@ -20,7 +20,7 @@
     <string name="voice_converting">جارٍ التحويل…</string>
     <string name="voice_no_match">لم أتمكن من فهم كلامك. اضغط مطولًا وقل ذلك مجددًا</string>
     <string name="voice_busy">التعرّف على الكلام مشغول. حاول مجددًا بعد قليل</string>
-    <string name="voice_network">لا يوجد اتصال بالشبكة، وتعذّر تحويل الكلام إلى نص</string>
+    <string name="voice_network">تحقّق من Wi-Fi أو بيانات الهاتف، ثم حاول الإدخال الصوتي مرة أخرى.</string>
     <string name="voice_mic_unavailable">الميكروفون غير متاح. قد يكون تطبيق آخر يستخدمه</string>
     <string name="voice_hold_to_talk">اضغط مطولًا للتحدث</string>
     <string name="voice_mic_blocked_title">ما زال الميكروفون غير متاح</string>

@@ -134,6 +134,9 @@ internal sealed interface VoiceSheet {
 
 /** 按住说话时界面上要的文字;不碰界面,单测直接测。 */
 internal object VoiceCopy {
+    /** Network guidance includes an action; leave time to read it in either voice control. */
+    const val NETWORK_HINT_MS = 6_000L
+
     /** 卡片顶上的小标签:用的是哪个转文字。 */
     fun engine(spec: SpeechEngineSpec): String = when (spec) {
         is SpeechEngineSpec.System -> tr(R.string.voice_engine_phone)
@@ -311,7 +314,11 @@ internal fun rememberVoiceHold(voice: VoiceSource?, onText: (String) -> Unit): V
     }
     LaunchedEffect(vh.toast) {
         val t = vh.toast ?: return@LaunchedEffect
-        delay(if (t == VoiceCopy.NO_MATCH) 2_000 else 3_500)
+        delay(when (t) {
+            VoiceCopy.NO_MATCH -> 2_000L
+            VoiceCopy.failure(SpeechFailure.Network) -> VoiceCopy.NETWORK_HINT_MS
+            else -> 3_500L
+        })
         vh.toast = null
     }
     // 离开页面、转屏、App 到后台:丢掉正在说的这一段

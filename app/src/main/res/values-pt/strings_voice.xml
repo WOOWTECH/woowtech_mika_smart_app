@@ -19,7 +19,7 @@
     <string name="voice_converting">Convertendo…</string>
     <string name="voice_no_match">Não entendi. Segure e fale de novo</string>
     <string name="voice_busy">O reconhecimento de fala está ocupado. Tente de novo em instantes</string>
-    <string name="voice_network">Sem rede, não foi possível transformar em texto</string>
+    <string name="voice_network">Verifique o Wi-Fi ou os dados móveis e tente usar a entrada de voz novamente.</string>
     <string name="voice_mic_unavailable">O microfone não está disponível. Outro app pode estar usando</string>
     <string name="voice_hold_to_talk">Segure para falar</string>
     <string name="voice_mic_blocked_title">O microfone ainda não está disponível</string>

@@ -1076,7 +1076,10 @@ class CapsuleController(
                     null -> showNote(VoiceCopy.NO_MATCH, CapsuleKind.Failed, opensMika = false, NOTE_SHORT_MS)
                     SpeechFailure.NoPermission -> showNote(tr(R.string.capsule_voice_need_mic), CapsuleKind.Failed, opensMika = true, NOTE_LONG_MS)
                     is SpeechFailure.Unavailable -> showNote(tr(R.string.capsule_voice_not_ready), CapsuleKind.Failed, opensMika = true, NOTE_LONG_MS)
-                    else -> showNote(VoiceCopy.failure(why), CapsuleKind.Failed, opensMika = false, NOTE_LONG_MS)
+                    else -> showNote(
+                        VoiceCopy.failure(why), CapsuleKind.Failed, opensMika = false,
+                        if (why == SpeechFailure.Network) VoiceCopy.NETWORK_HINT_MS else NOTE_LONG_MS,
+                    )
                 }
             }
             else -> idleJob?.cancel()

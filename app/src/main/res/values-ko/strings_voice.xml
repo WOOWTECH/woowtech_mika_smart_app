@@ -19,7 +19,7 @@
     <string name="voice_converting">변환 중…</string>
     <string name="voice_no_match">잘 듣지 못했어요. 길게 누르고 다시 말해 주세요</string>
     <string name="voice_busy">음성 인식이 바빠요. 잠시 후 다시 시도하세요</string>
-    <string name="voice_network">네트워크에 연결되지 않아 텍스트로 바꾸지 못했어요</string>
+    <string name="voice_network">Wi-Fi 또는 모바일 데이터를 확인한 후 음성 입력을 다시 시도하세요.</string>
     <string name="voice_mic_unavailable">마이크를 사용할 수 없어요. 다른 앱이 사용 중일 수 있어요</string>
     <string name="voice_hold_to_talk">길게 눌러 말하기</string>
     <string name="voice_mic_blocked_title">마이크를 아직 사용할 수 없어요</string>

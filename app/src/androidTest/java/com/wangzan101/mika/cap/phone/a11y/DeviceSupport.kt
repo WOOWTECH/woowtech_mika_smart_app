@@ -27,7 +27,7 @@ object DeviceSupport {
             (s.elements.any { it.name == "Network & internet" } &&
                 s.elements.any { it.name == "Internet" } && s.elements.any { it.name == "VPN" }))
 
-    const val TEST_PACKAGE = "com.wangzan101.mika.test"
+    val TEST_PACKAGE: String get() = InstrumentationRegistry.getInstrumentation().context.packageName
     private var connection: ShellBinding? = null
     private val phone get() = PhoneServices.of(InstrumentationRegistry.getInstrumentation().targetContext)
 

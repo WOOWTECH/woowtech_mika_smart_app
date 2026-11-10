@@ -20,7 +20,7 @@
     <string name="voice_converting">Converting…</string>
     <string name="voice_no_match">Didn’t catch that. Hold and say it again</string>
     <string name="voice_busy">Speech recognition is busy. Try again in a moment</string>
-    <string name="voice_network">No network, couldn’t turn it into text</string>
+    <string name="voice_network">Check Wi-Fi or mobile data, then try speaking again.</string>
     <string name="voice_mic_unavailable">The microphone isn’t available. Another app may be using it</string>
     <string name="voice_hold_to_talk">Hold to talk</string>
     <string name="voice_mic_blocked_title">The microphone still isn’t available</string>
