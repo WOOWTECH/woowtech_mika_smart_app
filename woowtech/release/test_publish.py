@@ -3,7 +3,7 @@ import io
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import zipfile
 from publish import successful_run, unpack_verified, version_from_sources, version_key, publish, Redirect
 import urllib.request
@@ -90,5 +90,58 @@ class ReleaseTest(unittest.TestCase):
         gh.request.side_effect=[{'object':{'sha':'abc'}},{'workflow_runs':[self.run_record()]},{'workflow_runs':[self.run_record()]}]
         publish(gh,Path('/unused'),check=True)
         self.assertEqual(3,gh.request.call_count)
+
+class PublicationTest(unittest.TestCase):
+    def exercise(self, fail_upload=False, advanced=False):
+        gh = Mock()
+        sha = 'abc'
+        events = []
+        runs = dict(head_sha=sha, head_branch='main', event='push', run_number=1,
+                    status='completed', conclusion='success', id=10)
+        gh.source.side_effect = ['versionCode = 38\nversionName = "0.1.37"', 'val woowtechRevision = 5', 'notes']
+        gh.optional.side_effect = [None, {'tag_name': 'v0.1.37-woow.4'}]
+        heads = 0
+        def request(path, body=None, method=None, **kw):
+            nonlocal heads
+            events.append((path, method))
+            if path == '/git/ref/heads/main':
+                heads += 1
+                return {'object': {'sha': 'new' if advanced and heads > 1 else sha}}
+            if path.startswith('/actions/workflows/'):
+                return {'workflow_runs': [runs]}
+            if path == '/releases':
+                return dict(id=11, target_commitish=sha, assets_url='/assets', upload_url='https://uploads.github.com/assets{?name}')
+            if path == '/assets': return []
+            if path.startswith('https://uploads.github.com/'):
+                if fail_upload: raise ValueError('simulated upload failure')
+                return dict(size=len(body), digest='sha256:' + hashlib.sha256(body).hexdigest())
+            if path == '/releases/11': return {}
+            if path == '/releases/latest': return dict(tag_name='v0.1.37-woow.5', html_url='https://github.com/release')
+            raise AssertionError(path)
+        gh.request.side_effect = request
+        def fake_artifact(gh, run, name, dest):
+            dest.mkdir()
+            if name.startswith('gpl'):
+                (dest/'mika-0.1.37-woow.5-gpl-sources.tar.gz').write_bytes(b'x'*1_000_001)
+        def fake_sign(source, out, version, code):
+            for suffix in ('-arm64',''):
+                (out/f'woowtech-agent-v{version}{suffix}.apk').write_bytes(b'signed')
+        with tempfile.TemporaryDirectory() as tmp, patch('publish.artifact', side_effect=fake_artifact), patch('publish.sign_apks', side_effect=fake_sign):
+            if fail_upload:
+                with self.assertRaises(ValueError): publish(gh, Path(tmp))
+            else: publish(gh, Path(tmp))
+        return events
+
+    def test_complete_assets_before_publication(self):
+        events=self.exercise()
+        upload_indices=[i for i,(p,m) in enumerate(events) if p.startswith('https://uploads.github.com/')]
+        self.assertEqual(4,len(upload_indices))
+        self.assertGreater(events.index(('/releases/11','PATCH')),max(upload_indices))
+
+    def test_upload_failure_stays_draft(self):
+        self.assertNotIn(('/releases/11','PATCH'),self.exercise(fail_upload=True))
+
+    def test_superseded_main_is_not_published(self):
+        self.assertNotIn(('/releases',None),self.exercise(advanced=True))
 
 if __name__=='__main__': unittest.main()
