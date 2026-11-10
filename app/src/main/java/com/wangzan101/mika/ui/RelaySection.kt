@@ -105,9 +105,11 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
             }
             InputRow(stringResource(R.string.relay_gateway), gateway, { if (!busy) gateway = it.take(2048) },
                 // WOOWTECH fork: 示例地址放进字符串资源,品牌版换成不带产品名的
-                stringResource(R.string.relay_gateway_hint), keyboard = KeyboardType.Uri, modifier = Modifier.testTag("relay-gateway"))
+                stringResource(R.string.relay_gateway_hint), keyboard = KeyboardType.Uri,
+                modifier = Modifier.testTag("relay-gateway"), stacked = true)
             InputRow(stringResource(R.string.relay_code), code, { if (!busy) code = it.take(64) },
-                stringResource(R.string.relay_code_hint), secret = true, keyboard = KeyboardType.Password, modifier = Modifier.testTag("relay-code"))
+                stringResource(R.string.relay_code_hint), secret = true, keyboard = KeyboardType.Password,
+                modifier = Modifier.testTag("relay-code"), stacked = true)
             RowActions {
                 MikaButton(stringResource(if (busy) R.string.relay_busy else R.string.relay_pair), {
                     onPair(gateway.trim(), code.trim()); code = ""
