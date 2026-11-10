@@ -172,6 +172,17 @@ export class RelayDurableObject extends DurableObject<Env> {
   private pending = new Map<string, { socket: WebSocket; resolve: (f: RelayFrame) => void; timer: ReturnType<typeof setTimeout> }>();
   private controlTail: Promise<unknown> = Promise.resolve();
 
+  // getWebSockets() may still include an older connection after the phone reconnects.
+  // Persist the current connection ID so hibernation and delayed close handshakes
+  // cannot make a newly connected phone appear offline.
+  private async activeDevice(): Promise<WebSocket | null> {
+    const id = await this.ctx.storage.get<string>('activeDevice');
+    if (!id) return null;
+    const sockets = this.ctx.getWebSockets('device').filter(ws =>
+      ws.readyState === WebSocket.OPEN && ws.deserializeAttachment() === id);
+    return sockets.length === 1 ? sockets[0] : null;
+  }
+
   private control(operation: () => Promise<Response>): Promise<Response> {
     const result = this.controlTail.then(operation);
     this.controlTail = result.catch(() => {});
@@ -230,7 +241,7 @@ export class RelayDurableObject extends DurableObject<Env> {
     if(action==='diagnostics')return json({paired:!!await this.ctx.storage.get('deviceHash'),sockets:this.ctx.getWebSockets().map(ws=>({state:ws.readyState,tags:this.ctx.getTags(ws)})),pending:this.pending.size});
     if (action === "status") {
       const deviceHash = await this.ctx.storage.get<string>("deviceHash");
-      const message = !deviceHash ? "No phone is paired." : sockets.length ? "Phone connected. Your computer still needs the phone access token." : "Phone paired but offline. Check remote access and the phone network.";
+      const message = !deviceHash ? "No phone is paired." : await this.activeDevice() ? "Phone connected. Your computer still needs the phone access token." : "Phone paired but offline. Check remote access and the phone network.";
       return new Response(html(message), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     if (action === "pair") {
@@ -241,7 +252,7 @@ export class RelayDurableObject extends DurableObject<Env> {
       return new Response(html("Enter this pairing code in Apporo Assistant.", code), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     if (action === "revoke" && form.get("confirm") === "yes") {
-      await this.ctx.storage.delete(["deviceHash", "pairHash", "pairUntil"]);
+      await this.ctx.storage.delete(["deviceHash", "pairHash", "pairUntil", "activeDevice"]);
       for (const ws of sockets) this.disconnect(ws);
       return new Response(html("Phone pairing revoked. Remote forwarding is off."), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
@@ -278,7 +289,7 @@ export class RelayDurableObject extends DurableObject<Env> {
     const hash = await this.ctx.storage.get<string>("deviceHash");
     if (request.headers.get("origin") || !(await matches(bearer(request), hash))) return failure(401, "invalid_device_token");
     if (request.method === "DELETE") {
-      await this.ctx.storage.delete(["deviceHash", "pairHash", "pairUntil"]);
+      await this.ctx.storage.delete(["deviceHash", "pairHash", "pairUntil", "activeDevice"]);
       for (const ws of this.ctx.getWebSockets()) this.disconnect(ws);
       return new Response(null, { status: 204 });
     }
@@ -288,6 +299,9 @@ export class RelayDurableObject extends DurableObject<Env> {
     const pair = new WebSocketPair();
     for (const old of this.ctx.getWebSockets()) this.disconnect(old, 1012);
     this.ctx.acceptWebSocket(pair[1], ["device"]);
+    const id = randomSecret();
+    pair[1].serializeAttachment(id);
+    await this.ctx.storage.put('activeDevice', id);
     return new Response(null, { status: 101, webSocket: pair[0], headers: { "sec-websocket-protocol": PROTOCOL } });
   }
 
@@ -316,8 +330,8 @@ export class RelayDurableObject extends DurableObject<Env> {
     if (url.search.length > 8193) return failure(414, "query_too_large", api);
     let bytes: ArrayBuffer;
     try { bytes = await boundedBody(request, MAX_BODY); } catch { return failure(413, "body_too_large", api); }
-    const sockets = this.ctx.getWebSockets("device").filter(ws => ws.readyState === WebSocket.OPEN);
-    if (sockets.length !== 1) return failure(503, "device_offline", api);
+    const socket = await this.activeDevice();
+    if (!socket) return failure(503, "device_offline", api);
     if (this.pending.size >= 8) return failure(429, "device_busy", api);
     const headers: Record<string, string> = {};
     for (const [k, v] of request.headers) if (REQUEST_HEADERS.has(k.toLowerCase())) headers[k.toLowerCase()] = v;
@@ -326,13 +340,13 @@ export class RelayDurableObject extends DurableObject<Env> {
     const frame: RelayFrame = { type: "request", id, method: request.method, path: url.pathname, query: url.search.slice(1), headers, body: bodyToBase64(bytes), client: client(request) };
     const result = new Promise<RelayFrame>((resolve) => {
       const timer = setTimeout(() => resolve({ type: "response", id, status: 504, transportError: true }), 65_000);
-      this.pending.set(id, { socket: sockets[0], resolve: (value) => { clearTimeout(timer); resolve(value); }, timer });
+      this.pending.set(id, { socket, resolve: (value) => { clearTimeout(timer); resolve(value); }, timer });
     });
-    try { sockets[0].send(JSON.stringify(frame)); } catch { this.disconnect(sockets[0], 1011); }
+    try { socket.send(JSON.stringify(frame)); } catch { this.disconnect(socket, 1011); }
     const reply = await result;
     this.pending.delete(id);
     if (reply.transportError) {
-      try { sockets[0].send(JSON.stringify({ type: "cancel", id })); } catch {}
+      try { socket.send(JSON.stringify({ type: "cancel", id })); } catch {}
       return failure(reply.status || 502, "delivery_unknown", api);
     }
     const out = new Headers();
