@@ -61,8 +61,8 @@ def select_apk(directory, package):
     if len(outputs) != 1:
         raise RuntimeError(f'Expected one unsplit/universal APK in {directory}')
     entry = outputs[0]
-    if package == PACKAGE and entry.get('versionCode') != 3805:
-        raise RuntimeError('Expected Apporo .5 versionCode 3805')
+    if package == PACKAGE and entry.get('versionCode') != 3806:
+        raise RuntimeError('Expected Apporo .6 versionCode 3806')
     apk = (directory / entry['outputFile']).resolve()
     if apk.parent != directory.resolve() or apk.suffix != '.apk' or not apk.is_file():
         raise RuntimeError('Invalid APK output path')
@@ -77,7 +77,7 @@ def apk_receipt(apk):
     return dict(name=apk.name, sha256=digest.hexdigest(), bytes=apk.stat().st_size)
 
 
-def assert_instrumentation(text):
+def assert_instrumentation(text, expected_tests=5, expected_class=TEST_CLASS):
     counts = re.findall(r'^OK \((\d+) tests?\)\s*$', text, re.M)
     codes = re.findall(r'^INSTRUMENTATION_CODE: (-?\d+)\s*$', text, re.M)
     completed = re.findall(r'^INSTRUMENTATION_STATUS_CODE: 0\s*$', text, re.M)
@@ -85,10 +85,10 @@ def assert_instrumentation(text):
     failures = re.search(r'INSTRUMENTATION_(?:FAILED|ABORTED)|FAILURES!!!|Process crashed|'
         r'^INSTRUMENTATION_RESULT: (?:shortMsg|longMsg)=|^INSTRUMENTATION_STATUS_CODE: -\d+\s*$|^FAILURE',
         text, re.M | re.I)
-    if (failures or counts != ['5'] or codes != ['-1'] or len(completed) != 5 or
-            not classes or set(classes) != {TEST_CLASS}):
-        raise RuntimeError('Expected OK (5 tests), five successful completions, requested class and no failures')
-    return 5
+    if (failures or counts != [str(expected_tests)] or codes != ['-1'] or len(completed) != expected_tests or
+            not classes or set(classes) != {expected_class}):
+        raise RuntimeError(f'Expected OK ({expected_tests} tests), matching successful completions, requested class and no failures')
+    return expected_tests
 
 
 def main():
@@ -103,7 +103,7 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     receipt = dict(status='FAIL', scope=SCOPE, source_sha=os.environ.get('GITHUB_SHA'),
-        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE, version_code=3805,
+        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE, version_code=3806,
         test_class=TEST_CLASS, expected_tests=5, stages=[], cleanup=[])
     process = emulator_log = adb = avd_home = None
     instrument_started = False
@@ -221,6 +221,17 @@ def main():
         transcript = command('instrument.log', [adb, '-s', SERIAL, 'shell', 'am', 'instrument',
             '-w', '-r', '-e', 'class', TEST_CLASS, COMPONENT], timeout=300)
         receipt['tests'] = assert_instrumentation(transcript)
+        # apporo.6: recovery regressions on real Android in addition to the original suite.
+        receipt['recovery_tests'] = []
+        for label, selector in (
+            ('draft-restoration', 'com.wangzan101.mika.ui.ChatDraftRestorationTest'),
+            ('offline-voice-retry', 'com.wangzan101.mika.ui.VoiceHoldTest#offlineLanguageFailureShowsNetworkGuidanceAndAllowsRetry'),
+            ('online-language-error', 'com.wangzan101.mika.ui.VoiceHoldTest#onlineLanguageFailureKeepsLanguageSheet'),
+        ):
+            transcript = command(label + '.log', [adb, '-s', SERIAL, 'shell', 'am', 'instrument',
+                '-w', '-r', '-e', 'class', selector, COMPONENT], timeout=120)
+            count = assert_instrumentation(transcript, 1, selector.split('#')[0])
+            receipt['recovery_tests'].append(dict(name=label, tests=count, status='PASS'))
         stage('collect-test-evidence')
         for name in TEST_FILES:
             data = command('tests/' + name, [adb, '-s', SERIAL, 'exec-out', 'run-as', PACKAGE,

@@ -3,6 +3,7 @@ package com.wangzan101.mika.voice
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -34,8 +35,11 @@ object SystemSpeech {
     /**
      * 识别服务的错误码归到哪种失败;null 表示「这一段没听到话」(没匹配上、没开口),按着时重开、松开后照已有的给结果。
      * 列表外的码(服务端错误、语言不支持等)按服务出了问题处理。
+     * Some services report a language error when offline recognition fails. Only a known absence of
+     * an active network changes that guidance; unknown connectivity (including a failed query) does not.
+     * This is checked after an error, never used to prevent offline recognition or its fallback.
      */
-    fun failureOf(code: Int): SpeechFailure? = when (code) {
+    fun failureOf(code: Int, hasActiveNetwork: () -> Boolean? = { null }): SpeechFailure? = when (code) {
         SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> null
         SpeechRecognizer.ERROR_RECOGNIZER_BUSY, ERROR_TOO_MANY_REQUESTS -> SpeechFailure.Busy
         SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
@@ -43,7 +47,9 @@ object SystemSpeech {
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> SpeechFailure.NoPermission
         SpeechRecognizer.ERROR_AUDIO -> SpeechFailure.AudioError
         SpeechRecognizer.ERROR_CLIENT -> SpeechFailure.MicUnavailable
-        ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE -> SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable)
+        ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE ->
+            if (runCatching { hasActiveNetwork() }.getOrNull() == false) SpeechFailure.Network
+            else SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable)
         else -> SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemGone)
     }
 
@@ -58,8 +64,8 @@ object SystemSpeech {
      * [holding] 是手还按着,[heard] 是已经听到过字。已经听到的字不丢:松开后、或按着时中途出错,都按听到的收尾。
      * 松开后有的服务在 stopListening 之后报 ERROR_CLIENT,什么都没听到时那是没听清,不是麦克风坏了。
      */
-    fun afterError(code: Int, holding: Boolean, heard: Boolean): Outcome {
-        val failure = failureOf(code)
+    fun afterError(code: Int, holding: Boolean, heard: Boolean, hasActiveNetwork: () -> Boolean? = { null }): Outcome {
+        val failure = failureOf(code, hasActiveNetwork)
         return when {
             failure == null && holding -> Outcome.Retry
             failure == null || heard -> Outcome.Finish
@@ -395,7 +401,11 @@ class SystemSpeechSession(
                 }
                 return
             }
-            when (val o = SystemSpeech.afterError(error, holding, heard = segments.full().isNotEmpty())) {
+            val outcome = SystemSpeech.afterError(error, holding, heard = segments.full().isNotEmpty()) {
+                // Presence only: a network without NET_CAPABILITY_VALIDATED is not proof of an outage.
+                context.getSystemService(ConnectivityManager::class.java)?.let { it.activeNetwork != null }
+            }
+            when (val o = outcome) {
                 SystemSpeech.Outcome.Retry -> emptySegment()
                 SystemSpeech.Outcome.Finish -> finish(SpeechEvent.Final(segments.full()))
                 is SystemSpeech.Outcome.Fail -> finish(SpeechEvent.Failed(o.why))

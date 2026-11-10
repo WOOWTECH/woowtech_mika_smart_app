@@ -16,6 +16,8 @@
 
 Apporo apporo.5 對齊 `b92c5683` 的完整功能修正：記憶精準刪除與助理身分、穩定網頁引用上傳、網頁等待上限、滾輪步距等待、通知 PendingIntent 更新及手機生命週期。另補電腦任務明確記憶修改的引用清理與復原紀錄，不開啟遠端自動學習。Apporo 保留英文記憶保存規則與通知「檢視／拒絕、完整卡片才同意」；測試套件改用實際 package。範圍與 Apporo 自身驗收見 `docs-apporo/ALIGNMENT-20261110.md`。
 
+Apporo apporo.6 補實機語音驗收的兩項修正：`SystemSpeech` 在辨識回報語言錯誤、且確定沒有作用中的網路時，顯示檢查 Wi-Fi／行動數據的指引；不預先阻擋離線辨識，網路狀態未知或仍有網路時保留語言診斷。`ChatScreen` 的文字草稿改由 `ChatDraftState` 存入私有 SharedPreferences，編輯時保存、送出或清空時移除，不只依靠 Activity 暫存；仍維持原本單一輸入框草稿的行為。取消中的辨識片段及錄音不保存。這兩項修改位於共用程式碼；渥屋版仍須另行建置及驗證。
+
 Apporo 共用分支的補充：`BrandValues.capsuleDefaultFraction` 讀取可選 `capsule.default.fraction`，`FeatureFlags` 僅在沒有儲存位置時採用它；渥屋未設定，仍為0。`ui/components/Logo.kt` 可依 `brand_monochrome_logo` 使用 App 主題的標誌顏色，渥屋／上游預設false，原圖不變。Apporo 為0.5與true；理由與裝置驗證見 `docs-apporo/EMULATOR-WAVE2-20261108.zh-TW.md`。
 
 Apporo 對齊 woow.4：共用同意通知金額與分類改名修正；`app/src/apporo/AndroidManifest.xml` 為直接安裝 APK 加上相同準時提醒權限分流，`apporo/tools/check.py` 與 `check-apk.py` 核對來源及成品。Apporo 繁中權限錯誤指引也覆蓋為實際「應用程式存取」頁名。版本為 apporo.2；詳細範圍見 `docs-apporo/PARITY-WOOW4-20261108.zh-TW.md`。這不代表 Google Play 權限資格已核准。

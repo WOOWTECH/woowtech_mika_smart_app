@@ -20,7 +20,7 @@
     <string name="voice_converting">変換中…</string>
     <string name="voice_no_match">聞き取れませんでした。長押ししてもう一度話してください</string>
     <string name="voice_busy">音声認識が混み合っています。しばらくしてからもう一度お試しください</string>
-    <string name="voice_network">ネットワークがないため、テキストに変換できませんでした</string>
+    <string name="voice_network">Wi-Fi またはモバイルデータ通信を確認して、もう一度音声入力をお試しください。</string>
     <string name="voice_mic_unavailable">マイクを使えません。ほかのアプリが使っている可能性があります</string>
     <string name="voice_hold_to_talk">長押しで話す</string>
     <string name="voice_mic_blocked_title">まだマイクを使えません</string>

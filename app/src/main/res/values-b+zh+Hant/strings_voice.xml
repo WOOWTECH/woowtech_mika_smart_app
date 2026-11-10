@@ -19,7 +19,7 @@
     <string name="voice_converting">轉文字…</string>
     <string name="voice_no_match">沒聽清，再按住說一次</string>
     <string name="voice_busy">辨識服務正忙，稍後再按住說</string>
-    <string name="voice_network">網路斷了，沒能轉成文字</string>
+    <string name="voice_network">請開啟或檢查 Wi-Fi／行動數據後再試一次語音輸入。</string>
     <string name="voice_mic_unavailable">麥克風用不了，可能正被別的 App 佔著</string>
     <string name="voice_hold_to_talk">按住說話</string>
     <string name="voice_mic_blocked_title">麥克風還是用不了</string>

@@ -19,7 +19,7 @@
     <string name="voice_converting">Mengubah…</string>
     <string name="voice_no_match">Tidak terdengar jelas. Tahan dan ucapkan lagi</string>
     <string name="voice_busy">Pengenalan ucapan sedang sibuk. Coba lagi sebentar lagi</string>
-    <string name="voice_network">Tidak ada jaringan, gagal mengubahnya menjadi teks</string>
+    <string name="voice_network">Periksa Wi-Fi atau data seluler, lalu coba masukan suara lagi.</string>
     <string name="voice_mic_unavailable">Mikrofon tidak tersedia. Mungkin sedang dipakai aplikasi lain</string>
     <string name="voice_hold_to_talk">Tahan untuk bicara</string>
     <string name="voice_mic_blocked_title">Mikrofon masih belum tersedia</string>

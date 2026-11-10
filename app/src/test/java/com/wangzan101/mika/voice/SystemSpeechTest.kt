@@ -41,6 +41,60 @@ class SystemSpeechTest {
     }
 
     @Test
+    fun languageErrorWithoutAnActiveNetworkSuggestsCheckingConnectivity() {
+        for (code in listOf(12, 13)) {
+            for (holding in listOf(true, false)) {
+                assertEquals(
+                    SystemSpeech.Outcome.Fail(SpeechFailure.Network),
+                    SystemSpeech.afterError(code, holding, heard = false) { false },
+                )
+                // Already recognized words still survive a subsequent failure, even while offline.
+                assertEquals(SystemSpeech.Outcome.Finish, SystemSpeech.afterError(code, holding, heard = true) { false })
+            }
+        }
+    }
+
+    @Test
+    fun presentOrUnknownNetworkKeepsLanguageGuidance() {
+        val language = SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable)
+        for (code in listOf(12, 13)) {
+            // An active network need not be validated; its presence alone must retain language guidance.
+            assertEquals(language, SystemSpeech.failureOf(code) { true })
+            assertEquals(language, SystemSpeech.failureOf(code) { null })
+            assertEquals(language, SystemSpeech.failureOf(code) { throw SecurityException("network state unavailable") })
+            assertEquals(language, SystemSpeech.failureOf(code) { throw IllegalStateException("service unavailable") })
+        }
+    }
+
+    @Test
+    fun connectivityIsReadAgainAfterReconnection() {
+        var connected = false
+        val currentNetwork = { connected }
+        assertEquals(SpeechFailure.Network, SystemSpeech.failureOf(12, currentNetwork))
+        connected = true
+        assertEquals(
+            SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemLanguageUnavailable),
+            SystemSpeech.failureOf(12, currentNetwork),
+        )
+    }
+
+    @Test
+    fun connectivityDoesNotOverrideOtherRecognizerErrors() {
+        for (code in listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 99)) {
+            assertEquals(SystemSpeech.failureOf(code), SystemSpeech.failureOf(code) { false })
+            // No permission, audio, busy, no-match or server error needs a connectivity query at all.
+            var queries = 0
+            assertEquals(SystemSpeech.failureOf(code), SystemSpeech.failureOf(code) { queries++; false })
+            assertEquals("error $code must not query network", 0, queries)
+        }
+        assertEquals(
+            SystemSpeech.Outcome.Fail(SpeechFailure.NoPermission),
+            SystemSpeech.afterError(SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS, holding = true, heard = false) { false },
+        )
+        assertEquals(SystemSpeech.Outcome.Retry, SystemSpeech.afterError(SpeechRecognizer.ERROR_NO_MATCH, holding = true, heard = false) { false })
+    }
+
+    @Test
     fun silenceFromAServiceThatNeverAnsweredIsNoResponse() {
         assertEquals(
             SystemSpeech.Outcome.Fail(SpeechFailure.Unavailable(SpeechEngineSpec.Why.SystemNoResponse)),

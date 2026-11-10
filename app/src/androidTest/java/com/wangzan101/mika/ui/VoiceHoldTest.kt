@@ -19,6 +19,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.ChineseUi
+import com.wangzan101.mika.R
+import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.voice.SpeechEngineSpec
 import com.wangzan101.mika.voice.SpeechEvent
@@ -28,6 +30,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import com.wangzan101.mika.voice.SpeechFailure
+import com.wangzan101.mika.voice.SystemSpeech
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -151,6 +154,44 @@ class VoiceHoldTest {
         failWith(SpeechFailure.AudioError)
         waitTag("voice-sheet")
         compose.onNodeWithText("麦克风还是用不了").assertExists()
+    }
+
+    @Test fun offlineLanguageFailureShowsNetworkGuidanceAndAllowsRetry() {
+        composer("保留原文")
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        val failure = SystemSpeech.afterError(12, holding = true, heard = false) { false } as SystemSpeech.Outcome.Fail
+        voice.sessions.single().out.trySend(SpeechEvent.Failed(failure.why))
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        waitTag("voice-toast")
+        compose.onNodeWithTag("voice-toast").assertTextEquals(tr(R.string.voice_network))
+        assertEquals(0, compose.onAllNodesWithTag("voice-sheet").fetchSemanticsNodes().size)
+        compose.onNodeWithTag("composer-field").assertTextEquals("保留原文")
+
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        assertEquals(2, voice.sessions.size)
+        val retry = voice.sessions.last()
+        Thread.sleep(700)
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        compose.waitUntil(5_000) { retry.released == 1 }
+        retry.out.trySend(SpeechEvent.Final("再次输入"))
+        retry.out.close()
+        waitNoTag("voice-listen")
+        compose.onNodeWithTag("composer-field").assertTextEquals("保留原文再次输入")
+        assertEquals(0, sent)
+    }
+
+    @Test fun onlineLanguageFailureKeepsLanguageSheet() {
+        composer()
+        compose.onNodeWithTag("composer-field").performTouchInput { down(center) }
+        waitTag("voice-listen")
+        val failure = SystemSpeech.afterError(12, holding = true, heard = false) { true } as SystemSpeech.Outcome.Fail
+        voice.sessions.single().out.trySend(SpeechEvent.Failed(failure.why))
+        compose.onNodeWithTag("composer-field").performTouchInput { up() }
+        waitTag("voice-sheet")
+        compose.onNodeWithText(tr(R.string.voice_unavailable_language)).assertExists()
+        assertEquals(0, compose.onAllNodesWithTag("voice-toast").fetchSemanticsNodes().size)
     }
 
     @Test fun slidingUpCancels() {
