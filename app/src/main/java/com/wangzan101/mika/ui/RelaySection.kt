@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +39,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) -> Unit) {
+    val context = LocalContext.current
     val config by runtime.relaySettings.config.collectAsState()
     val state by runtime.relayState.collectAsState()
     val infoState by runtime.relayDiscovery.state.collectAsState()
@@ -68,7 +71,7 @@ internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) ->
         onCopyConfig = { change {
             runtime.relaySettings.pairing()?.connectionInfo?.let { info ->
                 val text = if (mcp) McpRuntime.clientConfig(info.mcpUrl, runtime.settings.token())
-                else info.cliCommand
+                else context.getString(R.string.relay_cli_template, info.apiBaseUrl)
                 withContext(Dispatchers.Main) { onCopy(text) }
             }
         } }, mcp = mcp, infoState = infoState,
@@ -83,7 +86,10 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
     onCopyAddress: () -> Unit, onCopyConfig: () -> Unit, mcp: Boolean = true, onCopyToken: () -> Unit = {},
     onDeviceAccess: (Boolean) -> Unit = {}, infoState: RelayInfoState = RelayInfoState.Idle,
     onRefresh: () -> Unit = {}) {
-    var gateway by remember { mutableStateOf("") }
+    val portalUrl = stringResource(R.string.relay_portal_url)
+    val defaultGateway = stringResource(R.string.relay_gateway_default)
+    val uriHandler = LocalUriHandler.current
+    var gateway by remember(defaultGateway) { mutableStateOf(defaultGateway) }
     var code by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     val info = config.connectionInfo
@@ -93,6 +99,10 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
     if (!config.paired) {
         GroupCard {
             ListRow(MikaIcons.Link, stringResource(R.string.relay_pair_title), stringResource(R.string.relay_pair_sub), first = true)
+            if (portalUrl.isNotEmpty()) RowActions {
+                MikaButton(stringResource(R.string.relay_portal_open), { uriHandler.openUri(portalUrl) },
+                    kind = ButtonKind.Tonal, size = ButtonSize.Small, modifier = Modifier.testTag("relay-open-portal"))
+            }
             InputRow(stringResource(R.string.relay_gateway), gateway, { if (!busy) gateway = it.take(2048) },
                 // WOOWTECH fork: 示例地址放进字符串资源,品牌版换成不带产品名的
                 stringResource(R.string.relay_gateway_hint), keyboard = KeyboardType.Uri, modifier = Modifier.testTag("relay-gateway"))
@@ -122,6 +132,10 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
                 MikaSwitch(config.deviceAccess, onDeviceAccess, Modifier.testTag("relay-device-access"), enabled = !busy)
             }
             ListRow(null, stringResource(R.string.relay_gateway), config.gateway)
+            if (portalUrl.isNotEmpty()) RowActions {
+                MikaButton(stringResource(R.string.relay_portal_open), { uriHandler.openUri(portalUrl) },
+                    kind = ButtonKind.Tonal, size = ButtonSize.Small, modifier = Modifier.testTag("relay-open-portal"))
+            }
             ListRow(null, stringResource(R.string.relay_channel), stringResource(when {
                 info == null -> R.string.relay_info_missing
                 info.personal -> R.string.relay_channel_personal
@@ -154,7 +168,7 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
             else -> null
         }
         infoMessage?.let { FooterNote(stringResource(it)) }
-        if (!mcp && info != null) CommandText(info.cliCommand)
+        if (!mcp && info != null) CommandText(stringResource(R.string.relay_cli_template, info.apiBaseUrl))
         FooterNote(stringResource(R.string.relay_connection_scope))
         FooterNote(stringResource(if (mcp) R.string.relay_client_help else R.string.relay_cli_help))
     }

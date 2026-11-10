@@ -24,7 +24,13 @@
     <string name="browser_engine">Google</string>
     <string name="browser_engine_note">Search with Google</string>
     <string name="browser_typing_note">URLs open directly; anything else is searched with Google</string>
-    <string name="relay_gateway_hint">https://gateway.example.com</string>
+    <string name="relay_gateway_hint">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_gateway_default" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_portal_url" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_pair_sub">Sign in to the Apporo relay website and create a one-time pairing code. Enter it below.</string>
+    <string name="relay_intro">Apporo Assistant uses your Apporo account to keep your phone and computer connection separate from other users. The relay forwards authorized MCP and CLI requests; it does not store offline tasks.</string>
+    <string name="relay_cli_template">python3 apporo-relay-cli.py --url %1$s --token-file /path/to/token doctor</string>
+    <string name="mcp_transport_usb">USB</string>
     <string name="mcp_cli_install_prompt">Use the CLI from this Apporo Assistant source checkout (tools/mika/scripts/mika_cli.py). Set MIKA_ANDROID_PACKAGE=com.apporo.assistant before connecting over authorized USB ADB. For Wi-Fi or a private VPN, use the address shown on the phone and a private token file. Run connect or doctor to verify connectivity. Do not submit tasks or print tokens. See docs-apporo/agent-quickstart.en.md in the source checkout.</string>
     <string name="mcp_usb_client_instructions">Add a Streamable HTTP MCP server at http://127.0.0.1:%1$d/mcp. Use the connection token from Apporo Assistant as a Bearer Authorization header, stored privately. Never print it in the conversation. Refresh the tools and check the request time on the phone. See docs-apporo/mcp.en.md in the source checkout.</string>
     <string name="capsule_mode_always_detail">Keeps an Apporo Assistant icon on screen even with no tasks</string>

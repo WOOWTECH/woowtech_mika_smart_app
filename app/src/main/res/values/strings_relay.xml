@@ -6,6 +6,10 @@
     <string name="relay_gateway">Gateway</string>
     <!-- 网关地址输入框里的示例。WOOWTECH fork: 品牌版在 app/src/woowtech/res 换成不带产品名的地址 -->
     <string name="relay_gateway_hint" translatable="false">https://mika.example.com</string>
+    <string name="relay_gateway_default" translatable="false"></string>
+    <string name="relay_portal_url" translatable="false"></string>
+    <string name="relay_portal_open" translatable="false">Open relay website</string>
+    <string name="relay_cli_template" translatable="false">mika connect --url %1$s --token-file /path/to/token</string>
     <string name="relay_code">Pairing code</string>
     <string name="relay_code_hint">One-time code from your gateway</string>
     <string name="relay_pair">Pair gateway</string>
