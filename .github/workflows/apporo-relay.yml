@@ -1,0 +1,56 @@
+name: apporo-relay
+
+on:
+  pull_request:
+    paths:
+      - 'tools/apporo-relay-worker/**'
+      - 'tools/apporo-relay-oauth/**'
+      - '.github/workflows/apporo-relay.yml'
+  push:
+    paths:
+      - 'tools/apporo-relay-worker/**'
+      - 'tools/apporo-relay-oauth/**'
+      - '.github/workflows/apporo-relay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tools/apporo-relay-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/apporo-relay-worker/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run test:accounts
+      - run: npx wrangler deploy --dry-run
+
+  odoo-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Odoo addon syntax and XML
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          from xml.etree import ElementTree
+          root = Path('tools/apporo-relay-oauth/apporo_relay_oauth')
+          for path in root.rglob('*.py'):
+              ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+          for path in root.rglob('*.xml'):
+              ElementTree.parse(path)
+          print('Odoo addon Python/XML source: OK')
+          PY
