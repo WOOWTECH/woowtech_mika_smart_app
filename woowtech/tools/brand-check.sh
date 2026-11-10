@@ -62,6 +62,13 @@ apk)
     say "$perms" | grep -q -F -x "uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM' maxSdkVersion='32'" \
         || bad "android.permission.SCHEDULE_EXACT_ALARM is not declared with maxSdkVersion 32 (Android 12 and 12L only; Android 13+ uses USE_EXACT_ALARM alone)"
     say "$perms" | grep "EXACT_ALARM" | sed 's/^/  /'
+    # Browser entry must survive manifest merging; JVM guards also enforce flavor isolation.
+    manifest=$("$aapt2" dump xmltree "$apk" --file AndroidManifest.xml)
+    for value in 'com.wangzan101.mika.woowtech.BrowserOpenActivity' 'android.intent.category.BROWSABLE' 'android.intent.action.VIEW'; do
+        say "$manifest" | grep -qF "\"$value\"" || bad "browser entry missing from APK: $value"
+    done
+    say "$manifest" | grep -E 'android:scheme.*="io.woowtech.agent"' >/dev/null || bad "browser scheme does not match release package"
+    say "$manifest" | grep -E 'android:host.*="open"' >/dev/null || bad "browser open host missing"
     strings=$("$aapt2" dump strings "$apk")
     leaks=$(say "$strings" | grep -E '(^|[^A-Za-z0-9_/.@-])Mika([^A-Za-z0-9_/-]|$)|wangzan101' \
         | grep -v -E 'Based on wangzan101/Mika \(Apache-2\.0\)|基於 wangzan101/Mika（Apache-2\.0）|Copyright 2026 wangzan101' || true)
