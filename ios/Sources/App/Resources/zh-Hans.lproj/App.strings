@@ -33,6 +33,7 @@
 "shell.messagePlaceholder" = "输入消息";
 "shell.messageDraft" = "消息草稿";
 "shell.stop" = "取消";
+"shell.returnToLatest" = "回到最新消息";
 "shell.send" = "发送";
 "configuration.title" = "外观与模型权限";
 "appearance.title" = "外观";

@@ -464,7 +464,12 @@ private struct ChatView: View {
         scrollSettleTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
-            _ = scrollFollow.settle(expectedRevision: revision)
+            let settled = scrollFollow.settle(expectedRevision: revision)
+            if settled && scrollFollow.needsTailScroll {
+                // A no-op drag may have paused scrolling while a new fragment
+                // arrived. Catch up only after its final offset is known.
+                scrollToTailRequest += 1
+            }
             if scheduledSettleRevision == revision {
                 scheduledSettleRevision = nil
                 scrollSettleTask = nil
@@ -636,6 +641,21 @@ private struct ChatView: View {
                 }
                 .onChange(of: scrollToTailRequest) { _, _ in
                     proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if !scrollFollow.followsTail {
+                        Button {
+                            cancelScrollSettle()
+                            scrollFollow.userRequestedLatest()
+                            scrollToTailRequest += 1
+                        } label: {
+                            Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(palette.accent)
+                        .accessibilityIdentifier("chat.returnToLatest")
+                        .padding(12)
+                    }
                 }
               }
             }

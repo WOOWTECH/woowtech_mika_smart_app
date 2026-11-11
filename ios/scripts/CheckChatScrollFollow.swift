@@ -17,10 +17,35 @@ enum CheckChatScrollFollow {
         expect(!follow.observe(sample(1200, 500))) // first scrollTo reaches the tail
         expect(follow.followsTail)
 
+        // A short transcript cannot scroll. Even a large finger movement and
+        // temporary rubber-band bounce must not turn off following.
+        var noOpDragAtBottom = ChatScrollFollowPolicy()
+        expect(noOpDragAtBottom.observe(sample(300, 300)))
+        noOpDragAtBottom.beginDrag()
+        noOpDragAtBottom.userDraggedTowardEarlierContent()
+        expect(!noOpDragAtBottom.observe(sample(300, 355)))
+        noOpDragAtBottom.endDrag()
+        let bouncingRevision = noOpDragAtBottom.pendingSettleRevision!
+        expect(!noOpDragAtBottom.observe(sample(300, 300)))
+        expect(!noOpDragAtBottom.settle(expectedRevision: bouncingRevision))
+        expect(noOpDragAtBottom.settle(expectedRevision: noOpDragAtBottom.pendingSettleRevision!))
+        expect(noOpDragAtBottom.followsTail)
+        noOpDragAtBottom.beginDrag()
+        noOpDragAtBottom.userDraggedTowardEarlierContent()
+        expect(!noOpDragAtBottom.observe(sample(900, 900))) // growth, no reader movement
+        noOpDragAtBottom.endDrag()
+        expect(noOpDragAtBottom.settle(expectedRevision: noOpDragAtBottom.pendingSettleRevision!))
+        expect(noOpDragAtBottom.followsTail)
+        expect(noOpDragAtBottom.needsTailScroll) // catch up to the new fragment
+        expect(!noOpDragAtBottom.observe(sample(900, 500)))
+        expect(!noOpDragAtBottom.needsTailScroll)
+        expect(noOpDragAtBottom.observe(sample(1000, 600)))
+
         // An intentional small upward scroll is a reading choice, even though
         // it ends well inside the former 240-point auto-rearm window.
         follow.beginDrag()
         follow.userDraggedTowardEarlierContent()
+        expect(follow.followsTail) // finger direction is not yet actual motion
         expect(!follow.observe(sample(1200, 620))) // 120 points above the tail
         follow.endDrag()
         let smallScrollRevision = follow.pendingSettleRevision!
@@ -35,6 +60,9 @@ enum CheckChatScrollFollow {
         var layoutShift = follow
         expect(!layoutShift.observe(sample(1320, 500))) // geometry at the end is not proof of user intent
         expect(!layoutShift.followsTail)
+        layoutShift.userRequestedLatest() // accessible button, independent of DragGesture
+        expect(layoutShift.followsTail)
+        expect(layoutShift.observe(sample(1440, 620)))
 
         // A deliberate upward finger movement toward the latest message still
         // needs to reach the physical end, not merely within 240 points.
@@ -62,12 +90,12 @@ enum CheckChatScrollFollow {
         // active finger drag, even when the displayed edge looks near the end.
         follow.beginDrag()
         follow.userDraggedTowardEarlierContent()
-        expect(!follow.observe(sample(1660, 700))) // 200 points above the tail
-        expect(!follow.observe(sample(1770, 740))) // both content and offset move
+        expect(!follow.observe(sample(1660, 800))) // 200+ points above the tail
+        expect(!follow.observe(sample(1770, 910))) // both content and bottom move
         follow.endDrag()
         expect(follow.settle(expectedRevision: follow.pendingSettleRevision!))
         expect(!follow.followsTail)
-        expect(!follow.observe(sample(1880, 850)))
+        expect(!follow.observe(sample(1880, 1020)))
         expect(!follow.followsTail)
 
         follow.userSubmitted() // a newly accepted send always resumes follow

@@ -37,6 +37,7 @@ enum AppText: Equatable {
     case shellMessagePlaceholder
     case shellMessageDraft
     case shellStop
+    case shellReturnToLatest
     case shellSend
     case configurationTitle
     case appearanceTitle
@@ -467,6 +468,7 @@ enum AppText: Equatable {
         case .shellMessagePlaceholder: return "shell.messagePlaceholder"
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
+        case .shellReturnToLatest: return "shell.returnToLatest"
         case .shellSend: return "shell.send"
         case .configurationTitle: return "configuration.title"
         case .appearanceTitle: return "appearance.title"
@@ -925,6 +927,7 @@ enum AppText: Equatable {
         case .shellMessagePlaceholder: return "輸入訊息"
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "取消"
+        case .shellReturnToLatest: return "回到最新訊息"
         case .shellSend: return "傳送"
         case .configurationTitle: return "外觀與模型權限"
         case .appearanceTitle: return "外觀"

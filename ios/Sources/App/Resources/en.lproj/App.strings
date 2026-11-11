@@ -33,6 +33,7 @@
 "shell.messagePlaceholder" = "Type a message";
 "shell.messageDraft" = "Message draft";
 "shell.stop" = "Stop";
+"shell.returnToLatest" = "Jump to latest";
 "shell.send" = "Send";
 "configuration.title" = "Appearance and model permissions";
 "appearance.title" = "Appearance";

@@ -180,6 +180,83 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: partial, seconds: 65)
         XCTAssertLessThan(abs(partial.frame.minY - readingOrigin), 32,
                           "A real later delta must not move the small-scroll reader during native text selection")
+        let updatedVisibleText = partial.frame.intersection(transcript.frame)
+        XCTAssertFalse(updatedVisibleText.isNull)
+        XCTAssertGreaterThan(updatedVisibleText.height, 40)
+        origin.withOffset(CGVector(dx: updatedVisibleText.midX - transcript.frame.minX,
+                                   dy: updatedVisibleText.midY - transcript.frame.minY)).press(forDuration: 1)
+        let afterUpdate = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in selectionAction() != nil }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [afterUpdate], timeout: 5), .completed,
+                       "The updated real streaming text must still expose native selection actions")
+    }
+
+    func testNoOpDragAtBottomStillFollowsLaterGrowth() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-noop]"); tap("chat.send")
+        let partial = identifiedText("chat.partialReply")
+        wait(NSPredicate(format: "label == %@", "短回覆；等待下一段。"), on: partial, seconds: 12)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let originY = partial.frame.minY
+        let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.40))
+        start.press(forDuration: 0.05,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: 150)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        let bouncedBack = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            partial.exists && abs(partial.frame.minY - originY) < 12
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [bouncedBack], timeout: 8), .completed,
+                       "The bottom drag must finish without real content displacement")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_NOOP_GROW_END"), on: partial, seconds: 50)
+        XCTAssertFalse(app.buttons["chat.returnToLatest"].firstMatch.exists,
+                       "A no-op drag cannot leave the reader stuck above new text")
+        assertTranscriptTailVisible(partial, in: transcript)
+    }
+
+    func testReturningToBottomByDragOrButtonResumesLaterFragments() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-return]"); tap("chat.send")
+        let partial = identifiedText("chat.partialReply")
+        wait(NSPredicate(format: "label CONTAINS %@", "RETURN_FIRST_END"), on: partial, seconds: 12)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let returnButton = app.buttons["chat.returnToLatest"].firstMatch
+        transcript.swipeDown()
+        ready(returnButton)
+        XCTAssertFalse(partial.label.contains("RETURN_SECOND_END"),
+                       "Reader must return before the next actual fragment")
+        for _ in 0..<3 where returnButton.exists { transcript.swipeUp() }
+        assertGone(returnButton, seconds: 8)
+        wait(NSPredicate(format: "label CONTAINS %@", "RETURN_SECOND_END"), on: partial, seconds: 50)
+        assertTranscriptTailVisible(partial, in: transcript)
+
+        transcript.swipeDown()
+        ready(returnButton)
+        XCTAssertFalse(partial.label.contains("RETURN_THIRD_END"),
+                       "The explicit return must precede the third actual fragment")
+        returnButton.tap()
+        assertGone(returnButton, seconds: 5)
+        wait(NSPredicate(format: "label CONTAINS %@", "RETURN_THIRD_END"), on: partial, seconds: 50)
+        assertTranscriptTailVisible(partial, in: transcript)
+    }
+
+    private func assertTranscriptTailVisible(_ text: XCUIElement, in transcript: XCUIElement) {
+        let atTail = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            text.exists && abs(text.frame.maxY - transcript.frame.maxY) < 65
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [atTail], timeout: 10), .completed,
+                       "The real later fragment must remain visible at the transcript tail")
+        XCTAssertLessThan(abs(text.frame.maxY - transcript.frame.maxY), 65)
+    }
+
+    private func assertGone(_ element: XCUIElement, seconds: TimeInterval) {
+        let gone = NSPredicate(format: "exists == false")
+        if !gone.evaluate(with: element) {
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: gone, object: element)],
+                                         timeout: seconds), .completed)
+        }
+        XCTAssertFalse(element.exists)
     }
 
     private func disableMemory() {

@@ -102,8 +102,33 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                     }
                     guard messages.allSatisfy({ $0.role == "user" || $0.role == "assistant" }),
                           ["[fixture:stream-complete]", "[fixture:stream-cancel]", "[fixture:stream-markdown]",
-                           "[fixture:stream-scroll]"].contains(prompt) else {
+                           "[fixture:stream-scroll]", "[fixture:stream-noop]", "[fixture:stream-return]"].contains(prompt) else {
                         throw HTTPChatModelError.invalidConfiguration
+                    }
+                    if prompt == "[fixture:stream-noop]" {
+                        continuation.yield("短回覆；等待下一段。")
+                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try Task.checkCancellation()
+                        let lines = (0..<80).map { "第\($0)行：新增內容仍應追隨。" }.joined(separator: "\n")
+                        continuation.yield("\n" + lines + "\nSCROLL_NOOP_GROW_END")
+                        try await Task.sleep(nanoseconds: 15_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.finish()
+                        return
+                    }
+                    if prompt == "[fixture:stream-return]" {
+                        let lines = (0..<80).map { "第\($0)行：閱讀位置及回到底部。" }.joined(separator: "\n")
+                        continuation.yield(lines + "\nRETURN_FIRST_END")
+                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.yield("\nRETURN_SECOND_END\n" + lines)
+                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.yield("\nRETURN_THIRD_END\n" + lines)
+                        try await Task.sleep(nanoseconds: 15_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.finish()
+                        return
                     }
                     if prompt == "[fixture:stream-scroll]" {
                         let lines = (0..<80).map { "第\($0)行：閱讀較早內容時不要跳到底部。" }.joined(separator: "\n")

@@ -348,6 +348,16 @@
       }
     },
     {
+      "case": "shellReturnToLatest",
+      "key": "shell.returnToLatest",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回到最新訊息",
+        "zh-Hans": "回到最新消息",
+        "en": "Jump to latest"
+      }
+    },
+    {
       "case": "shellSend",
       "key": "shell.send",
       "parameters": [],
