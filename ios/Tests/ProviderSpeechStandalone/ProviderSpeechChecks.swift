@@ -67,6 +67,30 @@ private final class SpeechURLProtocol: URLProtocol {
         let open = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: URL(string: "https://example.invalid/v1/")!)
         let multipart = try SpeechProviderRequest.make(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav, language: "zh")
         check(multipart.url?.absoluteString == "https://example.invalid/v1/audio/transcriptions", "multipart endpoint")
+        // Test both explicit malformed authorities and valid boundary ports.
+        // URL may itself reject an input on some Foundation versions; otherwise
+        // request construction must reject it before any audio can be sent.
+        let invalidAuthorities = [
+            "https://site.invalid:/v1", "https://site.invalid:0/v1",
+            "https://site.invalid:65536/v1", "https://site.invalid:999999999999999999999999/v1",
+            "https://site.invalid:12:34/v1", "https://[::1]:/v1", "https://[::1]:0/v1",
+            "https://[::1]:65536/v1", "https://[::1]:999999999999999999999999/v1",
+            "https://[::1]extra/v1", "https://[not-ipv6]/v1", "https://[::1%25en0]/v1",
+            "https://user@site.invalid/v1", "https://site.invalid%3a443/v1"
+        ]
+        for raw in invalidAuthorities {
+            guard let url = URL(string: raw) else { check(true, "Foundation rejects \(raw)"); continue }
+            let endpoint = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: url)
+            expect(.invalidConfiguration) { _ = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: "k", wav: wav) }
+        }
+        let validAuthorities = ["site.invalid", "site.invalid:1", "site.invalid:443", "site.invalid:65535",
+                                "[::1]", "[2001:db8::1]:1", "[2001:db8::1]:65535"]
+        for authority in validAuthorities {
+            let endpoint = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible,
+                                                  baseURL: URL(string: "https://\(authority)/v1")!)
+            let request = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: "k", wav: wav)
+            check(request.url?.absoluteString == "https://\(authority)/v1/audio/transcriptions", "final destination preserved: \(authority)")
+        }
         check(multipart.value(forHTTPHeaderField: "Authorization") == "Bearer test-secret", "bearer header")
         let body = multipart.httpBody!
         let bodyText = String(decoding: body, as: UTF8.self)
@@ -131,6 +155,15 @@ private final class SpeechURLProtocol: URLProtocol {
             _ = try await URLSessionSpeechTransport(session: localSession).send(insecureRequest)
             fatalError("insecure transport accepted")
         } catch let error as SpeechProviderError { check(error == .invalidConfiguration, "transport refuses HTTP") }
+        for raw in invalidAuthorities {
+            guard let url = URL(string: raw) else { continue }
+            var badRequest = multipart
+            badRequest.url = url
+            do {
+                _ = try await URLSessionSpeechTransport(session: localSession).send(badRequest)
+                fatalError("transport accepted malformed destination: \(raw)")
+            } catch let error as SpeechProviderError { check(error == .invalidConfiguration, "transport independently rejects malformed authority") }
+        }
         let sessionTranscript = try await networkClient.transcribe(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav)
         check(sessionTranscript == "mock session", "URLSession transport through intercepting URLProtocol")
         let redirect = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: URL(string: "https://example.invalid/redirect")!)

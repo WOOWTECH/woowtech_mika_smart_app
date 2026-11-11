@@ -87,6 +87,12 @@ multiple-provider inventory or session headers.
 - Synthetic-testable multipart, three chat-audio variants and Gemini request
   builders plus response parsing. A user-selected provider ID must match the
   endpoint. Credentials are supplied per call and are not stored here.
+- HTTPS authority validation rejects empty, nonnumeric, overflowing and
+  out-of-range explicit ports; bracketed IPv6 literals must parse as IPv6.
+  The generated request must retain the exact serialized authority and intended
+  path, and the URLSession transport validates it again before sending. Escaped
+  authorities and scoped IPv6 literals are conservatively unsupported. This
+  does not provide DNS pinning or establish user consent.
 - An injectable async transport and an ephemeral URLSession transport with
   30-second configured request/resource timeouts, rejected redirects, disabled
   cookies/cache/credential storage, bounded success response and sanitized
@@ -97,8 +103,11 @@ does not validate transcripts, capture microphone input, ensure billing is off,
 or perform the Android probe. Generic `SpeechProviderTransport` implementations
 must provide their own timeout, cancellation, redirect and privacy guarantees.
 The endpoint identity check does not detect a provider URL or credential change
-under the same ID; a future integration must invalidate the user's upload
-consent and revalidate the selected destination whenever that binding changes.
+under the same ID; a future integration must bind explicit upload consent to
+the provider, exact destination and credential version, and invalidate consent
+and require renewed review when any binding or relevant setting changes. It
+must check that binding again immediately before upload. No such consent or
+settings integration is implemented by this isolated core.
 Provider-specific headers, model enumeration, Keychain provider inventory,
 probe selection policy and error presentation remain to be designed and tested.
 

@@ -1,4 +1,54 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
+/// Validate the serialized authority as well as Foundation's parsed values.
+/// An empty or overflowing explicit port can otherwise appear as a nil port.
+private enum SpeechHTTPSDestination {
+    static func authority(_ url: URL) throws -> String {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
+              let delimiter = url.absoluteString.range(of: "://"),
+              url.absoluteString[..<delimiter.lowerBound].lowercased() == "https" else {
+            throw SpeechProviderError.invalidConfiguration
+        }
+        let rest = url.absoluteString[delimiter.upperBound...]
+        let authority = String(rest.prefix { $0 != "/" && $0 != "?" && $0 != "#" })
+        guard !authority.isEmpty, !authority.contains("@"), !authority.contains("\\"),
+              !authority.contains("%") else { throw SpeechProviderError.invalidConfiguration }
+        let portSuffix: Substring
+        if authority.first == "[" {
+            guard let close = authority.firstIndex(of: "]") else { throw SpeechProviderError.invalidConfiguration }
+            let literal = String(authority[authority.index(after: authority.startIndex)..<close])
+            var address = in6_addr()
+            guard literal.withCString({ inet_pton(AF_INET6, $0, &address) }) == 1 else {
+                throw SpeechProviderError.invalidConfiguration
+            }
+            portSuffix = authority[authority.index(after: close)...]
+        } else {
+            guard !authority.contains("["), !authority.contains("]") else { throw SpeechProviderError.invalidConfiguration }
+            if let colon = authority.firstIndex(of: ":") {
+                guard colon != authority.startIndex else { throw SpeechProviderError.invalidConfiguration }
+                portSuffix = authority[colon...]
+            } else { portSuffix = authority[authority.endIndex...] }
+        }
+        if portSuffix.isEmpty {
+            guard parts.port == nil else { throw SpeechProviderError.invalidConfiguration }
+        } else {
+            guard portSuffix.first == ":" else { throw SpeechProviderError.invalidConfiguration }
+            let digits = portSuffix.dropFirst()
+            guard !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
+                  let port = Int(digits), (1...65535).contains(port), parts.port == port else {
+                throw SpeechProviderError.invalidConfiguration
+            }
+        }
+        return authority
+    }
+}
 
 /// Serializable choice contains only a provider reference, never credentials.
 public enum SpeechProviderMethod: String, Codable, CaseIterable, Sendable {
@@ -122,10 +172,10 @@ public struct SpeechProviderRequest {
         guard SpeechWAV.isCanonical(wav) else { throw SpeechProviderError.invalidAudio }
         guard SpeechProviderSelection.validField(selection.providerID), selection.providerID == endpoint.providerID,
               SpeechProviderSelection.validField(selection.model),
-              var parts = URLComponents(url: endpoint.baseURL, resolvingAgainstBaseURL: false),
-              parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
-              parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
-              parts.port.map({ (1...65535).contains($0) }) ?? true else { throw SpeechProviderError.invalidConfiguration }
+              var parts = URLComponents(url: endpoint.baseURL, resolvingAgainstBaseURL: false) else {
+            throw SpeechProviderError.invalidConfiguration
+        }
+        let originalAuthority = try SpeechHTTPSDestination.authority(endpoint.baseURL)
         if let key = apiKey, (key.isEmpty || key.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) })) {
             throw SpeechProviderError.invalidConfiguration
         }
@@ -147,7 +197,11 @@ public struct SpeechProviderRequest {
             path += "/v1beta/models/\(selection.model):generateContent"
         }
         parts.percentEncodedPath = path
-        guard let url = parts.url else { throw SpeechProviderError.invalidConfiguration }
+        guard let url = parts.url,
+              try SpeechHTTPSDestination.authority(url) == originalAuthority,
+              URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedPath == path else {
+            throw SpeechProviderError.invalidConfiguration
+        }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
         request.httpMethod = "POST"; request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -234,12 +288,10 @@ public struct URLSessionSpeechTransport: SpeechProviderTransport {
     public func send(_ request: URLRequest) async throws -> (Data, Int) {
         do {
             guard request.httpMethod == "POST", let url = request.url,
-                  let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
-                  parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
                   let body = request.httpBody, body.count <= 4_000_000 else {
                 throw SpeechProviderError.invalidConfiguration
             }
+            _ = try SpeechHTTPSDestination.authority(url)
             try Task.checkCancellation()
             let (bytes, response) = try await session.bytes(for: request, delegate: SpeechRejectRedirects())
             defer { bytes.task.cancel() }
