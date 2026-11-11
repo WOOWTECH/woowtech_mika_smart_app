@@ -26,6 +26,8 @@ final class BrowserExternalOpenUITests: XCTestCase {
         XCTAssertTrue(address.waitForExistence(timeout: 10))
         XCTAssertTrue(address.isHittable)
         address.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
+                      "The native address keyboard must appear before typeText")
         address.typeText(url + "\n")
         let page = app.webViews.staticTexts["Workspace first"]
         XCTAssertTrue(page.waitForExistence(timeout: 75))
@@ -47,11 +49,12 @@ final class BrowserExternalOpenUITests: XCTestCase {
                 self.app.state == .runningBackground || self.app.state == .runningBackgroundSuspended
             }, object: nil
         )], timeout: 20)
+        let appStateAfterWait = app.state.rawValue
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "System foreground after browser handoff; URL unverified"
         screenshot.lifetime = .keepAlways
         add(screenshot)
         XCTAssertEqual(leftForeground, .completed,
-                       "The App must remain running in the background after the native system URL action")
+                       "The App must remain running in the background after the native system URL action; state after wait: \(appStateAfterWait)")
     }
 }
