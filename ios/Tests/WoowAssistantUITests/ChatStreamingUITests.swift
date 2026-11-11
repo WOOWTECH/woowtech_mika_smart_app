@@ -106,6 +106,26 @@ final class ChatStreamingUITests: XCTestCase {
                     "# 標題\n\n**粗體** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
     }
 
+    func testReadingEarlierStreamingTextDoesNotJumpToNewChunk() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-scroll]"); tap("chat.send")
+        let partial = identifiedText("chat.partialReply")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_FIRST_END"), on: partial, seconds: 12)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let bottomOrigin = partial.frame.minY
+        for _ in 0..<3 where partial.frame.minY - bottomOrigin <= 260 { transcript.swipeDown() }
+        let readingOrigin = partial.frame.minY
+        XCTAssertGreaterThan(readingOrigin - bottomOrigin, 260, "Native scrolling must reach earlier transcript text")
+        XCTAssertFalse(partial.label.contains("SCROLL_SECOND_END"), "Observe an actual later delta after the native scroll")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: partial, seconds: 65)
+        XCTAssertLessThan(abs(partial.frame.minY - readingOrigin), 32,
+                          "A later real stream delta must not pull a reader back to the tail")
+        tap("chat.cancel")
+        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
+        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+    }
+
     private func disableMemory() {
         navigate("memory")
         let toggle = app.switches["memory.toggle.useMemory"].firstMatch

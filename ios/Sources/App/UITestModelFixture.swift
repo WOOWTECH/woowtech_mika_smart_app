@@ -101,8 +101,20 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                         return
                     }
                     guard messages.allSatisfy({ $0.role == "user" || $0.role == "assistant" }),
-                          ["[fixture:stream-complete]", "[fixture:stream-cancel]", "[fixture:stream-markdown]"].contains(prompt) else {
+                          ["[fixture:stream-complete]", "[fixture:stream-cancel]", "[fixture:stream-markdown]",
+                           "[fixture:stream-scroll]"].contains(prompt) else {
                         throw HTTPChatModelError.invalidConfiguration
+                    }
+                    if prompt == "[fixture:stream-scroll]" {
+                        let lines = (0..<80).map { "第\($0)行：閱讀較早內容時不要跳到底部。" }.joined(separator: "\n")
+                        continuation.yield(lines + "\nSCROLL_FIRST_END")
+                        try await Task.sleep(nanoseconds: 50_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.yield("\nSCROLL_SECOND_END\n" + lines)
+                        try await Task.sleep(nanoseconds: 45_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.finish()
+                        return
                     }
                     if prompt == "[fixture:stream-markdown]" {
                         continuation.yield("# 標題\n\n**粗體")

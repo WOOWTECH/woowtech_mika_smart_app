@@ -424,6 +424,13 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
 }
 
 @MainActor
+private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
+    static var defaultValue: ChatTranscriptViewport? = nil
+    static func reduce(value: inout ChatTranscriptViewport?, nextValue: () -> ChatTranscriptViewport?) {
+        value = nextValue() ?? value
+    }
+}
+
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
@@ -434,6 +441,7 @@ private struct ChatView: View {
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
     @State private var showsPDF = false
+    @State private var scrollFollow = ChatScrollFollowPolicy()
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
 
     var body: some View {
@@ -503,7 +511,8 @@ private struct ChatView: View {
                     .disabled(session.isSubmitting)
             }
 
-            ScrollViewReader { proxy in
+            GeometryReader { viewport in
+              ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if session.entries.isEmpty && session.replyPreview == nil {
@@ -552,15 +561,35 @@ private struct ChatView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id(preview.id)
                         }
+                        Color.clear.frame(height: 1).id("chat.transcript.tail")
                     }
                     .padding(.vertical, 4)
+                    .background {
+                        GeometryReader { content in
+                            Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
+                                value: ChatTranscriptViewport(
+                                    contentHeight: Double(content.size.height),
+                                    bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY),
+                                    viewportHeight: Double(viewport.size.height)))
+                        }
+                    }
                 }
-                .onChange(of: session.entries.count) { _, _ in
-                    if let id = session.entries.last?.id { proxy.scrollTo(id, anchor: .bottom) }
+                .coordinateSpace(name: "chat.transcript.viewport")
+                .accessibilityIdentifier("chat.transcript")
+                .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { drag in
+                    if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
+                })
+                .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
+                    guard let position else { return }
+                    if scrollFollow.observe(position) {
+                        proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                    }
                 }
-                .onChange(of: session.replyPreview?.text) { _, _ in
-                    if let id = session.replyPreview?.id { proxy.scrollTo(id, anchor: .bottom) }
+                .onChange(of: session.entries.first?.id) { _, _ in
+                    scrollFollow.conversationChanged()
+                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
                 }
+              }
             }
 
             if let error = session.chatError {
