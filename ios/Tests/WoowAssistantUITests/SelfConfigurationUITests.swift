@@ -30,7 +30,15 @@ final class SelfConfigurationUITests: XCTestCase {
         XCTAssertEqual(restored.value as? String, "0")
         let native = restored.switches.firstMatch
         (native.exists ? native : restored).tap()
-        XCTAssertTrue(app.textViews["selfConfiguration.request"].waitForExistence(timeout: 5))
+        let enabled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "1"), object: restored)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed,
+                       "The native permission switch must actually turn on.")
+        // The conditional editor follows the permission section in a compact
+        // Form. It may not enter the AX tree until the List scrolls to its row.
+        let request = app.textViews["selfConfiguration.request"]
+        revealLearningElement(request, in: app)
+        XCTAssertTrue(request.exists)
         revealLearningElement(restored, in: app)
         (native.exists ? native : restored).tap()
         XCTAssertEqual(restored.value as? String, "0")
