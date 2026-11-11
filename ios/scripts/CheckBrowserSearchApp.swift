@@ -108,6 +108,9 @@ private final class BrowserSearchKeys: LearningKeyStore {
         try check(workspace.selected === browser && browser.externalOpenURL == routed,
             "reselected tab preserves its live SPA route without storing the fragment")
         let urlEvidence = URLChangeEvidence(browser.webView)
+        var handledURLs: [URL] = []
+        browser.onSameDocumentURLKVOHandled = { if let url = $0 { handledURLs.append(url) } }
+        defer { browser.onSameDocumentURLKVOHandled = nil }
         let failedTarget = URL(string: "https://127.0.0.1/fail")!
         let failureProbe = BrowserSiteModesAppChecks.Probe(browser)
         browser.webView.navigationDelegate = failureProbe
@@ -123,8 +126,9 @@ private final class BrowserSearchKeys: LearningKeyStore {
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('after-failure').click(); true")
         try await BrowserSiteModesAppChecks.wait("late URL KVO after failed navigation") {
             browser.webView.url == afterFailure && urlEvidence.urls.contains(afterFailure)
+                && handledURLs.contains(afterFailure)
         }
-        await Task.yield() // Let the product's independently queued MainActor KVO handler run.
+        try check(handledURLs.contains(afterFailure), "product handled the exact late URL after failure")
         try check(browser.loadedURL == routed && browser.externalOpenURL == nil,
             "late hash change cannot revive a failed navigation")
 
@@ -148,8 +152,9 @@ private final class BrowserSearchKeys: LearningKeyStore {
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('after-close').click(); true")
         try await BrowserSiteModesAppChecks.wait("late URL KVO after closing tab") {
             browser.webView.url == afterClose && urlEvidence.urls.contains(afterClose)
+                && handledURLs.contains(afterClose)
         }
-        await Task.yield()
+        try check(handledURLs.contains(afterClose), "product handled the exact late URL after close")
         let closedHandoff = browser.handoffVisiblePage { _ in }
         try check(browser.loadedURL == routed && browser.externalOpenURL == nil && !closedHandoff,
             "late hash change cannot restore the closed session's URL or external action")
@@ -162,6 +167,8 @@ private final class BrowserSearchKeys: LearningKeyStore {
                 "failed_navigation_callbacks": failureProbe.failures,
                 "late_failure_url_kvo": urlEvidence.urls.contains(afterFailure),
                 "late_closed_tab_url_kvo": urlEvidence.urls.contains(afterClose),
+                "late_failure_product_kvo_handled": handledURLs.contains(afterFailure),
+                "late_closed_tab_product_kvo_handled": handledURLs.contains(afterClose),
                 "external_network_or_personal_keychain": false, "native_ui_execution": false]
     }
     static func run() async throws -> [String: Any] {

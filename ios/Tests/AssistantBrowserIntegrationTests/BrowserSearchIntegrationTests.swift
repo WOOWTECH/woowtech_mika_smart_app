@@ -11,10 +11,12 @@ final class BrowserSearchIntegrationTests: XCTestCase {
 
     @MainActor func testRealHashKVOAfterFailedNavigationAndClosedTabCannotReviveHandoff() async throws {
         let result = try await BrowserSearchAppChecks.runSPAHash()
-        XCTAssertGreaterThanOrEqual(result["assertions"] as? Int ?? 0, 17)
+        XCTAssertGreaterThanOrEqual(result["assertions"] as? Int ?? 0, 19)
         XCTAssertEqual(result["failed_navigation_policy_rejected"] as? Bool, true)
         XCTAssertEqual(result["late_failure_url_kvo"] as? Bool, true)
         XCTAssertEqual(result["late_closed_tab_url_kvo"] as? Bool, true)
+        XCTAssertEqual(result["late_failure_product_kvo_handled"] as? Bool, true)
+        XCTAssertEqual(result["late_closed_tab_product_kvo_handled"] as? Bool, true)
     }
 }
 #endif

@@ -9,6 +9,9 @@ import WebKit
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
     private var webViewURLObservation: NSKeyValueObservation?
+    // Hosted integration tests can observe completion of the actual KVO work,
+    // including when publishSameDocumentURL rejects an event. Never grants access.
+    var onSameDocumentURLKVOHandled: ((URL?) -> Void)?
     private let websiteDataStore: WKWebsiteDataStore
     private let suppliedConfiguration: WKWebViewConfiguration?
     var onPageFinished: ((URL, String) -> Void)?
@@ -62,6 +65,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             Task { @MainActor [weak self, weak view] in
                 guard let self, let view, view.url == observedURL else { return }
                 self.publishSameDocumentURL(observedURL, in: view)
+                self.onSameDocumentURLKVOHandled?(observedURL)
             }
         }
         return view
