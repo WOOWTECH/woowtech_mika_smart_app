@@ -15,7 +15,7 @@ public protocol LearningKeyStore {
 }
 
 public enum LearningFileError: Error, Equatable {
-    case unavailable, invalidData, tooLarge, missingKey, notLoaded
+    case unavailable, invalidData, tooLarge, missingKey, notLoaded, busy
 }
 
 /// Single-owner, serialized use only. The App owns this on MainActor.
@@ -37,21 +37,46 @@ public final class EncryptedLearningFile {
         self.keys = keys
     }
 
-    /// Coordinates read-modify-write transactions across independent vault
-    /// instances and processes. Callers must re-load inside this lock before
-    /// changing the snapshot; atomic rename alone does not prevent lost writes.
-    @discardableResult public func withExclusiveAccess<T>(_ operation: () throws -> T) throws -> T {
+    /// A scoped cross-process lease. The caller must release it after the
+    /// protected operation; deinit is a final safeguard, not a timeout.
+    public final class ExclusiveLease: @unchecked Sendable {
+        private let mutex = NSLock()
+        private var descriptor: Int32
+        fileprivate init(descriptor: Int32) { self.descriptor = descriptor }
+        public func release() {
+            mutex.lock(); let fd = descriptor; descriptor = -1; mutex.unlock()
+            if fd >= 0 { _ = flock(fd, LOCK_UN); close(fd) }
+        }
+        deinit { release() }
+    }
+
+    /// All cooperating archive stores use the same lock path. Non-blocking
+    /// acquisition is required on the main actor while an async lease exists.
+    public func acquireExclusiveAccess(nonBlocking: Bool = false) throws -> ExclusiveLease {
         let directory = url.deletingLastPathComponent()
         do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
         catch { throw LearningFileError.unavailable }
-        let lockPath = url.path + ".lock"
-        let descriptor = open(lockPath, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
+        let descriptor = open(url.path + ".lock", O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
         guard descriptor >= 0 else { throw LearningFileError.unavailable }
-        defer { close(descriptor) }
-        while flock(descriptor, LOCK_EX) != 0 {
-            guard errno == EINTR else { throw LearningFileError.unavailable }
+        while flock(descriptor, LOCK_EX | (nonBlocking ? LOCK_NB : 0)) != 0 {
+            if errno == EINTR { continue }
+            let busy = nonBlocking && (errno == EWOULDBLOCK || errno == EAGAIN)
+            close(descriptor)
+            throw busy ? LearningFileError.busy : LearningFileError.unavailable
         }
-        defer { _ = flock(descriptor, LOCK_UN) }
+        return ExclusiveLease(descriptor: descriptor)
+    }
+
+    /// Coordinates read-modify-write across independent vaults and processes.
+    @discardableResult public func withExclusiveAccess<T>(_ operation: () throws -> T) throws -> T {
+        let lease = try acquireExclusiveAccess()
+        defer { lease.release() }
+        return try operation()
+    }
+
+    @discardableResult public func withExclusiveAccessIfAvailable<T>(_ operation: () throws -> T) throws -> T {
+        let lease = try acquireExclusiveAccess(nonBlocking: true)
+        defer { lease.release() }
         return try operation()
     }
 

@@ -35,7 +35,7 @@ private actor Gate {
     func waitForStart() async { if !started { await withCheckedContinuation { startWaiters.append($0) } } }
     func release() { released = true; let waiters = releaseWaiters; releaseWaiters = []; waiters.forEach { $0.resume() } }
 }
-private actor Model: ChatModelClient {
+private actor Model: LifetimeBoundCompletionChatModelClient {
     let replies: [String]
     let gate: Gate?
     private(set) var requests: [[ModelMessage]] = []
@@ -53,15 +53,20 @@ private actor StreamRecords {
     func addStream(_ messages: [ModelMessage]) { streamed.append(messages) }
     func addComplete(_ messages: [ModelMessage]) { completed.append(messages) }
 }
-private final class StreamModel: StreamingChatModelClient, @unchecked Sendable {
+private final class StreamModel: LifetimeRetainingStreamingChatModelClient, @unchecked Sendable {
     let records = StreamRecords(); let fails: Bool
     init(fails: Bool) { self.fails = fails }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         await records.addComplete(messages); return "unexpected fallback"
     }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, retaining: ())
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                retaining lifetime: any Sendable) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
+                defer { withExtendedLifetime(lifetime) {} }
                 await records.addStream(messages)
                 continuation.yield("fixture partial")
                 if fails { continuation.finish(throwing: URLError(.networkConnectionLost)) }
@@ -70,7 +75,48 @@ private final class StreamModel: StreamingChatModelClient, @unchecked Sendable {
         }
     }
 }
-private struct CompleteHTTP: ChatModelClient {
+private final class ControlledStreamModel: LifetimeRetainingStreamingChatModelClient, @unchecked Sendable {
+    let gate = Gate()
+    private let lock = NSLock()
+    private var worker: Task<Void, Never>?
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        throw Failure(name: "unexpected complete")
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, retaining: ())
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                retaining lifetime: any Sendable) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                defer { withExtendedLifetime(lifetime) {} }
+                await gate.wait() // deliberately ignores consumer cancellation
+                continuation.finish()
+            }
+            lock.lock(); worker = task; lock.unlock()
+        }
+    }
+    private func capturedWorker() -> Task<Void, Never>? { lock.lock(); defer { lock.unlock() }; return worker }
+    func joinWorker() async { await capturedWorker()?.value }
+}
+private final class UnretainedStreamModel: StreamingChatModelClient, LifetimeBoundCompletionChatModelClient, @unchecked Sendable {
+    let records = StreamRecords()
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        await records.addComplete(messages); return "complete once"
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task { await records.addStream(messages); continuation.finish() }
+        }
+    }
+}
+private actor UnboundCompleteModel: ChatModelClient {
+    var calls = 0
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        calls += 1; return "must not be invoked"
+    }
+}
+private struct CompleteHTTP: LifetimeBoundCompletionChatModelClient {
     let client: HTTPChatModelClient
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
@@ -131,6 +177,19 @@ private func image() throws -> Data {
 
 @main private enum CheckChatAttachmentSession {
     @MainActor static func main() async throws {
+        if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "selection" {
+            try await failedSelectionSurvivesDraftChange(); return
+        }
+        if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "archive" {
+            try await staleOtherStoreDuringPreflight(); return
+        }
+        try await failedSelectionSurvivesDraftChange()
+        try await staleOtherStoreDuringPreflight()
+        try await otherStoreCannotRaceClientEntry()
+        try await leaseSurvivesCancellationUntilClientReturns()
+        try await streamProducerRetainsLeaseAfterCancellation()
+        try await unretainedStreamUsesOneCompleteCall()
+        try await unboundCompleteIsRejectedBeforeConsumption()
         try await archiveQuoteAndBranch()
         try await boundariesAndVision()
         try await streamingAndFailure()
@@ -141,6 +200,103 @@ private func image() throws -> Data {
         try await nonStreamingFailure()
         try await cancellation()
         print("Chat attachment session checks passed: \(assertions)")
+    }
+    @MainActor static func failedSelectionSurvivesDraftChange() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model(["must not send"]), s = e.session(model)
+        s.draft = "before"; try check(s.prepareAttachmentReview(), "initial review context")
+        s.attachmentPresenter.picked(e.root.appendingPathComponent("unsupported.pdf"))
+        try check(s.attachmentPresenter.state.error != nil && !s.canSend, "invalid selection blocks send")
+        s.draft = "after edit"
+        try check(s.attachmentPresenter.state.error != nil && !s.canSend, "draft edit cannot dismiss selection failure")
+        s.send(); let calls = await model.requests
+        try check(calls.isEmpty && s.draft == "after edit", "selection failure cannot become text-only send")
+        s.discardGeneralAttachment()
+        try check(s.canSend, "explicit discard restores text-only send")
+    }
+    @MainActor static func staleOtherStoreDuringPreflight() async throws {
+        let e = try Environment(); defer { e.close() }
+        let gate = Gate(), model = Model(["original", "must not send"])
+        let s = e.session(model, probe: { await gate.wait() })
+        s.draft = "first"; try await finish(s)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        s.draft = "with attachment"; try await stage(s, url: e.file()); s.send()
+        let task = s.capturedArchiveRequest!; await gate.waitForStart()
+        try check(other.delete(id: row.id), "independent store deletes reviewed source")
+        await gate.release(); await task.value
+        let calls = await model.requests
+        try check(calls.count == 1, "external deletion before client entry prevents attachment request")
+        try check(s.draft == "with attachment" && s.attachmentIssue == .chatAttachmentReselect, "stale archive preserves draft and requires decision")
+    }
+    @MainActor static func otherStoreCannotRaceClientEntry() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model(["original", "reply"])
+        var other: ConversationArchiveStore?, attempted = false, removed = true
+        let s = e.session(model, clientProbe: {
+            attempted = true
+            if let other, let id = other.state.conversations.first?.id { removed = other.delete(id: id) }
+        })
+        s.draft = "first"; try await finish(s)
+        let row = e.archive.state.conversations[0]
+        other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        s.draft = "with attachment"; try await stage(s, url: e.file()); try await finish(s)
+        let calls = await model.requests
+        try check(attempted && !removed && calls.count == 2, "independent delete at exact client entry is rejected by lease")
+        try check(s.entries.count == 4 && s.attachmentIssue == nil, "request completes after protected client entry")
+        try check(other!.delete(id: row.id), "lease released after request")
+    }
+    @MainActor static func leaseSurvivesCancellationUntilClientReturns() async throws {
+        let e = try Environment(); defer { e.close() }
+        let seed = e.session(Model(["original"]))
+        seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        let gate = Gate(), model = Model(["late"], gate: gate), s = e.session(model)
+        try check(s.openConversation(id: row.id), "open archived source")
+        s.draft = "with attachment"; try await stage(s, url: e.file()); s.send()
+        let task = s.capturedArchiveRequest!; await gate.waitForStart()
+        try check(!other.delete(id: row.id), "other store cannot mutate while client suspended")
+        s.cancel()
+        try check(!other.delete(id: row.id), "cancel does not release lock while client remains suspended")
+        await gate.release(); await task.value
+        try check(other.delete(id: row.id), "lock released after cancelled client actually returns")
+        try check(s.draft == "with attachment" && s.attachmentIssue == .chatAttachmentReselect, "cancel keeps draft and requires explicit decision")
+    }
+    @MainActor static func streamProducerRetainsLeaseAfterCancellation() async throws {
+        let e = try Environment(); defer { e.close() }
+        let seed = e.session(Model(["original"]))
+        seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        let model = ControlledStreamModel(), s = e.session(model)
+        try check(s.openConversation(id: row.id), "open stream source")
+        s.draft = "stream cancellation"; try await stage(s, url: e.file()); s.send()
+        let task = s.capturedArchiveRequest!; await model.gate.waitForStart()
+        s.cancel(); await task.value
+        try check(!other.delete(id: row.id), "cancelled consumer cannot release live producer lease")
+        await model.gate.release(); await model.joinWorker()
+        try check(other.delete(id: row.id), "producer termination releases stream lease")
+        try check(s.draft == "stream cancellation" && s.attachmentIssue == .chatAttachmentReselect,
+                  "stream cancellation retains draft")
+    }
+    @MainActor static func unretainedStreamUsesOneCompleteCall() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = UnretainedStreamModel(), s = e.session(model)
+        s.draft = "safe complete"; try await stage(s, url: e.file()); try await finish(s)
+        let streams = await model.records.streamed, completes = await model.records.completed
+        try check(streams.isEmpty && completes.count == 1 && completes[0].last?.attachment != nil,
+                  "stream without lifetime contract uses exactly one complete request")
+    }
+    @MainActor static func unboundCompleteIsRejectedBeforeConsumption() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = UnboundCompleteModel(), s = e.session(model)
+        s.draft = "untrusted client"; try await stage(s, url: e.file()); s.send()
+        let calls = await model.calls
+        try check(calls == 0 && !s.isSubmitting && s.draft == "untrusted client", "unbound client cannot start attachment request")
+        if case .confirmed = s.attachmentPresenter.state.phase { assertions += 1 }
+        else { throw Failure(name: "unbound client consumed attachment") }
+        try check(s.attachmentIssue == .chatAttachmentUnavailable, "unbound client shows a safe failure")
     }
     @MainActor static func archiveQuoteAndBranch() async throws {
         let e = try Environment(); defer { e.close() }

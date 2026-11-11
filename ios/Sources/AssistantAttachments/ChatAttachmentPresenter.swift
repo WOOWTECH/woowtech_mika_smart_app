@@ -145,7 +145,9 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
         case .confirmed(let metadata): phase = .ready(metadata)
         default: phase = state.phase
         }
-        state = .init(phase: phase, error: nil, context: context)
+        // A failed selection is a pending user decision, independent of the
+        // review context. Only a new selection or explicit discard resolves it.
+        state = .init(phase: phase, error: state.error, context: context)
     }
 
     public func confirm() throws {

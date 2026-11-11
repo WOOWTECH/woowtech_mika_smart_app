@@ -22,7 +22,7 @@ import Foundation
         do {
             let location = try Self.location(arguments: ProcessInfo.processInfo.arguments)
             let file = EncryptedLearningFile(url: location.url, keys: LearningKeychainStore(service: location.service))
-            if location.reset { try file.withExclusiveAccess { try file.save(ConversationArchive(), rotateKey: true) } }
+            if location.reset { try file.withExclusiveAccessIfAvailable { try file.save(ConversationArchive(), rotateKey: true) } }
             vault = file
             reload()
         } catch {
@@ -34,16 +34,34 @@ import Foundation
     func reload() {
         do {
             guard let vault else { throw ConversationArchiveError.unavailable }
-            let next = try vault.withExclusiveAccess { try vault.load(ConversationArchive.self) ?? ConversationArchive() }
+            let next = try vault.withExclusiveAccessIfAvailable { try vault.load(ConversationArchive.self) ?? ConversationArchive() }
             state = next; available = true; error = nil
         } catch { available = false; self.error = Self.readFailure }
+    }
+
+    /// Hold the same lock used by every cooperating archive mutation until
+    /// the attachment client returns. A reread alone leaves a TOCTOU window.
+    func acquireAttachmentRequestLease(conversationID: UUID, expected: ArchivedConversation?,
+                                       quoteSource: ArchivedConversation?) throws -> EncryptedLearningFile.ExclusiveLease {
+        guard available, let vault else { throw ConversationArchiveError.unavailable }
+        let lease = try vault.acquireExclusiveAccess(nonBlocking: true)
+        do {
+            let latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            guard latest.conversations.first(where: { $0.id == conversationID }) == expected,
+                  quoteSource.map({ source in latest.conversations.first(where: { $0.id == source.id }) == source }) ?? true
+            else { throw ConversationArchiveError.staleConversation }
+            return lease
+        } catch {
+            lease.release()
+            throw error
+        }
     }
 
     /// Match the exact pre-request row. Deletion/replacement cannot be undone by
     /// a late response, and unrelated conversation deletion does not block this row.
     func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        let next = try vault.withExclusiveAccess {
+        let next = try vault.withExclusiveAccessIfAvailable {
             var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             let current = latest.conversations.first(where: { $0.id == record.id })
             // Display-only renames and pins may happen while a request runs.
@@ -63,7 +81,7 @@ import Foundation
     /// Publish only after the complete branch snapshot is encrypted and saved.
     func commitBranch(_ plan: ConversationBranchPlan, isBusy: Bool, hasUnfinishedOrUnsavedTurn: Bool) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        let next = try vault.withExclusiveAccess {
+        let next = try vault.withExclusiveAccessIfAvailable {
             let latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             let next = try plan.applying(to: latest, isBusy: isBusy,
                                          hasUnfinishedOrUnsavedTurn: hasUnfinishedOrUnsavedTurn)
@@ -75,7 +93,7 @@ import Foundation
 
     func rename(id: UUID, expectedTitle: String?, to title: String) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        let next = try vault.withExclusiveAccess {
+        let next = try vault.withExclusiveAccessIfAvailable {
             var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             try latest.rename(id: id, expectedTitle: expectedTitle, to: title)
             try vault.save(latest)
@@ -86,7 +104,7 @@ import Foundation
 
     func setPinned(id: UUID, expectedPinnedAt: Date?, pinned: Bool) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        let next = try vault.withExclusiveAccess {
+        let next = try vault.withExclusiveAccessIfAvailable {
             var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             try latest.setPinned(id: id, expectedPinnedAt: expectedPinnedAt, pinned: pinned)
             try vault.save(latest)
@@ -98,7 +116,7 @@ import Foundation
     @discardableResult func delete(id: UUID) -> Bool {
         do {
             guard available, let vault else { throw ConversationArchiveError.unavailable }
-            let next = try vault.withExclusiveAccess {
+            let next = try vault.withExclusiveAccessIfAvailable {
                 var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
                 try latest.delete(id: id)
                 try vault.save(latest)

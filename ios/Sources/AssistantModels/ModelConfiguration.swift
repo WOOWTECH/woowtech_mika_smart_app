@@ -52,12 +52,25 @@ public protocol ChatModelClient: Sendable {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String
 }
 
+/// Opt-in contract: complete() does not return, including on cancellation,
+/// until all work capable of starting its request has stopped. A host may
+/// retain an external ordering guard until this async operation returns.
+public protocol LifetimeBoundCompletionChatModelClient: ChatModelClient {}
+
 /// Optional text-delta capability. Finishing normally certifies a complete reply;
 /// truncation, cancellation and provider errors must finish by throwing.
 /// Structured tool flows use this only when separately opted in and keep their
 /// existing whole-command validators before any tool effect or final answer.
 public protocol StreamingChatModelClient: ChatModelClient {
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error>
+}
+
+/// A streaming client that retains the supplied guard until its underlying
+/// producer has actually stopped, including after consumer cancellation.
+/// Hosts can use this for resources that protect request-start ordering.
+public protocol LifetimeRetainingStreamingChatModelClient: StreamingChatModelClient, LifetimeBoundCompletionChatModelClient {
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                retaining lifetime: any Sendable) -> AsyncThrowingStream<String, Error>
 }
 
 /// Explicit capability for streaming a structured tool-command response. The

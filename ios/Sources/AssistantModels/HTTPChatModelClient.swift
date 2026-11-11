@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
+public struct HTTPChatModelClient: StructuredStreamingChatModelClient, LifetimeRetainingStreamingChatModelClient {
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private static let maximumTimeout: UInt64 = 90_000_000_000
@@ -53,8 +53,19 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
 
     /// Yields text deltas (not accumulated text). Slow consumers fail rather than lose text.
     public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, retaining: nil)
+    }
+
+    public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                       retaining lifetime: any Sendable) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, retaining: Optional(lifetime))
+    }
+
+    private func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                        retaining lifetime: (any Sendable)?) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
             let worker = Task {
+                defer { withExtendedLifetime(lifetime) {} }
                 do {
                     let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: true)
                     try await bounded {

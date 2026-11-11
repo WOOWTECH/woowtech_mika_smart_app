@@ -739,6 +739,11 @@ final class ChatSession: ObservableObject {
     /// A single plain/streaming model request. Tool runners may issue multiple
     /// requests and therefore cannot receive this one-shot attachment.
     private func sendGeneralAttachment() {
+        // Unknown clients may return from cancellation while detached work can
+        // still start transport. Do not consume or send through such a client.
+        guard client is any LifetimeBoundCompletionChatModelClient else {
+            setAttachmentIssue(.chatAttachmentUnavailable); return
+        }
         guard let reviewed = attachmentBinding, reviewed == currentAttachmentBinding(),
               let context = attachmentReviewContext(reviewed), attachmentPresenter.state.context == context, let savedSettings,
               let destination = archiveDestination else { setAttachmentIssue(.chatAttachmentChanged); return }
@@ -787,11 +792,23 @@ final class ChatSession: ObservableObject {
                 var messages = window.messages
                 guard let final = messages.last, final.role == "user" else { throw ChatAttachmentPresentationError.contextChanged }
                 messages[messages.count - 1] = ModelMessage(userText: final.content, attachment: attachment)
-                let reply = try await self.completePlain(messages: messages, configuration: configuration,
-                    key: key, client: client, requestID: id, validateStart: {
-                        self.attachmentClientStartProbe()
-                        try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
-                    })
+                // The independent vault is reread and locked together. Keep
+                // this lease until the client returns, including cancellation;
+                // async clients may not start transport at their call site.
+                let reply: String
+                do {
+                    let lease = try self.archive?.acquireAttachmentRequestLease(conversationID: archiveID,
+                        expected: binding.archivePrior, quoteSource: binding.quoteSource)
+                    defer { withExtendedLifetime(lease) {} }
+                    reply = try await self.completePlain(messages: messages, configuration: configuration,
+                        key: key, client: client, requestID: id, attachmentLease: lease, attachmentRequest: true, validateStart: {
+                            self.attachmentClientStartProbe()
+                            try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                        })
+                    // Successful completion means transport has finished. Release
+                    // before saving the answer, which takes the same vault lock.
+                    lease?.release()
+                }
                 try Task.checkCancellation()
                 guard self.requestID == id else { return }
                 guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -969,6 +986,7 @@ final class ChatSession: ObservableObject {
 
     private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
                                key: String, client: any ChatModelClient, requestID id: UUID,
+                               attachmentLease: EncryptedLearningFile.ExclusiveLease? = nil, attachmentRequest: Bool = false,
                                validateStart: () throws -> Void = {}) async throws -> String {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
@@ -978,8 +996,23 @@ final class ChatSession: ObservableObject {
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
         }
+        let deltas: AsyncThrowingStream<String, Error>
+        if let lease = attachmentLease {
+            // A generic stream can terminate its consumer while an unstructured
+            // producer is still starting transport. Require an explicit producer
+            // lifetime contract, otherwise make one complete request instead.
+            guard let retaining = streaming as? any LifetimeRetainingStreamingChatModelClient else {
+                return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
+            }
+            deltas = retaining.stream(messages: messages, configuration: configuration, apiKey: key, retaining: lease)
+        } else if attachmentRequest {
+            // No archive lease exists to carry into an unstructured producer.
+            return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
+        } else {
+            deltas = streaming.stream(messages: messages, configuration: configuration, apiKey: key)
+        }
         var text = "", bytes = 0
-        for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: key) {
+        for try await delta in deltas {
             try Task.checkCancellation()
             guard requestID == id else { throw CancellationError() }
             guard delta.utf8.count <= ChatReplyPreview.maximumUTF8Bytes - bytes else {
