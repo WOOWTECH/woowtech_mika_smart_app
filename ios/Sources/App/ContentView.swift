@@ -463,7 +463,8 @@ private struct ChatView: View {
                             VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
                                 HStack {
                                     if entry.role == "user" { Spacer(minLength: 40) }
-                                    Text(entry.content)
+                                    Text(entry.role == "assistant"
+                                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(entry.content))
                                         .font(.system(size: 15.5))
                                         .lineSpacing(entry.role == "user" ? 1 : 4)
                                         .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
@@ -485,7 +486,7 @@ private struct ChatView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
                                     .accessibilityIdentifier("chat.partialStatus")
-                                Text(preview.text)
+                                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
                                     .font(.system(size: 15.5)).lineSpacing(4)
                                     .foregroundStyle(palette.ink).textSelection(.enabled)
                                     .accessibilityIdentifier("chat.partialReply")

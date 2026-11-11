@@ -57,6 +57,28 @@ final class ChatStreamingUITests: XCTestCase {
         print("CHAT_STREAM_UI partialObserved=1 cancelled=1 draftRetained=1 archiveAbsentAfterRelaunch=1 completionNotificationAttempts=0")
     }
 
+    func testMarkdownFormatsCompletedBubbleButArchivesOriginalStreamingBytes() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-markdown]"); tap("chat.send")
+        let partial = identifiedText("chat.partialReply")
+        wait(NSPredicate(format: "label CONTAINS %@", "**粗體"), on: partial, seconds: 10)
+        XCTAssertTrue(partial.label.contains("標題"))
+        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+
+        let completed = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "• 第二項"), on: completed, seconds: 35)
+        XCTAssertTrue(completed.label.contains("粗體 與 連結"))
+        XCTAssertTrue(completed.label.contains("• 第一項"))
+        XCTAssertFalse(completed.label.contains("**") || completed.label.contains("[連結]"))
+        XCTAssertFalse(identifiedText("chat.partialReply").exists)
+        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+
+        launch(reset: false); tap("chat.archive")
+        let saved = row("[fixture:stream-markdown]"); ready(saved); saved.tap()
+        assertLabel(identifiedText("archive.turn.0.assistant"),
+                    "# 標題\n\n**粗體** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
+    }
+
     private func disableMemory() {
         navigate("memory")
         let toggle = app.switches["memory.toggle.useMemory"].firstMatch

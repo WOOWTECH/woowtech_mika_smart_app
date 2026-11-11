@@ -43,6 +43,9 @@ def main():
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / 'Sources' / name).glob('*.swift'))] for name, _ in MODULES}
         apps = [copy('Sources/App/' + name + '.swift') for name in APPS]
+        markdown = copy('Sources/App/ChatReplyMarkdown.swift')
+        apps.append(markdown)
+        markdown_checks = copy('scripts/CheckChatReplyMarkdown.swift')
         view = copy('Sources/App/ContentView.swift')
         harness = copy('scripts/CheckChatStreamingApp.swift')
         ui = copy('Tests/WoowAssistantUITests/ChatStreamingUITests.swift')
@@ -60,6 +63,10 @@ def main():
             run(name + '-compile', [*common, '-enable-testing', '-emit-module', '-emit-library', '-module-name', name,
                 '-emit-module-path', str(out / (name + '.swiftmodule')), *modules[name], *['-l' + d for d in deps],
                 '-o', str(out / ('lib' + name + '.dylib'))])
+        markdown_binary = out / 'chat-reply-markdown'
+        run('markdown-compile', ['swiftc', '-swift-version', '5', '-parse-as-library', markdown,
+                                 markdown_checks, '-o', str(markdown_binary)])
+        run('markdown-run', [str(markdown_binary)], 15)
         for config, flags in [('Debug', ['-DDEBUG']), ('Release', [])]:
             run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support])
             binary = out / (config + '-stream-app')

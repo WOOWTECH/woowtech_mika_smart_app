@@ -82,8 +82,16 @@ struct UITestStreamingChatModelClient: StreamingChatModelClient {
                     try Task.checkCancellation()
                     let prompt = messages.last?.content ?? ""
                     guard messages.allSatisfy({ $0.role == "user" || $0.role == "assistant" }),
-                          ["[fixture:stream-complete]", "[fixture:stream-cancel]"].contains(prompt) else {
+                          ["[fixture:stream-complete]", "[fixture:stream-cancel]", "[fixture:stream-markdown]"].contains(prompt) else {
                         throw HTTPChatModelError.invalidConfiguration
+                    }
+                    if prompt == "[fixture:stream-markdown]" {
+                        continuation.yield("# 標題\n\n**粗體")
+                        try await Task.sleep(nanoseconds: 12_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.yield("** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
+                        continuation.finish()
+                        return
                     }
                     continuation.yield("串流測試：第一段")
                     // Fixed transport timing only; no host deadline, approval,
