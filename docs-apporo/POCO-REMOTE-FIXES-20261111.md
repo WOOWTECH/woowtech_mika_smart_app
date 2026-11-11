@@ -4,6 +4,8 @@
 
 在 Poco `25078PC3EG`（Android 15，ADB `ZHO7GIKRHYNRKZRC`）上，以相同簽章的 `0.1.37-apporo.9`／`3809` 測試 APK 原地更新 `.8`。手機的首次安裝時間仍為 2026-11-10 15:14:03。這輪將修正接上主分支最新的畫面擷取與首頁捷徑變更後，重新建置、簽章並安裝。最終簽章測試 APK SHA-256：`582ab00c5885f14efd0d86211c988fd12aeb65b8e9bdf62ec0bafa739eb92394`，簽章憑證 SHA-256：`3573aeaeecbbe99d5074ad424022a6e58ad2bbfd44ff2509862aa146afaf9169`，與 `.8` 相同。證據目錄：`~/.local/share/apporo-assistant/test-evidence/physical-remote-fixes-20261111/`。測試 APK 不是已發佈的更新。
 
+權杖輪換、設定摘要及喚醒的完整操作是在接上最新主分支之前的 `.9` 候選包上完成；接上主分支後的最終包已在同一台 Poco 原地重裝，確認新版號及個人 MCP 通道仍可連到手機。兩包的上述修正程式碼相同；主分支新增的是畫面擷取與首頁捷徑變更。
+
 ## 修正與結果
 
 | 問題 | 修正 | Poco 實測 |
@@ -11,7 +13,7 @@
 | 網站撤銷手機配對後，同一手機重新配對使舊電腦權杖恢復可用 | Apporo 每次成功建立新網關配對時，先換掉手機儲存的電腦存取權杖，再保存配對。解除配對對話框提醒使用者更新仍信任電腦的權杖。 | **通過。** 撤銷後舊權杖回 `device_offline`；重新配對並開啟遠端後，舊權杖回 `access_denied`，新權杖可連線到 `.9`。測試配對碼已刪，電腦端私人權杖檔已換成新權杖，沒有寫入報告。 |
 | 遠端已開啟，設定首頁的「Connect a computer」仍顯示 Off | 摘要狀態計入 relay 開關。 | **通過。** 相同手機的 UI XML 在 `.8` 顯示 `Off`，更新 `.9` 後顯示 `On`；遠端實際連線正常。證據：`03-advanced-before.xml`、`11-advanced-after.xml`。 |
 | Dozing 時 `wake_device` 回 `awake`，但未證實面板亮起 | 裝置狀態同時檢查 `PowerManager.isInteractive` 與主顯示器 `STATE_ON`；其中一項不符就不回報互動中。 | **實際黑屏喚醒通過；Dozing 特定狀態待複現。** 將無關通知的干擾隔離後，量到 `Asleep/OFF`，MCP `mika_device_state` 回 `interactive=false`；中途仍為 `Asleep/OFF`；呼叫 `mika_wake_device` 後量到 `Awake/ON`。通知干擾是另一個 App 的 `Websocket Issues` 警示，會自行亮屏。測試暫開的勿擾模式已還原為關閉。證據：`wake-e2e-dnd.json`。 |
-| AI 提問後由電腦回答、steer 後的最終結果 | 無程式碼修正；先排除模型服務限流並重做完整任務。 | **待完成。** 原 `apporo/gpt-6.1-sol` 路由在這輪的簡單算式仍回 `too many requests; try again later`。證據：`model-preflight-start.json`、`model-preflight-wait-2.json`。 |
+| AI 提問後由電腦回答、steer 後的最終結果 | 無程式碼修正；先排除模型服務限流並重做完整任務。 | **待完成。** 原 `apporo/gpt-6.1-sol` 路由在簡單算式及合併的提問／steer 任務中都回 `too many requests; try again later`。後者的 `mika_steer_task` 被接受，狀態顯示 `joined`；模型在提出問題之前就失敗，因此 `mika_answer` 與 steer 對最終答案的影響仍未驗到。證據：`model-preflight-start.json`、`model-preflight-wait-2.json`、`answer-steer-e2e.json`。 |
 
 ## 驗證與限制
 
