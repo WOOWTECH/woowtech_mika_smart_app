@@ -81,12 +81,22 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                 do {
                     try Task.checkCancellation()
                     let prompt = messages.last?.content ?? ""
-                    if messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true,
-                       prompt == "[fixture:structured-stream-complete]" {
-                        continuation.yield("{\"action\":\"finish\",\"answer\":\"結構化串流：第一段")
-                        try await Task.sleep(nanoseconds: 12_000_000_000)
-                        try Task.checkCancellation()
-                        continuation.yield("；完整回覆。\"}")
+                    if messages.first?.role == "system",
+                       messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true {
+                        if messages.last?.role == "user", prompt == "[fixture:structured-stream-complete]" {
+                            continuation.yield("{\"action\":\"finish\",\"answer\":\"結構化串流：第一段")
+                            try await Task.sleep(nanoseconds: 12_000_000_000)
+                            try Task.checkCancellation()
+                            continuation.yield("；完整回覆。\"}")
+                        } else {
+                            // Preserve the existing closed profile/memory fixture
+                            // commands. The App still parses the complete JSON
+                            // and requires its normal host review before effects.
+                            let command = try await completeClient.complete(
+                                messages: messages, configuration: configuration, apiKey: apiKey)
+                            try Task.checkCancellation()
+                            continuation.yield(command)
+                        }
                         continuation.finish()
                         return
                     }

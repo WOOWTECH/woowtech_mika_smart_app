@@ -545,6 +545,27 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(session.replyPreview == nil && session.entries.isEmpty, "stream flag cannot bypass enabled profile review")
         session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: false); await reviewed.value
         try a.check(e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty, "fixture decline remains without effect")
+        session.newConversation()
+        let approved = try start(session, "Remember Prefer tea")
+        try await wait("fixture approved profile review") { session.pendingProfileReview != nil }
+        try a.check(session.replyPreview == nil && session.entries.isEmpty && e.learning.profile.snapshot().entries.isEmpty,
+                    "structured command stays hidden and unapplied before approval")
+        session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true); await approved.value
+        try a.check(e.learning.profile.snapshot().entries.count == 1
+                    && session.entries.last?.content == "個人檔案工具已完成。" && session.replyPreview == nil,
+                    "approved profile command uses the existing reviewed final-answer path")
+        try a.check(e.reopen().conversations.count == 2, "only approved completed profile answer adds a durable pair")
+
+        session.newConversation()
+        let structured = try start(session, "[fixture:structured-stream-complete]")
+        try await wait("actual structured fixture first delta") { session.replyPreview?.text == "結構化串流：第一段" }
+        try a.check(session.replyPreview?.phase == .receiving && session.entries.isEmpty
+                    && session.pendingProfileReview == nil && e.reopen().conversations.count == 2,
+                    "split finish.answer previews without exposing a command or saving an unfinished answer")
+        await structured.value
+        try a.check(session.replyPreview == nil && session.entries.last?.content == "結構化串流：第一段；完整回覆。"
+                    && e.reopen().conversations.count == 3,
+                    "the actual second JSON delta validates and archives only the completed answer")
         return a.count
     }
     #endif
