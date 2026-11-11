@@ -69,6 +69,7 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/SkillExecutionUITests/testUIKitImportCopyCoordinatedPDFNeedsBothApprovalsAndReturnsActualText",
         "WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText",
         "WoowAssistantUITests/SkillExecutionUITests/testNativePickerCancellationDoesNotReadOrExtract",
+        "WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchUsesApprovedExtractionAndClearsEditedResults",
     ],
     "documents-output": [
         "WoowAssistantUITests/SkillExecutionUITests/testRefusingFirstStepDoesNotReadOrExtract",
