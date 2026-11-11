@@ -37,7 +37,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         exactVisibleText("tools.status", "MCP and Skills")
         exactVisibleText("mcp.status", "MCP is not configured")
         exactText("mcp.testIsolation", "Isolated UI test mode: no MCP network requests.")
-        exactText("mcp.endpointStatus", "No endpoint saved.")
+        exactVisibleText("mcp.endpointStatus", "No endpoint saved.")
 
         tapRoot("settings")
         tapContent(app.buttons["settings.notifications"])
