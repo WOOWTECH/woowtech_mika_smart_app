@@ -26,6 +26,31 @@ final class MemoryUITests: XCTestCase {
         app.terminate()
     }
 
+    func testMemoryHomeSearchAndSwitchOrder() {
+        launch()
+        openMemory()
+        let empty = app.staticTexts["memory.empty"].firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        XCTAssertEqual(empty.label, "還沒有記住的事")
+        XCTAssertFalse(app.textFields["memory.search"].exists)
+        XCTAssertEqual(app.buttons["memory.add"].firstMatch.label, "手寫一條")
+
+        tap("memory.search.toggle")
+        enter("no matching fixture\n", into: app.textFields["memory.search"].firstMatch)
+        XCTAssertEqual(empty.label, "找不到符合的記憶。")
+        tap("memory.search.toggle")
+        XCTAssertFalse(app.textFields["memory.search"].exists)
+        XCTAssertEqual(empty.label, "還沒有記住的事", "Closing search clears the active filter")
+
+        let switches = ["useMemory", "autoRemember", "learnSkills"].map {
+            app.switches["memory.toggle.\($0)"].firstMatch
+        }
+        reveal(switches[2])
+        XCTAssertTrue(switches.allSatisfy { $0.exists && $0.isEnabled })
+        XCTAssertLessThan(switches[0].frame.midY, switches[1].frame.midY)
+        XCTAssertLessThan(switches[1].frame.midY, switches[2].frame.midY)
+    }
+
     func testSegmentsAndPreferencePersistence() {
         launch()
         openMemory()
@@ -124,6 +149,7 @@ final class MemoryUITests: XCTestCase {
         tapFirst(prefix: "memory.edit.")
         replaceEditor("memory", text: "Prefer jasmine tea")
         saveMemoryEditor()
+        tap("memory.search.toggle")
         enter("tea\n", into: app.textFields["memory.search"].firstMatch)
         XCTAssertTrue(memory("Prefer jasmine tea").waitForExistence(timeout: 5))
         launch(reset: false)

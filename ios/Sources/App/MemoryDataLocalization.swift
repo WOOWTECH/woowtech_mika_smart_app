@@ -8,7 +8,7 @@ enum MemoryDataKey: String, CaseIterable {
     case profile, routeTitle, websiteKnowledgeCount, routeCount, websitesAndRoutes
     case routesHelp, webLogins, webLoginsHelp, storedData
     case clearAll, clearSubtitle, clearDetails
-    case emptyMemory, memoryNotFound, addMemory, emptyPending, pendingNotFound
+    case emptyMemory, emptyHomeMemory, memoryNotFound, addMemory, emptyPending, pendingNotFound
     case pendingProcedure, pendingSkills, pendingSearchHint
     case manualSource, conversationSource, pinned, originalContent
     case accept, reject, edit, unpin, pin, delete
@@ -55,6 +55,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "删除所有记忆和学到的技能", "Delete all memories and learned skills")
         case .clearDetails: return ("需要兩次確認，並包含個人檔案。模型設定、模型金鑰與 MCP 端點不會被清除。", "需要确认两次，且会清除个人档案。模型设置、模型密钥和 MCP 端点不会被清除。", "Requires two confirmations and includes your profile. Model settings, keys, and MCP endpoints are kept.")
         case .emptyMemory: return ("尚未儲存記憶。", "还没有保存的记忆。", "No saved memories yet.")
+        case .emptyHomeMemory: return ("還沒有記住的事", "还没有记住的事", "Nothing remembered yet")
         case .memoryNotFound: return ("找不到符合的記憶。", "没有找到匹配的记忆。", "No matching memories.")
         case .addMemory: return ("手寫一條", "手写一条", "Write a memory")
         case .emptyPending: return ("沒有待確認的內容。", "没有待确认的内容。", "Nothing pending review.")

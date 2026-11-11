@@ -259,7 +259,7 @@ final class MemoryToolUITests: XCTestCase {
     }
 
     private func assertEmptyMemories() {
-        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "尚未儲存記憶。")
+        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "還沒有記住的事")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
     }
 

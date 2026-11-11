@@ -266,7 +266,7 @@ final class MCPLearningUITests: XCTestCase {
     }
 
     private func assertEmptyMemories() {
-        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "尚未儲存記憶。")
+        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "還沒有記住的事")
         XCTAssertFalse(memoryItems.firstMatch.exists)
     }
 

@@ -666,7 +666,7 @@ final class LiveModelUITests: XCTestCase {
         func assertEmpty(in application: XCUIApplication) {
             let empty = application.staticTexts["memory.empty"].firstMatch
             revealLearningElement(empty, in: application, visibility: .readableText)
-            XCTAssertTrue(empty.label == "尚未儲存記憶。")
+            XCTAssertTrue(empty.label == "還沒有記住的事")
             XCTAssertFalse(item(in: application).exists)
             XCTAssertFalse(application.staticTexts.matching(NSPredicate(
                 format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)

@@ -12,6 +12,7 @@ struct MemoryDataView: View {
     let onOpenBrowser: () -> Void
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
+    @State private var searching = false
     @State private var sheet: LearningSheet?
     @State private var deletionReview: SkillDeletionReview?
     @FocusState private var searchFocused: Bool
@@ -47,6 +48,19 @@ struct MemoryDataView: View {
                 Text(copy.text(.title))
                     .font(.headline)
                     .accessibilityIdentifier("memory.status")
+            }
+            if segment != .skills {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        searching.toggle()
+                        if !searching { query = ""; searchFocused = false }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel(copy.text(.search))
+                    .accessibilityValue(copy.text(searching ? .selected : .unselected))
+                    .accessibilityIdentifier("memory.search.toggle")
+                }
             }
         }
         .memoryNavigationBackground(palette.background)
@@ -111,7 +125,7 @@ struct MemoryDataView: View {
             }
             .padding(4)
             .background(palette.fill, in: RoundedRectangle(cornerRadius: 16))
-            if segment != .skills {
+            if segment != .skills && (searching || !query.isEmpty) {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(palette.ink3)
@@ -249,6 +263,18 @@ struct MemoryDataView: View {
                         .font(.caption).foregroundStyle(palette.ink3)
                 }
             }
+            Section {
+                Text(copy.text(.preferenceScope))
+                    .font(.caption).foregroundStyle(palette.ink3)
+                    .accessibilityIdentifier("memory.preferenceScope")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                Text(copy.text(.learningLimit))
+                    .font(.caption).foregroundStyle(palette.ink3)
+                    .accessibilityIdentifier("skills.learningLimit")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -261,7 +287,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .active)
         if items.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyMemory : .memoryNotFound))
+                Text(copy.text(query.isEmpty ? .emptyHomeMemory : .memoryNotFound))
                     .font(.body)
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 150)
@@ -603,16 +629,6 @@ struct MemoryDataView: View {
                 }
                 .tint(palette.accent)
             }
-            Text(copy.text(.preferenceScope))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .accessibilityIdentifier("memory.preferenceScope")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            Text(copy.text(.learningLimit))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .accessibilityIdentifier("skills.learningLimit")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             if store.isLearning { ProgressView(copy.text(.learningProgress)) }
         } header: { sectionTitle(copy.text(.switches)) }
         .disabled(!store.available)
