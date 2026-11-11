@@ -37,7 +37,7 @@ import AssistantPersistence
     static func canStart(in session: ChatSession, approved: NewConversationProtection?) -> Bool {
         !session.isSubmitting && session.pendingMCPApproval == nil
             && session.pendingProfileReview == nil && session.pendingMemoryReview == nil
-            && session.pendingQuote == nil
+            && session.pendingQuote == nil && !session.hasGeneralAttachment
             && NewConversationProtection.current(in: session) == approved
     }
 

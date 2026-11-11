@@ -155,6 +155,9 @@ private func image() throws -> Data {
         try check(original.turns[0].userText == "first question" && original.turns[0].assistantText.contains("fixture attachment secret"), "answer remains saved even if it quotes attachment")
         try check(original.turns[0].pdf == nil, "no PDF or original attachment metadata archived")
         s.draft = "pending attachment"; try await stage(s, url: file)
+        try check(!NewConversationAction.canStart(in: s, approved: nil)
+                  && !NewConversationAction.start(in: s, approved: nil),
+                  "new-conversation action cannot report a blocked switch as success")
         try check(!s.deleteConversation(id: original.id) && !s.openConversation(id: original.id),
                   "pending attachment blocks deleting or switching current conversation")
         s.newConversation()

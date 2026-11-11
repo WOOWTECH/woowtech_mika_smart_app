@@ -364,7 +364,7 @@ final class ChatSession: ObservableObject {
 
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
-    private var hasGeneralAttachment: Bool {
+    var hasGeneralAttachment: Bool {
         attachmentRequiresDecision || attachmentPresenter.state.phase != .empty || attachmentPresenter.state.error != nil
     }
 
