@@ -523,6 +523,14 @@ enum AppText: Equatable {
     case attachmentErrorCancelled
     case attachmentErrorTimeout
     case attachmentErrorState
+    case chatAttachmentBoundary
+    case chatAttachmentReviewRequired
+    case chatAttachmentToolsEnabled
+    case chatAttachmentRemoveFirst
+    case chatAttachmentReselect
+    case chatAttachmentChanged
+    case chatAttachmentUnavailable
+    case chatAttachmentVisionNotice
 
     var key: String {
         switch self {
@@ -1046,6 +1054,14 @@ enum AppText: Equatable {
         case .attachmentErrorCancelled: return "attachment.errorCancelled"
         case .attachmentErrorTimeout: return "attachment.errorTimeout"
         case .attachmentErrorState: return "attachment.errorState"
+        case .chatAttachmentBoundary: return "chat.attachment.boundary"
+        case .chatAttachmentReviewRequired: return "chat.attachment.reviewRequired"
+        case .chatAttachmentToolsEnabled: return "chat.attachment.toolsEnabled"
+        case .chatAttachmentRemoveFirst: return "chat.attachment.removeFirst"
+        case .chatAttachmentReselect: return "chat.attachment.reselect"
+        case .chatAttachmentChanged: return "chat.attachment.changed"
+        case .chatAttachmentUnavailable: return "chat.attachment.unavailable"
+        case .chatAttachmentVisionNotice: return "chat.attachment.visionNotice"
         }
     }
 
@@ -1605,6 +1621,14 @@ enum AppText: Equatable {
         case .attachmentErrorCancelled: return "已取消附件匯入。"
         case .attachmentErrorTimeout: return "附件讀取逾時，請重新選取。"
         case .attachmentErrorState: return "附件已使用、移除或尚未準備完成。"
+        case .chatAttachmentBoundary: return "本次不使用 MCP、記憶或個人檔案工具。已完成的問題與回答仍可能加密保存在此裝置；回答或之後傳送的對話歷史可能包含附件內容。原始附件不會自動保存或重傳。"
+        case .chatAttachmentReviewRequired: return "請重新檢查並確認附件傳送範圍，或移除附件；草稿保留。"
+        case .chatAttachmentToolsEnabled: return "附件目前僅支援單次一般對話；請先關閉本次 MCP 與記憶功能，或移除附件。純文字對話功能不受影響。"
+        case .chatAttachmentRemoveFirst: return "請先移除目前附件，再選擇另一種附件。"
+        case .chatAttachmentReselect: return "附件傳送未完成或已取消；文字草稿保留。服務可能已收到附件；若要重試，請重新選取並確認，或明確移除附件。"
+        case .chatAttachmentChanged: return "傳送前目的地、內容或參考資料已變更；附件未傳送，請重新確認。"
+        case .chatAttachmentUnavailable: return "無法準備附件傳送；請先檢查模型設定。文字草稿保留。"
+        case .chatAttachmentVisionNotice: return "圖片需由主程式明確宣告此模型支援視覺；服務仍可能拒絕圖片。"
         }
     }
 }

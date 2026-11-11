@@ -22,7 +22,7 @@ APP_SOURCES = LANGUAGE_APP_SOURCES + [
     "LearningStore", "LearningRunContext", "UITestMCPFixture", "MCPSession", "MultiSourceResearchSession",
 ]
 MODULES = [
-    ("AssistantModels", []), ("AssistantMemory", ["AssistantModels"]),
+    ("AssistantModels", []), ("AssistantAttachments", ["AssistantModels"]), ("AssistantMemory", ["AssistantModels"]),
     ("AssistantPersistence", []), ("AssistantMCP", ["AssistantModels"]),
     ("AssistantSkills", ["AssistantModels"]),
     ("AssistantBrowser", ["AssistantModels", "AssistantSkills"]),

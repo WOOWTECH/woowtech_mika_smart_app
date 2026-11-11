@@ -3,6 +3,7 @@ import AssistantMCP
 import AssistantMemory
 import AssistantPersistence
 import AssistantSkills
+import AssistantAttachments
 import Combine
 import Foundation
 
@@ -51,6 +52,24 @@ struct MCPApprovalRequest: Identifiable {
     }
 }
 
+/// An in-memory consent snapshot. Never encoded, logged or stored in history.
+private struct AttachmentBinding: Equatable {
+    let destination: ConversationDestination
+    let conversationID: String
+    let draft: String
+    let quote: ConversationQuote.Quote?
+    let quoteSource: ArchivedConversation?
+    let history: [ModelMessage]
+    let archivePrior: ArchivedConversation?
+    var learningGeneration: UUID
+    let learningAvailable: Bool
+    let memory: MemoryState
+    let profile: UserProfileState
+    let skills: SkillsState
+    let vision: ModelVisionCapability
+    let revision: UUID
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -61,13 +80,13 @@ final class ChatSession: ObservableObject {
     @Published private(set) var archiveNotice: String?
     private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?)?
     var canRetryArchiveSave: Bool { pendingArchiveSave != nil && !isSubmitting }
-    @Published var draft = ""
-    @Published private(set) var pendingQuote: ConversationQuote.Quote?
+    @Published var draft = "" { didSet { if draft != oldValue { invalidateAttachmentReview() } } }
+    @Published private(set) var pendingQuote: ConversationQuote.Quote? { didSet { if pendingQuote != oldValue { invalidateAttachmentReview() } } }
     private var quoteSource: ArchivedConversation?
     @Published var baseURLDraft = ""
     @Published var modelDraft = ""
     @Published var keyDraft = ""
-    @Published private(set) var entries: [ChatEntry] = []
+    @Published private(set) var entries: [ChatEntry] = [] { didSet { invalidateAttachmentReview() } }
     @Published private(set) var replyPreview: ChatReplyPreview?
     @Published private(set) var pdfAttachment: ChatPDFAttachment?
     private var pdfChanges: AnyCancellable?
@@ -78,7 +97,15 @@ final class ChatSession: ObservableObject {
     @Published private(set) var chatNotice: String?
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
-    @Published var usesMCP = false
+    @Published var usesMCP = false { didSet { if usesMCP != oldValue { invalidateAttachmentReview() } } }
+    /// Future composer hosts this exact presenter; it never owns a model client.
+    let attachmentPresenter = ChatAttachmentPresenter()
+    @Published private(set) var attachmentIssue: AppText?
+    private var attachmentBinding: AttachmentBinding?
+    private var attachmentRevision = UUID()
+    private var attachmentVision: ModelVisionCapability = .unknown
+    private var attachmentRequiresDecision = false
+    private var attachmentRequestID: UUID?
     @Published private(set) var pendingMCPApproval: MCPApprovalRequest?
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
@@ -105,6 +132,8 @@ final class ChatSession: ObservableObject {
     private let repository: ModelSettingsRepository
     private let client: any ChatModelClient
     private let assistantQuoteText: @MainActor (String) -> String
+    private let attachmentPreflightProbe: @MainActor () async -> Void
+    private let attachmentClientStartProbe: @MainActor () -> Void
     private var request: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
     private var requestID: UUID?
@@ -113,6 +142,8 @@ final class ChatSession: ObservableObject {
 
     init() {
         assistantQuoteText = Self.plainAssistantQuote
+        attachmentPreflightProbe = {}
+        attachmentClientStartProbe = {}
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         let streamFixture: UITestChatStreamingConfiguration?
@@ -164,12 +195,16 @@ final class ChatSession: ObservableObject {
     /// lifecycles with isolated storage; production uses the initializer above.
     init(learning: LearningStore, repository: ModelSettingsRepository, client: any ChatModelClient,
          archive: ConversationArchiveStore? = nil,
-         assistantQuoteText: @escaping @MainActor (String) -> String = ChatSession.plainAssistantQuote) {
+         assistantQuoteText: @escaping @MainActor (String) -> String = ChatSession.plainAssistantQuote,
+         attachmentPreflightProbe: @escaping @MainActor () async -> Void = {},
+         attachmentClientStartProbe: @escaping @MainActor () -> Void = {}) {
         self.learning = learning
         self.archive = archive
         self.repository = repository
         self.client = client
         self.assistantQuoteText = assistantQuoteText
+        self.attachmentPreflightProbe = attachmentPreflightProbe
+        self.attachmentClientStartProbe = attachmentClientStartProbe
         isUITestMode = false
         loadSettings()
     }
@@ -203,6 +238,7 @@ final class ChatSession: ObservableObject {
             && (conversationDestination == nil || conversationDestination == archiveDestination)
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && (pdfAttachment == nil || (pdfAttachment?.isReady == true && !usesMCP))
+            && attachmentCanSend
     }
 
     private var quoteSourceIsCurrent: Bool {
@@ -263,7 +299,7 @@ final class ChatSession: ObservableObject {
     /// Drafts and attachments cannot be silently discarded by branching.
     private var branchHasUnfinishedOrUnsavedWork: Bool {
         replyPreview != nil || pendingArchiveSave != nil || archiveNotice != nil
-            || !draft.isEmpty || pendingQuote != nil || pdfAttachment != nil
+            || !draft.isEmpty || pendingQuote != nil || pdfAttachment != nil || hasGeneralAttachment
     }
 
     func prepareBranch(source: ArchivedConversation, assistantID: UUID, title: String,
@@ -293,7 +329,7 @@ final class ChatSession: ObservableObject {
     }
 
     @discardableResult func openConversation(id: UUID) -> Bool {
-        guard pendingQuote == nil, let record = archive?.state.conversations.first(where: { $0.id == id }),
+        guard pendingQuote == nil, !hasGeneralAttachment, let record = archive?.state.conversations.first(where: { $0.id == id }),
               canOpenConversation(record) else { return false }
         // Publish restored entries only after submitting and approvals have ended.
         // Restored text cannot complete a notification ticket or resume a task.
@@ -310,7 +346,7 @@ final class ChatSession: ObservableObject {
     }
 
     @discardableResult func deleteConversation(id: UUID) -> Bool {
-        guard !isCurrentConversation(id: id) || pendingQuote == nil else { return false }
+        guard !isCurrentConversation(id: id) || (pendingQuote == nil && !hasGeneralAttachment) else { return false }
         if conversationID == id.uuidString { cancel() }
         guard archive?.delete(id: id) == true else { return false }
         if conversationID == id.uuidString { newConversation() }
@@ -327,6 +363,107 @@ final class ChatSession: ObservableObject {
     }
 
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
+
+    private var hasGeneralAttachment: Bool {
+        attachmentRequiresDecision || attachmentPresenter.state.phase != .empty || attachmentPresenter.state.error != nil
+    }
+
+    private func currentAttachmentBinding() -> AttachmentBinding? {
+        guard let destination = archiveDestination else { return nil }
+        return AttachmentBinding(destination: destination, conversationID: conversationID, draft: draft,
+            quote: pendingQuote, quoteSource: quoteSource,
+            history: entries.map { ModelMessage(role: $0.role, content: $0.content) },
+            archivePrior: archive?.state.conversations.first { $0.id.uuidString == conversationID },
+            learningGeneration: learning.generation, learningAvailable: learning.available,
+            memory: learning.memory, profile: learning.profile, skills: learning.skills,
+            vision: attachmentVision, revision: attachmentRevision)
+    }
+
+    private var attachmentCanSend: Bool {
+        guard hasGeneralAttachment else { return true }
+        guard !attachmentRequiresDecision, !usesMCP, pdfAttachment == nil,
+              !(learning.available && learning.memory.preferences.useMemory),
+              let binding = attachmentBinding, binding == currentAttachmentBinding(),
+              case .confirmed = attachmentPresenter.state.phase,
+              attachmentPresenter.state.error == nil,
+              attachmentPresenter.state.context == attachmentReviewContext(binding) else { return false }
+        return true
+    }
+
+    private func attachmentReviewContext(_ binding: AttachmentBinding) -> ChatAttachmentReviewContext? {
+        var other: Set<ChatAttachmentAdditionalData> = [.currentQuestion]
+        if !binding.history.isEmpty { other.insert(.conversationHistory) }
+        if binding.learningAvailable { other.insert(.skills) }
+        guard let url = URL(string: binding.destination.baseURL) else { return nil }
+        return try? ChatAttachmentReviewContext(baseURL: url, model: binding.destination.model,
+            credentialRevision: binding.destination.credentialAccount, inputRevision: binding.revision,
+            additionalData: other, vision: binding.vision)
+    }
+
+    private func invalidateAttachmentReview() {
+        attachmentRevision = UUID()
+        attachmentBinding = nil
+        attachmentPresenter.updateContext(nil)
+    }
+
+    private func setAttachmentIssue(_ issue: AppText) {
+        attachmentIssue = issue
+        chatError = issue.traditionalFallback
+    }
+
+    /// Call before presenting the standalone picker and again after any host
+    /// input change. The picker confirms the resulting exact context, not bytes.
+    /// `supported` is an explicit host declaration for this endpoint/model;
+    /// it is not inferred from a name or a successful text connection.
+    @discardableResult func prepareAttachmentReview(vision: ModelVisionCapability = .unknown) -> Bool {
+        guard !isSubmitting else { return false }
+        if attachmentVision != vision { attachmentVision = vision; invalidateAttachmentReview() }
+        guard hasStoredKey, savedSettings != nil, let binding = currentAttachmentBinding() else {
+            invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentUnavailable); return false
+        }
+        guard pdfAttachment == nil else { invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentRemoveFirst); return false }
+        guard !usesMCP, !(learning.available && learning.memory.preferences.useMemory) else {
+            invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentToolsEnabled); return false
+        }
+        if attachmentRequiresDecision {
+            guard case .ready = attachmentPresenter.state.phase else { setAttachmentIssue(.chatAttachmentReselect); return false }
+        }
+        if attachmentBinding != binding { attachmentRevision = UUID() }
+        guard let refreshed = currentAttachmentBinding(), let context = attachmentReviewContext(refreshed) else {
+            invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentUnavailable); return false
+        }
+        attachmentBinding = refreshed
+        attachmentPresenter.updateContext(context)
+        if case .ready = attachmentPresenter.state.phase { attachmentRequiresDecision = false }
+        attachmentIssue = nil; chatError = nil
+        return true
+    }
+
+    /// Explicit removal also resolves a failed one-shot attempt; never retry it.
+    func discardGeneralAttachment() {
+        guard attachmentRequestID == nil else { return }
+        attachmentPresenter.discard(); attachmentRequiresDecision = false
+        attachmentVision = .unknown
+        invalidateAttachmentReview()
+        if attachmentIssue != nil { chatError = nil }
+        attachmentIssue = nil
+    }
+
+    func generalAttachmentEnteredBackground() {
+        if attachmentRequestID != nil { cancel() }
+        else { discardGeneralAttachment() }
+    }
+
+    private func validateAttachmentStart(binding: AttachmentBinding, context: ChatAttachmentReviewContext,
+                                         key: String, id: UUID) throws {
+        try Task.checkCancellation()
+        guard requestID == id, attachmentRequestID == id,
+              attachmentBinding == binding, currentAttachmentBinding() == binding,
+              quoteSourceIsCurrent, attachmentPresenter.state.phase == .consumed,
+              attachmentPresenter.state.context == context,
+              let latest = savedSettings, archiveDestination == binding.destination,
+              try repository.key(for: latest) == key else { throw ChatAttachmentPresentationError.contextChanged }
+    }
 
     func modelAccess() throws -> ModelAccess {
         guard let savedSettings, hasStoredKey else { throw HTTPChatModelError.invalidConfiguration }
@@ -364,6 +501,7 @@ final class ChatSession: ObservableObject {
             modelDraft = result.record.model
             keyDraft = ""
             if changed {
+                invalidateAttachmentReview()
                 pdfAttachment?.revokeDestination()
                 entries = []
                 replyPreview = nil
@@ -396,6 +534,7 @@ final class ChatSession: ObservableObject {
         settingsNotice = nil
         do {
             try repository.remove()
+            invalidateAttachmentReview()
             pdfAttachment?.revokeDestination()
             savedSettings = nil
             hasStoredKey = false
@@ -424,6 +563,17 @@ final class ChatSession: ObservableObject {
     func send(mcp: MCPSession? = nil) {
         if pendingQuote != nil { archive?.reload() }
         guard quoteSourceIsCurrent else { chatError = "引用來源已變更；草稿與引用保留，請重新選取。"; return }
+        if hasGeneralAttachment {
+            if attachmentRequiresDecision { setAttachmentIssue(.chatAttachmentReselect); return }
+            if usesMCP || (learning.available && learning.memory.preferences.useMemory) {
+                setAttachmentIssue(.chatAttachmentToolsEnabled); return
+            }
+            if pdfAttachment != nil { setAttachmentIssue(.chatAttachmentRemoveFirst); return }
+            guard attachmentCanSend else { setAttachmentIssue(.chatAttachmentReviewRequired); return }
+            guard canSend else { return }
+            sendGeneralAttachment()
+            return
+        }
         guard canSend, let savedSettings else { return }
         if let archive, !entries.isEmpty,
            !archive.state.conversations.contains(where: { $0.id.uuidString == conversationID }) {
@@ -586,8 +736,112 @@ final class ChatSession: ObservableObject {
         }
     }
 
+    /// A single plain/streaming model request. Tool runners may issue multiple
+    /// requests and therefore cannot receive this one-shot attachment.
+    private func sendGeneralAttachment() {
+        guard let reviewed = attachmentBinding, reviewed == currentAttachmentBinding(),
+              let context = attachmentReviewContext(reviewed), attachmentPresenter.state.context == context, let savedSettings,
+              let destination = archiveDestination else { setAttachmentIssue(.chatAttachmentChanged); return }
+        if let archive, !entries.isEmpty,
+           !archive.state.conversations.contains(where: { $0.id.uuidString == conversationID }) {
+            setAttachmentIssue(.chatAttachmentChanged); return
+        }
+        let key: String
+        do { key = try repository.key(for: savedSettings) }
+        catch { hasStoredKey = false; setAttachmentIssue(.chatAttachmentUnavailable); return }
+        let prompt = ConversationQuote.compose(reviewed.quote, words: reviewed.draft)
+        let window: ChatContextWindow
+        do {
+            window = try ChatContextWindow(history: reviewed.history,
+                context: learning.contextMessages(for: reviewed.draft), prompt: prompt)
+        } catch {
+            chatError = ((error as? ChatContextWindowError)?.errorDescription ?? "無法準備本次對話。") + "草稿已保留。"
+            return
+        }
+        // Context collection may itself mutate learning state. Never consume
+        // the attachment unless the reviewed snapshot is still current.
+        guard reviewed == currentAttachmentBinding() else { invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentChanged); return }
+        learning.cancelLearning()
+        guard let binding = currentAttachmentBinding() else { invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentChanged); return }
+        var beforeCancellation = binding
+        beforeCancellation.learningGeneration = reviewed.learningGeneration
+        guard beforeCancellation == reviewed else { invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentChanged); return }
+        // Cancelling prior extraction rotates its generation without changing
+        // the data disclosed in the already confirmed review.
+        attachmentBinding = binding
+        let id = UUID(), archiveID = UUID(uuidString: binding.conversationID)!
+        let savedConfiguration = savedSettings.configuration
+        let configuration = ModelConfiguration(baseURL: savedConfiguration.baseURL, model: savedConfiguration.model,
+            maxOutputTokens: savedConfiguration.maxOutputTokens, vision: context.vision)
+        let client = client
+        requestID = id; attachmentRequestID = id; replyPreview = nil; isSubmitting = true; isMCPRun = false
+        attachmentIssue = nil; chatError = nil
+        chatNotice = window.omittedTurns == 0 ? nil
+            : "本次傳送最近 \(window.retainedTurns) 輪對話、本輪完整訊息及參考資料；較早 \(window.omittedTurns) 輪仍在畫面中，但未傳送。"
+        request = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let attachment = try await self.attachmentPresenter.takeConfirmed(context: context)
+                await self.attachmentPreflightProbe()
+                try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                var messages = window.messages
+                guard let final = messages.last, final.role == "user" else { throw ChatAttachmentPresentationError.contextChanged }
+                messages[messages.count - 1] = ModelMessage(userText: final.content, attachment: attachment)
+                let reply = try await self.completePlain(messages: messages, configuration: configuration,
+                    key: key, client: client, requestID: id, validateStart: {
+                        self.attachmentClientStartProbe()
+                        try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                    })
+                try Task.checkCancellation()
+                guard self.requestID == id else { return }
+                guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw HTTPChatModelError.invalidResponse
+                }
+                let user = ChatEntry(role: "user", content: prompt), assistant = ChatEntry(role: "assistant", content: reply)
+                if let archive = self.archive {
+                    self.pendingArchiveSave = nil
+                    do {
+                        let all = self.entries + [user, assistant]
+                        let turns = try stride(from: 0, to: all.count, by: 2).map { index in
+                            try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
+                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf)
+                        }
+                        let record = try ArchivedConversation(id: archiveID, destination: destination, updatedAt: Date(), turns: turns)
+                        self.pendingArchiveSave = (record, binding.archivePrior)
+                        try archive.save(record, expected: binding.archivePrior)
+                        self.pendingArchiveSave = nil; self.archiveNotice = nil
+                    } catch { self.archiveNotice = Self.archiveSaveFailure }
+                }
+                self.conversationDestination = destination
+                self.replyPreview = nil; self.entries.append(user); self.entries.append(assistant)
+                if self.draft == binding.draft && self.pendingQuote == binding.quote {
+                    self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
+                }
+                self.attachmentRequestID = nil; self.attachmentRequiresDecision = false
+                if self.attachmentPresenter.state.phase == .consumed { self.attachmentPresenter.discard() }
+                self.finish(id: id)
+                // No automatic extraction from attachment bytes or model output.
+                // The ordinary learning flow remains unchanged for text turns.
+            } catch {
+                guard self.requestID == id else { return }
+                self.attachmentRequestID = nil; self.attachmentRequiresDecision = true
+                self.attachmentIssue = .chatAttachmentReselect
+                self.finish(id: id, error: AppText.chatAttachmentReselect.traditionalFallback)
+            }
+        }
+        deadline = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: Self.plainRequestDeadlineSeconds * 1_000_000_000) }
+            catch { return }
+            guard let self, self.requestID == id else { return }
+            self.request?.cancel(); self.attachmentRequestID = nil; self.attachmentRequiresDecision = true
+            self.attachmentPresenter.discard(); self.attachmentIssue = .chatAttachmentReselect
+            self.finish(id: id, error: AppText.chatAttachmentReselect.traditionalFallback)
+        }
+    }
+
     /// Native picker callback only. Selecting creates a plan, never reads bytes.
     func selectPDF(url: URL, pages: String? = nil, password: String? = nil) {
+        guard !hasGeneralAttachment else { setAttachmentIssue(.chatAttachmentRemoveFirst); return }
         guard !isSubmitting else { return }
         do {
             let selected = try ChatPDFAttachment(userSelectedURL: url, pages: pages, password: password)
@@ -714,9 +968,13 @@ final class ChatSession: ObservableObject {
     }
 
     private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
-                               key: String, client: any ChatModelClient, requestID id: UUID) async throws -> String {
+                               key: String, client: any ChatModelClient, requestID id: UUID,
+                               validateStart: () throws -> Void = {}) async throws -> String {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
+        // Runs on the main actor after entering this async method and directly
+        // before initiating either client path.
+        try validateStart()
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
         }
@@ -769,12 +1027,19 @@ final class ChatSession: ObservableObject {
 
     func cancel() {
         learning.cancelLearning()
+        let cancelledAttachment = attachmentRequestID != nil
+        if attachmentRequestID != nil {
+            attachmentRequiresDecision = true
+            attachmentPresenter.discard()
+            setAttachmentIssue(.chatAttachmentReselect)
+            attachmentRequestID = nil
+        }
         guard let id = requestID else { return }
         pdfAttachment?.revokeDestination()
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
         stopPreview(id: id, phase: .cancelled)
         request?.cancel()
-        finish(id: id)
+        finish(id: id, error: cancelledAttachment ? AppText.chatAttachmentReselect.traditionalFallback : nil)
         chatNotice = "已取消等待，草稿已保留。伺服器可能已收到請求。"
     }
 
@@ -1058,7 +1323,7 @@ final class ChatSession: ObservableObject {
     }
 
     func newConversation() {
-        guard !isSubmitting, pendingQuote == nil else { return }
+        guard !isSubmitting, pendingQuote == nil, !hasGeneralAttachment else { return }
         removePDF()
         learning.resetConversationPresentation()
         entries = []; conversationID = UUID().uuidString

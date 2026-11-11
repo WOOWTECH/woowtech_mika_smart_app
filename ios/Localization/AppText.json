@@ -5397,6 +5397,86 @@
         "zh-Hans": "附件已使用、移除或尚未准备完成。",
         "en": "The attachment has been used, removed or is not ready."
       }
+    },
+    {
+      "case": "chatAttachmentBoundary",
+      "key": "chat.attachment.boundary",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "本次不使用 MCP、記憶或個人檔案工具。已完成的問題與回答仍可能加密保存在此裝置；回答或之後傳送的對話歷史可能包含附件內容。原始附件不會自動保存或重傳。",
+        "zh-Hans": "本次不使用 MCP、记忆或个人档案工具。已完成的问题与回答仍可能加密保存在此设备；回答或之后发送的对话历史可能包含附件内容。原始附件不会自动保存或重传。",
+        "en": "This turn does not use MCP, memory or profile tools. Completed questions and answers may still be encrypted on this device; answers or later conversation history may contain attachment content. The original attachment is not automatically saved or resent."
+      }
+    },
+    {
+      "case": "chatAttachmentReviewRequired",
+      "key": "chat.attachment.reviewRequired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請重新檢查並確認附件傳送範圍，或移除附件；草稿保留。",
+        "zh-Hans": "请重新检查并确认附件发送范围，或移除附件；草稿保留。",
+        "en": "Review and confirm the attachment scope again, or remove the attachment. The draft is preserved."
+      }
+    },
+    {
+      "case": "chatAttachmentToolsEnabled",
+      "key": "chat.attachment.toolsEnabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附件目前僅支援單次一般對話；請先關閉本次 MCP 與記憶功能，或移除附件。純文字對話功能不受影響。",
+        "zh-Hans": "附件目前仅支持单次普通对话；请先关闭本次 MCP 与记忆功能，或移除附件。纯文本对话功能不受影响。",
+        "en": "Attachments currently require a single plain request. Turn off MCP and the memory feature, or remove the attachment. Text-only chat is unchanged."
+      }
+    },
+    {
+      "case": "chatAttachmentRemoveFirst",
+      "key": "chat.attachment.removeFirst",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先移除目前附件，再選擇另一種附件。",
+        "zh-Hans": "请先移除当前附件，再选择另一种附件。",
+        "en": "Remove the current attachment before choosing another attachment type."
+      }
+    },
+    {
+      "case": "chatAttachmentReselect",
+      "key": "chat.attachment.reselect",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附件傳送未完成或已取消；文字草稿保留。服務可能已收到附件；若要重試，請重新選取並確認，或明確移除附件。",
+        "zh-Hans": "附件发送未完成或已取消；文本草稿保留。服务可能已收到附件；如需重试，请重新选择并确认，或明确移除附件。",
+        "en": "The attachment request did not finish or was cancelled. The text draft is preserved. The service may have received the attachment; to retry, select and confirm it again, or explicitly remove it."
+      }
+    },
+    {
+      "case": "chatAttachmentChanged",
+      "key": "chat.attachment.changed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送前目的地、內容或參考資料已變更；附件未傳送，請重新確認。",
+        "zh-Hans": "发送前目的地、内容或参考资料已更改；附件未发送，请重新确认。",
+        "en": "The destination, content or references changed before sending. The attachment was not sent; review it again."
+      }
+    },
+    {
+      "case": "chatAttachmentUnavailable",
+      "key": "chat.attachment.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法準備附件傳送；請先檢查模型設定。文字草稿保留。",
+        "zh-Hans": "无法准备附件发送；请先检查模型设置。文本草稿保留。",
+        "en": "Cannot prepare the attachment request. Check the model settings; the text draft is preserved."
+      }
+    },
+    {
+      "case": "chatAttachmentVisionNotice",
+      "key": "chat.attachment.visionNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "圖片需由主程式明確宣告此模型支援視覺；服務仍可能拒絕圖片。",
+        "zh-Hans": "图片需由主程序明确声明此模型支持视觉；服务仍可能拒绝图片。",
+        "en": "Images require an explicit app declaration that this model supports vision. The service may still reject the image."
+      }
     }
   ]
 }

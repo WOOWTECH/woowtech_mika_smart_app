@@ -14,7 +14,7 @@ import time
 
 MODULES = [
     ("AssistantContracts", []), ("AssistantDomain", ["AssistantContracts"]),
-    ("AssistantModels", []), ("AssistantMemory", ["AssistantModels"]),
+    ("AssistantModels", []), ("AssistantAttachments", ["AssistantModels"]), ("AssistantMemory", ["AssistantModels"]),
     ("AssistantPersistence", []), ("AssistantMCP", ["AssistantModels"]),
     ("AssistantSkills", ["AssistantModels"]), ("AssistantBrowser", ["AssistantModels", "AssistantSkills"]),
 ]

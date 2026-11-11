@@ -56,7 +56,7 @@ import UniformTypeIdentifiers
                         choosing = true
                     }
                     .accessibilityIdentifier("chat.attachment.select")
-                    if model.state.phase != .empty && model.state.phase != .consumed {
+                    if (model.state.phase != .empty && model.state.phase != .consumed) || model.state.error != nil {
                         Button(localizer.text(.attachmentRemove), role: .destructive) { model.presenter.discard() }
                             .accessibilityIdentifier("chat.attachment.remove")
                     }
@@ -74,6 +74,10 @@ import UniformTypeIdentifiers
                             Text(verbatim: localizer.text(.attachmentOtherData(value: localizer.attachmentDataDescription(context.additionalData))))
                                 .accessibilityIdentifier("chat.attachment.context")
                             Text(localizer.text(.attachmentSendNotice))
+                            Text(localizer.text(.chatAttachmentBoundary))
+                            if case .ready(let metadata) = model.state.phase, metadata.kind != .text {
+                                Text(localizer.text(.chatAttachmentVisionNotice))
+                            }
                             if case .ready = model.state.phase {
                                 Button(localizer.text(.attachmentConfirm)) { model.confirm() }
                                     .accessibilityIdentifier("chat.attachment.confirm")
