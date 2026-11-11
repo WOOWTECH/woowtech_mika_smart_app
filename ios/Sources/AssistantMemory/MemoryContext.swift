@@ -8,7 +8,10 @@ extension MemoryState {
         let eligible = memories.filter { includePending || $0.status == .active }
         guard limit > 0 else { return [] }
         if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return Array(eligible.sorted(by: MemoryRanking.newer).prefix(min(limit, 500)))
+            return eligible.enumerated().sorted {
+                $0.element.updatedAt == $1.element.updatedAt
+                    ? $0.offset < $1.offset : $0.element.updatedAt > $1.element.updatedAt
+            }.prefix(min(limit, 500)).map(\.element)
         }
         return MemoryRanking.rank(eligible, query: query).prefix(min(limit, 500)).map(\.item)
     }
@@ -57,7 +60,7 @@ extension MemoryState {
 }
 
 enum MemoryRanking {
-    struct Ranked { let item: MemoryItem; let score: Double }
+    struct Ranked { let item: MemoryItem; let score: Double; let position: Int }
     static func newer(_ lhs: MemoryItem, _ rhs: MemoryItem) -> Bool {
         lhs.updatedAt == rhs.updatedAt ? lhs.id.uuidString < rhs.id.uuidString : lhs.updatedAt > rhs.updatedAt
     }
@@ -123,8 +126,8 @@ enum MemoryRanking {
                 let tf = Double(document[term, default: 0])
                 return sum + log(1 + (corpus - occurrences + 0.5) / (occurrences + 0.5)) * tf * 2.2 / (tf + norm)
             }
-            return Ranked(item: item, score: score)
-        }.sorted { $0.score == $1.score ? newer($0.item, $1.item) : $0.score > $1.score }
+            return Ranked(item: item, score: score, position: index)
+        }.sorted { $0.score == $1.score ? $0.position < $1.position : $0.score > $1.score }
     }
 
     static func tokens(_ text: String) -> Int {

@@ -112,6 +112,26 @@ enum MemoryChecks {
         let pending = try state.add(kind: .procedure, content: "喝茶之前先整理", keywords: ["飲料"], now: date)
         try check.expect(!state.search("飲料").contains { $0.id == pending.memoryID }, "Search excludes pending by default")
         try check.expect(state.search("飲料", includePending: true).contains { $0.id == pending.memoryID }, "Settings can search pending")
+
+        // Mika's sortedByDescending is stable: equal timestamps and equal BM25
+        // scores retain the store's insertion order, not UUID lexical order.
+        let firstID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
+        let secondID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let source = MemorySource(type: "manual", at: date)
+        let first = MemoryItem(id: firstID, kind: .fact, content: "Tea brew", keywords: ["tea"],
+                               source: source, status: .active, pinned: false, createdAt: date,
+                               updatedAt: date, lastUsedAt: nil, useCount: 0, replaces: nil)
+        let second = MemoryItem(id: secondID, kind: .fact, content: "Tea steep", keywords: ["tea"],
+                                source: source, status: .active, pinned: false, createdAt: date,
+                                updatedAt: date, lastUsedAt: nil, useCount: 0, replaces: nil)
+        var ordered = try MemoryState(memories: [first, second])
+        try check.expect(ordered.search("", limit: 2).map(\.id) == [firstID, secondID], "Blank search keeps insertion order on timestamp ties")
+        try check.expect(ordered.search("tea", limit: 2).map(\.id) == [firstID, secondID], "Keyword search keeps insertion order on score ties")
+        _ = try ordered.edit(id: secondID, content: "Tea steep", now: date.addingTimeInterval(1))
+        try check.expect(ordered.search("", limit: 2).map(\.id) == [secondID, firstID], "Edit changes blank-search recency order")
+        try check.expect(ordered.search("tea", limit: 2).map(\.id) == [firstID, secondID], "Score tie still keeps insertion order after edit")
+        _ = try ordered.delete(id: firstID)
+        try check.expect(ordered.search("tea", limit: 2).map(\.id) == [secondID], "Delete removes the search result")
         return check.count
     }
 
