@@ -9,7 +9,7 @@ final class BrowserSearchIntegrationTests: XCTestCase {
         XCTAssertEqual(result["engine_change_navigations"] as? Int, 0)
     }
 
-    @MainActor func testRealHashKVOAfterFailedNavigationAndClosedTabCannotReviveHandoff() async throws {
+    @MainActor func testRealHashKVOAfterRejectedNavigationAndClosedTabCannotReviveHandoff() async throws {
         let result = try await BrowserSearchAppChecks.runSPAHash()
         XCTAssertGreaterThanOrEqual(result["assertions"] as? Int ?? 0, 19)
         XCTAssertEqual(result["failed_navigation_policy_rejected"] as? Bool, true)
