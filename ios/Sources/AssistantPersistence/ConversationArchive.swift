@@ -112,8 +112,9 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public static let maximumTitleCharacters = 120
     public static let maximumTitleBytes = 512
     public private(set) var conversations: [ArchivedConversation] = []
-    // Keep archives without user metadata readable by the old app. Once a v3
-    // title or pin is written, never downgrade even if its row is later deleted.
+    // Keep archives without user metadata readable by the v2 app. A title
+    // needs v3; a pin needs v4 because the v3 reader ignores unknown row keys.
+    // Never downgrade after either feature is removed or its row is deleted.
     private var writeVersion = 2
     public init() {}
 
@@ -177,7 +178,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         next.conversations[index] = try ArchivedConversation(
             id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
             turns: prior.turns, customTitle: normalized, pinnedAt: prior.pinnedAt)
-        next.writeVersion = 3
+        next.writeVersion = max(next.writeVersion, 3)
         try next.validate()
         self = next
     }
@@ -196,7 +197,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         next.conversations[index] = try ArchivedConversation(
             id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
             turns: prior.turns, customTitle: prior.customTitle, pinnedAt: pinned ? at : nil)
-        next.writeVersion = 3
+        next.writeVersion = 4
         try next.validate()
         self = next
     }
@@ -207,8 +208,9 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     }
 
     private func validate() throws {
-        guard (2...3).contains(writeVersion),
-              writeVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil && $0.pinnedAt == nil })
+        guard (2...4).contains(writeVersion),
+              (writeVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
+              (writeVersion == 4 || conversations.allSatisfy({ $0.pinnedAt == nil }))
         else { throw ConversationArchiveError.invalidData }
         guard conversations.count <= Self.maximumConversations else { throw ConversationArchiveError.full }
         guard Set(conversations.map(\.id)).count == conversations.count else { throw ConversationArchiveError.invalidData }
@@ -227,12 +229,13 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let storedVersion = try c.decode(Int.self, forKey: .version)
-        guard (1...3).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
+        guard (1...4).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
         writeVersion = max(2, storedVersion)
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
         else { throw ConversationArchiveError.invalidData }
-        guard storedVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil && $0.pinnedAt == nil })
+        guard (storedVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
+              (storedVersion == 4 || conversations.allSatisfy({ $0.pinnedAt == nil }))
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }

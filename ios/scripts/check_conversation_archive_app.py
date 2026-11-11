@@ -53,7 +53,8 @@ def main():
         core = copy("Tests/AssistantPersistenceTests/ConversationArchiveTests.swift")
         app = copy("scripts/CheckConversationArchiveApp.swift")
         prior = copy("scripts/CheckProfileChatApp.swift")
-        for path in ["scripts/check_conversation_archive_app.py", "scripts/check_task_notifications.py",
+        for path in ["scripts/check_conversation_archive_app.py", "scripts/check_conversation_archive_v3_decoder.py",
+                     "Tests/Fixtures/ConversationArchive_0c9827e.txt", "scripts/check_task_notifications.py",
                      "scripts/check_profile_chat_app.py", "scripts/check_chat_context_window.py",
                      "Tests/AssistantModelsTests/ChatContextWindowTests.swift"]:
             copy(path)
@@ -67,6 +68,7 @@ def main():
         run("core-compile", [*common, "-warnings-as-errors", "-DCONVERSATION_ARCHIVE_STANDALONE", "-lAssistantPersistence",
                              *link, core, "-o", str(binary)])
         run("core-execute", [str(binary)], 45)
+        run("legacy-v3-compatibility", ["python3", str(source / "scripts/check_conversation_archive_v3_decoder.py")], 120)
         run("existing-context-window", ["python3", str(source / "scripts/check_chat_context_window.py")], 120)
         for config, flags in [("Debug", ["-DDEBUG"]), ("Release", [])]:
             run(config + "-iOS-syntax-only", ["swiftc", "-frontend", "-parse", "-target", "arm64-apple-ios17.0", *flags, *apps, *views, app, ui, pdf_ui])

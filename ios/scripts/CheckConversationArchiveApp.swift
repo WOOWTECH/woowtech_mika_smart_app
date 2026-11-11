@@ -320,8 +320,8 @@ private actor ArchiveModel: ChatModelClient {
         guard let pinTime = e.archive.conversations[0].pinnedAt else { throw Failure(name: "saved pin time") }
         try a.check(e.archive.conversations[0].turns == original.turns
                     && e.archive.conversations[0].updatedAt == original.updatedAt
-                    && (try encodedArchiveVersion(e.reopen().state)) == 3,
-                    "actual encrypted pin upgrades v3 without changing transcript or activity date")
+                    && (try encodedArchiveVersion(e.reopen().state)) == 4,
+                    "actual encrypted pin upgrades v4 without changing transcript or activity date")
         try e.archive.rename(id: original.id, expectedTitle: nil, to: "Pinned title")
         try a.check(e.archive.conversations[0].pinnedAt == pinTime
                     && e.archive.conversations[0].turns == original.turns,
@@ -374,7 +374,7 @@ private actor ArchiveModel: ChatModelClient {
                     && unpinned.conversations[0].turns[2].userText == "After unpin request"
                     && unpinned.conversations[0].turns[2].assistantText == "After unpin reply"
                     && later.archiveNotice == nil && !later.canRetryArchiveSave
-                    && (try encodedArchiveVersion(unpinned.state)) == 3,
+                    && (try encodedArchiveVersion(unpinned.state)) == 4,
                     "late reply cannot re-pin, downgrade or erase the concurrent title")
         return a.count
     }

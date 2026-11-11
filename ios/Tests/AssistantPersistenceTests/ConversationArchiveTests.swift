@@ -83,6 +83,18 @@ enum ConversationArchiveChecks {
         }
         var reopened = try JSONDecoder().decode(ConversationArchive.self, from: titled)
         try a.check(reopened == fromV2, "new reader restores v3 version and title")
+        var firstPinOnV3 = reopened
+        let pinTime = Date(timeIntervalSince1970: 1_000)
+        try firstPinOnV3.setPinned(id: first.id, expectedPinnedAt: nil, pinned: true, at: pinTime)
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(firstPinOnV3)) as! [String: Any])["version"] as? Int == 4
+                    && firstPinOnV3.conversations[0].customTitle == "私有標題"
+                    && firstPinOnV3.conversations[0].pinnedAt == pinTime,
+                    "first pin on old unpinned v3 upgrades to v4 without losing title")
+        try firstPinOnV3.setPinned(id: first.id, expectedPinnedAt: pinTime, pinned: false)
+        let unpinnedV4 = try JSONEncoder().encode(firstPinOnV3)
+        try a.check((try JSONSerialization.jsonObject(with: unpinnedV4) as! [String: Any])["version"] as? Int == 4
+                    && (try JSONDecoder().decode(ConversationArchive.self, from: unpinnedV4)) == firstPinOnV3,
+                    "cancelled pin after old v3 cannot downgrade and round-trips")
         try reopened.delete(id: first.id)
         try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(reopened)) as! [String: Any])["version"] as? Int == 3,
                     "deleting last titled record cannot downgrade archive")
@@ -91,7 +103,7 @@ enum ConversationArchiveChecks {
         let afterDelete = try JSONEncoder().encode(reopened)
         try a.check((try JSONSerialization.jsonObject(with: afterDelete) as! [String: Any])["version"] as? Int == 3
                     && (try JSONDecoder().decode(ConversationArchive.self, from: afterDelete)) == reopened,
-                    "v3 remains pinned after later unrenamed writes and reload")
+                    "title-only v3 remains v3 after later unrenamed writes and reload")
         try a.rejects("old reader still rejects titleless archive with v3 history") {
             _ = try JSONDecoder().decode(LegacyV2Reader.self, from: afterDelete)
         }
@@ -124,7 +136,7 @@ enum ConversationArchiveChecks {
             var bad = json; bad.removeValue(forKey: field)
             try a.rejects("required archive field " + field) { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
-        for value: Any in [4, "1", NSNull()] {
+        for value: Any in [5, "1", NSNull()] {
             var bad = json; bad["version"] = value
             try a.rejects("unknown/malformed version") { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
@@ -245,12 +257,19 @@ enum ConversationArchiveChecks {
         let firstPin = Date(timeIntervalSince1970: 1_000)
         let secondPin = Date(timeIntervalSince1970: 1_001)
         try archive.setPinned(id: oldest.id, expectedPinnedAt: nil, pinned: true, at: firstPin)
-        try a.check(try version(archive) == 3
+        try a.check(try version(archive) == 4
                     && archive.drawerConversations.map(\.id) == [oldest.id, newest.id, middle.id]
                     && archive.conversations.first(where: { $0.id == oldest.id })?.updatedAt == oldest.updatedAt
                     && archive.conversations.first(where: { $0.id == oldest.id })?.turns == oldest.turns,
-                    "first pin upgrades v3 and changes only display ordering")
+                    "first pin upgrades v4 and changes only display ordering")
         let pinnedOnce = archive
+        let pinnedBytes = try JSONEncoder().encode(pinnedOnce)
+        var forgedV3 = try JSONSerialization.jsonObject(with: pinnedBytes) as! [String: Any]
+        forgedV3["version"] = 3
+        try a.rejects("v3 cannot silently ignore pin metadata") {
+            _ = try JSONDecoder().decode(ConversationArchive.self,
+                from: JSONSerialization.data(withJSONObject: forgedV3))
+        }
         var fresh = ConversationArchive()
         let alreadyPinned = pinnedOnce.conversations.first(where: { $0.id == oldest.id })!
         try a.rejects("new model row cannot inject pin metadata") { try fresh.save(alreadyPinned) }
@@ -283,9 +302,9 @@ enum ConversationArchiveChecks {
                     "equal pin times use a stable identity tie break across reload")
         try archive.rename(id: oldest.id, expectedTitle: nil, to: "Renamed and pinned")
         let pinned = archive.conversations.first(where: { $0.id == oldest.id })!
-        try a.check(pinned.pinnedAt == firstPin && pinned.updatedAt == oldest.updatedAt
+        try a.check(try version(archive) == 4 && pinned.pinnedAt == firstPin && pinned.updatedAt == oldest.updatedAt
                     && pinned.turns == oldest.turns && pinned.title == "Renamed and pinned",
-                    "rename retains pin, activity time and exact completed turns")
+                    "rename retains v4, pin, activity time and exact completed turns")
         let appended = try ArchivedConversation(id: oldest.id, destination: dest, updatedAt: Date(timeIntervalSince1970: 400),
             turns: oldest.turns + [.init(userText: "Continued", assistantText: "Completed")])
         try archive.save(appended)
@@ -296,7 +315,7 @@ enum ConversationArchiveChecks {
         let encoded = try JSONEncoder().encode(archive)
         let reopened = try JSONDecoder().decode(ConversationArchive.self, from: encoded)
         try a.check(reopened == archive && reopened.drawerConversations.map(\.id) == archive.drawerConversations.map(\.id),
-                    "v3 pin and stable ordering survive decode and re-encode")
+                    "v4 pin and stable ordering survive decode and re-encode")
         var forgedV2 = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         forgedV2["version"] = 2
         try a.rejects("v2 must reject title and pin metadata") {
@@ -313,23 +332,27 @@ enum ConversationArchiveChecks {
         }
         try a.check(archive == afterUnpin, "stale unpin leaves archive unchanged")
         try archive.setPinned(id: oldest.id, expectedPinnedAt: firstPin, pinned: false)
-        try a.check(try version(archive) == 3 && archive.conversations.allSatisfy({ $0.pinnedAt == nil })
+        try a.check(try version(archive) == 4 && archive.conversations.allSatisfy({ $0.pinnedAt == nil })
                     && archive.drawerConversations.map(\.id) == [oldest.id, newest.id, middle.id],
-                    "last unpin keeps v3 protection and latest completed-turn order")
+                    "last unpin keeps v4 protection and latest completed-turn order")
+        try archive.rename(id: middle.id, expectedTitle: nil, to: "After unpin")
+        try a.check(try version(archive) == 4 && archive.conversations.first(where: { $0.id == middle.id })?.title == "After unpin",
+                    "renaming after unpin cannot downgrade v4 to v3")
         for id in [oldest.id, middle.id, newest.id] { try archive.delete(id: id) }
-        try a.check(try version(archive) == 3 && archive.conversations.isEmpty,
-                    "removing all metadata rows cannot downgrade prior v3 archive")
+        try a.check(try version(archive) == 4 && archive.conversations.isEmpty,
+                    "removing all metadata rows cannot downgrade prior v4 archive")
         try a.check(original.allSatisfy({ $0.pinnedAt == nil && $0.customTitle == nil }),
                     "old row snapshots remain untouched")
         var pinOnly = ConversationArchive(); try pinOnly.save(oldest)
         try pinOnly.setPinned(id: oldest.id, expectedPinnedAt: nil, pinned: true, at: firstPin)
         try pinOnly.setPinned(id: oldest.id, expectedPinnedAt: firstPin, pinned: false)
-        try a.check(try version(pinOnly) == 3 && pinOnly.conversations[0].customTitle == nil
-                    && pinOnly.conversations[0].pinnedAt == nil,
-                    "a pin then cancellation cannot downgrade titleless v3 to v2")
+        try a.check(try version(pinOnly) == 4 && pinOnly.conversations[0].customTitle == nil
+                    && pinOnly.conversations[0].pinnedAt == nil
+                    && (try JSONDecoder().decode(ConversationArchive.self, from: JSONEncoder().encode(pinOnly))) == pinOnly,
+                    "a pin then cancellation cannot downgrade titleless v4 to v2 or v3")
 
         // Fill the encrypted snapshot to within a few bytes of its bound.
-        // A pin must fail rather than evict turns or publish v3 without bytes.
+        // A pin must fail rather than evict turns or publish v4 without bytes.
         func nearLimit(_ length: Int) throws -> ConversationArchive {
             let text = String(repeating: "x", count: length)
             let turns = try (0..<2).map { _ in try ArchivedConversationTurn(userText: text, assistantText: text) }
