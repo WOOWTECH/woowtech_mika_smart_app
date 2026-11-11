@@ -327,6 +327,7 @@
 "browser.chrome.return.manual" = "Return to manual browsing";
 "browser.chrome.research" = "Research";
 "browser.chrome.research.site" = "Research this site";
+"browser.page.ask.research" = "Ask Mika to research this site";
 "browser.chrome.interact" = "Interact";
 "browser.chrome.library" = "Tabs, bookmarks and history";
 "browser.chrome.explanation" = "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits.";

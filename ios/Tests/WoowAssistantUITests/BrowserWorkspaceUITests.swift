@@ -49,6 +49,37 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertEqual(tabs.count, 1, "Home closes the page in its tab; it must not create another tab.")
     }
 
+    func testAskMikaEntryOpensExistingResearchOnlyForCurrentReadablePage() {
+        launch(reset: true)
+        let entry = app.buttons["browser.pageAsk.open"]
+        XCTAssertFalse(entry.exists, "A start page has no inspected website to ask about.")
+        open("workspace-one")
+        XCTAssertTrue(entry.waitForExistence(timeout: 75))
+        XCTAssertEqual(entry.label, "問 Mika 研究此網站")
+        XCTAssertEqual(entry.value as? String, "research.example.invalid")
+        XCTAssertTrue(dom("Workspace first").exists)
+        let address = app.textFields["browser.address"]
+        let pageURL = "https://research.example.invalid/workspace-one"
+        XCTAssertEqual(address.value as? String, pageURL)
+
+        entry.tap()
+        let goal = app.descendants(matching: .any).matching(identifier: "browser.goal").firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["browser.start"].isEnabled,
+                       "Opening the entry must not start a model request or bypass configuration.")
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "browser.answer").firstMatch.exists)
+        app.buttons["browser.research.close"].tap()
+        XCTAssertEqual(address.value as? String, pageURL)
+        XCTAssertTrue(dom("Workspace first").exists)
+        XCTAssertTrue(entry.exists)
+
+        app.buttons["browser.closePage"].tap()
+        XCTAssertFalse(entry.exists)
+        open("workspace-one?q=manual#section")
+        XCTAssertFalse(entry.exists, "A manual-only callback/query page is not a readable research page.")
+        XCTAssertFalse(app.buttons["browser.research"].isEnabled)
+    }
+
     func testTabsKeepIndependentPageStateAndRestoreSelection() {
         launch(reset: true)
         open("workspace-one")

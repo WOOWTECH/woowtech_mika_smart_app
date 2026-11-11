@@ -327,6 +327,7 @@
 "browser.chrome.return.manual" = "返回手动浏览";
 "browser.chrome.research" = "研究";
 "browser.chrome.research.site" = "研究此网站";
+"browser.page.ask.research" = "问 Mika 研究此网站";
 "browser.chrome.interact" = "操作";
 "browser.chrome.library" = "标签页、书签与历史记录";
 "browser.chrome.explanation" = "可手动登录网站及选择上传文件；网站数据保留在此 App。模型研究与每次批准的操作分别受限。";

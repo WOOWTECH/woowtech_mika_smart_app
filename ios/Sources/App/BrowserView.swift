@@ -31,6 +31,17 @@ struct BrowserView: View {
     private var pageFindHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
     }
+    /// Offer the existing research form only for the page WebKit currently shows
+    /// and that this session has already read as a permitted public page.
+    private var pageAskHost: String? {
+        guard scenePhase == .active, !pageCovered, !addressFocused, workspace.available,
+              !workspace.isClearingWebsiteData, !browser.isRunning, !browser.isInteracting,
+              !browser.automationOwnsDocument, let page = browser.current,
+              browser.loadedURL == page.url, browser.webView.url == page.url,
+              browser.address == page.url.absoluteString,
+              !browser.webView.isLoading else { return nil }
+        return page.url.host
+    }
     var body: some View {
         VStack(spacing: 4) {
             HStack(spacing: 8) {
@@ -165,6 +176,7 @@ struct BrowserView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let host = pageAskHost { pageAskBar(host: host) }
             Text(localizer.text(.browserChromeExplanation))
                 .font(.caption2).foregroundStyle(.secondary).padding(.horizontal)
                 .accessibilityIdentifier("browser.explanation")
@@ -244,6 +256,30 @@ struct BrowserView: View {
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
         }
+    }
+    private func pageAskBar(host: String) -> some View {
+        Button {
+            addressFocused = false
+            showResearch = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                Text(localizer.text(.browserPageAskResearch))
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 6)
+                Text(host).font(.caption).lineLimit(1)
+                    .foregroundStyle(palette.secondary)
+                Image(systemName: "arrow.up.right").font(.caption)
+            }
+            .padding(.horizontal, 14).frame(minHeight: 48)
+            .background(palette.surface, in: Capsule())
+            .overlay(Capsule().stroke(palette.edge, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(localizer.text(.browserPageAskResearch))
+        .accessibilityValue(host)
+        .accessibilityIdentifier("browser.pageAsk.open")
+        .padding(.horizontal, 12)
     }
     private var pageToolbar: some View {
         HStack {

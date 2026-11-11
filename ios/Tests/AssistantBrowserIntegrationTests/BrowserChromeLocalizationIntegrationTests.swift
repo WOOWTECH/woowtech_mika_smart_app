@@ -13,7 +13,7 @@ import XCTest
             .browserChromeSearchEngine(name: "Engine"),
             .browserChromeSearchMatch(query: "Query", engine: "Engine"),
             .browserChromeAutomationNotice, .browserChromeReturnManual, .browserChromeResearch,
-            .browserChromeResearchSite, .browserChromeInteract, .browserChromeLibrary,
+            .browserChromeResearchSite, .browserPageAskResearch, .browserChromeInteract, .browserChromeLibrary,
             .browserChromeExplanation, .browserChromeFind, .browserChromeCurrentDesktop,
             .browserChromeCurrentMobile, .browserChromeMobileWebsite, .browserChromeDesktopWebsite,
             .browserChromeSiteModeHelp, .browserChromeSiteMode, .browserChromeDesktop,
@@ -23,7 +23,7 @@ import XCTest
             .browserChromeCopyLink, .browserChromeRemoveBookmark, .browserChromeAddBookmark,
             .browserChromeSwitchMobile, .browserChromeSwitchDesktop, .browserChromeDone
         ]
-        XCTAssertEqual(messages.count, 51)
+        XCTAssertEqual(messages.count, 52)
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language)
             for message in messages {
@@ -46,6 +46,9 @@ import XCTest
         XCTAssertEqual(hant.text(.browserChromeHome), "起始頁")
         XCTAssertEqual(hans.text(.browserChromeHome), "起始页")
         XCTAssertEqual(english.text(.browserChromeHome), "Start page")
+        XCTAssertEqual(hant.text(.browserPageAskResearch), "問 Mika 研究此網站")
+        XCTAssertEqual(hans.text(.browserPageAskResearch), "问 Mika 研究此网站")
+        XCTAssertEqual(english.text(.browserPageAskResearch), "Ask Mika to research this site")
 
         let page = "%n browser.start.recent 🧋"
         let query = "%1$@ browser.chrome.search.match"

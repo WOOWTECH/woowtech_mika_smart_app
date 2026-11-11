@@ -335,6 +335,7 @@ enum AppText: Equatable {
     case browserChromeReturnManual
     case browserChromeResearch
     case browserChromeResearchSite
+    case browserPageAskResearch
     case browserChromeInteract
     case browserChromeLibrary
     case browserChromeExplanation
@@ -755,6 +756,7 @@ enum AppText: Equatable {
         case .browserChromeReturnManual: return "browser.chrome.return.manual"
         case .browserChromeResearch: return "browser.chrome.research"
         case .browserChromeResearchSite: return "browser.chrome.research.site"
+        case .browserPageAskResearch: return "browser.page.ask.research"
         case .browserChromeInteract: return "browser.chrome.interact"
         case .browserChromeLibrary: return "browser.chrome.library"
         case .browserChromeExplanation: return "browser.chrome.explanation"
@@ -1203,6 +1205,7 @@ enum AppText: Equatable {
         case .browserChromeReturnManual: return "返回手動瀏覽"
         case .browserChromeResearch: return "研究"
         case .browserChromeResearchSite: return "研究此網站"
+        case .browserPageAskResearch: return "問 Mika 研究此網站"
         case .browserChromeInteract: return "操作"
         case .browserChromeLibrary: return "分頁、書籤與歷史"
         case .browserChromeExplanation: return "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。"

@@ -3458,6 +3458,16 @@
       }
     },
     {
+      "case": "browserPageAskResearch",
+      "key": "browser.page.ask.research",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "問 Mika 研究此網站",
+        "zh-Hans": "问 Mika 研究此网站",
+        "en": "Ask Mika to research this site"
+      }
+    },
+    {
       "case": "browserChromeInteract",
       "key": "browser.chrome.interact",
       "parameters": [],
