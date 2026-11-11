@@ -62,6 +62,7 @@ def main():
         harnesses = [copy("scripts/" + name + ".swift") for name in ["CheckBrowserSearchApp", "CheckBrowserSiteModesApp"]]
         native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/BrowserLibraryView.swift", "Sources/App/BrowserSearchSettingsView.swift",
                   "Tests/AssistantDomainTests/BrowserSearchTests.swift", "Tests/AssistantBrowserIntegrationTests/BrowserSearchIntegrationTests.swift",
+                  "Tests/AssistantBrowserIntegrationTests/BrowserWorkspaceIntegrationTests.swift",
                   "Tests/WoowAssistantUITests/BrowserSearchUITests.swift"]]
         common = ["swiftc", "-swift-version", "5", "-parse-as-library", "-I", str(out), "-L", str(out)]
         for name, deps in MODULES:

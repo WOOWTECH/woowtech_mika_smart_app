@@ -26,6 +26,76 @@ private final class BrowserSearchKeys: LearningKeyStore {
 
 @MainActor enum BrowserSearchAppChecks {
     struct Failure: Error { let check: String }
+    static func runSPAHash() async throws -> [String: Any] {
+        var count = 0
+        func check(_ condition: @autoclosure () -> Bool, _ name: String) throws {
+            guard condition() else { throw Failure(check: name) }; count += 1
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-spa-hash-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = BrowserSearchKeys()
+        let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault,
+            downloadDirectory: root.appendingPathComponent("Downloads"))
+        let host = try BrowserSiteModesAppChecks.Host()
+        defer { workspace.cancelAllWork(); host.close() }
+        let browser = workspace.selected
+        host.attach(browser)
+        let base = URL(string: "https://research.example.invalid/spa")!
+        let routed = URL(string: "https://research.example.invalid/spa#/docs/42")!
+        let sensitive = URL(string: "https://research.example.invalid/spa#/authToken/fixture")!
+        let html = "<!doctype html><title>SPA fixture</title><a id='route-link' href='#/docs/42'>Open section</a><a id='sensitive-link' href='#/authToken/fixture'>Private section</a><script>window.spaMarker='same-document'</script>"
+        let selectedID = workspace.library.selectedID
+        browser.manualNavigation(to: base) {
+            browser.webView.loadSimulatedRequest(URLRequest(url: base), responseHTML: html)
+        }
+        try await BrowserSiteModesAppChecks.wait("actual SPA document load") {
+            browser.loadedURL == base && !browser.webView.isLoading && workspace.library.tabs.first?.url == base
+        }
+        try check(browser.externalOpenURL == base, "initial selected page is eligible for external handoff")
+        let link = try await browser.webView.evaluateJavaScript("document.getElementById('route-link').getAttribute('href')") as? String
+        try check(link == "#/docs/42", "real loaded document contains the in-page route link")
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('route-link').click(); true")
+        try await BrowserSiteModesAppChecks.wait("actual anchor changes WebKit URL") { browser.webView.url == routed }
+        let marker = try await browser.webView.evaluateJavaScript("window.spaMarker") as? String
+        try check(marker == "same-document", "hash route kept the loaded document")
+        // WebKit's same-document route may not issue another didFinish. Give
+        // App observation a bounded chance to publish before checking handoff.
+        let deadline = Date().addingTimeInterval(5)
+        while browser.loadedURL != routed && Date() < deadline {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        try check(browser.loadedURL == routed, "selected session publishes actual hash route (loaded=\(browser.loadedURL?.absoluteString ?? "nil"))")
+        try check(browser.current == nil && browser.status == "頁面已載入；此頁面僅供手動瀏覽",
+            "hash route remains outside the readonly research evidence boundary")
+        try check(browser.address == routed.absoluteString, "address follows actual hash route")
+        try check(workspace.selected === browser && workspace.library.selectedID == selectedID,
+            "the active tab remains selected after same-document navigation")
+        var handedOff: [URL] = []
+        try check(browser.externalOpenURL == routed && browser.handoffVisiblePage { handedOff.append($0) }
+            && handedOff == [routed], "external handoff passes exact current SPA route")
+        try check(workspace.library.tabs.first?.url == base && workspace.library.history.first?.url == base,
+            "encrypted tab/history retain their fragment-insensitive storage contract")
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('sensitive-link').click(); true")
+        try await BrowserSiteModesAppChecks.wait("actual sensitive hash link") {
+            browser.webView.url == sensitive && browser.loadedURL == sensitive
+        }
+        let sensitiveHandoff = browser.handoffVisiblePage { handedOff.append($0) }
+        try check(browser.externalOpenURL == nil && !sensitiveHandoff
+            && handedOff == [routed], "known-sensitive hash route never leaves the App")
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('route-link').click(); true")
+        try await BrowserSiteModesAppChecks.wait("safe SPA route restored") {
+            browser.loadedURL == routed && browser.externalOpenURL == routed
+        }
+        workspace.newTab(); host.attach(workspace.selected)
+        try check(browser.externalOpenURL == nil && workspace.selected !== browser,
+            "unselected tab cannot hand off its retained route")
+        workspace.selectTab(selectedID); host.attach(workspace.selected)
+        try check(workspace.selected === browser && browser.externalOpenURL == routed,
+            "reselected tab preserves its live SPA route without storing the fragment")
+        return ["assertions": count, "actual_webkit": true, "actual_in_page_anchor": true,
+                "external_network_or_personal_keychain": false, "native_ui_execution": false]
+    }
     static func run() async throws -> [String: Any] {
         var count = try BrowserSearchChecks.run()
         func check(_ condition: @autoclosure () throws -> Bool, _ name: String) throws {
@@ -173,7 +243,9 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let app = NSApplication.shared; app.setActivationPolicy(.prohibited)
         Task { @MainActor in
             do {
+                let spaHash = try await BrowserSearchAppChecks.runSPAHash()
                 var result = try await BrowserSearchAppChecks.run()
+                result["spa_hash"] = spaHash
                 result["existing_site_mode_regression_assertions"] = try await BrowserSiteModesAppChecks.run()["assertions"]
                 print(String(decoding: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), as: UTF8.self))
                 exit(0)

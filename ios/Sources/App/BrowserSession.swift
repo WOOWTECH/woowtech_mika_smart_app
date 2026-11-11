@@ -8,6 +8,7 @@ import WebKit
 @MainActor
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
+    private var webViewURLObservation: NSKeyValueObservation?
     private let websiteDataStore: WKWebsiteDataStore
     private let suppliedConfiguration: WKWebViewConfiguration?
     var onPageFinished: ((URL, String) -> Void)?
@@ -53,6 +54,16 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         view.accessibilityIdentifier = "browser.webView"
         #endif
         storedWebView = view
+        // WebKit may change its visible URL for a same-document hash link
+        // without delivering another didFinish. Observe WebKit's own URL;
+        // page scripts never send a privileged message to the App.
+        webViewURLObservation = view.observe(\.url, options: [.new]) { [weak self, weak view] _, change in
+            let observedURL = change.newValue ?? nil
+            Task { @MainActor [weak self, weak view] in
+                guard let self, let view, view.url == observedURL else { return }
+                self.publishSameDocumentURL(observedURL, in: view)
+            }
+        }
         return view
     }
     @Published var address = ""
@@ -1123,6 +1134,41 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         guard updated != pageTitle else { return }
         pageTitle = updated
         onPageFinished?(url, updated)
+    }
+    private func publishSameDocumentURL(_ observedURL: URL?, in view: WKWebView) {
+        guard storedWebView === view, !retiredForDataRemoval, !discardingPage,
+              trackedNavigation != nil, !requestedNavigationPending, !view.isLoading,
+              let previous = loadedURL, let observedURL, previous != observedURL,
+              manualPermitted(observedURL),
+              var oldParts = URLComponents(url: previous, resolvingAgainstBaseURL: false),
+              var newParts = URLComponents(url: observedURL, resolvingAgainstBaseURL: false) else { return }
+        oldParts.fragment = nil; newParts.fragment = nil
+        guard oldParts == newParts else { return }
+        invalidatePageObservation()
+        invalidateControls()
+        current = nil; lastLinks = []
+        loadedURL = observedURL; address = observedURL.absoluteString
+        canGoBack = view.canGoBack; canGoForward = view.canGoForward
+        pageTitle = Self.displayTitle(view.title, url: observedURL)
+        guard !isRunning, !isInteracting, !automationOwnsDocument else { return }
+        guard permitted(observedURL) else {
+            status = "頁面已載入；此頁面僅供手動瀏覽"; error = nil
+            return
+        }
+        let generation = pageGeneration
+        pageObservationTask = Task { [weak self] in
+            guard let self, self.pageGeneration == generation else { return }
+            do {
+                _ = try await self.inspect()
+                guard self.pageGeneration == generation else { return }
+                self.status = "頁面已載入"; self.error = nil
+            } catch {
+                guard self.pageGeneration == generation else { return }
+                self.status = "頁面已載入；此路由內容未能讀取"
+                self.error = "頁面內容讀取未完成；沒有自動重試。"
+            }
+            if self.pageGeneration == generation { self.pageObservationTask = nil }
+        }
     }
     private func preparePageNavigation() {
         invalidatePageFindDocument()

@@ -39,6 +39,63 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         XCTAssertEqual(handedOff, [firstURL])
     }
 
+    @MainActor func testInPageHashLinkUpdatesOnlyTheLiveSelectedTabAndExactExternalRoute() async throws {
+        let host = try Host()
+        addTeardownBlock { await host.close() }
+        let workspace = try XCTUnwrap(host.workspace)
+        let browser = host.attachSelected()
+        let selectedID = workspace.library.selectedID
+        let base = try XCTUnwrap(URL(string: "https://research.example.invalid/spa"))
+        let route = try XCTUnwrap(URL(string: "https://research.example.invalid/spa#/docs/42"))
+        let sensitive = try XCTUnwrap(URL(string: "https://research.example.invalid/spa#/authToken/fixture"))
+        let html = """
+        <!doctype html><html><head><title>SPA fixture</title></head><body>
+        <a id="route" href="#/docs/42">Docs</a><a id="sensitive" href="#/authToken/fixture">Private</a>
+        <script>window.sameDocumentMarker = 'retained'</script></body></html>
+        """
+        browser.manualNavigation(to: base) { browser.webView.loadHTMLString(html, baseURL: base) }
+        try await waitUntil("Initial simulated HTTPS page did not load", timeout: 75) {
+            browser.loadedURL == base && browser.externalOpenURL == base && workspace.library.tabs.first?.url == base
+        }
+        let href = try await javascript("document.getElementById('route').getAttribute('href')", in: browser.webView)
+        XCTAssertEqual(href, "#/docs/42")
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('route').click(); true")
+        try await waitUntil("The actual DOM link did not change WebKit's URL") { browser.webView.url == route }
+        try await waitUntil("The selected session did not publish the hash route") {
+            browser.loadedURL == route && browser.externalOpenURL == route
+        }
+        XCTAssertNil(browser.current, "Fragment routes remain manual-only and outside research evidence")
+        XCTAssertEqual(browser.status, "頁面已載入；此頁面僅供手動瀏覽")
+        let marker = try await javascript("window.sameDocumentMarker", in: browser.webView)
+        XCTAssertEqual(marker, "retained")
+        XCTAssertEqual(browser.address, route.absoluteString)
+        XCTAssertTrue(workspace.selected === browser)
+        XCTAssertEqual(workspace.library.selectedID, selectedID)
+        XCTAssertEqual(workspace.library.tabs.first?.url, base, "Encrypted tab metadata remains fragment-insensitive")
+        XCTAssertEqual(workspace.library.history.first?.url, base)
+        var handedOff: [URL] = []
+        XCTAssertTrue(browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [route], "The action must pass the actual hash route")
+
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('sensitive').click(); true")
+        try await waitUntil("The sensitive hash route was not displayed") {
+            browser.webView.url == sensitive && browser.loadedURL == sensitive
+        }
+        XCTAssertNil(browser.externalOpenURL, "A known-sensitive fragment must not be handed to another App")
+        XCTAssertFalse(browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [route])
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('route').click(); true")
+        try await waitUntil("Safe route did not return") { browser.loadedURL == route && browser.externalOpenURL == route }
+
+        workspace.newTab()
+        _ = host.attachSelected()
+        XCTAssertNil(browser.externalOpenURL, "An unselected tab cannot hand off its retained page")
+        workspace.selectTab(selectedID)
+        XCTAssertTrue(host.attachSelected() === browser)
+        XCTAssertEqual(browser.externalOpenURL, route)
+        XCTAssertEqual(workspace.library.tabs.first?.url, base)
+    }
+
     @MainActor func testClosingCurrentPageReplacesWebKitWithoutDeletingLibraryData() async throws {
         let host = try Host()
         addTeardownBlock { await host.close() }
