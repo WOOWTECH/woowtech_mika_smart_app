@@ -68,7 +68,6 @@ class DiagnosticsTest {
             chatGptSignedIn = false,
         ),
         runs = runs,
-        update = DiagnosticsSnapshot.Update("Done", "0.1.8", "0.1.8"),
     )
 
     @Test
@@ -76,14 +75,13 @@ class DiagnosticsTest {
         val t = Diagnostics.render(snapshot())
         assertTrue(t.startsWith(Diagnostics.HEADER + "\n"))
         val sections = t.lines().filter { it.startsWith("[") }
-        assertEquals(listOf("[App]", "[Device]", "[Phone control]", "[Recovery]", "[Models]", "[Recent runs]", "[Update]"), sections)
+        assertEquals(listOf("[App]", "[Device]", "[Phone control]", "[Recovery]", "[Models]", "[Recent runs]"), sections)
         assertTrue(t.contains("version: 0.1.7 (build cfa4380)"))
         assertTrue(t.contains("installer: com.android.packageinstaller"))
         assertTrue(t.contains("model: Google Pixel 8"))
         assertTrue(t.contains("android: 14 (SDK 34)"))
         assertTrue(t.contains("abi: arm64-v8a, armeabi-v7a"))
         assertTrue(t.contains("arm64 sandbox: supported (Ready)"))
-        assertTrue(t.contains("update available: 0.1.8"))
     }
 
     /** 语音转文字一段:选择、自带识别的情况、手机上登记的识别服务(组件名、开不开放、要的权限);在模型之后。 */
@@ -95,7 +93,7 @@ class DiagnosticsTest {
         )
         val t = Diagnostics.render(snapshot().copy(speech = speech))
         val sections = t.lines().filter { it.startsWith("[") }
-        assertEquals(listOf("[App]", "[Device]", "[Phone control]", "[Recovery]", "[Models]", "[Speech]", "[Recent runs]", "[Update]"), sections)
+        assertEquals(listOf("[App]", "[Device]", "[Phone control]", "[Recovery]", "[Models]", "[Speech]", "[Recent runs]"), sections)
         assertTrue(t, t.contains("speech to text: auto"))
         assertTrue(t, t.contains("built-in recognition: present, marked no response"))
         assertTrue(t, t.contains("recognition services: 1\n- com.example.voice/.Recognizer (not exported) needs android.permission.BIND_VOICE_INTERACTION"))

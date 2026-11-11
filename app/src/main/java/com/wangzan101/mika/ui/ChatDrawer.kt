@@ -216,8 +216,6 @@ fun ChatDrawer(
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
     onAbout: () -> Unit = {},
-    /** 有新版本:「关于 Mika」带小红点。 */
-    aboutDot: Boolean = false,
     /** 长按一条存过的对话:在它原地弹出操作菜单(置顶、改名、删除);带上那一行在窗口里的位置和大小。 */
     onActions: (DrawerConversation, Rect) -> Unit = { _, _ -> },
 ) {
@@ -245,9 +243,7 @@ fun ChatDrawer(
         }
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
-            NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
             NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
-            NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
             NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onClick = onComputerAccess)
             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
         }
@@ -295,7 +291,7 @@ fun ChatDrawer(
                 .padding(horizontal = 12.dp, vertical = 6.dp).testTag("drawer-footer"),
         ) {
             NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), wrapLabel = true, onClick = onSettings)
-            NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, dot = aboutDot, onClick = onAbout)
+            NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, onClick = onAbout)
         }
     }
 }
@@ -303,7 +299,7 @@ fun ChatDrawer(
 @Composable
 private fun NavEntry(
     icon: ImageVector, text: String, modifier: Modifier = Modifier.fillMaxWidth(),
-    enabled: Boolean = true, dot: Boolean = false, wrapLabel: Boolean = false, onClick: () -> Unit,
+    enabled: Boolean = true, wrapLabel: Boolean = false, onClick: () -> Unit,
 ) {
     val c = MikaTheme.colors
     Row(
@@ -319,7 +315,6 @@ private fun NavEntry(
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(text, modifier = if (wrapLabel) Modifier.weight(1f) else Modifier,
                 style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel)
-            if (dot) UpdateDot()
         }
     }
 }
@@ -498,8 +493,6 @@ fun ChatWithDrawer(
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
-    /** 有新版本:侧栏「关于 Mika」带小红点。 */
-    updateAvailable: Boolean = false,
     /** 从侧栏进去的页面刚退回来:当场打开侧栏,回到进去之前的样子。 */
     reopen: Boolean = false,
     onReopened: () -> Unit = {},
@@ -606,7 +599,6 @@ fun ChatWithDrawer(
                     onBrowser = { leave(onBrowser) },
                     onScreens = { leave(onScreens) },
                     onAbout = { leave(onAbout) },
-                    aboutDot = updateAvailable,
                     onActions = { item, bounds -> if (item.id != null) acting = item to bounds },
                     onOpen = { item ->
                         close {

@@ -63,7 +63,6 @@ internal fun RelaySection(runtime: McpRuntime, mcp: Boolean, onCopy: (String) ->
     RelayControls(config, state, busy, failed,
         onPair = { url, code -> change { runtime.pairRelay(url, code) } },
         onEnabled = { on -> change { runtime.setRelayEnabled(on) } },
-        onDeviceAccess = { on -> change { runtime.setRelayDeviceAccess(on) } },
         onUnpair = { change { runtime.unpairRelay() } },
         onCopyAddress = { runtime.relaySettings.config.value.connectionInfo?.let {
             onCopy(if (mcp) it.mcpUrl else it.apiBaseUrl)
@@ -129,9 +128,6 @@ internal fun RelayControls(config: RelayConfig, state: RelayState, busy: Boolean
         GroupCard {
             ListRow(MikaIcons.Link, stringResource(R.string.relay_enable), stringResource(status), first = true) {
                 MikaSwitch(config.enabled, onEnabled, Modifier.testTag("relay-enabled"), enabled = !busy)
-            }
-            ListRow(null, stringResource(R.string.relay_device_access), stringResource(R.string.relay_device_access_sub)) {
-                MikaSwitch(config.deviceAccess, onDeviceAccess, Modifier.testTag("relay-device-access"), enabled = !busy)
             }
             ListRow(null, stringResource(R.string.relay_gateway), config.gateway)
             if (portalUrl.isNotEmpty()) RowActions {

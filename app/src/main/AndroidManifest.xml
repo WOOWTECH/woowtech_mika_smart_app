@@ -5,8 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 按住说话时录音，转成文字。 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- 用户在关于页下载新版后，交给系统安装器确认覆盖安装。 -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- 沙箱联网时读当前网络的 DNS 服务器 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -14,22 +12,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- phone_set_alarm / phone_set_timer:经安卓标准接口请时钟 App 设闹钟、计时器(普通权限,安装即有) -->
-    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-    <!-- 「重启后自动恢复」:开机时重新打开无线调试。这个授权普通安装拿不到,只在用户打开那个开关后
-         经已配对的连接授予;不在这里声明的话连授予都做不了 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- 对话页附件面板里的「最近的照片」:安卓 13 起读照片,14 起可以只给部分照片,12 及以前读外部存储。
-         不给也能用系统照片选择器、文件选择器;拍照走系统相机,不要相机权限 -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
 
     <!-- 对话页附件可以拍照(走系统相机),声明用到相机、但不是必需:没有相机的设备照常安装。
          有的系统按 APK 特征给应用分类,不声明时 Mika 可能被当成游戏、限制刷新率;这条声明要留着 -->
@@ -127,52 +109,23 @@
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- 兼容性自检在 Mika 虚拟屏上操作的测试页。对外开放只为让内置助手(shell)按组件名把它开到 Mika 的屏上:
-             调用方必须持有 INTERACT_ACROSS_USERS_FULL,shell 有,普通 App 没有;没有 intent-filter。单独一个任务,不进最近任务 -->
-        <activity
-            android:name=".selfcheck.SelfCheckTargetActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
-            android:launchMode="singleInstance"
-            android:taskAffinity=""
-            android:windowSoftInputMode="stateHidden" />
-
-        <service
-            android:name=".a11y.MikaAccessibilityService"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service" />
-        </service>
-
         <service
             android:name=".task.TaskService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Runs a user-requested phone task on the app's own virtual display and shows its progress; afterwards keeps the one web page the user asked to keep open running, for at most two hours" />
+                android:value="Keeps a user-requested AI conversation or in-app browser task running while showing its progress" />
         </service>
 
-        <!--
-            电脑连接(MCP):用户在设置里打开、或电脑经 USB 调试打开后才运行,让监听端口在后台也开着;关掉就停。
-            对外开放只为让 adb shell 能起它(am start-foreground-service):调用方必须持有 INTERACT_ACROSS_USERS_FULL,
-            shell 有,普通 App 拿不到,adb 也授不了
-        -->
+        <!-- 遠端配對連線由 App 自行啟動，不接受外部元件直接啟動服務。 -->
         <service
             android:name=".mcp.McpService"
-            android:exported="true"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
+            android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps user-enabled computer access available through a private-network or USB endpoint, or an outbound connection to the user's remote gateway, so authorized clients can hand tasks to the app" />
+                android:value="Keeps a user-enabled outbound relay connection available for remote AI conversations" />
         </service>
 
         <!-- 用 ChatGPT 登录期间:用户在浏览器里登录时撑住进程,本机回调才有人接;登录一结束就停 -->
@@ -215,44 +168,11 @@
                 android:resource="@xml/attach_files" />
         </provider>
 
-        <!-- 走网络代理时 Mika 自己下的更新安装包:只读交给系统安装器,不对外导出,安装时临时授权 -->
-        <provider
-            android:name=".about.UpdateFilesProvider"
-            android:authorities="${applicationId}.updatefiles"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/update_files" />
-        </provider>
-
         <!-- 配对通知输入框填的配对码 -->
         <receiver
             android:name=".setup.PairingCodeReceiver"
             android:exported="false" />
 
-        <!-- 内置助手(shell 身份)交接 Binder 的入口:shell 有这个权限,普通 App 没有;
-             进入后还要核对调用方 uid、一次性口令和 APK,见 HelperHub.offer -->
-        <provider
-            android:name=".shell.HelperHandoffProvider"
-            android:authorities="${applicationId}.helper"
-            android:exported="true"
-            android:multiprocess="false"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
-
-        <!-- 开机广播只由系统发出(受保护的广播),按要求导出 -->
-        <receiver
-            android:name=".setup.BootRestoreReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
-            </intent-filter>
-        </receiver>
-        <receiver android:name=".task.TriggerAlarmReceiver" android:exported="false" />
     </application>
 
 </manifest>

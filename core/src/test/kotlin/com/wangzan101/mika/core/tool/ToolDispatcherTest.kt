@@ -26,6 +26,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import com.wangzan101.mika.core.assembly.toolDispatcher
+import com.wangzan101.mika.core.cap.web.FakeWebPort
 
 class FakeScreen : ScreenPort {
     val calls = mutableListOf<String>()
@@ -57,6 +58,21 @@ class FakeScreen : ScreenPort {
 class ToolDispatcherTest {
     private fun call(name: String, args: String = "{}") = Part.ToolCall("c1", name, args)
     private fun JsonObject.s(k: String) = this[k]!!.jsonPrimitive.content
+
+    @Test fun nullScreenOmitsPhoneCapabilityFromToolsAndIndex() = runTest {
+        val d = toolDispatcher(screen = null, web = FakeWebPort(), deepLinks = true)
+        assertTrue("web_read_page" in d.index.names)
+        assertTrue("web_read_page" in d.offeredNow(all = true).map { it.name })
+        assertFalse(d.definitions().any { it.name.startsWith("phone_") })
+        assertFalse(d.offeredNow(all = true).any { it.name.startsWith("phone_") })
+        assertFalse(d.index.names.any { it.startsWith("phone_") })
+        assertNull(d.index["phone_tap"])
+        assertEquals("unknown_tool", d.execute(call("phone_tap")).content.s("error"))
+
+        val withScreen = toolDispatcher(FakeScreen())
+        assertTrue("phone_launch_app" in withScreen.offeredNow().map { it.name })
+        assertNotNull(withScreen.index["phone_tap"])
+    }
 
     @Test fun callReasonIsTheModelsNoteUnlessTheToolOwnsTheField() {
         val d = toolDispatcher(FakeScreen())

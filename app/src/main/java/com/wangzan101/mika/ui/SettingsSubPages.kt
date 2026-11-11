@@ -206,18 +206,9 @@ fun DuringWorkScreen(
     var editingLimit by remember { mutableStateOf(false) }
     var customLimit by remember { mutableStateOf("") }
     PageScaffold(stringResource(R.string.settings_during_work), onBack) {
-        GroupLabel(AutonomyCopy.GROUP)
-        GroupCard {
-            ListRow(null, AutonomyCopy.TITLE, AutonomyCopy.SUBTITLE, first = true, onClick = { onAutonomous(!autonomous) }) {
-                MikaSwitch(autonomous, onAutonomous, Modifier.testTag("work-autonomous"))
-            }
-        }
         GroupCard {
             ListRow(MikaIcons.Sun, stringResource(R.string.settings_keep_on), stringResource(R.string.settings_keep_on_sub), first = true, onClick = { onKeepScreenOn(!keepScreenOn) }) {
                 MikaSwitch(keepScreenOn, onKeepScreenOn, Modifier.testTag("work-keep-screen-on"))
-            }
-            ListRow(MikaIcons.Mute, stringResource(R.string.settings_mute), stringResource(R.string.settings_mute_sub), onClick = { onMuteTarget(!muteTarget) }) {
-                MikaSwitch(muteTarget, onMuteTarget, Modifier.testTag("work-mute-target"))
             }
             ListRow(
                 MikaIcons.Clock, stringResource(R.string.settings_step_limit),
@@ -235,24 +226,6 @@ fun DuringWorkScreen(
             onPick = { onStepLimit(it); editingLimit = false },
             onDismiss = { editingLimit = false },
         )
-        // 允许 Mika 改自己的设置:默认关,打开后任务里才有 settings_list、settings_set
-        GroupCard {
-            ListRow(
-                MikaIcons.Spark, stringResource(R.string.settings_self_config),
-                stringResource(R.string.settings_self_config_sub),
-                first = true,
-                onClick = { onSelfConfig(!selfConfig) },
-            ) {
-                MikaSwitch(selfConfig, onSelfConfig, Modifier.testTag("work-self-config"))
-            }
-        }
-        GroupLabel(stringResource(R.string.settings_pace))
-        GroupCard {
-            OperatingPace.entries.forEachIndexed { i, p ->
-                RadioRow(paceLabel(p), selected = p == operatingPace, onClick = { onOperatingPace(p) }, subtitle = paceDetail(p), first = i == 0)
-            }
-        }
-        FooterNote(stringResource(R.string.settings_pace_foot))
     }
 }
 

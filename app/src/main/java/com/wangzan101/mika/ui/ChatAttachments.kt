@@ -3,25 +3,19 @@ package com.wangzan101.mika.ui
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import androidx.compose.ui.res.stringResource
-import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
@@ -33,21 +27,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,25 +48,17 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import com.wangzan101.mika.ui.components.ButtonKind
-import com.wangzan101.mika.ui.components.ButtonSize
-import com.wangzan101.mika.ui.components.MikaButton
 import com.wangzan101.mika.ui.components.cardSurface
 import com.wangzan101.mika.ui.theme.MikaColors
 import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.MikaTheme
-import com.wangzan101.mika.ui.theme.MikaType
 
 /** 对话页附件的说法。 */
 object AttachCopy {
@@ -88,15 +67,6 @@ object AttachCopy {
     val CAMERA: String get() = tr(R.string.attach_camera)
     val ALBUM: String get() = tr(R.string.attach_album)
     val FILES: String get() = tr(R.string.attach_files)
-    val RECENT: String get() = tr(R.string.attach_recent)
-    val RECENT_PARTIAL: String get() = tr(R.string.attach_recent_partial)
-    val ALL: String get() = tr(R.string.attach_all)
-    val CHANGE: String get() = tr(R.string.attach_change)
-    val NO_PHOTOS: String get() = tr(R.string.attach_no_photos)
-    val NEED_ACCESS: String get() = tr(R.string.attach_need_access)
-    val GRANT: String get() = tr(R.string.attach_grant)
-    val GRANT_HINT: String get() = tr(R.string.attach_grant_hint)
-    val FULL: String get() = tr(R.string.attach_full, AttachTray.LIMIT)
     val NO_CAMERA: String get() = tr(R.string.attach_no_camera)
     val GONE: String get() = tr(R.string.attach_gone)
     val IMPORTING: String get() = tr(R.string.attach_importing)
@@ -108,9 +78,10 @@ object AttachCopy {
 // ---------- 面板 ----------
 
 /**
- * 「＋」点开的面板里那一份活:系统相机、照片选择器、文件选择器,照片权限(第一次打开时问一次),最近的照片。
- * 选中的交给 [onPicked](内容地址)或 [onToggle](最近的照片点一下,满了返回 false)。
+ * 「＋」点开的面板里那一份活:系统相机、照片选择器、文件选择器。
+ * 选中的内容地址交给 [onPicked]。
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun AttachPanelHost(
     selected: List<PendingAttachment>,
@@ -119,29 +90,6 @@ internal fun AttachPanelHost(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var access by remember { mutableStateOf(RecentPhotos.access(context)) }
-    var refresh by remember { mutableIntStateOf(0) }
-    val recent by produceState<List<PendingAttachment>?>(null, access, refresh) {
-        value = if (access == PhotoAccess.None) emptyList() else RecentPhotos.query(context)
-    }
-    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        access = RecentPhotos.access(context)
-        refresh++
-    }
-    // 回到 App 时(可能刚在系统设置里改过照片权限、刚拍了照)重新看一眼;面板刚打开那一次上面已经在读
-    var resumedOnce by remember { mutableStateOf(false) }
-    LifecycleResumeEffect(Unit) {
-        val now = RecentPhotos.access(context)
-        if (now != access) access = now else if (resumedOnce) refresh++
-        resumedOnce = true
-        onPauseOrDispose { }
-    }
-    LaunchedEffect(Unit) {
-        if (access == PhotoAccess.None && !RecentPhotos.asked(context)) {
-            RecentPhotos.markAsked(context)
-            permissions.launch(RecentPhotos.permissions())
-        }
-    }
     var cameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val uri = cameraUri ?: return@rememberLauncherForActivityResult
@@ -156,9 +104,6 @@ internal fun AttachPanelHost(
     }
     val openAlbum = { album.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
     AttachPanel(
-        access = access,
-        recent = recent,
-        selected = selected,
         onCamera = {
             val uri = AttachFiles.newCameraUri(context)
             cameraUri = uri.toString()
@@ -170,77 +115,25 @@ internal fun AttachPanelHost(
         },
         onAlbum = openAlbum,
         onFiles = { files.launch(arrayOf("*/*")) },
-        onToggle = { if (!onToggle(it)) Toast.makeText(context, AttachCopy.FULL, Toast.LENGTH_SHORT).show() },
-        onGrant = {
-            val activity = context.findActivity()
-            val blocked = access == PhotoAccess.None && RecentPhotos.asked(context) && activity != null &&
-                RecentPhotos.permissions().none { ActivityCompat.shouldShowRequestPermissionRationale(activity, it) }
-            RecentPhotos.markAsked(context)
-            // 用户选过「不再询问」:系统不会再弹窗,只能去 App 信息里开
-            if (blocked) context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-            else permissions.launch(RecentPhotos.permissions())
-        },
         modifier = modifier,
     )
 }
 
 /**
- * 面板:上面一排相机 / 相册 / 文件,下面四列最近的照片(点一下选上,右上角是序号;再点取消)。
- * 没给照片权限时下面是一句说明和「允许访问照片」;只给了部分照片时列出给了的那些,旁边能改范围。[recent] 为 null 时还在读。
+ * 面板:系统相机、照片选择器和文件选择器。
  */
 @Composable
 internal fun AttachPanel(
-    access: PhotoAccess,
-    recent: List<PendingAttachment>?,
-    selected: List<PendingAttachment>,
     onCamera: () -> Unit,
     onAlbum: () -> Unit,
     onFiles: () -> Unit,
-    onToggle: (PendingAttachment) -> Unit,
-    onGrant: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val c = MikaTheme.colors
     Column(modifier.fillMaxSize().testTag("attach-panel").padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Tile(MikaIcons.PhotoCamera, AttachCopy.CAMERA, onCamera)
             Tile(MikaIcons.Photo, AttachCopy.ALBUM, onAlbum)
             Tile(MikaIcons.Paperclip, AttachCopy.FILES, onFiles)
-        }
-        if (access == PhotoAccess.None) {
-            Column(
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
-            ) {
-                Text(AttachCopy.NEED_ACCESS, style = PanelText, color = c.ink2, textAlign = TextAlign.Center)
-                MikaButton(AttachCopy.GRANT, onGrant, kind = ButtonKind.Primary, size = ButtonSize.Medium)
-                Text(AttachCopy.GRANT_HINT, style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
-            }
-            return@Column
-        }
-        Row(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (access == PhotoAccess.Partial) AttachCopy.RECENT_PARTIAL else AttachCopy.RECENT,
-                Modifier.weight(1f), style = MikaType.Hint, color = c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-            if (access == PhotoAccess.Partial) PanelLink(AttachCopy.CHANGE, onGrant)
-            PanelLink(AttachCopy.ALL, onAlbum)
-        }
-        when {
-            recent == null -> Box(Modifier.weight(1f))
-            recent.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(AttachCopy.NO_PHOTOS, style = PanelText, color = c.ink3)
-            }
-            else -> LazyVerticalGrid(
-                GridCells.Fixed(4),
-                Modifier.weight(1f).fillMaxWidth().clip(GridShape),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(bottom = 4.dp),
-            ) {
-                items(recent, key = { it.uri }) { p -> RecentCell(p, AttachTray.order(selected, p.uri)) { onToggle(p) } }
-            }
         }
     }
 }
@@ -255,37 +148,6 @@ private fun RowScope.Tile(icon: ImageVector, label: String, onClick: () -> Unit)
     ) {
         Icon(icon, null, Modifier.size(24.dp), tint = c.ink)
         Text(label, style = TileText, color = c.ink)
-    }
-}
-
-@Composable
-private fun PanelLink(text: String, onClick: () -> Unit) {
-    Text(
-        text, Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 6.dp, vertical = 4.dp),
-        style = LinkText, color = MikaTheme.colors.accent,
-    )
-}
-
-/** 最近的一张照片:方块缩略图;选中时蓝框、淡蓝罩、右上角蓝底序号,没选时右上角一个空心圈。 */
-@Composable
-private fun RecentCell(photo: PendingAttachment, order: Int?, onClick: () -> Unit) {
-    val c = MikaTheme.colors
-    val thumb = rememberAttachImage(AttachImage.Picked(photo.uri), RECENT_PX)
-    Box(
-        Modifier.testTag("recent-photo").aspectRatio(1f).clip(CellShape).background(c.fill)
-            .semantics { selected = order != null }
-            .clickable(onClickLabel = if (order != null) stringResource(R.string.attach_deselect) else stringResource(R.string.attach_select), onClick = onClick),
-    ) {
-        thumb?.let { Image(it, photo.name, Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
-        if (order != null) Box(Modifier.matchParentSize().background(c.accent.copy(alpha = 0.12f)).border(2.5.dp, c.accent, CellShape))
-        Box(
-            Modifier.align(Alignment.TopEnd).padding(5.dp).size(22.dp)
-                .background(if (order != null) c.accent else Color.Black.copy(alpha = 0.18f), CircleShape)
-                .border(1.5.dp, if (order != null) c.accent else Color.White, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (order != null) Text("$order", style = BadgeText, color = c.onAccent)
-        }
     }
 }
 
@@ -419,22 +281,16 @@ private fun badgeColor(kind: FileBadge.Kind, c: MikaColors): Color = when (kind)
 }
 
 /** 缩略图解到这么大(像素):面板格子、待发的小方块、单张大图。 */
-private const val RECENT_PX = 256
 private const val TRAY_PX = 180
 private const val SINGLE_PX = 640
 
 private val SingleWidth = 200.dp
 private val NeutralBadge = Color(0xFF8E8E93)
 private val TileShape = RoundedCornerShape(16.dp)
-private val GridShape = RoundedCornerShape(12.dp)
-private val CellShape = RoundedCornerShape(6.dp)
 private val ChipShape = RoundedCornerShape(12.dp)
 private val GridPhotoShape = RoundedCornerShape(14.dp)
 private val FileCardShape = RoundedCornerShape(14.dp)
-private val PanelText = TextStyle(fontSize = 13.5.sp, lineHeight = 21.sp)
 private val TileText = TextStyle(fontSize = 12.5.sp, lineHeight = 16.sp)
-private val LinkText = TextStyle(fontSize = 12.5.sp, lineHeight = 16.sp)
-private val BadgeText = TextStyle(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold)
 private val BadgeSmall = TextStyle(fontSize = 8.5.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold)
 private val BadgeLarge = TextStyle(fontSize = 10.5.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold)
 private val ChipName = TextStyle(fontSize = 12.5.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)

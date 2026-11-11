@@ -46,10 +46,11 @@ import com.wangzan101.mika.core.userscreen.UserScreenSource
 
 /**
  * 一个任务的工具:装上手机、网页、沙箱三种能力和核心工具。这是唯一同时认识几种能力的地方。
- * 没给端口的能力照样装上(工具都不提供),按名字查声明时它们的工具也查得到。root 命令例外:没给端口就整个不装。
+ * 没给端口的能力照样装上(工具都不提供),按名字查声明时它们的工具也查得到。
+ * 手机屏幕和 root 命令例外:没给端口就整个不装。
  */
 fun toolDispatcher(
-    screen: ScreenPort,
+    screen: ScreenPort? = null,
     visionEnabled: Boolean = false,
     /** 只读的知识与技能目录;为空时不提供 knowledge_search / knowledge_read / skill_search / skill_read。 */
     skills: GuideCatalog? = null,
@@ -123,11 +124,11 @@ fun toolDispatcher(
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
         imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, personalSkills, selfConfig, runRecords)
-    val providers: List<CapabilityProvider> = listOf(
-        object : CapabilityProvider {
+    val providers: List<CapabilityProvider> = listOfNotNull(
+        screen?.let { port -> object : CapabilityProvider {
             override val id = PHONE
-            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, appPacing(), appPace, appIdleScroll())
-        },
+            override fun open(spec: RunSpec) = PhoneCapability(port, deepLinks, appPacing(), appPace, appIdleScroll())
+        } },
         object : CapabilityProvider {
             override val id = WEB
             override fun open(spec: RunSpec) = WebCapability(web, workspacePath, webPacing(), webPlacePace, webIdleScroll())

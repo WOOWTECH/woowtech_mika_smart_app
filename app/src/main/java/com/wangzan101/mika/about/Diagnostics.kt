@@ -31,7 +31,6 @@ data class DiagnosticsSnapshot(
     val recovery: Recovery,
     val models: Models,
     val runs: List<Run>,
-    val update: Update,
     /** 语音转文字:选了什么、手机自带识别的情况;旧的调用处不给就不写这一段。 */
     val speech: Speech? = null,
 ) {
@@ -104,8 +103,6 @@ data class DiagnosticsSnapshot(
 
     /** 一次运行:开始时间、结局、失败的类别(不是原话)、走了几步、用的模型。 */
     data class Run(val startedAtMs: Long, val outcome: String, val failKind: String?, val judged: String?, val steps: Int, val model: String?)
-
-    data class Update(val status: String, val latest: String?, val available: String?)
 
     /**
      * [choice] 是用户的选择(auto、system、off,或服务商模型「模型 @ 地址」);[systemAvailable]、[onDevice] 是系统说的能力,
@@ -193,10 +190,6 @@ object Diagnostics {
             )
         }
 
-        section("Update")
-        line("last check", s.update.status)
-        line("latest seen", s.update.latest ?: "none")
-        line("update available", s.update.available ?: "no")
     }.trimEnd() + "\n")
 
     private fun StringBuilder.phone(s: DiagnosticsSnapshot) {

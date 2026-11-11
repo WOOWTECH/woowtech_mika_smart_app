@@ -99,9 +99,6 @@ object DiagnosticsCollector {
             ),
             models = models(app),
             runs = runs(app),
-            update = app.updates.state.value.let { u ->
-                DiagnosticsSnapshot.Update(u.status.name, u.latest?.version, u.update?.version)
-            },
             speech = speech(app),
         )
     }

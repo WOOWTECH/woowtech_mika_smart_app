@@ -239,12 +239,6 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
     /** Mika 自己的界面此刻看不看得见。 */
     val foreground = AppForeground()
 
-    /** 检查更新:查到的新版本跟进程走,侧栏、设置首页、关于页的红点看同一份。 */
-    val updates: com.wangzan101.mika.about.UpdateChecker by lazy {
-        com.wangzan101.mika.about.UpdateChecker(java.io.File(filesDir, "update-v1.json"), BuildConfig.VERSION_NAME,
-            deviceAbis = android.os.Build.SUPPORTED_ABIS.toList())
-    }
-
     /** 浮在别的 App 上的悬浮胶囊。 */
     val capsule: CapsuleController by lazy { CapsuleController(this, taskState, foreground, resources.takeoverQueue) }
 
@@ -339,37 +333,16 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         com.wangzan101.mika.core.net.NetProxy.shared.installSocksAuth()
         // 内置浏览器:设了代理才给 WebView 设上(读设置要解密,放到后台;没设代理不为此加载 WebView)
         scope.launch(Dispatchers.IO) { runCatching { com.wangzan101.mika.cap.web.WebProxy.apply(this@MikaApp) } }
-        capsule.start()
-        // 内置助手的真实现,并开始看着助手(Mika 进程起来后,还活着的助手会自己交接 Binder)
-        phone.shellManager.start()
-        // 连接一可用就补上默认打开的几项能力
-        phone.recovery.start()
-        // 告诉内置助手:Mika 被杀后要不要把它拉起来(胶囊一直显示或有任务在跑时才要)
-        com.wangzan101.mika.cap.phone.setup.RestoreWishSync(
-            phone.hub, FeatureFlags.get(this).capsuleModeChanges(), taskState.busy, phone.recoverySettings.consent, phone.recovery.accessibility,
-        ).start()
-        // 上次异常退出时留下的改动(App 被静音)在这里恢复
-        scope.launch { taskRecovery.recover() }
+        // Play edition: do not start the shell helper, accessibility recovery, or cross-app capsule.
         // 上次进程被杀时没结束的运行:现在就标为中断并告知,不等任务服务起来
         runRecovery.recover().let { if (it.isNotEmpty()) Log.w("MikaTask", "${it.size} runs interrupted by process restart") }
-        // 先对一下设备时区:没记过就记下当前的(升级上来的用户也有基线),和记下的不同就重算当地时间计划(关着时改了时区也补上)
-        scope.launch(Dispatchers.IO) { runCatching { TriggerRuntime.syncTimeZone(this@MikaApp); TriggerRuntime.rearm(this@MikaApp) } }
-        // 给电脑跑的「经 USB 连接」脚本;顺带清掉上次开机留下的 USB 连接信息
-        scope.launch(Dispatchers.IO) { runCatching { mcp.writeUsbScript() }.onFailure { Log.w("MikaMcp", "cannot write USB script", it) } }
+        // 商店版沒有背景定時操控任務，不重啟舊版排程。
+        // Play edition does not expose USB shell control.
         // 上次导出写到一半被杀留下的空壳条目
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }
         // 上次进程留下的网页上传副本
         scope.launch { runCatching { WebFiles.clearStale(this@MikaApp, SandboxDirs(this@MikaApp).gate) } }
-        // 更新已经装上后,关于页下好的安装包
-        scope.launch(Dispatchers.IO) { runCatching { com.wangzan101.mika.about.ApkUpdater(this@MikaApp).dropInstalled() } }
-        // 运行环境没准备好(首次启动、Mika 升级后)就在后台准备,不联网、对用户不可见
-        RuntimePreparer.ensure(this)
-        // 沙箱就绪(启动时已就绪,或刚装好)就把技能目录核对一次:App 更新带来的脚本马上能用
-        scope.launch {
-            SandboxState.get(this@MikaApp).status.first { it is SandboxStatus.Ready }
-            val state = SandboxState.get(this@MikaApp)
-            runCatching { SkillsSync.sync(SandboxDirs(this@MikaApp)) { state.status.value is SandboxStatus.Ready } }
-        }
+        // Play edition has no executable sandbox preparation or direct APK update flow.
     }
 
     // WOOWTECH fork: 进程配置一变(无障碍服务连上时系统会把进程配置换回系统语言),就把进程的默认语言设回 App 语言,

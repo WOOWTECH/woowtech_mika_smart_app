@@ -1,4 +1,4 @@
-// WOOWTECH fork: guards the exact alarm permissions of the woowtech flavor manifest. Not part of upstream Mika.
+// WOOWTECH Play branch: guards restricted alarm permissions of the branded manifest.
 package com.wangzan101.mika.core.brand
 
 import org.junit.Assert.assertEquals
@@ -10,12 +10,7 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * Reminders and scheduled tasks arm an exact alarm (TriggerRuntime.arm) only when canScheduleExactAlarms() is true; an
- * inexact alarm can be delivered late by up to 3/4 of the wait, at most an hour. From Android 14 SCHEDULE_EXACT_ALARM is
- * denied for a fresh install, so the woowtech flavor declares USE_EXACT_ALARM in app/src/woowtech/AndroidManifest.xml. That
- * build is an APK-only release: Google Play limits the permission to alarm, timer and calendar apps. The upstream flavor has
- * no manifest of its own and keeps src/main's user-granted SCHEDULE_EXACT_ALARM. These tests keep the files from drifting
- * apart; brand-check.sh apk checks the same two lines in the built APK.
+ * The Play edition has no background alarm capability or alarm permission.
  */
 class WoowtechManifestTest {
     private val androidNs = "http://schemas.android.com/apk/res/android"
@@ -37,41 +32,40 @@ class WoowtechManifestTest {
         return all.toMap()
     }
 
-    /** USE_EXACT_ALARM is what makes canScheduleExactAlarms() true without the user: it has to be there for every API level. */
-    @Test
-    fun woowtechFlavorDeclaresUseExactAlarmForEveryApiLevel() {
-        val flavor = permissions("woowtech/AndroidManifest.xml")
-        assertTrue(flavor.toString(), USE_EXACT_ALARM in flavor)
-        // The system ignores a permission on API levels above its maxSdkVersion: a limit would turn it off on newer Android.
-        assertEquals("USE_EXACT_ALARM must not have a maxSdkVersion", "", flavor[USE_EXACT_ALARM])
-    }
-
-    /**
-     * Only one of the two permissions should be requested on a device (AOSP documentation of USE_EXACT_ALARM). Android 12
-     * and 12L have no USE_EXACT_ALARM and grant SCHEDULE_EXACT_ALARM at install, so it stays for API 32 and below only.
-     * The element merges with the one in src/main, which declares it for every API level.
-     */
-    @Test
-    fun woowtechFlavorRequestsOnlyOneExactAlarmPermissionPerDevice() {
-        assertEquals("32", permissions("woowtech/AndroidManifest.xml")[SCHEDULE_EXACT_ALARM])
-    }
-
-    /** A new permission in the woowtech build is a product decision: it needs a FORK.md row and a look at the Play policy. */
+    /** A new permission in the Play build is a product decision and needs policy review. */
     @Test
     fun woowtechFlavorManifestAddsNoOtherPermission() {
-        assertEquals(setOf(USE_EXACT_ALARM, SCHEDULE_EXACT_ALARM), permissions("woowtech/AndroidManifest.xml").keys)
+        assertEquals(emptySet<String>(), permissions("woowtech/AndroidManifest.xml").keys)
         // The flavor manifest has a higher priority than src/main; the package comes from the module's namespace.
         assertFalse(manifest("woowtech/AndroidManifest.xml").hasAttribute("package"))
     }
 
-    /** The upstream flavor must stay as upstream ships it: the user-granted permission, no USE_EXACT_ALARM, no flavor manifest. */
+    /** No alarm permission may be brought into the Play build. */
     @Test
-    fun upstreamFlavorKeepsTheUserGrantedPermissionOnly() {
+    fun playManifestHasNoExactAlarmPermissions() {
         val main = permissions("main/AndroidManifest.xml")
-        assertTrue(main.toString(), SCHEDULE_EXACT_ALARM in main)
-        assertEquals("src/main must declare SCHEDULE_EXACT_ALARM for every API level", "", main[SCHEDULE_EXACT_ALARM])
-        assertFalse("USE_EXACT_ALARM belongs in the woowtech flavor manifest only", USE_EXACT_ALARM in main)
+        assertFalse("SCHEDULE_EXACT_ALARM must not be in the Play manifest", SCHEDULE_EXACT_ALARM in main)
+        assertFalse("USE_EXACT_ALARM must not be in the shared manifest", USE_EXACT_ALARM in main)
         assertFalse("the upstream flavor must not get a manifest of its own", File(app, "upstream/AndroidManifest.xml").exists())
+    }
+
+    @Test
+    fun playManifestHasNoCrossAppControlOrApkInstallEntry() {
+        val main = manifest("main/AndroidManifest.xml")
+        val requested = permissions("main/AndroidManifest.xml").keys
+        listOf(
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            "android.permission.WRITE_SECURE_SETTINGS",
+            "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+        ).forEach { assertFalse("Play manifest requests $it", it in requested) }
+        val components = listOf("service", "provider", "receiver", "activity")
+            .flatMap { tag -> main.getElementsByTagName(tag).let { nodes ->
+                (0 until nodes.length).map { (nodes.item(it) as Element).getAttributeNS(androidNs, "name") }
+            } }
+        listOf("MikaAccessibilityService", "HelperHandoffProvider", "BootRestoreReceiver", "SelfCheckTargetActivity")
+            .forEach { forbidden -> assertFalse("Play manifest still exposes $forbidden", components.any { it.endsWith(forbidden) }) }
     }
 
     @Test

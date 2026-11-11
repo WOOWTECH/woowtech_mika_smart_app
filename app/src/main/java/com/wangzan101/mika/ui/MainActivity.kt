@@ -146,8 +146,6 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         monitor.start()
-        // 每次打开都悄悄查一次新版本(两分钟内连着打开的只查一次),失败不吭声
-        (application as MikaApp).updates.autoCheckInBackground()
         // 电脑连接开着、服务却不在(被系统停过、从后台没能起来):界面在前台时补起来
         (application as MikaApp).mcp.ensureRunning()
     }
@@ -271,8 +269,6 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     val check = Prerequisites.check(status, hasMain)
     val context = LocalContext.current
     val app = context.applicationContext as MikaApp
-    // 查到的新版本:侧栏、设置首页、关于页的红点都看它
-    val updateState by app.updates.state.collectAsState()
     var conversationOpenRevision by rememberSaveable { mutableIntStateOf(0) }
     val chatUi by app.chat.ui.collectAsState()
     LaunchedEffect(requestedConversation, chatUi.composer) {
@@ -292,13 +288,13 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     val phoneSetup = remember { PhoneServices.of(context).setupPrompt }
     val openMemory by memoryRuntime.openRequest.collectAsState()
     LaunchedEffect(openMemory) { if (openMemory != null) nav.push(Route.Memory) }
-    // 第一次打开:欢迎 → 配置模型 → 手机操作;配过模型的跳过前两步,手机操作已就绪或看过引导的跳过最后一步
+    // 商店版只需要配置模型；不提供跨 App 手机操作。
     val onboardingState = remember { OnboardingState(context) }
     fun onboardingInputs() = Onboarding.Inputs(
         hasMainModel = store.roles.value.main != null,
         modelSetupDone = onboardingState.modelSetupDone(),
-        phoneNeeded = status.builtinShell != BuiltinShellStatus.Running && status.sdkInt >= Prerequisites.MIN_SDK,
-        phoneGuideSeen = phoneSetup.guideSeen(),
+        phoneNeeded = false,
+        phoneGuideSeen = true,
     )
     fun goOnboarding(step: OnboardingStep?) {
         onboarding = step
@@ -359,7 +355,6 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 onBrowser = { nav.pushFromDrawer(Route.Browser) },
                 onScreens = { nav.pushFromDrawer(Route.Screens) },
                 onAbout = { nav.pushFromDrawer(Route.About) },
-                updateAvailable = AboutCopy.drawerDot(updateState),
                 reopen = nav.reopenDrawer,
                 onReopened = nav::drawerReopened,
                 externalOpenRevision = conversationOpenRevision,
@@ -373,7 +368,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                     onOpenDrawer = openDrawer,
                     openSettings = { nav.push(Route.Settings) },
                     openRun = { runId = it; nav.push(Route.Run) },
-                    phoneSetupNeeded = phoneSetupNeeded && status.builtinShell != BuiltinShellStatus.Running,
+                    phoneSetupNeeded = false,
                     openPhoneSetup = { onFix(Fix.OpenPhoneSetup) },
                     loadSource = { id ->
                         withContext(Dispatchers.IO) { evidenceSource(RunStore(context).events(id)) { ConfirmationNotifier.appLabel(context, it) } }
@@ -393,7 +388,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             SettingsScreen(store, status, release, onFix, onBack = back, onOpenMemory = { nav.push(Route.Memory) },
                 onOpenModels = { nav.push(Route.Models) },
                 autonomous = autonomous, onAutonomous = app.approvalControl::setAutonomous,
-                updateVersion = updateState.update?.version, onOpenAbout = { nav.push(Route.About) },
+                onOpenAbout = { nav.push(Route.About) },
                 mcpServers = app.mcpServers)
         }
         Route.Models -> ModelsScreen(store, onBack = back, onOpenSpeech = { nav.push(Route.SpeechModel) }, onOpenUsage = { nav.push(Route.Usage) })
@@ -401,7 +396,6 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
         Route.SpeechModel -> SpeechModelScreen(store, onBack = back)
         Route.About -> AboutScreen(
             versionName = BuildConfig.VERSION_NAME, build = BuildConfig.GIT_HASH, beta = BuildConfig.BETA,
-            update = updateState,
             issueUrl = remember {
                 MikaLinks.issueUrl(
                     MikaLinks.Device(
@@ -410,7 +404,6 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                     ),
                 )
             },
-            onCheck = app.updates::checkInBackground,
             onOpenUrl = { openInBrowser(context, it) },
             onOpenLicense = { nav.push(Route.License) },
             onBack = back,

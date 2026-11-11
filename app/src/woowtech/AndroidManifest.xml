@@ -1,37 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  WOOWTECH fork: exact alarms for the woowtech flavor only. The upstream flavor has no manifest of its own, so its merged
-  manifest stays exactly src/main/AndroidManifest.xml. See docs-woowtech/FORK.md.
-
-  Why: reminders and scheduled tasks arm an exact alarm (TriggerRuntime.arm) only when AlarmManager.canScheduleExactAlarms()
-  is true. Otherwise the alarm is inexact and the system may deliver it late by up to three quarters of the wait, at most
-  an hour: a "one minute" reminder fired 42 s late in the emulator test. From Android 14 SCHEDULE_EXACT_ALARM is denied for a
-  fresh install that targets API 33 or higher, so the user would first have to find "Alarms and reminders" in Settings.
-  USE_EXACT_ALARM (Android 13+, normal permission) is granted at install, cannot be revoked, and makes
-  canScheduleExactAlarms() return true.
-
-  Only one of the two should be requested on a device (AOSP, Manifest.permission#USE_EXACT_ALARM). src/main declares
-  SCHEDULE_EXACT_ALARM for every API level, so this file only adds maxSdkVersion to it: Android 13+ requests
-  USE_EXACT_ALARM alone, and Android 12 and 12L (no USE_EXACT_ALARM there) keep the SCHEDULE_EXACT_ALARM that is granted at
-  install. A flavor manifest has a higher priority than src/main, so the attribute is merged into the same element.
-
-  Distribution: the woowtech build is released as an APK on GitHub only, never on Google Play. Play limits
-  USE_EXACT_ALARM to apps whose core function is an alarm, a timer or a calendar. If this app is ever published on Play,
-  remove these alarm permission overrides (keep the browser entry below): SCHEDULE_EXACT_ALARM from src/main then applies
-  to every API level again, with the user-granted flow
-  (ExactAlarmGuide, the note on the scheduled tasks page).
-
-  Guards: core WoowtechManifestTest (this file) and woowtech/tools/brand-check.sh apk (the built APK).
--->
+<!-- The woowtech flavor adds the browser entry below. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- No maxSdkVersion: the system ignores a permission on any API level above it. -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-
-    <!-- Declared in src/main; this only limits it to API 32 (see above). -->
-    <uses-permission
-        android:name="android.permission.SCHEDULE_EXACT_ALARM"
-        android:maxSdkVersion="32" />
 
     <application>
         <!-- Browser input stops here; MainActivity must never receive its extras or URI grants. -->

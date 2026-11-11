@@ -674,15 +674,9 @@ class TaskRun(
                 val id = phone?.display?.current?.displayId ?: return false
                 return moveTask(taskId, id)
             }
-            val taskGate = TaskGate(states.locked, shellUp,
-                refreshLocked = states::refresh,
-                unattendedUnlock = if (provenance.origin == RunOrigin.Trigger) {
-                    {
-                        val result = (service.application as MikaApp).deviceAccess.access.unlock()
-                        states.refresh()
-                        Log.i(TAG, "scheduled unlock finished: ${result.status}")
-                    }
-                } else null,
+            val taskGate = TaskGate(kotlinx.coroutines.flow.MutableStateFlow(false), shellUp,
+                refreshLocked = null,
+                unattendedUnlock = null,
             ) {
                 val t = phone?.screen?.target?.value
                 t != null && t.taskId >= 0 && moveBackToAgent(t.taskId)
@@ -698,8 +692,8 @@ class TaskRun(
             val trace = record?.takeIf { traceTicket != null }?.let { run ->
                 resources.acquire(Dispatchers.IO, traces.store::finish) { traces.start(traceTicket, run.runId) }
             }
-            // 装了哪些 App:每个任务读一次,读不到就当没有;参考资料用
-            val apps = try { phoneScreen.listApps() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+            // Play edition has no cross-app inventory or phone action capability.
+            val apps = emptyList<Pair<String, String>>()
             val speed = FeatureFlags.get(service).speedFlags()
             // 记忆与个人技能:进程内同一份;总开关关着就不给记忆(不检索、不注入、不提取、没有记忆工具)
             val switches = memoryRuntime.settings().switches.value.let { sw ->
@@ -770,31 +764,15 @@ class TaskRun(
                 priorTurns,
                 provenance, if (conditionCheck) setOf("web", "sandbox") else null, readOnly = conditionCheck,
                 stepBudget = stepLimit)
-            // 外部 MCP server 只在主任务接;子任务/条件检查/评测不接,避免绕过父任务审批、影响评测可复现
-            if (!conditionCheck) {
-                // 连上的当场归 resources:收尾(含取消、失败、连到一半被停)关作用域时一起关,stdio server 的进程和沙箱租约跟着放掉
-                mcpConnections = (service.application as MikaApp).mcpServers.connectionsFor(
-                    resources,
-                    com.wangzan101.mika.mcp.ConversationMcpResultStore(SandboxDirs(service), conversationId),
-                    conversationId,
-                )
-                // 连接失败、超过总时限没连上的只在任务卡片上提示一句,不打断任务;详情在设置页的健康状态里
-                mcpConnections?.failures?.takeIf { it.isNotEmpty() }?.let { failures ->
-                    val store = (service.application as MikaApp).mcpServers
-                    val names = store.servers.value.associate { it.id to it.name }
-                    (_state.value as? TaskState.Running)?.let {
-                        publish(it.copy(note = tr(R.string.mcp_servers_run_failed, failures.joinToString(", ") { f -> names[f.first] ?: f.first })))
-                    }
-                }
-            }
+            // Play edition does not attach arbitrary third-party MCP tools to the model.
             val runApproval = approvalControl.start(remote = provenance.origin == RunOrigin.Mcp).also { approval = it }
             val childRunner = if (provenance.origin == RunOrigin.Ui && web != null) ChildAgentRunner(
                 create = { childSpec ->
-                    val childTools = toolDispatcher(accessedPhone, model.capabilities.vision,
+                    val childTools = toolDispatcher(null, model.capabilities.vision,
                         web = web, webPacing = { PagePacing.human() }, webPlacePace = { PlacePace.of(catalog.sitePace(it)) },
                         webIdleScroll = { IdleScroll(Random.Default) },
                         appPacing = { pace.appPacing() }, appPace = { PlacePace.of(catalog.appPace(it)) }, appIdleScroll = { IdleScroll(Random.Default) },
-                        sandbox = sandbox, workspace = { conversationId }, runSpec = childSpec,
+                        sandbox = null, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision)
                     AgentLoop(model, childTools, SystemPrompt.identity(service.packageName), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
@@ -805,7 +783,7 @@ class TaskRun(
                 store = (service.application as MikaApp).childRuns,
                 ownerAlive = { job?.isActive == true },
             ).also { children = it } else null
-            val tools = toolDispatcher(accessedPhone, model.capabilities.vision, catalog, recordFrames = true, vision = vision?.let { VisionService(it, BitmapImageOps) },
+            val tools = toolDispatcher(null, model.capabilities.vision, catalog, recordFrames = true, vision = vision?.let { VisionService(it, BitmapImageOps) },
                 // 设置里允许 Mika 改自己时,才把 settings_list、settings_set 发给模型
                 selfConfig = if (FeatureFlags.get(service).selfConfig()) {
                     com.wangzan101.mika.settings.SelfConfigImpl(FeatureFlags.get(service))
@@ -825,24 +803,23 @@ class TaskRun(
                 // 上传只认本对话工作区里的普通文件(与沙箱同一套路径规则);技能目录、工作区外一律越界
                 workspacePath = web?.let { { p: String -> sandbox.uploadCheck(conversationId, p) } },
                 // 工作区 = 对话:同一对话的追问接着用上一轮的文件,不同对话互不可见
-                sandbox = sandbox, workspace = { conversationId },
+                sandbox = null, workspace = { conversationId },
                 onSandboxCommand = { sandboxNote(StatusCopy.sandboxCommand(it, sandboxOnline())) },
                 onSandboxProgress = { sandboxNote(StatusCopy.sandboxProgress(it, sandboxOnline())) },
                 onSandboxPreparing = { sandboxNote(StatusCopy.RUNTIME_PREPARING) },
                 onSandboxScript = { sandboxNote(StatusCopy.sandboxScript(sandboxOnline())) },
                 imageOps = BitmapImageOps, runSpec = runSpec,
                 userScreens = userScreens,
-                scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
-                scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
+                scheduleTrigger = null,
+                scheduleAdmin = null,
                 childHost = childRunner,
                 // 用户要求时写下或改写个人技能(和自学收下的放在同一处,设置里立刻能看到)
                 personalSkills = memoryRuntime.skills(),
                 // 这个对话之前几轮的运行记录(只读;history_read 只认 runSpec 里这个对话的轮次)
                 runRecords = RunStore(service).reader(),
-                mcpServers = mcpEndpoints(),
+                mcpServers = emptyList(),
                 // 已 root 的手机上用户打开了「允许 Mika 执行 root 命令」才登记 root 工具(子任务、条件检查不给)
-                root = phoneServices.shellManager.root.takeIf { !conditionCheck && it.commandsAllowed() }
-                    ?.let { r -> RootCommands(RootShell::su, r::commandsAllowed) { a -> if (a == null) r.suGone() else r.commandsDenied(a) } })
+                root = null)
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,

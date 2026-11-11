@@ -87,18 +87,9 @@ object Prerequisites {
 
     fun check(status: SystemStatus, hasMainModel: Boolean): Check = Check(
         buildList {
-            if (status.sdkInt < MIN_SDK) add(Problem.SystemTooOld)
-            // 安卓 12 以下手机功能不可用,已由 SystemTooOld 说明
-            if (status.sdkInt >= MIN_SDK && status.builtinShell != BuiltinShellStatus.Running) {
-                add(Problem.PhoneHelper(status.builtinShell))
-            }
-            if (status.sdkInt >= MIN_SDK && status.accessibility != AccessibilityState.On) {
-                add(Problem.Accessibility(status.accessibility, status.userLocked))
-            }
             if (!hasMainModel) add(Problem.NoModel)
             if (!status.notificationsAllowed) add(Problem.NotificationsOff)
             else if (status.attentionLowered || status.resultLowered) add(Problem.AttentionLowered(status.attentionLowered, status.resultLowered))
-            if (status.sdkInt in MIN_SDK until OWN_FOCUS_SDK) add(Problem.FocusMayLeak)
         },
     )
 }

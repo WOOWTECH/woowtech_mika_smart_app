@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "com.wangzan101.mika"
         minSdk = 30
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 38
         versionName = "0.1.37"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -143,9 +143,10 @@ android {
         }
         create("woowtech") {
             dimension = "brand"
-            applicationId = "io.woowtech.agent"
-            versionCode = (defaultConfig.versionCode ?: 0) * 100 + woowtechRevision
-            versionName = "${defaultConfig.versionName}-woow.$woowtechRevision"
+            // Play edition lives beside the direct-download app instead of replacing its data or signature.
+            applicationId = "io.woowtech.assistant"
+            versionCode = 1
+            versionName = "${defaultConfig.versionName}-play.1"
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
             // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。

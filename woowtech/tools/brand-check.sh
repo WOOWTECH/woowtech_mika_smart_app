@@ -40,7 +40,7 @@ apk)
     aapt2=$(ls -d "$sdk"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -n 1)
     [ -n "$aapt2" ] || { say "aapt2 not found under $sdk/build-tools"; exit 2; }
     badging=$("$aapt2" dump badging "$apk")
-    say "$badging" | grep -q "^package: name='io.woowtech.agent'" || bad "package is not io.woowtech.agent"
+    say "$badging" | grep -q "^package: name='io.woowtech.assistant'" || bad "package is not io.woowtech.assistant"
     say "$badging" | grep -q "^application-label:'woowtech agent'" || bad "default label is not 'woowtech agent'"
     say "$badging" | grep -q "^application-label-[^:]*Hant[^:]*:'渥屋助理'" || bad "zh-Hant label is not '渥屋助理'"
     # zh-TW is not a UI language of its own: it carries the AndroidX, Material and Play services translations
@@ -52,22 +52,17 @@ apk)
     locales=$(say "$badging" | sed -n "s/^locales: //p" | tr -d "'" | tr ' ' '\n' | grep -v -E '^(--_--|en|zh-Hant|b\+zh\+Hant|zh-rHant|zh-TW)$' || true)
     [ -z "$locales" ] || bad "unexpected UI locales: $(say "$locales" | tr '\n' ' ')"
     say "$badging" | grep -E "^(package|application-label|locales)" | sed 's/^/  /'
-    # Reminders and scheduled tasks need an exact alarm that does not depend on the user granting "Alarms & reminders"
-    # (app/src/woowtech/AndroidManifest.xml). USE_EXACT_ALARM must be there without a maxSdkVersion (the system ignores a
-    # permission above it), and SCHEDULE_EXACT_ALARM, which src/main declares, is limited to API 32 so that only one of the
-    # two is requested on a device. If either line is gone, Android 14+ users get inexact, late alarms again.
+    # The Play edition has no exact-alarm capability.
     perms=$("$aapt2" dump permissions "$apk")
-    say "$perms" | grep -q -F -x "uses-permission: name='android.permission.USE_EXACT_ALARM'" \
-        || bad "android.permission.USE_EXACT_ALARM is not declared for every API level (app/src/woowtech/AndroidManifest.xml): reminders would be late unless the user grants Alarms & reminders"
-    say "$perms" | grep -q -F -x "uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM' maxSdkVersion='32'" \
-        || bad "android.permission.SCHEDULE_EXACT_ALARM is not declared with maxSdkVersion 32 (Android 12 and 12L only; Android 13+ uses USE_EXACT_ALARM alone)"
-    say "$perms" | grep "EXACT_ALARM" | sed 's/^/  /'
+    if say "$perms" | grep -q -F "EXACT_ALARM"; then
+        bad "Play edition must not request exact alarm permissions"
+    fi
     # Browser entry must survive manifest merging; JVM guards also enforce flavor isolation.
     manifest=$("$aapt2" dump xmltree "$apk" --file AndroidManifest.xml)
     for value in 'com.wangzan101.mika.woowtech.BrowserOpenActivity' 'android.intent.category.BROWSABLE' 'android.intent.action.VIEW'; do
         say "$manifest" | grep -qF "\"$value\"" || bad "browser entry missing from APK: $value"
     done
-    say "$manifest" | grep -E 'android:scheme.*="io.woowtech.agent"' >/dev/null || bad "browser scheme does not match release package"
+    say "$manifest" | grep -E 'android:scheme.*="io.woowtech.assistant"' >/dev/null || bad "browser scheme does not match release package"
     say "$manifest" | grep -E 'android:host.*="open"' >/dev/null || bad "browser open host missing"
     strings=$("$aapt2" dump strings "$apk")
     leaks=$(say "$strings" | grep -E '(^|[^A-Za-z0-9_/.@-])Mika([^A-Za-z0-9_/-]|$)|wangzan101' \

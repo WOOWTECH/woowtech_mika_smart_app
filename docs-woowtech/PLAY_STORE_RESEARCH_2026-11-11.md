@@ -2,7 +2,14 @@
 
 日期：2026-11-11。基準：`WOOWTECH/woowtech_mika_smart_app` 的 `main`，工作分支 `playstore/woowtech-compliant-20261111`。這是原始碼、合併 Manifest 與公開政策盤點，**不是 Google Play 審核結果**。使用者確認尚未送審，沒有 Play Console 拒件通知；過去 APK 遭 Play Protect 攔截，也不能直接當作商店審核結論。
 
-已執行 `:app:processWoowtechReleaseMainManifest`，檢查 `app/build/intermediates/merged_manifest/woowtechRelease/processWoowtechReleaseMainManifest/AndroidManifest.xml`：其中確實含 `REQUEST_INSTALL_PACKAGES`、`USE_EXACT_ALARM`、`READ_MEDIA_IMAGES`、`WRITE_SECURE_SETTINGS`、`FOREGROUND_SERVICE_SPECIAL_USE`、AccessibilityService 與三個 `specialUse` 服務。`SCHEDULE_EXACT_ALARM` 也出現在合併檔，但 Woowtech 來源 Manifest 將它限於 API 32，不能只憑名稱推斷 Android 13+ 也在申請它。
+以下為改造前的基準盤點，並非目前工作樹的建置結果。當時已執行 `:app:processWoowtechReleaseMainManifest`，檢查 `app/build/intermediates/merged_manifest/woowtechRelease/processWoowtechReleaseMainManifest/AndroidManifest.xml`：其中含 `REQUEST_INSTALL_PACKAGES`、`USE_EXACT_ALARM`、`READ_MEDIA_IMAGES`、`WRITE_SECURE_SETTINGS`、`FOREGROUND_SERVICE_SPECIAL_USE`、AccessibilityService 與三個 `specialUse` 服務。`SCHEDULE_EXACT_ALARM` 也出現在當時的合併檔，但 Woowtech 來源 Manifest 將它限於 API 32。下表的「目前程式證據」同樣指改造前版本。
+
+## Play 工作樹進度（2026-11-11）
+
+- `playstore/woowtech-compliant-20261111` 改為 `io.woowtech.assistant`、`targetSdk=36`，與原 APK 套件名稱分開。移除 GitHub APK 更新流程、相片廣泛讀取、精確鬧鐘、無障礙服務、ADB 助手交接與開機恢復入口；附件改用系統 Photo Picker。
+- 任務組裝不註冊手機、Root、沙箱、排程及外部 MCP 工具；遠端 MCP 端點不提供讀鎖屏、喚醒或解鎖。電腦連結頁只展示遠端配對；手機設定、復原、Root 及背景計畫入口已隱藏。
+- `:app:assembleWoowtechDebug` 成功；APK 的 `aapt2 dump permissions` 未列 `REQUEST_INSTALL_PACKAGES`、`READ_MEDIA_IMAGES`、`USE_EXACT_ALARM`、`SCHEDULE_EXACT_ALARM` 或 `WRITE_SECURE_SETTINGS`。合併 Manifest 未列 AccessibilityService 或 shell 交接 Provider；`brand-check.sh apk` 通過。核心的工具隔離、子代理、Manifest 與文件一致性測試通過；商店版聊天啟動條件亦通過單元測試。這些驗證不等於 Play Console 審核或實機功能驗收。
+- **尚未完成**：舊版 Accessibility／ADB／shell 程式碼仍打入 APK，須進一步移除或證明沒有可達路徑；遠端「資料同步」缺少伺服器協定與 App 實作；AI 不當內容回報、隱私政策／Data safety、三個 `specialUse` 前景服務申報、商店素材與實機驗收仍待處理。不可把此工作樹標為可送審版本。
 
 ## 確定需要改的部分
 
@@ -30,13 +37,16 @@
 - 一般通知與使用者主動開啟的 App 內任務可評估保留；若需要長期背景執行，須重新檢查前景服務類型和必要性。
 - GitHub APK 版可繼續在原分支演進；商店版需可重現的獨立建置，避免兩版 UI／Manifest／執行能力互相滲漏。
 
-## 尚待確認的產品決策
+## 已確認的商店版範圍
 
-1. 商店版是否定位為 AI 對話、語音、瀏覽器與記憶，完全移除跨 App 自動操作；或改成以身障輔助為真正核心的不同產品。
-2. 遠端 MCP／電腦連線保留資料同步、限於 App 內任務，還是完全移除。
-3. 商店版套件名稱是否與 GitHub 版共存；相同名稱還要處理簽章、升級與資料遷移。
-4. 是否建立渥屋帳號。使用者已確認商店版**不販售**渥屋自己的訂閱／數位功能，採使用者自備模型帳號或 API Key；現階段不規劃 App 內購買流程。若日後增加數位付費功能，須重新評估 Play Billing。
+1. 保留 AI 對話、語音、瀏覽器與記憶；移除跨 App 自動操作。瀏覽器保留使用者操作的功能；模型可否在 App 內自主操作網頁，需要在能力切分與交易風險檢查後決定具體邊界。
+2. 遠端只保留對話與資料同步；不允許遠端操控手機、喚醒或解鎖。
+3. 商店版使用**新套件名稱** `io.woowtech.assistant`，與 GitHub APK 版 `io.woowtech.agent` 共存；兩者資料不自動共用。公開搜尋未找到該新 ID，最終可用性仍以 Play Console 建立 App 時為準。
+4. **不販售**渥屋自己的訂閱／數位功能，採使用者自備模型帳號或 API Key；現階段不規劃 App 內購買流程。若日後增加數位付費功能，須重新評估 Play Billing。
+5. 使用者確認**尚未送 Google Play 審核**，目前沒有可對照的拒件通知。
+
+仍需在資料流程實作時確認商店版是否建立渥屋帳號；若有，補 App 內與網頁刪除入口。
 
 ## 下一輪實作與驗證
 
-決策後建立明確的 Play 建置邊界：先讓 Play 變體完全不包含 AccessibilityService、shell 入口、APK 更新與受限權限，再修 UI 導航、任務能力、測試與文件。最後檢查合併 Manifest 和 AAB、在實機跑對話／語音／附件／登入／遠端保留功能，完成 Play Console 權限、Data safety、內容與 FGS 申報。提交審核前不能保證 Google Play 一定核准。
+繼續收斂 Play 建置邊界：完成剩餘手機控制與 shell 路徑的移除或不可達驗證，核對工具清單、UI 導航及測試，再檢查合併 Manifest 和 AAB、在實機跑對話／語音／附件／登入／遠端保留功能，完成 Play Console 權限、Data safety、內容與 FGS 申報。提交審核前不能保證 Google Play 一定核准。

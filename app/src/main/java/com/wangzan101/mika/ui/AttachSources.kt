@@ -1,15 +1,8 @@
 package com.wangzan101.mika.ui
 
-import android.Manifest
-import android.content.ContentResolver
-import android.content.ContentUris
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.LruCache
 import android.util.Size
@@ -21,7 +14,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.wangzan101.mika.cap.sandbox.SandboxDirs
 import com.wangzan101.mika.chat.AttachFilesProvider
@@ -97,58 +89,6 @@ object AttachFiles {
         } ?: return false
         FileViewer.open(context, FileProvider.getUriForFile(context, AttachFilesProvider.authority(context.packageName), copy), name)
         return true
-    }
-}
-
-/** 照片能不能直接读:全部、只给了部分(安卓 14 起)、没给。 */
-enum class PhotoAccess { Full, Partial, None }
-
-/** 附件面板里「最近的照片」:权限和媒体库里的照片。 */
-object RecentPhotos {
-    private const val PREFS = "attach"
-    private const val ASKED = "photos_asked"
-
-    /** 要申请的权限:安卓 14 起连同「部分照片」一起要,13 要读照片,12 及以前要读外部存储。 */
-    fun permissions(): Array<String> = when {
-        Build.VERSION.SDK_INT >= 34 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-        Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
-        else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
-
-    fun access(context: Context): PhotoAccess {
-        fun granted(p: String) = ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
-        return when {
-            Build.VERSION.SDK_INT >= 33 && granted(Manifest.permission.READ_MEDIA_IMAGES) -> PhotoAccess.Full
-            Build.VERSION.SDK_INT >= 34 && granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> PhotoAccess.Partial
-            Build.VERSION.SDK_INT < 33 && granted(Manifest.permission.READ_EXTERNAL_STORAGE) -> PhotoAccess.Full
-            else -> PhotoAccess.None
-        }
-    }
-
-    /** 第一次打开面板时问一次;之后只在用户点「允许访问照片」时再问。 */
-    fun asked(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ASKED, false)
-
-    fun markAsked(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(ASKED, true).apply()
-
-    /** 最近加进媒体库的照片,新的在前;读不到(没权限)为空。 */
-    suspend fun query(context: Context, limit: Int = 120): List<PendingAttachment> = withContext(Dispatchers.IO) {
-        val base = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        val args = Bundle().apply {
-            putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(MediaStore.Images.Media.DATE_ADDED))
-            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_DESCENDING)
-            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
-        }
-        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE)
-        runCatching {
-            context.contentResolver.query(base, projection, args, null)?.use { c ->
-                buildList {
-                    while (c.moveToNext()) {
-                        val uri = ContentUris.withAppendedId(base, c.getLong(0)).toString()
-                        add(PendingAttachment(uri, c.getString(1) ?: "photo.jpg", if (c.isNull(2)) 0L else c.getLong(2), photo = true))
-                    }
-                }
-            }
-        }.getOrNull().orEmpty()
     }
 }
 

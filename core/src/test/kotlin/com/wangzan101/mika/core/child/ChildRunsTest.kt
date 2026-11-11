@@ -54,6 +54,15 @@ class ChildRunsTest {
             .content["error"].toString().trim('"'))
     }
 
+    @Test fun childWithNoScreenHasNoPhoneToolsInIndexOrOfferedTools() {
+        val spec = RunSpec(RunId("child-no-screen"), "research", "thread",
+            provenance = RunProvenance(RunOrigin.Child, Attendance.Present), parent = RunId("parent"))
+        val tools = toolDispatcher(screen = null, web = FakeWebPort(), runSpec = spec)
+        assertTrue("web_read_page" in tools.index.names)
+        assertFalse(tools.index.names.any { it.startsWith("phone_") })
+        assertFalse(tools.offeredNow(all = true).any { it.name.startsWith("phone_") })
+    }
+
     @Test fun absentOwnerLeavesUnknownResultWithoutRerun() = runBlocking {
         val store = MemoryChildRunStore()
         val spec = RunSpec(RunId("c"), "research", "thread",

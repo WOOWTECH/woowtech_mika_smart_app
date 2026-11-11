@@ -52,41 +52,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun McpScreen(runtime: McpRuntime, onBack: () -> Unit) {
     val context = LocalContext.current
-    val enabled by runtime.settings.enabled.collectAsState()
-    val usbOn by runtime.usb.enabled.collectAsState()
-    val relayConfig by runtime.relaySettings.config.collectAsState()
-    val relayState by runtime.relayState.collectAsState()
-    val usbCommand = remember { runtime.usbCommand() }
-    val state by runtime.state.collectAsState()
-    var addresses by remember { mutableStateOf<List<String>>(emptyList()) }
-    var activity by remember { mutableStateOf(RemoteActivity()) }
-    var token by remember { mutableStateOf<String?>(null) }
-    var confirmRegenerate by remember { mutableStateOf(false) }
-    LaunchedEffect(enabled, usbOn, relayConfig.enabled, relayConfig.paired) {
-        token = if (enabled || relayConfig.paired) withContext(Dispatchers.IO) { runCatching { runtime.settings.token() }.getOrNull() } else null
-        if (!enabled) addresses = emptyList()
-        if (!enabled && !usbOn && !relayConfig.enabled) { activity = RemoteActivity(); return@LaunchedEffect }
-        while (true) {
-            if (enabled) addresses = withContext(Dispatchers.IO) { McpRuntime.addresses() }
-            activity = runtime.activity
-            delay(2_000)
-        }
+    PageScaffold(stringResource(R.string.mcp_title), onBack) {
+        RelaySection(runtime, mcp = true) { copy(context, it) }
     }
-    ComputerAccessPage(
-        ComputerAccessUi(state, enabled, usbOn, (state as? McpServerState.Listening)?.port ?: runtime.settings.port,
-            activity, addresses, token, usbCommand, relayConfig.enabled, relayState),
-        onBack, runtime::setUsbEnabled, runtime::setEnabled,
-        onCopy = { copy(context, it) }, onRegenerate = { confirmRegenerate = true },
-        deviceSettings = { DeviceAccessSection(runtime.device.settings) },
-        relayGuide = { mcp -> RelaySection(runtime, mcp) { copy(context, it) } },
-    )
-    if (confirmRegenerate) MikaDialog(
-        onDismissRequest = { confirmRegenerate = false },
-        title = { Text(stringResource(R.string.mcp_regenerate_title)) },
-        text = { Text(stringResource(R.string.mcp_regenerate_body)) },
-        confirmButton = { TextButton({ confirmRegenerate = false; token = runtime.regenerateToken() }) { Text(stringResource(R.string.mcp_regenerate_confirm)) } },
-        dismissButton = { TextButton({ confirmRegenerate = false }) { Text(stringResource(R.string.cancel)) } },
-    )
 }
 
 /** 一份只读页面快照。引导选择和折叠状态不写入连接设置。 */
