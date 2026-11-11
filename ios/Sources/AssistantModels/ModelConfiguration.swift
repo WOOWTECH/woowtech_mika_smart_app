@@ -28,9 +28,24 @@ public protocol ChatModelClient: Sendable {
 
 /// Optional text-delta capability. Finishing normally certifies a complete reply;
 /// truncation, cancellation and provider errors must finish by throwing.
-/// Structured tool flows continue using complete and their existing validators.
+/// Structured tool flows use this only when separately opted in and keep their
+/// existing whole-command validators before any tool effect or final answer.
 public protocol StreamingChatModelClient: ChatModelClient {
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error>
+}
+
+/// Explicit capability for streaming a structured tool-command response. The
+/// host must parse the complete command before acting and may preview only a
+/// recognized, decoded finish.answer field. Plain-only fixtures stay on complete.
+public protocol StructuredStreamingChatModelClient: StreamingChatModelClient {}
+
+/// A structured provider error explicitly identifying `stream` as unsupported.
+/// Kept separate from HTTPChatModelError so the host can permit one bounded,
+/// content-free complete fallback without guessing from a status code.
+public enum HTTPStreamFallbackError: Error, LocalizedError, Sendable, Equatable {
+    case explicitUnsupported(Int)
+
+    public var errorDescription: String? { "The model endpoint rejected the initial streaming request." }
 }
 
 /// Deliberately excludes response bodies, credentials and endpoint URLs.

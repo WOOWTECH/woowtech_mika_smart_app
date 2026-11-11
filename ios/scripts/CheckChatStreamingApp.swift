@@ -25,7 +25,7 @@ private final class StreamCredentials: ModelCredentialStoring {
     func remove(account: String) throws { values.removeValue(forKey: account) }
     func removeAll() throws { values = [:] }
 }
-private final class StreamClient: StreamingChatModelClient, @unchecked Sendable {
+private final class StreamClient: StructuredStreamingChatModelClient, @unchecked Sendable {
     private let lock = NSLock()
     private let replies: [String]
     private var completions = 0
@@ -51,6 +51,19 @@ private final class StreamClient: StreamingChatModelClient, @unchecked Sendable 
         if case .enqueued = continuation(index).yield(text) { return true }; return false
     }
     func finish(_ error: Error? = nil, at index: Int = 0) { continuation(index).finish(throwing: error) }
+}
+private final class CompleteSequenceClient: ChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private let replies: [String]
+    private var requests = 0
+    init(_ replies: [String]) { self.replies = replies }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        lock.lock(); defer { lock.unlock() }
+        let index = requests; requests += 1
+        guard index < replies.count else { throw ChatStreamingChecks.Failure(name: "unexpected structured fallback request") }
+        return replies[index]
+    }
+    var counts: (complete: Int, stream: Int) { lock.lock(); defer { lock.unlock() }; return (requests, 0) }
 }
 private struct CompleteOnlyClient: ChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
@@ -259,7 +272,7 @@ private actor StreamMCP: MCPDiscovering {
             let e = try StreamEnvironment(); defer { e.close() }
             _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
             let proposal = #"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#
-            let client = StreamClient([proposal, #"{"action":"finish","answer":"Saved profile."}"#]); let session = e.session(client)
+            let client = CompleteSequenceClient([proposal, #"{"action":"finish","answer":"Saved profile."}"#]); let session = e.session(client)
             let task = try start(session, "Please remember that I prefer jasmine tea")
             try await wait("actual profile review") { session.pendingProfileReview != nil || !session.isSubmitting }
             guard let review = session.pendingProfileReview else { throw Failure(name: "missing actual profile review") }
@@ -275,7 +288,7 @@ private actor StreamMCP: MCPDiscovering {
             connection.connect(); try await wait("actual MCP discovery") { !connection.isBusy }
             connection.selectTool("synthetic_read", enabled: true)
             try a.check(connection.canUseInConversation, "real selected MCP catalog")
-            let client = StreamClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
             let session = e.session(client); session.usesMCP = true
             let task = try start(session, "Read selected tool", mcp: connection)
             try await wait("actual MCP approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
@@ -286,6 +299,196 @@ private actor StreamMCP: MCPDiscovering {
             let after = await server.calls
             try a.check(after == (approve ? 1 : 0), "MCP refusal and one approved effect retained")
             try a.check((session.entries.count == 2) == approve && session.replyPreview == nil && client.counts.stream == 0, "MCP finish validator still precedes delivered answer")
+        }
+        return a.count
+    }
+
+    static func structuredStreamingAnswerAndReview() async throws -> Int {
+        var a = Assertions()
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            try a.check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "memory-on fixture persists")
+            let client = StreamClient(), session = e.session(client)
+            let notifications = StreamNotifications(), service = TaskNotificationService(client: notifications, enabled: true)
+            await service.refresh(); let baseline = notifications.operations
+            let bridge = TaskNotificationChatBridge(session: session, service: service); defer { bridge.invalidate() }
+            let learningBytes = try Data(contentsOf: e.learningFile)
+            let task = try start(session, "普通記憶開啟問題")
+            try await wait("structured stream requested") { client.counts.stream == 1 }
+            client.emit(" { \"action\" : \"finish\" , \"answer\" : \"Hi ")
+            try await wait("decoded initial answer") { session.replyPreview?.text == "Hi " }
+            client.emit(#"\u4E16\u754C \uD83C"#)
+            try await wait("decoded before surrogate") { session.replyPreview?.text == "Hi 世界 " }
+            try a.check(session.replyPreview?.text == "Hi 世界 ", "incomplete surrogate is not exposed")
+            client.emit(#"\uDFE1\n\"done\""#)
+            try await wait("decoded escaped answer") { session.replyPreview?.text == "Hi 世界 🏡\n\"done\"" }
+            try a.check(session.replyPreview?.phase == .receiving && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "memory-on answer is explicitly unfinished")
+            let unchangedLearningBytes = try Data(contentsOf: e.learningFile) == learningBytes
+            try a.check(session.draft == "普通記憶開啟問題" && unchangedLearningBytes,
+                        "preview cannot consume draft or extract memory")
+            await service.waitUntilIdle()
+            try a.check(notifications.operations == baseline && notifications.adds == 0, "preview cannot notify completion")
+            client.emit("\"}"); client.finish(); await task.value; await service.waitUntilIdle()
+            try a.check(session.entries.map(\.role) == ["user", "assistant"] && session.entries[1].content == "Hi 世界 🏡\n\"done\"",
+                        "full command validation publishes exact decoded answer")
+            try a.check(session.replyPreview == nil && e.reopen().conversations[0].turns[0].assistantText == session.entries[1].content,
+                        "validated result alone enters encrypted archive")
+            try a.check(notifications.adds == 1 && client.counts.stream == 1 && client.counts.complete == 0,
+                        "one structured model call and one completed notification")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Please remember that I prefer jasmine tea")
+            try await wait("structured proposal stream") { client.counts.stream == 1 }
+            client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
+            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.learning.profile.snapshot().entries.isEmpty,
+                        "tool JSON and arguments stay hidden before validation")
+            client.finish()
+            try await wait("actual streamed proposal review") { session.pendingProfileReview != nil }
+            try a.check(session.replyPreview == nil && e.archive.conversations.isEmpty && client.counts.complete == 0,
+                        "streamed proposal cannot bypass approval or fall back to complete")
+            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
+            try await wait("streamed post-commit answer") { client.counts.stream == 2 }
+            try a.check(e.learning.profile.snapshot().entries.count == 1 && session.entries.isEmpty,
+                        "actual approved receipt remains separate from final answer")
+            try a.check(client.emit(#"{"action":"finish","answer":"Saved "# , at: 1), "second stream accepts decoded partial")
+            try await wait("post-commit decoded partial") { session.replyPreview?.text == "Saved " }
+            try a.check(client.emit(#"profile."}"#, at: 1), "second stream accepts final delta")
+            client.finish(at: 1); await task.value
+            try a.check(session.entries.last?.content == "Saved profile." && e.reopen().conversations.count == 1,
+                        "approved edit and validated streamed finish publish once")
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0, "review stays within two model calls")
+        }
+        return a.count
+    }
+
+    static func structuredStreamingRejectionsAndCancellation() async throws -> Int {
+        var a = Assertions()
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Malformed response")
+            try await wait("malformed first request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"safe "#)
+            try await wait("first candidate preview") { session.replyPreview?.text == "safe " }
+            client.emit(#"\q","arguments":{"secret":"HIDDEN"}}"#)
+            try await wait("invalid escape clears preview") { session.replyPreview == nil }
+            client.finish()
+            try await wait("one bounded format correction") { client.counts.stream == 2 }
+            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.replyPreview == nil,
+                        "invalid command neither displays tool bytes nor persists")
+            client.emit(#"{"action":"unknown","arguments":{"secret":"HIDDEN"}}"#, at: 1); client.finish(at: 1)
+            await task.value
+            try a.check(session.entries.isEmpty && session.replyPreview == nil && session.chatError != nil,
+                        "second malformed command fails closed after one correction")
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0, "no hidden transport retry")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Invalid trailing field")
+            try await wait("invalid trailing request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"tentative","arguments":{"secret":"HIDDEN"}}"#)
+            client.finish()
+            try await wait("trailing field repair") { client.counts.stream == 2 }
+            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "complete validator retracts tentative answer with extra fields")
+            client.emit(#"{"action":"finish","answer":"repaired"}"#, at: 1); client.finish(at: 1); await task.value
+            try a.check(session.entries.last?.content == "repaired" && client.counts.stream == 2,
+                        "validated correction alone publishes final answer")
+        }
+        for invalid in [
+            #"{"action":"finish","answer":"tentative","action":"profile_edit","arguments":{"quote":"TOOL_SECRET"}}"#,
+            #"{"action":"finish","answer":"tentative","\u0061ction":"memory_save","arguments":{"content":"TOOL_SECRET"}}"#,
+            #"{"action":"finish","answer":"tentative","extra":"TOOL_SECRET"}"#,
+            #"{"action":"finish","answer":"tentative"}TRAILING_SECRET"#,
+            #"{"action":"finish","answer":"tentative","answer":"TOOL_SECRET"}"#
+        ] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            var observed: [String] = []
+            let subscription = session.$replyPreview.sink { if let value = $0 { observed.append(value.text) } }
+            defer { subscription.cancel() }
+            let task = try start(session, "Reject whole envelope")
+            try await wait("strict envelope first stream") { client.counts.stream == 1 }
+            client.emit(invalid); client.finish()
+            try await wait("strict envelope format correction") { client.counts.stream == 2 }
+            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "invalid full command retracts speculative preview without saving")
+            try a.check(observed.allSatisfy { !$0.contains("TOOL_SECRET") && !$0.contains("TRAILING_SECRET")
+                && !$0.contains("arguments") && !$0.contains("action") }, "no tool or wire fields in any preview")
+            client.emit(#"{"action":"invalid","arguments":{"secret":"TOOL_SECRET"}}"#, at: 1)
+            client.finish(at: 1); await task.value
+            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.replyPreview == nil
+                        && session.chatError != nil && client.counts.stream == 2 && client.counts.complete == 0,
+                        "duplicate, extra and trailing bytes never become completed answers")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Remember preference Prefer jasmine tea")
+            try await wait("memory proposal stream") { client.counts.stream == 1 }
+            client.emit(#"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Prefer jasmine tea","keywords":["tea"]}}"#)
+            client.finish()
+            try await wait("memory proposal review") { session.pendingMemoryReview != nil }
+            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "memory tool arguments cannot be previewed or saved before review")
+            session.resolveMemoryReview(id: session.pendingMemoryReview!.id, approved: false); await task.value
+            try a.check(session.entries.isEmpty && e.learning.memory.memories.isEmpty && client.counts.stream == 1,
+                        "declined streamed memory proposal has no effect")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Truncated response")
+            try await wait("truncated request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"partial"#)
+            try await wait("truncated partial") { session.replyPreview?.text == "partial" }
+            client.finish(HTTPChatModelError.incompleteResponse); await task.value
+            try a.check(session.replyPreview?.text == "partial" && session.replyPreview?.phase == .failed,
+                        "transport truncation retains labelled unfinished decoded text")
+            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.draft == "Truncated response"
+                        && client.counts.stream == 1 && client.counts.complete == 0,
+                        "truncation neither saves nor replays a request")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let notifications = StreamNotifications(), service = TaskNotificationService(client: notifications, enabled: true)
+            await service.refresh(); let bridge = TaskNotificationChatBridge(session: session, service: service); defer { bridge.invalidate() }
+            let task = try start(session, "Cancel memory-on stream")
+            try await wait("cancel structured request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"partial"#)
+            try await wait("cancel structured partial") { session.replyPreview?.text == "partial" }
+            session.cancel(); await task.value; await service.waitUntilIdle()
+            try a.check(session.replyPreview?.phase == .cancelled && session.draft == "Cancel memory-on stream",
+                        "cancel preserves labelled partial and original draft")
+            try a.check(!client.emit(#" late","arguments":{"secret":"HIDDEN"}}"#)
+                        && session.entries.isEmpty && e.archive.conversations.isEmpty && notifications.adds == 0,
+                        "late stream cannot publish, execute or notify")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Oversized structured response")
+            try await wait("oversize structured request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"safe"#)
+            try await wait("oversize initial preview") { session.replyPreview?.text == "safe" }
+            client.emit(String(repeating: "x", count: 24 * 1024)); await task.value
+            try a.check(session.replyPreview?.text == "safe" && session.replyPreview?.phase == .failed,
+                        "24 KiB whole-command bound stops further display")
+            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && client.counts.stream == 1,
+                        "oversized command cannot commit or retry")
         }
         return a.count
     }
@@ -380,6 +583,351 @@ private actor StreamMCP: MCPDiscovering {
         }
         return a.count
     }
+    static func structuredTransportCompatibility() async throws -> Int {
+        var a = Assertions()
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient([#"{"action":"finish","answer":"Complete fallback"}"#]), session = e.session(client)
+            let task = try start(session, "Explicitly unsupported stream")
+            try await wait("unsupported stream request") { client.counts.stream == 1 }
+            client.finish(HTTPStreamFallbackError.explicitUnsupported(400)); await task.value
+            try a.check(client.counts.stream == 1 && client.counts.complete == 1 &&
+                        session.entries.last?.content == "Complete fallback" && e.reopen().conversations.count == 1,
+                        "only first zero-content explicit rejection permits one bounded complete fallback")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient([
+                #"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#,
+                #"{"action":"finish","answer":"Saved through known complete transport"}"#
+            ]), session = e.session(client)
+            let task = try start(session, "Please remember that I prefer jasmine tea")
+            try await wait("first rejected transport") { client.counts.stream == 1 }
+            client.finish(HTTPStreamFallbackError.explicitUnsupported(415))
+            try await wait("complete-only review") { session.pendingProfileReview != nil }
+            try a.check(e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty,
+                        "fallback proposal cannot write profile before review")
+            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
+            await task.value
+            try a.check(client.counts.stream == 1 && client.counts.complete == 2 &&
+                        e.learning.profile.snapshot().entries.count == 1 &&
+                        session.entries.last?.content == "Saved through known complete transport",
+                        "known complete-only transport carries approved tool final within three total calls")
+        }
+        for failure: Error in [HTTPChatModelError.httpStatus(429), HTTPChatModelError.timedOut,
+                               HTTPChatModelError.incompleteResponse, CancellationError(),
+                               HTTPStreamFallbackError.explicitUnsupported(501)] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient([#"{"action":"finish","answer":"MUST NOT RETRY"}"#]), session = e.session(client)
+            let task = try start(session, "No automatic retry")
+            try await wait("failed stream request") { client.counts.stream == 1 }
+            client.finish(failure); await task.value
+            try a.check(client.counts.complete == 0 && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "rate limit, timeout, incomplete response and cancellation never retry")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient([#"{"action":"finish","answer":"MUST NOT RETRY"}"#]), session = e.session(client)
+            let task = try start(session, "Partially delivered unsupported stream")
+            try await wait("partial unsupported request") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"partial"#)
+            try await wait("partial unsupported preview") { session.replyPreview?.text == "partial" }
+            client.finish(HTTPStreamFallbackError.explicitUnsupported(415)); await task.value
+            try a.check(client.counts.complete == 0 && session.replyPreview?.phase == .failed &&
+                        session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "even explicit unsupported error after content cannot replay")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient([#"{"action":"finish","answer":"MUST NOT RETRY"}"#]), session = e.session(client)
+            let task = try start(session, "Please remember that I prefer jasmine tea")
+            try await wait("reviewed tool first stream") { client.counts.stream == 1 }
+            client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
+            client.finish()
+            try await wait("reviewed tool approval") { session.pendingProfileReview != nil }
+            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
+            try await wait("post-tool second stream") { client.counts.stream == 2 }
+            client.finish(HTTPStreamFallbackError.explicitUnsupported(415), at: 1); await task.value
+            try a.check(client.counts.complete == 0 && e.learning.profile.snapshot().entries.count == 1 &&
+                        session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "committed tool receipt survives without replaying failed final model request")
+        }
+        do {
+            let reply = #"{"action":"finish","answer":"Complete JSON from same request"}"#
+            let body = try JSONSerialization.data(withJSONObject: ["choices": [["message": ["role": "assistant", "content": reply], "finish_reason": "stop"]]])
+            let fixture = ModelProtocolFixture.Scenario(chunks: [body])
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Complete-only JSON endpoint")
+            await task.value
+            let request = fixture.lastRequest!
+            let requestBody = try JSONSerialization.jsonObject(with: interceptedBody(request)) as! [String: Any]
+            try a.check(fixture.requestCount == 1 && requestBody["stream"] as? Bool == true &&
+                        session.entries.last?.content == "Complete JSON from same request" && e.reopen().conversations.count == 1,
+                        "HTTP complete JSON returned to stream request uses same response without replay")
+        }
+        do {
+            let errorBody = Data(#"{"error":{"code":"unsupported_parameter","param":"stream"}}"#.utf8)
+            let fixture = ModelProtocolFixture.Scenario(status: 400, chunks: [errorBody])
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            let config = ModelConfiguration(baseURL: url, model: "fixture")
+            let client = HTTPChatModelClient(session: transport)
+            do {
+                for try await _ in client.stream(messages: [.init(role: "user", content: "probe")], configuration: config,
+                                                apiKey: "synthetic-not-a-key") {}
+                throw Failure(name: "explicit HTTP stream rejection was accepted")
+            } catch HTTPStreamFallbackError.explicitUnsupported(400) {}
+            try a.check(fixture.requestCount == 1 && fixture.bodyDelivered,
+                        "only structured HTTP unsupported-stream error is classified for bounded fallback")
+        }
+        let finalReply = #"{"action":"finish","answer":"Bounded complete answer"}"#
+        let completeBody = try JSONSerialization.data(withJSONObject: ["choices": [["message":
+            ["role": "assistant", "content": finalReply], "finish_reason": "stop"]]])
+        let canary = "PRIVATE_ERROR_CANARY"
+        for (status, mime, errorBody) in [
+            (400, "application/json", #"{"error":{"code":"unsupported_parameter","param":"stream","message":"PRIVATE_ERROR_CANARY"}}"#),
+            (415, "application/json", #"{"error":{"code":"unsupported_value","param":"stream"}}"#),
+            (422, "application/json", #"{"error":{"code":"not_supported","param":"stream"}}"#)
+        ] {
+            let fixture = ModelProtocolFixture.Scenario(status: status, mime: mime, chunks: [Data(errorBody.utf8)],
+                followUp: .init(status: 200, mime: "application/json", chunks: [completeBody]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            var displayed: [String] = []
+            let subscription = session.$replyPreview.sink { if let value = $0 { displayed.append(value.text) } }
+            defer { subscription.cancel() }
+            let task = try start(session, "Bounded compatible request")
+            await task.value
+            let requests = fixture.requestSnapshot
+            try a.check(requests.count == 2, "eligible first error uses exactly one complete fallback")
+            let streamBody = try JSONSerialization.jsonObject(with: interceptedBody(requests[0])) as! [String: Any]
+            let fallbackRequestData = try interceptedBody(requests[1])
+            let fallbackBody = try JSONSerialization.jsonObject(with: fallbackRequestData) as! [String: Any]
+            let fallbackRequestText = String(decoding: fallbackRequestData, as: UTF8.self)
+            try a.check(streamBody["stream"] as? Bool == true && fallbackBody["stream"] as? Bool == false &&
+                        (streamBody["messages"] as? [[String: String]]) == (fallbackBody["messages"] as? [[String: String]]),
+                        "fallback changes only transport and preserves the exact prompt messages")
+            try a.check(session.entries.last?.content == "Bounded complete answer" && e.reopen().conversations.count == 1,
+                        "actual HTTP complete fallback still requires validated finish before archive")
+            try a.check(e.learning.profile.snapshot().entries.isEmpty && e.learning.memory.memories.isEmpty,
+                        "complete fallback cannot silently create local tool effects")
+            try a.check(!displayed.contains(where: { $0.contains(canary) }) &&
+                        !fallbackRequestText.contains(canary) &&
+                        !(session.chatError ?? "").contains(canary),
+                        "private error body is absent from preview, next prompt and diagnostic")
+        }
+        for (status, body) in [(429, #"{"error":{"code":"rate_limit","param":"stream"}}"#),
+                               (400, #"{"error":{"code":"invalid_request","param":"stream"}}"#),
+                               (400, #"{"error":{"code":"unsupported_parameter","param":"stream","param":"other"}}"#)] {
+            let fixture = ModelProtocolFixture.Scenario(status: status, chunks: [Data(body.utf8)])
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let client = HTTPChatModelClient(session: transport)
+            do {
+                for try await _ in client.stream(messages: [.init(role: "user", content: "probe")],
+                                                configuration: ModelConfiguration(baseURL: url, model: "fixture"),
+                                                apiKey: "synthetic-not-a-key") {}
+                throw Failure(name: "HTTP failure was accepted")
+            } catch HTTPChatModelError.httpStatus(let received) {
+                try a.check(received == status && fixture.requestCount == 1,
+                            "rate limit and generic request error remain terminal without fallback classification")
+            }
+        }
+        for (status, mime, body) in [
+            (401, "text/plain", "auth"), (403, "text/plain", "forbidden"),
+            (404, "text/plain", "missing"), (429, "text/plain", "limited"),
+            (500, "text/plain", "server"),
+            (400, "text/plain", "plain rejection " + canary),
+            (415, "text/plain", "unsupported media type " + canary),
+            (422, "application/json", ""),
+            (501, "application/json", #"{"error":{"code":"unsupported_parameter","param":"stream"}}"#),
+            (503, "text/plain", "unavailable"),
+            (400, "application/json", #"{"error":{"code":"invalid_request","param":"stream"}}"#),
+            (400, "application/json", "not-json"),
+            (415, "application/json", #"{"error":{"code":"invalid_request","param":"stream"}}"#),
+            (422, "application/json", #"{"error":{"code":"invalid_request","param":"stream"}}"#),
+            (400, "text/plain", #"{"error":{"code":"unsupported_parameter","param":"other"}}"#),
+            (415, "text/html", "<html>not a plain error</html>"),
+            (422, "text/plain", "data: possible event"),
+            (400, "text/plain", String(repeating: "x", count: 2049))
+        ] {
+            let fixture = ModelProtocolFixture.Scenario(status: status, mime: mime, chunks: [Data(body.utf8)],
+                followUp: .init(status: 200, mime: "application/json", chunks: [completeBody]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Terminal HTTP rejection")
+            await task.value
+            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.archive.conversations.isEmpty &&
+                        session.chatError != nil && !(session.chatError ?? "").contains(canary),
+                        "excluded status or structured body never sends a complete fallback or private error text")
+        }
+        do {
+            let fixture = ModelProtocolFixture.Scenario(status: 415, chunks: [Data(#"{"error":{"code":"unsupported_parameter","param":"stream"}}"#.utf8)],
+                holdAfterBody: true, followUp: .init(status: 200, mime: "application/json", chunks: [completeBody]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Cancel before error body completes")
+            try await wait("first HTTP error body is held") { fixture.requestCount == 1 && fixture.bodyDelivered }
+            session.cancel(); await task.value
+            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        "cancellation while reading eligibility body never starts fallback")
+        }
+        do {
+            let fixture = ModelProtocolFixture.Scenario(status: 415, chunks: [Data(#"{"error":{"code":"unsupported_parameter","param":"stream"}}"#.utf8)],
+                followUp: .init(status: 200, mime: "application/json", chunks: [completeBody], holdAfterBody: true))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Cancel complete fallback")
+            try await wait("complete fallback request is held") { fixture.requestCount == 2 }
+            session.cancel(); await task.value
+            try a.check(fixture.requestCount == 2 && session.entries.isEmpty && e.archive.conversations.isEmpty &&
+                        session.draft == "Cancel complete fallback",
+                        "cancelling the sole complete fallback leaves draft and sends no third request")
+        }
+        return a.count
+    }
+    static func structuredLearningRevocation() async throws -> Int {
+        var a = Assertions()
+        let explicitError = Data(#"{"error":{"code":"unsupported_parameter","param":"stream"}}"#.utf8)
+        let reply = #"{"action":"finish","answer":"MUST NOT PUBLISH"}"#
+        let completeBody = try JSONSerialization.data(withJSONObject: ["choices": [["message":
+            ["role": "assistant", "content": reply], "finish_reason": "stop"]]])
+        for kind in ["switch", "delete-memory", "delete-profile", "failed-write"] {
+            let fixture = ModelProtocolFixture.Scenario(status: 400, chunks: [explicitError], holdAfterBody: true,
+                followUp: .init(status: 200, mime: "application/json", chunks: [completeBody]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            guard e.learning.updatePreferences({ $0.useMemory = true; $0.autoRemember = false }) else {
+                throw Failure(name: "revocation fixture preferences")
+            }
+            if kind == "delete-memory" {
+                guard e.learning.mutateMemory({ _ = try $0.add(kind: .preference, content: "Prefer jasmine tea") }) else {
+                    throw Failure(name: "revocation fixture memory")
+                }
+            } else if kind == "delete-profile" {
+                guard e.learning.mutateProfile({ _ = try $0.add(text: "I prefer jasmine tea.") }) else {
+                    throw Failure(name: "revocation fixture profile")
+                }
+            }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Do you remember my jasmine tea preference?")
+            try await wait("initial structured POST is awaiting completion") {
+                fixture.requestCount == 1 && fixture.bodyDelivered
+            }
+            let generation = e.learning.generation
+            switch kind {
+            case "switch":
+                try a.check(e.learning.updatePreferences({ $0.useMemory = false }), "master switch persists")
+                try a.check(e.learning.generation != generation, "master switch revokes generation")
+            case "delete-memory":
+                let id = e.learning.memory.memories[0].id
+                try a.check(e.learning.mutateMemory({ _ = try $0.delete(id: id) }), "memory deletion persists")
+                try a.check(e.learning.generation != generation && e.learning.memory.memories.isEmpty,
+                            "memory deletion revokes captured context")
+            case "delete-profile":
+                try a.check(e.learning.mutateProfile({ try $0.delete(segment: "jasmine tea") }),
+                            "profile deletion persists")
+                try a.check(e.learning.generation == generation && e.learning.profile.snapshot().entries.isEmpty,
+                            "profile revision fences a deletion even without generation rotation")
+            default:
+                let old = e.learning.memory
+                try a.check(!e.learning.mutateMemory({ _ in throw Failure(name: "fixture write failed") }),
+                            "failed mutation is rejected")
+                try a.check(e.learning.generation != generation && e.learning.memory == old,
+                            "failed mutation still revokes this run without changing stored memory")
+            }
+            fixture.releaseHeldResponses()
+            await task.value
+            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.reopen().conversations.isEmpty &&
+                        session.draft == "Do you remember my jasmine tea preference?" && !session.isSubmitting,
+                        "revoked context cannot issue the complete fallback POST or publish an answer (" + kind + ")")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Do you remember jasmine tea?")
+            try await wait("ordinary structured reply begins") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"STALE ANSWER"}"#)
+            _ = e.learning.updatePreferences { $0.useMemory = false }
+            client.finish(); await task.value
+            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty &&
+                        e.archive.conversations.isEmpty && session.replyPreview == nil,
+                        "a revoked ordinary finish cannot publish or leave its stale preview")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Format correction must respect revocation")
+            try await wait("initial correction candidate") { client.counts.stream == 1 }
+            client.emit(#"{"action":"finish","answer":"bad","extra":true}"#)
+            _ = e.learning.updatePreferences { $0.useMemory = false }
+            client.finish(); await task.value
+            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty,
+                        "format correction cannot send a second request after revocation")
+        }
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Please remember that I prefer jasmine tea")
+            try await wait("profile proposal starts") { client.counts.stream == 1 }
+            client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
+            _ = e.learning.updatePreferences { $0.useMemory = false }
+            client.finish(); await task.value
+            try a.check(client.counts.stream == 1 && session.pendingProfileReview == nil &&
+                        e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty,
+                        "revoked proposal cannot reach review or issue a subsequent model request")
+        }
+        do {
+            // Exercise the flow boundary after a trusted tool receipt, where a
+            // second advance would otherwise start the final model request.
+            let first = #"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#
+            let client = CompleteSequenceClient([first, reply])
+            let flow = try UserProfileChatFlow(messages: [.init(role: "user", content: "Please remember that I prefer jasmine tea")])
+            let config = ModelConfiguration(baseURL: URL(string: "https://fixture.invalid/v1")!, model: "fixture")
+            var valid = true
+            let step = try await flow.advance(client: client, configuration: config, apiKey: "synthetic", validateState: {
+                if !valid { throw UserProfileToolError.staleRevision }
+            })
+            guard case .proposedEdit = step else { throw Failure(name: "trusted proposal step") }
+            try flow.recordCommitted(entryID: UUID())
+            valid = false
+            do {
+                _ = try await flow.advance(client: client, configuration: config, apiKey: "synthetic", validateState: {
+                    if !valid { throw UserProfileToolError.staleRevision }
+                })
+                throw Failure(name: "revoked post-receipt flow started")
+            } catch UserProfileToolError.staleRevision {}
+            try a.check(client.counts.complete == 1 && flow.didCommit,
+                        "post-commit final request is gated while the persisted receipt remains true")
+        }
+        return a.count
+    }
 }
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
@@ -387,8 +935,10 @@ private actor StreamMCP: MCPDiscovering {
         do {
             let groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
-                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.actualHTTPStream()]
-            print("{\"groups\":6,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
+                ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
+                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation()]
+            print("{\"groups\":10,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -399,7 +949,11 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredFlowsRemainReviewed() async throws { let n = try await ChatStreamingChecks.structuredFlowsRemainReviewed(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredStreamingAnswerAndReview() async throws { let n = try await ChatStreamingChecks.structuredStreamingAnswerAndReview(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredStreamingRejectionsAndCancellation() async throws { let n = try await ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testActualHTTPStream() async throws { let n = try await ChatStreamingChecks.actualHTTPStream(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredTransportCompatibility() async throws { let n = try await ChatStreamingChecks.structuredTransportCompatibility(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredLearningRevocation() async throws { let n = try await ChatStreamingChecks.structuredLearningRevocation(); XCTAssertGreaterThan(n, 0) }
 }
 #endif
 #endif

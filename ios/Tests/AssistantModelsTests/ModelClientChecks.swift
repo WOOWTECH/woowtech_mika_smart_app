@@ -278,6 +278,44 @@ enum ModelClientChecks {
         return checks.count
     }
 
+    static func heldResponseReleaseSynchronization() throws -> Int {
+        var checks = Checks()
+        let queue = DispatchQueue(label: "model.fixture.release", attributes: .concurrent)
+        for _ in 0..<128 {
+            let fixture = ModelProtocolFixture.Scenario(holdAfterBody: true)
+            let start = DispatchSemaphore(value: 0)
+            let producerDone = DispatchSemaphore(value: 0)
+            let observerDone = DispatchSemaphore(value: 0)
+            let completion = DispatchSemaphore(value: 0)
+            try checks.expect(!fixture.bodyDelivered, "held response is not ready before callback registration")
+            queue.async {
+                start.wait()
+                fixture.didDeliver(heldFinish: { completion.signal() })
+                producerDone.signal()
+            }
+            queue.async {
+                start.wait()
+                let deadline = DispatchTime.now() + .seconds(2)
+                while !fixture.bodyDelivered {
+                    if DispatchTime.now() >= deadline { observerDone.signal(); return }
+                    Thread.sleep(forTimeInterval: 0)
+                }
+                fixture.releaseHeldResponses()
+                observerDone.signal()
+            }
+            start.signal(); start.signal()
+            try checks.expect(producerDone.wait(timeout: .now() + .seconds(2)) == .success,
+                              "held callback producer completed")
+            try checks.expect(observerDone.wait(timeout: .now() + .seconds(2)) == .success,
+                              "body-delivery observer completed")
+            try checks.expect(completion.wait(timeout: .now() + .seconds(2)) == .success,
+                              "observing bodyDelivered guarantees release invokes the registered callback")
+            try checks.expect(completion.wait(timeout: .now()) == .timedOut,
+                              "a concurrent release invokes the held callback only once")
+        }
+        return checks.count
+    }
+
     static func wait(_ predicate: () -> Bool) async throws {
         for _ in 0..<200 {
             if predicate() { return }
@@ -304,6 +342,8 @@ enum ModelClientChecks {
             total += cancellation; print("deadline/cancellation: \(cancellation)")
             let bounds = try await ModelClientChecks.slowConsumerAndRedirectPolicy()
             total += bounds; print("backpressure/redirect: \(bounds)")
+            let release = try ModelClientChecks.heldResponseReleaseSynchronization()
+            total += release; print("held-response release synchronization: \(release)")
             print("PASS \(total) assertions; all requests intercepted; no live calls")
         } catch let error as ModelClientChecks.CheckFailure {
             print("FAIL: \(error.name)"); exit(1)

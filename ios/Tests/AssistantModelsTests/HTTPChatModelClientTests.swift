@@ -29,4 +29,8 @@ final class HTTPChatModelClientTests: XCTestCase {
         let checks = try await ModelClientChecks.slowConsumerAndRedirectPolicy()
         XCTAssertGreaterThan(checks, 0)
     }
+
+    func testHeldResponseReleaseSynchronization() throws {
+        XCTAssertGreaterThan(try ModelClientChecks.heldResponseReleaseSynchronization(), 0)
+    }
 }

@@ -660,9 +660,8 @@ final class ChatSession: ObservableObject {
         cancel()
     }
 
-    /// Ordinary pending model replies remain deliverable after memory clearing;
-    /// a profile review is invalidated immediately, and late proposals recheck
-    /// generation/master-switch state before they can even be shown.
+    /// Pending profile and memory reviews are invalidated immediately. Structured
+    /// ordinary-chat responses also recheck learning state before publication.
     func invalidateProfileReview() {
         guard pendingProfileReview != nil || pendingMemoryReview != nil else { return }
         cancel()
@@ -674,9 +673,25 @@ final class ChatSession: ObservableObject {
                                      client: any ChatModelClient, requestID: UUID) async throws -> String {
         let flow = try UserProfileChatFlow(messages: messages)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
+        var expectedProfileRevision = state.revision
+        var expectedMemoryRevision = memoryState.revision
         defer { flow.cancel() }
         while true {
-            let step = try await flow.advance(client: client, configuration: configuration, apiKey: key)
+            let step = try await flow.advance(client: client, configuration: configuration, apiKey: key,
+                                              validateState: { [weak self] in
+                guard let self, self.requestID == requestID else { throw CancellationError() }
+                try Task.checkCancellation()
+                guard self.learning.available, self.learning.memory.preferences.useMemory,
+                      self.learning.generation == generation,
+                      self.learning.profile.revision == expectedProfileRevision,
+                      self.learning.memory.revision == expectedMemoryRevision else {
+                    self.replyPreview = nil
+                    throw UserProfileToolError.staleRevision
+                }
+            }) { [weak self] answer in
+                guard let self, self.requestID == requestID, !Task.isCancelled else { return }
+                self.replyPreview = answer.map { ChatReplyPreview(id: requestID, text: $0, phase: .receiving) }
+            }
             try Task.checkCancellation()
             guard self.requestID == requestID else { throw CancellationError() }
             switch step {
@@ -697,6 +712,7 @@ final class ChatSession: ObservableObject {
                 let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
                 profileReceipt = receipt // Retained even if the next model call fails.
                 profileReceiptRequestID = requestID
+                expectedProfileRevision = learning.profile.revision
                 try flow.recordCommitted(entryID: receipt.id)
             case .memorySearch(let arguments):
                 try validateMemoryRun(memoryRun, generation: generation)
@@ -714,6 +730,7 @@ final class ChatSession: ObservableObject {
                     conversationID: conversationID)
                 memoryReceipt = receipt
                 memoryReceiptRequestID = requestID
+                expectedMemoryRevision = learning.memory.revision
                 try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
             }
         }

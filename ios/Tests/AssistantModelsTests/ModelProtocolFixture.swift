@@ -3,9 +3,16 @@ import Foundation
 /// All requests are intercepted, including unknown hosts: this fixture cannot use the network.
 final class ModelProtocolFixture: URLProtocol {
     final class Scenario: @unchecked Sendable {
+        struct Reply {
+            let status: Int; let mime: String; let chunks: [Data]; let holdAfterBody: Bool
+            init(status: Int, mime: String, chunks: [Data], holdAfterBody: Bool = false) {
+                self.status = status; self.mime = mime; self.chunks = chunks; self.holdAfterBody = holdAfterBody
+            }
+        }
         let status: Int
         let mime: String
         let chunks: [Data]
+        let followUp: Reply?
         let holdBeforeHeaders: Bool
         let holdAfterBody: Bool
         let failure: URLError?
@@ -13,22 +20,42 @@ final class ModelProtocolFixture: URLProtocol {
         private var requests: [URLRequest] = []
         private var stops = 0
         private var delivered = false
+        private var heldFinishes: [() -> Void] = []
 
         init(status: Int = 200, mime: String = "application/json", chunks: [Data] = [],
-             holdBeforeHeaders: Bool = false, holdAfterBody: Bool = false, failure: URLError? = nil) {
+             holdBeforeHeaders: Bool = false, holdAfterBody: Bool = false, failure: URLError? = nil,
+             followUp: Reply? = nil) {
             self.status = status
             self.mime = mime
             self.chunks = chunks
+            self.followUp = followUp
             self.holdBeforeHeaders = holdBeforeHeaders
             self.holdAfterBody = holdAfterBody
             self.failure = failure
         }
 
-        func record(_ request: URLRequest) { lock.lock(); defer { lock.unlock() }; requests.append(request) }
+        func record(_ request: URLRequest) -> Int {
+            lock.lock(); defer { lock.unlock() }
+            requests.append(request); return requests.count - 1
+        }
         func stop() { lock.lock(); defer { lock.unlock() }; stops += 1 }
-        func didDeliver() { lock.lock(); defer { lock.unlock() }; delivered = true }
+        /// A visible delivery flag means a held response can already be
+        /// released. Publish the callback and flag under the same lock.
+        func didDeliver(heldFinish: (() -> Void)? = nil) {
+            lock.lock(); defer { lock.unlock() }
+            if let heldFinish { heldFinishes.append(heldFinish) }
+            delivered = true
+        }
+        func releaseHeldResponses() {
+            lock.lock()
+            let finishes = heldFinishes
+            heldFinishes.removeAll()
+            lock.unlock()
+            finishes.forEach { $0() }
+        }
         var requestCount: Int { lock.lock(); defer { lock.unlock() }; return requests.count }
         var lastRequest: URLRequest? { lock.lock(); defer { lock.unlock() }; return requests.last }
+        var requestSnapshot: [URLRequest] { lock.lock(); defer { lock.unlock() }; return requests }
         var stopCount: Int { lock.lock(); defer { lock.unlock() }; return stops }
         var bodyDelivered: Bool { lock.lock(); defer { lock.unlock() }; return delivered }
     }
@@ -74,18 +101,27 @@ final class ModelProtocolFixture: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
             return
         }
-        scenario.record(request)
+        let index = scenario.record(request)
         if let failure = scenario.failure {
             client?.urlProtocol(self, didFailWithError: failure)
             return
         }
         if scenario.holdBeforeHeaders { return }
-        let response = HTTPURLResponse(url: url, statusCode: scenario.status, httpVersion: "HTTP/1.1",
-                                       headerFields: ["Content-Type": scenario.mime])!
+        let reply = index > 0 ? scenario.followUp ?? .init(status: scenario.status, mime: scenario.mime, chunks: scenario.chunks)
+                              : .init(status: scenario.status, mime: scenario.mime, chunks: scenario.chunks)
+        let response = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1",
+                                       headerFields: ["Content-Type": reply.mime])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        for chunk in scenario.chunks { client?.urlProtocol(self, didLoad: chunk) }
-        scenario.didDeliver()
-        if !scenario.holdAfterBody { client?.urlProtocolDidFinishLoading(self) }
+        for chunk in reply.chunks { client?.urlProtocol(self, didLoad: chunk) }
+        if index > 0 && scenario.followUp != nil ? reply.holdAfterBody : scenario.holdAfterBody {
+            scenario.didDeliver(heldFinish: { [weak self] in
+                guard let self else { return }
+                self.client?.urlProtocolDidFinishLoading(self)
+            })
+        } else {
+            scenario.didDeliver()
+            client?.urlProtocolDidFinishLoading(self)
+        }
     }
 
     override func stopLoading() { scenario?.stop() }

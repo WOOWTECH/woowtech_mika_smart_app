@@ -42,7 +42,7 @@ def main():
     print('OUTPUT=' + str(out), flush=True)
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / 'Sources' / name).glob('*.swift'))] for name, _ in MODULES}
-        apps = [copy('Sources/App/' + name + '.swift') for name in APPS]
+        apps = [copy('Sources/App/' + name + '.swift') for name in [*APPS, 'RecentConversationAccess', 'NewConversationProtection']]
         markdown = copy('Sources/App/ChatReplyMarkdown.swift')
         apps.append(markdown)
         markdown_checks = copy('scripts/CheckChatReplyMarkdown.swift')
@@ -52,6 +52,7 @@ def main():
         ui_support = copy('Tests/WoowAssistantUITests/LearningUITestSupport.swift')
         fixture = copy('Tests/AssistantModelsTests/ModelProtocolFixture.swift')
         transport = copy('Tests/AssistantModelsTests/ModelClientChecks.swift')
+        preview_tests = copy('Tests/AssistantMemoryTests/StructuredAnswerPreviewTests.swift')
         chat = copy('scripts/CheckProfileChatApp.swift'); archive = copy('scripts/CheckConversationArchiveApp.swift')
         for path in ['scripts/check_chat_streaming_app.py', 'scripts/check_task_notifications.py',
                      'scripts/check_profile_chat_app.py', 'scripts/check_chat_context_window.py',
@@ -67,6 +68,12 @@ def main():
         run('markdown-compile', ['swiftc', '-swift-version', '5', '-parse-as-library', markdown,
                                  markdown_checks, '-o', str(markdown_binary)])
         run('markdown-run', [str(markdown_binary)], 15)
+        preview_binary = out / 'structured-answer-preview'
+        run('structured-preview-compile', ['swiftc', '-swift-version', '5', '-parse-as-library',
+                                          '-DSTRUCTURED_ANSWER_PREVIEW_STANDALONE',
+                                          *[path for path in modules['AssistantMemory'] if path.endswith('/StructuredAnswerPreview.swift')],
+                                          preview_tests, '-o', str(preview_binary)])
+        run('structured-preview-execute', [str(preview_binary)], 15)
         for config, flags in [('Debug', ['-DDEBUG']), ('Release', [])]:
             run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support])
             binary = out / (config + '-stream-app')

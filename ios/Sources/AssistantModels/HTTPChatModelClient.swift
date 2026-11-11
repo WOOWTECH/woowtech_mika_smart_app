@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPChatModelClient: StreamingChatModelClient {
+public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private static let maximumTimeout: UInt64 = 90_000_000_000
@@ -43,12 +43,7 @@ public struct HTTPChatModelClient: StreamingChatModelClient {
                         data.append(byte)
                     }
                     try Task.checkCancellation()
-                    let response = try JSONDecoder().decode(Completion.self, from: data)
-                    guard let choice = response.choices.first, choice.finish_reason == "stop" else {
-                        throw HTTPChatModelError.incompleteResponse
-                    }
-                    guard !choice.message.content.isEmpty else { throw HTTPChatModelError.invalidResponse }
-                    return choice.message.content
+                    return try Self.completionText(data)
                 } onCancel: {
                     bytes.task.cancel()
                 }
@@ -66,6 +61,42 @@ public struct HTTPChatModelClient: StreamingChatModelClient {
                         try Task.checkCancellation()
                         let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects())
                         defer { bytes.task.cancel() }
+                        if let http = response as? HTTPURLResponse {
+                            if (200..<300).contains(http.statusCode), http.mimeType?.lowercased() == "application/json" {
+                                // A complete-only endpoint ignored stream=true. Use its
+                                // already returned response; never send a second request.
+                                let text = try await withTaskCancellationHandler {
+                                    var data = Data()
+                                    for try await byte in bytes {
+                                        try Task.checkCancellation()
+                                        guard data.count < ChatSSEParser.maximumResponseBytes else { throw HTTPChatModelError.responseTooLarge }
+                                        data.append(byte)
+                                    }
+                                    try Task.checkCancellation()
+                                    return try Self.completionText(data)
+                                } onCancel: { bytes.task.cancel() }
+                                guard case .enqueued = continuation.yield(text) else { throw HTTPChatModelError.consumerTooSlow }
+                                return
+                            }
+                            if [400, 415, 422].contains(http.statusCode) {
+                                // Classify only short, complete error bodies. The
+                                // body never enters a prompt, UI or diagnostic.
+                                let data = try await withTaskCancellationHandler {
+                                    var data = Data()
+                                    for try await byte in bytes {
+                                        try Task.checkCancellation()
+                                        guard data.count < 2048 else { throw HTTPChatModelError.httpStatus(http.statusCode) }
+                                        data.append(byte)
+                                    }
+                                    try Task.checkCancellation()
+                                    return data
+                                } onCancel: { bytes.task.cancel() }
+                                if Self.explicitlyRejectsStreaming(data) {
+                                    throw HTTPStreamFallbackError.explicitUnsupported(http.statusCode)
+                                }
+                                throw HTTPChatModelError.httpStatus(http.statusCode)
+                            }
+                        }
                         try Self.validate(response, stream: true)
                         try await withTaskCancellationHandler {
                             var parser = ChatSSEParser()
@@ -148,6 +179,7 @@ public struct HTTPChatModelClient: StreamingChatModelClient {
 
     private static func sanitized(_ error: Error) -> Error {
         if error is CancellationError || Task.isCancelled { return CancellationError() }
+        if error is HTTPStreamFallbackError { return error }
         if let known = error as? HTTPChatModelError { return known }
         if let network = error as? URLError {
             if network.code == .cancelled { return CancellationError() }
@@ -156,6 +188,26 @@ public struct HTTPChatModelClient: StreamingChatModelClient {
         }
         if error is DecodingError { return HTTPChatModelError.invalidResponse }
         return HTTPChatModelError.transportFailure
+    }
+
+    private static func completionText(_ data: Data) throws -> String {
+        let response = try JSONDecoder().decode(Completion.self, from: data)
+        guard let choice = response.choices.first, choice.finish_reason == "stop" else {
+            throw HTTPChatModelError.incompleteResponse
+        }
+        guard !choice.message.content.isEmpty else { throw HTTPChatModelError.invalidResponse }
+        return choice.message.content
+    }
+
+    private static func explicitlyRejectsStreaming(_ data: Data) -> Bool {
+        guard let text = String(data: data, encoding: .utf8),
+              let outer = try? RawCommandEnvelope.fields(in: text),
+              let error = outer["error"], let detail = try? RawCommandEnvelope.fields(in: error),
+              let codeRaw = detail["code"], let paramRaw = detail["param"],
+              let code = try? JSONDecoder().decode(String.self, from: Data(codeRaw.utf8)),
+              let param = try? JSONDecoder().decode(String.self, from: Data(paramRaw.utf8)),
+              param == "stream" else { return false }
+        return ["unsupported_parameter", "unsupported_value", "not_supported"].contains(code.lowercased())
     }
 
     private struct RequestBody: Encodable {

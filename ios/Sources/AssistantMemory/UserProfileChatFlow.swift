@@ -24,6 +24,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
     private var messages: [ModelMessage]
     private let deadline: ContinuousClock.Instant
     private var corrected = false
+    private var streamingRejected = false
     private var searched = false
     private var reviewTool: String?
     public private(set) var modelCalls = 0
@@ -43,21 +44,54 @@ public enum UserProfileChatStep: Equatable, Sendable {
     }
 
     public func advance(client: any ChatModelClient, configuration: ModelConfiguration,
-                        apiKey: String) async throws -> UserProfileChatStep {
+                        apiKey: String, validateState: (() throws -> Void)? = nil,
+                        onAnswerPreview: ((String?) -> Void)? = nil) async throws -> UserProfileChatStep {
         guard phase == .ready || phase == .committed else { throw UserProfileChatError.invalidPhase }
         let allowsEdit = phase == .ready
         phase = .requesting
         do {
             while true {
                 try check()
+                try validateState?()
                 guard modelCalls < 3 else { throw UserProfileChatError.callLimit }
                 modelCalls += 1
-                let raw = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+                let raw: String
+                var preview: StructuredAnswerPreview?
+                if !streamingRejected, let onAnswerPreview, let streaming = client as? any StructuredStreamingChatModelClient {
+                    var decoder = StructuredAnswerPreview(), received = "", bytes = 0
+                    do {
+                        for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: apiKey) {
+                            try check()
+                            try validateState?()
+                            guard delta.utf8.count <= 24 * 1024 - bytes else { throw UserProfileChatError.responseTooLarge }
+                            bytes += delta.utf8.count
+                            received += delta
+                            let hadPreview = decoder.current != nil
+                            if let answer = decoder.append(delta) { onAnswerPreview(answer) }
+                            else if hadPreview && decoder.isRejected { onAnswerPreview(nil) }
+                        }
+                        raw = received
+                        preview = decoder
+                    } catch let error as HTTPStreamFallbackError where Self.allowsTransportFallback(error) && modelCalls == 1 &&
+                        bytes == 0 && !didCommit && !searched && reviewTool == nil && modelCalls < 3 {
+                        // Only the first untouched request may be resent, and
+                        // its failed stream counts toward the same three-call cap.
+                        try check()
+                        try validateState?()
+                        modelCalls += 1
+                        streamingRejected = true
+                        raw = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+                    }
+                } else {
+                    raw = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+                }
                 try check()
+                try validateState?()
                 guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
                 do { step = try Self.parse(raw) }
                 catch let error as UserProfileChatError where error == .invalidCommand {
+                    if preview?.current != nil { onAnswerPreview?(nil) }
                     guard !corrected, modelCalls < 3 else { throw error }
                     corrected = true
                     let correction = didCommit
@@ -65,6 +99,12 @@ public enum UserProfileChatStep: Equatable, Sendable {
                         : "The response was rejected; no operation was performed. Return one exact JSON command from the system contract. This is the only format correction. Do not repeat a committed operation."
                     messages.append(ModelMessage(role: "user", content: correction))
                     continue
+                }
+                if let visible = preview?.current {
+                    guard case .answer(let answer) = step, visible == answer else {
+                        onAnswerPreview?(nil)
+                        throw UserProfileChatError.invalidCommand
+                    }
                 }
                 switch step {
                 case .answer:
@@ -143,6 +183,13 @@ public enum UserProfileChatStep: Equatable, Sendable {
         try Task.checkCancellation()
         guard phase != .ended else { throw UserProfileChatError.invalidPhase }
         guard ContinuousClock.now < deadline else { throw UserProfileChatError.expired }
+    }
+
+    private static func allowsTransportFallback(_ error: HTTPStreamFallbackError) -> Bool {
+        switch error {
+        case .explicitUnsupported(let status):
+            return [400, 415, 422].contains(status)
+        }
     }
 
     private static func parse(_ text: String) throws -> UserProfileChatStep {
