@@ -7,6 +7,10 @@ import SwiftUI
 struct MemoryDataView: View {
     @ObservedObject var store: LearningStore
     @ObservedObject var browser: BrowserSession
+    #if os(iOS)
+    let browserWorkspace: BrowserWorkspace
+    @State private var showWebsiteData = false
+    #endif
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
@@ -71,6 +75,11 @@ struct MemoryDataView: View {
                 }
             }
         }
+        #if os(iOS)
+        .sheet(isPresented: $showWebsiteData) {
+            BrowserLibraryView(workspace: browserWorkspace, sitesOnly: true)
+        }
+        #endif
         .alert(copy.text(.skillDeleteTitle), isPresented: Binding(
             get: { deletionReview != nil }, set: { if !$0 { deletionReview = nil } }
         ), presenting: deletionReview) { review in
@@ -213,7 +222,13 @@ struct MemoryDataView: View {
                             .font(.caption).foregroundStyle(palette.ink3)
                             .accessibilityIdentifier("memory.routesPending")
                         cardDivider
-                        Button { onOpenBrowser() } label: {
+                        Button {
+                            #if os(iOS)
+                            showWebsiteData = true
+                            #else
+                            onOpenBrowser()
+                            #endif
+                        } label: {
                             dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
