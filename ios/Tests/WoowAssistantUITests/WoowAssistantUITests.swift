@@ -162,6 +162,39 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
     }
 
+    func testSettingsAboutShowsInstalledVersionAndReturnsToSettings() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        let link = app.buttons["settings.about"]
+        revealSettings(link, in: app)
+        XCTAssertTrue(link.isEnabled)
+        XCTAssertEqual(link.label, "關於渥屋助理")
+        let homeVersion = link.value as? String
+        link.tap()
+
+        let bar = app.navigationBars["關於渥屋助理"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
+        let version = app.staticTexts["settings.about.version"]
+        let build = app.staticTexts["settings.about.build"]
+        XCTAssertTrue(version.exists && build.exists)
+        XCTAssertFalse(version.label.isEmpty)
+        XCTAssertFalse(build.label.isEmpty)
+        XCTAssertNotEqual(version.label, "版本資訊不可用")
+        XCTAssertNotEqual(build.label, "版本資訊不可用")
+        XCTAssertFalse(version.label.contains("$("))
+        XCTAssertFalse(build.label.contains("$("))
+        XCTAssertEqual(homeVersion, version.label,
+                       "Home and detail show the same installed version")
+
+        XCTAssertFalse(app.buttons["section.back"].isHittable)
+        let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        waitUntilHittable(nativeBack)
+        nativeBack.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["settings.about"].exists)
+    }
+
     func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
         let app = launchApp()
         openSection("settings", in: app)

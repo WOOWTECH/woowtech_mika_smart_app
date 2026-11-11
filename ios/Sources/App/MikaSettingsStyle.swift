@@ -46,7 +46,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link
+    case spark, globe, bell, key, heart, link, info
 }
 
 struct MikaSettingsIconTile: View {
@@ -183,6 +183,11 @@ struct MikaSettingsIconShape: Shape {
             path.addCurve(to: CGPoint(x: 12, y: 18),
                           control1: CGPoint(x: 1, y: 17), control2: CGPoint(x: 7, y: 23))
             path.addLine(to: CGPoint(x: 15, y: 15))
+        case .info:
+            path.addEllipse(in: CGRect(x: 3, y: 3, width: 18, height: 18))
+            path.addEllipse(in: CGRect(x: 11.2, y: 7, width: 1.6, height: 1.6))
+            path.move(to: CGPoint(x: 12, y: 11))
+            path.addLine(to: CGPoint(x: 12, y: 17))
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))

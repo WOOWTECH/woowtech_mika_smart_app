@@ -15,6 +15,8 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+    private var aboutCopy: MikaAboutCopy { MikaAboutCopy(language: languages.resolved) }
+    private var aboutInfo: MikaAboutInfo { MikaAboutInfo(bundle: .main) }
     private var configuredModelName: String {
         session.hasStoredKey ? (session.savedSettings?.model ?? localizer.text(.settingsModelNotSet))
                              : localizer.text(.settingsModelNotSet)
@@ -98,6 +100,21 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("settings.mcpJump")
                 }
+                MikaSettingsGroupLabel(title: aboutCopy.text(.group))
+                    .padding(.top, 8)
+                MikaSettingsCard {
+                    NavigationLink {
+                        MikaAboutView(languages: languages, info: aboutInfo)
+                    } label: {
+                        MikaSettingsRow(icon: .info, title: aboutCopy.text(.title),
+                                        value: aboutInfo.version ?? aboutCopy.text(.unavailable))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.about")
+                    .accessibilityLabel(aboutCopy.text(.title))
+                    .accessibilityValue(aboutInfo.version ?? aboutCopy.text(.unavailable))
+                }
+                .padding(.bottom, 20)
             }
             .padding(.horizontal, 16)
         }
