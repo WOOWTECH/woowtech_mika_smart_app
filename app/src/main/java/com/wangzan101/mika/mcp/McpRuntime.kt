@@ -63,12 +63,18 @@ class McpRuntime(
     /** 最近连过的客户端和最后一次请求;没在监听时为空。 */
     val activity: RemoteActivity get() = if (active) endpoints.activity.value else RemoteActivity()
 
-    /** 配对先保存凭据再查询客户端网址;必须用户另行开启远程访问。 */
+    /** Apporo 每次新配对都换电脑访问令牌，网站撤销后旧电脑不能在重新配对时恢复访问。 */
     suspend fun pairRelay(gateway: String, code: String) {
         check(!relaySettings.config.value.paired) { "Unpair the previous gateway first" }
         val remote = RelayGateway(RelayGateway.parse(gateway), RelayGateway.http())
         val paired = remote.pair(code)
-        try { relaySettings.save(paired) }
+        try {
+            // The gateway may revoke its device credential while the phone is offline. Its
+            // computer bearer is stored separately on the phone, so rotate that bearer before
+            // making a new pairing visible. Local clients must copy the new token as well.
+            if (BuildConfig.FLAVOR == "apporo") settings.regenerate()
+            relaySettings.save(paired)
+        }
         catch (e: Exception) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { runCatching { remote.unpair(paired.deviceToken) } }
             throw e

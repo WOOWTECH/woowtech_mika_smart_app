@@ -126,7 +126,8 @@ fun SettingsScreen(
     val mcp = remember { (context.applicationContext as com.wangzan101.mika.MikaApp).mcp }
     val mcpNetworkOn by mcp.settings.enabled.collectAsState()
     val mcpUsbOn by mcp.usb.enabled.collectAsState()
-    val mcpOn = mcpNetworkOn || mcpUsbOn
+    val mcpRelayOn by mcp.relaySettings.config.collectAsState()
+    val mcpOn = mcpNetworkOn || mcpUsbOn || mcpRelayOn.enabled
     val mcpServerCount = mcpServers?.servers?.collectAsState()?.value?.size
     val parallel = if (!speed.parallelTasks) null else ParallelSetting(
         parallelMax,

@@ -2,6 +2,7 @@ package com.wangzan101.mika.device
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.UserManager
@@ -31,11 +32,15 @@ class AndroidDeviceAccess(context: Context, helper: () -> IMikaShell?) {
 
 internal class AndroidDeviceAccessPort(context: Context, private val helper: () -> IMikaShell?) : DeviceAccessPort {
     private val power = context.getSystemService(PowerManager::class.java)
+    private val displays = context.getSystemService(DisplayManager::class.java)
     private val keyguard = context.getSystemService(KeyguardManager::class.java)
     private val user = context.getSystemService(UserManager::class.java)
 
     override suspend fun state() = withContext(Dispatchers.IO) {
-        DeviceState(power.isInteractive, keyguard.isKeyguardLocked, keyguard.isDeviceLocked,
+        // Some devices report PowerManager.isInteractive during ambient/dozing display states.
+        // The MCP "awake" result must mean the main panel is actually on.
+        val screenOn = power.isInteractive && displays.getDisplay(Display.DEFAULT_DISPLAY)?.state == Display.STATE_ON
+        DeviceState(screenOn, keyguard.isKeyguardLocked, keyguard.isDeviceLocked,
             keyguard.isDeviceSecure, helper() != null, user.isUserUnlocked)
     }
 
