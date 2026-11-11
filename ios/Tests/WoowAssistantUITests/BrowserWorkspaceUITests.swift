@@ -44,8 +44,12 @@ final class BrowserWorkspaceUITests: XCTestCase {
             format: "(elementType == %d OR elementType == %d) AND label == %@",
             XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
             "清除瀏覽歷史？書籤與網站登入資料會保留。")).firstMatch
-        let clear = confirmation.buttons["browser.start.history.confirmClear"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 5)); clear.tap()
+        // iOS 26 may expose the same action as nested AX buttons. Keep the
+        // exact dialog, identifier and label while selecting one representation.
+        let clear = confirmation.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label == %@",
+            "browser.start.history.confirmClear", "清除歷史")).firstMatch
+        XCTAssertTrue(clear.waitForExistence(timeout: 5)); XCTAssertEqual(clear.label, "清除歷史"); clear.tap()
         XCTAssertTrue(emptyHistory.waitForExistence(timeout: 5))
         XCTAssertEqual(emptyHistory.label, "尚無瀏覽歷史")
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.favorite.open.")).count, 1)
