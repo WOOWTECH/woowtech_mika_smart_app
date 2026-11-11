@@ -62,7 +62,14 @@ concurrency:
 
 jobs:
   device-build:
-    if: inputs.mode == 'unsigned-device' || inputs.mode == 'signing-preflight' || inputs.mode == 'signed-export' || inputs.mode == 'signed-device-artifact' || inputs.mode == 'signed-testflight'
+    # Branches can exercise the unsigned build; release credentials stay on main.
+    if: >-
+      inputs.mode == 'unsigned-device' ||
+      (github.ref == 'refs/heads/main' &&
+       (inputs.mode == 'signing-preflight' ||
+        inputs.mode == 'signed-export' ||
+        inputs.mode == 'signed-device-artifact' ||
+        inputs.mode == 'signed-testflight'))
     runs-on: macos-15-intel
     timeout-minutes: 100
     env:
