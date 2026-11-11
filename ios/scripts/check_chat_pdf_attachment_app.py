@@ -42,7 +42,10 @@ def main():
     print('OUTPUT=' + str(out), flush=True)
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / 'Sources' / name).glob('*.swift'))] for name, _ in MODULES}
-        apps = [copy('Sources/App/' + name + '.swift') for name in APPS]
+        # The full run also compiles the conversation archive regression, which
+        # exercises recent-row access, destructive-action protection and quotes.
+        apps = [copy('Sources/App/' + name + '.swift') for name in
+                [*APPS, 'RecentConversationAccess', 'NewConversationProtection', 'MessageActions']]
         views = [copy('Sources/App/' + name + '.swift') for name in ['ContentView', 'ConversationArchiveView', 'ChatPDFAttachmentView', 'PDFNativePicker']]
         core_archive = copy('Tests/AssistantPersistenceTests/ConversationArchiveTests.swift')
         stream = copy('scripts/CheckChatStreamingApp.swift')
