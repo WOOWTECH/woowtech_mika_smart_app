@@ -19,12 +19,12 @@
 
 ## 後續更新如何比對
 
-在更新 Android checkout 後執行：
+從本倉庫的 `ios/` 執行：
 
 ```sh
-python3 scripts/check_android_ui_reference.py --android-repo /path/to/woowtech_mika_smart_app
+python3 scripts/check_android_ui_reference.py --android-repo ..
 ```
 
-GitHub Actions 也提供手動執行的 `Android UI reference check`，從 Android 主線取得最新來源後執行同一檢查。
+GitHub Actions 也提供手動執行的 `Android UI reference check`，對照該執行所選分支的 Android 來源。從 Android 主線執行可檢查主線變化。
 
 工具逐一核對固定的來源檔內容，列出變動或遺失檔案；提交不同但所列檔案不變時仍會顯示兩個提交供人工確認。它不會自動更新基準，也不會偵測清單之外新增的介面檔案。檢查到變動後，應審閱 Android 差異、更新相應 iOS 實作與驗證，再經審閱更新基準。外觀驗收應在相近尺寸、語言、明暗模式與資料狀態下，對照 Android 與 iPhone／iPad 截圖，並實測入口與操作。

@@ -1,0 +1,279 @@
+# Generated from ios/.github/workflows; run ios/scripts/sync_monorepo_workflows.py.
+name: iOS release readiness
+
+# Manual only. Only signed-testflight sends an IPA to App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 驗證或發行路徑（signed-testflight 會上傳至 Apple）
+        type: choice
+        options: [unsigned-device, signing-preflight, signed-export, signed-device-artifact, signed-testflight, transporter-check, ios17-hosted, ios17-self-hosted]
+        default: unsigned-device
+        required: true
+      export_method:
+        description: 簽章模式的描述檔類型
+        type: choice
+        options: [app-store-connect, release-testing]
+        default: app-store-connect
+      ios17_version:
+        description: 實測系統版本；17.5 不能代替 17.0 的測試證據
+        type: choice
+        options: ['17.0.1', '17.0', '17.5']
+        default: '17.0.1'
+      ios17_test_scope:
+        description: iOS 17 範圍；core 加全部 ui-* 涵蓋非 Live，局部或略過不代表完整驗收
+        type: choice
+        options: [all, core, workspace, files, parity, startup, startup-smoke, picker-user-copy, pdf-assembly, pdf-assembly-uikit, pdf-assembly-copy, pdf-assembly-multi, pdf-pair-coordinated, profile-tool, memory-tools, documents-read, documents-output, documents-chat, ui-startup, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-profile, ui-memory-tools, ui-skills, ui-documents, ui-pdf-capability, ui-download-pdf, ui-mcp]
+        default: all
+      ios17_host_arch:
+        description: Hosted iOS 17 主機架構；明確比較，不自動替換 runtime
+        type: choice
+        options: [arm64, x86_64]
+        default: arm64
+      ios17_prelaunch:
+        description: 實驗：一次預啟動 XCTest daemon（先用 startup-smoke；不代表握手已就緒）
+        type: boolean
+        default: false
+      ios17_sample_bootstrap:
+        description: 實驗：最多三次 bootstrap stack 取樣（僅 hosted、prelaunch、非 Live UI；不延長測試）
+        type: boolean
+        default: false
+      ios17_bounded_test_diagnostics:
+        description: 實驗：停用失敗後大型系統診斷，保留 bounded sampling（須同時啟用取樣；不改測試判定）
+        type: boolean
+        default: false
+      ios17_build_before_boot:
+        description: 實驗：先編譯再冷啟動；僅 hosted 非 Live UI 分片或既有 smoke／PDF 分組，須啟用 prelaunch 與 sampling
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ios
+
+concurrency:
+  group: release-ios-${{ github.ref }}-${{ inputs.mode }}-${{ inputs.ios17_version }}-${{ inputs.ios17_test_scope }}-${{ inputs.ios17_host_arch }}-${{ inputs.ios17_prelaunch }}-${{ inputs.ios17_sample_bootstrap }}-${{ inputs.ios17_bounded_test_diagnostics }}-${{ inputs.ios17_build_before_boot }}
+  cancel-in-progress: false
+
+jobs:
+  device-build:
+    if: inputs.mode == 'unsigned-device' || inputs.mode == 'signing-preflight' || inputs.mode == 'signed-export' || inputs.mode == 'signed-device-artifact' || inputs.mode == 'signed-testflight'
+    runs-on: macos-15-intel
+    timeout-minutes: 100
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: 測試發佈檢查程式
+        run: python3 -m unittest discover -s scripts -p 'test_release_*.py' -v
+      - name: 安裝固定版本 XcodeGen
+        if: inputs.mode != 'signing-preflight'
+        run: bash scripts/release_install_xcodegen.sh
+      - name: 快速驗證 Apple 簽章資料
+        if: inputs.mode == 'signing-preflight'
+        env:
+          IOS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.IOS_SIGNING_CERTIFICATE_BASE64 }}
+          IOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.IOS_SIGNING_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          EXPORT_METHOD: ${{ inputs.export_method }}
+        run: python3 scripts/release_ios.py preflight --signed --export-method "$EXPORT_METHOD"
+      - name: 檢查上傳 secrets 格式（不連線）
+        if: inputs.mode == 'signed-testflight'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if [ "$RUN_ATTEMPT" != 1 ]; then
+            echo 'This upload workflow cannot be rerun. Check Apple receipt status, then explicitly dispatch a new build if needed.'
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'scripts')
+          from release_testflight import credentials
+          credentials(os.environ)
+          print('Upload secret format checked; no network request made.')
+          PY
+      - name: 安裝並檢查 Apple Transporter
+        if: inputs.mode == 'signed-testflight'
+        run: bash scripts/release_install_transporter.sh
+      - name: 未簽章裝置編譯與最低版本檢查
+        if: inputs.mode == 'unsigned-device'
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: python3 scripts/release_ios.py build --build-number "$BUILD_NUMBER" --output build/release
+      - name: 既有憑證簽章、封存與本地匯出
+        if: inputs.mode == 'signed-export' || inputs.mode == 'signed-device-artifact' || inputs.mode == 'signed-testflight'
+        env:
+          IOS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.IOS_SIGNING_CERTIFICATE_BASE64 }}
+          IOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.IOS_SIGNING_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          EXPORT_METHOD: ${{ inputs.mode == 'signed-testflight' && 'app-store-connect' || inputs.mode == 'signed-device-artifact' && 'release-testing' || inputs.export_method }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: python3 scripts/release_ios.py build --signed --export-method "$EXPORT_METHOD" --build-number "$BUILD_NUMBER" --output build/release
+      - name: 加密已驗證的 Ad Hoc 測試包
+        if: inputs.mode == 'signed-device-artifact'
+        env:
+          IOS_DEVICE_ARTIFACT_PASSPHRASE: ${{ secrets.IOS_DEVICE_ARTIFACT_PASSPHRASE }}
+        run: python3 scripts/release_device_artifact.py --release build/release --output build/device-delivery
+      - name: 保留加密測試包供實機安裝
+        if: inputs.mode == 'signed-device-artifact'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: encrypted-device-ipa-${{ github.run_id }}
+          path: |
+            ios/build/device-delivery/WoowAssistant.ipa.enc
+            ios/build/device-delivery/manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+      - name: 上傳已驗證的簽章 IPA 至 App Store Connect
+        if: inputs.mode == 'signed-testflight'
+        timeout-minutes: 31
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+        run: python3 scripts/release_testflight.py --release build/release
+      - name: 保留不含簽章資料的驗證摘要
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-check-${{ inputs.mode }}-${{ github.run_id }}
+          path: |
+            ios/build/release/report.json
+            ios/build/release/upload-report.json
+            ios/build/release/device-build.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: 清除本地封存與匯出產物
+        if: always()
+        run: rm -rf -- build/release build/device-delivery
+
+  transporter-validation:
+    if: inputs.mode == 'transporter-check'
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: 安裝與啟動實際 Apple Transporter（不含帳號、不上傳）
+        run: bash scripts/release_install_transporter.sh
+
+  ios17-validation:
+    if: inputs.mode == 'ios17-hosted' || inputs.mode == 'ios17-self-hosted'
+    runs-on: ${{ inputs.mode == 'ios17-self-hosted' && fromJSON('["self-hosted", "macOS", "woow-ios17"]') || inputs.ios17_host_arch == 'x86_64' && fromJSON('["macos-15-intel"]') || fromJSON('["macos-15"]') }}
+    # The 17.0.1 first run reached the old 55-minute xcodebuild bound while
+    # still executing UI cases. Preserve download/boot/test deadlines and
+    # leave time to upload evidence after the 80-minute build+test bound.
+    timeout-minutes: 125
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Hosted runner 固定 Xcode 16.4
+        if: inputs.mode == 'ios17-hosted'
+        run: echo 'DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer' >> "$GITHUB_ENV"
+      - name: 檢查 UI 分片無遺漏並測試驗證程式
+        run: |
+          python3 scripts/release_ios17.py --check-ui-inventory
+          python3 -m unittest discover -s scripts -p 'test_release_*.py' -v
+          python3 scripts/generate_app_text.py
+          python3 -m unittest discover -s scripts -p 'test_app_text_resources.py' -v
+          python3 scripts/check_ui_test_language.py
+      - name: 安裝固定版本 XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: 執行指定 iOS 17 runtime 與測試範圍
+        env:
+          VALIDATION_MODE: ${{ inputs.mode }}
+          IOS17_VERSION: ${{ inputs.ios17_version }}
+          IOS17_TEST_SCOPE: ${{ inputs.ios17_test_scope }}
+          IOS17_HOST_ARCH: ${{ inputs.ios17_host_arch }}
+          IOS17_PRELAUNCH: ${{ inputs.ios17_prelaunch }}
+          IOS17_SAMPLE_BOOTSTRAP: ${{ inputs.ios17_sample_bootstrap }}
+          IOS17_BOUNDED_TEST_DIAGNOSTICS: ${{ inputs.ios17_bounded_test_diagnostics }}
+          IOS17_BUILD_BEFORE_BOOT: ${{ inputs.ios17_build_before_boot }}
+        run: |
+          args=()
+          if [ "$VALIDATION_MODE" = ios17-hosted ]; then
+            args+=(--download --expected-host-arch "$IOS17_HOST_ARCH")
+          fi
+          if [ "$IOS17_PRELAUNCH" = true ]; then
+            args+=(--prelaunch-test-daemon)
+          fi
+          if [ "$IOS17_SAMPLE_BOOTSTRAP" = true ]; then
+            if [ "$VALIDATION_MODE" != ios17-hosted ] || [ "$IOS17_PRELAUNCH" != true ]; then
+              echo 'Bootstrap sampling requires hosted fixture validation and explicit prelaunch.'
+              exit 1
+            fi
+            args+=(--sample-test-bootstrap)
+          fi
+          if [ "$IOS17_BOUNDED_TEST_DIAGNOSTICS" = true ]; then
+            if [ "$IOS17_SAMPLE_BOOTSTRAP" != true ]; then
+              echo 'Bounded failure diagnostics requires explicit hosted fixture sampling.'
+              exit 1
+            fi
+            args+=(--bounded-test-diagnostics)
+          fi
+          if [ "$IOS17_BUILD_BEFORE_BOOT" = true ]; then
+            if [ "$VALIDATION_MODE" != ios17-hosted ] || [[ ! "$IOS17_TEST_SCOPE" =~ ^(startup-smoke|pdf-assembly|pdf-assembly-copy|pdf-assembly-multi|pdf-pair-coordinated|documents-read|documents-output|documents-chat|ui-(startup|language|notifications|archive|workspace|browser|learning|memory|profile|memory-tools|skills|documents|pdf-capability|download-pdf|mcp))$ ]] || [ "$IOS17_SAMPLE_BOOTSTRAP" != true ] || [ "$IOS17_PRELAUNCH" != true ]; then
+              echo 'Build-before-boot requires sampled hosted non-Live UI shards or existing smoke/PDF document groups with explicit prelaunch.'
+              exit 1
+            fi
+            args+=(--build-before-boot)
+          fi
+          python3 scripts/release_ios17.py --os "$IOS17_VERSION" --test-scope "$IOS17_TEST_SCOPE" "${args[@]}" --output build/ios17
+      - name: 匯出 iOS 17 測試摘要
+        if: always()
+        run: |
+          if [ -d build/ios17/Tests.xcresult ]; then
+            xcrun xcresulttool get test-results summary --path build/ios17/Tests.xcresult > build/ios17/test-summary.json
+          fi
+      # A timed-out XCTest may leave an incomplete summary. Still attempt
+      # attachment export independently, preserving both step failures.
+      - name: 匯出 iOS 17 原生介面證據
+        if: always()
+        run: |
+          if [ -d build/ios17/Tests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/ios17/Tests.xcresult --output-path build/ios17/screenshots
+          fi
+      - name: 匯出 hosted XCTest runner 診斷
+        if: always() && inputs.mode == 'ios17-hosted'
+        timeout-minutes: 2
+        run: |
+          if [ -d build/ios17/Tests.xcresult ]; then
+            xcrun xcresulttool export diagnostics --path build/ios17/Tests.xcresult --output-path build/ios17/runner-diagnostics
+          fi
+      - name: 保留實際 runtime 與測試證據
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios17-${{ inputs.ios17_version }}-${{ github.run_id }}
+          path: |
+            ios/build/ios17/*.json
+            ios/build/ios17/*.log
+            ios/build/ios17/*.xcresult
+            ios/build/ios17/screenshots/
+            ios/build/ios17/boot-diagnostics/
+            ios/build/ios17/runner-diagnostics/
+            ios/build/ios17/bootstrap-samples/*.json
+            ios/build/ios17/bootstrap-samples/*.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - name: 清理此次驗證的建置資料
+        if: always()
+        run: rm -rf -- build/ios17

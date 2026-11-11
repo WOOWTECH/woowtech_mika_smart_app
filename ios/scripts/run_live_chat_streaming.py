@@ -110,7 +110,7 @@ def load_configuration(gh, build_env):
     local = read_dotenv(SECRET_FILE.read_text())
     values = []
     for name in PRIVATE[:2]:
-        process = subprocess.run([str(gh), 'api', 'repos/WOOWTECH/woow-assistant-ios/actions/variables/' + name],
+        process = subprocess.run([str(gh), 'api', 'repos/WOOWTECH/woowtech_mika_smart_app/actions/variables/' + name],
                                  env=build_env, capture_output=True, timeout=30)
         if process.returncode:
             raise Rejected('actions_variable_unavailable')

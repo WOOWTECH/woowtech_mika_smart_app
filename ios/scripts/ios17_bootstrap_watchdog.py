@@ -39,14 +39,18 @@ FIXTURE_CLASSES = frozenset({
 def validate_gate(environment, output, prelaunch, selectors, system=None):
     """Explicit hosted/fixture/path gate, before any process observation."""
     workspace = Path(environment.get("GITHUB_WORKSPACE", "/invalid"))
+    allowed = {
+        ("WOOWTECH/woow-assistant-ios", Path("/Users/runner/work/woow-assistant-ios/woow-assistant-ios")): "build/ios17",
+        ("WOOWTECH/woowtech_mika_smart_app", Path("/Users/runner/work/woowtech_mika_smart_app/woowtech_mika_smart_app")): "ios/build/ios17",
+    }
+    expected = allowed.get((environment.get("GITHUB_REPOSITORY"), workspace))
     if (not prelaunch or (system or platform.system()) != "Darwin"
             or environment.get("GITHUB_ACTIONS") != "true"
             or environment.get("RUNNER_ENVIRONMENT") != "github-hosted"
             or environment.get("VALIDATION_MODE") != "ios17-hosted"
             or environment.get("IOS17_SAMPLE_BOOTSTRAP") != "true"
-            or environment.get("GITHUB_REPOSITORY") != "WOOWTECH/woow-assistant-ios"
-            or workspace != Path("/Users/runner/work/woow-assistant-ios/woow-assistant-ios")
-            or Path(output).resolve() != workspace / "build/ios17"
+            or expected is None
+            or Path(output).resolve() != workspace / (expected or "invalid")
             or environment.get("HOME") != "/Users/runner"
             or environment.get("DEVELOPER_DIR") != "/Applications/Xcode_16.4.app/Contents/Developer"
             or not selectors):

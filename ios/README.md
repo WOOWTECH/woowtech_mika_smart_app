@@ -1,10 +1,10 @@
 # 渥屋助理 iOS
 
-獨立的 iOS 17+ 渥屋助理。此專案以 Mika／渥屋 Android 版作為**行為規格**，以 Swift 重建；不搬用 Android 的手機控制、無障礙、螢幕錄影或 ADB 能力。
+獨立的 iOS 17+ 渥屋助理，與 Android 專案共同維護於本倉庫的 `ios/`。介面與已選功能以渥屋 Android 版為基準，使用 Swift 與 iOS 原生能力實作；不包含 Android 的手機控制、無障礙、螢幕錄影或 ADB 能力。來源版本及尚待對齊的內容見[介面對照基準](docs/ANDROID_UI_REFERENCE.md)。
 
 ## 目前狀態
 
-這是開發中的版本，尚未全面通過。已加入一般聊天串流、加密對話保存、瀏覽器搜尋與頁內尋找，以及前兩批語言設定；各項介面與實際服務驗收仍分別追蹤。
+這是開發中的版本，尚未全面通過。`5084968` 已在 iPadOS 26.6.1 的 iPad 完成簽章、安裝與啟動，但使用者確認該版本的外觀與 Android 渥屋助理差異過大，新的介面對齊仍在進行。各項介面與實際服務驗收仍分別追蹤。
 
 最近核實的完整原生核心：`43ba9d0` 在 current／iOS 26.2 與 SE／iOS 18.5 各 **345/345**，可攜核心各 **217/217**，均零略過；見[current](docs/evidence/native-current-full-43ba9d0.json)與[SE](docs/evidence/native-se-full-43ba9d0.json)完整方法及附件證據。精確 iOS 17.0.1 的前一來源 `dfd6eff` 為 **345/345**，[證據](docs/evidence/native-exact17-dfd6eff.json)；新版重測仍待結果。各平台核心結果不能代替獨立介面分片或真實服務驗收。
 

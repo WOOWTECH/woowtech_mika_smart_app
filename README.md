@@ -27,7 +27,7 @@ English · [简体中文](docs/readme/README.zh-CN.md) · [繁體中文](docs/re
 
 ## Get things done with one sentence
 
-WOOWTECH fork: [渥屋助理中繼網站：架構、部署、資安與 App 整合](docs-woowtech/assistant-relay.md) · [Cloudflare Worker source](tools/woowtech-relay-worker/)
+WOOWTECH fork: [渥屋助理 iOS](ios/README.md) · [渥屋助理中繼網站：架構、部署、資安與 App 整合](docs-woowtech/assistant-relay.md) · [Cloudflare Worker source](tools/woowtech-relay-worker/)
 
 <table>
 <tr>

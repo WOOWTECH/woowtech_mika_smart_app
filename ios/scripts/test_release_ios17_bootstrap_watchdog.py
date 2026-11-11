@@ -46,6 +46,18 @@ def sample(pid=200):
 
 
 class GateTests(unittest.TestCase):
+    def test_monorepo_hosted_fixture_gate_uses_exact_repo_and_ios_path(self):
+        workspace = Path("/Users/runner/work/woowtech_mika_smart_app/woowtech_mika_smart_app")
+        env = dict(ENV, GITHUB_REPOSITORY="WOOWTECH/woowtech_mika_smart_app", GITHUB_WORKSPACE=str(workspace))
+        selectors = ios17.TEST_SCOPES["ui-documents"]
+        watchdog.validate_gate(env, workspace / "ios/build/ios17", True, selectors, "Darwin")
+        for changed, output in [
+            (dict(env, GITHUB_REPOSITORY="WOOWTECH/woow-assistant-ios"), workspace / "ios/build/ios17"),
+            (env, workspace / "build/ios17"),
+        ]:
+            with self.assertRaises(ValueError):
+                watchdog.validate_gate(changed, output, True, selectors, "Darwin")
+
     def test_only_explicit_hosted_fixture_gate(self):
         selectors = ios17.TEST_SCOPES["ui-documents"]
         watchdog.validate_gate(ENV, OUTPUT, True, selectors, "Darwin")

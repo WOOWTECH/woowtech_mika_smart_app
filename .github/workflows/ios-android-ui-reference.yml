@@ -1,0 +1,25 @@
+# Generated from ios/.github/workflows; run ios/scripts/sync_monorepo_workflows.py.
+name: Android UI reference check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ios
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Check Android source snapshot
+        run: |
+          python3 scripts/check_android_ui_reference.py --android-repo "$GITHUB_WORKSPACE"
