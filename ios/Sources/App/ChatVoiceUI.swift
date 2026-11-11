@@ -6,9 +6,9 @@ final class ChatVoiceViewModel: ObservableObject {
     @Published private(set) var state: VoiceInputState = .idle
     @Published private(set) var wasInterrupted = false
     private var controller: ChatVoiceController?
-    private let makeDriver: () -> any VoiceInputDriver
+    private let makeDriver: @MainActor () -> any VoiceInputDriver
 
-    init(makeDriver: @escaping () -> any VoiceInputDriver = { AppleMixedVoiceRuntime.makeDriver() }) {
+    init(makeDriver: @escaping @MainActor () -> any VoiceInputDriver = { AppleMixedVoiceRuntime.makeDriver() }) {
         self.makeDriver = makeDriver
     }
 
