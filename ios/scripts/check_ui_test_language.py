@@ -22,6 +22,8 @@ def audit(root):
                 exception='native-find-English' if ('"-AppleLanguages", nativeFindEnglish ? "(en)" : "(zh-Hant)"' in block and '"-AppleLocale", nativeFindEnglish ? "en_US" : "zh_TW"' in block) else None
             if path.name=='AppLanguageUITests.swift':
                 exception='explicit-language-acceptance' if '"-AppleLanguages", systemLanguages' in block and '"-AppleLocale", "zh_TW"' in block else None
+            if path.name=='ChatVoiceUITests.swift':
+                exception='voice-language-acceptance' if '"-AppleLanguages", systemLanguages' in block and '"-AppleLocale", "zh_TW"' in block else None
             valid=(expected or exception is not None) and block.count('"-AppleLanguages"')==1 and block.count('"-AppleLocale"')==1
             rows.append({'file':str(path.relative_to(root)),'line':text[:match.start()].count('\n')+1,'valid':valid,'exception':exception})
         for match in re.finditer(r'\bapp\.launchArguments\s*\+=([^\n]+)',text):

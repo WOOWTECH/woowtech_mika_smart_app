@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "Woow Assistant uses the microphone for your voice input or when you allow a website to use it.";
+"NSSpeechRecognitionUsageDescription" = "Woow Assistant uses on-device speech recognition to add your spoken words to the chat draft.";

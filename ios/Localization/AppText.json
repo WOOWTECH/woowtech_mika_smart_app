@@ -4171,7 +4171,11 @@
       "case": "drawerRecentTitle",
       "key": "drawer.recent.title",
       "parameters": [],
-      "translations": { "zh-Hant": "近期對話", "zh-Hans": "最近对话", "en": "Recent conversations" }
+      "translations": {
+        "zh-Hant": "近期對話",
+        "zh-Hans": "最近对话",
+        "en": "Recent conversations"
+      }
     },
     {
       "case": "drawerRecentBoundary",
@@ -4197,37 +4201,61 @@
       "case": "drawerRecentReload",
       "key": "drawer.recent.reload",
       "parameters": [],
-      "translations": { "zh-Hant": "重新讀取", "zh-Hans": "重新读取", "en": "Reload" }
+      "translations": {
+        "zh-Hant": "重新讀取",
+        "zh-Hans": "重新读取",
+        "en": "Reload"
+      }
     },
     {
       "case": "drawerRecentEmpty",
       "key": "drawer.recent.empty",
       "parameters": [],
-      "translations": { "zh-Hant": "尚無保存的對話", "zh-Hans": "尚无保存的对话", "en": "No saved conversations" }
+      "translations": {
+        "zh-Hant": "尚無保存的對話",
+        "zh-Hans": "尚无保存的对话",
+        "en": "No saved conversations"
+      }
     },
     {
       "case": "drawerRecentCurrent",
       "key": "drawer.recent.current",
       "parameters": [],
-      "translations": { "zh-Hant": "目前對話", "zh-Hans": "当前对话", "en": "Current" }
+      "translations": {
+        "zh-Hant": "目前對話",
+        "zh-Hans": "当前对话",
+        "en": "Current"
+      }
     },
     {
       "case": "drawerRecentPinned",
       "key": "drawer.recent.pinned",
       "parameters": [],
-      "translations": { "zh-Hant": "已釘選", "zh-Hans": "已置顶", "en": "Pinned" }
+      "translations": {
+        "zh-Hant": "已釘選",
+        "zh-Hans": "已置顶",
+        "en": "Pinned"
+      }
     },
     {
       "case": "drawerRecentPin",
       "key": "drawer.recent.pin",
       "parameters": [],
-      "translations": { "zh-Hant": "釘選", "zh-Hans": "置顶", "en": "Pin" }
+      "translations": {
+        "zh-Hant": "釘選",
+        "zh-Hans": "置顶",
+        "en": "Pin"
+      }
     },
     {
       "case": "drawerRecentUnpin",
       "key": "drawer.recent.unpin",
       "parameters": [],
-      "translations": { "zh-Hant": "取消釘選", "zh-Hans": "取消置顶", "en": "Unpin" }
+      "translations": {
+        "zh-Hant": "取消釘選",
+        "zh-Hans": "取消置顶",
+        "en": "Unpin"
+      }
     },
     {
       "case": "drawerRecentPinFailed",
@@ -4243,13 +4271,21 @@
       "case": "drawerRecentRename",
       "key": "drawer.recent.rename",
       "parameters": [],
-      "translations": { "zh-Hant": "重新命名", "zh-Hans": "重命名", "en": "Rename" }
+      "translations": {
+        "zh-Hant": "重新命名",
+        "zh-Hans": "重命名",
+        "en": "Rename"
+      }
     },
     {
       "case": "drawerRecentRenameTitle",
       "key": "drawer.recent.renameTitle",
       "parameters": [],
-      "translations": { "zh-Hant": "重新命名對話", "zh-Hans": "重命名对话", "en": "Rename conversation" }
+      "translations": {
+        "zh-Hant": "重新命名對話",
+        "zh-Hans": "重命名对话",
+        "en": "Rename conversation"
+      }
     },
     {
       "case": "drawerRecentRenameInvalid",
@@ -4274,37 +4310,65 @@
     {
       "case": "drawerRecentTurns",
       "key": "drawer.recent.turns",
-      "parameters": [{ "name": "count", "type": "Int" }],
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
       "plural": "count",
       "translations": {
-        "zh-Hant": { "other": "%lld 輪" },
-        "zh-Hans": { "other": "%lld 轮" },
-        "en": { "one": "%lld exchange", "other": "%lld exchanges" }
+        "zh-Hant": {
+          "other": "%lld 輪"
+        },
+        "zh-Hans": {
+          "other": "%lld 轮"
+        },
+        "en": {
+          "one": "%lld exchange",
+          "other": "%lld exchanges"
+        }
       }
     },
     {
       "case": "drawerRecentActiveTask",
       "key": "drawer.recent.activeTask",
       "parameters": [],
-      "translations": { "zh-Hant": "任務進行中，請先返回處理。", "zh-Hans": "任务进行中，请先返回处理。", "en": "A task is running. Return to the chat first." }
+      "translations": {
+        "zh-Hant": "任務進行中，請先返回處理。",
+        "zh-Hans": "任务进行中，请先返回处理。",
+        "en": "A task is running. Return to the chat first."
+      }
     },
     {
       "case": "drawerRecentPendingApproval",
       "key": "drawer.recent.pendingApproval",
       "parameters": [],
-      "translations": { "zh-Hant": "有待核准的操作，請先返回處理。", "zh-Hans": "有待批准的操作，请先返回处理。", "en": "An action awaits your review. Return to the chat first." }
+      "translations": {
+        "zh-Hant": "有待核准的操作，請先返回處理。",
+        "zh-Hans": "有待批准的操作，请先返回处理。",
+        "en": "An action awaits your review. Return to the chat first."
+      }
     },
     {
       "case": "drawerRecentUnsentDraft",
       "key": "drawer.recent.unsentDraft",
       "parameters": [],
-      "translations": { "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。", "zh-Hans": "草稿或 PDF 附件尚未发送，请先返回处理。", "en": "An unsent draft or PDF attachment is present. Return to the chat first." }
+      "translations": {
+        "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。",
+        "zh-Hans": "草稿或 PDF 附件尚未发送，请先返回处理。",
+        "en": "An unsent draft or PDF attachment is present. Return to the chat first."
+      }
     },
     {
       "case": "drawerRecentUnsavedReply",
       "key": "drawer.recent.unsavedReply",
       "parameters": [],
-      "translations": { "zh-Hant": "目前答覆尚未保存，請先返回處理。", "zh-Hans": "当前回复尚未保存，请先返回处理。", "en": "The current reply has not been saved. Return to the chat first." }
+      "translations": {
+        "zh-Hant": "目前答覆尚未保存，請先返回處理。",
+        "zh-Hans": "当前回复尚未保存，请先返回处理。",
+        "en": "The current reply has not been saved. Return to the chat first."
+      }
     },
     {
       "case": "drawerRecentDifferentDestination",
@@ -4320,7 +4384,11 @@
       "case": "newConversationConfirmTitle",
       "key": "newConversation.confirmTitle",
       "parameters": [],
-      "translations": { "zh-Hant": "開啟新對話前確認", "zh-Hans": "开启新对话前确认", "en": "Before starting a new conversation" }
+      "translations": {
+        "zh-Hant": "開啟新對話前確認",
+        "zh-Hans": "开启新对话前确认",
+        "en": "Before starting a new conversation"
+      }
     },
     {
       "case": "newConversationPDFWarning",
@@ -4366,13 +4434,21 @@
       "case": "newConversationDiscard",
       "key": "newConversation.discard",
       "parameters": [],
-      "translations": { "zh-Hant": "捨棄並開啟新對話", "zh-Hans": "舍弃并开启新对话", "en": "Discard and start new" }
+      "translations": {
+        "zh-Hant": "捨棄並開啟新對話",
+        "zh-Hans": "舍弃并开启新对话",
+        "en": "Discard and start new"
+      }
     },
     {
       "case": "newConversationKeep",
       "key": "newConversation.keep",
       "parameters": [],
-      "translations": { "zh-Hant": "返回目前對話", "zh-Hans": "返回当前对话", "en": "Keep current conversation" }
+      "translations": {
+        "zh-Hant": "返回目前對話",
+        "zh-Hans": "返回当前对话",
+        "en": "Keep current conversation"
+      }
     },
     {
       "case": "chatStatusProfileReview",
@@ -4646,6 +4722,166 @@
         "zh-Hant": "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。",
         "zh-Hans": "无法为本次提取结果创建搜索快照，请确认已提取可读取的文字。",
         "en": "Could not create a search snapshot. Make sure readable text was extracted."
+      }
+    },
+    {
+      "case": "voiceLabel",
+      "key": "chat.voiceLabel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入",
+        "zh-Hans": "语音输入",
+        "en": "Voice input"
+      }
+    },
+    {
+      "case": "voiceHint",
+      "key": "chat.voiceHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。",
+        "zh-Hans": "按住说话，上滑取消，放开加入草稿。VoiceOver 可激活开始及结束，或选择取消语音输入操作。",
+        "en": "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop, or choose the cancel voice input action."
+      }
+    },
+    {
+      "case": "voiceListening",
+      "key": "chat.voiceListening",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在聆聽，放開加入草稿；上滑取消",
+        "zh-Hans": "正在聆听，放开加入草稿；上滑取消",
+        "en": "Listening. Release to add to draft; slide up to cancel."
+      }
+    },
+    {
+      "case": "voiceCancelArmed",
+      "key": "chat.voiceCancelArmed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "放開取消語音輸入",
+        "zh-Hans": "放开取消语音输入",
+        "en": "Release to cancel voice input."
+      }
+    },
+    {
+      "case": "voiceFinishing",
+      "key": "chat.voiceFinishing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在辨識語音…",
+        "zh-Hans": "正在识别语音…",
+        "en": "Transcribing speech…"
+      }
+    },
+    {
+      "case": "voiceNoMatch",
+      "key": "chat.voiceNoMatch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未聽清楚，請按住說話再試一次。",
+        "zh-Hans": "未听清楚，请按住说话再试一次。",
+        "en": "No speech recognized. Hold and try again."
+      }
+    },
+    {
+      "case": "voiceMicrophoneDenied",
+      "key": "chat.voiceMicrophoneDenied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "麥克風權限已關閉，請至設定開啟後再試。",
+        "zh-Hans": "麦克风权限已关闭，请到设置开启后再试。",
+        "en": "Microphone access is off. Enable it in Settings and try again."
+      }
+    },
+    {
+      "case": "voiceSpeechDenied",
+      "key": "chat.voiceSpeechDenied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音辨識權限已關閉，請至設定開啟後再試。",
+        "zh-Hans": "语音识别权限已关闭，请到设置开启后再试。",
+        "en": "Speech recognition access is off. Enable it in Settings and try again."
+      }
+    },
+    {
+      "case": "voiceSpeechRestricted",
+      "key": "chat.voiceSpeechRestricted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此裝置的語音辨識受到限制，請檢查裝置限制。",
+        "zh-Hans": "此设备的语音识别受到限制，请检查设备限制。",
+        "en": "Speech recognition is restricted on this device. Check device restrictions."
+      }
+    },
+    {
+      "case": "voiceUnavailable",
+      "key": "chat.voiceUnavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。",
+        "zh-Hans": "目前无法使用设备上语音识别，请使用键盘；服务商语音转文字尚未支持。",
+        "en": "On-device speech recognition is unavailable. Use the keyboard; provider transcription is not yet supported."
+      }
+    },
+    {
+      "case": "voiceAudioError",
+      "key": "chat.voiceAudioError",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。",
+        "zh-Hans": "音频无法使用或已中断，请检查麦克风及音频设备后再试。",
+        "en": "Audio is unavailable or was interrupted. Check your microphone and audio route, then try again."
+      }
+    },
+    {
+      "case": "voiceRecognitionError",
+      "key": "chat.voiceRecognitionError",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "辨識失敗，請再試一次。",
+        "zh-Hans": "识别失败，请再试一次。",
+        "en": "Recognition failed. Please try again."
+      }
+    },
+    {
+      "case": "voiceTimeout",
+      "key": "chat.voiceTimeout",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音辨識逾時，請再試一次。",
+        "zh-Hans": "语音识别超时，请再试一次。",
+        "en": "Speech recognition timed out. Please try again."
+      }
+    },
+    {
+      "case": "voiceSettings",
+      "key": "chat.voiceSettings",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "前往設定",
+        "zh-Hans": "前往设置",
+        "en": "Open Settings"
+      }
+    },
+    {
+      "case": "voiceInterrupted",
+      "key": "chat.voiceInterrupted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入已中斷；如果剛完成授權，請再次按住說話。",
+        "zh-Hans": "语音输入已中断；如果刚完成授权，请再次按住说话。",
+        "en": "Voice input was interrupted. If you just granted access, hold to speak again."
+      }
+    },
+    {
+      "case": "voiceAccessibilityCancel",
+      "key": "chat.voiceAccessibilityCancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消語音輸入",
+        "zh-Hans": "取消语音输入",
+        "en": "Cancel voice input"
       }
     }
   ]

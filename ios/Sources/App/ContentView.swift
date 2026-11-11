@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AssistantSkills
 import AssistantPersistence
 
@@ -443,12 +444,19 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     }
 }
 
+@MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    @StateObject private var voice = ChatVoiceViewModel()
+    #if DEBUG
+    @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
+    #endif
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
     @State private var showsPDF = false
@@ -457,6 +465,22 @@ private struct ChatView: View {
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+
+    private var voiceMessage: AppText? {
+        switch voice.state {
+        case .idle: return voice.wasInterrupted ? .voiceInterrupted : nil
+        case .listening(_, let armed, _): return armed ? .voiceCancelArmed : .voiceListening
+        case .finishing: return .voiceFinishing
+        case .noMatch: return .voiceNoMatch
+        case .failed(.microphoneDenied): return .voiceMicrophoneDenied
+        case .failed(.speechDenied): return .voiceSpeechDenied
+        case .failed(.speechRestricted): return .voiceSpeechRestricted
+        case .failed(.unavailable): return .voiceUnavailable
+        case .failed(.audio): return .voiceAudioError
+        case .failed(.recognition): return .voiceRecognitionError
+        case .failed(.timeout): return .voiceTimeout
+        }
+    }
 
     private func cancelScrollSettle() {
         scrollSettleTask?.cancel()
@@ -669,9 +693,49 @@ private struct ChatView: View {
                         .accessibilityIdentifier("chat.archiveRetry")
                 }
             }
+            #if DEBUG
+            if VoiceUITestFixture.selected() != nil {
+                VStack {
+                    Text(verbatim: voiceFixture.observation)
+                        .accessibilityIdentifier("voice.fixture.observation")
+                    HStack {
+                        Button("Emit") { voiceFixture.emitLatest() }
+                            .accessibilityIdentifier("voice.fixture.emit")
+                        Button("AX") { _ = voiceFixture.activateAccessibility?() }
+                            .accessibilityIdentifier("voice.fixture.accessibility")
+                        Button("Cancel AX") { voiceFixture.performAccessibilityCancel() }
+                            .accessibilityIdentifier("voice.fixture.cancelAccessibility")
+                    }
+                    if !voiceFixture.accessibilityAction.isEmpty {
+                        Text(verbatim: voiceFixture.accessibilityAction)
+                            .accessibilityIdentifier("voice.fixture.actionName")
+                    }
+                }.font(.caption2)
+            }
+            #endif
+            if let message = voiceMessage {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(verbatim: localizer.text(message))
+                        if case .listening(let partial, _, _) = voice.state, !partial.isEmpty {
+                            Text(verbatim: partial).lineLimit(2)
+                        }
+                    }
+                    .font(.caption)
+                    .accessibilityIdentifier("chat.voice.status")
+                    Spacer(minLength: 0)
+                    if voice.state == .failed(.microphoneDenied) || voice.state == .failed(.speechDenied) {
+                        Button(localizer.text(.voiceSettings)) {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                        }
+                        .font(.caption)
+                        .accessibilityIdentifier("chat.voice.settings")
+                    }
+                }
+            }
             HStack(alignment: .bottom, spacing: 4) {
                 Button {
-                    isEditingDraft = false; showsPDF = true
+                    voice.cancel(); isEditingDraft = false; showsPDF = true
                 } label: {
                     Image(systemName: "plus").frame(width: 40, height: 40)
                 }
@@ -690,6 +754,13 @@ private struct ChatView: View {
                     .disabled(session.isSubmitting)
                     .accessibilityLabel(localizer.text(.shellMessageDraft))
                     .accessibilityIdentifier("chat.draft")
+                ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
+                                      cancelLabel: localizer.text(.voiceAccessibilityCancel),
+                                      active: voice.isActive, enabled: !session.isSubmitting,
+                                      begin: { time in isEditingDraft = false; voice.begin(startedAt: time) },
+                                      drag: { voice.drag($0) }, release: { voice.release() },
+                                      cancel: { voice.cancel() })
+                    .frame(width: 40, height: 40)
                 if session.isSubmitting {
                     Button { session.cancel() } label: {
                         Image(systemName: "stop.fill").frame(width: 40, height: 40)
@@ -698,6 +769,7 @@ private struct ChatView: View {
                     .accessibilityIdentifier("chat.cancel")
                 }
                 Button {
+                    voice.cancel()
                     isEditingDraft = false
                     session.send(mcp: session.usesMCP ? mcp : nil)
                     if session.isSubmitting {
@@ -754,7 +826,19 @@ private struct ChatView: View {
             }
         }
         .onChange(of: showsDrawer) { _, visible in
-            if visible { isEditingDraft = false }
+            if visible { voice.cancel(); isEditingDraft = false }
+        }
+        .onAppear { voice.attach(session: session) }
+        .onDisappear { voice.cancel() }
+        .onChange(of: session.conversationID) { _, _ in voice.cancel() }
+        .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { voice.cancel(interrupted: true) } }
+        .task(id: voice.isActive) {
+            while voice.isActive && !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled else { return }
+                voice.tick()
+            }
         }
     }
 }
