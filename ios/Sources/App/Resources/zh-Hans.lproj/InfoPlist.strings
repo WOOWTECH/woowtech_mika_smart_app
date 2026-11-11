@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "渥屋助理会在你使用语音输入或允许网站使用麦克风时使用麦克风。";
+"NSSpeechRecognitionUsageDescription" = "渥屋助理使用设备上的语音识别，将你主动说出的内容加入聊天草稿。";

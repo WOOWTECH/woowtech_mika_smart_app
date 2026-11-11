@@ -4488,6 +4488,156 @@
         "zh-Hans": "关闭",
         "en": "Close"
       }
+    },
+    {
+      "case": "voiceLabel",
+      "key": "chat.voiceLabel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入",
+        "zh-Hans": "语音输入",
+        "en": "Voice input"
+      }
+    },
+    {
+      "case": "voiceHint",
+      "key": "chat.voiceHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。",
+        "zh-Hans": "按住说话，上滑取消，放开加入草稿。VoiceOver 可点两次开始及结束。",
+        "en": "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop."
+      }
+    },
+    {
+      "case": "voiceListening",
+      "key": "chat.voiceListening",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在聆聽，放開加入草稿；上滑取消",
+        "zh-Hans": "正在聆听，放开加入草稿；上滑取消",
+        "en": "Listening. Release to add to draft; slide up to cancel."
+      }
+    },
+    {
+      "case": "voiceCancelArmed",
+      "key": "chat.voiceCancelArmed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "放開取消語音輸入",
+        "zh-Hans": "放开取消语音输入",
+        "en": "Release to cancel voice input."
+      }
+    },
+    {
+      "case": "voiceFinishing",
+      "key": "chat.voiceFinishing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在辨識語音…",
+        "zh-Hans": "正在识别语音…",
+        "en": "Transcribing speech…"
+      }
+    },
+    {
+      "case": "voiceNoMatch",
+      "key": "chat.voiceNoMatch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未聽清楚，請按住說話再試一次。",
+        "zh-Hans": "未听清楚，请按住说话再试一次。",
+        "en": "No speech recognized. Hold and try again."
+      }
+    },
+    {
+      "case": "voiceMicrophoneDenied",
+      "key": "chat.voiceMicrophoneDenied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "麥克風權限已關閉，請至設定開啟後再試。",
+        "zh-Hans": "麦克风权限已关闭，请到设置开启后再试。",
+        "en": "Microphone access is off. Enable it in Settings and try again."
+      }
+    },
+    {
+      "case": "voiceSpeechDenied",
+      "key": "chat.voiceSpeechDenied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音辨識權限已關閉，請至設定開啟後再試。",
+        "zh-Hans": "语音识别权限已关闭，请到设置开启后再试。",
+        "en": "Speech recognition access is off. Enable it in Settings and try again."
+      }
+    },
+    {
+      "case": "voiceSpeechRestricted",
+      "key": "chat.voiceSpeechRestricted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此裝置的語音辨識受到限制，請檢查裝置限制。",
+        "zh-Hans": "此设备的语音识别受到限制，请检查设备限制。",
+        "en": "Speech recognition is restricted on this device. Check device restrictions."
+      }
+    },
+    {
+      "case": "voiceUnavailable",
+      "key": "chat.voiceUnavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。",
+        "zh-Hans": "目前无法使用设备上语音识别，请使用键盘；服务商语音转文字尚未支持。",
+        "en": "On-device speech recognition is unavailable. Use the keyboard; provider transcription is not yet supported."
+      }
+    },
+    {
+      "case": "voiceAudioError",
+      "key": "chat.voiceAudioError",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。",
+        "zh-Hans": "音频无法使用或已中断，请检查麦克风及音频设备后再试。",
+        "en": "Audio is unavailable or was interrupted. Check your microphone and audio route, then try again."
+      }
+    },
+    {
+      "case": "voiceRecognitionError",
+      "key": "chat.voiceRecognitionError",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "辨識失敗，請再試一次。",
+        "zh-Hans": "识别失败，请再试一次。",
+        "en": "Recognition failed. Please try again."
+      }
+    },
+    {
+      "case": "voiceTimeout",
+      "key": "chat.voiceTimeout",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音辨識逾時，請再試一次。",
+        "zh-Hans": "语音识别超时，请再试一次。",
+        "en": "Speech recognition timed out. Please try again."
+      }
+    },
+    {
+      "case": "voiceSettings",
+      "key": "chat.voiceSettings",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "前往設定",
+        "zh-Hans": "前往设置",
+        "en": "Open Settings"
+      }
+    },
+    {
+      "case": "voiceInterrupted",
+      "key": "chat.voiceInterrupted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入已中斷；如果剛完成授權，請再次按住說話。",
+        "zh-Hans": "语音输入已中断；如果刚完成授权，请再次按住说话。",
+        "en": "Voice input was interrupted. If you just granted access, hold to speak again."
+      }
     }
   ]
 }

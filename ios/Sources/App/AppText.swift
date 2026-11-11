@@ -444,6 +444,21 @@ enum AppText: Equatable {
     case archiveSavedCount(count: Int)
     case archiveEmpty
     case archiveClose
+    case voiceLabel
+    case voiceHint
+    case voiceListening
+    case voiceCancelArmed
+    case voiceFinishing
+    case voiceNoMatch
+    case voiceMicrophoneDenied
+    case voiceSpeechDenied
+    case voiceSpeechRestricted
+    case voiceUnavailable
+    case voiceAudioError
+    case voiceRecognitionError
+    case voiceTimeout
+    case voiceSettings
+    case voiceInterrupted
 
     var key: String {
         switch self {
@@ -888,6 +903,21 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "archive.savedCount"
         case .archiveEmpty: return "archive.empty"
         case .archiveClose: return "archive.close"
+        case .voiceLabel: return "chat.voiceLabel"
+        case .voiceHint: return "chat.voiceHint"
+        case .voiceListening: return "chat.voiceListening"
+        case .voiceCancelArmed: return "chat.voiceCancelArmed"
+        case .voiceFinishing: return "chat.voiceFinishing"
+        case .voiceNoMatch: return "chat.voiceNoMatch"
+        case .voiceMicrophoneDenied: return "chat.voiceMicrophoneDenied"
+        case .voiceSpeechDenied: return "chat.voiceSpeechDenied"
+        case .voiceSpeechRestricted: return "chat.voiceSpeechRestricted"
+        case .voiceUnavailable: return "chat.voiceUnavailable"
+        case .voiceAudioError: return "chat.voiceAudioError"
+        case .voiceRecognitionError: return "chat.voiceRecognitionError"
+        case .voiceTimeout: return "chat.voiceTimeout"
+        case .voiceSettings: return "chat.voiceSettings"
+        case .voiceInterrupted: return "chat.voiceInterrupted"
         }
     }
 
@@ -1361,6 +1391,21 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "已保存的對話（%1$lld）"
         case .archiveEmpty: return "尚無保存的對話"
         case .archiveClose: return "關閉"
+        case .voiceLabel: return "語音輸入"
+        case .voiceHint: return "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。"
+        case .voiceListening: return "正在聆聽，放開加入草稿；上滑取消"
+        case .voiceCancelArmed: return "放開取消語音輸入"
+        case .voiceFinishing: return "正在辨識語音…"
+        case .voiceNoMatch: return "未聽清楚，請按住說話再試一次。"
+        case .voiceMicrophoneDenied: return "麥克風權限已關閉，請至設定開啟後再試。"
+        case .voiceSpeechDenied: return "語音辨識權限已關閉，請至設定開啟後再試。"
+        case .voiceSpeechRestricted: return "此裝置的語音辨識受到限制，請檢查裝置限制。"
+        case .voiceUnavailable: return "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。"
+        case .voiceAudioError: return "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。"
+        case .voiceRecognitionError: return "辨識失敗，請再試一次。"
+        case .voiceTimeout: return "語音辨識逾時，請再試一次。"
+        case .voiceSettings: return "前往設定"
+        case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         }
     }
 }

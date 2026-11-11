@@ -10,6 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class VoiceInputStandaloneTests(unittest.TestCase):
+    def test_chat_composer_with_fake_driver(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts/check_chat_voice.sh")],
+                                cwd=ROOT, text=True, capture_output=True, timeout=90)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS ChatVoice composer semantics", result.stdout)
+
+    def test_localized_permission_prompts_exist(self):
+        for language in ("en", "zh-Hans", "zh-Hant"):
+            path = ROOT / "Sources/App/Resources" / (language + ".lproj") / "InfoPlist.strings"
+            source = path.read_text()
+            with self.subTest(language=language):
+                self.assertIn('"NSMicrophoneUsageDescription"', source)
+                self.assertIn('"NSSpeechRecognitionUsageDescription"', source)
+
     def test_pure_state_machine_with_fake_driver(self):
         result = subprocess.run(["bash", str(ROOT / "scripts/check_voice_input.sh")],
                                 cwd=ROOT, text=True, capture_output=True, timeout=90)
