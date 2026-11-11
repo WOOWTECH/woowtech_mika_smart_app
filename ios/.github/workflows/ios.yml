@@ -312,3 +312,39 @@ jobs:
             build/diagnostics/
           if-no-files-found: warn
           retention-days: 14
+
+  unsigned-device-for-local-signing:
+    # A PR build contains no signing credentials. The resulting App is not
+    # installable until the device owner signs it with a compatible profile.
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15-intel
+    timeout-minutes: 50
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: Build and verify unsigned iPhoneOS App
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: python3 scripts/release_ios.py build --build-number "$BUILD_NUMBER" --output build/unsigned-device
+      - name: Package unsigned App and checksum
+        run: |
+          mkdir -p build/unsigned-delivery
+          ditto -c -k --keepParent build/unsigned-device/DerivedData/Build/Products/Release-iphoneos/WoowAssistant.app build/unsigned-delivery/WoowAssistant-unsigned.zip
+          shasum -a 256 build/unsigned-delivery/WoowAssistant-unsigned.zip > build/unsigned-delivery/SHA256SUMS.txt
+          cp build/unsigned-device/report.json build/unsigned-delivery/report.json
+      - name: Preserve unsigned device build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-device-app-${{ github.run_id }}
+          path: |
+            build/unsigned-delivery/WoowAssistant-unsigned.zip
+            build/unsigned-delivery/SHA256SUMS.txt
+            build/unsigned-delivery/report.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
