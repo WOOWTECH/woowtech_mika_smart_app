@@ -118,12 +118,14 @@ final class WoowAssistantUITests: XCTestCase {
         save(in: app)
         XCTAssertTrue(app.staticTexts["settings.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["settings.error"].label.contains("重新輸入"))
+        returnFromModelSettings(in: app)
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("settings", in: relaunched)
         openModelSettings(in: relaunched)
         XCTAssertEqual(relaunched.textFields["settings.baseURL"].value as? String, fixtureURL)
         XCTAssertTrue(relaunched.staticTexts["settings.keyStatus"].label.contains("已儲存金鑰"))
+        returnFromModelSettings(in: relaunched)
     }
 
     func testCancellationPreservesDraftAndAllowsAnotherAttempt() {
@@ -166,6 +168,7 @@ final class WoowAssistantUITests: XCTestCase {
         save(in: app)
         XCTAssertTrue(app.staticTexts["settings.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["settings.error"].label.contains("Keychain"))
+        returnFromModelSettings(in: app)
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         XCTAssertEqual(relaunched.staticTexts["chat.status"].label, "尚未設定模型")
