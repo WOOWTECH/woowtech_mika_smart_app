@@ -1,11 +1,10 @@
 # Chat attachment model contract (model layer only)
 
-This stage supplies a transient model input, not file selection, a chat UI,
-persistence, a workspace or an end-to-end attachment flow. No app code creates
-these attachments yet. A future host must obtain bytes from an explicit user
-selection, validate/decode images before preview or sending, disclose the exact
-model destination and transmitted data, and handle cancellation, cleanup,
-errors and any later re-selection. It must not treat the data as authorization.
+This contract supplies a transient model input. The standalone importer and
+`ChatSession` now use it, while the production composer remains unwired. See
+`chat-attachment-session-handoff.md` for the exact supported path, consent,
+tool boundary, archive behavior and native validation still needed. Attachment
+data is never authorization for a tool or memory operation.
 
 - `ModelAttachment.image` accepts JPEG or PNG, matching the declared MIME and
   signature, from 1 byte up to 5 MiB. The marker check is not a full image

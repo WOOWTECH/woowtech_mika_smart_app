@@ -47,8 +47,9 @@ draft and show errors on failure. Do not automatically replay a consumed
 attachment in another request or conversation. Discard the presenter on draft
 abandonment, conversation switch, logout/background or other host policy event.
 Coordinate this with new-conversation protection and the existing PDF flow.
-The host must also define explicit retry and disclosure behavior before wiring
-this into `ChatSession` or the composer.
+`ChatSession` now implements the limited one-shot host boundary and explicit
+retry/disclosure behavior described in `chat-attachment-session-handoff.md`.
+The production composer and lifecycle still need to be wired and validated.
 
 Run `python3 ios/scripts/check_chat_attachment_presenter.py`. The script compiles
 the actual presenter, scope adapter and standalone SwiftUI view, then runs
