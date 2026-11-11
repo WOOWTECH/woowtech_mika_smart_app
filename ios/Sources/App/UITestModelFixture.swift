@@ -68,7 +68,7 @@ struct UITestChatStreamingConfiguration {
     }
 }
 
-struct UITestStreamingChatModelClient: StreamingChatModelClient {
+struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
     private let completeClient = UITestChatModelClient()
     init(configuration: UITestChatStreamingConfiguration) {}
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -81,6 +81,15 @@ struct UITestStreamingChatModelClient: StreamingChatModelClient {
                 do {
                     try Task.checkCancellation()
                     let prompt = messages.last?.content ?? ""
+                    if messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true,
+                       prompt == "[fixture:structured-stream-complete]" {
+                        continuation.yield("{\"action\":\"finish\",\"answer\":\"結構化串流：第一段")
+                        try await Task.sleep(nanoseconds: 12_000_000_000)
+                        try Task.checkCancellation()
+                        continuation.yield("；完整回覆。\"}")
+                        continuation.finish()
+                        return
+                    }
                     guard messages.allSatisfy({ $0.role == "user" || $0.role == "assistant" }),
                           ["[fixture:stream-complete]", "[fixture:stream-cancel]", "[fixture:stream-markdown]"].contains(prompt) else {
                         throw HTTPChatModelError.invalidConfiguration
