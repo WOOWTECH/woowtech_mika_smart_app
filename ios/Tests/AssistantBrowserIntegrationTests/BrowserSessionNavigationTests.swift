@@ -9,6 +9,16 @@ import AssistantSkills
 /// Real, locally rendered WebKit documents. Failure/late delegate callbacks
 /// below are explicitly synthetic; no external request or model is involved.
 final class BrowserSessionNavigationTests: XCTestCase {
+    @MainActor func testExternalOpenTracksTheActualWebKitDocumentAndRevokesOnTermination() async throws {
+        let host = try Host(); defer { host.close() }
+        XCTAssertNil(host.browser.externalOpenURL)
+        _ = try await host.load(marker: "EXTERNAL HANDOFF")
+        XCTAssertEqual(host.browser.externalOpenURL, host.url)
+        host.browser.webViewWebContentProcessDidTerminate(host.browser.webView)
+        XCTAssertNil(host.browser.externalOpenURL,
+                     "A terminated document must not leave a stale external handoff")
+    }
+
     @MainActor func testTranscriptReadsBeyondResearchExcerptWithoutCapturingFormFields() async throws {
         let host = try Host(); defer { host.close() }
         _ = try await host.load(marker: "TRANSCRIPT START")

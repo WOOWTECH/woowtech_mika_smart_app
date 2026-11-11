@@ -127,6 +127,41 @@ final class BrowserLibraryTests: XCTestCase {
         try state.validate()
     }
 
+    func testExternalOpenRequiresTheCompletedVisiblePublicPage() {
+        let page = URL(string: "https://example.com/article?q=one#section")!
+        func destination(_ loaded: URL? = page, displayed: URL? = page,
+                         loading: Bool = false, pending: Bool = false,
+                         automated: Bool = false, busy: Bool = false,
+                         available: Bool = true) -> URL? {
+            BrowserExternalOpenPolicy.destination(
+                loadedURL: loaded, displayedURL: displayed, isLoading: loading,
+                navigationPending: pending, isAutomated: automated,
+                isBusy: busy, isPageAvailable: available
+            )
+        }
+        XCTAssertEqual(destination(), URL(string: "https://example.com/article?q=one"),
+                       "The library secret filter also strips fragments from the handoff")
+        XCTAssertNil(destination(nil))
+        XCTAssertNil(destination(displayed: nil))
+        XCTAssertNil(destination(displayed: URL(string: "https://example.com/other")!))
+        XCTAssertNil(destination(loading: true))
+        XCTAssertNil(destination(pending: true))
+        XCTAssertNil(destination(automated: true))
+        XCTAssertNil(destination(busy: true))
+        XCTAssertNil(destination(available: false))
+        for address in [
+            "https://example.com/?code=private",
+            "https://example.com/?access_token=private",
+            "https://example.com/oauth/callback",
+            "https://user:private@example.com/",
+            "http://example.com/",
+            "https://127.0.0.1/"
+        ] {
+            let url = URL(string: address)!
+            XCTAssertNil(destination(url, displayed: url), address)
+        }
+    }
+
     func testCorruptLibraryIsRejectedInsteadOfReset() throws {
         let state = BrowserLibraryState()
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])

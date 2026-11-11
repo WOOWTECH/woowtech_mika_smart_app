@@ -350,6 +350,7 @@
 "browser.chrome.more" = "更多";
 "browser.chrome.website" = "網頁";
 "browser.chrome.copy.link" = "複製連結";
+"browser.chrome.open.outside" = "在其他 App 開啟";
 "browser.chrome.remove.bookmark" = "移除書籤";
 "browser.chrome.add.bookmark" = "加入書籤";
 "browser.chrome.switch.mobile" = "切換為手機版";

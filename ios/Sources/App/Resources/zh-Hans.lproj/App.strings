@@ -350,6 +350,7 @@
 "browser.chrome.more" = "更多";
 "browser.chrome.website" = "网页";
 "browser.chrome.copy.link" = "复制链接";
+"browser.chrome.open.outside" = "在其他 App 打开";
 "browser.chrome.remove.bookmark" = "移除书签";
 "browser.chrome.add.bookmark" = "添加书签";
 "browser.chrome.switch.mobile" = "切换为手机版";

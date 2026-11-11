@@ -6,6 +6,7 @@ import UIKit
 @MainActor
 struct BrowserView: View {
     @Environment(\.appLocalizer) private var localizer
+    @Environment(\.openURL) private var openURL
     @ObservedObject var browser: BrowserSession
     @ObservedObject var chat: ChatSession
     @ObservedObject var workspace: BrowserWorkspace
@@ -343,6 +344,16 @@ struct BrowserView: View {
                     if let url = safeShareURL {
                         Button(localizer.text(.browserChromeCopyLink)) { UIPasteboard.general.url = url; showMore = false }
                             .accessibilityIdentifier("browser.more.copy")
+                        Button(localizer.text(.browserChromeOpenOutside)) {
+                            guard scenePhase == .active, workspace.available,
+                                  !workspace.isClearingWebsiteData,
+                                  let destination = browser.externalOpenURL else { return }
+                            showMore = false
+                            openURL(destination)
+                        }
+                        .disabled(scenePhase != .active || !workspace.available
+                                  || workspace.isClearingWebsiteData || browser.externalOpenURL == nil)
+                        .accessibilityIdentifier("browser.more.openOutside")
                         if let saved = workspace.library.bookmarks.first(where: { $0.url == url }) {
                             Button(localizer.text(.browserChromeRemoveBookmark), role: .destructive) {
                                 workspace.removeBookmark(saved.id); showMore = false

@@ -20,10 +20,11 @@ import XCTest
             .browserChromeMobile, .browserChromeMultiResearch, .browserChromeTranscript,
             .browserChromeBack, .browserChromeForward, .browserChromeHome, .browserChromeShare,
             .browserChromeShareUnavailable, .browserChromeMore, .browserChromeWebsite,
-            .browserChromeCopyLink, .browserChromeRemoveBookmark, .browserChromeAddBookmark,
+            .browserChromeCopyLink, .browserChromeOpenOutside,
+            .browserChromeRemoveBookmark, .browserChromeAddBookmark,
             .browserChromeSwitchMobile, .browserChromeSwitchDesktop, .browserChromeDone
         ]
-        XCTAssertEqual(messages.count, 52)
+        XCTAssertEqual(messages.count, 53)
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language)
             for message in messages {
@@ -49,6 +50,9 @@ import XCTest
         XCTAssertEqual(hant.text(.browserPageAskResearch), "問 Mika 研究此網站")
         XCTAssertEqual(hans.text(.browserPageAskResearch), "问 Mika 研究此网站")
         XCTAssertEqual(english.text(.browserPageAskResearch), "Ask Mika to research this site")
+        XCTAssertEqual(hant.text(.browserChromeOpenOutside), "在其他 App 開啟")
+        XCTAssertEqual(hans.text(.browserChromeOpenOutside), "在其他 App 打开")
+        XCTAssertEqual(english.text(.browserChromeOpenOutside), "Open in another app")
 
         let page = "%n browser.start.recent 🧋"
         let query = "%1$@ browser.chrome.search.match"

@@ -3688,6 +3688,16 @@
       }
     },
     {
+      "case": "browserChromeOpenOutside",
+      "key": "browser.chrome.open.outside",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在其他 App 開啟",
+        "zh-Hans": "在其他 App 打开",
+        "en": "Open in another app"
+      }
+    },
+    {
       "case": "browserChromeRemoveBookmark",
       "key": "browser.chrome.remove.bookmark",
       "parameters": [],

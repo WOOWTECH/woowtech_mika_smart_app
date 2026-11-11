@@ -350,6 +350,7 @@
 "browser.chrome.more" = "More";
 "browser.chrome.website" = "Web page";
 "browser.chrome.copy.link" = "Copy link";
+"browser.chrome.open.outside" = "Open in another app";
 "browser.chrome.remove.bookmark" = "Remove bookmark";
 "browser.chrome.add.bookmark" = "Add bookmark";
 "browser.chrome.switch.mobile" = "Switch to mobile";

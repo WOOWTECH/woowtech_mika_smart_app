@@ -158,6 +158,18 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         return BrowserUserSiteModes.key(host)
     }
 
+    var externalOpenURL: URL? {
+        BrowserExternalOpenPolicy.destination(
+            loadedURL: loadedURL, displayedURL: storedWebView?.url,
+            isLoading: storedWebView?.isLoading ?? true,
+            navigationPending: requestedNavigationPending,
+            isAutomated: automationOwnsDocument,
+            isBusy: isRunning || isInteracting,
+            isPageAvailable: !retiredForDataRemoval && !discardingPage
+                && trackedNavigation != nil && pageDialog == nil
+        )
+    }
+
     var canFindInPage: Bool {
         guard pageFindDocumentReady, !retiredForDataRemoval, !discardingPage,
               !automationOwnsDocument, !isRunning, !isInteracting, pageDialog == nil,

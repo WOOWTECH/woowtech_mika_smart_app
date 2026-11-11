@@ -358,6 +358,7 @@ enum AppText: Equatable {
     case browserChromeMore
     case browserChromeWebsite
     case browserChromeCopyLink
+    case browserChromeOpenOutside
     case browserChromeRemoveBookmark
     case browserChromeAddBookmark
     case browserChromeSwitchMobile
@@ -787,6 +788,7 @@ enum AppText: Equatable {
         case .browserChromeMore: return "browser.chrome.more"
         case .browserChromeWebsite: return "browser.chrome.website"
         case .browserChromeCopyLink: return "browser.chrome.copy.link"
+        case .browserChromeOpenOutside: return "browser.chrome.open.outside"
         case .browserChromeRemoveBookmark: return "browser.chrome.remove.bookmark"
         case .browserChromeAddBookmark: return "browser.chrome.add.bookmark"
         case .browserChromeSwitchMobile: return "browser.chrome.switch.mobile"
@@ -1244,6 +1246,7 @@ enum AppText: Equatable {
         case .browserChromeMore: return "更多"
         case .browserChromeWebsite: return "網頁"
         case .browserChromeCopyLink: return "複製連結"
+        case .browserChromeOpenOutside: return "在其他 App 開啟"
         case .browserChromeRemoveBookmark: return "移除書籤"
         case .browserChromeAddBookmark: return "加入書籤"
         case .browserChromeSwitchMobile: return "切換為手機版"
