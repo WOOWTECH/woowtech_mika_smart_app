@@ -56,6 +56,17 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.models
 
+  AssistantAttachments:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources/AssistantAttachments]
+    dependencies:
+      - target: AssistantModels
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.attachments
+
   AssistantMCP:
     type: framework
     platform: iOS
@@ -110,6 +121,7 @@ targets:
       - target: AssistantDomain
       - target: AssistantBrowser
       - target: AssistantModels
+      - target: AssistantAttachments
       - target: AssistantMCP
       - target: AssistantMemory
       - target: AssistantSkills

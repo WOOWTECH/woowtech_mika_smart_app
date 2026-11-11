@@ -96,6 +96,7 @@ jobs:
           mkdir -p build
           swift test 2>&1 | tee build/core-tests.log
           python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
           python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
           python3 scripts/generate_app_text.py
           python3 scripts/check_ui_test_language.py
@@ -364,6 +365,7 @@ jobs:
         run: |
           swift test 2>&1 | tee build/core-tests.log
           python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
       - name: Test original PDF script through the Swift HTTP client
         if: github.event_name != 'workflow_dispatch' || inputs.test_scope == 'files' || inputs.test_scope == 'all'
         timeout-minutes: 6
