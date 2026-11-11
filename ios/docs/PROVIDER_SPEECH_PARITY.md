@@ -87,12 +87,15 @@ multiple-provider inventory or session headers.
 - Synthetic-testable multipart, three chat-audio variants and Gemini request
   builders plus response parsing. A user-selected provider ID must match the
   endpoint. Credentials are supplied per call and are not stored here.
-- HTTPS authority validation rejects empty, nonnumeric, overflowing and
-  out-of-range explicit ports; bracketed IPv6 literals must parse as IPv6.
+- HTTPS authority validation rejects empty, nonnumeric, overflowing,
+  out-of-range and leading-zero explicit ports at both request construction
+  and transport; bracketed IPv6 literals must parse as IPv6.
   The generated request must retain the exact serialized authority and intended
   path, and the URLSession transport validates it again before sending. Escaped
   authorities and scoped IPv6 literals are conservatively unsupported. This
-  does not provide DNS pinning or establish user consent.
+  does not provide DNS pinning or establish user consent. Path normalization
+  across URL loading, proxies and servers remains unresolved; comparing the
+  serialized path is not proof that all parties interpret it identically.
 - An injectable async transport and an ephemeral URLSession transport with
   30-second configured request/resource timeouts, rejected redirects, disabled
   cookies/cache/credential storage, bounded success response and sanitized
