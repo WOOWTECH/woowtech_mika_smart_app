@@ -42,6 +42,18 @@ private struct NoopReader: ChatAttachmentFileReading {
     func read(url: URL, maximumBytes: Int, isCancelled: @escaping @Sendable () -> Bool) throws -> Data { bytes }
     func cancel() {}
 }
+private final class CountingReader: ChatAttachmentFileReading, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    let bytes: Data
+    init(_ bytes: Data) { self.bytes = bytes }
+    func read(url: URL, maximumBytes: Int, isCancelled: @escaping @Sendable () -> Bool) throws -> Data {
+        lock.lock(); count += 1; lock.unlock()
+        return bytes
+    }
+    func cancel() {}
+    var reads: Int { lock.lock(); defer { lock.unlock() }; return count }
+}
 private struct AcceptDecoder: ChatAttachmentImageValidating {
     func validate(data: Data, mimeType: String) throws {}
 }
@@ -88,7 +100,7 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
         let referencesChanged = try ChatAttachmentReviewContext(baseURL: originalContext.baseURL, model: originalContext.model,
             credentialRevision: originalContext.credentialRevision, inputRevision: originalContext.inputRevision,
             additionalData: [.currentQuestion, .memory], vision: .unknown)
-        try check(referencesChanged.additionalDataDescription == "本次問題、相關記憶", "Review uses fixed disclosure labels")
+        try check(referencesChanged.additionalData == [.currentQuestion, .memory], "Review retains typed disclosure categories")
         presenter.updateContext(referencesChanged)
         try check(presenter.state.phase == .ready(metadata), "Changed disclosure categories revoke confirmation")
         presenter.updateContext(originalContext)
@@ -196,6 +208,51 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
         replacing.pickerCancelled()
         try check(replacing.state.phase == .ready(selected), "Picker cancellation keeps staged selection")
         replacing.discard()
+
+        // onChange is synchronous: invalidate before picked() creates its task.
+        let raceScope = Scope(), neverRead = CountingReader(bytes)
+        let synchronousDiscard = ChatAttachmentPresenter(scope: raceScope, makeReader: { neverRead }, decoder: AcceptDecoder())
+        synchronousDiscard.onChange = { [weak synchronousDiscard] state in
+            if case .loading = state.phase { synchronousDiscard?.discard() }
+        }
+        for _ in 0..<2000 { synchronousDiscard.picked(url) }
+        try await wait { raceScope.counts.1 == 2000 }
+        try check(raceScope.counts.0 == 2000 && neverRead.reads == 0 && synchronousDiscard.state.phase == .empty,
+                  "Synchronous discard never starts a reader and balances every scope")
+
+        let replaceScope = Scope(), rejectedReader = CountingReader(bytes), acceptedReader = CountingReader(bytes)
+        var replacementCount = 0
+        let synchronousReplace = ChatAttachmentPresenter(scope: replaceScope, makeReader: {
+            replacementCount += 1
+            return replacementCount == 1 ? rejectedReader : acceptedReader
+        }, decoder: AcceptDecoder())
+        var didReplace = false
+        synchronousReplace.onChange = { [weak synchronousReplace] state in
+            if case .loading = state.phase, !didReplace {
+                didReplace = true; synchronousReplace?.picked(secondURL)
+            }
+        }
+        synchronousReplace.picked(url)
+        try await wait { isReady(synchronousReplace) && replaceScope.counts.1 == 2 }
+        guard case .ready(let replacementMetadata) = synchronousReplace.state.phase else { throw Failure(detail: "Replacement not ready") }
+        try check(replacementMetadata.filename == "other.txt" && rejectedReader.reads == 0 && acceptedReader.reads == 1,
+                  "Synchronous replacement starts only the winning reader")
+        try check(replaceScope.counts.0 == 2 && replaceScope.counts.1 == 2, "Synchronous replacement balances scopes")
+        synchronousReplace.discard()
+
+        let contextScope = Scope(), contextReader = CountingReader(bytes)
+        let synchronousContext = ChatAttachmentPresenter(scope: contextScope, makeReader: { contextReader }, decoder: AcceptDecoder())
+        var didUpdateContext = false
+        synchronousContext.onChange = { [weak synchronousContext] state in
+            if case .loading = state.phase, !didUpdateContext {
+                didUpdateContext = true; synchronousContext?.updateContext(originalContext)
+            }
+        }
+        synchronousContext.picked(url)
+        try await wait { isReady(synchronousContext) && contextScope.counts.1 == 1 }
+        try check(contextReader.reads == 1 && synchronousContext.state.context == originalContext,
+                  "Synchronous context update preserves the current selection")
+        synchronousContext.discard()
         print("Chat attachment presenter checks passed: \(checks)")
     }
 }

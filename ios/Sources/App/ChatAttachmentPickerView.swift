@@ -23,6 +23,7 @@ import UniformTypeIdentifiers
 /// sheet leaves the staged attachment with the host-owned view model.
 @MainActor struct ChatAttachmentPickerView: View {
     @ObservedObject var model: ChatAttachmentPickerViewModel
+    let localizer: AppLocalizer
     @Environment(\.dismiss) private var dismiss
     @State private var choosing = false
 
@@ -30,61 +31,61 @@ import UniformTypeIdentifiers
         NavigationStack {
             Form {
                 Section {
-                    Text("選取後會在此裝置讀取及檢查檔案；本頁不會傳送或儲存原始附件。")
-                    Text("限一個 JPEG、PNG（最多 5 MiB）或 UTF-8 文字檔（最多 32 KiB）；PDF 使用另一個功能。")
+                    Text(localizer.text(.attachmentLocalNotice))
+                    Text(localizer.text(.attachmentLimits))
                 }
-                Section("附件") {
+                Section(localizer.text(.attachmentSection)) {
                     switch model.state.phase {
                     case .empty, .consumed:
-                        Text(model.state.phase == .consumed ? "附件已交給主程式。" : "尚未選取附件。")
+                        Text(localizer.text(model.state.phase == .consumed ? .attachmentConsumed : .attachmentEmpty))
                     case .loading(let filename):
                         Label { Text(verbatim: filename) } icon: { ProgressView() }
-                        Text("正在讀取及檢查附件。")
+                        Text(localizer.text(.attachmentLoading))
                     case .ready(let metadata), .confirmed(let metadata), .taking(let metadata):
                         Label { Text(verbatim: metadata.filename) } icon: { Image(systemName: metadata.kind == .text ? "doc.text" : "photo") }
                             .accessibilityIdentifier("chat.attachment.filename")
-                        Text("\(metadata.byteCount) 位元組 · \(kindLabel(metadata.kind))")
+                        Text(localizer.text(.attachmentMetadata(count: metadata.byteCount, kind: localizer.text(AppLocalizer.attachmentKind(metadata.kind)))))
                             .accessibilityIdentifier("chat.attachment.metadata")
                         if case .confirmed = model.state.phase {
-                            Text("已確認此範圍；尚未傳送。")
+                            Text(localizer.text(.attachmentConfirmed))
                                 .accessibilityIdentifier("chat.attachment.confirmed")
                         }
-                        if case .taking = model.state.phase { Text("正在交給主程式。") }
+                        if case .taking = model.state.phase { Text(localizer.text(.attachmentTaking)) }
                     }
-                    Button(model.state.phase == .empty || model.state.phase == .consumed ? "選取附件" : "更換附件（移除目前附件）") {
+                    Button(localizer.text(model.state.phase == .empty || model.state.phase == .consumed ? .attachmentSelect : .attachmentReplace)) {
                         choosing = true
                     }
                     .accessibilityIdentifier("chat.attachment.select")
                     if model.state.phase != .empty && model.state.phase != .consumed {
-                        Button("移除附件", role: .destructive) { model.presenter.discard() }
+                        Button(localizer.text(.attachmentRemove), role: .destructive) { model.presenter.discard() }
                             .accessibilityIdentifier("chat.attachment.remove")
                     }
                     if let error = model.state.error {
-                        Text(error.errorDescription ?? "附件處理失敗。")
+                        Text(localizer.text(AppLocalizer.attachmentError(error)))
                             .foregroundStyle(.red).accessibilityIdentifier("chat.attachment.error")
                     }
                 }
                 if showsReview {
-                    Section("傳送前確認") {
+                    Section(localizer.text(.attachmentReview)) {
                         if let context = model.state.context {
-                            Text(verbatim: "目的服務：" + context.baseURL.absoluteString)
+                            Text(verbatim: localizer.text(.attachmentDestination(value: context.baseURL.absoluteString)))
                                 .accessibilityIdentifier("chat.attachment.destination")
-                            Text(verbatim: "模型：" + context.model).accessibilityIdentifier("chat.attachment.model")
-                            Text(verbatim: "另會傳送：" + context.additionalDataDescription)
+                            Text(verbatim: localizer.text(.attachmentModel(value: context.model))).accessibilityIdentifier("chat.attachment.model")
+                            Text(verbatim: localizer.text(.attachmentOtherData(value: localizer.attachmentDataDescription(context.additionalData))))
                                 .accessibilityIdentifier("chat.attachment.context")
-                            Text("確認後，主程式可在這一次請求中傳送完整附件；按下確認本身不會傳送。")
+                            Text(localizer.text(.attachmentSendNotice))
                             if case .ready = model.state.phase {
-                                Button("確認本次傳送範圍") { model.confirm() }
+                                Button(localizer.text(.attachmentConfirm)) { model.confirm() }
                                     .accessibilityIdentifier("chat.attachment.confirm")
                             }
                         } else {
-                            Text("請先設定模型與本次傳送範圍。")
+                            Text(localizer.text(.attachmentNeedsContext))
                         }
                     }
                 }
             }
-            .navigationTitle("聊天附件")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+            .navigationTitle(localizer.text(.attachmentTitle))
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.attachmentDone)) { dismiss() } } }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.allowedTypes, allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls):
@@ -105,8 +106,5 @@ import UniformTypeIdentifiers
     }
     private var showsReview: Bool {
         switch model.state.phase { case .ready, .confirmed, .taking: return true; default: return false }
-    }
-    private func kindLabel(_ kind: ChatAttachmentKind) -> String {
-        switch kind { case .jpeg: return "JPEG 圖片"; case .png: return "PNG 圖片"; case .text: return "UTF-8 文字" }
     }
 }
