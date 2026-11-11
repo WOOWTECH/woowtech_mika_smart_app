@@ -58,6 +58,16 @@ final class BrowserManualLANAccessTests: XCTestCase {
         }
     }
 
+    func testConfirmationShowsExactOriginWithoutPathOrQuery() throws {
+        let state = BrowserManualLANAccess()
+        let host = try XCTUnwrap(state.requestManualAccess(address: "HTTPS://printer.local:9443/path?q=fixture#section"))
+        XCTAssertEqual(host.displayOrigin, "https://printer.local:9443")
+        let ipv6 = try XCTUnwrap(state.requestManualAccess(address: "http://[::1]:8088/path?q=fixture"))
+        XCTAssertEqual(ipv6.displayOrigin, "http://[::1]:8088")
+        let defaultPort = try XCTUnwrap(state.requestManualAccess(address: "HTTPS://localhost/"))
+        XCTAssertEqual(defaultPort.displayOrigin, "https://localhost:443")
+    }
+
     func testEntire172RangeAndMappedIPv6UseTheSamePrivateBoundary() {
         for octet in 0...255 {
             for address in ["http://172.\(octet).1.1/", "http://[::ffff:172.\(octet).1.1]/"] {

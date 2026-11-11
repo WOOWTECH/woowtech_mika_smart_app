@@ -359,6 +359,74 @@ private final class SiteModeKeys: LearningKeyStore {
         func check(_ condition: @autoclosure () -> Bool, _ label: String) throws {
             guard condition() else { throw Failure(check: label) }; count += 1
         }
+        let cases: [(String, String)] = [
+            ("localhost:18443/start", "http://localhost:18443/start"),
+            ("127.0.0.1:18080/start", "http://127.0.0.1:18080/start"),
+            ("printer.local:19443/status", "https://printer.local:19443/status"),
+            ("home.arpa:17443/", "https://home.arpa:17443/"),
+            ("local:17443/", "https://local:17443/"),
+            ("sub.localhost:17443/", "https://sub.localhost:17443/"),
+            ("http://router:18081/", "http://router:18081/"),
+            ("http://[::1]:18082/", "http://[::1]:18082/")
+        ]
+        for (input, expected) in cases {
+            browser.address = input; browser.openAddress()
+            try check(browser.pendingLANRequest?.url == URL(string: expected), "first manual local-name classification and port")
+            try check(!browser.lanBrowsingActive && server.connectionCount == 0 && other.connectionCount == 0, "classification sends no connection")
+            browser.rejectPendingLAN()
+        }
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let editedRequest = browser.pendingLANRequest else { throw Failure(check: "edited address approval") }
+        browser.address = otherURL.absoluteString
+        browser.approvePendingLAN(editedRequest)
+        try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive && server.connectionCount == 0 && other.connectionCount == 0,
+                  "changed input invalidates approval before any request")
+        try check(browser.localizedErrorText == .browserLanPageChanged, "changed input reports typed localizable error")
+
+        // Real WebKit receives only simulated public documents. A page change
+        // while the local confirmation is pending must invalidate that request.
+        let contextBrowser = BrowserSession(dataStore: .nonPersistent()), contextProbe = Probe(contextBrowser)
+        host.attach(contextBrowser); contextBrowser.webView.navigationDelegate = contextProbe
+        let originalPage = URL(string: "https://research.example.invalid/lan-context-a")!
+        let changedPage = URL(string: "https://research.example.invalid/lan-context-b")!
+        func simulated(_ target: URL) async throws {
+            let previous = contextProbe.finishes
+            contextProbe.localHTMLURL = target
+            contextBrowser.manualNavigation(to: target) {
+                contextBrowser.webView.loadSimulatedRequest(URLRequest(url: target), responseHTML: "<!doctype html><p>Controlled page</p>")
+            }
+            try await wait("controlled current page", { contextProbe.finishes > previous && contextBrowser.loadedURL == target && !contextBrowser.webView.isLoading })
+        }
+        try await simulated(originalPage)
+        let beforeNavigation = contextProbe.finishes
+        contextProbe.localHTMLURL = changedPage
+        contextBrowser.manualNavigation(to: changedPage) {
+            contextBrowser.webView.loadSimulatedRequest(URLRequest(url: changedPage), responseHTML: "<!doctype html><p>Controlled page</p>")
+        }
+        contextBrowser.address = url.absoluteString; contextBrowser.openAddress()
+        try check(contextBrowser.pendingLANRequest == nil && contextBrowser.localizedErrorText == .browserLanPageChanged,
+                  "navigation in progress prevents a new approval")
+        try await wait("controlled navigation", { contextProbe.finishes > beforeNavigation && contextBrowser.loadedURL == changedPage && !contextBrowser.webView.isLoading })
+        try await simulated(originalPage)
+        contextBrowser.address = url.absoluteString; contextBrowser.openAddress()
+        guard contextBrowser.pendingLANRequest != nil else { throw Failure(check: "page-bound cancellation") }
+        contextBrowser.revokeLANAccess()
+        try check(contextBrowser.address == originalPage.absoluteString && contextBrowser.pendingLANRequest == nil,
+                  "revoking pending approval restores the actual displayed address")
+        contextBrowser.address = url.absoluteString; contextBrowser.openAddress()
+        guard let changedPageRequest = contextBrowser.pendingLANRequest else { throw Failure(check: "page-bound approval") }
+        try await simulated(changedPage)
+        // Keep the text unchanged so the page-generation/visible-URL guard,
+        // rather than the separate edited-input guard, must reject approval.
+        contextBrowser.address = url.absoluteString
+        contextBrowser.approvePendingLAN(changedPageRequest)
+        try check(contextBrowser.pendingLANRequest == nil && !contextBrowser.lanBrowsingActive && contextBrowser.loadedURL == changedPage,
+                  "changed visible page invalidates pending approval")
+        try check(contextBrowser.address == changedPage.absoluteString && contextBrowser.localizedErrorText == .browserLanPageChanged,
+                  "changed page restores visible address and localizable error")
+        try check(server.connectionCount == 0 && other.connectionCount == 0, "changed page sends no local request")
+        contextBrowser.cancel()
+        host.attach(browser); browser.webView.navigationDelegate = probe
         browser.address = url.absoluteString; browser.openAddress()
         guard let first = browser.pendingLANRequest else { throw Failure(check: "manual approval requested") }
         try await Task.sleep(nanoseconds: 150_000_000)
@@ -373,12 +441,14 @@ private final class SiteModeKeys: LearningKeyStore {
         try await wait("approved LAN page", { browser.loadedURL == url && !browser.webView.isLoading })
         try check(server.connectionCount > 0 && browser.lanBrowsingActive, "approved real WebKit loopback request")
         try check(browser.current == nil, "local page is not research context")
+        try check(browser.localizedStatusText == .browserLanLoaded, "local page status uses a localizable message")
         try check(workspace.library.tabs.first?.url == nil && workspace.library.history.isEmpty, "local page not persisted")
         let actions = probe.actions.count
         _ = try await browser.webView.evaluateJavaScript("location.href = \(String(data: try JSONEncoder().encode(otherURL.absoluteString), encoding: .utf8)!); true")
         try await wait("cross-origin action", { probe.actions.count > actions })
         try await Task.sleep(nanoseconds: 150_000_000)
         try check(probe.actions.last?.policy == .cancel && other.connectionCount == 0, "cross-origin action denied")
+        try check(browser.localizedErrorText == .browserLanNavigationRejected, "blocked local navigation uses a localizable error")
         let redirectURL = url.deletingLastPathComponent().appendingPathComponent("redirect")
         try check(server.setRedirectDestination(url), "same-origin redirect configured")
         let beforeSame = probe.finishes
@@ -398,6 +468,7 @@ private final class SiteModeKeys: LearningKeyStore {
         let redirectedConnections = other.connectionCount
         browser.revokeLANAccess()
         try check(!browser.lanBrowsingActive && browser.loadedURL == nil, "explicit revoke retires the local page")
+        try check(browser.localizedStatusText == .browserLanStopped, "explicit revoke uses a localizable status")
         browser.approvePendingLAN(request)
         try check(!browser.lanBrowsingActive, "explicit revoke invalidates prior approval")
         host.attach(browser); browser.webView.navigationDelegate = probe
@@ -416,7 +487,7 @@ private final class SiteModeKeys: LearningKeyStore {
         browser.address = url.absoluteString; browser.openAddress()
         guard let pending = browser.pendingLANRequest else { throw Failure(check: "pending before tab close") }
         workspace.selectTab(secondID); browser.approvePendingLAN(pending)
-        try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive, "switch revokes pending approval")
+        try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive && browser.address.isEmpty, "switch revokes pending approval and clears stale address")
         workspace.selectTab(originalID)
         host.attach(browser); browser.webView.navigationDelegate = probe
         browser.address = url.absoluteString; browser.openAddress()

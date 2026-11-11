@@ -25,6 +25,16 @@ import XCTest
             }
             let original = "%n %#@count@ 原文 🧋"
             XCTAssertTrue(localizer.text(.configurationChanged(appearance: original)).contains(original))
+            let lanMessages: [AppText] = [.browserLanStop, .browserLanConfirmTitle, .browserLanAllowOnce,
+                .browserLanStopped, .browserLanNavigationRejected, .browserLanPageChanged, .browserLanLoaded,
+                .browserInvalidAddress, .commonCancel, .browserLanConfirmMessage(origin: "http://[::1]:18443")]
+            for message in lanMessages {
+                let resolved = localizer.resolve(message)
+                XCTAssertEqual(resolved.language, language)
+                XCTAssertFalse(resolved.usedFallback)
+                XCTAssertFalse(resolved.text.isEmpty)
+            }
+            XCTAssertTrue(localizer.text(.browserLanConfirmMessage(origin: "http://[::1]:18443")).contains("http://[::1]:18443"))
         }
     }
 }

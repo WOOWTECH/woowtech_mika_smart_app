@@ -330,6 +330,15 @@ enum AppText: Equatable {
     case browserChromeStop
     case browserChromeReload
     case browserChromeOpen
+    case browserLanStop
+    case browserLanConfirmTitle
+    case browserLanAllowOnce
+    case browserLanConfirmMessage(origin: String)
+    case browserLanStopped
+    case browserLanNavigationRejected
+    case browserLanPageChanged
+    case browserLanLoaded
+    case browserInvalidAddress
     case browserChromeSearchEngine(name: String)
     case browserChromeSearchMatch(query: String, engine: String)
     case browserChromeAutomationNotice
@@ -774,6 +783,15 @@ enum AppText: Equatable {
         case .browserChromeStop: return "browser.chrome.stop"
         case .browserChromeReload: return "browser.chrome.reload"
         case .browserChromeOpen: return "browser.chrome.open"
+        case .browserLanStop: return "browser.lan.stop"
+        case .browserLanConfirmTitle: return "browser.lan.confirm.title"
+        case .browserLanAllowOnce: return "browser.lan.confirm.allow"
+        case .browserLanConfirmMessage: return "browser.lan.confirm.message"
+        case .browserLanStopped: return "browser.lan.stopped"
+        case .browserLanNavigationRejected: return "browser.lan.navigation.rejected"
+        case .browserLanPageChanged: return "browser.lan.page.changed"
+        case .browserLanLoaded: return "browser.lan.loaded"
+        case .browserInvalidAddress: return "browser.address.invalid"
         case .browserChromeSearchEngine: return "browser.chrome.search.engine"
         case .browserChromeSearchMatch: return "browser.chrome.search.match"
         case .browserChromeAutomationNotice: return "browser.chrome.automation.notice"
@@ -909,6 +927,7 @@ enum AppText: Equatable {
         case .catalogCount(let total, let matches): return [Int64(total), Int64(matches)]
         case .catalogProvenance(let commit): return [commit]
         case .browserStartRemoveBookmark(let name): return [name]
+        case .browserLanConfirmMessage(let origin): return [origin]
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .drawerRecentTurns(let count): return [Int64(count)]
@@ -1247,6 +1266,15 @@ enum AppText: Equatable {
         case .browserChromeStop: return "停止"
         case .browserChromeReload: return "重新整理"
         case .browserChromeOpen: return "開啟"
+        case .browserLanStop: return "停止本機瀏覽"
+        case .browserLanConfirmTitle: return "允許本機瀏覽？"
+        case .browserLanAllowOnce: return "允許本次"
+        case .browserLanConfirmMessage: return "連線至 %1$@。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。"
+        case .browserLanStopped: return "本機瀏覽已停止"
+        case .browserLanNavigationRejected: return "此導覽超出本次核准的網址範圍。"
+        case .browserLanPageChanged: return "網址或目前頁面已變更，請重新輸入本機網址。"
+        case .browserLanLoaded: return "頁面已載入；此頁面僅供手動瀏覽"
+        case .browserInvalidAddress: return "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。"
         case .browserChromeSearchEngine: return "搜尋引擎：%1$@"
         case .browserChromeSearchMatch: return "搜尋：%1$@（%2$@）"
         case .browserChromeAutomationNotice: return "此頁面仍受自動化導覽限制。"

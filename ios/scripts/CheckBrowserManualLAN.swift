@@ -92,6 +92,12 @@ import Foundation
         try check(separate.approve(separateRequest), "separate session approval")
         owner.revoke()
         try check(separate.allowsNavigation(to: aliasURL), "separate session unaffected")
+        guard let display = separate.requestManualAccess(address: "HTTPS://printer.local:9443/path?q=fixture#section"),
+              let displayV6 = separate.requestManualAccess(address: "http://[::1]:8088/path?q=fixture"),
+              let displayDefault = separate.requestManualAccess(address: "HTTPS://localhost/") else { throw Failure(label: "display origin setup") }
+        try check(display.displayOrigin == "https://printer.local:9443", "display nonstandard origin")
+        try check(displayV6.displayOrigin == "http://[::1]:8088", "display IPv6 origin")
+        try check(displayDefault.displayOrigin == "https://localhost:443", "display default HTTPS port")
         for address in ["http://localhost./", "http://printer.local./", "http://127.0.0.1./"] {
             try check(owner.requestManualAccess(address: address) == nil, "trailing dot rejected")
         }

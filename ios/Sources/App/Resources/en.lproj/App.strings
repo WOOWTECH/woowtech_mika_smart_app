@@ -322,6 +322,15 @@
 "browser.chrome.stop" = "Stop";
 "browser.chrome.reload" = "Reload";
 "browser.chrome.open" = "Open";
+"browser.lan.stop" = "Stop local browsing";
+"browser.lan.confirm.title" = "Allow local browsing?";
+"browser.lan.confirm.allow" = "Allow this session";
+"browser.lan.confirm.message" = "Connect to %1$@. HTTP data is not encrypted, and the page may load other resources. Switching or closing the tab stops local browsing.";
+"browser.lan.stopped" = "Local browsing stopped";
+"browser.lan.navigation.rejected" = "This navigation is outside the approved address.";
+"browser.lan.page.changed" = "The address or current page changed. Enter the local address again.";
+"browser.lan.loaded" = "Page loaded; this page is for manual browsing only";
+"browser.address.invalid" = "Enter search text or a valid address. Addresses with credentials and overly long queries are not accepted.";
 "browser.chrome.search.engine" = "Search engine: %1$@";
 "browser.chrome.search.match" = "Search: %1$@ (%2$@)";
 "browser.chrome.automation.notice" = "This page is still restricted by automated navigation.";

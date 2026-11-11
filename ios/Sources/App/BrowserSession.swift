@@ -75,9 +75,12 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     @Published private(set) var lanBrowsingActive = false
     private let manualLANAccess = BrowserManualLANAccess()
     private var pendingLANInput: String?
+    private var pendingLANPage: (generation: UUID, view: ObjectIdentifier?, visibleURL: URL?, loadedURL: URL?)?
     @Published var goal = ""
-    @Published private(set) var status = "輸入網址開始瀏覽"
-    @Published private(set) var error: String?
+    @Published private(set) var localizedStatusText: AppText?
+    @Published private(set) var localizedErrorText: AppText?
+    @Published private(set) var status = "輸入網址開始瀏覽" { didSet { localizedStatusText = nil } }
+    @Published private(set) var error: String? { didSet { localizedErrorText = nil } }
     #if DEBUG
     func reportDownloadPDFFixtureFailure() {
         guard BrowserDownloadedPDFFixture.enabled != nil else { return }
@@ -165,7 +168,15 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         if !debugFixture && BrowserManualLANAccess.candidate(address: candidate) != nil {
             revokeLANAccess()
             address = input
+            guard !requestedNavigationPending, storedWebView?.isLoading != true,
+                  loadedURL == storedWebView?.url else {
+                restoreVisibleAddress()
+                error = AppText.browserLanPageChanged.traditionalFallback
+                localizedErrorText = .browserLanPageChanged
+                return
+            }
             pendingLANInput = input
+            pendingLANPage = (pageGeneration, storedWebView.map(ObjectIdentifier.init), storedWebView?.url, loadedURL)
             pendingLANRequest = manualLANAccess.requestManualAccess(address: candidate)
             error = nil
             return
@@ -174,7 +185,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             revokeLANAccess(); address = input
         }
         guard let url = manualAddressURL(), manualPermitted(url) else {
-            error = "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。"; return
+            error = AppText.browserInvalidAddress.traditionalFallback
+            localizedErrorText = .browserInvalidAddress
+            return
         }
         answer = nil
         manualNavigation(to: url) {
@@ -190,29 +203,49 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             || host.range(of: "^[0-9]+(?:\\.[0-9]+){3}(?::[0-9]+)?$", options: .regularExpression) != nil {
             return "http://" + input
         }
-        if host.lowercased().contains(".local") || host.lowercased().contains(".home.arpa") { return "https://" + input }
+        let name = String(host.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? "").lowercased()
+        if ["local", "home.arpa"].contains(name) || [".local", ".home.arpa", ".localhost"].contains(where: { name.hasSuffix($0) }) {
+            return "https://" + input
+        }
         return input
     }
 
     func approvePendingLAN(_ request: BrowserManualLANRequest) {
         guard pendingLANRequest == request else { return }
-        guard !retiredForDataRemoval, canPresentUI(), !isRunning, !isInteracting,
-              pendingLANInput == address.trimmingCharacters(in: .whitespacesAndNewlines),
-              manualLANAccess.approve(request) else { rejectPendingLAN(); return }
-        pendingLANRequest = nil; pendingLANInput = nil; lanBrowsingActive = true
+        guard !retiredForDataRemoval, canPresentUI(), !isRunning, !isInteracting else { rejectPendingLAN(); return }
+        guard let page = pendingLANPage, page.generation == pageGeneration,
+              page.view == storedWebView.map(ObjectIdentifier.init),
+              page.visibleURL == storedWebView?.url, page.loadedURL == loadedURL,
+              !requestedNavigationPending, storedWebView?.isLoading != true,
+              pendingLANInput == address.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            rejectPendingLAN()
+            error = AppText.browserLanPageChanged.traditionalFallback
+            localizedErrorText = .browserLanPageChanged
+            return
+        }
+        guard manualLANAccess.approve(request) else { rejectPendingLAN(); return }
+        pendingLANRequest = nil; pendingLANInput = nil; pendingLANPage = nil; lanBrowsingActive = true
         answer = nil; error = nil
         manualNavigation(to: request.url) { webView.load(URLRequest(url: request.url)) }
     }
 
     func rejectPendingLAN() {
         guard pendingLANRequest != nil else { return }
-        pendingLANRequest = nil; pendingLANInput = nil; manualLANAccess.revoke()
+        pendingLANRequest = nil; pendingLANInput = nil; pendingLANPage = nil; manualLANAccess.revoke()
+        restoreVisibleAddress()
+    }
+
+    private func restoreVisibleAddress() {
+        if let visible = storedWebView?.url, visible == loadedURL { address = visible.absoluteString }
+        else { address = "" }
     }
 
     /// Retire the local document on a tab or permission boundary. stopLoading
     /// cannot retract requests already sent, and subresources are not isolated.
     func revokeLANAccess() {
-        pendingLANRequest = nil; pendingLANInput = nil; manualLANAccess.revoke()
+        let hadPendingRequest = pendingLANRequest != nil
+        pendingLANRequest = nil; pendingLANInput = nil; pendingLANPage = nil; manualLANAccess.revoke()
+        if hadPendingRequest && !lanBrowsingActive { restoreVisibleAddress() }
         guard lanBrowsingActive else { return }
         lanBrowsingActive = false
         invalidatePageFindDocument(); invalidatePageObservation(); invalidateControls()
@@ -226,7 +259,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             view.removeFromSuperview()
         }
         storedDOMExecutor = nil; storedWebView = nil
-        status = "本機瀏覽已停止"
+        status = AppText.browserLanStopped.traditionalFallback
+        localizedStatusText = .browserLanStopped
     }
 
     func returnToManualBrowsing() {
@@ -1003,7 +1037,10 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
               !automated || navigationAction.request.httpMethod == "GET" || postPermitted,
               !automated || restrictedOrigin == nil || Self.origin(url) == restrictedOrigin else {
             decisionHandler(.cancel)
-            error = lanBrowsingActive ? "此導覽超出本次核准的網址範圍。" : "此導覽不在目前允許的公開網站範圍內。"
+            if lanBrowsingActive {
+                error = AppText.browserLanNavigationRejected.traditionalFallback
+                localizedErrorText = .browserLanNavigationRejected
+            } else { error = "此導覽不在目前允許的公開網站範圍內。" }
             if !isRunning, navigationAction.targetFrame?.isMainFrame == true { failManualLoad(.policyRejected) }
             return
         }
@@ -1133,6 +1170,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             // it into research evidence or exposing its fields to the model.
             if let url = loadedURL, !permitted(url) {
                 current = nil; error = nil; status = "頁面已載入；此頁面僅供手動瀏覽"
+                if lanBrowsingActive { localizedStatusText = .browserLanLoaded }
                 traceLoad(.observed)
                 let generation = pageGeneration
                 // WKWebView.title can still be empty at didFinish. Read the
@@ -1233,6 +1271,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         guard !isRunning, !isInteracting, !automationOwnsDocument else { return }
         guard permitted(observedURL) else {
             status = "頁面已載入；此頁面僅供手動瀏覽"; error = nil
+            if lanBrowsingActive { localizedStatusText = .browserLanLoaded }
             return
         }
         let generation = pageGeneration

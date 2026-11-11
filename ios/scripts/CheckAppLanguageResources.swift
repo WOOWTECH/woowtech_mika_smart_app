@@ -35,6 +35,30 @@ import AssistantSkills
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
+            let lanMessages: [AppText] = [.browserLanStop, .browserLanConfirmTitle, .browserLanAllowOnce,
+                .browserLanStopped, .browserLanNavigationRejected, .browserLanPageChanged, .browserLanLoaded,
+                .browserInvalidAddress, .commonCancel]
+            for message in lanMessages {
+                let resolved = l.resolve(message)
+                try check(!resolved.text.isEmpty && resolved.language == language && !resolved.usedFallback, "LAN message resolves in requested language")
+            }
+            let origin = "http://[::1]:18443"
+            let lanWarning = l.resolve(.browserLanConfirmMessage(origin: origin))
+            try check(lanWarning.text.components(separatedBy: origin).count == 2
+                      && lanWarning.language == language && !lanWarning.usedFallback,
+                      "LAN confirmation interpolates exactly one origin in requested language")
+            let lanExpected: (String, String, String, String)
+            switch language {
+            case .traditionalChinese:
+                lanExpected = ("停止本機瀏覽", "允許本機瀏覽？", "允許本次", "連線至 \(origin)。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。")
+            case .simplifiedChinese:
+                lanExpected = ("停止本地浏览", "允许本地浏览？", "允许本次", "连接至 \(origin)。HTTP 数据未加密；网页可能加载其他资源。切换或关闭标签页会停止本地浏览。")
+            case .english:
+                lanExpected = ("Stop local browsing", "Allow local browsing?", "Allow this session", "Connect to \(origin). HTTP data is not encrypted, and the page may load other resources. Switching or closing the tab stops local browsing.")
+            }
+            try check(l.text(.browserLanStop) == lanExpected.0 && l.text(.browserLanConfirmTitle) == lanExpected.1
+                      && l.text(.browserLanAllowOnce) == lanExpected.2 && lanWarning.text == lanExpected.3,
+                      "LAN controls and complete warning have exact requested-language text")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))
                 let numeral = count == 1001 ? "1,001" : String(count)

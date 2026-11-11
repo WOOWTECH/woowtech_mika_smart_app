@@ -322,6 +322,15 @@
 "browser.chrome.stop" = "停止";
 "browser.chrome.reload" = "重新加载";
 "browser.chrome.open" = "打开";
+"browser.lan.stop" = "停止本地浏览";
+"browser.lan.confirm.title" = "允许本地浏览？";
+"browser.lan.confirm.allow" = "允许本次";
+"browser.lan.confirm.message" = "连接至 %1$@。HTTP 数据未加密；网页可能加载其他资源。切换或关闭标签页会停止本地浏览。";
+"browser.lan.stopped" = "本地浏览已停止";
+"browser.lan.navigation.rejected" = "此导航超出本次批准的网址范围。";
+"browser.lan.page.changed" = "网址或当前页面已更改，请重新输入本地网址。";
+"browser.lan.loaded" = "页面已加载；此页面仅供手动浏览";
+"browser.address.invalid" = "请输入搜索文字或有效网址；不接受网址账号密码或过长的查询。";
 "browser.chrome.search.engine" = "搜索引擎：%1$@";
 "browser.chrome.search.match" = "搜索：%1$@（%2$@）";
 "browser.chrome.automation.notice" = "此页面仍受自动化导航限制。";

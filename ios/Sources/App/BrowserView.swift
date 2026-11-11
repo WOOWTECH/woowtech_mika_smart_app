@@ -124,16 +124,16 @@ struct BrowserView: View {
                     .font(.caption).accessibilityIdentifier("browser.sites.clearing")
             }
             if let diagnostics = browser.manualLoadDiagnostics {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(browser.localizedStatusText.map { localizer.text($0) } ?? browser.status).font(.caption).accessibilityIdentifier("browser.status")
                     .accessibilityValue(diagnostics)
             } else {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(browser.localizedStatusText.map { localizer.text($0) } ?? browser.status).font(.caption).accessibilityIdentifier("browser.status")
             }
             if let error = browser.error {
-                Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
+                Text(browser.localizedErrorText.map { localizer.text($0) } ?? error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
             }
             if browser.lanBrowsingActive {
-                Button("停止本機瀏覽") { browser.revokeLANAccess() }
+                Button(localizer.text(.browserLanStop)) { browser.revokeLANAccess() }
                     .font(.caption).accessibilityIdentifier("browser.lan.revoke")
             }
             if let notice = workspace.siteModeNoticeText {
@@ -261,14 +261,16 @@ struct BrowserView: View {
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
         }
-        .alert("允許本機瀏覽？", isPresented: Binding(
+        .alert(localizer.text(.browserLanConfirmTitle), isPresented: Binding(
             get: { browser.pendingLANRequest != nil },
             set: { if !$0 { browser.rejectPendingLAN() } }
         ), presenting: browser.pendingLANRequest) { request in
-            Button("允許本次") { browser.approvePendingLAN(request) }
-            Button("取消", role: .cancel) { browser.rejectPendingLAN() }
+            Button(localizer.text(.browserLanAllowOnce)) { browser.approvePendingLAN(request) }
+                .accessibilityIdentifier("browser.lan.allow")
+            Button(localizer.text(.commonCancel), role: .cancel) { browser.rejectPendingLAN() }
+                .accessibilityIdentifier("browser.lan.cancel")
         } message: { request in
-            Text("連線至 \(request.url.scheme ?? "")://\(request.url.host ?? ""):\(request.url.port ?? (request.url.scheme == "https" ? 443 : 80))。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。")
+            Text(localizer.text(.browserLanConfirmMessage(origin: request.displayOrigin)))
         }
     }
     private func pageAskBar(host: String) -> some View {
@@ -416,6 +418,7 @@ struct BrowserView: View {
         if !showInvalidStartInput { startQuery = "" }
     }
     private func open() { addressFocused = false; browser.openAddress() }
+
 }
 
 @MainActor

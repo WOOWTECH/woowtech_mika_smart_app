@@ -5,6 +5,14 @@ public struct BrowserManualLANRequest: Equatable, Sendable {
     public let url: URL
     fileprivate let id: UUID
     fileprivate let origin: BrowserManualLANOrigin
+
+    /// Display only the origin in the confirmation, not path, query or fragment.
+    public var displayOrigin: String {
+        let scheme = (url.scheme ?? "").lowercased()
+        var host = url.host ?? ""
+        if host.contains(":"), !host.hasPrefix("[") { host = "[" + host + "]" }
+        return scheme + "://" + host + ":" + String(url.port ?? (scheme == "https" ? 443 : 80))
+    }
 }
 
 /// Dormant first-stage policy; no WebKit, ATS, DNS or subresource enforcement.

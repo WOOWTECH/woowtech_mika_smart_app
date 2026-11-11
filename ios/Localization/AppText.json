@@ -3394,6 +3394,101 @@
       }
     },
     {
+      "case": "browserLanStop",
+      "key": "browser.lan.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止本機瀏覽",
+        "zh-Hans": "停止本地浏览",
+        "en": "Stop local browsing"
+      }
+    },
+    {
+      "case": "browserLanConfirmTitle",
+      "key": "browser.lan.confirm.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許本機瀏覽？",
+        "zh-Hans": "允许本地浏览？",
+        "en": "Allow local browsing?"
+      }
+    },
+    {
+      "case": "browserLanAllowOnce",
+      "key": "browser.lan.confirm.allow",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許本次",
+        "zh-Hans": "允许本次",
+        "en": "Allow this session"
+      }
+    },
+    {
+      "case": "browserLanConfirmMessage",
+      "key": "browser.lan.confirm.message",
+      "parameters": [
+        {
+          "name": "origin",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "連線至 %1$@。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。",
+        "zh-Hans": "连接至 %1$@。HTTP 数据未加密；网页可能加载其他资源。切换或关闭标签页会停止本地浏览。",
+        "en": "Connect to %1$@. HTTP data is not encrypted, and the page may load other resources. Switching or closing the tab stops local browsing."
+      }
+    },
+    {
+      "case": "browserLanStopped",
+      "key": "browser.lan.stopped",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "本機瀏覽已停止",
+        "zh-Hans": "本地浏览已停止",
+        "en": "Local browsing stopped"
+      }
+    },
+    {
+      "case": "browserLanNavigationRejected",
+      "key": "browser.lan.navigation.rejected",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此導覽超出本次核准的網址範圍。",
+        "zh-Hans": "此导航超出本次批准的网址范围。",
+        "en": "This navigation is outside the approved address."
+      }
+    },
+    {
+      "case": "browserLanPageChanged",
+      "key": "browser.lan.page.changed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網址或目前頁面已變更，請重新輸入本機網址。",
+        "zh-Hans": "网址或当前页面已更改，请重新输入本地网址。",
+        "en": "The address or current page changed. Enter the local address again."
+      }
+    },
+    {
+      "case": "browserLanLoaded",
+      "key": "browser.lan.loaded",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "頁面已載入；此頁面僅供手動瀏覽",
+        "zh-Hans": "页面已加载；此页面仅供手动浏览",
+        "en": "Page loaded; this page is for manual browsing only"
+      }
+    },
+    {
+      "case": "browserInvalidAddress",
+      "key": "browser.address.invalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。",
+        "zh-Hans": "请输入搜索文字或有效网址；不接受网址账号密码或过长的查询。",
+        "en": "Enter search text or a valid address. Addresses with credentials and overly long queries are not accepted."
+      }
+    },
+    {
       "case": "browserChromeSearchEngine",
       "key": "browser.chrome.search.engine",
       "parameters": [

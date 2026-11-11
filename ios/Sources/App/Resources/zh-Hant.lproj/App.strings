@@ -322,6 +322,15 @@
 "browser.chrome.stop" = "停止";
 "browser.chrome.reload" = "重新整理";
 "browser.chrome.open" = "開啟";
+"browser.lan.stop" = "停止本機瀏覽";
+"browser.lan.confirm.title" = "允許本機瀏覽？";
+"browser.lan.confirm.allow" = "允許本次";
+"browser.lan.confirm.message" = "連線至 %1$@。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。";
+"browser.lan.stopped" = "本機瀏覽已停止";
+"browser.lan.navigation.rejected" = "此導覽超出本次核准的網址範圍。";
+"browser.lan.page.changed" = "網址或目前頁面已變更，請重新輸入本機網址。";
+"browser.lan.loaded" = "頁面已載入；此頁面僅供手動瀏覽";
+"browser.address.invalid" = "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。";
 "browser.chrome.search.engine" = "搜尋引擎：%1$@";
 "browser.chrome.search.match" = "搜尋：%1$@（%2$@）";
 "browser.chrome.automation.notice" = "此頁面仍受自動化導覽限制。";
