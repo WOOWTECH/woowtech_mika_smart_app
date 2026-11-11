@@ -40,7 +40,8 @@ defaults:
     working-directory: ios
 
 concurrency:
-  group: ios-${{ github.workflow }}-${{ github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ inputs.fresh_simulator && 'fresh' || 'existing' }}
+  # PR revisions retain their own evidence while the next revision is built.
+  group: ios-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ inputs.fresh_simulator && 'fresh' || 'existing' }}
   cancel-in-progress: true
 
 jobs:
