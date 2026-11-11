@@ -12,6 +12,7 @@ def main():
         sources = sorted((repo / "Sources/AssistantModels").glob("*.swift"))
         subprocess.run(["swiftc", "-warnings-as-errors", "-parse-as-library",
                         *map(str, sources), str(repo / "Tests/AssistantModelsTests/ModelProtocolFixture.swift"),
+                        str(repo / "scripts/CheckModelAttachmentStreaming.swift"),
                         str(repo / "scripts/CheckModelAttachments.swift"),
                         "-o", str(executable)], check=True, timeout=120, cwd=repo)
         subprocess.run([str(executable)], check=True, timeout=60, cwd=repo)

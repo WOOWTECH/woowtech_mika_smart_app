@@ -117,6 +117,7 @@ private struct LegacyBody: Encodable { let model: String; let messages: [LegacyM
         }
         let largePlain = try OpenAIChatRequest.body(model: "m", messages: [.init(role: "user", content: String(repeating: "x", count: OpenAIChatRequest.maximumAttachmentRequestBytes))], stream: false, maxOutputTokens: 1, vision: .unknown)
         try check(largePlain.count > OpenAIChatRequest.maximumAttachmentRequestBytes, "no new budget on plain text")
-        print("Model attachment checks passed: \(checks)")
+        let streamingChecks = try await CheckModelAttachmentStreaming.run()
+        print("Model attachment checks passed: \(checks); offline HTTP streaming: \(streamingChecks)")
     }
 }
