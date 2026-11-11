@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 
 ROOT=Path(__file__).resolve().parents[1]
-SKIP={'BrowserLoginFixture.swift','BrowserUploadFixture.swift','LiveModelUITestSupport.swift','SkillExecutionUITestSupport.swift','TranscriptUITestSupport.swift','UITestMCPFixture.swift','UITestModelFixture.swift'}
+SKIP={'ChatAttachmentComposerFixtureConfiguration.swift','BrowserLoginFixture.swift','BrowserUploadFixture.swift','LiveModelUITestSupport.swift','SkillExecutionUITestSupport.swift','TranscriptUITestSupport.swift','UITestMCPFixture.swift','UITestModelFixture.swift'}
 GENERATED={'AppText.swift'}
 UI=re.compile(r'\b(Text|Button|Label|Section|Picker|Toggle|TextField|SecureField|navigationTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|accessibilityValue)\s*\(')
 CJK=re.compile('[\u3400-\u9fff]')
