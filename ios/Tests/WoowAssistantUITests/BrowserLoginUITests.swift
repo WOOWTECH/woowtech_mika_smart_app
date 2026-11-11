@@ -318,6 +318,64 @@ final class BrowserLoginUITests: XCTestCase {
         app.terminate()
     }
 
+    func testLibraryOpenedDuringDelayedClearWaitsForDismissal() {
+        checkLibraryOpenedDuringDelayedClear(background: false)
+    }
+
+    func testLibraryOpenedDuringDelayedClearWaitsAcrossBackground() {
+        checkLibraryOpenedDuringDelayedClear(background: true)
+    }
+
+    private func checkLibraryOpenedDuringDelayedClear(background: Bool) {
+        launch(reset: true, extraFlags: ["-UITestBrowserDelayedClear", "-UITestBrowserLoginSecondSite"])
+        loginByTyping()
+        XCTAssertTrue(text("LOGIN_PROTECTED_CHECKS_1").waitForExistence(timeout: 30))
+        navigateMikaSection("memory", in: app)
+        let entry = app.buttons["memory.manageWebsites"]
+        revealLearningElement(entry, in: app); entry.tap()
+        let first = app.buttons["browser.sites.clear.127.0.0.1"]
+        let second = app.buttons["browser.sites.clear.example.org"]
+        XCTAssertTrue(first.waitForExistence(timeout: 30))
+        XCTAssertTrue(second.waitForExistence(timeout: 30))
+        tap(first)
+        let confirmation = app.descendants(matching: .any).matching(NSPredicate(
+            format: "(elementType == %d OR elementType == %d) AND label == %@",
+            XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
+            "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。"
+        )).firstMatch
+        tap(confirmation.buttons.matching(identifier: "browser.sites.confirmClear").firstMatch)
+        let state = app.staticTexts["browser.fixture.clearState"].firstMatch
+        let waiting = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "waiting"), object: state)
+        XCTAssertEqual(XCTWaiter.wait(for: [waiting], timeout: 45), .completed)
+        tap(app.buttons["browser.library.close"])
+        navigateMikaSection("browser", in: app) // Queues restore while actual removal is held.
+        library() // Presents the sheet without relying on the parent disappearing.
+        if background {
+            XCUIDevice.shared.press(.home)
+            app.activate()
+            XCTAssertTrue(app.buttons["browser.library.close"].waitForExistence(timeout: 15))
+        }
+        let counter = app.staticTexts["browser.fixture.protectedCount"].firstMatch
+        let initial = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "1"), object: counter)
+        XCTAssertEqual(XCTWaiter.wait(for: [initial], timeout: 15), .completed)
+        tap(app.buttons["browser.fixture.releaseClear"].firstMatch)
+        let complete = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "complete"), object: state)
+        XCTAssertEqual(XCTWaiter.wait(for: [complete], timeout: 90), .completed)
+        XCTAssertFalse(app.staticTexts["browser.library.error"].exists)
+        XCTAssertEqual(counter.label, "1", "No protected HTTP request may start behind the sheet")
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", "1"), object: counter)
+        changed.isInverted = true
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 1.5), .completed)
+        tap(app.segmentedControls["browser.library.sections"].buttons["網站"])
+        XCTAssertTrue(second.waitForExistence(timeout: 30), "The other site's record must survive")
+        XCTAssertFalse(first.exists, "The selected site's record must be cleared")
+        tap(app.buttons["browser.library.close"])
+        XCTAssertTrue(text("LOGIN_PROTECTED_DENIED").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("LOGIN_PROTECTED_CHECKS_2").waitForExistence(timeout: 30),
+                      "Exactly one actual protected request is made after dismissal")
+        XCTAssertFalse(text("LOGIN_PROTECTED_CHECKS_3").exists)
+    }
+
     func testNativeFormLoginSharesCookieAcrossTabsAndRelaunchThenLogout() {
         launch(reset: true)
         XCTAssertTrue(text("LOGIN_ANONYMOUS").exists)
