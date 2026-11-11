@@ -444,6 +444,7 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     }
 }
 
+@MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
