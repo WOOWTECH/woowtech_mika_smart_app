@@ -49,6 +49,9 @@ private final class SiteModeKeys: LearningKeyStore {
         var externallyCancelledURLs: [URL] = []
         var events: [String] = []
         var lastNavigation: WKNavigation?
+        var lastStarted: WKNavigation?
+        var deferResponseURL: URL?
+        var deferredResponse: (() -> Void)?
         var actions: [(host: String?, main: Bool, method: String?, incomingMode: WKWebpagePreferences.ContentMode,
                        mode: WKWebpagePreferences.ContentMode, policy: WKNavigationActionPolicy, type: WKNavigationType)] = []
         init(_ browser: BrowserSession) { self.browser = browser }
@@ -82,10 +85,15 @@ private final class SiteModeKeys: LearningKeyStore {
         }
         func webView(_ view: WKWebView, decidePolicyFor response: WKNavigationResponse,
                      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            if response.response.url == deferResponseURL {
+                deferResponseURL = nil
+                deferredResponse = { [browser] in browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler) }
+                return
+            }
             browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler)
         }
         func webView(_ view: WKWebView, didStartProvisionalNavigation nav: WKNavigation!) {
-            events.append("start")
+            events.append("start"); lastStarted = nav
             browser.webView(view, didStartProvisionalNavigation: nav)
         }
         func webView(_ view: WKWebView, didCommit nav: WKNavigation!) {
@@ -438,6 +446,53 @@ private final class SiteModeKeys: LearningKeyStore {
         selected.reloadPage()
         try await wait("manual reload after stop", { selectedProbe.finishes > completedBeforeStop && !selected.isPageLoading })
         try check(!selected.manualLoadStopped && selected.loadedURL == statusURL, "fresh navigation works after stop")
+
+        // Hold a real WebKit response-policy callback, not just server bytes.
+        // Release it after stop and again while a newer navigation is in flight.
+        let attachmentURL = statusURL.deletingLastPathComponent().appendingPathComponent("attachment")
+        let failedBefore = selectedProbe.failures
+        selected.manualNavigation(to: attachmentURL) { selected.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("current rejected attachment fails", { selectedProbe.failures > failedBefore && !selected.isPageLoading })
+        try check(selected.error != nil && !selected.manualLoadStopped, "current rejection still reports failure")
+        selected.reloadPage()
+        try await wait("restore after current rejection", { selected.loadedURL == statusURL && !selected.isPageLoading })
+        for newerNavigation in [false, true] {
+            selectedProbe.deferResponseURL = attachmentURL
+            selected.manualNavigation(to: attachmentURL) { selected.webView.load(URLRequest(url: attachmentURL)) }
+            try await wait("real attachment policy held", { selectedProbe.deferredResponse != nil && selected.isPageLoading })
+            let stoppedNavigation = selectedProbe.lastStarted!
+            try check(selected.stopManualPageLoading() && selected.manualLoadStopped, "stop while response decision held")
+            if newerNavigation {
+                fixture.setHoldStatus(true)
+                selected.reloadPage()
+                // reloadPage targets the old visible document in this scenario.
+                try await wait("new navigation held", { fixture.heldStatusCount > 0 && selected.isPageLoading })
+            }
+            // Re-deliver old lifecycle events with the real stopped navigation.
+            selected.webView(selected.webView, didStartProvisionalNavigation: stoppedNavigation)
+            selected.webView(selected.webView, didCommit: stoppedNavigation)
+            selected.webView(selected.webView, didFinish: stoppedNavigation)
+            selected.webView(selected.webView, didFail: stoppedNavigation, withError: URLError(.cancelled))
+            if newerNavigation {
+                try check(selected.isPageLoading && selected.error == nil, "late stopped lifecycle callbacks leave new load intact")
+            } else {
+                try check(selected.manualLoadStopped && selected.error == nil, "late stopped lifecycle callbacks preserve stop")
+            }
+            let release = selectedProbe.deferredResponse!
+            selectedProbe.deferredResponse = nil
+            release()
+            if newerNavigation {
+                try check(selected.isPageLoading && selected.error == nil, "late attachment response does not invalidate new navigation")
+                let before = selectedProbe.finishes
+                fixture.setHoldStatus(false)
+                try await wait("new navigation completes after late policy", { selectedProbe.finishes > before && selected.loadedURL == statusURL && !selected.isPageLoading })
+                try check(selected.error == nil && !selected.manualLoadStopped, "new page remains usable")
+            } else {
+                try check(selected.manualLoadStopped && selected.error == nil, "late attachment response preserves stopped state")
+                selected.reloadPage()
+                try await wait("restore after stopped policy", { selected.loadedURL == statusURL && !selected.isPageLoading })
+            }
+        }
 
         fixture.setHoldStatus(true)
         workspace.newTab()

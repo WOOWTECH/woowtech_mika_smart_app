@@ -1057,7 +1057,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
               automated ? permitted(url) : manualPermitted(url),
               !automated || restrictedOrigin == nil || Self.origin(url) == restrictedOrigin else {
             decisionHandler(.cancel)
-            if !isRunning, navigationResponse.isForMainFrame { failManualLoad(.responseRejected) }
+            // A response policy callback has no WKNavigation identity. It may
+            // belong to a stopped/superseded load, so do not mutate the active
+            // navigation here. The matching didFail callback handles failure.
             return
         }
         if BrowserDownloadPolicy.isAttachment(navigationResponse.response) || !navigationResponse.canShowMIMEType {
@@ -1065,7 +1067,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                 && navigationIntent.authorizeDownload(url, source: .response(navigationResponse))
             if authorized { explicitManualDownloadPending = manualResponse }
             decisionHandler(authorized ? .download : .cancel)
-            if !authorized, !isRunning { failManualLoad(.responseRejected) }
+            // Do not fail the current page from an unidentifiable response.
             return
         }
         decisionHandler(.allow)

@@ -45,7 +45,7 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private var protectedChecks = 0
     private let instance = UUID().uuidString.lowercased()
     private var prefix: String { "/login-fixture/" + namespace.uuidString.lowercased() }
-    private var paths: Set<String> { [prefix + "/status", prefix + "/login", prefix + "/protected", prefix + "/logout"] }
+    private var paths: Set<String> { [prefix + "/status", prefix + "/login", prefix + "/protected", prefix + "/logout", prefix + "/attachment"] }
     // Deliberately deterministic SYNTHETIC token: a replacement fixture process
     // can validate the browser's previously issued cookie without a real account
     // database or persisted secret. Never reuse this as production authentication.
@@ -240,6 +240,8 @@ final class BrowserLoginFixture: @unchecked Sendable {
         if request.method == "GET", request.path == prefix + "/status" {
             if holdStatus { client.heldStatus = authorized; return }
             reply(client, status: 200, body: statePage(authenticated: authorized))
+        } else if request.method == "GET", request.path == prefix + "/attachment" {
+            reply(client, status: 200, body: "synthetic attachment", extra: ["Content-Disposition: attachment; filename=fixture.txt"])
         } else if request.method == "GET", request.path == prefix + "/protected" {
             protectedChecks += 1
             reply(client, status: authorized ? 200 : 401,
