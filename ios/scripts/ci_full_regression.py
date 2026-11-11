@@ -21,8 +21,8 @@ IPHONES = (
 )
 IPAD = {"label": "ios26-ipad", "xcode": "26.2", "runtime": "iOS-26-2", "device": "iPad (A16)"}
 IPAD_ONLY = "WoowAssistantUITests/WoowAssistantUITests/testRealIPadReadOnlyNavigationAudit"
-# Only two portable Xcode builds feed these 22 test-only jobs. Each invocation
-# retains a distinct shard result bundle, even when a runner executes several.
+# A full run needs two portable Xcode builds and 22 test-only jobs. A selected
+# manual iPhone needs one build and seven jobs. Every shard keeps its own result.
 COHORTS = (
     ("ui-startup", "ui-pdf-capability"),
     ("ui-documents", "ui-download-pdf"),
@@ -34,13 +34,26 @@ COHORTS = (
 )
 SLICE_SECONDS = 30 * 60
 COHORT_SECONDS = 55 * 60
+SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
+              "compact": IPHONES[:1], "large": IPHONES[1:2]}
 
 
 def source_sha(root):
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
 
 
-def make_plan(root):
+def selection_from_flags(current_only=False, compact_only=False, large_only=False):
+    """Keep the preexisting workflow_dispatch precedence when flags overlap."""
+    return ("current" if current_only else "compact" if compact_only else
+            "large" if large_only else "all")
+
+
+def make_plan(root, *, current_only=False, compact_only=False, large_only=False,
+              fresh_simulator=True):
+    if type(fresh_simulator) is not bool:
+        raise ValueError("Simulator freshness must be a boolean")
+    selection = selection_from_flags(current_only, compact_only, large_only)
+    iphones = SELECTIONS[selection]
     catalog = ui_inventory(root)
     if len(UI_SHARDS) != 15 or set(catalog["shards"]) != set(UI_SHARDS):
         raise ValueError("The 15 owned UI shards changed; review the CI partition")
@@ -51,7 +64,7 @@ def make_plan(root):
         raise ValueError("The iPad-only method must be owned by ui-startup")
     sha = source_sha(root.parent)
     rows = []
-    for device in IPHONES:
+    for device in iphones:
         for index, scopes in enumerate(COHORTS, start=1):
             slices = []
             for scope in scopes:
@@ -61,27 +74,36 @@ def make_plan(root):
                 slices.append({"scope": scope, "methods": methods,
                                "selectors": ["-only-testing:" + method for method in selectors]})
             rows.append({**device, "id": f"{device['label']}-cohort-{index:02d}",
-                         "slices": slices, "source_sha": sha,
+                         "slices": slices, "selection": selection,
+                         "fresh_simulator": fresh_simulator, "source_sha": sha,
                          "inventory_sha256": catalog["inventory_sha256"]})
-    rows.append({**IPAD, "id": "ios26-ipad-ui-startup-audit",
-                 "slices": [{"scope": "ui-startup", "methods": [IPAD_ONLY],
-                             "selectors": ["-only-testing:" + IPAD_ONLY]}],
-                 "source_sha": sha, "inventory_sha256": catalog["inventory_sha256"]})
+    if selection == "all":
+        rows.append({**IPAD, "id": "ios26-ipad-ui-startup-audit",
+                     "slices": [{"scope": "ui-startup", "methods": [IPAD_ONLY],
+                                 "selectors": ["-only-testing:" + IPAD_ONLY]}],
+                     "selection": selection, "fresh_simulator": fresh_simulator,
+                     "source_sha": sha, "inventory_sha256": catalog["inventory_sha256"]})
     return {"version": 1, "source_sha": sha, "inventory_sha256": catalog["inventory_sha256"],
-            "iphone_labels": [device["label"] for device in IPHONES], "rows": rows}
+            "selection": selection, "fresh_simulator": fresh_simulator,
+            "iphone_labels": [device["label"] for device in iphones], "rows": rows}
 
 
 def verify_plan(plan, catalog):
     rows = plan["rows"]
+    selection = plan["selection"]
+    if selection not in SELECTIONS or type(plan["fresh_simulator"]) is not bool:
+        raise ValueError("Invalid selected device or simulator mode")
+    iphones = SELECTIONS[selection]
+    expected_jobs = len(iphones) * len(COHORTS) + (selection == "all")
     if (plan["version"] != 1 or plan["inventory_sha256"] != catalog["inventory_sha256"]
-            or len(rows) != 22
+            or len(rows) != expected_jobs
             or len(rows) != len({row["id"] for row in rows})
-            or plan["iphone_labels"] != [device["label"] for device in IPHONES]):
-        raise ValueError("Expected exactly 22 unique three-device cohort jobs")
+            or plan["iphone_labels"] != [device["label"] for device in iphones]):
+        raise ValueError("Selected device cohort jobs do not match the plan")
     expected = {method for shard in catalog["shards"].values() for method in shard["tests"]}
     if expected & set(catalog["live_tests_excluded"]):
         raise ValueError("Live cases cannot enter the non-Live plan")
-    for device in IPHONES:
+    for device in iphones:
         label = device["label"]
         own_rows = [row for row in rows if row["label"] == label]
         if (len(own_rows) != len(COHORTS)
@@ -98,12 +120,17 @@ def verify_plan(plan, catalog):
             if [sl["scope"] for sl in row["slices"]] != list(COHORTS[index - 1]):
                 raise ValueError("Cohort shard ownership changed")
     ipad = [row for row in rows if row["label"] == IPAD["label"]]
-    if (len(ipad) != 1 or ipad[0]["id"] != "ios26-ipad-ui-startup-audit"
-            or len(ipad[0]["slices"]) != 1 or ipad[0]["slices"][0]["methods"] != [IPAD_ONLY]):
-        raise ValueError("The iPad audit must execute once on an iPad")
+    if selection == "all":
+        if (len(ipad) != 1 or ipad[0]["id"] != "ios26-ipad-ui-startup-audit"
+                or len(ipad[0]["slices"]) != 1 or ipad[0]["slices"][0]["methods"] != [IPAD_ONLY]):
+            raise ValueError("The iPad audit must execute once on an iPad")
+    elif ipad:
+        raise ValueError("Selected manual iPhone plan cannot include an iPad")
     for row in rows:
         if row["source_sha"] != plan["source_sha"] or row["inventory_sha256"] != plan["inventory_sha256"]:
             raise ValueError("Slice source or inventory identity changed")
+        if row["selection"] != selection or row["fresh_simulator"] is not plan["fresh_simulator"]:
+            raise ValueError("Row selection or simulator mode differs from the plan")
         device = next((x for x in (*IPHONES, IPAD) if x["label"] == row["label"]), None)
         if device is None or any(row[key] != device[key] for key in ("xcode", "runtime", "device")):
             raise ValueError("Unexpected simulator identity")
@@ -117,7 +144,12 @@ def verify_plan(plan, catalog):
 
 
 def materialize(root, row, output):
-    plan = make_plan(root)
+    selection = row["selection"]
+    if selection not in SELECTIONS or type(row["fresh_simulator"]) is not bool:
+        raise ValueError("Invalid row selection or simulator mode")
+    plan = make_plan(root, current_only=selection == "current",
+                     compact_only=selection == "compact", large_only=selection == "large",
+                     fresh_simulator=row["fresh_simulator"])
     expected = next((item for item in plan["rows"] if item["id"] == row["id"]), None)
     if expected is None or row != expected:
         raise ValueError("Runner row differs from the planned source, inventory, or selectors")
@@ -266,8 +298,15 @@ def aggregate(plan, receipts_dir):
     missing = sorted(rows.keys() - observed.keys())
     extra = sorted(observed.keys() - rows.keys())
     return {"verified": not (missing or extra or duplicates or invalid),
+            "selection": plan["selection"], "fresh_simulator": plan["fresh_simulator"],
+            "iphone_labels": plan["iphone_labels"],
             "planned_slices": len(rows), "received_slices": len(files),
             "missing": missing, "extra": extra, "duplicates": sorted(duplicates), "invalid": sorted(invalid)}
+
+
+def require_full(plan):
+    if plan["selection"] != "all" or plan["fresh_simulator"] is not True:
+        raise ValueError("PR and push require all three iPhones, iPad, and fresh simulators")
 
 
 def main():
@@ -276,6 +315,10 @@ def main():
     plan_cmd = sub.add_parser("plan")
     plan_cmd.add_argument("--output", type=Path, required=True)
     plan_cmd.add_argument("--github-output", type=Path)
+    plan_cmd.add_argument("--current-only", action="store_true")
+    plan_cmd.add_argument("--compact-only", action="store_true")
+    plan_cmd.add_argument("--large-only", action="store_true")
+    plan_cmd.add_argument("--existing-simulator", action="store_true")
     materialize_cmd = sub.add_parser("materialize")
     materialize_cmd.add_argument("--row", required=True)
     materialize_cmd.add_argument("--output", type=Path, required=True)
@@ -297,17 +340,22 @@ def main():
     aggregate_cmd.add_argument("--plan", type=Path, required=True)
     aggregate_cmd.add_argument("--receipts", type=Path, required=True)
     aggregate_cmd.add_argument("--output", type=Path, required=True)
+    aggregate_cmd.add_argument("--require-full", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.command == "plan":
-        plan = make_plan(root)
+        plan = make_plan(root, current_only=args.current_only, compact_only=args.compact_only,
+                         large_only=args.large_only, fresh_simulator=not args.existing_simulator)
         verify_plan(plan, ui_inventory(root))
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(plan, indent=2) + "\n")
         if args.github_output:
             with args.github_output.open("a") as stream:
                 stream.write("matrix=" + json.dumps({"include": plan["rows"]}, separators=(",", ":")) + "\n")
-        print(json.dumps({"jobs": len(plan["rows"]),
+                stream.write("build_matrix=" + json.dumps({"xcode": sorted({row["xcode"]
+                    for row in plan["rows"]})}, separators=(",", ":")) + "\n")
+        print(json.dumps({"selection": plan["selection"], "fresh_simulator": plan["fresh_simulator"],
+                          "jobs": len(plan["rows"]),
                           "slices": sum(len(row["slices"]) for row in plan["rows"]),
                           "iphones": plan["iphone_labels"],
                           "inventory_sha256": plan["inventory_sha256"]}))
@@ -340,6 +388,8 @@ def main():
         verify_plan(plan, ui_inventory(root))
         if plan["source_sha"] != source_sha(root.parent):
             raise ValueError("Aggregate source does not match its checkout")
+        if args.require_full:
+            require_full(plan)
         report = aggregate(plan, args.receipts)
         args.output.write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps(report))

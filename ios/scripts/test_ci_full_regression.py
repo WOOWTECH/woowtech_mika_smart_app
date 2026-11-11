@@ -1,7 +1,9 @@
 """Local contracts for source-bound, two-build full CI regression."""
 import copy
+import itertools
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -56,6 +58,67 @@ class FullRegressionPlanTests(unittest.TestCase):
         for plan in variants:
             with self.assertRaises(ValueError):
                 ci.verify_plan(plan, self.catalog)
+
+    def test_all_manual_selector_combinations_keep_existing_precedence(self):
+        for current, compact, large in itertools.product((False, True), repeat=3):
+            with self.subTest(current=current, compact=compact, large=large):
+                selection = ('current' if current else 'compact' if compact else
+                             'large' if large else 'all')
+                self.assertEqual(ci.selection_from_flags(current, compact, large), selection)
+                plan = ci.make_plan(ROOT, current_only=current, compact_only=compact,
+                                    large_only=large, fresh_simulator=False)
+                ci.verify_plan(plan, self.catalog)
+                devices = ci.SELECTIONS[selection]
+                self.assertEqual(plan['selection'], selection)
+                self.assertIs(plan['fresh_simulator'], False)
+                self.assertEqual(plan['iphone_labels'], [device['label'] for device in devices])
+                self.assertEqual(len(plan['rows']), 22 if selection == 'all' else 7)
+                self.assertEqual(sum(len(row['slices']) for row in plan['rows']),
+                                 49 if selection == 'all' else 16)
+                self.assertEqual({row['xcode'] for row in plan['rows']},
+                                 {device['xcode'] for device in devices})
+                self.assertEqual(any(row['label'] == ci.IPAD['label'] for row in plan['rows']),
+                                 selection == 'all')
+                with self.assertRaises(ValueError):
+                    ci.require_full(plan)
+
+    def test_fresh_simulator_is_recorded_and_pr_push_require_full_fresh_plan(self):
+        ci.require_full(self.plan)
+        manual_all = ci.make_plan(ROOT, fresh_simulator=False)
+        ci.verify_plan(manual_all, self.catalog)
+        self.assertEqual(len(manual_all['rows']), 22)
+        with self.assertRaises(ValueError):
+            ci.require_full(manual_all)
+        selected = ci.make_plan(ROOT, current_only=True)
+        with self.assertRaises(ValueError):
+            ci.require_full(selected)
+        with tempfile.TemporaryDirectory() as folder:
+            row = manual_all['rows'][0]
+            ci.materialize(ROOT, row, Path(folder))
+            changed = copy.deepcopy(row); changed['fresh_simulator'] = 'true'
+            with self.assertRaises(ValueError):
+                ci.materialize(ROOT, changed, Path(folder))
+
+    def test_cli_emits_only_required_xcode_build_and_test_matrices(self):
+        for flags, selection, builds, jobs in (
+                ([], 'all', ['16.4', '26.2'], 22),
+                (['--current-only'], 'current', ['26.2'], 7),
+                (['--compact-only'], 'compact', ['16.4'], 7),
+                (['--large-only'], 'large', ['16.4'], 7),
+                (['--current-only', '--compact-only', '--large-only', '--existing-simulator'],
+                 'current', ['26.2'], 7)):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as folder:
+                output = Path(folder) / 'plan.json'; gh = Path(folder) / 'github-output.txt'
+                subprocess.run([sys.executable, str(Path(ci.__file__)), 'plan',
+                                '--output', str(output), '--github-output', str(gh), *flags],
+                               check=True, stdout=subprocess.DEVNULL)
+                plan = json.loads(output.read_text())
+                values = dict(line.split('=', 1) for line in gh.read_text().splitlines())
+                self.assertEqual(plan['selection'], selection)
+                self.assertEqual(len(plan['rows']), jobs)
+                self.assertEqual(json.loads(values['build_matrix'])['xcode'], builds)
+                self.assertEqual(json.loads(values['matrix'])['include'], plan['rows'])
+                self.assertIs(plan['fresh_simulator'], '--existing-simulator' not in flags)
 
     def test_materialize_exact_row_and_portable_product(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -113,7 +176,7 @@ class FullRegressionPlanTests(unittest.TestCase):
 
     def test_aggregate_rejects_missing_duplicate_and_mixed_source(self):
         row = self.plan['rows'][0]
-        plan = {'rows': [row]}
+        plan = {**self.plan, 'rows': [row]}
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             def write(sl, name, sha=None):
@@ -176,7 +239,8 @@ class FullRegressionPlanTests(unittest.TestCase):
     def test_workflow_two_prebuilds_and_bounded_test_only_jobs(self):
         source = (ROOT / '.github/workflows/ios.yml').read_text()
         full = source.split('  full-regression-plan:\n', 1)[1].split('  build-and-test:\n', 1)[0]
-        self.assertIn("xcode: ['16.4', '26.2']", full)
+        self.assertIn('build_matrix: ${{ steps.plan.outputs.build_matrix }}', full)
+        self.assertIn('matrix: ${{ fromJSON(needs.full-regression-plan.outputs.build_matrix) }}', full)
         self.assertEqual(full.count('build-for-testing CODE_SIGN_IDENTITY'), 1)
         self.assertIn('ci_full_regression.py execute', full)
         self.assertIn('max-parallel: 9', full)
@@ -184,6 +248,14 @@ class FullRegressionPlanTests(unittest.TestCase):
         self.assertIn('full-regression-gate:', full)
         self.assertIn('testProductsPath', full)
         self.assertIn('needs.full-regression-test.result', full)
+        self.assertIn("WOOW_CURRENT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.current_only", full)
+        self.assertIn("WOOW_COMPACT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.compact_only", full)
+        self.assertIn("WOOW_LARGE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.large_only", full)
+        self.assertIn("WOOW_EXISTING_SIMULATOR: ${{ github.event_name == 'workflow_dispatch' && !inputs.fresh_simulator", full)
+        self.assertIn('plan_options+=(--existing-simulator)', full)
+        self.assertIn("WOOW_FRESH_SIMULATOR: ${{ matrix.fresh_simulator && 'true' || 'false' }}", full)
+        self.assertIn('simulator_options+=(--fresh)', full)
+        self.assertIn('aggregate_options+=(--require-full)', full)
         self.assertIn("inputs.test_scope != 'all'", source)
 
 
