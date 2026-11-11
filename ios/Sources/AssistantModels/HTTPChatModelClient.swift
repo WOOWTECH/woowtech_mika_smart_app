@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
+public struct HTTPChatModelClient: StructuredStreamingChatModelClient, UsageReportingStreamingChatModelClient {
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private static let maximumTimeout: UInt64 = 90_000_000_000
@@ -26,6 +26,10 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
     }
 
     public func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await completeWithUsage(messages: messages, configuration: configuration, apiKey: apiKey).text
+    }
+
+    public func completeWithUsage(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> ModelCompletionWithUsage {
         do {
             let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: false)
             return try await bounded {
@@ -43,7 +47,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
                         data.append(byte)
                     }
                     try Task.checkCancellation()
-                    return try Self.completionText(data)
+                    return try Self.completion(data)
                 } onCancel: {
                     bytes.task.cancel()
                 }
@@ -53,11 +57,26 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
 
     /// Yields text deltas (not accumulated text). Slow consumers fail rather than lose text.
     public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        streamInternal(messages: messages, configuration: configuration, apiKey: apiKey,
+                       includeUsage: false, delta: { $0 }, terminal: { _ in nil })
+    }
+
+    public func streamWithUsage(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                                usageRequest: ModelStreamUsageRequest) -> AsyncThrowingStream<ModelStreamWithUsageEvent, Error> {
+        streamInternal(messages: messages, configuration: configuration, apiKey: apiKey,
+                       includeUsage: usageRequest == .requestOpenAICompatible,
+                       delta: { .text($0) }, terminal: { .completed(usage: $0) })
+    }
+
+    private func streamInternal<Element: Sendable>(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+            includeUsage: Bool,
+            delta: @escaping @Sendable (String) -> Element,
+            terminal: @escaping @Sendable (ModelTokenUsage?) -> Element?) -> AsyncThrowingStream<Element, Error> {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
             let worker = Task {
                 do {
-                    let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: true)
-                    try await bounded {
+                    let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: true, includeUsage: includeUsage)
+                    let usage: ModelTokenUsage? = try await bounded {
                         try Task.checkCancellation()
                         let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects())
                         defer { bytes.task.cancel() }
@@ -65,7 +84,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
                             if (200..<300).contains(http.statusCode), http.mimeType?.lowercased() == "application/json" {
                                 // A complete-only endpoint ignored stream=true. Use its
                                 // already returned response; never send a second request.
-                                let text = try await withTaskCancellationHandler {
+                                let completion = try await withTaskCancellationHandler {
                                     var data = Data()
                                     for try await byte in bytes {
                                         try Task.checkCancellation()
@@ -73,10 +92,11 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
                                         data.append(byte)
                                     }
                                     try Task.checkCancellation()
-                                    return try Self.completionText(data)
+                                    return try Self.completion(data)
                                 } onCancel: { bytes.task.cancel() }
-                                guard case .enqueued = continuation.yield(text) else { throw HTTPChatModelError.consumerTooSlow }
-                                return
+                                try Task.checkCancellation()
+                                guard case .enqueued = continuation.yield(delta(completion.text)) else { throw HTTPChatModelError.consumerTooSlow }
+                                return completion.usage
                             }
                             if [400, 415, 422].contains(http.statusCode) {
                                 // Classify only short, complete error bodies. The
@@ -98,12 +118,12 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
                             }
                         }
                         try Self.validate(response, stream: true)
-                        try await withTaskCancellationHandler {
+                        return try await withTaskCancellationHandler {
                             var parser = ChatSSEParser()
                             for try await byte in bytes {
                                 try Task.checkCancellation()
                                 if let text = try parser.append(byte) {
-                                    switch continuation.yield(text) {
+                                    switch continuation.yield(delta(text)) {
                                     case .enqueued: break
                                     case .dropped: throw HTTPChatModelError.consumerTooSlow
                                     case .terminated: throw CancellationError()
@@ -114,8 +134,18 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
                             }
                             try Task.checkCancellation()
                             try parser.finish()
+                            return parser.usage
                         } onCancel: {
                             bytes.task.cancel()
+                        }
+                    }
+                    try Task.checkCancellation()
+                    if let final = terminal(usage) {
+                        switch continuation.yield(final) {
+                        case .enqueued: break
+                        case .dropped: throw HTTPChatModelError.consumerTooSlow
+                        case .terminated: throw CancellationError()
+                        @unknown default: throw HTTPChatModelError.consumerTooSlow
                         }
                     }
                     continuation.finish()
@@ -141,7 +171,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         }
     }
 
-    static func request(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String, stream: Bool) throws -> URLRequest {
+    static func request(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String, stream: Bool, includeUsage: Bool = false) throws -> URLRequest {
         let model = configuration.model.trimmingCharacters(in: .whitespacesAndNewlines)
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !model.isEmpty, !key.isEmpty, (1...8192).contains(configuration.maxOutputTokens),
@@ -166,7 +196,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         request.setValue(stream ? "text/event-stream" : "application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try OpenAIChatRequest.body(model: model, messages: messages, stream: stream,
                                                       maxOutputTokens: configuration.maxOutputTokens,
-                                                      vision: configuration.vision)
+                                                      vision: configuration.vision, includeUsage: includeUsage)
         return request
     }
 
@@ -192,13 +222,13 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         return HTTPChatModelError.transportFailure
     }
 
-    private static func completionText(_ data: Data) throws -> String {
+    private static func completion(_ data: Data) throws -> ModelCompletionWithUsage {
         let response = try JSONDecoder().decode(Completion.self, from: data)
         guard let choice = response.choices.first, choice.finish_reason == "stop" else {
             throw HTTPChatModelError.incompleteResponse
         }
         guard !choice.message.content.isEmpty else { throw HTTPChatModelError.invalidResponse }
-        return choice.message.content
+        return .init(text: choice.message.content, usage: response.usage?.value)
     }
 
     private static func explicitlyRejectsStreaming(_ data: Data) -> Bool {
@@ -212,7 +242,16 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         return ["unsupported_parameter", "unsupported_value", "not_supported"].contains(code.lowercased())
     }
 
-    private struct Completion: Decodable { let choices: [Choice] }
+    private struct Completion: Decodable {
+        let choices: [Choice]
+        let usage: OpenAIReportedUsage?
+        private enum CodingKeys: String, CodingKey { case choices, usage }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            choices = try c.decode([Choice].self, forKey: .choices)
+            usage = try? c.decode(OpenAIReportedUsage.self, forKey: .usage)
+        }
+    }
     private struct Choice: Decodable {
         let message: ModelMessage
         let finish_reason: String?
