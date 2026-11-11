@@ -1,71 +1,17 @@
-<div align="center">
+# 渥屋助理 Google Play 版本（開發中）
 
-# 渥屋助理（woowtech agent）
+這是 `playstore/woowtech-compliant-20261111` 分支的商店版原始碼。**尚未提交 Google Play 審核，也不是可公開發布的商店版本。** [完整研究與驗收狀態](../docs-woowtech/PLAY_STORE_RESEARCH_2026-11-11.md)。
 
-**手機上的 AI 助理：說一句話，它在背景的螢幕上替你操作 App 和網頁，直到把事情辦完。**
+商店版套件名稱為 `io.woowtech.assistant`，可與 [main 分支的 GitHub APK 版](https://github.com/WOOWTECH/woowtech_mika_smart_app/tree/main) 共存。兩個 App 的本機資料不會自動共用。
 
-由 [渥屋科技（WOOW TECH CO., LTD.）](https://aiot.woowtech.io/) 維護與發行，以開源專案 [Mika](https://github.com/wangzan101/Mika)（Apache-2.0）為基礎。
-本專案與 Mika 原作者沒有隸屬或背書關係。
+預定功能：使用者自備模型帳號或 API Key 的 AI 對話、語音輸入、內建瀏覽器、記憶，以及遠端對話。商店版不提供跨 App 自動操作、無障礙服務、遠端喚醒／解鎖、ADB 手機助手、背景定時操控或 App 內 APK 自我更新。遠端歷史與附件同步、App 內 AI 內容檢舉、資料安全揭露及實機驗收仍在開發中。
 
-繁體中文 · [English](#english)
-
-</div>
-
-> **下載**：到 [Releases](https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/latest) 下載最新版，一般手機選檔名結尾是 `-arm64.apk` 的那個。只提供 APK，不上架 Google Play（原因見下方「安裝須知」）。
-
-## 它能做什麼
-
-- **替你操作 App**：在另一塊背景螢幕上開 App、點按、輸入、捲動，你照常用手機；想看時點開小畫面。
-- **瀏覽網頁**：內建桌面版瀏覽器，能保持登入、讀網頁、下載和上傳。
-- **排程與條件**：「明天早上 9 點提醒我」「每週五幫我做這件事」。
-- **檔案與運算**：每段對話有一個 Linux 沙盒，可執行 Python、Node 和 shell（需要 arm64 手機）。
-- **台灣在地化**：繁體中文介面，內建 LINE、蝦皮、momo、PChome、foodpanda、渥屋科技 App 等使用知識。
-- **從電腦交辦**：電腦上的 AI 工具可以透過 CLI、Skill 或 MCP 把任務交給手機，見 [電腦端 AI 快速連線](../docs-woowtech/agent-quickstart.md)、[電腦連線（MCP）](../docs-woowtech/mcp.md)。
-
-預設是「詢問模式」：付款、下單前一定先問你，其他動作直接做。也可以切到「自主模式」。
-
-## 安裝須知
-
-| 功能 | 需求 |
-|---|---|
-| 對話、網頁、檔案 | Android 11 以上 |
-| 操作手機上的 App | Android 12 以上，建議 Android 14 以上 |
-| Linux 沙盒 | arm64 手機 |
-
-- **為什麼不在 Google Play**：Google Play 的政策禁止 App 用無障礙服務讓 AI 自主規劃並操作其他 App。這是本 App 的核心功能，所以只提供 APK。
-- 從網頁下載安裝時，Android 可能顯示安全警告；開啟無障礙權限前，可能要先到「應用程式資訊 › 更多 › 允許受限制的設定」。
-- 開啟「進階保護」的手機無法使用操作 App 的功能。
-- 安裝檔用渥屋科技的正式金鑰簽章，憑證 SHA-256 是 `806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8`，之後的更新都用同一把金鑰。
-- 第一次使用：到「設定 › 模型」選服務商並輸入 API Key，或用 ChatGPT、OpenRouter、xAI 帳號登入；要操作 App，再到「設定 › 手機操作」配對一次無線偵錯。
-
-## 隱私與安全
-
-- 渥屋科技沒有為這個 App 架設伺服器，也不收集你的資料。你說的話、螢幕內容和截圖，只會送到你自己設定的模型服務商。
-- API Key 和記憶加密存在手機上；對話與執行紀錄留在手機裡；檢查更新只連線 GitHub。
-- 自動操作第三方 App 或網站可能違反它們的服務條款（例如 LINE、蝦皮都禁止機器人操作），帳號風險由使用者自行承擔。重要的事請用詢問模式，並檢查結果。
-- 本版本拿掉了中國廠商的模型預設、微信通道和豆包語音。
-
-## 原始碼與授權
-
-- 授權：[Apache-2.0](../LICENSE)，著作權聲明見 [NOTICE](../NOTICE)；第三方元件見 [licenses/THIRD_PARTY_NOTICES.md](../licenses/THIRD_PARTY_NOTICES.md)。
-- APK 內含 GPL／LGPL 元件（PRoot、talloc、Alpine Linux 套件）。每個版本的 Release 頁都會附上對應的原始碼包。
-- 跟上游 Mika 的差異、同步方式：[docs-woowtech/FORK.md](../docs-woowtech/FORK.md)。根目錄的 [README.md](../README.md) 和 `docs/` 是上游 Mika 的原文。
-
-## 聯絡
-
-- 問題回報：[GitHub Issues](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues)
-- 客服信箱：woowtech@designsmart.com.tw
-- 官網：https://aiot.woowtech.io/
-
----
+渥屋科技維護此專案，基於 [Mika](https://github.com/wangzan101/Mika)（Apache-2.0）；與 Mika 原作者沒有隸屬或背書關係。[授權](../LICENSE) · [第三方聲明](../licenses/THIRD_PARTY_NOTICES.md) · [問題回報](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues)
 
 ## English
 
-**woowtech agent** is an AI assistant for Android phones: say what you need and it works your apps and the web on a hidden background screen until the job is done. It is maintained and distributed by [WOOW TECH CO., LTD.](https://aiot.woowtech.io/) (Taiwan) and based on the open-source project [Mika](https://github.com/wangzan101/Mika) (Apache-2.0); it is not affiliated with or endorsed by the Mika author.
+This branch develops the Google Play edition of woowtech agent. It has **not been submitted to Google Play** and is not ready for public store release. Its package ID, `io.woowtech.assistant`, can coexist with the [direct APK edition on main](https://github.com/WOOWTECH/woowtech_mika_smart_app/tree/main); local data is separate.
 
-- **Download**: APKs only, from this repository's [Releases](https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/latest); most phones want the file ending in `-arm64.apk`. Signed with WOOW TECH's release key, certificate SHA-256 `806b3db808ecbb4d2d032b34624baa7e193802f17a07afbde2a03e78da9474c8`. Google Play does not allow apps that use the Accessibility API to let an AI plan and operate other apps, which is the core of this app.
-- **Differences from Mika**: WOOWTECH brand and update channel; English and Traditional Chinese UI; Taiwan app knowledge (LINE, Shopee, momo, PChome, foodpanda, woowtech aiot); China-based model presets, the WeChat channel and Doubao speech removed. Details: [docs-woowtech/FORK.md](../docs-woowtech/FORK.md).
-- **From a computer**: AI tools on a computer can hand tasks to the phone through the CLI, the Skill or MCP; see [Agent quick path](../docs-woowtech/agent-quickstart.en.md) and [Computer access (MCP)](../docs-woowtech/mcp.en.md).
-- **Privacy**: WOOW TECH runs no servers for this app and collects no data; what you send goes only to the model provider you choose.
-- **License**: Apache-2.0 ([LICENSE](../LICENSE), [NOTICE](../NOTICE)). GPL/LGPL components (PRoot, talloc, Alpine packages) ship with their corresponding source on every release page.
-- **Contact**: [issues](https://github.com/WOOWTECH/woowtech_mika_smart_app/issues) · woowtech@designsmart.com.tw
+The intended scope is AI chat with a user supplied model account or API key, voice input, an in-app browser, memory, and remote chat. Cross-app automation, AccessibilityService, remote wake/unlock, ADB phone control, scheduled phone tasks, and in-app APK self-updates are excluded. Conversation and attachment sync, in-app AI content reporting, data disclosures, and device acceptance testing remain open. See the [research and status report](../docs-woowtech/PLAY_STORE_RESEARCH_2026-11-11.md).
+
+Maintained by WOOW TECH CO., LTD. and based on [Mika](https://github.com/wangzan101/Mika) (Apache-2.0). This project is not affiliated with or endorsed by the Mika author.

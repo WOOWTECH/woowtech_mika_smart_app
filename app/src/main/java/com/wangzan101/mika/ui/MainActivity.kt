@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         conversationRequests.restore(intent, savedInstanceState)
-        monitor = SystemStatusMonitor(this, PhoneServices.of(this).shellControl)
+        monitor = SystemStatusMonitor(this)
         val store = ProviderStore.get(this)
         setContent {
             // 外观按设置来,改了当场换;系统栏图标的深浅跟着界面

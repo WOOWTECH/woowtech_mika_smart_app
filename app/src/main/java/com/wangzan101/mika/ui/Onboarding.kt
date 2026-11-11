@@ -2,7 +2,7 @@ package com.wangzan101.mika.ui
 
 import android.content.Context
 
-/** 首次上手的三步。 */
+/** 商店版只展示歡迎與模型設定；舊手機步驟保留作資料相容。 */
 enum class OnboardingStep { Welcome, Model, Phone }
 
 /**
@@ -32,9 +32,9 @@ object Onboarding {
         OnboardingStep.Phone -> null
     }
 
-    /** 底部分页点:三步里的第几步。 */
+    /** 商店版的兩個可見步驟。 */
     fun dot(step: OnboardingStep): Int = step.ordinal
-    const val DOTS = 3
+    const val DOTS = 2
 }
 
 /** 上手流程里「配置模型」做完没有;存在本机。 */

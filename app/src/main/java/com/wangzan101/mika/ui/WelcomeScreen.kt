@@ -42,7 +42,7 @@ import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.MikaType
 
-/** 上手第一步:说清 Mika 是什么、能做哪几类事,开始前要做的两件事和大概时间。 */
+/** 商店版上手第一步：介紹對話、語音、瀏覽器與記憶。 */
 @Composable
 fun WelcomeScreen(onStart: () -> Unit) {
     val c = MikaTheme.colors
@@ -104,9 +104,9 @@ object WelcomeCopy {
     data class Item(val icon: ImageVector, val title: String, val body: String)
 
     val FEATURES get() = listOf(
-        Item(MikaIcons.Apps, tr(R.string.welcome_apps), tr(R.string.welcome_apps_body)),
+        Item(MikaIcons.Message, tr(R.string.welcome_chat), tr(R.string.welcome_chat_body)),
+        Item(MikaIcons.Mic, tr(R.string.welcome_voice), tr(R.string.welcome_voice_body)),
         Item(MikaIcons.Globe, tr(R.string.welcome_web), tr(R.string.welcome_web_body)),
-        Item(MikaIcons.Doc, tr(R.string.welcome_files), tr(R.string.welcome_files_body)),
-        Item(MikaIcons.Clock, tr(R.string.welcome_schedule), tr(R.string.welcome_schedule_body)),
+        Item(MikaIcons.Spark, tr(R.string.welcome_memory), tr(R.string.welcome_memory_body)),
     )
 }

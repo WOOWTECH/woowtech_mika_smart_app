@@ -194,7 +194,7 @@ class TaskRun(
     /** 这段对话对外的会话号:这次运行建的模型(主、轻量、看图,及核查、意图判断、停止交代等旁路)都用它。 */
     private val session = ModelSession.of(conversationId)
     /** App 给的手机服务(共用的 shell 连接、「去设置」提示)、记忆、经验路线、异常退出后的恢复。 */
-    private val phoneServices = PhoneServices.of(service)
+    private val phoneServices by lazy { PhoneServices.of(service) }
     private val memoryRuntime = MemoryRuntime.of(service)
     private val routeStore = FileRouteStore.shared(service)
     private val recovery = TaskRecovery.of(service)

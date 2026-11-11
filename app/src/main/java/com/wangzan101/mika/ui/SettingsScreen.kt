@@ -95,9 +95,6 @@ fun SettingsScreen(
 
     // 并行任务的上限只在实验开关 parallelTasks 打开时出现;设备能力按此刻算,第二块屏建失败过就按失败算
     val context = LocalContext.current
-    val root = remember { com.wangzan101.mika.cap.phone.PhoneServices.of(context).shellManager.root }
-    val rootState by root.state.collectAsState()
-    LaunchedEffect(Unit) { root.refresh() }
     val flags = remember { FeatureFlags.get(context) }
     var parallelMax by remember { mutableIntStateOf(flags.parallelMax()) }
     var keepScreenOn by remember { mutableStateOf(flags.keepScreenOn()) }
@@ -152,7 +149,7 @@ fun SettingsScreen(
 
     val visiblePage = when {
         !showDeveloper && (page == SettingsPage.Developer || page == SettingsPage.RunStats) -> SettingsPage.Home
-        page == SettingsPage.Root && !rootState.suPresent -> SettingsPage.Advanced
+        page == SettingsPage.Root -> SettingsPage.Advanced
         else -> page
     }
     when (visiblePage) {
@@ -171,11 +168,11 @@ fun SettingsScreen(
         )
         SettingsPage.Advanced -> AdvancedSettingsContent(
             proxy = proxy, proxyNote = proxy?.let { NetProxyCopy.subtitle(it, browserProxy) }, onOpenProxy = { editingProxy = true },
-            sandbox = sandboxStatus, onOpenSandbox = { page = SettingsPage.Sandbox },
+            sandbox = null, onOpenSandbox = { page = SettingsPage.Sandbox },
             showRecovery = false, onOpenRecovery = { page = SettingsPage.Recovery },
             computerAccess = mcpOn, onOpenComputerAccess = { page = SettingsPage.ComputerAccess },
             mcpServersCount = null, onOpenMcpServers = { page = SettingsPage.McpServers },
-            showRoot = false, rootCommands = rootState.commands, onOpenRoot = { page = SettingsPage.Root },
+            showRoot = false, rootCommands = false, onOpenRoot = { page = SettingsPage.Root },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             onBack = toHome,
         )
@@ -277,10 +274,6 @@ fun SettingsContent(
                 RowChevron()
             }
             ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), onClick = onOpenDuringWork) { RowChevron() }
-            ListRow(MikaIcons.Message, CapsuleSettingsCopy.TITLE, CapsuleSettingsCopy.SUBTITLE, onClick = onOpenCapsule) {
-                RowValue(CapsuleSettingsCopy.label(capsuleMode))
-                RowChevron()
-            }
             ListRow(MikaIcons.Globe, stringResource(R.string.settings_language_appearance), onClick = onOpenLanguage) {
                 RowValue(languageLabel(language))
                 RowChevron()
@@ -297,7 +290,6 @@ fun SettingsContent(
             onOpenMemory?.let {
                 ListRow(MikaIcons.Heart, stringResource(R.string.settings_memory_data), stringResource(R.string.settings_memory_sub), first = true, onClick = it) { RowChevron() }
             }
-            ListRow(MikaIcons.Shield, stringResource(R.string.appaccess_title), stringResource(R.string.appaccess_row_sub), first = onOpenMemory == null, onClick = onOpenAppAccess) { RowChevron() }
         }
 
         GroupLabel(stringResource(R.string.settings_other))

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="welcome_title">Hi, I’m Mika</string>
-    <string name="welcome_lead">Your personal assistant on your phone.\nTell me what to do and I’ll get it done in the background.</string>
-    <string name="welcome_note">Before you start: set up a model and turn on phone control. About 3 minutes.</string>
+    <string name="welcome_lead">Chat, speak, browse and keep useful notes in one place.</string>
+    <string name="welcome_note">Set up your model account or API key to begin.</string>
     <string name="welcome_start">Get started</string>
+    <string name="welcome_chat">AI chat</string>
+    <string name="welcome_chat_body">Ask questions and continue past conversations</string>
+    <string name="welcome_voice">Voice input</string>
+    <string name="welcome_voice_body">Speak to compose a message</string>
+    <string name="welcome_memory">Memory</string>
+    <string name="welcome_memory_body">Keep useful details for later conversations</string>
     <string name="welcome_apps">Use apps</string>
     <string name="welcome_apps_body">Taps, types and scrolls on a background screen, leaving yours free</string>
     <string name="welcome_web">Browse the web</string>

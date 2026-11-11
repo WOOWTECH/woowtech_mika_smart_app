@@ -33,7 +33,7 @@ import com.wangzan101.mika.a11y.MikaAccessibilityService
  */
 private const val OP_RESTRICTED_SETTINGS = "android:access_restricted_settings"
 
-class SystemStatusMonitor(context: Context, private val shell: BuiltinShellControl) {
+class SystemStatusMonitor(context: Context, private val shell: BuiltinShellControl? = null) {
     private val app = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private val _status = MutableStateFlow(read())
@@ -47,6 +47,7 @@ class SystemStatusMonitor(context: Context, private val shell: BuiltinShellContr
     fun start() {
         if (scope != null) return
         val s = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { scope = it }
+        if (shell == null) { refresh(); return }
         app.contentResolver.registerContentObserver(
             Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES), false, a11ySetting,
         )
@@ -62,14 +63,26 @@ class SystemStatusMonitor(context: Context, private val shell: BuiltinShellContr
     fun stop() {
         scope?.cancel()
         scope = null
-        app.contentResolver.unregisterContentObserver(a11ySetting)
+        if (shell != null) app.contentResolver.unregisterContentObserver(a11ySetting)
     }
 
     fun refresh() {
         _status.value = read()
     }
 
-    private fun read() = SystemStatus(
+    private fun read(): SystemStatus {
+        if (shell == null) return SystemStatus(
+            sdkInt = Build.VERSION.SDK_INT,
+            builtinShell = com.wangzan101.mika.core.shell.BuiltinShellStatus.NotPaired,
+            accessibility = AccessibilityState.Off,
+            notificationsAllowed = app.getSystemService(NotificationManager::class.java).areNotificationsEnabled(),
+            attentionLowered = channelLowered(TaskService.CHANNEL_ATTENTION),
+            resultLowered = channelLowered(TaskService.CHANNEL_RESULT),
+            attentionImportance = channelImportance(TaskService.CHANNEL_ATTENTION),
+            resultImportance = channelImportance(TaskService.CHANNEL_RESULT),
+            progressImportance = channelImportance(TaskService.CHANNEL_PROGRESS),
+        )
+        return SystemStatus(
         sdkInt = Build.VERSION.SDK_INT,
         builtinShell = shell.status.value,
         accessibility = accessibilityState(),
@@ -90,7 +103,8 @@ class SystemStatusMonitor(context: Context, private val shell: BuiltinShellContr
         restrictedSettings = restrictedSettings(),
         helperRestart = shell.restart,
         rootStart = shell.rootStart,
-    )
+        )
+    }
 
     private fun channelImportance(id: String): Int? =
         app.getSystemService(NotificationManager::class.java).getNotificationChannel(id)?.importance
