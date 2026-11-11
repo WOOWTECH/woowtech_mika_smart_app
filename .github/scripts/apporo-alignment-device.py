@@ -22,6 +22,7 @@ spec = importlib.util.spec_from_file_location('alignment_startup_helpers', ROOT 
 smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 PACKAGE = 'com.apporo.assistant'
+EXPECTED_VERSION_CODE = 3809
 TEST_CLASS = 'com.wangzan101.mika.ui.ApporoAlignmentTest'
 COMPONENT = PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner'
 SERIAL = 'emulator-5554'
@@ -61,8 +62,8 @@ def select_apk(directory, package):
     if len(outputs) != 1:
         raise RuntimeError(f'Expected one unsplit/universal APK in {directory}')
     entry = outputs[0]
-    if package == PACKAGE and entry.get('versionCode') != 3808:
-        raise RuntimeError('Expected Apporo .8 versionCode 3808')
+    if package == PACKAGE and entry.get('versionCode') != EXPECTED_VERSION_CODE:
+        raise RuntimeError(f'Expected Apporo versionCode {EXPECTED_VERSION_CODE}')
     apk = (directory / entry['outputFile']).resolve()
     if apk.parent != directory.resolve() or apk.suffix != '.apk' or not apk.is_file():
         raise RuntimeError('Invalid APK output path')
@@ -103,7 +104,8 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     receipt = dict(status='FAIL', scope=SCOPE, source_sha=os.environ.get('GITHUB_SHA'),
-        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE, version_code=3808,
+        api=args.api, abi='x86_64', image_tag='default', package=PACKAGE,
+        version_code=EXPECTED_VERSION_CODE,
         test_class=TEST_CLASS, expected_tests=5, stages=[], cleanup=[])
     process = emulator_log = adb = avd_home = None
     instrument_started = False
