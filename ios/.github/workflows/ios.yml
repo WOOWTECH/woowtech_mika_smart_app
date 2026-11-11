@@ -337,6 +337,7 @@ jobs:
           ditto -c -k --keepParent build/unsigned-device/DerivedData/Build/Products/Release-iphoneos/WoowAssistant.app build/unsigned-delivery/WoowAssistant-unsigned.zip
           (cd build/unsigned-delivery && shasum -a 256 WoowAssistant-unsigned.zip > SHA256SUMS.txt)
           cp build/unsigned-device/report.json build/unsigned-delivery/report.json
+          git rev-parse HEAD > build/unsigned-delivery/source-commit.txt
       - name: Preserve unsigned device build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -345,6 +346,7 @@ jobs:
             build/unsigned-delivery/WoowAssistant-unsigned.zip
             build/unsigned-delivery/SHA256SUMS.txt
             build/unsigned-delivery/report.json
+            build/unsigned-delivery/source-commit.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 3
