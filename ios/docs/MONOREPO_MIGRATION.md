@@ -13,7 +13,7 @@ python3 ios/scripts/sync_monorepo_workflows.py --check
 
 產生的 workflow 把 shell 工作目錄設為 `ios/`，並把上傳 artifact 的相對路徑指向 `ios/build/`。一般 iOS 回歸只在 iOS 相關檔案或其 workflow 改動時隨 push／PR 啟動；其餘發行、真實服務及來源比對依各 workflow 的手動觸發條件執行。歷史的 `diagnose-ios17-runner.yml` 固定指向舊 repo 的特定執行紀錄，保留作歷史證據，未列為新倉庫可用驗證。
 
-舊 repo 已設定的四個測試 secret 名稱為 `WOOW_HA_MCP_TEST_URL`、`WOOW_MODEL_TEST_API_KEY`、`WOOW_MODEL_TEST_BASE_URL`、`WOOW_MODEL_TEST_MODEL`；舊 repo 另有 `WOOW_MODEL_TEST_BASE_URL`、`WOOW_MODEL_TEST_MODEL` 兩個 variables。新倉庫首次盤點時上述 secrets／variables 尚未設定。GitHub 不提供讀回 secret 值，必須由持有者安全地在新 repo 或適用的組織層重新設定，並依實際 workflow 使用的 secret／variable 類型驗證。簽章與 TestFlight secrets 亦須依 [IOS_DISTRIBUTION.md](IOS_DISTRIBUTION.md) 核對；本次沒有轉移或建立這些值。
+舊 repo 已設定的四個測試 secret 名稱為 `WOOW_HA_MCP_TEST_URL`、`WOOW_MODEL_TEST_API_KEY`、`WOOW_MODEL_TEST_BASE_URL`、`WOOW_MODEL_TEST_MODEL`；舊 repo 另有 `WOOW_MODEL_TEST_BASE_URL`、`WOOW_MODEL_TEST_MODEL` 兩個 variables。新倉庫已用使用者提供的測試設定建立這些名稱。GitHub 不提供讀回 secret 值；新倉庫的 live workflow 仍須實際執行，才能驗證設定與程式的整合。簽章與 TestFlight secrets 亦須依 [IOS_DISTRIBUTION.md](IOS_DISTRIBUTION.md) 核對；本次沒有轉移或建立這些值。
 
 ## 舊倉庫封存前
 
