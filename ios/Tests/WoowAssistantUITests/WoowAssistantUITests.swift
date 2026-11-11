@@ -437,6 +437,108 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(relaunched.staticTexts["settings.connectionStatus"].label, "尚未測試連線。")
     }
 
+    func testDelayedConnectionEditsCannotPublishOldResult() throws {
+        #if !targetEnvironment(simulator)
+        throw XCTSkip("The delayed connection fixture requires an isolated simulator")
+        #else
+        executionTimeAllowance = 300
+        for (index, field) in ["url", "model", "key"].enumerated() {
+            let app = launchApp(resetStorage: index == 0, delayedConnection: true)
+            if index == 0 { configure(in: app) }
+            else { openSection("settings", in: app); openModelSettings(in: app) }
+            startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
+            switch field {
+            case "url": replaceBaseURL("https://other.example.invalid/v1", in: app)
+            case "model":
+                let model = app.textFields["settings.model"]
+                revealSettings(model, in: app, upward: false)
+                model.tap(); model.typeText("x\n")
+            default:
+                let key = app.secureTextFields["settings.apiKey"]
+                revealSettings(key, in: app, upward: false)
+                key.tap(); key.typeText("x\n")
+            }
+            waitConnectionStatus("尚未測試連線。", in: app)
+            waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
+            releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
+            waitConnectionStatus("尚未測試連線。", in: app)
+            XCTAssertFalse(app.buttons["settings.testConnection"].isEnabled, "Unsaved \(field) must prevent a test")
+            app.terminate()
+        }
+        let app = launchApp(resetStorage: false, delayedConnection: true)
+        openSection("settings", in: app); openModelSettings(in: app)
+        XCTAssertEqual(app.textFields["settings.baseURL"].value as? String, fixtureURL)
+        XCTAssertEqual(app.textFields["settings.model"].value as? String, "ui-test-model")
+        startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
+        releaseDelayedConnection(in: app, started: 1, cancelled: 0, released: 1, settled: 1)
+        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        returnFromModelSettings(in: app); openSection("chat", in: app)
+        send("Saved connection still works", in: app)
+        assertReply("測試回覆：Saved connection still works", in: app)
+        #endif
+    }
+
+    func testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult() throws {
+        #if !targetEnvironment(simulator)
+        throw XCTSkip("The delayed connection fixture requires an isolated simulator")
+        #else
+        executionTimeAllowance = 300
+        let app = launchApp(delayedConnection: true)
+        configure(in: app)
+        startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
+        let cancel = app.buttons["settings.cancelConnectionTest"]
+        revealSettings(cancel, in: app); cancel.tap()
+        waitConnectionStatus("尚未測試連線。", in: app)
+        waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
+        releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
+        waitConnectionStatus("尚未測試連線。", in: app)
+
+        startDelayedConnection(in: app, started: 2, released: 1, settled: 1)
+        save(in: app); assertSaved(in: app)
+        waitConnectionStatus("尚未測試連線。", in: app)
+        waitConnectionFixture(in: app, started: 2, cancelled: 2, released: 1, settled: 1)
+        releaseDelayedConnection(in: app, started: 2, cancelled: 2, released: 2, settled: 2)
+        waitConnectionStatus("尚未測試連線。", in: app)
+
+        startDelayedConnection(in: app, started: 3, released: 2, settled: 2)
+        returnFromModelSettings(in: app); openModelSettings(in: app)
+        waitConnectionStatus("尚未測試連線。", in: app)
+        waitConnectionFixture(in: app, started: 3, cancelled: 3, released: 2, settled: 2)
+        releaseDelayedConnection(in: app, started: 3, cancelled: 3, released: 3, settled: 3)
+        waitConnectionStatus("尚未測試連線。", in: app)
+        startDelayedConnection(in: app, started: 4, released: 3, settled: 3)
+        releaseDelayedConnection(in: app, started: 4, cancelled: 3, released: 4, settled: 4)
+        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        returnFromModelSettings(in: app); openSection("chat", in: app)
+        send("Saved after cancellation", in: app)
+        assertReply("測試回覆：Saved after cancellation", in: app)
+        #endif
+    }
+
+    func testDelayedConnectionBackgroundCannotPublishOldResult() throws {
+        #if !targetEnvironment(simulator)
+        throw XCTSkip("The delayed connection fixture requires an isolated simulator")
+        #else
+        executionTimeAllowance = 300
+        let app = launchApp(delayedConnection: true)
+        configure(in: app)
+        startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
+        XCUIDevice.shared.press(.home)
+        let background = NSPredicate { _, _ in
+            app.state == .runningBackground || app.state == .runningBackgroundSuspended
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: background, object: nil)], timeout: 10), .completed)
+        app.activate()
+        waitConnectionStatus("尚未測試連線。", in: app)
+        waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
+        releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
+        waitConnectionStatus("尚未測試連線。", in: app)
+        startDelayedConnection(in: app, started: 2, released: 1, settled: 1)
+        releaseDelayedConnection(in: app, started: 2, cancelled: 1, released: 2, settled: 2)
+        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        #endif
+    }
+
     func testKeychainWriteFailureDoesNotPublishConfiguration() {
         let app = launchApp(keychainWriteFails: true)
         fillConfiguration(in: app)
@@ -554,11 +656,13 @@ final class WoowAssistantUITests: XCTestCase {
         waitUntilHittable(element)
     }
 
-    private func launchApp(resetStorage: Bool = true, keychainWriteFails: Bool = false) -> XCUIApplication {
+    private func launchApp(resetStorage: Bool = true, keychainWriteFails: Bool = false,
+                           delayedConnection: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
         if resetStorage { app.launchArguments.append("-UITestResetStorage") }
         if keychainWriteFails { app.launchArguments.append("-UITestKeychainWriteFailure") }
+        if delayedConnection { app.launchArguments.append("-UITestModelConnectionDelay") }
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["uitest.banner"].exists)
@@ -582,6 +686,36 @@ final class WoowAssistantUITests: XCTestCase {
         fillConfiguration(in: app)
         save(in: app)
         assertSaved(in: app)
+    }
+
+    private func waitConnectionStatus(_ expected: String, in app: XCUIApplication) {
+        let status = app.staticTexts["settings.connectionStatus"].firstMatch
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
+    }
+
+    private func waitConnectionFixture(in app: XCUIApplication, started: Int, cancelled: Int, released: Int, settled: Int) {
+        let indicator = app.staticTexts["settings.connectionFixture"].firstMatch
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@",
+            "Fixture: \(started),\(cancelled),\(released),\(settled)"), object: indicator)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 15), .completed)
+    }
+
+    private func startDelayedConnection(in app: XCUIApplication, started: Int, released: Int, settled: Int) {
+        let test = app.buttons["settings.testConnection"]
+        revealSettings(test, in: app)
+        XCTAssertTrue(test.isEnabled)
+        test.tap()
+        waitConnectionFixture(in: app, started: started, cancelled: released, released: released, settled: settled)
+        waitConnectionStatus("正在測試連線…", in: app)
+    }
+
+    private func releaseDelayedConnection(in app: XCUIApplication, started: Int, cancelled: Int, released: Int, settled: Int) {
+        let release = app.buttons["settings.connectionFixture.release"]
+        revealSettings(release, in: app)
+        XCTAssertTrue(release.isEnabled)
+        release.tap()
+        waitConnectionFixture(in: app, started: started, cancelled: cancelled, released: released, settled: settled)
     }
 
     private func save(in app: XCUIApplication) {

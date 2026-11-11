@@ -293,6 +293,11 @@ private struct MikaModelSettingsDetailView: View {
                     Text(verbatim: connectionStatus)
                         .foregroundStyle(palette.secondary)
                         .accessibilityIdentifier("settings.connectionStatus")
+                    #if DEBUG
+                    if let fixture = connection.fixture {
+                        ModelConnectionFixtureControls(fixture: fixture)
+                    }
+                    #endif
                     if let error = session.settingsError {
                         Text(verbatim: localizer.modelSettingsDisplayMessage(error))
                             .foregroundStyle(.red).accessibilityIdentifier("settings.error")
@@ -378,13 +383,49 @@ private struct MikaModelSettingsDetailView: View {
 @MainActor
 private final class MikaModelConnectionViewModel: ObservableObject {
     @Published private(set) var state: ModelConnectionCheck.State = .untested
-    private let check = ModelConnectionCheck()
+    private let check: ModelConnectionCheck
 
-    init() { check.onChange = { [weak self] state in self?.state = state } }
+    #if DEBUG
+    let fixture: ModelConnectionUITestFixture?
+    #endif
+    init() {
+        #if DEBUG
+        fixture = ModelConnectionUITestFixture.selected(arguments: ProcessInfo.processInfo.arguments)
+        // Only the opt-in simulator fixture gets extra time for native UI gestures.
+        check = ModelConnectionCheck(timeoutNanoseconds: fixture == nil ? 20_000_000_000 : 120_000_000_000)
+        if let fixture { check.onFixtureAttemptSettled = { fixture.attemptSettled() } }
+        #else
+        check = ModelConnectionCheck()
+        #endif
+        check.onChange = { [weak self] state in self?.state = state }
+    }
     func start(_ access: ModelAccess) {
+        #if DEBUG
+        if let fixture {
+            check.start(client: DelayedModelConnectionUITestClient(fixture: fixture),
+                        configuration: access.configuration, apiKey: access.key)
+            return
+        }
+        #endif
         check.start(client: access.client, configuration: access.configuration, apiKey: access.key)
     }
     func reset() { check.reset() }
     func credentialsUnavailable() { check.credentialsUnavailable() }
 }
+
+#if DEBUG
+@MainActor
+private struct ModelConnectionFixtureControls: View {
+    @ObservedObject var fixture: ModelConnectionUITestFixture
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("Fixture: \(fixture.started),\(fixture.cancelled),\(fixture.released),\(fixture.settled)")
+                .accessibilityIdentifier("settings.connectionFixture")
+            Button("Release fixture") { fixture.releaseNext() }
+                .disabled(fixture.released >= fixture.started)
+                .accessibilityIdentifier("settings.connectionFixture.release")
+        }
+    }
+}
+#endif
 #endif

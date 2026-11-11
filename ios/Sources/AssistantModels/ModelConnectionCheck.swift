@@ -16,6 +16,11 @@ public final class ModelConnectionCheck {
         didSet { onChange?(state) }
     }
     public var onChange: ((State) -> Void)?
+    #if DEBUG
+    /// A UI fixture can observe the end of the worker after cancellation.
+    /// Never carries the request, response, endpoint, or credential.
+    public var onFixtureAttemptSettled: (() -> Void)?
+    #endif
     private var generation: UInt64 = 0
     private var operation: Task<Void, Never>?
     private var timer: Task<Void, Never>?
@@ -57,7 +62,13 @@ public final class ModelConnectionCheck {
         guard generation == current, state == .testing else { return }
         let probe = ModelConfiguration(baseURL: configuration.baseURL, model: configuration.model,
                                        maxOutputTokens: 32)
+        #if DEBUG
+        let fixtureSettled = onFixtureAttemptSettled
+        #endif
         operation = Task { [weak self] in
+            #if DEBUG
+            defer { fixtureSettled?() }
+            #endif
             do {
                 let reply = try await client.complete(
                     messages: [ModelMessage(role: "user", content: "This is a connection test. Reply briefly.")],
