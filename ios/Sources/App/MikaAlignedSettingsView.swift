@@ -87,22 +87,19 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("settings.memoryJump")
                 }
-                MikaSettingsGroupLabel(title: localizer.text(.settingsHomeConnections))
+                MikaSettingsGroupLabel(title: aboutCopy.text(.group))
                     .padding(.top, 8)
                 MikaSettingsCard {
                     NavigationLink {
-                        mcpDestination()
-                            .navigationTitle(localizer.text(.shellMCPServers))
-                            .navigationBarTitleDisplayMode(.inline)
+                        MikaAdvancedSettingsView(languages: languages, mcpDestination: mcpDestination)
                     } label: {
-                        MikaSettingsRow(icon: .link, title: localizer.text(.shellMCPServers),
-                                        subtitle: localizer.text(.settingsHomeMCPDetail))
+                        MikaSettingsRow(icon: .wrench, title: localizer.text(.settingsAdvancedTitle),
+                                        subtitle: localizer.text(.settingsAdvancedDetail))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings.mcpJump")
+                    .accessibilityIdentifier("settings.advanced")
                 }
-                MikaSettingsGroupLabel(title: aboutCopy.text(.group))
-                    .padding(.top, 8)
+                .padding(.bottom, 8)
                 MikaSettingsCard {
                     NavigationLink {
                         MikaAboutView(languages: languages, info: aboutInfo)
@@ -121,6 +118,41 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
         }
         .background(palette.page)
         .navigationTitle(localizer.text(.settingsHomeTitle))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Android groups connection settings under Advanced. Only the supported iOS
+/// destination is exposed; no proxy or execution environment is implied.
+@MainActor
+private struct MikaAdvancedSettingsView<MCPDestination: View>: View {
+    @ObservedObject var languages: AppLanguageStore
+    let mcpDestination: () -> MCPDestination
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
+    private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                MikaSettingsGroupLabel(title: localizer.text(.settingsHomeConnections))
+                MikaSettingsCard {
+                    NavigationLink {
+                        mcpDestination()
+                            .navigationTitle(localizer.text(.shellMCPServers))
+                            .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        MikaSettingsRow(icon: .link, title: localizer.text(.shellMCPServers),
+                                        subtitle: localizer.text(.settingsHomeMCPDetail))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.mcpJump")
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 20)
+        }
+        .background(palette.page)
+        .navigationTitle(localizer.text(.settingsAdvancedTitle))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

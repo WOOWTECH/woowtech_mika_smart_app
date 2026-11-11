@@ -374,6 +374,8 @@ enum AppText: Equatable {
     case settingsHomeNotificationDetail
     case settingsHomeMyData
     case settingsHomeMemoryDetail
+    case settingsAdvancedTitle
+    case settingsAdvancedDetail
     case settingsHomeConnections
     case settingsHomeMCPDetail
     case settingsModelNotSet
@@ -818,6 +820,8 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
         case .settingsHomeMyData: return "settings.home.myData"
         case .settingsHomeMemoryDetail: return "settings.home.memory.detail"
+        case .settingsAdvancedTitle: return "settings.advanced.title"
+        case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
         case .settingsHomeMCPDetail: return "settings.home.mcp.detail"
         case .settingsModelNotSet: return "settings.model.notSet"
@@ -1291,6 +1295,8 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
         case .settingsHomeMyData: return "我的資料"
         case .settingsHomeMemoryDetail: return "管理記憶、技能與已儲存的網站資料"
+        case .settingsAdvancedTitle: return "進階與其他"
+        case .settingsAdvancedDetail: return "MCP 伺服器與連接"
         case .settingsHomeConnections: return "網路與連接"
         case .settingsHomeMCPDetail: return "連接 MCP 伺服器並管理可用工具"
         case .settingsModelNotSet: return "未設定"

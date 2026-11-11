@@ -366,6 +366,8 @@
 "settings.home.notification.detail" = "When alerts appear and where to change system settings";
 "settings.home.myData" = "My data";
 "settings.home.memory.detail" = "Manage memories, skills and saved website data";
+"settings.advanced.title" = "Advanced and other";
+"settings.advanced.detail" = "MCP servers and connections";
 "settings.home.connections" = "Network and connections";
 "settings.home.mcp.detail" = "Connect an MCP server and manage available tools";
 "settings.model.notSet" = "Not set";

@@ -198,25 +198,35 @@ final class WoowAssistantUITests: XCTestCase {
     func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
         let app = launchApp()
         openSection("settings", in: app)
-        for (linkID, title, destinationID) in [
-            ("settings.memoryJump", "記憶與資料", "memory.segment.memories"),
-            ("settings.mcpJump", "MCP 伺服器", "mcp.status")
-        ] {
-            let link = app.buttons[linkID]
-            revealSettings(link, in: app)
-            link.tap()
-            let bar = app.navigationBars[title]
-            XCTAssertTrue(bar.waitForExistence(timeout: 10))
-            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: destinationID).firstMatch.waitForExistence(timeout: 10),
-                          "The settings row must open the existing working destination.")
-            XCTAssertFalse(app.buttons["section.back"].isHittable,
-                           "The root back button must not cover the native detail Back button.")
-            let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
-            waitUntilHittable(nativeBack)
-            nativeBack.tap()
-            XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons[linkID].exists)
-        }
+        let memory = app.buttons["settings.memoryJump"]
+        revealSettings(memory, in: app); memory.tap()
+        let memoryBar = app.navigationBars["記憶與資料"]
+        XCTAssertTrue(memoryBar.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["memory.segment.memories"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["section.back"].isHittable)
+        let memoryBack = memoryBar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        waitUntilHittable(memoryBack); memoryBack.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+
+        let advanced = app.buttons["settings.advanced"]
+        revealSettings(advanced, in: app); advanced.tap()
+        let advancedBar = app.navigationBars["進階與其他"]
+        XCTAssertTrue(advancedBar.waitForExistence(timeout: 10))
+        let mcp = app.buttons["settings.mcpJump"]
+        revealSettings(mcp, in: app); mcp.tap()
+        let mcpBar = app.navigationBars["MCP 伺服器"]
+        XCTAssertTrue(mcpBar.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["section.back"].isHittable)
+        let mcpBack = mcpBar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        waitUntilHittable(mcpBack); mcpBack.tap()
+        XCTAssertTrue(advancedBar.waitForExistence(timeout: 10))
+        XCTAssertTrue(mcp.waitForExistence(timeout: 10))
+        let advancedBack = advancedBar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        waitUntilHittable(advancedBack); advancedBack.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["settings.advanced"].exists)
+
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
         app.buttons["chat.menu"].tap()

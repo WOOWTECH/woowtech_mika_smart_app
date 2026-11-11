@@ -46,7 +46,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link, info
+    case spark, globe, bell, key, heart, link, info, wrench
 }
 
 struct MikaSettingsIconTile: View {
@@ -183,6 +183,19 @@ struct MikaSettingsIconShape: Shape {
             path.addCurve(to: CGPoint(x: 12, y: 18),
                           control1: CGPoint(x: 1, y: 17), control2: CGPoint(x: 7, y: 23))
             path.addLine(to: CGPoint(x: 15, y: 15))
+        case .wrench:
+            path.move(to: CGPoint(x: 14.7, y: 6.3))
+            path.addCurve(to: CGPoint(x: 9.3, y: 11.7),
+                          control1: CGPoint(x: 10.8, y: 4.1), control2: CGPoint(x: 7.1, y: 7.8))
+            path.addLine(to: CGPoint(x: 3.5, y: 17.5))
+            path.addLine(to: CGPoint(x: 6.5, y: 20.5))
+            path.addLine(to: CGPoint(x: 12.3, y: 14.7))
+            path.addCurve(to: CGPoint(x: 17.7, y: 9.3),
+                          control1: CGPoint(x: 16.2, y: 16.9), control2: CGPoint(x: 19.9, y: 13.2))
+            path.addLine(to: CGPoint(x: 15.1, y: 11.9))
+            path.addLine(to: CGPoint(x: 12.7, y: 11.3))
+            path.addLine(to: CGPoint(x: 12.1, y: 8.9))
+            path.closeSubpath()
         case .info:
             path.addEllipse(in: CGRect(x: 3, y: 3, width: 18, height: 18))
             path.addEllipse(in: CGRect(x: 11.2, y: 7, width: 1.6, height: 1.6))

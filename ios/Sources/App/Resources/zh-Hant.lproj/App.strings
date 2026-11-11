@@ -366,6 +366,8 @@
 "settings.home.notification.detail" = "什麼時候彈出、去系統裡改";
 "settings.home.myData" = "我的資料";
 "settings.home.memory.detail" = "管理記憶、技能與已儲存的網站資料";
+"settings.advanced.title" = "進階與其他";
+"settings.advanced.detail" = "MCP 伺服器與連接";
 "settings.home.connections" = "網路與連接";
 "settings.home.mcp.detail" = "連接 MCP 伺服器並管理可用工具";
 "settings.model.notSet" = "未設定";

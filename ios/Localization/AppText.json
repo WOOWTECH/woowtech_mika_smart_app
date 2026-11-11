@@ -3848,6 +3848,26 @@
       }
     },
     {
+      "case": "settingsAdvancedTitle",
+      "key": "settings.advanced.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "進階與其他",
+        "zh-Hans": "高级与其他",
+        "en": "Advanced and other"
+      }
+    },
+    {
+      "case": "settingsAdvancedDetail",
+      "key": "settings.advanced.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器與連接",
+        "zh-Hans": "MCP 服务器与连接",
+        "en": "MCP servers and connections"
+      }
+    },
+    {
       "case": "settingsHomeConnections",
       "key": "settings.home.connections",
       "parameters": [],

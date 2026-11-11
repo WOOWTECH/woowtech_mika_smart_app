@@ -99,6 +99,42 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
+    func testAdvancedSettingsAndMCPNavigationInEverySupportedLanguage() {
+        let cases: [(String, String, String, String)] = [
+            ("(zh-Hant)", "設定", "進階與其他", "MCP 伺服器"),
+            ("(zh-Hans)", "设置", "高级与其他", "MCP 服务器"),
+            ("(en)", "Settings", "Advanced and other", "MCP servers")
+        ]
+        for (systemLanguages, settingsTitle, advancedTitle, mcpTitle) in cases {
+            app.terminate()
+            app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+            app.launchEnvironment = [:]
+            app.launch()
+            navigateMikaSection("settings", in: app)
+            XCTAssertTrue(app.navigationBars[settingsTitle].waitForExistence(timeout: 10))
+            let advanced = app.buttons["settings.advanced"]
+            revealLearningElement(advanced, in: app)
+            XCTAssertTrue(advanced.isHittable && advanced.label.contains(advancedTitle))
+            advanced.tap()
+            let advancedBar = app.navigationBars[advancedTitle]
+            XCTAssertTrue(advancedBar.waitForExistence(timeout: 10))
+            let mcp = app.buttons["settings.mcpJump"]
+            revealLearningElement(mcp, in: app)
+            XCTAssertTrue(mcp.isHittable && mcp.label.contains(mcpTitle))
+            mcp.tap()
+            let mcpBar = app.navigationBars[mcpTitle]
+            XCTAssertTrue(mcpBar.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 10))
+            XCTAssertTrue(mcpBar.buttons.firstMatch.isHittable)
+            mcpBar.buttons.firstMatch.tap()
+            XCTAssertTrue(advancedBar.waitForExistence(timeout: 10))
+            XCTAssertTrue(advancedBar.buttons.firstMatch.isHittable)
+            advancedBar.buttons.firstMatch.tap()
+            XCTAssertTrue(app.navigationBars[settingsTitle].waitForExistence(timeout: 10))
+        }
+    }
+
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
