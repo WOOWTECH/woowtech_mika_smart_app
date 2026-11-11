@@ -1,0 +1,18 @@
+Mika
+Copyright 2026 wangzan101
+
+The memory, personal-skill, website-knowledge and route behavior is adapted in Swift from
+Mika, https://github.com/wangzan101/Mika, revision
+0c172724f3f0c96f7345262588072f6e95db1138 (Apache License 2.0).
+These are modified iOS implementations, not the original Android files.
+The upstream license is included at licenses/Mika-Apache-2.0.txt.
+
+Sources/AssistantSkills/Resources/MikaBundledSkills.json also includes verbatim
+copies of all six bundled SKILL.md files, three supporting files, LICENSE and
+NOTICE from that same upstream revision. Source paths and SHA-256 hashes are
+retained in the archive. The embedded scripts are displayed as inert text.
+Separately labeled iOS text adaptations are modified WOOWTECH material and do
+not claim the original tools' execution capabilities.
+
+WOOWTECH iOS adaptations: encrypted transactional persistence, SwiftUI review,
+platform capability boundaries, and native tests. No endorsement is implied.
