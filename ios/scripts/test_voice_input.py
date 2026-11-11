@@ -1,4 +1,5 @@
 import plistlib
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -20,6 +21,17 @@ class VoiceInputStandaloneTests(unittest.TestCase):
                                 cwd=ROOT, text=True, capture_output=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS SharedVoiceAudioCoordinator:", result.stdout)
+
+    def test_direct_webview_construction_inventory_requires_audio_review(self):
+        # This is a source inventory guard, not proof of WebKit quiescence.
+        constructors = set()
+        for path in (ROOT / "Sources").rglob("*.swift"):
+            if re.search(r"\bWKWebView\s*\(", path.read_text()):
+                constructors.add(path.relative_to(ROOT).as_posix())
+        self.assertEqual(constructors, {
+            "Sources/App/BrowserSession.swift",
+            "Sources/AssistantBrowser/ResearchSourceDiscoveryWebKit.swift",
+        }, "Review the audio admission inventory when a new direct constructor appears")
 
     def test_revocation_type_rejects_synchronous_nonisolated_call(self):
         with tempfile.TemporaryDirectory() as directory:
