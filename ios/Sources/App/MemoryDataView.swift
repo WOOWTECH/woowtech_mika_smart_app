@@ -14,6 +14,15 @@ struct MemoryDataView: View {
     @State private var query = ""
     @State private var sheet: LearningSheet?
     @FocusState private var searchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
+    @Environment(\.appLocalizer) private var appLocalizer
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: appLocalizer.language) }
+    #else
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
+    #endif
+
+    private var palette: MemoryPalette { MemoryPalette(dark: colorScheme == .dark) }
 
     // Approval stores guidance; it does not start a task or grant capabilities.
     // Browser references are usable only in the explicitly started research mode.
@@ -25,121 +34,22 @@ struct MemoryDataView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("記憶與資料")
-                    .font(.title2.bold())
-                    .accessibilityIdentifier("memory.status")
-                HStack(spacing: 8) {
-                    ForEach(LearningSegment.allCases) { item in
-                        Button {
-                            segment = item
-                        } label: {
-                            Text(item == .pending && pendingCount > 0 ? "待確認（\(pendingCount)）" : item.title)
-                                .font(.subheadline)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(segment == item ? .accentColor : .secondary)
-                        .accessibilityValue(segment == item ? "已選取" : "未選取")
-                        .accessibilityAddTraits(segment == item ? .isSelected : [])
-                        .accessibilityIdentifier("memory.segment.\(item.rawValue)")
-                    }
-                }
-                if segment != .skills {
-                    TextField("搜尋記憶或關鍵字", text: $query)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-                        .focused($searchFocused)
-                        .submitLabel(.search)
-                        .onSubmit { searchFocused = false }
-                        .accessibilityIdentifier("memory.search")
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-
-            List {
-                if !store.available {
-                    Section {
-                        Text("記憶資料目前無法讀取；不會以空白資料覆寫原檔。")
-                            .accessibilityIdentifier("memory.unavailable")
-                        Button("重新讀取") { store.reload() }
-                            .accessibilityIdentifier("memory.reload")
-                    }
-                }
-                if let error = store.error {
-                    Section {
-                        Text(verbatim: error).foregroundStyle(.red)
-                            .accessibilityIdentifier("memory.error")
-                        Button("關閉提示") { store.dismissNotice() }
-                    }
-                }
-                if let notice = store.notice {
-                    Section {
-                        Text(verbatim: notice).accessibilityIdentifier("memory.notice")
-                        Button("關閉提示") { store.dismissNotice() }
-                    }
-                }
-                if segment == .memories {
-                    Section {
-                        NavigationLink {
-                            UserProfileView(store: store)
-                        } label: { Text("個人檔案") }
-                            .disabled(!store.available)
-                            .accessibilityIdentifier("memory.profile.open")
-                    }
-                }
-                if segment == .skills {
-                    Section {
-                        Button("Mika 內建技能目錄（6）") { sheet = .catalog }
-                            .accessibilityIdentifier("skills.catalog.open")
-                        NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: { Text("選取 PDF 並擷取文字") }
-                            .accessibilityIdentifier("skills.documents.execute")
-                        NavigationLink {
-                            SkillAgentView(store: store, modelAccess: modelAccess)
-                        } label: { Text("請模型協助編寫技能") }
-                            .disabled(!store.available)
-                            .accessibilityIdentifier("skills.agent.open")
-                        NavigationLink {
-                            TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
-                        } label: { Text("整理文字稿與字幕") }
-                            .accessibilityIdentifier("skills.transcript.open")
-                        Text("閱讀完整原文與授權、匯入 iOS 文字技能，或選取 PDF 執行文件處理；每個執行步驟仍需核准。")
-                            .font(.footnote).foregroundStyle(.secondary)
-                    }
-                }
-                if store.available {
-                    switch segment {
-                    case .memories: memorySections
-                    case .skills: skillsSections
-                    case .pending: pendingSections
-                    }
-                }
-                preferencesSection
-                Section("其他資料") {
-                    Button("網站知識與路線（\(store.websites.lessons.count)／\(store.routes.routes.count)）") { sheet = .websites }
-                        .accessibilityIdentifier("memory.websites")
-                    Text("網站登入資料由 WebKit 儲存，可在瀏覽器的網站頁面查看與清除。")
-                        .accessibilityIdentifier("memory.browserPending")
-                    Button("到瀏覽器管理網站資料") { onOpenBrowser() }
-                        .accessibilityIdentifier("memory.manageWebsites")
-                    Text("網頁路線以實際讀取與完成判定建立；目前只支援公開網站的導覽與核對。")
-                        .accessibilityIdentifier("memory.routesPending")
-                }
-                Section {
-                    Button("清除所有記憶與 Skills", role: .destructive) {
-                        store.dismissNotice()
-                        sheet = .clear
-                    }
-                    .accessibilityIdentifier("memory.clear")
-                    Text("需要兩次確認，並包含個人檔案。模型設定、模型金鑰與 MCP 端點不會被清除。")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-            .listStyle(.insetGrouped)
-            .scrollDismissesKeyboard(.interactively)
-            .id(segment)
+            header
+            contentList
         }
+        .background(palette.background)
+        // The root tab and the chat drawer both supply a NavigationStack.
+        // Keep its title and the centered principal item on the same resolved language.
+        .navigationTitle(copy.text(.title))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(copy.text(.title))
+                    .font(.headline)
+                    .accessibilityIdentifier("memory.status")
+            }
+        }
+        .memoryNavigationBackground(palette.background)
+        .tint(palette.accent)
         .sheet(item: $sheet) { destination in
             NavigationStack {
                 switch destination {
@@ -162,28 +72,217 @@ struct MemoryDataView: View {
         }
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 0) {
+                ForEach(LearningSegment.allCases) { item in
+                    Button {
+                        segment = item
+                    } label: {
+                        Text(item == .pending && pendingCount > 0
+                             ? copy.text(.tabPendingCount, Int64(pendingCount)) : copy.text(item.textKey))
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .foregroundStyle(segment == item ? palette.ink : palette.ink2)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(segment == item ? palette.selectedSegment : .clear,
+                                        in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(copy.text(segment == item ? .selected : .unselected))
+                    .accessibilityAddTraits(segment == item ? .isSelected : [])
+                    .accessibilityIdentifier("memory.segment.\(item.rawValue)")
+                }
+            }
+            .padding(4)
+            .background(palette.fill, in: RoundedRectangle(cornerRadius: 16))
+            if segment != .skills {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(palette.ink3)
+                        .accessibilityHidden(true)
+                    TextField(copy.text(.search), text: $query)
+                        .autocorrectionDisabled()
+                        .focused($searchFocused)
+                        .submitLabel(.search)
+                        .onSubmit { searchFocused = false }
+                        .accessibilityIdentifier("memory.search")
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 42)
+                .background(palette.surface, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    private var contentList: some View {
+        List {
+            if !store.available {
+                Section {
+                    card {
+                        Text(copy.text(.unavailable))
+                            .accessibilityIdentifier("memory.unavailable")
+                        Button(copy.text(.reload)) { store.reload() }
+                            .accessibilityIdentifier("memory.reload")
+                    }
+                }
+            }
+            if let error = store.error {
+                Section {
+                    card {
+                        Text(verbatim: error).foregroundStyle(palette.bad)
+                            .accessibilityIdentifier("memory.error")
+                        Button(copy.text(.dismissNotice)) { store.dismissNotice() }
+                    }
+                }
+            }
+            if let notice = store.notice {
+                Section {
+                    card {
+                        Text(verbatim: notice).accessibilityIdentifier("memory.notice")
+                        Button(copy.text(.dismissNotice)) { store.dismissNotice() }
+                    }
+                }
+            }
+            if store.available {
+                switch segment {
+                case .memories: memorySections
+                case .skills:
+                    skillsSections
+                    builtInSkillsSection
+                case .pending: pendingSections
+                }
+            }
+            preferencesSection
+            Section {
+                card {
+                    VStack(spacing: 0) {
+                        NavigationLink {
+                            UserProfileView(store: store)
+                        } label: {
+                            dataRow(copy.text(.profile), systemImage: "person.crop.circle")
+                        }
+                        .disabled(!store.available)
+                        .accessibilityIdentifier("memory.profile.open")
+                        cardDivider
+                        Button { sheet = .websites } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
+                                    .font(.body)
+                                    .frame(width: 38, height: 38)
+                                    .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(copy.text(.routeTitle))
+                                    Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
+                                        .font(.caption).foregroundStyle(palette.ink3)
+                                }
+                                Spacer(minLength: 0)
+                                Text(copy.text(.routeCount, Int64(store.routes.routes.count)))
+                                    .foregroundStyle(palette.ink3)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(palette.ink3)
+                                    .accessibilityHidden(true)
+                            }
+                            .foregroundStyle(palette.ink)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                            .accessibilityLabel(copy.text(.websitesAndRoutes,
+                                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
+                            .accessibilityIdentifier("memory.websites")
+                        Text(copy.text(.routesHelp))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                            .accessibilityIdentifier("memory.routesPending")
+                        cardDivider
+                        Button { onOpenBrowser() } label: {
+                            dataRow(copy.text(.webLogins), systemImage: "globe")
+                        }
+                        .accessibilityIdentifier("memory.manageWebsites")
+                        Text(copy.text(.webLoginsHelp))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                            .accessibilityIdentifier("memory.browserPending")
+                    }
+                }
+            } header: { sectionTitle(copy.text(.storedData)) }
+            Section {
+                card {
+                    Button(role: .destructive) {
+                        store.dismissNotice()
+                        sheet = .clear
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "xmark")
+                                .font(.headline)
+                                .frame(width: 38, height: 38)
+                                .background(palette.bad.opacity(0.15), in: RoundedRectangle(cornerRadius: 11))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(copy.text(.clearAll)).font(.body.weight(.semibold))
+                                Text(copy.text(.clearSubtitle))
+                                    .font(.caption).foregroundStyle(palette.ink3)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(palette.bad)
+                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                    }
+                    .accessibilityIdentifier("memory.clear")
+                    Text(copy.text(.clearDetails))
+                        .font(.caption).foregroundStyle(palette.ink3)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(palette.background)
+        .scrollDismissesKeyboard(.interactively)
+        .id(segment)
+    }
+
     @ViewBuilder private var memorySections: some View {
         let items = matchingMemories(status: .active)
         if items.isEmpty {
             Section {
-                Text(query.isEmpty ? "尚未儲存記憶。" : "找不到符合的記憶。")
+                Text(copy.text(query.isEmpty ? .emptyMemory : .memoryNotFound))
+                    .font(.body)
+                    .foregroundStyle(palette.ink3)
+                    .frame(maxWidth: .infinity, minHeight: 150)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .accessibilityIdentifier("memory.empty")
             }
         }
         ForEach(memoryKinds, id: \.rawValue) { kind in
             let rows = items.filter { $0.kind == kind }
             if !rows.isEmpty {
-                Section(memoryKindTitle(kind)) {
-                    ForEach(rows) { item in memoryRow(item, pending: false) }
-                }
+                Section {
+                    ForEach(rows) { item in card { memoryRow(item, pending: false) } }
+                } header: { sectionTitle(copy.text(memoryKindKey(kind))) }
             }
         }
         Section {
-            Button("手動新增記憶") {
-                store.dismissNotice()
-                sheet = .memory(nil)
+            card {
+                Button {
+                    store.dismissNotice()
+                    sheet = .memory(nil)
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.medium))
+                            .frame(width: 38, height: 38)
+                            .background(palette.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 11))
+                        Text(copy.text(.addMemory)).font(.body.weight(.semibold))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(palette.accent)
+                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                }
+                .accessibilityIdentifier("memory.add")
             }
-            .accessibilityIdentifier("memory.add")
         }
     }
 
@@ -191,19 +290,28 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .pending)
         if items.isEmpty && store.skills.pending.isEmpty {
             Section {
-                Text(query.isEmpty ? "沒有待確認的內容。" : "找不到符合的待確認記憶。")
+                Text(copy.text(query.isEmpty ? .emptyPending : .pendingNotFound))
+                    .foregroundStyle(palette.ink3)
+                    .frame(maxWidth: .infinity, minHeight: 130)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .accessibilityIdentifier("memory.pending.empty")
             }
         }
         if !items.isEmpty {
-            Section("待確認的做法") {
-                ForEach(items) { item in memoryRow(item, pending: true) }
-            }
+            Section {
+                ForEach(items) { item in card { memoryRow(item, pending: true) } }
+            } header: { sectionTitle(copy.text(.pendingProcedure)) }
         }
         if !store.skills.pending.isEmpty {
-            Section("Skills 草稿（搜尋僅篩選記憶）") {
-                ForEach(store.skills.pending) { draft in draftRow(draft) }
-            }
+            Section {
+                ForEach(store.skills.pending) { draft in card { draftRow(draft) } }
+                Text(copy.text(.pendingSearchHint))
+                    .font(.caption)
+                    .foregroundStyle(palette.ink3)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } header: { sectionTitle(copy.text(.pendingSkills)) }
         }
     }
 
@@ -211,64 +319,132 @@ struct MemoryDataView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: item.content)
                 .accessibilityIdentifier("memory.item.\(item.id.uuidString)")
-            Text(item.source.type == "manual" ? "你手動填寫的" : "來自你的對話 · \(item.source.at.formatted(date: .abbreviated, time: .omitted))")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(item.source.type == "manual" ? copy.text(.manualSource)
+                 : copy.text(.conversationSource,
+                             item.source.at.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted)
+                                 .locale(Locale(identifier: copy.language.rawValue)))))
+                .font(.caption).foregroundStyle(palette.ink3)
             if item.pinned {
-                Text("已置頂").font(.caption)
+                Text(copy.text(.pinned)).font(.caption)
                     .accessibilityIdentifier("memory.pinned.\(item.id.uuidString)")
             }
             if let previous = item.replaces {
-                Text("原內容：\(previous)").font(.caption).foregroundStyle(.secondary)
+                Text(copy.text(.originalContent, previous)).font(.caption).foregroundStyle(palette.ink3)
             }
             if !item.keywords.isEmpty {
                 Text(item.keywords.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(palette.ink3)
             }
-            HStack(spacing: 20) {
+            HStack(spacing: 8) {
                 if pending {
-                    Button("核准") { store.mutateMemory { try $0.approve(id: item.id) } }
+                    Button(copy.text(.accept)) { store.mutateMemory { try $0.approve(id: item.id) } }
                         .accessibilityIdentifier("memory.approve.\(item.id.uuidString)")
-                    Button("不要", role: .destructive) { store.mutateMemory { _ = try $0.delete(id: item.id) } }
+                        .memoryActionPill(palette, primary: true)
+                    Button(copy.text(.reject), role: .destructive) { store.mutateMemory { _ = try $0.delete(id: item.id) } }
                         .accessibilityIdentifier("memory.reject.\(item.id.uuidString)")
+                        .memoryActionPill(palette)
                 } else {
-                    Button("編輯") { store.dismissNotice(); sheet = .memory(item) }
+                    Button(copy.text(.edit)) { store.dismissNotice(); sheet = .memory(item) }
                         .accessibilityIdentifier("memory.edit.\(item.id.uuidString)")
-                    Button(item.pinned ? "取消置頂" : "置頂") {
+                        .memoryActionPill(palette)
+                    Button(copy.text(item.pinned ? .unpin : .pin)) {
                         store.mutateMemory { try $0.setPinned(id: item.id, pinned: !item.pinned) }
                     }
                     .accessibilityIdentifier("memory.pin.\(item.id.uuidString)")
-                    Button("刪除", role: .destructive) { store.mutateMemory { _ = try $0.delete(id: item.id) } }
+                    .memoryActionPill(palette)
+                    Button(copy.text(.delete), role: .destructive) { store.mutateMemory { _ = try $0.delete(id: item.id) } }
                         .accessibilityIdentifier("memory.delete.\(item.id.uuidString)")
+                        .memoryActionPill(palette)
                 }
             }
             .buttonStyle(.borderless)
             .frame(minHeight: 44)
         }
-        .padding(.vertical, 4)
     }
 
     @ViewBuilder private var skillsSections: some View {
-        Section("我的 Skills") {
-            Text("核准並啟用的 Skills 可作為模型對話的文字參考，不會執行程式、控制其他 App 或授予工具權限。試用中不代表已驗證成功。")
-                .font(.footnote).foregroundStyle(.secondary)
-                .accessibilityIdentifier("skills.scope")
+        Section {
             if store.skills.installed.isEmpty {
-                Text("尚未核准任何 Skills。")
-                    .accessibilityIdentifier("skills.empty")
+                card {
+                    Text(copy.text(.emptySkills))
+                        .foregroundStyle(palette.ink3)
+                        .frame(maxWidth: .infinity, minHeight: 60)
+                        .accessibilityIdentifier("skills.empty")
+                }
             }
             ForEach(store.skills.installed.sorted { $0.name < $1.name }) { skill in
-                installedSkillRow(skill)
+                card { installedSkillRow(skill) }
             }
-        }
+            Text(copy.text(.skillsScope))
+                .font(.caption).foregroundStyle(palette.ink3)
+                .accessibilityIdentifier("skills.scope")
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        } header: { sectionTitle(copy.text(.mineSkills)) }
         Section {
-            Button("匯入 Skill 全文") {
-                store.dismissNotice()
-                sheet = .importSkill
+            card {
+                Button {
+                    store.dismissNotice()
+                    sheet = .importSkill
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        dataRow(copy.text(.importSkill), systemImage: "square.and.arrow.down")
+                        Text(copy.text(.importHint))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                    }
+                }
+                .accessibilityIdentifier("skills.import")
             }
-            .accessibilityIdentifier("skills.import")
-            Text("貼上 SKILL.md；匯入後先進入待確認，不會立即啟用。")
-                .font(.footnote).foregroundStyle(.secondary)
-        }
+            Text(copy.text(.importSafety))
+                .font(.caption).foregroundStyle(palette.ink3)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        } header: { sectionTitle(copy.text(.getSkills)) }
+    }
+
+    private var builtInSkillsSection: some View {
+        Section {
+            card {
+                VStack(alignment: .leading, spacing: 0) {
+                    Button { sheet = .catalog } label: {
+                        Text(copy.text(.catalog))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                        .accessibilityIdentifier("skills.catalog.open")
+                    cardDivider
+                    NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: {
+                        Text(copy.text(.pdfRead))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                        .accessibilityIdentifier("skills.documents.execute")
+                    cardDivider
+                    NavigationLink {
+                        SkillAgentView(store: store, modelAccess: modelAccess)
+                    } label: {
+                        Text(copy.text(.agentWrite))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                        .disabled(!store.available)
+                        .accessibilityIdentifier("skills.agent.open")
+                    cardDivider
+                    NavigationLink {
+                        TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
+                    } label: {
+                        Text(copy.text(.transcript))
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                        .accessibilityIdentifier("skills.transcript.open")
+                }
+            }
+            Text(copy.text(.builtInHelp))
+                .font(.caption).foregroundStyle(palette.ink3)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        } header: { sectionTitle(copy.text(.builtInTools)) }
     }
 
     private func draftRow(_ draft: SkillDraft) -> some View {
@@ -276,88 +452,148 @@ struct MemoryDataView: View {
             Text(verbatim: skillTitle(draft.document)).font(.headline)
                 .accessibilityIdentifier("skills.draft.\(draft.name)")
             Text(verbatim: draft.document.description)
-            Text(draft.source == .imported ? "由你匯入 · 尚未核准" : "待你核准")
-                .font(.caption).foregroundStyle(.secondary)
+                .foregroundStyle(palette.ink2)
+            Text(copy.text(draft.source == .imported ? .draftImported : .draftPending))
+                .font(.caption).foregroundStyle(palette.ink3)
             if let previous = store.skills.installed.first(where: { $0.name == draft.replacesName }) {
-                Text("更新草稿；核准前仍保留目前版本。")
+                Text(copy.text(.draftUpdate))
                     .font(.caption)
                     .accessibilityIdentifier("skills.update.\(draft.name)")
-                Text(verbatim: changedLines(from: previous.markdown, to: draft.markdown))
-                    .font(.caption).lineLimit(6)
-            }
-            HStack(spacing: 16) {
-                Button("核准試用") {
-                    store.mutateSkills { _ = try $0.approveDraft(id: draft.id, availableToolNames: toolNames) }
+                Text(copy.text(.changedLines))
+                    .font(.caption).foregroundStyle(palette.ink3)
+                ForEach(Array(changedLines(from: previous.markdown, to: draft.markdown)
+                    .components(separatedBy: "\n").prefix(6).enumerated()), id: \.offset) { entry in
+                    Text(verbatim: entry.element)
+                        .font(.caption)
+                        .foregroundStyle(entry.element.hasPrefix("+") ? palette.ok : palette.bad)
                 }
-                .accessibilityIdentifier("skills.approve.\(draft.name)")
-                Button("編輯後核准") { store.dismissNotice(); sheet = .editSkill(draft) }
-                    .accessibilityIdentifier("skills.edit.\(draft.name)")
             }
-            HStack(spacing: 20) {
-                Button("查看全文") { sheet = .fullText(skillTitle(draft.document), draft.markdown) }
-                    .accessibilityIdentifier("skills.draftFullText.\(draft.name)")
-                Button("不要", role: .destructive) { store.mutateSkills { try $0.rejectDraft(id: draft.id) } }
-                    .accessibilityIdentifier("skills.reject.\(draft.name)")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(DraftAction.allCases) { action in draftAction(action, for: draft) }
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        draftAction(.approve, for: draft)
+                        draftAction(.edit, for: draft)
+                    }
+                    HStack(spacing: 8) {
+                        draftAction(.fullText, for: draft)
+                        draftAction(.reject, for: draft)
+                    }
+                }
             }
         }
         .buttonStyle(.borderless)
-        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder private func draftAction(_ action: DraftAction, for draft: SkillDraft) -> some View {
+        switch action {
+        case .approve:
+            Button(copy.text(.acceptTrial)) {
+                store.mutateSkills { _ = try $0.approveDraft(id: draft.id, availableToolNames: toolNames) }
+            }
+            .accessibilityIdentifier("skills.approve.\(draft.name)")
+            .memoryActionPill(palette, primary: true)
+        case .edit:
+            Button(copy.text(.editDraft)) { store.dismissNotice(); sheet = .editSkill(draft) }
+                .accessibilityIdentifier("skills.edit.\(draft.name)")
+                .memoryActionPill(palette)
+        case .fullText:
+            Button(copy.text(.fullText)) { sheet = .fullText(skillTitle(draft.document), draft.markdown) }
+                .accessibilityIdentifier("skills.draftFullText.\(draft.name)")
+                .memoryActionPill(palette)
+        case .reject:
+            Button(copy.text(.reject), role: .destructive) { store.mutateSkills { try $0.rejectDraft(id: draft.id) } }
+                .accessibilityIdentifier("skills.reject.\(draft.name)")
+                .memoryActionPill(palette)
+        }
     }
 
     private func installedSkillRow(_ skill: PersonalSkill) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: skillTitle(skill.document)).font(.headline)
-                .accessibilityIdentifier("skills.item.\(skill.name)")
-            Text(verbatim: skill.document.description)
-            Text(skill.status == .suspended ? "已停用" : skill.status == .trial ? "試用中 · 尚未驗證" : "已啟用")
-                .font(.caption).foregroundStyle(.secondary)
-                .accessibilityIdentifier("skills.state.\(skill.name)")
-            Toggle("啟用文字參考", isOn: Binding(get: { skill.isEnabled }, set: { enabled in
-                store.mutateSkills {
-                    if enabled { try $0.resume(name: skill.name) }
-                    else { try $0.suspend(name: skill.name) }
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: skillTitle(skill.document)).font(.headline)
+                        .accessibilityIdentifier("skills.item.\(skill.name)")
+                    Text(verbatim: skill.document.description)
+                        .foregroundStyle(palette.ink2)
+                    Text(copy.text(skill.status == .suspended ? .skillSuspended
+                                   : skill.status == .trial ? .skillTrial : .skillEnabled))
+                        .font(.caption).foregroundStyle(palette.ink3)
+                        .accessibilityIdentifier("skills.state.\(skill.name)")
                 }
-            }))
-            .accessibilityIdentifier("skills.enabled.\(skill.name)")
-            HStack(spacing: 20) {
-                Button("查看全文") { sheet = .fullText(skillTitle(skill.document), skill.markdown) }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Toggle(copy.text(.enableReference), isOn: Binding(get: { skill.isEnabled }, set: { enabled in
+                    store.mutateSkills {
+                        if enabled { try $0.resume(name: skill.name) }
+                        else { try $0.suspend(name: skill.name) }
+                    }
+                }))
+                .labelsHidden()
+                .accessibilityLabel(copy.text(.enableReference))
+                .accessibilityIdentifier("skills.enabled.\(skill.name)")
+                .tint(palette.accent)
+            }
+            HStack(spacing: 8) {
+                Button(copy.text(.viewFullText)) { sheet = .fullText(skillTitle(skill.document), skill.markdown) }
                     .accessibilityIdentifier("skills.fullText.\(skill.name)")
+                    .memoryActionPill(palette)
                 if let shared = try? store.skills.exportMarkdown(name: skill.name) {
-                    ShareLink(item: shared, subject: Text(skillTitle(skill.document))) { Text("分享") }
+                    ShareLink(item: shared, subject: Text(skillTitle(skill.document))) { Text(copy.text(.share)) }
                         .accessibilityIdentifier("skills.share.\(skill.name)")
+                        .memoryActionPill(palette)
                 }
-                Button("刪除", role: .destructive) { store.mutateSkills { try $0.remove(name: skill.name) } }
+                Button(copy.text(.delete), role: .destructive) { store.mutateSkills { try $0.remove(name: skill.name) } }
                     .accessibilityIdentifier("skills.delete.\(skill.name)")
+                    .memoryActionPill(palette)
             }
             if let previous = store.skills.revisions.reversed().first(where: { $0.name == skill.name && $0.canRestore }) {
-                Button("還原上一版") {
+                Button(copy.text(.restorePrevious)) {
                     store.mutateSkills {
                         _ = try $0.restoreRevision(id: previous.id, expectedCurrentHash: skill.fingerprint, availableToolNames: toolNames)
                     }
                 }
                 .accessibilityIdentifier("skills.rollback.\(skill.name)")
+                .memoryActionPill(palette)
             }
         }
         .buttonStyle(.borderless)
-        .padding(.vertical, 8)
     }
 
     private var preferencesSection: some View {
-        Section("記憶與學習設定") {
-            Toggle("使用記憶", isOn: preference(\.useMemory))
-                .accessibilityIdentifier("memory.toggle.useMemory")
-            Toggle("自動記住我說過的事", isOn: preference(\.autoRemember))
-                .accessibilityIdentifier("memory.toggle.autoRemember")
-            Toggle("從完成的任務學習 Skills", isOn: preference(\.learnSkills))
-                .accessibilityIdentifier("memory.toggle.learnSkills")
-            Text("使用記憶不影響已核准技能；技能請用各自開關停用。學習技能開關只控制起草，不影響匯入或使用已核准技能。")
-                .font(.footnote).foregroundStyle(.secondary)
+        Section {
+            card {
+                VStack(spacing: 0) {
+                    Toggle(isOn: preference(\.useMemory)) {
+                        preferenceLabel(copy.text(.useMemory), subtitle: copy.text(.useMemorySub))
+                    }
+                    .accessibilityIdentifier("memory.toggle.useMemory")
+                    cardDivider
+                    Toggle(isOn: preference(\.autoRemember)) {
+                        preferenceLabel(copy.text(.autoRemember), subtitle: copy.text(.autoRememberSub))
+                    }
+                    .accessibilityIdentifier("memory.toggle.autoRemember")
+                    cardDivider
+                    Toggle(isOn: preference(\.learnSkills)) {
+                        preferenceLabel(copy.text(.learnSkills), subtitle: copy.text(.learnSkillsSub))
+                    }
+                    .accessibilityIdentifier("memory.toggle.learnSkills")
+                }
+                .tint(palette.accent)
+            }
+            Text(copy.text(.preferenceScope))
+                .font(.caption).foregroundStyle(palette.ink3)
                 .accessibilityIdentifier("memory.preferenceScope")
-            Text("網站研究達到學習條件後會提出技能草稿，需核准才會使用。一般模型對話不會直接被當成技能驗證成功。")
-                .font(.footnote).foregroundStyle(.secondary)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            Text(copy.text(.learningLimit))
+                .font(.caption).foregroundStyle(palette.ink3)
                 .accessibilityIdentifier("skills.learningLimit")
-            if store.isLearning { ProgressView("正在整理對話記憶…") }
-        }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            if store.isLearning { ProgressView(copy.text(.learningProgress)) }
+        } header: { sectionTitle(copy.text(.switches)) }
         .disabled(!store.available)
     }
 
@@ -372,13 +608,130 @@ struct MemoryDataView: View {
         return store.memory.search(text, limit: 500, includePending: true)
             .filter { $0.status == status }
     }
+
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10, content: content)
+            .buttonStyle(.borderless)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.edge, lineWidth: 1))
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(palette.ink3)
+            .textCase(nil)
+            .padding(.leading, 4)
+    }
+
+    private var cardDivider: some View {
+        Rectangle()
+            .fill(palette.hair)
+            .frame(height: 1)
+            .padding(.vertical, 10)
+            .accessibilityHidden(true)
+    }
+
+    private func dataRow(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.body)
+                .frame(width: 38, height: 38)
+                .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
+                .accessibilityHidden(true)
+            Text(title).font(.body)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.ink3)
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(palette.ink)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    }
+
+    private func preferenceLabel(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).foregroundStyle(palette.ink)
+            Text(subtitle).font(.caption).foregroundStyle(palette.ink3)
+        }
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+    }
+}
+
+private struct MemoryPalette {
+    let background: Color
+    let surface: Color
+    let fill: Color
+    let selectedSegment: Color
+    let ink: Color
+    let ink2: Color
+    let ink3: Color
+    let hair: Color
+    let edge: Color
+    let accent: Color
+    let ok: Color
+    let bad: Color
+
+    init(dark: Bool) {
+        background = Color(hex: dark ? 0x0E0E10 : 0xF7F7F8)
+        surface = Color(hex: dark ? 0x1A1A1D : 0xFFFFFF)
+        fill = Color(hex: dark ? 0x222225 : 0xECECF0)
+        selectedSegment = Color(hex: dark ? 0x29292D : 0xFFFFFF)
+        ink = Color(hex: dark ? 0xF2F2F4 : 0x1C1C1E)
+        ink2 = Color(hex: dark ? 0xA4A5AD : 0x5F6068)
+        ink3 = Color(hex: dark ? 0x8F9099 : 0x73747D)
+        hair = Color(hex: dark ? 0x303034 : 0xE8E8EC)
+        edge = Color(hex: dark ? 0x2B2B30 : 0xE9E9ED)
+        accent = Color(hex: dark ? 0x5D80FF : 0x0A7CFF)
+        ok = Color(hex: dark ? 0x3CCF7A : 0x1F9D55)
+        bad = Color(hex: dark ? 0xFF6961 : 0xE5483D)
+    }
+}
+
+private extension Color {
+    init(hex: UInt32) {
+        self.init(red: Double((hex >> 16) & 0xFF) / 255,
+                  green: Double((hex >> 8) & 0xFF) / 255,
+                  blue: Double(hex & 0xFF) / 255)
+    }
+}
+
+private extension View {
+    @ViewBuilder func memoryNavigationBackground(_ color: Color) -> some View {
+        #if os(iOS)
+        self.toolbarBackground(color, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        #else
+        self
+        #endif
+    }
+
+    func memoryActionPill(_ palette: MemoryPalette, primary: Bool = false) -> some View {
+        self
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(primary ? Color.white : palette.ink)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(primary ? palette.accent : palette.fill, in: Capsule())
+    }
+}
+
+private enum DraftAction: CaseIterable, Identifiable {
+    case approve, edit, fullText, reject
+    var id: Self { self }
 }
 
 private enum LearningSegment: String, CaseIterable, Identifiable {
     case memories, skills, pending
     var id: String { rawValue }
-    var title: String {
-        switch self { case .memories: return "記憶"; case .skills: return "技能"; case .pending: return "待確認" }
+    var textKey: MemoryDataKey {
+        switch self { case .memories: return .tabMemory; case .skills: return .tabSkills; case .pending: return .tabPending }
     }
 }
 
@@ -398,8 +751,8 @@ private enum LearningSheet: Identifiable {
 }
 
 private let memoryKinds: [MemoryKind] = [.fact, .preference, .procedure]
-private func memoryKindTitle(_ kind: MemoryKind) -> String {
-    switch kind { case .fact: return "關於你"; case .preference: return "偏好"; case .procedure: return "做法" }
+private func memoryKindKey(_ kind: MemoryKind) -> MemoryDataKey {
+    switch kind { case .fact: return .kindAbout; case .preference: return .kindPreferences; case .procedure: return .kindProcedures }
 }
 private func skillTitle(_ document: SkillDocument) -> String {
     document.frontMatter["display"]?.stringValue ?? document.name
@@ -416,6 +769,12 @@ private struct MemoryEditor: View {
     @ObservedObject var store: LearningStore
     let item: MemoryItem?
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.appLocalizer) private var appLocalizer
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: appLocalizer.language) }
+    #else
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
+    #endif
     @FocusState private var contentFocused: Bool
     @State private var kind: MemoryKind
     @State private var content: String
@@ -431,46 +790,46 @@ private struct MemoryEditor: View {
     var body: some View {
         Form {
             if item == nil {
-                Picker("種類", selection: $kind) {
+                Picker(copy.text(.memoryEditorKind), selection: $kind) {
                     ForEach(memoryKinds, id: \.rawValue) { value in
-                        Text(memoryKindTitle(value)).tag(value)
+                        Text(copy.text(memoryKindKey(value))).tag(value)
                             .accessibilityIdentifier("memory.kind.\(value.rawValue)")
                     }
                 }
                 .pickerStyle(.segmented)
             }
-            Section("記憶內容（最多 200 個 UTF-16 字元）") {
+            Section(copy.text(.memoryEditorContent)) {
                 TextEditor(text: $content).frame(minHeight: 100)
                     .focused($contentFocused).autocorrectionDisabled()
                     .accessibilityIdentifier("memory.editor.content")
-                TextField("關鍵字，以空白分隔", text: $keywords)
+                TextField(copy.text(.memoryEditorKeywords), text: $keywords)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("memory.editor.keywords")
             }
             if kind == .procedure {
-                Text("做法會先進入待確認，核准後才可供對話參考；不會自動執行操作。")
+                Text(copy.text(.memoryEditorProcedureHelp))
             }
             if let error = store.error {
                 Text(verbatim: error).foregroundStyle(.red)
                     .accessibilityIdentifier("memory.editor.error")
             }
         }
-        .navigationTitle(item == nil ? "新增記憶" : "編輯記憶")
+        .navigationTitle(copy.text(item == nil ? .memoryEditorAddTitle : .memoryEditorEditTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.accessibilityIdentifier("memory.editor.cancel")
+                Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("memory.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("儲存") { save() }
+                Button(copy.text(.save)) { save() }
                     .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.available)
                     .accessibilityIdentifier("memory.editor.save")
             }
             ToolbarItemGroup(placement: .keyboard) {
-                Button("清空內容") { content = "" }
+                Button(copy.text(.clearContent)) { content = "" }
                     .accessibilityIdentifier("memory.editor.clear")
                 Spacer()
-                Button("完成輸入") { contentFocused = false }
+                Button(copy.text(.doneTyping)) { contentFocused = false }
                     .accessibilityIdentifier("memory.editor.done")
             }
         }
@@ -494,6 +853,12 @@ private struct SkillEditor: View {
     let toolNames: Set<String>
     let onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.appLocalizer) private var appLocalizer
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: appLocalizer.language) }
+    #else
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
+    #endif
     @FocusState private var editing: Bool
     @State private var markdown: String
 
@@ -504,7 +869,7 @@ private struct SkillEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(draft == nil ? "貼上完整 SKILL.md。有效內容會進入待確認，不會立即啟用。" : "檢查全文後核准試用；不會執行程式或授予工具權限。")
+            Text(copy.text(draft == nil ? .skillEditorImportHelp : .skillEditorEditHelp))
                 .font(.callout)
             TextEditor(text: $markdown)
                 .focused($editing)
@@ -516,14 +881,14 @@ private struct SkillEditor: View {
             }
         }
         .padding()
-        .navigationTitle(draft == nil ? "匯入 Skill" : "編輯後核准")
+        .navigationTitle(copy.text(draft == nil ? .skillEditorImportTitle : .skillEditorEditTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.accessibilityIdentifier("skills.editor.cancel")
+                Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("skills.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(draft == nil ? "匯入" : "核准") {
+                Button(copy.text(draft == nil ? .importAction : .approveAction)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
                         else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames) }
@@ -534,9 +899,9 @@ private struct SkillEditor: View {
                 .accessibilityIdentifier("skills.editor.save")
             }
             ToolbarItemGroup(placement: .keyboard) {
-                Button("清空全文") { markdown = "" }.accessibilityIdentifier("skills.editor.clear")
+                Button(copy.text(.clearFullText)) { markdown = "" }.accessibilityIdentifier("skills.editor.clear")
                 Spacer()
-                Button("完成輸入") { editing = false }.accessibilityIdentifier("skills.editor.done")
+                Button(copy.text(.doneTyping)) { editing = false }.accessibilityIdentifier("skills.editor.done")
             }
         }
         .interactiveDismissDisabled(!markdown.isEmpty)
@@ -547,6 +912,12 @@ private struct SkillTextView: View {
     let title: String
     let markdown: String
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.appLocalizer) private var appLocalizer
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: appLocalizer.language) }
+    #else
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
+    #endif
 
     var body: some View {
         ScrollView {
@@ -557,7 +928,7 @@ private struct SkillTextView: View {
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("完成") { dismiss() }.accessibilityIdentifier("skills.document.close")
+                Button(copy.text(.done)) { dismiss() }.accessibilityIdentifier("skills.document.close")
             }
         }
     }
@@ -567,20 +938,26 @@ private struct SkillTextView: View {
 private struct LearningClearView: View {
     @ObservedObject var store: LearningStore
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.appLocalizer) private var appLocalizer
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: appLocalizer.language) }
+    #else
+    private var copy: MemoryDataCopy { MemoryDataCopy(language: .traditionalChinese) }
+    #endif
     @State private var stage = 1
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text(stage == 1 ? "第一步：確認清除範圍" : "第二步：最後確認")
+                Text(copy.text(stage == 1 ? .clearStageOne : .clearStageTwo))
                     .font(.headline).accessibilityIdentifier("memory.clear.stage")
-                Text("將清除所有記憶、Skills、待確認草稿、網站知識、路線與版本紀錄。模型設定、模型金鑰與 MCP 端點會保留。此操作無法復原。")
+                Text(copy.text(.clearWarning))
                 if stage == 1 {
-                    Button("繼續") { stage = 2 }
+                    Button(copy.text(.continueClear)) { stage = 2 }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("memory.clear.continue")
                 } else {
-                    Button("確認全部清除", role: .destructive) {
+                    Button(copy.text(.confirmClear), role: .destructive) {
                         if store.clearAll() { dismiss() }
                     }
                     .buttonStyle(.borderedProminent)
@@ -593,10 +970,10 @@ private struct LearningClearView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding()
         }
-        .navigationTitle("清除資料").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(copy.text(.clearTitle)).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.accessibilityIdentifier("memory.clear.cancel")
+                Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("memory.clear.cancel")
             }
         }
     }
