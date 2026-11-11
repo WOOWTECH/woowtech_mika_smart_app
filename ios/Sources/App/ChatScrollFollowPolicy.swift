@@ -119,15 +119,22 @@ struct ChatScrollFollowPolicy {
         let viewportChanged = abs(current.viewportHeight - previous.viewportHeight) > 0.5
         if isSettling && (moved || viewportChanged) { movementRevision += 1 }
         if isDragging || isSettling { return false }
+        // Subtracting bottomY from contentHeight cancels growth that occurs in
+        // the same layout pass. A smaller offset means the visible origin moved
+        // toward earlier content, even if the transcript also grew. Never let
+        // that update issue a tail scroll; geometry cannot prove whether the
+        // movement came from touch, accessibility scrolling, or layout.
+        let movedEarlier = oldOffset - newOffset > Self.actualScrollTolerance
+        let awayFromBottom = current.bottomY - current.viewportHeight > Self.tailArrivalTolerance
+        if movedEarlier && awayFromBottom {
+            deliberatelyReadingEarlier = true
+            followsTail = false
+            return false
+        }
         if viewportChanged { return followsTail }
         if moved && !contentChanged {
-            // Geometry alone can move to the bottom during a keyboard/layout
-            // update. It cannot prove that the reader chose to resume follow.
-            if !deliberatelyReadingEarlier &&
-                current.bottomY - current.viewportHeight > Self.tailArrivalTolerance {
-                deliberatelyReadingEarlier = true
-                followsTail = false
-            }
+            // Passive motion toward the bottom does not prove intent to resume
+            // following; the explicit button remains available while held.
             return false
         }
         return contentChanged && followsTail

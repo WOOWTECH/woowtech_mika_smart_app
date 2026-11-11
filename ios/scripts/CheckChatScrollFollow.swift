@@ -41,6 +41,27 @@ enum CheckChatScrollFollow {
         expect(!noOpDragAtBottom.needsTailScroll)
         expect(noOpDragAtBottom.observe(sample(1000, 600)))
 
+        // A platform scroll can arrive without a DragGesture. Growth alone
+        // keeps the content-origin offset constant and should follow.
+        var growthOnly = ChatScrollFollowPolicy()
+        expect(growthOnly.observe(sample(1200, 500)))
+        expect(growthOnly.observe(sample(1320, 620)))
+        expect(growthOnly.followsTail)
+
+        // Counterexample: +120 content height and +120 movement toward earlier
+        // text are delivered in one geometry update. The origin offset falls
+        // from 700 to 580; returning true here would steal the reader's place.
+        var mergedScrollAndGrowth = ChatScrollFollowPolicy()
+        expect(mergedScrollAndGrowth.observe(sample(1200, 500)))
+        expect(!mergedScrollAndGrowth.observe(sample(1320, 740)))
+        expect(!mergedScrollAndGrowth.followsTail)
+        expect(!mergedScrollAndGrowth.observe(sample(1440, 860)))
+        expect(!mergedScrollAndGrowth.followsTail)
+        var mergedWithViewportChange = ChatScrollFollowPolicy()
+        expect(mergedWithViewportChange.observe(sample(1200, 500)))
+        expect(!mergedWithViewportChange.observe(sample(1320, 740, 420)))
+        expect(!mergedWithViewportChange.followsTail)
+
         // An intentional small upward scroll is a reading choice, even though
         // it ends well inside the former 240-point auto-rearm window.
         follow.beginDrag()
