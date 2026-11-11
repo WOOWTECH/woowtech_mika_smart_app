@@ -30,6 +30,15 @@
 "shell.webExample" = "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较";
 "shell.attachPDF" = "附加 PDF";
 "shell.viewPDFAttachment" = "查看 PDF 附件";
+"message.actions" = "消息操作";
+"message.copy" = "复制";
+"message.quote" = "引用";
+"message.branch" = "从这里分支";
+"message.branchSuffix" = " · 分支";
+"message.actionFailed" = "无法完成操作，请确认对话状态后重试；也可查看已保存的对话。";
+"message.quoteAssistant" = "引用助手";
+"message.quoteUser" = "引用自己";
+"message.quoteRemove" = "移除引用";
 "shell.messagePlaceholder" = "输入消息";
 "shell.messageDraft" = "消息草稿";
 "shell.stop" = "取消";

@@ -34,6 +34,15 @@ enum AppText: Equatable {
     case shellWebExample
     case shellAttachPDF
     case shellViewPDFAttachment
+    case messageActions
+    case messageCopy
+    case messageQuote
+    case messageBranch
+    case messageBranchSuffix
+    case messageActionFailed
+    case messageQuoteAssistant
+    case messageQuoteUser
+    case messageQuoteRemove
     case shellMessagePlaceholder
     case shellMessageDraft
     case shellStop
@@ -508,6 +517,15 @@ enum AppText: Equatable {
         case .shellWebExample: return "shell.webExample"
         case .shellAttachPDF: return "shell.attachPDF"
         case .shellViewPDFAttachment: return "shell.viewPDFAttachment"
+        case .messageActions: return "message.actions"
+        case .messageCopy: return "message.copy"
+        case .messageQuote: return "message.quote"
+        case .messageBranch: return "message.branch"
+        case .messageBranchSuffix: return "message.branchSuffix"
+        case .messageActionFailed: return "message.actionFailed"
+        case .messageQuoteAssistant: return "message.quoteAssistant"
+        case .messageQuoteUser: return "message.quoteUser"
+        case .messageQuoteRemove: return "message.quoteRemove"
         case .shellMessagePlaceholder: return "shell.messagePlaceholder"
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
@@ -1014,6 +1032,15 @@ enum AppText: Equatable {
         case .shellWebExample: return "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"
         case .shellAttachPDF: return "附加 PDF"
         case .shellViewPDFAttachment: return "檢視 PDF 附件"
+        case .messageActions: return "訊息操作"
+        case .messageCopy: return "複製"
+        case .messageQuote: return "引用"
+        case .messageBranch: return "從這裡分支"
+        case .messageBranchSuffix: return " · 分支"
+        case .messageActionFailed: return "無法完成操作，請確認對話狀態後重試；也可查看已保存的對話。"
+        case .messageQuoteAssistant: return "引用助理"
+        case .messageQuoteUser: return "引用自己"
+        case .messageQuoteRemove: return "移除引用"
         case .shellMessagePlaceholder: return "輸入訊息"
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "取消"

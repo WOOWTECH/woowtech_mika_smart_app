@@ -318,6 +318,96 @@
       }
     },
     {
+      "case": "messageActions",
+      "key": "message.actions",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "訊息操作",
+        "zh-Hans": "消息操作",
+        "en": "Message actions"
+      }
+    },
+    {
+      "case": "messageCopy",
+      "key": "message.copy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "複製",
+        "zh-Hans": "复制",
+        "en": "Copy"
+      }
+    },
+    {
+      "case": "messageQuote",
+      "key": "message.quote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引用",
+        "zh-Hans": "引用",
+        "en": "Quote"
+      }
+    },
+    {
+      "case": "messageBranch",
+      "key": "message.branch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "從這裡分支",
+        "zh-Hans": "从这里分支",
+        "en": "Branch from here"
+      }
+    },
+    {
+      "case": "messageBranchSuffix",
+      "key": "message.branchSuffix",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": " · 分支",
+        "zh-Hans": " · 分支",
+        "en": " · Branch"
+      }
+    },
+    {
+      "case": "messageActionFailed",
+      "key": "message.actionFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法完成操作，請確認對話狀態後重試；也可查看已保存的對話。",
+        "zh-Hans": "无法完成操作，请确认对话状态后重试；也可查看已保存的对话。",
+        "en": "Could not complete the action. Check the conversation and try again; also check saved conversations."
+      }
+    },
+    {
+      "case": "messageQuoteAssistant",
+      "key": "message.quoteAssistant",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引用助理",
+        "zh-Hans": "引用助手",
+        "en": "Quoting assistant"
+      }
+    },
+    {
+      "case": "messageQuoteUser",
+      "key": "message.quoteUser",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引用自己",
+        "zh-Hans": "引用自己",
+        "en": "Quoting you"
+      }
+    },
+    {
+      "case": "messageQuoteRemove",
+      "key": "message.quoteRemove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除引用",
+        "zh-Hans": "移除引用",
+        "en": "Remove quote"
+      }
+    },
+    {
       "case": "shellMessagePlaceholder",
       "key": "shell.messagePlaceholder",
       "parameters": [],
