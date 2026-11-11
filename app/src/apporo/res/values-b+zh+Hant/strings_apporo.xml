@@ -28,6 +28,7 @@
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.apporo.ai/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.apporo.ai/</string>
     <string name="relay_pair_sub">先到 Apporo 中繼網站用帳號登入、產生一次性配對碼，再填入下方。</string>
+    <string name="relay_unpair_body">中斷此手機與閘道的配對，需要網路連線。再次配對時會產生新的電腦存取權杖；請在仍信任的電腦上更新權杖。</string>
     <string name="relay_portal_open">開啟中繼網站</string>
     <string name="relay_intro">Apporo Assistant 以 Apporo 帳號區分每個人的手機與電腦連線。中繼站只轉送已授權的 MCP 與 CLI 請求，不會替離線手機排隊執行任務。</string>
     <string name="relay_cli_template">python3 apporo-relay-cli.py --url %1$s --token-file /path/to/token doctor</string>
