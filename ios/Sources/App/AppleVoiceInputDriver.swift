@@ -16,18 +16,33 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     private var task: SFSpeechRecognitionTask?
     private var deadline: DispatchWorkItem?
     private var interruptionObserver: NSObjectProtocol?
-    private var audioSessionStarted = false
-    private var previousAudio: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
+    private let audioLease: VoiceAudioLeaseSlot
     private var finishing = false
     private let locale: Locale
 
-    init(locale: Locale = .current) { self.locale = locale }
+    /// The default denies access. Supplying a coordinator does not by itself
+    /// constitute approval to connect this driver to the UI.
+    init(locale: Locale = .current) {
+        self.locale = locale
+        self.audioLease = VoiceAudioLeaseSlot(coordinator: UnavailableVoiceAudioCoordinator())
+    }
+
+    init(locale: Locale = .current, audioCoordinator: any VoiceAudioCoordinating) {
+        self.locale = locale
+        self.audioLease = VoiceAudioLeaseSlot(coordinator: audioCoordinator)
+    }
 
     func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         if let old = self.id { cancel(id: old) }
         self.id = id
         self.emit = emit
         finishing = false
+        // No permissions, recording, or shared audio changes without a lease.
+        guard audioLease.acquire(onRevoked: { [weak self] in self?.fail(.audio, id: id) }) else {
+            fail(.unavailable, id: id)
+            return
+        }
+        guard self.id == id else { return }
         // This deadline includes permission prompts, so a forgotten gesture
         // cannot start or continue recording indefinitely.
         scheduleDeadline(id: id, seconds: 60)
@@ -56,12 +71,10 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable,
               recognizer.supportsOnDeviceRecognition else { fail(.unavailable, id: id); return }
         self.recognizer = recognizer
+        guard audioLease.activateForRecording() else { fail(.audio, id: id); return }
+        guard self.id == id else { return }
         let audio = AVAudioSession.sharedInstance()
-        previousAudio = (audio.category, audio.mode, audio.categoryOptions)
         do {
-            try audio.setCategory(.record, mode: .measurement, options: [])
-            try audio.setActive(true)
-            audioSessionStarted = true
             let newEngine = AVAudioEngine()
             let input = newEngine.inputNode
             let format = input.outputFormat(forBus: 0)
@@ -120,6 +133,7 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
         request.endAudio()
         self.request = nil
         scheduleDeadline(id: id, seconds: 5)
+        audioLease.release()
     }
 
     func cancel(id: UUID) {
@@ -157,14 +171,9 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
         request?.endAudio(); request = nil
         task?.cancel(); task = nil
         recognizer = nil
-        let audio = AVAudioSession.sharedInstance()
-        if audioSessionStarted { try? audio.setActive(false, options: .notifyOthersOnDeactivation) }
-        audioSessionStarted = false
-        if let previousAudio {
-            try? audio.setCategory(previousAudio.0, mode: previousAudio.1, options: previousAudio.2)
-        }
-        previousAudio = nil
         finishing = false
+        // Only the shared coordinator may modify or restore global audio state.
+        audioLease.release()
     }
 }
 #endif
