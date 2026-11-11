@@ -516,9 +516,12 @@
 "attachment.errorState" = "The attachment has been used, removed or is not ready.";
 "chat.attachment.boundary" = "This turn does not use MCP, memory or profile tools. Completed questions and answers may still be encrypted on this device; answers or later conversation history may contain attachment content. The original attachment is not automatically saved or resent.";
 "chat.attachment.reviewRequired" = "Review and confirm the attachment scope again, or remove the attachment. The draft is preserved.";
-"chat.attachment.toolsEnabled" = "Attachments currently require a single plain request. Turn off MCP and the memory feature, or remove the attachment. Text-only chat is unchanged.";
+"chat.attachment.toolsEnabled" = "Attachments currently support one ordinary chat request. Turn off MCP for this chat and turn off Use memory on the data screen, or remove the attachment. Your draft is kept; changing memory affects other chats.";
 "chat.attachment.removeFirst" = "Remove the current attachment before choosing another attachment type.";
 "chat.attachment.reselect" = "The attachment request did not finish or was cancelled. The text draft is preserved. The service may have received the attachment; to retry, select and confirm it again, or explicitly remove it.";
 "chat.attachment.changed" = "The destination, content or references changed before sending. The attachment was not sent; review it again.";
 "chat.attachment.unavailable" = "Cannot prepare the attachment request. Check the model settings; the text draft is preserved.";
-"chat.attachment.visionNotice" = "Images require an explicit app declaration that this model supports vision. The service may still reject the image.";
+"chat.attachment.visionNotice" = "Image support for this model cannot currently be confirmed, so images cannot be sent yet. Text attachments remain available.";
+"composer.attachment.open" = "Add image or text attachment";
+"composer.attachment.review" = "Review attachment";
+"composer.attachment.removeBeforeNew" = "Remove the attachment before starting a new conversation. Your draft is kept.";

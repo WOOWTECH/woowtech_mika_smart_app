@@ -146,6 +146,7 @@ final class ChatSession: ObservableObject {
         attachmentClientStartProbe = {}
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        _ = ChatAttachmentComposerUITestFixture.selected(arguments: arguments)
         let streamFixture: UITestChatStreamingConfiguration?
         let pdfFixture: ChatPDFUITestConfiguration?
         do {
@@ -409,6 +410,10 @@ final class ChatSession: ObservableObject {
     private func setAttachmentIssue(_ issue: AppText) {
         attachmentIssue = issue
         chatError = issue.traditionalFallback
+    }
+
+    func explainAttachmentBeforeNewConversation() {
+        if hasGeneralAttachment { setAttachmentIssue(.composerAttachmentRemoveBeforeNew) }
     }
 
     /// Call before presenting the standalone picker and again after any host

@@ -29,7 +29,7 @@ enum UITestModelFixture {
         let credentials: any ModelCredentialStoring = arguments.contains("-UITestKeychainWriteFailure")
             ? FailingWrites(base: keychain) : keychain
         let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials)
-        if arguments.contains("-UITestMCPFixture") {
+        if arguments.contains("-UITestMCPFixture") || ChatAttachmentComposerUITestFixture.selected(arguments: arguments) != nil {
             do { _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key") }
             catch { preconditionFailure("Cannot configure isolated MCP conversation fixture") }
         }
@@ -170,10 +170,24 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
     }
 }
 
-actor UITestChatModelClient: ChatModelClient {
+actor UITestChatModelClient: LifetimeBoundCompletionChatModelClient {
     private var failedOnce = false
 
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if ChatAttachmentComposerUITestFixture.selected() != nil, let last = messages.last,
+           last.content.hasPrefix("[attachment-fixture:") {
+            guard last.attachment == (try ModelAttachment.text(utf8: Data("Synthetic attachment for offline UI test".utf8))),
+                  messages.dropLast().allSatisfy({ $0.attachment == nil }),
+                  configuration.model == "fixture", apiKey == "fixture-not-a-key" else {
+                throw HTTPChatModelError.invalidConfiguration
+            }
+            if last.content == "[attachment-fixture:wait]" {
+                try await Task.sleep(nanoseconds: 60_000_000_000)
+            }
+            if last.content == "[attachment-fixture:fail]" { throw URLError(.cannotConnectToHost) }
+            try Task.checkCancellation()
+            return "ATTACHMENT_FIXTURE_RECEIVED_ONCE"
+        }
         let instructions = messages.first?.content ?? ""
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true
@@ -345,6 +359,19 @@ actor UITestChatModelClient: ChatModelClient {
             throw URLError(.cannotConnectToHost)
         }
         return "測試回覆：\(prompt)"
+    }
+}
+extension ChatAttachmentComposerUITestFixture {
+    static func file(oversize: Bool) throws -> URL {
+        guard let namespace = selected() else { throw CocoaError(.fileReadNoPermission) }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-ui-" + namespace.uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        let url = directory.appendingPathComponent(UUID().uuidString + ".txt")
+        let bytes = oversize ? Data(repeating: 65, count: ModelAttachment.maximumTextBytes + 1)
+                             : Data("Synthetic attachment for offline UI test".utf8)
+        try bytes.write(to: url, options: .withoutOverwriting)
+        return url
     }
 }
 #endif

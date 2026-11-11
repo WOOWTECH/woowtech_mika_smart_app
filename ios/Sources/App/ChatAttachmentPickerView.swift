@@ -24,6 +24,8 @@ import UniformTypeIdentifiers
 @MainActor struct ChatAttachmentPickerView: View {
     @ObservedObject var model: ChatAttachmentPickerViewModel
     let localizer: AppLocalizer
+    var hostIssue: AppText? = nil
+    var onRemove: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var choosing = false
 
@@ -34,6 +36,22 @@ import UniformTypeIdentifiers
                     Text(localizer.text(.attachmentLocalNotice))
                     Text(localizer.text(.attachmentLimits))
                 }
+                if let hostIssue {
+                    Text(localizer.text(hostIssue)).foregroundStyle(.red)
+                        .accessibilityIdentifier("chat.attachment.hostIssue")
+                }
+                #if DEBUG
+                if ChatAttachmentComposerUITestFixture.selected() != nil {
+                    Section("Synthetic offline fixture") {
+                        Button("Select synthetic text") { selectFixture(oversize: false) }
+                            .accessibilityIdentifier("attachment.fixture.select")
+                        Button("Select oversized text") { selectFixture(oversize: true) }
+                            .accessibilityIdentifier("attachment.fixture.oversize")
+                        Button("Cancel selection") { model.presenter.pickerCancelled() }
+                            .accessibilityIdentifier("attachment.fixture.cancel")
+                    }
+                }
+                #endif
                 Section(localizer.text(.attachmentSection)) {
                     switch model.state.phase {
                     case .empty, .consumed:
@@ -56,8 +74,10 @@ import UniformTypeIdentifiers
                         choosing = true
                     }
                     .accessibilityIdentifier("chat.attachment.select")
-                    if (model.state.phase != .empty && model.state.phase != .consumed) || model.state.error != nil {
-                        Button(localizer.text(.attachmentRemove), role: .destructive) { model.presenter.discard() }
+                    if model.state.phase != .empty || model.state.error != nil || hostIssue != nil {
+                        Button(localizer.text(.attachmentRemove), role: .destructive) {
+                            if let onRemove { onRemove() } else { model.presenter.discard() }
+                        }
                             .accessibilityIdentifier("chat.attachment.remove")
                     }
                     if let error = model.state.error {
@@ -89,7 +109,8 @@ import UniformTypeIdentifiers
                 }
             }
             .navigationTitle(localizer.text(.attachmentTitle))
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.attachmentDone)) { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.attachmentDone)) { dismiss() }
+                .accessibilityIdentifier("chat.attachment.done") } }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.allowedTypes, allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls):
@@ -105,6 +126,12 @@ import UniformTypeIdentifiers
         }
     }
 
+    #if DEBUG
+    private func selectFixture(oversize: Bool) {
+        do { model.presenter.picked(try ChatAttachmentComposerUITestFixture.file(oversize: oversize)) }
+        catch { model.presenter.pickerFailed() }
+    }
+    #endif
     private static var allowedTypes: [UTType] {
         [.jpeg, .png, .plainText] + ["md", "csv", "tsv"].compactMap { UTType(filenameExtension: $0) }
     }

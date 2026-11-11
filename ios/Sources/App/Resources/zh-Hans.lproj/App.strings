@@ -516,9 +516,12 @@
 "attachment.errorState" = "附件已使用、移除或尚未准备完成。";
 "chat.attachment.boundary" = "本次不使用 MCP、记忆或个人档案工具。已完成的问题与回答仍可能加密保存在此设备；回答或之后发送的对话历史可能包含附件内容。原始附件不会自动保存或重传。";
 "chat.attachment.reviewRequired" = "请重新检查并确认附件发送范围，或移除附件；草稿保留。";
-"chat.attachment.toolsEnabled" = "附件目前仅支持单次普通对话；请先关闭本次 MCP 与记忆功能，或移除附件。纯文本对话功能不受影响。";
+"chat.attachment.toolsEnabled" = "附件目前仅支持单次普通对话；请关闭本次 MCP，并到资料页关闭“使用记忆”，或移除附件。草稿会保留；此更改会影响其他对话。";
 "chat.attachment.removeFirst" = "请先移除当前附件，再选择另一种附件。";
 "chat.attachment.reselect" = "附件发送未完成或已取消；文本草稿保留。服务可能已收到附件；如需重试，请重新选择并确认，或明确移除附件。";
 "chat.attachment.changed" = "发送前目的地、内容或参考资料已更改；附件未发送，请重新确认。";
 "chat.attachment.unavailable" = "无法准备附件发送；请先检查模型设置。文本草稿保留。";
-"chat.attachment.visionNotice" = "图片需由主程序明确声明此模型支持视觉；服务仍可能拒绝图片。";
+"chat.attachment.visionNotice" = "目前无法确认此模型支持图片，暂时无法发送图片；仍可使用文字附件。";
+"composer.attachment.open" = "添加图片或文字附件";
+"composer.attachment.review" = "查看或确认附件";
+"composer.attachment.removeBeforeNew" = "请先移除附件，再创建新对话；文字草稿会保留。";

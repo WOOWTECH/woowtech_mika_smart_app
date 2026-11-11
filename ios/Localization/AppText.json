@@ -5423,9 +5423,9 @@
       "key": "chat.attachment.toolsEnabled",
       "parameters": [],
       "translations": {
-        "zh-Hant": "附件目前僅支援單次一般對話；請先關閉本次 MCP 與記憶功能，或移除附件。純文字對話功能不受影響。",
-        "zh-Hans": "附件目前仅支持单次普通对话；请先关闭本次 MCP 与记忆功能，或移除附件。纯文本对话功能不受影响。",
-        "en": "Attachments currently require a single plain request. Turn off MCP and the memory feature, or remove the attachment. Text-only chat is unchanged."
+        "zh-Hant": "附件目前僅支援單次一般對話；請關閉本次 MCP，並到資料頁關閉「使用記憶」，或移除附件。草稿會保留；此變更會影響其他對話。",
+        "zh-Hans": "附件目前仅支持单次普通对话；请关闭本次 MCP，并到资料页关闭“使用记忆”，或移除附件。草稿会保留；此更改会影响其他对话。",
+        "en": "Attachments currently support one ordinary chat request. Turn off MCP for this chat and turn off Use memory on the data screen, or remove the attachment. Your draft is kept; changing memory affects other chats."
       }
     },
     {
@@ -5473,9 +5473,39 @@
       "key": "chat.attachment.visionNotice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "圖片需由主程式明確宣告此模型支援視覺；服務仍可能拒絕圖片。",
-        "zh-Hans": "图片需由主程序明确声明此模型支持视觉；服务仍可能拒绝图片。",
-        "en": "Images require an explicit app declaration that this model supports vision. The service may still reject the image."
+        "zh-Hant": "目前無法確認此模型支援圖片，圖片暫時無法傳送；文字附件仍可使用。",
+        "zh-Hans": "目前无法确认此模型支持图片，暂时无法发送图片；仍可使用文字附件。",
+        "en": "Image support for this model cannot currently be confirmed, so images cannot be sent yet. Text attachments remain available."
+      }
+    },
+    {
+      "case": "composerAttachmentOpen",
+      "key": "composer.attachment.open",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "加入圖片或文字附件",
+        "zh-Hans": "添加图片或文字附件",
+        "en": "Add image or text attachment"
+      }
+    },
+    {
+      "case": "composerAttachmentReview",
+      "key": "composer.attachment.review",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢視或確認附件",
+        "zh-Hans": "查看或确认附件",
+        "en": "Review attachment"
+      }
+    },
+    {
+      "case": "composerAttachmentRemoveBeforeNew",
+      "key": "composer.attachment.removeBeforeNew",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先移除附件，再建立新對話；文字草稿會保留。",
+        "zh-Hans": "请先移除附件，再创建新对话；文字草稿会保留。",
+        "en": "Remove the attachment before starting a new conversation. Your draft is kept."
       }
     }
   ]

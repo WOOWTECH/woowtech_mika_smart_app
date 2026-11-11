@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AssistantSkills
+import AssistantAttachments
 import AssistantPersistence
 
 @MainActor
@@ -76,7 +77,7 @@ struct ContentView: View {
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { session.pdfEnteredBackground() }
+            if phase == .background { session.pdfEnteredBackground(); session.generalAttachmentEnteredBackground() }
             if phase != .active {
                 session.cancelMCP()
                 session.invalidateProfileReview()
@@ -242,6 +243,12 @@ struct ContentView: View {
 
     private func requestNewConversation() {
         guard !session.isSubmitting else { return }
+        if session.hasGeneralAttachment {
+            session.explainAttachmentBeforeNewConversation()
+            selection = .chat
+            closeDrawer()
+            return
+        }
         if let protection = NewConversationProtection.current(in: session) {
             pendingNewConversationProtection = protection
             showsNewConversationConfirmation = true
@@ -448,8 +455,19 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
+    @ObservedObject private var learning: LearningStore
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
+    @StateObject private var attachment: ChatAttachmentPickerViewModel
+
+    init(session: ChatSession, mcp: MCPSession, showsDrawer: Binding<Bool>, localizer: AppLocalizer) {
+        self.session = session
+        self.mcp = mcp
+        self._learning = ObservedObject(wrappedValue: session.learning)
+        self._showsDrawer = showsDrawer
+        self.localizer = localizer
+        self._attachment = StateObject(wrappedValue: ChatAttachmentPickerViewModel(presenter: session.attachmentPresenter))
+    }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -460,6 +478,7 @@ private struct ChatView: View {
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
     @State private var showsPDF = false
+    @State private var showsAttachment = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
@@ -674,7 +693,25 @@ private struct ChatView: View {
               }
             }
 
-            if let error = session.chatError {
+            if session.hasGeneralAttachment {
+                HStack {
+                    Button(localizer.text(.composerAttachmentReview)) {
+                        voice.cancel(); isEditingDraft = false
+                        _ = session.prepareAttachmentReview()
+                        showsAttachment = true
+                    }.accessibilityIdentifier("chat.attachment.review")
+                    .disabled(session.isSubmitting)
+                    Button(localizer.text(.attachmentRemove), role: .destructive) {
+                        session.discardGeneralAttachment()
+                    }.accessibilityIdentifier("chat.attachment.removeInline")
+                    .disabled(session.isSubmitting)
+                }.font(.caption)
+            }
+            if let issue = session.attachmentIssue {
+                Text(localizer.text(issue)).font(.callout).foregroundStyle(.red)
+                    .accessibilityIdentifier("chat.attachment.issue")
+            }
+            if let error = session.chatError, session.attachmentIssue == nil {
                 Text(error)
                     .font(.callout)
                     .foregroundStyle(.red)
@@ -694,6 +731,10 @@ private struct ChatView: View {
                 }
             }
             #if DEBUG
+            if ChatAttachmentComposerUITestFixture.selected() != nil {
+                Button("Enable synthetic MCP") { session.usesMCP = true }
+                    .accessibilityIdentifier("attachment.fixture.enableMCP")
+            }
             if VoiceUITestFixture.selected() != nil {
                 VStack {
                     Text(verbatim: voiceFixture.observation)
@@ -742,6 +783,16 @@ private struct ChatView: View {
                     .accessibilityLabel(localizer.text(session.pdfAttachment == nil ? .shellAttachPDF : .shellViewPDFAttachment))
                     .disabled(session.isSubmitting)
                     .accessibilityIdentifier("chat.pdf.open")
+                Button {
+                    voice.cancel(); isEditingDraft = false
+                    _ = session.prepareAttachmentReview()
+                    showsAttachment = true
+                } label: {
+                    Image(systemName: "paperclip").frame(width: 40, height: 40)
+                }
+                .disabled(session.isSubmitting)
+                .accessibilityLabel(localizer.text(.composerAttachmentOpen))
+                .accessibilityIdentifier("chat.attachment.open")
                 // Return adds a line; the keyboard toolbar Done closes editing without sending.
                 TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
                     .lineLimit(1...5)
@@ -799,6 +850,13 @@ private struct ChatView: View {
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
+        .sheet(isPresented: $showsAttachment, onDismiss: {
+            if !session.hasGeneralAttachment { session.discardGeneralAttachment() }
+        }) {
+            ChatAttachmentPickerView(model: attachment, localizer: localizer,
+                                     hostIssue: session.attachmentIssue,
+                                     onRemove: { session.discardGeneralAttachment() })
+        }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
                             approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
@@ -825,10 +883,25 @@ private struct ChatView: View {
                     .accessibilityIdentifier("chat.dismissKeyboard")
             }
         }
+        .onChange(of: attachment.state.phase) { _, phase in
+            if case .ready = phase { _ = session.prepareAttachmentReview() }
+        }
+        .onChange(of: session.draft) { _, _ in
+            if session.hasGeneralAttachment { _ = session.prepareAttachmentReview() }
+        }
+        .onChange(of: session.usesMCP) { _, _ in
+            if session.hasGeneralAttachment { _ = session.prepareAttachmentReview() }
+        }
+        .onChange(of: learning.memory) { _, _ in
+            if session.hasGeneralAttachment { _ = session.prepareAttachmentReview() }
+        }
         .onChange(of: showsDrawer) { _, visible in
             if visible { voice.cancel(); isEditingDraft = false }
         }
-        .onAppear { voice.attach(session: session) }
+        .onAppear {
+            voice.attach(session: session)
+            if session.hasGeneralAttachment { _ = session.prepareAttachmentReview() }
+        }
         .onDisappear { voice.cancel() }
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
