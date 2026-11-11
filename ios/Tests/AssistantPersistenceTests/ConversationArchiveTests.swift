@@ -380,6 +380,108 @@ enum ConversationArchiveChecks {
                     "capacity rejection leaves content, metadata and v2 bytes unchanged")
         return a.count
     }
+
+    static func quoteAndBranch() throws -> Int {
+        var a = Assertions()
+        let quote = ConversationQuote.Quote(source: .assistant, text: " 明天\n\n下午 ")
+        let composed = ConversationQuote.compose(quote, words: "怎麼辦")
+        try a.check(composed == "> [Quoting your earlier reply]\n> 明天\n>\n> 下午\n\n怎麼辦",
+                    "assistant quote matches Android's wire format")
+        let parsed = ConversationQuote.parse(composed)
+        try a.check(parsed.quote == .init(source: .assistant, text: "明天\n\n下午") && parsed.words == "怎麼辦",
+                    "quoted blank lines and user words round-trip")
+        let own = ConversationQuote.compose(.init(source: .user, text: "原話"), words: "重寫")
+        try a.check(own == "> [Quoting my earlier message]\n> 原話\n\n重寫"
+                    && ConversationQuote.parse(own).quote?.source == .user, "own quote identifies its author")
+        try a.check(ConversationQuote.textForSend(quote, words: " \n") == nil
+                    && ConversationQuote.textForSend(quote, words: "  問題  ") == ConversationQuote.compose(quote, words: "問題"),
+                    "quote alone cannot start a text-only send")
+        let old = "> ordinary quote\nkeep spacing  "
+        try a.check(ConversationQuote.parse(old).quote == nil && ConversationQuote.parse(old).words == old,
+                    "unmarked legacy text remains byte-for-byte unchanged")
+        let windows = ConversationQuote.parse("> [Quoting my earlier message]\r\n> one\r\n> two\r\n\r\nnext")
+        try a.check(windows.quote?.text == "one\ntwo" && windows.words == "next", "CRLF quote parses")
+        try a.check(ConversationQuote.compose(.init(source: .user, text: " "), words: "a") == "a",
+                    "empty quote leaves words unchanged")
+        try a.check(ConversationQuote.clip(String(repeating: "x", count: 1002)) == String(repeating: "x", count: 1000) + "…",
+                    "quote is clipped at Android's 1000 UTF-16 unit bound")
+        let emoji = String(repeating: "x", count: 999) + "😀" + "z"
+        try a.check(ConversationQuote.clip(emoji) == String(repeating: "x", count: 999) + "…",
+                    "clip cannot split a surrogate pair")
+        let exact = String(repeating: "😀", count: 500)
+        try a.check(ConversationQuote.clip(exact) == exact, "1000 UTF-16 units remain intact")
+
+        let dest = try destination()
+        let pdf = try ArchivedPDFAnswer(filename: "fixture.pdf", inputSHA256: String(repeating: "a", count: 64),
+            originalPageCount: 1, pages: [.init(number: 1, text: "proof")],
+            citations: [.init(readID: UUID(), pageIndex: 1, readOffset: 0, readLength: 5, offset: 0, quote: "proof")])
+        let turns = try [ArchivedConversationTurn(userText: composed, assistantText: "First", pdf: pdf),
+                         ArchivedConversationTurn(userText: "Second", assistantText: "Second answer"),
+                         ArchivedConversationTurn(userText: "Later", assistantText: "Must not copy")]
+        let original = try row(destination: dest, turns: turns)
+        var archive = ConversationArchive(); try archive.save(original)
+        try archive.rename(id: original.id, expectedTitle: nil, to: "Source")
+        try archive.setPinned(id: original.id, expectedPinnedAt: nil, pinned: true)
+        let source = archive.conversations[0]
+        let originalArchive = archive
+        let target = UUID(), time = Date(timeIntervalSince1970: 200)
+        func prepare(_ id: UUID, busy: Bool = false, unfinished: Bool = false, targetID: UUID = target) throws -> ConversationBranchPlan {
+            try .prepare(in: archive, source: source, assistantID: id, targetID: targetID,
+                         title: "Source · 分支", at: time, isBusy: busy, hasUnfinishedOrUnsavedTurn: unfinished)
+        }
+        func rejectsBranch(_ expected: ConversationBranchError, _ name: String, _ body: () throws -> Void) throws {
+            do { try body() }
+            catch let error as ConversationBranchError where error == expected { a.count += 1; return }
+            catch { throw Failure(name: name + " (unexpected error: \(error))") }
+            throw Failure(name: name)
+        }
+        let plan = try prepare(turns[1].assistantID)
+        try a.check(plan.parentTurn == 1 && plan.source == source && plan.branch.id == target && plan.branch.destination == dest,
+                    "branch identifies its source, selected completed turn and destination")
+        try a.check(plan.branch.turns.count == 2 && plan.branch.turns.map(\.userText) == turns.prefix(2).map(\.userText)
+                    && plan.branch.turns.map(\.assistantText) == turns.prefix(2).map(\.assistantText)
+                    && plan.branch.turns[0].pdf == pdf, "branch copies exact completed prefix and PDF evidence")
+        let oldIDs = Set(turns.flatMap { [$0.userID, $0.assistantID] })
+        let copiedIDs = plan.branch.turns.flatMap { [$0.userID, $0.assistantID] }
+        try a.check(Set(copiedIDs).count == copiedIDs.count && oldIDs.isDisjoint(with: copiedIDs),
+                    "new messages have distinct IDs throughout the archive")
+        try a.check(archive == originalArchive, "preparation never changes the source")
+        let result = try plan.applying(to: archive, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        let branched = result.conversations.first { $0.id == target }!
+        try a.check(result.conversations.first { $0.id == source.id } == source && source.pinnedAt != nil,
+                    "source transcript, title, pin and activity are unchanged")
+        try a.check(branched.turns == plan.branch.turns && branched.customTitle == "Source · 分支" && branched.pinnedAt == nil,
+                    "branch has its own title and does not inherit the pin")
+        try a.check(try JSONDecoder().decode(ConversationArchive.self, from: JSONEncoder().encode(result)) == result,
+                    "branch snapshot survives encrypted-archive serialization")
+        try rejectsBranch(.invalidSelection, "user ID is not an assistant branch point") { _ = try prepare(turns[1].userID) }
+        try rejectsBranch(.invalidSelection, "unknown or unfinished preview ID is not an archived turn") { _ = try prepare(UUID()) }
+        try rejectsBranch(.blocked, "busy conversation cannot prepare branch") { _ = try prepare(turns[0].assistantID, busy: true) }
+        try rejectsBranch(.unfinishedTurn, "unfinished or unsaved conversation cannot prepare branch") { _ = try prepare(turns[0].assistantID, unfinished: true) }
+        try rejectsBranch(.invalidTarget, "source ID cannot be reused") { _ = try prepare(turns[0].assistantID, targetID: source.id) }
+        try rejectsBranch(.blocked, "busy after preparation cannot apply") { _ = try plan.applying(to: archive, isBusy: true, hasUnfinishedOrUnsavedTurn: false) }
+        try rejectsBranch(.unfinishedTurn, "unfinished after preparation cannot apply") { _ = try plan.applying(to: archive, isBusy: false, hasUnfinishedOrUnsavedTurn: true) }
+        try rejectsBranch(.invalidTarget, "existing target cannot be overwritten") { _ = try plan.applying(to: result, isBusy: false, hasUnfinishedOrUnsavedTurn: false) }
+        var renamed = archive
+        try renamed.rename(id: source.id, expectedTitle: source.customTitle, to: "New name")
+        try rejectsBranch(.staleSource, "changed source cannot be branched from stale snapshot") { _ = try plan.applying(to: renamed, isBusy: false, hasUnfinishedOrUnsavedTurn: false) }
+        var deleted = archive; try deleted.delete(id: source.id)
+        try rejectsBranch(.staleSource, "deleted source cannot be revived") { _ = try plan.applying(to: deleted, isBusy: false, hasUnfinishedOrUnsavedTurn: false) }
+        try a.check(archive == originalArchive, "all rejected operations leave original archive unchanged")
+        var full = archive
+        for n in 1..<ConversationArchive.maximumConversations {
+            try full.save(row(destination: dest, turns: [.init(userText: "Q\(n)", assistantText: "A")]))
+        }
+        let fullBefore = full
+        do {
+            _ = try ConversationBranchPlan.prepare(in: full, source: source, assistantID: turns[0].assistantID,
+                targetID: UUID(), title: "Branch", at: time, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+            throw Failure(name: "branch cannot evict data at archive capacity")
+        } catch ConversationArchiveError.full { a.count += 1 }
+        try a.check(full == fullBefore, "capacity rejection preserves the entire archive")
+        return a.count
+    }
+
 }
 
 #if CONVERSATION_ARCHIVE_STANDALONE
@@ -388,13 +490,14 @@ enum ConversationArchiveChecks {
         let groups = try [ConversationArchiveChecks.roundTripAndIdentity(), ConversationArchiveChecks.malformedState(),
                           ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend(),
                           ConversationArchiveChecks.versionCompatibility(),
-                          ConversationArchiveChecks.pinMigrationOrderingAndCapacity()]
-        print("{\"groups\":6,\"assertions\":\(groups.reduce(0,+))}")
+                          ConversationArchiveChecks.pinMigrationOrderingAndCapacity(), ConversationArchiveChecks.quoteAndBranch()]
+        print("{\"groups\":7,\"assertions\":\(groups.reduce(0,+))}")
     }
 }
 #else
 import XCTest
 final class ConversationArchiveTests: XCTestCase {
+    func testQuoteAndBranch() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.quoteAndBranch(), 0) }
     func testRoundTripAndIdentity() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.roundTripAndIdentity(), 0) }
     func testMalformedState() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.malformedState(), 0) }
     func testBoundedTransactions() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.boundedTransactions(), 0) }
