@@ -1,11 +1,6 @@
 package com.wangzan101.mika.ui
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.view.WindowManager
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,7 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** 电脑连接页中的主屏准备设置。新凭据不进可恢复状态,不显示旧凭据;编辑时禁止截屏。 */
+/** 电脑连接页中的主屏准备设置。新凭据不进可恢复状态,不显示旧凭据;凭据输入保留密码遮罩,允许用户截屏和录屏。 */
 @Composable
 fun DeviceAccessSection(settings: DeviceAccessSettings) {
     val config by settings.config.collectAsState()
@@ -49,12 +43,6 @@ fun DeviceAccessSection(settings: DeviceAccessSettings) {
     var repeat by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    val window = LocalContext.current.activity()?.window
-    DisposableEffect(editing, window) {
-        val alreadySecure = window?.attributes?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE) != 0
-        if (editing) window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { if (editing && !alreadySecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
-    }
     fun change(action: () -> Unit, done: () -> Unit = {}) {
         if (busy) return
         busy = true
@@ -112,10 +100,4 @@ fun DeviceAccessSection(settings: DeviceAccessSettings) {
         FooterNote(stringResource(if (kind == CredentialKind.Pin) R.string.device_access_pin_hint else R.string.device_access_password_hint))
     }
     if (failed) FooterNote(stringResource(R.string.device_access_save_failed))
-}
-
-private fun Context.activity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.takeIf { it !== this }?.activity()
-    else -> null
 }

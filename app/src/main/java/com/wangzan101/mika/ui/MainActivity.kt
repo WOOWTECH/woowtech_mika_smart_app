@@ -353,6 +353,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 conversationTitle = { ConversationStore.shared(context).title(it) },
                 onPlans = { nav.pushFromDrawer(Route.Plans) },
                 onMemory = { nav.pushFromDrawer(Route.Memory) },
+                onMcpServers = { nav.pushFromDrawer(Route.McpServers) },
+                onComputerAccess = { nav.pushFromDrawer(Route.ComputerAccess) },
                 onSettings = { nav.pushFromDrawer(Route.Settings) },
                 onBrowser = { nav.pushFromDrawer(Route.Browser) },
                 onScreens = { nav.pushFromDrawer(Route.Screens) },
@@ -417,6 +419,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             },
         )
         Route.License -> LicensesScreen(onBack = back)
+        Route.McpServers -> McpServersScreen(app.mcpServers, onBack = back)
+        Route.ComputerAccess -> McpScreen(app.mcp, onBack = back)
         Route.Browser -> BrowserScreen(remember { UserBrowser.of(context) }, onBack = back)
         Route.Memory -> {
             val registry = remember { WebSites.registry(context) }

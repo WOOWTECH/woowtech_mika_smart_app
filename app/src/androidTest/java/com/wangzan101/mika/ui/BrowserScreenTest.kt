@@ -82,12 +82,21 @@ class BrowserScreenTest {
                     Prerequisites.Check(emptyList()), DrawerSections(emptyList(), emptyList()), canSwitch = true,
                     onNew = {}, onPlans = {}, onMemory = {},
                     onBrowser = { calls += "browser" },
+                    onMcpServers = { calls += "mcp" },
+                    onComputerAccess = { calls += "computer" },
                     onSettings = {}, onOpen = {},
                 )
             }
         }
-        compose.onNodeWithText("浏览器").assertIsDisplayed().performClick()
-        assertEquals(listOf("browser"), calls)
+        val memory = compose.onNodeWithText("记忆与技能").fetchSemanticsNode().boundsInRoot
+        val mcp = compose.onNodeWithText("MCP 服务器").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val computer = compose.onNodeWithText("连接电脑").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val browser = compose.onNodeWithText("浏览器").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(memory.bottom <= mcp.top && mcp.bottom <= computer.top && computer.bottom <= browser.top)
+        compose.onNodeWithText("MCP 服务器").performClick()
+        compose.onNodeWithText("连接电脑").performClick()
+        compose.onNodeWithText("浏览器").performClick()
+        assertEquals(listOf("mcp", "computer", "browser"), calls)
     }
 
     @Test
