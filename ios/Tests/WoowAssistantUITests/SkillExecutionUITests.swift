@@ -634,8 +634,7 @@ final class SkillExecutionUITests: XCTestCase {
         revealLearningElement(field, in: app)
         requireHittable(field)
         field.tap()
-        field.typeText("WOOW_SKILL_PDF_PAGE_1")
-        tap("skillExecution.localSearch.search", scroll: true)
+        field.typeText("WOOW_SKILL_PDF_PAGE_1\n")
         let summary = app.staticTexts["skillExecution.localSearch.summary"]
         revealLearningElement(summary, in: app, visibility: .readableText)
         XCTAssertEqual(summary.label, "找到 1 處。")
@@ -645,7 +644,7 @@ final class SkillExecutionUITests: XCTestCase {
         revealLearningElement(field, in: app)
         field.tap(); field.typeText("X")
         XCTAssertFalse(summary.exists, "Editing the term must remove old search results.")
-        tap("skillExecution.localSearch.search", scroll: true)
+        field.typeText("\n")
         revealLearningElement(summary, in: app, visibility: .readableText)
         XCTAssertEqual(summary.label, "本次擷取頁面沒有符合的文字。")
         assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)

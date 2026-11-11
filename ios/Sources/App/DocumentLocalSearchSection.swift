@@ -6,6 +6,7 @@ import SwiftUI
 struct DocumentLocalSearchSection: View {
     @Binding var search: DocumentLocalSearch?
     let localizer: AppLocalizer
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         if let current = search {
@@ -13,7 +14,7 @@ struct DocumentLocalSearchSection: View {
                 Text(verbatim: localizer.text(.localPDFSearchNotice))
                     .font(.caption)
                 searchField
-                Button(localizer.text(.localPDFSearchButton)) { search?.search() }
+                Button(localizer.text(.localPDFSearchButton)) { performSearch() }
                     .accessibilityIdentifier("skillExecution.localSearch.search")
                 if let error = current.error {
                     Text(verbatim: localizer.text(error == .invalidSearch ? .localPDFSearchInvalid : .localPDFSearchFailed))
@@ -39,11 +40,18 @@ struct DocumentLocalSearchSection: View {
         let field = TextField(localizer.text(.localPDFSearchPlaceholder), text: Binding(
             get: { search?.query ?? "" }, set: { search?.setQuery($0) }))
             .autocorrectionDisabled()
+            .focused($searchFocused)
+            .onSubmit { performSearch() }
             .accessibilityIdentifier("skillExecution.localSearch.query")
         #if os(iOS)
-        field.textInputAutocapitalization(.never)
+        field.textInputAutocapitalization(.never).submitLabel(.search)
         #else
         field
         #endif
+    }
+
+    private func performSearch() {
+        search?.search()
+        searchFocused = false
     }
 }
