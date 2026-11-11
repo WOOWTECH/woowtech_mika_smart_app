@@ -22,6 +22,24 @@ class VoiceInputStandaloneTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS SharedVoiceAudioCoordinator:", result.stdout)
 
+    def test_mixed_voice_lifecycle_with_fake_session(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts/check_mixed_voice_audio.sh")],
+                                cwd=ROOT, text=True, capture_output=True, timeout=90)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS MixedVoiceAudioCoordinator:", result.stdout)
+
+    def test_mixed_apple_adapter_static_policy(self):
+        source = (ROOT / "Sources/App/AppleMixedVoiceAudioSession.swift").read_text()
+        self.assertIn(".playAndRecord", source)
+        self.assertIn(".mixWithOthers", source)
+        self.assertIn(".allowBluetoothA2DP", source)
+        self.assertNotIn(".defaultToSpeaker", source)
+        self.assertNotRegex(source, r"setActive\s*\(\s*false")
+        self.assertIn("AppleVoiceInputDriver(audioCoordinator: coordinator)", source)
+        driver = (ROOT / "Sources/App/AppleVoiceInputDriver.swift").read_text()
+        for notification in ("interruptionNotification", "routeChangeNotification", "mediaServicesWereResetNotification"):
+            self.assertIn(notification, driver)
+
     def test_direct_webview_construction_inventory_requires_audio_review(self):
         # This is a source inventory guard, not proof of WebKit quiescence.
         constructors = set()

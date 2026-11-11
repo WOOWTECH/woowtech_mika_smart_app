@@ -16,6 +16,8 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     private var task: SFSpeechRecognitionTask?
     private var deadline: DispatchWorkItem?
     private var interruptionObserver: NSObjectProtocol?
+    private var routeObserver: NSObjectProtocol?
+    private var mediaResetObserver: NSObjectProtocol?
     private let audioLease: VoiceAudioLeaseSlot
     private var finishing = false
     private let locale: Locale
@@ -96,6 +98,19 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
                       raw == AVAudioSession.InterruptionType.began.rawValue else { return }
                 DispatchQueue.main.async { self?.fail(.audio, id: id) }
             }
+            routeObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.routeChangeNotification, object: audio, queue: .main
+            ) { [weak self] notification in
+                guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+                      reason == .oldDeviceUnavailable || reason == .newDeviceAvailable else { return }
+                DispatchQueue.main.async { self?.fail(.audio, id: id) }
+            }
+            mediaResetObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.mediaServicesWereResetNotification, object: audio, queue: .main
+            ) { [weak self] _ in
+                DispatchQueue.main.async { self?.fail(.audio, id: id) }
+            }
             task = recognizer.recognitionTask(with: newRequest) { [weak self] result, error in
                 let text = result?.bestTranscription.formattedString
                 let final = result?.isFinal == true
@@ -162,7 +177,9 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
         emit = nil
         deadline?.cancel(); deadline = nil
         if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
-        interruptionObserver = nil
+        if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
+        if let mediaResetObserver { NotificationCenter.default.removeObserver(mediaResetObserver) }
+        interruptionObserver = nil; routeObserver = nil; mediaResetObserver = nil
         if let engine {
             engine.stop()
             engine.inputNode.removeTap(onBus: 0)
