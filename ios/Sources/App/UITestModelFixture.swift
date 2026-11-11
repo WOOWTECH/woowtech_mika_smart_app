@@ -70,7 +70,11 @@ struct UITestChatStreamingConfiguration {
 
 struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
     private let completeClient = UITestChatModelClient()
-    init(configuration: UITestChatStreamingConfiguration) {}
+    private let sleep: @Sendable (UInt64) async throws -> Void
+    init(configuration: UITestChatStreamingConfiguration,
+         sleep: @escaping @Sendable (UInt64) async throws -> Void = { try await Task.sleep(nanoseconds: $0) }) {
+        self.sleep = sleep
+    }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         // Keep the existing structured dispatcher/review path intact.
         try await completeClient.complete(messages: messages, configuration: configuration, apiKey: apiKey)
@@ -107,11 +111,11 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                     }
                     if prompt == "[fixture:stream-noop]" {
                         continuation.yield("短回覆；等待下一段。")
-                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try await sleep(40_000_000_000)
                         try Task.checkCancellation()
                         let lines = (0..<80).map { "第\($0)行：新增內容仍應追隨。" }.joined(separator: "\n")
                         continuation.yield("\n" + lines + "\nSCROLL_NOOP_GROW_END")
-                        try await Task.sleep(nanoseconds: 15_000_000_000)
+                        try await sleep(15_000_000_000)
                         try Task.checkCancellation()
                         continuation.finish()
                         return
@@ -119,13 +123,13 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                     if prompt == "[fixture:stream-return]" {
                         let lines = (0..<80).map { "第\($0)行：閱讀位置及回到底部。" }.joined(separator: "\n")
                         continuation.yield(lines + "\nRETURN_FIRST_END")
-                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try await sleep(35_000_000_000)
                         try Task.checkCancellation()
                         continuation.yield("\nRETURN_SECOND_END\n" + lines)
-                        try await Task.sleep(nanoseconds: 40_000_000_000)
+                        try await sleep(25_000_000_000)
                         try Task.checkCancellation()
                         continuation.yield("\nRETURN_THIRD_END\n" + lines)
-                        try await Task.sleep(nanoseconds: 15_000_000_000)
+                        try await sleep(15_000_000_000)
                         try Task.checkCancellation()
                         continuation.finish()
                         return
@@ -133,10 +137,10 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                     if prompt == "[fixture:stream-scroll]" {
                         let lines = (0..<80).map { "第\($0)行：閱讀較早內容時不要跳到底部。" }.joined(separator: "\n")
                         continuation.yield(lines + "\nSCROLL_FIRST_END")
-                        try await Task.sleep(nanoseconds: 50_000_000_000)
+                        try await sleep(45_000_000_000)
                         try Task.checkCancellation()
                         continuation.yield("\nSCROLL_SECOND_END\n" + lines)
-                        try await Task.sleep(nanoseconds: 45_000_000_000)
+                        try await sleep(25_000_000_000)
                         try Task.checkCancellation()
                         continuation.finish()
                         return

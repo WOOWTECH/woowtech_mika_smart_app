@@ -53,6 +53,7 @@ struct MCPApprovalRequest: Identifiable {
 
 @MainActor
 final class ChatSession: ObservableObject {
+    static let plainRequestDeadlineSeconds: UInt64 = 90
     let learning: LearningStore
     let archive: ConversationArchiveStore?
     @Published private(set) var conversationID = UUID().uuidString
@@ -453,7 +454,7 @@ final class ChatSession: ObservableObject {
             }
         }
         deadline = Task { [weak self] in
-            let seconds: UInt64 = mcpConnection == nil ? 90 : 180
+            let seconds: UInt64 = mcpConnection == nil ? Self.plainRequestDeadlineSeconds : 180
             do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) }
             catch { return }
             guard let self, self.requestID == id else { return }

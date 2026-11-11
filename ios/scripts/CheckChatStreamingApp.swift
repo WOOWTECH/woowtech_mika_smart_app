@@ -68,6 +68,13 @@ private final class CompleteSequenceClient: ChatModelClient, @unchecked Sendable
 private struct CompleteOnlyClient: ChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
 }
+#if DEBUG
+private actor FixturePauseRecorder {
+    private var intervals: [UInt64] = []
+    func pause(_ nanoseconds: UInt64) { intervals.append(nanoseconds) }
+    func recorded() -> [UInt64] { intervals }
+}
+#endif
 @MainActor private final class StreamNotifications: TaskNotificationClient {
     var operations = 0, adds = 0
     var kinds: [TaskNotificationKind] = []
@@ -133,6 +140,44 @@ private actor StreamMCP: MCPDiscovering {
             await Task.yield()
         }
     }
+    #if DEBUG
+    /// Run the real DEBUG adapter with an immediate recording sleeper. This
+    /// checks its emitted fragments and scheduled waits against the same plain
+    /// request deadline that ChatSession uses, without a 75-second test sleep.
+    static func fixtureTimingWithinHostDeadline() async throws -> Int {
+        var a = Assertions()
+        guard let fixture = try UITestChatStreamingConfiguration.resolve(arguments:
+            ["-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestChatStreaming"])
+        else { throw Failure(name: "stream fixture not selected") }
+        let configuration = ModelConfiguration(baseURL: URL(string: "https://fixture.invalid/v1")!, model: "fixture")
+        let second: UInt64 = 1_000_000_000
+        let cases: [(prompt: String, markers: [String], minimumWindows: [UInt64])] = [
+            ("[fixture:stream-scroll]", ["SCROLL_FIRST_END", "SCROLL_SECOND_END"], [40, 15]),
+            ("[fixture:stream-return]", ["RETURN_FIRST_END", "RETURN_SECOND_END", "RETURN_THIRD_END"], [30, 20, 10]),
+            ("[fixture:stream-noop]", ["短回覆；等待下一段。", "SCROLL_NOOP_GROW_END"], [30, 10])
+        ]
+        for test in cases {
+            let clock = FixturePauseRecorder()
+            let client = UITestStreamingChatModelClient(configuration: fixture,
+                sleep: { nanoseconds in await clock.pause(nanoseconds) })
+            var fragments: [String] = []
+            for try await fragment in client.stream(messages: [.init(role: "user", content: test.prompt)],
+                                                    configuration: configuration, apiKey: "synthetic") {
+                fragments.append(fragment)
+            }
+            let intervals = await clock.recorded()
+            try a.check(fragments.count == test.markers.count &&
+                zip(fragments, test.markers).allSatisfy({ $0.0.contains($0.1) }),
+                "fixture fragment order for \(test.prompt)")
+            try a.check(intervals.count == test.minimumWindows.count &&
+                zip(intervals, test.minimumWindows).allSatisfy({ $0.0 >= $0.1 * second }),
+                "native interaction windows for \(test.prompt)")
+            try a.check(intervals.reduce(0, +) + 15 * second <= ChatSession.plainRequestDeadlineSeconds * second,
+                "fixture completion must precede the real host deadline by 15 seconds for \(test.prompt)")
+        }
+        return a.count
+    }
+    #endif
     private static func start(_ session: ChatSession, _ prompt: String, mcp: MCPSession? = nil) throws -> Task<Void, Never> {
         session.draft = prompt; session.send(mcp: mcp)
         guard let task = session.capturedArchiveRequest else { throw Failure(name: "actual request missing") }
@@ -969,17 +1014,25 @@ private actor StreamMCP: MCPDiscovering {
 @main enum ChatStreamingMain {
     @MainActor static func main() async {
         do {
-            let groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
+            var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation()]
-            print("{\"groups\":10,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            #if DEBUG
+            groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
+            #endif
+            print("{\"groups\":\(groups.count),\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
     }
 }
 #else
 final class ChatStreamingAppTests: XCTestCase {
+    #if DEBUG
+    @MainActor func testFixtureTimingWithinHostDeadline() async throws {
+        let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 9)
+    }
+    #endif
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
