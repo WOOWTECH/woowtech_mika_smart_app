@@ -76,13 +76,20 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
     private let scope: any PickerSecurityScope
     private let makeReader: () -> any ChatAttachmentFileReading
     private let decoder: any ChatAttachmentImageValidating
+    // Internal scheduling seam lets the offline regression observe task
+    // creation synchronously; production still uses the normal actor task.
+    private let schedulePreparation: (@escaping @MainActor () async -> Void) -> Task<Void, Never>
 
     public convenience init() {
         self.init(scope: URLPickerSecurityScope(), makeReader: { CoordinatedAttachmentReader() }, decoder: ImageIOAttachmentValidator())
     }
     init(scope: any PickerSecurityScope, makeReader: @escaping () -> any ChatAttachmentFileReading,
-         decoder: any ChatAttachmentImageValidating) {
+         decoder: any ChatAttachmentImageValidating,
+         schedulePreparation: @escaping (@escaping @MainActor () async -> Void) -> Task<Void, Never> = { operation in
+             Task { await operation() }
+         }) {
         self.scope = scope; self.makeReader = makeReader; self.decoder = decoder
+        self.schedulePreparation = schedulePreparation
     }
     deinit {
         preparation?.cancel()
@@ -110,7 +117,7 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
             Task { await next.discard() }
             return
         }
-        preparation = Task { [weak self, next] in
+        preparation = schedulePreparation { [weak self, next] in
             do {
                 let metadata = try await next.load()
                 guard let self, self.generation == id, !Task.isCancelled else { await next.discard(); return }

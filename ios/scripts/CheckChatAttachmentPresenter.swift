@@ -73,6 +73,45 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
               inputRevision: input, additionalData: [.currentQuestion], vision: vision)
 }
 
+// The scheduler probe runs synchronously at task creation, before the main
+// actor can run either the task or the asynchronous discard. It observes the
+// race itself, rather than hoping a background reader happens to win it.
+@MainActor private func synchronousDiscardProbe(_ url: URL, bytes: Data) async throws {
+    let scope = Scope(), reader = CountingReader(bytes)
+    var scheduled = 0
+    let presenter = ChatAttachmentPresenter(scope: scope, makeReader: { reader }, decoder: AcceptDecoder(),
+        schedulePreparation: { operation in scheduled += 1; return Task { await operation() } })
+    presenter.onChange = { [weak presenter] state in
+        if case .loading = state.phase { presenter?.discard() }
+    }
+    presenter.picked(url)
+    try check(scheduled == 0, "STALE_DISCARD_TASK_SCHEDULED")
+    try await wait { scope.counts.1 == 1 }
+    try check(scope.counts.0 == 1 && scope.counts.1 == 1 && reader.reads == 0 && presenter.state.phase == .empty,
+              "Synchronous discard never starts a reader and balances scope")
+}
+
+@MainActor private func synchronousReplaceProbe(_ first: URL, second: URL, bytes: Data) async throws {
+    let scope = Scope(), rejected = CountingReader(bytes), accepted = CountingReader(bytes)
+    var made = 0, scheduled = 0, didReplace = false
+    let presenter = ChatAttachmentPresenter(scope: scope, makeReader: {
+        made += 1; return made == 1 ? rejected : accepted
+    }, decoder: AcceptDecoder(), schedulePreparation: { operation in
+        scheduled += 1; return Task { await operation() }
+    })
+    presenter.onChange = { [weak presenter] state in
+        if case .loading = state.phase, !didReplace { didReplace = true; presenter?.picked(second) }
+    }
+    presenter.picked(first)
+    try check(scheduled == 1, "STALE_REPLACEMENT_TASK_SCHEDULED")
+    try await wait { isReady(presenter) && scope.counts.1 == 2 }
+    guard case .ready(let metadata) = presenter.state.phase else { throw Failure(detail: "Replacement not ready") }
+    try check(metadata.filename == second.lastPathComponent && rejected.reads == 0 && accepted.reads == 1,
+              "Synchronous replacement starts only the winning reader")
+    try check(scope.counts.0 == 2 && scope.counts.1 == 2, "Synchronous replacement balances scopes")
+    presenter.discard()
+}
+
 @main struct CheckChatAttachmentPresenter {
     @MainActor static func main() async throws {
         let directory = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
@@ -81,6 +120,13 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
         let jpegURL = directory.appendingPathComponent("image.jpg")
         let jpeg = Data([0xff, 0xd8, 0xff, 0xe0, 0x01])
         try jpeg.write(to: jpegURL)
+        let probeSecond = directory.appendingPathComponent("probe-other.txt")
+        try bytes.write(to: probeSecond)
+        let probe = ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REENTRANCY_PROBE"]
+        if let probe, probe != "discard" && probe != "replace" { throw Failure(detail: "Unknown reentrancy probe") }
+        if probe == nil || probe == "discard" { try await synchronousDiscardProbe(url, bytes: bytes) }
+        if probe == nil || probe == "replace" { try await synchronousReplaceProbe(url, second: probeSecond, bytes: bytes) }
+        if probe != nil { return }
         let scope = Scope()
         let presenter = ChatAttachmentPresenter(scope: scope, makeReader: { CoordinatedAttachmentReader() }, decoder: ImageIOAttachmentValidator())
         let originalContext = try context()
@@ -208,37 +254,6 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
         replacing.pickerCancelled()
         try check(replacing.state.phase == .ready(selected), "Picker cancellation keeps staged selection")
         replacing.discard()
-
-        // onChange is synchronous: invalidate before picked() creates its task.
-        let raceScope = Scope(), neverRead = CountingReader(bytes)
-        let synchronousDiscard = ChatAttachmentPresenter(scope: raceScope, makeReader: { neverRead }, decoder: AcceptDecoder())
-        synchronousDiscard.onChange = { [weak synchronousDiscard] state in
-            if case .loading = state.phase { synchronousDiscard?.discard() }
-        }
-        for _ in 0..<2000 { synchronousDiscard.picked(url) }
-        try await wait { raceScope.counts.1 == 2000 }
-        try check(raceScope.counts.0 == 2000 && neverRead.reads == 0 && synchronousDiscard.state.phase == .empty,
-                  "Synchronous discard never starts a reader and balances every scope")
-
-        let replaceScope = Scope(), rejectedReader = CountingReader(bytes), acceptedReader = CountingReader(bytes)
-        var replacementCount = 0
-        let synchronousReplace = ChatAttachmentPresenter(scope: replaceScope, makeReader: {
-            replacementCount += 1
-            return replacementCount == 1 ? rejectedReader : acceptedReader
-        }, decoder: AcceptDecoder())
-        var didReplace = false
-        synchronousReplace.onChange = { [weak synchronousReplace] state in
-            if case .loading = state.phase, !didReplace {
-                didReplace = true; synchronousReplace?.picked(secondURL)
-            }
-        }
-        synchronousReplace.picked(url)
-        try await wait { isReady(synchronousReplace) && replaceScope.counts.1 == 2 }
-        guard case .ready(let replacementMetadata) = synchronousReplace.state.phase else { throw Failure(detail: "Replacement not ready") }
-        try check(replacementMetadata.filename == "other.txt" && rejectedReader.reads == 0 && acceptedReader.reads == 1,
-                  "Synchronous replacement starts only the winning reader")
-        try check(replaceScope.counts.0 == 2 && replaceScope.counts.1 == 2, "Synchronous replacement balances scopes")
-        synchronousReplace.discard()
 
         let contextScope = Scope(), contextReader = CountingReader(bytes)
         let synchronousContext = ChatAttachmentPresenter(scope: contextScope, makeReader: { contextReader }, decoder: AcceptDecoder())
