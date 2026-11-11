@@ -737,12 +737,73 @@ final class SkillExecutionUITests: XCTestCase {
         _ = navigateNativeFiles(exporting: true)
     }
 
-    private func scrollNativeFileList() {
-        let lists = app.collectionViews.allElementsBoundByIndex + app.tables.allElementsBoundByIndex
-        guard let list = lists.first(where: { $0.isHittable }) else {
-            XCTFail("Native destination must expose its file list."); return
+    private func pickerScopedFileList() -> XCUIElement? {
+        guard nativeFilesNavigation.exists, nativeCancel.isHittable else { return nil }
+        let navigationFrame = nativeFilesNavigation.frame
+        let appFrame = app.frame
+        guard !navigationFrame.isEmpty, !navigationFrame.isNull, !navigationFrame.isInfinite else { return nil }
+        let exact = nativeFileList
+        if exact.exists && exact.isHittable {
+            let visible = exact.frame.intersection(appFrame)
+            if !visible.isNull && !visible.isEmpty && visible.maxY > navigationFrame.maxY {
+                return exact
+            }
+        }
+
+        // Other OS releases may expose the Files grid as a Table or with a
+        // different identifier. Accept a fallback only inside a native picker
+        // subtree containing its navigation bar, never an underlying App Form.
+        let roots = app.otherElements.containing(
+            .navigationBar, identifier: "FullDocumentManagerViewControllerNavigationBar")
+            .allElementsBoundByIndex.prefix(16)
+        var lists: [String: XCUIElement] = [:]
+        for root in roots {
+            guard root.exists,
+                  !root.descendants(matching: .collectionView)["skillExecution.form"].exists,
+                  !root.descendants(matching: .collectionView)["pdfAssembly.form"].exists,
+                  !root.buttons["skillExecutionSelectPDF"].exists,
+                  !root.buttons["pdfAssembly.select"].exists,
+                  !root.buttons["navigation.chat"].exists else { continue }
+            let pickerFrame = root.frame
+            guard !pickerFrame.isEmpty, !pickerFrame.isNull, !pickerFrame.isInfinite,
+                  pickerFrame.contains(navigationFrame) else { continue }
+            let candidates = root.descendants(matching: .collectionView).allElementsBoundByIndex
+                + root.descendants(matching: .table).allElementsBoundByIndex
+            for candidate in candidates where candidate.exists && candidate.isEnabled && candidate.isHittable {
+                let frame = candidate.frame
+                guard !frame.isEmpty, !frame.isNull, !frame.isInfinite else { continue }
+                let visible = frame.intersection(pickerFrame).intersection(appFrame)
+                guard !visible.isEmpty, visible.maxY > navigationFrame.maxY else { continue }
+                let key = "\(candidate.elementType):\(candidate.identifier):\(frame)"
+                lists[key] = candidate
+            }
+        }
+        return lists.count == 1 ? lists.values.first : nil
+    }
+
+    private func scrollNativeFileList() -> Bool {
+        // A hittable Cancel and app-folder title do not establish list readiness.
+        // Resolve one visible picker-owned list before any scroll gesture.
+        var list = pickerScopedFileList()
+        if list == nil {
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                self.pickerScopedFileList() != nil
+            }, object: nil)
+            guard XCTWaiter.wait(for: [ready], timeout: 12) == .completed else {
+                XCTFail("No uniquely verified Files list became hittable before scrolling: "
+                    + "pickerNavigation=\(nativeFilesNavigation.exists) "
+                    + "cancel=\(nativeCancel.exists) fileView=\(nativeFileList.exists) "
+                    + "fileViewHittable=\(nativeFileList.exists && nativeFileList.isHittable)")
+                return false
+            }
+            list = pickerScopedFileList()
+        }
+        guard let list, list.exists && list.isHittable else {
+            XCTFail("Verified Files list lost visibility before scrolling.")
+            return false
         }
         list.swipeUp()
+        return true
     }
 
     private func assertExportStatus(_ expected: String) {
@@ -951,7 +1012,7 @@ final class SkillExecutionUITests: XCTestCase {
                 // Scroll only after confirming this app's local Documents folder.
                 for attempt in 0...10 {
                     if let file = pickerElement(for: .file, exporting: false) { return file }
-                    if attempt < 10 { scrollNativeFileList() }
+                    if attempt < 10 && !scrollNativeFileList() { return nil }
                 }
                 recordPickerDiagnostics(stage: mode + "-exact-file-not-visible")
                 XCTFail("The known local app folder did not reveal this namespace's exact PDF basename.")
