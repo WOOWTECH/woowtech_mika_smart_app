@@ -181,7 +181,10 @@ private struct CompleteHTTP: LifetimeBoundCompletionChatModelClient {
 @MainActor private func stage(_ session: ChatSession, url: URL, vision: ModelVisionCapability = .unknown) async throws {
     session.attachmentPresenter.picked(url)
     try await wait { if case .ready = session.attachmentPresenter.state.phase { return true }; return false }
-    try check(session.prepareAttachmentReview(vision: vision), "review context prepared")
+    if vision != .unknown {
+        try check(session.setModelVision(vision == .supported, expected: session.savedSettings!), "declared model vision")
+    }
+    try check(session.prepareAttachmentReview(), "review context prepared")
     try session.attachmentPresenter.confirm()
     try check(session.canSend, "confirmed attachment can send")
 }
@@ -219,6 +222,7 @@ private func image() throws -> Data {
         try await completedStreamRetainsProducerLease()
         try await failedSelectionSurvivesDraftChange()
         try await staleOtherStoreDuringPreflight()
+        try await visionDeclarationsAndBinding()
         try await otherStoreCannotRaceClientEntry()
         try await leaseSurvivesCancellationUntilClientReturns()
         try await streamProducerRetainsLeaseAfterCancellation()
@@ -275,6 +279,80 @@ private func image() throws -> Data {
         try check(!s.canRetryArchiveSave && e.archive.state.conversations.first?.turns.count == 2,
                   "answer can be saved after producer ends")
         try check(other.delete(id: row.id), "producer termination releases lease")
+    }
+
+    @MainActor static func visionDeclarationsAndBinding() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model(["must not send"]), initial = try e.repository.load()!
+        let legacy = try JSONSerialization.data(withJSONObject: ["baseURL": initial.baseURL.absoluteString,
+            "model": initial.model, "credentialAccount": initial.credentialAccount])
+        e.defaults.set(legacy, forKey: ModelSettingsRepository.configurationKey)
+        let loadedLegacy = try e.repository.load()
+        try check(loadedLegacy?.visionCapability == .unknown, "legacy JSON without capability loads as unknown")
+        let s = e.session(model), first = s.savedSettings!
+        try check(first.visionCapability == .unknown, "legacy model settings default to unknown")
+        try check(s.setModelVision(true, expected: first), "user explicitly declares supported")
+        let declared = s.savedSettings!
+        let persisted = try e.repository.load()
+        try check(persisted?.visionCapability == .supported, "declaration persists without network")
+        try check(!s.setModelVision(false, expected: first), "stale settings cannot change newer declaration")
+        let afterStale = try e.repository.load()
+        try check(afterStale == declared, "stale decision did not overwrite")
+        let same = try e.repository.save(baseURL: declared.baseURL.absoluteString, model: declared.model, newKey: "").record
+        try check(same.visionCapability == .supported && same.settingsRevision != declared.settingsRevision,
+                  "same model save preserves declaration but changes revision")
+        try check(!s.setModelVision(false, expected: declared), "out of date session cannot change repository")
+        let changed = try e.repository.save(baseURL: same.baseURL.absoluteString, model: "another-model", newKey: "").record
+        try check(changed.visionCapability == .unknown, "different model resets declaration")
+        let returned = try e.repository.save(baseURL: same.baseURL.absoluteString, model: same.model, newKey: "").record
+        try check(returned.visionCapability == .unknown && returned.settingsRevision != first.settingsRevision,
+                  "returning to old model does not resurrect authority")
+        try check(!s.setModelVision(true, expected: first), "away-and-back settings cannot accept stale decision")
+        let restoredSupport = try e.repository.setVision(true, expected: returned)
+        let path = try e.repository.save(baseURL: "https://attachment.example.invalid/other", model: same.model, newKey: "").record
+        try check(restoredSupport.visionCapability == .supported && path.visionCapability == .unknown,
+                  "changing endpoint path resets declaration")
+        let pathSupported = try e.repository.setVision(true, expected: path)
+        let keyChanged = try e.repository.save(baseURL: path.baseURL.absoluteString, model: path.model, newKey: "different-synthetic-key").record
+        try check(pathSupported.visionCapability == .supported && keyChanged.visionCapability == .unknown,
+                  "replacing credential resets declaration")
+
+        let e2 = try Environment(); defer { e2.close() }
+        let m2 = Model(["must not send"]), t = e2.session(m2)
+        let textAccess = try t.modelAccess()
+        try check(textAccess.configuration.vision == .unknown && t.savedSettings?.visionCapability == .unknown,
+                  "text model access does not establish vision capability")
+        t.draft = "keep question"
+        let imageURL = e2.root.appendingPathComponent("fixture.png"); try image().write(to: imageURL)
+        try await stage(t, url: imageURL, vision: .supported)
+        try check(t.setModelVision(false, expected: t.savedSettings!), "user changes support to unsupported")
+        try check(!t.canSend && t.attachmentPresenter.state.context == nil, "capability change revokes confirmation")
+        try check(t.prepareAttachmentReview(), "prepare unsupported image context")
+        do { try t.attachmentPresenter.confirm(); throw Failure(name: "unsupported image confirmed") }
+        catch ChatAttachmentPresentationError.visionUnsupported { assertions += 1 }
+        try check(t.setModelVision(true, expected: t.savedSettings!), "restore explicit support")
+        try check(t.prepareAttachmentReview(), "prepare supported context")
+        try t.attachmentPresenter.confirm()
+        t.modelDraft = "different-model"; t.saveSettings()
+        try check(t.savedSettings?.visionCapability == .unknown && !t.canSend && t.draft == "keep question",
+                  "model switch resets declaration and preserves draft")
+        try check(t.prepareAttachmentReview(), "prepare switched model context")
+        do { try t.attachmentPresenter.confirm(); throw Failure(name: "switched model inherited vision") }
+        catch ChatAttachmentPresentationError.visionUnknown { assertions += 1 }
+        t.send(); let calls = await m2.requests
+        try check(calls.isEmpty, "model switch cannot send reviewed image")
+
+        let e3 = try Environment(); defer { e3.close() }
+        let m3 = Model(["must not send"]), u = e3.session(m3)
+        u.draft = "retain selected file"
+        try await stage(u, url: e3.file())
+        _ = try e3.repository.setVision(false, expected: u.savedSettings!)
+        u.send(); let blocked = await m3.requests
+        try check(blocked.isEmpty && !u.isSubmitting && u.draft == "retain selected file",
+                  "external settings change before send blocks the client")
+        if case .ready = u.attachmentPresenter.state.phase { assertions += 1 }
+        else { throw Failure(name: "external settings change consumed selected file") }
+        try check(u.attachmentIssue == .chatAttachmentChanged, "external change asks for fresh review")
     }
     @MainActor static func failedSelectionSurvivesDraftChange() async throws {
         let e = try Environment(); defer { e.close() }
@@ -460,10 +538,12 @@ private func image() throws -> Data {
         do { try s.attachmentPresenter.confirm(); throw Failure(name: "unknown vision accepted") }
         catch ChatAttachmentPresentationError.visionUnknown { assertions += 1 }
         try check(!s.canSend, "unknown model vision blocks image send")
-        try check(s.prepareAttachmentReview(vision: .unsupported), "unsupported capability review")
+        try check(s.setModelVision(false, expected: s.savedSettings!), "explicit unsupported declaration")
+        try check(s.prepareAttachmentReview(), "unsupported capability review")
         do { try s.attachmentPresenter.confirm(); throw Failure(name: "unsupported vision accepted") }
         catch ChatAttachmentPresentationError.visionUnsupported { assertions += 1 }
-        try check(s.prepareAttachmentReview(vision: .supported), "explicit supported capability review")
+        try check(s.setModelVision(true, expected: s.savedSettings!), "explicit supported declaration")
+        try check(s.prepareAttachmentReview(), "explicit supported capability review")
         try s.attachmentPresenter.confirm(); try await finish(s)
         let imageRequests = await model.requests, visions = await model.visions
         let expectedImage = try ModelAttachment.image(data: imageData, mimeType: "image/png")
@@ -545,7 +625,7 @@ private func image() throws -> Data {
         }
     }
     @MainActor static func preflightChanges() async throws {
-        for mode in ["draft", "credential", "review"] {
+        for mode in ["draft", "credential", "review", "settings"] {
             let e = try Environment(); defer { e.close() }
             let gate = Gate(), model = Model(["must not be called"]), s = e.session(model, probe: { await gate.wait() })
             s.draft = "before change"; try await stage(s, url: e.file())
@@ -554,6 +634,7 @@ private func image() throws -> Data {
             if mode == "credential" {
                 e.credentials.values[s.savedSettings!.credentialAccount] = "changed-synthetic-key"
             } else if mode == "draft" { s.draft = "after change" }
+            else if mode == "settings" { _ = try e.repository.setVision(true, expected: s.savedSettings!) }
             else {
                 let prior = s.attachmentPresenter.state.context!
                 let substituted = try ChatAttachmentReviewContext(baseURL: URL(string: "https://other.example.invalid/v1")!,
@@ -609,8 +690,8 @@ private func image() throws -> Data {
         let gate = Gate(), model = Model(["late reply"], gate: gate), s = e.session(model)
         s.draft = "cancel question"; try await stage(s, url: e.file()); s.send()
         let task = s.capturedArchiveRequest!; await gate.waitForStart()
-        try check(!s.prepareAttachmentReview(vision: .supported) && s.attachmentIssue == nil,
-                  "in-flight review cannot change capability or publish a spurious error")
+        try check(!s.setModelVision(true, expected: s.savedSettings!) && s.attachmentIssue == nil,
+                  "in-flight settings cannot change capability or publish a spurious error")
         s.cancel()
         try check(s.draft == "cancel question" && s.attachmentIssue == .chatAttachmentReselect, "cancel retains draft and requires decision")
         await gate.release(); await task.value

@@ -1,6 +1,8 @@
 #if DEBUG
 import AssistantModels
+import CoreGraphics
 import Foundation
+import ImageIO
 
 // DEBUG-only UI-test API. Release builds contain neither this client nor these switches.
 // -UITestMode: replace HTTPChatModelClient; never contact a model provider.
@@ -176,7 +178,14 @@ actor UITestChatModelClient: LifetimeBoundCompletionChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         if ChatAttachmentComposerUITestFixture.selected() != nil, let last = messages.last,
            last.content.hasPrefix("[attachment-fixture:") {
-            guard last.attachment == (try ModelAttachment.text(utf8: Data("Synthetic attachment for offline UI test".utf8))),
+            let expected: ModelAttachment
+            if last.content == "[attachment-fixture:image]" {
+                guard configuration.vision == .supported else { throw HTTPChatModelError.invalidConfiguration }
+                expected = try ModelAttachment.image(data: ChatAttachmentComposerUITestFixture.imageData, mimeType: "image/png")
+            } else {
+                expected = try ModelAttachment.text(utf8: Data("Synthetic attachment for offline UI test".utf8))
+            }
+            guard last.attachment == expected,
                   messages.dropLast().allSatisfy({ $0.attachment == nil }),
                   configuration.model == "fixture", apiKey == "fixture-not-a-key" else {
                 throw HTTPChatModelError.invalidConfiguration
@@ -362,13 +371,25 @@ actor UITestChatModelClient: LifetimeBoundCompletionChatModelClient {
     }
 }
 extension ChatAttachmentComposerUITestFixture {
-    static func file(oversize: Bool) throws -> URL {
+    static let imageData: Data = {
+        guard let context = CGContext(data: nil, width: 4, height: 4, bitsPerComponent: 8, bytesPerRow: 16,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let image = context.makeImage() else { preconditionFailure("Synthetic image generation failed") }
+        let bytes = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(bytes, "public.png" as CFString, 1, nil) else {
+            preconditionFailure("Synthetic image destination failed")
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { preconditionFailure("Synthetic image encoding failed") }
+        return bytes as Data
+    }()
+    static func file(oversize: Bool, image: Bool = false) throws -> URL {
         guard let namespace = selected() else { throw CocoaError(.fileReadNoPermission) }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("attachment-ui-" + namespace.uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
-        let url = directory.appendingPathComponent(UUID().uuidString + ".txt")
-        let bytes = oversize ? Data(repeating: 65, count: ModelAttachment.maximumTextBytes + 1)
+        let url = directory.appendingPathComponent(UUID().uuidString + (image ? ".png" : ".txt"))
+        let bytes = image ? imageData : oversize ? Data(repeating: 65, count: ModelAttachment.maximumTextBytes + 1)
                              : Data("Synthetic attachment for offline UI test".utf8)
         try bytes.write(to: url, options: .withoutOverwriting)
         return url

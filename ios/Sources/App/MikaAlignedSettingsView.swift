@@ -194,6 +194,8 @@ private struct MikaModelSettingsDetailView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var languages: AppLanguageStore
     @StateObject private var connection = MikaModelConnectionViewModel()
+    @State private var showsVisionDeclaration = false
+    @State private var visionTarget: SavedModelSettings?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var editingField: Field?
@@ -248,6 +250,22 @@ private struct MikaModelSettingsDetailView: View {
         .onChange(of: session.modelDraft) { _, _ in connection.reset() }
         .onChange(of: session.keyDraft) { _, _ in connection.reset() }
         .onChange(of: session.savedSettings?.credentialAccount) { _, _ in connection.reset() }
+        .onChange(of: session.savedSettings) { _, current in
+            if current != visionTarget { showsVisionDeclaration = false; visionTarget = nil }
+        }
+        .confirmationDialog(localizer.text(.settingsVisionTitle), isPresented: $showsVisionDeclaration,
+                            titleVisibility: .visible, presenting: visionTarget) { target in
+            Button(localizer.text(.settingsVisionSupported)) { _ = session.setModelVision(true, expected: target) }
+                .accessibilityIdentifier("settings.vision.supported")
+            Button(localizer.text(.settingsVisionUnsupported)) { _ = session.setModelVision(false, expected: target) }
+                .accessibilityIdentifier("settings.vision.unsupported")
+            Button(localizer.text(.settingsVisionUnknown)) { _ = session.setModelVision(nil, expected: target) }
+                .accessibilityIdentifier("settings.vision.unknown")
+            Button(localizer.text(.settingsVisionCancel), role: .cancel) {}
+        } message: { target in
+            Text(verbatim: localizer.text(.settingsVisionTarget(endpoint: target.baseURL.absoluteString, model: target.model))
+                 + "\n\n" + localizer.text(.settingsVisionHelp))
+        }
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { connection.reset() } }
         .onChange(of: scenePhase) { _, phase in if phase != .active { connection.reset() } }
         .toolbar {
@@ -305,6 +323,24 @@ private struct MikaModelSettingsDetailView: View {
                         .buttonStyle(.bordered)
                         .disabled(session.isSubmitting)
                         .accessibilityIdentifier("settings.remove")
+                    }
+                    if let saved = session.savedSettings, session.hasStoredKey {
+                        Divider()
+                        Text(verbatim: localizer.text(.settingsVisionTitle)).font(.headline)
+                        Text(verbatim: localizer.text(saved.visionSupportedByUser == nil ? .settingsVisionUnknown
+                            : saved.visionSupportedByUser == true ? .settingsVisionSupported : .settingsVisionUnsupported))
+                            .accessibilityIdentifier("settings.vision.status")
+                        Text(verbatim: localizer.text(.settingsVisionTarget(endpoint: saved.baseURL.absoluteString, model: saved.model)))
+                            .font(.footnote).textSelection(.enabled)
+                            .accessibilityIdentifier("settings.vision.target")
+                        Text(verbatim: localizer.text(.settingsVisionHelp)).font(.footnote).foregroundStyle(palette.hint)
+                        Text(verbatim: localizer.text(.settingsVisionChanged)).font(.footnote).foregroundStyle(palette.hint)
+                        Button(localizer.text(.settingsVisionChoose)) {
+                            editingField = nil; visionTarget = saved; showsVisionDeclaration = true
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!savedInputsMatch || session.isSubmitting)
+                        .accessibilityIdentifier("settings.vision.choose")
                     }
                     Text(verbatim: connectionCopy(.explanation))
                         .font(.footnote).foregroundStyle(palette.hint)

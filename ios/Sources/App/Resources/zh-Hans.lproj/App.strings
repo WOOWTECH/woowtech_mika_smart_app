@@ -526,3 +526,13 @@
 "composer.attachment.review" = "查看或确认附件";
 "composer.attachment.removeBeforeNew" = "请先移除附件，再创建新对话；文字草稿会保留。";
 "attachment.selectionRetry" = "请重新选择附件，或明确移除附件以继续。";
+"settings.vision.title" = "图片支持";
+"settings.vision.unknown" = "尚未确认";
+"settings.vision.supported" = "我确认此模型可以接收图片";
+"settings.vision.unsupported" = "此模型不支持图片";
+"settings.vision.choose" = "设置图片支持";
+"settings.vision.help" = "这是你对当前服务与模型的声明，不是测试结果；文字连接成功不代表支持图片。服务仍可能拒绝图片。";
+"settings.vision.changed" = "切换服务、模型或密钥后，请重新设置并确认图片支持。";
+"settings.vision.stale" = "模型设置已更改，请重新检查服务与模型后再设置图片支持。";
+"settings.vision.cancel" = "取消";
+"settings.vision.target" = "服务：%1$@\n模型：%2$@";

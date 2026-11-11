@@ -535,6 +535,16 @@ enum AppText: Equatable {
     case composerAttachmentReview
     case composerAttachmentRemoveBeforeNew
     case attachmentSelectionRetry
+    case settingsVisionTitle
+    case settingsVisionUnknown
+    case settingsVisionSupported
+    case settingsVisionUnsupported
+    case settingsVisionChoose
+    case settingsVisionHelp
+    case settingsVisionChanged
+    case settingsVisionStale
+    case settingsVisionCancel
+    case settingsVisionTarget(endpoint: String, model: String)
 
     var key: String {
         switch self {
@@ -1070,6 +1080,16 @@ enum AppText: Equatable {
         case .composerAttachmentReview: return "composer.attachment.review"
         case .composerAttachmentRemoveBeforeNew: return "composer.attachment.removeBeforeNew"
         case .attachmentSelectionRetry: return "attachment.selectionRetry"
+        case .settingsVisionTitle: return "settings.vision.title"
+        case .settingsVisionUnknown: return "settings.vision.unknown"
+        case .settingsVisionSupported: return "settings.vision.supported"
+        case .settingsVisionUnsupported: return "settings.vision.unsupported"
+        case .settingsVisionChoose: return "settings.vision.choose"
+        case .settingsVisionHelp: return "settings.vision.help"
+        case .settingsVisionChanged: return "settings.vision.changed"
+        case .settingsVisionStale: return "settings.vision.stale"
+        case .settingsVisionCancel: return "settings.vision.cancel"
+        case .settingsVisionTarget: return "settings.vision.target"
         }
     }
 
@@ -1102,6 +1122,7 @@ enum AppText: Equatable {
         case .attachmentDestination(let value): return [value]
         case .attachmentModel(let value): return [value]
         case .attachmentOtherData(let value): return [value]
+        case .settingsVisionTarget(let endpoint, let model): return [endpoint, model]
         default: return []
         }
     }
@@ -1641,6 +1662,16 @@ enum AppText: Equatable {
         case .composerAttachmentReview: return "檢視或確認附件"
         case .composerAttachmentRemoveBeforeNew: return "請先移除附件，再建立新對話；文字草稿會保留。"
         case .attachmentSelectionRetry: return "請重新選取附件，或明確移除附件以繼續。"
+        case .settingsVisionTitle: return "圖片支援"
+        case .settingsVisionUnknown: return "尚未確認"
+        case .settingsVisionSupported: return "我確認此模型可接受圖片"
+        case .settingsVisionUnsupported: return "此模型不支援圖片"
+        case .settingsVisionChoose: return "設定圖片支援"
+        case .settingsVisionHelp: return "這是你對目前服務與模型的聲明，不是測試結果；文字連線成功不代表支援圖片。服務仍可能拒絕圖片。"
+        case .settingsVisionChanged: return "切換服務、模型或金鑰後，請重新設定並確認圖片支援。"
+        case .settingsVisionStale: return "模型設定已變更，請重新檢查服務與模型後再設定圖片支援。"
+        case .settingsVisionCancel: return "取消"
+        case .settingsVisionTarget: return "服務：%1$@\n模型：%2$@"
         }
     }
 }

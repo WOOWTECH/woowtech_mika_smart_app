@@ -9,6 +9,7 @@ extension AppLocalizer {
         case .missingModel: return .modelSettingsMissingModel
         case .missingKey: return .modelSettingsMissingKey
         case .changedOrigin: return .modelSettingsChangedOrigin
+        case .staleSettings: return .settingsVisionStale
         case .invalidKey: return .modelSettingsInvalidKey
         case .unavailableKeychain: return .modelSettingsUnavailableKeychain
         case .keychainStatus(let status): return .modelSettingsKeychainStatus(code: String(status))

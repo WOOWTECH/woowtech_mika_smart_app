@@ -89,6 +89,46 @@ final class ChatAttachmentComposerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.send"].isEnabled)
     }
 
+    func testImageNeedsExplicitModelDeclarationAndFreshSendReview() {
+        launch(); disableMemory(); compose("[attachment-fixture:image]")
+        open(); tap("attachment.fixture.image"); exists("chat.attachment.filename")
+        tap("chat.attachment.confirm"); exists("chat.attachment.error")
+        XCTAssertFalse(app.staticTexts["chat.attachment.confirmed"].exists)
+        tap("chat.attachment.done")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[attachment-fixture:image]")
+        navigateMikaSection("settings", in: app); openModelSettings(in: app)
+        let choice = app.buttons["settings.vision.choose"].firstMatch
+        revealLearningElement(choice, in: app); XCTAssertTrue(choice.isHittable); choice.tap()
+        tap("settings.vision.supported")
+        let state = app.staticTexts["settings.vision.status"].firstMatch
+        let supported = NSPredicate(format: "label == %@", "我確認此模型可接受圖片")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: supported, object: state)], timeout: 10), .completed)
+        returnFromModelSettings(in: app); navigateMikaSection("chat", in: app)
+        tap("chat.attachment.review"); exists("chat.attachment.filename")
+        XCTAssertFalse(app.staticTexts["chat.attachment.confirmed"].exists)
+        tap("chat.attachment.confirm"); exists("chat.attachment.confirmed")
+        tap("chat.attachment.done"); tap("chat.send")
+        assertLabel("chat.message.1.assistant", "ATTACHMENT_FIXTURE_RECEIVED_ONCE")
+    }
+
+    func testVisionSettingUsesThreeLocalizedDeclarations() {
+        let cases = [("(zh-Hant)", "尚未確認", "我確認此模型可接受圖片"),
+                     ("(zh-Hans)", "尚未确认", "我确认此模型可以接收图片"),
+                     ("(en)", "Not confirmed", "I confirm this model accepts images")]
+        for (language, unknown, supported) in cases {
+            launch(language: language); navigateMikaSection("settings", in: app); openModelSettings(in: app)
+            let status = app.staticTexts["settings.vision.status"].firstMatch
+            revealLearningElement(status, in: app, visibility: .readableText)
+            XCTAssertEqual(status.label, unknown)
+            let target = app.staticTexts["settings.vision.target"].firstMatch
+            XCTAssertTrue(target.label.contains("model.example.invalid") && target.label.contains("fixture"))
+            let choice = app.buttons["settings.vision.choose"].firstMatch
+            revealLearningElement(choice, in: app); choice.tap()
+            let supportedButton = app.buttons["settings.vision.supported"].firstMatch
+            XCTAssertTrue(supportedButton.waitForExistence(timeout: 10)); XCTAssertEqual(supportedButton.label, supported)
+        }
+    }
+
     func testFailureAndCancellationKeepDraftAndRequireReselection() {
         for prompt in ["[attachment-fixture:fail]", "[attachment-fixture:wait]"] {
             launch(); disableMemory(); compose(prompt)

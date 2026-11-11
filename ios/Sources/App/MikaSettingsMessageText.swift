@@ -10,6 +10,7 @@ extension AppLocalizer {
             (.missingModel, .modelSettingsMissingModel),
             (.missingKey, .modelSettingsMissingKey),
             (.changedOrigin, .modelSettingsChangedOrigin),
+            (.staleSettings, .settingsVisionStale),
             (.invalidKey, .modelSettingsInvalidKey),
             (.unavailableKeychain, .modelSettingsUnavailableKeychain)
         ]

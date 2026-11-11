@@ -526,3 +526,13 @@
 "composer.attachment.review" = "Review attachment";
 "composer.attachment.removeBeforeNew" = "Remove the attachment before starting a new conversation. Your draft is kept.";
 "attachment.selectionRetry" = "Select an attachment again, or remove it explicitly to continue.";
+"settings.vision.title" = "Image support";
+"settings.vision.unknown" = "Not confirmed";
+"settings.vision.supported" = "I confirm this model accepts images";
+"settings.vision.unsupported" = "This model does not support images";
+"settings.vision.choose" = "Set image support";
+"settings.vision.help" = "This is your declaration for the saved service and model, not a test result. A successful text connection does not establish image support; the service may still reject images.";
+"settings.vision.changed" = "After changing the service, model or key, set and review image support again.";
+"settings.vision.stale" = "Model settings changed. Review the service and model before setting image support again.";
+"settings.vision.cancel" = "Cancel";
+"settings.vision.target" = "Service: %1$@\nModel: %2$@";

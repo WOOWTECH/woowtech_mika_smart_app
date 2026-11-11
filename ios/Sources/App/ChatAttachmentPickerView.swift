@@ -45,6 +45,8 @@ import UniformTypeIdentifiers
                     Section("Synthetic offline fixture") {
                         Button("Select synthetic text") { selectFixture(oversize: false) }
                             .accessibilityIdentifier("attachment.fixture.select")
+                        Button("Select synthetic image") { selectFixture(oversize: false, image: true) }
+                            .accessibilityIdentifier("attachment.fixture.image")
                         Button("Select oversized text") { selectFixture(oversize: true) }
                             .accessibilityIdentifier("attachment.fixture.oversize")
                         Button("Cancel selection") { model.presenter.pickerCancelled() }
@@ -104,8 +106,10 @@ import UniformTypeIdentifiers
                                 .accessibilityIdentifier("chat.attachment.context")
                             Text(localizer.text(.attachmentSendNotice))
                             Text(localizer.text(.chatAttachmentBoundary))
-                            if case .ready(let metadata) = model.state.phase, metadata.kind != .text {
-                                Text(localizer.text(.chatAttachmentVisionNotice))
+                            if hasImage {
+                                Text(localizer.text(context.vision == .supported ? .settingsVisionHelp
+                                    : context.vision == .unsupported ? .attachmentErrorVisionUnsupported : .chatAttachmentVisionNotice))
+                                    .accessibilityIdentifier("chat.attachment.vision")
                             }
                             if case .ready = model.state.phase, model.state.error == nil {
                                 Button(localizer.text(.attachmentConfirm)) { model.confirm() }
@@ -136,13 +140,19 @@ import UniformTypeIdentifiers
     }
 
     #if DEBUG
-    private func selectFixture(oversize: Bool) {
-        do { model.presenter.picked(try ChatAttachmentComposerUITestFixture.file(oversize: oversize)) }
+    private func selectFixture(oversize: Bool, image: Bool = false) {
+        do { model.presenter.picked(try ChatAttachmentComposerUITestFixture.file(oversize: oversize, image: image)) }
         catch { model.presenter.pickerFailed() }
     }
     #endif
     private static var allowedTypes: [UTType] {
         [.jpeg, .png, .plainText] + ["md", "csv", "tsv"].compactMap { UTType(filenameExtension: $0) }
+    }
+    private var hasImage: Bool {
+        switch model.state.phase {
+        case .ready(let metadata), .confirmed(let metadata), .taking(let metadata): return metadata.kind != .text
+        default: return false
+        }
     }
     private var showsReview: Bool {
         switch model.state.phase { case .ready, .confirmed, .taking: return true; default: return false }

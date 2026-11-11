@@ -5517,6 +5517,115 @@
         "zh-Hans": "请重新选择附件，或明确移除附件以继续。",
         "en": "Select an attachment again, or remove it explicitly to continue."
       }
+    },
+    {
+      "case": "settingsVisionTitle",
+      "key": "settings.vision.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "圖片支援",
+        "zh-Hans": "图片支持",
+        "en": "Image support"
+      }
+    },
+    {
+      "case": "settingsVisionUnknown",
+      "key": "settings.vision.unknown",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未確認",
+        "zh-Hans": "尚未确认",
+        "en": "Not confirmed"
+      }
+    },
+    {
+      "case": "settingsVisionSupported",
+      "key": "settings.vision.supported",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "我確認此模型可接受圖片",
+        "zh-Hans": "我确认此模型可以接收图片",
+        "en": "I confirm this model accepts images"
+      }
+    },
+    {
+      "case": "settingsVisionUnsupported",
+      "key": "settings.vision.unsupported",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此模型不支援圖片",
+        "zh-Hans": "此模型不支持图片",
+        "en": "This model does not support images"
+      }
+    },
+    {
+      "case": "settingsVisionChoose",
+      "key": "settings.vision.choose",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定圖片支援",
+        "zh-Hans": "设置图片支持",
+        "en": "Set image support"
+      }
+    },
+    {
+      "case": "settingsVisionHelp",
+      "key": "settings.vision.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這是你對目前服務與模型的聲明，不是測試結果；文字連線成功不代表支援圖片。服務仍可能拒絕圖片。",
+        "zh-Hans": "这是你对当前服务与模型的声明，不是测试结果；文字连接成功不代表支持图片。服务仍可能拒绝图片。",
+        "en": "This is your declaration for the saved service and model, not a test result. A successful text connection does not establish image support; the service may still reject images."
+      }
+    },
+    {
+      "case": "settingsVisionChanged",
+      "key": "settings.vision.changed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "切換服務、模型或金鑰後，請重新設定並確認圖片支援。",
+        "zh-Hans": "切换服务、模型或密钥后，请重新设置并确认图片支持。",
+        "en": "After changing the service, model or key, set and review image support again."
+      }
+    },
+    {
+      "case": "settingsVisionStale",
+      "key": "settings.vision.stale",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型設定已變更，請重新檢查服務與模型後再設定圖片支援。",
+        "zh-Hans": "模型设置已更改，请重新检查服务与模型后再设置图片支持。",
+        "en": "Model settings changed. Review the service and model before setting image support again."
+      }
+    },
+    {
+      "case": "settingsVisionCancel",
+      "key": "settings.vision.cancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消",
+        "zh-Hans": "取消",
+        "en": "Cancel"
+      }
+    },
+    {
+      "case": "settingsVisionTarget",
+      "key": "settings.vision.target",
+      "parameters": [
+        {
+          "name": "endpoint",
+          "type": "String"
+        },
+        {
+          "name": "model",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "服務：%1$@\n模型：%2$@",
+        "zh-Hans": "服务：%1$@\n模型：%2$@",
+        "en": "Service: %1$@\nModel: %2$@"
+      }
     }
   ]
 }

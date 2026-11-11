@@ -49,7 +49,7 @@
     },
     {
       "file": "Sources/App/AppModelSettingsText.swift",
-      "sha256": "77b0bd00955186a016afc2c68ff6ac6fa52523b5d23b912c288ae22c4a19c133"
+      "sha256": "160470a42640113bc601ba080ef78b0a7cf42cc5f631a5e0299ca714e28a860c"
     },
     {
       "file": "Sources/App/AppNotificationText.swift",
@@ -105,7 +105,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "sha256": "3b7d0986a60b2a3fa3ad41adae3f1132e49140f2ebd19c0e7becb5c6f64a2a8f"
+      "sha256": "6aa479a240b0449a951d30669582c9b811791fced64cc4a83d513cc3a25c4f18"
     },
     {
       "file": "Sources/App/ChatPDFAttachment.swift",
@@ -129,7 +129,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94"
+      "sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014"
     },
     {
       "file": "Sources/App/ChatVoiceController.swift",
@@ -213,7 +213,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "sha256": "0a4fd1f41c858b2d2abb67ba86fa374798c25ba325324ad9e7464af810f03ff4"
+      "sha256": "8814edc6ee1ee88b6bf5d314df1c8be777517e2aa359f429eb0ecc96fa98f510"
     },
     {
       "file": "Sources/App/MikaRecentConversationsSection.swift",
@@ -221,7 +221,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "sha256": "aca570cc0cef56b3638f96facc0f678fedba62a176de35c55821aa3d1eed3303"
+      "sha256": "d9274eaff33ea496e87e88730a3d0166a425b6d78799c41e7027351b0f675d2e"
     },
     {
       "file": "Sources/App/MikaSettingsStyle.swift",
@@ -237,7 +237,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c"
+      "sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d"
     },
     {
       "file": "Sources/App/MultiSourceResearchSession.swift",
@@ -3773,7 +3773,7 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 48,
-      "line_sha256": "58108780f4819615368de7c411ec0a9d4d7b68f43ec02b3db256faae6014bc7c",
+      "line_sha256": "ca5abd2fe9abf8ad96402017d9d7210d6f43fe684b99d696678408cabafd6c9f",
       "kinds": [
         "ui_expression_requires_provenance_review"
       ],
@@ -3782,7 +3782,7 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 49,
-      "line_sha256": "6c3b52b487f5038ba90e1e6d5cf9410eb9a01bb582bd95dd1d174feb1e703e6d",
+      "line_sha256": "ff06907cd4a226233e52c141f2cb3094ca2b6cd91bffd191e74b27e68abee211",
       "kinds": [
         "stable_identifier_do_not_translate"
       ],
@@ -3791,7 +3791,7 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 50,
-      "line_sha256": "3139c715a225650dba38c14e90af119e6134799a2686133ff9332a093d426891",
+      "line_sha256": "58108780f4819615368de7c411ec0a9d4d7b68f43ec02b3db256faae6014bc7c",
       "kinds": [
         "ui_expression_requires_provenance_review"
       ],
@@ -3800,7 +3800,7 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 51,
-      "line_sha256": "92338de42305b0e80dd7d4163f7e2ac715321f04cd591f0bb1afa0273a96ac72",
+      "line_sha256": "6c3b52b487f5038ba90e1e6d5cf9410eb9a01bb582bd95dd1d174feb1e703e6d",
       "kinds": [
         "stable_identifier_do_not_translate"
       ],
@@ -3809,6 +3809,24 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 52,
+      "line_sha256": "3139c715a225650dba38c14e90af119e6134799a2686133ff9332a093d426891",
+      "kinds": [
+        "ui_expression_requires_provenance_review"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 53,
+      "line_sha256": "92338de42305b0e80dd7d4163f7e2ac715321f04cd591f0bb1afa0273a96ac72",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 54,
       "line_sha256": "0e0543bb7249b9ec62931ef8f76991a365676619a55caad1f26585c660740908",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -3817,7 +3835,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 54,
+      "line": 56,
       "line_sha256": "81e9ea6b5d25e29c1dc31c1a7fb7f44453ee046a115406e63e8828ea87211fae",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3826,7 +3844,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 58,
+      "line": 60,
       "line_sha256": "20ef17b6ef1fa0fe4125a3751373e8a546e65105d429a0322360745bb8129c96",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3836,7 +3854,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 61,
+      "line": 63,
       "line_sha256": "8fcf0bb557ef357a5a8a4b561f6ba38250db4e47bb94302d5bdd0672727472ca",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3846,7 +3864,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 63,
+      "line": 65,
       "line_sha256": "32a36c8ebfa170dbb6eb28a823069777b6171fde7731aa6f0fc196d27c796c99",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -3855,7 +3873,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 64,
+      "line": 66,
       "line_sha256": "b82f86d3d49413aaaec3df2d0d3b7ad88d77223541b02198cc522b43be8f8377",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3865,7 +3883,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 66,
+      "line": 68,
       "line_sha256": "07922d2b3db622bd183465668d975f26348a119e0b5d82a99759230cfa2197fe",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -3874,7 +3892,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 67,
+      "line": 69,
       "line_sha256": "e8ab696b61dde8a9c9220e4244238141b381ca272bd1e6d05431c015f4302192",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3883,7 +3901,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 68,
+      "line": 70,
       "line_sha256": "cfef68dba88460ca379e8419c3810b7567b5c7ac280a4912ddbfad00885588c5",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3893,7 +3911,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 69,
+      "line": 71,
       "line_sha256": "397596a9f049e245d82795190463f55f1e5f275d539de1b72691c12b249e83e4",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3902,7 +3920,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 71,
+      "line": 73,
       "line_sha256": "08155db3df729fa81729d2a932789c22304b4b7191b98a1e34ff2596a76cf628",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3912,7 +3930,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 72,
+      "line": 74,
       "line_sha256": "a7f6d734f3d12847d066cf707824134cce9c03977823655c3e5dcd0d05e2b151",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3921,7 +3939,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 74,
+      "line": 76,
       "line_sha256": "e81bf3153e8c8db06c7ea0b542f610be59e9c322a50df7d741e7c539370ae20a",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3931,7 +3949,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 76,
+      "line": 78,
       "line_sha256": "0d78809db47d24378317722ff648d227d3f4690258229d257a4d5891c6a42729",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3941,7 +3959,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 79,
+      "line": 81,
       "line_sha256": "c70fb210fc82a99c47ccf160fbb830fe04251a71f1d2bb7367ee0067385c9bb8",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3950,7 +3968,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 81,
+      "line": 83,
       "line_sha256": "c5a86a4a1f87768fabeb97b69e0e5b9cbaebfa73fddfe5f2c338272e06027be8",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3960,7 +3978,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 84,
+      "line": 86,
       "line_sha256": "a027a31ba7b696a8ea50ae25a2b2310c45bca1dbfa446ee07f90bc6f49b343e1",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3969,7 +3987,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 87,
+      "line": 89,
       "line_sha256": "4f142d2f21131a2d95f51636d9d6342b9578fdcb16342c661b9092ea936dcd03",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3979,7 +3997,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 88,
+      "line": 90,
       "line_sha256": "75d56d795b9663f369152bb53ff1bc2594b6d7dcd019aeb5c395dc3c39387e6b",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3988,7 +4006,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 91,
+      "line": 93,
       "line_sha256": "79f3b4b8a81fb0be878ace25d069fbda4775430c9e53fe4f6ca87c40e6ce90a8",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3998,7 +4016,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 92,
+      "line": 94,
       "line_sha256": "1c02250d7c8c9b13ab32829878350f259aecc45175a95534fb6128d101b46ac1",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4007,7 +4025,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 98,
+      "line": 100,
       "line_sha256": "36144882a081a537e1453b2dc3db5a21faa255caf9dbefde1cc0e1ef6dad9db4",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4017,7 +4035,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 100,
+      "line": 102,
       "line_sha256": "e00e4e29903b5635002744e68f79d0abdf964fa1cf82f64a0a389540bb0978f7",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4027,7 +4045,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 101,
+      "line": 103,
       "line_sha256": "e2e867b876c0a18b6c27d3058d80342a5ce9864ba935ddaeecee9f82707744e3",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4036,7 +4054,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 102,
+      "line": 104,
       "line_sha256": "d0b3c3d39b8a67b09d5f00d63a19429507970a2212034d9b21aa0de0c0bf0f81",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4047,7 +4065,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 103,
+      "line": 105,
       "line_sha256": "755dd08398acce7e48d4f07425b62f14cc01bc3394c8e02d38651d3d8f063008",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4057,7 +4075,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 104,
+      "line": 106,
       "line_sha256": "ea93db7c57370053a70bfde3eddf438527a2e1d702033ca9c8f36c9dab6a62d6",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4066,7 +4084,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 105,
+      "line": 107,
       "line_sha256": "52b919eb7250cc3c020a292b988fc49aedcce18c72f848702188d0db22ad7e39",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4076,7 +4094,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 106,
+      "line": 108,
       "line_sha256": "b1a560b2148f84c088b42ef3d51ffcdb0b2558ca7a8457c65e5ea76b8fed1b02",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4086,18 +4104,8 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 108,
-      "line_sha256": "78a0f3c895e6d90da7ed5b40ad0b96f43db22a3854d06659b7f505f8a835f5ac",
-      "kinds": [
-        "ui_expression_requires_provenance_review",
-        "typed_localized_render"
-      ],
-      "review": "pending"
-    },
-    {
-      "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 111,
-      "line_sha256": "5d2605a44ab2a4d396b18dd64a52b7b3fbd22784b5665f726e627acd395af36f",
+      "line": 110,
+      "line_sha256": "28538a879699e2ddb46fa8301ca5dbb4ff61c4b82ce70cbb284707b9c212a9ff",
       "kinds": [
         "ui_expression_requires_provenance_review",
         "typed_localized_render"
@@ -4107,7 +4115,7 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 112,
-      "line_sha256": "f4daf390c1f442f9f685c9b2afa86f90cb476ee562fb370749c12fb88cc23706",
+      "line_sha256": "14e88787029c9ca8c7f68972db9baace03ca3d411d02f9b95958b2bea0b873e2",
       "kinds": [
         "stable_identifier_do_not_translate"
       ],
@@ -4116,6 +4124,25 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 115,
+      "line_sha256": "5d2605a44ab2a4d396b18dd64a52b7b3fbd22784b5665f726e627acd395af36f",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 116,
+      "line_sha256": "f4daf390c1f442f9f685c9b2afa86f90cb476ee562fb370749c12fb88cc23706",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 119,
       "line_sha256": "6f82e860423ac5f164900e93c606ce60367b10ac27857ac092ad913c7449741a",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4125,7 +4152,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 120,
+      "line": 124,
       "line_sha256": "d9ae08bb819c9e36f6f483f8b392f5193723a18bccef8350fbeb9d17c757e572",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4135,7 +4162,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 121,
+      "line": 125,
       "line_sha256": "6ccf04ebc3710c13b49c470a100ab7e857c431c43ad66845003eca356a42cd8d",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4145,7 +4172,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 122,
+      "line": 126,
       "line_sha256": "8403b653364412b83cf3fa0270ba08e72a8a377ba47e760a65ef585d284ea317",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4857,7 +4884,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 192,
+      "line": 191,
       "line_sha256": "eec60a49d64038b4bf980cb35bc292aa0118c10d21e06885ec521df1aba0ca25",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4866,7 +4893,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 345,
+      "line": 344,
       "line_sha256": "ee7b77aa1d7324176e7238d0fe9554b1544ba6867490317f3c3888d736633aa7",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4875,7 +4902,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 366,
+      "line": 365,
       "line_sha256": "3743af25dd3dd2628b19aee59d4feeb7420abc48bb3276d1f49e812898592d13",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4884,7 +4911,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 493,
+      "line": 512,
       "line_sha256": "7e864fc981fe997b4457061c7e711a9bd9f8a5ecdacac4d78243ca6b8ca68071",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4893,7 +4920,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 526,
+      "line": 545,
       "line_sha256": "fab07c08355ff596a56efe43b21bd4bf95025443b67f225f8cf23d5d5f2f5998",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4902,7 +4929,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 527,
+      "line": 546,
       "line_sha256": "4903e00d097ba62274ede1c2f92b44d6a679bb9008ea7723a4caa619cc404c76",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4911,7 +4938,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 535,
+      "line": 554,
       "line_sha256": "c271e2585665b032fc55592527c4a1162052c04de1fba81d4cff9fea6d633999",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4920,7 +4947,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 562,
+      "line": 581,
       "line_sha256": "162611d3d4e6c6ab842e10230e18a08061124edde71e8f2b3820027b460c39ce",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4929,7 +4956,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 570,
+      "line": 589,
       "line_sha256": "e78a6f695c7c7f3d70eb66b6274a454cead275e7d58dbeb1b70f117d76953926",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4938,7 +4965,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 585,
+      "line": 604,
       "line_sha256": "e7434c98d44a4657f8d3f9fa195cb5dec952b2ed5897e237b5a1a512aac337b8",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4947,7 +4974,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 595,
+      "line": 614,
       "line_sha256": "7cefd5f4ff865cdfcf836d13eb4f78bfd854e76dd675cafad70bf04bd3c97c98",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4956,7 +4983,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 604,
+      "line": 623,
       "line_sha256": "1e7156a157079e2efe1996225d338ca138a033fdcee53215ec2ddc20b3cbe58a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4965,7 +4992,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 622,
+      "line": 641,
       "line_sha256": "df7c10a2c0a2b0cb3ce5a4b346e3e77ca16fea79ac1305c311100e1e11d8cc35",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4974,7 +5001,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 623,
+      "line": 642,
       "line_sha256": "9c8cfb8cd391d2ef450ce9a2e596a0c7ff89e485813ace3d8b019a84bc5bf776",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4983,7 +5010,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 643,
+      "line": 662,
       "line_sha256": "061f000a201f77ce43e038eaeca50457400c7c54e27314da26761b28d753bf4c",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -4992,7 +5019,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 665,
+      "line": 684,
       "line_sha256": "4d163d8928ae2c8fca5b6a53f41c07d1391a2d20ca535ffbc980a19d522d1244",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5001,7 +5028,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 716,
+      "line": 735,
       "line_sha256": "493cc0d29a373a66e88436f52746c0662fdb2f9f2340bb8dc437e9f5a2b5f6d7",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5010,7 +5037,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 717,
+      "line": 736,
       "line_sha256": "f066187308de28390b58c5fa247d47ef044636ef12ab31956a622214b3289ae8",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5019,7 +5046,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 718,
+      "line": 737,
       "line_sha256": "e07a6fc28b52a2c61c929ae9ed5cc7335de735d4972f69f4b2501b2f7a0fb3bf",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5028,7 +5055,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 720,
+      "line": 739,
       "line_sha256": "2689bdbe088b3d97bc6d75881b55503a1bacb0012048160e6be0a9acdebaab17",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5037,7 +5064,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 723,
+      "line": 742,
       "line_sha256": "5f484485a47ebc4919723f16c09a420fafcbf0e07ff208e5b2944ea1ea83ea75",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5046,7 +5073,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 735,
+      "line": 754,
       "line_sha256": "67c7435154eb1977e75f5f69a71c22307722580a1c7d3118c44ddb54afee8447",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5055,7 +5082,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 738,
+      "line": 757,
       "line_sha256": "b4b2e2fc715046238e9e8df9f7d0c23ff6f21e4b9a9d0c94b9732e6e7e76fd5d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5064,7 +5091,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 739,
+      "line": 758,
       "line_sha256": "6dd8d9275df8753f4b7d06297ee0fde0e08d63da4a4820d0ac56166fc76bbe5f",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5073,7 +5100,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 768,
+      "line": 790,
       "line_sha256": "f668e05c94ae352b4b68c7e12d6c750c3ea878c9b44420feddd41015a1b88658",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5082,7 +5109,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 790,
+      "line": 812,
       "line_sha256": "061f000a201f77ce43e038eaeca50457400c7c54e27314da26761b28d753bf4c",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5091,7 +5118,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 875,
+      "line": 897,
       "line_sha256": "cfb389c02667328946ebe1ceedd099ab30a49af02aee66bc0874c19c3856039a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5100,7 +5127,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 894,
+      "line": 916,
       "line_sha256": "1bb3e35ad58176e07f4ef9243335a00a2534b1dabb2cabc97d545c798866a924",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5109,7 +5136,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 926,
+      "line": 948,
       "line_sha256": "e1e501bd566449db01993df594bcb1bb0df3bbcdbf21e350d4de9df53e5acf4b",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5118,7 +5145,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 951,
+      "line": 973,
       "line_sha256": "618f0695b64e1173a7e14836c6459e2ebf75629f4af87235696c04e7e42ff4bc",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5127,7 +5154,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 983,
+      "line": 1005,
       "line_sha256": "b5e5a45a077e8dab063ea6418abb8adab53239d239888d30b346caa622c7132c",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5136,7 +5163,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 988,
+      "line": 1010,
       "line_sha256": "1f5a138bdfb6cde00b53e16756fd13151ae5cdb4a3772a79cadf6c754030a27c",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5145,7 +5172,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1044,
+      "line": 1066,
       "line_sha256": "7627d46fe4d81df71227cfa9a7cce78b8126acaaf60522d51c858f206e544492",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5154,7 +5181,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1046,
+      "line": 1068,
       "line_sha256": "e304697799a9f08e5265b80515723068231e3744e79655732033a0be34345e1e",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5163,7 +5190,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1048,
+      "line": 1070,
       "line_sha256": "7a45cb35bea90351c7daa6cbf833e0b1dd5f0ca565c5ebccf50e048fa1a8db38",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5172,7 +5199,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1050,
+      "line": 1072,
       "line_sha256": "5eb30ffd01e7b8dfcad9d58409b8da47e04cec792b0c498b937da5e8d556550b",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5181,7 +5208,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1052,
+      "line": 1074,
       "line_sha256": "8597f68b01cfa8d1c3379f5fe2c828ce2c8745cc125759f0a57d8c74345beca9",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5190,7 +5217,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1054,
+      "line": 1076,
       "line_sha256": "b8947a049a9b2d5c2ff690fd85914c8b506d68a50f51b61d914893c3ee6bd676",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5199,7 +5226,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1056,
+      "line": 1078,
       "line_sha256": "06f04cb5d833d45ba90791567ab1e1d9f039c2ba570cbc4ae956dc8da4ac8f3b",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5208,7 +5235,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1058,
+      "line": 1080,
       "line_sha256": "f04b7fccd7be65c8e34c8b76f8d13baf357d1fb69b98e81b1fadb79f99ad3fcb",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5217,7 +5244,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1060,
+      "line": 1082,
       "line_sha256": "38b00f134c8352f25b6b97f5475344540f6163b123a59ceb03e07cab0b80f9fb",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5226,7 +5253,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1063,
+      "line": 1085,
       "line_sha256": "dc53cfb4232fe564de2d977acd25c256dad79a89b905620bb76ede93b5d26895",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5235,7 +5262,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1081,
+      "line": 1103,
       "line_sha256": "bd790225896117f08171b505d57b516261ebd2951576b3a86e43378edb53763c",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5244,7 +5271,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1226,
+      "line": 1248,
       "line_sha256": "9c536b36fc233e9e12e0f9516d6f6098d9ca699c462286c93b72c3d499473f2d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5253,7 +5280,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1230,
+      "line": 1252,
       "line_sha256": "d26d577072cd8744dd41609905a3963762879485ca4d7ccdb7971061c86a4078",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5262,7 +5289,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1233,
+      "line": 1255,
       "line_sha256": "0559f7e9111deb87241770031d159e686b895a01489c01f3edc42359b3ce3a07",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5271,7 +5298,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1260,
+      "line": 1282,
       "line_sha256": "b3837ee9763ed9376d2c577148a1d146bce192d3e09aeab1e9636d7d1058af8d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5280,7 +5307,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1324,
+      "line": 1346,
       "line_sha256": "4c9da3e541d97ae8caeb149cfba7fbe3916daed49eb78f39f3e1f8a601261e3a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5289,7 +5316,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1378,
+      "line": 1400,
       "line_sha256": "8de77af3dfa6c3ffe8db6a1c8d4371055630493b15b56a23b6345c209f19baa4",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5298,7 +5325,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1401,
+      "line": 1423,
       "line_sha256": "82b99e550ba860e399330e4bd0f4ddff4b57ab3542c31f64ff84dc011f88bbfe",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5307,7 +5334,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1423,
+      "line": 1445,
       "line_sha256": "a841271a49e8d96948acfeb3fef75aa85dd1e5fb90f8a2ab9d4109fe1292819a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5316,7 +5343,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1428,
+      "line": 1450,
       "line_sha256": "0a0a60f83c3b2c3d6883ffe5ada381a07d29a3f30698bac4be32b7d0c149d900",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5325,7 +5352,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1435,
+      "line": 1457,
       "line_sha256": "97b3fb2fb261449b141de8c5db9977b3923ca43f3f40801344fe838cc214cb7d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5334,7 +5361,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1436,
+      "line": 1458,
       "line_sha256": "c430aa5af1b91461b3793e385f89b22e43599021ebb80d6449822c9018d43200",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5343,7 +5370,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1437,
+      "line": 1459,
       "line_sha256": "0c6b3eab714b34271998961ad7234120bb0bc4e41467366d2911437c2c0eb260",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -5352,7 +5379,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "line": 1438,
+      "line": 1460,
       "line_sha256": "675bf852361998a41637a792d316de96d3bc828816ca765e53c8cf38a2498641",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12380,7 +12407,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 205,
+      "line": 207,
       "line_sha256": "92293b366f6e6384138ee622dfd09384854f04ce3d1af3467842513cdcb3d706",
       "kinds": [
         "typed_localized_render"
@@ -12389,7 +12416,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 206,
+      "line": 208,
       "line_sha256": "ceee2767bd5ad3a4fe26d4e58cc4adf831e1a8c38ff6e275def7ae355970da5a",
       "kinds": [
         "typed_localized_render"
@@ -12398,7 +12425,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 219,
+      "line": 221,
       "line_sha256": "f7b9c6a4895aa6ec909e2de7c5f17d0694828d162f92354ff0cad1b890db4007",
       "kinds": [
         "typed_localized_render"
@@ -12407,7 +12434,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 221,
+      "line": 223,
       "line_sha256": "cc5dd3a595d498adf92cc9593867c7456e5a4609ec4f24921ea57f6e3bc84faa",
       "kinds": [
         "typed_localized_render"
@@ -12416,7 +12443,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 222,
+      "line": 224,
       "line_sha256": "c54e2cc00b153378eab32577cf0e955a3f1d1e858f996a5c64399727cf14c44d",
       "kinds": [
         "typed_localized_render"
@@ -12425,7 +12452,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 225,
+      "line": 227,
       "line_sha256": "2cdc5bd93bde6d792a6e652ba4e7e66f29fac5fc74dff7e133af6fa870c49fed",
       "kinds": [
         "typed_localized_render"
@@ -12434,7 +12461,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 228,
+      "line": 230,
       "line_sha256": "965dae0d07e3fcd2f05c99b97373af194000b785c07d489dfdd704e46d304510",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12444,7 +12471,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 231,
+      "line": 233,
       "line_sha256": "b51455f859c671ea3dcb203c0d98aceed5bfb533d557cad2887a69c9fe09598b",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12454,7 +12481,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 239,
+      "line": 241,
       "line_sha256": "3bd537833ed4569ee2c9238415f7d0471589ad0a2ab3d6200d17cb54e5e824e3",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12465,6 +12492,102 @@
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
       "line": 256,
+      "line_sha256": "c59f714879d7954bad764746559daf6c7fd23e0e3d4d51e3faa8ed516baae3ad",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 258,
+      "line_sha256": "18d0e220489a941970cb951cacdb860ae04e6eaa724a0bcf116eea28a77f162e",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 259,
+      "line_sha256": "b08f51f3e2b891df56be183e462eb7816c5277da6a8f961877d9c2c7d89d4307",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 260,
+      "line_sha256": "54b32f6325188f6f77edc05fbc8f60f20433e3500d8e1adb3b70993e65cdaf1c",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 261,
+      "line_sha256": "b884c93e5c30e01b59691b715d4e3358b842bc84c01bd8439c22751ba53fe9b8",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 262,
+      "line_sha256": "af78aea88c1dee86466ba2c7b1080c7ad43efab0636acc7dd8ff9b45a024b56d",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 263,
+      "line_sha256": "97e1b1048c5a6f15ef71f2047cfd3057323f3f3576b9abfcaf22e781c7093128",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 264,
+      "line_sha256": "4b7397aa1946086fb50b61ed67b62d1b2ffc7c1b49627f5237cd253fde3db9fb",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 266,
+      "line_sha256": "70a3a1de0fa9177331efe981084409edaaefd6fea3db6cf23f3f0131c7f3a6cf",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 267,
+      "line_sha256": "1067e99970f3586838e650f1845c5dcb36ec5f219f953f7a3a5dc6c374c50f44",
+      "kinds": [
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 274,
       "line_sha256": "25cd230c8000dc9edae85ef39c19e0a679e1c1af6ce8b47e278751058262523a",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12474,7 +12597,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 257,
+      "line": 275,
       "line_sha256": "9e99c5e4d23628f988cfe870a6d0c8aea4e18bc5bb73917219cf4509f668a564",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12483,7 +12606,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 265,
+      "line": 283,
       "line_sha256": "e3a1c8f0ce9f3e85b801ef9beb52575ab29430505219f0c89f17af6e79eb52b8",
       "kinds": [
         "typed_localized_render"
@@ -12492,7 +12615,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 266,
+      "line": 284,
       "line_sha256": "aa1b326c8bce4eb468b4c06a6dc29e20eb3d1eb5c07262b28a39bd97bde7036b",
       "kinds": [
         "typed_localized_render"
@@ -12501,7 +12624,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 270,
+      "line": 288,
       "line_sha256": "40e90440293dde5fd885826cb24fd56ef64a98497e1916c224d73298ea8de4ff",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12511,7 +12634,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 272,
+      "line": 290,
       "line_sha256": "7a11c4bb82c03c74f6cb93b5848cb370588c84d6e1e422c644b7c3ede6daa15e",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12521,7 +12644,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 276,
+      "line": 294,
       "line_sha256": "765f929468da5d97b619b5f7e230ac9dec4a5bc8f7962f6d6857c1fd10d8245f",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12530,7 +12653,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 278,
+      "line": 296,
       "line_sha256": "2ece4543d44a6f032be7e5bfa2d17333ce148bd4023d93023b74b2ccfc4058cc",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12540,7 +12663,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 281,
+      "line": 299,
       "line_sha256": "66df8bf91283c89bec22285bc989b82c1e7c36c459e40a5fa0a12fe080c1f967",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12549,7 +12672,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 282,
+      "line": 300,
       "line_sha256": "66bff661dce819eab947237a08c580956c120ff05a82dcdd754db8efc169f087",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12559,7 +12682,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 283,
+      "line": 301,
       "line_sha256": "342157b557bccb7ab1ca8cb24ab0306fbe9344c2d1b76a34ee24e9492d5c04a4",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12569,7 +12692,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 285,
+      "line": 303,
       "line_sha256": "ec487618d79a0db62f6884ad7694ec3a1a36d8db8d6822863c8f267810be6ced",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12578,7 +12701,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 286,
+      "line": 304,
       "line_sha256": "4763dbf3bf22db53def6f761bc73b58c0bb00042779a8ddbea0d33a07c7b5f52",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12588,7 +12711,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 287,
+      "line": 305,
       "line_sha256": "a96959727e7c9dc09967e5457dd58b6d3747af1422a43f484c4f0272fd1cc511",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12598,7 +12721,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 290,
+      "line": 308,
       "line_sha256": "105d06a1748de0d7c93bd1ee43dbfd99d0210b13afeb00a746c5547961496e36",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12607,7 +12730,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 292,
+      "line": 310,
       "line_sha256": "163aeb0c0f58a72b2ad21250cc8b15a28cb070cfc17962e2966f7049ce487b6e",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12617,7 +12740,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 299,
+      "line": 317,
       "line_sha256": "da6bf28ebfed1df34a3731550785df5d262fe3b7e0a615f01334380153602321",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12626,7 +12749,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 300,
+      "line": 318,
       "line_sha256": "7a028ed052ba641f4d4b758d2cafb3b7b4ee5cf7a751dcd3a6283661f4cb6e13",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12636,7 +12759,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 307,
+      "line": 325,
       "line_sha256": "be2a207ddc5fd7a38029e3c68122d023ea2f3a126c9ed3bf677c150ff89be561",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12645,7 +12768,94 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 309,
+      "line": 329,
+      "line_sha256": "f2cb6a9f0711d96d83f28b420f5ede03e5ce545a3ccd5a1a47e8e5bf6e959862",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 330,
+      "line_sha256": "2fc016beb0748937b0e7ce0ee04febbf77875fbbdbcd8fb2ff1cca19a10a175a",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 332,
+      "line_sha256": "eccc2a058bf6aac46c06fbd4e78c45df748df744d5b9306f75b2f99c5d043b3b",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 333,
+      "line_sha256": "7be0257340192e46d8461a8b93a6a1227cabb0343a33369299926e4fbecdfa42",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 335,
+      "line_sha256": "bb6058684c783251d27f1c3e6cbb95652af712fe80b19ccd9d914d0d2cd0256a",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 336,
+      "line_sha256": "1f5fd95bf659a60a465e1c2a49c609ee2702b02fa16e891dd108eddded3dd8ec",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 337,
+      "line_sha256": "4289e62b742f9613e98b746c989f6d7e012179f322bb55d350a42044709fd1e1",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 338,
+      "line_sha256": "3a3320cc37c1ca21467d8e6bf8c76ab151eaeeee35363e4c6739a4925246fb4d",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 343,
+      "line_sha256": "ead35180dda76abefa23dd5beee29910441386ede91e6b65b696f91c899adb4a",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/MikaAlignedSettingsView.swift",
+      "line": 345,
       "line_sha256": "3131176a0b9dcd785a500e6bab6dee382b0a31e5048ff3d63299d00d4c482526",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12654,7 +12864,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 312,
+      "line": 348,
       "line_sha256": "d049a6e3534f89459c1e940a22d5b8293e877a9f63f27ef4ce5d20f504ff9284",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12663,7 +12873,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 319,
+      "line": 355,
       "line_sha256": "1cef3c54eb73480dc86a78ed53d5f4e471be16a5abf1fcdb07c670ffc7058a65",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12672,7 +12882,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 321,
+      "line": 357,
       "line_sha256": "37f9e77e5bd86db355284cd8076debf77bc1689f7911f22a41840c14e5602048",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12681,7 +12891,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 322,
+      "line": 358,
       "line_sha256": "2b877fe7e58f4624845fdf94e275641ff0aa16b0b5407ca07761757304705e0a",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12690,7 +12900,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 325,
+      "line": 361,
       "line_sha256": "598c8cc4b02264055493277aefac6e4a5e3b86ed2a400a1a182d95451d9162df",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12699,7 +12909,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 327,
+      "line": 363,
       "line_sha256": "3be8e4320724c6c363b3b5f2db0392bef57557c43ba9b0c43dac1061cf014e11",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12708,7 +12918,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 334,
+      "line": 370,
       "line_sha256": "f73229d75cf039abf246828b8143d6dc1cfaf49fbcf9ef8daf1abd2721b7d10a",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12717,7 +12927,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 335,
+      "line": 371,
       "line_sha256": "56243453ad2da3ce6a2cf47ab769b7739245343fb8221676098a3c70f4bb2abe",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12726,7 +12936,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 338,
+      "line": 374,
       "line_sha256": "e4cfe8255585fc4974d197f61e59e05b2a0d03a92c4d6df577f592c4e91a05cc",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12735,7 +12945,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 339,
+      "line": 375,
       "line_sha256": "430747c6cf4a7bca88e69658a8807f594fa0216f49cb3339cbb5cd4641ce4350",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12744,7 +12954,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 341,
+      "line": 377,
       "line_sha256": "a1817a9ad3005de62fd00301076748aa60482fb3ada7a1257b120c73a3458e38",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -12754,7 +12964,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 353,
+      "line": 389,
       "line_sha256": "6437f83e769fecc62b2b47ae43698f0398ca58744edd041dc7064e945260fd7d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12763,7 +12973,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 388,
+      "line": 424,
       "line_sha256": "21e7d84a3f0b634414ef9c18725719dd5bf070bf975aae696c3e1a17c8afd121",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12772,7 +12982,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 389,
+      "line": 425,
       "line_sha256": "a067dcfbdd2ef33fee35d5a0aaaaa4b5549d11e25bce72ca4f9cd0ec44256091",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12781,7 +12991,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 390,
+      "line": 426,
       "line_sha256": "9244c80ee8c5230b0e7e0fed840fcb20b3688891e904563701acb33f34484bbe",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12790,7 +13000,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 391,
+      "line": 427,
       "line_sha256": "4b3f167fc54a88984b58ef67ae5249266298f73528e14315fcbf8aa8f8344895",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12799,7 +13009,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 392,
+      "line": 428,
       "line_sha256": "3396001e71a6d151712b8957ded061e2227c8fbf9322c34dc21d417d4e877e28",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12808,7 +13018,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 393,
+      "line": 429,
       "line_sha256": "f146c661a47ca44798afbbf9a23ffc07d035f19fa77a0d6c2e7e517e1478555d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12817,7 +13027,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 394,
+      "line": 430,
       "line_sha256": "d31c46f83a84315da89f6a9e0d1d0a65a5ba1fd91b2163450ff115ba7e35d9ef",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12826,7 +13036,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 395,
+      "line": 431,
       "line_sha256": "bc1f7806004faf5cdb10f58ffad296f3b5b7330d9761c0fe4852f3de8aad3239",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12835,7 +13045,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 396,
+      "line": 432,
       "line_sha256": "0e1b35a2130ebada59c5dd5ea317e7e4c28c1a04a7375f10f07368f179f5b478",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12844,7 +13054,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 397,
+      "line": 433,
       "line_sha256": "b32f088b7f3d82c89f3478d452b6ea61097a1752c375f5b177dad3387a1f93dd",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12853,7 +13063,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 398,
+      "line": 434,
       "line_sha256": "4cc7f02870709746d8ec112d8d34ec5489f446fd0dc56151c1822c08b1b1423a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12862,7 +13072,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 399,
+      "line": 435,
       "line_sha256": "eb460c8c96ab89e029f7a143e7375132321b03b65243ceec9a3f0a40dd02fe4f",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12871,7 +13081,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 400,
+      "line": 436,
       "line_sha256": "7f4972f2dde02afb0e462d2f8d96d7aa142b93749dac2991fd570fd9bb4a3e82",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12880,7 +13090,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 401,
+      "line": 437,
       "line_sha256": "ea4a26934addd62cac204162728aeaafb41adc08daa9bf363a7a4bcb93adf5d2",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12889,7 +13099,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 402,
+      "line": 438,
       "line_sha256": "767d2c75351a9e132245f3d5fd4a533752b89d4931f9089db6f4352d463560d8",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12898,7 +13108,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 403,
+      "line": 439,
       "line_sha256": "bb82c895df137be04a2f89a3d47e1e9117aa37ec25615ad870d11d9a552cae2a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12907,7 +13117,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 404,
+      "line": 440,
       "line_sha256": "e8443793f3b5ee88ed901cb3f23ac5a0d4e8526c3a93529abea94954ac85e9f6",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12916,7 +13126,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 405,
+      "line": 441,
       "line_sha256": "c9b3581faa07b3d1175e4134110eaffdc855b3396badec928327d036bc621eae",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -12925,7 +13135,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 454,
+      "line": 490,
       "line_sha256": "ba1063adce7de1439f90df8da3c44749d619b34382b1e120f2065808f038c220",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12934,7 +13144,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 455,
+      "line": 491,
       "line_sha256": "ba0c895ec09055e8c0ab7152cfa0377e40c9ea69fb48caefa93520f3cbaef280",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -12943,7 +13153,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 456,
+      "line": 492,
       "line_sha256": "d9e4fdf70677dea6dc6442fb06f916d01c60ed4e4835b089064d3e6a534cf258",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -12952,7 +13162,7 @@
     },
     {
       "file": "Sources/App/MikaAlignedSettingsView.swift",
-      "line": 458,
+      "line": 494,
       "line_sha256": "ebfea4d956fc561df83a57234ee7e5a2ce2b291b339be821f80af0d6ee091674",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -13348,7 +13558,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 19,
+      "line": 20,
       "line_sha256": "ebba2f44f6653d6ba0d326afa8f0fbe694a53dd821bb86df9c98593fafa9eb3a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13357,7 +13567,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 20,
+      "line": 21,
       "line_sha256": "ef31674e4636891a1cc783afa506cdda05da0c767d305f9be2758b849a411c09",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13366,7 +13576,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 28,
+      "line": 29,
       "line_sha256": "1c7a6dfd7ecf15ac596766e3a9570f670508fc6bda2b9a4c6a0810dda995646d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13375,7 +13585,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 29,
+      "line": 30,
       "line_sha256": "c40fc75dc4b88b9a9fe427e7283f61c1071ba6fd6c3ce55e6e6c0a3485b77373",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13384,7 +13594,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 30,
+      "line": 31,
       "line_sha256": "701ae7af2808deac13d98844bbb19dd6eb8d2bd97ababc6d3763fee4853e7dbd",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13393,7 +13603,7 @@
     },
     {
       "file": "Sources/App/MikaSettingsMessageText.swift",
-      "line": 31,
+      "line": 32,
       "line_sha256": "055b9ecad08bfb70f276956672fe6eaed7df7860aa8c8ab27a45e129db34affe",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13438,7 +13648,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 23,
+      "line": 37,
       "line_sha256": "c6154bd09a88c334144a251fd37318bac2398b4edca7854d661b5ce418d31556",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13447,7 +13657,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 25,
+      "line": 39,
       "line_sha256": "a5bc4c713eb79d4301a02a18d1da011b6c736b6762bf711ca07c55e369ac7733",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13456,7 +13666,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 27,
+      "line": 41,
       "line_sha256": "e459b9930078b80da2631443e58dc230517274450a1630fddea9101fa323617a",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13465,7 +13675,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 29,
+      "line": 43,
       "line_sha256": "564072a47ac0d6f72243c4e1460f70e9146322d70191f95b9e53e3d1971eb057",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13474,7 +13684,16 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 31,
+      "line": 45,
+      "line_sha256": "27fc832fa8813e2ff409498af1404bf76431062bba33de12db93bd65c4e54ef8",
+      "kinds": [
+        "chinese_literal_candidate_not_necessarily_ui"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ModelSettings.swift",
+      "line": 47,
       "line_sha256": "6772b0a9fdc550108a24393c36a1ac7e3343ca623b05504f009f29e3d56e88f8",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13483,7 +13702,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 33,
+      "line": 49,
       "line_sha256": "9d42c7fe3070002da550076d4ae4a8a24ee40813ada39008f433cdfaaf21241d",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -13492,7 +13711,7 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "line": 35,
+      "line": 51,
       "line_sha256": "abbcf70cf5e7a6fd3cb7440061fcdb607d9816a3b9c3028065a748fa158a0d90",
       "kinds": [
         "chinese_literal_candidate_not_necessarily_ui"
@@ -20716,71 +20935,71 @@
   "error_candidates": [
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
       "line": 37,
       "line_sha256": "c396d59ca0a01a0f695680409185e71c582e420789b3e876aabd713f055baf6b",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
       "line": 38,
       "line_sha256": "b96e2af39aa2d711e165c5bd5cb91b2b1a51039607993d8f1e69dc4acd51dd0b",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
       "line": 39,
       "line_sha256": "a9aa71508c875c8fe7612990a3a0bf9329afc7da0e0207b4dde80c1d0c093fed",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1226,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1248,
       "line_sha256": "9c536b36fc233e9e12e0f9516d6f6098d9ca699c462286c93b72c3d499473f2d",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1230,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1252,
       "line_sha256": "d26d577072cd8744dd41609905a3963762879485ca4d7ccdb7971061c86a4078",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1233,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1255,
       "line_sha256": "0559f7e9111deb87241770031d159e686b895a01489c01f3edc42359b3ce3a07",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1435,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1457,
       "line_sha256": "97b3fb2fb261449b141de8c5db9977b3923ca43f3f40801344fe838cc214cb7d",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1436,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1458,
       "line_sha256": "c430aa5af1b91461b3793e385f89b22e43599021ebb80d6449822c9018d43200",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1437,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1459,
       "line_sha256": "0c6b3eab714b34271998961ad7234120bb0bc4e41467366d2911437c2c0eb260",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
-      "line": 1438,
+      "file_sha256": "c50ec6daefc622ed9180bad40f4419c4bbc2214e650f219db759a371459aa014",
+      "line": 1460,
       "line_sha256": "675bf852361998a41637a792d316de96d3bc828816ca765e53c8cf38a2498641",
       "review": "pending_error_or_other_return_semantic_review"
     },
@@ -20996,50 +21215,57 @@
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 23,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 37,
       "line_sha256": "c6154bd09a88c334144a251fd37318bac2398b4edca7854d661b5ce418d31556",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 25,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 39,
       "line_sha256": "a5bc4c713eb79d4301a02a18d1da011b6c736b6762bf711ca07c55e369ac7733",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 27,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 41,
       "line_sha256": "e459b9930078b80da2631443e58dc230517274450a1630fddea9101fa323617a",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 29,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 43,
       "line_sha256": "564072a47ac0d6f72243c4e1460f70e9146322d70191f95b9e53e3d1971eb057",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 31,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 45,
+      "line_sha256": "27fc832fa8813e2ff409498af1404bf76431062bba33de12db93bd65c4e54ef8",
+      "review": "worker_only_model_settings_adapter"
+    },
+    {
+      "file": "Sources/App/ModelSettings.swift",
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 47,
       "line_sha256": "6772b0a9fdc550108a24393c36a1ac7e3343ca623b05504f009f29e3d56e88f8",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 33,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 49,
       "line_sha256": "9d42c7fe3070002da550076d4ae4a8a24ee40813ada39008f433cdfaaf21241d",
       "review": "worker_only_model_settings_adapter"
     },
     {
       "file": "Sources/App/ModelSettings.swift",
-      "file_sha256": "afbeeb5d6d1f5deb860fde17f11dc3be073ba9df319bd0c69d74dc16515cff2c",
-      "line": 35,
+      "file_sha256": "c43ef2363f7c56ce5105671fdc6be3c8bdb4239dc5628e2eeb50e13725a4695d",
+      "line": 51,
       "line_sha256": "abbcf70cf5e7a6fd3cb7440061fcdb607d9816a3b9c3028065a748fa158a0d90",
       "review": "worker_only_model_settings_adapter"
     },
@@ -22355,10 +22581,10 @@
   ],
   "counts": {
     "source_files": 92,
-    "candidate_sites": 2159,
-    "typed_render_sites": 415,
-    "pending_candidate_sites": 1454,
-    "error_candidates": 234
+    "candidate_sites": 2182,
+    "typed_render_sites": 428,
+    "pending_candidate_sites": 1469,
+    "error_candidates": 235
   },
   "full_app_localized": false,
   "native_ui_verified": false,

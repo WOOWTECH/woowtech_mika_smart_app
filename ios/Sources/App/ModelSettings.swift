@@ -2,11 +2,25 @@ import AssistantModels
 import Foundation
 import Security
 
-struct SavedModelSettings: Codable {
+struct SavedModelSettings: Codable, Equatable {
     let baseURL: URL
     let model: String
     // This is a Keychain item identifier, never the key itself.
     let credentialAccount: String
+    /// nil = not declared. This is a user statement, not a service test.
+    let visionSupportedByUser: Bool?
+    /// Defends an open settings control from an away-and-back settings change.
+    let settingsRevision: UUID?
+
+    init(baseURL: URL, model: String, credentialAccount: String,
+         visionSupportedByUser: Bool? = nil, settingsRevision: UUID? = nil) {
+        self.baseURL = baseURL; self.model = model; self.credentialAccount = credentialAccount
+        self.visionSupportedByUser = visionSupportedByUser; self.settingsRevision = settingsRevision
+    }
+    var visionCapability: ModelVisionCapability {
+        guard let visionSupportedByUser else { return .unknown }
+        return visionSupportedByUser ? .supported : .unsupported
+    }
 
     var configuration: ModelConfiguration {
         ModelConfiguration(baseURL: baseURL, model: model)
@@ -14,7 +28,7 @@ struct SavedModelSettings: Codable {
 }
 
 enum ModelSettingsError: Error, LocalizedError {
-    case invalidURL, missingModel, missingKey, changedOrigin, invalidKey, unavailableKeychain
+    case invalidURL, missingModel, missingKey, changedOrigin, invalidKey, unavailableKeychain, staleSettings
     case keychainStatus(OSStatus)
 
     var errorDescription: String? {
@@ -27,6 +41,8 @@ enum ModelSettingsError: Error, LocalizedError {
             return "請輸入 API Key。已有儲存的金鑰時，同一服務可留空沿用。"
         case .changedOrigin:
             return "服務主機或連接埠已變更，請重新輸入該服務的 API Key；不會自動沿用舊金鑰。"
+        case .staleSettings:
+            return "模型設定已變更，請重新檢查服務與模型後再設定圖片支援。"
         case .invalidKey:
             return "API Key 不可包含空白或控制字元。"
         case .unavailableKeychain:
@@ -155,7 +171,12 @@ final class ModelSettingsRepository {
             }
             account = UUID().uuidString
         }
-        let record = SavedModelSettings(baseURL: configuration.baseURL, model: configuration.model, credentialAccount: account)
+        // A declaration only survives an unchanged exact endpoint, model and
+        // credential. It never follows a switched destination or replacement key.
+        let preserveVision = previous?.baseURL.absoluteString == configuration.baseURL.absoluteString
+            && previous?.model == configuration.model && previous?.credentialAccount == account
+        let record = SavedModelSettings(baseURL: configuration.baseURL, model: configuration.model, credentialAccount: account,
+            visionSupportedByUser: preserveVision ? previous?.visionSupportedByUser : nil, settingsRevision: UUID())
         let data = try JSONEncoder().encode(record)
         if !newKey.isEmpty { try credentials.insert(newKey, account: account) }
         // Publish the nonsecret record only after Keychain succeeds. A new item avoids
@@ -167,6 +188,16 @@ final class ModelSettingsRepository {
             catch { cleanupFailed = true }
         }
         return (record, cleanupFailed)
+    }
+
+    /// Compare the entire settings revision, not just a model name. No network
+    /// request or connection-test result participates in this user statement.
+    func setVision(_ supported: Bool?, expected: SavedModelSettings) throws -> SavedModelSettings {
+        guard let current = try load(), current == expected else { throw ModelSettingsError.staleSettings }
+        let result = SavedModelSettings(baseURL: current.baseURL, model: current.model,
+            credentialAccount: current.credentialAccount, visionSupportedByUser: supported, settingsRevision: UUID())
+        defaults.set(try JSONEncoder().encode(result), forKey: Self.configurationKey)
+        return result
     }
 
     func remove() throws {

@@ -103,7 +103,6 @@ final class ChatSession: ObservableObject {
     @Published private(set) var attachmentIssue: AppText?
     private var attachmentBinding: AttachmentBinding?
     private var attachmentRevision = UUID()
-    private var attachmentVision: ModelVisionCapability = .unknown
     private var attachmentRequiresDecision = false
     private var attachmentRequestID: UUID?
     @Published private(set) var pendingMCPApproval: MCPApprovalRequest?
@@ -377,7 +376,7 @@ final class ChatSession: ObservableObject {
             archivePrior: archive?.state.conversations.first { $0.id.uuidString == conversationID },
             learningGeneration: learning.generation, learningAvailable: learning.available,
             memory: learning.memory, profile: learning.profile, skills: learning.skills,
-            vision: attachmentVision, revision: attachmentRevision)
+            vision: savedSettings?.visionCapability ?? .unknown, revision: attachmentRevision)
     }
 
     private var attachmentCanSend: Bool {
@@ -418,12 +417,12 @@ final class ChatSession: ObservableObject {
 
     /// Call before presenting the standalone picker and again after any host
     /// input change. The picker confirms the resulting exact context, not bytes.
-    /// `supported` is an explicit host declaration for this endpoint/model;
-    /// it is not inferred from a name or a successful text connection.
-    @discardableResult func prepareAttachmentReview(vision: ModelVisionCapability = .unknown) -> Bool {
+    /// Image capability comes only from the saved explicit user declaration;
+    /// a successful text connection never changes it.
+    @discardableResult func prepareAttachmentReview() -> Bool {
         guard !isSubmitting else { return false }
-        if attachmentVision != vision { attachmentVision = vision; invalidateAttachmentReview() }
-        guard hasStoredKey, savedSettings != nil, let binding = currentAttachmentBinding() else {
+        guard hasStoredKey, savedSettings != nil, (try? repository.load()) == savedSettings,
+              let binding = currentAttachmentBinding() else {
             invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentUnavailable); return false
         }
         guard pdfAttachment == nil else { invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentRemoveFirst); return false }
@@ -448,7 +447,6 @@ final class ChatSession: ObservableObject {
     func discardGeneralAttachment() {
         guard attachmentRequestID == nil else { return }
         attachmentPresenter.discard(); attachmentRequiresDecision = false
-        attachmentVision = .unknown
         invalidateAttachmentReview()
         if attachmentIssue != nil { chatError = nil }
         attachmentIssue = nil
@@ -463,6 +461,7 @@ final class ChatSession: ObservableObject {
                                          key: String, id: UUID) throws {
         try Task.checkCancellation()
         guard requestID == id, attachmentRequestID == id,
+              try repository.load() == savedSettings,
               attachmentBinding == binding, currentAttachmentBinding() == binding,
               quoteSourceIsCurrent, attachmentPresenter.state.phase == .consumed,
               attachmentPresenter.state.context == context,
@@ -487,6 +486,26 @@ final class ChatSession: ObservableObject {
     }
 
     var chatStatus: String { chatStatusMessage.traditionalFallback }
+
+    /// Commit a user statement only for the exact settings shown at review.
+    /// This is independent of any text connection test and changes no key.
+    @discardableResult func setModelVision(_ supported: Bool?, expected: SavedModelSettings) -> Bool {
+        guard !isSubmitting else { return false }
+        guard savedSettings == expected else {
+            settingsError = ModelSettingsError.staleSettings.errorDescription; return false
+        }
+        do {
+            let updated = try repository.setVision(supported, expected: expected)
+            guard savedSettings == expected else { return false }
+            savedSettings = updated
+            invalidateAttachmentReview()
+            settingsError = nil
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
 
     func saveSettings() {
         guard !isSubmitting else { return }
@@ -744,6 +763,9 @@ final class ChatSession: ObservableObject {
     /// A single plain/streaming model request. Tool runners may issue multiple
     /// requests and therefore cannot receive this one-shot attachment.
     private func sendGeneralAttachment() {
+        guard (try? repository.load()) == savedSettings else {
+            invalidateAttachmentReview(); setAttachmentIssue(.chatAttachmentChanged); return
+        }
         // Unknown clients may return from cancellation while detached work can
         // still start transport. Do not consume or send through such a client.
         guard client is any LifetimeBoundCompletionChatModelClient else {
