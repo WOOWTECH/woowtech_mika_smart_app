@@ -53,6 +53,15 @@ struct MCPSettingsStore: MCPEndpointStoring {
         return url
     }
 
+    /// A private test endpoint is already a complete credential. Reject a
+    /// serialized/escaped copy rather than silently connecting to a URL that
+    /// URLComponents repaired or whitespace trimming changed.
+    static func validateInjectedEndpoint(_ raw: String) throws -> URL {
+        let url = try validate(raw)
+        guard url.absoluteString == raw else { throw MCPSettingsError.invalidEndpoint }
+        return url
+    }
+
     func load() throws -> URL? {
         var query = query
         query[kSecReturnData as String] = true
@@ -127,6 +136,7 @@ struct MCPSettingsStore: MCPEndpointStoring {
                 guard let endpoint = (environment ?? ProcessInfo.processInfo.environment)["WOOW_LIVE_MCP_URL"] else {
                     throw MCPSettingsError.missingLiveTestEndpoint
                 }
+                _ = try Self.validateInjectedEndpoint(endpoint)
                 try store.save(endpoint: endpoint)
             }
             if regular && arguments.contains("-UITestMode") && arguments.contains("-UITestMCPFixture") {

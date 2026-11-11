@@ -8,6 +8,7 @@ import os
 import pathlib
 import plistlib
 import sys
+from urllib.parse import urlsplit
 
 MAPPING = {
     "WOOW_MODEL_TEST_BASE_URL": "WOOW_LIVE_BASE_URL",
@@ -15,6 +16,23 @@ MAPPING = {
     "WOOW_MODEL_TEST_API_KEY": "WOOW_LIVE_API_KEY",
 }
 MCP_MAPPING = {"WOOW_HA_MCP_TEST_URL": "WOOW_LIVE_MCP_URL"}
+
+
+def validate_mcp_secret(raw):
+    """Fail closed on JSON string escapes before writing a private runner file."""
+    try:
+        if (not isinstance(raw, str) or not raw or len(raw.encode("utf-8")) > 16_384
+                or any(c.isspace() or ord(c) < 32 or c in ('\\', '"') for c in raw)
+                or '#' in raw):
+            raise ValueError
+        parsed = urlsplit(raw)
+        if (parsed.scheme.lower() != "https" or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.port is not None and not 1 <= parsed.port <= 65535):
+            raise ValueError
+    except (ValueError, TypeError):
+        raise ValueError("Invalid private MCP endpoint") from None
+    return raw
 
 
 def configure(payload, environment, clear=False, service="model"):
@@ -35,6 +53,8 @@ def configure(payload, environment, clear=False, service="model"):
         raise ValueError("Expected exactly one WoowAssistantUITests runner")
     if not clear and any(not environment.get(source) for source in mapping):
         raise ValueError("Missing live test configuration")
+    if not clear and service == "mcp":
+        validate_mcp_secret(environment["WOOW_HA_MCP_TEST_URL"])
     variables = targets[0].setdefault("EnvironmentVariables", {})
     for source, destination in mapping.items():
         if clear:

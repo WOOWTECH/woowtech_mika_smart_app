@@ -29,6 +29,19 @@ enum MCPSettingsChecks {
                 preconditionFailure("Invalid private test namespace was accepted")
             } catch MCPSettingsError.invalidTestNamespace { count += 1 }
         }
+        // Live secrets must survive validation byte-for-byte. URLComponents
+        // otherwise repairs a trailing backslash or trims a pasted prefix.
+        let exact = "https://fixture.invalid/mcp/a%2Fb?token=x%2Fy+z&mode=read"
+        check(try MCPSettingsStore.validateInjectedEndpoint(exact).absoluteString == exact)
+        check(try MCPSettingsStore.validate(" " + exact).absoluteString == exact) // Manual paste still trims.
+        let serialized = "\"\(exact)\""
+        for malformed in [serialized, exact.replacingOccurrences(of: "/", with: "\\/"),
+                          " " + exact, exact + "\\"] {
+            do {
+                _ = try MCPSettingsStore.validateInjectedEndpoint(malformed)
+                preconditionFailure("A changed or serialized private endpoint was accepted")
+            } catch MCPSettingsError.invalidEndpoint { count += 1 }
+        }
         print("PASS: \(count) App MCP network/namespace isolation checks")
     }
 }

@@ -14,7 +14,13 @@ struct LiveMCPSmoke {
         print("LOCAL macOS native client probe; this is NOT an iOS Simulator acceptance run")
         #endif
         guard let raw = ProcessInfo.processInfo.environment["WOOW_HA_MCP_TEST_URL"],
-              let endpoint = URL(string: raw) else {
+              !raw.unicodeScalars.contains(where: CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains),
+              !raw.contains("\\"),
+              let parts = URLComponents(string: raw),
+              parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil, parts.fragment == nil,
+              parts.port.map({ (1...65535).contains($0) }) ?? true,
+              let endpoint = parts.url, endpoint.absoluteString == raw else {
             print("FAIL: missing private MCP test configuration")
             exit(1)
         }
