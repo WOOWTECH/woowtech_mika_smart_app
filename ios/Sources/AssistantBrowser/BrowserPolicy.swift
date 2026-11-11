@@ -25,6 +25,7 @@ public enum BrowserURLDecision: Sendable, Equatable {
 }
 
 public enum BrowserPolicy {
+    private enum Scope { case publicOnly, manualLAN }
     /// Validate the original address as well as Foundation's parsed destination.
     /// Some iOS 17 Foundation versions silently discard empty/overflowing ports.
     /// Callers receiving text must not lose that evidence by constructing URL first.
@@ -46,7 +47,17 @@ public enum BrowserPolicy {
         evaluate(url, address: url.absoluteURL.absoluteString)
     }
 
-    private static func evaluate(_ url: URL, address: String, validateHost: Bool = true) -> BrowserURLDecision {
+    // Internal to the dormant manual approval state. Both the raw spelling and
+    // Foundation's parsed spelling are validated before an approval is offered.
+    static func manualLANCandidate(address: String) -> URL? {
+        guard address.utf8.count <= 8192, let url = URL(string: address), url.baseURL == nil,
+              case .allow = evaluate(url, address: address, scope: .manualLAN),
+              case .allow = evaluate(url, address: url.absoluteString, scope: .manualLAN) else { return nil }
+        return url
+    }
+
+    private static func evaluate(_ url: URL, address: String, validateHost: Bool = true,
+                                 scope: Scope = .publicOnly) -> BrowserURLDecision {
         guard let scheme = url.scheme?.lowercased(), ["https", "http"].contains(scheme) else {
             return .block(reason: Denial.scheme)
         }
@@ -83,6 +94,9 @@ public enum BrowserPolicy {
         }
 
         guard !host.isEmpty else { return .block(reason: Denial.missingHost) }
+        // Preserve the exact host boundary until WebKit's origin behavior for
+        // root-dot hosts is verified on iOS. This affects only manual LAN.
+        if scope == .manualLAN && host.hasSuffix(".") { return .block(reason: Denial.notLocal) }
         if let port = port {
             guard isDecimal(port), let number = Int(port), (1...65535).contains(number) else {
                 return .block(reason: Denial.port)
@@ -94,22 +108,36 @@ public enum BrowserPolicy {
         if isIPv6 {
             guard !host.contains("%") else { return .block(reason: Denial.ipv6Zone) }
             guard let bytes = ipv6Bytes(host) else { return .block(reason: Denial.ipv6) }
-            if let reason = ipv6Denial(bytes) { return .block(reason: reason) }
+            let reason = ipv6Denial(bytes)
+            if scope == .manualLAN {
+                // Deprecated IPv6 site-local is not included in this first phase.
+                guard !(bytes[0] == 0xfe && bytes[1] & 0xc0 == 0xc0),
+                      reason.map({ [Denial.loopback, Denial.privateAddress, Denial.linkLocal].contains($0) }) == true else {
+                    return .block(reason: reason ?? Denial.notLocal)
+                }
+            } else if let reason { return .block(reason: reason) }
         } else {
             guard !host.contains("%") else { return .block(reason: Denial.encodedHost) }
             // A single DNS root dot is valid, including after an IPv4 literal.
             // Two dots still produce an empty label and are rejected below.
             let name = (host.hasSuffix(".") ? String(host.dropLast()) : host).lowercased()
             guard isDNSName(name) else { return .block(reason: Denial.host) }
-            if isLocalName(name) { return .block(reason: Denial.localName) }
-
             if let bytes = ipv4Bytes(name) {
-                if let reason = ipv4Denial(bytes) { return .block(reason: reason) }
+                let reason = ipv4Denial(bytes)
+                if scope == .manualLAN {
+                    guard reason.map({ [Denial.loopback, Denial.privateAddress, Denial.linkLocal].contains($0) }) == true else {
+                        return .block(reason: reason ?? Denial.notLocal)
+                    }
+                } else if let reason { return .block(reason: reason) }
             } else if endsInNumber(name) {
                 // Browser URL parsing can interpret a numeric last label as IPv4.
                 // Reject shorthand, integer, octal, hex and overflowing forms;
                 // never mistake e.g. 172.2.example.com for an IP address.
                 return .block(reason: Denial.numericHost)
+            } else if scope == .manualLAN {
+                guard isLocalName(name) || !name.contains(".") else { return .block(reason: Denial.notLocal) }
+            } else if isLocalName(name) {
+                return .block(reason: Denial.localName)
             }
         }
         return .allow(url)
@@ -135,6 +163,7 @@ public enum BrowserPolicy {
         static let shared = "Shared-address-space destinations are disabled in the first release."
         static let multicast = "Multicast addresses are not browsing destinations."
         static let reserved = "Reserved IPv4 addresses are not browsing destinations."
+        static let notLocal = "The address is not a recognized local destination."
     }
 
     private static func isDecimal<S: StringProtocol>(_ text: S) -> Bool {
@@ -173,7 +202,7 @@ public enum BrowserPolicy {
         return bytes
     }
 
-    private static func ipv6Bytes(_ host: String) -> [UInt8]? {
+    static func ipv6Bytes(_ host: String) -> [UInt8]? {
         // Darwin inet_pton accepts leading zeros in an embedded dotted IPv4
         // address. Apply our canonical IPv4 syntax before parsing the IPv6 bytes.
         if host.contains(".") {
