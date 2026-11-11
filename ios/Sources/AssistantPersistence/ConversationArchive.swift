@@ -61,6 +61,23 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
     }
 }
 
+/// Historical provenance remains meaningful even if the parent is deleted.
+public struct ConversationBranchOrigin: Codable, Equatable, Sendable {
+    public let parentID: UUID
+    public let parentTurn: Int
+    public init(parentID: UUID, parentTurn: Int) throws {
+        guard (0..<ConversationArchive.maximumTurnsPerConversation).contains(parentTurn) else {
+            throw ConversationArchiveError.invalidData
+        }
+        self.parentID = parentID; self.parentTurn = parentTurn
+    }
+    private enum CodingKeys: String, CodingKey { case parentID, parentTurn }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(parentID: c.decode(UUID.self, forKey: .parentID), parentTurn: c.decode(Int.self, forKey: .parentTurn))
+    }
+}
+
 public struct ArchivedConversation: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let destination: ConversationDestination
@@ -71,35 +88,39 @@ public struct ArchivedConversation: Codable, Equatable, Identifiable, Sendable {
     public let customTitle: String?
     /// User pin time is display metadata, never a conversation activity time.
     public let pinnedAt: Date?
+    public let branchOrigin: ConversationBranchOrigin?
     public var title: String { customTitle ?? String(turns[0].userText.prefix(60)) }
 
     public init(id: UUID, destination: ConversationDestination, updatedAt: Date,
                 turns: [ArchivedConversationTurn]) throws {
         try self.init(id: id, destination: destination, updatedAt: updatedAt,
-                      turns: turns, customTitle: nil, pinnedAt: nil)
+                      turns: turns, customTitle: nil, pinnedAt: nil, branchOrigin: nil)
     }
 
     /// Display metadata mutations belong to the archive, never to a model
     /// response constructing a replacement conversation record.
     init(id: UUID, destination: ConversationDestination, updatedAt: Date,
-         turns: [ArchivedConversationTurn], customTitle: String?, pinnedAt: Date?) throws {
+         turns: [ArchivedConversationTurn], customTitle: String?, pinnedAt: Date?,
+         branchOrigin: ConversationBranchOrigin?) throws {
         guard updatedAt.timeIntervalSinceReferenceDate.isFinite,
               !turns.isEmpty, turns.count <= ConversationArchive.maximumTurnsPerConversation,
               Set(turns.flatMap { [$0.userID, $0.assistantID] }).count == turns.count * 2,
               customTitle.map({ ConversationArchive.normalizedTitle($0) == $0 }) ?? true,
-              pinnedAt.map({ $0.timeIntervalSinceReferenceDate.isFinite }) ?? true
+              pinnedAt.map({ $0.timeIntervalSinceReferenceDate.isFinite }) ?? true,
+              branchOrigin.map({ $0.parentID != id && $0.parentTurn < turns.count }) ?? true
         else { throw ConversationArchiveError.invalidData }
         self.id = id; self.destination = destination; self.updatedAt = updatedAt
-        self.turns = turns; self.customTitle = customTitle; self.pinnedAt = pinnedAt
+        self.turns = turns; self.customTitle = customTitle; self.pinnedAt = pinnedAt; self.branchOrigin = branchOrigin
     }
 
-    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns, customTitle, pinnedAt }
+    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns, customTitle, pinnedAt, branchOrigin }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(id: c.decode(UUID.self, forKey: .id), destination: c.decode(ConversationDestination.self, forKey: .destination),
                       updatedAt: c.decode(Date.self, forKey: .updatedAt), turns: c.decode([ArchivedConversationTurn].self, forKey: .turns),
                       customTitle: c.decodeIfPresent(String.self, forKey: .customTitle),
-                      pinnedAt: c.decodeIfPresent(Date.self, forKey: .pinnedAt))
+                      pinnedAt: c.decodeIfPresent(Date.self, forKey: .pinnedAt),
+                      branchOrigin: c.decodeIfPresent(ConversationBranchOrigin.self, forKey: .branchOrigin))
     }
 }
 
@@ -114,7 +135,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public private(set) var conversations: [ArchivedConversation] = []
     // Keep archives without user metadata readable by the v2 app. A title
     // needs v3; a pin needs v4 because the v3 reader ignores unknown row keys.
-    // Never downgrade after either feature is removed or its row is deleted.
+    // Branch provenance requires v5; never downgrade after metadata is removed.
     private var writeVersion = 2
     public init() {}
 
@@ -157,9 +178,9 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             // arrive after the user renames that row; keep the latest title.
             next.conversations[index] = try ArchivedConversation(
                 id: record.id, destination: record.destination, updatedAt: record.updatedAt,
-                turns: record.turns, customTitle: prior.customTitle, pinnedAt: prior.pinnedAt)
+                turns: record.turns, customTitle: prior.customTitle, pinnedAt: prior.pinnedAt, branchOrigin: prior.branchOrigin)
         } else {
-            guard record.customTitle == nil, record.pinnedAt == nil
+            guard record.customTitle == nil, record.pinnedAt == nil, record.branchOrigin == nil
             else { throw ConversationArchiveError.invalidData }
             next.conversations.append(record)
         }
@@ -177,7 +198,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         var next = self
         next.conversations[index] = try ArchivedConversation(
             id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
-            turns: prior.turns, customTitle: normalized, pinnedAt: prior.pinnedAt)
+            turns: prior.turns, customTitle: normalized, pinnedAt: prior.pinnedAt, branchOrigin: prior.branchOrigin)
         next.writeVersion = max(next.writeVersion, 3)
         try next.validate()
         self = next
@@ -196,8 +217,28 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         var next = self
         next.conversations[index] = try ArchivedConversation(
             id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
-            turns: prior.turns, customTitle: prior.customTitle, pinnedAt: pinned ? at : nil)
-        next.writeVersion = 4
+            turns: prior.turns, customTitle: prior.customTitle, pinnedAt: pinned ? at : nil, branchOrigin: prior.branchOrigin)
+        next.writeVersion = max(next.writeVersion, 4)
+        try next.validate()
+        self = next
+    }
+
+    /// Commits one prepared completed-prefix branch to a new value. The caller
+    /// must serialize access and atomically persist this entire value.
+    public mutating func insertBranch(_ plan: ConversationBranchPlan) throws {
+        guard conversations.first(where: { $0.id == plan.source.id }) == plan.source else {
+            throw ConversationBranchError.staleSource
+        }
+        guard !conversations.contains(where: { $0.id == plan.branch.id }) else {
+            throw ConversationBranchError.invalidTarget
+        }
+        let origin = try ConversationBranchOrigin(parentID: plan.source.id, parentTurn: plan.parentTurn)
+        let row = try ArchivedConversation(id: plan.branch.id, destination: plan.branch.destination,
+            updatedAt: plan.branch.updatedAt, turns: plan.branch.turns, customTitle: plan.title,
+            pinnedAt: nil, branchOrigin: origin)
+        var next = self
+        next.conversations.append(row)
+        next.writeVersion = max(next.writeVersion, 5)
         try next.validate()
         self = next
     }
@@ -208,9 +249,10 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     }
 
     private func validate() throws {
-        guard (2...4).contains(writeVersion),
+        guard (2...5).contains(writeVersion),
               (writeVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
-              (writeVersion == 4 || conversations.allSatisfy({ $0.pinnedAt == nil }))
+              (writeVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
+              (writeVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
         else { throw ConversationArchiveError.invalidData }
         guard conversations.count <= Self.maximumConversations else { throw ConversationArchiveError.full }
         guard Set(conversations.map(\.id)).count == conversations.count else { throw ConversationArchiveError.invalidData }
@@ -229,13 +271,14 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let storedVersion = try c.decode(Int.self, forKey: .version)
-        guard (1...4).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
+        guard (1...5).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
         writeVersion = max(2, storedVersion)
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
         else { throw ConversationArchiveError.invalidData }
         guard (storedVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
-              (storedVersion == 4 || conversations.allSatisfy({ $0.pinnedAt == nil }))
+              (storedVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
+              (storedVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }

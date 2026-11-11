@@ -81,7 +81,7 @@ public enum ConversationBranchError: Error, Equatable {
 
 /// A prepared, in-memory branch. The host must re-check its live task and
 /// unfinished/unsaved state when applying, and persist the returned snapshot
-/// atomically before switching conversations. Origin is not yet archived.
+/// atomically before switching conversations.
 public struct ConversationBranchPlan {
     public let source: ArchivedConversation
     public let parentTurn: Int
@@ -121,8 +121,7 @@ public struct ConversationBranchPlan {
             throw ConversationBranchError.invalidTarget
         }
         var next = archive
-        try next.save(branch)
-        try next.rename(id: branch.id, expectedTitle: nil, to: title)
+        try next.insertBranch(self)
         return next
     }
 }

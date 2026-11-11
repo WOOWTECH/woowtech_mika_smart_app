@@ -1050,6 +1050,73 @@ private actor StreamMCP: MCPDiscovering {
         }
         return a.count
     }
+
+    static func unfinishedAndUnsavedBranchFences() async throws -> Int {
+        var a = Assertions()
+        let e = try StreamEnvironment(); defer { e.close() }
+        let client = StreamClient(), session = e.session(client)
+        let first = try start(session, "Saved question")
+        try await wait("saved stream begins") { client.counts.stream == 1 }
+        client.emit("Saved answer"); client.finish(); await first.value
+        guard let saved = e.archive.state.conversations.first else { throw Failure(name: "saved branch source") }
+        let original = e.archive.state
+        let running = try start(session, "Unfinished question")
+        try await wait("second stream begins") { client.counts.stream == 2 }
+        client.emit("Unfinished preview", at: 1)
+        try await wait("preview reaches session") { session.replyPreview?.text == "Unfinished preview" }
+        try a.check(!session.selectQuote(messageID: session.replyPreview!.id, expectedContent: "Unfinished preview", in: saved.id),
+                    "a real unfinished preview cannot be quoted as an archived message")
+        do {
+            _ = try session.prepareBranch(source: saved, assistantID: saved.turns[0].assistantID, title: "Branch")
+            throw Failure(name: "running preview allowed a branch")
+        } catch ConversationBranchError.blocked {}
+        try a.check(session.replyPreview?.text == "Unfinished preview" && e.archive.state == original,
+                    "busy branch rejection preserves the real preview and archive")
+        session.cancel(); client.finish(at: 1); await running.value
+        session.draft = ""
+        do {
+            _ = try session.prepareBranch(source: saved, assistantID: saved.turns[0].assistantID, title: "Branch")
+            throw Failure(name: "cancelled preview allowed a branch")
+        } catch ConversationBranchError.unfinishedTurn {}
+        try a.check(session.replyPreview?.phase == .cancelled && e.archive.state == original,
+                    "cancelled unsaved preview remains visible and blocks branch")
+
+        let other = try StreamEnvironment(); defer { other.close() }
+        let nextClient = StreamClient(), next = other.session(nextClient)
+        let seed = try start(next, "Earlier question")
+        try await wait("earlier stream begins") { nextClient.counts.stream == 1 }
+        nextClient.emit("Earlier answer"); nextClient.finish(); await seed.value
+        let prior = other.archive.state.conversations[0]
+        let before = try Data(contentsOf: other.archiveFile)
+        let backup = other.root.appendingPathComponent("before-unsaved-branch")
+        try FileManager.default.moveItem(at: other.archiveFile, to: backup)
+        try FileManager.default.createDirectory(at: other.archiveFile, withIntermediateDirectories: false)
+        let failedSave = try start(next, "Completed but unsaved")
+        try await wait("unsaved stream begins") { nextClient.counts.stream == 2 }
+        nextClient.emit("Actual completed answer", at: 1); nextClient.finish(at: 1); await failedSave.value
+        try a.check(next.canRetryArchiveSave && next.entries.count == 4 && next.archiveNotice != nil,
+                    "real completed result remains visible and retryable after write failure")
+        do {
+            _ = try next.prepareBranch(source: prior, assistantID: prior.turns[0].assistantID, title: "Branch")
+            throw Failure(name: "unsaved answer allowed a branch")
+        } catch ConversationBranchError.unfinishedTurn {}
+        try a.check(next.canRetryArchiveSave && other.archive.state.conversations == [prior]
+                    && (try Data(contentsOf: backup)) == before, "unsaved branch rejection preserves retry and prior ciphertext")
+        other.archive.reload()
+        try a.check(!other.archive.available && next.canRetryArchiveSave,
+                    "a failed reload cannot discard the completed pending answer")
+        try FileManager.default.removeItem(at: other.archiveFile)
+        try FileManager.default.moveItem(at: backup, to: other.archiveFile)
+        next.retryArchiveSave()
+        let reopened = other.reopen()
+        if next.canRetryArchiveSave || !reopened.available || reopened.state.conversations.first?.turns.count != 2 {
+            throw Failure(name: "retry diagnostic: retry=\(next.canRetryArchiveSave) available=\(reopened.available) rows=\(reopened.state.conversations.count) turns=\(reopened.state.conversations.first?.turns.count ?? -1) notice=\(next.archiveNotice ?? "nil")")
+        }
+        try a.check(!next.canRetryArchiveSave && reopened.state.conversations[0].turns.count == 2,
+                    "retry restores the actual completed answer after failed write")
+        return a.count
+    }
+
 }
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
@@ -1059,7 +1126,8 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
-                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation()]
+                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
+                ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
             #endif
@@ -1074,6 +1142,7 @@ final class ChatStreamingAppTests: XCTestCase {
         let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 12)
     }
     #endif
+    @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }

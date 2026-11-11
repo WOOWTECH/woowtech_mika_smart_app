@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Compare current archive bytes with the exact 0c9827e v3 decoder.
+"""Compare current archive bytes with exact historical v3 and v4 decoders.
 
-The .txt fixture is the unmodified ConversationArchive.swift from 0c9827e.
-Keeping its bytes here makes the check work in shallow CI checkouts too.
+The unmodified source fixtures keep these checks usable in shallow checkouts.
 """
 import hashlib
 import os
@@ -12,6 +11,7 @@ import tempfile
 
 
 OLD_SHA256 = "e65e62b6f0c0ab4f5a9e0c5295588f7741c73295bed374ab9c7d2ebe0ddc065a"
+V4_SHA256 = "8793560d0738f8aa758bbb834c00c4f119f37b46ba21374bb78b85750fd2d664"
 PDF_SHA256 = "0a16c0cc7a8028c22386159ce6dcab83d8d6e08580a07d27d485cebbd2d6b70e"
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +40,12 @@ import Foundation
         try save("v4-pinned")
         try archive.setPinned(id: record.id, expectedPinnedAt: pinTime, pinned: false)
         try save("v4-unpinned")
+        let current = archive.conversations[0]
+        let plan = try ConversationBranchPlan.prepare(in: archive, source: current,
+            assistantID: current.turns[0].assistantID, targetID: UUID(), title: "branch",
+            at: Date(timeIntervalSince1970: 300), isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        let branched = try plan.applying(to: archive, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        try JSONEncoder().encode(branched).write(to: root.appendingPathComponent("v5-branch.json"))
         try archive.delete(id: record.id)
         try save("v4-empty")
     }
@@ -131,6 +137,40 @@ import Foundation
 '''
 
 
+V4_READER = r'''
+import Foundation
+import LegacyV4Persistence
+
+@main enum ReadWithV4 {
+    enum Failure: Error { case result }
+    static func main() throws {
+        let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+        func data(_ name: String) throws -> Data {
+            try Data(contentsOf: root.appendingPathComponent(name + ".json"))
+        }
+        for name in ["v2", "v3", "v4-pinned", "v4-unpinned", "v4-empty"] {
+            let decoded = try JSONDecoder().decode(ConversationArchive.self, from: data(name))
+            let before = try JSONSerialization.jsonObject(with: data(name)) as! [String: Any]
+            let after = try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as! [String: Any]
+            guard before["version"] as? Int == after["version"] as? Int else { throw Failure.result }
+        }
+        do {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: data("v5-branch"))
+            throw Failure.result
+        } catch ConversationArchiveError.invalidData { }
+        // Demonstrate why falsely claiming v4 would silently drop provenance.
+        var forged = try JSONSerialization.jsonObject(with: data("v5-branch")) as! [String: Any]
+        forged["version"] = 4
+        let decoded = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: forged))
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as! [String: Any]
+        let rows = encoded["conversations"] as! [[String: Any]]
+        guard rows.count == 2 && rows.allSatisfy({ $0["branchOrigin"] == nil }) else { throw Failure.result }
+        print("actual_v4_reads_v2_v3_v4=PASS actual_v4_rejects_v5=PASS forged_v4_drops_origin=CONFIRMED")
+    }
+}
+'''
+
+
 def run(command, *, cwd, env):
     subprocess.run(command, cwd=cwd, env=env, check=True, timeout=120,
                    stdout=subprocess.DEVNULL if command[0] == "swiftc" else None)
@@ -138,9 +178,12 @@ def run(command, *, cwd, env):
 
 def main():
     old_file = ROOT / "Tests/Fixtures/ConversationArchive_0c9827e.txt"
+    v4_file = ROOT / "Tests/Fixtures/ConversationArchive_v4_c3f0cf5.txt"
     pdf_file = ROOT / "Sources/AssistantPersistence/ArchivedPDFAnswer.swift"
     if hashlib.sha256(old_file.read_bytes()).hexdigest() != OLD_SHA256:
         raise RuntimeError("old decoder fixture changed")
+    if hashlib.sha256(v4_file.read_bytes()).hexdigest() != V4_SHA256:
+        raise RuntimeError("v4 decoder fixture changed")
     if hashlib.sha256(pdf_file.read_bytes()).hexdigest() != PDF_SHA256:
         raise RuntimeError("shared PDF value decoder changed; recheck historic equivalence")
     env = {key: os.environ[key] for key in ("PATH", "DEVELOPER_DIR", "SDKROOT", "TMPDIR") if key in os.environ}
@@ -148,18 +191,25 @@ def main():
         out = Path(directory)
         legacy_source = out / "ConversationArchive_0c9827e.swift"
         legacy_source.write_bytes(old_file.read_bytes())
+        v4_source = out / "ConversationArchive_v4.swift"
+        v4_source.write_bytes(v4_file.read_bytes())
         writer_source = out / "WriteFixtures.swift"
         reader_source = out / "ReadFixtures.swift"
         current_source = out / "ReadOldV3.swift"
         writer_source.write_text(WRITER)
         reader_source.write_text(OLD_READER)
         current_source.write_text(CURRENT_READER)
+        v4_reader_source = out / "ReadWithV4.swift"
+        v4_reader_source.write_text(V4_READER)
         module_options = ["-swift-version", "5", "-parse-as-library", "-emit-module", "-emit-library"]
         run(["swiftc", *module_options, "-module-name", "AssistantPersistence",
              str(ROOT / "Sources/AssistantPersistence/ConversationArchive.swift"), str(pdf_file),
+             str(ROOT / "Sources/AssistantPersistence/ConversationMessageActions.swift"),
              "-o", str(out / "libAssistantPersistence.dylib")], cwd=out, env=env)
         run(["swiftc", *module_options, "-module-name", "LegacyPersistence",
              str(legacy_source), str(pdf_file), "-o", str(out / "libLegacyPersistence.dylib")], cwd=out, env=env)
+        run(["swiftc", *module_options, "-module-name", "LegacyV4Persistence",
+             str(v4_source), str(pdf_file), "-o", str(out / "libLegacyV4Persistence.dylib")], cwd=out, env=env)
         link = ["-I", str(out), "-L", str(out), "-Xlinker", "-rpath", "-Xlinker", str(out)]
         run(["swiftc", "-parse-as-library", *link, "-lAssistantPersistence", str(writer_source),
              "-o", str(out / "write-fixtures")], cwd=out, env=env)
@@ -167,9 +217,12 @@ def main():
              "-o", str(out / "read-fixtures")], cwd=out, env=env)
         run(["swiftc", "-parse-as-library", *link, "-lAssistantPersistence", str(current_source),
              "-o", str(out / "read-old-v3")], cwd=out, env=env)
+        run(["swiftc", "-parse-as-library", *link, "-lLegacyV4Persistence", str(v4_reader_source),
+             "-o", str(out / "read-v4")], cwd=out, env=env)
         run([str(out / "write-fixtures"), str(out)], cwd=out, env=env)
         run([str(out / "read-fixtures"), str(out)], cwd=out, env=env)
         run([str(out / "read-old-v3"), str(out)], cwd=out, env=env)
+        run([str(out / "read-v4"), str(out)], cwd=out, env=env)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ def main():
         app = copy("scripts/CheckConversationArchiveApp.swift")
         prior = copy("scripts/CheckProfileChatApp.swift")
         for path in ["scripts/check_conversation_archive_app.py", "scripts/check_conversation_archive_v3_decoder.py",
-                     "Tests/Fixtures/ConversationArchive_0c9827e.txt", "scripts/check_task_notifications.py",
+                     "Tests/Fixtures/ConversationArchive_0c9827e.txt", "Tests/Fixtures/ConversationArchive_v4_c3f0cf5.txt", "scripts/check_task_notifications.py",
                      "scripts/check_profile_chat_app.py", "scripts/check_chat_context_window.py",
                      "Tests/AssistantModelsTests/ChatContextWindowTests.swift"]:
             copy(path)

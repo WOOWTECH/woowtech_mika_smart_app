@@ -1,5 +1,10 @@
 import CryptoKit
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 public protocol LearningKeyStore {
     func read(id: String) throws -> Data?
@@ -30,6 +35,24 @@ public final class EncryptedLearningFile {
     public init(url: URL, keys: any LearningKeyStore) {
         self.url = url
         self.keys = keys
+    }
+
+    /// Coordinates read-modify-write transactions across independent vault
+    /// instances and processes. Callers must re-load inside this lock before
+    /// changing the snapshot; atomic rename alone does not prevent lost writes.
+    @discardableResult public func withExclusiveAccess<T>(_ operation: () throws -> T) throws -> T {
+        let directory = url.deletingLastPathComponent()
+        do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+        catch { throw LearningFileError.unavailable }
+        let lockPath = url.path + ".lock"
+        let descriptor = open(lockPath, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
+        guard descriptor >= 0 else { throw LearningFileError.unavailable }
+        defer { close(descriptor) }
+        while flock(descriptor, LOCK_EX) != 0 {
+            guard errno == EINTR else { throw LearningFileError.unavailable }
+        }
+        defer { _ = flock(descriptor, LOCK_UN) }
+        return try operation()
     }
 
     public func load<T: Decodable>(_ type: T.Type) throws -> T? {

@@ -22,7 +22,7 @@ import Foundation
         do {
             let location = try Self.location(arguments: ProcessInfo.processInfo.arguments)
             let file = EncryptedLearningFile(url: location.url, keys: LearningKeychainStore(service: location.service))
-            if location.reset { try file.save(ConversationArchive(), rotateKey: true) }
+            if location.reset { try file.withExclusiveAccess { try file.save(ConversationArchive(), rotateKey: true) } }
             vault = file
             reload()
         } catch {
@@ -34,7 +34,7 @@ import Foundation
     func reload() {
         do {
             guard let vault else { throw ConversationArchiveError.unavailable }
-            let next = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            let next = try vault.withExclusiveAccess { try vault.load(ConversationArchive.self) ?? ConversationArchive() }
             state = next; available = true; error = nil
         } catch { available = false; self.error = Self.readFailure }
     }
@@ -43,43 +43,67 @@ import Foundation
     /// a late response, and unrelated conversation deletion does not block this row.
     func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        let current = state.conversations.first(where: { $0.id == record.id })
-        // Display-only renames and pins may happen while a request is running.
-        // Compare the transcript snapshot, then retain the newest metadata.
-        guard current?.id == expected?.id,
-              current?.destination == expected?.destination,
-              current?.updatedAt == expected?.updatedAt,
-              current?.turns == expected?.turns else {
-            throw ConversationArchiveError.staleConversation
+        let next = try vault.withExclusiveAccess {
+            var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            let current = latest.conversations.first(where: { $0.id == record.id })
+            // Display-only renames and pins may happen while a request runs.
+            guard current?.id == expected?.id,
+                  current?.destination == expected?.destination,
+                  current?.updatedAt == expected?.updatedAt,
+                  current?.turns == expected?.turns else {
+                throw ConversationArchiveError.staleConversation
+            }
+            try latest.save(record)
+            try vault.save(latest)
+            return latest
         }
-        var next = state
-        try next.save(record)
-        try vault.save(next)
+        state = next; error = nil
+    }
+
+    /// Publish only after the complete branch snapshot is encrypted and saved.
+    func commitBranch(_ plan: ConversationBranchPlan, isBusy: Bool, hasUnfinishedOrUnsavedTurn: Bool) throws {
+        guard available, let vault else { throw ConversationArchiveError.unavailable }
+        let next = try vault.withExclusiveAccess {
+            let latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            let next = try plan.applying(to: latest, isBusy: isBusy,
+                                         hasUnfinishedOrUnsavedTurn: hasUnfinishedOrUnsavedTurn)
+            try vault.save(next)
+            return next
+        }
         state = next; error = nil
     }
 
     func rename(id: UUID, expectedTitle: String?, to title: String) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        var next = state
-        try next.rename(id: id, expectedTitle: expectedTitle, to: title)
-        try vault.save(next)
+        let next = try vault.withExclusiveAccess {
+            var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            try latest.rename(id: id, expectedTitle: expectedTitle, to: title)
+            try vault.save(latest)
+            return latest
+        }
         state = next; error = nil
     }
 
     func setPinned(id: UUID, expectedPinnedAt: Date?, pinned: Bool) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        var next = state
-        try next.setPinned(id: id, expectedPinnedAt: expectedPinnedAt, pinned: pinned)
-        try vault.save(next)
+        let next = try vault.withExclusiveAccess {
+            var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+            try latest.setPinned(id: id, expectedPinnedAt: expectedPinnedAt, pinned: pinned)
+            try vault.save(latest)
+            return latest
+        }
         state = next; error = nil
     }
 
     @discardableResult func delete(id: UUID) -> Bool {
         do {
             guard available, let vault else { throw ConversationArchiveError.unavailable }
-            var next = state
-            try next.delete(id: id)
-            try vault.save(next)
+            let next = try vault.withExclusiveAccess {
+                var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
+                try latest.delete(id: id)
+                try vault.save(latest)
+                return latest
+            }
             state = next; error = nil
             return true
         } catch { self.error = "刪除未儲存，原對話仍保留。請解鎖後重試。"; return false }

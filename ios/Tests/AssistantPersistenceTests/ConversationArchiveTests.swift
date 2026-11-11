@@ -1,6 +1,13 @@
 import AssistantPersistence
 import Foundation
 
+private final class ArchiveLockTestKeys: LearningKeyStore {
+    func read(id: String) throws -> Data? { nil }
+    func insert(_ key: Data, id: String) throws {}
+    func remove(id: String) throws {}
+    func removeAll(except id: String) throws {}
+}
+
 enum ConversationArchiveChecks {
     struct Failure: Error { let name: String }
     struct Assertions {
@@ -15,6 +22,43 @@ enum ConversationArchiveChecks {
     }
     static func destination() throws -> ConversationDestination {
         try .init(baseURL: "https://archive.example.invalid/v1", model: "fixture", credentialAccount: UUID())
+    }
+
+    static func independentVaultLocks() throws -> Int {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("woow-vault-lock-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("archive.vault")
+        let first = EncryptedLearningFile(url: path, keys: ArchiveLockTestKeys())
+        let second = EncryptedLearningFile(url: path, keys: ArchiveLockTestKeys())
+        let held = DispatchSemaphore(value: 0), started = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0), entered = DispatchSemaphore(value: 0)
+        let group = DispatchGroup(), lock = NSLock()
+        var errors = 0
+        func failed() { lock.lock(); errors += 1; lock.unlock() }
+        group.enter()
+        DispatchQueue.global().async {
+            defer { group.leave() }
+            do { try first.withExclusiveAccess { held.signal(); release.wait() } }
+            catch { failed(); held.signal() }
+        }
+        let acquired = held.wait(timeout: .now() + 5) == .success
+        group.enter()
+        DispatchQueue.global().async {
+            defer { group.leave() }
+            started.signal()
+            do { try second.withExclusiveAccess { entered.signal() } }
+            catch { failed(); entered.signal() }
+        }
+        let secondStarted = started.wait(timeout: .now() + 5) == .success
+        let blocked = entered.wait(timeout: .now() + 0.2) == .timedOut
+        release.signal()
+        let laterEntered = entered.wait(timeout: .now() + 5) == .success
+        let finished = group.wait(timeout: .now() + 5) == .success
+        lock.lock(); let errorCount = errors; lock.unlock()
+        guard acquired && secondStarted && blocked && laterEntered && finished && errorCount == 0 else {
+            throw Failure(name: "independent vault instances must serialize access to the same archive")
+        }
+        return 1
     }
     static func row(destination: ConversationDestination, turns: [ArchivedConversationTurn]? = nil) throws -> ArchivedConversation {
         try .init(id: UUID(), destination: destination, updatedAt: Date(timeIntervalSince1970: 100),
@@ -136,7 +180,7 @@ enum ConversationArchiveChecks {
             var bad = json; bad.removeValue(forKey: field)
             try a.rejects("required archive field " + field) { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
-        for value: Any in [5, "1", NSNull()] {
+        for value: Any in [6, "1", NSNull()] {
             var bad = json; bad["version"] = value
             try a.rejects("unknown/malformed version") { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
@@ -314,8 +358,13 @@ enum ConversationArchiveChecks {
                     "model append preserves both independent user metadata fields")
         let encoded = try JSONEncoder().encode(archive)
         let reopened = try JSONDecoder().decode(ConversationArchive.self, from: encoded)
-        try a.check(reopened == archive && reopened.drawerConversations.map(\.id) == archive.drawerConversations.map(\.id),
-                    "v4 pin and stable ordering survive decode and re-encode")
+        try a.check(reopened == archive && reopened.drawerConversations.map(\.id) == archive.drawerConversations.map(\.id)
+                    && (try version(reopened)) == 4,
+                    "reading and rewriting a v4 archive retains its version and ordering")
+        var ordinaryOnV4 = reopened
+        try ordinaryOnV4.save(conversation("ordinary after v4", at: 450))
+        try a.check(try version(ordinaryOnV4) == 4,
+                    "adding an ordinary non-branch conversation to v4 does not upgrade to v5")
         var forgedV2 = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         forgedV2["version"] = 2
         try a.rejects("v2 must reject title and pin metadata") {
@@ -436,6 +485,8 @@ enum ConversationArchiveChecks {
             throw Failure(name: name)
         }
         let plan = try prepare(turns[1].assistantID)
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(archive)) as! [String: Any])["version"] as? Int == 4,
+                    "preparing a branch does not write origin or upgrade the source archive")
         try a.check(plan.parentTurn == 1 && plan.source == source && plan.branch.id == target && plan.branch.destination == dest,
                     "branch identifies its source, selected completed turn and destination")
         try a.check(plan.branch.turns.count == 2 && plan.branch.turns.map(\.userText) == turns.prefix(2).map(\.userText)
@@ -452,8 +503,29 @@ enum ConversationArchiveChecks {
                     "source transcript, title, pin and activity are unchanged")
         try a.check(branched.turns == plan.branch.turns && branched.customTitle == "Source · 分支" && branched.pinnedAt == nil,
                     "branch has its own title and does not inherit the pin")
-        try a.check(try JSONDecoder().decode(ConversationArchive.self, from: JSONEncoder().encode(result)) == result,
-                    "branch snapshot survives encrypted-archive serialization")
+        let resultBytes = try JSONEncoder().encode(result)
+        try a.check(try JSONDecoder().decode(ConversationArchive.self, from: resultBytes) == result,
+                    "branch snapshot survives archive serialization")
+        try a.check(branched.branchOrigin?.parentID == source.id && branched.branchOrigin?.parentTurn == 1,
+                    "branch origin survives with the selected parent and turn")
+        var forged = try JSONSerialization.jsonObject(with: resultBytes) as! [String: Any]
+        try a.check(forged["version"] as? Int == 5, "branch origin upgrades archive to v5")
+        forged["version"] = 4
+        try a.rejects("v4 must not silently accept v5 branch origin") {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: forged))
+        }
+        var changedBranch = result
+        try changedBranch.setPinned(id: target, expectedPinnedAt: nil, pinned: true, at: time)
+        let pin = changedBranch.conversations.first { $0.id == target }!.pinnedAt
+        try changedBranch.setPinned(id: target, expectedPinnedAt: pin, pinned: false)
+        try changedBranch.rename(id: target, expectedTitle: branched.customTitle, to: "Renamed branch")
+        try changedBranch.delete(id: source.id)
+        try a.check(changedBranch.conversations[0].branchOrigin == branched.branchOrigin
+                    && (try JSONSerialization.jsonObject(with: JSONEncoder().encode(changedBranch)) as! [String: Any])["version"] as? Int == 5,
+                    "pin, rename and parent deletion preserve origin and never downgrade v5")
+        try changedBranch.delete(id: target)
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(changedBranch)) as! [String: Any])["version"] as? Int == 5,
+                    "deleting last branch never downgrades the archive")
         try rejectsBranch(.invalidSelection, "user ID is not an assistant branch point") { _ = try prepare(turns[1].userID) }
         try rejectsBranch(.invalidSelection, "unknown or unfinished preview ID is not an archived turn") { _ = try prepare(UUID()) }
         try rejectsBranch(.blocked, "busy conversation cannot prepare branch") { _ = try prepare(turns[0].assistantID, busy: true) }
@@ -490,13 +562,15 @@ enum ConversationArchiveChecks {
         let groups = try [ConversationArchiveChecks.roundTripAndIdentity(), ConversationArchiveChecks.malformedState(),
                           ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend(),
                           ConversationArchiveChecks.versionCompatibility(),
-                          ConversationArchiveChecks.pinMigrationOrderingAndCapacity(), ConversationArchiveChecks.quoteAndBranch()]
-        print("{\"groups\":7,\"assertions\":\(groups.reduce(0,+))}")
+                          ConversationArchiveChecks.pinMigrationOrderingAndCapacity(), ConversationArchiveChecks.quoteAndBranch(),
+                          ConversationArchiveChecks.independentVaultLocks()]
+        print("{\"groups\":8,\"assertions\":\(groups.reduce(0,+))}")
     }
 }
 #else
 import XCTest
 final class ConversationArchiveTests: XCTestCase {
+    func testIndependentVaultLocks() throws { XCTAssertEqual(try ConversationArchiveChecks.independentVaultLocks(), 1) }
     func testQuoteAndBranch() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.quoteAndBranch(), 0) }
     func testRoundTripAndIdentity() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.roundTripAndIdentity(), 0) }
     func testMalformedState() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.malformedState(), 0) }
