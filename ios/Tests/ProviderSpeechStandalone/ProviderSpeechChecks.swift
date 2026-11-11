@@ -72,8 +72,11 @@ private final class SpeechURLProtocol: URLProtocol {
         // request construction must reject it before any audio can be sent.
         let invalidAuthorities = [
             "https://site.invalid:/v1", "https://site.invalid:0/v1",
+            "https://site.invalid:00/v1", "https://site.invalid:01/v1",
+            "https://site.invalid:000443/v1", "https://site.invalid:00065535/v1",
             "https://site.invalid:65536/v1", "https://site.invalid:999999999999999999999999/v1",
             "https://site.invalid:12:34/v1", "https://[::1]:/v1", "https://[::1]:0/v1",
+            "https://[::1]:01/v1", "https://[::1]:000443/v1", "https://[::1]:00065535/v1",
             "https://[::1]:65536/v1", "https://[::1]:999999999999999999999999/v1",
             "https://[::1]extra/v1", "https://[not-ipv6]/v1", "https://[::1%25en0]/v1",
             "https://user@site.invalid/v1", "https://site.invalid%3a443/v1"
@@ -163,6 +166,12 @@ private final class SpeechURLProtocol: URLProtocol {
                 _ = try await URLSessionSpeechTransport(session: localSession).send(badRequest)
                 fatalError("transport accepted malformed destination: \(raw)")
             } catch let error as SpeechProviderError { check(error == .invalidConfiguration, "transport independently rejects malformed authority") }
+        }
+        for authority in validAuthorities {
+            var validRequest = multipart
+            validRequest.url = URL(string: "https://\(authority)/v1/audio/transcriptions")!
+            let (response, status) = try await URLSessionSpeechTransport(session: localSession).send(validRequest)
+            check(status == 200 && !response.isEmpty, "transport accepts canonical authority: \(authority)")
         }
         let sessionTranscript = try await networkClient.transcribe(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav)
         check(sessionTranscript == "mock session", "URLSession transport through intercepting URLProtocol")

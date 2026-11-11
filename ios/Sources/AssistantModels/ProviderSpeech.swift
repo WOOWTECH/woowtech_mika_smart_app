@@ -42,7 +42,8 @@ private enum SpeechHTTPSDestination {
             guard portSuffix.first == ":" else { throw SpeechProviderError.invalidConfiguration }
             let digits = portSuffix.dropFirst()
             guard !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
-                  let port = Int(digits), (1...65535).contains(port), parts.port == port else {
+                  let port = Int(digits), (1...65535).contains(port),
+                  digits == String(port), parts.port == port else {
                 throw SpeechProviderError.invalidConfiguration
             }
         }
