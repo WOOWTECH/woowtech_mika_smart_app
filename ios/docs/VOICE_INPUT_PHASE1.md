@@ -1,6 +1,6 @@
 # 聊天語音輸入：第一階段，尚未接入
 
-**更新：**全 WebKit 獨占不是語音接入的必要前提；新版可注入混音候選與驗收計畫見 [VOICE_AUDIO_MIXED_CANDIDATE.md](VOICE_AUDIO_MIXED_CANDIDATE.md)。下列隔離 fence 是可選實驗，並非新版混音策略的必要條件。
+**歷史階段：**全 WebKit 獨占不是語音接入的必要前提；下列隔離 fence 是可選實驗，並非混音策略的必要條件。目前接線與待驗限制見 [chat-voice-ui-validation.md](chat-voice-ui-validation.md)，混音設計見 [VOICE_AUDIO_MIXED_CANDIDATE.md](VOICE_AUDIO_MIXED_CANDIDATE.md)。
 
 此提交只提供可審查的底層候選。輸入區沒有語音按鈕或手勢，使用者不能使用此功能；未宣稱與 Android 完整對齊。純 Swift 狀態機及合成 driver 以 Command Line Tools 測試，Apple Speech 介面、iOS SDK 類型檢查、模擬器與實機均尚未驗證。`content-transcribe` 技能處理的是已核准的文字／字幕，與聊天聽寫不同。
 

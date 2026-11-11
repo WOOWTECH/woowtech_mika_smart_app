@@ -450,7 +450,7 @@
 "localPDFSearch.hit" = "Original page %1$lld (selection %2$lld)";
 "localPDFSearch.sourceFailed" = "Could not create a search snapshot. Make sure readable text was extracted.";
 "chat.voiceLabel" = "Voice input";
-"chat.voiceHint" = "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop.";
+"chat.voiceHint" = "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop, or choose the cancel voice input action.";
 "chat.voiceListening" = "Listening. Release to add to draft; slide up to cancel.";
 "chat.voiceCancelArmed" = "Release to cancel voice input.";
 "chat.voiceFinishing" = "Transcribing speech…";
@@ -464,3 +464,4 @@
 "chat.voiceTimeout" = "Speech recognition timed out. Please try again.";
 "chat.voiceSettings" = "Open Settings";
 "chat.voiceInterrupted" = "Voice input was interrupted. If you just granted access, hold to speak again.";
+"chat.voiceAccessibilityCancel" = "Cancel voice input";
