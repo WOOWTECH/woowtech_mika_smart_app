@@ -1,4 +1,5 @@
 import XCTest
+import CoreGraphics
 
 // These tests always use the DEBUG fixture, never provider credentials or the network.
 final class WoowAssistantUITests: XCTestCase {
@@ -205,8 +206,18 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("chat", in: app)
         assertDraft("Keep this draft 42", in: app)
         let restoredDraft = chatDraftControl(in: app)
-        restoredDraft.tap()
-        restoredDraft.typeText("\nSecond line")
+        waitUntilHittable(restoredDraft)
+        XCTAssertFalse(restoredDraft.frame.isEmpty)
+        XCTAssertTrue(app.frame.contains(restoredDraft.frame))
+        XCTAssertLessThanOrEqual(restoredDraft.frame.maxY, mikaUnobscuredBottom(in: app))
+        // A generic AX tap landed the caret before the first character on
+        // iOS 18. Tap the field's trailing text area, as a user appending to
+        // the retained draft would, then verify the insertion point via value.
+        restoredDraft.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        restoredDraft.typeText("\nS")
+        assertDraft("Keep this draft 42\nS", in: app)
+        restoredDraft.typeText("econd line")
         assertDraft("Keep this draft 42\nSecond line", in: app)
         app.buttons["chat.dismissKeyboard"].tap()
         assertDraft("Keep this draft 42\nSecond line", in: app)
