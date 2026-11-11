@@ -8,12 +8,21 @@ text files; this is not a Photos-library picker or a PDF flow. Choosing a file
 starts local import immediately. The sheet displays its sanitized name, actual
 size, progress, errors, and a destination review; confirmation itself does not
 send. Dismissing the sheet retains the host-owned staged selection.
+The displayed filename, destination URL and model name can themselves contain
+personal or sensitive information. The view does not display attachment bytes;
+this is not a claim that the screen contains no personal information.
+The host injects `AppLocalizer` from the current interface language and refreshes
+it when that language changes. App-owned labels, errors and disclosure categories
+use the shared Traditional Chinese, Simplified Chinese and English catalog;
+filenames, model names and URLs are shown verbatim and are not translated.
 
 `picked(_:)` must be called synchronously only from a successful picker callback.
 It acquires a security scope immediately, before starting asynchronous work.
 The scoped reader closes it exactly once after the real coordinated read returns;
 if cancellation wins before read begins it closes immediately and blocks a late
 read. A provider that ignores cancellation may keep the scope until it returns.
+Synchronous removal or replacement from the loading-state observer is checked
+before the preparation task starts, so the invalidated reader is never invoked.
 A failed scope acquisition is allowed for already-accessible local URLs; the
 coordinated reader still checks actual file access. No security bookmark is
 created. The strict inode and image-decoding restrictions in

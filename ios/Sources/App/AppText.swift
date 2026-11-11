@@ -431,6 +431,55 @@ enum AppText: Equatable {
     case newConversationDraftRetained
     case newConversationDiscard
     case newConversationKeep
+    case attachmentTitle
+    case attachmentLocalNotice
+    case attachmentLimits
+    case attachmentSection
+    case attachmentConsumed
+    case attachmentEmpty
+    case attachmentLoading
+    case attachmentMetadata(count: Int, kind: String)
+    case attachmentConfirmed
+    case attachmentTaking
+    case attachmentSelect
+    case attachmentReplace
+    case attachmentRemove
+    case attachmentReview
+    case attachmentDestination(value: String)
+    case attachmentModel(value: String)
+    case attachmentOtherData(value: String)
+    case attachmentSendNotice
+    case attachmentConfirm
+    case attachmentNeedsContext
+    case attachmentDone
+    case attachmentKindJPEG
+    case attachmentKindPNG
+    case attachmentKindText
+    case attachmentDataNone
+    case attachmentDataSeparator
+    case attachmentDataSystem
+    case attachmentDataQuestion
+    case attachmentDataHistory
+    case attachmentDataProfile
+    case attachmentDataMemory
+    case attachmentDataSkills
+    case attachmentDataTools
+    case attachmentErrorPicker
+    case attachmentErrorContext
+    case attachmentErrorContextChanged
+    case attachmentErrorConfirmation
+    case attachmentErrorVisionUnknown
+    case attachmentErrorVisionUnsupported
+    case attachmentErrorSelection
+    case attachmentErrorType
+    case attachmentErrorRead
+    case attachmentErrorTooLarge
+    case attachmentErrorEmpty
+    case attachmentErrorFormat
+    case attachmentErrorImageSize
+    case attachmentErrorCancelled
+    case attachmentErrorTimeout
+    case attachmentErrorState
 
     var key: String {
         switch self {
@@ -862,6 +911,55 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "newConversation.draftRetained"
         case .newConversationDiscard: return "newConversation.discard"
         case .newConversationKeep: return "newConversation.keep"
+        case .attachmentTitle: return "attachment.title"
+        case .attachmentLocalNotice: return "attachment.localNotice"
+        case .attachmentLimits: return "attachment.limits"
+        case .attachmentSection: return "attachment.section"
+        case .attachmentConsumed: return "attachment.consumed"
+        case .attachmentEmpty: return "attachment.empty"
+        case .attachmentLoading: return "attachment.loading"
+        case .attachmentMetadata: return "attachment.metadata"
+        case .attachmentConfirmed: return "attachment.confirmed"
+        case .attachmentTaking: return "attachment.taking"
+        case .attachmentSelect: return "attachment.select"
+        case .attachmentReplace: return "attachment.replace"
+        case .attachmentRemove: return "attachment.remove"
+        case .attachmentReview: return "attachment.review"
+        case .attachmentDestination: return "attachment.destination"
+        case .attachmentModel: return "attachment.model"
+        case .attachmentOtherData: return "attachment.otherData"
+        case .attachmentSendNotice: return "attachment.sendNotice"
+        case .attachmentConfirm: return "attachment.confirm"
+        case .attachmentNeedsContext: return "attachment.needsContext"
+        case .attachmentDone: return "attachment.done"
+        case .attachmentKindJPEG: return "attachment.kindJPEG"
+        case .attachmentKindPNG: return "attachment.kindPNG"
+        case .attachmentKindText: return "attachment.kindText"
+        case .attachmentDataNone: return "attachment.dataNone"
+        case .attachmentDataSeparator: return "attachment.dataSeparator"
+        case .attachmentDataSystem: return "attachment.dataSystem"
+        case .attachmentDataQuestion: return "attachment.dataQuestion"
+        case .attachmentDataHistory: return "attachment.dataHistory"
+        case .attachmentDataProfile: return "attachment.dataProfile"
+        case .attachmentDataMemory: return "attachment.dataMemory"
+        case .attachmentDataSkills: return "attachment.dataSkills"
+        case .attachmentDataTools: return "attachment.dataTools"
+        case .attachmentErrorPicker: return "attachment.errorPicker"
+        case .attachmentErrorContext: return "attachment.errorContext"
+        case .attachmentErrorContextChanged: return "attachment.errorContextChanged"
+        case .attachmentErrorConfirmation: return "attachment.errorConfirmation"
+        case .attachmentErrorVisionUnknown: return "attachment.errorVisionUnknown"
+        case .attachmentErrorVisionUnsupported: return "attachment.errorVisionUnsupported"
+        case .attachmentErrorSelection: return "attachment.errorSelection"
+        case .attachmentErrorType: return "attachment.errorType"
+        case .attachmentErrorRead: return "attachment.errorRead"
+        case .attachmentErrorTooLarge: return "attachment.errorTooLarge"
+        case .attachmentErrorEmpty: return "attachment.errorEmpty"
+        case .attachmentErrorFormat: return "attachment.errorFormat"
+        case .attachmentErrorImageSize: return "attachment.errorImageSize"
+        case .attachmentErrorCancelled: return "attachment.errorCancelled"
+        case .attachmentErrorTimeout: return "attachment.errorTimeout"
+        case .attachmentErrorState: return "attachment.errorState"
         }
     }
 
@@ -886,6 +984,10 @@ enum AppText: Equatable {
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .drawerRecentTurns(let count): return [Int64(count)]
+        case .attachmentMetadata(let count, let kind): return [Int64(count), kind]
+        case .attachmentDestination(let value): return [value]
+        case .attachmentModel(let value): return [value]
+        case .attachmentOtherData(let value): return [value]
         default: return []
         }
     }
@@ -1321,6 +1423,55 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "已有的純文字草稿會保留。"
         case .newConversationDiscard: return "捨棄並開啟新對話"
         case .newConversationKeep: return "返回目前對話"
+        case .attachmentTitle: return "聊天附件"
+        case .attachmentLocalNotice: return "選取後會在此裝置讀取及檢查檔案；本頁不會傳送或儲存原始附件。"
+        case .attachmentLimits: return "限一個 JPEG、PNG（最多 5 MiB）或 UTF-8 文字檔（最多 32 KiB）；PDF 使用另一個功能。"
+        case .attachmentSection: return "附件"
+        case .attachmentConsumed: return "附件已交給主程式。"
+        case .attachmentEmpty: return "尚未選取附件。"
+        case .attachmentLoading: return "正在讀取及檢查附件。"
+        case .attachmentMetadata: return "%1$lld 位元組 · %2$@"
+        case .attachmentConfirmed: return "已確認此範圍；尚未傳送。"
+        case .attachmentTaking: return "正在交給主程式。"
+        case .attachmentSelect: return "選取附件"
+        case .attachmentReplace: return "更換附件（移除目前附件）"
+        case .attachmentRemove: return "移除附件"
+        case .attachmentReview: return "傳送前確認"
+        case .attachmentDestination: return "目的服務：%1$@"
+        case .attachmentModel: return "模型：%1$@"
+        case .attachmentOtherData: return "另會傳送：%1$@"
+        case .attachmentSendNotice: return "確認後，主程式可在這一次請求中傳送完整附件；按下確認本身不會傳送。"
+        case .attachmentConfirm: return "確認本次傳送範圍"
+        case .attachmentNeedsContext: return "請先設定模型與本次傳送範圍。"
+        case .attachmentDone: return "完成"
+        case .attachmentKindJPEG: return "JPEG 圖片"
+        case .attachmentKindPNG: return "PNG 圖片"
+        case .attachmentKindText: return "UTF-8 文字"
+        case .attachmentDataNone: return "沒有其他資料"
+        case .attachmentDataSeparator: return "、"
+        case .attachmentDataSystem: return "系統指示"
+        case .attachmentDataQuestion: return "本次問題"
+        case .attachmentDataHistory: return "對話紀錄"
+        case .attachmentDataProfile: return "個人檔案"
+        case .attachmentDataMemory: return "相關記憶"
+        case .attachmentDataSkills: return "技能參考"
+        case .attachmentDataTools: return "工具資料"
+        case .attachmentErrorPicker: return "無法取得選取的檔案；請重新選取。"
+        case .attachmentErrorContext: return "模型目的地或傳送範圍尚未準備完成。"
+        case .attachmentErrorContextChanged: return "目的地或傳送內容已變更，請重新確認附件。"
+        case .attachmentErrorConfirmation: return "請先確認本次附件的傳送範圍。"
+        case .attachmentErrorVisionUnknown: return "此模型的圖片支援狀態未知，無法確認傳送。"
+        case .attachmentErrorVisionUnsupported: return "此模型不支援圖片，無法確認傳送。"
+        case .attachmentErrorSelection: return "無法使用這個選取項目。"
+        case .attachmentErrorType: return "僅支援 JPEG、PNG 或 UTF-8 文字檔。"
+        case .attachmentErrorRead: return "無法讀取選取的檔案，請重新選取。"
+        case .attachmentErrorTooLarge: return "檔案超過大小限制。"
+        case .attachmentErrorEmpty: return "選取的檔案是空的。"
+        case .attachmentErrorFormat: return "檔案格式無效或內容不完整。"
+        case .attachmentErrorImageSize: return "圖片像素過多，無法安全解碼。"
+        case .attachmentErrorCancelled: return "已取消附件匯入。"
+        case .attachmentErrorTimeout: return "附件讀取逾時，請重新選取。"
+        case .attachmentErrorState: return "附件已使用、移除或尚未準備完成。"
         }
     }
 }

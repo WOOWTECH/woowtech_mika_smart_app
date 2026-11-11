@@ -5,17 +5,6 @@ import Foundation
 /// file/provider text as a supposed disclosure.
 public enum ChatAttachmentAdditionalData: String, CaseIterable, Sendable, Hashable {
     case systemInstructions, currentQuestion, conversationHistory, profile, memory, skills, toolData
-    public var label: String {
-        switch self {
-        case .systemInstructions: return "系統指示"
-        case .currentQuestion: return "本次問題"
-        case .conversationHistory: return "對話紀錄"
-        case .profile: return "個人檔案"
-        case .memory: return "相關記憶"
-        case .skills: return "技能參考"
-        case .toolData: return "工具資料"
-        }
-    }
 }
 
 /// Non-secret host-provided review snapshot. The host MUST mint new revision
@@ -28,10 +17,6 @@ public struct ChatAttachmentReviewContext: Sendable, Equatable {
     public let inputRevision: UUID
     public let additionalData: Set<ChatAttachmentAdditionalData>
     public let vision: ModelVisionCapability
-    public var additionalDataDescription: String {
-        let labels = ChatAttachmentAdditionalData.allCases.filter { additionalData.contains($0) }.map(\.label)
-        return labels.isEmpty ? "沒有其他資料" : labels.joined(separator: "、")
-    }
 
     public init(baseURL: URL, model: String, credentialRevision: UUID, inputRevision: UUID,
                 additionalData: Set<ChatAttachmentAdditionalData>, vision: ModelVisionCapability) throws {
@@ -75,7 +60,8 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
     public let context: ChatAttachmentReviewContext?
 }
 
-/// No network, model client, key, persistence or URL is exposed through state.
+/// State contains a filename and destination URL, which may be sensitive. It
+/// exposes no attachment bytes, selected file URL, model key or network client.
 /// The host owns this object across sheet presentation and MUST discard it when
 /// the draft/conversation is abandoned. It also owns any value returned by take.
 @MainActor public final class ChatAttachmentPresenter {
@@ -116,6 +102,14 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
         let id = generation
         session = next
         state = .init(phase: .loading(filename: selection.filename), error: nil, context: state.context)
+        // Publishing can synchronously invoke onChange, which may discard or
+        // replace this selection before any preparation task exists. Never
+        // start a reader for a session invalidated by that callback.
+        guard generation == id, session === next else {
+            Task.detached { reader.cancel() }
+            Task { await next.discard() }
+            return
+        }
         preparation = Task { [weak self, next] in
             do {
                 let metadata = try await next.load()
