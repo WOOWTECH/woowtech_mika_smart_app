@@ -50,7 +50,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .websitesAndRoutes: return ("網站知識與路線（%lld／%lld）", "网站知识与路线（%lld／%lld）", "Website notes and routes (%lld/%lld)")
         case .routesHelp: return ("網頁路線以實際讀取與完成判定建立；目前只支援公開網站的導覽與核對。", "网页路线根据实际读取和完成判定建立；目前仅支持公开网站的导航与核对。", "Web routes are saved after actual reading and outcome review. Only navigation and verification on public sites are supported.")
         case .webLogins: return ("網站登入", "网站登录", "Website sign-ins")
-        case .webLoginsHelp: return ("網站登入資料由 WebKit 儲存，可在瀏覽器的網站頁面查看與清除。", "网站登录数据由 WebKit 保存，可在浏览器的网站页面查看和清除。", "WebKit stores website login data. View or clear it from the browser's Websites page.")
+        case .webLoginsHelp: return ("查看與清除 WebKit 網站資料；清單中的網站不一定已登入。", "查看和清除 WebKit 网站数据；列表中的网站不一定已登录。", "View and clear WebKit website data. Listed sites are not necessarily signed in.")
         case .storedData: return ("儲存的資料", "保存的数据", "Saved data")
         case .clearAll: return ("全部清除", "全部清除", "Clear all")
         case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "删除所有记忆和学到的技能", "Delete all memory and learned skills")
