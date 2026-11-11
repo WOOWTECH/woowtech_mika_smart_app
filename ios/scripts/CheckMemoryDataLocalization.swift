@@ -18,6 +18,9 @@ enum CheckMemoryDataLocalization {
         precondition(keys.allSatisfy { key in
             !english.text(key).unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
         })
+        precondition(traditional.text(.webLoginsHelp).contains("不一定已登入"))
+        precondition(simplified.text(.webLoginsHelp).contains("不一定已登录"))
+        precondition(english.text(.webLoginsHelp).contains("not necessarily signed in"))
         precondition(traditional.text(.emptyMemory) == "尚未儲存記憶。")
         precondition(traditional.text(.emptyPending) == "沒有待確認的內容。")
         precondition(traditional.text(.skillTrial) == "試用中 · 尚未驗證")

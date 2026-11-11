@@ -141,6 +141,76 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         XCTAssertEqual(calls, 1, "A repeated discard cannot revive the session")
     }
 
+    #if DEBUG
+    @MainActor func testDeferredBrowserAppearanceResumesOnlyAfterWebsiteClearCompletes() async throws {
+        try await checkDeferredAppearance(leavesBeforeCompletion: false)
+    }
+
+    @MainActor func testDeferredBrowserAppearanceDoesNotResumeAfterLeaving() async throws {
+        try await checkDeferredAppearance(leavesBeforeCompletion: true)
+    }
+
+    @MainActor private func checkDeferredAppearance(leavesBeforeCompletion: Bool) async throws {
+        let host = try Host()
+        let gate = WebsiteRemovalGate()
+        addTeardownBlock { await gate.release(); await host.close() }
+        let workspace = try XCTUnwrap(host.workspace)
+        let original = host.attachSelected()
+        let url = try XCTUnwrap(URL(string: "https://research.example.invalid/deferred-clear"))
+        try await host.load(original, url: url, marker: "Before clear")
+        XCTAssertEqual(workspace.library.tabs.first?.url, url)
+        let synthetic = try cookie(name: "deferred_clear_cookie", domain: "research.example.invalid", value: "FIXTURE")
+        await setCookie(synthetic, in: host.store)
+        workspace.refreshWebsiteRecords()
+        try await waitUntil("Synthetic website record missing", timeout: 30) {
+            !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName.contains("example.invalid") }
+        }
+        let record = try XCTUnwrap(workspace.websiteRecords.first { $0.displayName.contains("example.invalid") })
+        workspace.websiteRemovalTestGate = { await gate.wait() }
+        var restoreCount = 0
+        workspace.restoredNavigationTestHook = { session in
+            restoreCount += 1
+            host.attach(session)
+            session.manualNavigation(to: url) {
+                session.webView.loadHTMLString("<html><head><title>Restored after clear</title></head><body>RESTORED</body></html>", baseURL: url)
+            }
+            if restoreCount == 1 { workspace.browserDidAppear() } // Re-entry must not repeat an in-flight restore.
+        }
+        workspace.removeWebsiteData([record])
+        try await waitUntil("Removal did not reach the controlled gate", timeout: 30) { gate.entered }
+        XCTAssertTrue(workspace.isClearingWebsiteData)
+        workspace.browserDidAppear() // The actual BrowserView invokes this on appearance.
+        XCTAssertEqual(restoreCount, 0, "No navigation while data removal is pending")
+        if leavesBeforeCompletion { workspace.browserDidDisappear() }
+        gate.release()
+        try await waitUntil("Website data removal did not finish", timeout: 75) { !workspace.isClearingWebsiteData }
+        XCTAssertNil(workspace.error)
+        XCTAssertFalse(workspace.selected === original)
+        if leavesBeforeCompletion {
+            XCTAssertEqual(restoreCount, 0, "Leaving must revoke the pending activation")
+            XCTAssertNil(workspace.selected.loadedURL)
+            workspace.browserDidAppear()
+        }
+        try await waitUntil("Visible browser did not restore its selected document", timeout: 75) {
+            restoreCount == 1 && workspace.selected.loadedURL == url && workspace.selected.pageTitle == "Restored after clear"
+        }
+        XCTAssertEqual(restoreCount, 1, "A deferred appearance must trigger exactly one navigation")
+        let left = await cookies(in: host.store)
+        XCTAssertFalse(left.contains { $0.name == synthetic.name }, "The selected cookie must actually be removed")
+        workspace.browserDidDisappear()
+    }
+
+    @MainActor private final class WebsiteRemovalGate {
+        var entered = false
+        private var continuation: CheckedContinuation<Void, Never>?
+        func wait() async {
+            entered = true
+            await withCheckedContinuation { continuation = $0 }
+        }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+    #endif
+
     @MainActor func testPersistentCookiesAreSharedAndRemovingOneRecordPreservesOtherSites() async throws {
         let host = try Host()
         addTeardownBlock { await host.close() }
@@ -195,8 +265,11 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
             }.sorted()
         }
         workspace.refreshWebsiteRecords()
+        XCTAssertTrue(workspace.isLoadingWebsiteRecords, "Do not report an empty site list before WebKit responds")
         do {
-            try await waitUntil("Website-record callback did not publish within 15 seconds") { enumeration.records != nil }
+            try await waitUntil("Website-record callback did not publish within 15 seconds") {
+                enumeration.records != nil && !workspace.isLoadingWebsiteRecords
+            }
             let returned = try XCTUnwrap(enumeration.records)
             guard returned.contains(where: {
                 $0.displayName.contains("example.invalid") && $0.dataTypes.contains(WKWebsiteDataTypeCookies)
@@ -255,7 +328,9 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         _ = try await javascript("localStorage.setItem('workspace_late_record', 'FIXTURE_LATE'); 'written'", in: secondWebView)
         let publicationsBeforeClear = enumeration.publicationCount
         workspace.refreshWebsiteRecords() // Its callback must be invalidated by the clear below.
+        XCTAssertTrue(workspace.isLoadingWebsiteRecords)
         workspace.removeWebsiteData(records)
+        XCTAssertFalse(workspace.isLoadingWebsiteRecords, "A cancelled enumeration must not leave loading stuck")
         XCTAssertTrue(workspace.isClearingWebsiteData)
         // A refresh initiated while deleting must not race the final verified list.
         workspace.refreshWebsiteRecords()
