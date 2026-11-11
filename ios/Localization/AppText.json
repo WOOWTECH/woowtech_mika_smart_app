@@ -118,6 +118,16 @@
       }
     },
     {
+      "case": "shellBackToMemory",
+      "key": "shell.backToMemory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "返回記憶",
+        "zh-Hans": "返回记忆",
+        "en": "Back to memory"
+      }
+    },
+    {
       "case": "shellNewConversation",
       "key": "shell.newConversation",
       "parameters": [],
@@ -213,8 +223,8 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "記憶與資料",
-        "zh-Hans": "记忆与资料",
-        "en": "Memory and data"
+        "zh-Hans": "记忆与数据",
+        "en": "Memory & Data"
       }
     },
     {

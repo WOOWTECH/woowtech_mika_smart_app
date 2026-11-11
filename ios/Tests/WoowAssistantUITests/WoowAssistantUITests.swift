@@ -41,6 +41,35 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("chat", in: app)
     }
 
+    func testSettingsDetailsUseNativeBackBeforeLeavingSettings() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        openModelSettings(in: app)
+        returnFromModelSettings(in: app)
+
+        for (linkID, title, detailID) in [
+            ("settings.appearance", "外觀與模型權限", "selfConfiguration.permission"),
+            ("settings.notifications", "任務通知", "notifications.enabled")
+        ] {
+            let link = app.buttons[linkID]
+            revealSettings(link, in: app)
+            link.tap()
+            let bar = app.navigationBars[title]
+            XCTAssertTrue(bar.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: detailID).firstMatch.waitForExistence(timeout: 10))
+            XCTAssertFalse(app.buttons["section.back"].isHittable,
+                           "Root back must not cover the native detail Back button.")
+            let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+            waitUntilHittable(nativeBack)
+            nativeBack.tap()
+            XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["settings.modelJump"].exists)
+        }
+        XCTAssertTrue(app.buttons["section.back"].isHittable)
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+    }
+
     func testUnconfiguredSendIsDisabledAndDraftSurvivesNavigation() {
         let app = launchApp()
         XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")

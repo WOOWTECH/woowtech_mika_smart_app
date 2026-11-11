@@ -15,12 +15,16 @@ func openModelSettings(in app: XCUIApplication, file: StaticString = #filePath, 
     XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10), file: file, line: line)
     XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10), file: file, line: line)
     XCTAssertFalse(link.isHittable, file: file, line: line)
+    XCTAssertFalse(app.buttons["section.back"].isHittable,
+                   "The root shortcut must not cover the native model-detail Back button.", file: file, line: line)
 }
 
 func returnFromModelSettings(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
     let detail = app.navigationBars["模型"]
     XCTAssertTrue(detail.waitForExistence(timeout: 10), file: file, line: line)
-    let back = detail.buttons.firstMatch
+    XCTAssertFalse(app.buttons["section.back"].isHittable,
+                   "Model detail must return to Settings one level at a time.", file: file, line: line)
+    let back = detail.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
     XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isEnabled && back.isHittable,
                   file: file, line: line)
     back.tap()

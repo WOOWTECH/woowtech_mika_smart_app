@@ -4,6 +4,7 @@ import AssistantSkills
 @MainActor
 struct ContentView: View {
     @State private var selection: AppSection = .chat
+    @State private var browserReturnSection: AppSection = .chat
     @State private var showsDrawer = false
     @State private var showsArchive = false
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
@@ -38,7 +39,10 @@ struct ContentView: View {
                 case .memory:
                     MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
                                    modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-                                   onOpenBrowser: { selection = .browser })
+                                   onOpenBrowser: {
+                                       browserReturnSection = .memory
+                                       selection = .browser
+                                   })
                 case .browser:
                     BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
                 }
@@ -58,11 +62,16 @@ struct ContentView: View {
                         .accessibilityIdentifier("chat.menu")
                         .accessibilityFocused($menuHasVoiceOverFocus)
                     } else {
-                        Button { selection = .chat } label: {
+                        Button {
+                            let destination = selection == .browser ? browserReturnSection : .chat
+                            browserReturnSection = .chat
+                            selection = destination
+                        } label: {
                             Image(systemName: "chevron.backward")
                                 .frame(width: 40, height: 40)
                         }
-                        .accessibilityLabel(localizer.text(.shellBackToChat))
+                        .accessibilityLabel(localizer.text(selection == .browser && browserReturnSection == .memory
+                                                           ? .shellBackToMemory : .shellBackToChat))
                         .accessibilityIdentifier("section.back")
                         .accessibilityFocused($backHasVoiceOverFocus)
                     }
@@ -104,7 +113,11 @@ struct ContentView: View {
                           onArchive: { showsDrawer = false; showsArchive = true },
                           onSelect: { section in
                               if section == .chat { closeDrawer() }
-                              else { selection = section; showsDrawer = false }
+                              else {
+                                  browserReturnSection = .chat
+                                  selection = section
+                                  showsDrawer = false
+                              }
                           }
                       )
                       .frame(width: min(304, max(0, geometry.size.width - 48)),
@@ -132,6 +145,7 @@ struct ContentView: View {
         .preferredColorScheme(preferences.preferredColorScheme)
         .taskNotifications(chat: session, store: notifications) { destination in
             showsDrawer = false
+            browserReturnSection = .chat
             switch destination {
             case .chat: selection = .chat
             case .browser: selection = .browser

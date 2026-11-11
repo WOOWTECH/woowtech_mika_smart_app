@@ -53,6 +53,24 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["memory.preferenceScope"].firstMatch.exists)
     }
 
+    func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
+        launch()
+        openMemory()
+        tap("memory.manageWebsites", scroll: true)
+        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
+        let back = app.buttons["section.back"]
+        XCTAssertEqual(back.label, "返回記憶")
+        back.tap()
+        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["browser.status"].isHittable)
+
+        tap("memory.manageWebsites", scroll: true)
+        navigateMikaSection("settings", in: app)
+        XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 10))
+        navigateMikaSection("browser", in: app)
+        XCTAssertEqual(app.buttons["section.back"].label, "返回對話")
+    }
+
     func testOversizedMemoryIsRejectedAndCorrectedTextPersists() {
         launch()
         openMemory()

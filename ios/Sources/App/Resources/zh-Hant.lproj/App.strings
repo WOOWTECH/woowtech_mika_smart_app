@@ -10,6 +10,7 @@
 "shell.brandTitle" = "渥屋助理";
 "shell.menu" = "選單";
 "shell.backToChat" = "返回對話";
+"shell.backToMemory" = "返回記憶";
 "shell.newConversation" = "新對話";
 "shell.closeMenu" = "關閉選單";
 "shell.chatHistory" = "歷史對話";

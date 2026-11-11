@@ -10,6 +10,7 @@
 "shell.brandTitle" = "渥屋助理";
 "shell.menu" = "菜单";
 "shell.backToChat" = "返回对话";
+"shell.backToMemory" = "返回记忆";
 "shell.newConversation" = "新对话";
 "shell.closeMenu" = "关闭菜单";
 "shell.chatHistory" = "历史对话";
@@ -19,7 +20,7 @@
 "shell.browser" = "浏览器";
 "shell.settings" = "设置";
 "shell.toolsTitle" = "Skills 与 MCP";
-"shell.memoryTitle" = "记忆与资料";
+"shell.memoryTitle" = "记忆与数据";
 "shell.greetingMorning" = "早上好";
 "shell.greetingNoon" = "中午好";
 "shell.greetingAfternoon" = "下午好";

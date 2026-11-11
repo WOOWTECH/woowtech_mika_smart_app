@@ -14,6 +14,7 @@ enum AppText: Equatable {
     case shellBrandTitle
     case shellMenu
     case shellBackToChat
+    case shellBackToMemory
     case shellNewConversation
     case shellCloseMenu
     case shellChatHistory
@@ -410,6 +411,7 @@ enum AppText: Equatable {
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
         case .shellBackToChat: return "shell.backToChat"
+        case .shellBackToMemory: return "shell.backToMemory"
         case .shellNewConversation: return "shell.newConversation"
         case .shellCloseMenu: return "shell.closeMenu"
         case .shellChatHistory: return "shell.chatHistory"
@@ -833,6 +835,7 @@ enum AppText: Equatable {
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
         case .shellBackToChat: return "返回對話"
+        case .shellBackToMemory: return "返回記憶"
         case .shellNewConversation: return "新對話"
         case .shellCloseMenu: return "關閉選單"
         case .shellChatHistory: return "歷史對話"

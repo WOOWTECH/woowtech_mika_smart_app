@@ -135,34 +135,40 @@ func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
     }
 }
 
-/// Open a real drawer row from the chat root. Other routes return to chat through
-/// the visible top-bar control, preserving the same root-owned sessions and draft.
+/// Open a real drawer row from the chat root. Browser opened from Memory has
+/// one extra return step; use the visible top-bar controls for both hops.
 func navigateMikaSection(_ section: String, in app: XCUIApplication,
                          file: StaticString = #filePath, line: UInt = #line) {
     let menu = app.buttons["chat.menu"]
-    if section == "chat" {
-        if menu.exists { return }
-        let back = app.buttons["section.back"]
-        guard back.waitForExistence(timeout: 10) else {
-            XCTFail("Return-to-chat control is missing", file: file, line: line); return
+    func reachChatRoot() -> Bool {
+        func isReady(_ element: XCUIElement) -> Bool {
+            let expectation = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element)
+            return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
         }
-        back.tap()
-        XCTAssertTrue(menu.waitForExistence(timeout: 10), file: file, line: line)
+        for _ in 0..<2 {
+            if menu.exists && menu.isHittable { return true }
+            let back = app.buttons["section.back"]
+            guard isReady(back) else {
+                XCTFail("Return control is missing or obscured", file: file, line: line)
+                return false
+            }
+            back.tap()
+        }
+        guard isReady(menu) else {
+            XCTFail("Chat menu is missing after two bounded return steps", file: file, line: line)
+            return false
+        }
+        return true
+    }
+    if section == "chat" {
+        _ = reachChatRoot()
         return
     }
     // Re-selecting an open route must not dismiss its WebKit document or
     // interrupt a task merely to satisfy an old bottom-tab tap.
-    if app.buttons["section.back"].exists && app.staticTexts["\(section).status"].exists { return }
-    if !menu.exists {
-        let back = app.buttons["section.back"]
-        guard back.waitForExistence(timeout: 10) else {
-            XCTFail("Return-to-chat control is missing", file: file, line: line); return
-        }
-        back.tap()
-    }
-    guard menu.waitForExistence(timeout: 10), menu.isHittable else {
-        XCTFail("Chat menu must be visible and hittable", file: file, line: line); return
-    }
+    if app.buttons["section.back"].isHittable && app.staticTexts["\(section).status"].exists { return }
+    guard reachChatRoot() else { return }
     menu.tap()
     let row = app.buttons["navigation.\(section)"]
     guard row.waitForExistence(timeout: 10), row.isHittable else {

@@ -10,6 +10,7 @@
 "shell.brandTitle" = "woowtech agent";
 "shell.menu" = "Menu";
 "shell.backToChat" = "Back to chat";
+"shell.backToMemory" = "Back to memory";
 "shell.newConversation" = "New chat";
 "shell.closeMenu" = "Close menu";
 "shell.chatHistory" = "Chat history";
@@ -19,7 +20,7 @@
 "shell.browser" = "Browser";
 "shell.settings" = "Settings";
 "shell.toolsTitle" = "Skills and MCP";
-"shell.memoryTitle" = "Memory and data";
+"shell.memoryTitle" = "Memory & Data";
 "shell.greetingMorning" = "Good morning";
 "shell.greetingNoon" = "Good afternoon";
 "shell.greetingAfternoon" = "Good afternoon";
