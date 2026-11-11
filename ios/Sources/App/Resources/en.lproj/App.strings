@@ -30,6 +30,15 @@
 "shell.webExample" = "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.";
 "shell.attachPDF" = "Attach PDF";
 "shell.viewPDFAttachment" = "View PDF attachment";
+"message.actions" = "Message actions";
+"message.copy" = "Copy";
+"message.quote" = "Quote";
+"message.branch" = "Branch from here";
+"message.branchSuffix" = " · Branch";
+"message.actionFailed" = "Could not complete the action. Check the conversation and try again; also check saved conversations.";
+"message.quoteAssistant" = "Quoting assistant";
+"message.quoteUser" = "Quoting you";
+"message.quoteRemove" = "Remove quote";
 "shell.messagePlaceholder" = "Type a message";
 "shell.messageDraft" = "Message draft";
 "shell.stop" = "Stop";
