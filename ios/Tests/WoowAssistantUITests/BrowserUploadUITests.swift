@@ -451,9 +451,7 @@ final class BrowserUploadUITests: XCTestCase {
                                "-UITestMode", "-UITestNamespace", UUID().uuidString,
                                "-UITestResetStorage", "-UITestBrowserUpload"]
         app.launch()
-        let browser = app.buttons["navigation.browser"]
-        requireHittable(browser, timeout: 30, message: "Browser navigation must be available.")
-        browser.tap()
+        navigateMikaSection("browser", in: app)
         XCTAssertTrue(webText("UPLOAD_FORM_READY").waitForExistence(timeout: 75),
                       "Parent DEBUG hook must seed the synthetic file and serve the real loopback HTTP form.")
         XCTAssertTrue(webText("UPLOAD_SELECTED_NONE").exists)

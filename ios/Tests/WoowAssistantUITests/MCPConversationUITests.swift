@@ -11,14 +11,13 @@ final class MCPConversationUITests: XCTestCase {
             "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture"]
         app.launchEnvironment = [:]
         app.launch()
-        XCTAssertTrue(app.buttons["navigation.tools"].waitForExistence(timeout: 10))
-        app.buttons["navigation.tools"].tap()
+        navigateMikaSection("tools", in: app)
         tap("mcp.connect")
         waitForStatus("已連線，目錄擷取完成")
         let enabled = app.switches["mcp.enable.fixture_echo"]
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
-        app.buttons["navigation.chat"].tap()
+        navigateMikaSection("chat", in: app)
         let chatEnabled = app.switches["chat.useMCP"]
         XCTAssertTrue(chatEnabled.waitForExistence(timeout: 5))
         setSwitch(chatEnabled, on: true)
@@ -50,11 +49,11 @@ final class MCPConversationUITests: XCTestCase {
     }
 
     func testSelectedResourceRequiresApprovalAndResultIsReviewable() {
-        app.buttons["navigation.tools"].tap()
+        navigateMikaSection("tools", in: app)
         let resource = app.switches["mcp.resource.0"]
         revealLearningElement(resource, in: app)
         setSwitch(resource, on: true)
-        app.buttons["navigation.chat"].tap()
+        navigateMikaSection("chat", in: app)
         send("[fixture:mcp-resource]")
         XCTAssertTrue(app.staticTexts["mcp.approval.name"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["mcp.approval.name"].label, "讀取 MCP 資源")
@@ -95,7 +94,7 @@ final class MCPConversationUITests: XCTestCase {
         app.buttons["chat.send"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("連線"))
-        app.buttons["navigation.tools"].tap()
+        navigateMikaSection("tools", in: app)
         waitForStatus("已中斷本機連線")
     }
 

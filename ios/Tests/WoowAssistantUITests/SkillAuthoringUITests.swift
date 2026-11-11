@@ -110,20 +110,8 @@ final class SkillAuthoringUITests: XCTestCase {
     }
 
     private func openSkills() {
-        let navigation = app.buttons["navigation.memory"]
-        let ready = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == true AND enabled == true AND hittable == true"), object: navigation)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
-        XCTAssertFalse(navigation.frame.isEmpty)
-        XCTAssertTrue(app.frame.contains(navigation.frame))
-        // 5d current's recording and AX stayed on Chat after element.tap().
-        // Target the actual button's visible center once, then require selection.
-        navigation.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let deadline = Date().addingTimeInterval(10)
-        let selected = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value == %@", "已選取"), object: navigation)
-        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 10), .completed)
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: max(0, deadline.timeIntervalSinceNow)))
+        navigateMikaSection("memory", in: app)
+        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["memory.unavailable"].exists)
         tap("memory.segment.skills")
     }

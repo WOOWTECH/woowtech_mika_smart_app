@@ -107,7 +107,7 @@ final class BrowserInteractionUITests: XCTestCase {
                                "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         enter(fixtureURL + "\n", into: app.textFields["browser.address"])
         wait(app.staticTexts["browser.status"], "label == %@", "頁面已載入", timeout: 75)
         XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
@@ -208,11 +208,11 @@ final class BrowserInteractionUITests: XCTestCase {
     }
     private func tap(_ id: String) {
         let element = app.buttons[id]
-        // These controls are outside the Form: bottom app navigation, the
-        // browser toolbar, the sheet's navigation bar and keyboard accessory.
+        // These controls are outside the Form: the browser toolbar, the
+        // sheet's navigation bar and keyboard accessory.
         // The Form helper intentionally excludes those regions from its
         // content viewport, so scrolling a Form can never reveal them.
-        let fixedChrome: Set<String> = ["navigation.browser", "browser.interactions",
+        let fixedChrome: Set<String> = ["browser.interactions",
                                         "browser.interaction.close", "browser.interaction.done"]
         if fixedChrome.contains(id) { waitForFixedChrome(element) }
         else { revealLearningElement(element, in: app) }

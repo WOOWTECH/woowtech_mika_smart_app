@@ -17,7 +17,7 @@ final class BrowserWorkspaceUITests: XCTestCase {
         open("workspace-one")
         let note = app.webViews.textFields["Tab note"]
         XCTAssertTrue(note.waitForExistence(timeout: 10)); note.tap(); note.typeText("First note")
-        app.buttons["navigation.browser"].tap()
+        navigateMikaSection("browser", in: app)
         library()
         let firstID = tabs.firstMatch.identifier
         app.buttons["browser.tabs.new"].tap()
@@ -234,7 +234,7 @@ final class BrowserWorkspaceUITests: XCTestCase {
                                "-UITestMode", "-UITestNamespace", namespace]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
-        XCTAssertTrue(app.buttons["navigation.browser"].waitForExistence(timeout: 10)); app.buttons["navigation.browser"].tap()
+        navigateMikaSection("browser", in: app)
     }
     private func open(_ path: String) {
         let field = app.textFields["browser.address"]

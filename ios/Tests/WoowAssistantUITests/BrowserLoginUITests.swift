@@ -420,7 +420,7 @@ final class BrowserLoginUITests: XCTestCase {
                                "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
-        tap(app.buttons["navigation.browser"], timeout: 30)
+        navigateMikaSection("browser", in: app)
         XCTAssertTrue(text("LOGIN_STATUS_READY").waitForExistence(timeout: 75),
                       "Parent must mount BrowserLoginFixture.start() and allow its exact manual origin.")
     }

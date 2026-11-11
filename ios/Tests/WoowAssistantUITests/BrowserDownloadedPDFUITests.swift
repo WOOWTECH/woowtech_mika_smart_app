@@ -13,7 +13,7 @@ final class BrowserDownloadedPDFUITests: XCTestCase {
                                "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestBrowserDownloadedPDF"]
         app.launchEnvironment = [:]
         app.launch()
-        tapFixed(app.buttons["navigation.browser"], timeout: 30)
+        navigateMikaSection("browser", in: app)
         let web = app.webViews.firstMatch
         XCTAssertTrue(web.staticTexts["DLPDF_NAMESPACE_" + namespace].waitForExistence(timeout: 20))
         XCTAssertTrue(web.staticTexts["DLPDF_REQUESTS_0"].exists)

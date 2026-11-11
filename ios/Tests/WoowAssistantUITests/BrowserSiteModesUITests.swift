@@ -146,7 +146,6 @@ final class BrowserSiteModesUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
-        XCTAssertTrue(app.buttons["navigation.browser"].waitForExistence(timeout: 10))
-        app.buttons["navigation.browser"].tap()
+        navigateMikaSection("browser", in: app)
     }
 }

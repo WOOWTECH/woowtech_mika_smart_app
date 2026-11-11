@@ -44,13 +44,13 @@ final class NotificationApprovalUITests: XCTestCase {
         try tap(app.navigationBars["任務通知"].buttons.firstMatch, scroll: false)
 
         stage = "fixtureConnection"
-        try tap(app.buttons["navigation.tools"], scroll: false)
+        navigateMikaSection("tools", in: app)
         try tap(app.buttons["mcp.connect"])
         try wait("The actual fixture connection must finish discovery.", seconds: 15) {
             self.app.staticTexts["mcp.status"].label == "已連線，目錄擷取完成"
         }
         try enable(app.switches["mcp.enable.fixture_echo"])
-        try tap(app.buttons["navigation.chat"], scroll: false)
+        navigateMikaSection("chat", in: app)
         // This switch is a fixed Chat header, outside the message ScrollView.
         try enable(app.switches["chat.useMCP"], scroll: false)
         XCTAssertNil(banner())
@@ -131,7 +131,8 @@ final class NotificationApprovalUITests: XCTestCase {
         XCTAssertTrue(audit.components(separatedBy: ";").contains("results=1"))
         XCTAssertTrue(audit.components(separatedBy: ";").contains("failure=none"))
         XCTAssertEqual(app.state, .runningForeground)
-        XCTAssertEqual(app.buttons["navigation.chat"].value as? String, "已選取")
+        XCTAssertTrue(app.buttons["chat.menu"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["drawer.panel"].exists)
         stage = "retainedRootNavigationGeneration"
         // Only the root owns this generation. The notification-open callback
         // must have changed it; explicit approval itself does not route.
@@ -183,7 +184,7 @@ final class NotificationApprovalUITests: XCTestCase {
     }
 
     private func openSettings() throws {
-        try tap(app.buttons["navigation.settings"], scroll: false)
+        navigateMikaSection("settings", in: app)
         try tap(app.buttons["settings.notifications"])
         XCTAssertTrue(app.staticTexts["notifications.enabled"].waitForExistence(timeout: 10))
     }

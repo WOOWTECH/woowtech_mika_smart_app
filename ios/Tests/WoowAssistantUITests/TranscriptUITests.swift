@@ -178,12 +178,7 @@ struct TranscriptUIDriver {
         try ready(button); button.tap()
     }
     func navigate(_ section: String) throws {
-        let button = app.buttons["navigation." + section]
-        try ready(button)
-        guard app.frame.contains(button.frame) else { throw Failure.missingControl }
-        button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已選取"), object: button)
-        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 15), .completed)
+        navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts[section + ".status"].waitForExistence(timeout: 10))
     }
     func openTranscript() throws {

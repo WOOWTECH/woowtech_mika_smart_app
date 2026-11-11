@@ -891,31 +891,7 @@ final class LiveModelUITests: XCTestCase {
     }
 
     private func navigate(to section: String, in app: XCUIApplication) {
-        let identifier = "navigation.\(section)"
-        let button = app.buttons.matching(identifier: identifier).firstMatch
-        // After dismissing research, the restored WebKit accessibility tree can
-        // make a native-button query itself exceed five seconds. Keep the actual
-        // exists/hittable requirement; allow the same bounded 15s as address readiness.
-        let startedAt = Date()
-        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button)
-        let readiness = XCTWaiter.wait(for: [ready], timeout: 15)
-        if readiness != .completed {
-            let exists = button.exists
-            let hittable = exists && button.isHittable
-            let frame = exists ? button.frame : .zero
-            // Native identifier and geometry only; never labels, DOM or model text.
-            print("Live native navigation readiness \(identifier): seconds=\(Date().timeIntervalSince(startedAt)); exists=\(exists); hittable=\(hittable); frame=\(frame)")
-        }
-        XCTAssertEqual(readiness, .completed, "The native navigation button must be interactable.")
-        XCTAssertTrue(app.frame.contains(button.frame), "Native navigation must be fully inside the App window.")
-        button.tap()
-        // A hittable button is not proof that its action changed the section.
-        // Observe the native selection before looking for a destination row;
-        // never compensate with a second tap or expose page/model text.
-        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "已選取"), object: button)
-        let transition = XCTWaiter.wait(for: [selected], timeout: 15)
-        print("Live native destination \(identifier): selected=\(button.value as? String == "已選取"); status=\(app.staticTexts["\(section).status"].exists)")
-        XCTAssertEqual(transition, .completed, "The single native tap must select the requested section.")
+        navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts["\(section).status"].waitForExistence(timeout: 5))
     }
 

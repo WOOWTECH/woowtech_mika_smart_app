@@ -40,6 +40,16 @@ final class AppLanguageUITests: XCTestCase {
         choose("settings.language", option: "简体中文")
         exactLabel("settings.language.resolved", "当前界面：简体中文")
         exactLabel("selfConfiguration.status", "尚未提出外观调整请求。")
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isHittable)
+        back.tap()
+        navigateMikaSection("chat", in: app)
+        let menu = app.buttons["chat.menu"]
+        XCTAssertEqual(menu.label, "菜单")
+        menu.tap()
+        XCTAssertEqual(app.buttons["drawer.close"].label, "关闭菜单")
+        XCTAssertEqual(app.buttons["navigation.settings"].label, "设置")
+        app.buttons["drawer.close"].tap()
         app.terminate(); launch(systemLanguages: "(zh-Hant)")
         exactLabel("selfConfiguration.status", "尚未提出外观调整请求。")
         choose("settings.language", option: "跟随系统")
@@ -61,8 +71,7 @@ final class AppLanguageUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
         app.launchEnvironment = [:]; app.launch()
-        let settings = app.buttons["navigation.settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 10)); settings.tap()
+        navigateMikaSection("settings", in: app)
         let appearance = app.buttons["settings.appearance"]
         revealLearningElement(appearance, in: app); appearance.tap()
     }

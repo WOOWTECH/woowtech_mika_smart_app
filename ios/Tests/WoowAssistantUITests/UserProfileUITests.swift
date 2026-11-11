@@ -129,7 +129,7 @@ final class UserProfileUITests: XCTestCase {
     }
 
     private func openProfile() {
-        tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         tap("memory.profile.open", scroll: true)
         XCTAssertTrue(app.staticTexts["profile.scope"].firstMatch.waitForExistence(timeout: 5))
     }

@@ -25,10 +25,19 @@ final class WoowAssistantUITests: XCTestCase {
         let excluded = NSPredicate(format: "label MATCHES[c] %@", ".*(手機操作|手機控制|App 操作|螢幕錄影|無障礙控制|ADB|USB helper).*")
         for section in sections {
             openSection(section, in: app)
-            XCTAssertEqual(app.buttons["navigation.\(section)"].value as? String, "已選取")
-            XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "navigation.")).count, 5)
+            XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "navigation.")).firstMatch.exists,
+                           "Routes belong to the drawer, not a persistent bottom bar.")
+            if section == "chat" { XCTAssertTrue(app.buttons["chat.menu"].exists) }
+            else { XCTAssertTrue(app.buttons["section.back"].exists) }
             XCTAssertEqual(app.descendants(matching: .any).matching(excluded).count, 0)
         }
+        openSection("chat", in: app)
+        XCTAssertEqual(app.buttons["chat.menu"].label, "選單")
+        XCTAssertEqual(app.buttons["chat.newConversation"].label, "新對話")
+        app.buttons["chat.menu"].tap()
+        XCTAssertEqual(app.buttons["drawer.close"].label, "關閉選單")
+        for section in sections { XCTAssertTrue(app.buttons["navigation.\(section)"].exists) }
+        app.buttons["drawer.close"].tap()
         openSection("chat", in: app)
     }
 
@@ -41,7 +50,7 @@ final class WoowAssistantUITests: XCTestCase {
         draft.tap()
         draft.typeText("Keep this draft 42")
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
-        // First navigation deliberately leaves the keyboard visible.
+        // Opening the drawer resigns the keyboard while retaining the draft.
         openSection("browser", in: app)
         openSection("settings", in: app)
         openSection("chat", in: app)
@@ -66,7 +75,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
         openSection("tools", in: app)
-        XCTAssertEqual(app.buttons["navigation.tools"].value as? String, "已選取")
+        XCTAssertTrue(app.buttons["section.back"].exists)
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
         XCTAssertTrue(app.staticTexts["mcp.testIsolation"].exists)
         for _ in 0..<4 where !app.buttons["mcp.connect"].isHittable { app.swipeUp() }
@@ -338,9 +347,7 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     private func openSection(_ section: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        let button = app.buttons["navigation.\(section)"]
-        waitUntilHittable(button, file: file, line: line)
-        button.tap()
+        navigateMikaSection(section, in: app, file: file, line: line)
         XCTAssertTrue(app.staticTexts["\(section).status"].waitForExistence(timeout: 5), file: file, line: line)
         if capturedSections.insert(section).inserted { attachScreenshot("section-\(section)", in: app) }
     }

@@ -170,9 +170,9 @@ final class LiveSourceDiscoveryUITests: XCTestCase {
         try wait("Private model bootstrap did not complete.", timeout: 15) { self.app.staticTexts["chat.status"].exists }
         XCTAssertTrue(app.staticTexts["chat.status"].label == "模型已設定")
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
-        try tap("navigation.browser", timeout: 15)
+        navigateMikaSection("browser", in: app)
         try wait("The native Browser section was not selected.", timeout: 15) {
-            self.app.buttons["navigation.browser"].value as? String == "已選取"
+            self.app.buttons["section.back"].exists && self.app.staticTexts["browser.status"].exists
         }
         try tap("browser.multiResearch", timeout: 30)
         if !goal.isEmpty { try enter(goal, identifier: "multiResearch.goal", done: "multiResearch.keyboardDone") }

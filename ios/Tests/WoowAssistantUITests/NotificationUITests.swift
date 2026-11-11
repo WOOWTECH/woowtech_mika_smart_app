@@ -98,7 +98,8 @@ final class NotificationUITests: XCTestCase {
             self.app.state == .runningForeground
                 && self.app.staticTexts["chat.status"].exists
                 && !self.app.navigationBars["任務通知"].exists
-                && self.app.buttons["navigation.chat"].value as? String == "已選取"
+                && self.app.buttons["chat.menu"].exists
+                && !self.app.descendants(matching: .any)["drawer.panel"].exists
         }
         print("NOTIFICATION_SETTINGS actualBannerTap=1 rootChatVisible=1")
 
@@ -135,7 +136,7 @@ final class NotificationUITests: XCTestCase {
     }
 
     private func openSettings() throws {
-        try tap(app.buttons["navigation.settings"])
+        navigateMikaSection("settings", in: app)
         let entry = app.buttons["settings.notifications"]
         revealLearningElement(entry, in: app)
         try tap(entry)

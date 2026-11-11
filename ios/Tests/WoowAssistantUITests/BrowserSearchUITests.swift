@@ -71,8 +71,7 @@ final class BrowserSearchUITests: XCTestCase {
         // adds an unrelated asynchronous reset before settings are usable. Both
         // launches keep this same isolated store to exercise actual persistence.
         app.launch()
-        XCTAssertTrue(app.buttons["navigation.browser"].waitForExistence(timeout: 10))
-        tap(app.buttons["navigation.browser"])
+        navigateMikaSection("browser", in: app)
     }
 
     private func enter(_ text: String, in field: XCUIElement, scroll: Bool = false) {

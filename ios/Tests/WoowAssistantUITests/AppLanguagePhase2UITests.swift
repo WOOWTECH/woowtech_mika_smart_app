@@ -19,6 +19,19 @@ final class AppLanguagePhase2UITests: XCTestCase {
         launchAndEnterDraft()
         chooseEnglishInSettings()
 
+        tapRoot("chat")
+        XCTAssertTrue(app.navigationBars["woowtech agent"].exists)
+        let menu = app.buttons["chat.menu"]
+        XCTAssertEqual(menu.label, "Menu")
+        XCTAssertEqual(app.buttons["chat.newConversation"].label, "New chat")
+        tapChrome(menu)
+        XCTAssertEqual(app.buttons["drawer.close"].label, "Close menu")
+        XCTAssertEqual(app.buttons["navigation.browser"].label, "Browser")
+        XCTAssertEqual(app.buttons["navigation.memory"].label, "Memory and skills")
+        XCTAssertEqual(app.buttons["navigation.tools"].label, "MCP servers")
+        XCTAssertEqual(app.buttons["navigation.settings"].label, "Settings")
+        tapChrome(app.buttons["drawer.close"])
+
         tapRoot("tools")
         exactVisibleText("tools.status", "MCP and Skills")
         exactVisibleText("mcp.status", "MCP is not configured")
@@ -145,10 +158,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
     }
 
     private func tapRoot(_ section: String) {
-        let button = app.buttons["navigation.\(section)"]
-        XCTAssertTrue(button.waitForExistence(timeout: 10) && button.isEnabled && button.isHittable)
-        XCTAssertFalse(button.frame.isEmpty)
-        button.tap()
+        navigateMikaSection(section, in: app)
     }
 
     private func tapContent(_ element: XCUIElement, timeout: TimeInterval = 10) {

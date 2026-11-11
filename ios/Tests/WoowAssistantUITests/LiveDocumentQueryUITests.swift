@@ -59,7 +59,7 @@ final class LiveDocumentQueryUITests: XCTestCase {
         try wait("Private model bootstrap did not complete.", timeout: 15) { self.app.staticTexts["chat.status"].exists }
         XCTAssertTrue(app.staticTexts["chat.status"].label == "模型已設定")
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
-        try tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         try wait("Learning screen did not become ready.", timeout: 15) { self.app.staticTexts["memory.status"].exists }
         try tap("memory.segment.skills")
         try tap("skills.documents.execute", scroll: true)

@@ -146,7 +146,7 @@ final class SkillCatalogUITests: XCTestCase {
     }
 
     private func openMemory() {
-        tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["memory.unavailable"].exists)
     }

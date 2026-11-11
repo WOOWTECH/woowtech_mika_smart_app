@@ -12,7 +12,7 @@ final class SkillPDFCapabilityUITests: XCTestCase {
                                "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
         app.launchEnvironment = [:]
         app.launch()
-        tapFixed("navigation.memory")
+        navigateMikaSection("memory", in: app)
         tapFixed("memory.segment.skills")
         XCTAssertEqual(app.buttons["memory.segment.skills"].value as? String, "已選取")
         let open = app.buttons["skills.documents.execute"]

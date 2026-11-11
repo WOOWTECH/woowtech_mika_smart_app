@@ -69,7 +69,7 @@ final class ChatStreamingUITests: XCTestCase {
         ready(target)
         XCTAssertTrue(app.frame.contains(target.frame)); XCTAssertFalse(target.frame.isEmpty)
         XCTAssertTrue(toggle.frame.contains(target.frame))
-        XCTAssertLessThanOrEqual(target.frame.maxY, app.buttons["navigation.chat"].firstMatch.frame.minY)
+        XCTAssertLessThanOrEqual(target.frame.maxY, mikaUnobscuredBottom(in: app))
         print("CHAT_STREAM_UI memorySwitchNativeChild=\(native.exists ? 1 : 0) initialValue=1")
         target.tap()
         wait(NSPredicate(format: "value == %@", "0"), on: toggle)
@@ -159,11 +159,7 @@ final class ChatStreamingUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
     private func navigate(_ section: String) {
-        let button = app.buttons["navigation." + section].firstMatch
-        ready(button); XCTAssertTrue(app.frame.contains(button.frame))
-        button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let predicate = NSPredicate(format: "value == %@", "已選取")
-        if !predicate.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: button)], timeout: 10), .completed) }
+        navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts[section + ".status"].firstMatch.waitForExistence(timeout: 5))
     }
     private func write(_ text: String, field: XCUIElement, scroll: Bool) {
@@ -171,7 +167,7 @@ final class ChatStreamingUITests: XCTestCase {
         ready(field)
         if !scroll {
             XCTAssertTrue(app.frame.contains(field.frame)); XCTAssertFalse(field.frame.isEmpty)
-            XCTAssertLessThanOrEqual(field.frame.maxY, app.buttons["navigation.chat"].firstMatch.frame.minY)
+            XCTAssertLessThanOrEqual(field.frame.maxY, mikaUnobscuredBottom(in: app))
         }
         field.tap(); prepareKeyboard()
         var entered = "", remaining = text[...]

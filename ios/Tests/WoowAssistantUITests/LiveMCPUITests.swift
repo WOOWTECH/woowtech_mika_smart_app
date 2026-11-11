@@ -27,8 +27,7 @@ final class LiveMCPUITests: XCTestCase {
         app.launchEnvironment = [:]
         app.launch()
         try LiveMCPNativeLifecycle.requireForeground(app)
-        XCTAssertTrue(app.buttons["navigation.tools"].waitForExistence(timeout: 10))
-        app.buttons["navigation.tools"].tap()
+        navigateMikaSection("tools", in: app)
         XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
         try LiveMCPNativeLifecycle.stopAndShowHome(app)
@@ -45,8 +44,7 @@ final class LiveMCPUITests: XCTestCase {
         app.launch()
         try LiveMCPNativeLifecycle.requireForeground(app)
         initialLaunchCompleted = true
-        XCTAssertTrue(app.buttons["navigation.tools"].waitForExistence(timeout: 10))
-        app.buttons["navigation.tools"].tap()
+        navigateMikaSection("tools", in: app)
         XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         XCTAssertFalse(app.staticTexts["mcp.testIsolation"].exists)
@@ -68,7 +66,7 @@ final class LiveMCPUITests: XCTestCase {
                 app.activate()
             } else {
                 // isHittable alone can include a List row covered by the
-                // custom bottom navigation on iOS 17. Require its full frame
+                // native navigation bar or keyboard. Require its full frame
                 // in the actual content viewport and perform one native tap.
                 revealLearningElement(app.buttons["mcp.disconnect"], in: app)
                 app.buttons["mcp.disconnect"].tap()

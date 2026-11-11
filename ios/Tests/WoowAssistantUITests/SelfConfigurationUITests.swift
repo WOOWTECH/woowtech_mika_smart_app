@@ -41,8 +41,7 @@ final class SelfConfigurationUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
         app.launch()
-        let settings = app.buttons["navigation.settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 10)); settings.tap()
+        navigateMikaSection("settings", in: app)
         let link = app.buttons["settings.appearance"]
         revealLearningElement(link, in: app); link.tap()
     }

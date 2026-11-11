@@ -159,8 +159,6 @@ final class LiveMCPConversationUITests: XCTestCase {
                 let top = max(viewport.minY, bar.frame.maxY)
                 viewport = CGRect(x: viewport.minX, y: top, width: viewport.width, height: max(0, viewport.maxY - top))
             }
-            let navigation = app.buttons["navigation.chat"].firstMatch
-            if navigation.exists { viewport.size.height = max(0, min(viewport.maxY, navigation.frame.minY) - viewport.minY) }
             let keyboard = app.keyboards.firstMatch
             if keyboard.exists { viewport.size.height = max(0, min(viewport.maxY, keyboard.frame.minY) - viewport.minY) }
             return learningFrameIsVisible(element.frame, in: viewport, visibility: .fullyVisible)
@@ -358,10 +356,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
     }
     private func navigate(_ section: String) {
-        let button = app.buttons.matching(identifier: "navigation.\(section)").firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
-        XCTAssertTrue(button.isHittable)
-        button.tap()
+        navigateMikaSection(section, in: app)
     }
     private func send(_ text: String) {
         let draft = app.textFields["chat.draft"]

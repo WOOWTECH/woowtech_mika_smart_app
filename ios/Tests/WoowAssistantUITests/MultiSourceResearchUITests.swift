@@ -17,13 +17,13 @@ final class MultiSourceResearchUITests: XCTestCase {
 
     func testConfirmedSourcesProduceActualQuotesAndDiscloseFixtureLimits() {
         launch()
-        tap("navigation.settings")
+        navigateMikaSection("settings", in: app)
         enter("https://model.example.invalid/v1", into: app.textFields["settings.baseURL"])
         enter("fixture-model", into: app.textFields["settings.model"])
         enter("fixture-only-not-a-real-key", into: app.secureTextFields["settings.apiKey"])
         tap("settings.save")
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         let previousAddress = app.textFields["browser.address"].value as? String
         tap("browser.multiResearch")
         fillRoots(second: "https://comparison.example.invalid/start")
@@ -57,7 +57,7 @@ final class MultiSourceResearchUITests: XCTestCase {
     }
 
     func testDuplicateOriginsAreRejectedBeforeModelAccessOrWebKitReads() {
-        launch(); tap("navigation.browser"); tap("browser.multiResearch")
+        launch(); navigateMikaSection("browser", in: app); tap("browser.multiResearch")
         fillRoots(second: "https://research.example.invalid/details")
         tap("multiResearch.start")
         let error = app.staticTexts["multiResearch.error"]
@@ -115,7 +115,7 @@ final class MultiSourceResearchUITests: XCTestCase {
     }
     private func tap(_ identifier: String) {
         let button = app.buttons[identifier]
-        if identifier.hasPrefix("navigation.") || identifier == "multiResearch.close" || identifier == "browser.multiResearch" {
+        if identifier == "multiResearch.close" || identifier == "browser.multiResearch" {
             XCTAssertTrue(button.waitForExistence(timeout: 5)); button.tap()
         } else { revealLearningElement(button, in: app); button.tap() }
     }

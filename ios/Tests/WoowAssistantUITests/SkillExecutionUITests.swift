@@ -783,7 +783,7 @@ final class SkillExecutionUITests: XCTestCase {
         if assemblyUIKitOpen { app.launchArguments.append("-UITestPDFAssemblyUIKitOpen") }
         app.launchEnvironment = [:]
         app.launch()
-        tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 15))
         tap("memory.segment.skills")
         if fromCatalog {
@@ -1081,8 +1081,6 @@ final class SkillExecutionUITests: XCTestCase {
         let bounds = form.frame.intersection(app.frame)
         let top = max(bounds.minY, titleBar.frame.maxY)
         var bottom = bounds.maxY
-        let navigation = app.buttons["navigation.chat"]
-        if navigation.exists { bottom = min(bottom, navigation.frame.minY) }
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists { bottom = min(bottom, keyboard.frame.minY) }
         guard bottom > top else { return false }

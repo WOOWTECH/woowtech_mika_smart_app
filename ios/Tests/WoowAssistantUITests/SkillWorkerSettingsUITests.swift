@@ -43,7 +43,7 @@ final class SkillWorkerSettingsUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
                                "-UITestSkillExecution", "-UITestNamespace", namespace]
         app.launch()
-        tapFixed("navigation.memory")
+        navigateMikaSection("memory", in: app)
         // The segment is a fixed header above Form. The Form scrolling helper
         // intentionally rejects that geometry (2055c30 SE and large evidence).
         tapFixed("memory.segment.skills")

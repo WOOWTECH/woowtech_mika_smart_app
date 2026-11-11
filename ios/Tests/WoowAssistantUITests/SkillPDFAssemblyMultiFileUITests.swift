@@ -165,7 +165,7 @@ import CoreGraphics
             app.launchArguments.append("-UITestSkillAssemblyPairDirectoryCoordinatedCreation")
         }
         app.launchEnvironment = [:]; app.launch()
-        tapFixed("navigation.memory")
+        navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 15))
         tapFixed("memory.segment.skills")
         let catalog = app.buttons["skills.catalog.open"]
@@ -433,10 +433,6 @@ import CoreGraphics
                 let bottom = viewport.maxY
                 viewport.origin.y = max(viewport.minY, title.frame.maxY)
                 viewport.size.height = bottom - viewport.minY
-            }
-            let nav = app.buttons["navigation.chat"]
-            if nav.exists && nav.isHittable {
-                viewport.size.height = min(viewport.maxY, nav.frame.minY) - viewport.minY
             }
             let keyboard = app.keyboards.firstMatch
             if keyboard.exists {

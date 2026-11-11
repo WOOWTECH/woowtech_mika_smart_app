@@ -11,6 +11,32 @@ enum AppText: Equatable {
     case languageExplanation
     case languagePartialNotice
     case languageSaveFailed
+    case shellBrandTitle
+    case shellMenu
+    case shellBackToChat
+    case shellNewConversation
+    case shellCloseMenu
+    case shellChatHistory
+    case shellChat
+    case shellMemoryAndSkills
+    case shellMCPServers
+    case shellBrowser
+    case shellSettings
+    case shellToolsTitle
+    case shellMemoryTitle
+    case shellGreetingMorning
+    case shellGreetingNoon
+    case shellGreetingAfternoon
+    case shellGreetingEvening
+    case shellGreetingNight
+    case shellWhatToDo
+    case shellWebExample
+    case shellAttachPDF
+    case shellViewPDFAttachment
+    case shellMessagePlaceholder
+    case shellMessageDraft
+    case shellStop
+    case shellSend
     case configurationTitle
     case appearanceTitle
     case appearanceCurrent
@@ -295,6 +321,32 @@ enum AppText: Equatable {
         case .languageExplanation: return "language.explanation"
         case .languagePartialNotice: return "language.partialNotice"
         case .languageSaveFailed: return "language.saveFailed"
+        case .shellBrandTitle: return "shell.brandTitle"
+        case .shellMenu: return "shell.menu"
+        case .shellBackToChat: return "shell.backToChat"
+        case .shellNewConversation: return "shell.newConversation"
+        case .shellCloseMenu: return "shell.closeMenu"
+        case .shellChatHistory: return "shell.chatHistory"
+        case .shellChat: return "shell.chat"
+        case .shellMemoryAndSkills: return "shell.memoryAndSkills"
+        case .shellMCPServers: return "shell.mcpServers"
+        case .shellBrowser: return "shell.browser"
+        case .shellSettings: return "shell.settings"
+        case .shellToolsTitle: return "shell.toolsTitle"
+        case .shellMemoryTitle: return "shell.memoryTitle"
+        case .shellGreetingMorning: return "shell.greetingMorning"
+        case .shellGreetingNoon: return "shell.greetingNoon"
+        case .shellGreetingAfternoon: return "shell.greetingAfternoon"
+        case .shellGreetingEvening: return "shell.greetingEvening"
+        case .shellGreetingNight: return "shell.greetingNight"
+        case .shellWhatToDo: return "shell.whatToDo"
+        case .shellWebExample: return "shell.webExample"
+        case .shellAttachPDF: return "shell.attachPDF"
+        case .shellViewPDFAttachment: return "shell.viewPDFAttachment"
+        case .shellMessagePlaceholder: return "shell.messagePlaceholder"
+        case .shellMessageDraft: return "shell.messageDraft"
+        case .shellStop: return "shell.stop"
+        case .shellSend: return "shell.send"
         case .configurationTitle: return "configuration.title"
         case .appearanceTitle: return "appearance.title"
         case .appearanceCurrent: return "appearance.current"
@@ -601,8 +653,34 @@ enum AppText: Equatable {
         case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
         case .languageExplanation: return "依裝置的語言偏好選擇支援的介面語言；未支援時使用繁體中文。不翻譯你的內容、模型回覆或原始技能。"
-        case .languagePartialNotice: return "目前僅此設定頁完成三語翻譯；其他頁面仍可能顯示繁體中文。"
+        case .languagePartialNotice: return "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
+        case .shellBrandTitle: return "渥屋助理"
+        case .shellMenu: return "選單"
+        case .shellBackToChat: return "返回對話"
+        case .shellNewConversation: return "新對話"
+        case .shellCloseMenu: return "關閉選單"
+        case .shellChatHistory: return "歷史對話"
+        case .shellChat: return "對話"
+        case .shellMemoryAndSkills: return "記憶與技能"
+        case .shellMCPServers: return "MCP 伺服器"
+        case .shellBrowser: return "瀏覽器"
+        case .shellSettings: return "設定"
+        case .shellToolsTitle: return "Skills 與 MCP"
+        case .shellMemoryTitle: return "記憶與資料"
+        case .shellGreetingMorning: return "早上好"
+        case .shellGreetingNoon: return "中午好"
+        case .shellGreetingAfternoon: return "下午好"
+        case .shellGreetingEvening: return "晚上好"
+        case .shellGreetingNight: return "夜深了"
+        case .shellWhatToDo: return "想讓渥屋助理做什麼？"
+        case .shellWebExample: return "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"
+        case .shellAttachPDF: return "附加 PDF"
+        case .shellViewPDFAttachment: return "檢視 PDF 附件"
+        case .shellMessagePlaceholder: return "輸入訊息"
+        case .shellMessageDraft: return "訊息草稿"
+        case .shellStop: return "取消"
+        case .shellSend: return "傳送"
         case .configurationTitle: return "外觀與模型權限"
         case .appearanceTitle: return "外觀"
         case .appearanceCurrent: return "目前外觀"

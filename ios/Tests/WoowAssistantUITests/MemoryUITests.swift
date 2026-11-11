@@ -190,7 +190,7 @@ final class MemoryUITests: XCTestCase {
 
     func testTwoStepClearCancellationAndModelSettingsIsolation() {
         launch()
-        tap("navigation.settings")
+        navigateMikaSection("settings", in: app)
         enter("https://model.example.invalid/v1\n", into: app.textFields["settings.baseURL"].firstMatch)
         reveal(app.textFields["settings.model"].firstMatch)
         enter("fixture-model\n", into: app.textFields["settings.model"].firstMatch)
@@ -243,7 +243,7 @@ final class MemoryUITests: XCTestCase {
     }
 
     private func openMemory() {
-        tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["memory.unavailable"].firstMatch.exists)
     }
@@ -395,10 +395,6 @@ final class MemoryUITests: XCTestCase {
             XCTAssertTrue(exists, "The fixed control must exist before tapping.")
             guard exists else { return }
             var viewport = app.frame
-            let navigation = app.buttons["navigation.chat"].firstMatch
-            if navigation.exists {
-                viewport.size.height = max(0, min(viewport.maxY, navigation.frame.minY) - viewport.minY)
-            }
             let keyboard = app.keyboards.firstMatch
             if keyboard.exists {
                 viewport.size.height = max(0, min(viewport.maxY, keyboard.frame.minY) - viewport.minY)
@@ -431,10 +427,6 @@ final class MemoryUITests: XCTestCase {
         for attempt in 0...8 {
             let listFrame = list.frame
             var viewport = listFrame.intersection(app.frame)
-            let navigation = app.buttons["navigation.chat"].firstMatch
-            if navigation.exists {
-                viewport.size.height = max(0, min(viewport.maxY, navigation.frame.minY) - viewport.minY)
-            }
             if app.keyboards.firstMatch.exists {
                 viewport.size.height = max(0, min(viewport.maxY, app.keyboards.firstMatch.frame.minY) - viewport.minY)
             }

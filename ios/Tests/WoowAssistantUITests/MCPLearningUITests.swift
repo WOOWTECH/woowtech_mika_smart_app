@@ -300,13 +300,7 @@ final class MCPLearningUITests: XCTestCase {
     }
 
     private func navigate(_ section: String) {
-        let button = app.buttons["navigation.\(section)"].firstMatch
-        ready(button)
-        XCTAssertFalse(button.frame.isEmpty)
-        XCTAssertTrue(app.frame.contains(button.frame))
-        // Same verified native center selection as existing learning fixtures.
-        button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        assertValue(button, "已選取")
+        navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts["\(section).status"].firstMatch.waitForExistence(timeout: 5))
     }
 
@@ -329,9 +323,7 @@ final class MCPLearningUITests: XCTestCase {
         let frame = field.frame
         XCTAssertFalse(frame.isEmpty)
         XCTAssertTrue(app.frame.contains(frame))
-        let navigation = app.buttons["navigation.chat"].firstMatch
-        ready(navigation)
-        XCTAssertLessThanOrEqual(frame.maxY, navigation.frame.minY)
+        XCTAssertLessThanOrEqual(frame.maxY, mikaUnobscuredBottom(in: app))
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists { XCTAssertLessThanOrEqual(frame.maxY, keyboard.frame.minY) }
         field.tap()

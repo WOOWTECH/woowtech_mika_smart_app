@@ -9,7 +9,7 @@ enum LearningElementVisibility {
 }
 
 /// SwiftUI may report a List descendant as hittable while its frame is covered by
-/// the custom bottom navigation or keyboard. Scroll it fully into the content
+/// the native navigation bar or keyboard. Scroll it fully into the content
 /// viewport before tapping; never fall back to a blind screen coordinate.
 func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
                            visibility: LearningElementVisibility = .fullyVisible,
@@ -18,7 +18,6 @@ func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
     // Cache its AX identity, not its position in a changing query result, and
     // validate it before reusing its geometry for the next gesture.
     var container: XCUIElement?
-    let navigation = app.buttons["navigation.chat"]
     let keyboard = app.keyboards.firstMatch
     func viewport() -> (bounds: CGRect, scrollTarget: XCUIElement, scrollFrame: CGRect) {
         let appFrame = app.frame
@@ -54,10 +53,6 @@ func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
             visibleFrame(of: $0)
         }
         bounds = learningViewportBelowNavigationBars(bounds, bars: topBars)
-        if navigation.exists, navigation.isHittable {
-            let frame = navigation.frame
-            if frame.minY > bounds.minY { bounds.size.height = min(bounds.maxY, frame.minY) - bounds.minY }
-        }
         if keyboard.exists {
             let frame = keyboard.frame
             if !frame.isEmpty, frame.minY > bounds.minY { bounds.size.height = min(bounds.maxY, frame.minY) - bounds.minY }
@@ -138,6 +133,52 @@ func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
         previousTargetWasPresent = targetIsPresent
         searchUp = drag.end.y < drag.start.y
     }
+}
+
+/// Open a real drawer row from the chat root. Other routes return to chat through
+/// the visible top-bar control, preserving the same root-owned sessions and draft.
+func navigateMikaSection(_ section: String, in app: XCUIApplication,
+                         file: StaticString = #filePath, line: UInt = #line) {
+    let menu = app.buttons["chat.menu"]
+    if section == "chat" {
+        if menu.exists { return }
+        let back = app.buttons["section.back"]
+        guard back.waitForExistence(timeout: 10) else {
+            XCTFail("Return-to-chat control is missing", file: file, line: line); return
+        }
+        back.tap()
+        XCTAssertTrue(menu.waitForExistence(timeout: 10), file: file, line: line)
+        return
+    }
+    // Re-selecting an open route must not dismiss its WebKit document or
+    // interrupt a task merely to satisfy an old bottom-tab tap.
+    if app.buttons["section.back"].exists && app.staticTexts["\(section).status"].exists { return }
+    if !menu.exists {
+        let back = app.buttons["section.back"]
+        guard back.waitForExistence(timeout: 10) else {
+            XCTFail("Return-to-chat control is missing", file: file, line: line); return
+        }
+        back.tap()
+    }
+    guard menu.waitForExistence(timeout: 10), menu.isHittable else {
+        XCTFail("Chat menu must be visible and hittable", file: file, line: line); return
+    }
+    menu.tap()
+    let row = app.buttons["navigation.\(section)"]
+    guard row.waitForExistence(timeout: 10), row.isHittable else {
+        XCTFail("Drawer route \(section) must be visible and hittable", file: file, line: line); return
+    }
+    row.tap()
+    XCTAssertTrue(app.buttons["section.back"].waitForExistence(timeout: 10), file: file, line: line)
+}
+
+/// The composer and fixed controls must remain above the native keyboard.
+/// There is no persistent app bar at the bottom of the drawer-based shell.
+func mikaUnobscuredBottom(in app: XCUIApplication) -> CGFloat {
+    let bottom = app.frame.maxY
+    let keyboard = app.keyboards.firstMatch
+    guard keyboard.exists, !keyboard.frame.isEmpty, keyboard.frame.minY < bottom else { return bottom }
+    return keyboard.frame.minY
 }
 
 private func learningScrollContent(in element: XCUIElement, viewport: CGRect) -> LearningScrollContent? {

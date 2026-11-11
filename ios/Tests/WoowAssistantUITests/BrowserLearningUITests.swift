@@ -139,7 +139,7 @@ final class BrowserLearningUITests: XCTestCase {
         }
         waitFor(confirmation, predicate: "exists == true AND hittable == true")
         confirmation.tap()
-        waitFor(app.buttons["navigation.browser"], predicate: "exists == true AND value == '已選取'")
+        waitFor(app.staticTexts["browser.status"], predicate: "exists == true")
         // A fresh app needed 57.481s merely to launch WebContent on hosted CI.
         // Keep all per-step URL/quote and judged-result assertions below.
         waitForLabel(app.staticTexts["browser.status"], "路線重走已結束", timeout: 105)
@@ -165,9 +165,9 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
         tap("browser.research.close")
-        tap("navigation.chat")
+        navigateMikaSection("chat", in: app)
         waitForLabel(app.staticTexts["chat.status"], "尚未設定模型")
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], "頁面已載入")
         XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
         tap("browser.research")
@@ -238,14 +238,14 @@ final class BrowserLearningUITests: XCTestCase {
         // The fixture then waits cancellably; do not wait for its 60-second delay.
         XCTAssertTrue(app.staticTexts[fixtureURL].waitForExistence(timeout: 10))
         tap("browser.research.close")
-        tap("navigation.settings")
+        navigateMikaSection("settings", in: app)
         tap("settings.remove", scroll: true)
         waitForLabel(app.staticTexts["settings.keyStatus"], "尚未儲存金鑰。")
         XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
 
         let stopped = "已停止；已取得的內容與草稿保留"
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], stopped)
         XCTAssertFalse(app.buttons["browser.cancel"].exists)
         XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
@@ -272,7 +272,7 @@ final class BrowserLearningUITests: XCTestCase {
 
         // Recheck after navigation gives cancellation completion a chance to
         // publish; neither a stale reply nor a learning result may appear.
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], stopped)
         tap("browser.research")
         waitForLabel(app.staticTexts["browser.task.status"], stopped)
@@ -295,7 +295,7 @@ final class BrowserLearningUITests: XCTestCase {
     }
 
     private func configureModel() {
-        tap("navigation.settings")
+        navigateMikaSection("settings", in: app)
         enter("https://model.example.invalid/v1\n", into: app.textFields["settings.baseURL"])
         let model = app.textFields["settings.model"]
         reveal(model)
@@ -309,7 +309,7 @@ final class BrowserLearningUITests: XCTestCase {
     }
 
     private func openFixture() {
-        tap("navigation.browser")
+        navigateMikaSection("browser", in: app)
         // iOS 26's failed transition snapshot contained no AX children; the
         // failure screenshot and final AX both showed this exact initial state.
         // Use XCTest's existence polling before reading the label, with the
@@ -369,7 +369,7 @@ final class BrowserLearningUITests: XCTestCase {
     }
 
     private func openMemory() {
-        tap("navigation.memory")
+        navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["memory.unavailable"].exists)
     }

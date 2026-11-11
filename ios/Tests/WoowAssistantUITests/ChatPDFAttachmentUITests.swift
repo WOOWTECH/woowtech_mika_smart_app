@@ -281,11 +281,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "archive.row.", title)).firstMatch
     }
     private func navigate(_ section: String) {
-        let button = app.buttons["navigation." + section].firstMatch
-        ready(button); XCTAssertTrue(app.frame.contains(button.frame))
-        button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let predicate = NSPredicate(format: "value == %@", "已選取")
-        if !predicate.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: button)], timeout: 10), .completed) }
+        navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts[section + ".status"].firstMatch.waitForExistence(timeout: 5))
     }
     private func write(_ text: String, field: XCUIElement, scroll: Bool) {
@@ -293,7 +289,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         ready(field)
         if !scroll {
             XCTAssertTrue(app.frame.contains(field.frame)); XCTAssertFalse(field.frame.isEmpty)
-            XCTAssertLessThanOrEqual(field.frame.maxY, app.buttons["navigation.chat"].firstMatch.frame.minY)
+            XCTAssertLessThanOrEqual(field.frame.maxY, mikaUnobscuredBottom(in: app))
         }
         field.tap(); prepareKeyboard()
         var entered = "", remaining = text[...]

@@ -4,6 +4,10 @@ import AssistantSkills
 @MainActor
 struct ContentView: View {
     @State private var selection: AppSection = .chat
+    @State private var showsDrawer = false
+    @State private var showsArchive = false
+    @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
+    @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
     @StateObject private var session = ChatSession()
     @StateObject private var mcpSession = MCPSession()
@@ -13,13 +17,20 @@ struct ContentView: View {
     @StateObject private var notifications = TaskNotificationStore.applicationStore()
     private var browser: BrowserSession { browserWorkspace.selected }
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
 
     var body: some View {
-        NavigationStack {
+        ZStack(alignment: .leading) {
+          NavigationStack {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession)
+                    ChatView(session: session, mcp: mcpSession, showsArchive: $showsArchive,
+                             showsDrawer: $showsDrawer, localizer: localizer)
+                        .frame(maxWidth: 720)
+                        .frame(maxWidth: .infinity)
                 case .settings:
                     ModelSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
                 case .tools:
@@ -32,13 +43,85 @@ struct ContentView: View {
                     BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
                 }
             }
-            .navigationTitle(selection.title)
+            .navigationTitle(selection == .chat ? localizer.text(.shellBrandTitle) : selection.title(using: localizer))
             .navigationBarTitleDisplayMode(.inline)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                sectionNavigation
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if selection == .chat {
+                        Button { showsDrawer = true } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .frame(width: 40, height: 40)
+                        }
+                        .accessibilityLabel(localizer.text(.shellMenu))
+                        .accessibilityIdentifier("chat.menu")
+                        .accessibilityFocused($menuHasVoiceOverFocus)
+                    } else {
+                        Button { selection = .chat } label: {
+                            Image(systemName: "chevron.backward")
+                                .frame(width: 40, height: 40)
+                        }
+                        .accessibilityLabel(localizer.text(.shellBackToChat))
+                        .accessibilityIdentifier("section.back")
+                        .accessibilityFocused($backHasVoiceOverFocus)
+                    }
+                }
+                if selection == .chat {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { session.newConversation() } label: {
+                            Image(systemName: "square.and.pencil")
+                                .frame(width: 40, height: 40)
+                        }
+                        .disabled(session.isSubmitting)
+                        .accessibilityLabel(localizer.text(.shellNewConversation))
+                        .accessibilityIdentifier("chat.newConversation")
+                    }
+                }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) { fixtureObservation }
+          }
+          .id(notificationNavigationID)
+          .accessibilityHidden(showsDrawer)
+          if showsDrawer {
+              GeometryReader { geometry in
+                  ZStack(alignment: .leading) {
+                      Button { closeDrawer() } label: {
+                          palette.scrim.ignoresSafeArea()
+                      }
+                      .buttonStyle(.plain)
+                      .accessibilityHidden(true)
+                      MikaNavigationDrawer(
+                          status: session.chatStatus,
+                          canStartNew: !session.isSubmitting,
+                          canOpenArchive: session.archive != nil && !session.isSubmitting,
+                          palette: palette,
+                          localizer: localizer,
+                          topInset: geometry.safeAreaInsets.top,
+                          bottomInset: geometry.safeAreaInsets.bottom,
+                          onClose: closeDrawer,
+                          onNew: { session.newConversation(); selection = .chat; showsDrawer = false },
+                          onArchive: { showsDrawer = false; showsArchive = true },
+                          onSelect: { section in
+                              if section == .chat { closeDrawer() }
+                              else { selection = section; showsDrawer = false }
+                          }
+                      )
+                      .frame(width: min(304, max(0, geometry.size.width - 48)),
+                             height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)
+                      .offset(y: -geometry.safeAreaInsets.top)
+                      .transition(.move(edge: .leading))
+                  }
+                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
+              }
+          }
         }
-        .id(notificationNavigationID)
+        .animation(.easeOut(duration: 0.22), value: showsDrawer)
+        .sheet(isPresented: $showsArchive) {
+            if let store = session.archive { ConversationArchiveView(store: store, session: session) }
+        }
+        .tint(palette.accent)
+        .background(palette.background)
         #if DEBUG
         .environment(\.notificationRouteObservation,
                      MCPApprovalView.exposesFixtureIdentity(arguments: ProcessInfo.processInfo.arguments)
@@ -48,6 +131,7 @@ struct ContentView: View {
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .taskNotifications(chat: session, store: notifications) { destination in
+            showsDrawer = false
             switch destination {
             case .chat: selection = .chat
             case .browser: selection = .browser
@@ -73,12 +157,20 @@ struct ContentView: View {
                 if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
             }
         }
+        .onChange(of: selection) { _, destination in
+            if destination == .chat { menuHasVoiceOverFocus = true }
+            else { backHasVoiceOverFocus = true }
+        }
     }
 
-    // Keep every section reachable in a compact iPhone layout, including while typing.
-    private var sectionNavigation: some View {
+    private func closeDrawer() {
+        showsDrawer = false
+        if selection == .chat { menuHasVoiceOverFocus = true }
+    }
+
+    @ViewBuilder private var fixtureObservation: some View {
+        #if DEBUG
         VStack(spacing: 0) {
-            #if DEBUG
             if (try? ChatPDFUITestConfiguration.resolve(arguments: ProcessInfo.processInfo.arguments)) != nil {
                 Text("PDF 模型請求事件測試觀測").font(.caption2)
                     .accessibilityIdentifier("chat.pdf.requestEvents")
@@ -98,38 +190,126 @@ struct ContentView: View {
                     .accessibilityIdentifier("notifications.routeObservation")
                     .accessibilityValue("generation=\(notificationNavigationID.uuidString);destination=\(selection.rawValue)")
             }
-            #endif
-            Divider()
-            HStack(spacing: 0) {
-                ForEach(AppSection.allCases) { section in
-                    Button {
-                        selection = section
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: section.symbol)
-                                .font(.body)
-                            Text(section.shortTitle)
-                                .font(.caption)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selection == section ? Color.accentColor : Color.secondary)
-                    .accessibilityLabel(section.title)
-                    .accessibilityValue(selection == section ? "已選取" : "未選取")
-                    .accessibilityAddTraits(selection == section ? .isSelected : [])
-                    .accessibilityIdentifier("navigation.\(section.rawValue)")
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
         }
-        .background(.bar)
+        #endif
     }
 }
 
-private enum AppSection: String, CaseIterable, Identifiable {
+/// WOOWTECH Android brand.properties and ui/theme/Colors.kt at de5be358.
+/// Keep these visual tokens local to the shell; model and browser policy are unchanged.
+private struct MikaVisualPalette {
+    private let dark: Bool
+    init(_ scheme: ColorScheme) { dark = scheme == .dark }
+    private func rgb(_ red: Double, _ green: Double, _ blue: Double) -> Color {
+        Color(red: red / 255, green: green / 255, blue: blue / 255)
+    }
+
+    var background: Color { dark ? rgb(14, 14, 16) : rgb(247, 247, 248) }
+    var surface: Color { dark ? rgb(26, 26, 29) : .white }
+    var ink: Color { dark ? rgb(242, 242, 244) : rgb(28, 28, 30) }
+    var secondaryInk: Color { dark ? rgb(164, 165, 173) : rgb(95, 96, 104) }
+    var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }
+    var assistant: Color { dark ? .white.opacity(13.0 / 255) : .black.opacity(9.0 / 255) }
+    var glass: Color { dark ? surface.opacity(184.0 / 255) : .white.opacity(184.0 / 255) }
+    var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }
+    var scrim: Color { .black.opacity(0.32) }
+}
+
+/// Selected routes match the existing iOS feature set; phone, Plans and remote
+/// desktop control entries from Android are deliberately absent.
+@MainActor
+private struct MikaNavigationDrawer: View {
+    let status: String
+    let canStartNew: Bool
+    let canOpenArchive: Bool
+    let palette: MikaVisualPalette
+    let localizer: AppLocalizer
+    let topInset: CGFloat
+    let bottomInset: CGFloat
+    let onClose: () -> Void
+    let onNew: () -> Void
+    let onArchive: () -> Void
+    let onSelect: (AppSection) -> Void
+    @AccessibilityFocusState private var closeHasVoiceOverFocus: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(localizer.text(.shellBrandTitle)).font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.ink)
+                    Text(status).font(.system(size: 12)).foregroundStyle(palette.secondaryInk)
+                }
+                Spacer(minLength: 0)
+                Button(action: onClose) {
+                    Image(systemName: "xmark").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(localizer.text(.shellCloseMenu))
+                .accessibilityIdentifier("drawer.close")
+                .accessibilityFocused($closeHasVoiceOverFocus)
+            }
+            .padding(.leading, 20).padding(.trailing, 8).padding(.top, 14).padding(.bottom, 10)
+            ScrollView {
+                VStack(spacing: 0) {
+                    row(localizer.text(.shellNewConversation), symbol: "square.and.pencil", id: "drawer.newConversation", enabled: canStartNew, action: onNew)
+                    row(localizer.text(.shellChatHistory), symbol: "clock.arrow.circlepath", id: "drawer.archive", enabled: canOpenArchive, action: onArchive)
+                    row(localizer.text(.shellChat), symbol: "message", id: "navigation.chat") { onSelect(.chat) }
+                    row(localizer.text(.shellMemoryAndSkills), symbol: "heart", id: "navigation.memory") { onSelect(.memory) }
+                    row(localizer.text(.shellMCPServers), symbol: "link", id: "navigation.tools") { onSelect(.tools) }
+                    row(localizer.text(.shellBrowser), symbol: "globe", id: "navigation.browser") { onSelect(.browser) }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+            }
+            Divider().overlay(palette.hair)
+            row(localizer.text(.shellSettings), symbol: "gearshape", id: "navigation.settings") { onSelect(.settings) }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+        }
+        .padding(.top, topInset)
+        .padding(.bottom, bottomInset)
+        .frame(maxHeight: .infinity)
+        .background(palette.background)
+        .clipShape(MikaDrawerShape())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("drawer.panel")
+        .onAppear { closeHasVoiceOverFocus = true }
+    }
+
+    private func row(_ title: String, symbol: String, id: String, enabled: Bool = true,
+                     action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol).font(.system(size: 22))
+                    .frame(width: 22).foregroundStyle(palette.secondaryInk)
+                Text(title).font(.system(size: 15.5)).foregroundStyle(palette.ink)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12).frame(minHeight: 46)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityIdentifier(id)
+    }
+}
+
+private struct MikaDrawerShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let radius = min(24.0, rect.height / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + radius),
+                          control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - radius, y: rect.maxY),
+                          control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private enum AppSection: String, CaseIterable, Identifiable, Equatable {
     case chat
     case browser
     case tools
@@ -138,31 +318,13 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(using localizer: AppLocalizer) -> String {
         switch self {
-        case .chat: return "對話"
-        case .browser: return "瀏覽器"
-        case .tools: return "Skills 與 MCP"
-        case .memory: return "記憶與資料"
-        case .settings: return "設定"
-        }
-    }
-
-    var shortTitle: String {
-        switch self {
-        case .tools: return "工具"
-        case .memory: return "資料"
-        default: return title
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .chat: return "message"
-        case .browser: return "globe"
-        case .tools: return "puzzlepiece.extension"
-        case .memory: return "folder"
-        case .settings: return "gearshape"
+        case .chat: return localizer.text(.shellChat)
+        case .browser: return localizer.text(.shellBrowser)
+        case .tools: return localizer.text(.shellToolsTitle)
+        case .memory: return localizer.text(.shellMemoryTitle)
+        case .settings: return localizer.text(.shellSettings)
         }
     }
 
@@ -186,23 +348,28 @@ private enum AppSection: String, CaseIterable, Identifiable {
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
+    @Binding var showsArchive: Bool
+    @Binding var showsDrawer: Bool
+    let localizer: AppLocalizer
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
-    @State private var showsArchive = false
     @State private var showsPDF = false
+    private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
 
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
                 Text(session.chatStatus)
-                    .font(.headline)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(palette.secondaryInk)
                     .accessibilityIdentifier("chat.status")
                 Text("已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.secondaryInk)
                     .accessibilityIdentifier("chat.historyNotice")
                 if session.archive != nil {
-                    Button("歷史對話") { isEditingDraft = false; showsArchive = true }
+                    Button(localizer.text(.shellChatHistory)) { isEditingDraft = false; showsArchive = true }
                         .disabled(session.isSubmitting)
                         .accessibilityIdentifier("chat.archive")
                 }
@@ -216,11 +383,8 @@ private struct ChatView: View {
 
             LearningChatNotes(store: session.learning)
 
-            HStack {
-                Button(session.pdfAttachment == nil ? "附加 PDF" : "檢視 PDF 附件") {
-                    isEditingDraft = false; showsPDF = true
-                }.disabled(session.isSubmitting).accessibilityIdentifier("chat.pdf.open")
-                if let attachment = session.pdfAttachment {
+            if let attachment = session.pdfAttachment {
+                HStack {
                     Text(verbatim: attachment.plan.filename).lineLimit(1).accessibilityIdentifier("chat.pdf.card")
                     Button("移除") { session.removePDF() }.accessibilityIdentifier("chat.pdf.removeInline")
                 }
@@ -258,32 +422,47 @@ private struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
+                        if session.entries.isEmpty && session.replyPreview == nil {
+                            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+                        }
                         if !session.hasStoredKey {
                             Text(AppSection.chat.explanation)
                                 .foregroundStyle(.secondary)
                                 .accessibilityIdentifier("chat.explanation")
                         }
                         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(entry.role == "user" ? "你" : "助理")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                                Text(entry.content)
-                                    .textSelection(.enabled)
-                                    .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+                            VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
+                                HStack {
+                                    if entry.role == "user" { Spacer(minLength: 40) }
+                                    Text(entry.content)
+                                        .font(.system(size: 15.5))
+                                        .lineSpacing(entry.role == "user" ? 1 : 4)
+                                        .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
+                                        .textSelection(.enabled)
+                                        .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+                                        .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
+                                        .background(entry.role == "user" ? palette.accent : palette.assistant,
+                                                    in: RoundedRectangle(cornerRadius: 20))
+                                    if entry.role != "user" { Spacer(minLength: 0) }
+                                }
                                 if let pdf = entry.pdf {
                                     ArchivedPDFEvidenceView(evidence: pdf, identifier: "chat.pdf.saved.\(index)")
                                 }
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
                             .id(entry.id)
                         }
                         if let preview = session.replyPreview {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
                                     .accessibilityIdentifier("chat.partialStatus")
-                                Text(preview.text).textSelection(.enabled)
+                                Text(preview.text)
+                                    .font(.system(size: 15.5)).lineSpacing(4)
+                                    .foregroundStyle(palette.ink).textSelection(.enabled)
                                     .accessibilityIdentifier("chat.partialReply")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 14).padding(.vertical, 12)
+                                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id(preview.id)
@@ -318,40 +497,56 @@ private struct ChatView: View {
                         .accessibilityIdentifier("chat.archiveRetry")
                 }
             }
-            TextField("輸入訊息", text: $session.draft)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-                .focused($isEditingDraft)
-                .submitLabel(.done)
-                .onSubmit { isEditingDraft = false }
-                .disabled(session.isSubmitting)
-                .accessibilityLabel("訊息草稿")
-                .accessibilityIdentifier("chat.draft")
-            HStack {
-                Button("新對話") { session.newConversation() }
+            HStack(spacing: 4) {
+                Button {
+                    isEditingDraft = false; showsPDF = true
+                } label: {
+                    Image(systemName: "plus").frame(width: 40, height: 40)
+                }
+                    .accessibilityLabel(localizer.text(session.pdfAttachment == nil ? .shellAttachPDF : .shellViewPDFAttachment))
                     .disabled(session.isSubmitting)
-                    .accessibilityIdentifier("chat.newConversation")
-                Button("傳送") {
+                    .accessibilityIdentifier("chat.pdf.open")
+                TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+                    .focused($isEditingDraft)
+                    .submitLabel(.done)
+                    .onSubmit { isEditingDraft = false }
+                    .disabled(session.isSubmitting)
+                    .accessibilityLabel(localizer.text(.shellMessageDraft))
+                    .accessibilityIdentifier("chat.draft")
+                if session.isSubmitting {
+                    Button { session.cancel() } label: {
+                        Image(systemName: "stop.fill").frame(width: 40, height: 40)
+                    }
+                    .accessibilityLabel(localizer.text(.shellStop))
+                    .accessibilityIdentifier("chat.cancel")
+                }
+                Button {
                     isEditingDraft = false
                     session.send(mcp: session.usesMCP ? mcp : nil)
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(session.canSend ? Color.white : palette.secondaryInk)
+                        .frame(width: 40, height: 40)
+                        .background(session.canSend ? palette.accent : palette.assistant, in: Circle())
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(!session.canSend)
+                .accessibilityLabel(localizer.text(.shellSend))
                 .accessibilityIdentifier("chat.send")
                 if session.isSubmitting {
                     ProgressView().accessibilityLabel("等待回覆")
-                    Button("取消") { session.cancel() }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("chat.cancel")
                 }
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: 52)
+            .padding(6)
+            .background(palette.glass, in: Capsule())
+            .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
         }
-        .padding()
+        .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
+        .background(palette.background)
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
-        .sheet(isPresented: $showsArchive) {
-            if let store = session.archive { ConversationArchiveView(store: store, session: session) }
-        }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
                             approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
@@ -378,6 +573,57 @@ private struct ChatView: View {
                     .accessibilityIdentifier("chat.dismissKeyboard")
             }
         }
+        .onChange(of: showsDrawer) { _, visible in
+            if visible { isEditingDraft = false }
+        }
+    }
+}
+
+@MainActor
+private struct ChatEmptyState: View {
+    @Binding var draft: String
+    let palette: MikaVisualPalette
+    let localizer: AppLocalizer
+
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5...10: return localizer.text(.shellGreetingMorning)
+        case 11...12: return localizer.text(.shellGreetingNoon)
+        case 13...17: return localizer.text(.shellGreetingAfternoon)
+        case 18...22: return localizer.text(.shellGreetingEvening)
+        default: return localizer.text(.shellGreetingNight)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(greeting).font(.system(size: 28, weight: .bold))
+                .foregroundStyle(palette.ink)
+            Text(localizer.text(.shellWhatToDo))
+                .font(.system(size: 15)).foregroundStyle(palette.secondaryInk)
+                .padding(.top, 6)
+            // This is the WOOWTECH web example. Android's phone/app examples
+            // are outside the iOS feature set and are intentionally omitted.
+            Button {
+                draft = localizer.text(.shellWebExample)
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "globe").font(.system(size: 22))
+                        .foregroundStyle(palette.secondaryInk)
+                    Text(localizer.text(.shellWebExample))
+                        .font(.system(size: 15)).foregroundStyle(palette.ink)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 16).frame(minHeight: 56)
+            }
+            .buttonStyle(.plain)
+            .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.hair, lineWidth: 0.5))
+            .padding(.top, 28)
+            .accessibilityIdentifier("chat.emptyExample.web")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8).padding(.top, 52)
     }
 }
 

@@ -72,9 +72,9 @@
       "key": "language.partialNotice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "目前僅此設定頁完成三語翻譯；其他頁面仍可能顯示繁體中文。",
-        "zh-Hans": "目前仅此设置页完成三语翻译；其他页面仍可能显示繁体中文。",
-        "en": "Only this settings page has been translated into all three languages so far. Other pages may still appear in Traditional Chinese."
+        "zh-Hant": "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。",
+        "zh-Hans": "设置页、主导航与新增聊天控件已提供三语翻译；其他页面仍可能显示繁体中文。",
+        "en": "Settings, main navigation and new chat controls have translations in all three languages. Other pages may still appear in Traditional Chinese."
       }
     },
     {
@@ -85,6 +85,266 @@
         "zh-Hant": "無法讀回語言設定，請重新選擇。",
         "zh-Hans": "无法读回语言设置，请重新选择。",
         "en": "Could not verify the saved language. Please select it again."
+      }
+    },
+    {
+      "case": "shellBrandTitle",
+      "key": "shell.brandTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理",
+        "zh-Hans": "渥屋助理",
+        "en": "woowtech agent"
+      }
+    },
+    {
+      "case": "shellMenu",
+      "key": "shell.menu",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選單",
+        "zh-Hans": "菜单",
+        "en": "Menu"
+      }
+    },
+    {
+      "case": "shellBackToChat",
+      "key": "shell.backToChat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "返回對話",
+        "zh-Hans": "返回对话",
+        "en": "Back to chat"
+      }
+    },
+    {
+      "case": "shellNewConversation",
+      "key": "shell.newConversation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新對話",
+        "zh-Hans": "新对话",
+        "en": "New chat"
+      }
+    },
+    {
+      "case": "shellCloseMenu",
+      "key": "shell.closeMenu",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉選單",
+        "zh-Hans": "关闭菜单",
+        "en": "Close menu"
+      }
+    },
+    {
+      "case": "shellChatHistory",
+      "key": "shell.chatHistory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "歷史對話",
+        "zh-Hans": "历史对话",
+        "en": "Chat history"
+      }
+    },
+    {
+      "case": "shellChat",
+      "key": "shell.chat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "對話",
+        "zh-Hans": "对话",
+        "en": "Chat"
+      }
+    },
+    {
+      "case": "shellMemoryAndSkills",
+      "key": "shell.memoryAndSkills",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶與技能",
+        "zh-Hans": "记忆与技能",
+        "en": "Memory and skills"
+      }
+    },
+    {
+      "case": "shellMCPServers",
+      "key": "shell.mcpServers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器",
+        "zh-Hans": "MCP 服务器",
+        "en": "MCP servers"
+      }
+    },
+    {
+      "case": "shellBrowser",
+      "key": "shell.browser",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "瀏覽器",
+        "zh-Hans": "浏览器",
+        "en": "Browser"
+      }
+    },
+    {
+      "case": "shellSettings",
+      "key": "shell.settings",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定",
+        "zh-Hans": "设置",
+        "en": "Settings"
+      }
+    },
+    {
+      "case": "shellToolsTitle",
+      "key": "shell.toolsTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "Skills 與 MCP",
+        "zh-Hans": "Skills 与 MCP",
+        "en": "Skills and MCP"
+      }
+    },
+    {
+      "case": "shellMemoryTitle",
+      "key": "shell.memoryTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶與資料",
+        "zh-Hans": "记忆与资料",
+        "en": "Memory and data"
+      }
+    },
+    {
+      "case": "shellGreetingMorning",
+      "key": "shell.greetingMorning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "早上好",
+        "zh-Hans": "早上好",
+        "en": "Good morning"
+      }
+    },
+    {
+      "case": "shellGreetingNoon",
+      "key": "shell.greetingNoon",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "中午好",
+        "zh-Hans": "中午好",
+        "en": "Good afternoon"
+      }
+    },
+    {
+      "case": "shellGreetingAfternoon",
+      "key": "shell.greetingAfternoon",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下午好",
+        "zh-Hans": "下午好",
+        "en": "Good afternoon"
+      }
+    },
+    {
+      "case": "shellGreetingEvening",
+      "key": "shell.greetingEvening",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "晚上好",
+        "zh-Hans": "晚上好",
+        "en": "Good evening"
+      }
+    },
+    {
+      "case": "shellGreetingNight",
+      "key": "shell.greetingNight",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "夜深了",
+        "zh-Hans": "夜深了",
+        "en": "Up late"
+      }
+    },
+    {
+      "case": "shellWhatToDo",
+      "key": "shell.whatToDo",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "想讓渥屋助理做什麼？",
+        "zh-Hans": "想让渥屋助理做什么？",
+        "en": "What should woowtech agent do?"
+      }
+    },
+    {
+      "case": "shellWebExample",
+      "key": "shell.webExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
+        "zh-Hans": "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较",
+        "en": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me."
+      }
+    },
+    {
+      "case": "shellAttachPDF",
+      "key": "shell.attachPDF",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附加 PDF",
+        "zh-Hans": "附加 PDF",
+        "en": "Attach PDF"
+      }
+    },
+    {
+      "case": "shellViewPDFAttachment",
+      "key": "shell.viewPDFAttachment",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢視 PDF 附件",
+        "zh-Hans": "查看 PDF 附件",
+        "en": "View PDF attachment"
+      }
+    },
+    {
+      "case": "shellMessagePlaceholder",
+      "key": "shell.messagePlaceholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入訊息",
+        "zh-Hans": "输入消息",
+        "en": "Type a message"
+      }
+    },
+    {
+      "case": "shellMessageDraft",
+      "key": "shell.messageDraft",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "訊息草稿",
+        "zh-Hans": "消息草稿",
+        "en": "Message draft"
+      }
+    },
+    {
+      "case": "shellStop",
+      "key": "shell.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消",
+        "zh-Hans": "取消",
+        "en": "Stop"
+      }
+    },
+    {
+      "case": "shellSend",
+      "key": "shell.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送",
+        "zh-Hans": "发送",
+        "en": "Send"
       }
     },
     {
