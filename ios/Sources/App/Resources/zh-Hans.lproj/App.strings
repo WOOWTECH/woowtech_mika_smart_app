@@ -211,6 +211,7 @@
 "browser.clear.history.question" = "清除浏览历史？书签与网站登录数据会保留。";
 "browser.clear.history" = "清除历史";
 "browser.clear.site.question" = "清除此网站的数据？可能需要重新登录，所有标签页与下载将停止。";
+"browser.clear.site.target" = "将清除“%1$@”的本地网站数据；不保证网站服务器端退出登录。";
 "browser.clear.site" = "清除网站数据";
 "browser.new.tab" = "新增标签页";
 "browser.no.page" = "尚未打开网页";

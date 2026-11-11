@@ -144,6 +144,74 @@ private final class SiteModeKeys: LearningKeyStore {
         }
     }
 
+    #if DEBUG
+    @MainActor final class WebsiteClearGate {
+        var entered = false
+        private var continuation: CheckedContinuation<Void, Never>?
+        func wait() async { entered = true; await withCheckedContinuation { continuation = $0 } }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+
+    static func checkDeferredWebsiteClear(leavesBeforeCompletion: Bool) async throws -> Int {
+        var checks = 0
+        func expect(_ condition: @autoclosure () throws -> Bool, _ label: String) throws {
+            guard try condition() else { throw Failure(check: label) }; checks += 1
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-deferred-clear-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = SiteModeKeys(), store = WKWebsiteDataStore.nonPersistent()
+        let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
+        let workspace = BrowserWorkspace(dataStore: store, vault: vault, downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(); let gate = WebsiteClearGate()
+        defer { gate.release(); workspace.cancelAllWork(); host.close() }
+        let original = workspace.selected
+        host.attach(original)
+        let url = URL(string: "https://research.example.invalid/deferred-clear")!
+        original.manualNavigation(to: url) {
+            original.webView.loadHTMLString("<html><head><title>Before clear</title></head><body>LOCAL</body></html>", baseURL: url)
+        }
+        try await wait("deferred fixture initial load", { original.loadedURL == url && workspace.library.tabs.first?.url == url })
+        let cookie = HTTPCookie(properties: [.domain: "research.example.invalid", .path: "/", .name: "woow_deferred_fixture", .value: "synthetic", .expires: Date().addingTimeInterval(3600)])!
+        await store.httpCookieStore.setCookie(cookie)
+        workspace.refreshWebsiteRecords()
+        try await wait("deferred fixture site record", {
+            !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName.contains("example.invalid") }
+        })
+        guard let record = workspace.websiteRecords.first(where: { $0.displayName.contains("example.invalid") }) else { throw Failure(check: "no fixture record") }
+        workspace.websiteRemovalTestGate = { await gate.wait() }
+        var navigations = 0
+        workspace.restoredNavigationTestHook = { session in
+            navigations += 1; host.attach(session)
+            session.manualNavigation(to: url) {
+                session.webView.loadHTMLString("<html><head><title>Restored</title></head><body>LOCAL</body></html>", baseURL: url)
+            }
+            if navigations == 1 { workspace.browserDidAppear() } // Re-entry must not repeat an in-flight restore.
+        }
+        workspace.removeWebsiteData([record])
+        try await wait("real clear reached gate", { gate.entered })
+        try expect(workspace.isClearingWebsiteData, "clear is held")
+        workspace.browserDidAppear()
+        try expect(navigations == 0, "no navigation during removal")
+        if leavesBeforeCompletion { workspace.browserDidDisappear() }
+        gate.release()
+        try await wait("real clear completed", { !workspace.isClearingWebsiteData })
+        try expect(workspace.errorText == nil, "clear succeeded")
+        try expect(workspace.selected !== original, "selected session replaced")
+        if leavesBeforeCompletion {
+            try expect(navigations == 0 && workspace.selected.loadedURL == nil, "no background restoration")
+            workspace.browserDidAppear()
+        }
+        try await wait("deferred actual WebKit restoration", {
+            navigations == 1 && workspace.selected.loadedURL == url && workspace.selected.pageTitle == "Restored"
+        })
+        try expect(navigations == 1, "one restoration only")
+        let remaining = await store.httpCookieStore.allCookies()
+        try expect(!remaining.contains { $0.name == cookie.name }, "fixture cookie really removed")
+        workspace.browserDidDisappear()
+        return checks
+    }
+    #endif
+
     static func run() async throws -> [String: Any] {
         var count = try BrowserUserSiteModesChecks.run()
         func check(_ condition: @autoclosure () throws -> Bool, _ name: String) throws {
@@ -320,6 +388,10 @@ private final class SiteModeKeys: LearningKeyStore {
                   && migrated.library.bookmarks == state.bookmarks && migrated.library.selectedID == state.selectedID,
                   "legacy encrypted library migrates without metadata loss")
         try check(migrated.library.userSiteModes.desktopHosts.isEmpty, "legacy encrypted library starts mobile")
+        #if DEBUG
+        count += try await checkDeferredWebsiteClear(leavesBeforeCompletion: false)
+        count += try await checkDeferredWebsiteClear(leavesBeforeCompletion: true)
+        #endif
         // Corrupt ciphertext: fail closed and leave original bytes untouched.
         try Data("corrupt fixture".utf8).write(to: file)
         let corrupt = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("OtherDownloads"))

@@ -126,6 +126,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private var pageGeneration = UUID()
     private var trackedNavigation: WKNavigation?
     private var requestedNavigationPending = false
+    /// Prevent lifecycle re-entry from issuing a second restore while the
+    /// selected session's first manual navigation is still in flight.
+    var hasPendingManualNavigation: Bool {
+        requestedNavigationPending || (trackedNavigation != nil && loadedURL == nil)
+    }
     private var pageObservationTask: Task<Void, Never>?
     @Published private(set) var manualLoadDiagnostics: String?
     private var loadTrace = ManualLoadTrace()

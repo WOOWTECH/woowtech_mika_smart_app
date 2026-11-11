@@ -211,6 +211,7 @@
 "browser.clear.history.question" = "Clear browsing history? Bookmarks and site sign-in data will be kept.";
 "browser.clear.history" = "Clear history";
 "browser.clear.site.question" = "Clear this site’s data? You may need to sign in again. All tabs and downloads will stop.";
+"browser.clear.site.target" = "Clear local website data for “%1$@”. This does not guarantee sign-out on the website server.";
 "browser.clear.site" = "Clear site data";
 "browser.new.tab" = "New tab";
 "browser.no.page" = "No page opened yet";

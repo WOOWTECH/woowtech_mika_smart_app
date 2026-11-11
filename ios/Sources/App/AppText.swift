@@ -219,6 +219,7 @@ enum AppText: Equatable {
     case browserClearHistoryQuestion
     case browserClearHistory
     case browserClearSiteQuestion
+    case browserClearSiteTarget(name: String)
     case browserClearSite
     case browserNewTab
     case browserNoPage
@@ -797,6 +798,7 @@ enum AppText: Equatable {
         case .browserClearHistoryQuestion: return "browser.clear.history.question"
         case .browserClearHistory: return "browser.clear.history"
         case .browserClearSiteQuestion: return "browser.clear.site.question"
+        case .browserClearSiteTarget: return "browser.clear.site.target"
         case .browserClearSite: return "browser.clear.site"
         case .browserNewTab: return "browser.new.tab"
         case .browserNoPage: return "browser.no.page"
@@ -1171,6 +1173,7 @@ enum AppText: Equatable {
         case .mcpToolCount(let count): return [Int64(count)]
         case .mcpResourceCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
+        case .browserClearSiteTarget(let name): return [name]
         case .commonDeleteName(let name): return [name]
         case .commonCloseName(let name): return [name]
         case .browserHistorySearch(let query): return [query]
@@ -1419,6 +1422,7 @@ enum AppText: Equatable {
         case .browserClearHistoryQuestion: return "清除瀏覽歷史？書籤與網站登入資料會保留。"
         case .browserClearHistory: return "清除歷史"
         case .browserClearSiteQuestion: return "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。"
+        case .browserClearSiteTarget: return "將清除「%1$@」的本機網站資料；不保證網站伺服器端登出。"
         case .browserClearSite: return "清除網站資料"
         case .browserNewTab: return "新增分頁"
         case .browserNoPage: return "尚未開啟網頁"
