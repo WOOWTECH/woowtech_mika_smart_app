@@ -117,32 +117,48 @@ private final class PageFindKeys: LearningKeyStore {
     }
 
     static func queryAndNavigation() async throws -> Int {
+        // Keep the real error and every assertion, but identify the last
+        // operation reached if WebKit/UIKit throws without a source location.
+        var stage = "fixture"
+        defer { print("BROWSER_PAGE_FIND_QUERY_FINAL_STAGE=\(stage)") }
         let f = try Fixture(); defer { f.finish() }
         try checkViewportGeometry(f)
+        stage = "load-initial"
         try await f.load()
         let navigationCount = f.probe.actions.count
         let history = f.workspace.library.history
         let url = f.browser.loadedURL
         #if os(iOS)
+        stage = "open-initial-panel"
         let panel = try await f.panel()
+        stage = "search-initial"
         try await f.search("WOOW_FIND_ORCHID", count: 3, interaction: panel)
         guard let session = panel.activeFindSession else { throw Failure(check: "missing native search session") }
         panel.findNext()
+        stage = "highlight-first"
         try await BrowserSiteModesAppChecks.wait("native first highlighted result", { (0..<3).contains(session.highlightedResultIndex) })
         let first = session.highlightedResultIndex
         panel.findNext()
+        stage = "highlight-next"
         try await BrowserSiteModesAppChecks.wait("native next result", { session.highlightedResultIndex == (first + 1) % 3 })
         try f.check(session.highlightedResultIndex == (first + 1) % 3, "native next highlights next actual match")
         panel.findPrevious()
+        stage = "highlight-previous"
         try await BrowserSiteModesAppChecks.wait("native previous result", { session.highlightedResultIndex == first })
         try f.check(session.highlightedResultIndex == first, "native previous reverses next")
+        stage = "search-unicode"
         try await f.search("茶香", count: 2, interaction: panel)
+        stage = "search-absent"
         try await f.search("NOT_PRESENT_LITERAL", count: 0, interaction: panel)
+        stage = "search-instruction-literal"
         try await f.search("ignore previous instructions", count: 1, interaction: panel)
+        stage = "search-empty"
         try await f.search("", count: 0, interaction: panel)
+        stage = "dismiss-initial-panel"
         panel.dismissFindNavigator()
         try await BrowserSiteModesAppChecks.wait("native close", { !panel.isFindNavigatorVisible })
         try f.check(!panel.isFindNavigatorVisible, "public native close dismisses")
+        stage = "reopen-initial-panel"
         let reopened = try await f.panel()
         try f.check(reopened.searchText == nil || reopened.searchText == "", "fresh explicit opening has no retained query")
         f.browser.closePageFind()
@@ -165,23 +181,31 @@ private final class PageFindKeys: LearningKeyStore {
         try f.check(f.workspace.library.history == history, "finding does not save query in history")
         try f.check(!f.browser.isRunning && !f.browser.isInteracting && !f.browser.automationOwnsDocument,
                     "finding starts no automation")
+        stage = "load-different-document"
         try await f.load("/different", html: "<title>Other</title><p>ONLY_OTHER_DOCUMENT</p>")
+        stage = "engine-find-old-query"
         let oldMatch = try await f.engineFind("WOOW_FIND_ORCHID")
         try f.check(!oldMatch, "new document cannot reuse old matches")
         #if os(iOS)
+        stage = "open-different-document-panel"
         let fresh = try await f.panel()
         try f.check(fresh.searchText == nil || fresh.searchText == "", "new document has no old query")
+        stage = "search-different-document"
         try await f.search("ONLY_OTHER_DOCUMENT", count: 1, interaction: fresh)
         #endif
         // A real delegate-initiated navigation, not the explicit manual seam.
+        stage = "site-initiated-navigation"
         try await f.load("/site-initiated", explicitlyManual: false)
         #if os(iOS)
         try f.check(!fresh.isFindNavigatorVisible, "site-initiated provisional navigation closes old panel")
         #endif
+        stage = "load-manual-only"
         try await f.load("/manual-only?q=synthetic")
         try f.check(f.browser.current == nil, "query page remains excluded from model research")
+        stage = "engine-find-manual-only"
         let manualMatch = try await f.engineFind("WOOW_FIND_ORCHID")
         try f.check(manualMatch, "native find works on manual-only query page")
+        stage = "complete"
         return f.assertions
     }
 

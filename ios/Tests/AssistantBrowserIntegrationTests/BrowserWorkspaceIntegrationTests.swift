@@ -18,7 +18,12 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         let firstID = workspace.library.selectedID
         let first = host.attachSelected()
         let firstURL = URL(string: "https://research.example.invalid/workspace-one#/docs/42")!
-        try await host.load(first, url: firstURL, marker: "First visible document")
+        // Hash routes remain manual-only, even when safe for external handoff.
+        try await host.load(first, url: firstURL, marker: "First visible document", manualOnly: true)
+        XCTAssertNil(first.current, "A hash route must not become research evidence")
+        try await waitUntil("The first visible hash route did not become eligible for handoff") {
+            first.externalOpenURL == firstURL
+        }
         XCTAssertEqual(first.externalOpenURL, firstURL)
 
         workspace.newTab()
@@ -27,8 +32,13 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         var handedOff: [URL] = []
         XCTAssertFalse(first.handoffVisiblePage { handedOff.append($0) })
         XCTAssertNil(second.externalOpenURL, "A fresh tab has no visible page")
-        try await host.load(second, path: "/workspace-two", marker: "Second visible document")
-        XCTAssertEqual(second.externalOpenURL, second.loadedURL)
+        let secondURL = URL(string: "https://research.example.invalid/workspace-two")!
+        try await host.load(second, url: secondURL, marker: "Second visible document")
+        try await waitUntil("The second visible page did not become eligible for handoff") {
+            second.externalOpenURL == secondURL
+        }
+        XCTAssertEqual(second.loadedURL, secondURL)
+        XCTAssertEqual(second.externalOpenURL, secondURL)
         XCTAssertNil(first.externalOpenURL)
 
         workspace.selectTab(firstID)
