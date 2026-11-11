@@ -24,7 +24,8 @@ CERT = b"synthetic-public-certificate"
 DIGEST = hashlib.sha1(CERT).hexdigest().upper()
 PROFILE_ID = "12345678-1234-1234-1234-123456789ABC"
 MEDIA_PURPOSES = {"NSCameraUsageDescription": "User approved website camera access.",
-                  "NSMicrophoneUsageDescription": "User approved website microphone access."}
+                  "NSMicrophoneUsageDescription": "User approved website and chat microphone access.",
+                  "NSSpeechRecognitionUsageDescription": "On-device chat speech recognition."}
 
 
 def synthetic_xctest_completion(scope):
@@ -250,7 +251,7 @@ class BuildTests(unittest.TestCase):
                                     release.verify_app(app, signed=signed, identity=DIGEST if signed else None)
                                 native_tool.assert_not_called()
 
-    def test_release_rejects_missing_or_blank_browser_media_purpose_strings(self):
+    def test_release_rejects_missing_or_blank_media_and_speech_purpose_strings(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "Example.app"
             app.mkdir()
