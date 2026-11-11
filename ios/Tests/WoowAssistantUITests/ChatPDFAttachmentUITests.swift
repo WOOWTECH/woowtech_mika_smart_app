@@ -362,6 +362,12 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         let disclosure = app.buttons[id].firstMatch
         revealLearningElement(disclosure, in: app)
         ready(disclosure); XCTAssertTrue(app.frame.contains(disclosure.frame))
+        let delete = app.buttons["archive.delete"].firstMatch
+        let open = app.buttons["archive.open"].firstMatch
+        XCTAssertTrue(delete.exists && open.exists)
+        let actionTop = min(delete.frame.minY, open.frame.minY)
+        XCTAssertLessThanOrEqual(disclosure.frame.maxY, actionTop - 20,
+                                 "Archived PDF controls must be clear of the fixed action bar")
         XCTAssertEqual(disclosure.value as? String, "已收合")
         disclosure.tap()
         wait(NSPredicate(format: "value == %@", "已展開"), on: disclosure)

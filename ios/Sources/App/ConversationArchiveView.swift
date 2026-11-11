@@ -64,34 +64,35 @@ import SwiftUI
     var body: some View {
         Group {
             if let record = store.state.conversations.first(where: { $0.id == id }) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("保存時的模型：\(record.destination.model)")
-                        Text(record.destination.baseURL).font(.caption).textSelection(.enabled)
-                        if !session.canOpenConversation(record) {
-                            Text("模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。")
-                                .accessibilityIdentifier("archive.destinationMismatch")
-                        }
-                        if let block = RecentConversationAccess.block(record, in: session),
-                           block != .differentDestination {
-                            Text(localizer.text(block.message))
-                                .accessibilityIdentifier("archive.switchBlocked")
-                        }
-                        ForEach(Array(record.turns.enumerated()), id: \.element.userID) { index, turn in
-                            Text("你").font(.caption.bold())
-                            Text(turn.userText).textSelection(.enabled)
-                                .accessibilityIdentifier("archive.turn.\(index).user")
-                            Text("助理").font(.caption.bold())
-                            Text(turn.assistantText).textSelection(.enabled)
-                                .accessibilityIdentifier("archive.turn.\(index).assistant")
-                            if let pdf = turn.pdf {
-                                ArchivedPDFEvidenceView(evidence: pdf, identifier: "archive.turn.\(index).pdf")
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("保存時的模型：\(record.destination.model)")
+                            Text(record.destination.baseURL).font(.caption).textSelection(.enabled)
+                            if !session.canOpenConversation(record) {
+                                Text("模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。")
+                                    .accessibilityIdentifier("archive.destinationMismatch")
                             }
+                            if let block = RecentConversationAccess.block(record, in: session),
+                               block != .differentDestination {
+                                Text(localizer.text(block.message))
+                                    .accessibilityIdentifier("archive.switchBlocked")
+                            }
+                            ForEach(Array(record.turns.enumerated()), id: \.element.userID) { index, turn in
+                                Text("你").font(.caption.bold())
+                                Text(turn.userText).textSelection(.enabled)
+                                    .accessibilityIdentifier("archive.turn.\(index).user")
+                                Text("助理").font(.caption.bold())
+                                Text(turn.assistantText).textSelection(.enabled)
+                                    .accessibilityIdentifier("archive.turn.\(index).assistant")
+                                if let pdf = turn.pdf {
+                                    ArchivedPDFEvidenceView(evidence: pdf, identifier: "archive.turn.\(index).pdf")
+                                }
+                            }
+                            if let error = store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
                         }
-                        if let error = store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding()
-                }
-                .safeAreaInset(edge: .bottom) {
+                        .frame(maxWidth: .infinity, alignment: .leading).padding()
+                    }
                     HStack {
                         Button("刪除對話", role: .destructive) { confirmsDelete = true }
                             .accessibilityIdentifier("archive.delete")
