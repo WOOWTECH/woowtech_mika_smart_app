@@ -796,6 +796,12 @@ final class SkillExecutionUITests: XCTestCase {
             tap("catalog.entry.documents", scroll: true)
             tap(catalogEntry, scroll: true)
         } else { tap("skills.documents.execute", scroll: true) }
+        if !fromCatalog {
+            XCTAssertTrue(app.collectionViews["skillExecution.form"].waitForExistence(timeout: 10),
+                          "The PDF entry must open the PDF execution form.")
+            XCTAssertFalse(app.collectionViews["transcript.form"].exists,
+                           "The PDF entry must not open the transcript form.")
+        }
         let fixture = app.staticTexts[fixtureIdentifier]
         revealLearningElement(fixture, in: app, visibility: .readableText)
         XCTAssertEqual(fixture.label, "測試文件已建立：" + filename,
