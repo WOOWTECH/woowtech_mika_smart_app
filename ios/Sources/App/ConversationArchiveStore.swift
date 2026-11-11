@@ -41,11 +41,26 @@ import Foundation
     /// a late response, and unrelated conversation deletion does not block this row.
     func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
-        guard state.conversations.first(where: { $0.id == record.id }) == expected else {
+        let current = state.conversations.first(where: { $0.id == record.id })
+        // Display-only renames may happen while a request is running. Compare
+        // the completed transcript snapshot, then let ConversationArchive.save
+        // carry the newest title forward with the arriving answer.
+        guard current?.id == expected?.id,
+              current?.destination == expected?.destination,
+              current?.updatedAt == expected?.updatedAt,
+              current?.turns == expected?.turns else {
             throw ConversationArchiveError.staleConversation
         }
         var next = state
         try next.save(record)
+        try vault.save(next)
+        state = next; error = nil
+    }
+
+    func rename(id: UUID, expectedTitle: String?, to title: String) throws {
+        guard available, let vault else { throw ConversationArchiveError.unavailable }
+        var next = state
+        try next.rename(id: id, expectedTitle: expectedTitle, to: title)
         try vault.save(next)
         state = next; error = nil
     }

@@ -66,21 +66,35 @@ public struct ArchivedConversation: Codable, Equatable, Identifiable, Sendable {
     public let destination: ConversationDestination
     public let updatedAt: Date
     public let turns: [ArchivedConversationTurn]
-    public var title: String { String(turns[0].userText.prefix(60)) }
+    /// User-edited display metadata stays inside the encrypted archive. Older
+    /// rows have no title field and keep their original first-message title.
+    public let customTitle: String?
+    public var title: String { customTitle ?? String(turns[0].userText.prefix(60)) }
 
-    public init(id: UUID, destination: ConversationDestination, updatedAt: Date, turns: [ArchivedConversationTurn]) throws {
-        guard updatedAt.timeIntervalSinceReferenceDate.isFinite,
-              !turns.isEmpty, turns.count <= ConversationArchive.maximumTurnsPerConversation,
-              Set(turns.flatMap { [$0.userID, $0.assistantID] }).count == turns.count * 2
-        else { throw ConversationArchiveError.invalidData }
-        self.id = id; self.destination = destination; self.updatedAt = updatedAt; self.turns = turns
+    public init(id: UUID, destination: ConversationDestination, updatedAt: Date,
+                turns: [ArchivedConversationTurn]) throws {
+        try self.init(id: id, destination: destination, updatedAt: updatedAt, turns: turns, customTitle: nil)
     }
 
-    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns }
+    /// Title mutations are owned by ConversationArchive.rename, never by a
+    /// model response constructing a replacement conversation record.
+    init(id: UUID, destination: ConversationDestination, updatedAt: Date,
+         turns: [ArchivedConversationTurn], customTitle: String?) throws {
+        guard updatedAt.timeIntervalSinceReferenceDate.isFinite,
+              !turns.isEmpty, turns.count <= ConversationArchive.maximumTurnsPerConversation,
+              Set(turns.flatMap { [$0.userID, $0.assistantID] }).count == turns.count * 2,
+              customTitle.map({ ConversationArchive.normalizedTitle($0) == $0 }) ?? true
+        else { throw ConversationArchiveError.invalidData }
+        self.id = id; self.destination = destination; self.updatedAt = updatedAt
+        self.turns = turns; self.customTitle = customTitle
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns, customTitle }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(id: c.decode(UUID.self, forKey: .id), destination: c.decode(ConversationDestination.self, forKey: .destination),
-                      updatedAt: c.decode(Date.self, forKey: .updatedAt), turns: c.decode([ArchivedConversationTurn].self, forKey: .turns))
+                      updatedAt: c.decode(Date.self, forKey: .updatedAt), turns: c.decode([ArchivedConversationTurn].self, forKey: .turns),
+                      customTitle: c.decodeIfPresent(String.self, forKey: .customTitle))
     }
 }
 
@@ -90,9 +104,22 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public static let maximumTurnsPerConversation = 200
     public static let maximumMessageBytes = 1024 * 1024
     public static let maximumEncodedBytes = 3 * 1024 * 1024
+    public static let maximumTitleCharacters = 120
+    public static let maximumTitleBytes = 512
     public private(set) var conversations: [ArchivedConversation] = []
-    private let version = 2
+    private let version = 3
     public init() {}
+
+    /// A single-line user title, bounded by visible characters and UTF-8.
+    /// Never feed this metadata to the model or use it as an archive key.
+    public static func normalizedTitle(_ title: String) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= maximumTitleCharacters,
+              trimmed.utf8.count <= maximumTitleBytes,
+              !trimmed.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains)
+        else { return nil }
+        return trimmed
+    }
 
     public mutating func save(_ record: ArchivedConversation) throws {
         var next = self
@@ -102,8 +129,30 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             guard record.turns.count >= prior.turns.count,
                   Array(record.turns.prefix(prior.turns.count)) == prior.turns
             else { throw ConversationArchiveError.staleConversation }
-            next.conversations[index] = record
-        } else { next.conversations.append(record) }
+            // A model request captures an earlier row. Its completed turn may
+            // arrive after the user renames that row; keep the latest title.
+            next.conversations[index] = try ArchivedConversation(
+                id: record.id, destination: record.destination, updatedAt: record.updatedAt,
+                turns: record.turns, customTitle: prior.customTitle)
+        } else {
+            guard record.customTitle == nil else { throw ConversationArchiveError.invalidData }
+            next.conversations.append(record)
+        }
+        try next.validate()
+        self = next
+    }
+
+    public mutating func rename(id: UUID, expectedTitle: String?, to title: String) throws {
+        guard let index = conversations.firstIndex(where: { $0.id == id }) else {
+            throw ConversationArchiveError.staleConversation
+        }
+        let prior = conversations[index]
+        guard prior.customTitle == expectedTitle else { throw ConversationArchiveError.staleConversation }
+        guard let normalized = Self.normalizedTitle(title) else { throw ConversationArchiveError.invalidData }
+        var next = self
+        next.conversations[index] = try ArchivedConversation(
+            id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
+            turns: prior.turns, customTitle: normalized)
         try next.validate()
         self = next
     }
@@ -125,9 +174,11 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let storedVersion = try c.decode(Int.self, forKey: .version)
-        guard storedVersion == 1 || storedVersion == 2 else { throw ConversationArchiveError.invalidData }
+        guard (1...3).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
+        else { throw ConversationArchiveError.invalidData }
+        guard storedVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil })
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }

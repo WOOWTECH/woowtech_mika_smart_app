@@ -52,6 +52,39 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
     }
 
+    func testDrawerRenameSurvivesRelaunchWithoutChangingSavedTurns() {
+        launch(); configure(); send("A")
+        tap("chat.menu")
+        let original = revealRecentRow("A")
+        ready(original); original.press(forDuration: 1)
+        let rename = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "drawer.recent.rename.")).firstMatch
+        ready(rename); rename.tap()
+        let field = app.textFields["drawer.rename.field"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "A")
+        ready(field); field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        field.typeText("B")
+        XCTAssertEqual(field.value as? String, "AB")
+        tap("drawer.rename.save")
+        let renamed = revealRecentRow("AB")
+        XCTAssertEqual(renamed.label, "AB")
+        tap("drawer.close"); tap("chat.archive")
+        let archived = row("AB")
+        XCTAssertTrue(archived.waitForExistence(timeout: 10))
+        ready(archived); archived.tap()
+        assertLabel(app.staticTexts["archive.turn.0.user"].firstMatch, "A")
+        assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：A")
+        launch(reset: false)
+        tap("chat.menu")
+        XCTAssertEqual(revealRecentRow("AB").label, "AB")
+        XCTAssertFalse(recentRow("A").exists)
+        tap("drawer.close"); tap("chat.archive")
+        XCTAssertTrue(row("AB").waitForExistence(timeout: 10))
+        XCTAssertFalse(row("A").exists)
+    }
+
     func testDrawerRecentSwitchKeepsDraftAndArchiveRemainsReadable() {
         launch(); configure(); send("Recent guarded")
         compose("Keep this unsent draft")

@@ -236,6 +236,58 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func renameDuringReplyAndEncryptedRelaunch() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let first = e.session(ArchiveModel(["First saved reply"]))
+        try await send(first, "First saved request")
+        guard let original = e.archive.conversations.first else { throw Failure(name: "saved row for rename") }
+        let gate = ArchiveGate(); let model = ArchiveModel(["Second saved reply"], gate: gate)
+        let active = e.session(model)
+        try a.check(active.openConversation(id: original.id), "open saved row before delayed model completion")
+        active.draft = "Second saved request"; active.send()
+        guard let task = active.capturedArchiveRequest else { throw Failure(name: "captured pending reply") }
+        await gate.waitUntilStarted()
+        try e.archive.rename(id: original.id, expectedTitle: nil, to: "  我的加密對話  ")
+        try a.check(e.archive.conversations[0].title == "我的加密對話"
+                    && e.archive.conversations[0].turns == original.turns,
+                    "rename publishes only metadata while reply is in flight")
+        await gate.release(); await task.value
+        let saved = e.archive.conversations[0]
+        try a.check(saved.title == "我的加密對話" && saved.turns.count == 2
+                    && saved.turns[0] == original.turns[0]
+                    && saved.turns[1].userText == "Second saved request"
+                    && saved.turns[1].assistantText == "Second saved reply"
+                    && active.archiveNotice == nil && !active.canRetryArchiveSave,
+                    "late completion appends exact pair without reverting rename")
+        let requests = await model.requests
+        try a.check(requests.count == 1 && requests[0].map(\.content) ==
+                    ["First saved request", "First saved reply", "Second saved request"],
+                    "display title never becomes model context")
+        let bytes = try Data(contentsOf: e.file)
+        try a.check(!String(decoding: bytes, as: UTF8.self).contains("我的加密對話"),
+                    "custom title remains inside ciphertext")
+        let reopened = e.reopen()
+        try a.check(reopened.available && reopened.conversations[0] == saved,
+                    "actual encrypted reload preserves title, destination and turns")
+        try a.rejects("stale UI rename cannot replace title") {
+            try e.archive.rename(id: original.id, expectedTitle: nil, to: "Stale title")
+        }
+        try a.check(e.archive.conversations[0] == saved && (try Data(contentsOf: e.file)) == bytes,
+                    "stale rename leaves published state and ciphertext unchanged")
+        let backup = e.root.appendingPathComponent("rename-before-write-failure.vault")
+        try FileManager.default.moveItem(at: e.file, to: backup)
+        try FileManager.default.createDirectory(at: e.file, withIntermediateDirectories: false)
+        try a.rejects("failed encrypted rename write") {
+            try e.archive.rename(id: original.id, expectedTitle: saved.customTitle, to: "Should not appear")
+        }
+        try a.check(e.archive.conversations[0] == saved && (try Data(contentsOf: backup)) == bytes,
+                    "write failure retains prior encrypted file and in-memory transcript")
+        try FileManager.default.removeItem(at: e.file)
+        try FileManager.default.moveItem(at: backup, to: e.file)
+        try a.check(e.reopen().conversations[0] == saved, "failed rename cannot damage a subsequent reload")
+        return a.count
+    }
+
     static func protectedNewConversation() async throws -> Int {
         var a = Assertions()
         let plain = try ArchiveEnvironment(); defer { plain.close() }
@@ -403,12 +455,17 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(try Data(contentsOf: backup) == original, "old encrypted bytes unchanged")
         let ids = session.entries.map(\.id); let rowID = prior.conversations[0].id
         try FileManager.default.removeItem(at: e.file); try FileManager.default.moveItem(at: backup, to: e.file)
+        try e.archive.rename(id: rowID, expectedTitle: nil, to: "Retained through retry")
+        try a.check(e.archive.conversations[0].title == "Retained through retry",
+                    "user rename can commit while a failed answer awaits explicit save retry")
         let beforeRetry = await model.requests.count
         session.retryArchiveSave()
         let afterRetry = await model.requests.count
         try a.check(session.archiveNotice == nil && !session.canRetryArchiveSave && beforeRetry == afterRetry, "retry only saves; no model replay")
         try a.check(e.archive.conversations[0].id == rowID && e.archive.conversations[0].turns.flatMap { [$0.userID, $0.assistantID] } == ids,
                     "retry preserves pair and row IDs")
+        try a.check(e.archive.conversations[0].title == "Retained through retry",
+                    "retry of the same delivered answer preserves the newest user title")
         let saved = try Data(contentsOf: e.file)
         e.keys.values = [:]; let missing = e.reopen()
         try a.check(!missing.available, "missing key blocks archive")
@@ -498,11 +555,12 @@ private actor ArchiveModel: ChatModelClient {
     @MainActor static func main() async {
         do {
             let groups = try await [ArchiveAppChecks.namespaceGates(), ArchiveAppChecks.completedPairsAndRestore(),
-                ArchiveAppChecks.recentDrawerShortcuts(), ArchiveAppChecks.protectedNewConversation(),
+                ArchiveAppChecks.recentDrawerShortcuts(), ArchiveAppChecks.renameDuringReplyAndEncryptedRelaunch(),
+                ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.protectedArchiveDeletion(),
                 ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay()]
-            print("{\"groups\":9,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":10,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -511,6 +569,9 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testNamespaceGates() throws { XCTAssertGreaterThan(try ArchiveAppChecks.namespaceGates(), 0) }
     @MainActor func testCompletedPairsAndRestore() async throws { let n = try await ArchiveAppChecks.completedPairsAndRestore(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRecentDrawerShortcuts() async throws { let n = try await ArchiveAppChecks.recentDrawerShortcuts(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testRenameDuringReplyAndEncryptedRelaunch() async throws {
+        let n = try await ArchiveAppChecks.renameDuringReplyAndEncryptedRelaunch(); XCTAssertGreaterThan(n, 0)
+    }
     @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testProtectedArchiveDeletion() async throws { let n = try await ArchiveAppChecks.protectedArchiveDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testDestinationIsolation() async throws { let n = try await ArchiveAppChecks.destinationIsolation(); XCTAssertGreaterThan(n, 0) }

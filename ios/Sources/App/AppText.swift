@@ -408,6 +408,10 @@ enum AppText: Equatable {
     case drawerRecentReload
     case drawerRecentEmpty
     case drawerRecentCurrent
+    case drawerRecentRename
+    case drawerRecentRenameTitle
+    case drawerRecentRenameInvalid
+    case drawerRecentRenameFailed
     case drawerRecentTurns(count: Int)
     case drawerRecentActiveTask
     case drawerRecentPendingApproval
@@ -829,6 +833,10 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "drawer.recent.reload"
         case .drawerRecentEmpty: return "drawer.recent.empty"
         case .drawerRecentCurrent: return "drawer.recent.current"
+        case .drawerRecentRename: return "drawer.recent.rename"
+        case .drawerRecentRenameTitle: return "drawer.recent.renameTitle"
+        case .drawerRecentRenameInvalid: return "drawer.recent.renameInvalid"
+        case .drawerRecentRenameFailed: return "drawer.recent.renameFailed"
         case .drawerRecentTurns: return "drawer.recent.turns"
         case .drawerRecentActiveTask: return "drawer.recent.activeTask"
         case .drawerRecentPendingApproval: return "drawer.recent.pendingApproval"
@@ -1278,6 +1286,10 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "重新讀取"
         case .drawerRecentEmpty: return "尚無保存的對話"
         case .drawerRecentCurrent: return "目前對話"
+        case .drawerRecentRename: return "重新命名"
+        case .drawerRecentRenameTitle: return "重新命名對話"
+        case .drawerRecentRenameInvalid: return "請輸入非空白的單行標題，且不要過長。"
+        case .drawerRecentRenameFailed: return "改名未保存；對話內容不變。請重新開啟再試。"
         case .drawerRecentTurns: return "%lld 輪"
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
         case .drawerRecentPendingApproval: return "有待核准的操作，請先返回處理。"

@@ -47,7 +47,7 @@ enum ConversationArchiveChecks {
             var bad = json; bad.removeValue(forKey: field)
             try a.rejects("required archive field " + field) { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
-        for value: Any in [3, "1", NSNull()] {
+        for value: Any in [4, "1", NSNull()] {
             var bad = json; bad["version"] = value
             try a.rejects("unknown/malformed version") { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
@@ -92,13 +92,68 @@ enum ConversationArchiveChecks {
         try a.check(ids == oldIDs, "cross conversation collision unchanged")
         return a.count
     }
+
+    static func renameMigrationAndLateAppend() throws -> Int {
+        var a = Assertions(); let dest = try destination(); let first = try row(destination: dest)
+        var archive = ConversationArchive(); try archive.save(first)
+        var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(archive)) as! [String: Any]
+        legacy["version"] = 1
+        let oldest = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: legacy))
+        try a.check(oldest.conversations[0].turns == first.turns && oldest.conversations[0].customTitle == nil,
+                    "v1 complete messages survive metadata migration")
+        legacy["version"] = 2
+        archive = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: legacy))
+        try a.check(archive.conversations[0].title == String(first.turns[0].userText.prefix(60))
+                    && archive.conversations[0].customTitle == nil, "v2 title derives from first message")
+        let before = archive.conversations[0]
+        try archive.rename(id: first.id, expectedTitle: nil, to: "  我的對話  ")
+        let renamed = archive.conversations[0]
+        try a.check(renamed.title == "我的對話" && renamed.customTitle == "我的對話"
+                    && renamed.turns == before.turns && renamed.destination == before.destination
+                    && renamed.updatedAt == before.updatedAt, "rename changes only encrypted display metadata")
+        let encoded = try JSONEncoder().encode(archive)
+        try a.check(try JSONDecoder().decode(ConversationArchive.self, from: encoded) == archive,
+                    "renamed v3 archive survives exact roundtrip")
+        let appended = try ArchivedConversation(id: first.id, destination: dest, updatedAt: Date(),
+            turns: first.turns + [.init(userText: "Continued request", assistantText: "Continued reply")])
+        try archive.save(appended)
+        try a.check(archive.conversations[0].title == "我的對話" && archive.conversations[0].turns.count == 2,
+                    "late completed pair cannot overwrite a user title")
+        let stable = archive
+        for invalid in [" ", "Line\nBreak", "Line\u{2028}Break", "Line\u{2029}Break",
+                        String(repeating: "界", count: 121),
+                        String(repeating: "🙂", count: 121),
+                        String(repeating: "e\u{301}\u{301}", count: 120), "A\u{0000}B"] {
+            try a.rejects("invalid or oversized title") {
+                try archive.rename(id: first.id, expectedTitle: "我的對話", to: invalid)
+            }
+            try a.check(archive == stable, "invalid title leaves transcript and title unchanged")
+        }
+        try a.rejects("stale title review") { try archive.rename(id: first.id, expectedTitle: nil, to: "Other") }
+        try a.check(archive == stable, "stale rename cannot overwrite newer title")
+        try archive.delete(id: first.id)
+        try a.rejects("deleted row rename") { try archive.rename(id: first.id, expectedTitle: "我的對話", to: "Other") }
+        var malformed = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        var rows = malformed["conversations"] as! [[String: Any]]
+        rows[0]["customTitle"] = "Invalid\nTitle"; malformed["conversations"] = rows
+        try a.rejects("invalid encrypted title on decode") {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: malformed))
+        }
+        malformed["version"] = 2
+        rows[0]["customTitle"] = "Valid title"; malformed["conversations"] = rows
+        try a.rejects("v2 cannot claim v3 title metadata") {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: malformed))
+        }
+        return a.count
+    }
 }
 
 #if CONVERSATION_ARCHIVE_STANDALONE
 @main enum ConversationArchiveMain {
     static func main() throws {
-        let groups = try [ConversationArchiveChecks.roundTripAndIdentity(), ConversationArchiveChecks.malformedState(), ConversationArchiveChecks.boundedTransactions()]
-        print("{\"groups\":3,\"assertions\":\(groups.reduce(0,+))}")
+        let groups = try [ConversationArchiveChecks.roundTripAndIdentity(), ConversationArchiveChecks.malformedState(),
+                          ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend()]
+        print("{\"groups\":4,\"assertions\":\(groups.reduce(0,+))}")
     }
 }
 #else
@@ -107,5 +162,6 @@ final class ConversationArchiveTests: XCTestCase {
     func testRoundTripAndIdentity() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.roundTripAndIdentity(), 0) }
     func testMalformedState() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.malformedState(), 0) }
     func testBoundedTransactions() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.boundedTransactions(), 0) }
+    func testRenameMigrationAndLateAppend() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.renameMigrationAndLateAppend(), 0) }
 }
 #endif
