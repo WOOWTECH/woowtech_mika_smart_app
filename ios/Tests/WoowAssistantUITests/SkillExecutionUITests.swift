@@ -934,7 +934,11 @@ final class SkillExecutionUITests: XCTestCase {
     }
 
     private var nativeCancel: XCUIElement {
-        nativeFilesNavigation.buttons.matching(NSPredicate(format: "label IN %@", ["取消", "Cancel"])).firstMatch
+        let labels = NSPredicate(format: "label IN %@", ["取消", "Cancel"])
+        let content = nativeFilesNavigation.buttons.matching(labels).firstMatch
+        if content.exists { return content }
+        // iPadOS 27 places the real Files dismissal in the sidebar navigation bar.
+        return app.navigationBars["DOCSidebarView"].buttons.matching(labels).firstMatch
     }
 
     private func chooseSyntheticPDF(picker: PickerArm = .swiftUI) {
@@ -1010,7 +1014,7 @@ final class SkillExecutionUITests: XCTestCase {
     }
 
     private let applicationLabels = ["渥屋助理", "WoowAssistant"]
-    private let localLabels = ["我的 iPhone", "我的iPhone", "在我的 iPhone 上", "On My iPhone", "我的 iPad", "On My iPad"]
+    private let localLabels = ["我的 iPhone", "我的iPhone", "在我的 iPhone 上", "On My iPhone", "我的 iPad", "我的iPad", "On My iPad"]
     private let browseLabels = ["瀏覽", "Browse"]
     private let locationsLabels = ["位置", "Locations"]
     private var selectedFileNames: NSPredicate { NSPredicate(format: "label IN %@", [filename, stem]) }
