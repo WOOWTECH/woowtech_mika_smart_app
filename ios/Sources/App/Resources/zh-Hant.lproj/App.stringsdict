@@ -16,6 +16,20 @@
 			<string>%lld 個步驟</string>
 		</dict>
 	</dict>
+	<key>drawer.recent.turns</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>%lld 輪</string>
+		</dict>
+	</dict>
 	<key>mcpResourceCount</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

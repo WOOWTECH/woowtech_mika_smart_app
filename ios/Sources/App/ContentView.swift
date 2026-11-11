@@ -1,5 +1,6 @@
 import SwiftUI
 import AssistantSkills
+import AssistantPersistence
 
 @MainActor
 struct ContentView: View {
@@ -7,6 +8,8 @@ struct ContentView: View {
     @State private var browserReturnSection: AppSection = .chat
     @State private var showsDrawer = false
     @State private var showsArchive = false
+    @State private var showsNewConversationConfirmation = false
+    @State private var pendingNewConversationProtection: NewConversationProtection?
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
@@ -27,6 +30,20 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.22), value: showsDrawer)
         .sheet(isPresented: $showsArchive) {
             if let store = session.archive { ConversationArchiveView(store: store, session: session) }
+        }
+        .alert(localizer.text(.newConversationConfirmTitle), isPresented: $showsNewConversationConfirmation) {
+            Button(localizer.text(.newConversationDiscard), role: .destructive) {
+                let approved = pendingNewConversationProtection
+                pendingNewConversationProtection = nil
+                guard let approved, NewConversationAction.start(in: session, approved: approved) else { return }
+                selection = .chat
+                closeDrawer()
+            }
+            Button(localizer.text(.newConversationKeep), role: .cancel) {
+                pendingNewConversationProtection = nil
+            }
+        } message: {
+            Text(pendingNewConversationProtection?.warningKeys.map { localizer.text($0) }.joined(separator: "\n") ?? "")
         }
         .tint(palette.accent)
         .background(palette.background)
@@ -95,6 +112,7 @@ struct ContentView: View {
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
                           status: session.chatStatus,
+                          session: session,
                           canStartNew: !session.isSubmitting,
                           canOpenArchive: session.archive != nil && !session.isSubmitting,
                           palette: palette,
@@ -102,8 +120,17 @@ struct ContentView: View {
                           topInset: geometry.safeAreaInsets.top,
                           bottomInset: geometry.safeAreaInsets.bottom,
                           onClose: closeDrawer,
-                          onNew: { session.newConversation(); selection = .chat; showsDrawer = false },
+                          onNew: requestNewConversation,
                           onArchive: { showsDrawer = false; showsArchive = true },
+                          onOpenRecent: { record in
+                              if RecentConversationAccess.isCurrent(record, in: session) {
+                                  closeDrawer()
+                              } else if RecentConversationAccess.open(record, in: session) {
+                                  browserReturnSection = .chat
+                                  selection = .chat
+                                  closeDrawer()
+                              }
+                          },
                           onSelect: { section in
                               if section == .chat { closeDrawer() }
                               else {
@@ -151,7 +178,7 @@ struct ContentView: View {
                 }
                 if selection == .chat {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { session.newConversation() } label: {
+                        Button(action: requestNewConversation) {
                             Image(systemName: "square.and.pencil")
                                 .frame(width: 40, height: 40)
                         }
@@ -190,6 +217,17 @@ struct ContentView: View {
     private func closeDrawer() {
         showsDrawer = false
         if selection == .chat { menuHasVoiceOverFocus = true }
+    }
+
+    private func requestNewConversation() {
+        guard !session.isSubmitting else { return }
+        if let protection = NewConversationProtection.current(in: session) {
+            pendingNewConversationProtection = protection
+            showsNewConversationConfirmation = true
+        } else if NewConversationAction.start(in: session, approved: nil) {
+            selection = .chat
+            closeDrawer()
+        }
     }
 
     @ViewBuilder private var fixtureObservation: some View {
@@ -244,6 +282,7 @@ private struct MikaVisualPalette {
 @MainActor
 private struct MikaNavigationDrawer: View {
     let status: String
+    @ObservedObject var session: ChatSession
     let canStartNew: Bool
     let canOpenArchive: Bool
     let palette: MikaVisualPalette
@@ -253,6 +292,7 @@ private struct MikaNavigationDrawer: View {
     let onClose: () -> Void
     let onNew: () -> Void
     let onArchive: () -> Void
+    let onOpenRecent: (ArchivedConversation) -> Void
     let onSelect: (AppSection) -> Void
     @AccessibilityFocusState private var closeHasVoiceOverFocus: Bool
 
@@ -281,9 +321,16 @@ private struct MikaNavigationDrawer: View {
                     row(localizer.text(.shellMemoryAndSkills), symbol: "heart", id: "navigation.memory") { onSelect(.memory) }
                     row(localizer.text(.shellMCPServers), symbol: "link", id: "navigation.tools") { onSelect(.tools) }
                     row(localizer.text(.shellBrowser), symbol: "globe", id: "navigation.browser") { onSelect(.browser) }
+                    if let store = session.archive {
+                        MikaRecentConversationsSection(store: store, session: session,
+                            localizer: localizer, ink: palette.ink,
+                            secondaryInk: palette.secondaryInk, hair: palette.hair,
+                            onOpen: onOpenRecent)
+                    }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 6)
             }
+            .accessibilityIdentifier("drawer.scroll")
             Divider().overlay(palette.hair)
             row(localizer.text(.shellSettings), symbol: "gearshape", id: "navigation.settings") { onSelect(.settings) }
                 .padding(.horizontal, 12).padding(.vertical, 6)

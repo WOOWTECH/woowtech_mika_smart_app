@@ -24,7 +24,7 @@ import SwiftUI
                     ForEach(store.conversations) { record in
                         NavigationLink {
                             ConversationArchiveDetail(store: store, session: session, id: record.id) {
-                                if session.openConversation(id: record.id) { dismiss() }
+                                if RecentConversationAccess.open(record, in: session) { dismiss() }
                             }
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
@@ -58,6 +58,7 @@ import SwiftUI
     let id: UUID
     let open: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appLocalizer) private var localizer
     @State private var confirmsDelete = false
 
     var body: some View {
@@ -70,6 +71,11 @@ import SwiftUI
                         if !session.canOpenConversation(record) {
                             Text("模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。")
                                 .accessibilityIdentifier("archive.destinationMismatch")
+                        }
+                        if let block = RecentConversationAccess.block(record, in: session),
+                           block != .differentDestination {
+                            Text(localizer.text(block.message))
+                                .accessibilityIdentifier("archive.switchBlocked")
                         }
                         ForEach(Array(record.turns.enumerated()), id: \.element.userID) { index, turn in
                             Text("你").font(.caption.bold())
@@ -91,7 +97,7 @@ import SwiftUI
                             .accessibilityIdentifier("archive.delete")
                         Spacer()
                         Button("開啟此對話", action: open)
-                            .disabled(!session.canOpenConversation(record) || session.isSubmitting)
+                            .disabled(RecentConversationAccess.block(record, in: session) != nil)
                             .accessibilityIdentifier("archive.open")
                     }.padding().background(.bar)
                 }

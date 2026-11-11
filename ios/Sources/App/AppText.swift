@@ -397,6 +397,25 @@ enum AppText: Equatable {
     case settingsModelRemoved
     case settingsModelFallbackError
     case settingsHomeTitle
+    case drawerRecentTitle
+    case drawerRecentBoundary
+    case drawerRecentUnavailable
+    case drawerRecentReload
+    case drawerRecentEmpty
+    case drawerRecentCurrent
+    case drawerRecentTurns(count: Int)
+    case drawerRecentActiveTask
+    case drawerRecentPendingApproval
+    case drawerRecentUnsentDraft
+    case drawerRecentUnsavedReply
+    case drawerRecentDifferentDestination
+    case newConversationConfirmTitle
+    case newConversationPDFWarning
+    case newConversationUnsavedWarning
+    case newConversationPreviewWarning
+    case newConversationDraftRetained
+    case newConversationDiscard
+    case newConversationKeep
 
     var key: String {
         switch self {
@@ -794,6 +813,25 @@ enum AppText: Equatable {
         case .settingsModelRemoved: return "settings.model.removed"
         case .settingsModelFallbackError: return "settings.model.fallbackError"
         case .settingsHomeTitle: return "settings.home.title"
+        case .drawerRecentTitle: return "drawer.recent.title"
+        case .drawerRecentBoundary: return "drawer.recent.boundary"
+        case .drawerRecentUnavailable: return "drawer.recent.unavailable"
+        case .drawerRecentReload: return "drawer.recent.reload"
+        case .drawerRecentEmpty: return "drawer.recent.empty"
+        case .drawerRecentCurrent: return "drawer.recent.current"
+        case .drawerRecentTurns: return "drawer.recent.turns"
+        case .drawerRecentActiveTask: return "drawer.recent.activeTask"
+        case .drawerRecentPendingApproval: return "drawer.recent.pendingApproval"
+        case .drawerRecentUnsentDraft: return "drawer.recent.unsentDraft"
+        case .drawerRecentUnsavedReply: return "drawer.recent.unsavedReply"
+        case .drawerRecentDifferentDestination: return "drawer.recent.differentDestination"
+        case .newConversationConfirmTitle: return "newConversation.confirmTitle"
+        case .newConversationPDFWarning: return "newConversation.pdfWarning"
+        case .newConversationUnsavedWarning: return "newConversation.unsavedWarning"
+        case .newConversationPreviewWarning: return "newConversation.previewWarning"
+        case .newConversationDraftRetained: return "newConversation.draftRetained"
+        case .newConversationDiscard: return "newConversation.discard"
+        case .newConversationKeep: return "newConversation.keep"
         }
     }
 
@@ -817,6 +855,7 @@ enum AppText: Equatable {
         case .browserStartRemoveBookmark(let name): return [name]
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
+        case .drawerRecentTurns(let count): return [Int64(count)]
         default: return []
         }
     }
@@ -1218,6 +1257,25 @@ enum AppText: Equatable {
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
         case .settingsModelFallbackError: return "無法讀取或儲存模型設定，請移除設定後重新填寫。"
         case .settingsHomeTitle: return "設定"
+        case .drawerRecentTitle: return "近期對話"
+        case .drawerRecentBoundary: return "僅顯示此裝置已加密保存的完整問答。"
+        case .drawerRecentUnavailable: return "無法讀取加密對話；原檔保留，請解鎖後重新讀取。"
+        case .drawerRecentReload: return "重新讀取"
+        case .drawerRecentEmpty: return "尚無保存的對話"
+        case .drawerRecentCurrent: return "目前對話"
+        case .drawerRecentTurns: return "%lld 輪"
+        case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
+        case .drawerRecentPendingApproval: return "有待核准的操作，請先返回處理。"
+        case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
+        case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
+        case .drawerRecentDifferentDestination: return "模型服務或金鑰身分不同；可在完整歷史中檢視。"
+        case .newConversationConfirmTitle: return "開啟新對話前確認"
+        case .newConversationPDFWarning: return "選取的 PDF 尚未送出；開啟新對話會移除附件。"
+        case .newConversationUnsavedWarning: return "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。"
+        case .newConversationPreviewWarning: return "未完成的回覆片段尚未保存；開啟新對話會清除它。"
+        case .newConversationDraftRetained: return "已有的純文字草稿會保留。"
+        case .newConversationDiscard: return "捨棄並開啟新對話"
+        case .newConversationKeep: return "返回目前對話"
         }
     }
 }

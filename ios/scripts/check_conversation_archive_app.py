@@ -46,9 +46,10 @@ def main():
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / "Sources" / name).glob("*.swift"))]
                    for name, _ in MODULES}
-        apps = [copy("Sources/App/" + name + ".swift") for name in APPS]
-        views = [copy("Sources/App/" + name + ".swift") for name in ["ContentView", "ConversationArchiveView"]]
+        apps = [copy("Sources/App/" + name + ".swift") for name in [*APPS, "RecentConversationAccess", "NewConversationProtection"]]
+        views = [copy("Sources/App/" + name + ".swift") for name in ["ContentView", "ConversationArchiveView", "MikaRecentConversationsSection"]]
         ui = copy("Tests/WoowAssistantUITests/ConversationArchiveUITests.swift")
+        pdf_ui = copy("Tests/WoowAssistantUITests/ChatPDFAttachmentUITests.swift")
         core = copy("Tests/AssistantPersistenceTests/ConversationArchiveTests.swift")
         app = copy("scripts/CheckConversationArchiveApp.swift")
         prior = copy("scripts/CheckProfileChatApp.swift")
@@ -68,7 +69,7 @@ def main():
         run("core-execute", [str(binary)], 45)
         run("existing-context-window", ["python3", str(source / "scripts/check_chat_context_window.py")], 120)
         for config, flags in [("Debug", ["-DDEBUG"]), ("Release", [])]:
-            run(config + "-iOS-syntax-only", ["swiftc", "-frontend", "-parse", "-target", "arm64-apple-ios17.0", *flags, *apps, *views, app, ui])
+            run(config + "-iOS-syntax-only", ["swiftc", "-frontend", "-parse", "-target", "arm64-apple-ios17.0", *flags, *apps, *views, app, ui, pdf_ui])
             binary = out / (config + "-archive-app")
             run(config + "-compile", [*common, "-DCONVERSATION_ARCHIVE_APP_STANDALONE", *flags,
                 *["-l" + m for m, _ in MODULES], *link, *apps, app, "-o", str(binary)])

@@ -187,6 +187,108 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func recentDrawerShortcuts() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let model = ArchiveModel(["First saved reply", "Second saved reply"])
+        let session = e.session(model)
+        try await send(session, "First saved request")
+        let first = e.archive.conversations[0]
+        session.newConversation()
+        try await send(session, "Second saved request")
+        let second = e.archive.conversations[0]
+        try a.check(e.archive.conversations.map(\.id) == [second.id, first.id],
+                    "drawer uses actual newest-first archived rows")
+        try a.check(RecentConversationAccess.isCurrent(second, in: session)
+                    && !RecentConversationAccess.isCurrent(first, in: session), "current row uses completed IDs")
+        try a.check(RecentConversationAccess.block(first, in: session) == nil, "stored same-destination row can open")
+
+        session.draft = "Unsent exact draft"
+        let priorEntries = session.entries; let priorBytes = try Data(contentsOf: e.file)
+        try a.check(RecentConversationAccess.block(first, in: session) == .unsentDraft
+                    && !RecentConversationAccess.open(first, in: session), "draft blocks destructive switch")
+        try a.check(session.draft == "Unsent exact draft" && session.entries.map(\.id) == priorEntries.map(\.id)
+                    && session.entries.map(\.content) == priorEntries.map(\.content)
+                    && (try Data(contentsOf: e.file)) == priorBytes, "blocked switch preserves draft, current view and vault")
+        session.draft = ""
+
+        let gate = ArchiveGate(); let runningModel = ArchiveModel(["late response"], gate: gate)
+        let running = e.session(runningModel)
+        running.draft = "Running request"; running.send()
+        guard let task = running.capturedArchiveRequest else { throw Failure(name: "capture real running request") }
+        await gate.waitUntilStarted()
+        try a.check(RecentConversationAccess.block(first, in: running) == .activeTask
+                    && !RecentConversationAccess.open(first, in: running), "running model request cannot be switched")
+        running.cancel(); await gate.release(); await task.value
+        try a.check(e.archive.state.conversations.count == 2, "cancelled request cannot enter drawer")
+
+        try a.check(RecentConversationAccess.open(first, in: session), "explicit safe shortcut opens stored row")
+        try a.check(session.entries.map(\.id) == [first.turns[0].userID, first.turns[0].assistantID]
+                    && session.pendingMCPApproval == nil && session.pendingProfileReview == nil
+                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no approvals")
+        let modelRequests = await model.requests
+        try a.check(modelRequests.count == 2, "shortcut made no new model call")
+        session.modelDraft = "other-model"; session.saveSettings()
+        try a.check(RecentConversationAccess.block(first, in: session) == .differentDestination
+                    && e.archive.conversations.count == 2, "model mismatch leaves history intact")
+        e.keys.values.removeAll(); e.archive.reload()
+        try a.check(RecentConversationAccess.block(first, in: session) == .unavailable
+                    && !RecentConversationAccess.open(first, in: session), "vault read failure cannot expose stale shortcut")
+        return a.count
+    }
+
+    static func protectedNewConversation() async throws -> Int {
+        var a = Assertions()
+        let plain = try ArchiveEnvironment(); defer { plain.close() }
+        let plainSession = plain.session(ArchiveModel([]))
+        plainSession.draft = "Keep exact unsent text"
+        try a.check(NewConversationProtection.current(in: plainSession) == nil,
+                    "text-only draft needs no destructive confirmation")
+        try a.check(NewConversationAction.start(in: plainSession, approved: nil)
+                    && plainSession.draft == "Keep exact unsent text" && plainSession.entries.isEmpty,
+                    "ordinary new conversation retains text draft")
+
+        let failed = try ArchiveEnvironment(); defer { failed.close() }
+        failed.keys.rejectWrites = true
+        let session = failed.session(ArchiveModel(["Actually delivered but unsaved"]));
+        try await send(session, "Request with failed encrypted save")
+        session.draft = "Do not lose this text draft"
+        guard let protection = NewConversationProtection.current(in: session) else {
+            throw Failure(name: "actual failed archive save must require confirmation")
+        }
+        try a.check(protection.hasUnsavedAnswer && protection.warningKeys.contains(.newConversationUnsavedWarning)
+                    && session.canRetryArchiveSave && session.archiveNotice != nil,
+                    "unsaved delivered answer and retry are named in warning")
+        let visible = session.entries.map(\.id)
+        try a.check(!NewConversationAction.start(in: session, approved: nil)
+                    && session.entries.map(\.id) == visible && session.canRetryArchiveSave
+                    && session.draft == "Do not lose this text draft",
+                    "unconfirmed new conversation preserves answer, retry and draft")
+        failed.keys.rejectWrites = false; session.retryArchiveSave()
+        try a.check(NewConversationProtection.current(in: session) == nil
+                    && !NewConversationAction.start(in: session, approved: protection)
+                    && session.entries.map(\.id) == visible,
+                    "stale confirmation cannot clear newly saved answer")
+        try a.check(NewConversationAction.start(in: session, approved: nil)
+                    && session.draft == "Do not lose this text draft"
+                    && failed.archive.conversations.count == 1,
+                    "safe new conversation retains draft and durable answer")
+
+        let discarded = try ArchiveEnvironment(); defer { discarded.close() }
+        discarded.keys.rejectWrites = true
+        let discardSession = discarded.session(ArchiveModel(["Another unsaved answer"]))
+        try await send(discardSession, "Explicit discard request")
+        discardSession.draft = "Keep text after explicit discard"
+        guard let explicit = NewConversationProtection.current(in: discardSession) else {
+            throw Failure(name: "second actual write failure must require confirmation")
+        }
+        try a.check(NewConversationAction.start(in: discardSession, approved: explicit)
+                    && discardSession.entries.isEmpty && discardSession.archiveNotice == nil
+                    && !discardSession.canRetryArchiveSave && discarded.archive.conversations.isEmpty
+                    && discardSession.draft == "Keep text after explicit discard",
+                    "only exact explicit confirmation discards unsaved answer and retry")
+        return a.count
+    }
+
     static func destinationIsolation() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
         let model = ArchiveModel(["First", "Other destination reply"]); let session = e.session(model)
@@ -318,9 +420,10 @@ private actor ArchiveModel: ChatModelClient {
     @MainActor static func main() async {
         do {
             let groups = try await [ArchiveAppChecks.namespaceGates(), ArchiveAppChecks.completedPairsAndRestore(),
+                ArchiveAppChecks.recentDrawerShortcuts(), ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay()]
-            print("{\"groups\":6,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":8,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -328,6 +431,8 @@ private actor ArchiveModel: ChatModelClient {
 final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testNamespaceGates() throws { XCTAssertGreaterThan(try ArchiveAppChecks.namespaceGates(), 0) }
     @MainActor func testCompletedPairsAndRestore() async throws { let n = try await ArchiveAppChecks.completedPairsAndRestore(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testRecentDrawerShortcuts() async throws { let n = try await ArchiveAppChecks.recentDrawerShortcuts(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testDestinationIsolation() async throws { let n = try await ArchiveAppChecks.destinationIsolation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testFailuresAndRetry() async throws { let n = try await ArchiveAppChecks.failuresAndRetry(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testLateCompletionAndDeletion() async throws { let n = try await ArchiveAppChecks.lateCompletionAndDeletion(); XCTAssertGreaterThan(n, 0) }

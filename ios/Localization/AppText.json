@@ -4076,6 +4076,153 @@
         "zh-Hans": "设置",
         "en": "Settings"
       }
+    },
+    {
+      "case": "drawerRecentTitle",
+      "key": "drawer.recent.title",
+      "parameters": [],
+      "translations": { "zh-Hant": "近期對話", "zh-Hans": "最近对话", "en": "Recent conversations" }
+    },
+    {
+      "case": "drawerRecentBoundary",
+      "key": "drawer.recent.boundary",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "僅顯示此裝置已加密保存的完整問答。",
+        "zh-Hans": "仅显示此设备已加密保存的完整问答。",
+        "en": "Only completed exchanges in this device’s encrypted archive appear here."
+      }
+    },
+    {
+      "case": "drawerRecentUnavailable",
+      "key": "drawer.recent.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法讀取加密對話；原檔保留，請解鎖後重新讀取。",
+        "zh-Hans": "无法读取加密对话；原文件保留，请解锁后重新读取。",
+        "en": "Could not read the encrypted archive. The original file is retained; unlock and reload."
+      }
+    },
+    {
+      "case": "drawerRecentReload",
+      "key": "drawer.recent.reload",
+      "parameters": [],
+      "translations": { "zh-Hant": "重新讀取", "zh-Hans": "重新读取", "en": "Reload" }
+    },
+    {
+      "case": "drawerRecentEmpty",
+      "key": "drawer.recent.empty",
+      "parameters": [],
+      "translations": { "zh-Hant": "尚無保存的對話", "zh-Hans": "尚无保存的对话", "en": "No saved conversations" }
+    },
+    {
+      "case": "drawerRecentCurrent",
+      "key": "drawer.recent.current",
+      "parameters": [],
+      "translations": { "zh-Hant": "目前對話", "zh-Hans": "当前对话", "en": "Current" }
+    },
+    {
+      "case": "drawerRecentTurns",
+      "key": "drawer.recent.turns",
+      "parameters": [{ "name": "count", "type": "Int" }],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": { "other": "%lld 輪" },
+        "zh-Hans": { "other": "%lld 轮" },
+        "en": { "one": "%lld exchange", "other": "%lld exchanges" }
+      }
+    },
+    {
+      "case": "drawerRecentActiveTask",
+      "key": "drawer.recent.activeTask",
+      "parameters": [],
+      "translations": { "zh-Hant": "任務進行中，請先返回處理。", "zh-Hans": "任务进行中，请先返回处理。", "en": "A task is running. Return to the chat first." }
+    },
+    {
+      "case": "drawerRecentPendingApproval",
+      "key": "drawer.recent.pendingApproval",
+      "parameters": [],
+      "translations": { "zh-Hant": "有待核准的操作，請先返回處理。", "zh-Hans": "有待批准的操作，请先返回处理。", "en": "An action awaits your review. Return to the chat first." }
+    },
+    {
+      "case": "drawerRecentUnsentDraft",
+      "key": "drawer.recent.unsentDraft",
+      "parameters": [],
+      "translations": { "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。", "zh-Hans": "草稿或 PDF 附件尚未发送，请先返回处理。", "en": "An unsent draft or PDF attachment is present. Return to the chat first." }
+    },
+    {
+      "case": "drawerRecentUnsavedReply",
+      "key": "drawer.recent.unsavedReply",
+      "parameters": [],
+      "translations": { "zh-Hant": "目前答覆尚未保存，請先返回處理。", "zh-Hans": "当前回复尚未保存，请先返回处理。", "en": "The current reply has not been saved. Return to the chat first." }
+    },
+    {
+      "case": "drawerRecentDifferentDestination",
+      "key": "drawer.recent.differentDestination",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務或金鑰身分不同；可在完整歷史中檢視。",
+        "zh-Hans": "模型服务或密钥身份不同；可在完整历史中查看。",
+        "en": "The model service or key identity differs. You can view it in full history."
+      }
+    },
+    {
+      "case": "newConversationConfirmTitle",
+      "key": "newConversation.confirmTitle",
+      "parameters": [],
+      "translations": { "zh-Hant": "開啟新對話前確認", "zh-Hans": "开启新对话前确认", "en": "Before starting a new conversation" }
+    },
+    {
+      "case": "newConversationPDFWarning",
+      "key": "newConversation.pdfWarning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選取的 PDF 尚未送出；開啟新對話會移除附件。",
+        "zh-Hans": "选取的 PDF 尚未发送；开启新对话会移除附件。",
+        "en": "The selected PDF has not been sent. Starting a new conversation removes the attachment."
+      }
+    },
+    {
+      "case": "newConversationUnsavedWarning",
+      "key": "newConversation.unsavedWarning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。",
+        "zh-Hans": "本次回复尚未保存；开启新对话会清除画面中的回复，并放弃重试保存。",
+        "en": "This reply has not been saved. Starting a new conversation clears the reply and gives up the save retry."
+      }
+    },
+    {
+      "case": "newConversationPreviewWarning",
+      "key": "newConversation.previewWarning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未完成的回覆片段尚未保存；開啟新對話會清除它。",
+        "zh-Hans": "未完成的回复片段尚未保存；开启新对话会清除它。",
+        "en": "The unfinished reply preview has not been saved. Starting a new conversation clears it."
+      }
+    },
+    {
+      "case": "newConversationDraftRetained",
+      "key": "newConversation.draftRetained",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已有的純文字草稿會保留。",
+        "zh-Hans": "已有的纯文字草稿会保留。",
+        "en": "Your unsent text draft will remain."
+      }
+    },
+    {
+      "case": "newConversationDiscard",
+      "key": "newConversation.discard",
+      "parameters": [],
+      "translations": { "zh-Hant": "捨棄並開啟新對話", "zh-Hans": "舍弃并开启新对话", "en": "Discard and start new" }
+    },
+    {
+      "case": "newConversationKeep",
+      "key": "newConversation.keep",
+      "parameters": [],
+      "translations": { "zh-Hant": "返回目前對話", "zh-Hans": "返回当前对话", "en": "Keep current conversation" }
     }
   ]
 }

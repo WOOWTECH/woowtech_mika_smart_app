@@ -29,6 +29,91 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
     }
 
+    func testDrawerRecentRowsComeFromSavedArchiveAndOpenWithoutRestartingWork() {
+        launch(); configure()
+        send("Recent first"); tap("chat.newConversation")
+        send("Recent second")
+        tap("chat.menu")
+        let current = revealRecentRow("Recent second")
+        XCTAssertEqual(current.value as? String, "目前對話")
+        ready(current); current.tap()
+        assertLabel(app.staticTexts["chat.message.0.user"].firstMatch, "Recent second")
+        XCTAssertFalse(app.descendants(matching: .any)["drawer.panel"].firstMatch.exists)
+
+        launch(reset: false)
+        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists, "History is never autoloaded")
+        tap("chat.menu")
+        let saved = revealRecentRow("Recent first")
+        ready(saved); saved.tap()
+        assertLabel(app.staticTexts["chat.message.0.user"].firstMatch, "Recent first")
+        assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "測試回覆：Recent first")
+        XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
+    }
+
+    func testDrawerRecentSwitchKeepsDraftAndArchiveRemainsReadable() {
+        launch(); configure(); send("Recent guarded")
+        compose("Keep this unsent draft")
+        tap("chat.menu")
+        let current = revealRecentRow("Recent guarded")
+        ready(current); XCTAssertEqual(current.value as? String, "目前對話")
+        current.tap()
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Keep this unsent draft")
+        assertLabel(app.staticTexts["chat.message.0.user"].firstMatch, "Recent guarded")
+
+        tap("chat.newConversation"); tap("chat.menu")
+        let saved = revealRecentRow("Recent guarded")
+        XCTAssertFalse(saved.isEnabled, "Existing unsent draft blocks the shortcut")
+        XCTAssertEqual(saved.value as? String, "草稿或 PDF 附件未送出，請先返回處理。")
+        app.scrollViews["drawer.scroll"].firstMatch.swipeDown()
+        tap("drawer.archive")
+        let fullRow = row("Recent guarded")
+        XCTAssertTrue(fullRow.waitForExistence(timeout: 10), "Original archive is still reachable")
+        ready(fullRow); fullRow.tap()
+        XCTAssertTrue(app.staticTexts["archive.switchBlocked"].firstMatch.exists)
+        let open = app.buttons["archive.open"].firstMatch
+        XCTAssertTrue(open.exists); XCTAssertFalse(open.isEnabled)
+    }
+
+    func testNewConversationKeepsOrdinaryTextDraftFromBothControls() {
+        launch(); configure(); compose("Keep ordinary unsent text")
+        tap("chat.newConversation")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
+                       "Keep ordinary unsent text")
+        tap("chat.menu"); tap("drawer.newConversation")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
+                       "Keep ordinary unsent text")
+        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
+    }
+
+    func testUnfinishedReplyNeedsConfirmationFromTopAndDrawer() {
+        launch(); configure(); compose("[fixture:stream-cancel]"); tap("chat.send")
+        assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
+        tap("chat.cancel")
+        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
+
+        tap("chat.newConversation")
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "未完成的回覆片段尚未保存")).firstMatch.exists)
+        ready(alert.buttons["返回目前對話"].firstMatch); alert.buttons["返回目前對話"].tap()
+        assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
+
+        tap("chat.menu"); tap("drawer.newConversation")
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        let discard = alert.buttons["捨棄並開啟新對話"].firstMatch
+        ready(discard); discard.tap()
+        XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
+                       "[fixture:stream-cancel]")
+        tap("chat.archive")
+        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+    }
+
     func testChangedModelAllowsViewingButDisablesContinuation() {
         launch(); configure(); send("Archive original")
         navigate("settings")
@@ -120,6 +205,20 @@ final class ConversationArchiveUITests: XCTestCase {
     }
     private func row(_ title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "archive.row.", title)).firstMatch
+    }
+    private func recentRow(_ title: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "drawer.recent.row.", title)).firstMatch
+    }
+    private func revealRecentRow(_ title: String) -> XCUIElement {
+        let scroll = app.scrollViews["drawer.scroll"].firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 10))
+        let target = recentRow(title)
+        for _ in 0..<4 where !target.exists || !scroll.frame.contains(target.frame) {
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(target.exists)
+        XCTAssertTrue(scroll.frame.contains(target.frame))
+        return target
     }
     private func navigate(_ section: String) {
         navigateMikaSection(section, in: app)

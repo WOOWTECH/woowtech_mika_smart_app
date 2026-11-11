@@ -108,6 +108,34 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         print("CHAT_PDF_UI cancelled=1 modelRequestEvents=1 sourceRetained=1 draftRetained=1 archiveAbsentAfterRelaunch=1")
     }
 
+    func testNewConversationReviewsUnsentNativePDFAndKeepsTextDraft() throws {
+        launch(); configure(); compose("Unsent PDF question")
+        try choosePDF(); phase("awaitingRead"); requests(0)
+        tap("chat.pdf.done")
+        XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
+
+        tap("chat.menu"); tap("drawer.newConversation")
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "選取的 PDF 尚未送出")).firstMatch.exists)
+        let keep = alert.buttons["返回目前對話"].firstMatch
+        ready(keep); keep.tap()
+        tap("drawer.close")
+        XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
+
+        tap("chat.newConversation")
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        let discard = alert.buttons["捨棄並開啟新對話"].firstMatch
+        ready(discard); discard.tap()
+        XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
+        requests(0)
+        tap("chat.archive")
+        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+    }
+
     private func phase(_ expected: String) {
         let status = app.staticTexts["chat.pdf.phase"].firstMatch
         revealLearningElement(status, in: app, visibility: .readableText)
