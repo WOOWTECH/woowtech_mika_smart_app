@@ -65,7 +65,7 @@ try {
   response = await form("status");
   assert.match(await response.text(), /paired but offline/);
 
-  const ws = new WebSocket(origin.replace("http", "ws") + "/device", ["mika-relay.v2"], { headers: { host: "assistant-relay.apporo.ai", authorization: `Bearer ${paired.deviceToken}` } });
+  let ws = new WebSocket(origin.replace("http", "ws") + "/device", ["mika-relay.v2"], { headers: { host: "assistant-relay.apporo.ai", authorization: `Bearer ${paired.deviceToken}` } });
   await new Promise((resolve, reject) => { ws.addEventListener("open", resolve, { once: true }); ws.addEventListener("error", reject, { once: true }); });
   response = await form("status");
   assert.match(await response.text(), /Phone connected/);
@@ -81,6 +81,22 @@ try {
   response = await proxied;
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true });
+
+  // A replacement phone connection must receive requests even while an old
+  // WebSocket is still visible to the Durable Object during its close handshake.
+  const old = ws;
+  old._socket?.pause();
+  ws = new WebSocket(origin.replace("http", "ws") + "/device", ["mika-relay.v2"], { headers: { host: "assistant-relay.apporo.ai", authorization: `Bearer ${paired.deviceToken}` } });
+  await new Promise((resolve, reject) => { ws.addEventListener("open", resolve, { once: true }); ws.addEventListener("error", reject, { once: true }); });
+  response = await form("status");
+  assert.match(await response.text(), /Phone connected/);
+  const replacementFrame = new Promise(resolve => ws.addEventListener("message", e => resolve(JSON.parse(e.data)), { once: true }));
+  const afterReconnect = fetch(origin + "/api/v1/tasks?limit=2", { headers: { host: "assistant-relay.apporo.ai", authorization: "Bearer phone-access" } });
+  const replacement = await replacementFrame;
+  assert.equal(replacement.path, "/api/v1/tasks");
+  assert.equal(replacement.query, "limit=2");
+  ws.send(JSON.stringify({ type: "response", id: replacement.id, status: 200, body: btoa('{"reconnected":true}') }));
+  assert.deepEqual(await (await afterReconnect).json(), { reconnected: true });
 
   for (const status of [502, 504, 204]) {
     const next = new Promise(resolve => ws.addEventListener("message", e => resolve(JSON.parse(e.data)), { once: true }));
@@ -101,7 +117,7 @@ try {
   assert.equal(response.status, 204);
   response = await fetch(origin + "/device", { headers: { host: "assistant-relay.apporo.ai", authorization: `Bearer ${paired.deviceToken}` } });
   assert.equal(response.status, 401);
-  console.log("PASS: page security, owner auth, concurrent single-use pairing, offline/online state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
+  console.log("PASS: page security, owner auth, concurrent single-use pairing, offline/online/reconnect state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
 } finally {
   child?.kill("SIGTERM");
   if (child) await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 3000))]);
