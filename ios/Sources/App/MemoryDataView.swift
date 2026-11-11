@@ -316,7 +316,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .active)
         if items.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyMemory : .memoryNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: false)))
                     .font(.body)
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 150)
@@ -359,7 +359,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .pending)
         if items.isEmpty && store.skills.pending.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyPending : .pendingNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: true)))
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .listRowBackground(Color.clear)
@@ -698,7 +698,7 @@ struct MemoryDataView: View {
     }
 
     private func matchingMemories(status: MemoryStatus) -> [MemoryItem] {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = normalizedMemorySearch(query)
         return store.memory.search(text, limit: 500, includePending: true)
             .filter { $0.status == status }
     }

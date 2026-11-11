@@ -38,6 +38,15 @@ final class MemoryUITests: XCTestCase {
         XCTAssertEqual(app.buttons["memory.add"].firstMatch.label, "手寫一條")
 
         tap("memory.search.toggle")
+        let search = app.textFields["memory.search"].firstMatch
+        enter(" \n", into: search)
+        XCTAssertEqual(search.value as? String, " ", "The regression uses an actual whitespace query")
+        XCTAssertEqual(empty.label, "還沒有記住的事")
+        select("pending")
+        XCTAssertEqual(app.staticTexts["memory.pending.empty"].firstMatch.label, "沒有等你確認的東西")
+        select("memories")
+        tap("memory.search.toggle")
+        tap("memory.search.toggle")
         enter("no matching fixture\n", into: app.textFields["memory.search"].firstMatch)
         XCTAssertEqual(empty.label, "沒有找到")
         tap("memory.search.toggle")

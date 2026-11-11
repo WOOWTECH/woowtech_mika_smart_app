@@ -28,6 +28,7 @@ final class BrowserWorkspace: ObservableObject {
     private var sessions: [UUID: BrowserSession] = [:]
     private var websiteRecordRevision = UUID()
     private var activateAfterWebsiteClear = false
+    private var browserActivationAllowed = false
     private var vault: EncryptedLearningFile?
     let websiteDataStore: WKWebsiteDataStore
     let downloads: BrowserDownloadManager
@@ -153,13 +154,24 @@ final class BrowserWorkspace: ObservableObject {
 
     /// Browser appearance is a user navigation; defer it while clearing rather
     /// than restoring an obsolete session or loading in the background.
-    func browserDidAppear() {
+    func browserDidAppear(activate: Bool = true) {
+        browserActivationAllowed = true
+        // A foreground browser may still be covered by its library sheet.
+        // Restore only after that sheet is dismissed.
+        if !activate { activateAfterWebsiteClear = false; return }
         if isClearingWebsiteData { activateAfterWebsiteClear = true; return }
         activateAfterWebsiteClear = false
         activateSelected()
     }
 
-    func browserDidDisappear() { activateAfterWebsiteClear = false }
+    func browserDidDisappear() { browserActivationAllowed = false; activateAfterWebsiteClear = false }
+
+    /// A sheet can close without another BrowserView appearance callback.
+    /// Only the still-visible foreground browser may restore its selected page.
+    func browserLibraryDidDismiss(isVisible: Bool, isActive: Bool) {
+        guard isVisible && isActive && browserActivationAllowed else { return }
+        browserDidAppear()
+    }
 
     private func finishDeferredBrowserActivation(success: Bool) {
         let shouldActivate = activateAfterWebsiteClear && success
@@ -289,6 +301,8 @@ final class BrowserWorkspace: ObservableObject {
         selected.cancelInteraction(); selected.resolveDialog(nil)
     }
     func cancelAllWork(preservingFrozenReferences: Bool = false) {
+        browserActivationAllowed = false
+        activateAfterWebsiteClear = false
         for session in sessions.values {
             if session.isRunning && !(preservingFrozenReferences && session.hasActiveRunReferences) { session.cancel() }
             session.cancelInteraction(); session.resolveDialog(nil)
@@ -350,12 +364,12 @@ final class BrowserWorkspace: ObservableObject {
             var event = counts.mapValues(String.init)
             event["phase"] = phase; event["elapsedMs"] = String(elapsed)
             removalEvents.append(event)
-            print("BROWSER_WEBSITE_REMOVAL " + event.keys.sorted().map { "\($0)=\(event[$0]!)" }.joined(separator: " "))
+            browserWebsiteDiagnostic("BROWSER_WEBSITE_REMOVAL " + event.keys.sorted().map { "\($0)=\(event[$0]!)" }.joined(separator: " "))
             if let diagnosticURL,
                let data = try? JSONSerialization.data(withJSONObject: removalEvents, options: [.sortedKeys]),
                data.count <= 16_384 {
                 do { try data.write(to: diagnosticURL, options: .atomic) }
-                catch { print("BROWSER_WEBSITE_REMOVAL diagnosticWriteFailed=1") }
+                catch { browserWebsiteDiagnostic("BROWSER_WEBSITE_REMOVAL diagnosticWriteFailed=1") }
             }
         }
         trace("begin", ["records": records.count, "sessions": sessions.count,

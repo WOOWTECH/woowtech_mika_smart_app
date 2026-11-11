@@ -1,5 +1,15 @@
 import Foundation
 
+/// Use the same query for filtering and choosing the empty-state message.
+func normalizedMemorySearch(_ query: String) -> String {
+    query.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func emptyMemoryMessage(for query: String, pending: Bool) -> MemoryDataKey {
+    if normalizedMemorySearch(query).isEmpty { return pending ? .emptyPending : .emptyMemory }
+    return pending ? .pendingNotFound : .memoryNotFound
+}
+
 // Closed, memory-specific display keys. Keep this table separate from the
 // generated shared AppText catalog so independent UI work does not reorder it.
 enum MemoryDataKey: String, CaseIterable {
