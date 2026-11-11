@@ -86,6 +86,7 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/ChatPDFAttachmentUITests/testNativePDFApprovalsCitationsArchiveRelaunchOpenAndDelete",
         "WoowAssistantUITests/ChatPDFAttachmentUITests/testReadApprovalThenRemoveNeverExtractsOrSubmitsAndRetainsDraft",
         "WoowAssistantUITests/ChatPDFAttachmentUITests/testCancelActualQueryKeepsQuestionAndSourceWithoutCompletedArchive",
+        "WoowAssistantUITests/ChatPDFAttachmentUITests/testNewConversationReviewsUnsentNativePDFAndKeepsTextDraft",
     ],
 }
 
