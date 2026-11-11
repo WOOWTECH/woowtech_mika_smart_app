@@ -24,6 +24,8 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         workspace.newTab()
         let second = host.attachSelected()
         XCTAssertNil(first.externalOpenURL, "The unselected tab cannot present a handoff")
+        var handedOff: [URL] = []
+        XCTAssertFalse(first.handoffVisiblePage { handedOff.append($0) })
         XCTAssertNil(second.externalOpenURL, "A fresh tab has no visible page")
         try await host.load(second, path: "/workspace-two", marker: "Second visible document")
         XCTAssertEqual(second.externalOpenURL, second.loadedURL)
@@ -33,6 +35,8 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         XCTAssertTrue(host.attachSelected() === first)
         XCTAssertEqual(first.externalOpenURL, firstURL)
         XCTAssertNil(second.externalOpenURL)
+        XCTAssertTrue(first.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [firstURL])
     }
 
     @MainActor func testClosingCurrentPageReplacesWebKitWithoutDeletingLibraryData() async throws {

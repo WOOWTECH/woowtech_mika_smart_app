@@ -346,10 +346,11 @@ struct BrowserView: View {
                             .accessibilityIdentifier("browser.more.copy")
                         Button(localizer.text(.browserChromeOpenOutside)) {
                             guard scenePhase == .active, workspace.available,
-                                  !workspace.isClearingWebsiteData,
-                                  let destination = browser.externalOpenURL else { return }
-                            showMore = false
-                            openURL(destination)
+                                  !workspace.isClearingWebsiteData else { return }
+                            browser.handoffVisiblePage { destination in
+                                showMore = false
+                                openURL(destination)
+                            }
                         }
                         .disabled(scenePhase != .active || !workspace.available
                                   || workspace.isClearingWebsiteData || browser.externalOpenURL == nil)

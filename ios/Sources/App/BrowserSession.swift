@@ -170,6 +170,16 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         )
     }
 
+    /// Recheck the visible document at the user action boundary and pass its
+    /// exact URL to the caller's system open action. The closure is also a
+    /// controlled hosted-test seam; it cannot bypass externalOpenURL.
+    @discardableResult
+    func handoffVisiblePage(_ open: (URL) -> Void) -> Bool {
+        guard let destination = externalOpenURL else { return false }
+        open(destination)
+        return true
+    }
+
     var canFindInPage: Bool {
         guard pageFindDocumentReady, !retiredForDataRemoval, !discardingPage,
               !automationOwnsDocument, !isRunning, !isInteracting, pageDialog == nil,

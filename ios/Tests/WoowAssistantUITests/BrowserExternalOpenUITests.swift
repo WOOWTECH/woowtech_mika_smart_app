@@ -1,8 +1,9 @@
 import XCTest
 
-/// An actual XCUI tap exercises the production system URL action. The local
-/// WebKit fixture has a public HTTPS identity but makes no external request;
-/// only the explicit handoff lets iOS open the default browser.
+/// An actual XCUI tap exercises the system URL action. The local WebKit
+/// fixture makes no external request until that tap. This UI case proves the
+/// App backgrounds after the action; it cannot inspect the default browser's
+/// actual URL. A hosted action-boundary test captures the exact URL argument.
 final class BrowserExternalOpenUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
@@ -14,7 +15,7 @@ final class BrowserExternalOpenUITests: XCTestCase {
 
     override func tearDownWithError() throws { app.terminate() }
 
-    func testNativeMoreMenuTapHandsOffTheExactVisibleHashRoute() {
+    func testNativeMoreMenuTapLeavesAppForSystemHandoff() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
         app.launch()
@@ -40,14 +41,11 @@ final class BrowserExternalOpenUITests: XCTestCase {
         XCTAssertEqual(handoff.value as? String, url,
                        "The real button must expose the exact checked hash-route destination")
 
-        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
-        XCTAssertNotEqual(safari.state, .runningForeground)
         handoff.tap()
-        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20),
-                      "The native tap must invoke iOS's external URL action")
-        XCTAssertNotEqual(app.state, .runningForeground)
-        let screenshot = XCTAttachment(screenshot: safari.screenshot())
-        screenshot.name = "Actual external App after browser handoff"
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 20),
+                      "The App must background after the native system URL action")
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "System foreground after browser handoff; URL unverified"
         screenshot.lifetime = .keepAlways
         add(screenshot)
     }

@@ -149,6 +149,10 @@ final class BrowserLibraryTests: XCTestCase {
         XCTAssertEqual(destination(escapedSearch, displayed: escapedSearch), escapedSearch)
         let anchor = URL(string: "https://example.com/article#overview")!
         XCTAssertEqual(destination(anchor, displayed: anchor), anchor)
+        let bareHost = URL(string: "https://example.com")!
+        XCTAssertEqual(destination(bareHost, displayed: bareHost), bareHost)
+        let escapedPublicPath = URL(string: "https://example.com/public%20guide#/docs/42")!
+        XCTAssertEqual(destination(escapedPublicPath, displayed: escapedPublicPath), escapedPublicPath)
         XCTAssertNil(destination(nil))
         XCTAssertNil(destination(displayed: nil))
         XCTAssertNil(destination(displayed: URL(string: "https://example.com/other")!))
@@ -167,6 +171,16 @@ final class BrowserLibraryTests: XCTestCase {
             "https://example.com/?authKey=private",
             "https://example.com/?j%2577t=private",
             "https://example.com/oauth/callback",
+            "https://example.com/authToken/fixture",
+            "https://example.com/session/fixture",
+            "https://example.com/reset/fixture",
+            "https://example.com/AUTH_token/fixture",
+            "https://example.com/%61uthToken/fixture",
+            "https://example.com/%2561uthToken/fixture",
+            "https://example.com/%73ession/fixture",
+            "https://example.com/%2572eset/fixture",
+            "https://example.com/%2FauthToken/fixture",
+            "https://example.com/%EF%BC%A1uthToken/fixture",
             "https://user:private@example.com/",
             "http://example.com/",
             "https://127.0.0.1/",
@@ -191,6 +205,10 @@ final class BrowserLibraryTests: XCTestCase {
                             "Legacy storage validation is intentionally unchanged; external handoff is stricter")
             XCTAssertNil(destination(oldLibraryURL, displayed: oldLibraryURL))
         }
+        let oldPath = URL(string: "https://example.com/authToken/fixture")!
+        XCTAssertNotNil(BrowserManualNavigationPolicy.libraryURL(oldPath),
+                        "Legacy library validation cannot be tightened without a storage migration")
+        XCTAssertNil(destination(oldPath, displayed: oldPath))
     }
 
     func testCorruptLibraryIsRejectedInsteadOfReset() throws {

@@ -14,9 +14,15 @@ final class BrowserSessionNavigationTests: XCTestCase {
         XCTAssertNil(host.browser.externalOpenURL)
         _ = try await host.load(marker: "EXTERNAL HANDOFF")
         XCTAssertEqual(host.browser.externalOpenURL, host.url)
+        var handedOff: [URL] = []
+        XCTAssertTrue(host.browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [host.url],
+                       "The production action must pass the exact URL to its openURL closure")
         host.browser.canPresentUI = { false }
         XCTAssertNil(host.browser.externalOpenURL,
                      "A tab losing presentation ownership cannot hand off its old page")
+        XCTAssertFalse(host.browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [host.url])
         host.browser.canPresentUI = { true }
         XCTAssertEqual(host.browser.externalOpenURL, host.url)
         let next = URL(string: "https://research.example.invalid/next#/docs/42")!
@@ -27,11 +33,16 @@ final class BrowserSessionNavigationTests: XCTestCase {
         }
         XCTAssertNil(host.browser.externalOpenURL,
                      "The old URL must disappear as soon as manual navigation is requested")
+        XCTAssertFalse(host.browser.handoffVisiblePage { handedOff.append($0) })
         try await waitUntil { host.browser.loadedURL == next && host.browser.externalOpenURL == next }
         XCTAssertEqual(host.browser.externalOpenURL, next)
+        XCTAssertTrue(host.browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [host.url, next], "Hash route survives the actual action boundary")
         host.browser.webViewWebContentProcessDidTerminate(host.browser.webView)
         XCTAssertNil(host.browser.externalOpenURL,
                      "A terminated document must not leave a stale external handoff")
+        XCTAssertFalse(host.browser.handoffVisiblePage { handedOff.append($0) })
+        XCTAssertEqual(handedOff, [host.url, next])
     }
 
     @MainActor func testTranscriptReadsBeyondResearchExcerptWithoutCapturingFormFields() async throws {
