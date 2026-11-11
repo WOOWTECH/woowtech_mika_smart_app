@@ -12,7 +12,13 @@ final class BrowserLearningUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 240
+        // This one end-to-end case drives model setup, real WK research, manual
+        // skill approval, a relaunch, and route replay. On iOS 26 it reached
+        // the final replay assertions at 265s, after the old 240s case limit
+        // had already failed it. The ui-learning job caps cases at 300s; keep
+        // every other case at 240s and all individual wait bounds unchanged.
+        let researchReplayCase = " testWebsiteResearchCreatesPendingSkillAndManualApprovalSurvivesRelaunch]"
+        executionTimeAllowance = name.hasSuffix(researchReplayCase) ? 300 : 240
     }
 
     override func tearDownWithError() throws {
