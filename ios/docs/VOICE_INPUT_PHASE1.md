@@ -13,7 +13,15 @@
 
 Debug 和 Release 的麥克風說明涵蓋聊天及經同意的網站；兩者均新增語音辨識說明。發行檢查現在要求封裝後 plist 含非空語音辨識用途說明。`AppleVoiceInputDriver` 必須先取得共享音訊 lease；預設拒絕時在要求任何權限之前回報不可用。只有注入可授權的協調器後，候選才會要求 Speech 與麥克風授權、檢查服務及裝置上辨識可用性，並設定 `requiresOnDeviceRecognition`；不回退到雲端或服務商，不儲存錄音，也不輸出音訊或逐字稿日誌。
 
-音訊 session 是 App 共用資源：driver 不呼叫 `setCategory`／`setActive`，只透過可注入的 `VoiceAudioCoordinating` 取得並釋放 lease；協調器負責所有設定、啟用及撤銷，不能用過期快照覆寫其他使用者。`VoiceAudioLeaseSlot` 處理同步撤銷、過期回呼及重複釋放。現有 `UnavailableVoiceAudioCoordinator` 一律拒絕，沒有實際控制系統音訊的正式實作。未能涵蓋 WebKit、其他 App 內音訊使用者及 active 狀態時必須繼續拒絕，不能接線。即使只用裝置辨識，Apple 仍要求 Speech 用途說明。未來新增雲端服務時，須另設明確選擇、目的地與資料處理說明、隱私揭露及測試；不能沿用「只在裝置上」的文案。
+音訊 session 是 App 共用資源：driver 不呼叫 `setCategory`／`setActive`，只透過可注入的 `VoiceAudioCoordinating` 取得並釋放 lease；協調器負責所有設定、啟用及撤銷，不能用過期快照覆寫其他使用者。`VoiceAudioLeaseSlot` 處理同步撤銷、過期回呼及重複釋放。預設 `UnavailableVoiceAudioCoordinator` 一律拒絕。隔離候選 `SharedVoiceAudioCoordinator` 與 `AppleVoiceAudioSessionAccess` 已分離：前者可用假 fence／假 session 執行測試，後者尚未經 iOS SDK 驗證；目前沒有覆蓋本 App 所有音訊使用者的正式 fence provider。未能涵蓋 WebKit、其他 App 內音訊使用者及 active 狀態時必須繼續拒絕，不能接線。即使只用裝置辨識，Apple 仍要求 Speech 用途說明。未來新增雲端服務時，須另設明確選擇、目的地與資料處理說明、隱私揭露及測試；不能沿用「只在裝置上」的文案。
+
+## 隔離協調器的狀態與限制
+
+`BrowserWorkspace` 保留多個 `BrowserSession`；每個會延遲建立並保留 WebView，另有獨立來源發現 WebView。瀏覽器可對可見手動頁面提示網站音訊擷取權限，並無現成全 App 音訊所有權管理；可見頁面或單次媒體狀態查詢不能證明所有 WebView 和其他音訊用戶在租用期間持續閒置。因此候選只接受外部 fence provider 持續掌握全部使用者、阻止競爭並能證明租用前是 inactive 的情況；active 或 unknown 一律拒絕。這份先前狀態是 provider 的受信聲明，不是從 iOS API 推測。
+
+lease 的撤銷閉包型別為 `@MainActor`。撤銷先同步通知 driver 停止 engine，再由 driver 明確 release；未確認 release 時保留 fence 並拒絕新租用。啟用過程中重入取消會延後回收，直到啟用呼叫返回；重複撤銷與過期回呼不觸及新持有者。候選嘗試停用並還原 category／mode／options，但僅回報 `restorationAttempted`，不宣稱先前活動狀態已被證明完全恢復。任何步驟失敗或 fence owner 不接受交還，協調器進入 quarantine 並拒絕新租用；provider 必須保留 fence 直到獨立排除不確定性。系統 `setActive(false)` 在音訊物件仍運作時可能使其停止，即使回報錯誤也是如此；因此先停止 engine 的順序是必要條件。[Apple 文件](https://developer.apple.com/documentation/avfaudio/avaudiosession/setactive%28_%3Aoptions%3A%29?changes=_6)。
+
+目前無可驗證的正式 fence provider，Apple driver 預設拒絕且未接 UI。候選 Apple session adapter 只提供被注入的系統操作，沒有替既有 App 取得所有權；不能因純 Swift 假物件測試通過而宣稱與 WebKit、音訊中斷或系統 active 狀態相容。MacBook 應先檢查 adapter 的 SDK 型別，並在受控模擬器驗證後，才評估如何管理所有 WebView 和原生音訊用戶。
 
 ## 驗證與剩餘工作
 
@@ -21,11 +29,12 @@ Debug 和 Release 的麥克風說明涵蓋聊天及經同意的網站；兩者�
 
 ```sh
 bash scripts/check_voice_input.sh
+bash scripts/check_voice_audio_coordinator.sh
 python3 -m unittest discover -s scripts -p 'test_voice_input.py' -v
 python3 -m unittest discover -s scripts -p 'test_release_ios.py' -v
 ```
 
-這些檢查執行真實純狀態機、lease slot、假 driver／假協調器和 plist／發行檢查的合成 fixture；Python 的 Apple driver 來源檢查只驗證靜態接線約束；不會執行 Apple adapter 或權限對話框。`#if os(iOS) && canImport(...)` 只隔離平台，不能證明 Apple API 編譯通過。
+這些檢查執行真實純狀態機、lease slot、隔離協調器、假 driver／假 fence／假 session 和 plist／發行檢查的合成 fixture；Python 的 Apple driver 來源檢查只驗證靜態接線約束；不會執行 Apple adapter 或權限對話框。`#if os(iOS) && canImport(...)` 只隔離平台，不能證明 Apple API 編譯通過。
 
 MacBook 後續先以完整 Xcode、XcodeGen 及 iOS Simulator SDK 執行下列建置（在 `ios/`）：
 

@@ -41,10 +41,10 @@ final class FakeAudioLease: VoiceAudioLease {
 
 @MainActor
 final class FakeAudioCoordinator: VoiceAudioCoordinating {
-    var callbacks: [() -> Void] = []
+    var callbacks: [VoiceAudioRevocation] = []
     var next: (() -> FakeAudioLease?)?
     var duringAcquire: (() -> Void)?
-    func acquire(onRevoked: @escaping () -> Void) -> (any VoiceAudioLease)? {
+    func acquire(onRevoked: @escaping VoiceAudioRevocation) -> (any VoiceAudioLease)? {
         callbacks.append(onRevoked)
         duringAcquire?()
         return next?()
@@ -339,13 +339,37 @@ struct VoiceInputChecks {
 
         let leaseB = FakeAudioLease()
         coordinator.next = { leaseB }
-        check(slot.acquire(onRevoked: { revocations += 1 }), "new lease after release")
+        check(slot.acquire(onRevoked: { revocations += 1; slot.release() }), "new lease after release")
         coordinator.callbacks[0]()
         check(leaseB.releaseCount == 0 && revocations == 0, "stale callback cannot release new lease")
         coordinator.callbacks[1]()
         coordinator.callbacks[1]()
         check(leaseB.releaseCount == 1 && revocations == 1, "current revocation releases and reports once")
         check(!slot.activateForRecording(), "revoked lease cannot activate")
+
+        let leaseOrder = FakeAudioLease()
+        coordinator.next = { leaseOrder }
+        var order: [String] = []
+        leaseOrder.onRelease = { order.append("released") }
+        check(slot.acquire(onRevoked: {
+            order.append("stop-start")
+            coordinator.callbacks.last?() // synchronous duplicate revocation
+            order.append("stopped")
+            slot.release() // driver cleanup releases after stopping the engine
+        }), "lease for double-revocation ordering acquired")
+        coordinator.callbacks.last?()
+        coordinator.callbacks.last?()
+        check(order == ["stop-start", "stopped", "released"] && leaseOrder.releaseCount == 1,
+              "synchronous double revocation stops before exactly one release")
+
+        let leaseUnacked = FakeAudioLease()
+        coordinator.next = { leaseUnacked }
+        check(slot.acquire(onRevoked: { order.append("unacknowledged") }), "unacknowledged lease acquired")
+        coordinator.callbacks.last?()
+        check(leaseUnacked.releaseCount == 0 && !slot.activateForRecording() && !slot.acquire(onRevoked: {}),
+              "unacknowledged revocation holds fence and blocks reuse")
+        slot.release()
+        check(leaseUnacked.releaseCount == 1, "explicit post-stop release returns fence")
 
         let leaseC = FakeAudioLease()
         leaseC.activationResult = false
@@ -354,6 +378,16 @@ struct VoiceInputChecks {
         check(!slot.activateForRecording() && leaseC.releaseCount == 1, "failed activation releases once")
         slot.release()
         check(leaseC.releaseCount == 1, "cleanup after failed activation is harmless")
+
+        let leasePending = FakeAudioLease()
+        coordinator.next = { leasePending }
+        var nestedPendingAcquire = true
+        coordinator.duringAcquire = { nestedPendingAcquire = slot.acquire(onRevoked: {}) }
+        check(slot.acquire(onRevoked: {}) && !nestedPendingAcquire,
+              "reentrant acquire cannot overlap a pending acquisition")
+        coordinator.duringAcquire = nil
+        slot.release()
+        check(leasePending.releaseCount == 1, "pending acquisition is released exactly once")
 
         let leaseD = FakeAudioLease()
         coordinator.next = { leaseD }
@@ -364,7 +398,7 @@ struct VoiceInputChecks {
 
         let leaseE = FakeAudioLease()
         coordinator.next = { leaseE }
-        check(slot.acquire(onRevoked: { revocations += 1 }), "reentrant activation lease acquired")
+        check(slot.acquire(onRevoked: { revocations += 1; slot.release() }), "reentrant activation lease acquired")
         leaseE.onActivate = { coordinator.callbacks.last?() }
         check(!slot.activateForRecording() && leaseE.releaseCount == 1 && revocations == 3,
               "activation revocation cannot leave a valid lease")
@@ -379,8 +413,10 @@ struct VoiceInputChecks {
             coordinator.next = { leaseG }
             nestedLeaseAcquired = slot.acquire(onRevoked: { revocations += 1 })
         }
-        check(!slot.acquire(onRevoked: { revocations += 1 }) && nestedLeaseAcquired,
-              "outer acquire cannot replace a lease installed during release")
+        check(!slot.acquire(onRevoked: { revocations += 1 }) && !nestedLeaseAcquired,
+              "acquire never implicitly releases an active lease")
+        slot.release()
+        check(nestedLeaseAcquired, "release can synchronously install a new lease")
         check(slot.activateForRecording() && leaseG.activationCount == 1 && leaseG.releaseCount == 0,
               "newer reentrant lease retains ownership")
         slot.release()
