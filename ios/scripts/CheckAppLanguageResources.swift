@@ -61,6 +61,37 @@ import AssistantSkills
                           "chat and archive text exists in each actual bundle")
             }
         }
+        let searchMessages: [AppText] = [.localPDFSearchOpen, .localPDFSearchTitle, .localPDFSearchNotice,
+            .localPDFSearchPlaceholder, .localPDFSearchButton, .localPDFSearchInvalid, .localPDFSearchFailed,
+            .localPDFSearchEmpty, .localPDFSearchCount(count: 2), .localPDFSearchTruncated(count: 20),
+            .localPDFSearchHit(page: 3, index: 1), .localPDFSearchSourceFailed]
+        for language in AppDisplayLanguage.allCases {
+            let localizer = AppLocalizer(language: language, bundle: bundle)
+            for message in searchMessages {
+                let resolved = localizer.resolve(message)
+                try check(!resolved.usedFallback && resolved.language == language && !resolved.text.isEmpty,
+                          "offline PDF search text exists in each actual bundle")
+            }
+        }
+        let searchEnglish = AppLocalizer(language: .english, bundle: bundle)
+        let searchSimplified = AppLocalizer(language: .simplifiedChinese, bundle: bundle)
+        let searchTraditional = AppLocalizer(language: .traditionalChinese, bundle: bundle)
+        try check(searchEnglish.text(.localPDFSearchCount(count: 2)) == "Matches: 2." &&
+                  searchSimplified.text(.localPDFSearchCount(count: 2)) == "找到 2 处。" &&
+                  searchTraditional.text(.localPDFSearchCount(count: 2)) == "找到 2 處。", "search count rerenders in selected language")
+        try check(searchEnglish.text(.localPDFSearchTruncated(count: 20)) == "Matches: 20; more matches exist.", "truncation is explicit in English")
+        try check(searchEnglish.text(.localPDFSearchHit(page: 3, index: 1)) == "Original page 3 (selection 1)" &&
+                  searchSimplified.text(.localPDFSearchHit(page: 3, index: 1)) == "原第 3 页（选择序号 1）", "original page and occurrence are not interchanged")
+        let searchSuite = "io.woow.test.search-language." + UUID().uuidString
+        guard let searchDefaults = UserDefaults(suiteName: searchSuite) else { throw NSError(domain: "LanguageResources", code: 2) }
+        defer { searchDefaults.removePersistentDomain(forName: searchSuite) }
+        let searchStore = AppLanguageStore(defaults: searchDefaults, preferredLanguages: { ["zh-Hant"] })
+        for (choice, expected) in [(AppLanguage.english, "Search"), (.simplifiedChinese, "搜索"), (.traditionalChinese, "搜尋")] {
+            try check(searchStore.setFromUser(choice), "explicit interface language saved")
+            let selected = AppLocalizer(language: searchStore.resolved, bundle: bundle)
+            try check(selected.text(.localPDFSearchButton) == expected && !selected.resolve(.localPDFSearchButton).usedFallback,
+                      "search follows explicit setting rather than system preference")
+        }
         try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
                   "in-flight status uses the current language")
         try check(AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的对话（2）",
@@ -85,6 +116,10 @@ import AssistantSkills
         let emergency = AppLocalizer(language: .english, bundle: empty)
         try check(emergency.text(.configurationTitle) == "外觀與模型權限" && emergency.resolve(.configurationTitle).usedFallback, "missing packaged resources preserve readable Hant")
         try check(emergency.text(.configurationStepCount(count: 2)) == "2 個步驟", "missing packaged plural uses typed Hant fallback")
+        let searchFallback = try makeBundle("searchPartial", languages: ["zh-Hant", "en"], omitKey: "localPDFSearch.invalid")
+        let missingSearch = AppLocalizer(language: .english, bundle: searchFallback).resolve(.localPDFSearchInvalid)
+        try check(missingSearch.usedFallback && missingSearch.language == .traditionalChinese &&
+                  missingSearch.text == searchTraditional.text(.localPDFSearchInvalid), "missing search error falls back to Traditional Chinese")
         let modelErrors: [ModelSettingsError] = [.invalidURL, .missingModel, .missingKey, .changedOrigin, .invalidKey, .unavailableKeychain, .keychainStatus(-25293)]
         for error in modelErrors {
             let message = AppLocalizer.modelSettingsError(error)

@@ -620,6 +620,37 @@ final class SkillExecutionUITests: XCTestCase {
         assertNoExtractionAfterRefusal(selections: 1, reads: 1)
     }
 
+    func testOfflineSearchUsesApprovedExtractionAndClearsEditedResults() {
+        launchFixture(fromCatalog: false)
+        XCTAssertFalse(app.buttons["skillExecution.localSearch.open"].exists)
+        chooseSyntheticPDF()
+        XCTAssertFalse(app.buttons["skillExecution.localSearch.open"].exists)
+        approve(capability: "selectedPDFRead")
+        XCTAssertFalse(app.buttons["skillExecution.localSearch.open"].exists,
+                       "Reading approval does not authorize extraction or search.")
+        approve(capability: "nativePDFText")
+        tap("skillExecution.localSearch.open", scroll: true)
+        let field = app.textFields["skillExecution.localSearch.query"]
+        revealLearningElement(field, in: app)
+        requireHittable(field)
+        field.tap()
+        field.typeText("WOOW_SKILL_PDF_PAGE_1")
+        tap("skillExecution.localSearch.search", scroll: true)
+        let summary = app.staticTexts["skillExecution.localSearch.summary"]
+        revealLearningElement(summary, in: app, visibility: .readableText)
+        XCTAssertEqual(summary.label, "找到 1 處。")
+        let hit = app.staticTexts["skillExecution.localSearch.hit.1"]
+        revealLearningElement(hit, in: app, visibility: .readableText)
+        XCTAssertEqual(hit.label, "原第 1 頁（選取序號 1）")
+        revealLearningElement(field, in: app)
+        field.tap(); field.typeText("X")
+        XCTAssertFalse(summary.exists, "Editing the term must remove old search results.")
+        tap("skillExecution.localSearch.search", scroll: true)
+        revealLearningElement(summary, in: app, visibility: .readableText)
+        XCTAssertEqual(summary.label, "本次擷取頁面沒有符合的文字。")
+        assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)
+    }
+
     func testNativeExportSavesTextToChosenLocalFolder() {
         extractFixtureForExport()
         openNativeExporter()

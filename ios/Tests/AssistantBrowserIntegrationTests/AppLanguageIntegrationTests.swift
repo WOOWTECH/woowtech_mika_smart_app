@@ -25,6 +25,16 @@ import XCTest
             }
             let original = "%n %#@count@ 原文 🧋"
             XCTAssertTrue(localizer.text(.configurationChanged(appearance: original)).contains(original))
+            let search: [AppText] = [.localPDFSearchOpen, .localPDFSearchTitle, .localPDFSearchNotice,
+                .localPDFSearchPlaceholder, .localPDFSearchButton, .localPDFSearchInvalid, .localPDFSearchFailed,
+                .localPDFSearchEmpty, .localPDFSearchCount(count: 2), .localPDFSearchTruncated(count: 20),
+                .localPDFSearchHit(page: 3, index: 1), .localPDFSearchSourceFailed]
+            for message in search {
+                let resolved = localizer.resolve(message)
+                XCTAssertEqual(resolved.language, language)
+                XCTAssertFalse(resolved.usedFallback)
+                XCTAssertFalse(resolved.text.isEmpty)
+            }
         }
     }
 }

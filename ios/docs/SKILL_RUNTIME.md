@@ -4,6 +4,19 @@ This increment provides actual selected-file PDF execution. It does not execute 
 
 ## Querying an extracted PDF
 
+The completed extraction also offers a separate local literal-text search. The
+user explicitly starts it on the already approved snapshot; it uses no model,
+worker, network or additional file read. It shows original page numbers and
+selection indices (including repeated pages), up to 20 matches and a truncation
+notice. Editing the term clears old results and invalid terms show an error. It
+searches only extracted selected pages, is case-sensitive, and does not supply
+OCR or Android's arbitrary workspace/regex search. The snippets can contain
+document text and should be treated as sensitive on screen. Search controls,
+results and errors use the selected Traditional Chinese, Simplified Chinese or
+English interface language; extracted snippets remain verbatim. Other parts of
+the PDF skill screen are not yet fully localized. Native iOS UI acceptance is
+still required.
+
 The PDF extraction result now offers a separate query sheet. It receives the completed `SkillExecutionPDFResult` directly; it does not parse page-marker prose or reopen a file. The immutable snapshot binds the original PDF hash, extraction engine, pinned original provenance and ordered selected pages. Repeated selections of one original page retain separate one-based selection indices and their original page numbers.
 
 The user enters a question, reviews the currently configured model destination, then explicitly starts. The model receives the question and source manifest, and can issue only `search_files(query, limit)`, `read_file(pageIndex, offset, limit)`, `finish(answer, citations)` or `refuse(reason)`. Search is literal and case-sensitive, at most 20 bounded hits. Reads return at most 8192 UTF-8 bytes, preserving character boundaries and an actual read ID. Search snippets do not enter the read ledger. Every final citation must match bytes inside an actual read; page labels are supplied by the host. These checks prove quotation provenance, not semantic correctness or full-document coverage.

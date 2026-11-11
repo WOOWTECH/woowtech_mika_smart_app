@@ -437,3 +437,15 @@
 "archive.savedCount" = "已保存的对话（%1$lld）";
 "archive.empty" = "尚无保存的对话";
 "archive.close" = "关闭";
+"localPDFSearch.open" = "离线搜索提取文字";
+"localPDFSearch.title" = "离线搜索已提取文字";
+"localPDFSearch.notice" = "只搜索本次选择并批准提取的页面；区分大小写，没有 OCR，也不会发送数据。";
+"localPDFSearch.placeholder" = "输入文字，最多 256 UTF-8 字节";
+"localPDFSearch.button" = "搜索";
+"localPDFSearch.invalid" = "请输入 1–256 UTF-8 字节的非空白搜索文字，不能包含控制字符。";
+"localPDFSearch.failed" = "搜索未完成，请重试。";
+"localPDFSearch.empty" = "本次提取的页面没有匹配的文字。";
+"localPDFSearch.count" = "找到 %1$lld 处。";
+"localPDFSearch.truncated" = "找到 %1$lld 处；还有其他匹配位置。";
+"localPDFSearch.hit" = "原第 %1$lld 页（选择序号 %2$lld）";
+"localPDFSearch.sourceFailed" = "无法为本次提取结果创建搜索快照，请确认已提取可读取的文字。";

@@ -437,3 +437,15 @@
 "archive.savedCount" = "Saved conversations (%1$lld)";
 "archive.empty" = "No saved conversations yet.";
 "archive.close" = "Close";
+"localPDFSearch.open" = "Search extracted text offline";
+"localPDFSearch.title" = "Search extracted text offline";
+"localPDFSearch.notice" = "Searches only the pages selected and approved for this extraction. Case-sensitive; no OCR or data transmission.";
+"localPDFSearch.placeholder" = "Enter text, up to 256 UTF-8 bytes";
+"localPDFSearch.button" = "Search";
+"localPDFSearch.invalid" = "Enter 1–256 UTF-8 bytes of nonblank search text without control characters.";
+"localPDFSearch.failed" = "Search did not finish. Try again.";
+"localPDFSearch.empty" = "No matches in the extracted pages.";
+"localPDFSearch.count" = "Matches: %1$lld.";
+"localPDFSearch.truncated" = "Matches: %1$lld; more matches exist.";
+"localPDFSearch.hit" = "Original page %1$lld (selection %2$lld)";
+"localPDFSearch.sourceFailed" = "Could not create a search snapshot. Make sure readable text was extracted.";

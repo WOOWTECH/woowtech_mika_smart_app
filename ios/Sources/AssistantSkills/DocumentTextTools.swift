@@ -131,6 +131,31 @@ public struct DocumentSearchResult: Sendable, Encodable {
     public let sourceSHA256: String
 }
 
+/// A user-initiated, offline search of an already approved extraction. This
+/// owns no file, model client or network capability. Editing clears the old
+/// result, including after an invalid search; the snapshot never changes.
+public struct DocumentLocalSearch: Sendable {
+    public let source: DocumentTextSnapshot
+    public private(set) var query = ""
+    public private(set) var result: DocumentSearchResult?
+    public private(set) var error: DocumentQueryError?
+
+    public init(source: DocumentTextSnapshot) { self.source = source }
+
+    public mutating func setQuery(_ value: String) {
+        guard query != value else { return }
+        query = value; result = nil; error = nil
+    }
+
+    public mutating func search() {
+        result = nil; error = nil
+        do { result = try DocumentTextTools(source: source).search(query: query, limit: 20) }
+        catch let failure as DocumentQueryError { error = failure }
+        catch is CancellationError { error = .cancelled }
+        catch { self.error = .invalidSearch }
+    }
+}
+
 public struct DocumentCitation: Sendable, Identifiable {
     public var id: String { "\(readID.uuidString):\(offset):\(quote.utf8.count)" }
     public let readID: UUID

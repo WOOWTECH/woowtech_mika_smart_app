@@ -52,6 +52,7 @@ private struct DocumentQueryPresentation: Identifiable {
 /// Parent integration: present from the documents skill with current model access.
 /// A configured worker is optional; no endpoint or background upload is created.
 @MainActor struct SkillExecutionView: View {
+    @Environment(\.appLocalizer) private var localizer
     private let learning: LearningStore
     private let modelAccess: () throws -> ModelAccess
     private let modelChanges: AnyPublisher<Void, Never>
@@ -63,6 +64,8 @@ private struct DocumentQueryPresentation: Identifiable {
     @State private var importChoice: PDFImportChoice = .original
     @State private var importCopyExpanded = false
     @State private var documentQuery: DocumentQueryPresentation?
+    @State private var localSearch: DocumentLocalSearch?
+    @State private var localSearchPreparationFailed = false
     @State private var pages = ""
     @State private var password = ""
     @State private var metadataOnly = false
@@ -205,6 +208,13 @@ private struct DocumentQueryPresentation: Identifiable {
                     if !result.text.isEmpty {
                         Text(result.text).textSelection(.enabled).accessibilityIdentifier("skillExecution.result.text")
                         if result.pages.contains(where: { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+                            Button(localizer.text(.localPDFSearchOpen)) { beginLocalSearch(result) }
+                                .disabled(model.running || exportingText)
+                                .accessibilityIdentifier("skillExecution.localSearch.open")
+                            if localSearchPreparationFailed {
+                                Text(verbatim: localizer.text(.localPDFSearchSourceFailed))
+                                    .accessibilityIdentifier("skillExecution.localSearch.sourceError")
+                            }
                             Button("查詢這份 PDF") { beginQuery(result) }
                                 .disabled(model.running || exportingText)
                                 .accessibilityIdentifier("skillExecution.query")
@@ -221,6 +231,7 @@ private struct DocumentQueryPresentation: Identifiable {
                     }
                 }
             }
+            DocumentLocalSearchSection(search: $localSearch, localizer: localizer)
             if let status = model.status { Section { Text(status).accessibilityIdentifier("skillExecutionStatus") } }
         }
         .accessibilityIdentifier("skillExecution.form")
@@ -255,15 +266,29 @@ private struct DocumentQueryPresentation: Identifiable {
             }
         }
         .onChange(of: model.downloadAvailable) { _, available in
-            if model.downloadedPDF != nil && !available { resetExport(); documentQuery = nil }
+            if model.downloadedPDF != nil && !available { resetExport(); documentQuery = nil; localSearch = nil; localSearchPreparationFailed = false }
         }
+        .onChange(of: model.plan?.id) { _, _ in localSearch = nil; localSearchPreparationFailed = false }
         .onAppear { workerSettings.reload(); if model.downloadedPDF == nil { model.seedUITestIfRequested() } }
         .onDisappear {
             resetExport()
+            localSearch = nil
+            localSearchPreparationFailed = false
             // The query sheet owns an immutable completed snapshot. Keep the
             // extraction available when returning; leaving its screen otherwise
             // still invalidates the original execution and its grants.
             if documentQuery == nil { model.clear() }
+        }
+    }
+
+    private func beginLocalSearch(_ result: SkillExecutionPDFResult) {
+        guard let plan = model.plan, !model.running, !exportingText else { return }
+        localSearchPreparationFailed = false
+        do {
+            localSearch = DocumentLocalSearch(source: try DocumentTextSnapshot(result: result, filename: plan.filename, catalog: .bundled()))
+        } catch {
+            localSearch = nil
+            localSearchPreparationFailed = true
         }
     }
 

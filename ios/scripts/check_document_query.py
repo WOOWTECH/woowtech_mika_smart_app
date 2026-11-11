@@ -16,6 +16,8 @@ def main():
     paths = sorted([*repo.glob("Sources/AssistantModels/*.swift"),
                     *repo.glob("Sources/AssistantSkills/*.swift"),
                     repo / "Sources/AssistantSkills/Resources/MikaBundledSkills.json",
+                    *[repo / ("Sources/App/" + name + ".swift") for name in
+                      ("AppLanguage", "AppText", "AppLocalizer", "DocumentLocalSearchSection")],
                     repo / "Tests/AssistantSkillsTests/DocumentQueryTests.swift",
                     Path(__file__).resolve()])
     with tempfile.TemporaryDirectory(prefix="woow-document-query-") as temporary:
@@ -36,6 +38,9 @@ def main():
                             *map(str, sorted((build / "Sources" / module).glob("*.swift"))),
                             "-o", str(build / ("lib" + module + ".dylib"))], check=True, timeout=240)
         test = build / "Tests/AssistantSkillsTests/DocumentQueryTests.swift"
+        subprocess.run([*common, "-I", str(build), "-typecheck",
+                        *[str(build / ("Sources/App/" + name + ".swift")) for name in
+                          ("AppLanguage", "AppText", "AppLocalizer", "DocumentLocalSearchSection")]], check=True, timeout=60)
         subprocess.run(["swiftc", "-frontend", "-parse", "-warnings-as-errors", str(test)], check=True, timeout=60)
         subprocess.run([*common, "-D", "DOCUMENT_QUERY_STANDALONE", "-I", str(build), "-L", str(build),
                         "-lAssistantModels", "-lAssistantSkills", "-Xlinker", "-rpath", "-Xlinker", str(build),

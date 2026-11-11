@@ -4508,6 +4508,145 @@
         "zh-Hans": "关闭",
         "en": "Close"
       }
+    },
+    {
+      "case": "localPDFSearchOpen",
+      "key": "localPDFSearch.open",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線搜尋擷取文字",
+        "zh-Hans": "离线搜索提取文字",
+        "en": "Search extracted text offline"
+      }
+    },
+    {
+      "case": "localPDFSearchTitle",
+      "key": "localPDFSearch.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線搜尋已擷取文字",
+        "zh-Hans": "离线搜索已提取文字",
+        "en": "Search extracted text offline"
+      }
+    },
+    {
+      "case": "localPDFSearchNotice",
+      "key": "localPDFSearch.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。",
+        "zh-Hans": "只搜索本次选择并批准提取的页面；区分大小写，没有 OCR，也不会发送数据。",
+        "en": "Searches only the pages selected and approved for this extraction. Case-sensitive; no OCR or data transmission."
+      }
+    },
+    {
+      "case": "localPDFSearchPlaceholder",
+      "key": "localPDFSearch.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入文字，最多 256 UTF-8 位元組",
+        "zh-Hans": "输入文字，最多 256 UTF-8 字节",
+        "en": "Enter text, up to 256 UTF-8 bytes"
+      }
+    },
+    {
+      "case": "localPDFSearchButton",
+      "key": "localPDFSearch.button",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋",
+        "zh-Hans": "搜索",
+        "en": "Search"
+      }
+    },
+    {
+      "case": "localPDFSearchInvalid",
+      "key": "localPDFSearch.invalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。",
+        "zh-Hans": "请输入 1–256 UTF-8 字节的非空白搜索文字，不能包含控制字符。",
+        "en": "Enter 1–256 UTF-8 bytes of nonblank search text without control characters."
+      }
+    },
+    {
+      "case": "localPDFSearchFailed",
+      "key": "localPDFSearch.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋未完成，請重試。",
+        "zh-Hans": "搜索未完成，请重试。",
+        "en": "Search did not finish. Try again."
+      }
+    },
+    {
+      "case": "localPDFSearchEmpty",
+      "key": "localPDFSearch.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "本次擷取頁面沒有符合的文字。",
+        "zh-Hans": "本次提取的页面没有匹配的文字。",
+        "en": "No matches in the extracted pages."
+      }
+    },
+    {
+      "case": "localPDFSearchCount",
+      "key": "localPDFSearch.count",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "找到 %1$lld 處。",
+        "zh-Hans": "找到 %1$lld 处。",
+        "en": "Matches: %1$lld."
+      }
+    },
+    {
+      "case": "localPDFSearchTruncated",
+      "key": "localPDFSearch.truncated",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "找到 %1$lld 處；還有其他符合位置。",
+        "zh-Hans": "找到 %1$lld 处；还有其他匹配位置。",
+        "en": "Matches: %1$lld; more matches exist."
+      }
+    },
+    {
+      "case": "localPDFSearchHit",
+      "key": "localPDFSearch.hit",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "Int"
+        },
+        {
+          "name": "index",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "原第 %1$lld 頁（選取序號 %2$lld）",
+        "zh-Hans": "原第 %1$lld 页（选择序号 %2$lld）",
+        "en": "Original page %1$lld (selection %2$lld)"
+      }
+    },
+    {
+      "case": "localPDFSearchSourceFailed",
+      "key": "localPDFSearch.sourceFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。",
+        "zh-Hans": "无法为本次提取结果创建搜索快照，请确认已提取可读取的文字。",
+        "en": "Could not create a search snapshot. Make sure readable text was extracted."
+      }
     }
   ]
 }

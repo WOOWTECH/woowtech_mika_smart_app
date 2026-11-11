@@ -446,6 +446,18 @@ enum AppText: Equatable {
     case archiveSavedCount(count: Int)
     case archiveEmpty
     case archiveClose
+    case localPDFSearchOpen
+    case localPDFSearchTitle
+    case localPDFSearchNotice
+    case localPDFSearchPlaceholder
+    case localPDFSearchButton
+    case localPDFSearchInvalid
+    case localPDFSearchFailed
+    case localPDFSearchEmpty
+    case localPDFSearchCount(count: Int)
+    case localPDFSearchTruncated(count: Int)
+    case localPDFSearchHit(page: Int, index: Int)
+    case localPDFSearchSourceFailed
 
     var key: String {
         switch self {
@@ -892,6 +904,18 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "archive.savedCount"
         case .archiveEmpty: return "archive.empty"
         case .archiveClose: return "archive.close"
+        case .localPDFSearchOpen: return "localPDFSearch.open"
+        case .localPDFSearchTitle: return "localPDFSearch.title"
+        case .localPDFSearchNotice: return "localPDFSearch.notice"
+        case .localPDFSearchPlaceholder: return "localPDFSearch.placeholder"
+        case .localPDFSearchButton: return "localPDFSearch.button"
+        case .localPDFSearchInvalid: return "localPDFSearch.invalid"
+        case .localPDFSearchFailed: return "localPDFSearch.failed"
+        case .localPDFSearchEmpty: return "localPDFSearch.empty"
+        case .localPDFSearchCount: return "localPDFSearch.count"
+        case .localPDFSearchTruncated: return "localPDFSearch.truncated"
+        case .localPDFSearchHit: return "localPDFSearch.hit"
+        case .localPDFSearchSourceFailed: return "localPDFSearch.sourceFailed"
         }
     }
 
@@ -917,6 +941,9 @@ enum AppText: Equatable {
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .archiveSavedCount(let count): return [Int64(count)]
+        case .localPDFSearchCount(let count): return [Int64(count)]
+        case .localPDFSearchTruncated(let count): return [Int64(count)]
+        case .localPDFSearchHit(let page, let index): return [Int64(page), Int64(index)]
         default: return []
         }
     }
@@ -1367,6 +1394,18 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "已保存的對話（%1$lld）"
         case .archiveEmpty: return "尚無保存的對話"
         case .archiveClose: return "關閉"
+        case .localPDFSearchOpen: return "離線搜尋擷取文字"
+        case .localPDFSearchTitle: return "離線搜尋已擷取文字"
+        case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。"
+        case .localPDFSearchPlaceholder: return "輸入文字，最多 256 UTF-8 位元組"
+        case .localPDFSearchButton: return "搜尋"
+        case .localPDFSearchInvalid: return "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。"
+        case .localPDFSearchFailed: return "搜尋未完成，請重試。"
+        case .localPDFSearchEmpty: return "本次擷取頁面沒有符合的文字。"
+        case .localPDFSearchCount: return "找到 %1$lld 處。"
+        case .localPDFSearchTruncated: return "找到 %1$lld 處；還有其他符合位置。"
+        case .localPDFSearchHit: return "原第 %1$lld 頁（選取序號 %2$lld）"
+        case .localPDFSearchSourceFailed: return "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。"
         }
     }
 }
