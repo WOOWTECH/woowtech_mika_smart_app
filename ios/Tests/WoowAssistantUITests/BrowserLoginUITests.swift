@@ -414,6 +414,47 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists)
     }
 
+    func testConfirmationNamesEachSelectedSiteAndClearsOnlyThatSite() {
+        launch(reset: true, extraFlags: ["-UITestBrowserLoginSecondSite"])
+        loginByTyping()
+        let protectedURL = currentProtectedURL()
+        navigateMikaSection("memory", in: app)
+        let entry = app.buttons["memory.manageWebsites"]
+        revealLearningElement(entry, in: app); entry.tap()
+        let first = app.buttons["browser.sites.clear.127.0.0.1"]
+        let second = app.buttons["browser.sites.clear.example.org"]
+        XCTAssertTrue(first.waitForExistence(timeout: 30))
+        XCTAssertTrue(second.waitForExistence(timeout: 30))
+        let confirmation = app.descendants(matching: .any).matching(NSPredicate(
+            format: "(elementType == %d OR elementType == %d) AND label == %@",
+            XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
+            "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。")).firstMatch
+        func target(_ name: String) -> XCUIElement {
+            let exact = "將清除「\(name)」的本機網站資料；不保證網站伺服器端登出。"
+            return confirmation.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", exact)).firstMatch
+        }
+        tap(first)
+        let firstTarget = target("127.0.0.1")
+        XCTAssertTrue(firstTarget.waitForExistence(timeout: 10), "Confirmation must expose selected site to accessibility.")
+        XCTAssertTrue(firstTarget.label.contains("不保證網站伺服器端登出"))
+        tap(app.buttons["browser.sites.cancelClear"].firstMatch)
+        tap(second)
+        let secondTarget = target("example.org")
+        XCTAssertTrue(secondTarget.waitForExistence(timeout: 10), "Confirmation must change with selected site.")
+        XCTAssertTrue(secondTarget.label.contains("不保證網站伺服器端登出"))
+        tap(confirmation.buttons.matching(identifier: "browser.sites.confirmClear").firstMatch)
+        let removed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: second)
+        XCTAssertEqual(XCTWaiter.wait(for: [removed], timeout: 75), .completed)
+        XCTAssertTrue(first.waitForExistence(timeout: 75), "The unselected site's data must remain after completion.")
+        XCTAssertFalse(second.exists, "The selected record must be absent after the verified refresh.")
+        XCTAssertFalse(app.staticTexts["browser.library.error"].exists)
+        tap(app.buttons["browser.library.close"])
+        navigateMikaSection("browser", in: app)
+        openInNewTab(protectedURL)
+        XCTAssertTrue(text("LOGIN_PROTECTED_AUTHENTICATED").waitForExistence(timeout: 30),
+                      "Removing the other site must preserve the fixture login cookie.")
+    }
+
     func testMemoryWebsiteManagementConfirmsClearAndReturnsToMemory() {
         launch(reset: true)
         loginByTyping()
@@ -467,10 +508,11 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists)
     }
 
-    private func launch(reset: Bool) {
+    private func launch(reset: Bool, extraFlags: [String] = []) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace]
+        app.launchArguments += extraFlags
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         navigateMikaSection("browser", in: app)
