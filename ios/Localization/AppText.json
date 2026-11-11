@@ -3374,6 +3374,16 @@
       }
     },
     {
+      "case": "browserChromeLoadStopped",
+      "key": "browser.chrome.load.stopped",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁載入已停止",
+        "zh-Hans": "网页加载已停止",
+        "en": "Page loading stopped"
+      }
+    },
+    {
       "case": "browserChromeReload",
       "key": "browser.chrome.reload",
       "parameters": [],

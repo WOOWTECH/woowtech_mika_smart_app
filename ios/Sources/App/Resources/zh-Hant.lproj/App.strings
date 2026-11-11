@@ -320,6 +320,7 @@
 "browser.chrome.address.placeholder" = "搜尋或輸入網址";
 "browser.chrome.clear.input" = "清除輸入";
 "browser.chrome.stop" = "停止";
+"browser.chrome.load.stopped" = "網頁載入已停止";
 "browser.chrome.reload" = "重新整理";
 "browser.chrome.open" = "開啟";
 "browser.chrome.search.engine" = "搜尋引擎：%1$@";

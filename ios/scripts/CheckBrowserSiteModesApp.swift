@@ -400,6 +400,63 @@ private final class SiteModeKeys: LearningKeyStore {
         try await Task.sleep(nanoseconds: 300_000_000)
         try check(probe.actions.count == postActions && probe.finishes == postFinishes && probe.lastNavigation === postNavigation,
                   "no POST resubmission or replacement GET")
+
+        // The server holds an actual HTTP response while both sessions remain
+        // isolated from the user's profile and the rest of the network.
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-stop-load-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(),
+            vault: EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: SiteModeKeys()),
+            downloadDirectory: root.appendingPathComponent("downloads"))
+        defer { workspace.cancelAllWork(); fixture.setHoldStatus(false) }
+        let selected = workspace.selected, selectedProbe = Probe(workspace.selected)
+        selectedProbe.allowsNetworkFixture = fixture.allows
+        host.attach(selected); selected.webView.navigationDelegate = selectedProbe
+        workspace.activateSelected()
+        try await wait("workspace initial page", { selectedProbe.finishes > 0 && selected.loadedURL == statusURL && !selected.isPageLoading })
+        let oldID = workspace.library.selectedID
+        let statusBeforeIdle = selected.status
+        try check(!selected.stopManualPageLoading() && selected.status == statusBeforeIdle, "idle stop is a no-op")
+        fixture.setHoldStatus(true)
+        let completedBeforeStop = selectedProbe.finishes
+        selected.reloadPage()
+        try check(selected.isPageLoading, "manual reload immediately publishes loading")
+        try await wait("held actual HTTP response", { fixture.heldStatusCount > 0 && selected.webView.isLoading && selected.isPageLoading })
+        workspace.newTab()
+        let other = workspace.selected
+        try check(other !== selected && !other.isPageLoading && !other.stopManualPageLoading(), "new tab has independent idle state")
+        try check(!selected.stopManualPageLoading() && selected.webView.isLoading, "hidden tab cannot be stopped")
+        workspace.selectTab(oldID)
+        try check(workspace.selected === selected && selected.isPageLoading, "returning to tab retains its loading state")
+        try check(selected.stopManualPageLoading() && selected.manualLoadStopped && !selected.isPageLoading, "stop cancels selected manual load")
+        fixture.setHoldStatus(false)
+        try await wait("stopped WebKit becomes idle", { !selected.webView.isLoading && !selected.isPageLoading })
+        try await Task.sleep(nanoseconds: 300_000_000)
+        try check(selectedProbe.finishes == completedBeforeStop && selected.manualLoadStopped && selected.error == nil,
+                  "released late response does not finish or replace stopped status")
+        try check(!selected.stopManualPageLoading(), "repeated stop is a no-op")
+        selected.reloadPage()
+        try await wait("manual reload after stop", { selectedProbe.finishes > completedBeforeStop && !selected.isPageLoading })
+        try check(!selected.manualLoadStopped && selected.loadedURL == statusURL, "fresh navigation works after stop")
+
+        fixture.setHoldStatus(true)
+        workspace.newTab()
+        let firstLoad = workspace.selected, firstID = workspace.library.selectedID
+        let firstProbe = Probe(firstLoad); firstProbe.allowsNetworkFixture = fixture.allows
+        host.attach(firstLoad); firstLoad.webView.navigationDelegate = firstProbe
+        firstLoad.address = statusURL.absoluteString; firstLoad.openAddress()
+        try await wait("held first navigation", { fixture.heldStatusCount > 0 && firstLoad.isPageLoading })
+        let firstActions = firstProbe.actions.count
+        workspace.selectTab(oldID); workspace.selectTab(firstID)
+        try check(firstLoad.isPageLoading && firstProbe.actions.count == firstActions,
+                  "returning during first load does not start it again")
+        try check(firstLoad.stopManualPageLoading(), "first navigation can be stopped")
+        workspace.selectTab(oldID); workspace.selectTab(firstID)
+        fixture.setHoldStatus(false)
+        try await wait("stopped first navigation becomes idle", { !firstLoad.webView.isLoading && !firstLoad.isPageLoading })
+        try await Task.sleep(nanoseconds: 300_000_000)
+        try check(firstLoad.manualLoadStopped && firstLoad.loadedURL == nil && firstProbe.finishes == 0 && firstProbe.actions.count == firstActions,
+                  "tab switches do not restart a stopped first navigation")
         return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
                 "completed_get_reloads": 1, "additional_server_gets": 1, "post_replays": 0,
                 "retained_cookie_authenticated_by_server": true, "external_network_or_personal_keychain": false]

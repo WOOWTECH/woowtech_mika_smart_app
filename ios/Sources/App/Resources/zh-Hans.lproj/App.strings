@@ -320,6 +320,7 @@
 "browser.chrome.address.placeholder" = "搜索或输入网址";
 "browser.chrome.clear.input" = "清除输入";
 "browser.chrome.stop" = "停止";
+"browser.chrome.load.stopped" = "网页加载已停止";
 "browser.chrome.reload" = "重新加载";
 "browser.chrome.open" = "打开";
 "browser.chrome.search.engine" = "搜索引擎：%1$@";

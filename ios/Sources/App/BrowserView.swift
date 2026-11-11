@@ -86,6 +86,11 @@ struct BrowserView: View {
                         Button { browser.cancel() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
                             .accessibilityLabel(localizer.text(.browserChromeStop))
                             .accessibilityIdentifier("browser.cancel")
+                    } else if browser.isPageLoading && !browser.isInteracting && !browser.automationOwnsDocument {
+                        Button { browser.stopManualPageLoading() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
+                            .accessibilityLabel(localizer.text(.browserChromeStop))
+                            .accessibilityIdentifier("browser.stopLoading")
+                            .disabled(workspace.isClearingWebsiteData)
                     } else {
                         Button { browser.reloadPage() } label: { Image(systemName: "arrow.clockwise").frame(width: 36, height: 40) }
                             .accessibilityLabel(localizer.text(.browserChromeReload))
@@ -103,7 +108,7 @@ struct BrowserView: View {
             .padding(.top, isStartPage ? 12 : 4)
             if !isStartPage {
                 Group {
-                    if browser.webView.isLoading { ProgressView().progressViewStyle(.linear) }
+                    if browser.isPageLoading { ProgressView().progressViewStyle(.linear) }
                     else { Color.clear }
                 }
                 .frame(height: 2)
@@ -124,10 +129,10 @@ struct BrowserView: View {
                     .font(.caption).accessibilityIdentifier("browser.sites.clearing")
             }
             if let diagnostics = browser.manualLoadDiagnostics {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(browser.manualLoadStopped ? localizer.text(.browserChromeLoadStopped) : browser.status).font(.caption).accessibilityIdentifier("browser.status")
                     .accessibilityValue(diagnostics)
             } else {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(browser.manualLoadStopped ? localizer.text(.browserChromeLoadStopped) : browser.status).font(.caption).accessibilityIdentifier("browser.status")
             }
             if let error = browser.error {
                 Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")

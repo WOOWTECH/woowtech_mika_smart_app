@@ -34,6 +34,15 @@ import AssistantSkills
         let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "外觀與模型權限", "個步驟"), (.simplifiedChinese, "外观与模型权限", "个步骤"), (.english, "Appearance and model permissions", "steps")]
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
+            let stopped = l.resolve(.browserChromeLoadStopped)
+            let stoppedExpected: String
+            switch language {
+            case .traditionalChinese: stoppedExpected = "網頁載入已停止"
+            case .simplifiedChinese: stoppedExpected = "网页加载已停止"
+            case .english: stoppedExpected = "Page loading stopped"
+            }
+            try check(stopped.text == stoppedExpected && stopped.language == language && !stopped.usedFallback,
+                      "stopped page status uses selected language")
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))

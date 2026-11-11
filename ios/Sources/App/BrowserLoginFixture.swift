@@ -25,6 +25,21 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private var startupDeadline: DispatchWorkItem?
     private var lifetimeDeadline: DispatchWorkItem?
     private var requests = 0
+    private var holdStatus = false
+    var heldStatusCount: Int { queue.sync { clients.values.filter { $0.heldStatus != nil }.count } }
+    func setHoldStatus(_ hold: Bool) {
+        queue.sync {
+            holdStatus = hold
+            if !hold {
+                for client in Array(clients.values) {
+                    if let authenticated = client.heldStatus {
+                        client.heldStatus = nil
+                        reply(client, status: 200, body: statePage(authenticated: authenticated))
+                    }
+                }
+            }
+        }
+    }
     private var logins = 0
     private var logouts = 0
     private var protectedChecks = 0
@@ -136,6 +151,7 @@ final class BrowserLoginFixture: @unchecked Sendable {
         var request: Request?
         var headerEnd = 0
         var replied = false
+        var heldStatus: Bool?
         var deadline: DispatchWorkItem?
         init(_ connection: NWConnection) { self.connection = connection }
     }
@@ -222,6 +238,7 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private func handle(_ request: Request, body: Data, client: Client) throws {
         let authorized = authenticated(request)
         if request.method == "GET", request.path == prefix + "/status" {
+            if holdStatus { client.heldStatus = authorized; return }
             reply(client, status: 200, body: statePage(authenticated: authorized))
         } else if request.method == "GET", request.path == prefix + "/protected" {
             protectedChecks += 1

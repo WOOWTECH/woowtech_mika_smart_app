@@ -188,7 +188,8 @@ final class BrowserWorkspace: ObservableObject {
             return
         }
         #endif
-        guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.address.isEmpty, selected.manualLoadDiagnostics == nil else { return }
+        guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.address.isEmpty,
+              !selected.isPageLoading, !selected.manualLoadStopped, selected.manualLoadDiagnostics == nil else { return }
         selected.openAddress()
     }
     @discardableResult private func update(_ change: (inout BrowserLibraryState) throws -> Void) -> Bool {

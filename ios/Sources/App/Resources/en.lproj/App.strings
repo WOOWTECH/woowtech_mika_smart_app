@@ -320,6 +320,7 @@
 "browser.chrome.address.placeholder" = "Search or enter an address";
 "browser.chrome.clear.input" = "Clear input";
 "browser.chrome.stop" = "Stop";
+"browser.chrome.load.stopped" = "Page loading stopped";
 "browser.chrome.reload" = "Reload";
 "browser.chrome.open" = "Open";
 "browser.chrome.search.engine" = "Search engine: %1$@";

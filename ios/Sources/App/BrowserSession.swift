@@ -9,6 +9,9 @@ import WebKit
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
     private var webViewURLObservation: NSKeyValueObservation?
+    private var webViewLoadingObservation: NSKeyValueObservation?
+    private let stoppedNavigations = NSHashTable<WKNavigation>.weakObjects()
+    private var suppressStoppedLoading = false
     // Hosted integration tests can observe completion of the actual KVO work,
     // including when publishSameDocumentURL rejects an event. Never grants access.
     var onSameDocumentURLKVOHandled: ((URL?) -> Void)?
@@ -68,11 +71,19 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                 self.onSameDocumentURLKVOHandled?(observedURL)
             }
         }
+        webViewLoadingObservation = view.observe(\.isLoading, options: [.new]) { [weak self, weak view] _, _ in
+            Task { @MainActor [weak self, weak view] in
+                guard let self, let view, self.storedWebView === view else { return }
+                self.updatePageLoading(view)
+            }
+        }
         return view
     }
     @Published var address = ""
     @Published var goal = ""
-    @Published private(set) var status = "輸入網址開始瀏覽"
+    @Published private(set) var status = "輸入網址開始瀏覽" { didSet { manualLoadStopped = false } }
+    @Published private(set) var manualLoadStopped = false
+    @Published private(set) var isPageLoading = false
     @Published private(set) var error: String?
     #if DEBUG
     func reportDownloadPDFFixtureFailure() {
@@ -294,7 +305,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         resolveDialog(nil)
         cancelInteraction()
         invalidatePageObservation()
+        if let navigation = trackedNavigation { stoppedNavigations.add(navigation) }
         trackedNavigation = nil; requestedNavigationPending = false
+        suppressStoppedLoading = true; isPageLoading = false
         traceLoad(.failed, failure: .cancelled)
         runID = nil; work?.cancel(); work = nil; origin = nil
         storedWebView?.stopLoading(); isRunning = false
@@ -831,17 +844,52 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         }
         else { manualNavigation(to: webView.url) { webView.reload() } }
     }
+
+    /// Stops only this selected session's manual WebKit load. Late callbacks
+    /// from the cancelled navigation must not restore it as the current page.
+    @discardableResult
+    func stopManualPageLoading() -> Bool {
+        guard canPresentUI(), !retiredForDataRemoval, !discardingPage,
+              !isRunning, !isInteracting, !automationOwnsDocument,
+              let view = storedWebView, !suppressStoppedLoading,
+              requestedNavigationPending || view.isLoading else { return false }
+        if let navigation = trackedNavigation { stoppedNavigations.add(navigation) }
+        suppressStoppedLoading = true; isPageLoading = false
+        trackedNavigation = nil; requestedNavigationPending = false
+        manualDocumentURL = nil; manualDocumentNavigation = nil
+        explicitManualDownloadPending = false; navigationIntent.invalidate()
+        siteModeReloadState.invalidate(); automaticSiteModeReload = false
+        invalidatePageFindDocument(); invalidatePageObservation(); invalidateControls()
+        current = nil; error = nil
+        view.stopLoading()
+        if let visible = view.url {
+            address = visible.absoluteString
+            if loadedURL != visible { loadedURL = nil }
+        } else { loadedURL = nil }
+        canGoBack = view.canGoBack; canGoForward = view.canGoForward
+        status = AppText.browserChromeLoadStopped.traditionalFallback
+        manualLoadStopped = true
+        traceLoad(.failed, failure: .cancelled)
+        return true
+    }
+
+    private func updatePageLoading(_ view: WKWebView) {
+        if suppressStoppedLoading && !view.isLoading { suppressStoppedLoading = false }
+        let loading = !suppressStoppedLoading && (requestedNavigationPending || view.isLoading)
+        if isPageLoading != loading { isPageLoading = loading }
+    }
     // Internal seam also lets hosted tests load local HTML through the same
     // explicit-user gate, using real WKNavigation objects and commit callbacks.
     func manualNavigation(to target: URL?, _ operation: () -> WKNavigation?) {
         guard !isRunning, !isInteracting, let target, manualPermitted(target) else { return }
         invalidateControls(); error = nil; current = nil
+        suppressStoppedLoading = false
         preparePageNavigation()
         navigationIntent.beginManual(target)
         manualDocumentURL = target
         trackedNavigation = operation()
         manualDocumentNavigation = trackedNavigation
-        if trackedNavigation != nil { status = "正在載入…" }
+        if trackedNavigation != nil { isPageLoading = true; status = "正在載入…" }
         else { requestedNavigationPending = false; failManualLoad(.navigationFailed) }
     }
     private func claimAutomationDocument(originURL: URL? = nil) {
@@ -953,6 +1001,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         guard !discardingPage else { return }
         guard let navigation else { return }
+        guard !stoppedNavigations.contains(navigation) else { return }
+        suppressStoppedLoading = false
         if requestedNavigationPending {
             // Ignore callbacks from the load superseded by a newer request.
             guard trackedNavigation === navigation else { return }
@@ -970,6 +1020,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         // offer research/interaction against the preceding page while loading.
         // Readonly runner navigation keeps its observation for warm deadlines.
         if !isRunning { current = nil; status = "正在載入…"; traceLoad(.started) }
+        updatePageLoading(webView)
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -1191,6 +1242,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         manualDocumentURL = nil; manualDocumentNavigation = nil
         invalidatePageObservation()
         trackedNavigation = nil; requestedNavigationPending = false
+        if let view = storedWebView { updatePageLoading(view) }
         current = nil; status = "載入未完成"
         if category == .observationTimeout || category == .observationFailed || category == .pageChanged {
             error = "頁面載入後的內容讀取未完成；沒有自動重試。"

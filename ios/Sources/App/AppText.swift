@@ -328,6 +328,7 @@ enum AppText: Equatable {
     case browserChromeAddressPlaceholder
     case browserChromeClearInput
     case browserChromeStop
+    case browserChromeLoadStopped
     case browserChromeReload
     case browserChromeOpen
     case browserChromeSearchEngine(name: String)
@@ -802,6 +803,7 @@ enum AppText: Equatable {
         case .browserChromeAddressPlaceholder: return "browser.chrome.address.placeholder"
         case .browserChromeClearInput: return "browser.chrome.clear.input"
         case .browserChromeStop: return "browser.chrome.stop"
+        case .browserChromeLoadStopped: return "browser.chrome.load.stopped"
         case .browserChromeReload: return "browser.chrome.reload"
         case .browserChromeOpen: return "browser.chrome.open"
         case .browserChromeSearchEngine: return "browser.chrome.search.engine"
@@ -1308,6 +1310,7 @@ enum AppText: Equatable {
         case .browserChromeAddressPlaceholder: return "搜尋或輸入網址"
         case .browserChromeClearInput: return "清除輸入"
         case .browserChromeStop: return "停止"
+        case .browserChromeLoadStopped: return "網頁載入已停止"
         case .browserChromeReload: return "重新整理"
         case .browserChromeOpen: return "開啟"
         case .browserChromeSearchEngine: return "搜尋引擎：%1$@"
