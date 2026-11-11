@@ -37,6 +37,8 @@ import AssistantSkills
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             let lanMessages: [AppText] = [.browserLanStop, .browserLanConfirmTitle, .browserLanAllowOnce,
                 .browserLanStopped, .browserLanNavigationRejected, .browserLanPageChanged, .browserLanLoaded,
+                .browserLanLoading, .browserLanLoadIncomplete, .browserLanLoadFailed, .browserLanContentFailed,
+                .browserLanProcessTerminated, .browserLanReloadDeferred,
                 .browserInvalidAddress, .commonCancel]
             for message in lanMessages {
                 let resolved = l.resolve(message)
@@ -59,6 +61,20 @@ import AssistantSkills
             try check(l.text(.browserLanStop) == lanExpected.0 && l.text(.browserLanConfirmTitle) == lanExpected.1
                       && l.text(.browserLanAllowOnce) == lanExpected.2 && lanWarning.text == lanExpected.3,
                       "LAN controls and complete warning have exact requested-language text")
+            let stateMessages: [AppText] = [.browserLanLoading, .browserLanLoadIncomplete, .browserLanLoadFailed,
+                .browserLanContentFailed, .browserLanProcessTerminated, .browserLanReloadDeferred]
+            let stateExpected: [String]
+            switch language {
+            case .traditionalChinese:
+                stateExpected = ["正在載入…", "載入未完成", "網站載入失敗，請檢查網址或網路。", "頁面載入後的內容讀取未完成；沒有自動重試。", "網頁程序已停止；請確認後重新開啟，沒有自動重試。", "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"]
+            case .simplifiedChinese:
+                stateExpected = ["正在加载…", "加载未完成", "网站加载失败，请检查网址或网络。", "页面加载后的内容读取未完成；没有自动重试。", "网页进程已停止；请确认后重新打开，没有自动重试。", "网站偏好已保存；此页面无法安全刷新，将在下次手动导航时应用。"]
+            case .english:
+                stateExpected = ["Loading…", "Loading did not complete", "The site could not be loaded. Check the address or network.", "The page content could not be read after loading. It was not retried automatically.", "The web process stopped. Reopen the page when ready; it was not retried automatically.", "The site preference was saved. It will be applied on the next manual navigation because this page cannot be safely reloaded."]
+            }
+            for (message, expectedText) in zip(stateMessages, stateExpected) {
+                try check(l.text(message) == expectedText, "LAN loading and failure states use exact requested-language text")
+            }
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))
                 let numeral = count == 1001 ? "1,001" : String(count)

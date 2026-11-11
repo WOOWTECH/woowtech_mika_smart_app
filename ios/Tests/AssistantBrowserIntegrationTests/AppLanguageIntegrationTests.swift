@@ -27,6 +27,8 @@ import XCTest
             XCTAssertTrue(localizer.text(.configurationChanged(appearance: original)).contains(original))
             let lanMessages: [AppText] = [.browserLanStop, .browserLanConfirmTitle, .browserLanAllowOnce,
                 .browserLanStopped, .browserLanNavigationRejected, .browserLanPageChanged, .browserLanLoaded,
+                .browserLanLoading, .browserLanLoadIncomplete, .browserLanLoadFailed, .browserLanContentFailed,
+                .browserLanProcessTerminated, .browserLanReloadDeferred,
                 .browserInvalidAddress, .commonCancel, .browserLanConfirmMessage(origin: "http://[::1]:18443")]
             for message in lanMessages {
                 let resolved = localizer.resolve(message)

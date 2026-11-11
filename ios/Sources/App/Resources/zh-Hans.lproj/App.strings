@@ -329,6 +329,12 @@
 "browser.lan.stopped" = "本地浏览已停止";
 "browser.lan.navigation.rejected" = "此导航超出本次批准的网址范围。";
 "browser.lan.page.changed" = "网址或当前页面已更改，请重新输入本地网址。";
+"browser.lan.loading" = "正在加载…";
+"browser.lan.load.incomplete" = "加载未完成";
+"browser.lan.load.failed" = "网站加载失败，请检查网址或网络。";
+"browser.lan.content.failed" = "页面加载后的内容读取未完成；没有自动重试。";
+"browser.lan.process.terminated" = "网页进程已停止；请确认后重新打开，没有自动重试。";
+"browser.lan.reload.deferred" = "网站偏好已保存；此页面无法安全刷新，将在下次手动导航时应用。";
 "browser.lan.loaded" = "页面已加载；此页面仅供手动浏览";
 "browser.address.invalid" = "请输入搜索文字或有效网址；不接受网址账号密码或过长的查询。";
 "browser.chrome.search.engine" = "搜索引擎：%1$@";

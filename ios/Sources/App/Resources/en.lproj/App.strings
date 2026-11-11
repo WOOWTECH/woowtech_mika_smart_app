@@ -329,6 +329,12 @@
 "browser.lan.stopped" = "Local browsing stopped";
 "browser.lan.navigation.rejected" = "This navigation is outside the approved address.";
 "browser.lan.page.changed" = "The address or current page changed. Enter the local address again.";
+"browser.lan.loading" = "Loading…";
+"browser.lan.load.incomplete" = "Loading did not complete";
+"browser.lan.load.failed" = "The site could not be loaded. Check the address or network.";
+"browser.lan.content.failed" = "The page content could not be read after loading. It was not retried automatically.";
+"browser.lan.process.terminated" = "The web process stopped. Reopen the page when ready; it was not retried automatically.";
+"browser.lan.reload.deferred" = "The site preference was saved. It will be applied on the next manual navigation because this page cannot be safely reloaded.";
 "browser.lan.loaded" = "Page loaded; this page is for manual browsing only";
 "browser.address.invalid" = "Enter search text or a valid address. Addresses with credentials and overly long queries are not accepted.";
 "browser.chrome.search.engine" = "Search engine: %1$@";

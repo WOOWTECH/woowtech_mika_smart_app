@@ -337,6 +337,12 @@ enum AppText: Equatable {
     case browserLanStopped
     case browserLanNavigationRejected
     case browserLanPageChanged
+    case browserLanLoading
+    case browserLanLoadIncomplete
+    case browserLanLoadFailed
+    case browserLanContentFailed
+    case browserLanProcessTerminated
+    case browserLanReloadDeferred
     case browserLanLoaded
     case browserInvalidAddress
     case browserChromeSearchEngine(name: String)
@@ -790,6 +796,12 @@ enum AppText: Equatable {
         case .browserLanStopped: return "browser.lan.stopped"
         case .browserLanNavigationRejected: return "browser.lan.navigation.rejected"
         case .browserLanPageChanged: return "browser.lan.page.changed"
+        case .browserLanLoading: return "browser.lan.loading"
+        case .browserLanLoadIncomplete: return "browser.lan.load.incomplete"
+        case .browserLanLoadFailed: return "browser.lan.load.failed"
+        case .browserLanContentFailed: return "browser.lan.content.failed"
+        case .browserLanProcessTerminated: return "browser.lan.process.terminated"
+        case .browserLanReloadDeferred: return "browser.lan.reload.deferred"
         case .browserLanLoaded: return "browser.lan.loaded"
         case .browserInvalidAddress: return "browser.address.invalid"
         case .browserChromeSearchEngine: return "browser.chrome.search.engine"
@@ -1273,6 +1285,12 @@ enum AppText: Equatable {
         case .browserLanStopped: return "本機瀏覽已停止"
         case .browserLanNavigationRejected: return "此導覽超出本次核准的網址範圍。"
         case .browserLanPageChanged: return "網址或目前頁面已變更，請重新輸入本機網址。"
+        case .browserLanLoading: return "正在載入…"
+        case .browserLanLoadIncomplete: return "載入未完成"
+        case .browserLanLoadFailed: return "網站載入失敗，請檢查網址或網路。"
+        case .browserLanContentFailed: return "頁面載入後的內容讀取未完成；沒有自動重試。"
+        case .browserLanProcessTerminated: return "網頁程序已停止；請確認後重新開啟，沒有自動重試。"
+        case .browserLanReloadDeferred: return "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"
         case .browserLanLoaded: return "頁面已載入；此頁面僅供手動瀏覽"
         case .browserInvalidAddress: return "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。"
         case .browserChromeSearchEngine: return "搜尋引擎：%1$@"

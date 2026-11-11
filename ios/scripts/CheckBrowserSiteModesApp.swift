@@ -46,6 +46,7 @@ private final class SiteModeKeys: LearningKeyStore {
         var omitNextPolicyObservation = false
         var finishes = 0
         var failures = 0
+        var sawLocalizedLANLoading = false
         var responses: [(URL?, WKNavigationResponsePolicy)] = []
         var externallyCancelledURLs: [URL] = []
         var events: [String] = []
@@ -91,6 +92,7 @@ private final class SiteModeKeys: LearningKeyStore {
         func webView(_ view: WKWebView, didStartProvisionalNavigation nav: WKNavigation!) {
             events.append("start")
             browser.webView(view, didStartProvisionalNavigation: nav)
+            if browser.localizedStatusText == .browserLanLoading { sawLocalizedLANLoading = true }
         }
         func webView(_ view: WKWebView, didCommit nav: WKNavigation!) {
             events.append("commit")
@@ -438,7 +440,9 @@ private final class SiteModeKeys: LearningKeyStore {
         browser.approvePendingLAN(first)
         try check(browser.pendingLANRequest == request && server.connectionCount == 0, "stale approval cannot cancel a newer request")
         browser.approvePendingLAN(request)
+        try check(browser.localizedStatusText == .browserLanLoading, "manual LAN load immediately publishes localizable loading")
         try await wait("approved LAN page", { browser.loadedURL == url && !browser.webView.isLoading })
+        try check(probe.sawLocalizedLANLoading, "WebKit provisional load publishes localizable loading")
         try check(server.connectionCount > 0 && browser.lanBrowsingActive, "approved real WebKit loopback request")
         try check(browser.current == nil, "local page is not research context")
         try check(browser.localizedStatusText == .browserLanLoaded, "local page status uses a localizable message")
@@ -449,6 +453,7 @@ private final class SiteModeKeys: LearningKeyStore {
         try await Task.sleep(nanoseconds: 150_000_000)
         try check(probe.actions.last?.policy == .cancel && other.connectionCount == 0, "cross-origin action denied")
         try check(browser.localizedErrorText == .browserLanNavigationRejected, "blocked local navigation uses a localizable error")
+        try check(browser.localizedStatusText == .browserLanLoadIncomplete, "policy rejection publishes localizable incomplete status")
         let redirectURL = url.deletingLastPathComponent().appendingPathComponent("redirect")
         try check(server.setRedirectDestination(url), "same-origin redirect configured")
         let beforeSame = probe.finishes
@@ -496,6 +501,44 @@ private final class SiteModeKeys: LearningKeyStore {
         try await wait("local page before close", { browser.loadedURL == url && !browser.webView.isLoading })
         workspace.closeTab(originalID); browser.approvePendingLAN(closeRequest)
         try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive && browser.loadedURL == nil, "closing tab revokes active approval")
+
+        // Keep the loopback port bound while dropping connections, so a real
+        // WebKit failure cannot accidentally reach another local service.
+        let failureServer = try fixture(), failureURL = try await failureServer.start()
+        defer { failureServer.stop() }
+        failureServer.setDropConnections(true)
+        let failureBrowser = BrowserSession(dataStore: .nonPersistent()), failureProbe = Probe(failureBrowser)
+        defer { failureBrowser.cancel() }
+        host.attach(failureBrowser); failureBrowser.webView.navigationDelegate = failureProbe
+        failureProbe.allowsNetworkFixture = failureServer.allows
+        failureBrowser.address = failureURL.absoluteString; failureBrowser.openAddress()
+        guard let failureRequest = failureBrowser.pendingLANRequest else { throw Failure(check: "failure approval") }
+        failureBrowser.approvePendingLAN(failureRequest)
+        try check(failureBrowser.localizedStatusText == .browserLanLoading, "failing LAN request starts with localizable loading")
+        try await wait("real loopback navigation failure", { failureProbe.failures > 0 && failureBrowser.localizedErrorText == .browserLanLoadFailed })
+        try check(failureServer.connectionCount > 0 && failureBrowser.localizedStatusText == .browserLanLoadIncomplete,
+                  "real WebKit network failure localizes both status and error")
+        failureServer.setDropConnections(false)
+        let previous = failureProbe.finishes
+        failureBrowser.manualNavigation(to: failureURL) { failureBrowser.webView.load(URLRequest(url: failureURL)) }
+        try await wait("recover LAN page", { failureProbe.finishes > previous && failureBrowser.loadedURL == failureURL && !failureBrowser.webView.isLoading })
+        failureBrowser.manualNavigation(to: failureURL) { nil }
+        try check(failureBrowser.localizedStatusText == .browserLanLoadIncomplete && failureBrowser.localizedErrorText == .browserLanLoadFailed,
+                  "failure to create a navigation localizes both fields")
+        let beforeTermination = failureProbe.finishes
+        failureBrowser.manualNavigation(to: failureURL) { failureBrowser.webView.load(URLRequest(url: failureURL)) }
+        try await wait("LAN page before simulated termination", { failureProbe.finishes > beforeTermination && !failureBrowser.webView.isLoading })
+        failureBrowser.webViewWebContentProcessDidTerminate(failureBrowser.webView)
+        try check(!failureBrowser.lanBrowsingActive && failureBrowser.localizedStatusText == .browserLanLoadIncomplete
+                  && failureBrowser.localizedErrorText == .browserLanProcessTerminated,
+                  "simulated process termination revokes and localizes both fields")
+        host.attach(failureBrowser); failureBrowser.webView.navigationDelegate = failureProbe
+        failureBrowser.address = failureURL.absoluteString; failureBrowser.openAddress()
+        guard let cancelRequest = failureBrowser.pendingLANRequest else { throw Failure(check: "approval before cancellation") }
+        failureBrowser.approvePendingLAN(cancelRequest)
+        failureBrowser.cancel()
+        try check(!failureBrowser.lanBrowsingActive && failureBrowser.localizedStatusText == .browserLanStopped,
+                  "cancelling local navigation preserves localizable stopped status")
         return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
                 "cross_origin_redirect_target_connections": redirectedConnections,
                 "external_network_or_personal_keychain": false, "native_ui_execution": false]

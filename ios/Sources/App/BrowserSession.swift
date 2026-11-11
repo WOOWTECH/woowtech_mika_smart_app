@@ -391,6 +391,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func cancel() {
+        let wasLANBrowsing = lanBrowsingActive
         revokeLANAccess()
         invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
@@ -407,6 +408,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         storedWebView?.stopLoading(); isRunning = false
         for id in Array(evaluations.keys) { finishEvaluation(id, result: .failure(CancellationError())) }
         status = "已停止；已取得的內容與草稿保留"
+        if wasLANBrowsing { localizedStatusText = .browserLanStopped }
     }
 
     var hasActiveRunReferences: Bool { runReferences.map { !$0.revoked } ?? false }
@@ -948,7 +950,10 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         manualDocumentURL = target
         trackedNavigation = operation()
         manualDocumentNavigation = trackedNavigation
-        if trackedNavigation != nil { status = "正在載入…" }
+        if trackedNavigation != nil {
+            status = "正在載入…"
+            if lanBrowsingActive { localizedStatusText = .browserLanLoading }
+        }
         else { requestedNavigationPending = false; failManualLoad(.navigationFailed) }
     }
     private func claimAutomationDocument(originURL: URL? = nil) {
@@ -1029,6 +1034,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             || navigationAction.request.httpBodyStream != nil {
             decisionHandler(.cancel)
             error = "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"
+            if lanBrowsingActive { localizedErrorText = .browserLanReloadDeferred }
             return
         }
         let restrictedOrigin = automationDocumentOrigin ?? origin
@@ -1081,7 +1087,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         // A normal click/reload changes the displayed document too. Do not
         // offer research/interaction against the preceding page while loading.
         // Readonly runner navigation keeps its observation for warm deadlines.
-        if !isRunning { current = nil; status = "正在載入…"; traceLoad(.started) }
+        if !isRunning {
+            current = nil; status = "正在載入…"
+            if lanBrowsingActive { localizedStatusText = .browserLanLoading }
+            traceLoad(.started)
+        }
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -1218,6 +1228,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         if expectedNavigation === navigation { navigationFinished = false; expectedNavigation = nil }
         invalidatePageObservation(); requestedNavigationPending = false
         error = "網站載入失敗，請檢查網址或網路。"
+        if lanBrowsingActive { localizedErrorText = .browserLanLoadFailed }
         if !isRunning {
             let nsError = underlying as NSError
             let category: ManualLoadFailure = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorTimedOut
@@ -1227,6 +1238,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        let wasLANBrowsing = lanBrowsingActive
         revokeLANAccess()
         invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
@@ -1234,8 +1246,12 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         invalidatePageObservation(); invalidateControls()
         navigationFinished = false; expectedNavigation = nil; trackedNavigation = nil; requestedNavigationPending = false
         current = nil; error = "網頁程序已停止；請確認後重新開啟，沒有自動重試。"
+        if wasLANBrowsing { localizedErrorText = .browserLanProcessTerminated }
         traceLoad(.terminated, failure: .processTerminated)
-        if !isRunning { status = "載入未完成" }
+        if !isRunning {
+            status = "載入未完成"
+            if wasLANBrowsing { localizedStatusText = .browserLanLoadIncomplete }
+        }
     }
 
     private func invalidatePageObservation() {
@@ -1307,9 +1323,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         invalidatePageObservation()
         trackedNavigation = nil; requestedNavigationPending = false
         current = nil; status = "載入未完成"
+        if lanBrowsingActive { localizedStatusText = .browserLanLoadIncomplete }
         if category == .observationTimeout || category == .observationFailed || category == .pageChanged {
             error = "頁面載入後的內容讀取未完成；沒有自動重試。"
-        } else if error == nil { error = "頁面載入未完成；請確認網址與網路。" }
+            if lanBrowsingActive { localizedErrorText = .browserLanContentFailed }
+        } else if error == nil {
+            error = "頁面載入未完成；請確認網址與網路。"
+            if lanBrowsingActive { localizedErrorText = .browserLanLoadFailed }
+        }
         traceLoad(.failed, failure: category)
     }
 

@@ -3469,6 +3469,66 @@
       }
     },
     {
+      "case": "browserLanLoading",
+      "key": "browser.lan.loading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在載入…",
+        "zh-Hans": "正在加载…",
+        "en": "Loading…"
+      }
+    },
+    {
+      "case": "browserLanLoadIncomplete",
+      "key": "browser.lan.load.incomplete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "載入未完成",
+        "zh-Hans": "加载未完成",
+        "en": "Loading did not complete"
+      }
+    },
+    {
+      "case": "browserLanLoadFailed",
+      "key": "browser.lan.load.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站載入失敗，請檢查網址或網路。",
+        "zh-Hans": "网站加载失败，请检查网址或网络。",
+        "en": "The site could not be loaded. Check the address or network."
+      }
+    },
+    {
+      "case": "browserLanContentFailed",
+      "key": "browser.lan.content.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "頁面載入後的內容讀取未完成；沒有自動重試。",
+        "zh-Hans": "页面加载后的内容读取未完成；没有自动重试。",
+        "en": "The page content could not be read after loading. It was not retried automatically."
+      }
+    },
+    {
+      "case": "browserLanProcessTerminated",
+      "key": "browser.lan.process.terminated",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁程序已停止；請確認後重新開啟，沒有自動重試。",
+        "zh-Hans": "网页进程已停止；请确认后重新打开，没有自动重试。",
+        "en": "The web process stopped. Reopen the page when ready; it was not retried automatically."
+      }
+    },
+    {
+      "case": "browserLanReloadDeferred",
+      "key": "browser.lan.reload.deferred",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。",
+        "zh-Hans": "网站偏好已保存；此页面无法安全刷新，将在下次手动导航时应用。",
+        "en": "The site preference was saved. It will be applied on the next manual navigation because this page cannot be safely reloaded."
+      }
+    },
+    {
       "case": "browserLanLoaded",
       "key": "browser.lan.loaded",
       "parameters": [],

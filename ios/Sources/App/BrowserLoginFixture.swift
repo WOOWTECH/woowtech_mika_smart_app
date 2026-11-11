@@ -20,6 +20,7 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private var listener: NWListener?
     private var origin: String?
     private var redirectDestination: URL?
+    private var dropConnections = false
     private var stopped = false
     private var waiters: [CheckedContinuation<URL, Error>] = []
     private var clients: [ObjectIdentifier: Client] = [:]
@@ -75,6 +76,8 @@ final class BrowserLoginFixture: @unchecked Sendable {
               url.user == nil, url.password == nil else { return false }
         return queue.sync { redirectDestination = url; return true }
     }
+    /// Keep the synthetic loopback listener bound while forcing a network failure.
+    func setDropConnections(_ enabled: Bool) { queue.sync { dropConnections = enabled } }
     func stop() { queue.async { [weak self] in self?.stopOnQueue(.stopped) } }
 
     deinit {
@@ -151,6 +154,7 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private func accept(_ connection: NWConnection) {
         guard !stopped, origin != nil, clients.count < 4, requests < 64 else { connection.cancel(); return }
         requests += 1
+        if dropConnections { connection.start(queue: queue); connection.cancel(); return }
         let client = Client(connection); clients[ObjectIdentifier(connection)] = client
         let timeout = DispatchWorkItem { [weak self, weak client] in
             guard let self, let client else { return }; self.close(client)

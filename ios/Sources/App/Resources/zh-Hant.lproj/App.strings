@@ -329,6 +329,12 @@
 "browser.lan.stopped" = "本機瀏覽已停止";
 "browser.lan.navigation.rejected" = "此導覽超出本次核准的網址範圍。";
 "browser.lan.page.changed" = "網址或目前頁面已變更，請重新輸入本機網址。";
+"browser.lan.loading" = "正在載入…";
+"browser.lan.load.incomplete" = "載入未完成";
+"browser.lan.load.failed" = "網站載入失敗，請檢查網址或網路。";
+"browser.lan.content.failed" = "頁面載入後的內容讀取未完成；沒有自動重試。";
+"browser.lan.process.terminated" = "網頁程序已停止；請確認後重新開啟，沒有自動重試。";
+"browser.lan.reload.deferred" = "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。";
 "browser.lan.loaded" = "頁面已載入；此頁面僅供手動瀏覽";
 "browser.address.invalid" = "請輸入搜尋文字或有效網址；不接受網址帳密或過長的查詢。";
 "browser.chrome.search.engine" = "搜尋引擎：%1$@";
