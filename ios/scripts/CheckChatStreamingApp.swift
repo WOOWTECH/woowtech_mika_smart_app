@@ -155,6 +155,10 @@ private actor StreamMCP: MCPDiscovering {
     static func incrementalCompletion() async throws -> Int {
         var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
         let client = StreamClient(); let session = e.session(client)
+        let conversationAtStart = session.conversationID
+        var publishedConversations: [String] = []
+        let identityObservation = session.$conversationID.sink { publishedConversations.append($0) }
+        defer { identityObservation.cancel() }
         let notifications = StreamNotifications(); let service = TaskNotificationService(client: notifications, enabled: true)
         await service.refresh(); let baseline = notifications.operations
         let bridge = TaskNotificationChatBridge(session: session, service: service); defer { bridge.invalidate() }
@@ -178,6 +182,17 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(notifications.adds == 1 && notifications.kinds == [.completed] && service.trackedCount == 1, "one completed notification retained by existing service until expiry")
         try a.check(client.counts.complete == 0 && client.counts.stream == 1, "single request no hidden fallback or extraction")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes, "master-off learning stays unchanged")
+        try a.check(session.conversationID == conversationAtStart && publishedConversations == [conversationAtStart],
+                    "completion and first message insertion do not change conversation identity")
+        session.newConversation()
+        let firstEmptyConversation = session.conversationID
+        try a.check(firstEmptyConversation != conversationAtStart && session.entries.isEmpty,
+                    "new conversation replaces identity after a completed exchange")
+        session.newConversation()
+        try a.check(session.conversationID != firstEmptyConversation && session.entries.isEmpty,
+                    "empty to empty new conversation still changes identity")
+        try a.check(publishedConversations == [conversationAtStart, firstEmptyConversation, session.conversationID],
+                    "true conversation identity publishes every switch to the observing view")
         return a.count
     }
     static func cancellationFailureAndGeneration() async throws -> Int {

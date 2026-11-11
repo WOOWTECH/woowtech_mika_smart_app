@@ -442,7 +442,35 @@ private struct ChatView: View {
     @State private var showsMCPResults = false
     @State private var showsPDF = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
+    @State private var scrollToTailRequest = 0
+    @State private var scrollSettleTask: Task<Void, Never>?
+    @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+
+    private func cancelScrollSettle() {
+        scrollSettleTask?.cancel()
+        scrollSettleTask = nil
+        scheduledSettleRevision = nil
+    }
+
+    private func scheduleScrollSettle() {
+        guard let revision = scrollFollow.pendingSettleRevision else {
+            cancelScrollSettle()
+            return
+        }
+        guard scheduledSettleRevision != revision else { return }
+        cancelScrollSettle()
+        scheduledSettleRevision = revision
+        scrollSettleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            _ = scrollFollow.settle(expectedRevision: revision)
+            if scheduledSettleRevision == revision {
+                scheduledSettleRevision = nil
+                scrollSettleTask = nil
+            }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -576,17 +604,36 @@ private struct ChatView: View {
                 }
                 .coordinateSpace(name: "chat.transcript.viewport")
                 .accessibilityIdentifier("chat.transcript")
-                .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { drag in
-                    if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
-                })
+                // A simultaneous drag observes scrolling without taking the
+                // long-press/text-selection gesture away from selectable Text.
+                .simultaneousGesture(DragGesture(minimumDistance: 5)
+                    .onChanged { drag in
+                        scrollFollow.beginDrag()
+                        if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
+                    }
+                    .onEnded { _ in
+                        scrollFollow.endDrag()
+                        scheduleScrollSettle()
+                    })
                 .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
                     guard let position else { return }
                     if scrollFollow.observe(position) {
                         proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
                     }
+                    scheduleScrollSettle()
                 }
-                .onChange(of: session.entries.first?.id) { _, _ in
+                .onChange(of: session.conversationID) { _, _ in
+                    cancelScrollSettle()
                     scrollFollow.conversationChanged()
+                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                }
+                .onChange(of: session.isSubmitting) { _, submitting in
+                    guard submitting else { return }
+                    cancelScrollSettle()
+                    scrollFollow.userSubmitted()
+                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                }
+                .onChange(of: scrollToTailRequest) { _, _ in
                     proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
                 }
               }
@@ -642,6 +689,13 @@ private struct ChatView: View {
                 Button {
                     isEditingDraft = false
                     session.send(mcp: session.usesMCP ? mcp : nil)
+                    if session.isSubmitting {
+                        // Only an accepted send restores follow. The observer
+                        // also covers sends launched from the PDF sheet.
+                        cancelScrollSettle()
+                        scrollFollow.userSubmitted()
+                        scrollToTailRequest += 1
+                    }
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 20, weight: .semibold))

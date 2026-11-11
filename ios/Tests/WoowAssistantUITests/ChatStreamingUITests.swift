@@ -121,9 +121,41 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: partial, seconds: 65)
         XCTAssertLessThan(abs(partial.frame.minY - readingOrigin), 32,
                           "A later real stream delta must not pull a reader back to the tail")
+        let completed = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: completed, seconds: 55)
+        XCTAssertGreaterThan(completed.frame.minY, readingOrigin - 160,
+                             "Completion must not treat the first saved message as a new conversation and jump to the tail")
+        XCTAssertFalse(partial.exists)
+
+        // Editing the next prompt changes the keyboard/viewport; the explicit
+        // send must nevertheless restore follow for the accepted new request.
+        compose("[fixture:stream-cancel]"); tap("chat.send")
+        let renewed = identifiedText("chat.partialReply")
+        assertLabel(renewed, "串流測試：第一段")
+        XCTAssertTrue(renewed.isHittable, "The newly submitted answer must be visible at the tail")
         tap("chat.cancel")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
-        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+        XCTAssertFalse(identifiedText("chat.message.3.assistant").exists)
+    }
+
+    func testLongPressOnSelectableStreamingTextKeepsNativeSelection() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-cancel]"); tap("chat.send")
+        let partial = identifiedText("chat.partialReply")
+        assertLabel(partial, "串流測試：第一段")
+        ready(partial); partial.press(forDuration: 1)
+        let selectionLabel = NSPredicate(format: "label IN %@",
+                                         ["Copy", "複製", "复制", "拷貝", "Select All", "全選", "全选"])
+        func selectionAction() -> XCUIElement? {
+            let menu = app.menuItems.matching(selectionLabel).firstMatch
+            if menu.exists && menu.isHittable { return menu }
+            let button = app.buttons.matching(selectionLabel).firstMatch
+            return button.exists && button.isHittable ? button : nil
+        }
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in selectionAction() != nil }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed,
+                       "A stationary long press must still expose native text-selection actions")
+        XCTAssertEqual(partial.label, "串流測試：第一段")
     }
 
     private func disableMemory() {

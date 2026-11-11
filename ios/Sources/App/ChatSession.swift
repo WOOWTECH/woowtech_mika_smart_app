@@ -55,7 +55,7 @@ struct MCPApprovalRequest: Identifiable {
 final class ChatSession: ObservableObject {
     let learning: LearningStore
     let archive: ConversationArchiveStore?
-    private var conversationID = UUID().uuidString
+    @Published private(set) var conversationID = UUID().uuidString
     private var conversationDestination: ConversationDestination?
     @Published private(set) var archiveNotice: String?
     private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?)?
