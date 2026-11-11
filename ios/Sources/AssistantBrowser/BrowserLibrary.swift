@@ -123,6 +123,14 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
         guard tabs.contains(where: { $0.id == id }) else { throw BrowserLibraryError.notFound }
         selectedID = id
     }
+    /// Close the document in one tab without deleting its bookmarks, history,
+    /// website data, or the tab itself. Persist this before replacing WebKit.
+    public mutating func clearPage(in id: UUID) throws {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { throw BrowserLibraryError.notFound }
+        tabs[index].url = nil
+        tabs[index].title = "新分頁"
+        tabs[index].lastVisitedAt = .now
+    }
     public mutating func close(_ id: UUID) throws {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { throw BrowserLibraryError.notFound }
         tabs.remove(at: index)

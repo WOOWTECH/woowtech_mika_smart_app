@@ -6,6 +6,7 @@ import WebKit
 struct BrowserLibraryView: View {
     @Environment(\.appLocalizer) private var localizer
     @ObservedObject var workspace: BrowserWorkspace
+    var initialSection = 0
     var pdfDestination: ((BrowserDownloadedPDFSelection) -> AnyView)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var section = 0
@@ -51,6 +52,7 @@ struct BrowserLibraryView: View {
                     .accessibilityIdentifier("browser.sites.confirmClear")
             }
             .onChange(of: section) { _, selected in if selected == 3 { workspace.refreshWebsiteRecords() } }
+            .onAppear { section = initialSection }
         }
     }
     private var tabs: some View {

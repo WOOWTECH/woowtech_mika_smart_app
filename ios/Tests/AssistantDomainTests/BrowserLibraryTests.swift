@@ -49,6 +49,30 @@ final class BrowserLibraryTests: XCTestCase {
         XCTAssertEqual(restored, state)
     }
 
+    func testClosingPageKeepsTabIdentityBookmarksHistoryAndOtherPage() throws {
+        var state = BrowserLibraryState()
+        let firstID = state.selectedID
+        let firstURL = URL(string: "https://example.com/first")!
+        let secondURL = URL(string: "https://example.org/second")!
+        try state.visit(tab: firstID, url: firstURL, title: "First")
+        try state.bookmark(url: firstURL, title: "Saved")
+        let secondID = try state.addTab()
+        try state.visit(tab: secondID, url: secondURL, title: "Second")
+        let history = state.history, bookmarks = state.bookmarks
+        try state.clearPage(in: secondID)
+        XCTAssertEqual(state.selectedID, secondID)
+        XCTAssertEqual(state.tabs.count, 2)
+        XCTAssertNil(state.tabs.first(where: { $0.id == secondID })?.url)
+        XCTAssertEqual(state.tabs.first(where: { $0.id == secondID })?.title, "新分頁")
+        XCTAssertEqual(state.tabs.first(where: { $0.id == firstID })?.url, firstURL)
+        XCTAssertEqual(state.history, history)
+        XCTAssertEqual(state.bookmarks, bookmarks)
+        XCTAssertThrowsError(try state.clearPage(in: UUID()))
+        try state.validate()
+        XCTAssertEqual(try JSONDecoder().decode(BrowserLibraryState.self,
+                          from: JSONEncoder().encode(state)), state)
+    }
+
     func testBookmarksDeduplicateFragmentsAndPreserveUserTitles() throws {
         var state = BrowserLibraryState()
         let url = URL(string: "https://example.com/page?q=one#first")!

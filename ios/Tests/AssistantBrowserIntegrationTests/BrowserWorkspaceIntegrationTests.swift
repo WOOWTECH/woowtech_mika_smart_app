@@ -11,6 +11,35 @@ import AssistantBrowser
 /// Installing a synthetic cookie does NOT cover form login, OAuth, MFA, or an
 /// authenticated HTTP request. Reopening a store is not an App-relaunch test.
 final class BrowserWorkspaceIntegrationTests: XCTestCase {
+    @MainActor func testClosingCurrentPageReplacesWebKitWithoutDeletingLibraryData() async throws {
+        let host = try Host()
+        addTeardownBlock { await host.close() }
+        let workspace = try XCTUnwrap(host.workspace)
+        let original = host.attachSelected()
+        let tabID = workspace.library.selectedID
+        try await host.load(original, path: "/workspace-one", marker: "Close page fixture")
+        workspace.addBookmark()
+        let bookmarks = workspace.library.bookmarks
+        let history = workspace.library.history
+        XCTAssertEqual(bookmarks.count, 1)
+        XCTAssertEqual(history.count, 1)
+
+        XCTAssertTrue(workspace.closeCurrentPage())
+        let replacement = workspace.selected
+        XCTAssertFalse(replacement === original)
+        XCTAssertFalse(replacement.webView === original.webView)
+        XCTAssertEqual(replacement.webView.configuration.websiteDataStore.identifier, host.storeID)
+        XCTAssertNil(original.onPageFinished, "The retired document cannot publish a late visit")
+        XCTAssertEqual(workspace.library.selectedID, tabID)
+        XCTAssertEqual(workspace.library.tabs.count, 1)
+        XCTAssertNil(workspace.library.tabs[0].url)
+        XCTAssertEqual(replacement.address, "")
+        XCTAssertNil(replacement.loadedURL)
+        XCTAssertEqual(workspace.library.bookmarks, bookmarks)
+        XCTAssertEqual(workspace.library.history, history)
+        XCTAssertFalse(original.isRunning)
+    }
+
     @MainActor func testRetiredUnmaterializedSessionRejectsManualNavigation() async throws {
         let session = BrowserSession(dataStore: .nonPersistent())
         let target = try XCTUnwrap(URL(string: "https://research.example.invalid/retirement"))

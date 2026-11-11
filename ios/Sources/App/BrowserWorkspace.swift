@@ -259,6 +259,20 @@ final class BrowserWorkspace: ObservableObject {
         guard !isClearingWebsiteData else { return }
         suspendSelected(); selected.address = url.absoluteString; selected.openAddress()
     }
+    @discardableResult
+    func closeCurrentPage() -> Bool {
+        guard !isClearingWebsiteData else { return false }
+        let id = library.selectedID
+        guard update({ try $0.clearPage(in: id) }) else { return false }
+        let old = sessions.removeValue(forKey: id)
+        old?.onPageFinished = nil
+        old?.onCreateWindow = nil
+        old?.onCloseWindow = nil
+        old?.canPresentUI = { false }
+        old?.cancel()
+        selected = makeSession(id: id)
+        return true
+    }
     func addBookmark() {
         guard let url = selected.loadedURL else { return }
         _ = update { try $0.bookmark(url: url, title: selected.pageTitle) }

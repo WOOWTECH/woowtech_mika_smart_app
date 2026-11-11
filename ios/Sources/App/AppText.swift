@@ -310,6 +310,57 @@ enum AppText: Equatable {
     case catalogReqMutation
     case catalogCount(total: Int, matches: Int)
     case catalogProvenance(commit: String)
+    case browserStartDone
+    case browserStartEdit
+    case browserStartRecent
+    case browserStartClear
+    case browserStartSuggestionHelp
+    case browserStartAddBookmark
+    case browserStartViewBookmarks
+    case browserStartOK
+    case browserStartAddBookmarkHelp
+    case browserStartRemoveBookmark(name: String)
+    case browserStartAdd
+    case browserStartSuggestionSubtitle
+    case browserChromeClosePage
+    case browserChromeAddressPlaceholder
+    case browserChromeClearInput
+    case browserChromeStop
+    case browserChromeReload
+    case browserChromeOpen
+    case browserChromeSearchEngine(name: String)
+    case browserChromeSearchMatch(query: String, engine: String)
+    case browserChromeAutomationNotice
+    case browserChromeReturnManual
+    case browserChromeResearch
+    case browserChromeResearchSite
+    case browserChromeInteract
+    case browserChromeLibrary
+    case browserChromeExplanation
+    case browserChromeFind
+    case browserChromeCurrentDesktop
+    case browserChromeCurrentMobile
+    case browserChromeMobileWebsite
+    case browserChromeDesktopWebsite
+    case browserChromeSiteModeHelp
+    case browserChromeSiteMode
+    case browserChromeDesktop
+    case browserChromeMobile
+    case browserChromeMultiResearch
+    case browserChromeTranscript
+    case browserChromeBack
+    case browserChromeForward
+    case browserChromeHome
+    case browserChromeShare
+    case browserChromeShareUnavailable
+    case browserChromeMore
+    case browserChromeWebsite
+    case browserChromeCopyLink
+    case browserChromeRemoveBookmark
+    case browserChromeAddBookmark
+    case browserChromeSwitchMobile
+    case browserChromeSwitchDesktop
+    case browserChromeDone
 
     var key: String {
         switch self {
@@ -620,6 +671,57 @@ enum AppText: Equatable {
         case .catalogReqMutation: return "catalog.req.mutation"
         case .catalogCount: return "catalog.count"
         case .catalogProvenance: return "catalog.provenance"
+        case .browserStartDone: return "browser.start.done"
+        case .browserStartEdit: return "browser.start.edit"
+        case .browserStartRecent: return "browser.start.recent"
+        case .browserStartClear: return "browser.start.clear"
+        case .browserStartSuggestionHelp: return "browser.start.suggestion.help"
+        case .browserStartAddBookmark: return "browser.start.add.bookmark"
+        case .browserStartViewBookmarks: return "browser.start.view.bookmarks"
+        case .browserStartOK: return "browser.start.ok"
+        case .browserStartAddBookmarkHelp: return "browser.start.add.bookmark.help"
+        case .browserStartRemoveBookmark: return "browser.start.remove.bookmark"
+        case .browserStartAdd: return "browser.start.add"
+        case .browserStartSuggestionSubtitle: return "browser.start.suggestion.subtitle"
+        case .browserChromeClosePage: return "browser.chrome.close.page"
+        case .browserChromeAddressPlaceholder: return "browser.chrome.address.placeholder"
+        case .browserChromeClearInput: return "browser.chrome.clear.input"
+        case .browserChromeStop: return "browser.chrome.stop"
+        case .browserChromeReload: return "browser.chrome.reload"
+        case .browserChromeOpen: return "browser.chrome.open"
+        case .browserChromeSearchEngine: return "browser.chrome.search.engine"
+        case .browserChromeSearchMatch: return "browser.chrome.search.match"
+        case .browserChromeAutomationNotice: return "browser.chrome.automation.notice"
+        case .browserChromeReturnManual: return "browser.chrome.return.manual"
+        case .browserChromeResearch: return "browser.chrome.research"
+        case .browserChromeResearchSite: return "browser.chrome.research.site"
+        case .browserChromeInteract: return "browser.chrome.interact"
+        case .browserChromeLibrary: return "browser.chrome.library"
+        case .browserChromeExplanation: return "browser.chrome.explanation"
+        case .browserChromeFind: return "browser.chrome.find"
+        case .browserChromeCurrentDesktop: return "browser.chrome.current.desktop"
+        case .browserChromeCurrentMobile: return "browser.chrome.current.mobile"
+        case .browserChromeMobileWebsite: return "browser.chrome.mobile.website"
+        case .browserChromeDesktopWebsite: return "browser.chrome.desktop.website"
+        case .browserChromeSiteModeHelp: return "browser.chrome.site.mode.help"
+        case .browserChromeSiteMode: return "browser.chrome.site.mode"
+        case .browserChromeDesktop: return "browser.chrome.desktop"
+        case .browserChromeMobile: return "browser.chrome.mobile"
+        case .browserChromeMultiResearch: return "browser.chrome.multi.research"
+        case .browserChromeTranscript: return "browser.chrome.transcript"
+        case .browserChromeBack: return "browser.chrome.back"
+        case .browserChromeForward: return "browser.chrome.forward"
+        case .browserChromeHome: return "browser.chrome.home"
+        case .browserChromeShare: return "browser.chrome.share"
+        case .browserChromeShareUnavailable: return "browser.chrome.share.unavailable"
+        case .browserChromeMore: return "browser.chrome.more"
+        case .browserChromeWebsite: return "browser.chrome.website"
+        case .browserChromeCopyLink: return "browser.chrome.copy.link"
+        case .browserChromeRemoveBookmark: return "browser.chrome.remove.bookmark"
+        case .browserChromeAddBookmark: return "browser.chrome.add.bookmark"
+        case .browserChromeSwitchMobile: return "browser.chrome.switch.mobile"
+        case .browserChromeSwitchDesktop: return "browser.chrome.switch.desktop"
+        case .browserChromeDone: return "browser.chrome.done"
         }
     }
 
@@ -640,6 +742,9 @@ enum AppText: Equatable {
         case .browserHistorySearch(let query): return [query]
         case .catalogCount(let total, let matches): return [Int64(total), Int64(matches)]
         case .catalogProvenance(let commit): return [commit]
+        case .browserStartRemoveBookmark(let name): return [name]
+        case .browserChromeSearchEngine(let name): return [name]
+        case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         default: return []
         }
     }
@@ -954,6 +1059,57 @@ enum AppText: Equatable {
         case .catalogReqMutation: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
         case .catalogCount: return "共 %1$lld 項原始技能 · 符合 %2$lld 項"
         case .catalogProvenance: return "Mika · 固定來源版本 %1$@"
+        case .browserStartDone: return "完成"
+        case .browserStartEdit: return "整理"
+        case .browserStartRecent: return "最近開啟"
+        case .browserStartClear: return "清除"
+        case .browserStartSuggestionHelp: return "只搜尋目前輸入，或開啟已儲存的最近網頁。"
+        case .browserStartAddBookmark: return "加入書籤"
+        case .browserStartViewBookmarks: return "查看書籤"
+        case .browserStartOK: return "好"
+        case .browserStartAddBookmarkHelp: return "請先開啟網站，再從書籤頁加入目前網頁。"
+        case .browserStartRemoveBookmark: return "移除書籤：%1$@"
+        case .browserStartAdd: return "新增"
+        case .browserStartSuggestionSubtitle: return "搜尋或開啟網址"
+        case .browserChromeClosePage: return "關閉網頁並返回起始頁"
+        case .browserChromeAddressPlaceholder: return "搜尋或輸入網址"
+        case .browserChromeClearInput: return "清除輸入"
+        case .browserChromeStop: return "停止"
+        case .browserChromeReload: return "重新整理"
+        case .browserChromeOpen: return "開啟"
+        case .browserChromeSearchEngine: return "搜尋引擎：%1$@"
+        case .browserChromeSearchMatch: return "搜尋：%1$@（%2$@）"
+        case .browserChromeAutomationNotice: return "此頁面仍受自動化導覽限制。"
+        case .browserChromeReturnManual: return "返回手動瀏覽"
+        case .browserChromeResearch: return "研究"
+        case .browserChromeResearchSite: return "研究此網站"
+        case .browserChromeInteract: return "操作"
+        case .browserChromeLibrary: return "分頁、書籤與歷史"
+        case .browserChromeExplanation: return "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。"
+        case .browserChromeFind: return "頁內尋找"
+        case .browserChromeCurrentDesktop: return "目前偏好：電腦版"
+        case .browserChromeCurrentMobile: return "目前偏好：手機版"
+        case .browserChromeMobileWebsite: return "手機版網站"
+        case .browserChromeDesktopWebsite: return "電腦版網站"
+        case .browserChromeSiteModeHelp: return "可安全重新整理的頁面會立即套用；其他頁面於下次手動導覽套用。"
+        case .browserChromeSiteMode: return "網站顯示偏好"
+        case .browserChromeDesktop: return "電腦版"
+        case .browserChromeMobile: return "手機版"
+        case .browserChromeMultiResearch: return "多網站研究"
+        case .browserChromeTranscript: return "整理此頁文字"
+        case .browserChromeBack: return "上一頁"
+        case .browserChromeForward: return "下一頁"
+        case .browserChromeHome: return "起始頁"
+        case .browserChromeShare: return "分享連結"
+        case .browserChromeShareUnavailable: return "此頁無可分享的公開連結"
+        case .browserChromeMore: return "更多"
+        case .browserChromeWebsite: return "網頁"
+        case .browserChromeCopyLink: return "複製連結"
+        case .browserChromeRemoveBookmark: return "移除書籤"
+        case .browserChromeAddBookmark: return "加入書籤"
+        case .browserChromeSwitchMobile: return "切換為手機版"
+        case .browserChromeSwitchDesktop: return "切換為電腦版"
+        case .browserChromeDone: return "完成"
         }
     }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AssistantBrowser
+import UIKit
 
 @MainActor
 struct BrowserView: View {
@@ -14,37 +15,100 @@ struct BrowserView: View {
     @State private var showTranscript = false
     @State private var showMultiResearch = false
     @State private var showSearchSettings = false
+    @State private var showMore = false
+    @State private var librarySection = 0
+    @State private var startQuery = ""
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var addressFocused: Bool
+    private var palette: BrowserPalette { BrowserPalette(colorScheme) }
+    private var isStartPage: Bool { browser.loadedURL == nil && browser.address.isEmpty || showInvalidStartInput }
+    @State private var showInvalidStartInput = false
     private var pageCovered: Bool {
-        showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch || showSearchSettings || browser.pageDialog != nil
+        isStartPage || showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch
+            || showSearchSettings || showMore || browser.pageDialog != nil
     }
     private var pageFindHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
     }
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                TextField("搜尋或輸入網址", text: $browser.address)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .keyboardType(.default).submitLabel(.go).focused($addressFocused)
-                    .onSubmit { open() }.accessibilityIdentifier("browser.address")
-                Button("開啟") { open() }.accessibilityIdentifier("browser.open")
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                if !isStartPage {
+                    Button { closePage() } label: { Image(systemName: "xmark").frame(width: 36, height: 40) }
+                        .accessibilityLabel(localizer.text(.browserChromeClosePage))
+                        .accessibilityIdentifier("browser.closePage")
+                        .disabled(!workspace.available || workspace.isClearingWebsiteData)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: isStartPage ? "magnifyingglass" :
+                          (browser.loadedURL?.scheme == "https" ? "lock.fill" : "globe"))
+                        .font(.caption).foregroundStyle(palette.tertiary)
+                    if isStartPage {
+                        TextField(localizer.text(.browserChromeAddressPlaceholder), text: $startQuery)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                            .keyboardType(.default).submitLabel(.go).focused($addressFocused)
+                            .onSubmit { submitStartQuery() }
+                            .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+                            .accessibilityIdentifier("browser.address")
+                        if !startQuery.isEmpty {
+                            Button { startQuery = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 30, height: 30) }
+                                .accessibilityLabel(localizer.text(.browserChromeClearInput))
+                                .accessibilityIdentifier("browser.start.clearInput")
+                        }
+                    } else {
+                        TextField(localizer.text(.browserChromeAddressPlaceholder), text: $browser.address)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                            .keyboardType(.default).submitLabel(.go).focused($addressFocused)
+                            .onSubmit { open() }
+                            .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+                            .accessibilityIdentifier("browser.address")
+                    }
+                }
+                .padding(.horizontal, 14)
+                .frame(height: isStartPage ? 52 : 40)
+                .background(palette.surface, in: Capsule())
+                .overlay(Capsule().stroke(palette.edge, lineWidth: 0.5))
+                if !isStartPage {
+                    if browser.isRunning {
+                        Button { browser.cancel() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
+                            .accessibilityLabel(localizer.text(.browserChromeStop))
+                            .accessibilityIdentifier("browser.cancel")
+                    } else {
+                        Button { browser.reloadPage() } label: { Image(systemName: "arrow.clockwise").frame(width: 36, height: 40) }
+                            .accessibilityLabel(localizer.text(.browserChromeReload))
+                            .accessibilityIdentifier("browser.reload")
+                            .disabled(browser.loadedURL == nil || browser.isInteracting || workspace.isClearingWebsiteData)
+                    }
+                }
+                Button { isStartPage ? submitStartQuery() : open() } label: { Image(systemName: "arrow.right").frame(width: 36, height: 40) }
+                    .accessibilityLabel(localizer.text(.browserChromeOpen))
+                    .accessibilityIdentifier("browser.open")
+                    .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
             }
-            .padding(.horizontal).disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.top, isStartPage ? 12 : 4)
+            if !isStartPage {
+                Group {
+                    if browser.webView.isLoading { ProgressView().progressViewStyle(.linear) }
+                    else { Color.clear }
+                }
+                .frame(height: 2)
+            }
             HStack {
-                Button("搜尋引擎：\(workspace.library.searchSettings.selected.name)") {
+                Button(localizer.text(.browserChromeSearchEngine(name: workspace.library.searchSettings.selected.name))) {
                     addressFocused = false; browser.webView.endEditing(true); showSearchSettings = true
                 }.font(.caption).lineLimit(1).accessibilityIdentifier("browser.searchEngine.open")
                     .disabled(!workspace.available || workspace.isClearingWebsiteData)
                 Spacer()
-            }.padding(.horizontal)
+            }.padding(.horizontal, 20)
             if let match = browser.manualSearchMatch {
-                Text("搜尋：\(match.query)（\(match.engineName)）")
+                Text(localizer.text(.browserChromeSearchMatch(query: match.query, engine: match.engineName)))
                     .font(.caption).lineLimit(2).accessibilityIdentifier("browser.search.query")
             }
             if workspace.isClearingWebsiteData {
-                ProgressView("正在清除網站資料…")
+                ProgressView(localizer.text(.browserClearing))
                     .font(.caption).accessibilityIdentifier("browser.sites.clearing")
             }
             if let diagnostics = browser.manualLoadDiagnostics {
@@ -64,41 +128,49 @@ struct BrowserView: View {
             }
             if browser.automationOwnsDocument && !browser.isRunning && !browser.isInteracting {
                 HStack {
-                    Text("此頁面仍受自動化導覽限制。").font(.caption)
-                    Button("返回手動瀏覽") { addressFocused = false; browser.returnToManualBrowsing() }
+                    Text(localizer.text(.browserChromeAutomationNotice)).font(.caption)
+                    Button(localizer.text(.browserChromeReturnManual)) { addressFocused = false; browser.returnToManualBrowsing() }
                         .accessibilityIdentifier("browser.returnToManual")
                         .disabled(workspace.isClearingWebsiteData || browser.loadedURL == nil)
                 }.padding(.horizontal)
             }
-            HStack {
-                Button { browser.goBack() } label: { Image(systemName: "chevron.backward") }
-                    .accessibilityLabel("上一頁").accessibilityIdentifier("browser.back")
-                    .disabled(!browser.canGoBack || browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-                Button { browser.goForward() } label: { Image(systemName: "chevron.forward") }
-                    .accessibilityLabel("下一頁").accessibilityIdentifier("browser.forward")
-                    .disabled(!browser.canGoForward || browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-                Button { browser.reloadPage() } label: { Image(systemName: "arrow.clockwise") }
-                    .accessibilityLabel("重新整理").accessibilityIdentifier("browser.reload")
-                    .disabled(browser.loadedURL == nil || browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-                Button("研究此網站") { addressFocused = false; showResearch = true }
-                    .disabled(browser.current == nil || browser.isInteracting || workspace.isClearingWebsiteData).accessibilityIdentifier("browser.research")
-                Button("操作") { addressFocused = false; showInteractions = true }
-                    .disabled(browser.current == nil || browser.isRunning || workspace.isClearingWebsiteData).accessibilityIdentifier("browser.interactions")
-                Button { addressFocused = false; browser.webView.endEditing(true); showLibrary = true } label: { Image(systemName: "square.on.square") }
-                    .accessibilityLabel("分頁、書籤與歷史").accessibilityIdentifier("browser.library")
-                if browser.isRunning {
-                    Button("停止") { browser.cancel() }.accessibilityIdentifier("browser.cancel")
+            HStack(spacing: 12) {
+                Button(localizer.text(isStartPage ? .browserChromeResearch : .browserChromeResearchSite)) { addressFocused = false; showResearch = true }
+                    .disabled(browser.current == nil || browser.isInteracting || workspace.isClearingWebsiteData)
+                    .accessibilityIdentifier("browser.research")
+                Button(localizer.text(.browserChromeInteract)) { addressFocused = false; showInteractions = true }
+                    .disabled(browser.current == nil || browser.isRunning || workspace.isClearingWebsiteData)
+                    .accessibilityIdentifier("browser.interactions")
+                Spacer(minLength: 0)
+                Button { openLibrary(section: 0) } label: { Image(systemName: "square.on.square") }
+                    .accessibilityLabel(localizer.text(.browserChromeLibrary))
+                    .accessibilityIdentifier("browser.library")
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 20)
+            ZStack {
+                BrowserWebView(webView: browser.webView, coveredByResearch: pageCovered,
+                               onDetach: { [browser] in browser.setPageFindHostVisible(false) })
+                    .id(ObjectIdentifier(browser))
+                    .allowsHitTesting(!isStartPage && !browser.isRunning && !browser.isInteracting
+                                      && !workspace.isClearingWebsiteData)
+                    .accessibilityHidden(pageCovered)
+                if isStartPage {
+                    BrowserStartPageView(workspace: workspace, query: startQuery,
+                        onSubmit: submitStartQuery,
+                        onOpen: { url in
+                            showInvalidStartInput = false; startQuery = ""; workspace.open(url)
+                        },
+                        onManageBookmarks: { openLibrary(section: 1) })
                 }
             }
-            BrowserWebView(webView: browser.webView, coveredByResearch: pageCovered,
-                           onDetach: { [browser] in browser.setPageFindHostVisible(false) })
-                .id(ObjectIdentifier(browser))
-                .allowsHitTesting(!browser.isRunning && !browser.isInteracting && !workspace.isClearingWebsiteData)
-                .accessibilityHidden(pageCovered)
-            Text("可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text(localizer.text(.browserChromeExplanation))
                 .font(.caption2).foregroundStyle(.secondary).padding(.horizontal)
                 .accessibilityIdentifier("browser.explanation")
+            if !isStartPage { pageToolbar }
         }
+        .background(palette.background)
         .sheet(isPresented: $showResearch) {
             BrowserResearchView(browser: browser, chat: chat)
         }
@@ -106,7 +178,7 @@ struct BrowserView: View {
             BrowserInteractionView(browser: browser, chat: chat)
         }
         .sheet(isPresented: $showLibrary) {
-            BrowserLibraryView(workspace: workspace, pdfDestination: { selection in
+            BrowserLibraryView(workspace: workspace, initialSection: librarySection, pdfDestination: { selection in
                 AnyView(SkillExecutionView(learning: chat.learning, modelAccess: chat.modelAccess,
                     modelChanges: chat.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
                     downloadedPDF: selection))
@@ -115,29 +187,31 @@ struct BrowserView: View {
         .sheet(isPresented: $showTranscript) { TranscriptBrowserView(browser: browser, chat: chat) }
         .sheet(isPresented: $showMultiResearch) { MultiSourceResearchView(chat: chat) }
         .sheet(isPresented: $showSearchSettings) { BrowserSearchSettingsView(workspace: workspace) }
+        .sheet(isPresented: $showMore) { moreSheet }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { addressFocused = false; browser.webView.endEditing(true); browser.presentPageFind() } label: {
                     Image(systemName: "doc.text.magnifyingglass")
                 }
-                .accessibilityLabel("頁內尋找").accessibilityIdentifier("browser.find")
+                .accessibilityLabel(localizer.text(.browserChromeFind)).accessibilityIdentifier("browser.find")
                 .disabled(!browser.canFindInPage || !pageFindHostVisible)
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Text(workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
-                         ? "目前偏好：電腦版" : "目前偏好：手機版")
-                    Button("手機版網站") { workspace.setManualSiteMode(.mobile) }
+                    Text(localizer.text(workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
+                         ? .browserChromeCurrentDesktop : .browserChromeCurrentMobile))
+                    Button(localizer.text(.browserChromeMobileWebsite)) { workspace.setManualSiteMode(.mobile) }
                         .accessibilityIdentifier("browser.siteMode.mobile")
-                    Button("電腦版網站") { workspace.setManualSiteMode(.desktop) }
+                    Button(localizer.text(.browserChromeDesktopWebsite)) { workspace.setManualSiteMode(.desktop) }
                         .accessibilityIdentifier("browser.siteMode.desktop")
-                    Text("可安全重新整理的頁面會立即套用；其他頁面於下次手動導覽套用。")
+                    Text(localizer.text(.browserChromeSiteModeHelp))
                 } label: {
                     Image(systemName: workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
                           ? "desktopcomputer" : "iphone")
                 }
-                .accessibilityLabel("網站顯示偏好")
-                .accessibilityValue(workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop ? "電腦版" : "手機版")
+                .accessibilityLabel(localizer.text(.browserChromeSiteMode))
+                .accessibilityValue(localizer.text(workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
+                    ? .browserChromeDesktop : .browserChromeMobile))
                 .accessibilityIdentifier("browser.siteMode")
                 .disabled(!workspace.available || workspace.isClearingWebsiteData || browser.manualSiteModeHost == nil)
             }
@@ -145,14 +219,14 @@ struct BrowserView: View {
                 Button { addressFocused = false; browser.webView.endEditing(true); showMultiResearch = true } label: {
                     Image(systemName: "globe")
                 }
-                .accessibilityLabel("多網站研究").accessibilityIdentifier("browser.multiResearch")
+                .accessibilityLabel(localizer.text(.browserChromeMultiResearch)).accessibilityIdentifier("browser.multiResearch")
                 .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button { addressFocused = false; browser.webView.endEditing(true); showTranscript = true } label: {
                     Image(systemName: "doc.text")
                 }
-                .accessibilityLabel("整理此頁文字").accessibilityIdentifier("browser.transcript")
+                .accessibilityLabel(localizer.text(.browserChromeTranscript)).accessibilityIdentifier("browser.transcript")
                 .disabled(browser.current == nil || browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
             }
         }
@@ -162,10 +236,120 @@ struct BrowserView: View {
         .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
         .onDisappear { browser.setPageFindHostVisible(false) }
         .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
-        .onChange(of: ObjectIdentifier(browser)) { _, _ in showResearch = false; showInteractions = false; showTranscript = false; showMultiResearch = false; browser.setPageFindHostVisible(pageFindHostVisible) }
+        .onChange(of: ObjectIdentifier(browser)) { _, _ in
+            showResearch = false; showInteractions = false; showTranscript = false
+            showMultiResearch = false; showMore = false; showInvalidStartInput = false; startQuery = ""
+            browser.setPageFindHostVisible(pageFindHostVisible)
+        }
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
         }
+    }
+    private var pageToolbar: some View {
+        HStack {
+            toolbarButton("chevron.backward", label: localizer.text(.browserChromeBack), id: "browser.back",
+                          disabled: !browser.canGoBack) { browser.goBack() }
+            Spacer()
+            toolbarButton("chevron.forward", label: localizer.text(.browserChromeForward), id: "browser.forward",
+                          disabled: !browser.canGoForward) { browser.goForward() }
+            Spacer()
+            toolbarButton("house", label: localizer.text(.browserChromeHome), id: "browser.home", disabled: !workspace.available,
+                          allowDuringWork: true) {
+                closePage()
+            }
+            Spacer()
+            if let url = safeShareURL {
+                ShareLink(item: url) { Image(systemName: "square.and.arrow.up").frame(width: 36, height: 44) }
+                    .accessibilityLabel(localizer.text(.browserChromeShare))
+                    .accessibilityIdentifier("browser.share")
+                    .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+            } else {
+                Image(systemName: "square.and.arrow.up")
+                    .accessibilityLabel(localizer.text(.browserChromeShareUnavailable))
+                    .accessibilityIdentifier("browser.share.unavailable")
+                    .foregroundStyle(palette.tertiary)
+            }
+            Spacer()
+            toolbarButton("ellipsis", label: localizer.text(.browserChromeMore), id: "browser.more", disabled: false) {
+                addressFocused = false; showMore = true
+            }
+        }
+        .font(.system(size: 18))
+        .padding(.horizontal, 20)
+        .frame(height: 52)
+        .background(palette.background)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    private func toolbarButton(_ icon: String, label: String, id: String,
+                               disabled: Bool, allowDuringWork: Bool = false,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: icon).frame(width: 36, height: 44) }
+            .accessibilityLabel(label).accessibilityIdentifier(id)
+            .disabled(disabled || (!allowDuringWork && (browser.isRunning || browser.isInteracting))
+                      || workspace.isClearingWebsiteData)
+    }
+
+    private var safeShareURL: URL? { browser.loadedURL.flatMap(BrowserManualNavigationPolicy.libraryURL) }
+    private var moreSheet: some View {
+        NavigationStack {
+            List {
+                if let url = safeShareURL {
+                    Section {
+                        Text(url.host ?? localizer.text(.browserChromeWebsite)).font(.headline)
+                        Text(url.absoluteString).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                }
+                Section {
+                    Button(localizer.text(.browserChromeReload)) { showMore = false; browser.reloadPage() }
+                        .disabled(browser.loadedURL == nil || browser.isRunning || browser.isInteracting)
+                        .accessibilityIdentifier("browser.more.reload")
+                    if let url = safeShareURL {
+                        Button(localizer.text(.browserChromeCopyLink)) { UIPasteboard.general.url = url; showMore = false }
+                            .accessibilityIdentifier("browser.more.copy")
+                        if let saved = workspace.library.bookmarks.first(where: { $0.url == url }) {
+                            Button(localizer.text(.browserChromeRemoveBookmark), role: .destructive) {
+                                workspace.removeBookmark(saved.id); showMore = false
+                            }.accessibilityIdentifier("browser.more.removeFavorite")
+                        } else {
+                            Button(localizer.text(.browserChromeAddBookmark)) { workspace.addBookmark(); showMore = false }
+                                .disabled(!workspace.available)
+                                .accessibilityIdentifier("browser.more.addFavorite")
+                        }
+                    }
+                    if browser.manualSiteModeHost != nil {
+                        let desktop = workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
+                        Button(localizer.text(desktop ? .browserChromeSwitchMobile : .browserChromeSwitchDesktop)) {
+                            workspace.setManualSiteMode(desktop ? .mobile : .desktop)
+                            showMore = false
+                        }.accessibilityIdentifier("browser.more.siteMode")
+                    }
+                }
+            }
+            .navigationTitle(localizer.text(.browserChromeMore))
+            .toolbar { ToolbarItem(placement: .confirmationAction) {
+                Button(localizer.text(.browserChromeDone)) { showMore = false }.accessibilityIdentifier("browser.more.close")
+            } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func closePage() {
+        addressFocused = false; browser.webView.endEditing(true)
+        if workspace.closeCurrentPage() { startQuery = ""; showInvalidStartInput = false }
+    }
+    private func openLibrary(section: Int) {
+        addressFocused = false; browser.webView.endEditing(true)
+        librarySection = section; showLibrary = true
+    }
+    private func submitStartQuery() {
+        let input = startQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+        addressFocused = false
+        browser.address = input
+        browser.openAddress()
+        showInvalidStartInput = browser.error != nil
+        if !showInvalidStartInput { startQuery = "" }
     }
     private func open() { addressFocused = false; browser.openAddress() }
 }

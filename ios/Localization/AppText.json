@@ -3187,6 +3187,535 @@
         "zh-Hans": "Mika · 固定来源版本 %1$@",
         "en": "Mika · Pinned source version %1$@"
       }
+    },
+    {
+      "case": "browserStartDone",
+      "key": "browser.start.done",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "完成",
+        "zh-Hans": "完成",
+        "en": "Done"
+      }
+    },
+    {
+      "case": "browserStartEdit",
+      "key": "browser.start.edit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "整理",
+        "zh-Hans": "整理",
+        "en": "Organize"
+      }
+    },
+    {
+      "case": "browserStartRecent",
+      "key": "browser.start.recent",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最近開啟",
+        "zh-Hans": "最近打开",
+        "en": "Recently opened"
+      }
+    },
+    {
+      "case": "browserStartClear",
+      "key": "browser.start.clear",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "清除",
+        "zh-Hans": "清除",
+        "en": "Clear"
+      }
+    },
+    {
+      "case": "browserStartSuggestionHelp",
+      "key": "browser.start.suggestion.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只搜尋目前輸入，或開啟已儲存的最近網頁。",
+        "zh-Hans": "只搜索当前输入，或打开已保存的最近网页。",
+        "en": "Search what you typed, or open a saved recent page."
+      }
+    },
+    {
+      "case": "browserStartAddBookmark",
+      "key": "browser.start.add.bookmark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "加入書籤",
+        "zh-Hans": "添加书签",
+        "en": "Add bookmark"
+      }
+    },
+    {
+      "case": "browserStartViewBookmarks",
+      "key": "browser.start.view.bookmarks",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "查看書籤",
+        "zh-Hans": "查看书签",
+        "en": "View bookmarks"
+      }
+    },
+    {
+      "case": "browserStartOK",
+      "key": "browser.start.ok",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "好",
+        "zh-Hans": "好",
+        "en": "OK"
+      }
+    },
+    {
+      "case": "browserStartAddBookmarkHelp",
+      "key": "browser.start.add.bookmark.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先開啟網站，再從書籤頁加入目前網頁。",
+        "zh-Hans": "请先打开网站，再从书签页添加当前网页。",
+        "en": "Open a website first, then add the current page from Bookmarks."
+      }
+    },
+    {
+      "case": "browserStartRemoveBookmark",
+      "key": "browser.start.remove.bookmark",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "移除書籤：%1$@",
+        "zh-Hans": "移除书签：%1$@",
+        "en": "Remove bookmark: %1$@"
+      }
+    },
+    {
+      "case": "browserStartAdd",
+      "key": "browser.start.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "zh-Hans": "新增",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "browserStartSuggestionSubtitle",
+      "key": "browser.start.suggestion.subtitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋或開啟網址",
+        "zh-Hans": "搜索或打开网址",
+        "en": "Search or open an address"
+      }
+    },
+    {
+      "case": "browserChromeClosePage",
+      "key": "browser.chrome.close.page",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉網頁並返回起始頁",
+        "zh-Hans": "关闭网页并返回起始页",
+        "en": "Close page and return to start"
+      }
+    },
+    {
+      "case": "browserChromeAddressPlaceholder",
+      "key": "browser.chrome.address.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋或輸入網址",
+        "zh-Hans": "搜索或输入网址",
+        "en": "Search or enter an address"
+      }
+    },
+    {
+      "case": "browserChromeClearInput",
+      "key": "browser.chrome.clear.input",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "清除輸入",
+        "zh-Hans": "清除输入",
+        "en": "Clear input"
+      }
+    },
+    {
+      "case": "browserChromeStop",
+      "key": "browser.chrome.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止",
+        "zh-Hans": "停止",
+        "en": "Stop"
+      }
+    },
+    {
+      "case": "browserChromeReload",
+      "key": "browser.chrome.reload",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重新整理",
+        "zh-Hans": "重新加载",
+        "en": "Reload"
+      }
+    },
+    {
+      "case": "browserChromeOpen",
+      "key": "browser.chrome.open",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟",
+        "zh-Hans": "打开",
+        "en": "Open"
+      }
+    },
+    {
+      "case": "browserChromeSearchEngine",
+      "key": "browser.chrome.search.engine",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "搜尋引擎：%1$@",
+        "zh-Hans": "搜索引擎：%1$@",
+        "en": "Search engine: %1$@"
+      }
+    },
+    {
+      "case": "browserChromeSearchMatch",
+      "key": "browser.chrome.search.match",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "String"
+        },
+        {
+          "name": "engine",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "搜尋：%1$@（%2$@）",
+        "zh-Hans": "搜索：%1$@（%2$@）",
+        "en": "Search: %1$@ (%2$@)"
+      }
+    },
+    {
+      "case": "browserChromeAutomationNotice",
+      "key": "browser.chrome.automation.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此頁面仍受自動化導覽限制。",
+        "zh-Hans": "此页面仍受自动化导航限制。",
+        "en": "This page is still restricted by automated navigation."
+      }
+    },
+    {
+      "case": "browserChromeReturnManual",
+      "key": "browser.chrome.return.manual",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "返回手動瀏覽",
+        "zh-Hans": "返回手动浏览",
+        "en": "Return to manual browsing"
+      }
+    },
+    {
+      "case": "browserChromeResearch",
+      "key": "browser.chrome.research",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究",
+        "zh-Hans": "研究",
+        "en": "Research"
+      }
+    },
+    {
+      "case": "browserChromeResearchSite",
+      "key": "browser.chrome.research.site",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究此網站",
+        "zh-Hans": "研究此网站",
+        "en": "Research this site"
+      }
+    },
+    {
+      "case": "browserChromeInteract",
+      "key": "browser.chrome.interact",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "操作",
+        "zh-Hans": "操作",
+        "en": "Interact"
+      }
+    },
+    {
+      "case": "browserChromeLibrary",
+      "key": "browser.chrome.library",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "分頁、書籤與歷史",
+        "zh-Hans": "标签页、书签与历史记录",
+        "en": "Tabs, bookmarks and history"
+      }
+    },
+    {
+      "case": "browserChromeExplanation",
+      "key": "browser.chrome.explanation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。",
+        "zh-Hans": "可手动登录网站及选择上传文件；网站数据保留在此 App。模型研究与每次批准的操作分别受限。",
+        "en": "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits."
+      }
+    },
+    {
+      "case": "browserChromeFind",
+      "key": "browser.chrome.find",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "頁內尋找",
+        "zh-Hans": "页内查找",
+        "en": "Find in page"
+      }
+    },
+    {
+      "case": "browserChromeCurrentDesktop",
+      "key": "browser.chrome.current.desktop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前偏好：電腦版",
+        "zh-Hans": "当前偏好：桌面版",
+        "en": "Current preference: Desktop"
+      }
+    },
+    {
+      "case": "browserChromeCurrentMobile",
+      "key": "browser.chrome.current.mobile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前偏好：手機版",
+        "zh-Hans": "当前偏好：手机版",
+        "en": "Current preference: Mobile"
+      }
+    },
+    {
+      "case": "browserChromeMobileWebsite",
+      "key": "browser.chrome.mobile.website",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "手機版網站",
+        "zh-Hans": "手机版网站",
+        "en": "Mobile website"
+      }
+    },
+    {
+      "case": "browserChromeDesktopWebsite",
+      "key": "browser.chrome.desktop.website",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "電腦版網站",
+        "zh-Hans": "桌面版网站",
+        "en": "Desktop website"
+      }
+    },
+    {
+      "case": "browserChromeSiteModeHelp",
+      "key": "browser.chrome.site.mode.help",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可安全重新整理的頁面會立即套用；其他頁面於下次手動導覽套用。",
+        "zh-Hans": "可安全重新加载的页面会立即应用；其他页面将在下次手动导航时应用。",
+        "en": "Pages that can reload safely update now; other pages update on the next manual navigation."
+      }
+    },
+    {
+      "case": "browserChromeSiteMode",
+      "key": "browser.chrome.site.mode",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站顯示偏好",
+        "zh-Hans": "网站显示偏好",
+        "en": "Website display preference"
+      }
+    },
+    {
+      "case": "browserChromeDesktop",
+      "key": "browser.chrome.desktop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "電腦版",
+        "zh-Hans": "桌面版",
+        "en": "Desktop"
+      }
+    },
+    {
+      "case": "browserChromeMobile",
+      "key": "browser.chrome.mobile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "手機版",
+        "zh-Hans": "手机版",
+        "en": "Mobile"
+      }
+    },
+    {
+      "case": "browserChromeMultiResearch",
+      "key": "browser.chrome.multi.research",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "多網站研究",
+        "zh-Hans": "多网站研究",
+        "en": "Multi-site research"
+      }
+    },
+    {
+      "case": "browserChromeTranscript",
+      "key": "browser.chrome.transcript",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "整理此頁文字",
+        "zh-Hans": "整理此页文字",
+        "en": "Read this page as text"
+      }
+    },
+    {
+      "case": "browserChromeBack",
+      "key": "browser.chrome.back",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "上一頁",
+        "zh-Hans": "上一页",
+        "en": "Back"
+      }
+    },
+    {
+      "case": "browserChromeForward",
+      "key": "browser.chrome.forward",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下一頁",
+        "zh-Hans": "下一页",
+        "en": "Forward"
+      }
+    },
+    {
+      "case": "browserChromeHome",
+      "key": "browser.chrome.home",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "起始頁",
+        "zh-Hans": "起始页",
+        "en": "Start page"
+      }
+    },
+    {
+      "case": "browserChromeShare",
+      "key": "browser.chrome.share",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "分享連結",
+        "zh-Hans": "分享链接",
+        "en": "Share link"
+      }
+    },
+    {
+      "case": "browserChromeShareUnavailable",
+      "key": "browser.chrome.share.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此頁無可分享的公開連結",
+        "zh-Hans": "此页没有可分享的公开链接",
+        "en": "No public link to share on this page"
+      }
+    },
+    {
+      "case": "browserChromeMore",
+      "key": "browser.chrome.more",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "更多",
+        "zh-Hans": "更多",
+        "en": "More"
+      }
+    },
+    {
+      "case": "browserChromeWebsite",
+      "key": "browser.chrome.website",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁",
+        "zh-Hans": "网页",
+        "en": "Web page"
+      }
+    },
+    {
+      "case": "browserChromeCopyLink",
+      "key": "browser.chrome.copy.link",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "複製連結",
+        "zh-Hans": "复制链接",
+        "en": "Copy link"
+      }
+    },
+    {
+      "case": "browserChromeRemoveBookmark",
+      "key": "browser.chrome.remove.bookmark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除書籤",
+        "zh-Hans": "移除书签",
+        "en": "Remove bookmark"
+      }
+    },
+    {
+      "case": "browserChromeAddBookmark",
+      "key": "browser.chrome.add.bookmark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "加入書籤",
+        "zh-Hans": "添加书签",
+        "en": "Add bookmark"
+      }
+    },
+    {
+      "case": "browserChromeSwitchMobile",
+      "key": "browser.chrome.switch.mobile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "切換為手機版",
+        "zh-Hans": "切换为手机版",
+        "en": "Switch to mobile"
+      }
+    },
+    {
+      "case": "browserChromeSwitchDesktop",
+      "key": "browser.chrome.switch.desktop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "切換為電腦版",
+        "zh-Hans": "切换为桌面版",
+        "en": "Switch to desktop"
+      }
+    },
+    {
+      "case": "browserChromeDone",
+      "key": "browser.chrome.done",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "完成",
+        "zh-Hans": "完成",
+        "en": "Done"
+      }
     }
   ]
 }
