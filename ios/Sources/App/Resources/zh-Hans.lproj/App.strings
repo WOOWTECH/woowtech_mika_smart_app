@@ -436,7 +436,7 @@
 "archive.empty" = "尚无保存的对话";
 "archive.close" = "关闭";
 "chat.voiceLabel" = "语音输入";
-"chat.voiceHint" = "按住说话，上滑取消，放开加入草稿。VoiceOver 可点两次开始及结束。";
+"chat.voiceHint" = "按住说话，上滑取消，放开加入草稿。VoiceOver 可激活开始及结束，或选择取消语音输入操作。";
 "chat.voiceListening" = "正在聆听，放开加入草稿；上滑取消";
 "chat.voiceCancelArmed" = "放开取消语音输入";
 "chat.voiceFinishing" = "正在识别语音…";
@@ -450,3 +450,4 @@
 "chat.voiceTimeout" = "语音识别超时，请再试一次。";
 "chat.voiceSettings" = "前往设置";
 "chat.voiceInterrupted" = "语音输入已中断；如果刚完成授权，请再次按住说话。";
+"chat.voiceAccessibilityCancel" = "取消语音输入";

@@ -8,7 +8,12 @@ final class ChatVoiceViewModel: ObservableObject {
     private var controller: ChatVoiceController?
     private let makeDriver: @MainActor () -> any VoiceInputDriver
 
-    init(makeDriver: @escaping @MainActor () -> any VoiceInputDriver = { AppleMixedVoiceRuntime.makeDriver() }) {
+    init(makeDriver: @escaping @MainActor () -> any VoiceInputDriver = {
+        #if DEBUG
+        if let fixture = VoiceUITestFixture.selected() { return fixture }
+        #endif
+        return AppleMixedVoiceRuntime.makeDriver()
+    }) {
         self.makeDriver = makeDriver
     }
 
@@ -42,6 +47,7 @@ final class ChatVoiceViewModel: ObservableObject {
 struct ChatVoicePressControl: UIViewRepresentable {
     let label: String
     let hint: String
+    let cancelLabel: String
     let active: Bool
     let enabled: Bool
     let begin: (TimeInterval) -> Void
@@ -56,6 +62,17 @@ struct ChatVoicePressControl: UIViewRepresentable {
         button.accessibilityIdentifier = "chat.voice"
         button.accessibilityTraits = .button
         button.accessibilityToggle = { [weak coordinator = context.coordinator] in coordinator?.accessibilityToggle() }
+        button.accessibilityCancel = { [weak coordinator = context.coordinator] in coordinator?.accessibilityCancel() }
+        #if DEBUG
+        if let fixture = VoiceUITestFixture.selected() {
+            fixture.activateAccessibility = { [weak button] in button?.accessibilityActivate() ?? false }
+            fixture.cancelAccessibility = { [weak button] in
+                guard let button, let action = button.accessibilityCustomActions?.first,
+                      button.cancelVoice(action) else { return nil }
+                return action.name
+            }
+        }
+        #endif
         let gesture = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handle(_:)))
         gesture.minimumPressDuration = 0.3
         button.addGestureRecognizer(gesture)
@@ -65,6 +82,9 @@ struct ChatVoicePressControl: UIViewRepresentable {
         context.coordinator.parent = self
         button.accessibilityLabel = label
         button.accessibilityHint = hint
+        button.accessibilityCustomActions = active
+            ? [UIAccessibilityCustomAction(name: cancelLabel, target: button, selector: #selector(VoicePressButton.cancelVoice(_:)))]
+            : nil
         button.isEnabled = enabled
         button.tintColor = active ? .systemRed : .label
     }
@@ -107,6 +127,11 @@ struct ChatVoicePressControl: UIViewRepresentable {
                 parent.begin(ProcessInfo.processInfo.systemUptime - 0.5)
             }
         }
+        func accessibilityCancel() {
+            gestureActive = false
+            accessibilityRecording = false
+            parent.cancel()
+        }
         func cancelIfNeeded() {
             if gestureActive || accessibilityRecording { parent.cancel() }
             gestureActive = false
@@ -117,9 +142,15 @@ struct ChatVoicePressControl: UIViewRepresentable {
 
 final class VoicePressButton: UIButton {
     var accessibilityToggle: (() -> Void)?
+    var accessibilityCancel: (() -> Void)?
     override func accessibilityActivate() -> Bool {
         guard isEnabled else { return false }
         accessibilityToggle?()
+        return true
+    }
+    @objc func cancelVoice(_ action: UIAccessibilityCustomAction) -> Bool {
+        guard isEnabled, let accessibilityCancel else { return false }
+        accessibilityCancel()
         return true
     }
 }

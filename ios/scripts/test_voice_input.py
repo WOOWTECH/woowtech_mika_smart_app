@@ -10,6 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class VoiceInputStandaloneTests(unittest.TestCase):
+    def test_voice_ui_fixture_and_release_exclusion(self):
+        result = subprocess.run(["python3", str(ROOT / "scripts/check_voice_ui_fixture.py")],
+                                cwd=ROOT, text=True, capture_output=True, timeout=90)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS voice UI fixture excluded from Release object", result.stdout)
+
     def test_chat_composer_with_fake_driver(self):
         result = subprocess.run(["bash", str(ROOT / "scripts/check_chat_voice.sh")],
                                 cwd=ROOT, text=True, capture_output=True, timeout=90)

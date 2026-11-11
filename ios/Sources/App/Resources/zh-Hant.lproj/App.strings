@@ -436,7 +436,7 @@
 "archive.empty" = "尚無保存的對話";
 "archive.close" = "關閉";
 "chat.voiceLabel" = "語音輸入";
-"chat.voiceHint" = "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。";
+"chat.voiceHint" = "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。";
 "chat.voiceListening" = "正在聆聽，放開加入草稿；上滑取消";
 "chat.voiceCancelArmed" = "放開取消語音輸入";
 "chat.voiceFinishing" = "正在辨識語音…";
@@ -450,3 +450,4 @@
 "chat.voiceTimeout" = "語音辨識逾時，請再試一次。";
 "chat.voiceSettings" = "前往設定";
 "chat.voiceInterrupted" = "語音輸入已中斷；如果剛完成授權，請再次按住說話。";
+"chat.voiceAccessibilityCancel" = "取消語音輸入";

@@ -454,6 +454,9 @@ private struct ChatView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @StateObject private var voice = ChatVoiceViewModel()
+    #if DEBUG
+    @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
+    #endif
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
     @State private var showsPDF = false
@@ -690,6 +693,26 @@ private struct ChatView: View {
                         .accessibilityIdentifier("chat.archiveRetry")
                 }
             }
+            #if DEBUG
+            if VoiceUITestFixture.selected() != nil {
+                VStack {
+                    Text(verbatim: voiceFixture.observation)
+                        .accessibilityIdentifier("voice.fixture.observation")
+                    HStack {
+                        Button("Emit") { voiceFixture.emitLatest() }
+                            .accessibilityIdentifier("voice.fixture.emit")
+                        Button("AX") { _ = voiceFixture.activateAccessibility?() }
+                            .accessibilityIdentifier("voice.fixture.accessibility")
+                        Button("Cancel AX") { voiceFixture.performAccessibilityCancel() }
+                            .accessibilityIdentifier("voice.fixture.cancelAccessibility")
+                    }
+                    if !voiceFixture.accessibilityAction.isEmpty {
+                        Text(verbatim: voiceFixture.accessibilityAction)
+                            .accessibilityIdentifier("voice.fixture.actionName")
+                    }
+                }.font(.caption2)
+            }
+            #endif
             if let message = voiceMessage {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
@@ -732,6 +755,7 @@ private struct ChatView: View {
                     .accessibilityLabel(localizer.text(.shellMessageDraft))
                     .accessibilityIdentifier("chat.draft")
                 ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
+                                      cancelLabel: localizer.text(.voiceAccessibilityCancel),
                                       active: voice.isActive, enabled: !session.isSubmitting,
                                       begin: { time in isEditingDraft = false; voice.begin(startedAt: time) },
                                       drag: { voice.drag($0) }, release: { voice.release() },

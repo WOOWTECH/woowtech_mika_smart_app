@@ -459,6 +459,7 @@ enum AppText: Equatable {
     case voiceTimeout
     case voiceSettings
     case voiceInterrupted
+    case voiceAccessibilityCancel
 
     var key: String {
         switch self {
@@ -918,6 +919,7 @@ enum AppText: Equatable {
         case .voiceTimeout: return "chat.voiceTimeout"
         case .voiceSettings: return "chat.voiceSettings"
         case .voiceInterrupted: return "chat.voiceInterrupted"
+        case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
         }
     }
 
@@ -1392,7 +1394,7 @@ enum AppText: Equatable {
         case .archiveEmpty: return "尚無保存的對話"
         case .archiveClose: return "關閉"
         case .voiceLabel: return "語音輸入"
-        case .voiceHint: return "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。"
+        case .voiceHint: return "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。"
         case .voiceListening: return "正在聆聽，放開加入草稿；上滑取消"
         case .voiceCancelArmed: return "放開取消語音輸入"
         case .voiceFinishing: return "正在辨識語音…"
@@ -1406,6 +1408,7 @@ enum AppText: Equatable {
         case .voiceTimeout: return "語音辨識逾時，請再試一次。"
         case .voiceSettings: return "前往設定"
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
+        case .voiceAccessibilityCancel: return "取消語音輸入"
         }
     }
 }

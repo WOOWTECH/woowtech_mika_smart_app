@@ -4,7 +4,8 @@ The chat composer uses the iOS Speech framework with **on-device recognition req
 Press for 0.3 seconds to start; release after at least 0.5 seconds to finish,
 or slide upward more than 70 points and release to cancel. A successful result
 is appended to the current draft and is never sent automatically. VoiceOver
-activation toggles start and finish. An interruption or system permission
+activation toggles start and finish; while active, its custom action “Cancel
+voice input” discards the capture. An interruption or system permission
 dialog may end a gesture; press again after returning to the app.
 
 The speech locale is the device's current locale, independently of the App's
@@ -23,6 +24,33 @@ mode and options when still owned, and does not deactivate the shared session
 because the previous activation state cannot be determined. Activation and
 route changes can affect other audio and the session may remain active. Fake
 tests cannot establish safety for WebKit or other apps.
+
+## Debug simulator UI fixture
+
+`VoiceUITestFixture` is compiled only in Debug and activates only with its
+explicit flag, `-UITestMode`, a valid isolated UUID namespace, no other test
+fixture or Live flags, and the simulator. It never requests speech or microphone
+authorization. Its UI buttons deliver a fixed synthetic result, including
+after cancellation; counters establish that a late callback was actually
+delivered. A Debug bridge invokes the production button's
+`accessibilityActivate()` and its installed cancel-action handler; this tests
+those entry points, not the VoiceOver service or rotor behavior itself.
+
+Run the simulator suite on the MacBook from `ios/`, with a disposable simulator:
+
+```sh
+xcodegen generate
+xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant -configuration Debug \
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -only-testing:WoowAssistantUITests/ChatVoiceUITests test
+```
+
+The background case sends the simulator Home and reactivates the app; do not
+run this suite against a physical device. `python3 scripts/check_voice_ui_fixture.py`
+tests the fixture gates and fake callback on the host and verifies that its
+standalone Release object contains no fixture symbol, flag or synthetic result.
+The actual Debug and Release app builds, UI suite, packaged Release binary and
+VoiceOver rotor remain native validation tasks; none have run here.
 
 ## Evidence available without iOS SDK
 

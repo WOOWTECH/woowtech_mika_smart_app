@@ -4504,9 +4504,9 @@
       "key": "chat.voiceHint",
       "parameters": [],
       "translations": {
-        "zh-Hant": "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。",
-        "zh-Hans": "按住说话，上滑取消，放开加入草稿。VoiceOver 可点两次开始及结束。",
-        "en": "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop."
+        "zh-Hant": "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。",
+        "zh-Hans": "按住说话，上滑取消，放开加入草稿。VoiceOver 可激活开始及结束，或选择取消语音输入操作。",
+        "en": "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop, or choose the cancel voice input action."
       }
     },
     {
@@ -4637,6 +4637,16 @@
         "zh-Hant": "語音輸入已中斷；如果剛完成授權，請再次按住說話。",
         "zh-Hans": "语音输入已中断；如果刚完成授权，请再次按住说话。",
         "en": "Voice input was interrupted. If you just granted access, hold to speak again."
+      }
+    },
+    {
+      "case": "voiceAccessibilityCancel",
+      "key": "chat.voiceAccessibilityCancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消語音輸入",
+        "zh-Hans": "取消语音输入",
+        "en": "Cancel voice input"
       }
     }
   ]
