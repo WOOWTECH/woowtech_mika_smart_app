@@ -22,7 +22,8 @@ class DocumentFocusedScopesTests(unittest.TestCase):
         self.assertEqual(read | output | chat, expected)
         self.assertEqual(len(chat), 4)
         self.assertIn("WoowAssistantUITests/ChatPDFAttachmentUITests/testNewConversationReviewsUnsentNativePDFAndKeepsTextDraft", chat)
-        self.assertEqual(len(read), 6)
+        self.assertEqual(len(read), 7)
+        self.assertIn("WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchUsesApprovedExtractionAndClearsEditedResults", read)
         self.assertEqual(len(output), 10)
         self.assertEqual(catalog["document_focused_scopes"], groups)
         self.assertEqual(ios17.UI_SHARDS["ui-documents"],
