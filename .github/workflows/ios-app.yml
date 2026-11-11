@@ -339,7 +339,7 @@ jobs:
         run: |
           mkdir -p build/unsigned-delivery
           ditto -c -k --keepParent build/unsigned-device/DerivedData/Build/Products/Release-iphoneos/WoowAssistant.app build/unsigned-delivery/WoowAssistant-unsigned.zip
-          shasum -a 256 build/unsigned-delivery/WoowAssistant-unsigned.zip > build/unsigned-delivery/SHA256SUMS.txt
+          (cd build/unsigned-delivery && shasum -a 256 WoowAssistant-unsigned.zip > SHA256SUMS.txt)
           cp build/unsigned-device/report.json build/unsigned-delivery/report.json
       - name: Preserve unsigned device build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
