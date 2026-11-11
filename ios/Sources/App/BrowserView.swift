@@ -353,6 +353,7 @@ struct BrowserView: View {
                         }
                         .disabled(scenePhase != .active || !workspace.available
                                   || workspace.isClearingWebsiteData || browser.externalOpenURL == nil)
+                        .accessibilityValue(browser.externalOpenURL?.absoluteString ?? "")
                         .accessibilityIdentifier("browser.more.openOutside")
                         if let saved = workspace.library.bookmarks.first(where: { $0.url == url }) {
                             Button(localizer.text(.browserChromeRemoveBookmark), role: .destructive) {

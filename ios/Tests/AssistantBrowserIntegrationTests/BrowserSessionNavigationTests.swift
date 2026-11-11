@@ -14,6 +14,21 @@ final class BrowserSessionNavigationTests: XCTestCase {
         XCTAssertNil(host.browser.externalOpenURL)
         _ = try await host.load(marker: "EXTERNAL HANDOFF")
         XCTAssertEqual(host.browser.externalOpenURL, host.url)
+        host.browser.canPresentUI = { false }
+        XCTAssertNil(host.browser.externalOpenURL,
+                     "A tab losing presentation ownership cannot hand off its old page")
+        host.browser.canPresentUI = { true }
+        XCTAssertEqual(host.browser.externalOpenURL, host.url)
+        let next = URL(string: "https://research.example.invalid/next#/docs/42")!
+        host.browser.manualNavigation(to: next) {
+            host.browser.webView.loadHTMLString(
+                "<html><head><title>Next</title></head><body><p>NEXT DOCUMENT</p></body></html>",
+                baseURL: next)
+        }
+        XCTAssertNil(host.browser.externalOpenURL,
+                     "The old URL must disappear as soon as manual navigation is requested")
+        try await waitUntil { host.browser.loadedURL == next && host.browser.externalOpenURL == next }
+        XCTAssertEqual(host.browser.externalOpenURL, next)
         host.browser.webViewWebContentProcessDidTerminate(host.browser.webView)
         XCTAssertNil(host.browser.externalOpenURL,
                      "A terminated document must not leave a stale external handoff")

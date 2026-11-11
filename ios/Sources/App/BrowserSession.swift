@@ -165,7 +165,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             navigationPending: requestedNavigationPending,
             isAutomated: automationOwnsDocument,
             isBusy: isRunning || isInteracting,
-            isPageAvailable: !retiredForDataRemoval && !discardingPage
+            isPageAvailable: canPresentUI() && !retiredForDataRemoval && !discardingPage
                 && trackedNavigation != nil && pageDialog == nil
         )
     }

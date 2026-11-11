@@ -11,6 +11,30 @@ import AssistantBrowser
 /// Installing a synthetic cookie does NOT cover form login, OAuth, MFA, or an
 /// authenticated HTTP request. Reopening a store is not an App-relaunch test.
 final class BrowserWorkspaceIntegrationTests: XCTestCase {
+    @MainActor func testExternalHandoffFollowsSelectedTabWithoutReusingAnOldPage() async throws {
+        let host = try Host()
+        addTeardownBlock { await host.close() }
+        let workspace = try XCTUnwrap(host.workspace)
+        let firstID = workspace.library.selectedID
+        let first = host.attachSelected()
+        let firstURL = URL(string: "https://research.example.invalid/workspace-one#/docs/42")!
+        try await host.load(first, url: firstURL, marker: "First visible document")
+        XCTAssertEqual(first.externalOpenURL, firstURL)
+
+        workspace.newTab()
+        let second = host.attachSelected()
+        XCTAssertNil(first.externalOpenURL, "The unselected tab cannot present a handoff")
+        XCTAssertNil(second.externalOpenURL, "A fresh tab has no visible page")
+        try await host.load(second, path: "/workspace-two", marker: "Second visible document")
+        XCTAssertEqual(second.externalOpenURL, second.loadedURL)
+        XCTAssertNil(first.externalOpenURL)
+
+        workspace.selectTab(firstID)
+        XCTAssertTrue(host.attachSelected() === first)
+        XCTAssertEqual(first.externalOpenURL, firstURL)
+        XCTAssertNil(second.externalOpenURL)
+    }
+
     @MainActor func testClosingCurrentPageReplacesWebKitWithoutDeletingLibraryData() async throws {
         let host = try Host()
         addTeardownBlock { await host.close() }

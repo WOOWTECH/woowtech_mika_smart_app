@@ -139,8 +139,16 @@ final class BrowserLibraryTests: XCTestCase {
                 isBusy: busy, isPageAvailable: available
             )
         }
-        XCTAssertEqual(destination(), URL(string: "https://example.com/article?q=one"),
-                       "The library secret filter also strips fragments from the handoff")
+        XCTAssertEqual(destination(), page,
+                       "A safe hash route must identify the same document in the external App")
+        let hashRoute = URL(string: "https://example.com/article#/docs/42")!
+        XCTAssertEqual(destination(hashRoute, displayed: hashRoute), hashRoute)
+        let upperRoute = URL(string: "https://example.com/article#/DOCS/42")!
+        XCTAssertEqual(destination(upperRoute, displayed: upperRoute), upperRoute)
+        let escapedSearch = URL(string: "https://example.com/article?q=hello%20world#/docs/42")!
+        XCTAssertEqual(destination(escapedSearch, displayed: escapedSearch), escapedSearch)
+        let anchor = URL(string: "https://example.com/article#overview")!
+        XCTAssertEqual(destination(anchor, displayed: anchor), anchor)
         XCTAssertNil(destination(nil))
         XCTAssertNil(destination(displayed: nil))
         XCTAssertNil(destination(displayed: URL(string: "https://example.com/other")!))
@@ -152,13 +160,36 @@ final class BrowserLibraryTests: XCTestCase {
         for address in [
             "https://example.com/?code=private",
             "https://example.com/?access_token=private",
+            "https://example.com/?jwt=private",
+            "https://example.com/?AUTH=private",
+            "https://example.com/?%6Awt=private",
+            "https://example.com/?%2561uth=private",
+            "https://example.com/?authKey=private",
+            "https://example.com/?j%2577t=private",
             "https://example.com/oauth/callback",
             "https://user:private@example.com/",
             "http://example.com/",
-            "https://127.0.0.1/"
+            "https://127.0.0.1/",
+            "https://example.com/article#JWT=private",
+            "https://example.com/article#JWT",
+            "https://example.com/article#/?AUTH=private",
+            "https://example.com/article#/%6Awt=private",
+            "https://example.com/article#/%2561uth=private",
+            "https://example.com/article#/Auth/private",
+            "https://example.com/article#/docs/authToken",
+            "https://example.com/article#/docs/0123456789abcdef0123456789abcdef",
+            "https://example.com/article#/docs/AbCDefGhIjKlMnOpQrStUvWxYz-_",
+            "https://example.com/article#/docs/a1b2c3d4e5f6g7h8",
+            "https://example.com/article#/docs/42%2Ftoken"
         ] {
             let url = URL(string: address)!
             XCTAssertNil(destination(url, displayed: url), address)
+        }
+        for key in ["jwt", "auth"] {
+            let oldLibraryURL = URL(string: "https://example.com/?\(key)=private")!
+            XCTAssertNotNil(BrowserManualNavigationPolicy.libraryURL(oldLibraryURL),
+                            "Legacy storage validation is intentionally unchanged; external handoff is stricter")
+            XCTAssertNil(destination(oldLibraryURL, displayed: oldLibraryURL))
         }
     }
 
