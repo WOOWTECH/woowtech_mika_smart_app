@@ -27,6 +27,23 @@ import SwiftUI
 
     var body: some View {
         Form {
+            Section(localizer.text(.languageTitle)) {
+                Picker(localizer.text(.languageTitle), selection: Binding(get: { languages.language }, set: {
+                    languageSaveFailed = !languages.setFromUser($0)
+                })) {
+                    ForEach(AppLanguage.allCases, id: \.self) { choice in
+                        Text(verbatim: localizer.languageName(choice)).tag(choice)
+                    }
+                }.accessibilityIdentifier("settings.language")
+                Text(verbatim: localizer.text(.languageResolved(name: localizer.resolvedLanguageName)))
+                    .accessibilityIdentifier("settings.language.resolved")
+                Text(verbatim: localizer.text(.languageExplanation)).font(.footnote)
+                    .accessibilityIdentifier("settings.language.coverage")
+                if languageSaveFailed {
+                    Text(verbatim: localizer.text(.languageSaveFailed)).foregroundStyle(.red)
+                        .accessibilityIdentifier("settings.language.error")
+                }
+            }
             Section(localizer.text(.appearanceTitle)) {
                 Picker(localizer.text(.appearanceCurrent), selection: Binding(get: { store.appearance }, set: {
                     session.cancel(); store.setAppearanceFromUser($0)
@@ -83,28 +100,12 @@ import SwiftUI
                     Text(verbatim: localizer.configurationStep(step)).font(.caption).accessibilityIdentifier("selfConfiguration.step.\(index)")
                 }
             }
-            Section(localizer.text(.languageTitle)) {
-                Picker(localizer.text(.languageTitle), selection: Binding(get: { languages.language }, set: {
-                    languageSaveFailed = !languages.setFromUser($0)
-                })) {
-                    ForEach(AppLanguage.allCases, id: \.self) { choice in
-                        Text(verbatim: localizer.languageName(choice)).tag(choice)
-                    }
-                }.accessibilityIdentifier("settings.language")
-                Text(verbatim: localizer.text(.languageResolved(name: localizer.resolvedLanguageName)))
-                    .accessibilityIdentifier("settings.language.resolved")
-                Text(verbatim: localizer.text(.languageExplanation)).font(.footnote)
-                Text(verbatim: localizer.text(.languagePartialNotice)).font(.footnote)
-                    .accessibilityIdentifier("settings.language.coverage")
-                if languageSaveFailed {
-                    Text(verbatim: localizer.text(.languageSaveFailed)).foregroundStyle(.red)
-                        .accessibilityIdentifier("settings.language.error")
-                }
-            }
         }
         .appLanguage(languages)
-        .navigationTitle(localizer.text(.configurationTitle))
+        .navigationTitle(localizer.text(.languageAppearanceTitle))
         .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(MikaSettingsPalette(scheme: colorScheme).page)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {

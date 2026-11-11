@@ -32,7 +32,7 @@ struct ContentView: View {
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
                 case .settings:
-                    ModelSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
+                    MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
                 case .tools:
                     MCPToolsView(session: mcpSession)
                 case .memory:

@@ -3716,6 +3716,356 @@
         "zh-Hans": "完成",
         "en": "Done"
       }
+    },
+    {
+      "case": "languageAppearanceTitle",
+      "key": "language.appearance.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語言與外觀",
+        "zh-Hans": "语言与外观",
+        "en": "Language and appearance"
+      }
+    },
+    {
+      "case": "settingsHomeBasic",
+      "key": "settings.home.basic",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "常用",
+        "zh-Hans": "常用",
+        "en": "Common"
+      }
+    },
+    {
+      "case": "settingsHomeModel",
+      "key": "settings.home.model",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型",
+        "zh-Hans": "模型",
+        "en": "Model"
+      }
+    },
+    {
+      "case": "settingsHomeModelDetail",
+      "key": "settings.home.model.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "主模型與連線設定",
+        "zh-Hans": "主模型与连接设置",
+        "en": "Main model and connection"
+      }
+    },
+    {
+      "case": "settingsHomeModelOpenHint",
+      "key": "settings.home.model.openHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟模型設定頁",
+        "zh-Hans": "打开模型设置页",
+        "en": "Open model settings"
+      }
+    },
+    {
+      "case": "settingsHomeAppearanceDetail",
+      "key": "settings.home.appearance.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "介面語言、外觀與模型外觀權限",
+        "zh-Hans": "界面语言、外观与模型外观权限",
+        "en": "Language, appearance and model appearance permission"
+      }
+    },
+    {
+      "case": "settingsHomeNotificationDetail",
+      "key": "settings.home.notification.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "什麼時候彈出、去系統裡改",
+        "zh-Hans": "何时弹出、前往系统设置修改",
+        "en": "When alerts appear and where to change system settings"
+      }
+    },
+    {
+      "case": "settingsModelNotSet",
+      "key": "settings.model.notSet",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未設定",
+        "zh-Hans": "未设置",
+        "en": "Not set"
+      }
+    },
+    {
+      "case": "settingsModelConfigured",
+      "key": "settings.model.configured",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型已設定",
+        "zh-Hans": "模型已设置",
+        "en": "Model configured"
+      }
+    },
+    {
+      "case": "settingsModelUnconfigured",
+      "key": "settings.model.unconfigured",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未設定模型",
+        "zh-Hans": "尚未设置模型",
+        "en": "No model configured"
+      }
+    },
+    {
+      "case": "settingsModelKeyStored",
+      "key": "settings.model.keyStored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已儲存金鑰；留空可沿用同一服務的金鑰。",
+        "zh-Hans": "已保存密钥；留空可沿用同一服务的密钥。",
+        "en": "Key saved. Leave the field empty to reuse it for the same service."
+      }
+    },
+    {
+      "case": "settingsModelKeyMissing",
+      "key": "settings.model.keyMissing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未儲存金鑰。",
+        "zh-Hans": "尚未保存密钥。",
+        "en": "No key saved."
+      }
+    },
+    {
+      "case": "settingsModelRoles",
+      "key": "settings.model.roles",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用途",
+        "zh-Hans": "用途",
+        "en": "Roles"
+      }
+    },
+    {
+      "case": "settingsModelMain",
+      "key": "settings.model.main",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "主模型",
+        "zh-Hans": "主模型",
+        "en": "Main model"
+      }
+    },
+    {
+      "case": "settingsModelMainDetail",
+      "key": "settings.model.main.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "思考和辦事",
+        "zh-Hans": "思考和办事",
+        "en": "Reasoning and tasks"
+      }
+    },
+    {
+      "case": "settingsModelProviders",
+      "key": "settings.model.providers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "服務商",
+        "zh-Hans": "服务商",
+        "en": "Provider"
+      }
+    },
+    {
+      "case": "settingsModelConnection",
+      "key": "settings.model.connection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連線設定",
+        "zh-Hans": "连接设置",
+        "en": "Connection settings"
+      }
+    },
+    {
+      "case": "settingsModelConnectionDetail",
+      "key": "settings.model.connection.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "HTTPS 介面網址、模型名稱與 API Key",
+        "zh-Hans": "HTTPS 接口网址、模型名称与 API Key",
+        "en": "HTTPS API URL, model name and API key"
+      }
+    },
+    {
+      "case": "settingsModelBaseURL",
+      "key": "settings.model.baseURL",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "介面網址（HTTPS）",
+        "zh-Hans": "接口网址（HTTPS）",
+        "en": "API URL (HTTPS)"
+      }
+    },
+    {
+      "case": "settingsModelClearURL",
+      "key": "settings.model.clearURL",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "清除網址",
+        "zh-Hans": "清除网址",
+        "en": "Clear URL"
+      }
+    },
+    {
+      "case": "settingsModelBaseURLPlaceholder",
+      "key": "settings.model.baseURL.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "https://api.example.com/v1",
+        "zh-Hans": "https://api.example.com/v1",
+        "en": "https://api.example.com/v1"
+      }
+    },
+    {
+      "case": "settingsModelName",
+      "key": "settings.model.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型名稱",
+        "zh-Hans": "模型名称",
+        "en": "Model name"
+      }
+    },
+    {
+      "case": "settingsModelNamePlaceholder",
+      "key": "settings.model.name.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "供應商提供的模型名稱",
+        "zh-Hans": "服务商提供的模型名称",
+        "en": "Model name from provider"
+      }
+    },
+    {
+      "case": "settingsModelAPIKey",
+      "key": "settings.model.apiKey",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "API Key",
+        "zh-Hans": "API Key",
+        "en": "API key"
+      }
+    },
+    {
+      "case": "settingsModelAPIKeyPlaceholder",
+      "key": "settings.model.apiKey.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入金鑰；已儲存時可留空",
+        "zh-Hans": "输入密钥；已保存时可留空",
+        "en": "Enter a key; leave empty to reuse the saved key"
+      }
+    },
+    {
+      "case": "settingsModelSave",
+      "key": "settings.model.save",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存設定",
+        "zh-Hans": "保存设置",
+        "en": "Save settings"
+      }
+    },
+    {
+      "case": "settingsModelRemove",
+      "key": "settings.model.remove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除設定與金鑰",
+        "zh-Hans": "移除设置与密钥",
+        "en": "Remove settings and key"
+      }
+    },
+    {
+      "case": "settingsModelPrivacy",
+      "key": "settings.model.privacy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。",
+        "zh-Hans": "密钥只保存在这台设备上。更换服务主机或端口时，必须重新输入密钥。",
+        "en": "Your key stays on this device. Enter it again if the service host or port changes."
+      }
+    },
+    {
+      "case": "settingsModelSaveExplanation",
+      "key": "settings.model.saveExplanation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存不會測試連線；開始使用模型時才會連線。",
+        "zh-Hans": "保存不会测试连接；开始使用模型时才会连接。",
+        "en": "Saving does not test the connection. The app connects when you use the model."
+      }
+    },
+    {
+      "case": "settingsModelChangeExplanation",
+      "key": "settings.model.changeExplanation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "更換服務、模型或金鑰會開始新的對話，草稿保留。移除設定會清除本次對話及此 App 的模型金鑰。",
+        "zh-Hans": "更换服务、模型或密钥会开始新对话，草稿保留。移除设置会清除本次对话和此 App 的模型密钥。",
+        "en": "Changing the service, model or key starts a new conversation and keeps the draft. Removing settings clears this conversation and this app’s model key."
+      }
+    },
+    {
+      "case": "settingsModelSaved",
+      "key": "settings.model.saved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定已儲存，尚未驗證連線。",
+        "zh-Hans": "设置已保存，尚未验证连接。",
+        "en": "Settings saved. The connection has not been tested."
+      }
+    },
+    {
+      "case": "settingsModelSavedCleanup",
+      "key": "settings.model.savedCleanup",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。",
+        "zh-Hans": "新设置已保存，尚未验证连接。旧密钥清理失败，可用移除功能清除此 App 的模型密钥。",
+        "en": "New settings saved; the connection has not been tested. The old key could not be removed. Use Remove to clear this app’s model keys."
+      }
+    },
+    {
+      "case": "settingsModelRemoved",
+      "key": "settings.model.removed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已移除此 App 的模型設定與金鑰；訊息草稿保留。",
+        "zh-Hans": "已移除此 App 的模型设置与密钥；消息草稿保留。",
+        "en": "This app’s model settings and key were removed; your message draft remains."
+      }
+    },
+    {
+      "case": "settingsModelFallbackError",
+      "key": "settings.model.fallbackError",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法讀取或儲存模型設定，請移除設定後重新填寫。",
+        "zh-Hans": "无法读取或保存模型设置，请移除设置后重新填写。",
+        "en": "Could not read or save model settings. Remove the settings and enter them again."
+      }
+    },
+    {
+      "case": "settingsHomeTitle",
+      "key": "settings.home.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定",
+        "zh-Hans": "设置",
+        "en": "Settings"
+      }
     }
   ]
 }

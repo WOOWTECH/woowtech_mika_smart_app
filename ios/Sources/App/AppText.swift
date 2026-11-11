@@ -361,6 +361,41 @@ enum AppText: Equatable {
     case browserChromeSwitchMobile
     case browserChromeSwitchDesktop
     case browserChromeDone
+    case languageAppearanceTitle
+    case settingsHomeBasic
+    case settingsHomeModel
+    case settingsHomeModelDetail
+    case settingsHomeModelOpenHint
+    case settingsHomeAppearanceDetail
+    case settingsHomeNotificationDetail
+    case settingsModelNotSet
+    case settingsModelConfigured
+    case settingsModelUnconfigured
+    case settingsModelKeyStored
+    case settingsModelKeyMissing
+    case settingsModelRoles
+    case settingsModelMain
+    case settingsModelMainDetail
+    case settingsModelProviders
+    case settingsModelConnection
+    case settingsModelConnectionDetail
+    case settingsModelBaseURL
+    case settingsModelClearURL
+    case settingsModelBaseURLPlaceholder
+    case settingsModelName
+    case settingsModelNamePlaceholder
+    case settingsModelAPIKey
+    case settingsModelAPIKeyPlaceholder
+    case settingsModelSave
+    case settingsModelRemove
+    case settingsModelPrivacy
+    case settingsModelSaveExplanation
+    case settingsModelChangeExplanation
+    case settingsModelSaved
+    case settingsModelSavedCleanup
+    case settingsModelRemoved
+    case settingsModelFallbackError
+    case settingsHomeTitle
 
     var key: String {
         switch self {
@@ -722,6 +757,41 @@ enum AppText: Equatable {
         case .browserChromeSwitchMobile: return "browser.chrome.switch.mobile"
         case .browserChromeSwitchDesktop: return "browser.chrome.switch.desktop"
         case .browserChromeDone: return "browser.chrome.done"
+        case .languageAppearanceTitle: return "language.appearance.title"
+        case .settingsHomeBasic: return "settings.home.basic"
+        case .settingsHomeModel: return "settings.home.model"
+        case .settingsHomeModelDetail: return "settings.home.model.detail"
+        case .settingsHomeModelOpenHint: return "settings.home.model.openHint"
+        case .settingsHomeAppearanceDetail: return "settings.home.appearance.detail"
+        case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
+        case .settingsModelNotSet: return "settings.model.notSet"
+        case .settingsModelConfigured: return "settings.model.configured"
+        case .settingsModelUnconfigured: return "settings.model.unconfigured"
+        case .settingsModelKeyStored: return "settings.model.keyStored"
+        case .settingsModelKeyMissing: return "settings.model.keyMissing"
+        case .settingsModelRoles: return "settings.model.roles"
+        case .settingsModelMain: return "settings.model.main"
+        case .settingsModelMainDetail: return "settings.model.main.detail"
+        case .settingsModelProviders: return "settings.model.providers"
+        case .settingsModelConnection: return "settings.model.connection"
+        case .settingsModelConnectionDetail: return "settings.model.connection.detail"
+        case .settingsModelBaseURL: return "settings.model.baseURL"
+        case .settingsModelClearURL: return "settings.model.clearURL"
+        case .settingsModelBaseURLPlaceholder: return "settings.model.baseURL.placeholder"
+        case .settingsModelName: return "settings.model.name"
+        case .settingsModelNamePlaceholder: return "settings.model.name.placeholder"
+        case .settingsModelAPIKey: return "settings.model.apiKey"
+        case .settingsModelAPIKeyPlaceholder: return "settings.model.apiKey.placeholder"
+        case .settingsModelSave: return "settings.model.save"
+        case .settingsModelRemove: return "settings.model.remove"
+        case .settingsModelPrivacy: return "settings.model.privacy"
+        case .settingsModelSaveExplanation: return "settings.model.saveExplanation"
+        case .settingsModelChangeExplanation: return "settings.model.changeExplanation"
+        case .settingsModelSaved: return "settings.model.saved"
+        case .settingsModelSavedCleanup: return "settings.model.savedCleanup"
+        case .settingsModelRemoved: return "settings.model.removed"
+        case .settingsModelFallbackError: return "settings.model.fallbackError"
+        case .settingsHomeTitle: return "settings.home.title"
         }
     }
 
@@ -1110,6 +1180,41 @@ enum AppText: Equatable {
         case .browserChromeSwitchMobile: return "切換為手機版"
         case .browserChromeSwitchDesktop: return "切換為電腦版"
         case .browserChromeDone: return "完成"
+        case .languageAppearanceTitle: return "語言與外觀"
+        case .settingsHomeBasic: return "常用"
+        case .settingsHomeModel: return "模型"
+        case .settingsHomeModelDetail: return "主模型與連線設定"
+        case .settingsHomeModelOpenHint: return "開啟模型設定頁"
+        case .settingsHomeAppearanceDetail: return "介面語言、外觀與模型外觀權限"
+        case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
+        case .settingsModelNotSet: return "未設定"
+        case .settingsModelConfigured: return "模型已設定"
+        case .settingsModelUnconfigured: return "尚未設定模型"
+        case .settingsModelKeyStored: return "已儲存金鑰；留空可沿用同一服務的金鑰。"
+        case .settingsModelKeyMissing: return "尚未儲存金鑰。"
+        case .settingsModelRoles: return "用途"
+        case .settingsModelMain: return "主模型"
+        case .settingsModelMainDetail: return "思考和辦事"
+        case .settingsModelProviders: return "服務商"
+        case .settingsModelConnection: return "連線設定"
+        case .settingsModelConnectionDetail: return "HTTPS 介面網址、模型名稱與 API Key"
+        case .settingsModelBaseURL: return "介面網址（HTTPS）"
+        case .settingsModelClearURL: return "清除網址"
+        case .settingsModelBaseURLPlaceholder: return "https://api.example.com/v1"
+        case .settingsModelName: return "模型名稱"
+        case .settingsModelNamePlaceholder: return "供應商提供的模型名稱"
+        case .settingsModelAPIKey: return "API Key"
+        case .settingsModelAPIKeyPlaceholder: return "輸入金鑰；已儲存時可留空"
+        case .settingsModelSave: return "儲存設定"
+        case .settingsModelRemove: return "移除設定與金鑰"
+        case .settingsModelPrivacy: return "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。"
+        case .settingsModelSaveExplanation: return "儲存不會測試連線；開始使用模型時才會連線。"
+        case .settingsModelChangeExplanation: return "更換服務、模型或金鑰會開始新的對話，草稿保留。移除設定會清除本次對話及此 App 的模型金鑰。"
+        case .settingsModelSaved: return "設定已儲存，尚未驗證連線。"
+        case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
+        case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
+        case .settingsModelFallbackError: return "無法讀取或儲存模型設定，請移除設定後重新填寫。"
+        case .settingsHomeTitle: return "設定"
         }
     }
 }
