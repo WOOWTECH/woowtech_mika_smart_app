@@ -1,4 +1,5 @@
 #if os(iOS)
+import AssistantSkills
 import SwiftUI
 
 /// Settings root and its model destination share the existing stores. The

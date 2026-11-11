@@ -23,112 +23,7 @@ struct ContentView: View {
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-          NavigationStack {
-            Group {
-                switch selection {
-                case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsArchive: $showsArchive,
-                             showsDrawer: $showsDrawer, localizer: localizer)
-                        .frame(maxWidth: 720)
-                        .frame(maxWidth: .infinity)
-                case .settings:
-                    MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
-                case .tools:
-                    MCPToolsView(session: mcpSession)
-                case .memory:
-                    MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
-                                   modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-                                   onOpenBrowser: {
-                                       browserReturnSection = .memory
-                                       selection = .browser
-                                   })
-                case .browser:
-                    BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
-                }
-            }
-            .navigationTitle(selection == .chat ? localizer.text(.shellBrandTitle) : selection.title(using: localizer))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(palette.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if selection == .chat {
-                        Button { showsDrawer = true } label: {
-                            Image(systemName: "line.3.horizontal")
-                                .frame(width: 40, height: 40)
-                        }
-                        .accessibilityLabel(localizer.text(.shellMenu))
-                        .accessibilityIdentifier("chat.menu")
-                        .accessibilityFocused($menuHasVoiceOverFocus)
-                    } else {
-                        Button {
-                            let destination = selection == .browser ? browserReturnSection : .chat
-                            browserReturnSection = .chat
-                            selection = destination
-                        } label: {
-                            Image(systemName: "chevron.backward")
-                                .frame(width: 40, height: 40)
-                        }
-                        .accessibilityLabel(localizer.text(selection == .browser && browserReturnSection == .memory
-                                                           ? .shellBackToMemory : .shellBackToChat))
-                        .accessibilityIdentifier("section.back")
-                        .accessibilityFocused($backHasVoiceOverFocus)
-                    }
-                }
-                if selection == .chat {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { session.newConversation() } label: {
-                            Image(systemName: "square.and.pencil")
-                                .frame(width: 40, height: 40)
-                        }
-                        .disabled(session.isSubmitting)
-                        .accessibilityLabel(localizer.text(.shellNewConversation))
-                        .accessibilityIdentifier("chat.newConversation")
-                    }
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) { fixtureObservation }
-          }
-          .id(notificationNavigationID)
-          .accessibilityHidden(showsDrawer)
-          if showsDrawer {
-              GeometryReader { geometry in
-                  ZStack(alignment: .leading) {
-                      Button { closeDrawer() } label: {
-                          palette.scrim.ignoresSafeArea()
-                      }
-                      .buttonStyle(.plain)
-                      .accessibilityHidden(true)
-                      MikaNavigationDrawer(
-                          status: session.chatStatus,
-                          canStartNew: !session.isSubmitting,
-                          canOpenArchive: session.archive != nil && !session.isSubmitting,
-                          palette: palette,
-                          localizer: localizer,
-                          topInset: geometry.safeAreaInsets.top,
-                          bottomInset: geometry.safeAreaInsets.bottom,
-                          onClose: closeDrawer,
-                          onNew: { session.newConversation(); selection = .chat; showsDrawer = false },
-                          onArchive: { showsDrawer = false; showsArchive = true },
-                          onSelect: { section in
-                              if section == .chat { closeDrawer() }
-                              else {
-                                  browserReturnSection = .chat
-                                  selection = section
-                                  showsDrawer = false
-                              }
-                          }
-                      )
-                      .frame(width: min(304, max(0, geometry.size.width - 48)),
-                             height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)
-                      .offset(y: -geometry.safeAreaInsets.top)
-                      .transition(.move(edge: .leading))
-                  }
-                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
-              }
-          }
-        }
+        shell
         .animation(.easeOut(duration: 0.22), value: showsDrawer)
         .sheet(isPresented: $showsArchive) {
             if let store = session.archive { ConversationArchiveView(store: store, session: session) }
@@ -175,6 +70,121 @@ struct ContentView: View {
             if destination == .chat { menuHasVoiceOverFocus = true }
             else { backHasVoiceOverFocus = true }
         }
+    }
+
+    private var shell: some View {
+        ZStack(alignment: .leading) {
+          NavigationStack {
+            sectionContent
+            .navigationTitle(selection == .chat ? localizer.text(.shellBrandTitle) : selection.title(using: localizer))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar { rootToolbar }
+            .safeAreaInset(edge: .bottom, spacing: 0) { fixtureObservation }
+          }
+          .id(notificationNavigationID)
+          .accessibilityHidden(showsDrawer)
+          if showsDrawer {
+              GeometryReader { geometry in
+                  ZStack(alignment: .leading) {
+                      Button { closeDrawer() } label: {
+                          palette.scrim.ignoresSafeArea()
+                      }
+                      .buttonStyle(.plain)
+                      .accessibilityHidden(true)
+                      MikaNavigationDrawer(
+                          status: session.chatStatus,
+                          canStartNew: !session.isSubmitting,
+                          canOpenArchive: session.archive != nil && !session.isSubmitting,
+                          palette: palette,
+                          localizer: localizer,
+                          topInset: geometry.safeAreaInsets.top,
+                          bottomInset: geometry.safeAreaInsets.bottom,
+                          onClose: closeDrawer,
+                          onNew: { session.newConversation(); selection = .chat; showsDrawer = false },
+                          onArchive: { showsDrawer = false; showsArchive = true },
+                          onSelect: { section in
+                              if section == .chat { closeDrawer() }
+                              else {
+                                  browserReturnSection = .chat
+                                  selection = section
+                                  showsDrawer = false
+                              }
+                          }
+                      )
+                      .frame(width: min(304, max(0, geometry.size.width - 48)),
+                             height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)
+                      .offset(y: -geometry.safeAreaInsets.top)
+                      .transition(.move(edge: .leading))
+                  }
+                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
+              }
+          }
+        }
+    }
+
+    @ToolbarContentBuilder private var rootToolbar: some ToolbarContent {
+                ToolbarItem(placement: .topBarLeading) {
+                    if selection == .chat {
+                        Button { showsDrawer = true } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .frame(width: 40, height: 40)
+                        }
+                        .accessibilityLabel(localizer.text(.shellMenu))
+                        .accessibilityIdentifier("chat.menu")
+                        .accessibilityFocused($menuHasVoiceOverFocus)
+                    } else {
+                        Button {
+                            let destination = selection == .browser ? browserReturnSection : .chat
+                            browserReturnSection = .chat
+                            selection = destination
+                        } label: {
+                            Image(systemName: "chevron.backward")
+                                .frame(width: 40, height: 40)
+                        }
+                        .accessibilityLabel(localizer.text(selection == .browser && browserReturnSection == .memory
+                                                           ? .shellBackToMemory : .shellBackToChat))
+                        .accessibilityIdentifier("section.back")
+                        .accessibilityFocused($backHasVoiceOverFocus)
+                    }
+                }
+                if selection == .chat {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { session.newConversation() } label: {
+                            Image(systemName: "square.and.pencil")
+                                .frame(width: 40, height: 40)
+                        }
+                        .disabled(session.isSubmitting)
+                        .accessibilityLabel(localizer.text(.shellNewConversation))
+                        .accessibilityIdentifier("chat.newConversation")
+                    }
+                }
+    }
+
+    private var sectionContent: some View {
+            Group {
+                switch selection {
+                case .chat:
+                    ChatView(session: session, mcp: mcpSession, showsArchive: $showsArchive,
+                             showsDrawer: $showsDrawer, localizer: localizer)
+                        .frame(maxWidth: 720)
+                        .frame(maxWidth: .infinity)
+                case .settings:
+                    MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
+                case .tools:
+                    MCPToolsView(session: mcpSession)
+                case .memory:
+                    MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
+                                   modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+                                   onOpenBrowser: {
+                                       browserReturnSection = .memory
+                                       selection = .browser
+                                   })
+                case .browser:
+                    BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
+                }
+            }
     }
 
     private func closeDrawer() {
