@@ -180,7 +180,7 @@ enum ConversationArchiveChecks {
             var bad = json; bad.removeValue(forKey: field)
             try a.rejects("required archive field " + field) { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
-        for value: Any in [6, "1", NSNull()] {
+        for value: Any in [7, "1", NSNull()] {
             var bad = json; bad["version"] = value
             try a.rejects("unknown/malformed version") { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
@@ -467,6 +467,38 @@ enum ConversationArchiveChecks {
         let turns = try [ArchivedConversationTurn(userText: composed, assistantText: "First", pdf: pdf),
                          ArchivedConversationTurn(userText: "Second", assistantText: "Second answer"),
                          ArchivedConversationTurn(userText: "Later", assistantText: "Must not copy")]
+        let metadata = ConversationQuote.Metadata(quote: quote, words: "怎麼辦")
+        let trusted = try ArchivedConversationTurn(userText: composed, assistantText: "Trusted", pdf: pdf, quote: metadata)
+        var quoteArchive = ConversationArchive()
+        let quotedRow = try row(destination: dest, turns: [trusted])
+        try quoteArchive.save(quotedRow)
+        let quoteBytes = try JSONEncoder().encode(quoteArchive)
+        let quoteJSON = try JSONSerialization.jsonObject(with: quoteBytes) as! [String: Any]
+        try a.check(quoteJSON["version"] as? Int == 6, "actual quote metadata upgrades entire archive to v6")
+        try a.check(try JSONDecoder().decode(ConversationArchive.self, from: quoteBytes) == quoteArchive,
+                    "trusted quote and exact user words survive round trip")
+        var forgedV5 = quoteJSON; forgedV5["version"] = 5
+        try a.rejects("metadata under v5 must not be silently accepted") {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: forgedV5))
+        }
+        try a.rejects("metadata must match actual serialized text") {
+            _ = try ArchivedConversationTurn(userText: "literal", assistantText: "answer", quote: metadata)
+        }
+        var legacy = ConversationArchive(); try legacy.save(try row(destination: dest, turns: [
+            .init(userText: "> [Quoting your earlier reply]", assistantText: "answer")]))
+        let legacyBytes = try JSONEncoder().encode(legacy)
+        let legacyRoundTrip = try JSONDecoder().decode(ConversationArchive.self, from: legacyBytes)
+        try a.check(legacyRoundTrip.conversations[0].turns[0].quote == nil && legacyRoundTrip.formatVersion == 2,
+                    "legacy and literal marker remain unclassified and cannot upgrade the archive")
+        let quotePlan = try ConversationBranchPlan.prepare(in: quoteArchive, source: quotedRow,
+            assistantID: trusted.assistantID, targetID: UUID(), title: "quoted branch", at: Date(),
+            isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        let quotedBranch = try quotePlan.applying(to: quoteArchive, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        try a.check(quotedBranch.conversations.first(where: { $0.id == quotePlan.branch.id })?.turns[0].quote == metadata
+                    && quotedBranch.conversations.first(where: { $0.id == quotePlan.branch.id })?.turns[0].pdf == pdf,
+                    "branch copies quote metadata and PDF evidence without inferring legacy text")
+        var removedQuote = quoteArchive; try removedQuote.delete(id: quotedRow.id)
+        try a.check(removedQuote.formatVersion == 6, "deleting last quote cannot downgrade v6")
         let original = try row(destination: dest, turns: turns)
         var archive = ConversationArchive(); try archive.save(original)
         try archive.rename(id: original.id, expectedTitle: nil, to: "Source")

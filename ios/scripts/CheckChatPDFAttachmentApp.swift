@@ -278,6 +278,30 @@ private actor PlainPDFContinuationModel: ChatModelClient {
         return a.count
     }
 
+    static func quoteAndPDFAreRetainedTogether() async throws -> Int {
+        var a = Assertions(); let e = try PDFEnvironment(); defer { e.close() }
+        guard let destination = e.chat.archiveDestination else { throw PDFCheckFailure(label: "quote PDF destination") }
+        let seed = try ArchivedConversation(id: UUID(), destination: destination, updatedAt: Date(),
+            turns: [.init(userText: "Earlier question", assistantText: "Earlier answer")])
+        try e.archive.save(seed, expected: nil)
+        try a.check(e.chat.openConversation(id: seed.id), "open existing conversation for PDF quote")
+        try a.check(e.chat.selectQuote(messageID: seed.turns[0].assistantID, expectedContent: "Earlier answer", in: seed.id),
+                    "select actual archived source before attaching PDF")
+        try await e.prepare()
+        try a.check(e.chat.pendingQuote?.text == "Earlier answer" && e.chat.canSend,
+                    "PDF approvals preserve quote and user question")
+        await (try e.start()).value
+        let reopened = e.reopen()
+        guard let turn = reopened.state.conversations.first?.turns.last, let quote = turn.quote else {
+            throw PDFCheckFailure(label: "quoted PDF turn and provenance")
+        }
+        try a.check(reopened.state.formatVersion == 6 && quote.quote.source == .assistant
+                    && quote.quote.text == "Earlier answer" && quote.words == "What is the jasmine document value?"
+                    && quote.matches(turn.userText) && turn.pdf?.citations.first?.quote == "JASMINE_DOCUMENT_VALUE_73",
+                    "encrypted reopen retains independent quote, typed question and actual PDF citation")
+        return a.count
+    }
+
     static func grantsAndSuccess() async throws -> Int {
         var a = Assertions(); let e = try PDFEnvironment(); defer { e.close() }
         let url = try e.file(); let learning = try Data(contentsOf: e.learningURL)
@@ -606,6 +630,7 @@ private actor PlainPDFContinuationModel: ChatModelClient {
     @MainActor static func main() async throws {
         let groups = try await ["fixtureIsolation": ChatPDFChecks.fixtureIsolation(), "grantsAndSuccess": ChatPDFChecks.grantsAndSuccess(),
             "requestBoundaryAndEncryptedMigration": ChatPDFChecks.requestBoundaryAndEncryptedMigration(),
+            "quoteAndPDFAreRetainedTogether": ChatPDFChecks.quoteAndPDFAreRetainedTogether(),
             "migrationAndMalformed": ChatPDFChecks.migrationAndMalformed(), "lateLifecycle": ChatPDFChecks.lateLifecycle(),
             "failuresAndPersistence": ChatPDFChecks.failuresAndPersistence(), "boundsAndRestoreCancellation": ChatPDFChecks.boundsAndRestoreCancellation()]
         let report: [String: Any] = ["passed": groups.values.reduce(0,+), "failed": 0, "groups": groups,
@@ -616,6 +641,9 @@ private actor PlainPDFContinuationModel: ChatModelClient {
 }
 #else
 final class ChatPDFAttachmentAppTests: XCTestCase {
+    @MainActor func testQuoteAndPDFAreRetainedTogether() async throws {
+        let passed = try await ChatPDFChecks.quoteAndPDFAreRetainedTogether(); XCTAssertGreaterThan(passed, 0)
+    }
     @MainActor func testRequestBoundaryAndEncryptedMigration() async throws {
         let passed = try await ChatPDFChecks.requestBoundaryAndEncryptedMigration()
         XCTAssertGreaterThan(passed, 0)

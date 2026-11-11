@@ -33,10 +33,16 @@ final class ChatMessageActionsUITests: XCTestCase {
         selectAction("quote", messageIndex: 1)
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
         tap("chat.send")
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts.firstMatch.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "整份對話封存")).firstMatch.waitForExistence(timeout: 5))
+        tap("chat.quote.upgrade.cancel")
+        XCTAssertEqual(draft().value as? String, "Keep this")
+        XCTAssertTrue(preview.exists)
+        tap("chat.send"); tap("chat.quote.upgrade.confirm")
         assertLabel(node("chat.message.2.user"), "Keep this")
         let sent = app.descendants(matching: .any)["chat.quote.sent.2"].firstMatch
         XCTAssertTrue(sent.waitForExistence(timeout: 10))
-        XCTAssertTrue(sent.label.contains("測試回覆：Alpha"), "The displayed quote must be the actual assistant reply")
+        assertLabel(node("chat.quote.sent.2.text"), "測試回覆：Alpha")
         XCTAssertTrue(node("chat.message.3.assistant").waitForExistence(timeout: 15))
         absent(preview)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
@@ -47,8 +53,9 @@ final class ChatMessageActionsUITests: XCTestCase {
         ready(original); original.tap()
         let archived = node("archive.turn.1.user")
         XCTAssertTrue(archived.waitForExistence(timeout: 10))
-        XCTAssertTrue(archived.label.contains("[Quoting your earlier reply]"))
-        XCTAssertTrue(archived.label.contains("Keep this"))
+        XCTAssertEqual(archived.label, "Keep this")
+        XCTAssertTrue(node("archive.turn.1.quote").waitForExistence(timeout: 10))
+        assertLabel(node("archive.turn.1.quote.text"), "測試回覆：Alpha")
         tap("archive.open")
         assertLabel(node("chat.message.2.user"), "Keep this")
         XCTAssertTrue(app.descendants(matching: .any)["chat.quote.sent.2"].firstMatch.waitForExistence(timeout: 10))
@@ -69,6 +76,11 @@ final class ChatMessageActionsUITests: XCTestCase {
         XCTAssertEqual(draft().value as? String, "Retain draft")
         clearDraft("Retain draft")
         selectAction("branch", messageIndex: 1)
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts.firstMatch.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "整份對話封存")).firstMatch.waitForExistence(timeout: 5))
+        tap("chat.branch.upgrade.cancel")
+        assertLabel(node("chat.message.2.user"), "Beta")
+        selectAction("branch", messageIndex: 1); tap("chat.branch.upgrade.confirm")
         assertLabel(node("chat.message.0.user"), "Alpha")
         assertLabel(node("chat.message.1.assistant"), "測試回覆：Alpha")
         absent(node("chat.message.2.user"))
@@ -84,6 +96,78 @@ final class ChatMessageActionsUITests: XCTestCase {
         assertLabel(node("archive.turn.1.assistant"), "測試回覆：Beta")
         tap("archive.open")
         assertLabel(node("chat.message.2.user"), "Beta")
+    }
+
+    func testLiteralMarkerIsNotAnAssistantQuoteAndCanBeCopied() {
+        launch(); configure()
+        let marker = "> [Quoting your earlier reply]"
+        send(marker, assistantIndex: 1)
+        assertLabel(node("chat.message.0.user"), marker)
+        XCTAssertFalse(node("chat.quote.sent.0").exists)
+        selectAction("copy", messageIndex: 0)
+        let field = draft(); ready(field); field.tap(); prepareKeyboard(); field.press(forDuration: 1)
+        let predicate = NSPredicate(format: "label IN %@", ["貼上", "Paste"])
+        let item = app.menuItems.matching(predicate).firstMatch
+        let paste = item.waitForExistence(timeout: 5) ? item : app.buttons.matching(predicate).firstMatch
+        ready(paste); paste.tap(); assertValue(field, marker)
+    }
+
+    func testPendingQuoteNewConversationCancelsVoiceAndRequiresConfirmation() {
+        launch(voice: true); configure(); send("Alpha", assistantIndex: 1)
+        compose("Keep text")
+        selectAction("quote", messageIndex: 1)
+        tap("voice.fixture.accessibility"); observation("start=1")
+        tap("chat.newConversation"); observation("cancel=1")
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.alerts.firstMatch.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "未送出的引用")).firstMatch.waitForExistence(timeout: 5))
+        tap("chat.new.cancel")
+        XCTAssertTrue(node("chat.quote.preview").exists)
+        XCTAssertEqual(draft().value as? String, "Keep text")
+        tap("voice.fixture.emit"); observation("emit=1")
+        XCTAssertEqual(draft().value as? String, "Keep text")
+        tap("chat.newConversation"); tap("chat.new.confirm")
+        absent(node("chat.quote.preview"))
+        XCTAssertEqual(draft().value as? String, "Keep text")
+        absent(node("chat.message.0.user"))
+    }
+
+    func testLongQuoteCanExpandInComposerAndArchive() {
+        launch(); configure()
+        let text = String(repeating: "LongQuote", count: 16)
+        send(text, assistantIndex: 1)
+        selectAction("quote", messageIndex: 1)
+        tap("chat.quote.expand")
+        XCTAssertEqual(app.buttons["chat.quote.expand"].firstMatch.label, "收合引用")
+        assertLabel(node("chat.quote.preview.text"), "測試回覆：" + text)
+        compose("Follow-up"); tap("chat.send"); tap("chat.quote.upgrade.confirm")
+        let sent = node("chat.quote.sent.2.text")
+        XCTAssertTrue(sent.waitForExistence(timeout: 15))
+        tap("chat.quote.sent.2.expand")
+        assertLabel(sent, "測試回覆：" + text)
+        launch(reset: false); openArchive()
+        let original = archiveRow(String(text.prefix(60)))
+        ready(original); original.tap()
+        let archiveQuote = node("archive.turn.1.quote.text")
+        XCTAssertTrue(archiveQuote.waitForExistence(timeout: 10))
+        tap("archive.turn.1.quote.expand")
+        assertLabel(archiveQuote, "測試回覆：" + text)
+        let visible = archiveQuote.frame.intersection(node("archive.turn.1.quote").frame)
+            .intersection(app.windows.firstMatch.frame)
+        XCTAssertFalse(visible.isNull)
+        XCTAssertGreaterThan(visible.height, 0)
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: .zero).withOffset(
+            CGVector(dx: visible.midX - window.frame.minX, dy: visible.midY - window.frame.minY)
+        ).press(forDuration: 1)
+        let selection = NSPredicate(format: "label IN %@",
+            ["Copy", "複製", "复制", "拷貝", "Select All", "全選", "全选"])
+        let canSelect = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let item = self.app.menuItems.matching(selection).firstMatch
+            let button = self.app.buttons.matching(selection).firstMatch
+            return (item.exists && item.isHittable) || (button.exists && button.isHittable)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [canSelect], timeout: 5), .completed,
+                       "Expanded archive quote must expose a native text selection action")
     }
 
     func testCopyUsesRenderedAssistantText() {

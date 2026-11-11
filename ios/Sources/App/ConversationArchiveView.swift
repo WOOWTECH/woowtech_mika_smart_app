@@ -107,7 +107,13 @@ import SwiftUI
                             }
                             ForEach(Array(record.turns.enumerated()), id: \.element.userID) { index, turn in
                                 Text("你").font(.caption.bold())
-                                Text(turn.userText).textSelection(.enabled)
+                                if let quote = turn.quote?.quote {
+                                    MessageSentQuote(quote: quote, localizer: localizer, identifier: "archive.turn.\(index).quote")
+                                } else if ConversationQuote.parse(turn.userText).quote != nil {
+                                    Text(localizer.text(.archiveLegacyQuoteNotice)).font(.caption)
+                                        .accessibilityIdentifier("archive.turn.\(index).legacyQuoteNotice")
+                                }
+                                Text(turn.quote?.words ?? turn.userText).textSelection(.enabled)
                                     .accessibilityIdentifier("archive.turn.\(index).user")
                                 Text("助理").font(.caption.bold())
                                 Text(turn.assistantText).textSelection(.enabled)

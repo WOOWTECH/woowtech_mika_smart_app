@@ -39,6 +39,14 @@
 "message.quoteAssistant" = "Quoting assistant";
 "message.quoteUser" = "Quoting you";
 "message.quoteRemove" = "Remove quote";
+"newConversation.quoteWarning" = "The unsent quote will be removed.";
+"message.quoteExpand" = "Expand quote";
+"message.quoteCollapse" = "Collapse quote";
+"message.quoteTruncated" = "Only the beginning of this long quote is sent.";
+"archive.upgradeTitle" = "Upgrade conversation archive?";
+"archive.upgradeMessage" = "Saving will upgrade the entire conversation archive. Older iOS app versions cannot read any saved conversations, and the archive cannot be safely downgraded.";
+"archive.upgradeContinue" = "Continue";
+"archive.legacyQuoteNotice" = "This text has no verified quote provenance; its full original text is shown.";
 "shell.messagePlaceholder" = "Type a message";
 "shell.messageDraft" = "Message draft";
 "shell.stop" = "Stop";

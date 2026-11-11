@@ -3,14 +3,26 @@ import Foundation
 /// Android-compatible message quote serialization. Pass the assistant's
 /// displayed plain text, not Markdown source, when quoting an assistant reply.
 public enum ConversationQuote {
-    public enum Source: String, Equatable, Sendable {
+    public enum Source: String, Codable, Equatable, Sendable {
         case assistant = "> [Quoting your earlier reply]"
         case user = "> [Quoting my earlier message]"
     }
-    public struct Quote: Equatable, Sendable {
+    public struct Quote: Codable, Equatable, Sendable {
         public let source: Source
         public let text: String
         public init(source: Source, text: String) { self.source = source; self.text = text }
+    }
+    /// Trusted app-created provenance; legacy marker text is never inferred.
+    public struct Metadata: Codable, Equatable, Sendable {
+        public let quote: Quote
+        public let words: String
+        public init(quote: Quote, words: String) { self.quote = quote; self.words = words }
+        public func matches(_ serialized: String) -> Bool {
+            !quote.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && quote.text.utf8.count <= ConversationArchive.maximumMessageBytes
+                && words.utf8.count <= ConversationArchive.maximumMessageBytes
+                && ConversationQuote.compose(quote, words: words) == serialized
+        }
     }
     public struct Parsed: Equatable, Sendable {
         public let quote: Quote?
@@ -102,7 +114,7 @@ public struct ConversationBranchPlan {
         guard targetID != source.id, !archive.conversations.contains(where: { $0.id == targetID }),
               ConversationArchive.normalizedTitle(title) == title else { throw ConversationBranchError.invalidTarget }
         let copied = try source.turns.prefix(index + 1).map {
-            try ArchivedConversationTurn(userText: $0.userText, assistantText: $0.assistantText, pdf: $0.pdf)
+            try ArchivedConversationTurn(userText: $0.userText, assistantText: $0.assistantText, pdf: $0.pdf, quote: $0.quote)
         }
         let branch = try ArchivedConversation(id: targetID, destination: source.destination, updatedAt: at, turns: copied)
         let plan = Self(source: source, parentTurn: index, branch: branch, title: title)

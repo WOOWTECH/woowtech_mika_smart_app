@@ -17,9 +17,11 @@ struct ChatEntry: Identifiable {
     let role: String
     let content: String
     let pdf: ArchivedPDFAnswer?
-    init(id: UUID = UUID(), role: String, content: String, pdf: ArchivedPDFAnswer? = nil) {
+    let quote: ConversationQuote.Metadata?
+    init(id: UUID = UUID(), role: String, content: String, pdf: ArchivedPDFAnswer? = nil,
+         quote: ConversationQuote.Metadata? = nil) {
         self.id = id; self.role = role; self.content = content
-        self.pdf = pdf
+        self.pdf = pdf; self.quote = quote
     }
 }
 
@@ -228,12 +230,12 @@ final class ChatSession: ObservableObject {
     /// not yet been saved. Compare the entire visible transcript, not just IDs.
     private func matchesArchivedTranscript(_ record: ArchivedConversation) -> Bool {
         let expected = record.turns.flatMap { turn in
-            [ChatEntry(id: turn.userID, role: "user", content: turn.userText, pdf: turn.pdf),
+            [ChatEntry(id: turn.userID, role: "user", content: turn.userText, pdf: turn.pdf, quote: turn.quote),
              ChatEntry(id: turn.assistantID, role: "assistant", content: turn.assistantText)]
         }
         return isCurrentConversation(id: record.id) && entries.count == expected.count
             && zip(entries, expected).allSatisfy { actual, saved in
-                actual.id == saved.id && actual.role == saved.role && actual.content == saved.content && actual.pdf == saved.pdf
+                actual.id == saved.id && actual.role == saved.role && actual.content == saved.content && actual.pdf == saved.pdf && actual.quote == saved.quote
             }
     }
 
@@ -247,7 +249,7 @@ final class ChatSession: ObservableObject {
         let source: ConversationQuote.Source
         let text: String
         switch entry.role {
-        case "user": source = .user; text = ConversationQuote.parse(entry.content).words
+        case "user": source = .user; text = entry.quote?.words ?? entry.content
         case "assistant": source = .assistant; text = assistantQuoteText(entry.content)
         default: return false
         }
@@ -258,6 +260,14 @@ final class ChatSession: ObservableObject {
         return true
     }
 
+    struct PendingQuoteProtection: Equatable {
+        let quote: ConversationQuote.Quote
+        let source: ArchivedConversation
+    }
+    var pendingQuoteProtection: PendingQuoteProtection? {
+        guard let quote = pendingQuote, let source = quoteSource else { return nil }
+        return .init(quote: quote, source: source)
+    }
     func clearQuote() { guard !isSubmitting else { return }; pendingQuote = nil; quoteSource = nil }
 
     /// Drafts and attachments cannot be silently discarded by branching.
@@ -303,17 +313,19 @@ final class ChatSession: ObservableObject {
         conversationID = record.id.uuidString
         conversationDestination = record.destination
         draft = ""
-        entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf),
+        entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf, quote: $0.quote),
                                          ChatEntry(id: $0.assistantID, role: "assistant", content: $0.assistantText)] }
         chatNotice = "已開啟保存的對話；尚未傳送任何訊息。"
         return true
     }
 
-    @discardableResult func deleteConversation(id: UUID) -> Bool {
-        guard !isCurrentConversation(id: id) || pendingQuote == nil else { return false }
-        if conversationID == id.uuidString { cancel() }
+    @discardableResult func deleteConversation(id: UUID, approvedQuote: PendingQuoteProtection? = nil) -> Bool {
+        let current = isCurrentConversation(id: id)
+        guard !current || (pendingQuoteProtection == approvedQuote
+                           && (pendingQuote == nil || approvedQuote != nil)) else { return false }
+        if current { cancel() }
         guard archive?.delete(id: id) == true else { return false }
-        if conversationID == id.uuidString { newConversation() }
+        if current { clearQuote(); newConversation() }
         return true
     }
 
@@ -510,7 +522,8 @@ final class ChatSession: ObservableObject {
                     self.finish(id: id, error: "模型回傳空白內容，草稿已保留，請重試。")
                     return
                 }
-                let userEntry = ChatEntry(role: "user", content: prompt)
+                let userEntry = ChatEntry(role: "user", content: prompt,
+                    quote: quoteAtStart.map { .init(quote: $0, words: draftAtStart) })
                 let assistantEntry = ChatEntry(role: "assistant", content: reply)
                 if let archive = self.archive {
                     self.pendingArchiveSave = nil
@@ -519,7 +532,7 @@ final class ChatSession: ObservableObject {
                         let all = self.entries + [userEntry, assistantEntry]
                         let turns = try stride(from: 0, to: all.count, by: 2).map { index in
                             try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
-                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf)
+                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf, quote: all[index].quote)
                         }
                         let record = try ArchivedConversation(id: archiveID, destination: destination,
                             updatedAt: Date(), turns: turns)
@@ -676,7 +689,8 @@ final class ChatSession: ObservableObject {
                         return
                     }
                     let evidence = try ChatPDFAttachment.archive(result)
-                    let user = ChatEntry(role: "user", content: prompt, pdf: evidence)
+                    let user = ChatEntry(role: "user", content: prompt, pdf: evidence,
+                        quote: quoteAtStart.map { .init(quote: $0, words: draftAtStart) })
                     let assistant = ChatEntry(role: "assistant", content: result.answer)
                     if let archive = self.archive {
                         self.pendingArchiveSave = nil
@@ -684,7 +698,7 @@ final class ChatSession: ObservableObject {
                             let all = self.entries + [user, assistant]
                             let turns = try stride(from: 0, to: all.count, by: 2).map { i in
                                 try ArchivedConversationTurn(userID: all[i].id, assistantID: all[i + 1].id,
-                                    userText: all[i].content, assistantText: all[i + 1].content, pdf: all[i].pdf)
+                                    userText: all[i].content, assistantText: all[i + 1].content, pdf: all[i].pdf, quote: all[i].quote)
                             }
                             let record = try ArchivedConversation(id: archiveID, destination: destination, updatedAt: Date(), turns: turns)
                             self.pendingArchiveSave = (record, archivePrior)

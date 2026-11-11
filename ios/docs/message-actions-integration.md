@@ -22,7 +22,7 @@ if let quote = session.pendingQuote {
 }
 ```
 
-For a sent user entry, render `MessageUserPresentation(entry.content).quote`
+For a sent user entry, render `MessageUserPresentation(entry.content, metadata: entry.quote).quote`
 with `MessageSentQuote(quote:localizer:)` above the existing selectable bubble,
 and render its `words` inside that bubble. Keep the original `entry` for menu
 snapshots, history and archive operations. This is a display projection only:
@@ -37,10 +37,21 @@ unsaved answers and in-flight work prevent branching. The iOS core supports
 completed archived message pairs; Android's user-message retry and unfinished
 response branching are not implemented here.
 
-Creating a branch writes provenance and upgrades the encrypted archive to v5.
-Ordinary reading, quoting, copying and non-branch saves do not by themselves
-upgrade it to v5. An old v4 iOS reader must reject a v5 archive; **do not open or
-rewrite it with an older app**. Removing a branch does not downgrade the version.
+Creating a branch writes provenance and upgrades the entire encrypted archive
+to at least v5. Successfully saving a genuine quote with independent author and
+user-word metadata upgrades it to v6. Reading, selecting or cancelling a quote,
+copying, and saving an ordinary message do not by themselves upgrade a v4/v5
+archive. Before the first relevant upgrade, the UI asks for confirmation and
+explains that older iOS app versions cannot read any conversation in the archive.
+A v4 reader rejects v5, and the historical v5 reader rejects v6. Never downgrade
+or rewrite the file with an older app, even after the last branch or quote is
+deleted. The host tests exercise the actual historical decoder sources.
+
+Old records contain no trustworthy quote provenance. Even if their text resembles
+a serialized quote, it is displayed and copied literally; the App cannot tell a
+historical genuine quote from a user-authored marker. New genuine quotes carry
+validated metadata and are rendered separately in chat and archive detail. Quote
+markers remain model context and are never evidence for tools or memory.
 
 Before shipping, run native UI tests on iPhone and
 iPad, in all three languages and at accessibility text sizes: copy rendered

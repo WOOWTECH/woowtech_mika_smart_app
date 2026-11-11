@@ -12,6 +12,8 @@ import tempfile
 
 OLD_SHA256 = "e65e62b6f0c0ab4f5a9e0c5295588f7741c73295bed374ab9c7d2ebe0ddc065a"
 V4_SHA256 = "8793560d0738f8aa758bbb834c00c4f119f37b46ba21374bb78b85750fd2d664"
+V5_SHA256 = "8cf4e4818ef8a06705a4d716718632ddf7113e073090ce7104020b7cf80efeed"
+V5_ACTIONS_SHA256 = "4b19c31552dc0bf7960fbfc51845d9080f84b4e8dc0bfd6ae4e2348a6a011e78"
 PDF_SHA256 = "0a16c0cc7a8028c22386159ce6dcab83d8d6e08580a07d27d485cebbd2d6b70e"
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,6 +48,14 @@ import Foundation
             at: Date(timeIntervalSince1970: 300), isBusy: false, hasUnfinishedOrUnsavedTurn: false)
         let branched = try plan.applying(to: archive, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
         try JSONEncoder().encode(branched).write(to: root.appendingPathComponent("v5-branch.json"))
+        let quote = ConversationQuote.Quote(source: .assistant, text: "synthetic quoted reply")
+        let words = "synthetic follow-up"
+        let quoteTurn = try ArchivedConversationTurn(userText: ConversationQuote.compose(quote, words: words),
+            assistantText: "synthetic answer", quote: .init(quote: quote, words: words))
+        let continued = try ArchivedConversation(id: current.id, destination: current.destination,
+            updatedAt: Date(timeIntervalSince1970: 301), turns: current.turns + [quoteTurn])
+        var v6 = archive; try v6.save(continued)
+        try JSONEncoder().encode(v6).write(to: root.appendingPathComponent("v6-quote.json"))
         try archive.delete(id: record.id)
         try save("v4-empty")
     }
@@ -109,6 +119,10 @@ import Foundation
     }
     static func main() throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+        let v5Bytes = try Data(contentsOf: root.appendingPathComponent("v5-branch.json"))
+        let fromV5 = try JSONDecoder().decode(ConversationArchive.self, from: v5Bytes)
+        guard try version(fromV5) == 5,
+              fromV5.conversations.allSatisfy({ $0.turns.allSatisfy { $0.quote == nil } }) else { throw Failure.result }
         let oldBytes = try Data(contentsOf: root.appendingPathComponent("old-v3.json"))
         var archive = try JSONDecoder().decode(ConversationArchive.self, from: oldBytes)
         guard try version(archive) == 3, archive.conversations.count == 1,
@@ -170,6 +184,31 @@ import LegacyV4Persistence
 }
 '''
 
+V5_READER = r'''
+import Foundation
+import LegacyV5Persistence
+
+@main enum ReadWithV5 {
+    enum Failure: Error { case result }
+    static func main() throws {
+        let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+        let v5 = try Data(contentsOf: root.appendingPathComponent("v5-branch.json"))
+        let v6 = try Data(contentsOf: root.appendingPathComponent("v6-quote.json"))
+        guard try JSONDecoder().decode(ConversationArchive.self, from: v5).conversations.count == 2 else { throw Failure.result }
+        do { _ = try JSONDecoder().decode(ConversationArchive.self, from: v6); throw Failure.result }
+        catch ConversationArchiveError.invalidData { }
+        var forged = try JSONSerialization.jsonObject(with: v6) as! [String: Any]
+        forged["version"] = 5
+        let accepted = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: forged))
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(accepted)) as! [String: Any]
+        let rows = encoded["conversations"] as! [[String: Any]]
+        let turns = rows[0]["turns"] as! [[String: Any]]
+        guard turns.last?["quote"] == nil else { throw Failure.result }
+        print("actual_v5_reads_v5=PASS actual_v5_rejects_v6=PASS forged_v5_drops_quote=CONFIRMED")
+    }
+}
+'''
+
 
 def run(command, *, cwd, env):
     subprocess.run(command, cwd=cwd, env=env, check=True, timeout=120,
@@ -179,11 +218,15 @@ def run(command, *, cwd, env):
 def main():
     old_file = ROOT / "Tests/Fixtures/ConversationArchive_0c9827e.txt"
     v4_file = ROOT / "Tests/Fixtures/ConversationArchive_v4_c3f0cf5.txt"
+    v5_file = ROOT / "Tests/Fixtures/ConversationArchive_v5_f57c695.txt"
+    v5_actions = ROOT / "Tests/Fixtures/ConversationMessageActions_v5_f57c695.txt"
     pdf_file = ROOT / "Sources/AssistantPersistence/ArchivedPDFAnswer.swift"
     if hashlib.sha256(old_file.read_bytes()).hexdigest() != OLD_SHA256:
         raise RuntimeError("old decoder fixture changed")
     if hashlib.sha256(v4_file.read_bytes()).hexdigest() != V4_SHA256:
         raise RuntimeError("v4 decoder fixture changed")
+    if hashlib.sha256(v5_file.read_bytes()).hexdigest() != V5_SHA256 or hashlib.sha256(v5_actions.read_bytes()).hexdigest() != V5_ACTIONS_SHA256:
+        raise RuntimeError("v5 decoder fixture changed")
     if hashlib.sha256(pdf_file.read_bytes()).hexdigest() != PDF_SHA256:
         raise RuntimeError("shared PDF value decoder changed; recheck historic equivalence")
     env = {key: os.environ[key] for key in ("PATH", "DEVELOPER_DIR", "SDKROOT", "TMPDIR") if key in os.environ}
@@ -193,6 +236,8 @@ def main():
         legacy_source.write_bytes(old_file.read_bytes())
         v4_source = out / "ConversationArchive_v4.swift"
         v4_source.write_bytes(v4_file.read_bytes())
+        v5_source = out / "ConversationArchive_v5.swift"; v5_source.write_bytes(v5_file.read_bytes())
+        v5_actions_source = out / "ConversationMessageActions_v5.swift"; v5_actions_source.write_bytes(v5_actions.read_bytes())
         writer_source = out / "WriteFixtures.swift"
         reader_source = out / "ReadFixtures.swift"
         current_source = out / "ReadOldV3.swift"
@@ -201,6 +246,7 @@ def main():
         current_source.write_text(CURRENT_READER)
         v4_reader_source = out / "ReadWithV4.swift"
         v4_reader_source.write_text(V4_READER)
+        v5_reader_source = out / "ReadWithV5.swift"; v5_reader_source.write_text(V5_READER)
         module_options = ["-swift-version", "5", "-parse-as-library", "-emit-module", "-emit-library"]
         run(["swiftc", *module_options, "-module-name", "AssistantPersistence",
              str(ROOT / "Sources/AssistantPersistence/ConversationArchive.swift"), str(pdf_file),
@@ -210,6 +256,8 @@ def main():
              str(legacy_source), str(pdf_file), "-o", str(out / "libLegacyPersistence.dylib")], cwd=out, env=env)
         run(["swiftc", *module_options, "-module-name", "LegacyV4Persistence",
              str(v4_source), str(pdf_file), "-o", str(out / "libLegacyV4Persistence.dylib")], cwd=out, env=env)
+        run(["swiftc", *module_options, "-module-name", "LegacyV5Persistence",
+             str(v5_source), str(v5_actions_source), str(pdf_file), "-o", str(out / "libLegacyV5Persistence.dylib")], cwd=out, env=env)
         link = ["-I", str(out), "-L", str(out), "-Xlinker", "-rpath", "-Xlinker", str(out)]
         run(["swiftc", "-parse-as-library", *link, "-lAssistantPersistence", str(writer_source),
              "-o", str(out / "write-fixtures")], cwd=out, env=env)
@@ -219,10 +267,13 @@ def main():
              "-o", str(out / "read-old-v3")], cwd=out, env=env)
         run(["swiftc", "-parse-as-library", *link, "-lLegacyV4Persistence", str(v4_reader_source),
              "-o", str(out / "read-v4")], cwd=out, env=env)
+        run(["swiftc", "-parse-as-library", *link, "-lLegacyV5Persistence", str(v5_reader_source),
+             "-o", str(out / "read-v5")], cwd=out, env=env)
         run([str(out / "write-fixtures"), str(out)], cwd=out, env=env)
         run([str(out / "read-fixtures"), str(out)], cwd=out, env=env)
         run([str(out / "read-old-v3"), str(out)], cwd=out, env=env)
         run([str(out / "read-v4"), str(out)], cwd=out, env=env)
+        run([str(out / "read-v5"), str(out)], cwd=out, env=env)
 
 
 if __name__ == "__main__":
