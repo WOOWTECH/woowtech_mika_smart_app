@@ -23,3 +23,4 @@ jobs:
       - name: Check Android source snapshot
         run: |
           python3 scripts/check_android_ui_reference.py --android-repo "$GITHUB_WORKSPACE"
+          python3 scripts/check_android_ui_reference.py --android-repo "$GITHUB_WORKSPACE" --baseline docs/android-runtime-reference.json

@@ -18,3 +18,4 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/WOOWTECH/woowtech_mika_smart_app.git "$RUNNER_TEMP/woow-android-reference"
           python3 scripts/check_android_ui_reference.py --android-repo "$RUNNER_TEMP/woow-android-reference"
+          python3 scripts/check_android_ui_reference.py --android-repo "$RUNNER_TEMP/woow-android-reference" --baseline docs/android-runtime-reference.json

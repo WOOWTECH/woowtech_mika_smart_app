@@ -41,6 +41,7 @@ def render(name):
         after = '          python3 scripts/check_android_ui_reference.py --android-repo "$GITHUB_WORKSPACE"'
         assert before in source
         source = source.replace(before, after, 1)
+        source = source.replace('"$RUNNER_TEMP/woow-android-reference"', '"$GITHUB_WORKSPACE"')
     # upload-artifact resolves paths from the checkout root, not defaults.run.
     lines = source.splitlines(keepends=True)
     in_paths = False

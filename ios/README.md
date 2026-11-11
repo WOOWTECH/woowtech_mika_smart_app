@@ -59,7 +59,7 @@ make test
 
 `make test` 自動選擇本機已安裝且可用的 iOS 17+ iPhone 模擬器。只有 Command Line Tools 的主機可做部分 Swift 檢查，但無法建置或執行 iOS UI。CI 會保留測試日誌與 `.xcresult`，失敗時也會上傳。
 
-手動 `Live model on iOS Simulator` 與 `Live HA MCP on iOS Simulator` 工作流程使用 GitHub Secrets 執行真實請求與 App UI 測試，不發布可能含憑證的附件。模型需設定 `WOOW_MODEL_TEST_API_KEY` secret，以及同名前綴的 `BASE_URL`、`MODEL` repository variables；HA 使用 `WOOW_HA_MCP_TEST_URL` secret。完整 Webhook URL 等同憑證，請勿提交到 repository、Issue 或公開日誌。HA 實測只使用明確審核的唯讀案例，不會依伺服器的 `readOnlyHint` 自動放行。
+手動 `Live model on iOS Simulator` 與 `Live HA MCP on iOS Simulator` 工作流程使用 GitHub Secrets 執行真實請求與 App UI 測試，不發布可能含憑證的附件。模型工作流程需設定 `WOOW_MODEL_TEST_API_KEY`、`WOOW_MODEL_TEST_BASE_URL`、`WOOW_MODEL_TEST_MODEL` 三個 secrets；部分本機輔助腳本另讀取同名的 `BASE_URL`、`MODEL` repository variables。HA 使用 `WOOW_HA_MCP_TEST_URL` secret。完整 Webhook URL 等同憑證，請勿提交到 repository、Issue 或公開日誌。HA 實測只使用明確審核的唯讀案例，不會依伺服器的 `readOnlyHint` 自動放行。
 
 ## 瀏覽器邊界
 
