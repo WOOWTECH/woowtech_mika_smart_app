@@ -87,10 +87,17 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
                        "Keep ordinary unsent text")
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
+        tap("chat.archive"); tap("archive.new")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
+                       "Keep ordinary unsent text")
+        let archiveClose = app.buttons["archive.close"].firstMatch
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: archiveClose)], timeout: 5), .completed)
     }
 
     func testUnfinishedReplyNeedsConfirmationFromTopAndDrawer() {
-        launch(); configure(); compose("[fixture:stream-cancel]"); tap("chat.send")
+        launch(streaming: true); configure(); disableMemory(); compose("[fixture:stream-cancel]"); tap("chat.send")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
         tap("chat.cancel")
         assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
@@ -105,8 +112,17 @@ final class ConversationArchiveUITests: XCTestCase {
 
         tap("chat.menu"); tap("drawer.newConversation")
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        ready(alert.buttons["返回目前對話"].firstMatch); alert.buttons["返回目前對話"].firstMatch.tap()
+        tap("drawer.close")
+        tap("chat.archive"); tap("archive.new")
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "未完成的回覆片段尚未保存")).firstMatch.exists)
         let discard = alert.buttons["捨棄並開啟新對話"].firstMatch
         ready(discard); discard.tap()
+        let archiveClose = app.buttons["archive.close"].firstMatch
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: archiveClose)], timeout: 5), .completed)
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
         XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
                        "[fixture:stream-cancel]")
@@ -138,10 +154,13 @@ final class ConversationArchiveUITests: XCTestCase {
 
     func testDeletionRemainsAbsentAfterRelaunch() {
         launch(); configure(); send("Archive delete")
+        compose("Keep text while deleting saved row")
         tap("chat.archive"); ready(row("Archive delete")); row("Archive delete").tap()
         tap("archive.delete"); tap("archive.delete.confirm")
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertFalse(row("Archive delete").exists)
+        tap("archive.close")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "Keep text while deleting saved row")
         launch(reset: false); tap("chat.archive")
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertFalse(row("Archive delete").exists)
@@ -165,10 +184,11 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
     }
 
-    private func launch(reset: Bool = true) {
+    private func launch(reset: Bool = true, streaming: Bool = false) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", namespace]
+        if streaming { app.launchArguments.append("-UITestChatStreaming") }
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
@@ -191,6 +211,22 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
+    }
+    private func disableMemory() {
+        navigate("memory")
+        let toggle = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(toggle, in: app); ready(toggle)
+        XCTAssertEqual(toggle.value as? String, "1")
+        let native = toggle.switches.firstMatch
+        let target = native.exists ? native : toggle
+        ready(target)
+        XCTAssertTrue(target.isHittable)
+        target.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "0"), object: toggle)], timeout: 10), .completed)
+        XCTAssertEqual(toggle.value as? String, "0")
+        XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
+        navigate("chat")
     }
     private func compose(_ text: String) {
         let draft = chatDraftControl(in: app)

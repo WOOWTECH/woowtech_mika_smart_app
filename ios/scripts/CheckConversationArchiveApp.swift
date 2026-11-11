@@ -289,6 +289,84 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func protectedArchiveDeletion() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let session = e.session(ArchiveModel(["Saved answer", "Delivered but unsaved answer"]))
+        try await send(session, "First request")
+        guard let row = e.archive.conversations.first,
+              let prior = ArchiveDeletionApproval.capture(id: row.id, in: session) else {
+            throw Failure(name: "current encrypted archive row")
+        }
+        try a.check(prior.wasCurrent && prior.newConversation == nil, "current row captured before deletion review")
+        let backup = e.root.appendingPathComponent("saved-before-failure.vault")
+        try FileManager.default.moveItem(at: e.file, to: backup)
+        try FileManager.default.createDirectory(at: e.file, withIntermediateDirectories: false)
+        try await send(session, "Second request")
+        session.draft = "Keep text after deleting current history"
+        let visible = session.entries.map(\.id)
+        guard let protected = ArchiveDeletionApproval.capture(id: row.id, in: session) else {
+            throw Failure(name: "unsaved current row deletion review")
+        }
+        try a.check(protected.newConversation?.hasUnsavedAnswer == true
+                    && protected.newConversation?.warningKeys.contains(.newConversationUnsavedWarning) == true,
+                    "deletion review names the actual unsaved answer")
+        try a.check(!ArchiveDeletionAction.delete(approved: prior, in: session)
+                    && session.entries.map(\.id) == visible && e.archive.conversations.count == 1
+                    && session.canRetryArchiveSave, "stale pre-answer approval cannot delete or clear retry")
+        try FileManager.default.removeItem(at: e.file)
+        try FileManager.default.moveItem(at: backup, to: e.file)
+        session.retryArchiveSave()
+        try a.check(!ArchiveDeletionAction.delete(approved: protected, in: session)
+                    && session.entries.map(\.id) == visible && e.archive.conversations.count == 1,
+                    "reviewed answer change invalidates deletion approval")
+        guard let fresh = ArchiveDeletionApproval.capture(id: row.id, in: session) else {
+            throw Failure(name: "fresh current row deletion approval")
+        }
+        try a.check(fresh.newConversation == nil && ArchiveDeletionAction.delete(approved: fresh, in: session)
+                    && e.archive.conversations.isEmpty && session.entries.isEmpty
+                    && session.draft == "Keep text after deleting current history",
+                    "deleting saved current row keeps ordinary draft and removes only confirmed history")
+
+        let discard = try ArchiveEnvironment(); defer { discard.close() }
+        let discarded = discard.session(ArchiveModel(["Saved", "Visible unsaved result"]))
+        try await send(discarded, "Stored request")
+        guard let discardID = discard.archive.conversations.first?.id else { throw Failure(name: "stored discard row") }
+        let discardBackup = discard.root.appendingPathComponent("saved-before-discard.vault")
+        try FileManager.default.moveItem(at: discard.file, to: discardBackup)
+        try FileManager.default.createDirectory(at: discard.file, withIntermediateDirectories: false)
+        try await send(discarded, "Unstored request")
+        discarded.draft = "Retained after explicit discard"
+        guard let approved = ArchiveDeletionApproval.capture(id: discardID, in: discarded),
+              approved.newConversation?.hasUnsavedAnswer == true else { throw Failure(name: "explicit unsaved deletion review") }
+        try FileManager.default.removeItem(at: discard.file)
+        try FileManager.default.moveItem(at: discardBackup, to: discard.file)
+        try a.check(ArchiveDeletionAction.delete(approved: approved, in: discarded)
+                    && discard.archive.conversations.isEmpty && discarded.entries.isEmpty
+                    && !discarded.canRetryArchiveSave && discarded.draft == "Retained after explicit discard",
+                    "only exact approval deletes archived row and discards unsaved answer")
+
+        let active = try ArchiveEnvironment(); defer { active.close() }
+        let seed = active.session(ArchiveModel(["Saved before active run"]))
+        try await send(seed, "Seed active row")
+        guard let activeID = active.archive.conversations.first?.id else { throw Failure(name: "active row") }
+        let gate = ArchiveGate(); let running = active.session(ArchiveModel(["Late reply"], gate: gate))
+        try a.check(running.openConversation(id: activeID), "open saved row for task guard")
+        running.draft = "Active request"; running.send()
+        guard let task = running.capturedArchiveRequest else { throw Failure(name: "active request handle") }
+        await gate.waitUntilStarted()
+        guard let whileRunning = ArchiveDeletionApproval.capture(id: activeID, in: running) else {
+            throw Failure(name: "active deletion review")
+        }
+        try a.check(!ArchiveDeletionAction.delete(approved: whileRunning, in: running)
+                    && active.archive.conversations.count == 1 && running.isSubmitting,
+                    "history deletion cannot cancel active work through new-conversation reset")
+        await gate.release(); await task.value
+        try a.check(!ArchiveDeletionAction.delete(approved: whileRunning, in: running)
+                    && active.archive.conversations.first?.turns.count == 2,
+                    "newly saved turn invalidates prior deletion approval")
+        return a.count
+    }
+
     static func destinationIsolation() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
         let model = ArchiveModel(["First", "Other destination reply"]); let session = e.session(model)
@@ -421,9 +499,10 @@ private actor ArchiveModel: ChatModelClient {
         do {
             let groups = try await [ArchiveAppChecks.namespaceGates(), ArchiveAppChecks.completedPairsAndRestore(),
                 ArchiveAppChecks.recentDrawerShortcuts(), ArchiveAppChecks.protectedNewConversation(),
+                ArchiveAppChecks.protectedArchiveDeletion(),
                 ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay()]
-            print("{\"groups\":8,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":9,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -433,6 +512,7 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testCompletedPairsAndRestore() async throws { let n = try await ArchiveAppChecks.completedPairsAndRestore(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRecentDrawerShortcuts() async throws { let n = try await ArchiveAppChecks.recentDrawerShortcuts(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testProtectedArchiveDeletion() async throws { let n = try await ArchiveAppChecks.protectedArchiveDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testDestinationIsolation() async throws { let n = try await ArchiveAppChecks.destinationIsolation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testFailuresAndRetry() async throws { let n = try await ArchiveAppChecks.failuresAndRetry(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testLateCompletionAndDeletion() async throws { let n = try await ArchiveAppChecks.lateCompletionAndDeletion(); XCTAssertGreaterThan(n, 0) }

@@ -5,6 +5,9 @@ import SwiftUI
     @ObservedObject var store: ConversationArchiveStore
     @ObservedObject var session: ChatSession
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appLocalizer) private var localizer
+    @State private var showsNewConversationConfirmation = false
+    @State private var pendingNewConversationProtection: NewConversationProtection?
 
     var body: some View {
         NavigationStack {
@@ -44,10 +47,33 @@ import SwiftUI
                     Button("關閉") { dismiss() }.accessibilityIdentifier("archive.close")
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("新對話") { session.newConversation(); dismiss() }
+                    Button("新對話", action: requestNewConversation)
                         .disabled(session.isSubmitting).accessibilityIdentifier("archive.new")
                 }
             }
+        }
+        .alert(localizer.text(.newConversationConfirmTitle), isPresented: $showsNewConversationConfirmation) {
+            Button(localizer.text(.newConversationDiscard), role: .destructive) {
+                let approved = pendingNewConversationProtection
+                pendingNewConversationProtection = nil
+                guard let approved, NewConversationAction.start(in: session, approved: approved) else { return }
+                dismiss()
+            }
+            Button(localizer.text(.newConversationKeep), role: .cancel) {
+                pendingNewConversationProtection = nil
+            }
+        } message: {
+            Text(pendingNewConversationProtection?.warningKeys.map { localizer.text($0) }.joined(separator: "\n") ?? "")
+        }
+    }
+
+    private func requestNewConversation() {
+        guard !session.isSubmitting else { return }
+        if let protection = NewConversationProtection.current(in: session) {
+            pendingNewConversationProtection = protection
+            showsNewConversationConfirmation = true
+        } else if NewConversationAction.start(in: session, approved: nil) {
+            dismiss()
         }
     }
 }
@@ -60,6 +86,7 @@ import SwiftUI
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appLocalizer) private var localizer
     @State private var confirmsDelete = false
+    @State private var pendingDeleteApproval: ArchiveDeletionApproval?
 
     var body: some View {
         Group {
@@ -94,7 +121,13 @@ import SwiftUI
                         .frame(maxWidth: .infinity, alignment: .leading).padding()
                     }
                     HStack {
-                        Button("刪除對話", role: .destructive) { confirmsDelete = true }
+                        Button("刪除對話", role: .destructive) {
+                            pendingDeleteApproval = ArchiveDeletionApproval.capture(id: id, in: session)
+                            confirmsDelete = pendingDeleteApproval != nil
+                        }
+                            .disabled(session.isCurrentConversation(id: id) &&
+                                      (session.isSubmitting || session.pendingMCPApproval != nil ||
+                                       session.pendingProfileReview != nil || session.pendingMemoryReview != nil))
                             .accessibilityIdentifier("archive.delete")
                         Spacer()
                         Button("開啟此對話", action: open)
@@ -106,10 +139,16 @@ import SwiftUI
         }
         .navigationTitle("保存的問答")
         .alert("刪除此對話？", isPresented: $confirmsDelete) {
-            Button("取消", role: .cancel) {}
+            Button("取消", role: .cancel) { pendingDeleteApproval = nil }
             Button("刪除", role: .destructive) {
-                if session.deleteConversation(id: id) { dismiss() }
+                let approved = pendingDeleteApproval
+                pendingDeleteApproval = nil
+                if let approved, ArchiveDeletionAction.delete(approved: approved, in: session) { dismiss() }
             }.accessibilityIdentifier("archive.delete.confirm")
-        } message: { Text("會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。") }
+        } message: {
+            let original = "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。"
+            let warnings = pendingDeleteApproval?.newConversation?.warningKeys.map { localizer.text($0) }.joined(separator: "\n")
+            Text(original + (warnings.map { "\n" + $0 } ?? ""))
+        }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import AssistantPersistence
 
 /// Captures the particular unsent attachment or unsaved result the user saw
 /// when confirming a new conversation. A changed result needs a fresh review.
@@ -33,15 +34,41 @@ import Foundation
 @MainActor enum NewConversationAction {
     /// A nil approval starts only when there is nothing protected to discard.
     /// A non-nil approval must still describe the exact current attachment/result.
+    static func canStart(in session: ChatSession, approved: NewConversationProtection?) -> Bool {
+        !session.isSubmitting && session.pendingMCPApproval == nil
+            && session.pendingProfileReview == nil && session.pendingMemoryReview == nil
+            && NewConversationProtection.current(in: session) == approved
+    }
+
     @discardableResult static func start(in session: ChatSession,
                                          approved: NewConversationProtection?) -> Bool {
-        guard !session.isSubmitting,
-              session.pendingMCPApproval == nil,
-              session.pendingProfileReview == nil,
-              session.pendingMemoryReview == nil,
-              NewConversationProtection.current(in: session) == approved
-        else { return false }
+        guard canStart(in: session, approved: approved) else { return false }
         session.newConversation()
         return true
+    }
+}
+
+/// Deleting the currently displayed archived row also starts a new conversation.
+/// Capture that consequence with the same attachment/result review as the toolbar.
+@MainActor struct ArchiveDeletionApproval: Equatable {
+    let record: ArchivedConversation
+    let wasCurrent: Bool
+    let newConversation: NewConversationProtection?
+
+    static func capture(id: UUID, in session: ChatSession) -> Self? {
+        guard session.archive?.available == true,
+              let record = session.archive?.state.conversations.first(where: { $0.id == id }) else { return nil }
+        let wasCurrent = session.isCurrentConversation(id: id)
+        return Self(record: record, wasCurrent: wasCurrent,
+                    newConversation: wasCurrent ? NewConversationProtection.current(in: session) : nil)
+    }
+}
+
+@MainActor enum ArchiveDeletionAction {
+    @discardableResult static func delete(approved: ArchiveDeletionApproval, in session: ChatSession) -> Bool {
+        guard ArchiveDeletionApproval.capture(id: approved.record.id, in: session) == approved else { return false }
+        if approved.wasCurrent,
+           !NewConversationAction.canStart(in: session, approved: approved.newConversation) { return false }
+        return session.deleteConversation(id: approved.record.id)
     }
 }

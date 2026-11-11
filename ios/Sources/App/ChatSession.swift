@@ -198,6 +198,8 @@ final class ChatSession: ObservableObject {
         archive?.available == true && hasStoredKey && archiveDestination == record.destination
     }
 
+    func isCurrentConversation(id: UUID) -> Bool { conversationID == id.uuidString }
+
     @discardableResult func openConversation(id: UUID) -> Bool {
         guard let record = archive?.state.conversations.first(where: { $0.id == id }),
               canOpenConversation(record) else { return false }
@@ -218,7 +220,7 @@ final class ChatSession: ObservableObject {
     @discardableResult func deleteConversation(id: UUID) -> Bool {
         if conversationID == id.uuidString { cancel() }
         guard archive?.delete(id: id) == true else { return false }
-        if conversationID == id.uuidString { newConversation(); draft = "" }
+        if conversationID == id.uuidString { newConversation() }
         return true
     }
 

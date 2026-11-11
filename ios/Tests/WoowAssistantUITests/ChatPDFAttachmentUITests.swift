@@ -125,6 +125,15 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
 
+        tap("chat.archive"); tap("archive.new")
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "選取的 PDF 尚未送出")).firstMatch.exists)
+        ready(keep); keep.tap()
+        tap("archive.close")
+        XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
+        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
+
         tap("chat.newConversation")
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
         let discard = alert.buttons["捨棄並開啟新對話"].firstMatch
