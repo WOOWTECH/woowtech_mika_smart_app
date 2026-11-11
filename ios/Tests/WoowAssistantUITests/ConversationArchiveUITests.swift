@@ -85,6 +85,38 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(row("A").exists)
     }
 
+    func testDrawerRenameCancellationKeepsOriginalArchive() {
+        launch(); configure(); send("A")
+        tap("chat.menu")
+        let original = revealRecentRow("A")
+        ready(original); original.press(forDuration: 1)
+        let rename = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "drawer.recent.rename.")).firstMatch
+        ready(rename); rename.tap()
+        let field = app.textFields["drawer.rename.field"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "A")
+        ready(field); field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        field.typeText("B")
+        XCTAssertEqual(field.value as? String, "AB")
+        tap("drawer.rename.cancel")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: field)], timeout: 5), .completed)
+        XCTAssertEqual(revealRecentRow("A").label, "A")
+        XCTAssertFalse(recentRow("AB").exists)
+        tap("drawer.close"); tap("chat.archive")
+        let archived = row("A")
+        XCTAssertTrue(archived.waitForExistence(timeout: 10))
+        ready(archived); archived.tap()
+        assertLabel(app.staticTexts["archive.turn.0.user"].firstMatch, "A")
+        assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：A")
+        launch(reset: false)
+        tap("chat.menu")
+        XCTAssertEqual(revealRecentRow("A").label, "A")
+        XCTAssertFalse(recentRow("AB").exists)
+    }
+
     func testDrawerRecentSwitchKeepsDraftAndArchiveRemainsReadable() {
         launch(); configure(); send("Recent guarded")
         compose("Keep this unsent draft")

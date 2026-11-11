@@ -21,6 +21,82 @@ enum ConversationArchiveChecks {
                   turns: turns ?? [.init(userText: "Remember this actual request", assistantText: "Completed answer")])
     }
 
+    /// The pre-rename reader knew only v1/v2 and had no customTitle field.
+    private struct LegacyV2Reader: Decodable {
+        struct Row: Decodable {
+            let id: UUID
+            let destination: ConversationDestination
+            let updatedAt: Date
+            let turns: [ArchivedConversationTurn]
+        }
+        let version: Int
+        let conversations: [Row]
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            version = try c.decode(Int.self, forKey: .version)
+            guard version == 1 || version == 2 else { throw ConversationArchiveError.invalidData }
+            conversations = try c.decode([Row].self, forKey: .conversations)
+        }
+        private enum CodingKeys: String, CodingKey { case version, conversations }
+    }
+
+    static func versionCompatibility() throws -> Int {
+        var a = Assertions(); let dest = try destination(); let first = try row(destination: dest)
+        var archive = ConversationArchive()
+        let empty = try JSONSerialization.jsonObject(with: JSONEncoder().encode(archive)) as! [String: Any]
+        try a.check(empty["version"] as? Int == 2, "empty archive stays v2")
+        try archive.save(first)
+        let plainData = try JSONEncoder().encode(archive)
+        let plain = try JSONSerialization.jsonObject(with: plainData) as! [String: Any]
+        let plainRows = plain["conversations"] as! [[String: Any]]
+        try a.check(plain["version"] as? Int == 2 && plainRows.count == 1
+                    && plainRows[0]["customTitle"] == nil, "unrenamed record has original v2 shape")
+        let oldRead = try JSONDecoder().decode(LegacyV2Reader.self, from: plainData)
+        try a.check(oldRead.version == 2 && oldRead.conversations[0].id == first.id
+                    && oldRead.conversations[0].destination == first.destination
+                    && oldRead.conversations[0].turns == first.turns, "old reader accepts exact unrenamed data")
+        var oldest = plain; oldest["version"] = 1
+        var fromV1 = try JSONDecoder().decode(ConversationArchive.self,
+            from: JSONSerialization.data(withJSONObject: oldest))
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(fromV1)) as! [String: Any])["version"] as? Int == 2,
+                    "v1 import writes v2, never v3 before rename")
+        let appended = try ArchivedConversation(id: first.id, destination: dest, updatedAt: Date(),
+            turns: first.turns + [.init(userText: "Later", assistantText: "Reply")])
+        try fromV1.save(appended)
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(fromV1)) as! [String: Any])["version"] as? Int == 2,
+                    "ordinary save after v1 import remains v2")
+        var fromV2 = try JSONDecoder().decode(ConversationArchive.self, from: plainData)
+        try fromV2.save(appended)
+        let rewritten = try JSONEncoder().encode(fromV2)
+        try a.check((try JSONSerialization.jsonObject(with: rewritten) as! [String: Any])["version"] as? Int == 2
+                    && (try JSONDecoder().decode(LegacyV2Reader.self, from: rewritten)).conversations[0].turns.count == 2,
+                    "unrenamed v2 writeback and completed reply stay readable by old reader")
+        try fromV2.rename(id: first.id, expectedTitle: nil, to: "私有標題")
+        let titled = try JSONEncoder().encode(fromV2)
+        let titledJSON = try JSONSerialization.jsonObject(with: titled) as! [String: Any]
+        try a.check(titledJSON["version"] as? Int == 3
+                    && (titledJSON["conversations"] as! [[String: Any]])[0]["customTitle"] as? String == "私有標題",
+                    "first custom title upgrades exactly to v3")
+        try a.rejects("old reader rejects v3 instead of silently dropping title") {
+            _ = try JSONDecoder().decode(LegacyV2Reader.self, from: titled)
+        }
+        var reopened = try JSONDecoder().decode(ConversationArchive.self, from: titled)
+        try a.check(reopened == fromV2, "new reader restores v3 version and title")
+        try reopened.delete(id: first.id)
+        try a.check((try JSONSerialization.jsonObject(with: JSONEncoder().encode(reopened)) as! [String: Any])["version"] as? Int == 3,
+                    "deleting last titled record cannot downgrade archive")
+        let plainSecond = try row(destination: dest)
+        try reopened.save(plainSecond)
+        let afterDelete = try JSONEncoder().encode(reopened)
+        try a.check((try JSONSerialization.jsonObject(with: afterDelete) as! [String: Any])["version"] as? Int == 3
+                    && (try JSONDecoder().decode(ConversationArchive.self, from: afterDelete)) == reopened,
+                    "v3 remains pinned after later unrenamed writes and reload")
+        try a.rejects("old reader still rejects titleless archive with v3 history") {
+            _ = try JSONDecoder().decode(LegacyV2Reader.self, from: afterDelete)
+        }
+        return a.count
+    }
+
     static func roundTripAndIdentity() throws -> Int {
         var a = Assertions(); var state = ConversationArchive(); let dest = try destination(); let first = try row(destination: dest)
         try state.save(first)
@@ -152,8 +228,9 @@ enum ConversationArchiveChecks {
 @main enum ConversationArchiveMain {
     static func main() throws {
         let groups = try [ConversationArchiveChecks.roundTripAndIdentity(), ConversationArchiveChecks.malformedState(),
-                          ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend()]
-        print("{\"groups\":4,\"assertions\":\(groups.reduce(0,+))}")
+                          ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend(),
+                          ConversationArchiveChecks.versionCompatibility()]
+        print("{\"groups\":5,\"assertions\":\(groups.reduce(0,+))}")
     }
 }
 #else
@@ -163,5 +240,6 @@ final class ConversationArchiveTests: XCTestCase {
     func testMalformedState() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.malformedState(), 0) }
     func testBoundedTransactions() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.boundedTransactions(), 0) }
     func testRenameMigrationAndLateAppend() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.renameMigrationAndLateAppend(), 0) }
+    func testVersionCompatibility() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.versionCompatibility(), 0) }
 }
 #endif

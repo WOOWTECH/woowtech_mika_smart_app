@@ -108,6 +108,11 @@ private actor ArchiveModel: ChatModelClient {
             await Task.yield()
         }
     }
+    private static func encodedArchiveVersion(_ archive: ConversationArchive) throws -> Int {
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(archive)) as? [String: Any]
+        guard let version = json?["version"] as? Int else { throw Failure(name: "Archive version missing") }
+        return version
+    }
 
     static func namespaceGates() throws -> Int {
         var a = Assertions(); let id = UUID().uuidString; let root = URL(fileURLWithPath: "/unused-fixture-support")
@@ -240,6 +245,9 @@ private actor ArchiveModel: ChatModelClient {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
         let first = e.session(ArchiveModel(["First saved reply"]))
         try await send(first, "First saved request")
+        try a.check(try encodedArchiveVersion(e.archive.state) == 2
+                    && encodedArchiveVersion(e.reopen().state) == 2,
+                    "actual encrypted unrenamed write and reload stay v2")
         guard let original = e.archive.conversations.first else { throw Failure(name: "saved row for rename") }
         let gate = ArchiveGate(); let model = ArchiveModel(["Second saved reply"], gate: gate)
         let active = e.session(model)
@@ -251,6 +259,9 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(e.archive.conversations[0].title == "我的加密對話"
                     && e.archive.conversations[0].turns == original.turns,
                     "rename publishes only metadata while reply is in flight")
+        try a.check(try encodedArchiveVersion(e.archive.state) == 3
+                    && encodedArchiveVersion(e.reopen().state) == 3,
+                    "actual encrypted title write upgrades to v3 before late answer")
         await gate.release(); await task.value
         let saved = e.archive.conversations[0]
         try a.check(saved.title == "我的加密對話" && saved.turns.count == 2
@@ -285,6 +296,10 @@ private actor ArchiveModel: ChatModelClient {
         try FileManager.default.removeItem(at: e.file)
         try FileManager.default.moveItem(at: backup, to: e.file)
         try a.check(e.reopen().conversations[0] == saved, "failed rename cannot damage a subsequent reload")
+        try a.check(e.archive.delete(id: saved.id)
+                    && (try encodedArchiveVersion(e.archive.state)) == 3
+                    && (try encodedArchiveVersion(e.reopen().state)) == 3,
+                    "encrypted v3 never downgrades after last titled row is deleted")
         return a.count
     }
 
