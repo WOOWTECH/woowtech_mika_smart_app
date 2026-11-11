@@ -99,6 +99,7 @@ jobs:
           python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
           python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
+          python3 scripts/check_chat_attachment_presenter.py 2>&1 | tee build/chat-attachment-presenter.log
           python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
           python3 scripts/generate_app_text.py
           python3 scripts/check_ui_test_language.py
@@ -370,6 +371,7 @@ jobs:
           python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
           python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
+          python3 scripts/check_chat_attachment_presenter.py 2>&1 | tee build/chat-attachment-presenter.log
       - name: Test original PDF script through the Swift HTTP client
         if: github.event_name != 'workflow_dispatch' || inputs.test_scope == 'files' || inputs.test_scope == 'all'
         timeout-minutes: 6
