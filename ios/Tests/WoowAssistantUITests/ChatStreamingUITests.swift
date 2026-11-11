@@ -127,6 +127,7 @@ final class ChatStreamingUITests: XCTestCase {
     }
     private func configure() {
         navigate("settings")
+        openModelSettings(in: app)
         write("https://model.invalid/v1", field: app.textFields["settings.baseURL"].firstMatch, scroll: true)
         // Move focus directly between visible fields. write() still requires
         // a hittable field, the native keyboard, and an exact value readback.
@@ -137,6 +138,7 @@ final class ChatStreamingUITests: XCTestCase {
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
+        returnFromModelSettings(in: app)
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
     private func compose(_ text: String) {

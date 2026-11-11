@@ -191,6 +191,7 @@ final class MemoryUITests: XCTestCase {
     func testTwoStepClearCancellationAndModelSettingsIsolation() {
         launch()
         navigateMikaSection("settings", in: app)
+        openModelSettings(in: app)
         enter("https://model.example.invalid/v1\n", into: app.textFields["settings.baseURL"].firstMatch)
         reveal(app.textFields["settings.model"].firstMatch)
         enter("fixture-model\n", into: app.textFields["settings.model"].firstMatch)
@@ -198,6 +199,7 @@ final class MemoryUITests: XCTestCase {
         enter("fixture-only-not-a-real-key\n", into: app.secureTextFields["settings.apiKey"].firstMatch)
         tap("settings.save", scroll: true)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
+        returnFromModelSettings(in: app)
         openMemory()
         addMemory("Keep until both confirmations")
         XCTAssertTrue(memory("Keep until both confirmations").waitForExistence(timeout: 5),

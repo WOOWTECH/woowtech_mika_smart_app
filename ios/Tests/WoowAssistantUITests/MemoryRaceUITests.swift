@@ -13,6 +13,7 @@ final class MemoryRaceUITests: XCTestCase {
         defer { app.terminate() }
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
         navigateMikaSection("settings", in: app)
+        openModelSettings(in: app)
         fill(app.textFields["settings.baseURL"], "https://model.example.invalid/v1\n")
         reveal(app.textFields["settings.model"], in: app)
         fill(app.textFields["settings.model"], "fixture-model\n")
@@ -21,6 +22,7 @@ final class MemoryRaceUITests: XCTestCase {
         reveal(app.buttons["settings.save"], in: app)
         app.buttons["settings.save"].tap()
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
+        returnFromModelSettings(in: app)
         navigateMikaSection("chat", in: app)
         send("[fixture:remember-after-delay] 我喜歡喝茶", in: app)
         navigateMikaSection("memory", in: app)

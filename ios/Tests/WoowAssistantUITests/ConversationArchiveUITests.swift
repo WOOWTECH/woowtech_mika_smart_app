@@ -32,6 +32,7 @@ final class ConversationArchiveUITests: XCTestCase {
     func testChangedModelAllowsViewingButDisablesContinuation() {
         launch(); configure(); send("Archive original")
         navigate("settings")
+        openModelSettings(in: app)
         let model = app.textFields["settings.model"].firstMatch
         revealLearningElement(model, in: app); ready(model); model.tap(); prepareKeyboard()
         XCTAssertEqual(model.value as? String, "fixture")
@@ -40,6 +41,7 @@ final class ConversationArchiveUITests: XCTestCase {
         model.typeText("different"); XCTAssertEqual(model.value as? String, "different")
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
+        returnFromModelSettings(in: app)
         navigate("chat"); tap("chat.archive")
         ready(row("Archive original")); row("Archive original").tap()
         assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：Archive original")
@@ -92,6 +94,7 @@ final class ConversationArchiveUITests: XCTestCase {
     }
     private func configure() {
         navigate("settings")
+        openModelSettings(in: app)
         write("https://model.invalid/v1", field: app.textFields["settings.baseURL"].firstMatch, scroll: true)
         tap("settings.dismissKeyboard")
         write("fixture", field: app.textFields["settings.model"].firstMatch, scroll: true)
@@ -101,6 +104,7 @@ final class ConversationArchiveUITests: XCTestCase {
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
+        returnFromModelSettings(in: app)
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
     private func compose(_ text: String) {

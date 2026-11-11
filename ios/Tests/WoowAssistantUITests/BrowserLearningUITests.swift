@@ -239,10 +239,12 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[fixtureURL].waitForExistence(timeout: 10))
         tap("browser.research.close")
         navigateMikaSection("settings", in: app)
+        openModelSettings(in: app)
         tap("settings.remove", scroll: true)
         waitForLabel(app.staticTexts["settings.keyStatus"], "尚未儲存金鑰。")
         XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
+        returnFromModelSettings(in: app)
 
         let stopped = "已停止；已取得的內容與草稿保留"
         navigateMikaSection("browser", in: app)
@@ -296,6 +298,7 @@ final class BrowserLearningUITests: XCTestCase {
 
     private func configureModel() {
         navigateMikaSection("settings", in: app)
+        openModelSettings(in: app)
         enter("https://model.example.invalid/v1\n", into: app.textFields["settings.baseURL"])
         let model = app.textFields["settings.model"]
         reveal(model)
@@ -306,6 +309,7 @@ final class BrowserLearningUITests: XCTestCase {
         tap("settings.save", scroll: true)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
+        returnFromModelSettings(in: app)
     }
 
     private func openFixture() {

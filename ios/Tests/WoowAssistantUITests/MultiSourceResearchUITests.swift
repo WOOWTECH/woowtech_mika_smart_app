@@ -18,11 +18,13 @@ final class MultiSourceResearchUITests: XCTestCase {
     func testConfirmedSourcesProduceActualQuotesAndDiscloseFixtureLimits() {
         launch()
         navigateMikaSection("settings", in: app)
+        openModelSettings(in: app)
         enter("https://model.example.invalid/v1", into: app.textFields["settings.baseURL"])
         enter("fixture-model", into: app.textFields["settings.model"])
         enter("fixture-only-not-a-real-key", into: app.secureTextFields["settings.apiKey"])
         tap("settings.save")
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
+        returnFromModelSettings(in: app)
         navigateMikaSection("browser", in: app)
         let previousAddress = app.textFields["browser.address"].value as? String
         tap("browser.multiResearch")

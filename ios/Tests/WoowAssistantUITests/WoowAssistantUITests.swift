@@ -93,6 +93,7 @@ final class WoowAssistantUITests: XCTestCase {
         replaceBaseURL(fixtureURL, in: app)
         save(in: app)
         assertSaved(in: app)
+        returnFromModelSettings(in: app)
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)
@@ -120,6 +121,7 @@ final class WoowAssistantUITests: XCTestCase {
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("settings", in: relaunched)
+        openModelSettings(in: relaunched)
         XCTAssertEqual(relaunched.textFields["settings.baseURL"].value as? String, fixtureURL)
         XCTAssertTrue(relaunched.staticTexts["settings.keyStatus"].label.contains("已儲存金鑰"))
     }
@@ -127,6 +129,7 @@ final class WoowAssistantUITests: XCTestCase {
     func testCancellationPreservesDraftAndAllowsAnotherAttempt() {
         let app = launchApp()
         configure(in: app)
+        returnFromModelSettings(in: app)
         openSection("chat", in: app)
         send("[fixture:wait]", in: app)
         let cancel = app.buttons["chat.cancel"]
@@ -144,6 +147,7 @@ final class WoowAssistantUITests: XCTestCase {
     func testFailureRetainsDraftAndRetryProducesReply() {
         let app = launchApp()
         configure(in: app)
+        returnFromModelSettings(in: app)
         openSection("chat", in: app)
         send("[fixture:error-once]", in: app)
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
@@ -176,6 +180,7 @@ final class WoowAssistantUITests: XCTestCase {
         revealSettings(remove, in: app)
         remove.tap()
         XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
+        returnFromModelSettings(in: app)
         openSection("chat", in: app)
         assertDraft("Draft after key removal", in: app)
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
@@ -228,6 +233,7 @@ final class WoowAssistantUITests: XCTestCase {
     func testMCPRemovalClearsOnlyItsSavedEndpoint() {
         let app = launchApp()
         configure(in: app)
+        returnFromModelSettings(in: app)
         openSection("tools", in: app)
         let endpoint = app.secureTextFields["mcp.endpoint"]
         revealMCP(endpoint, in: app)
@@ -284,6 +290,7 @@ final class WoowAssistantUITests: XCTestCase {
 
     private func fillConfiguration(in app: XCUIApplication, baseURL: String? = nil) {
         openSection("settings", in: app)
+        openModelSettings(in: app)
         enter(baseURL ?? fixtureURL, into: app.textFields["settings.baseURL"])
         let model = app.textFields["settings.model"]
         revealSettings(model, in: app)

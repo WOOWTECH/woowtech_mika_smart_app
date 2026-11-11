@@ -18,6 +18,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
     func testEnglishMCPAndNotificationsKeepUnsentChatDraft() {
         launchAndEnterDraft()
         chooseEnglishInSettings()
+        assertEnglishModelNavigation()
 
         tapRoot("chat")
         XCTAssertTrue(app.navigationBars["woowtech agent"].exists)
@@ -155,6 +156,19 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isHittable)
         back.tap()
         XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 5))
+    }
+
+    private func assertEnglishModelNavigation() {
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        tapContent(app.buttons["settings.modelJump"])
+        let detail = app.navigationBars["Model"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["settings.appearance"].isHittable)
+        tapChrome(detail.buttons.firstMatch)
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings.modelJump"].isHittable)
+        XCTAssertFalse(app.textFields["settings.baseURL"].isHittable)
     }
 
     private func tapRoot(_ section: String) {

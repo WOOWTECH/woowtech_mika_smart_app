@@ -282,6 +282,7 @@ final class MemoryToolUITests: XCTestCase {
 
     private func configureModel() {
         navigate("settings")
+        openModelSettings(in: app)
         writeASCII("https://model.invalid/v1", into: app.textFields["settings.baseURL"].firstMatch)
         tap("settings.dismissKeyboard")
         writeASCII("fixture", into: app.textFields["settings.model"].firstMatch)
@@ -295,6 +296,7 @@ final class MemoryToolUITests: XCTestCase {
         tap("settings.save", scroll: true)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
+        returnFromModelSettings(in: app)
         navigate("chat")
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
