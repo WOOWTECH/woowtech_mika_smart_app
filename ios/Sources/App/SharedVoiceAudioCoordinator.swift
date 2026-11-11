@@ -2,7 +2,7 @@ import Foundation
 
 /// These are claims by the exclusive owner, not AVAudioSession observations.
 enum VoiceAudioPriorActivity { case inactive, active, unknown }
-enum VoiceAudioHandoff { case unchanged, restorationAttempted, uncertain }
+enum VoiceAudioHandoff { case unchanged, baselineReset, restorationAttempted, uncertain }
 
 struct VoiceAudioSettings: Equatable {
     let category: String
