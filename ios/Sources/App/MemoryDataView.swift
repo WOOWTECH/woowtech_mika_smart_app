@@ -419,40 +419,44 @@ struct MemoryDataView: View {
     private var builtInSkillsSection: some View {
         Section {
             card {
-                VStack(alignment: .leading, spacing: 0) {
-                    Button { sheet = .catalog } label: {
-                        Text(copy.text(.catalog))
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                        .accessibilityIdentifier("skills.catalog.open")
-                    cardDivider
-                    NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: {
-                        Text(copy.text(.pdfRead))
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                        .accessibilityIdentifier("skills.documents.execute")
-                    cardDivider
-                    NavigationLink {
-                        SkillAgentView(store: store, modelAccess: modelAccess)
-                    } label: {
-                        Text(copy.text(.agentWrite))
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                        .disabled(!store.available)
-                        .accessibilityIdentifier("skills.agent.open")
-                    cardDivider
-                    NavigationLink {
-                        TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
-                    } label: {
-                        Text(copy.text(.transcript))
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                        .accessibilityIdentifier("skills.transcript.open")
+                Button { sheet = .catalog } label: {
+                    Text(copy.text(.catalog))
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
+                    .accessibilityIdentifier("skills.catalog.open")
+            }
+            // Each destination needs its own List row. Multiple NavigationLinks
+            // inside one row share its tap routing on iOS 18 and can open the
+            // last destination even when the PDF link itself was tapped.
+            card {
+                NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: {
+                    Text(copy.text(.pdfRead))
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .accessibilityIdentifier("skills.documents.execute")
+            }
+            card {
+                NavigationLink {
+                    SkillAgentView(store: store, modelAccess: modelAccess)
+                } label: {
+                    Text(copy.text(.agentWrite))
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .disabled(!store.available)
+                    .accessibilityIdentifier("skills.agent.open")
+            }
+            card {
+                NavigationLink {
+                    TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
+                } label: {
+                    Text(copy.text(.transcript))
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                    .accessibilityIdentifier("skills.transcript.open")
             }
             Text(copy.text(.builtInHelp))
                 .font(.caption).foregroundStyle(palette.ink3)
