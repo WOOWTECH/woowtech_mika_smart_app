@@ -189,44 +189,6 @@ struct MemoryDataView: View {
             Section {
                 card {
                     VStack(spacing: 0) {
-                        NavigationLink {
-                            UserProfileView(store: store)
-                        } label: {
-                            dataRow(copy.text(.profile), systemImage: "person.crop.circle")
-                        }
-                        .disabled(!store.available)
-                        .accessibilityIdentifier("memory.profile.open")
-                        cardDivider
-                        Button { sheet = .websites } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                                    .font(.body)
-                                    .frame(width: 38, height: 38)
-                                    .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
-                                    .accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(copy.text(.routeTitle))
-                                    Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
-                                        .font(.caption).foregroundStyle(palette.ink3)
-                                }
-                                Spacer(minLength: 0)
-                                Text(copy.text(.routeCount, Int64(store.routes.routes.count)))
-                                    .foregroundStyle(palette.ink3)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(palette.ink3)
-                                    .accessibilityHidden(true)
-                            }
-                            .foregroundStyle(palette.ink)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        }
-                            .accessibilityLabel(copy.text(.websitesAndRoutes,
-                                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
-                            .accessibilityIdentifier("memory.websites")
-                        Text(copy.text(.routesHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.routesPending")
-                        cardDivider
                         Button { onOpenBrowser() } label: {
                             dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
@@ -234,6 +196,8 @@ struct MemoryDataView: View {
                         Text(copy.text(.webLoginsHelp))
                             .font(.caption).foregroundStyle(palette.ink3)
                             .accessibilityIdentifier("memory.browserPending")
+                        cardDivider
+                        routeManagementRow
                     }
                 }
             } header: { sectionTitle(copy.text(.storedData)) }
@@ -264,6 +228,15 @@ struct MemoryDataView: View {
                 }
             }
             Section {
+                card {
+                    NavigationLink {
+                        UserProfileView(store: store)
+                    } label: {
+                        dataRow(copy.text(.profile), systemImage: "person.crop.circle")
+                    }
+                    .disabled(!store.available)
+                    .accessibilityIdentifier("memory.profile.open")
+                }
                 Text(copy.text(.preferenceScope))
                     .font(.caption).foregroundStyle(palette.ink3)
                     .accessibilityIdentifier("memory.preferenceScope")
@@ -606,6 +579,35 @@ struct MemoryDataView: View {
             }
         }
         .buttonStyle(.borderless)
+    }
+
+    private var routeManagementRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { sheet = .websites } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
+                        .font(.body).frame(width: 38, height: 38)
+                        .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(copy.text(.routeTitle))
+                        Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                    }
+                    Spacer(minLength: 0)
+                    Text(copy.text(.routeCount, Int64(store.routes.routes.count))).foregroundStyle(palette.ink3)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.ink3).accessibilityHidden(true)
+                }
+                .foregroundStyle(palette.ink)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .accessibilityLabel(copy.text(.websitesAndRoutes,
+                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
+            .accessibilityIdentifier("memory.websites")
+            Text(copy.text(.routesHelp)).font(.caption).foregroundStyle(palette.ink3)
+                .accessibilityIdentifier("memory.routesPending")
+        }
     }
 
     private var preferencesSection: some View {

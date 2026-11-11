@@ -26,7 +26,7 @@ final class MemoryUITests: XCTestCase {
         app.terminate()
     }
 
-    func testMemoryHomeSearchAndSwitchOrder() {
+    func testMemoryHomeSearchAndDataOrder() {
         launch()
         openMemory()
         let empty = app.staticTexts["memory.empty"].firstMatch
@@ -49,6 +49,15 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(switches.allSatisfy { $0.exists && $0.isEnabled })
         XCTAssertLessThan(switches[0].frame.midY, switches[1].frame.midY)
         XCTAssertLessThan(switches[1].frame.midY, switches[2].frame.midY)
+
+        let website = app.buttons["memory.manageWebsites"].firstMatch
+        let routes = app.buttons["memory.websites"].firstMatch
+        reveal(routes)
+        XCTAssertTrue(website.exists && routes.exists)
+        XCTAssertEqual(website.label, "網站登入", "Website record count must not be presented as a login count")
+        XCTAssertLessThan(website.frame.midY, routes.frame.midY)
+        reveal(app.buttons["memory.clear"].firstMatch)
+        reveal(app.buttons["memory.profile.open"].firstMatch)
     }
 
     func testSegmentsAndPreferencePersistence() {
