@@ -3,7 +3,7 @@ import Foundation
 import Speech
 import AVFoundation
 
-/// iOS 17 system recognizer adapter. Intentionally not connected to the UI.
+/// iOS 17 system recognizer adapter, connected through the mixed-audio candidate.
 /// No provider fallback: if on-device recognition is unavailable, fail closed.
 /// The host must cancel when its chat is hidden or scene becomes inactive.
 @MainActor
@@ -22,8 +22,7 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     private var finishing = false
     private let locale: Locale
 
-    /// The default denies access. Supplying a coordinator does not by itself
-    /// constitute approval to connect this driver to the UI.
+    /// The default denies access; the chat explicitly injects its mixed coordinator.
     init(locale: Locale = .current) {
         self.locale = locale
         self.audioLease = VoiceAudioLeaseSlot(coordinator: UnavailableVoiceAudioCoordinator())

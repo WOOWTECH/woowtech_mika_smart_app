@@ -458,6 +458,21 @@ enum AppText: Equatable {
     case localPDFSearchTruncated(count: Int)
     case localPDFSearchHit(page: Int, index: Int)
     case localPDFSearchSourceFailed
+    case voiceLabel
+    case voiceHint
+    case voiceListening
+    case voiceCancelArmed
+    case voiceFinishing
+    case voiceNoMatch
+    case voiceMicrophoneDenied
+    case voiceSpeechDenied
+    case voiceSpeechRestricted
+    case voiceUnavailable
+    case voiceAudioError
+    case voiceRecognitionError
+    case voiceTimeout
+    case voiceSettings
+    case voiceInterrupted
 
     var key: String {
         switch self {
@@ -916,6 +931,21 @@ enum AppText: Equatable {
         case .localPDFSearchTruncated: return "localPDFSearch.truncated"
         case .localPDFSearchHit: return "localPDFSearch.hit"
         case .localPDFSearchSourceFailed: return "localPDFSearch.sourceFailed"
+        case .voiceLabel: return "chat.voiceLabel"
+        case .voiceHint: return "chat.voiceHint"
+        case .voiceListening: return "chat.voiceListening"
+        case .voiceCancelArmed: return "chat.voiceCancelArmed"
+        case .voiceFinishing: return "chat.voiceFinishing"
+        case .voiceNoMatch: return "chat.voiceNoMatch"
+        case .voiceMicrophoneDenied: return "chat.voiceMicrophoneDenied"
+        case .voiceSpeechDenied: return "chat.voiceSpeechDenied"
+        case .voiceSpeechRestricted: return "chat.voiceSpeechRestricted"
+        case .voiceUnavailable: return "chat.voiceUnavailable"
+        case .voiceAudioError: return "chat.voiceAudioError"
+        case .voiceRecognitionError: return "chat.voiceRecognitionError"
+        case .voiceTimeout: return "chat.voiceTimeout"
+        case .voiceSettings: return "chat.voiceSettings"
+        case .voiceInterrupted: return "chat.voiceInterrupted"
         }
     }
 
@@ -1406,6 +1436,21 @@ enum AppText: Equatable {
         case .localPDFSearchTruncated: return "找到 %1$lld 處；還有其他符合位置。"
         case .localPDFSearchHit: return "原第 %1$lld 頁（選取序號 %2$lld）"
         case .localPDFSearchSourceFailed: return "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。"
+        case .voiceLabel: return "語音輸入"
+        case .voiceHint: return "按住說話，上滑取消，放開加入草稿。VoiceOver 可點兩次開始及結束。"
+        case .voiceListening: return "正在聆聽，放開加入草稿；上滑取消"
+        case .voiceCancelArmed: return "放開取消語音輸入"
+        case .voiceFinishing: return "正在辨識語音…"
+        case .voiceNoMatch: return "未聽清楚，請按住說話再試一次。"
+        case .voiceMicrophoneDenied: return "麥克風權限已關閉，請至設定開啟後再試。"
+        case .voiceSpeechDenied: return "語音辨識權限已關閉，請至設定開啟後再試。"
+        case .voiceSpeechRestricted: return "此裝置的語音辨識受到限制，請檢查裝置限制。"
+        case .voiceUnavailable: return "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。"
+        case .voiceAudioError: return "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。"
+        case .voiceRecognitionError: return "辨識失敗，請再試一次。"
+        case .voiceTimeout: return "語音辨識逾時，請再試一次。"
+        case .voiceSettings: return "前往設定"
+        case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         }
     }
 }

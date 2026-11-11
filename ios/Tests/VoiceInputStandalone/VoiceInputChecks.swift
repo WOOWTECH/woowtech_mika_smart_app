@@ -148,8 +148,13 @@ struct VoiceInputChecks {
         let long = begin()
         clock += 60
         machine.tick()
-        check(machine.state == .finishing && driver.finishes.last == long, "maximum duration initiates finish")
-        driver.emit(.final(""), for: long)
+        check(machine.state == .failed(.timeout) && driver.cancellations.contains(long), "maximum duration cancels rather than submitting without release")
+        driver.emit(.final("late"), for: long)
+        check(machine.state == .failed(.timeout), "maximum duration rejects late result")
+        let empty = begin()
+        clock += 1
+        machine.release()
+        driver.emit(.final(""), for: empty)
         check(machine.state == .noMatch, "empty final is no match")
 
         clock = 200

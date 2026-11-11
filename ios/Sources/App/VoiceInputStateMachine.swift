@@ -92,6 +92,11 @@ final class VoiceInputStateMachine {
     func release() {
         guard let current = id, case let .listening(_, armed, _) = state else { return }
         if armed { cancel(); return }
+        if now() - startedAt >= maxDuration {
+            guard invalidateAndCancel(current) else { return }
+            state = .failed(.timeout)
+            return
+        }
         if now() - startedAt < minDuration {
             guard invalidateAndCancel(current) else { return }
             state = .noMatch
@@ -115,7 +120,12 @@ final class VoiceInputStateMachine {
         switch state {
         case let .listening(partial, armed, _):
             let elapsed = max(0, now() - startedAt)
-            if elapsed >= maxDuration { release() }
+            if elapsed >= maxDuration {
+                // A deadline stops capture; it is not the user's release.
+                // In particular an early final must never enter the draft yet.
+                if armed { cancel() }
+                else if invalidateAndCancel(current) { state = .failed(.timeout) }
+            }
             else { state = .listening(partial: partial, cancelArmed: armed, elapsed: elapsed) }
         case .finishing:
             if let deadline = finishBy, now() >= deadline {

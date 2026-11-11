@@ -38,8 +38,8 @@ final class AppleMixedVoiceAudioSession: MixedVoiceAudioSession {
     }
 }
 
-/// All candidate drivers in the App share one voice coordinator. No UI is
-/// connected by this declaration; callers must still manage scene lifecycle.
+/// All candidate drivers in the App share one voice coordinator. The chat host
+/// manages scene lifecycle; WebKit and physical routing still need native tests.
 @MainActor
 enum AppleMixedVoiceRuntime {
     private static let coordinator = MixedVoiceAudioCoordinator(session: AppleMixedVoiceAudioSession())
