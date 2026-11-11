@@ -137,12 +137,32 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(identifiedText("chat.message.3.assistant").exists)
     }
 
-    func testLongPressOnSelectableStreamingTextKeepsNativeSelection() {
+    func testSmallScrollAndLongPressDoNotJumpWhenLaterChunkArrives() {
         launch(); configure(); disableMemory()
-        compose("[fixture:stream-cancel]"); tap("chat.send")
+        compose("[fixture:stream-scroll]"); tap("chat.send")
         let partial = identifiedText("chat.partialReply")
-        assertLabel(partial, "串流測試：第一段")
-        ready(partial); partial.press(forDuration: 1)
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_FIRST_END"), on: partial, seconds: 12)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let bottomOrigin = partial.frame.minY
+        let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.40))
+        start.press(forDuration: 0.05,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: 150)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        let readingOrigin = partial.frame.minY
+        XCTAssertGreaterThanOrEqual(readingOrigin - bottomOrigin, 100,
+                                    "The native gesture must intentionally scroll at least 100 points above the tail")
+        XCTAssertLessThanOrEqual(readingOrigin - bottomOrigin, 200,
+                                 "This case must exercise a small 100–200 point scroll, not a distant reading position")
+
+        // Touch the visible part of the selectable Text, rather than the
+        // center of its very tall AX frame, which can lie off screen.
+        let visibleText = partial.frame.intersection(transcript.frame)
+        XCTAssertFalse(visibleText.isNull)
+        XCTAssertGreaterThan(visibleText.height, 40)
+        let origin = transcript.coordinate(withNormalizedOffset: .zero)
+        origin.withOffset(CGVector(dx: visibleText.midX - transcript.frame.minX,
+                                   dy: visibleText.midY - transcript.frame.minY)).press(forDuration: 1)
         let selectionLabel = NSPredicate(format: "label IN %@",
                                          ["Copy", "複製", "复制", "拷貝", "Select All", "全選", "全选"])
         func selectionAction() -> XCUIElement? {
@@ -155,7 +175,11 @@ final class ChatStreamingUITests: XCTestCase {
             predicate: NSPredicate { _, _ in selectionAction() != nil }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed,
                        "A stationary long press must still expose native text-selection actions")
-        XCTAssertEqual(partial.label, "串流測試：第一段")
+        XCTAssertFalse(partial.label.contains("SCROLL_SECOND_END"),
+                       "Selection must be active before the later real stream delta")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: partial, seconds: 65)
+        XCTAssertLessThan(abs(partial.frame.minY - readingOrigin), 32,
+                          "A real later delta must not move the small-scroll reader during native text selection")
     }
 
     private func disableMemory() {

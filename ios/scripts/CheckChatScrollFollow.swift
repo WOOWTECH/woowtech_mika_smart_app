@@ -13,58 +13,79 @@ enum CheckChatScrollFollow {
         }
 
         var follow = ChatScrollFollowPolicy()
-        expect(follow.observe(sample(1200, 1200))) // first display
-        expect(!follow.observe(sample(1200, 500))) // initial scrollTo moves the content
+        expect(follow.observe(sample(1200, 1200)))
+        expect(!follow.observe(sample(1200, 500))) // first scrollTo reaches the tail
         expect(follow.followsTail)
 
+        // An intentional small upward scroll is a reading choice, even though
+        // it ends well inside the former 240-point auto-rearm window.
         follow.beginDrag()
         follow.userDraggedTowardEarlierContent()
+        expect(!follow.observe(sample(1200, 620))) // 120 points above the tail
+        follow.endDrag()
+        let smallScrollRevision = follow.pendingSettleRevision!
+        expect(follow.settle(expectedRevision: smallScrollRevision))
         expect(!follow.followsTail)
-        expect(!follow.observe(sample(1380, 1050))) // drag plus streamed growth in one layout pass
-        expect(!follow.observe(sample(1380, 740))) // exactly 240 points, but finger is still down
+        expect(!follow.observe(sample(1320, 740))) // real later chunk, fixed reading offset
         expect(!follow.followsTail)
+        expect(!follow.observe(sample(1320, 740, 420))) // keyboard cannot release reading hold
+        expect(!follow.followsTail)
+        expect(!follow.observe(sample(1320, 740, 500)))
+        expect(!follow.followsTail)
+        var layoutShift = follow
+        expect(!layoutShift.observe(sample(1320, 500))) // geometry at the end is not proof of user intent
+        expect(!layoutShift.followsTail)
+
+        // A deliberate upward finger movement toward the latest message still
+        // needs to reach the physical end, not merely within 240 points.
+        follow.beginDrag()
+        follow.userDraggedTowardLatestContent()
+        expect(!follow.observe(sample(1320, 518))) // 18 points short of the end
+        follow.endDrag()
+        expect(follow.settle(expectedRevision: follow.pendingSettleRevision!))
+        expect(!follow.followsTail)
+        expect(!follow.observe(sample(1440, 638))) // another chunk cannot pull it
+        expect(!follow.followsTail)
+        follow.beginDrag()
+        follow.userDraggedTowardLatestContent()
+        expect(!follow.observe(sample(1440, 510))) // actual bottom within layout tolerance
         follow.endDrag()
         let beforeDeceleration = follow.pendingSettleRevision!
-        expect(!follow.observe(sample(1380, 690))) // deceleration invalidates the first timer
+        expect(!follow.observe(sample(1440, 504)))
         expect(!follow.settle(expectedRevision: beforeDeceleration))
         expect(!follow.followsTail)
-        let settled = follow.pendingSettleRevision!
-        expect(follow.settle(expectedRevision: settled)) // caller waited for geometry to go quiet
+        expect(follow.settle(expectedRevision: follow.pendingSettleRevision!))
         expect(follow.followsTail)
-        expect(!follow.observe(sample(1490, 720))) // offset changed with content; no forced jump
-        expect(follow.followsTail)
-        expect(follow.observe(sample(1600, 830))) // growth at fixed offset follows the tail
+        expect(follow.observe(sample(1550, 614))) // next chunk follows after explicit return
 
+        // Content height and position changing together must not override an
+        // active finger drag, even when the displayed edge looks near the end.
         follow.beginDrag()
         follow.userDraggedTowardEarlierContent()
-        expect(!follow.observe(sample(1710, 1010))) // content and position moved together
+        expect(!follow.observe(sample(1660, 700))) // 200 points above the tail
+        expect(!follow.observe(sample(1770, 740))) // both content and offset move
         follow.endDrag()
-        let beforeKeyboard = follow.pendingSettleRevision!
-        expect(!follow.observe(sample(1710, 1010, 420))) // keyboard resize cannot rearm during settle
-        expect(!follow.settle(expectedRevision: beforeKeyboard))
-        expect(!follow.followsTail)
         expect(follow.settle(expectedRevision: follow.pendingSettleRevision!))
-        expect(!follow.followsTail) // still farther than 240 points from the tail
-        expect(!follow.observe(sample(1820, 1120, 420))) // later streamed text cannot pull reader
-        expect(!follow.observe(sample(1820, 1120, 500))) // keyboard closes while reading earlier
+        expect(!follow.followsTail)
+        expect(!follow.observe(sample(1880, 850)))
         expect(!follow.followsTail)
 
-        follow.userSubmitted() // explicit send resumes follow even while previously reading above
+        follow.userSubmitted() // a newly accepted send always resumes follow
         expect(follow.followsTail)
         expect(follow.pendingSettleRevision == nil)
-        expect(follow.observe(sample(1820, 1120, 500)))
-        expect(follow.observe(sample(1930, 1230, 500)))
-        expect(follow.observe(sample(1930, 1230, 420))) // keyboard opens while following a new answer
+        expect(follow.observe(sample(1880, 850)))
+        expect(follow.observe(sample(1990, 960)))
+        expect(follow.observe(sample(1990, 960, 420))) // keyboard while following
 
         follow.beginDrag()
         follow.userDraggedTowardEarlierContent()
         follow.endDrag()
         let oldConversationTimer = follow.pendingSettleRevision!
-        follow.conversationChanged() // real conversation identity, even empty to empty
+        follow.conversationChanged() // includes empty to empty conversation changes
         expect(!follow.settle(expectedRevision: oldConversationTimer))
         expect(follow.followsTail)
         expect(follow.observe(sample(0, 0)))
-        expect(!follow.observe(sample(.infinity, 0))) // invalid geometry cannot cause a jump
+        expect(!follow.observe(sample(.infinity, 0)))
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }

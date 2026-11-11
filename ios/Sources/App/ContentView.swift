@@ -610,6 +610,7 @@ private struct ChatView: View {
                     .onChanged { drag in
                         scrollFollow.beginDrag()
                         if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
+                        if drag.translation.height < -4 { scrollFollow.userDraggedTowardLatestContent() }
                     }
                     .onEnded { _ in
                         scrollFollow.endDrag()
