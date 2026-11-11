@@ -42,11 +42,14 @@ final class BrowserExternalOpenUITests: XCTestCase {
                        "The real button must expose the exact checked hash-route destination")
 
         handoff.tap()
-        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 20),
-                      "The App must background after the native system URL action")
+        let leftForeground = XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in self.app.state != .runningForeground }, object: nil
+        )], timeout: 20)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "System foreground after browser handoff; URL unverified"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+        XCTAssertEqual(leftForeground, .completed,
+                       "The App must leave the foreground after the native system URL action")
     }
 }
