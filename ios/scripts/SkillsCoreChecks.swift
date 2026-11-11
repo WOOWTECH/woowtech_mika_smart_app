@@ -11,6 +11,7 @@ struct SkillsCoreStandaloneChecks {
         let groups: [(String, () throws -> Int)] = [
             ("documents", SkillsCoreFixtures.documents),
             ("reviewAndRevisions", SkillsCoreFixtures.reviewAndRevisions),
+            ("deletionReview", SkillsCoreFixtures.deletionReview),
             ("outcomeLifecycle", SkillsCoreFixtures.outcomeLifecycle),
             ("learningGates", SkillsCoreFixtures.learningGates),
             ("retrievalAndContext", SkillsCoreFixtures.retrievalAndContext),

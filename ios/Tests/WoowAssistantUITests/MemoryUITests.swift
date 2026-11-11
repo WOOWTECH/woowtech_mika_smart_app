@@ -206,6 +206,42 @@ final class MemoryUITests: XCTestCase {
         assertSkillText(contains: "VersionOne")
     }
 
+    func testInstalledSkillDeletionRequiresConfirmationAndPersists() {
+        launch()
+        openMemory()
+        importSkill(version: "DeleteReview")
+        tap("skills.approve.notes-test", scroll: true)
+        select("skills")
+        let skill = app.staticTexts["skills.item.notes-test"].firstMatch
+        XCTAssertTrue(skill.waitForExistence(timeout: 5))
+
+        tap("skills.delete.notes-test", scroll: true)
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.staticTexts["刪除技能？"].exists)
+        XCTAssertTrue(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "notes-test")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["skills.empty"].exists)
+        tap("skills.delete.cancel")
+        XCTAssertFalse(alert.exists)
+        XCTAssertTrue(skill.exists, "Cancelling must leave the approved skill installed")
+
+        launch(reset: false)
+        openMemory()
+        select("skills")
+        XCTAssertTrue(app.staticTexts["skills.item.notes-test"].firstMatch.waitForExistence(timeout: 5),
+                      "Cancellation must survive a vault reload")
+        tap("skills.delete.notes-test", scroll: true)
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        tap("skills.delete.confirm")
+        XCTAssertTrue(app.staticTexts["skills.empty"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["skills.enabled.notes-test"].firstMatch.exists)
+        launch(reset: false)
+        openMemory()
+        select("skills")
+        XCTAssertTrue(app.staticTexts["skills.empty"].firstMatch.exists,
+                      "Confirmed deletion must persist after relaunch")
+    }
+
     func testTwoStepClearCancellationAndModelSettingsIsolation() {
         launch()
         navigateMikaSection("settings", in: app)

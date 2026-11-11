@@ -196,6 +196,41 @@ enum SkillsCoreFixtures {
         return c.count
     }
 
+    static func deletionReview() throws -> Int {
+        var checks = Checks()
+        var state = SkillsState()
+        let installed = try install(markdown("reviewed-delete"), into: &state)
+        let review = SkillDeletionReview(skill: installed)
+
+        var disabled = state
+        try disabled.suspend(name: installed.name)
+        let disabledBefore = disabled
+        try checks.error(.changedSinceRead, "status changed after deletion review") {
+            try review.apply(to: &disabled, now: now)
+        }
+        try checks.expect(disabled == disabledBefore, "stale confirmation cannot delete a disabled skill")
+
+        var updated = state
+        let draft = try updated.importMarkdown(markdown("reviewed-delete", detail: "New version"), availableToolNames: [])
+        _ = try updated.approveDraft(id: draft.id, availableToolNames: [])
+        let updatedBefore = updated
+        try checks.error(.changedSinceRead, "document changed after deletion review") {
+            try review.apply(to: &updated, now: now)
+        }
+        try checks.expect(updated == updatedBefore, "stale confirmation cannot delete a newer version")
+
+        try review.apply(to: &state, now: now)
+        try checks.expect(state.installed.isEmpty, "confirmed review removes the exact installed skill")
+        try checks.expect(state.revisions.last?.operation == .remove && state.revisions.last?.previous == installed,
+                          "confirmed deletion keeps the prior version in revision history")
+        let reopened = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state))
+        try checks.expect(reopened == state && reopened.installed.isEmpty, "deletion survives snapshot reload")
+        try checks.error(.changedSinceRead, "one confirmation cannot be replayed") {
+            try review.apply(to: &state, now: now)
+        }
+        return checks.count
+    }
+
     static func outcomeLifecycle() throws -> Int {
         var c = Checks(); var state = SkillsState()
         let seed = try install(into: &state)

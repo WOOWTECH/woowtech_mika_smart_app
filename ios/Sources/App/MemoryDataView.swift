@@ -13,6 +13,7 @@ struct MemoryDataView: View {
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
     @State private var sheet: LearningSheet?
+    @State private var deletionReview: SkillDeletionReview?
     @FocusState private var searchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
     #if os(iOS)
@@ -69,6 +70,19 @@ struct MemoryDataView: View {
                     SkillCatalogView(store: store, modelAccess: modelAccess, modelChanges: modelChanges)
                 }
             }
+        }
+        .alert(copy.text(.skillDeleteTitle), isPresented: Binding(
+            get: { deletionReview != nil }, set: { if !$0 { deletionReview = nil } }
+        ), presenting: deletionReview) { review in
+            Button(copy.text(.cancel), role: .cancel) { deletionReview = nil }
+                .accessibilityIdentifier("skills.delete.cancel")
+            Button(copy.text(.confirmSkillDelete), role: .destructive) {
+                store.mutateSkills { skills in try review.apply(to: &skills) }
+                deletionReview = nil
+            }
+            .accessibilityIdentifier("skills.delete.confirm")
+        } message: { review in
+            Text(copy.text(.skillDeleteMessage, skillTitle(review.skill.document)))
         }
     }
 
@@ -544,7 +558,10 @@ struct MemoryDataView: View {
                         .accessibilityIdentifier("skills.share.\(skill.name)")
                         .memoryActionPill(palette)
                 }
-                Button(copy.text(.delete), role: .destructive) { store.mutateSkills { try $0.remove(name: skill.name) } }
+                Button(copy.text(.delete), role: .destructive) {
+                    store.dismissNotice()
+                    deletionReview = SkillDeletionReview(skill: skill)
+                }
                     .accessibilityIdentifier("skills.delete.\(skill.name)")
                     .memoryActionPill(palette)
             }
