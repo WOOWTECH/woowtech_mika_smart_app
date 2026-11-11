@@ -41,6 +41,10 @@ concurrency:
 
 jobs:
   build-and-test:
+    # Produce the iPad device candidate first on PRs. On other events that job
+    # is skipped; a device-build failure must not hide simulator test results.
+    needs: unsigned-device-for-local-signing
+    if: ${{ always() && !cancelled() }}
     runs-on: macos-15
     timeout-minutes: 70
     strategy:
