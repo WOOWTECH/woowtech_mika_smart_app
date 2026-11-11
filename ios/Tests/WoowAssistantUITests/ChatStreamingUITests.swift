@@ -151,10 +151,12 @@ final class ChatStreamingUITests: XCTestCase {
         navigate("settings")
         openModelSettings(in: app)
         write("https://model.invalid/v1", field: app.textFields["settings.baseURL"].firstMatch, scroll: true)
-        // Move focus directly between visible fields. write() still requires
-        // a hittable field, the native keyboard, and an exact value readback.
+        // On SE, the URL keyboard covers settings.model. Finish editing through
+        // the real keyboard toolbar before requiring that next field to be
+        // fully visible; do not scroll or tap through an obscured control.
+        dismissSettingsKeyboard()
         write("fixture", field: app.textFields["settings.model"].firstMatch, scroll: true)
-        tap("settings.dismissKeyboard")
+        dismissSettingsKeyboard()
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
@@ -162,6 +164,13 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
+    }
+    private func dismissSettingsKeyboard() {
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        tap("settings.dismissKeyboard")
+        let keyboardAbsent = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardAbsent], timeout: 5), .completed)
     }
     private func compose(_ text: String) {
         let draft = chatDraftControl(in: app)
