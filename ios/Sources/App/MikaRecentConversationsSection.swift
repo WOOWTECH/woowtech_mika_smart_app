@@ -12,9 +12,12 @@ import SwiftUI
     let hair: Color
     let onOpen: (ArchivedConversation) -> Void
     @State private var renaming: ArchivedConversation?
+    @State private var pinFailed = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let pinned = store.drawerConversations.filter { $0.pinnedAt != nil }
+        let recent = store.drawerConversations.filter { $0.pinnedAt == nil }
+        return VStack(alignment: .leading, spacing: 8) {
             Text(localizer.text(.drawerRecentTitle))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(secondaryInk)
@@ -24,6 +27,12 @@ import SwiftUI
                 .font(.caption2).foregroundStyle(secondaryInk)
                 .padding(.horizontal, 12)
                 .accessibilityIdentifier("drawer.recent.boundary")
+            if pinFailed {
+                Text(localizer.text(.drawerRecentPinFailed))
+                    .font(.caption).foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .accessibilityIdentifier("drawer.recent.pin.error")
+            }
 
             if !store.available {
                 Text(localizer.text(.drawerRecentUnavailable))
@@ -40,7 +49,19 @@ import SwiftUI
                     .accessibilityIdentifier("drawer.recent.empty")
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(store.conversations) { record in
+                    if !pinned.isEmpty {
+                        Text(localizer.text(.drawerRecentPinned))
+                            .font(.caption.weight(.semibold)).foregroundStyle(secondaryInk)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12).padding(.top, 6)
+                            .accessibilityIdentifier("drawer.pinned.title")
+                    }
+                    ForEach(pinned) { record in
+                        row(record)
+                        Rectangle().fill(hair).frame(height: 0.5)
+                            .padding(.leading, 12)
+                    }
+                    ForEach(recent) { record in
                         row(record)
                         Rectangle().fill(hair).frame(height: 0.5)
                             .padding(.leading, 12)
@@ -70,6 +91,11 @@ import SwiftUI
                             .foregroundStyle(ink)
                             .lineLimit(2)
                         Spacer(minLength: 0)
+                        if record.pinnedAt != nil {
+                            Image(systemName: "pin.fill")
+                                .font(.caption2).foregroundStyle(secondaryInk)
+                                .accessibilityHidden(true)
+                        }
                         if current {
                             Text(localizer.text(.drawerRecentCurrent))
                                 .font(.caption2).foregroundStyle(secondaryInk)
@@ -91,14 +117,29 @@ import SwiftUI
             .disabled(!current && block != nil)
             .accessibilityIdentifier("drawer.recent.row." + record.id.uuidString)
             .accessibilityLabel(record.title)
-            .accessibilityValue(current ? localizer.text(.drawerRecentCurrent)
-                                : block.map { localizer.text($0.message) } ?? "")
+            .accessibilityValue(accessibilityValue(current: current, block: block, pinned: record.pinnedAt != nil))
         }
-        // Renaming is independent of whether switching away is currently safe.
+        // Metadata actions remain available even when switching is unsafe.
         .contextMenu {
+            Button(localizer.text(record.pinnedAt == nil ? .drawerRecentPin : .drawerRecentUnpin)) {
+                do {
+                    try store.setPinned(id: record.id, expectedPinnedAt: record.pinnedAt,
+                                        pinned: record.pinnedAt == nil)
+                    pinFailed = false
+                } catch { pinFailed = true }
+            }
+            .accessibilityIdentifier("drawer.recent.togglePin." + record.id.uuidString)
             Button(localizer.text(.drawerRecentRename)) { renaming = record }
                 .accessibilityIdentifier("drawer.recent.rename." + record.id.uuidString)
         }
+    }
+
+    private func accessibilityValue(current: Bool, block: RecentConversationBlock?, pinned: Bool) -> String {
+        let status = current ? localizer.text(.drawerRecentCurrent)
+            : block.map { localizer.text($0.message) } ?? ""
+        guard pinned else { return status }
+        let marker = localizer.text(.drawerRecentPinned)
+        return status.isEmpty ? marker : status + " · " + marker
     }
 
     private func formattedDate(_ date: Date) -> String {

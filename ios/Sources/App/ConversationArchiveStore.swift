@@ -14,6 +14,8 @@ import Foundation
         }
     }
 
+    var drawerConversations: [ArchivedConversation] { state.drawerConversations }
+
     init(vault: EncryptedLearningFile) { self.vault = vault; reload() }
 
     init() {
@@ -42,9 +44,8 @@ import Foundation
     func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
         let current = state.conversations.first(where: { $0.id == record.id })
-        // Display-only renames may happen while a request is running. Compare
-        // the completed transcript snapshot, then let ConversationArchive.save
-        // carry the newest title forward with the arriving answer.
+        // Display-only renames and pins may happen while a request is running.
+        // Compare the transcript snapshot, then retain the newest metadata.
         guard current?.id == expected?.id,
               current?.destination == expected?.destination,
               current?.updatedAt == expected?.updatedAt,
@@ -61,6 +62,14 @@ import Foundation
         guard available, let vault else { throw ConversationArchiveError.unavailable }
         var next = state
         try next.rename(id: id, expectedTitle: expectedTitle, to: title)
+        try vault.save(next)
+        state = next; error = nil
+    }
+
+    func setPinned(id: UUID, expectedPinnedAt: Date?, pinned: Bool) throws {
+        guard available, let vault else { throw ConversationArchiveError.unavailable }
+        var next = state
+        try next.setPinned(id: id, expectedPinnedAt: expectedPinnedAt, pinned: pinned)
         try vault.save(next)
         state = next; error = nil
     }

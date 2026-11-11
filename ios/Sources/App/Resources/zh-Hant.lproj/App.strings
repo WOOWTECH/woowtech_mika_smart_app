@@ -400,6 +400,10 @@
 "drawer.recent.reload" = "重新讀取";
 "drawer.recent.empty" = "尚無保存的對話";
 "drawer.recent.current" = "目前對話";
+"drawer.recent.pinned" = "已釘選";
+"drawer.recent.pin" = "釘選";
+"drawer.recent.unpin" = "取消釘選";
+"drawer.recent.pinFailed" = "釘選變更未保存；對話維持原狀。請重新開啟再試。";
 "drawer.recent.rename" = "重新命名";
 "drawer.recent.renameTitle" = "重新命名對話";
 "drawer.recent.renameInvalid" = "請輸入非空白的單行標題，且不要過長。";

@@ -408,6 +408,10 @@ enum AppText: Equatable {
     case drawerRecentReload
     case drawerRecentEmpty
     case drawerRecentCurrent
+    case drawerRecentPinned
+    case drawerRecentPin
+    case drawerRecentUnpin
+    case drawerRecentPinFailed
     case drawerRecentRename
     case drawerRecentRenameTitle
     case drawerRecentRenameInvalid
@@ -833,6 +837,10 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "drawer.recent.reload"
         case .drawerRecentEmpty: return "drawer.recent.empty"
         case .drawerRecentCurrent: return "drawer.recent.current"
+        case .drawerRecentPinned: return "drawer.recent.pinned"
+        case .drawerRecentPin: return "drawer.recent.pin"
+        case .drawerRecentUnpin: return "drawer.recent.unpin"
+        case .drawerRecentPinFailed: return "drawer.recent.pinFailed"
         case .drawerRecentRename: return "drawer.recent.rename"
         case .drawerRecentRenameTitle: return "drawer.recent.renameTitle"
         case .drawerRecentRenameInvalid: return "drawer.recent.renameInvalid"
@@ -1286,6 +1294,10 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "重新讀取"
         case .drawerRecentEmpty: return "尚無保存的對話"
         case .drawerRecentCurrent: return "目前對話"
+        case .drawerRecentPinned: return "已釘選"
+        case .drawerRecentPin: return "釘選"
+        case .drawerRecentUnpin: return "取消釘選"
+        case .drawerRecentPinFailed: return "釘選變更未保存；對話維持原狀。請重新開啟再試。"
         case .drawerRecentRename: return "重新命名"
         case .drawerRecentRenameTitle: return "重新命名對話"
         case .drawerRecentRenameInvalid: return "請輸入非空白的單行標題，且不要過長。"

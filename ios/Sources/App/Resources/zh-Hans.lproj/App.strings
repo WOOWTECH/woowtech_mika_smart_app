@@ -400,6 +400,10 @@
 "drawer.recent.reload" = "重新读取";
 "drawer.recent.empty" = "尚无保存的对话";
 "drawer.recent.current" = "当前对话";
+"drawer.recent.pinned" = "已置顶";
+"drawer.recent.pin" = "置顶";
+"drawer.recent.unpin" = "取消置顶";
+"drawer.recent.pinFailed" = "置顶变更未保存；对话保持原状。请重新打开再试。";
 "drawer.recent.rename" = "重命名";
 "drawer.recent.renameTitle" = "重命名对话";
 "drawer.recent.renameInvalid" = "请输入非空白的单行标题，且不要过长。";

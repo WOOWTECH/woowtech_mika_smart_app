@@ -400,6 +400,10 @@
 "drawer.recent.reload" = "Reload";
 "drawer.recent.empty" = "No saved conversations";
 "drawer.recent.current" = "Current";
+"drawer.recent.pinned" = "Pinned";
+"drawer.recent.pin" = "Pin";
+"drawer.recent.unpin" = "Unpin";
+"drawer.recent.pinFailed" = "The pin change was not saved. The conversation is unchanged; reopen it and try again.";
 "drawer.recent.rename" = "Rename";
 "drawer.recent.renameTitle" = "Rename conversation";
 "drawer.recent.renameInvalid" = "Enter a nonempty, single-line title that is not too long.";

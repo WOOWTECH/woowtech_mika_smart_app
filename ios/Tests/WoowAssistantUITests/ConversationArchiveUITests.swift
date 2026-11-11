@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 
 /// Native interaction with the real encrypted archive. Only model replies use
@@ -115,6 +116,75 @@ final class ConversationArchiveUITests: XCTestCase {
         tap("chat.menu")
         XCTAssertEqual(revealRecentRow("A").label, "A")
         XCTAssertFalse(recentRow("AB").exists)
+    }
+
+    func testDrawerPinAndUnpinSurviveRelaunchWithoutChangingSavedTurns() {
+        launch(); configure(); send("Older")
+        tap("chat.newConversation"); send("Newer")
+        tap("chat.menu")
+        let older = revealRecentRow("Older")
+        ready(older); older.press(forDuration: 1)
+        let pin = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@",
+            "drawer.recent.togglePin.", "釘選")).firstMatch
+        ready(pin); pin.tap()
+        XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(revealRecentRow("Older").value as? String, "已釘選")
+        XCTAssertEqual(revealRecentRow("Newer").value as? String, "目前對話")
+        tap("drawer.close")
+
+        launch(reset: false); tap("chat.menu")
+        XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
+        let pinned = revealRecentRow("Older")
+        XCTAssertEqual(pinned.value as? String, "已釘選")
+        ready(pinned); pinned.press(forDuration: 1)
+        let unpin = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@",
+            "drawer.recent.togglePin.", "取消釘選")).firstMatch
+        ready(unpin); unpin.tap()
+        XCTAssertFalse(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
+        XCTAssertEqual(revealRecentRow("Older").value as? String, "")
+        tap("drawer.close"); tap("chat.archive")
+        let archived = row("Older")
+        XCTAssertTrue(archived.waitForExistence(timeout: 10))
+        ready(archived); archived.tap()
+        assertLabel(app.staticTexts["archive.turn.0.user"].firstMatch, "Older")
+        assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：Older")
+        launch(reset: false); tap("chat.menu")
+        XCTAssertFalse(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
+        XCTAssertEqual(revealRecentRow("Older").value as? String, "")
+        XCTAssertTrue(recentRow("Newer").exists)
+    }
+
+    func testDrawerPinMenuCancellationKeepsOriginalHistory() {
+        launch(); configure(); send("Cancel pin")
+        tap("chat.menu")
+        let original = revealRecentRow("Cancel pin")
+        ready(original); original.press(forDuration: 1)
+        let pin = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@",
+            "drawer.recent.togglePin.", "釘選")).firstMatch
+        let rename = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "drawer.recent.rename.")).firstMatch
+        ready(pin); ready(rename)
+        let corners = [CGVector(dx: 0.05, dy: 0.15), CGVector(dx: 0.95, dy: 0.15),
+                       CGVector(dx: 0.05, dy: 0.85), CGVector(dx: 0.95, dy: 0.85)]
+        guard let outside = corners.first(where: { vector in
+            let point = CGPoint(x: app.frame.minX + vector.dx * app.frame.width,
+                                y: app.frame.minY + vector.dy * app.frame.height)
+            return !pin.frame.contains(point) && !rename.frame.contains(point)
+                && !original.frame.contains(point)
+        }) else { XCTFail("No safe point outside the native menu"); return }
+        app.coordinate(withNormalizedOffset: outside).tap()
+        launch(reset: false); tap("chat.menu")
+        XCTAssertFalse(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
+        XCTAssertEqual(revealRecentRow("Cancel pin").value as? String, "")
+        tap("drawer.close"); tap("chat.archive")
+        let archived = row("Cancel pin")
+        XCTAssertTrue(archived.waitForExistence(timeout: 10))
+        ready(archived); archived.tap()
+        assertLabel(app.staticTexts["archive.turn.0.user"].firstMatch, "Cancel pin")
+        assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：Cancel pin")
     }
 
     func testDrawerRecentSwitchKeepsDraftAndArchiveRemainsReadable() {

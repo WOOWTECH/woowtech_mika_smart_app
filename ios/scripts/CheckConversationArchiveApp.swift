@@ -303,6 +303,82 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func pinDuringReplyAndEncryptedRelaunch() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let first = e.session(ArchiveModel(["First saved reply"]))
+        try await send(first, "First saved request")
+        guard let original = e.archive.conversations.first else { throw Failure(name: "saved row for pin") }
+        try a.check(original.pinnedAt == nil && (try encodedArchiveVersion(e.reopen().state)) == 2,
+                    "actual encrypted record remains v2 until user metadata is saved")
+        let gate = ArchiveGate(); let model = ArchiveModel(["Continued saved reply"], gate: gate)
+        let active = e.session(model)
+        try a.check(active.openConversation(id: original.id), "open saved row before delayed pin and reply")
+        active.draft = "Continued saved request"; active.send()
+        guard let task = active.capturedArchiveRequest else { throw Failure(name: "captured pending pin reply") }
+        await gate.waitUntilStarted()
+        try e.archive.setPinned(id: original.id, expectedPinnedAt: nil, pinned: true)
+        guard let pinTime = e.archive.conversations[0].pinnedAt else { throw Failure(name: "saved pin time") }
+        try a.check(e.archive.conversations[0].turns == original.turns
+                    && e.archive.conversations[0].updatedAt == original.updatedAt
+                    && (try encodedArchiveVersion(e.reopen().state)) == 3,
+                    "actual encrypted pin upgrades v3 without changing transcript or activity date")
+        try e.archive.rename(id: original.id, expectedTitle: nil, to: "Pinned title")
+        try a.check(e.archive.conversations[0].pinnedAt == pinTime
+                    && e.archive.conversations[0].turns == original.turns,
+                    "rename while response is pending cannot erase pin")
+        await gate.release(); await task.value
+        let saved = e.archive.conversations[0]
+        try a.check(saved.pinnedAt == pinTime && saved.customTitle == "Pinned title"
+                    && saved.turns.count == 2 && saved.turns[0] == original.turns[0]
+                    && saved.turns[1].userText == "Continued saved request"
+                    && saved.turns[1].assistantText == "Continued saved reply"
+                    && active.archiveNotice == nil && !active.canRetryArchiveSave,
+                    "late model completion preserves both metadata fields and exact completed pair")
+        let requests = await model.requests
+        try a.check(requests.count == 1 && requests[0].map(\.content) ==
+                    ["First saved request", "First saved reply", "Continued saved request"],
+                    "pin and title never enter model context")
+        let ciphertext = try Data(contentsOf: e.file)
+        try a.check(!String(decoding: ciphertext, as: UTF8.self).contains("pinnedAt")
+                    && !String(decoding: ciphertext, as: UTF8.self).contains("Pinned title"),
+                    "pin metadata and title remain in ciphertext")
+        try a.check(e.reopen().conversations[0] == saved,
+                    "actual encrypted relaunch restores pin, title and completed turns")
+        let unpinGate = ArchiveGate(); let laterModel = ArchiveModel(["After unpin reply"], gate: unpinGate)
+        let later = e.session(laterModel)
+        try a.check(later.openConversation(id: saved.id), "open pinned conversation for concurrent unpin")
+        later.draft = "After unpin request"; later.send()
+        guard let laterTask = later.capturedArchiveRequest else { throw Failure(name: "captured pending unpin reply") }
+        await unpinGate.waitUntilStarted()
+        let backup = e.root.appendingPathComponent("pin-before-write-failure.vault")
+        try FileManager.default.moveItem(at: e.file, to: backup)
+        try FileManager.default.createDirectory(at: e.file, withIntermediateDirectories: false)
+        try a.rejects("failed encrypted unpin write") {
+            try e.archive.setPinned(id: saved.id, expectedPinnedAt: pinTime, pinned: false)
+        }
+        try a.check(e.archive.conversations[0] == saved && (try Data(contentsOf: backup)) == ciphertext,
+                    "failed pin mutation preserves published state and prior encrypted bytes")
+        try FileManager.default.removeItem(at: e.file)
+        try FileManager.default.moveItem(at: backup, to: e.file)
+        try e.archive.setPinned(id: saved.id, expectedPinnedAt: pinTime, pinned: false)
+        try a.check(e.archive.conversations[0].pinnedAt == nil
+                    && e.archive.conversations[0].updatedAt == saved.updatedAt
+                    && e.archive.conversations[0].turns == saved.turns,
+                    "unpin changes no activity time or completed content during pending reply")
+        await unpinGate.release(); await laterTask.value
+        let unpinned = e.reopen()
+        try a.check(unpinned.conversations[0].pinnedAt == nil
+                    && unpinned.conversations[0].customTitle == "Pinned title"
+                    && unpinned.conversations[0].turns.count == 3
+                    && Array(unpinned.conversations[0].turns.prefix(2)) == saved.turns
+                    && unpinned.conversations[0].turns[2].userText == "After unpin request"
+                    && unpinned.conversations[0].turns[2].assistantText == "After unpin reply"
+                    && later.archiveNotice == nil && !later.canRetryArchiveSave
+                    && (try encodedArchiveVersion(unpinned.state)) == 3,
+                    "late reply cannot re-pin, downgrade or erase the concurrent title")
+        return a.count
+    }
+
     static func protectedNewConversation() async throws -> Int {
         var a = Assertions()
         let plain = try ArchiveEnvironment(); defer { plain.close() }
@@ -571,11 +647,12 @@ private actor ArchiveModel: ChatModelClient {
         do {
             let groups = try await [ArchiveAppChecks.namespaceGates(), ArchiveAppChecks.completedPairsAndRestore(),
                 ArchiveAppChecks.recentDrawerShortcuts(), ArchiveAppChecks.renameDuringReplyAndEncryptedRelaunch(),
+                ArchiveAppChecks.pinDuringReplyAndEncryptedRelaunch(),
                 ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.protectedArchiveDeletion(),
                 ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay()]
-            print("{\"groups\":10,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":11,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -586,6 +663,9 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testRecentDrawerShortcuts() async throws { let n = try await ArchiveAppChecks.recentDrawerShortcuts(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRenameDuringReplyAndEncryptedRelaunch() async throws {
         let n = try await ArchiveAppChecks.renameDuringReplyAndEncryptedRelaunch(); XCTAssertGreaterThan(n, 0)
+    }
+    @MainActor func testPinDuringReplyAndEncryptedRelaunch() async throws {
+        let n = try await ArchiveAppChecks.pinDuringReplyAndEncryptedRelaunch(); XCTAssertGreaterThan(n, 0)
     }
     @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testProtectedArchiveDeletion() async throws { let n = try await ArchiveAppChecks.protectedArchiveDeletion(); XCTAssertGreaterThan(n, 0) }

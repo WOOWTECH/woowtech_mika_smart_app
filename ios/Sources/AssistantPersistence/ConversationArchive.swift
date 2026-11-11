@@ -69,32 +69,37 @@ public struct ArchivedConversation: Codable, Equatable, Identifiable, Sendable {
     /// User-edited display metadata stays inside the encrypted archive. Older
     /// rows have no title field and keep their original first-message title.
     public let customTitle: String?
+    /// User pin time is display metadata, never a conversation activity time.
+    public let pinnedAt: Date?
     public var title: String { customTitle ?? String(turns[0].userText.prefix(60)) }
 
     public init(id: UUID, destination: ConversationDestination, updatedAt: Date,
                 turns: [ArchivedConversationTurn]) throws {
-        try self.init(id: id, destination: destination, updatedAt: updatedAt, turns: turns, customTitle: nil)
+        try self.init(id: id, destination: destination, updatedAt: updatedAt,
+                      turns: turns, customTitle: nil, pinnedAt: nil)
     }
 
-    /// Title mutations are owned by ConversationArchive.rename, never by a
-    /// model response constructing a replacement conversation record.
+    /// Display metadata mutations belong to the archive, never to a model
+    /// response constructing a replacement conversation record.
     init(id: UUID, destination: ConversationDestination, updatedAt: Date,
-         turns: [ArchivedConversationTurn], customTitle: String?) throws {
+         turns: [ArchivedConversationTurn], customTitle: String?, pinnedAt: Date?) throws {
         guard updatedAt.timeIntervalSinceReferenceDate.isFinite,
               !turns.isEmpty, turns.count <= ConversationArchive.maximumTurnsPerConversation,
               Set(turns.flatMap { [$0.userID, $0.assistantID] }).count == turns.count * 2,
-              customTitle.map({ ConversationArchive.normalizedTitle($0) == $0 }) ?? true
+              customTitle.map({ ConversationArchive.normalizedTitle($0) == $0 }) ?? true,
+              pinnedAt.map({ $0.timeIntervalSinceReferenceDate.isFinite }) ?? true
         else { throw ConversationArchiveError.invalidData }
         self.id = id; self.destination = destination; self.updatedAt = updatedAt
-        self.turns = turns; self.customTitle = customTitle
+        self.turns = turns; self.customTitle = customTitle; self.pinnedAt = pinnedAt
     }
 
-    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns, customTitle }
+    private enum CodingKeys: String, CodingKey { case id, destination, updatedAt, turns, customTitle, pinnedAt }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(id: c.decode(UUID.self, forKey: .id), destination: c.decode(ConversationDestination.self, forKey: .destination),
                       updatedAt: c.decode(Date.self, forKey: .updatedAt), turns: c.decode([ArchivedConversationTurn].self, forKey: .turns),
-                      customTitle: c.decodeIfPresent(String.self, forKey: .customTitle))
+                      customTitle: c.decodeIfPresent(String.self, forKey: .customTitle),
+                      pinnedAt: c.decodeIfPresent(Date.self, forKey: .pinnedAt))
     }
 }
 
@@ -107,10 +112,26 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public static let maximumTitleCharacters = 120
     public static let maximumTitleBytes = 512
     public private(set) var conversations: [ArchivedConversation] = []
-    // Keep unrenamed archives readable by the pre-rename app. Once a v3 title
-    // has been written, never downgrade even if its row is later deleted.
+    // Keep archives without user metadata readable by the old app. Once a v3
+    // title or pin is written, never downgrade even if its row is later deleted.
     private var writeVersion = 2
     public init() {}
+
+    /// Pinned first by pin time; other rows by conversation activity. UUIDs
+    /// break equal timestamps deterministically without mutating either date.
+    public var drawerConversations: [ArchivedConversation] {
+        conversations.sorted { lhs, rhs in
+            switch (lhs.pinnedAt, rhs.pinnedAt) {
+            case let (left?, right?):
+                return left == right ? lhs.id.uuidString < rhs.id.uuidString : left > right
+            case (.some, .none): return true
+            case (.none, .some): return false
+            case (.none, .none):
+                return lhs.updatedAt == rhs.updatedAt
+                    ? lhs.id.uuidString < rhs.id.uuidString : lhs.updatedAt > rhs.updatedAt
+            }
+        }
+    }
 
     /// A single-line user title, bounded by visible characters and UTF-8.
     /// Never feed this metadata to the model or use it as an archive key.
@@ -135,9 +156,10 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             // arrive after the user renames that row; keep the latest title.
             next.conversations[index] = try ArchivedConversation(
                 id: record.id, destination: record.destination, updatedAt: record.updatedAt,
-                turns: record.turns, customTitle: prior.customTitle)
+                turns: record.turns, customTitle: prior.customTitle, pinnedAt: prior.pinnedAt)
         } else {
-            guard record.customTitle == nil else { throw ConversationArchiveError.invalidData }
+            guard record.customTitle == nil, record.pinnedAt == nil
+            else { throw ConversationArchiveError.invalidData }
             next.conversations.append(record)
         }
         try next.validate()
@@ -154,7 +176,26 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         var next = self
         next.conversations[index] = try ArchivedConversation(
             id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
-            turns: prior.turns, customTitle: normalized)
+            turns: prior.turns, customTitle: normalized, pinnedAt: prior.pinnedAt)
+        next.writeVersion = 3
+        try next.validate()
+        self = next
+    }
+
+    public mutating func setPinned(id: UUID, expectedPinnedAt: Date?, pinned: Bool,
+                                   at: Date = Date()) throws {
+        guard let index = conversations.firstIndex(where: { $0.id == id }) else {
+            throw ConversationArchiveError.staleConversation
+        }
+        let prior = conversations[index]
+        guard prior.pinnedAt == expectedPinnedAt else { throw ConversationArchiveError.staleConversation }
+        guard (prior.pinnedAt != nil) != pinned,
+              !pinned || at.timeIntervalSinceReferenceDate.isFinite
+        else { throw ConversationArchiveError.invalidData }
+        var next = self
+        next.conversations[index] = try ArchivedConversation(
+            id: prior.id, destination: prior.destination, updatedAt: prior.updatedAt,
+            turns: prior.turns, customTitle: prior.customTitle, pinnedAt: pinned ? at : nil)
         next.writeVersion = 3
         try next.validate()
         self = next
@@ -167,7 +208,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
 
     private func validate() throws {
         guard (2...3).contains(writeVersion),
-              writeVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil })
+              writeVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil && $0.pinnedAt == nil })
         else { throw ConversationArchiveError.invalidData }
         guard conversations.count <= Self.maximumConversations else { throw ConversationArchiveError.full }
         guard Set(conversations.map(\.id)).count == conversations.count else { throw ConversationArchiveError.invalidData }
@@ -191,7 +232,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
         else { throw ConversationArchiveError.invalidData }
-        guard storedVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil })
+        guard storedVersion == 3 || conversations.allSatisfy({ $0.customTitle == nil && $0.pinnedAt == nil })
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }
