@@ -56,14 +56,14 @@ final class UserProfileToolUITests: XCTestCase {
         absent(app.buttons["profileTool.approve"].firstMatch)
         assertLabel(app.staticTexts["chat.error"].firstMatch,
                     "你已拒絕這次個人檔案修改；尚未儲存，訊息草稿已保留。")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
         ready(app.buttons["chat.send"].firstMatch)
 
         openProfile(); assertEmptyProfile(); returnToChat()
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt,
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt,
                        "Inspecting the profile must preserve the refused request's draft.")
         XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
         launch(reset: false); openProfile(); assertEmptyProfile()
@@ -148,7 +148,7 @@ final class UserProfileToolUITests: XCTestCase {
     }
 
     private func requestReview(_ prompt: String, operation: String, before: String?, after: String?) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         writeASCII(prompt, into: draft, scroll: false)
         tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, prompt)

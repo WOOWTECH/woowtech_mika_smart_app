@@ -54,9 +54,11 @@ final class NotificationApprovalUITests: XCTestCase {
         // This switch is a fixed Chat header, outside the message ScrollView.
         try enable(app.switches["chat.useMCP"], scroll: false)
         XCTAssertNil(banner())
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         try tap(draft, scroll: false)
-        draft.typeText("[fixture:mcp] hello\n")
+        draft.typeText("[fixture:mcp] hello")
+        XCTAssertEqual(draft.value as? String, "[fixture:mcp] hello")
+        try tap(app.buttons["chat.dismissKeyboard"], scroll: false)
         guard let initialNavigation = navigation() else {
             XCTFail("The fixture must expose the actual root notification navigation generation.")
             throw Failure.readiness

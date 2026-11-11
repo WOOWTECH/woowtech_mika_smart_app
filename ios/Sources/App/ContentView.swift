@@ -384,10 +384,15 @@ private struct ChatView: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 6) {
-                Text(session.chatStatus)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(palette.secondaryInk)
-                    .accessibilityIdentifier("chat.status")
+                HStack(spacing: 6) {
+                    if session.isSubmitting {
+                        ProgressView().controlSize(.mini).accessibilityLabel("等待回覆")
+                    }
+                    Text(session.chatStatus)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(palette.secondaryInk)
+                        .accessibilityIdentifier("chat.status")
+                }
                 Text("已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。")
                     .font(.system(size: 12))
                     .foregroundStyle(palette.secondaryInk)
@@ -521,7 +526,7 @@ private struct ChatView: View {
                         .accessibilityIdentifier("chat.archiveRetry")
                 }
             }
-            HStack(spacing: 4) {
+            HStack(alignment: .bottom, spacing: 4) {
                 Button {
                     isEditingDraft = false; showsPDF = true
                 } label: {
@@ -530,12 +535,15 @@ private struct ChatView: View {
                     .accessibilityLabel(localizer.text(session.pdfAttachment == nil ? .shellAttachPDF : .shellViewPDFAttachment))
                     .disabled(session.isSubmitting)
                     .accessibilityIdentifier("chat.pdf.open")
-                TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft)
+                // Return adds a line; the keyboard toolbar Done closes editing without sending.
+                TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
+                    .lineLimit(1...5)
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
                     .focused($isEditingDraft)
-                    .submitLabel(.done)
-                    .onSubmit { isEditingDraft = false }
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(1)
                     .disabled(session.isSubmitting)
                     .accessibilityLabel(localizer.text(.shellMessageDraft))
                     .accessibilityIdentifier("chat.draft")
@@ -559,11 +567,9 @@ private struct ChatView: View {
                 .disabled(!session.canSend)
                 .accessibilityLabel(localizer.text(.shellSend))
                 .accessibilityIdentifier("chat.send")
-                if session.isSubmitting {
-                    ProgressView().accessibilityLabel("等待回覆")
-                }
             }
             .frame(minHeight: 52)
+            .layoutPriority(1)
             .padding(6)
             .background(palette.glass, in: Capsule())
             .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))

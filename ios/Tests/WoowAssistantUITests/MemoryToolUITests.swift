@@ -52,7 +52,7 @@ final class MemoryToolUITests: XCTestCase {
         absent(app.buttons["memoryTool.approve"].firstMatch)
         assertLabel(app.staticTexts["chat.error"].firstMatch,
                     "你已拒絕這次記憶修改；尚未儲存，訊息草稿已保留。")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
@@ -60,7 +60,7 @@ final class MemoryToolUITests: XCTestCase {
         openMemory(); assertEmptyMemories()
         selectSegment("pending"); assertEmptyPending()
         navigate("chat")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         launch(reset: false); openMemory(); assertEmptyMemories()
         selectSegment("pending"); assertEmptyPending()
     }
@@ -152,7 +152,7 @@ final class MemoryToolUITests: XCTestCase {
 
     private func requestReview(_ prompt: String, operation: String, quote: String,
                                before: String?, after: String?, keywords: String?, pending: Bool = false) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         writeASCII(prompt, into: draft, scroll: false)
         tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, prompt)

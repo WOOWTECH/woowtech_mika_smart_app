@@ -110,8 +110,9 @@ final class TranscriptUITests: XCTestCase {
     func testApprovedNativeTextWithoutModelCannotSendAndKeepsChatDraft() throws {
         let driver = try launch()
         let draftText = "Keep transcript draft 42"
-        let draft = app.textFields["chat.draft"]
-        try driver.ready(draft); draft.tap(); draft.typeText(draftText + "\n")
+        let draft = chatDraftControl(in: app)
+        try driver.ready(draft); draft.tap(); draft.typeText(draftText)
+        try driver.tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, draftText)
         try driver.openTranscript()
         try driver.chooseFixture()
@@ -129,7 +130,7 @@ final class TranscriptUITests: XCTestCase {
         try driver.assertAudit(selections: 1, reads: 1, modelAttempts: 0, results: 0)
         try driver.tap("transcript.close")
         try driver.navigate("chat")
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, draftText)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, draftText)
         XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
     }

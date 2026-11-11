@@ -43,7 +43,7 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
         app.buttons["mcp.approval.approve"].tap()
         assertAnswer("FIXTURE_CALL_1: hello")
-        let draft = app.textFields["chat.draft"].value as? String ?? ""
+        let draft = chatDraftControl(in: app).value as? String ?? ""
         XCTAssertTrue(draft.isEmpty || draft == "輸入訊息")
         XCTAssertTrue(app.staticTexts["chat.mcpActivity"].label.contains("1"))
     }
@@ -72,7 +72,7 @@ final class MCPConversationUITests: XCTestCase {
         app.buttons["mcp.approval.decline"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("拒絕"))
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
         app.buttons["chat.send"].tap()
         assertApproval()
@@ -90,7 +90,7 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.send"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["mcp.approval.approve"].exists)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         app.buttons["chat.send"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("連線"))
@@ -106,7 +106,7 @@ final class MCPConversationUITests: XCTestCase {
         app.buttons["mcp.approval.approve"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("工具回報錯誤"))
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, "[fixture:mcp-error]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:mcp-error]")
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
         app.buttons["chat.mcpResults"].tap()
         let result = app.staticTexts["mcp.result.0"]
@@ -116,9 +116,11 @@ final class MCPConversationUITests: XCTestCase {
     }
 
     private func send(_ text: String) {
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         XCTAssertTrue(draft.isHittable)
-        draft.tap(); draft.typeText(text + "\n")
+        draft.tap(); draft.typeText(text)
+        XCTAssertEqual(draft.value as? String, text)
+        app.buttons["chat.dismissKeyboard"].tap()
         app.buttons["chat.send"].tap()
     }
     private func assertApproval() {

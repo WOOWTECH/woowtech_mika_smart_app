@@ -47,7 +47,7 @@ final class MCPLearningUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryNote.1"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
         assertActivity(attempts: 1, results: 1, modelCalls: 3, failure: "none")
-        let draft = app.textFields["chat.draft"].firstMatch.value as? String ?? ""
+        let draft = chatDraftControl(in: app).value as? String ?? ""
         XCTAssertTrue(draft.isEmpty || draft == "輸入訊息")
         tap("chat.mcpResults")
         let result = app.staticTexts["mcp.result.0"].firstMatch
@@ -96,7 +96,7 @@ final class MCPLearningUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.error"].firstMatch,
                     "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。")
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
@@ -109,7 +109,7 @@ final class MCPLearningUITests: XCTestCase {
         tap("profile.close"); absent(app.buttons["profile.close"].firstMatch)
         navigate("chat")
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         launch(reset: false); openProfile(); assertSingleProfile("Prefer jasmine tea")
         XCTAssertEqual(profileItem("Prefer jasmine tea").identifier, savedID,
                        "Relaunch must load the approved entry with its original identity.")
@@ -126,7 +126,7 @@ final class MCPLearningUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.error"].firstMatch,
                     "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。")
         assertActivity(attempts: 0, results: 0, modelCalls: 1, failure: "approvalDenied")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
@@ -137,7 +137,7 @@ final class MCPLearningUITests: XCTestCase {
         openMemory(); assertEmptyMemories()
         selectSegment("pending"); assertEmptyPending()
         navigate("chat")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         assertActivity(attempts: 0, results: 0, modelCalls: 1, failure: "approvalDenied")
         launch(reset: false); openMemory(); assertEmptyMemories()
         selectSegment("pending"); assertEmptyPending()
@@ -176,7 +176,7 @@ final class MCPLearningUITests: XCTestCase {
     }
 
     private func send(_ prompt: String) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         writeASCII(prompt, into: draft)
         // Explicit native Done; newline is not a substitute for committing and
         // dismissing the keyboard before the Send button is hit-tested.

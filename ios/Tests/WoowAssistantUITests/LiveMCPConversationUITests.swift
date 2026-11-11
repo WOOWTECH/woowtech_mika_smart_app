@@ -128,7 +128,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         app.buttons["mcp.approval.decline"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("拒絕"))
-        XCTAssertTrue(app.textFields["chat.draft"].value as? String == prompt, "Declining a real proposal must preserve its draft.")
+        XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt, "Declining a real proposal must preserve its draft.")
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
     }
 
@@ -359,7 +359,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         navigateMikaSection(section, in: app)
     }
     private func send(_ text: String) {
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         XCTAssertTrue(draft.isHittable)
         draft.tap()
         let characters = Array(text)
@@ -368,7 +368,8 @@ final class LiveMCPConversationUITests: XCTestCase {
             draft.typeText(String(characters[start..<end]))
             XCTAssertTrue(draft.value as? String == String(characters[..<end]), "A live prompt input segment was not received completely.")
         }
-        draft.typeText("\n")
+        XCTAssertTrue(app.buttons["chat.dismissKeyboard"].isHittable)
+        app.buttons["chat.dismissKeyboard"].tap()
         XCTAssertTrue(draft.value as? String == text, "The complete live prompt must arrive before submission.")
         app.buttons["chat.send"].tap()
     }

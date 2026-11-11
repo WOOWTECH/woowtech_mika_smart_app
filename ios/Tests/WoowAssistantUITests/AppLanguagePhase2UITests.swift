@@ -68,7 +68,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
 
         tapChrome(app.navigationBars["Task notifications"].buttons.firstMatch)
         tapRoot("chat")
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, chatDraft)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
 
     func testEnglishBrowserLibrarySearchAndSkillCatalogKeepUnsentChatDraft() {
@@ -120,7 +120,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         tapChrome(app.buttons["catalog.close"])
 
         tapRoot("chat")
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, chatDraft)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
 
     private func launchAndEnterDraft() {
@@ -128,7 +128,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
                                "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
         app.launchEnvironment = [:]
         app.launch()
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         XCTAssertTrue(draft.waitForExistence(timeout: 10))
         XCTAssertTrue(draft.isEnabled && draft.isHittable)
         draft.tap()

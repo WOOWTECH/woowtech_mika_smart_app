@@ -69,13 +69,13 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.buttons["chat.archive"].firstMatch.isEnabled, "History must not compete with an arriving approval sheet")
         tap("chat.cancel")
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:wait]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:wait]")
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
         tap("chat.archive")
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         launch(reset: false)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
-        XCTAssertNotEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:wait]")
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:wait]")
         tap("chat.archive")
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
     }
@@ -108,7 +108,7 @@ final class ConversationArchiveUITests: XCTestCase {
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
     private func compose(_ text: String) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         write(text, field: draft, scroll: false); tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, text)
     }

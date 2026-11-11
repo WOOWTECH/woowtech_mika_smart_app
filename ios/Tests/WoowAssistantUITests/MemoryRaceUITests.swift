@@ -56,7 +56,8 @@ final class MemoryRaceUITests: XCTestCase {
     }
 
     private func send(_ text: String, in app: XCUIApplication) {
-        fill(app.textFields["chat.draft"], text + "\n")
+        fill(chatDraftControl(in: app), text)
+        app.buttons["chat.dismissKeyboard"].tap()
         app.buttons["chat.send"].tap()
     }
     private func fill(_ field: XCUIElement, _ text: String) {

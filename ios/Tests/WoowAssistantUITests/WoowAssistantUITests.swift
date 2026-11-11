@@ -74,7 +74,7 @@ final class WoowAssistantUITests: XCTestCase {
         let app = launchApp()
         XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         waitUntilHittable(draft)
         draft.tap()
         draft.typeText("Keep this draft 42")
@@ -84,11 +84,63 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("settings", in: app)
         openSection("chat", in: app)
         assertDraft("Keep this draft 42", in: app)
-        draft.tap()
-        draft.typeText("\n")
-        assertDraft("Keep this draft 42", in: app)
+        let restoredDraft = chatDraftControl(in: app)
+        restoredDraft.tap()
+        restoredDraft.typeText("\nSecond line")
+        assertDraft("Keep this draft 42\nSecond line", in: app)
+        app.buttons["chat.dismissKeyboard"].tap()
+        assertDraft("Keep this draft 42\nSecond line", in: app)
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
         attachScreenshot("unconfigured-draft-retained", in: app)
+    }
+
+    func testComposerGrowsThenScrollsAtFiveLinesAndPDFSheetKeepsDraft() {
+        let app = launchApp()
+        let draft = chatDraftControl(in: app)
+        waitUntilHittable(draft)
+        draft.tap()
+        draft.typeText("A")
+        XCTAssertEqual(draft.value as? String, "A")
+        let oneLineHeight = draft.frame.height
+        var expected = "A"
+        for line in ["B", "C", "D", "E"] {
+            draft.typeText("\n" + line)
+            expected += "\n" + line
+            XCTAssertEqual(draft.value as? String, expected,
+                           "Return must insert a draft line, not send or discard it.")
+        }
+        let fiveLineHeight = draft.frame.height
+        XCTAssertGreaterThan(fiveLineHeight, oneLineHeight + 10)
+        draft.typeText("\nF")
+        expected += "\nF"
+        XCTAssertEqual(draft.value as? String, expected)
+        XCTAssertLessThanOrEqual(draft.frame.height, fiveLineHeight + 4,
+                                 "The sixth line should scroll inside the composer.")
+
+        let attach = app.buttons["chat.pdf.open"]
+        let send = app.buttons["chat.send"]
+        for control in [draft, attach, send] {
+            XCTAssertFalse(control.frame.isEmpty)
+            XCTAssertLessThanOrEqual(control.frame.maxY, mikaUnobscuredBottom(in: app),
+                                     "Composer controls must remain above the keyboard on a compact iPhone.")
+        }
+        XCTAssertTrue(attach.isHittable)
+        XCTAssertFalse(send.isEnabled, "Typing does not bypass missing model configuration.")
+        let done = app.buttons["chat.dismissKeyboard"]
+        waitUntilHittable(done)
+        done.tap()
+        let keyboardGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                     object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardGone], timeout: 10), .completed)
+        XCTAssertEqual(draft.value as? String, expected)
+
+        waitUntilHittable(attach)
+        attach.tap()
+        let closePDF = app.buttons["chat.pdf.done"]
+        XCTAssertTrue(closePDF.waitForExistence(timeout: 5))
+        closePDF.tap()
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, expected)
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
     }
 
     func testBrowserReportsCurrentLimitationsAndToolsIsReachable() {
@@ -170,7 +222,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
         assertDraft("[fixture:wait]", in: app)
         XCTAssertTrue(app.buttons["chat.send"].isEnabled)
-        XCTAssertTrue(app.textFields["chat.draft"].isEnabled)
+        XCTAssertTrue(chatDraftControl(in: app).isEnabled)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
         attachScreenshot("cancel-draft-retained", in: app)
     }
@@ -206,7 +258,7 @@ final class WoowAssistantUITests: XCTestCase {
 
     func testRemovingConfigurationKeepsDraftAndDisablesSending() {
         let app = launchApp()
-        enter("Draft after key removal", into: app.textFields["chat.draft"])
+        enterChatDraft("Draft after key removal", in: app)
         configure(in: app)
         let remove = app.buttons["settings.remove"]
         revealSettings(remove, in: app)
@@ -363,8 +415,19 @@ final class WoowAssistantUITests: XCTestCase {
         field.typeText(text + "\n")
     }
 
+    private func enterChatDraft(_ text: String, in app: XCUIApplication) {
+        let field = chatDraftControl(in: app)
+        waitUntilHittable(field)
+        field.tap()
+        field.typeText(text)
+        XCTAssertEqual(field.value as? String, text)
+        let done = app.buttons["chat.dismissKeyboard"]
+        waitUntilHittable(done)
+        done.tap()
+    }
+
     private func send(_ text: String, in app: XCUIApplication) {
-        enter(text, into: app.textFields["chat.draft"])
+        enterChatDraft(text, in: app)
         let send = app.buttons["chat.send"]
         waitUntilHittable(send)
         XCTAssertTrue(send.isEnabled)
@@ -404,7 +467,7 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     private func assertDraft(_ expected: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        let field = app.textFields["chat.draft"]
+        let field = chatDraftControl(in: app)
         XCTAssertTrue(field.waitForExistence(timeout: 5), file: file, line: line)
         let expectedValue = expected.isEmpty ? "輸入訊息" : expected
         let matches = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@ OR value == %@", expected, expectedValue), object: field)

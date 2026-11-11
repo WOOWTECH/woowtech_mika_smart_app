@@ -138,6 +138,21 @@ enum ChatContextWindowChecks {
         try check.expect(invalid.last?.last?.content == "assistant-39", "Invalid omitted prefix is rejected without modifying later history")
         return check.count
     }
+
+    static func multilineComposerPrompt() throws -> Int {
+        var check = Check()
+        let draft = "A\nB\nC\nD\nE\nF 🧋 %1$@"
+        let context = [ModelMessage(role: "user", content: "reference stays separate")]
+        let prior = pair("previous question", "previous answer")
+        let window = try ChatContextWindow(history: prior, context: context, prompt: draft)
+        try check.expect(window.messages == prior + context + [.init(role: "user", content: draft)],
+                         "Six visible lines remain one exact current user turn after context")
+        try check.expect(window.messages.last?.content.utf8.elementsEqual(draft.utf8) == true,
+                         "Line breaks, Unicode and format-looking text are passed verbatim")
+        try check.expect(window.retainedTurns == 1 && window.omittedTurns == 0,
+                         "A multiline draft does not change conversation history selection")
+        return check.count
+    }
 }
 
 #if CHAT_CONTEXT_WINDOW_STANDALONE
@@ -148,7 +163,8 @@ enum ChatContextWindowChecks {
             + ChatContextWindowChecks.contiguousSuffix()
             + ChatContextWindowChecks.currentLimits()
             + ChatContextWindowChecks.malformedHistory()
-        print("PASS ChatContextWindow: \(count) assertions across 5 groups; actual pure implementation, no HTTP or App execution")
+            + ChatContextWindowChecks.multilineComposerPrompt()
+        print("PASS ChatContextWindow: \(count) assertions across 6 groups; actual pure implementation, no HTTP or App execution")
     }
 }
 #else
@@ -167,6 +183,9 @@ final class ChatContextWindowTests: XCTestCase {
     }
     func testMalformedHistoryIsRejectedEvenWhenItWouldBeOmitted() throws {
         XCTAssertGreaterThan(try ChatContextWindowChecks.malformedHistory(), 0)
+    }
+    func testSixLineComposerPromptIsOneVerbatimCurrentTurn() throws {
+        XCTAssertGreaterThan(try ChatContextWindowChecks.multilineComposerPrompt(), 0)
     }
 }
 #endif

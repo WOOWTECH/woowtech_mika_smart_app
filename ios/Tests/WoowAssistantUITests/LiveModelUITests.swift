@@ -36,7 +36,7 @@ final class LiveModelUITests: XCTestCase {
         for section in ["browser", "settings", "chat"] {
             navigate(to: section, in: app)
         }
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         app.buttons["chat.send"].tap()
         assertReply(marker, messageIndex: 1, in: app)
         enterDraft("What token did I ask you to remember? Reply with that token only.", in: app)
@@ -61,7 +61,7 @@ final class LiveModelUITests: XCTestCase {
         }
         cancel.tap()
         XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertTrue(app.buttons["chat.send"].isEnabled)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
     }
@@ -120,7 +120,7 @@ final class LiveModelUITests: XCTestCase {
         enterDraft(prompt, in: app)
         app.buttons["chat.send"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 95))
-        XCTAssertEqual(app.textFields["chat.draft"].value as? String, prompt)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertTrue(app.buttons["chat.send"].isEnabled)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
     }
@@ -578,7 +578,7 @@ final class LiveModelUITests: XCTestCase {
         tapToolbarButton("profile.close", in: app)
         navigate(to: "chat", in: app)
         enterDraft(prompt, in: app)
-        XCTAssertTrue(app.textFields["chat.draft"].value as? String == prompt,
+        XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt,
                       "The exact user request must arrive before any model call.")
         app.buttons["chat.send"].tap()
         let operation = app.staticTexts["profileTool.operation"].firstMatch
@@ -677,7 +677,7 @@ final class LiveModelUITests: XCTestCase {
         openMemory(in: app); assertEmpty(in: app)
         navigate(to: "chat", in: app)
         enterDraft(prompt, in: app)
-        XCTAssertTrue(app.textFields["chat.draft"].value as? String == prompt,
+        XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt,
                       "The exact request must reach the native input before the real HTTP call.")
         app.buttons["chat.send"].tap()
         let operation = app.staticTexts["memoryTool.operation"].firstMatch
@@ -884,10 +884,13 @@ final class LiveModelUITests: XCTestCase {
     }
 
     private func enterDraft(_ text: String, in app: XCUIApplication) {
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         waitUntilHittable(draft)
         draft.tap()
-        draft.typeText(text + "\n")
+        draft.typeText(text)
+        XCTAssertEqual(draft.value as? String, text)
+        waitUntilHittable(app.buttons["chat.dismissKeyboard"])
+        app.buttons["chat.dismissKeyboard"].tap()
         waitUntilHittable(app.buttons["chat.send"])
     }
 

@@ -28,7 +28,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         revealLearningElement(extracted, in: app, visibility: .readableText)
         XCTAssertTrue(extracted.label.hasPrefix("已擷取 2 頁，"))
         tap("chat.pdf.done"); XCTAssertFalse(app.buttons["chat.send"].firstMatch.isEnabled)
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:chat-pdf]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:chat-pdf]")
         tap("chat.pdf.open")
         let notice = app.staticTexts["chat.pdf.transmissionNotice"].firstMatch
         revealLearningElement(notice, in: app, visibility: .readableText)
@@ -77,7 +77,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         tap("chat.pdf.remove", scroll: true)
         XCTAssertTrue(app.buttons["chat.pdf.select"].firstMatch.waitForExistence(timeout: 10))
         tap("chat.pdf.done"); requests(0)
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:chat-pdf]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:chat-pdf]")
         XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
         tap("chat.archive"); XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
@@ -92,7 +92,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         tap("chat.pdf.approveExtract", scroll: true); phase("ready")
         tap("chat.pdf.confirmDestination", scroll: true); tap("chat.pdf.done"); tap("chat.send")
         requests(1); tap("chat.cancel")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:chat-pdf-cancel]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:chat-pdf-cancel]")
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
         XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         tap("chat.pdf.open"); phase("ready")
@@ -275,7 +275,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
     private func compose(_ text: String) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         write(text, field: draft, scroll: false); tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, text)
     }

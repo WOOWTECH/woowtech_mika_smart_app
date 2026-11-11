@@ -22,7 +22,7 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertEqual(completed.label, "串流測試：第一段；完整回覆。")
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
         XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
-        XCTAssertNotEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:stream-complete]")
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:stream-complete]")
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
         assertNotificationAttempts(1)
@@ -41,7 +41,7 @@ final class ChatStreamingUITests: XCTestCase {
         tap("chat.cancel")
         assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-        XCTAssertEqual(app.textFields["chat.draft"].firstMatch.value as? String, "[fixture:stream-cancel]")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:stream-cancel]")
         XCTAssertFalse(identifiedText("chat.message.0.user").exists)
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         assertNotificationAttempts(0)
@@ -142,7 +142,7 @@ final class ChatStreamingUITests: XCTestCase {
         navigate("chat"); assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
     private func compose(_ text: String) {
-        let draft = app.textFields["chat.draft"].firstMatch
+        let draft = chatDraftControl(in: app)
         write(text, field: draft, scroll: false); tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, text)
     }
