@@ -15,6 +15,7 @@ struct ContentView: View {
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
     @StateObject private var session = ChatSession()
+    @StateObject private var voice = ChatVoiceViewModel()
     @StateObject private var mcpSession = MCPSession()
     @StateObject private var browserWorkspace = BrowserWorkspace()
     @StateObject private var preferences = SelfConfigurationStore.applicationPreferences()
@@ -39,10 +40,10 @@ struct ContentView: View {
                 guard let approved, NewConversationAction.start(in: session, approved: approved) else { return }
                 selection = .chat
                 closeDrawer()
-            }
+            }.accessibilityIdentifier("chat.new.confirm")
             Button(localizer.text(.newConversationKeep), role: .cancel) {
                 pendingNewConversationProtection = nil
-            }
+            }.accessibilityIdentifier("chat.new.cancel")
         } message: {
             Text(pendingNewConversationProtection?.warningKeys.map { localizer.text($0) }.joined(separator: "\n") ?? "")
         }
@@ -122,7 +123,7 @@ struct ContentView: View {
                           bottomInset: geometry.safeAreaInsets.bottom,
                           onClose: closeDrawer,
                           onNew: requestNewConversation,
-                          onArchive: { showsDrawer = false; showsArchive = true },
+                          onArchive: { if voice.isActive { voice.cancel(interrupted: true) }; showsDrawer = false; showsArchive = true },
                           onOpenRecent: { record in
                               if RecentConversationAccess.isCurrent(record, in: session) {
                                   closeDrawer()
@@ -207,7 +208,7 @@ struct ContentView: View {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer)
+                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer, voice: voice)
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
                 case .settings:
@@ -242,6 +243,7 @@ struct ContentView: View {
 
     private func requestNewConversation() {
         guard !session.isSubmitting else { return }
+        if voice.isActive { voice.cancel(interrupted: true) }
         if let protection = NewConversationProtection.current(in: session) {
             pendingNewConversationProtection = protection
             showsNewConversationConfirmation = true
@@ -453,13 +455,16 @@ private struct ChatView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
-    @StateObject private var voice = ChatVoiceViewModel()
+    @ObservedObject var voice: ChatVoiceViewModel
     #if DEBUG
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
     #endif
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
     @State private var showsPDF = false
+    @State private var quoteSendApproval: QuoteSendApproval?
+    @State private var showsQuoteUpgrade = false
+    @State private var quoteUpgradeChanged = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
@@ -479,6 +484,13 @@ private struct ChatView: View {
         case .failed(.audio): return .voiceAudioError
         case .failed(.recognition): return .voiceRecognitionError
         case .failed(.timeout): return .voiceTimeout
+        }
+    }
+
+    private func sendCurrentDraft() {
+        session.send(mcp: session.usesMCP ? mcp : nil)
+        if session.isSubmitting {
+            cancelScrollSettle(); scrollFollow.userSubmitted(); scrollToTailRequest += 1
         }
     }
 
@@ -572,7 +584,7 @@ private struct ChatView: View {
                         }
                         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
                             VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
-                                if entry.role == "user", let quote = MessageUserPresentation(entry.content).quote {
+                                if entry.role == "user", let quote = MessageUserPresentation(entry.content, metadata: entry.quote).quote {
                                     MessageSentQuote(quote: quote, localizer: localizer, identifier: "chat.quote.sent.\(index)")
                                         .frame(maxWidth: 300, alignment: .trailing)
                                 }
@@ -582,7 +594,7 @@ private struct ChatView: View {
                                         MessageActionsControl(entry: entry, session: session, localizer: localizer,
                                             accessibilityID: "chat.message.actions.\(index)", branchAllowed: { !voice.isActive })
                                     }
-                                    let userText = entry.role == "user" ? MessageUserPresentation(entry.content).words : entry.content
+                                    let userText = entry.role == "user" ? MessageUserPresentation(entry.content, metadata: entry.quote).words : entry.content
                                     if !userText.isEmpty || entry.role != "user" {
                                         Text(entry.role == "assistant"
                                              ? ChatReplyMarkdown.render(entry.content) : AttributedString(userText))
@@ -791,14 +803,10 @@ private struct ChatView: View {
                 Button {
                     voice.cancel()
                     isEditingDraft = false
-                    session.send(mcp: session.usesMCP ? mcp : nil)
-                    if session.isSubmitting {
-                        // Only an accepted send restores follow. The observer
-                        // also covers sends launched from the PDF sheet.
-                        cancelScrollSettle()
-                        scrollFollow.userSubmitted()
-                        scrollToTailRequest += 1
-                    }
+                    if session.pendingQuote != nil { session.archive?.reload() }
+                    if let approval = QuoteSendApproval.capture(in: session) {
+                        quoteSendApproval = approval; showsQuoteUpgrade = true
+                    } else { sendCurrentDraft() }
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 20, weight: .semibold))
@@ -818,6 +826,20 @@ private struct ChatView: View {
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
+        .alert(localizer.text(.archiveUpgradeTitle), isPresented: $showsQuoteUpgrade, presenting: quoteSendApproval) { approved in
+            Button(localizer.text(.archiveUpgradeContinue)) {
+                session.archive?.reload()
+                guard QuoteSendApproval.capture(in: session) == approved else {
+                    quoteSendApproval = nil; quoteUpgradeChanged = true; return
+                }
+                quoteSendApproval = nil; sendCurrentDraft()
+            }.accessibilityIdentifier("chat.quote.upgrade.confirm")
+            Button(localizer.text(.commonCancel), role: .cancel) { quoteSendApproval = nil }
+                .accessibilityIdentifier("chat.quote.upgrade.cancel")
+        } message: { _ in Text(localizer.text(.archiveUpgradeMessage)) }
+        .alert(localizer.text(.messageActionFailed), isPresented: $quoteUpgradeChanged) {
+            Button(localizer.text(.commonClose), role: .cancel) { }
+        }
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,

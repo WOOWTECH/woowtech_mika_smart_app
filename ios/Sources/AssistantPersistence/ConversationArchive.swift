@@ -40,24 +40,28 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
     public let userText: String
     public let assistantText: String
     public let pdf: ArchivedPDFAnswer?
+    /// Nil for legacy data and literal messages, even if text resembles a marker.
+    public let quote: ConversationQuote.Metadata?
 
     public init(userID: UUID = UUID(), assistantID: UUID = UUID(), userText: String, assistantText: String,
-                pdf: ArchivedPDFAnswer? = nil) throws {
+                pdf: ArchivedPDFAnswer? = nil, quote: ConversationQuote.Metadata? = nil) throws {
         guard userID != assistantID,
               [userText, assistantText].allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                  && $0.utf8.count <= ConversationArchive.maximumMessageBytes })
+                  && $0.utf8.count <= ConversationArchive.maximumMessageBytes }),
+              quote.map({ $0.matches(userText) }) ?? true
         else { throw ConversationArchiveError.invalidData }
         self.userID = userID; self.assistantID = assistantID
         self.userText = userText; self.assistantText = assistantText
-        self.pdf = pdf
+        self.pdf = pdf; self.quote = quote
     }
 
-    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf }
+    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf, quote }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(userID: c.decode(UUID.self, forKey: .userID), assistantID: c.decode(UUID.self, forKey: .assistantID),
                       userText: c.decode(String.self, forKey: .userText), assistantText: c.decode(String.self, forKey: .assistantText),
-                      pdf: c.decodeIfPresent(ArchivedPDFAnswer.self, forKey: .pdf))
+                      pdf: c.decodeIfPresent(ArchivedPDFAnswer.self, forKey: .pdf),
+                      quote: c.decodeIfPresent(ConversationQuote.Metadata.self, forKey: .quote))
     }
 }
 
@@ -137,6 +141,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     // needs v3; a pin needs v4 because the v3 reader ignores unknown row keys.
     // Branch provenance requires v5; never downgrade after metadata is removed.
     private var writeVersion = 2
+    public var formatVersion: Int { writeVersion }
     public init() {}
 
     /// Pinned first by pin time; other rows by conversation activity. UUIDs
@@ -184,6 +189,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             else { throw ConversationArchiveError.invalidData }
             next.conversations.append(record)
         }
+        if record.turns.contains(where: { $0.quote != nil }) { next.writeVersion = max(next.writeVersion, 6) }
         try next.validate()
         self = next
     }
@@ -238,7 +244,7 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             pinnedAt: nil, branchOrigin: origin)
         var next = self
         next.conversations.append(row)
-        next.writeVersion = max(next.writeVersion, 5)
+        next.writeVersion = max(next.writeVersion, row.turns.contains(where: { $0.quote != nil }) ? 6 : 5)
         try next.validate()
         self = next
     }
@@ -249,10 +255,11 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     }
 
     private func validate() throws {
-        guard (2...5).contains(writeVersion),
+        guard (2...6).contains(writeVersion),
               (writeVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
               (writeVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
-              (writeVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
+              (writeVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil })),
+              (writeVersion >= 6 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.quote == nil } }))
         else { throw ConversationArchiveError.invalidData }
         guard conversations.count <= Self.maximumConversations else { throw ConversationArchiveError.full }
         guard Set(conversations.map(\.id)).count == conversations.count else { throw ConversationArchiveError.invalidData }
@@ -271,14 +278,15 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let storedVersion = try c.decode(Int.self, forKey: .version)
-        guard (1...5).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
+        guard (1...6).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
         writeVersion = max(2, storedVersion)
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
         else { throw ConversationArchiveError.invalidData }
         guard (storedVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
               (storedVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
-              (storedVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
+              (storedVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil })),
+              (storedVersion >= 6 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.quote == nil } }))
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }

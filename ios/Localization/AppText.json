@@ -408,6 +408,86 @@
       }
     },
     {
+      "case": "newConversationQuoteWarning",
+      "key": "newConversation.quoteWarning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未送出的引用會被移除。",
+        "zh-Hans": "未发送的引用会被移除。",
+        "en": "The unsent quote will be removed."
+      }
+    },
+    {
+      "case": "messageQuoteExpand",
+      "key": "message.quoteExpand",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "展開引用",
+        "zh-Hans": "展开引用",
+        "en": "Expand quote"
+      }
+    },
+    {
+      "case": "messageQuoteCollapse",
+      "key": "message.quoteCollapse",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "收合引用",
+        "zh-Hans": "收起引用",
+        "en": "Collapse quote"
+      }
+    },
+    {
+      "case": "messageQuoteTruncated",
+      "key": "message.quoteTruncated",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引用過長，傳送時僅包含前段。",
+        "zh-Hans": "引用过长，发送时仅包含前段。",
+        "en": "Only the beginning of this long quote is sent."
+      }
+    },
+    {
+      "case": "archiveUpgradeTitle",
+      "key": "archive.upgradeTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "升級對話封存？",
+        "zh-Hans": "升级对话存档？",
+        "en": "Upgrade conversation archive?"
+      }
+    },
+    {
+      "case": "archiveUpgradeMessage",
+      "key": "archive.upgradeMessage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "成功保存時會升級整份對話封存。舊版 iOS 將無法讀取任何已保存的對話，也無法安全降級。",
+        "zh-Hans": "成功保存时会升级整份对话存档。旧版 iOS 将无法读取任何已保存的对话，也无法安全降级。",
+        "en": "Saving will upgrade the entire conversation archive. Older iOS app versions cannot read any saved conversations, and the archive cannot be safely downgraded."
+      }
+    },
+    {
+      "case": "archiveUpgradeContinue",
+      "key": "archive.upgradeContinue",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "繼續",
+        "zh-Hans": "继续",
+        "en": "Continue"
+      }
+    },
+    {
+      "case": "archiveLegacyQuoteNotice",
+      "key": "archive.legacyQuoteNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此文字沒有可驗證的引用來源，完整顯示原文。",
+        "zh-Hans": "此文字没有可验证的引用来源，完整显示原文。",
+        "en": "This text has no verified quote provenance; its full original text is shown."
+      }
+    },
+    {
       "case": "shellMessagePlaceholder",
       "key": "shell.messagePlaceholder",
       "parameters": [],

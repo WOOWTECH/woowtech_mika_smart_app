@@ -11,7 +11,7 @@ import Foundation
     static func capture(entry: ChatEntry, in session: ChatSession) -> Self? {
         guard let id = UUID(uuidString: session.conversationID),
               session.entries.contains(where: { $0.id == entry.id && $0.role == entry.role
-                  && $0.content == entry.content && $0.pdf == entry.pdf }),
+                  && $0.content == entry.content && $0.pdf == entry.pdf && $0.quote == entry.quote }),
               ["user", "assistant"].contains(entry.role), !entry.content.isEmpty else { return nil }
         let source = session.archive?.state.conversations.first { $0.id == id }
         return Self(conversationID: id, entry: entry, source: source)
@@ -19,7 +19,7 @@ import Foundation
 
     private func isVisible(in session: ChatSession) -> Bool {
         session.isCurrentConversation(id: conversationID) && session.entries.contains {
-            $0.id == entry.id && $0.role == entry.role && $0.content == entry.content && $0.pdf == entry.pdf
+            $0.id == entry.id && $0.role == entry.role && $0.content == entry.content && $0.pdf == entry.pdf && $0.quote == entry.quote
         }
     }
 
@@ -39,7 +39,7 @@ import Foundation
     @discardableResult func copy(in session: ChatSession, assistantPlainText: (String) -> String,
                                  write: (String) -> Void) -> Bool {
         guard isVisible(in: session) else { return false }
-        let text = entry.role == "assistant" ? assistantPlainText(entry.content) : ConversationQuote.parse(entry.content).words
+        let text = entry.role == "assistant" ? assistantPlainText(entry.content) : (entry.quote?.words ?? entry.content)
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         write(text); return true
     }
@@ -69,14 +69,13 @@ import Foundation
     }
 }
 
-/// Presentation only: a serialized marker can be typed by anyone and must
-/// never be used as evidence about authorship, memory, or tool authorization.
+/// Legacy data is ambiguous: preserve it literally, with no inferred author.
 struct MessageUserPresentation {
     let quote: ConversationQuote.Quote?
     let words: String
-    init(_ raw: String) {
-        let parsed = ConversationQuote.parse(raw)
-        quote = parsed.quote
-        words = parsed.words
+    init(_ raw: String, metadata: ConversationQuote.Metadata? = nil) {
+        if let metadata, metadata.matches(raw) {
+            quote = metadata.quote; words = metadata.words
+        } else { quote = nil; words = raw }
     }
 }

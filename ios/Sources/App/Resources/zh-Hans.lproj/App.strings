@@ -39,6 +39,14 @@
 "message.quoteAssistant" = "引用助手";
 "message.quoteUser" = "引用自己";
 "message.quoteRemove" = "移除引用";
+"newConversation.quoteWarning" = "未发送的引用会被移除。";
+"message.quoteExpand" = "展开引用";
+"message.quoteCollapse" = "收起引用";
+"message.quoteTruncated" = "引用过长，发送时仅包含前段。";
+"archive.upgradeTitle" = "升级对话存档？";
+"archive.upgradeMessage" = "成功保存时会升级整份对话存档。旧版 iOS 将无法读取任何已保存的对话，也无法安全降级。";
+"archive.upgradeContinue" = "继续";
+"archive.legacyQuoteNotice" = "此文字没有可验证的引用来源，完整显示原文。";
 "shell.messagePlaceholder" = "输入消息";
 "shell.messageDraft" = "消息草稿";
 "shell.stop" = "取消";

@@ -43,6 +43,14 @@ enum AppText: Equatable {
     case messageQuoteAssistant
     case messageQuoteUser
     case messageQuoteRemove
+    case newConversationQuoteWarning
+    case messageQuoteExpand
+    case messageQuoteCollapse
+    case messageQuoteTruncated
+    case archiveUpgradeTitle
+    case archiveUpgradeMessage
+    case archiveUpgradeContinue
+    case archiveLegacyQuoteNotice
     case shellMessagePlaceholder
     case shellMessageDraft
     case shellStop
@@ -526,6 +534,14 @@ enum AppText: Equatable {
         case .messageQuoteAssistant: return "message.quoteAssistant"
         case .messageQuoteUser: return "message.quoteUser"
         case .messageQuoteRemove: return "message.quoteRemove"
+        case .newConversationQuoteWarning: return "newConversation.quoteWarning"
+        case .messageQuoteExpand: return "message.quoteExpand"
+        case .messageQuoteCollapse: return "message.quoteCollapse"
+        case .messageQuoteTruncated: return "message.quoteTruncated"
+        case .archiveUpgradeTitle: return "archive.upgradeTitle"
+        case .archiveUpgradeMessage: return "archive.upgradeMessage"
+        case .archiveUpgradeContinue: return "archive.upgradeContinue"
+        case .archiveLegacyQuoteNotice: return "archive.legacyQuoteNotice"
         case .shellMessagePlaceholder: return "shell.messagePlaceholder"
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
@@ -1041,6 +1057,14 @@ enum AppText: Equatable {
         case .messageQuoteAssistant: return "引用助理"
         case .messageQuoteUser: return "引用自己"
         case .messageQuoteRemove: return "移除引用"
+        case .newConversationQuoteWarning: return "未送出的引用會被移除。"
+        case .messageQuoteExpand: return "展開引用"
+        case .messageQuoteCollapse: return "收合引用"
+        case .messageQuoteTruncated: return "引用過長，傳送時僅包含前段。"
+        case .archiveUpgradeTitle: return "升級對話封存？"
+        case .archiveUpgradeMessage: return "成功保存時會升級整份對話封存。舊版 iOS 將無法讀取任何已保存的對話，也無法安全降級。"
+        case .archiveUpgradeContinue: return "繼續"
+        case .archiveLegacyQuoteNotice: return "此文字沒有可驗證的引用來源，完整顯示原文。"
         case .shellMessagePlaceholder: return "輸入訊息"
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "取消"
