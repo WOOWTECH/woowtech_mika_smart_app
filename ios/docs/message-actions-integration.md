@@ -1,7 +1,7 @@
 # Message action components: integration and acceptance
 
-These components are intentionally not attached to `ContentView`. The host must
-pass the real `ChatEntry` and `ChatSession` for each visible completed message:
+`ContentView` attaches the components to the real `ChatEntry` and `ChatSession`
+for each visible completed message:
 
 ```swift
 MessageActionsControl(entry: entry, session: session, localizer: localizer)
@@ -13,7 +13,7 @@ to a bubble after testing long-press interaction with selectable text and links.
 The separate menu button supplies an accessible alternative. Do not attach the
 controls to streaming previews or substitute synthetic messages for session entries.
 
-Place this above the composer when the session has a pending quote:
+The composer shows this when the session has a pending quote:
 
 ```swift
 if let quote = session.pendingQuote {
@@ -42,7 +42,7 @@ Ordinary reading, quoting, copying and non-branch saves do not by themselves
 upgrade it to v5. An old v4 iOS reader must reject a v5 archive; **do not open or
 rewrite it with an older app**. Removing a branch does not downgrade the version.
 
-Before shipping, integrate the controls and run native UI tests on iPhone and
+Before shipping, run native UI tests on iPhone and
 iPad, in all three languages and at accessibility text sizes: copy rendered
 assistant text and user text, quote and remove while preserving the draft, send
 with a quote, branch at an earlier completed answer, check both conversations
@@ -50,3 +50,25 @@ after relaunch, reject stale/unfinished/full cases without losing work, and
 exercise VoiceOver labels/focus, selection, links and both menu affordances.
 The hosted XCTest is a layout/localization smoke test, not a substitute for
 those gesture, clipboard, accessibility and end-to-end checks.
+
+The simulator-only `ChatMessageActionsUITests` cases use unique test namespaces
+and the isolated synthetic model. They cover quote selection/removal/send and
+archive reopen, branch source preservation and unsent-draft rejection, rendered
+copy through the native paste menu, cancellation of an unfinished preview,
+blocking an older saved reply while a later turn is in flight or retained as a
+partial, and the voice fixture while branch is blocked. The tests are not native-run
+acceptance until executed on a simulator; their fixture does not use a real model.
+
+From `ios/`, run the isolated suite on a disposable simulator (never a physical
+device):
+
+```sh
+xcodegen generate
+xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant -configuration Debug \
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -only-testing:WoowAssistantUITests/ChatMessageActionsUITests test
+```
+
+The class is also included in the `ui-archive` regression shard. Run the existing
+`ChatVoiceUITests`, `ChatStreamingUITests`, and `ConversationArchiveUITests` on
+both relevant iPhone and iPad simulators to check neighboring behavior.
