@@ -227,7 +227,7 @@ final class ChatStreamingUITests: XCTestCase {
         let transcript = app.scrollViews["chat.transcript"].firstMatch
         ready(transcript)
         let returnButton = app.buttons["chat.returnToLatest"].firstMatch
-        dragEarlierOnceFromGutter(partial, in: transcript)
+        swipeEarlierOnce(partial, in: transcript, returnButton: returnButton)
         ready(returnButton)
         XCTAssertFalse(partial.label.contains("RETURN_SECOND_END"),
                        "Reader must return before the next actual fragment")
@@ -236,7 +236,7 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "label CONTAINS %@", "RETURN_SECOND_END"), on: partial, seconds: 50)
         assertTranscriptTailVisible(partial, in: transcript)
 
-        dragEarlierOnceFromGutter(partial, in: transcript)
+        swipeEarlierOnce(partial, in: transcript, returnButton: returnButton)
         ready(returnButton)
         XCTAssertFalse(partial.label.contains("RETURN_THIRD_END"),
                        "The explicit return must precede the third actual fragment")
@@ -246,28 +246,29 @@ final class ChatStreamingUITests: XCTestCase {
         assertTranscriptTailVisible(partial, in: transcript)
     }
 
-    private func dragEarlierOnceFromGutter(_ text: XCUIElement, in transcript: XCUIElement) {
+    private func swipeEarlierOnce(_ text: XCUIElement, in transcript: XCUIElement, returnButton: XCUIElement) {
         let viewport = transcript.frame
         let before = text.frame
+        let beforeLabel = text.label
         XCTAssertFalse(viewport.isEmpty)
         XCTAssertFalse(before.isEmpty)
-        // A center swipe can begin on selectable text and leave the transcript
-        // at its tail. Require a real blank leading gutter for this one drag.
-        let gutterInset: CGFloat = 20
-        XCTAssertGreaterThan(before.minX - viewport.minX, gutterInset + 8)
-        let travel = min(CGFloat(150), viewport.height * 0.25)
-        XCTAssertGreaterThanOrEqual(travel, 60)
-        let start = transcript.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: gutterInset, dy: viewport.height * 0.5))
-        start.press(forDuration: 0.05,
-                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: travel)),
-                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        // The selectable Text fills the viewport on iPad, so its AX frame
+        // cannot identify a blank gutter. Use the native ScrollView swipe,
+        // as in the earlier-reading test, without a stationary selection press.
+        transcript.swipeDown()
         let displaced = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             text.exists && text.frame.minY - before.minY >= 24
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [displaced], timeout: 5), .completed,
-                       "One gutter drag must move the real transcript before checking the return button")
-        XCTAssertGreaterThanOrEqual(text.frame.minY - before.minY, 24)
+                       "One native swipe must move the real transcript toward earlier text")
+        ready(returnButton)
+        XCTAssertEqual(text.label, beforeLabel, "Displacement must precede the next stream fragment")
+        XCTAssertLessThan(abs(transcript.frame.minY - viewport.minY), 1,
+                          "The transcript viewport must not move during the swipe")
+        XCTAssertLessThan(abs(transcript.frame.height - viewport.height), 1,
+                          "The transcript viewport must not resize during the swipe")
+        XCTAssertGreaterThanOrEqual(text.frame.minY - before.minY, 24,
+                                    "The displacement must remain after the return button appears")
     }
 
     private func assertTranscriptTailVisible(_ text: XCUIElement, in transcript: XCUIElement) {
