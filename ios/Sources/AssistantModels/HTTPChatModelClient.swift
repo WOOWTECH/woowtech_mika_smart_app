@@ -164,8 +164,9 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue(stream ? "text/event-stream" : "application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONEncoder().encode(RequestBody(model: model, messages: messages, stream: stream,
-                                                               max_tokens: configuration.maxOutputTokens))
+        request.httpBody = try OpenAIChatRequest.body(model: model, messages: messages, stream: stream,
+                                                      maxOutputTokens: configuration.maxOutputTokens,
+                                                      vision: configuration.vision)
         return request
     }
 
@@ -181,6 +182,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         if error is CancellationError || Task.isCancelled { return CancellationError() }
         if error is HTTPStreamFallbackError { return error }
         if let known = error as? HTTPChatModelError { return known }
+        if let known = error as? ModelAttachmentError { return known }
         if let network = error as? URLError {
             if network.code == .cancelled { return CancellationError() }
             if network.code == .timedOut { return HTTPChatModelError.timedOut }
@@ -210,12 +212,6 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
         return ["unsupported_parameter", "unsupported_value", "not_supported"].contains(code.lowercased())
     }
 
-    private struct RequestBody: Encodable {
-        let model: String
-        let messages: [ModelMessage]
-        let stream: Bool
-        let max_tokens: Int
-    }
     private struct Completion: Decodable { let choices: [Choice] }
     private struct Choice: Decodable {
         let message: ModelMessage

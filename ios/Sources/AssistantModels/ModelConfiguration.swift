@@ -4,21 +4,47 @@ public struct ModelConfiguration: Sendable {
     public let baseURL: URL
     public let model: String
     public let maxOutputTokens: Int
+    public let vision: ModelVisionCapability
 
-    public init(baseURL: URL, model: String, maxOutputTokens: Int = 1024) {
+    public init(baseURL: URL, model: String, maxOutputTokens: Int = 1024,
+                vision: ModelVisionCapability = .unknown) {
         self.baseURL = baseURL
         self.model = model
         self.maxOutputTokens = maxOutputTokens
+        self.vision = vision
     }
 }
 
 public struct ModelMessage: Codable, Sendable, Equatable {
     public let role: String
     public let content: String
+    /// Transient input only. It is never implicitly archived or Codable.
+    public let attachment: ModelAttachment?
 
     public init(role: String, content: String) {
         self.role = role
         self.content = content
+        self.attachment = nil
+    }
+
+    public init(userText: String, attachment: ModelAttachment) {
+        role = "user"; content = userText; self.attachment = attachment
+    }
+
+    private enum CodingKeys: String, CodingKey { case role, content }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        role = try values.decode(String.self, forKey: .role)
+        content = try values.decode(String.self, forKey: .content)
+        attachment = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        guard attachment == nil else { throw ModelAttachmentError.explicitSerializationRequired }
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(role, forKey: .role)
+        try values.encode(content, forKey: .content)
     }
 }
 

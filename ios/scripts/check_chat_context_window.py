@@ -13,6 +13,7 @@ def main():
             "swiftc", "-warnings-as-errors", "-D", "CHAT_CONTEXT_WINDOW_STANDALONE",
             "-parse-as-library",
             str(repo / "Sources/AssistantModels/ModelConfiguration.swift"),
+            str(repo / "Sources/AssistantModels/ModelAttachment.swift"),
             str(repo / "Sources/AssistantModels/ChatContextWindow.swift"),
             str(repo / "Tests/AssistantModelsTests/ChatContextWindowTests.swift"),
             "-o", str(binary),
