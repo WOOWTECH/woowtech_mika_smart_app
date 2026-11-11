@@ -183,8 +183,13 @@ final class ChatStreamingUITests: XCTestCase {
         let updatedVisibleText = partial.frame.intersection(transcript.frame)
         XCTAssertFalse(updatedVisibleText.isNull)
         XCTAssertGreaterThan(updatedVisibleText.height, 40)
-        origin.withOffset(CGVector(dx: updatedVisibleText.midX - transcript.frame.minX,
-                                   dy: updatedVisibleText.midY - transcript.frame.minY)).press(forDuration: 1)
+        // The update may dismiss the native edit menu while keeping the text
+        // selected. Tap that visible selection once to request the menu again;
+        // do not reselect or repeat the long press to manufacture a pass.
+        if selectionAction() == nil {
+            origin.withOffset(CGVector(dx: updatedVisibleText.midX - transcript.frame.minX,
+                                       dy: updatedVisibleText.midY - transcript.frame.minY)).tap()
+        }
         let afterUpdate = XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in selectionAction() != nil }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [afterUpdate], timeout: 5), .completed,
@@ -222,7 +227,7 @@ final class ChatStreamingUITests: XCTestCase {
         let transcript = app.scrollViews["chat.transcript"].firstMatch
         ready(transcript)
         let returnButton = app.buttons["chat.returnToLatest"].firstMatch
-        transcript.swipeDown()
+        dragEarlierOnceFromGutter(partial, in: transcript)
         ready(returnButton)
         XCTAssertFalse(partial.label.contains("RETURN_SECOND_END"),
                        "Reader must return before the next actual fragment")
@@ -231,7 +236,7 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "label CONTAINS %@", "RETURN_SECOND_END"), on: partial, seconds: 50)
         assertTranscriptTailVisible(partial, in: transcript)
 
-        transcript.swipeDown()
+        dragEarlierOnceFromGutter(partial, in: transcript)
         ready(returnButton)
         XCTAssertFalse(partial.label.contains("RETURN_THIRD_END"),
                        "The explicit return must precede the third actual fragment")
@@ -239,6 +244,30 @@ final class ChatStreamingUITests: XCTestCase {
         assertGone(returnButton, seconds: 5)
         wait(NSPredicate(format: "label CONTAINS %@", "RETURN_THIRD_END"), on: partial, seconds: 50)
         assertTranscriptTailVisible(partial, in: transcript)
+    }
+
+    private func dragEarlierOnceFromGutter(_ text: XCUIElement, in transcript: XCUIElement) {
+        let viewport = transcript.frame
+        let before = text.frame
+        XCTAssertFalse(viewport.isEmpty)
+        XCTAssertFalse(before.isEmpty)
+        // A center swipe can begin on selectable text and leave the transcript
+        // at its tail. Require a real blank leading gutter for this one drag.
+        let gutterInset: CGFloat = 20
+        XCTAssertGreaterThan(before.minX - viewport.minX, gutterInset + 8)
+        let travel = min(CGFloat(150), viewport.height * 0.25)
+        XCTAssertGreaterThanOrEqual(travel, 60)
+        let start = transcript.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: gutterInset, dy: viewport.height * 0.5))
+        start.press(forDuration: 0.05,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: travel)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        let displaced = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            text.exists && text.frame.minY - before.minY >= 24
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [displaced], timeout: 5), .completed,
+                       "One gutter drag must move the real transcript before checking the return button")
+        XCTAssertGreaterThanOrEqual(text.frame.minY - before.minY, 24)
     }
 
     private func assertTranscriptTailVisible(_ text: XCUIElement, in transcript: XCUIElement) {
@@ -338,7 +367,8 @@ final class ChatStreamingUITests: XCTestCase {
         // the real keyboard toolbar before requiring that next field to be
         // fully visible; do not scroll or tap through an obscured control.
         dismissSettingsKeyboard()
-        write("fixture", field: app.textFields["settings.model"].firstMatch, scroll: true)
+        write("fixture", field: app.textFields["settings.model"].firstMatch,
+              scroll: true, verifyEachCharacter: true)
         dismissSettingsKeyboard()
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
@@ -378,7 +408,8 @@ final class ChatStreamingUITests: XCTestCase {
         navigateMikaSection(section, in: app)
         XCTAssertTrue(app.staticTexts[section + ".status"].firstMatch.waitForExistence(timeout: 5))
     }
-    private func write(_ text: String, field: XCUIElement, scroll: Bool) {
+    private func write(_ text: String, field: XCUIElement, scroll: Bool,
+                       verifyEachCharacter: Bool = false) {
         if scroll { revealLearningElement(field, in: app) }
         ready(field)
         if !scroll {
@@ -388,8 +419,16 @@ final class ChatStreamingUITests: XCTestCase {
         field.tap(); prepareKeyboard()
         var entered = "", remaining = text[...]
         while !remaining.isEmpty {
-            let chunk = String(remaining.prefix(entered.isEmpty ? 1 : 16))
+            let chunk = String(remaining.prefix(verifyEachCharacter ? 1 : (entered.isEmpty ? 1 : 16)))
             field.typeText(chunk); entered += chunk; remaining = remaining.dropFirst(chunk.count)
+            if verifyEachCharacter {
+                let prefix = NSPredicate(format: "value == %@", entered)
+                if !prefix.evaluate(with: field) {
+                    XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: prefix, object: field)],
+                                                 timeout: 3), .completed,
+                                   "Each native model-name character must reach the actual field before the next")
+                }
+            }
             XCTAssertEqual(field.value as? String, entered, "Native text must be exact without repair or retry")
             guard field.value as? String == entered else { return }
         }
