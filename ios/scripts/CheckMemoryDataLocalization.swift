@@ -15,6 +15,12 @@ enum CheckMemoryDataLocalization {
         let traditional = MemoryDataCopy(language: .traditionalChinese)
         let simplified = MemoryDataCopy(language: .simplifiedChinese)
         let english = MemoryDataCopy(language: .english)
+        precondition(normalizedMemorySearch(" \t\n\u{00a0}").isEmpty)
+        precondition(normalizedMemorySearch(" \t tea \n") == "tea")
+        precondition(emptyMemoryMessage(for: " \t\n\u{00a0}", pending: false) == .emptyHomeMemory)
+        precondition(emptyMemoryMessage(for: " \t\n\u{00a0}", pending: true) == .emptyPending)
+        precondition(emptyMemoryMessage(for: " tea ", pending: false) == .memoryNotFound)
+        precondition(emptyMemoryMessage(for: " tea ", pending: true) == .pendingNotFound)
         precondition(keys.allSatisfy { key in
             !english.text(key).unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
         })
