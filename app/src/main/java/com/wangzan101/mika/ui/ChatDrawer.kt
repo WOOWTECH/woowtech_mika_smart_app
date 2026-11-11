@@ -198,7 +198,7 @@ fun readiness(check: Prerequisites.Check): Pair<String, Boolean> = when {
 private const val MAX_RECENT = 50
 
 /**
- * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;四个入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于各占一行。
+ * 侧栏:从左边滑出、右边圆角。顶部是标志和状态;快捷入口;中间是进行中(段标题右边进「后台屏」页)和最近的对话;最底下设置和关于各占一行。
  * 打开和关上由外面的抽屉管,这里只摆内容,点了什么交给回调。
  */
 @Composable
@@ -210,6 +210,8 @@ fun ChatDrawer(
     onPlans: () -> Unit,
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
+    onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
@@ -245,6 +247,8 @@ fun ChatDrawer(
             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
             NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
             NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
+            NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
+            NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onClick = onComputerAccess)
             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
         }
         // 侧栏关着时列表只剩末尾那一项;打开时对话插在它前面,列表会按原来那一项停在最底下。最上面一项变了就回到顶上
@@ -489,6 +493,8 @@ fun ChatWithDrawer(
     onPlans: () -> Unit,
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
+    onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
@@ -594,6 +600,8 @@ fun ChatWithDrawer(
                     onNew = { close { vm.newConversation() } },
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
+                    onMcpServers = { leave(onMcpServers) },
+                    onComputerAccess = { leave(onComputerAccess) },
                     onSettings = { leave(onSettings) },
                     onBrowser = { leave(onBrowser) },
                     onScreens = { leave(onScreens) },

@@ -6,6 +6,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NavStackTest {
+    @Test fun connectionShortcutsReturnToDrawer() {
+        for (route in listOf(Route.McpServers, Route.ComputerAccess)) {
+            val nav = NavStack()
+            nav.pushFromDrawer(route)
+            assertEquals(route, nav.current)
+            nav.back()
+            assertEquals(Route.Chat, nav.current)
+            assertTrue(nav.reopenDrawer)
+        }
+    }
+
     @Test fun backReturnsToWhereYouCameFrom() {
         val nav = NavStack()
         assertEquals(Route.Chat, nav.current)
