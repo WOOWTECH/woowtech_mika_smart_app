@@ -14,6 +14,15 @@ class VoiceInputStandaloneTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS VoiceInput:", result.stdout)
 
+    def test_apple_adapter_statically_requires_lease_and_does_not_mutate_global_audio(self):
+        source = (ROOT / "Sources/App/AppleVoiceInputDriver.swift").read_text()
+        self.assertIn("UnavailableVoiceAudioCoordinator()", source)
+        self.assertLess(source.index("audioLease.acquire("), source.index("SFSpeechRecognizer.requestAuthorization"))
+        self.assertLess(source.index("audioLease.activateForRecording()"), source.index("AVAudioEngine()"))
+        self.assertNotRegex(source, r"\.\s*setCategory\s*\(")
+        self.assertNotRegex(source, r"\.\s*setActive\s*\(")
+        self.assertIn("audioLease.release()", source[source.index("private func cleanup()"):])
+
     def test_source_plists_explain_microphone_and_speech_in_both_configurations(self):
         for config in ("Debug", "Release"):
             with self.subTest(config=config):

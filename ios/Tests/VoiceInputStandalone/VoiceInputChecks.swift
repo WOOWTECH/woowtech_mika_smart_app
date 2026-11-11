@@ -8,6 +8,7 @@ final class FakeVoiceDriver: VoiceInputDriver {
     var cancellations: [UUID] = []
     var finalOnFinish: String?
     var callbackOnCancel = false
+    var onCancel: (() -> Void)?
     func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         starts.append(id); callbacks[id] = emit
     }
@@ -18,8 +19,36 @@ final class FakeVoiceDriver: VoiceInputDriver {
     func cancel(id: UUID) {
         cancellations.append(id)
         if callbackOnCancel { callbacks[id]?(id, .final("stale cancellation")) }
+        onCancel?()
     }
     func emit(_ event: VoiceInputEvent, for id: UUID) { callbacks[id]?(id, event) }
+}
+
+@MainActor
+final class FakeAudioLease: VoiceAudioLease {
+    var releaseCount = 0
+    var activationCount = 0
+    var activationResult = true
+    var onActivate: (() -> Void)?
+    var onRelease: (() -> Void)?
+    func activateForRecording() -> Bool {
+        activationCount += 1
+        onActivate?()
+        return activationResult
+    }
+    func release() { releaseCount += 1; onRelease?() }
+}
+
+@MainActor
+final class FakeAudioCoordinator: VoiceAudioCoordinating {
+    var callbacks: [() -> Void] = []
+    var next: (() -> FakeAudioLease?)?
+    var duringAcquire: (() -> Void)?
+    func acquire(onRevoked: @escaping () -> Void) -> (any VoiceAudioLease)? {
+        callbacks.append(onRevoked)
+        duringAcquire?()
+        return next?()
+    }
 }
 
 @main
@@ -183,6 +212,184 @@ struct VoiceInputChecks {
         finishReentrant.release()
         check(finishReentrantDriver.finishes.isEmpty && finishReentrant.state == .idle,
               "UI cancellation during finishing prevents driver finish")
+        // Regression: a state observer replaces the session synchronously
+        // before the former completion can publish its final text.
+        let idleDriver = FakeVoiceDriver()
+        let idleMachine = VoiceInputStateMachine(driver: idleDriver, now: { clock })
+        var idleFinals: [String] = []
+        var restarted = false
+        idleMachine.onFinal = { idleFinals.append($0) }
+        idleMachine.begin(gestureStartedAt: clock)
+        let idleOld = idleDriver.starts.last!
+        clock += 1
+        idleMachine.release()
+        idleMachine.onStateChange = { state in
+            if state == .idle && !restarted {
+                restarted = true
+                idleMachine.begin(gestureStartedAt: clock)
+            }
+        }
+        idleDriver.emit(.final("old"), for: idleOld)
+        let idleNew = idleDriver.starts.last!
+        check(restarted && idleNew != idleOld && idleFinals.isEmpty, "idle reentry suppresses old final")
+        check(idleMachine.state == .listening(partial: "", cancelArmed: false, elapsed: 0),
+              "idle reentry preserves new listening state")
+        clock += 1
+        idleMachine.release()
+        idleDriver.emit(.final("new"), for: idleNew)
+        check(idleFinals == ["new"], "new session final is delivered exactly once")
+
+        let earlyDriver = FakeVoiceDriver()
+        let earlyMachine = VoiceInputStateMachine(driver: earlyDriver, now: { clock })
+        var earlyFinals: [String] = []
+        var earlyRestarted = false
+        earlyMachine.onFinal = { earlyFinals.append($0) }
+        earlyMachine.begin(gestureStartedAt: clock)
+        let earlyOld = earlyDriver.starts.last!
+        clock += 1
+        earlyDriver.emit(.final("old early"), for: earlyOld)
+        earlyMachine.onStateChange = { state in
+            if state == .idle && !earlyRestarted {
+                earlyRestarted = true
+                earlyMachine.begin(gestureStartedAt: clock)
+                earlyMachine.cancel()
+            }
+        }
+        earlyMachine.release()
+        check(earlyRestarted && earlyFinals.isEmpty && earlyMachine.state == .idle,
+              "early final suppressed even if idle observer starts and cancels a session")
+
+        let cancelIdleDriver = FakeVoiceDriver()
+        let cancelIdleMachine = VoiceInputStateMachine(driver: cancelIdleDriver, now: { clock })
+        var cancelIdleFinals: [String] = []
+        cancelIdleMachine.onFinal = { cancelIdleFinals.append($0) }
+        cancelIdleMachine.begin(gestureStartedAt: clock)
+        let cancelIdleOld = cancelIdleDriver.starts.last!
+        clock += 1
+        cancelIdleMachine.release()
+        cancelIdleMachine.onStateChange = { state in
+            if state == .idle { cancelIdleMachine.cancel() }
+        }
+        cancelIdleDriver.emit(.final("old"), for: cancelIdleOld)
+        check(cancelIdleFinals.isEmpty, "idle reentrant cancel expires completion even without a new ID")
+
+        let cleanupDriver = FakeVoiceDriver()
+        let cleanupMachine = VoiceInputStateMachine(driver: cleanupDriver, now: { clock })
+        var cleanupFinals: [String] = []
+        cleanupMachine.onFinal = { cleanupFinals.append($0) }
+        cleanupMachine.begin(gestureStartedAt: clock)
+        let cleanupOld = cleanupDriver.starts.last!
+        clock += 1
+        cleanupMachine.release()
+        cleanupDriver.onCancel = {
+            cleanupDriver.onCancel = nil
+            cleanupMachine.begin(gestureStartedAt: clock)
+        }
+        cleanupDriver.emit(.final("old"), for: cleanupOld)
+        check(cleanupFinals.isEmpty && cleanupDriver.starts.last != cleanupOld,
+              "driver cleanup reentry also suppresses old final")
+        check(cleanupMachine.state == .listening(partial: "", cancelArmed: false, elapsed: 0),
+              "driver cleanup reentry does not overwrite new state")
+
+        let replaceDriver = FakeVoiceDriver()
+        let replaceMachine = VoiceInputStateMachine(driver: replaceDriver, now: { clock })
+        replaceMachine.begin(gestureStartedAt: clock)
+        var replacementFromObserver = false
+        replaceMachine.onStateChange = { state in
+            if state == .idle && !replacementFromObserver {
+                replacementFromObserver = true
+                replaceMachine.begin(gestureStartedAt: clock)
+            }
+        }
+        replaceMachine.begin(gestureStartedAt: clock)
+        check(replacementFromObserver && replaceDriver.starts.count == 2,
+              "outer begin does not overwrite observer's newer session")
+        check(replaceMachine.state == .listening(partial: "", cancelArmed: false, elapsed: 0),
+              "observer's newer session remains listening")
+
+        let timeoutDriver = FakeVoiceDriver()
+        let timeoutMachine = VoiceInputStateMachine(driver: timeoutDriver, now: { clock })
+        timeoutMachine.begin(gestureStartedAt: clock)
+        let timeoutOld = timeoutDriver.starts.last!
+        clock += 1
+        timeoutMachine.release()
+        timeoutDriver.onCancel = {
+            timeoutDriver.onCancel = nil
+            timeoutMachine.begin(gestureStartedAt: clock)
+        }
+        clock += 6
+        timeoutMachine.tick()
+        check(timeoutDriver.starts.last != timeoutOld && timeoutMachine.state == .listening(partial: "", cancelArmed: false, elapsed: 0),
+              "timeout cleanup reentry cannot overwrite a new session")
+
+        let deniedAudio = VoiceAudioLeaseSlot(coordinator: UnavailableVoiceAudioCoordinator())
+        check(!deniedAudio.acquire(onRevoked: {}) && !deniedAudio.activateForRecording(),
+              "default coordinator fails closed")
+        let coordinator = FakeAudioCoordinator()
+        let slot = VoiceAudioLeaseSlot(coordinator: coordinator)
+        let leaseA = FakeAudioLease()
+        coordinator.next = { leaseA }
+        var revocations = 0
+        check(slot.acquire(onRevoked: { revocations += 1 }), "coordinator can grant a lease")
+        check(slot.activateForRecording() && leaseA.activationCount == 1, "activation uses granted lease")
+        slot.release(); slot.release()
+        check(leaseA.releaseCount == 1, "repeated release transfers ownership only once")
+        coordinator.callbacks[0]()
+        check(revocations == 0, "released lease cannot revoke later")
+
+        let leaseB = FakeAudioLease()
+        coordinator.next = { leaseB }
+        check(slot.acquire(onRevoked: { revocations += 1 }), "new lease after release")
+        coordinator.callbacks[0]()
+        check(leaseB.releaseCount == 0 && revocations == 0, "stale callback cannot release new lease")
+        coordinator.callbacks[1]()
+        coordinator.callbacks[1]()
+        check(leaseB.releaseCount == 1 && revocations == 1, "current revocation releases and reports once")
+        check(!slot.activateForRecording(), "revoked lease cannot activate")
+
+        let leaseC = FakeAudioLease()
+        leaseC.activationResult = false
+        coordinator.next = { leaseC }
+        check(slot.acquire(onRevoked: { revocations += 1 }), "activation-failure lease acquired")
+        check(!slot.activateForRecording() && leaseC.releaseCount == 1, "failed activation releases once")
+        slot.release()
+        check(leaseC.releaseCount == 1, "cleanup after failed activation is harmless")
+
+        let leaseD = FakeAudioLease()
+        coordinator.next = { leaseD }
+        coordinator.duringAcquire = { coordinator.callbacks.last?() }
+        check(!slot.acquire(onRevoked: { revocations += 1 }), "synchronous revocation rejects acquisition")
+        check(leaseD.releaseCount == 1 && revocations == 2, "synchronously revoked returned lease is released")
+        coordinator.duringAcquire = nil
+
+        let leaseE = FakeAudioLease()
+        coordinator.next = { leaseE }
+        check(slot.acquire(onRevoked: { revocations += 1 }), "reentrant activation lease acquired")
+        leaseE.onActivate = { coordinator.callbacks.last?() }
+        check(!slot.activateForRecording() && leaseE.releaseCount == 1 && revocations == 3,
+              "activation revocation cannot leave a valid lease")
+
+        let leaseF = FakeAudioLease()
+        let leaseG = FakeAudioLease()
+        coordinator.next = { leaseF }
+        check(slot.acquire(onRevoked: { revocations += 1 }), "lease for release reentry acquired")
+        var nestedLeaseAcquired = false
+        leaseF.onRelease = {
+            leaseF.onRelease = nil
+            coordinator.next = { leaseG }
+            nestedLeaseAcquired = slot.acquire(onRevoked: { revocations += 1 })
+        }
+        check(!slot.acquire(onRevoked: { revocations += 1 }) && nestedLeaseAcquired,
+              "outer acquire cannot replace a lease installed during release")
+        check(slot.activateForRecording() && leaseG.activationCount == 1 && leaseG.releaseCount == 0,
+              "newer reentrant lease retains ownership")
+        slot.release()
+        check(leaseF.releaseCount == 1 && leaseG.releaseCount == 1, "reentrant leases each released once")
+
+        coordinator.next = { nil }
+        check(!slot.acquire(onRevoked: { revocations += 1 }), "coordinator may deny")
+        coordinator.callbacks.last?()
+        check(revocations == 3, "callback after denied acquisition ignored")
         print("PASS VoiceInput: \(assertions) assertions; pure state machine and fake driver only")
     }
 }

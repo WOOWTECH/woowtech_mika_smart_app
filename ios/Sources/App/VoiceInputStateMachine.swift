@@ -40,6 +40,8 @@ final class VoiceInputStateMachine {
     private let maxDuration: TimeInterval
     private let finishTimeout: TimeInterval
     private var id: UUID?
+    // Changes even when a reentrant cancellation leaves no active ID.
+    private var generation: UInt64 = 0
     private var startedAt: TimeInterval = 0
     private var finishBy: TimeInterval?
     private var pendingFinal: String?
@@ -66,7 +68,10 @@ final class VoiceInputStateMachine {
     }
 
     func begin(gestureStartedAt: TimeInterval) {
+        let previousGeneration = generation
         cancel()
+        // An observer or driver cleanup may have started a newer session.
+        guard generation == previousGeneration &+ 1 else { return }
         guard now() - gestureStartedAt < maxDuration else { state = .failed(.timeout); return }
         let newID = makeID()
         id = newID
@@ -88,12 +93,12 @@ final class VoiceInputStateMachine {
         guard let current = id, case let .listening(_, armed, _) = state else { return }
         if armed { cancel(); return }
         if now() - startedAt < minDuration {
-            invalidateAndCancel(current)
+            guard invalidateAndCancel(current) else { return }
             state = .noMatch
             return
         }
         if let failure = pendingFailure {
-            invalidateAndCancel(current)
+            guard invalidateAndCancel(current) else { return }
             state = .failed(failure)
         } else if let result = pendingFinal {
             complete(result, id: current)
@@ -114,7 +119,7 @@ final class VoiceInputStateMachine {
             else { state = .listening(partial: partial, cancelArmed: armed, elapsed: elapsed) }
         case .finishing:
             if let deadline = finishBy, now() >= deadline {
-                invalidateAndCancel(current)
+                guard invalidateAndCancel(current) else { return }
                 state = .failed(.timeout)
             }
         default: break
@@ -122,25 +127,29 @@ final class VoiceInputStateMachine {
     }
 
     func cancel() {
-        if let current = id { invalidateAndCancel(current) }
-        else { pendingFinal = nil; pendingFailure = nil; finishBy = nil }
+        generation &+= 1
+        if let current = id {
+            guard invalidateAndCancel(current) else { return }
+        } else { pendingFinal = nil; pendingFailure = nil; finishBy = nil }
         if state != .idle { state = .idle }
     }
 
-    private func invalidateAndCancel(_ current: UUID) {
+    private func invalidateAndCancel(_ current: UUID) -> Bool {
         // Invalidate first: a synchronous cancellation callback is already stale.
+        let cancelledGeneration = generation
         id = nil
         pendingFinal = nil
         pendingFailure = nil
         finishBy = nil
         driver.cancel(id: current)
+        return generation == cancelledGeneration && id == nil
     }
 
     private func receive(id incoming: UUID, event: VoiceInputEvent) {
         guard incoming == id else { return }
         // A delayed timer must not allow a result after the finishing deadline.
         if case .finishing = state, let deadline = finishBy, now() >= deadline {
-            invalidateAndCancel(incoming)
+            guard invalidateAndCancel(incoming) else { return }
             state = .failed(.timeout)
             return
         }
@@ -163,7 +172,7 @@ final class VoiceInputStateMachine {
             if case let .listening(_, armed, _) = state, armed {
                 pendingFailure = failure
             } else {
-                invalidateAndCancel(incoming)
+                guard invalidateAndCancel(incoming) else { return }
                 state = .failed(failure)
             }
         }
@@ -176,10 +185,17 @@ final class VoiceInputStateMachine {
         pendingFinal = nil
         pendingFailure = nil
         finishBy = nil
-        // Also releases driver resources after an early final.
+        // A driver cleanup or an idle observer may synchronously cancel or
+        // begin another session. Never deliver the old result after either.
+        let completionGeneration = generation
         driver.cancel(id: current)
+        guard generation == completionGeneration else { return }
         if result.isEmpty { state = .noMatch }
-        else { state = .idle; onFinal?(result) }
+        else {
+            state = .idle
+            guard generation == completionGeneration else { return }
+            onFinal?(result)
+        }
     }
 }
 
