@@ -45,6 +45,8 @@ private final class SiteModeKeys: LearningKeyStore {
         var allowsNetworkFixture: (URL) -> Bool = { _ in false }
         var omitNextPolicyObservation = false
         var finishes = 0
+        var failures = 0
+        var externallyCancelledURLs: [URL] = []
         var events: [String] = []
         var lastNavigation: WKNavigation?
         var actions: [(host: String?, main: Bool, method: String?, incomingMode: WKWebpagePreferences.ContentMode,
@@ -72,6 +74,9 @@ private final class SiteModeKeys: LearningKeyStore {
                 if local { self.localHTMLURL = nil }
                 if reload { self.allowReloadURL = nil }
                 let networkFixture = action.request.url.map(self.allowsNetworkFixture) == true
+                if !(local || reload || networkFixture), let url = action.request.url {
+                    self.externallyCancelledURLs.append(url)
+                }
                 decisionHandler(local || reload || networkFixture ? policy : .cancel, result)
             }
         }
@@ -96,8 +101,12 @@ private final class SiteModeKeys: LearningKeyStore {
         func webView(_ view: WKWebView, didReceiveServerRedirectForProvisionalNavigation nav: WKNavigation!) {
             browser.webView(view, didReceiveServerRedirectForProvisionalNavigation: nav)
         }
-        func webView(_ view: WKWebView, didFail nav: WKNavigation!, withError error: Error) { browser.webView(view, didFail: nav, withError: error) }
-        func webView(_ view: WKWebView, didFailProvisionalNavigation nav: WKNavigation!, withError error: Error) { browser.webView(view, didFailProvisionalNavigation: nav, withError: error) }
+        func webView(_ view: WKWebView, didFail nav: WKNavigation!, withError error: Error) {
+            failures += 1; browser.webView(view, didFail: nav, withError: error)
+        }
+        func webView(_ view: WKWebView, didFailProvisionalNavigation nav: WKNavigation!, withError error: Error) {
+            failures += 1; browser.webView(view, didFailProvisionalNavigation: nav, withError: error)
+        }
     }
 
     @MainActor final class Host {

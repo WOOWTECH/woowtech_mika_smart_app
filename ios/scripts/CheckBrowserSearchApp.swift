@@ -26,6 +26,18 @@ private final class BrowserSearchKeys: LearningKeyStore {
 
 @MainActor enum BrowserSearchAppChecks {
     struct Failure: Error { let check: String }
+    @MainActor private final class URLChangeEvidence {
+        private var observation: NSKeyValueObservation?
+        private(set) var urls: [URL] = []
+        init(_ view: WKWebView) {
+            observation = view.observe(\.url, options: [.new]) { [weak self] _, change in
+                let observed = change.newValue ?? nil
+                Task { @MainActor [weak self] in
+                    if let observed { self?.urls.append(observed) }
+                }
+            }
+        }
+    }
     static func runSPAHash() async throws -> [String: Any] {
         var count = 0
         func check(_ condition: @autoclosure () -> Bool, _ name: String) throws {
@@ -44,7 +56,9 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let base = URL(string: "https://research.example.invalid/spa")!
         let routed = URL(string: "https://research.example.invalid/spa#/docs/42")!
         let sensitive = URL(string: "https://research.example.invalid/spa#/authToken/fixture")!
-        let html = "<!doctype html><title>SPA fixture</title><a id='route-link' href='#/docs/42'>Open section</a><a id='sensitive-link' href='#/authToken/fixture'>Private section</a><script>window.spaMarker='same-document'</script>"
+        let afterFailure = URL(string: "https://research.example.invalid/spa#/docs/43")!
+        let afterClose = URL(string: "https://research.example.invalid/spa#/docs/44")!
+        let html = "<!doctype html><title>SPA fixture</title><a id='route-link' href='#/docs/42'>Open section</a><a id='sensitive-link' href='#/authToken/fixture'>Private section</a><a id='rejected-link' href='https://127.0.0.1/fail'>Rejected navigation</a><a id='after-failure' href='#/docs/43'>After failed navigation</a><a id='after-close' href='#/docs/44'>After closed tab</a><script>window.spaMarker='same-document'</script>"
         let selectedID = workspace.library.selectedID
         browser.manualNavigation(to: base) {
             browser.webView.loadSimulatedRequest(URLRequest(url: base), responseHTML: html)
@@ -93,7 +107,61 @@ private final class BrowserSearchKeys: LearningKeyStore {
         workspace.selectTab(selectedID); host.attach(workspace.selected)
         try check(workspace.selected === browser && browser.externalOpenURL == routed,
             "reselected tab preserves its live SPA route without storing the fragment")
+        let urlEvidence = URLChangeEvidence(browser.webView)
+        let failedTarget = URL(string: "https://127.0.0.1/fail")!
+        let failureProbe = BrowserSiteModesAppChecks.Probe(browser)
+        browser.webView.navigationDelegate = failureProbe
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('rejected-link').click(); true")
+        try await BrowserSiteModesAppChecks.wait("real WebKit rejected-link policy") {
+            failureProbe.externallyCancelledURLs.contains(failedTarget)
+                && failureProbe.actions.contains { $0.host == "127.0.0.1" && $0.main && $0.policy == .cancel }
+                && browser.error != nil
+        }
+        browser.webView.navigationDelegate = browser
+        try check(browser.webView.url == routed && browser.loadedURL == routed && browser.externalOpenURL == nil,
+            "rejected navigation retains the old document but revokes its handoff")
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('after-failure').click(); true")
+        try await BrowserSiteModesAppChecks.wait("late URL KVO after failed navigation") {
+            browser.webView.url == afterFailure && urlEvidence.urls.contains(afterFailure)
+        }
+        await Task.yield() // Let the product's independently queued MainActor KVO handler run.
+        try check(browser.loadedURL == routed && browser.externalOpenURL == nil,
+            "late hash change cannot revive a failed navigation")
+
+        browser.manualNavigation(to: base) {
+            browser.webView.loadSimulatedRequest(URLRequest(url: base), responseHTML: html)
+        }
+        try await BrowserSiteModesAppChecks.wait("fresh manual document after failure") {
+            browser.loadedURL == base && browser.externalOpenURL == base && !browser.webView.isLoading
+        }
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('route-link').click(); true")
+        try await BrowserSiteModesAppChecks.wait("fresh route before close") {
+            browser.loadedURL == routed && browser.externalOpenURL == routed
+        }
+        workspace.closeTab(selectedID)
+        let replacement = workspace.selected
+        let libraryAfterClose = workspace.library
+        try check(replacement !== browser && replacement.loadedURL == nil && browser.externalOpenURL == nil,
+            "closing the active tab revokes the old session and selects a blank replacement")
+        // Retain the old WebView in the hosted window while the removed session
+        // receives one more actual same-document WebKit URL notification.
+        _ = try await browser.webView.evaluateJavaScript("document.getElementById('after-close').click(); true")
+        try await BrowserSiteModesAppChecks.wait("late URL KVO after closing tab") {
+            browser.webView.url == afterClose && urlEvidence.urls.contains(afterClose)
+        }
+        await Task.yield()
+        let closedHandoff = browser.handoffVisiblePage { _ in }
+        try check(browser.loadedURL == routed && browser.externalOpenURL == nil && !closedHandoff,
+            "late hash change cannot restore the closed session's URL or external action")
+        try check(workspace.selected === replacement && workspace.library == libraryAfterClose
+            && workspace.selected.loadedURL == nil,
+            "late closed-tab KVO cannot alter the selected tab or encrypted library")
+        host.attach(replacement)
         return ["assertions": count, "actual_webkit": true, "actual_in_page_anchor": true,
+                "failed_navigation_policy_rejected": failureProbe.externallyCancelledURLs.contains(failedTarget),
+                "failed_navigation_callbacks": failureProbe.failures,
+                "late_failure_url_kvo": urlEvidence.urls.contains(afterFailure),
+                "late_closed_tab_url_kvo": urlEvidence.urls.contains(afterClose),
                 "external_network_or_personal_keychain": false, "native_ui_execution": false]
     }
     static func run() async throws -> [String: Any] {

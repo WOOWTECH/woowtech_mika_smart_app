@@ -1,0 +1,53 @@
+{
+  "artifacts_sha256": {
+    "discarded_initial_test_assumption_log": "5d9690da08c71688a65fed1a40ed0ec53d101f9a8f1af3802abb8b9ea9f2a199",
+    "final_debug_webkit_log": "9141e0aaee9a5729abd6e88ffcd0e11ebb0afd9e61f4b8eb29c3398a0371e9c6",
+    "final_release_webkit_log": "9141e0aaee9a5729abd6e88ffcd0e11ebb0afd9e61f4b8eb29c3398a0371e9c6",
+    "final_report": "7aa620fdcf215e2c725cca203b7b51fcfa7d6add083b4feeff7bd24bd908041b"
+  },
+  "base_commit": "1aed04106701ce9f37ec5bbc92fa5c09dfad3d4b",
+  "checks_all_exit_zero": 12,
+  "discarded_test_assumption": "On macOS, a delegate-cancelled navigation did not emit didFail; the final test asserts the real production policy rejection and App error instead.",
+  "hosted_webkit": {
+    "assertions_each_configuration": 17,
+    "debug": {
+      "actual_in_page_anchor": true,
+      "actual_webkit": true,
+      "assertions": 17,
+      "external_network_or_personal_keychain": false,
+      "failed_navigation_callbacks": 0,
+      "failed_navigation_policy_rejected": true,
+      "late_closed_tab_url_kvo": true,
+      "late_failure_url_kvo": true,
+      "native_ui_execution": false
+    },
+    "engine": "Actual macOS WKWebView with locally supplied synthetic HTTPS HTML; no external network or personal Keychain.",
+    "existing_search_assertions_each_configuration": 172,
+    "existing_site_mode_assertions_each_configuration": 118,
+    "failed_navigation": "A main-frame anchor to a synthetic private address receives production .cancel policy and App error; no request is sent.",
+    "invariants": "Old session loadedURL remains at its last committed route while external handoff stays revoked; selected replacement and encrypted library stay unchanged.",
+    "late_url_events": "Independent WKWebView.url KVO observation records distinct #/docs/43 after failure and #/docs/44 after close.",
+    "release": {
+      "actual_in_page_anchor": true,
+      "actual_webkit": true,
+      "assertions": 17,
+      "external_network_or_personal_keychain": false,
+      "failed_navigation_callbacks": 0,
+      "failed_navigation_policy_rejected": true,
+      "late_closed_tab_url_kvo": true,
+      "late_failure_url_kvo": true,
+      "native_ui_execution": false
+    },
+    "trigger": "Actual anchors in the loaded page are clicked through WebKit JavaScript evaluation."
+  },
+  "native_ios": {
+    "debug_and_release_syntax_parse": "PASS",
+    "reason": "Local macOS 13 Intel Command Line Tools environment has no iOS SDK.",
+    "target": "AssistantBrowserIntegrationTests via existing project.yml registration of tests directory and CheckBrowserSearchApp.swift",
+    "typechecked": false,
+    "wrapper": "BrowserSearchIntegrationTests.testRealHashKVOAfterFailedNavigationAndClosedTabCannotReviveHandoff",
+    "xctest_executed": false
+  },
+  "scope": "Tests only; product BrowserSession and BrowserWorkspace sources unchanged.",
+  "source_snapshot_current": true
+}
