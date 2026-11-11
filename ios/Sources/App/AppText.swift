@@ -534,6 +534,7 @@ enum AppText: Equatable {
     case composerAttachmentOpen
     case composerAttachmentReview
     case composerAttachmentRemoveBeforeNew
+    case attachmentSelectionRetry
 
     var key: String {
         switch self {
@@ -1068,6 +1069,7 @@ enum AppText: Equatable {
         case .composerAttachmentOpen: return "composer.attachment.open"
         case .composerAttachmentReview: return "composer.attachment.review"
         case .composerAttachmentRemoveBeforeNew: return "composer.attachment.removeBeforeNew"
+        case .attachmentSelectionRetry: return "attachment.selectionRetry"
         }
     }
 
@@ -1638,6 +1640,7 @@ enum AppText: Equatable {
         case .composerAttachmentOpen: return "加入圖片或文字附件"
         case .composerAttachmentReview: return "檢視或確認附件"
         case .composerAttachmentRemoveBeforeNew: return "請先移除附件，再建立新對話；文字草稿會保留。"
+        case .attachmentSelectionRetry: return "請重新選取附件，或明確移除附件以繼續。"
         }
     }
 }

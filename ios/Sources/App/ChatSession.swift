@@ -810,9 +810,9 @@ final class ChatSession: ObservableObject {
                             self.attachmentClientStartProbe()
                             try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
                         })
-                    // Successful completion means transport has finished. Release
-                    // before saving the answer, which takes the same vault lock.
-                    lease?.release()
+                    // Do not explicitly release here: a normally finished
+                    // consumer can still have a live producer holding this lease.
+                    // A busy archive preserves the answer for explicit retry.
                 }
                 try Task.checkCancellation()
                 guard self.requestID == id else { return }

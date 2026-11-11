@@ -49,6 +49,9 @@ import UniformTypeIdentifiers
                             .accessibilityIdentifier("attachment.fixture.oversize")
                         Button("Cancel selection") { model.presenter.pickerCancelled() }
                             .accessibilityIdentifier("attachment.fixture.cancel")
+                        Button("Fail replacement") {
+                            model.presenter.picked(URL(fileURLWithPath: "/synthetic-unsupported.pdf"))
+                        }.accessibilityIdentifier("attachment.fixture.failReplacement")
                     }
                 }
                 #endif
@@ -83,6 +86,12 @@ import UniformTypeIdentifiers
                     if let error = model.state.error {
                         Text(localizer.text(AppLocalizer.attachmentError(error)))
                             .foregroundStyle(.red).accessibilityIdentifier("chat.attachment.error")
+                        switch error {
+                        case .pickerFailed, .importing:
+                            Text(localizer.text(.attachmentSelectionRetry))
+                                .accessibilityIdentifier("chat.attachment.selectionRetry")
+                        default: EmptyView()
+                        }
                     }
                 }
                 if showsReview {
@@ -98,7 +107,7 @@ import UniformTypeIdentifiers
                             if case .ready(let metadata) = model.state.phase, metadata.kind != .text {
                                 Text(localizer.text(.chatAttachmentVisionNotice))
                             }
-                            if case .ready = model.state.phase {
+                            if case .ready = model.state.phase, model.state.error == nil {
                                 Button(localizer.text(.attachmentConfirm)) { model.confirm() }
                                     .accessibilityIdentifier("chat.attachment.confirm")
                             }

@@ -71,6 +71,24 @@ final class ChatAttachmentComposerUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.attachment.error"].exists)
     }
 
+    func testFailedReplacementCannotReconfirmPreviousFileAfterDraftEdit() {
+        launch(); disableMemory(); compose("Original draft")
+        open(); tap("attachment.fixture.select"); exists("chat.attachment.filename")
+        tap("chat.attachment.confirm"); exists("chat.attachment.confirmed")
+        tap("attachment.fixture.failReplacement"); exists("chat.attachment.selectionRetry")
+        XCTAssertFalse(app.buttons["chat.attachment.confirm"].exists)
+        tap("chat.attachment.done")
+        let field = chatDraftControl(in: app)
+        field.tap(); field.typeText(" changed"); tap("chat.dismissKeyboard")
+        tap("chat.attachment.review"); exists("chat.attachment.selectionRetry")
+        XCTAssertFalse(app.buttons["chat.attachment.confirm"].exists)
+        tap("chat.attachment.done")
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertEqual(field.value as? String, "Original draft changed")
+        tap("chat.attachment.removeInline")
+        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+    }
+
     func testFailureAndCancellationKeepDraftAndRequireReselection() {
         for prompt in ["[attachment-fixture:fail]", "[attachment-fixture:wait]"] {
             launch(); disableMemory(); compose(prompt)

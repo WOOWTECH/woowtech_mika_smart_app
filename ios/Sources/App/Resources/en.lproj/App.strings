@@ -525,3 +525,4 @@
 "composer.attachment.open" = "Add image or text attachment";
 "composer.attachment.review" = "Review attachment";
 "composer.attachment.removeBeforeNew" = "Remove the attachment before starting a new conversation. Your draft is kept.";
+"attachment.selectionRetry" = "Select an attachment again, or remove it explicitly to continue.";

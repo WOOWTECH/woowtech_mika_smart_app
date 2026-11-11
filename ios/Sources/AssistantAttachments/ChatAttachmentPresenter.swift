@@ -97,12 +97,13 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
     }
 
     /// Call synchronously and only from the successful system picker callback.
-    /// Invalid choices leave an existing attachment intact and show an error.
+    /// A failed replacement revokes and discards any previous attachment;
+    /// cancellation alone preserves it. A fresh choice or discard is required.
     public func picked(_ url: URL) {
         let selection: ChatAttachmentSelection
         do { selection = try ChatAttachmentSelection(userSelectedURL: url) }
-        catch let error as ChatAttachmentImportError { publish(error: .importing(error)); return }
-        catch { publish(error: .pickerFailed); return }
+        catch let error as ChatAttachmentImportError { selectionFailed(.importing(error)); return }
+        catch { selectionFailed(.pickerFailed); return }
         let reader = PickerScopedAttachmentReader(url: url, scope: scope, delegate: makeReader())
         let next = ChatAttachmentImportSession(selection: selection, reader: reader, decoder: decoder)
         clearSession()
@@ -135,7 +136,7 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
 
     /// Cancellation is not an error and preserves the existing attachment.
     public func pickerCancelled() {}
-    public func pickerFailed() { publish(error: .pickerFailed) }
+    public func pickerFailed() { selectionFailed(.pickerFailed) }
 
     public func updateContext(_ context: ChatAttachmentReviewContext?) {
         guard state.context != context else { return }
@@ -145,13 +146,19 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
         case .confirmed(let metadata): phase = .ready(metadata)
         default: phase = state.phase
         }
-        // A failed selection is a pending user decision, independent of the
-        // review context. Only a new selection or explicit discard resolves it.
-        state = .init(phase: phase, error: state.error, context: context)
+        // Selection failures require a fresh selection or explicit discard.
+        // Contextual errors can be reconsidered only after context changes.
+        let error: ChatAttachmentPresentationError?
+        switch state.error {
+        case .pickerFailed, .importing: error = state.error
+        default: error = nil
+        }
+        state = .init(phase: phase, error: error, context: context)
     }
 
     public func confirm() throws {
         do {
+            if let error = state.error { throw error }
             guard case .ready(let metadata) = state.phase else { throw ChatAttachmentPresentationError.confirmationRequired }
             guard let context = state.context else { throw ChatAttachmentPresentationError.invalidContext }
             try Self.validateVision(metadata, context: context)
@@ -166,7 +173,8 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
     /// Transfers a one-shot value; never sends it. The host must revalidate the
     /// exact same live context after suspension and immediately before network.
     public func takeConfirmed(context: ChatAttachmentReviewContext) async throws -> ModelAttachment {
-        guard case .confirmed(let metadata) = state.phase, let session, approval == context, state.context == context else {
+        guard state.error == nil, case .confirmed(let metadata) = state.phase,
+              let session, approval == context, state.context == context else {
             throw ChatAttachmentPresentationError.confirmationRequired
         }
         try Self.validateVision(metadata, context: context)
@@ -197,6 +205,10 @@ public struct ChatAttachmentPresentationState: Sendable, Equatable {
         generation = UUID(); approval = nil; preparation?.cancel(); preparation = nil
         if let previous = session { Task { await previous.discard() } }
         session = nil
+    }
+    private func selectionFailed(_ error: ChatAttachmentPresentationError) {
+        clearSession()
+        state = .init(phase: .empty, error: error, context: state.context)
     }
     private func publish(error: ChatAttachmentPresentationError) {
         state = .init(phase: state.phase, error: error, context: state.context)

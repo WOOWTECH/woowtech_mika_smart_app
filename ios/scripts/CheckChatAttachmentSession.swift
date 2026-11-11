@@ -99,6 +99,32 @@ private final class ControlledStreamModel: LifetimeRetainingStreamingChatModelCl
     private func capturedWorker() -> Task<Void, Never>? { lock.lock(); defer { lock.unlock() }; return worker }
     func joinWorker() async { await capturedWorker()?.value }
 }
+/// Finishes the consumer normally before the producer actually ends.
+private final class CompletedButLiveStream: LifetimeRetainingStreamingChatModelClient, @unchecked Sendable {
+    let gate = Gate()
+    private let lock = NSLock()
+    private var worker: Task<Void, Never>?
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        throw Failure(name: "unexpected completion fallback")
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, retaining: ())
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                retaining lifetime: any Sendable) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                defer { withExtendedLifetime(lifetime) {} }
+                continuation.yield("completed fixture answer")
+                continuation.finish()
+                await gate.wait()
+            }
+            lock.lock(); worker = task; lock.unlock()
+        }
+    }
+    private func capturedWorker() -> Task<Void, Never>? { lock.lock(); defer { lock.unlock() }; return worker }
+    func joinWorker() async { await capturedWorker()?.value }
+}
 private final class UnretainedStreamModel: StreamingChatModelClient, LifetimeBoundCompletionChatModelClient, @unchecked Sendable {
     let records = StreamRecords()
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -177,12 +203,20 @@ private func image() throws -> Data {
 
 @main private enum CheckChatAttachmentSession {
     @MainActor static func main() async throws {
+        if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "replacement" {
+            try await failedReplacementCannotReconfirm(); return
+        }
+        if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "finished-producer" {
+            try await completedStreamRetainsProducerLease(); return
+        }
         if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "selection" {
             try await failedSelectionSurvivesDraftChange(); return
         }
         if ProcessInfo.processInfo.environment["WOOW_ATTACHMENT_REGRESSION"] == "archive" {
             try await staleOtherStoreDuringPreflight(); return
         }
+        try await failedReplacementCannotReconfirm()
+        try await completedStreamRetainsProducerLease()
         try await failedSelectionSurvivesDraftChange()
         try await staleOtherStoreDuringPreflight()
         try await otherStoreCannotRaceClientEntry()
@@ -200,6 +234,47 @@ private func image() throws -> Data {
         try await nonStreamingFailure()
         try await cancellation()
         print("Chat attachment session checks passed: \(assertions)")
+    }
+    @MainActor static func failedReplacementCannotReconfirm() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model(["must not send"]), s = e.session(model)
+        s.draft = "initial"; try await stage(s, url: e.file())
+        s.attachmentPresenter.picked(e.root.appendingPathComponent("unsupported.pdf"))
+        try check(s.attachmentPresenter.state.error != nil, "failed replacement reports error")
+        s.draft = "edited"; try check(s.prepareAttachmentReview(), "changed draft has fresh context")
+        do {
+            try s.attachmentPresenter.confirm()
+            throw Failure(name: "failed replacement reconfirmed old attachment")
+        } catch let error as ChatAttachmentPresentationError {
+            guard case .importing(.unsupportedType) = error else { throw error }
+            assertions += 1
+        }
+        try check(!s.canSend && s.attachmentPresenter.state.error != nil, "failed replacement remains blocking")
+        s.send(); let calls = await model.requests
+        try check(calls.isEmpty && s.draft == "edited", "old attachment was not sent")
+        s.attachmentPresenter.picked(try e.file("replacement.txt"))
+        try await wait { if case .ready = s.attachmentPresenter.state.phase { return true }; return false }
+        try check(s.prepareAttachmentReview(), "successful replacement has review")
+        try s.attachmentPresenter.confirm(); try check(s.canSend, "successful replacement resolves failure")
+    }
+    @MainActor static func completedStreamRetainsProducerLease() async throws {
+        let e = try Environment(); defer { e.close() }
+        let seed = e.session(Model(["original"]))
+        seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        let model = CompletedButLiveStream(), s = e.session(model)
+        try check(s.openConversation(id: row.id), "open saved conversation for producer test")
+        s.draft = "follow-up"; try await stage(s, url: e.file()); s.send()
+        let task = s.capturedArchiveRequest!; await model.gate.waitForStart(); await task.value
+        try check(s.entries.last?.content == "completed fixture answer", "completed answer remains visible")
+        try check(!other.delete(id: row.id), "normal consumer completion must not release live producer lease")
+        try check(s.canRetryArchiveSave, "busy archive keeps answer for explicit retry")
+        await model.gate.release(); await model.joinWorker()
+        s.retryArchiveSave()
+        try check(!s.canRetryArchiveSave && e.archive.state.conversations.first?.turns.count == 2,
+                  "answer can be saved after producer ends")
+        try check(other.delete(id: row.id), "producer termination releases lease")
     }
     @MainActor static func failedSelectionSurvivesDraftChange() async throws {
         let e = try Environment(); defer { e.close() }

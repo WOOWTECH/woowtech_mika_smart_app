@@ -525,3 +525,4 @@
 "composer.attachment.open" = "添加图片或文字附件";
 "composer.attachment.review" = "查看或确认附件";
 "composer.attachment.removeBeforeNew" = "请先移除附件，再创建新对话；文字草稿会保留。";
+"attachment.selectionRetry" = "请重新选择附件，或明确移除附件以继续。";

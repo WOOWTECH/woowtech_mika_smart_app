@@ -193,6 +193,36 @@ private struct AcceptDecoder: ChatAttachmentImageValidating {
         try check(errors.state.error == .importing(.unsupportedType), "Picker cancellation preserves prior state")
         errors.pickerFailed()
         try check(errors.state.error == .pickerFailed && errors.state.error?.errorDescription?.contains("PRIVATE") == false, "Picker failure is sanitized")
+        let revokedScope = Scope()
+        let revoked = ChatAttachmentPresenter(scope: revokedScope, makeReader: { NoopReader(bytes: bytes) }, decoder: AcceptDecoder())
+        revoked.updateContext(originalContext); revoked.picked(url)
+        try await wait { isReady(revoked) && revokedScope.counts.1 == 1 }
+        try revoked.confirm(); revoked.pickerFailed()
+        try check(revoked.state.phase == .empty && revoked.state.error == .pickerFailed,
+                  "Failed picker replacement revokes the previously confirmed item")
+        revoked.updateContext(wrongContext)
+        do { try revoked.confirm(); throw Failure(detail: "Failed replacement could be reconfirmed") }
+        catch ChatAttachmentPresentationError.pickerFailed { try check(true, "Failed replacement requires explicit decision") }
+        try await expect(.confirmationRequired) { _ = try await revoked.takeConfirmed(context: wrongContext) }
+        revoked.discard()
+        try check(revoked.state.error == nil && revoked.state.phase == .empty, "Explicit discard clears selection error")
+        try check(revokedScope.counts.0 == 1 && revokedScope.counts.1 == 1, "Revoking confirmed attachment balances scope")
+
+        let failedScope = Scope(), failedReader = HeldReader(bytes)
+        let failedWhileLoading = ChatAttachmentPresenter(scope: failedScope, makeReader: { failedReader }, decoder: AcceptDecoder())
+        failedWhileLoading.picked(url)
+        defer { failedReader.release.signal() }
+        try await wait { failedReader.entered.wait(timeout: .now()) == .success }
+        failedWhileLoading.picked(directory.appendingPathComponent("unsupported.pdf"))
+        try await wait { failedReader.wasCancelled }
+        try check(failedScope.counts.0 == 1 && failedScope.counts.1 == 0, "Failed replacement keeps live reader's scope")
+        failedReader.release.signal()
+        try await wait { failedReader.finished.wait(timeout: .now()) == .success }
+        try await wait { failedScope.counts.1 == 1 }
+        try check(failedWhileLoading.state.phase == .empty && failedWhileLoading.state.error == .importing(.unsupportedType),
+                  "Late old reader cannot clear replacement failure")
+        try check(failedScope.counts.1 == 1, "Failed replacement stops its scope exactly once")
+
         let invalidBytesScope = Scope()
         let invalidBytes = ChatAttachmentPresenter(scope: invalidBytesScope, makeReader: { NoopReader(bytes: Data([0xff])) }, decoder: AcceptDecoder())
         invalidBytes.picked(url)

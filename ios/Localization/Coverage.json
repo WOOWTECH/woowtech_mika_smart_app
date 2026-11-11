@@ -105,7 +105,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "sha256": "c17676bff51d22f53e32d1524ef6bcc6ee53c6d28454fb54fe2f8b3f1e294502"
+      "sha256": "3b7d0986a60b2a3fa3ad41adae3f1132e49140f2ebd19c0e7becb5c6f64a2a8f"
     },
     {
       "file": "Sources/App/ChatPDFAttachment.swift",
@@ -129,7 +129,7 @@
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b"
+      "sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94"
     },
     {
       "file": "Sources/App/ChatVoiceController.swift",
@@ -3808,7 +3808,25 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 55,
+      "line": 52,
+      "line_sha256": "0e0543bb7249b9ec62931ef8f76991a365676619a55caad1f26585c660740908",
+      "kinds": [
+        "ui_expression_requires_provenance_review"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 54,
+      "line_sha256": "81e9ea6b5d25e29c1dc31c1a7fb7f44453ee046a115406e63e8828ea87211fae",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 58,
       "line_sha256": "20ef17b6ef1fa0fe4125a3751373e8a546e65105d429a0322360745bb8129c96",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3818,7 +3836,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 58,
+      "line": 61,
       "line_sha256": "8fcf0bb557ef357a5a8a4b561f6ba38250db4e47bb94302d5bdd0672727472ca",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3828,7 +3846,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 60,
+      "line": 63,
       "line_sha256": "32a36c8ebfa170dbb6eb28a823069777b6171fde7731aa6f0fc196d27c796c99",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -3837,7 +3855,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 61,
+      "line": 64,
       "line_sha256": "b82f86d3d49413aaaec3df2d0d3b7ad88d77223541b02198cc522b43be8f8377",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3847,7 +3865,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 63,
+      "line": 66,
       "line_sha256": "07922d2b3db622bd183465668d975f26348a119e0b5d82a99759230cfa2197fe",
       "kinds": [
         "ui_expression_requires_provenance_review"
@@ -3856,7 +3874,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 64,
+      "line": 67,
       "line_sha256": "e8ab696b61dde8a9c9220e4244238141b381ca272bd1e6d05431c015f4302192",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3865,7 +3883,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 65,
+      "line": 68,
       "line_sha256": "cfef68dba88460ca379e8419c3810b7567b5c7ac280a4912ddbfad00885588c5",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3875,7 +3893,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 66,
+      "line": 69,
       "line_sha256": "397596a9f049e245d82795190463f55f1e5f275d539de1b72691c12b249e83e4",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3884,7 +3902,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 68,
+      "line": 71,
       "line_sha256": "08155db3df729fa81729d2a932789c22304b4b7191b98a1e34ff2596a76cf628",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3894,7 +3912,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 69,
+      "line": 72,
       "line_sha256": "a7f6d734f3d12847d066cf707824134cce9c03977823655c3e5dcd0d05e2b151",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3903,7 +3921,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 71,
+      "line": 74,
       "line_sha256": "e81bf3153e8c8db06c7ea0b542f610be59e9c322a50df7d741e7c539370ae20a",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3913,7 +3931,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 73,
+      "line": 76,
       "line_sha256": "0d78809db47d24378317722ff648d227d3f4690258229d257a4d5891c6a42729",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3923,7 +3941,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 76,
+      "line": 79,
       "line_sha256": "c70fb210fc82a99c47ccf160fbb830fe04251a71f1d2bb7367ee0067385c9bb8",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3932,7 +3950,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 78,
+      "line": 81,
       "line_sha256": "c5a86a4a1f87768fabeb97b69e0e5b9cbaebfa73fddfe5f2c338272e06027be8",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3942,7 +3960,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 81,
+      "line": 84,
       "line_sha256": "a027a31ba7b696a8ea50ae25a2b2310c45bca1dbfa446ee07f90bc6f49b343e1",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3951,7 +3969,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 84,
+      "line": 87,
       "line_sha256": "4f142d2f21131a2d95f51636d9d6342b9578fdcb16342c661b9092ea936dcd03",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -3961,7 +3979,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 85,
+      "line": 88,
       "line_sha256": "75d56d795b9663f369152bb53ff1bc2594b6d7dcd019aeb5c395dc3c39387e6b",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3970,18 +3988,8 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 89,
-      "line_sha256": "36144882a081a537e1453b2dc3db5a21faa255caf9dbefde1cc0e1ef6dad9db4",
-      "kinds": [
-        "ui_expression_requires_provenance_review",
-        "typed_localized_render"
-      ],
-      "review": "pending"
-    },
-    {
-      "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 91,
-      "line_sha256": "e00e4e29903b5635002744e68f79d0abdf964fa1cf82f64a0a389540bb0978f7",
+      "line_sha256": "79f3b4b8a81fb0be878ace25d069fbda4775430c9e53fe4f6ca87c40e6ce90a8",
       "kinds": [
         "ui_expression_requires_provenance_review",
         "typed_localized_render"
@@ -3991,6 +3999,35 @@
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
       "line": 92,
+      "line_sha256": "1c02250d7c8c9b13ab32829878350f259aecc45175a95534fb6128d101b46ac1",
+      "kinds": [
+        "stable_identifier_do_not_translate"
+      ],
+      "review": "excluded_machine_identifier"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 98,
+      "line_sha256": "36144882a081a537e1453b2dc3db5a21faa255caf9dbefde1cc0e1ef6dad9db4",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 100,
+      "line_sha256": "e00e4e29903b5635002744e68f79d0abdf964fa1cf82f64a0a389540bb0978f7",
+      "kinds": [
+        "ui_expression_requires_provenance_review",
+        "typed_localized_render"
+      ],
+      "review": "pending"
+    },
+    {
+      "file": "Sources/App/ChatAttachmentPickerView.swift",
+      "line": 101,
       "line_sha256": "e2e867b876c0a18b6c27d3058d80342a5ce9864ba935ddaeecee9f82707744e3",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -3999,7 +4036,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 93,
+      "line": 102,
       "line_sha256": "d0b3c3d39b8a67b09d5f00d63a19429507970a2212034d9b21aa0de0c0bf0f81",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4010,7 +4047,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 94,
+      "line": 103,
       "line_sha256": "755dd08398acce7e48d4f07425b62f14cc01bc3394c8e02d38651d3d8f063008",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4020,7 +4057,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 95,
+      "line": 104,
       "line_sha256": "ea93db7c57370053a70bfde3eddf438527a2e1d702033ca9c8f36c9dab6a62d6",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4029,7 +4066,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 96,
+      "line": 105,
       "line_sha256": "52b919eb7250cc3c020a292b988fc49aedcce18c72f848702188d0db22ad7e39",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4039,7 +4076,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 97,
+      "line": 106,
       "line_sha256": "b1a560b2148f84c088b42ef3d51ffcdb0b2558ca7a8457c65e5ea76b8fed1b02",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4049,7 +4086,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 99,
+      "line": 108,
       "line_sha256": "78a0f3c895e6d90da7ed5b40ad0b96f43db22a3854d06659b7f505f8a835f5ac",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4059,7 +4096,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 102,
+      "line": 111,
       "line_sha256": "5d2605a44ab2a4d396b18dd64a52b7b3fbd22784b5665f726e627acd395af36f",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4069,7 +4106,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 103,
+      "line": 112,
       "line_sha256": "f4daf390c1f442f9f685c9b2afa86f90cb476ee562fb370749c12fb88cc23706",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -4078,7 +4115,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 106,
+      "line": 115,
       "line_sha256": "6f82e860423ac5f164900e93c606ce60367b10ac27857ac092ad913c7449741a",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4088,7 +4125,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 111,
+      "line": 120,
       "line_sha256": "d9ae08bb819c9e36f6f483f8b392f5193723a18bccef8350fbeb9d17c757e572",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4098,7 +4135,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 112,
+      "line": 121,
       "line_sha256": "6ccf04ebc3710c13b49c470a100ab7e857c431c43ad66845003eca356a42cd8d",
       "kinds": [
         "ui_expression_requires_provenance_review",
@@ -4108,7 +4145,7 @@
     },
     {
       "file": "Sources/App/ChatAttachmentPickerView.swift",
-      "line": 113,
+      "line": 122,
       "line_sha256": "8403b653364412b83cf3fa0270ba08e72a8a377ba47e760a65ef585d284ea317",
       "kinds": [
         "stable_identifier_do_not_translate"
@@ -20679,70 +20716,70 @@
   "error_candidates": [
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 37,
       "line_sha256": "c396d59ca0a01a0f695680409185e71c582e420789b3e876aabd713f055baf6b",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 38,
       "line_sha256": "b96e2af39aa2d711e165c5bd5cb91b2b1a51039607993d8f1e69dc4acd51dd0b",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 39,
       "line_sha256": "a9aa71508c875c8fe7612990a3a0bf9329afc7da0e0207b4dde80c1d0c093fed",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1226,
       "line_sha256": "9c536b36fc233e9e12e0f9516d6f6098d9ca699c462286c93b72c3d499473f2d",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1230,
       "line_sha256": "d26d577072cd8744dd41609905a3963762879485ca4d7ccdb7971061c86a4078",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1233,
       "line_sha256": "0559f7e9111deb87241770031d159e686b895a01489c01f3edc42359b3ce3a07",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1435,
       "line_sha256": "97b3fb2fb261449b141de8c5db9977b3923ca43f3f40801344fe838cc214cb7d",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1436,
       "line_sha256": "c430aa5af1b91461b3793e385f89b22e43599021ebb80d6449822c9018d43200",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1437,
       "line_sha256": "0c6b3eab714b34271998961ad7234120bb0bc4e41467366d2911437c2c0eb260",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/App/ChatSession.swift",
-      "file_sha256": "9a8144348ec4306563b1e7b3a7b45c7337cb956f7d64a53ad00a5d533fd9881b",
+      "file_sha256": "d673adcae1bbc72102a8446363956d4ec903ac760175be38ca5449feaf9d6b94",
       "line": 1438,
       "line_sha256": "675bf852361998a41637a792d316de96d3bc828816ca765e53c8cf38a2498641",
       "review": "pending_error_or_other_return_semantic_review"
@@ -21092,42 +21129,42 @@
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 42,
       "line_sha256": "4cecc7171bbffbcf1d458e03d12d73d9ce584818f33b2fcce393fc46ee739a8d",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 43,
       "line_sha256": "be7786d4900e72d3d5067d5e778e6be9e4bf7f993488b02efbbf5655df1b61a7",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 44,
       "line_sha256": "9c66ca7eb2b407ffe6d9dcdf4670300549dc1abf91da5a94478600f32076be5f",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 45,
       "line_sha256": "70cdbd0accf50acfdf1ac87d6102c5c01cedcd3478c25196a098912acc638255",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 46,
       "line_sha256": "54dfe2ea67a2065343f92080e1bf724ccaa7ff0e2b608bf9c53039baee49dcf5",
       "review": "pending_error_or_other_return_semantic_review"
     },
     {
       "file": "Sources/AssistantAttachments/ChatAttachmentPresenter.swift",
-      "file_sha256": "2a09469fb861ed42c057efe1ba62a19f3ddab219400879f39085682cf5142e32",
+      "file_sha256": "da5fbf7013ab6e6cfb9290c83f093c9c870bf53c1c28e9c3e8bcee00105bc6ae",
       "line": 47,
       "line_sha256": "c418827489ada101b7d822e3ca5b916d021594d58715688fd709d9188b0a9295",
       "review": "pending_error_or_other_return_semantic_review"
@@ -22318,9 +22355,9 @@
   ],
   "counts": {
     "source_files": 92,
-    "candidate_sites": 2155,
-    "typed_render_sites": 414,
-    "pending_candidate_sites": 1452,
+    "candidate_sites": 2159,
+    "typed_render_sites": 415,
+    "pending_candidate_sites": 1454,
     "error_candidates": 234
   },
   "full_app_localized": false,

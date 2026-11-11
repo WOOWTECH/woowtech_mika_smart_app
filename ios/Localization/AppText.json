@@ -5507,6 +5507,16 @@
         "zh-Hans": "请先移除附件，再创建新对话；文字草稿会保留。",
         "en": "Remove the attachment before starting a new conversation. Your draft is kept."
       }
+    },
+    {
+      "case": "attachmentSelectionRetry",
+      "key": "attachment.selectionRetry",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請重新選取附件，或明確移除附件以繼續。",
+        "zh-Hans": "请重新选择附件，或明确移除附件以继续。",
+        "en": "Select an attachment again, or remove it explicitly to continue."
+      }
     }
   ]
 }

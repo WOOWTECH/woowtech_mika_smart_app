@@ -20,7 +20,7 @@ private func check(_ value: @autoclosure () -> Bool, _ detail: String) throws {
         let fixed: [AppText] = [
             .attachmentTitle, .attachmentLocalNotice, .attachmentLimits, .attachmentSection, .attachmentConsumed,
             .attachmentEmpty, .attachmentLoading, .attachmentConfirmed, .attachmentTaking, .attachmentSelect,
-            .attachmentReplace, .attachmentRemove, .attachmentReview, .attachmentSendNotice, .attachmentConfirm,
+            .attachmentReplace, .attachmentRemove, .attachmentSelectionRetry, .attachmentReview, .attachmentSendNotice, .attachmentConfirm,
             .attachmentNeedsContext, .attachmentDone, .attachmentDataNone, .attachmentDataSeparator,
             .attachmentModel(value: "fixture"), .attachmentOtherData(value: "fixture")
         ]
