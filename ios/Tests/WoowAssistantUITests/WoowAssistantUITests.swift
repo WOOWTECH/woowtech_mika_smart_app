@@ -20,6 +20,97 @@ final class WoowAssistantUITests: XCTestCase {
         XCUIApplication().terminate()
     }
 
+    /// Real iPad navigation audit. A fresh UUID and no reset flag keep all
+    /// encrypted records, defaults and Keychain items separate from personal data.
+    func testRealIPadReadOnlyNavigationAudit() throws {
+        executionTimeAllowance = 300
+        let app = launchApp(resetStorage: false)
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10))
+        try XCTSkipUnless(window.frame.width > 600, "Requires the native iPad layout")
+        XCTAssertTrue(app.buttons["chat.menu"].isHittable)
+
+        app.buttons["chat.menu"].tap()
+        XCTAssertTrue(app.buttons["drawer.close"].waitForExistence(timeout: 10))
+        for route in ["chat", "memory", "tools", "browser", "settings"] {
+            XCTAssertTrue(app.buttons["navigation.\(route)"].isHittable)
+        }
+        attachScreenshot("01-drawer", in: app)
+        app.buttons["drawer.close"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+
+        openSection("settings", in: app)
+        openModelSettings(in: app)
+        XCTAssertTrue(app.textFields["settings.model"].exists)
+        XCTAssertTrue(app.secureTextFields["settings.apiKey"].exists)
+        attachScreenshot("02-settings-model", in: app)
+        returnFromModelSettings(in: app)
+        attachScreenshot("03-settings-return-from-model", in: app)
+        for (linkID, title, detailID, name) in [
+            ("settings.appearance", "語言與外觀", "selfConfiguration.permission", "04-settings-appearance"),
+            ("settings.notifications", "任務通知", "notifications.enabled", "05-settings-notifications")
+        ] {
+            let link = app.buttons[linkID]
+            XCTAssertTrue(link.isHittable)
+            link.tap()
+            let bar = app.navigationBars[title]
+            XCTAssertTrue(bar.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: detailID).firstMatch.waitForExistence(timeout: 10))
+            attachScreenshot(name, in: app)
+            let back = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+            XCTAssertTrue(back.isHittable)
+            back.tap()
+            XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+        }
+        XCTAssertTrue(app.buttons["section.back"].isHittable)
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+
+        openSection("memory", in: app)
+        XCTAssertTrue(app.staticTexts["memory.empty"].waitForExistence(timeout: 10))
+        attachScreenshot("06-memory-memories", in: app)
+        app.buttons["memory.segment.skills"].tap()
+        XCTAssertTrue(app.staticTexts["skills.empty"].waitForExistence(timeout: 10))
+        attachScreenshot("07-memory-skills", in: app)
+        app.buttons["memory.segment.pending"].tap()
+        XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 10))
+        attachScreenshot("08-memory-pending", in: app)
+        app.buttons["memory.segment.memories"].tap()
+        XCTAssertTrue(app.staticTexts["memory.empty"].waitForExistence(timeout: 10))
+        // This link is a navigation action only; no browsing or data mutation.
+        let websiteLink = app.buttons["memory.manageWebsites"]
+        for _ in 0..<6 where !websiteLink.isHittable { app.swipeUp() }
+        XCTAssertTrue(websiteLink.isHittable)
+        websiteLink.tap()
+        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
+        attachScreenshot("09-browser-from-memory", in: app)
+        XCTAssertEqual(app.buttons["section.back"].label, "返回記憶")
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
+        attachScreenshot("10-memory-return-from-browser", in: app)
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+
+        openSection("browser", in: app)
+        XCTAssertTrue(app.textFields["browser.address"].waitForExistence(timeout: 10))
+        let library = app.buttons["browser.library"]
+        XCTAssertTrue(library.isHittable)
+        library.tap()
+        XCTAssertTrue(app.buttons["browser.library.close"].waitForExistence(timeout: 10))
+        attachScreenshot("11-browser-library", in: app)
+        app.buttons["browser.library.close"].tap()
+        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
+        attachScreenshot("12-browser-return-from-library", in: app)
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+
+        openSection("tools", in: app)
+        XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 10))
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+        attachScreenshot("13-chat-after-all-returns", in: app)
+    }
+
     func testEverySectionIsReachableAndPhoneControlIsExcluded() {
         let app = launchApp()
         let excluded = NSPredicate(format: "label MATCHES[c] %@", ".*(手機操作|手機控制|App 操作|螢幕錄影|無障礙控制|ADB|USB helper).*")
@@ -48,7 +139,7 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
 
         for (linkID, title, detailID) in [
-            ("settings.appearance", "外觀與模型權限", "selfConfiguration.permission"),
+            ("settings.appearance", "語言與外觀", "selfConfiguration.permission"),
             ("settings.notifications", "任務通知", "notifications.enabled")
         ] {
             let link = app.buttons[linkID]
