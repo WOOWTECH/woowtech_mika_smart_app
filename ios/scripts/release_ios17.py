@@ -40,7 +40,7 @@ class RuntimeInventoryError(ReleaseError):
 # This partition, unlike the legacy focused scopes below, owns every non-Live
 # UI class exactly once. Keep class selectors so new methods cannot be omitted.
 UI_SHARDS = {
-    "ui-startup": ["WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests"],
+    "ui-startup": ["WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
     "ui-language": ["AppLanguageUITests", "AppLanguagePhase2UITests"],
     "ui-notifications": ["NotificationUITests", "NotificationApprovalUITests"],
     "ui-archive": ["ConversationArchiveUITests"],
@@ -69,6 +69,7 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/SkillExecutionUITests/testUIKitImportCopyCoordinatedPDFNeedsBothApprovalsAndReturnsActualText",
         "WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText",
         "WoowAssistantUITests/SkillExecutionUITests/testNativePickerCancellationDoesNotReadOrExtract",
+        "WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchUsesApprovedExtractionAndClearsEditedResults",
     ],
     "documents-output": [
         "WoowAssistantUITests/SkillExecutionUITests/testRefusingFirstStepDoesNotReadOrExtract",
