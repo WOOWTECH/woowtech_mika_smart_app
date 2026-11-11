@@ -92,6 +92,7 @@ jobs:
           mkdir -p build
           swift test 2>&1 | tee build/core-tests.log
           python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          bash scripts/check_attachment_tool_boundary.sh 2>&1 | tee build/attachment-tool-boundary.log
           python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
           python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
@@ -366,6 +367,7 @@ jobs:
         run: |
           swift test 2>&1 | tee build/core-tests.log
           python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          bash scripts/check_attachment_tool_boundary.sh 2>&1 | tee build/attachment-tool-boundary.log
           python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
           python3 scripts/check_chat_attachment_import.py 2>&1 | tee build/chat-attachment-import.log
