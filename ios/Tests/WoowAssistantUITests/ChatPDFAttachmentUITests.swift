@@ -87,6 +87,10 @@ final class ChatPDFAttachmentUITests: XCTestCase {
     }
 
     func testCancelActualQueryKeepsQuestionAndSourceWithoutCompletedArchive() throws {
+        // The compact native Files route returned at 231 seconds with the
+        // cancellation/archive checks still ahead. Xcode's existing maximum is
+        // 300 seconds; retain every assertion and cap this one complete flow.
+        executionTimeAllowance = 300
         launch(); configure(); compose("[fixture:chat-pdf-cancel]")
         try choosePDF(); tap("chat.pdf.approveRead", scroll: true); phase("awaitingExtraction")
         tap("chat.pdf.approveExtract", scroll: true); phase("ready")

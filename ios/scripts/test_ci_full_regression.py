@@ -229,6 +229,23 @@ class FullRegressionPlanTests(unittest.TestCase):
                 path = root / sl['scope'] / 'full-receipt.json'
                 self.assertEqual(json.loads(path.read_text())['exit_code'], 65)
 
+    def test_document_shard_has_its_own_bounded_window_without_retries(self):
+        row = self.plan['rows'][1]
+        self.assertEqual([sl['scope'] for sl in row['slices']], ['ui-documents', 'ui-download-pdf'])
+        self.assertLess(ci.DOCUMENTS_COHORT_SECONDS, 72 * 60)  # Workflow step limit.
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            def finish_once(command, log, seconds):
+                log.write_text('native test failed\n')
+                return 65
+            with mock.patch.object(ci, 'bounded_process', side_effect=finish_once) as process:
+                receipts = ci.execute(row, root / 'Products.xctestproducts', 'simulator-id', root)
+            self.assertEqual(process.call_count, 2)
+            self.assertEqual([receipt['exit_code'] for receipt in receipts], [65, 65])
+            durations = [call.args[2] for call in process.call_args_list]
+            self.assertAlmostEqual(durations[0], ci.DOCUMENTS_SLICE_SECONDS, delta=1)
+            self.assertAlmostEqual(durations[1], ci.SLICE_SECONDS, delta=1)
+
     def test_hung_child_is_terminated_without_retry(self):
         with tempfile.TemporaryDirectory() as folder:
             log = Path(folder) / 'hung.log'

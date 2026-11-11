@@ -34,6 +34,12 @@ COHORTS = (
 )
 SLICE_SECONDS = 30 * 60
 COHORT_SECONDS = 55 * 60
+# The document shard has 20 native Files/approval/export methods. On the
+# compact simulator its 15th method was still running at the former 30-minute
+# boundary. Keep every selector and the no-retry rule; give this shard enough
+# time to finish, and reserve a separate window for its download-PDF sibling.
+DOCUMENTS_SLICE_SECONDS = 55 * 60
+DOCUMENTS_COHORT_SECONDS = 65 * 60
 SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
               "compact": IPHONES[:1], "large": IPHONES[1:2]}
 
@@ -228,7 +234,8 @@ def bounded_process(command, log_path, seconds):
 
 def execute(row, products, simulator_id, output):
     output.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + COHORT_SECONDS
+    has_documents = any(sl["scope"] == "ui-documents" for sl in row["slices"])
+    deadline = time.monotonic() + (DOCUMENTS_COHORT_SECONDS if has_documents else COHORT_SECONDS)
     receipts = []
     for sl in row["slices"]:
         scope = sl["scope"]
@@ -240,8 +247,9 @@ def execute(row, products, simulator_id, output):
         remaining = deadline - time.monotonic()
         exit_code = None
         if remaining > 0:
+            slice_seconds = DOCUMENTS_SLICE_SECONDS if scope == "ui-documents" else SLICE_SECONDS
             exit_code = bounded_process(test_command(products, simulator_id, result, sl), log,
-                                        min(SLICE_SECONDS, remaining))
+                                        min(slice_seconds, remaining))
             if result.is_dir():
                 with (folder / "summary-export.log").open("wb") as export_log:
                     try:
