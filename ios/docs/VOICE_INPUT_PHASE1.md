@@ -17,11 +17,32 @@ Debug 和 Release 的麥克風說明涵蓋聊天及經同意的網站；兩者�
 
 ## 隔離協調器的狀態與限制
 
-`BrowserWorkspace` 保留多個 `BrowserSession`；每個會延遲建立並保留 WebView，另有獨立來源發現 WebView。瀏覽器可對可見手動頁面提示網站音訊擷取權限，並無現成全 App 音訊所有權管理；可見頁面或單次媒體狀態查詢不能證明所有 WebView 和其他音訊用戶在租用期間持續閒置。因此候選只接受外部 fence provider 持續掌握全部使用者、阻止競爭並能證明租用前是 inactive 的情況；active 或 unknown 一律拒絕。這份先前狀態是 provider 的受信聲明，不是從 iOS API 推測。
+### 音訊路徑清單（來源樹靜態盤點）
+
+| 路徑 | 音訊能力與接線要求 |
+| --- | --- |
+| 手動瀏覽與保留分頁 | [`BrowserSession.webView`](../Sources/App/BrowserSession.swift) 延遲建立並保留 WebView；[`BrowserWorkspace`](../Sources/App/BrowserWorkspace.swift) 管理多個 session。網站可能播放媒體，符合條件的手動頁面可向 WebKit 要求麥克風權限。切換分頁與 `cancel()` 的 `stopLoading()` 不是媒體停止或 WebView 已釋放的證據。 |
+| 新視窗／彈出分頁 | `BrowserWorkspace.makeSession` 的 `onCreateWindow` 建立另一個 `BrowserSession` 並取得其 WebView，須共用相同登記，不是額外獨立的安全域。 |
+| 多來源研究 | [`MultiSourceResearchWebKitExecutor`](../Sources/App/MultiSourceResearchSession.swift) 為來源建立多個非持久 `BrowserSession`；視圖被覆蓋或研究取消不等於 WebKit 媒體已原生停止。 |
+| 來源搜尋 | [`ResearchSourceDiscoveryWebKit`](../Sources/AssistantBrowser/ResearchSourceDiscoveryWebKit.swift) 在 AssistantBrowser framework 直接建立另一個非持久 WebView。雖然限制載入資源及 JavaScript，仍需將它納入生命週期盤點，不能單憑規則斷言對共享音訊無影響。 |
+| App 原生錄音 | [`AppleVoiceInputDriver`](../Sources/App/AppleVoiceInputDriver.swift) 是尚未接線的 `AVAudioEngine`／Speech 候選；[`AppleVoiceAudioSessionAccess`](../Sources/App/AppleVoiceAudioSessionAccess.swift) 是候選 session 操作層。來源樹未找到其他直接 `AVAudioSession`、`AVAudioEngine` 或 `AVPlayer` 建立路徑；這不是對系統／第三方框架內部音訊的完整證明。 |
+| 系統通知 | [`TaskNotificationCenterAdapter`](../Sources/App/TaskNotificationCenterAdapter.swift) 可要求系統播放預設通知聲；它不直接設定此 App 的 `AVAudioSession`。通知、來電及其他 App 的系統中斷仍須原生驗證。 |
+
+靜態測試追蹤來源樹中兩個直接 `WKWebView(...)` 建立點，新增點必須重審；它不能捕捉所有動態建立方式或框架內部行為。Apple 的 [WebKit 播放狀態](https://developer.apple.com/documentation/webkit/wkwebview/requestmediaplaybackstate%28completionhandler%3A%29)及[麥克風擷取狀態](https://developer.apple.com/documentation/webkit/wkwebview/microphonecapturestate)可供原生檢查；由於播放查詢取得的是當下狀態，而頁面之後仍可能變化，單次查詢不足以建立持續獨占。這是依 API 與現有程式做的保守判斷，尚待原生測試。
+
+### 有條件可取得的隔離 fence
+
+[`VoiceAudioAdmissionFence`](../Sources/App/VoiceAudioAdmissionFence.swift) 現有可執行成功路徑：宿主必須先完成並明確聲明三類入口的全覆蓋，且所有 WebView／原生音訊參與者均已登記、完成原生銷毀並明確歸還 ticket。只要還有 ticket，就不呼叫 session。獨占持有期間會拒絕新參與者，通知語音停止，只有同步結束並交還後才容許參與者進入；未確認交還則繼續拒絕。初始化、取消與競爭都在 MainActor，重入在假 session 測試中覆蓋。
+
+在全部入口受控且無參與者的前提下，fence 於使用者啟動語音的路徑嘗試 `setActive(false)`，建立**新的** inactive 基線。這個動作可能影響系統音訊行為；成功只表示操作成功，並不表示之前的 active 狀態已知或已還原。失敗即 quarantine，不能因 Apple 回傳錯誤就假設狀態未變。後續協調器在該新基線下執行；未啟動錄音時仍記錄 `baselineReset`，執行還原則記錄 `restorationAttempted`，均不聲稱原先活動狀態完全恢復。此策略依賴宿主完整攔截與原生驗證，不能在現有 App 直接假設成立。
+
+[`VoiceAudioRuntimeCandidate`](../Sources/App/VoiceAudioRuntimeCandidate.swift) 組裝單一 fence 與協調器；預設沒有任何入口被聲明，所以安全關閉，但假 session 測試證明條件成立時可以取得 lease。它尚未掛到實際 App；`AppleVoiceInputDriver()` 的正式預設仍拒絕。不要呼叫 `attestIntegratedRoute` 宣稱已完成，直到兩個 WebView 建立點、所有原生音訊入口及系統中斷都已實際接入並通過原生驗證。
 
 lease 的撤銷閉包型別為 `@MainActor`。撤銷先同步通知 driver 停止 engine，再由 driver 明確 release；未確認 release 時保留 fence 並拒絕新租用。啟用過程中重入取消會延後回收，直到啟用呼叫返回；重複撤銷與過期回呼不觸及新持有者。候選嘗試停用並還原 category／mode／options，但僅回報 `restorationAttempted`，不宣稱先前活動狀態已被證明完全恢復。任何步驟失敗或 fence owner 不接受交還，協調器進入 quarantine 並拒絕新租用；provider 必須保留 fence 直到獨立排除不確定性。系統 `setActive(false)` 在音訊物件仍運作時可能使其停止，即使回報錯誤也是如此；因此先停止 engine 的順序是必要條件。[Apple 文件](https://developer.apple.com/documentation/avfaudio/avaudiosession/setactive%28_%3Aoptions%3A%29?changes=_6)。
 
-目前無可驗證的正式 fence provider，Apple driver 預設拒絕且未接 UI。候選 Apple session adapter 只提供被注入的系統操作，沒有替既有 App 取得所有權；不能因純 Swift 假物件測試通過而宣稱與 WebKit、音訊中斷或系統 active 狀態相容。MacBook 應先檢查 adapter 的 SDK 型別，並在受控模擬器驗證後，才評估如何管理所有 WebView 和原生音訊用戶。
+App 接入需要在兩個 WebView 建立點 **之前** 取得同一個 runtime 的 ticket；既有 `BrowserSession.webView` 與來源搜尋建立器都不是可失敗的 API，須設計可呈現的拒絕／等待路徑，不可在被拒後偷偷建立另一個 WebView。只有在原生驗證其媒體與擷取已終止、WebKit 不再持有可執行音訊的資源後才歸還 ticket；僅靠 `stopLoading`、切換頁面、參考計數或單次播放狀態不夠。來源搜尋位於另一 framework，需明確注入同一 runtime 的准入能力。系統中斷或所有權不可確認時呼叫 `systemStateBecameUncertain()` 並保持 quarantine；重建 owner 前須由宿主完成獨立協調，不能自行清除。
+
+目前無可驗證的正式全 App fence 整合，Apple driver 預設拒絕且未接 UI。候選 Apple session adapter 只提供被注入的系統操作，沒有替既有 App 取得所有權；不能因純 Swift 假物件測試通過而宣稱與 WebKit、音訊中斷或系統 active 狀態相容。
 
 ## 驗證與剩餘工作
 
@@ -45,3 +66,13 @@ xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant -configuration
 ```
 
 另需在具備 iOS 17 runtime 的環境選擇對應 simulator，檢查實際封裝的 plist，先完成能協調所有音訊使用者的正式 lease 實作，驗證租用、拒絕、撤銷、失敗回復以及網站播放／錄音和其他音訊使用者競爭；再執行加入 adapter 假音訊／授權抽象的原生單元測試及 UI 接線測試：授權、拒絕、限制、首次授權期間鬆手、無服務／無裝置辨識、取消、逾時、前後景、頁面／對話切換、音訊中斷及遲到回呼。再於獨立授權的實機條件下核對真實麥克風、語言辨識、音訊路由、VoiceOver 和 WebKit 相容性；任何模擬器或假服務結果都不得標為實機證據。Android 的服務商模型選擇及任務執行中插話另待實作。
+
+### MacBook 原生接線驗收清單
+
+在不更動首屏並與其合併前，先以獨立 simulator、非持久資料庫及本機合成網頁建立可重跑的測試；只在測試宿主對受控合成入口明確 attest，正式 App 的覆蓋聲明須待實際接入及驗證後才開啟。保留實際方法、結果與 `.xcresult`：
+
+1. 從尚未建立任何 WebView 的聊天狀態進入語音，記錄覆蓋證明、基線 reset、授權／拒絕及收尾；單獨驗證 Debug／Release 打包的 plist。基線 reset 只能稱為成功建立新狀態。
+2. 對手動頁面、背景分頁、popup、多來源 BrowserSession 和獨立搜尋 WebView 各持有 ticket，嘗試語音並核對未呼叫 session；測試載入中、已載入、背景切換、關閉與仍有保留參考。以原生媒體事件驗證拆除完成，而非僅依 `stopLoading()` 或 `deinit` 推論。
+3. 以本機合成媒體測試播放、暫停、Web Audio、全螢幕／子畫面與麥克風擷取（環境不支援的案例明列未驗）；語音啟用中嘗試建立新 WebView，驗證先停止語音、再完成交還、最後才創建。測試兩個建立點與跨 framework 同一 owner，包含重複事件和 callback 遲到。
+4. 注入 reset、category、activation、deactivation、restore 的失敗與同步重入；檢查 quarantine、無意外放行、無重複交還。以 simulator 可模擬的中斷／前後景／通知事件驗證停止、撤銷及恢復路徑，不能把未模擬的系統事件當成通過。
+5. 確認使用者可理解並操作音訊忙碌／等待狀態、權限設定及 VoiceOver；核對既有瀏覽器、任務通知及鍵盤測試。完成上述驗收與首屏變更整合後，才可聲明已接線；iOS 17 真機音訊路由與麥克風結果仍須另經授權驗收。

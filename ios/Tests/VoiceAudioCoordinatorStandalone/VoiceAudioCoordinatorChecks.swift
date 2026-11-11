@@ -35,6 +35,7 @@ final class FakeSession: VoiceAudioSessionAccess {
     var onSettings: (() -> Void)?
     var onConfigure: (() -> Void)?
     var onActivate: (() -> Void)?
+    var onDeactivate: (() -> Void)?
     func settings() -> VoiceAudioSettings? { log.append("settings"); onSettings?(); return readOK ? configuration : nil }
     func configureRecording() -> Bool { log.append("configure"); onConfigure?(); return configOK }
     func activate() -> Bool {
@@ -43,7 +44,7 @@ final class FakeSession: VoiceAudioSessionAccess {
     }
     func deactivate() -> Bool {
         precondition(!recording && !inActivate, "deactivate before engine stopped or during activation")
-        log.append("deactivate"); return deactivateOK
+        log.append("deactivate"); onDeactivate?(); return deactivateOK
     }
     func restore(_ settings: VoiceAudioSettings) -> Bool {
         precondition(!recording && !inActivate, "restore before engine stopped or during activation")
@@ -226,6 +227,127 @@ struct VoiceAudioCoordinatorChecks {
             slot.release()
             check(fence.outcomes == [.unchanged] && owner.isQuarantined && owner.acquire(onRevoked: {}) == nil,
                   "authority refusal quarantines even an unchanged session")
+        }
+        // Exercise the concrete opt-in admission fence with the actual
+        // coordinator and a synthetic system session.
+        do {
+            let session = FakeSession()
+            let runtime = VoiceAudioRuntimeCandidate(session: session)
+            let gate = runtime.fence
+            let slot = VoiceAudioLeaseSlot(coordinator: runtime.coordinator)
+            check(!gate.sealCoverage() && !slot.acquire(onRevoked: {}), "unattested coverage denies")
+            check(session.log.isEmpty, "unsealed gate does not reset session")
+            gate.attestIntegratedRoute(.browserSession)
+            gate.attestIntegratedRoute(.sourceDiscovery)
+            check(!gate.sealCoverage(), "missing native route cannot seal")
+            gate.attestIntegratedRoute(.nativeAudio)
+            check(gate.sealCoverage(), "all explicit attestations can seal isolated gate")
+            for route in VoiceAudioClientRoute.allCases {
+                let ticket = gate.admit(route)!
+                check(!slot.acquire(onRevoked: {}) && session.log.isEmpty, "registered client blocks voice reset")
+                ticket.releaseAfterTeardown(); ticket.releaseAfterTeardown()
+            }
+            let oldTicket = gate.admit(.browserSession)!
+            oldTicket.releaseAfterTeardown()
+            let liveTicket = gate.admit(.sourceDiscovery)!
+            oldTicket.releaseAfterTeardown()
+            check(!slot.acquire(onRevoked: {}) && session.log.isEmpty, "stale ticket cannot remove a new client")
+            liveTicket.releaseAfterTeardown()
+            var stopped = false
+            check(slot.acquire(onRevoked: { stopped = true; session.recording = false; slot.release() }),
+                  "controlled empty environment grants real fence")
+            check(session.log == ["deactivate"] && gate.baselineResetCount == 1,
+                  "explicit reset establishes new baseline without claiming prior state")
+            check(slot.activateForRecording(), "real fence can activate through coordinator")
+            session.recording = true
+            let browser = gate.admit(.browserSession)
+            check(stopped && browser != nil && !session.recording, "browser admitted only after voice stops")
+            check(gate.lastHandoff == .restorationAttempted && !gate.isQuarantined,
+                  "handoff records attempted restoration only")
+            check(session.log == ["deactivate", "settings", "configure", "activate.begin", "activate.end", "deactivate", "restore"],
+                  "baseline reset and guarded lifecycle are ordered")
+            check(!slot.acquire(onRevoked: {}), "retained browser still blocks new voice lease")
+            browser?.releaseAfterTeardown()
+            check(slot.acquire(onRevoked: { slot.release() }) && gate.baselineResetCount == 2,
+                  "voice can be used again after native client teardown")
+            slot.release()
+            check(gate.lastHandoff == .baselineReset, "unactivated lease reports the baseline reset")
+        }
+        do {
+            let session = FakeSession()
+            let gate = VoiceAudioAdmissionFence(session: session)
+            for route in VoiceAudioClientRoute.allCases { gate.attestIntegratedRoute(route) }
+            check(gate.sealCoverage(), "unacknowledged conflict gate setup")
+            let owner = SharedVoiceAudioCoordinator(provider: gate, session: session)
+            let slot = VoiceAudioLeaseSlot(coordinator: owner)
+            var notices = 0
+            check(slot.acquire(onRevoked: { notices += 1 }), "unacknowledged conflict voice lease")
+            check(slot.activateForRecording(), "unacknowledged conflict voice activation")
+            session.recording = true
+            check(gate.admit(.sourceDiscovery) == nil && gate.admit(.sourceDiscovery) == nil && notices == 1,
+                  "competing WebView denied until engine is stopped")
+            session.recording = false; slot.release()
+            let ticket = gate.admit(.sourceDiscovery)
+            check(ticket != nil, "competing WebView may enter after release")
+            ticket?.releaseAfterTeardown()
+        }
+        do {
+            let session = FakeSession()
+            let gate = VoiceAudioAdmissionFence(session: session)
+            for route in VoiceAudioClientRoute.allCases { gate.attestIntegratedRoute(route) }
+            check(gate.sealCoverage(), "baseline conflict gate setup")
+            let owner = SharedVoiceAudioCoordinator(provider: gate, session: session)
+            let slot = VoiceAudioLeaseSlot(coordinator: owner)
+            var deniedDuringReset = false
+            session.onDeactivate = {
+                session.onDeactivate = nil
+                deniedDuringReset = gate.admit(.browserSession) == nil
+            }
+            check(!slot.acquire(onRevoked: { slot.release() }) && deniedDuringReset,
+                  "reentrant browser creation blocked during baseline reset")
+            check(gate.lastHandoff == .baselineReset && !gate.isQuarantined && session.log == ["deactivate"],
+                  "conflicted baseline is reported as reset, not unchanged")
+        }
+        do {
+            let session = FakeSession()
+            let gate = VoiceAudioAdmissionFence(session: session)
+            for route in VoiceAudioClientRoute.allCases { gate.attestIntegratedRoute(route) }
+            check(gate.sealCoverage(), "uncertainty during reset setup")
+            let owner = SharedVoiceAudioCoordinator(provider: gate, session: session)
+            let slot = VoiceAudioLeaseSlot(coordinator: owner)
+            session.onDeactivate = { session.onDeactivate = nil; gate.systemStateBecameUncertain() }
+            check(!slot.acquire(onRevoked: { slot.release() }) && gate.isQuarantined,
+                  "system uncertainty during baseline reset quarantines")
+            check(gate.admit(.browserSession) == nil, "uncertain reset retains client fence")
+        }
+        do {
+            let session = FakeSession(); session.deactivateOK = false
+            let gate = VoiceAudioAdmissionFence(session: session)
+            for route in VoiceAudioClientRoute.allCases { gate.attestIntegratedRoute(route) }
+            check(gate.sealCoverage(), "baseline failure setup")
+            let owner = SharedVoiceAudioCoordinator(provider: gate, session: session)
+            check(owner.acquire(onRevoked: {}) == nil && gate.isQuarantined,
+                  "failed baseline reset quarantines without claiming active state")
+            check(gate.admit(.browserSession) == nil && owner.acquire(onRevoked: {}) == nil,
+                  "failed reset prevents browser and voice admission")
+            check(session.log == ["deactivate"] && gate.baselineResetCount == 0 && gate.lastHandoff == .uncertain,
+                  "failed reset not retried and state remains uncertain")
+        }
+        do {
+            let session = FakeSession()
+            let gate = VoiceAudioAdmissionFence(session: session)
+            for route in VoiceAudioClientRoute.allCases { gate.attestIntegratedRoute(route) }
+            check(gate.sealCoverage(), "interruption setup")
+            let owner = SharedVoiceAudioCoordinator(provider: gate, session: session)
+            let slot = VoiceAudioLeaseSlot(coordinator: owner)
+            check(slot.acquire(onRevoked: { session.recording = false; slot.release() }) && slot.activateForRecording(),
+                  "interruption starts controlled capture")
+            session.recording = true
+            gate.systemStateBecameUncertain()
+            check(!session.recording && gate.isQuarantined && owner.isQuarantined,
+                  "system uncertainty stops capture and quarantines handoff")
+            check(gate.admit(.nativeAudio) == nil && !slot.acquire(onRevoked: {}),
+                  "system uncertainty blocks all later admission")
         }
         print("PASS SharedVoiceAudioCoordinator: \(assertions) assertions; fake fence and fake session only")
     }
