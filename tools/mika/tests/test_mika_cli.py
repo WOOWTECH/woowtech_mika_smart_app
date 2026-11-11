@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 SKILL = Path(__file__).resolve().parents[1]
 SCRIPT = SKILL / "scripts/mika_cli.py"
+RELAY_SCRIPT = SKILL.parents[0] / "woowtech-relay-worker/downloads/woow-relay-cli.py"
 TOKEN = "unit-test-connection-token"
 SNAPSHOT = {"task_id": "t1", "status": "running", "conversation": "mcp-test", "goal": "example"}
 DISCOVERY = {"api_version": 1, "server_version": "test", "capabilities": ["tasks", "task_steer"]}
@@ -39,6 +40,7 @@ def api(respond=None):
             raw = self.rfile.read(int(self.headers.get("Content-Length", "0")))
             body = json.loads(raw) if raw else None
             self.server.calls.append((self.command, self.path, body))
+            self.server.user_agents.append(self.headers.get("User-Agent"))
             if self.headers.get("Authorization") != "Bearer " + self.server.token:
                 reply = (401, {"error": {"code": "access_denied", "message": "Missing token"}}, {})
             elif respond:
@@ -65,7 +67,7 @@ def api(respond=None):
         do_GET = do_POST = handle_request
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.calls, server.token = [], TOKEN
+    server.calls, server.user_agents, server.token = [], [], TOKEN
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     try:
@@ -97,6 +99,15 @@ class CliTest(unittest.TestCase):
                                 cwd=self.directory, env=process_env, timeout=15)
         self.assertNotIn(TOKEN, result.stdout + result.stderr)
         return result, json.loads(result.stdout)
+
+    def test_relay_clients_send_explicit_user_agent(self):
+        # The production relay's Cloudflare rules reject Python-urllib's default identifier.
+        for script in (SCRIPT, RELAY_SCRIPT):
+            with self.subTest(script=script.name), api() as server:
+                result, data = self.invoke("doctor", server=server, script=script)
+                self.assertEqual(result.returncode, 0, data)
+                self.assertTrue(server.user_agents)
+                self.assertTrue(all(agent and agent.startswith("mika-cli/") for agent in server.user_agents))
 
     def fake_adb(self, server, **overrides):
         configuration = {
