@@ -525,10 +525,20 @@ final class BrowserUploadUITests: XCTestCase {
             target.tap()
             if step == .file {
                 let selected = webText("UPLOAD_SELECTED_1_" + filename)
-                if selected.waitForExistence(timeout: 3) { return }
-                // Some system versions require an explicit Open/Done action.
-                if let open = knownButton(["開啟", "Open", "完成", "Done"]) { open.tap() }
-                let received = selected.waitForExistence(timeout: 15)
+                let deadline = ProcessInfo.processInfo.systemUptime + 18
+                var confirmation: XCUIElement?
+                let selectionOrConfirmation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                    if selected.exists { return true }
+                    // Files may present its explicit Open/Done control only
+                    // after the tapped file row has finished opening.
+                    confirmation = self.knownButton(["開啟", "Open", "完成", "Done"])
+                    return confirmation != nil
+                }, object: nil)
+                _ = XCTWaiter.wait(for: [selectionOrConfirmation], timeout: 15)
+                if selected.exists { return }
+                if let confirmation { confirmation.tap() }
+                let remaining = max(0, deadline - ProcessInfo.processInfo.systemUptime)
+                let received = selected.waitForExistence(timeout: remaining)
                 if !received { recordPickerDiagnostics(stage: "selection-not-delivered") }
                 XCTAssertTrue(received, "Native selection must reach WKWebView.")
                 return
@@ -581,6 +591,7 @@ final class BrowserUploadUITests: XCTestCase {
             })),
             ("browse", NSPredicate(format: "label IN %@", browseLabels)),
             ("locations", NSPredicate(format: "label IN %@", locationsLabels)),
+            ("open", NSPredicate(format: "label IN %@", ["開啟", "Open", "完成", "Done"])),
             ("cancel", NSPredicate(format: "label IN %@", ["取消", "Cancel"]))
         ]
         let counts = groups.map { name, predicate in

@@ -1,0 +1,65 @@
+{
+  "run_id": 43007762131,
+  "job_id": 130489569413,
+  "head_sha": "10ff6316e1bb1386fb1d45c41ed06f5ed85a84df",
+  "cohort": "ios18-compact-cohort-03",
+  "runtime": "iOS-18-5",
+  "source_sha": "bc2022fc2a3be25402e2beaf073baeab9dadcb9b",
+  "full_artifact": {
+    "id": 13853329337,
+    "name": "ios-full-evidence-ios18-compact-cohort-03-43007762131",
+    "bytes": 837148531,
+    "sha256": "fb6a75e5de336a7cbc1b5e4455fd503c74ecf1fbe4745d9959cfe6103982f388",
+    "zip_entry_count": 2641,
+    "zip_integrity": "all entries verified"
+  },
+  "job_log_sha256": "565a96c17ed3128f6af7b2129e105b518d71895479544022379d21ed4b134237",
+  "selection": {
+    "portable_download": "passed",
+    "source_and_exact_method_verification": "passed",
+    "simulator_boot": "passed",
+    "completed": 16,
+    "expected": 16,
+    "passed": 13,
+    "failed": 3,
+    "skipped": 0,
+    "missing_methods": 0,
+    "unexpected_methods": 0,
+    "classification": "three actual UI method failures; generic incomplete_or_failed_test_selection receipt reflects nonpassing methods"
+  },
+  "shards": [
+    {
+      "name": "ui-browser",
+      "counts": "4 passed, 1 failed, 0 skipped",
+      "failed_method": "BrowserUploadUITests.testNativeFilesSelectionSubmitsExactSyntheticBytesToHTTPServer",
+      "source_line": 533,
+      "observed": "Files Cancel and synthetic file cell were present; one native file-cell tap occurred, then no DOM selection marker arrived. The picker still exposed the synthetic cell and Cancel at failure. No multipart submit or receipt was reached.",
+      "root_cause_status": "The missing WebKit selection callback is observed; whether Files required a delayed explicit Open/Done control or failed for another native reason is unverified.",
+      "candidate_change": "Within the existing 18-second selection budget, wait for either DOM selection or a hittable native Open/Done control; tap that control at most once; keep the exact DOM and HTTP receipt assertions. Add fixed-name Open counts on failure."
+    },
+    {
+      "name": "ui-workspace",
+      "counts": "9 passed, 2 failed, 0 skipped",
+      "failed_methods": [
+        {
+          "name": "BrowserSearchUITests.testCustomSearchQueryAndSettingsSurviveRelaunch",
+          "source_line": 80,
+          "observed": "After native Next, the template field bottom was 455.5 while the keyboard top was 451.0. Input was not typed into the covered field.",
+          "candidate_change": "Reveal the template inside its presented Form with the existing bounded viewport helper before tapping; retain the full-above-keyboard assertion."
+        },
+        {
+          "name": "BrowserWorkspaceUITests.testNativePageFindQueryNextPreviousAndClose",
+          "source_line": 232,
+          "observed": "The native zero-result label reached 0, then the compound query/URL/document visibility check failed. Its individual failing subcondition was not recorded.",
+          "candidate_change": "After Previous, require the actual second match to be fully visible and the third out of view; preserve that same second match through zero-result arrows. The previous test inconsistently required the first match after moving to the second."
+        }
+      ]
+    }
+  ],
+  "local_validation": {
+    "swift_parse_three_changed_ui_files": "passed",
+    "git_diff_check": "passed",
+    "browser_upload_fixture_http_filesystem_lifecycle_assertions": 129,
+    "native_ui_retest": "not run; local environment has CommandLineTools only, without xcresulttool or iOS simulator"
+  }
+}

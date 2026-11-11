@@ -200,8 +200,12 @@ final class BrowserWorkspaceUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "find-third-match-visible"; shot.lifetime = .keepAlways; add(shot)
         previous.tap()
+        let second = dom("WOOW_FIND_ORCHID second")
         let movedBack = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            last.exists && viewport.exists && !viewport.frame.intersects(last.frame)
+            guard second.exists, last.exists, viewport.exists else { return false }
+            let visible = viewport.frame.intersection(self.app.frame)
+            return !visible.isEmpty && visible.contains(second.frame) && second.isHittable
+                && !visible.intersects(last.frame)
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [movedBack], timeout: 10), .completed,
                        "Previous must return to the second real match above the spacer.")
@@ -217,7 +221,6 @@ final class BrowserWorkspaceUITests: XCTestCase {
             XCTFail("Native find must report zero results for the absent literal.")
             return
         }
-        let first = dom("WOOW_FIND_ORCHID first 茶香")
         let address = app.textFields["browser.address"]
         let expectedURL = "https://research.example.invalid/page-find"
         func noMatchStateIsVisible() -> Bool {
@@ -226,10 +229,10 @@ final class BrowserWorkspaceUITests: XCTestCase {
                 && (fresh.value as? String) == "NOT_PRESENT_LITERAL"
                 && (address.value as? String) == expectedURL
                 && !app.staticTexts["browser.error"].exists
-                && first.exists && !visible.isEmpty && visible.contains(first.frame) && first.isHittable
+                && second.exists && !visible.isEmpty && visible.contains(second.frame) && second.isHittable
         }
         guard noMatchStateIsVisible() else {
-            XCTFail("Zero results must preserve the exact query, URL, and visible first document match.")
+            XCTFail("Zero results must preserve the exact query, URL, and visible second document match after Previous.")
             return
         }
         // All three native runtimes expose the arrows without a Disabled AX

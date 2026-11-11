@@ -25,7 +25,7 @@ final class BrowserSearchUITests: XCTestCase {
         // cannot establish the presented sheet's visible input area.
         name.typeText("\n")
         let template = app.textFields["browser.searchEngine.template"]
-        enter("https://research.example.invalid/search?q=%s&lang=en", in: template)
+        enter("https://research.example.invalid/search?q=%s&lang=en", in: template, scroll: true)
         // Submit the single-line native field to resign focus. Do not close
         // the settings sheet, patch its text, or press Add behind the keyboard.
         template.typeText("\n")
