@@ -14,5 +14,12 @@ final class BrowserSiteModesIntegrationTests: XCTestCase {
     func testGETPOSTAndUnknownMethodReloadState() throws {
         XCTAssertEqual(try BrowserUserSiteModesChecks.reloadMethodEvidence(), 20)
     }
+    #if DEBUG
+    @MainActor func testManualLANApprovalAndLoopbackNavigation() async throws {
+        let result = try await BrowserSiteModesAppChecks.runLANFixture()
+        XCTAssertGreaterThan(result["assertions"] as? Int ?? 0, 10)
+        XCTAssertEqual(result["actual_loopback_http"] as? Bool, true)
+    }
+    #endif
 }
 #endif

@@ -27,7 +27,7 @@ struct BrowserView: View {
     @State private var showInvalidStartInput = false
     private var pageCovered: Bool {
         isStartPage || showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch
-            || showSearchSettings || showMore || browser.pageDialog != nil
+            || showSearchSettings || showMore || browser.pageDialog != nil || browser.pendingLANRequest != nil
     }
     private var pageFindHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
@@ -131,6 +131,10 @@ struct BrowserView: View {
             }
             if let error = browser.error {
                 Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
+            }
+            if browser.lanBrowsingActive {
+                Button("停止本機瀏覽") { browser.revokeLANAccess() }
+                    .font(.caption).accessibilityIdentifier("browser.lan.revoke")
             }
             if let notice = workspace.siteModeNoticeText {
                 Text(localizer.text(notice)).font(.caption).accessibilityIdentifier("browser.siteMode.notice")
@@ -247,7 +251,7 @@ struct BrowserView: View {
             BrowserDialogView(dialog: dialog, browser: browser)
         }
         .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
-        .onDisappear { browser.setPageFindHostVisible(false) }
+        .onDisappear { browser.setPageFindHostVisible(false); browser.revokeLANAccess() }
         .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
             showResearch = false; showInteractions = false; showTranscript = false
@@ -256,6 +260,15 @@ struct BrowserView: View {
         }
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
+        }
+        .alert("允許本機瀏覽？", isPresented: Binding(
+            get: { browser.pendingLANRequest != nil },
+            set: { if !$0 { browser.rejectPendingLAN() } }
+        ), presenting: browser.pendingLANRequest) { request in
+            Button("允許本次") { browser.approvePendingLAN(request) }
+            Button("取消", role: .cancel) { browser.rejectPendingLAN() }
+        } message: { request in
+            Text("連線至 \(request.url.scheme ?? "")://\(request.url.host ?? ""):\(request.url.port ?? (request.url.scheme == "https" ? 443 : 80))。HTTP 資料不加密；網頁可能載入其他資源。切換或關閉分頁會停止本機瀏覽。")
         }
     }
     private func pageAskBar(host: String) -> some View {
@@ -327,7 +340,9 @@ struct BrowserView: View {
                       || workspace.isClearingWebsiteData)
     }
 
-    private var safeShareURL: URL? { browser.loadedURL.flatMap(BrowserManualNavigationPolicy.libraryURL) }
+    private var safeShareURL: URL? {
+        browser.lanBrowsingActive ? nil : browser.loadedURL.flatMap(BrowserManualNavigationPolicy.libraryURL)
+    }
     private var moreSheet: some View {
         NavigationStack {
             List {

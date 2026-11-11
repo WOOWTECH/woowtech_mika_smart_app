@@ -20,6 +20,11 @@ public final class BrowserManualLANAccess: @unchecked Sendable {
 
     public init() {}
 
+    /// Classify input without creating a request or granting access.
+    public static func candidate(address: String) -> URL? {
+        BrowserPolicy.manualLANCandidate(address: address)
+    }
+
     public var status: Status {
         lock.lock(); defer { lock.unlock() }
         if pending != nil { return .awaitingApproval }

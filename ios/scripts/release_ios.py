@@ -223,6 +223,30 @@ def verify_required_reasons(app):
             raise ReleaseError("App 缺少正確且唯一的 required-reason API 宣告：" + category)
 
 
+LAN_ATS_IP_RANGES = ("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+                     "169.254.0.0/16", "::1", "fc00::/7", "fe80::/10")
+LAN_ATS_NAMES = ("localhost", "local", "home.arpa")
+
+
+def verify_ats(info):
+    # An absent dictionary retains the old stricter configuration. Otherwise
+    # accept only the exact reviewed LAN exceptions, never a global exemption.
+    if "NSAppTransportSecurity" not in info:
+        return
+    ats = info["NSAppTransportSecurity"]
+    if type(ats) is not dict or set(ats) != {"NSExceptionDomains"}:
+        raise ReleaseError("NSAppTransportSecurity 必須是核准的區域網路例外。")
+    domains = ats["NSExceptionDomains"]
+    if type(domains) is not dict or set(domains) != set(LAN_ATS_IP_RANGES + LAN_ATS_NAMES):
+        raise ReleaseError("NSAppTransportSecurity 包含未核准的網址例外。")
+    for name, value in domains.items():
+        expected = {"NSExceptionAllowsInsecureHTTPLoads"}
+        if name in LAN_ATS_NAMES:
+            expected.add("NSIncludesSubdomains")
+        if type(value) is not dict or set(value) != expected or any(type(v) is not bool or v is not True for v in value.values()):
+            raise ReleaseError("NSAppTransportSecurity 的區域網路例外設定不正確。")
+
+
 def verify_app(app, signed=False, identity=None, expected_build_number=None):
     info = plistlib.loads((app / "Info.plist").read_bytes())
     if expected_build_number is not None and info.get("CFBundleVersion") != expected_build_number:
@@ -232,9 +256,7 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
             or info.get("DTPlatformName") != "iphoneos"):
         raise ReleaseError("App 不是最低 iOS 17.0 的 iPhoneOS 產物。")
     # Inspect the built product in every mode, including the extracted IPA.
-    # Even an empty ATS dictionary is unexpected in the Release configuration.
-    if "NSAppTransportSecurity" in info:
-        raise ReleaseError("Release App 的 Info.plist 不得含 NSAppTransportSecurity；請檢查 Debug 測試例外是否混入產物。")
+    verify_ats(info)
     for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription"):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
@@ -274,7 +296,8 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
                 raise ReleaseError("App 未使用指定 distribution 憑證簽章。")
     return {"bundle_id": BUNDLE_ID, "minimum_os": "17.0", "platform": "iphoneos",
             "verified_binary_count": len(binaries), "signature_verified": signed,
-            "ats_key_absent": True, "native_documents_enabled": True,
+            "ats_key_absent": "NSAppTransportSecurity" not in info,
+            "lan_ats_verified": "NSAppTransportSecurity" in info, "native_documents_enabled": True,
             "browser_media_purpose_strings_verified": True,
             "required_reason_entries_verified": True}
 

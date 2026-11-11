@@ -79,6 +79,7 @@ def main():
             run(config + "-webkit-run", [str(binary)], 180)
             if config == "Debug":
                 run("Debug-loopback-http-run", [str(binary), "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", str(uuid.uuid4())], 180)
+                run("Debug-manual-lan-run", [str(binary), "-LANPolicyLoopback"], 180)
         report["sources_still_current"] = all(hashlib.sha256((repo / p).read_bytes()).hexdigest() == h
                                                for p, h in report["source_sha256"].items())
         report["status"] = "PASS" if report["sources_still_current"] else "SOURCES_CHANGED"

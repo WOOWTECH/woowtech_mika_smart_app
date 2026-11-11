@@ -5,7 +5,7 @@ import Network
 /// Real, synthetic HTTP form login only; not OAuth, MFA, production account
 /// security, or a JavaScript/HTTPCookieStore cookie injection. Release has no
 /// fixture symbol. Parent permits `allows` only for manual browser navigation.
-/// The existing Debug-only 127.0.0.1 ATS exception is sufficient.
+/// The Debug ATS loopback CIDR exception is sufficient on supported iOS versions.
 final class BrowserLoginFixture: @unchecked Sendable {
     static let enabled = BrowserLoginFixture(arguments: ProcessInfo.processInfo.arguments)
     static let username = "fixture-user"
@@ -19,18 +19,20 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private let lifetime: TimeInterval
     private var listener: NWListener?
     private var origin: String?
+    private var redirectDestination: URL?
     private var stopped = false
     private var waiters: [CheckedContinuation<URL, Error>] = []
     private var clients: [ObjectIdentifier: Client] = [:]
     private var startupDeadline: DispatchWorkItem?
     private var lifetimeDeadline: DispatchWorkItem?
     private var requests = 0
+    var connectionCount: Int { queue.sync { requests } }
     private var logins = 0
     private var logouts = 0
     private var protectedChecks = 0
     private let instance = UUID().uuidString.lowercased()
     private var prefix: String { "/login-fixture/" + namespace.uuidString.lowercased() }
-    private var paths: Set<String> { [prefix + "/status", prefix + "/login", prefix + "/protected", prefix + "/logout"] }
+    private var paths: Set<String> { [prefix + "/status", prefix + "/login", prefix + "/protected", prefix + "/logout", prefix + "/redirect"] }
     // Deliberately deterministic SYNTHETIC token: a replacement fixture process
     // can validate the browser's previously issued cookie without a real account
     // database or persisted secret. Never reuse this as production authentication.
@@ -66,6 +68,12 @@ final class BrowserLoginFixture: @unchecked Sendable {
             guard !stopped, let origin else { return false }
             return paths.contains { url.absoluteString == origin + $0 }
         }
+    }
+    /// Synthetic loopback-only destination for redirect policy tests.
+    func setRedirectDestination(_ url: URL) -> Bool {
+        guard url.scheme == "http", url.host == "127.0.0.1", url.port != nil,
+              url.user == nil, url.password == nil else { return false }
+        return queue.sync { redirectDestination = url; return true }
     }
     func stop() { queue.async { [weak self] in self?.stopOnQueue(.stopped) } }
 
@@ -221,7 +229,9 @@ final class BrowserLoginFixture: @unchecked Sendable {
 
     private func handle(_ request: Request, body: Data, client: Client) throws {
         let authorized = authenticated(request)
-        if request.method == "GET", request.path == prefix + "/status" {
+        if request.method == "GET", request.path == prefix + "/redirect", let destination = redirectDestination {
+            reply(client, status: 302, body: page("<p>REDIRECT_FIXTURE</p>"), extra: ["Location: " + destination.absoluteString])
+        } else if request.method == "GET", request.path == prefix + "/status" {
             reply(client, status: 200, body: statePage(authenticated: authorized))
         } else if request.method == "GET", request.path == prefix + "/protected" {
             protectedChecks += 1

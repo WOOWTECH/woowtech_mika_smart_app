@@ -79,7 +79,7 @@ struct BrowserLibraryView: View {
     private var bookmarks: some View {
         Group {
             Button(localizer.text(.browserBookmarkCurrent)) { workspace.addBookmark() }
-                .disabled(!workspace.available || workspace.selected.loadedURL.flatMap(BrowserManualNavigationPolicy.libraryURL) == nil)
+                .disabled(!workspace.available || workspace.selected.lanBrowsingActive || workspace.selected.loadedURL.flatMap(BrowserManualNavigationPolicy.libraryURL) == nil)
                 .accessibilityIdentifier("browser.bookmarks.add")
             if workspace.library.bookmarks.isEmpty { Text(localizer.text(.browserNoBookmarks)).accessibilityIdentifier("browser.bookmarks.empty") }
             ForEach(workspace.library.bookmarks) { page in

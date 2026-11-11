@@ -206,7 +206,8 @@ final class BrowserWorkspace: ObservableObject {
         session.downloads = downloads
         session.canPresentUI = { [weak self] in self?.library.selectedID == id && self?.isClearingWebsiteData == false }
         session.address = library.tabs.first(where: { $0.id == id })?.url?.absoluteString ?? ""
-        session.onPageFinished = { [weak self] url, title in
+        session.onPageFinished = { [weak self, weak session] url, title in
+            guard session?.lanBrowsingActive != true else { return }
             #if DEBUG
             // Fixture HTTP pages exercise WebKit state, not the public-HTTPS
             // bookmark library. Do not invent persistent public URLs for them.
@@ -219,7 +220,7 @@ final class BrowserWorkspace: ObservableObject {
             guard let self, self.library.selectedID == id, !self.isClearingWebsiteData else { return nil }
             var newID: UUID?
             guard self.update({ newID = try $0.addTab() }), let newID else { return nil }
-            self.selected.cancelInteraction()
+            self.suspendSelected()
             let popup = self.makeSession(id: newID, configuration: configuration)
             popup.prepareManualPopup(request)
             self.selected = popup
@@ -246,11 +247,13 @@ final class BrowserWorkspace: ObservableObject {
         selected = makeSession(id: library.selectedID); activateSelected()
     }
     private func suspendSelected() {
+        selected.revokeLANAccess()
         if selected.isRunning { selected.cancel() }
         selected.cancelInteraction(); selected.resolveDialog(nil)
     }
     func cancelAllWork(preservingFrozenReferences: Bool = false) {
         for session in sessions.values {
+            session.revokeLANAccess()
             if session.isRunning && !(preservingFrozenReferences && session.hasActiveRunReferences) { session.cancel() }
             session.cancelInteraction(); session.resolveDialog(nil)
         }
@@ -274,7 +277,7 @@ final class BrowserWorkspace: ObservableObject {
         return true
     }
     func addBookmark() {
-        guard let url = selected.loadedURL else { return }
+        guard !selected.lanBrowsingActive, let url = selected.loadedURL else { return }
         _ = update { try $0.bookmark(url: url, title: selected.pageTitle) }
     }
     func renameBookmark(_ id: UUID, title: String) { _ = update { try $0.renameBookmark(id, title: title) } }

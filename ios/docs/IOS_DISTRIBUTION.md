@@ -63,7 +63,7 @@ Apple 提供 `xcodebuild -downloadPlatform iOS -buildVersion <版本>` 安裝指
 
 App 的最低版本必須恰為 17.0；內嵌二進位檔不得要求高於 17.0。這是靜態檢查，仍需 runtime 測試。無簽章 `.app` 不是可安裝的 release；腳本不會把它包成假 IPA。簽章檢查也不把 ad-hoc code signature 當作 distribution 憑證。
 
-unsigned build、signed archive 與匯出 IPA 的實際 App `Info.plist` 均不得含 `NSAppTransportSecurity`，包括空字典與 Debug 的 `127.0.0.1` 例外；通過後報告記錄 `ats_key_absent: true`。文件共享的兩個實際 plist 布林值也必須為 true，報告記錄 `native_documents_enabled: true`。這些是產物檢查，不取代原生 Files 操作驗收。
+unsigned build、signed archive 與匯出 IPA 的實際 App `Info.plist` 只接受無 ATS 字典，或與[手動本機瀏覽](BROWSER_MANUAL_LAN_POLICY.md)完全一致的網段與名稱例外；拒絕全域例外、額外鍵及錯誤型別。報告以 `ats_key_absent` 或 `lan_ats_verified` 區分兩種情況。文件共享的兩個實際 plist 布林值也必須為 true，報告記錄 `native_documents_enabled: true`。這些是產物檢查，不取代原生 Files 操作或 iOS ATS 驗收。
 
 `PrivacyInfo.xcprivacy` 宣告 App 自有設定的 UserDefaults（`CA92.1`）及計時用途的 SystemBootTime（`35F9.1`）。後者對應 `BrowserDownloadManager` 的實際 `systemUptime` 下載逾時計時；不收集裝置開機時間。發行檢查會讀取實際 App bundle 內的 manifest，驗證這兩個條目，報告記錄 `required_reason_entries_verified: true`。這是打包與已知 API 用途的檢查，不代表 App Store 審核或資料收集標籤已獲確認。[Apple 用途代碼](https://developer.apple.com/documentation/bundleresources/app-privacy-configuration/nsprivacyaccessedapitypes/nsprivacyaccessedapitype)
 

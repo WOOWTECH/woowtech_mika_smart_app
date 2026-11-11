@@ -226,12 +226,13 @@ class BuildTests(unittest.TestCase):
             source = root / "Configuration/Info-Debug.plist"
             copied = output / "Configuration/Info-Debug.plist"
             self.assertEqual(copied.read_bytes(), source.read_bytes())
-            self.assertEqual(plistlib.loads(copied.read_bytes())["NSAppTransportSecurity"]["NSExceptionDomains"].keys(), {"127.0.0.1"})
+            debug_ats = plistlib.loads(copied.read_bytes())["NSAppTransportSecurity"]
+            release_ats = plistlib.loads((root / "Configuration/Info-Release.plist").read_bytes())["NSAppTransportSecurity"]
+            self.assertEqual(debug_ats, release_ats)
 
     def test_release_rejects_ats_in_unsigned_and_signed_products(self):
-        debug_plist = Path(__file__).resolve().parents[1] / "Configuration/Info-Debug.plist"
-        debug_ats = plistlib.loads(debug_plist.read_bytes())["NSAppTransportSecurity"]
-        variants = [debug_ats, {}, {"NSAllowsArbitraryLoads": True},
+        legacy_debug_ats = {"NSExceptionDomains": {"127.0.0.1": {"NSExceptionAllowsInsecureHTTPLoads": True}}}
+        variants = [legacy_debug_ats, {}, {"NSAllowsArbitraryLoads": True},
                     {"NSAllowsArbitraryLoadsInWebContent": True}, False]
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "Example.app"
@@ -249,6 +250,24 @@ class BuildTests(unittest.TestCase):
                                 with self.assertRaisesRegex(release.ReleaseError, "NSAppTransportSecurity"):
                                     release.verify_app(app, signed=signed, identity=DIGEST if signed else None)
                                 native_tool.assert_not_called()
+
+    def test_only_exact_lan_ats_exceptions_are_accepted(self):
+        source = Path(__file__).resolve().parents[1] / "Configuration/Info-Release.plist"
+        original = plistlib.loads(source.read_bytes())["NSAppTransportSecurity"]
+        for fmt in (plistlib.FMT_XML, plistlib.FMT_BINARY):
+            approved = plistlib.loads(plistlib.dumps(original, fmt=fmt))
+            release.verify_ats({"NSAppTransportSecurity": approved})
+            for mutation in ("global", "public", "missing", "integer", "subdomain", "tls"):
+                changed = copy.deepcopy(approved)
+                domains = changed["NSExceptionDomains"]
+                if mutation == "global": changed["NSAllowsArbitraryLoads"] = True
+                elif mutation == "public": domains["example.com"] = {"NSExceptionAllowsInsecureHTTPLoads": True}
+                elif mutation == "missing": domains.pop("10.0.0.0/8")
+                elif mutation == "integer": domains["10.0.0.0/8"]["NSExceptionAllowsInsecureHTTPLoads"] = 1
+                elif mutation == "subdomain": domains["localhost"]["NSIncludesSubdomains"] = False
+                else: domains["10.0.0.0/8"]["NSExceptionMinimumTLSVersion"] = "TLSv1.0"
+                with self.subTest(fmt=fmt, mutation=mutation), self.assertRaises(release.ReleaseError):
+                    release.verify_ats({"NSAppTransportSecurity": changed})
 
     def test_release_rejects_missing_or_blank_browser_media_purpose_strings(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -294,6 +313,29 @@ class BuildTests(unittest.TestCase):
                     self.assertTrue(report["browser_media_purpose_strings_verified"])
                     self.assertTrue(report["required_reason_entries_verified"])
                     self.assertEqual(report["signature_verified"], signed)
+
+    def test_release_accepts_reviewed_lan_ats_in_packaged_product(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            app.mkdir()
+            copy_privacy_manifest(app)
+            ats = plistlib.loads((Path(__file__).resolve().parents[1] / "Configuration/Info-Release.plist").read_bytes())["NSAppTransportSecurity"]
+            info = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
+                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True,
+                    "LSSupportsOpeningDocumentsInPlace": True, "NSAppTransportSecurity": ats, **MEDIA_PURPOSES}
+            def fake_run(args, label, **kwargs):
+                if "lipo" in args: return b"arm64"
+                if "otool" in args: return b"Load command 1\ncmd LC_BUILD_VERSION\nplatform IOS\nminos 17.0\nsdk 26.2\n"
+                if "--extract-certificates" in args: Path(args[3] + "0").write_bytes(CERT)
+                return b""
+            (app / "embedded.mobileprovision").write_bytes(b"synthetic")
+            for fmt in (plistlib.FMT_XML, plistlib.FMT_BINARY):
+                (app / "Info.plist").write_bytes(plistlib.dumps(info, fmt=fmt))
+                for signed in (False, True):
+                    with self.subTest(fmt=fmt, signed=signed), patch.object(release, "run", side_effect=fake_run):
+                        report = release.verify_app(app, signed=signed, identity=DIGEST if signed else None)
+                        self.assertFalse(report["ats_key_absent"])
+                        self.assertTrue(report["lan_ats_verified"])
 
     def test_adhoc_codesign_seal_cannot_pass_as_distribution(self):
         with tempfile.TemporaryDirectory() as directory:

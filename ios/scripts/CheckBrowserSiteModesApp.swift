@@ -46,6 +46,7 @@ private final class SiteModeKeys: LearningKeyStore {
         var omitNextPolicyObservation = false
         var finishes = 0
         var failures = 0
+        var responses: [(URL?, WKNavigationResponsePolicy)] = []
         var externallyCancelledURLs: [URL] = []
         var events: [String] = []
         var lastNavigation: WKNavigation?
@@ -82,7 +83,10 @@ private final class SiteModeKeys: LearningKeyStore {
         }
         func webView(_ view: WKWebView, decidePolicyFor response: WKNavigationResponse,
                      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-            browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler)
+            browser.webView(view, decidePolicyFor: response) { policy in
+                self.responses.append((response.response.url, policy))
+                decisionHandler(policy)
+            }
         }
         func webView(_ view: WKWebView, didStartProvisionalNavigation nav: WKNavigation!) {
             events.append("start")
@@ -332,6 +336,100 @@ private final class SiteModeKeys: LearningKeyStore {
     }
 
     #if DEBUG
+    static func runLANFixture() async throws -> [String: Any] {
+        guard BrowserLoginFixture.enabled == nil else { throw Failure(check: "no automatic fixture bypass") }
+        func fixture() throws -> BrowserLoginFixture {
+            guard let value = BrowserLoginFixture(arguments: ["-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", UUID().uuidString]) else {
+                throw Failure(check: "fixture setup")
+            }
+            return value
+        }
+        let server = try fixture(), other = try fixture()
+        let url = try await server.start(), otherURL = try await other.start()
+        defer { server.stop(); other.stop() }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-lan-webkit-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: SiteModeKeys())
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault, downloadDirectory: root.appendingPathComponent("downloads"))
+        let browser = workspace.selected, host = try Host(), probe = Probe(browser)
+        defer { workspace.cancelAllWork(); host.close() }
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        probe.allowsNetworkFixture = server.allows
+        var count = 0
+        func check(_ condition: @autoclosure () -> Bool, _ label: String) throws {
+            guard condition() else { throw Failure(check: label) }; count += 1
+        }
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let first = browser.pendingLANRequest else { throw Failure(check: "manual approval requested") }
+        try await Task.sleep(nanoseconds: 150_000_000)
+        try check(server.connectionCount == 0 && !browser.lanBrowsingActive, "no connection before approval")
+        browser.rejectPendingLAN(); browser.approvePendingLAN(first)
+        try check(browser.pendingLANRequest == nil && server.connectionCount == 0, "rejected request cannot be approved")
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let request = browser.pendingLANRequest else { throw Failure(check: "second approval requested") }
+        browser.approvePendingLAN(first)
+        try check(browser.pendingLANRequest == request && server.connectionCount == 0, "stale approval cannot cancel a newer request")
+        browser.approvePendingLAN(request)
+        try await wait("approved LAN page", { browser.loadedURL == url && !browser.webView.isLoading })
+        try check(server.connectionCount > 0 && browser.lanBrowsingActive, "approved real WebKit loopback request")
+        try check(browser.current == nil, "local page is not research context")
+        try check(workspace.library.tabs.first?.url == nil && workspace.library.history.isEmpty, "local page not persisted")
+        let actions = probe.actions.count
+        _ = try await browser.webView.evaluateJavaScript("location.href = \(String(data: try JSONEncoder().encode(otherURL.absoluteString), encoding: .utf8)!); true")
+        try await wait("cross-origin action", { probe.actions.count > actions })
+        try await Task.sleep(nanoseconds: 150_000_000)
+        try check(probe.actions.last?.policy == .cancel && other.connectionCount == 0, "cross-origin action denied")
+        let redirectURL = url.deletingLastPathComponent().appendingPathComponent("redirect")
+        try check(server.setRedirectDestination(url), "same-origin redirect configured")
+        let beforeSame = probe.finishes
+        browser.manualNavigation(to: redirectURL) { browser.webView.load(URLRequest(url: redirectURL)) }
+        try await wait("same-origin redirect", { probe.finishes > beforeSame && browser.loadedURL == url && !browser.webView.isLoading })
+        try check(browser.lanBrowsingActive, "same-origin redirect remains authorized")
+        try check(server.setRedirectDestination(otherURL), "cross-origin redirect configured")
+        let beforeRedirect = probe.actions.count, beforeResponses = probe.responses.count
+        browser.manualNavigation(to: redirectURL) { browser.webView.load(URLRequest(url: redirectURL)) }
+        try await wait("cross-origin redirect denied", {
+            probe.actions.dropFirst(beforeRedirect).contains { $0.policy == .cancel }
+                || probe.responses.dropFirst(beforeResponses).contains { $0.0 == otherURL && $0.1 == .cancel }
+        })
+        let deniedAction = probe.actions.dropFirst(beforeRedirect).contains { $0.policy == .cancel }
+        let deniedResponse = probe.responses.dropFirst(beforeResponses).contains { $0.0 == otherURL && $0.1 == .cancel }
+        try check(deniedAction || deniedResponse, "cross-origin server redirect denied by navigation policy")
+        let redirectedConnections = other.connectionCount
+        browser.revokeLANAccess()
+        try check(!browser.lanBrowsingActive && browser.loadedURL == nil, "explicit revoke retires the local page")
+        browser.approvePendingLAN(request)
+        try check(!browser.lanBrowsingActive, "explicit revoke invalidates prior approval")
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let reapproved = browser.pendingLANRequest else { throw Failure(check: "fresh request after revoke") }
+        browser.approvePendingLAN(reapproved)
+        try await wait("local page after explicit reapproval", { browser.loadedURL == url && !browser.webView.isLoading })
+        let originalID = workspace.library.selectedID
+        workspace.newTab()
+        let secondID = workspace.library.selectedID
+        try check(!browser.lanBrowsingActive && browser.loadedURL == nil, "tab switch revokes and discards local page")
+        browser.approvePendingLAN(request)
+        try check(!browser.lanBrowsingActive, "stale approval cannot revive hidden tab")
+        workspace.selectTab(originalID)
+        try check(workspace.selected === browser && browser.loadedURL == nil && browser.pendingLANRequest == nil, "return does not reopen local page")
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let pending = browser.pendingLANRequest else { throw Failure(check: "pending before tab close") }
+        workspace.selectTab(secondID); browser.approvePendingLAN(pending)
+        try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive, "switch revokes pending approval")
+        workspace.selectTab(originalID)
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        browser.address = url.absoluteString; browser.openAddress()
+        guard let closeRequest = browser.pendingLANRequest else { throw Failure(check: "approval before tab close") }
+        browser.approvePendingLAN(closeRequest)
+        try await wait("local page before close", { browser.loadedURL == url && !browser.webView.isLoading })
+        workspace.closeTab(originalID); browser.approvePendingLAN(closeRequest)
+        try check(browser.pendingLANRequest == nil && !browser.lanBrowsingActive && browser.loadedURL == nil, "closing tab revokes active approval")
+        return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
+                "cross_origin_redirect_target_connections": redirectedConnections,
+                "external_network_or_personal_keychain": false, "native_ui_execution": false]
+    }
+
     static func runHTTPFixture() async throws -> [String: Any] {
         guard let fixture = BrowserLoginFixture.enabled else { throw Failure(check: "existing HTTP fixture flags required") }
         let statusURL = try await fixture.start()
@@ -415,7 +513,8 @@ private final class SiteModeKeys: LearningKeyStore {
             do {
                 let result: [String: Any]
                 #if DEBUG
-                if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
+                if ProcessInfo.processInfo.arguments.contains("-LANPolicyLoopback") { result = try await BrowserSiteModesAppChecks.runLANFixture() }
+                else if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
                 else { result = try await BrowserSiteModesAppChecks.run() }
                 #else
                 result = try await BrowserSiteModesAppChecks.run()

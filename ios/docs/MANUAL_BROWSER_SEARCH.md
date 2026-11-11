@@ -13,7 +13,7 @@ This bounded change follows Mika revision `0c172724f3f0c96f7345262588072f6e95db1
 
 ## Deliberate iOS policy differences
 
-The existing `BrowserManualNavigationPolicy` and `BrowserPolicy` still determine destinations. Search engines require public HTTPS; HTTP (including Mika's bare-IP/localhost HTTP shortcut), loopback, private/local addresses, URL credentials and non-web schemes remain blocked. Credential-shaped input is rejected instead of sending it to a search service. This preserves the existing lexical URL policy; it does not add a DNS-resolution or server-side safety guarantee.
+Search engines still require public HTTPS under the existing `BrowserManualNavigationPolicy` and `BrowserPolicy`. Explicitly approved manual LAN navigation is handled separately; see [its scope and limitations](BROWSER_MANUAL_LAN_POLICY.md). URL credentials and non-web schemes remain blocked. Credential-shaped input is rejected instead of sending it to a search service. The lexical URL policy does not add a DNS-resolution or server-side safety guarantee.
 
 Templates accept a path placeholder or a query **value** placeholder, never an authority or parameter-name placeholder. Malformed escapes, control characters, fragments, known authentication/session query parameters and callback/OAuth paths are rejected. Fragment templates that Mika accepts are intentionally unsupported because the iOS encrypted library strips fragments. A path query cannot become a dot-segment traversal. Query text such as `&`, `/`, `#`, `%`, a URL or JavaScript-looking text is only encoded data under the fixed approved engine destination.
 
@@ -21,7 +21,7 @@ Bounds are 20 custom engines, 80 characters per name, 2,048 UTF-8 bytes per temp
 
 Mika stores search settings in plain JSON with fallback defaults. iOS instead adds `searchSettings` to the existing encrypted version-1 browser library. Only an absent field defaults to Bing; malformed, null, unknown-selection or duplicate-ID state fails closed. Existing tabs, selected tab, history, bookmarks and manual site modes survive migration. Settings publish only after a successful encrypted write. Clearing browsing history retains engines and bookmarks; the existing website-data clearing flow remains unchanged.
 
-No model source-discovery policy, website research policy, allowed tool, approval requirement or automatic search capability is added. Manual query pages continue to be ineligible for the current read-only website-research flow. Release HTTP policy and existing DEBUG fixture gates are unchanged.
+No model source-discovery policy, website research policy, allowed tool, approval requirement or automatic search capability is added. Manual query pages continue to be ineligible for the current read-only website-research flow. The later LAN work changes the Release ATS configuration as described in the linked policy.
 
 ## Validation and native boundaries
 
