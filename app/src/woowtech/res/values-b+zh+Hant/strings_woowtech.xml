@@ -12,6 +12,10 @@
     <string name="chat_example_group_summary">幫我整理 LINE 群組今天的未讀訊息，標出需要我回覆的重點</string>
     <string name="chat_example_jobs">在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較</string>
     <string name="chat_example_multi_step">在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點</string>
+    <string name="relay_gateway_hint">https://assistant-relay.woowtech.io/</string>
+    <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
+    <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>
+    <string name="relay_portal_open">開啟中繼網站</string>
     <!-- 內建瀏覽器用 brand.properties 的 search.url（Google）搜尋，不是上游的 Bing。 -->
     <string name="browser_engine">Google</string>
     <string name="browser_engine_note">用 Google 搜尋</string>

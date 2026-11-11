@@ -13,8 +13,9 @@
     <string name="chat_example_group_summary">Open LINE and summarize today\'s unread group messages, highlighting anything that needs my reply.</string>
     <string name="chat_example_jobs">Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.</string>
     <string name="chat_example_multi_step">Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.</string>
-    <!-- The remote gateway field's example address, without a product name (upstream's is mika.example.com). -->
-    <string name="relay_gateway_hint" translatable="false">https://gateway.example.com</string>
+    <string name="relay_gateway_hint" translatable="false">https://assistant-relay.woowtech.io/</string>
+    <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
+    <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>
     <!-- The browser searches with brand.properties' search.url (Google), not upstream's Bing. -->
     <string name="browser_engine">Google</string>
     <string name="browser_engine_note">Search with Google</string>
