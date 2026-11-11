@@ -15,7 +15,10 @@ final class BrowserWorkspaceUITests: XCTestCase {
     func testStartPageFavoritesRecentAndRealClosePageFlow() {
         launch(reset: true)
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].exists)
-        XCTAssertTrue(app.staticTexts["browser.start.history.empty"].exists)
+        let emptyHistory = app.staticTexts["browser.start.history.empty"]
+        XCTAssertTrue(emptyHistory.waitForExistence(timeout: 5))
+        XCTAssertEqual(emptyHistory.label, "尚無瀏覽歷史")
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.start.history.open.")).count, 0)
         XCTAssertTrue(app.buttons["browser.favorites.add"].exists)
         let emptyStart = XCTAttachment(screenshot: app.screenshot())
         emptyStart.name = "browser-android-empty-start"; emptyStart.lifetime = .keepAlways; add(emptyStart)
@@ -43,7 +46,8 @@ final class BrowserWorkspaceUITests: XCTestCase {
             "清除瀏覽歷史？書籤與網站登入資料會保留。")).firstMatch
         let clear = confirmation.buttons["browser.start.history.confirmClear"]
         XCTAssertTrue(clear.waitForExistence(timeout: 5)); clear.tap()
-        XCTAssertTrue(app.staticTexts["browser.start.history.empty"].waitForExistence(timeout: 5))
+        XCTAssertTrue(emptyHistory.waitForExistence(timeout: 5))
+        XCTAssertEqual(emptyHistory.label, "尚無瀏覽歷史")
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.favorite.open.")).count, 1)
         library(); chooseSection("分頁")
         XCTAssertEqual(tabs.count, 1, "Home closes the page in its tab; it must not create another tab.")

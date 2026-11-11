@@ -123,6 +123,8 @@ struct BrowserStartPageView: View {
         .accessibilityIdentifier("browser.favorites")
     }
 
+    // Keep identifiers on the content rows: iOS 26 exposes the empty Text as
+    // this container's element when a container identifier is set here.
     private var recent: some View {
         VStack(spacing: 0) {
             if workspace.library.history.isEmpty {
@@ -138,7 +140,6 @@ struct BrowserStartPageView: View {
         }
         .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.edge, lineWidth: 0.5))
-        .accessibilityIdentifier("browser.recent")
     }
 
     private var suggestions: some View {
