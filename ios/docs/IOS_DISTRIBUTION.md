@@ -1,5 +1,7 @@
 # iOS 簽章與最低版本驗證
 
+2026-11-11 更新：MacBook 已使用本機開發憑證及符合 iPad 的描述檔，將舊 iOS 儲存庫 `be41020` 安裝並啟動於 iPadOS 26.6.1。此為開發簽章實測；本 monorepo 的整合版本、iOS 17 真機及正式發行仍待驗證。簽章／ASC secrets 若未來加入 GitHub，應放在只允許 `main` 的受保護 Environment；workflow 內的分支條件不能防止其他分支自行修改 workflow。
+
 最新已核實的 Release 裝置建置為 `d03dbde` 的 [建置 118](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42970132111)：Xcode／iphoneos SDK 26.2、最低 iOS 17.0、九個二進位檔及原生文件／ATS／隱私檢查通過，實際 App 產物的相機與麥克風用途說明也已核實。產物仍**未簽章、不可安裝、未上傳**；[完整證據](evidence/unsigned-device-d03dbde.json)。
 
 發行腳本現在額外檢查實際 App 產物的相機與麥克風用途說明為非空字串；缺少任一項便阻止標示為可發行。此檢查與缺漏／空白負例、既有簽章及最低系統檢查共 42 項本機腳本測試已通過；裝置建置也已通過新增關卡，但不能代替網站實際要求媒體權限的測試。
