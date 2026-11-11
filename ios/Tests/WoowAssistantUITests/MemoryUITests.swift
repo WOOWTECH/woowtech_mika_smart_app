@@ -50,7 +50,12 @@ final class MemoryUITests: XCTestCase {
             reveal(toggle)
             XCTAssertEqual(toggle.value as? String, "0")
         }
-        XCTAssertTrue(app.staticTexts["memory.preferenceScope"].firstMatch.exists)
+        // The explanatory row sits below the three toggles. On the compact
+        // simulator the List can leave it unmaterialized after revealing the
+        // last switch, so scroll to the real row before checking it.
+        let scope = app.staticTexts["memory.preferenceScope"].firstMatch
+        revealLearningElement(scope, in: app, visibility: .readableText)
+        XCTAssertTrue(scope.exists)
     }
 
     func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
