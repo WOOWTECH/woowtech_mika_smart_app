@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-11",
+  "scope": "Transport probes from the Intel Mac; not iOS application or simulator acceptance",
+  "source_commit": "2ec3f24d63eef7d4b0424f4af741786a9abb0c59",
+  "model": {
+    "json": {"passed": false, "http_status": 429},
+    "stream": {"passed": false, "http_status": 429},
+    "interpretation": "The service returned HTTP 429 for both requests; no successful inference was observed."
+  },
+  "home_assistant_mcp": {
+    "initialize": "passed",
+    "protocol": "2025-03-26",
+    "tools_advertised": 77,
+    "resources_advertised": 17,
+    "resource_templates_advertised": 0,
+    "prompts_advertised": 0,
+    "ping": "passed",
+    "read_only_reported_failures": 0,
+    "mutation_calls": 0,
+    "interpretation": "The script reports zero failures among performed read-only checks; unadvertised checks may have been skipped."
+  }
+}
