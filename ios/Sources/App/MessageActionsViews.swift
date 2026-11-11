@@ -9,19 +9,27 @@ struct MessageActionsControl: View {
     let entry: ChatEntry
     @ObservedObject var session: ChatSession
     let localizer: AppLocalizer
+    let accessibilityID: String?
+    let branchAllowed: () -> Bool
     @State private var failed = false
+
+    init(entry: ChatEntry, session: ChatSession, localizer: AppLocalizer,
+         accessibilityID: String? = nil, branchAllowed: @escaping () -> Bool = { true }) {
+        self.entry = entry; self.session = session; self.localizer = localizer
+        self.accessibilityID = accessibilityID; self.branchAllowed = branchAllowed
+    }
 
     var body: some View {
         if let snapshot = MessageActions.capture(entry: entry, in: session) {
             Menu {
-                MessageActionItems(snapshot: snapshot, session: session, localizer: localizer, failed: $failed)
+                MessageActionItems(snapshot: snapshot, session: session, localizer: localizer, branchAllowed: branchAllowed, failed: $failed)
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel(localizer.text(.messageActions))
-            .accessibilityIdentifier("chat.message.actions.\(entry.id.uuidString)")
+            .accessibilityIdentifier(accessibilityID ?? "chat.message.actions.\(entry.id.uuidString)")
             .alert(localizer.text(.messageActionFailed), isPresented: $failed) {
                 Button(localizer.text(.archiveClose), role: .cancel) { }
             }
@@ -33,6 +41,7 @@ private struct MessageActionItems: View {
     let snapshot: MessageActions
     @ObservedObject var session: ChatSession
     let localizer: AppLocalizer
+    let branchAllowed: () -> Bool
     @Binding var failed: Bool
 
     var body: some View {
@@ -48,9 +57,9 @@ private struct MessageActionItems: View {
             } label: { Label(localizer.text(.messageQuote), systemImage: "text.quote") }
             .accessibilityIdentifier("chat.message.quote.\(snapshot.entry.id.uuidString)")
         }
-        if snapshot.canBranch(in: session) {
+        if branchAllowed() && snapshot.canBranch(in: session) {
             Button {
-                if !snapshot.branch(in: session, suffix: localizer.text(.messageBranchSuffix)) { failed = true }
+                if !branchAllowed() || !snapshot.branch(in: session, suffix: localizer.text(.messageBranchSuffix)) { failed = true }
             } label: { Label(localizer.text(.messageBranch), systemImage: "arrow.triangle.branch") }
             .accessibilityIdentifier("chat.message.branch.\(snapshot.entry.id.uuidString)")
         }
@@ -61,13 +70,14 @@ private struct MessageActionsContextMenu: ViewModifier {
     let entry: ChatEntry
     @ObservedObject var session: ChatSession
     let localizer: AppLocalizer
+    let branchAllowed: () -> Bool
     @State private var failed = false
 
     func body(content: Content) -> some View {
         let snapshot = MessageActions.capture(entry: entry, in: session)
         content.contextMenu {
             if let snapshot {
-                MessageActionItems(snapshot: snapshot, session: session, localizer: localizer, failed: $failed)
+                MessageActionItems(snapshot: snapshot, session: session, localizer: localizer, branchAllowed: branchAllowed, failed: $failed)
             }
         }
         .alert(localizer.text(.messageActionFailed), isPresented: $failed) {
@@ -77,8 +87,9 @@ private struct MessageActionsContextMenu: ViewModifier {
 }
 
 extension View {
-    func messageActionsContextMenu(entry: ChatEntry, session: ChatSession, localizer: AppLocalizer) -> some View {
-        modifier(MessageActionsContextMenu(entry: entry, session: session, localizer: localizer))
+    func messageActionsContextMenu(entry: ChatEntry, session: ChatSession, localizer: AppLocalizer,
+                                   branchAllowed: @escaping () -> Bool = { true }) -> some View {
+        modifier(MessageActionsContextMenu(entry: entry, session: session, localizer: localizer, branchAllowed: branchAllowed))
     }
 }
 
@@ -122,6 +133,7 @@ struct MessageQuoteChip: View {
 struct MessageSentQuote: View {
     let quote: ConversationQuote.Quote
     let localizer: AppLocalizer
+    var identifier = "chat.quote.sent"
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -138,6 +150,7 @@ struct MessageSentQuote: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(8)
         .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityIdentifier("chat.quote.sent")
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 }

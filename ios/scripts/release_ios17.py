@@ -43,7 +43,7 @@ UI_SHARDS = {
     "ui-startup": ["WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
     "ui-language": ["AppLanguageUITests", "AppLanguagePhase2UITests"],
     "ui-notifications": ["NotificationUITests", "NotificationApprovalUITests"],
-    "ui-archive": ["ConversationArchiveUITests"],
+    "ui-archive": ["ConversationArchiveUITests", "ChatMessageActionsUITests"],
     "ui-workspace": ["BrowserWorkspaceUITests", "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests"],
     "ui-browser": ["BrowserInteractionUITests", "BrowserUploadUITests"],
     "ui-learning": ["BrowserLearningUITests", "MultiSourceResearchUITests"],

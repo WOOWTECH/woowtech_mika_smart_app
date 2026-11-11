@@ -572,19 +572,34 @@ private struct ChatView: View {
                         }
                         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
                             VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
-                                HStack {
-                                    if entry.role == "user" { Spacer(minLength: 40) }
-                                    Text(entry.role == "assistant"
-                                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(entry.content))
-                                        .font(.system(size: 15.5))
-                                        .lineSpacing(entry.role == "user" ? 1 : 4)
-                                        .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
-                                        .textSelection(.enabled)
-                                        .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
-                                        .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
-                                        .background(entry.role == "user" ? palette.accent : palette.assistant,
-                                                    in: RoundedRectangle(cornerRadius: 20))
-                                    if entry.role != "user" { Spacer(minLength: 0) }
+                                if entry.role == "user", let quote = MessageUserPresentation(entry.content).quote {
+                                    MessageSentQuote(quote: quote, localizer: localizer, identifier: "chat.quote.sent.\(index)")
+                                        .frame(maxWidth: 300, alignment: .trailing)
+                                }
+                                HStack(alignment: .bottom, spacing: 2) {
+                                    if entry.role == "user" { Spacer(minLength: 0) }
+                                    if entry.role == "user" {
+                                        MessageActionsControl(entry: entry, session: session, localizer: localizer,
+                                            accessibilityID: "chat.message.actions.\(index)", branchAllowed: { !voice.isActive })
+                                    }
+                                    let userText = entry.role == "user" ? MessageUserPresentation(entry.content).words : entry.content
+                                    if !userText.isEmpty || entry.role != "user" {
+                                        Text(entry.role == "assistant"
+                                             ? ChatReplyMarkdown.render(entry.content) : AttributedString(userText))
+                                            .font(.system(size: 15.5))
+                                            .lineSpacing(entry.role == "user" ? 1 : 4)
+                                            .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
+                                            .textSelection(.enabled)
+                                            .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+                                            .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
+                                            .background(entry.role == "user" ? palette.accent : palette.assistant,
+                                                        in: RoundedRectangle(cornerRadius: 20))
+                                    }
+                                    if entry.role != "user" {
+                                        MessageActionsControl(entry: entry, session: session, localizer: localizer,
+                                            accessibilityID: "chat.message.actions.\(index)", branchAllowed: { !voice.isActive })
+                                        Spacer(minLength: 0)
+                                    }
                                 }
                                 if let pdf = entry.pdf {
                                     ArchivedPDFEvidenceView(evidence: pdf, identifier: "chat.pdf.saved.\(index)")
@@ -731,6 +746,11 @@ private struct ChatView: View {
                         .font(.caption)
                         .accessibilityIdentifier("chat.voice.settings")
                     }
+                }
+            }
+            if let quote = session.pendingQuote {
+                MessageQuoteChip(quote: quote, localizer: localizer, disabled: session.isSubmitting) {
+                    session.clearQuote()
                 }
             }
             HStack(alignment: .bottom, spacing: 4) {
