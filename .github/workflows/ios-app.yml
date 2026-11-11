@@ -45,11 +45,280 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  full-regression-plan:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Check generated workflows and exact UI ownership
+        run: |
+          python3 scripts/sync_monorepo_workflows.py --check
+          python3 scripts/ci_full_regression.py plan --output build/full-plan.json --github-output "$GITHUB_OUTPUT"
+        id: plan
+      - name: Preserve the exact source-bound plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-plan-${{ github.run_id }}
+          path: ios/build/full-plan.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
+  full-regression-preflight:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all' }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Run portable core and script gates once
+        run: |
+          mkdir -p build
+          swift test 2>&1 | tee build/core-tests.log
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
+          python3 scripts/generate_app_text.py
+          python3 scripts/check_ui_test_language.py
+          swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
+          build/CheckMemoryDataLocalization
+          python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
+          swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
+          build/MCPSettingsChecks
+          bash scripts/CheckSkillWorkerSettings.sh
+      - name: Test original PDF script through the Swift HTTP client once
+        timeout-minutes: 8
+        run: |
+          bash scripts/skill-worker/check_swift.sh 2>&1 | tee build/skill-execution-native.log
+          python3 -m venv "$RUNNER_TEMP/woow-skill-worker-venv"
+          "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
+          test -x "${TMPDIR:-/tmp}/woow-skill-execution-checks"
+          SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
+            PYTHONDONTWRITEBYTECODE=1 "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" \
+            -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v 2>&1 | tee build/skill-worker-tests.log
+      - name: Preserve preflight evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-preflight-${{ github.run_id }}
+          path: ios/build/*.log
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-build:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all' }}
+    runs-on: macos-15
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        xcode: ['16.4', '26.2']
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: Build one portable simulator test bundle per Xcode
+        timeout-minutes: 45
+        run: |
+          mkdir -p build/full-products
+          xcodebuild -version
+          xcodegen generate
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData -testProductsPath build/WoowAssistant.xctestproducts \
+            build-for-testing CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES \
+            2>&1 | tee build/full-products/build-for-testing.log
+      - name: Verify built Files configuration and package with source checksum
+        run: |
+          products_dir="$(python3 scripts/ci_full_regression.py product-directory --bundle build/WoowAssistant.xctestproducts)"
+          python3 - "$products_dir/WoowAssistant.app/Info.plist" <<'PY'
+          import plistlib, sys
+          from pathlib import Path
+          info = plistlib.loads(Path(sys.argv[1]).read_bytes())
+          assert info.get('UIFileSharingEnabled') is True
+          assert info.get('LSSupportsOpeningDocumentsInPlace') is True
+          PY
+          ditto -c -k --keepParent build/WoowAssistant.xctestproducts build/full-products/WoowAssistant.xctestproducts.zip
+          git rev-parse HEAD > build/full-products/source-commit.txt
+          xcodebuild -version > build/full-products/xcode-version.txt
+          (cd build/full-products && shasum -a 256 WoowAssistant.xctestproducts.zip source-commit.txt xcode-version.txt > SHA256SUMS.txt)
+      - name: Preserve portable test products
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-products-${{ matrix.xcode }}-${{ github.run_id }}
+          path: ios/build/full-products/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+          retention-days: 14
+      - name: Preserve build failure log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-build-failure-${{ matrix.xcode }}-${{ github.run_id }}
+          path: ios/build/full-products/build-for-testing.log
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-test:
+    needs: [full-regression-plan, full-regression-build]
+    if: ${{ needs.full-regression-plan.result == 'success' && needs.full-regression-build.result == 'success' }}
+    runs-on: macos-15
+    timeout-minutes: 95
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix: ${{ fromJSON(needs.full-regression-plan.outputs.matrix) }}
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      WOOW_SIM_RUNTIME: ${{ matrix.runtime }}
+      WOOW_SIM_DEVICE: ${{ matrix.device }}
+      WOOW_FULL_ROW: ${{ toJSON(matrix) }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Download exactly the matching portable Xcode build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-full-products-${{ matrix.xcode }}-${{ github.run_id }}
+          path: ios/build/full-products
+      - name: Verify checksum, source, and exact owned methods
+        run: |
+          (cd build/full-products && shasum -a 256 --check SHA256SUMS.txt)
+          test "$(cat build/full-products/source-commit.txt)" = "$(git rev-parse HEAD)"
+          case "$(head -1 build/full-products/xcode-version.txt)" in
+            "Xcode ${{ matrix.xcode }}") ;;
+            *) echo 'Portable build Xcode mismatch' >&2; exit 1 ;;
+          esac
+          ditto -x -k build/full-products/WoowAssistant.xctestproducts.zip build
+          python3 scripts/ci_full_regression.py materialize --row "$WOOW_FULL_ROW" --output build/full/${{ matrix.id }}
+      - name: Create and boot one owned disposable simulator for this cohort
+        timeout-minutes: 10
+        run: |
+          device_id="$(python3 scripts/prepare_test_simulator.py prepare --runtime "$WOOW_SIM_RUNTIME" --device "$WOOW_SIM_DEVICE" --state build/test-simulator.json --fresh)"
+          printf '%s\n' "$device_id" > build/test-simulator-id.txt
+          xcrun simctl bootstatus "$device_id" -b 2>&1 | tee build/simulator-boot.log
+          products_dir="$(python3 scripts/ci_full_regression.py product-directory --bundle build/WoowAssistant.xctestproducts)"
+          xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py --runtime "$WOOW_SIM_RUNTIME" --products "$products_dir"
+      - name: Execute each exact shard once and verify native completion
+        timeout-minutes: 72
+        run: |
+          python3 scripts/ci_full_regression.py execute \
+            --row build/full/${{ matrix.id }}/full-row.json \
+            --products build/WoowAssistant.xctestproducts \
+            --simulator-id "$(cat build/test-simulator-id.txt)" \
+            --output build/full/${{ matrix.id }}
+      - name: Collect bounded fixture diagnostics
+        if: always()
+        run: |
+          if [ -f build/test-simulator-id.txt ]; then
+            python3 scripts/copy_browser_site_clear_diagnostics.py "$(cat build/test-simulator-id.txt)" build/browser-site-clear.json
+            if [ -d build/full/${{ matrix.id }}/ui-documents/diagnostics ]; then
+              python3 scripts/copy_skill_fixture_diagnostics.py "$(cat build/test-simulator-id.txt)" \
+                build/full/${{ matrix.id }}/ui-documents/diagnostics build/skill-pdf-fixture-evidence.json
+            fi
+          fi
+      - name: Delete only the owned disposable simulator
+        if: always()
+        timeout-minutes: 4
+        run: python3 scripts/prepare_test_simulator.py cleanup --state build/test-simulator.json
+      - name: Preserve complete shard results and bounded diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-evidence-${{ matrix.id }}-${{ github.run_id }}
+          path: |
+            ios/build/full/${{ matrix.id }}/
+            ios/build/test-simulator.json
+            ios/build/simulator-boot.log
+            ios/build/browser-site-clear.json
+            ios/build/skill-pdf-fixture-evidence.json
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: true
+          retention-days: 14
+      - name: Preserve tiny completion receipts for the aggregate gate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-receipt-${{ matrix.id }}-${{ github.run_id }}
+          path: ios/build/full/${{ matrix.id }}/*/full-receipt.json
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-gate:
+    needs: [full-regression-plan, full-regression-preflight, full-regression-build, full-regression-test]
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Download the original plan
+        if: needs.full-regression-plan.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-full-plan-${{ github.run_id }}
+          path: ios/build/full-plan
+      - name: Download tiny method receipts without downloading xcresults
+        if: needs.full-regression-plan.result == 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: ios-full-receipt-*-${{ github.run_id }}
+          path: ios/build/full-receipts
+          merge-multiple: false
+      - name: Verify exact complete 3-device coverage and upstream jobs
+        env:
+          PLAN_RESULT: ${{ needs.full-regression-plan.result }}
+          PREFLIGHT_RESULT: ${{ needs.full-regression-preflight.result }}
+          BUILD_RESULT: ${{ needs.full-regression-build.result }}
+          TEST_RESULT: ${{ needs.full-regression-test.result }}
+        run: |
+          if [ -f build/full-plan/full-plan.json ]; then
+            python3 scripts/ci_full_regression.py aggregate --plan build/full-plan/full-plan.json \
+              --receipts build/full-receipts --output build/full-aggregate.json || true
+          fi
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          statuses = {key: os.environ[key] for key in ('PLAN_RESULT', 'PREFLIGHT_RESULT', 'BUILD_RESULT', 'TEST_RESULT')}
+          path = Path('build/full-aggregate.json')
+          report = json.loads(path.read_text()) if path.is_file() else {'verified': False}
+          print(json.dumps({'jobs': statuses, 'coverage': report}, sort_keys=True))
+          if any(value != 'success' for value in statuses.values()) or report.get('verified') is not True:
+              raise SystemExit('Full non-Live regression is incomplete or failed')
+          PY
+      - name: Preserve the final coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-gate-${{ github.run_id }}
+          path: ios/build/full-aggregate.json
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
   build-and-test:
-    # Produce the iPad device candidate first on PRs. On other events that job
-    # is skipped; a device-build failure must not hide simulator test results.
+    # Preserve the existing focused manual scopes. Normal PR/push and manual
+    # `all` use the source-bound portable-build matrix above.
     needs: unsigned-device-for-local-signing
-    if: ${{ always() && !cancelled() }}
+    if: ${{ always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.test_scope != 'all' }}
     runs-on: macos-15
     timeout-minutes: 70
     strategy:
