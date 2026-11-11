@@ -435,3 +435,12 @@
 "archive.savedCount" = "Saved conversations (%1$lld)";
 "archive.empty" = "No saved conversations yet.";
 "archive.close" = "Close";
+"message.actions" = "Message actions";
+"message.copy" = "Copy";
+"message.quote" = "Quote";
+"message.branch" = "Branch from here";
+"message.branchSuffix" = " · Branch";
+"message.actionFailed" = "Could not complete the action. Check the conversation and try again; also check saved conversations.";
+"message.quoteAssistant" = "Quoting assistant";
+"message.quoteUser" = "Quoting you";
+"message.quoteRemove" = "Remove quote";

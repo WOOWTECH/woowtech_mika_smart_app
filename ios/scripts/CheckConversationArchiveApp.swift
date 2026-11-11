@@ -917,6 +917,50 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func messageActionsUseCapturedSource() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let session = e.session(ArchiveModel(["**First reply**", "Second reply"]))
+        try await send(session, "Original question")
+        try await send(session, "Follow-up")
+        let original = e.archive.conversations[0]
+        let versionBefore = try encodedArchiveVersion(e.archive.state)
+        guard let first = session.entries.first(where: { $0.id == original.turns[0].assistantID }),
+              let captured = MessageActions.capture(entry: first, in: session) else { throw Failure(name: "capture completed reply") }
+        var copied: String? = nil
+        try a.check(captured.copy(in: session, assistantPlainText: { _ in "First reply" }, write: { copied = $0 })
+                    && copied == "First reply", "copy uses display text and explicit sink")
+        try a.check(captured.canQuote && captured.canBranch(in: session), "completed assistant offers quote and branch")
+        session.draft = "unsent draft"
+        try a.check(!captured.branch(in: session, suffix: " · Branch") && session.draft == "unsent draft"
+                    && e.archive.conversations == [original], "draft blocks branch without losing source or draft")
+        try a.check(captured.quote(in: session) && session.pendingQuote?.text == "**First reply**"
+                    && session.draft == "unsent draft", "real session quote preserves draft")
+        try a.check(!captured.branch(in: session, suffix: " · Branch"), "pending quote blocks branch")
+        session.clearQuote(); session.draft = ""
+        let other = e.reopen()
+        try other.rename(id: original.id, expectedTitle: nil, to: "Changed elsewhere")
+        try a.check(!captured.quote(in: session) && !captured.branch(in: session, suffix: " · Branch")
+                    && session.isCurrentConversation(id: original.id) && session.pendingQuote == nil,
+                    "stale captured row cannot quote or branch or switch")
+        try a.check(try encodedArchiveVersion(e.reopen().state) == 3 && versionBefore < 5,
+                    "quote and ordinary metadata do not upgrade to v5")
+        guard let fresh = MessageActions.capture(entry: first, in: session), let renamed = fresh.source else {
+            throw Failure(name: "capture refreshed row")
+        }
+        try a.check(fresh.branch(in: session, suffix: " · Branch"), "real branch transaction succeeds")
+        let reopened = e.reopen()
+        guard let branch = reopened.conversations.first(where: { $0.id != original.id }) else { throw Failure(name: "saved branch") }
+        try a.check(reopened.conversations.first(where: { $0.id == original.id }) == renamed
+                    && branch.turns.count == 1 && branch.turns[0].assistantText == "**First reply**"
+                    && branch.branchOrigin?.parentID == original.id && session.isCurrentConversation(id: branch.id),
+                    "encrypted reopen retains exact source and selected prefix with provenance")
+        try a.check(try encodedArchiveVersion(reopened.state) == 5, "actual branch writes v5")
+        copied = nil
+        try a.check(!fresh.copy(in: session, assistantPlainText: { $0 }, write: { copied = $0 }) && copied == nil,
+                    "stale visible message cannot write clipboard after switch")
+        return a.count
+    }
+
 }
 
 #if CONVERSATION_ARCHIVE_APP_STANDALONE
@@ -932,13 +976,14 @@ private actor ArchiveModel: ChatModelClient {
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay(),
                 ArchiveAppChecks.branchDurabilityAndFences(), ArchiveAppChecks.branchStalenessAndInFlight(),
                 ArchiveAppChecks.quotesInRealSession(), ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(),
-                ArchiveAppChecks.branchUsesLatestWholeArchive()]
-            print("{\"groups\":16,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+                ArchiveAppChecks.branchUsesLatestWholeArchive(), ArchiveAppChecks.messageActionsUseCapturedSource()]
+            print("{\"groups\":17,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
 #else
 final class ConversationArchiveAppTests: XCTestCase {
+    @MainActor func testMessageActionsUseCapturedSource() async throws { let n = try await ArchiveAppChecks.messageActionsUseCapturedSource(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBranchDurabilityAndFences() async throws { let n = try await ArchiveAppChecks.branchDurabilityAndFences(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBranchStalenessAndInFlight() async throws { let n = try await ArchiveAppChecks.branchStalenessAndInFlight(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBranchUsesLatestWholeArchive() async throws { let n = try await ArchiveAppChecks.branchUsesLatestWholeArchive(); XCTAssertGreaterThan(n, 0) }

@@ -46,8 +46,8 @@ def main():
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / "Sources" / name).glob("*.swift"))]
                    for name, _ in MODULES}
-        apps = [copy("Sources/App/" + name + ".swift") for name in [*APPS, "RecentConversationAccess", "NewConversationProtection"]]
-        views = [copy("Sources/App/" + name + ".swift") for name in ["ContentView", "ConversationArchiveView", "MikaRecentConversationsSection"]]
+        apps = [copy("Sources/App/" + name + ".swift") for name in [*APPS, "RecentConversationAccess", "NewConversationProtection", "MessageActions"]]
+        views = [copy("Sources/App/" + name + ".swift") for name in ["ContentView", "ConversationArchiveView", "MikaRecentConversationsSection", "MessageActionsViews"]]
         ui = copy("Tests/WoowAssistantUITests/ConversationArchiveUITests.swift")
         pdf_ui = copy("Tests/WoowAssistantUITests/ChatPDFAttachmentUITests.swift")
         core = copy("Tests/AssistantPersistenceTests/ConversationArchiveTests.swift")

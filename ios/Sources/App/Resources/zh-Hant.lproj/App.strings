@@ -435,3 +435,12 @@
 "archive.savedCount" = "已保存的對話（%1$lld）";
 "archive.empty" = "尚無保存的對話";
 "archive.close" = "關閉";
+"message.actions" = "訊息操作";
+"message.copy" = "複製";
+"message.quote" = "引用";
+"message.branch" = "從這裡分支";
+"message.branchSuffix" = " · 分支";
+"message.actionFailed" = "無法完成操作，請確認對話狀態後重試；也可查看已保存的對話。";
+"message.quoteAssistant" = "引用助理";
+"message.quoteUser" = "引用自己";
+"message.quoteRemove" = "移除引用";

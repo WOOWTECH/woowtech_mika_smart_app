@@ -444,6 +444,15 @@ enum AppText: Equatable {
     case archiveSavedCount(count: Int)
     case archiveEmpty
     case archiveClose
+    case messageActions
+    case messageCopy
+    case messageQuote
+    case messageBranch
+    case messageBranchSuffix
+    case messageActionFailed
+    case messageQuoteAssistant
+    case messageQuoteUser
+    case messageQuoteRemove
 
     var key: String {
         switch self {
@@ -888,6 +897,15 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "archive.savedCount"
         case .archiveEmpty: return "archive.empty"
         case .archiveClose: return "archive.close"
+        case .messageActions: return "message.actions"
+        case .messageCopy: return "message.copy"
+        case .messageQuote: return "message.quote"
+        case .messageBranch: return "message.branch"
+        case .messageBranchSuffix: return "message.branchSuffix"
+        case .messageActionFailed: return "message.actionFailed"
+        case .messageQuoteAssistant: return "message.quoteAssistant"
+        case .messageQuoteUser: return "message.quoteUser"
+        case .messageQuoteRemove: return "message.quoteRemove"
         }
     }
 
@@ -1361,6 +1379,15 @@ enum AppText: Equatable {
         case .archiveSavedCount: return "已保存的對話（%1$lld）"
         case .archiveEmpty: return "尚無保存的對話"
         case .archiveClose: return "關閉"
+        case .messageActions: return "訊息操作"
+        case .messageCopy: return "複製"
+        case .messageQuote: return "引用"
+        case .messageBranch: return "從這裡分支"
+        case .messageBranchSuffix: return " · 分支"
+        case .messageActionFailed: return "無法完成操作，請確認對話狀態後重試；也可查看已保存的對話。"
+        case .messageQuoteAssistant: return "引用助理"
+        case .messageQuoteUser: return "引用自己"
+        case .messageQuoteRemove: return "移除引用"
         }
     }
 }
