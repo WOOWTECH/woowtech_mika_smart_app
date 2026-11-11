@@ -52,6 +52,7 @@ private final class SiteModeKeys: LearningKeyStore {
         var lastStarted: WKNavigation?
         var deferResponseURL: URL?
         var deferredResponse: (() -> Void)?
+        var deferredPolicies: [WKNavigationResponsePolicy] = []
         var actions: [(host: String?, main: Bool, method: String?, incomingMode: WKWebpagePreferences.ContentMode,
                        mode: WKWebpagePreferences.ContentMode, policy: WKNavigationActionPolicy, type: WKNavigationType)] = []
         init(_ browser: BrowserSession) { self.browser = browser }
@@ -87,10 +88,20 @@ private final class SiteModeKeys: LearningKeyStore {
                      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
             if response.response.url == deferResponseURL {
                 deferResponseURL = nil
-                deferredResponse = { [browser] in browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler) }
+                deferredResponse = { [browser, weak self] in
+                    browser.webView(view, decidePolicyFor: response) { policy in
+                        self?.deferredPolicies.append(policy); decisionHandler(policy)
+                    }
+                }
                 return
             }
             browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler)
+        }
+        func webView(_ view: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            browser.webView(view, navigationResponse: navigationResponse, didBecome: download)
+        }
+        func webView(_ view: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+            browser.webView(view, navigationAction: navigationAction, didBecome: download)
         }
         func webView(_ view: WKWebView, didStartProvisionalNavigation nav: WKNavigation!) {
             events.append("start"); lastStarted = nav
@@ -516,6 +527,81 @@ private final class SiteModeKeys: LearningKeyStore {
                 "completed_get_reloads": 1, "additional_server_gets": 1, "post_replays": 0,
                 "retained_cookie_authenticated_by_server": true, "external_network_or_personal_keychain": false]
     }
+    // A deliberately failing regression until response provenance is fixed.
+    // The proxy retains real WebKit response objects and controls when the app
+    // sees them. It does not establish that iOS naturally delivers this order.
+    static func runSameURLStopRegression() async throws -> [String: Any] {
+        guard let fixture = BrowserDownloadedPDFFixture.enabled else { throw Failure(check: "PDF fixture flags required") }
+        let pageURL = try await fixture.start(); defer { fixture.stop() }
+        let attachmentURL = pageURL.deletingLastPathComponent().appendingPathComponent("file.pdf")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-stop-same-url-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(),
+            vault: EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: SiteModeKeys()),
+            downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(); defer { host.close(); workspace.cancelAllWork() }
+        let browser = workspace.selected, probe = Probe(workspace.selected)
+        probe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        func start() {
+            probe.deferResponseURL = attachmentURL
+            browser.manualNavigation(to: attachmentURL) { browser.webView.load(URLRequest(url: attachmentURL)) }
+        }
+        start()
+        try await wait("first real PDF policy held", { probe.deferredResponse != nil && browser.isPageLoading })
+        let oldResponse = probe.deferredResponse!; probe.deferredResponse = nil
+        guard browser.stopManualPageLoading() else { throw Failure(check: "stop first PDF") }
+        start()
+        try await wait("second real PDF policy held", { probe.deferredResponse != nil && browser.isPageLoading })
+        let newResponse = probe.deferredResponse!; probe.deferredResponse = nil
+        oldResponse()
+        guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy was not delivered") }
+        let oldPolicy = probe.deferredPolicies[0]
+        newResponse()
+        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .download else {
+            throw Failure(check: "new user-requested same-URL download denied")
+        }
+        try await wait("legitimate same-URL download completes", {
+            workspace.downloads.items.contains { $0.status == .completed }
+        })
+        guard let item = workspace.downloads.items.first(where: { $0.status == .completed }),
+              let file = try? workspace.downloads.fileURL(id: item.id),
+              let contents = try? Data(contentsOf: file), contents == BrowserDownloadedPDFFixture.payload else {
+            throw Failure(check: "legitimate download bytes")
+        }
+        // Test the isolation premise separately: the stopped response belongs
+        // to a different, quarantined WebView/session from the new request.
+        workspace.newTab()
+        let oldBrowser = workspace.selected, oldProbe = Probe(workspace.selected)
+        oldProbe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(oldBrowser); oldBrowser.webView.navigationDelegate = oldProbe
+        oldProbe.deferResponseURL = attachmentURL
+        oldBrowser.manualNavigation(to: attachmentURL) { oldBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("isolated old PDF policy held", { oldProbe.deferredResponse != nil && oldBrowser.isPageLoading })
+        let isolatedOldResponse = oldProbe.deferredResponse!; oldProbe.deferredResponse = nil
+        guard oldBrowser.stopManualPageLoading() else { throw Failure(check: "stop isolated PDF") }
+        workspace.newTab()
+        let newBrowser = workspace.selected, newProbe = Probe(workspace.selected)
+        guard oldBrowser.webView !== newBrowser.webView else { throw Failure(check: "isolated view identity") }
+        newProbe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(newBrowser); newBrowser.webView.navigationDelegate = newProbe
+        newProbe.deferResponseURL = attachmentURL
+        newBrowser.manualNavigation(to: attachmentURL) { newBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("isolated new PDF policy held", { newProbe.deferredResponse != nil && newBrowser.isPageLoading })
+        let isolatedNewResponse = newProbe.deferredResponse!; newProbe.deferredResponse = nil
+        isolatedOldResponse()
+        isolatedNewResponse()
+        guard oldProbe.deferredPolicies == [.cancel], newProbe.deferredPolicies == [.download], oldBrowser.manualLoadStopped else {
+            throw Failure(check: "isolated view policies or stopped state")
+        }
+        try await wait("isolated legitimate download completes", {
+            workspace.downloads.items.filter { $0.status == .completed }.count == 2
+        })
+        print("REGRESSION positive_new_download=completed old_response_policy=\(oldPolicy == .cancel ? "cancel" : "not_cancel") isolated_views=pass")
+        guard oldPolicy == .cancel else { throw Failure(check: "stopped PDF response authorized by later same-URL intent") }
+        return ["old_response_cancelled": true, "new_download_completed": true,
+                "actual_webkit": true, "actual_loopback_http": true]
+    }
     #endif
 }
 
@@ -527,7 +613,8 @@ private final class SiteModeKeys: LearningKeyStore {
             do {
                 let result: [String: Any]
                 #if DEBUG
-                if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
+                if BrowserDownloadedPDFFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runSameURLStopRegression() }
+                else if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
                 else { result = try await BrowserSiteModesAppChecks.run() }
                 #else
                 result = try await BrowserSiteModesAppChecks.run()
