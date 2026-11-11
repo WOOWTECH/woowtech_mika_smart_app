@@ -8,9 +8,9 @@ The exported, no-display activity checks ACTION_VIEW, the exact installed packag
 
 ## Web and LINE integration
 
-Deploy [the English page](../apporo/web/open-apporo-assistant.html) to the selected Apporo HTTPS site. It uses Apporo's existing gray/gold palette. The button pins `package=com.apporo.assistant` and uses a fallback on the same deployed page. Fallback displays recovery instructions without automatically retrying. The download points at the .7 QA release; the older stable .4 does not support this entry.
+The public entry is the Odoo page at https://www.apporo.ai/open-apporo-assistant. Its [Odoo view source](../apporo/web/open-apporo-assistant.odoo.xml) is kept with this repository (Odoo `ir.ui.view` 5203, website 1). Its button pins `package=com.apporo.assistant` and uses a fallback on the same page. Fallback displays recovery instructions without automatically retrying. Its download link points at the latest public Apporo release; Apporo .7 or later supports this entry. [The English standalone template](../apporo/web/open-apporo-assistant.html) keeps the same download destination. When changing the Odoo page, verify both the public page and a Chrome tap on Android; changing either source file alone does not deploy the Odoo page.
 
-Use that HTTPS page URL in the Apporo LINE rich menu. The user taps **Open Apporo Assistant**; if the embedded browser blocks it, use LINE's **Open in browser** menu and tap in Chrome. Browser and device policy can prevent automatic redirects, so the page requires a deliberate click. It does not infer successful launch merely from a hidden page. No Apporo LINE account or public deployment target has yet been selected; WOOWTECH's existing menu remains owned by its separate integration.
+Use that HTTPS page URL in the Apporo LINE rich menu. The user taps **Open Apporo Assistant**; if the embedded browser blocks it, use LINE's **Open in browser** menu and tap in Chrome. Browser and device policy can prevent automatic redirects, so the page requires a deliberate click. It does not infer successful launch merely from a hidden page. No Apporo LINE account or rich menu has yet been selected; WOOWTECH's existing menu remains owned by its separate integration.
 
 This is a custom deep link, not a verified HTTPS App Link. Website `assetlinks.json` verification would be a separate integration.
 
