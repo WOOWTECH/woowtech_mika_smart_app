@@ -270,21 +270,22 @@ final class LiveModelUITests: XCTestCase {
         let name = String(pending.identifier.dropFirst("skills.draft.".count))
         XCTAssertFalse(name.isEmpty)
         tapLearningButton("skills.draftFullText.\(name)", in: app)
-        let document = app.staticTexts["skills.document"]
-        XCTAssertTrue(document.waitForExistence(timeout: 5))
-        let reviewedMarkdown = document.label
+        let draftDocument = app.staticTexts["skills.draftDocument.\(name)"]
+        XCTAssertTrue(draftDocument.waitForExistence(timeout: 5))
+        let reviewedMarkdown = draftDocument.label
         XCTAssertFalse(reviewedMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         XCTAssertTrue(reviewedMarkdown.contains("\nsource: learned\n"), "Draft must originate from the real learning pipeline.")
         let provenance = reviewedMarkdown.components(separatedBy: "\n").first { $0.hasPrefix("learned_from: ") }
             .map { String($0.dropFirst("learned_from: ".count)) }
         XCTAssertNotNil(provenance.flatMap { UUID(uuidString: $0) }, "Learned draft needs a runtime run UUID.")
-        app.buttons["skills.document.close"].tap()
+        tapLearningButton("skills.draftFullText.\(name)", in: app)
         tapLearningButton("skills.approve.\(name)", in: app)
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["memory.error"].exists)
         selectLearningSegment("skills", in: app)
         assertLiveTrialSkill(name, in: app)
         tapLearningButton("skills.fullText.\(name)", in: app)
+        let document = app.staticTexts["skills.document"]
         XCTAssertTrue(document.waitForExistence(timeout: 5))
         // Boolean byte comparison prevents a failed assertion logging model prose.
         XCTAssertTrue(Data(document.label.utf8) == Data(reviewedMarkdown.utf8), "Approval must preserve exact reviewed Markdown and provenance.")

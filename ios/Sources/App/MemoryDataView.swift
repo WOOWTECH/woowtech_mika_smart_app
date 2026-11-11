@@ -17,6 +17,7 @@ struct MemoryDataView: View {
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
     @State private var searching = false
+    @State private var expandedDraftID: UUID?
     @State private var sheet: LearningSheet?
     @State private var deletionReview: SkillDeletionReview?
     @FocusState private var searchFocused: Bool
@@ -333,7 +334,14 @@ struct MemoryDataView: View {
         }
         if !store.skills.pending.isEmpty {
             Section {
-                ForEach(store.skills.pending) { draft in card { draftRow(draft) } }
+                card {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(store.skills.pending) { draft in
+                            draftRow(draft)
+                            if draft.id != store.skills.pending.last?.id { cardDivider }
+                        }
+                    }
+                }
                 Text(copy.text(.pendingSearchHint))
                     .font(.caption)
                     .foregroundStyle(palette.ink3)
@@ -481,12 +489,13 @@ struct MemoryDataView: View {
 
     private func draftRow(_ draft: SkillDraft) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: skillTitle(draft.document)).font(.headline)
+            Text(verbatim: skillTitle(draft.document)).font(.body.weight(.medium))
                 .accessibilityIdentifier("skills.draft.\(draft.name)")
             Text(verbatim: draft.document.description)
-                .foregroundStyle(palette.ink2)
-            Text(copy.text(draft.source == .imported ? .draftImported : .draftPending))
-                .font(.caption).foregroundStyle(palette.ink3)
+                .foregroundStyle(palette.ink3)
+            if draft.source == .imported {
+                Text(copy.text(.draftImported)).font(.caption).foregroundStyle(palette.ink3)
+            }
             if let previous = store.skills.installed.first(where: { $0.name == draft.replacesName }) {
                 Text(copy.text(.draftUpdate))
                     .font(.caption)
@@ -499,6 +508,14 @@ struct MemoryDataView: View {
                         .font(.caption)
                         .foregroundStyle(entry.element.hasPrefix("+") ? palette.ok : palette.bad)
                 }
+            }
+            if expandedDraftID == draft.id {
+                Text(verbatim: draft.markdown)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(palette.ink2)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("skills.draftDocument.\(draft.name)")
             }
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) {
@@ -532,7 +549,9 @@ struct MemoryDataView: View {
                 .accessibilityIdentifier("skills.edit.\(draft.name)")
                 .memoryActionPill(palette)
         case .fullText:
-            Button(copy.text(.fullText)) { sheet = .fullText(skillTitle(draft.document), draft.markdown) }
+            Button(copy.text(expandedDraftID == draft.id ? .hideFullText : .fullText)) {
+                expandedDraftID = expandedDraftID == draft.id ? nil : draft.id
+            }
                 .accessibilityIdentifier("skills.draftFullText.\(draft.name)")
                 .memoryActionPill(palette)
         case .reject:
@@ -942,7 +961,7 @@ private struct SkillEditor: View {
                 Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("skills.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(copy.text(draft == nil ? .importAction : .approveAction)) {
+                Button(copy.text(draft == nil ? .importAction : .acceptTrial)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
                         else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames) }

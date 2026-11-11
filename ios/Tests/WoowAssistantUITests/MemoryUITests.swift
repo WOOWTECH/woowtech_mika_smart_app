@@ -217,6 +217,49 @@ final class MemoryUITests: XCTestCase {
         XCTAssertFalse(memory("Ask before changing a plan").exists)
     }
 
+    func testPendingSkillCardsExpandApproveAndRejectPersistently() {
+        launch()
+        openMemory()
+        importSkill(version: "FirstDraft")
+        importSkill(version: "SecondDraft", name: "notes-second")
+        let first = app.staticTexts["skills.draft.notes-test"].firstMatch
+        let second = app.staticTexts["skills.draft.notes-second"].firstMatch
+        reveal(second)
+        XCTAssertTrue(first.exists && second.exists)
+        XCTAssertLessThan(first.frame.midY, second.frame.midY)
+        XCTAssertFalse(app.staticTexts["skills.item.notes-test"].exists)
+        XCTAssertFalse(app.staticTexts["skills.item.notes-second"].exists)
+
+        tap("skills.draftFullText.notes-test", scroll: true)
+        let firstText = app.staticTexts["skills.draftDocument.notes-test"].firstMatch
+        XCTAssertTrue(firstText.waitForExistence(timeout: 5))
+        XCTAssertTrue(firstText.label.contains("FirstDraft"))
+        XCTAssertEqual(app.buttons["skills.draftFullText.notes-test"].firstMatch.label, "收起全文")
+        tap("skills.draftFullText.notes-second", scroll: true)
+        let secondText = app.staticTexts["skills.draftDocument.notes-second"].firstMatch
+        XCTAssertTrue(secondText.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondText.label.contains("SecondDraft"))
+        XCTAssertFalse(firstText.exists, "Opening another draft collapses the first")
+        tap("skills.draftFullText.notes-second", scroll: true)
+        XCTAssertFalse(secondText.exists)
+
+        tap("skills.approve.notes-test", scroll: true)
+        XCTAssertFalse(first.exists)
+        XCTAssertTrue(second.exists, "Approving one draft must leave the other pending")
+        tap("skills.reject.notes-second", scroll: true)
+        XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
+        launch(reset: false)
+        openMemory()
+        select("pending")
+        XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
+        select("skills")
+        let state = app.staticTexts["skills.state.notes-test"].firstMatch
+        reveal(state)
+        XCTAssertEqual(state.label, "試用中 · 尚未驗證")
+        XCTAssertFalse(app.staticTexts["skills.item.notes-second"].exists)
+        assertSkillText(contains: "FirstDraft")
+    }
+
     func testSkillImportFailureReviewAndEnablementPersist() {
         launch()
         openMemory()
@@ -233,9 +276,14 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["skills.empty"].firstMatch.exists)
         select("pending")
         tap("skills.edit.notes-test", scroll: true)
+        XCTAssertEqual(app.buttons["skills.editor.save"].firstMatch.label, "收下試用")
+        tap("skills.editor.cancel")
+        XCTAssertTrue(app.staticTexts["skills.draft.notes-test"].firstMatch.exists)
+        tap("skills.edit.notes-test", scroll: true)
         replaceEditor("skills", text: markdown(version: "ReviewedVersion"))
         saveSkillEditor()
         XCTAssertTrue(app.staticTexts["skills.item.notes-test"].firstMatch.exists)
+        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "試用中 · 尚未驗證")
         let enabled = app.switches["skills.enabled.notes-test"].firstMatch
         reveal(enabled)
         setSwitch(enabled, value: "0")
@@ -424,10 +472,10 @@ final class MemoryUITests: XCTestCase {
         waitForAbsence(app.buttons["skills.editor.save"].firstMatch)
     }
 
-    private func importSkill(version: String) {
+    private func importSkill(version: String, name: String = "notes-test") {
         select("skills")
         tap("skills.import", scroll: true)
-        enter(markdown(version: version), into: app.textViews["skills.editor.markdown"].firstMatch)
+        enter(markdown(version: version, name: name), into: app.textViews["skills.editor.markdown"].firstMatch)
         saveSkillEditor()
     }
 
@@ -439,10 +487,10 @@ final class MemoryUITests: XCTestCase {
         tap("skills.document.close")
     }
 
-    private func markdown(version: String) -> String {
+    private func markdown(version: String, name: String = "notes-test") -> String {
         """
         ---
-        name: notes-test
+        name: \(name)
         description: Organize notes.
         ---
         ## Entry

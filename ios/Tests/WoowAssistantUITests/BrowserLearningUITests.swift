@@ -81,11 +81,11 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertEqual(name, "website-research")
         XCTAssertFalse(app.staticTexts["skills.item.\(name)"].exists)
         tap("skills.draftFullText.\(name)", scroll: true)
-        let document = app.staticTexts["skills.document"]
+        let document = app.staticTexts["skills.draftDocument.\(name)"]
         XCTAssertTrue(document.waitForExistence(timeout: 5))
         let reviewedMarkdown = document.label
         XCTAssertFalse(reviewedMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        tap("skills.document.close")
+        tap("skills.draftFullText.\(name)", scroll: true)
         tap("skills.approve.\(name)", scroll: true)
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["memory.error"].exists)

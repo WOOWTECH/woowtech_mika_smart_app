@@ -26,7 +26,7 @@ enum MemoryDataKey: String, CaseIterable {
     case emptySkills, skillsScope, mineSkills, importSkill, importHint, importSafety
     case getSkills, catalog, pdfRead, agentWrite, transcript, builtInHelp, builtInTools
     case draftImported, draftPending, draftUpdate, changedLines
-    case acceptTrial, editDraft, fullText, viewFullText, skillSuspended, skillTrial, skillEnabled
+    case acceptTrial, editDraft, fullText, hideFullText, viewFullText, skillSuspended, skillTrial, skillEnabled
     case enableReference, share, restorePrevious
     case skillDeleteTitle, skillDeleteMessage, confirmSkillDelete
     case useMemory, useMemorySub, autoRemember, autoRememberSub
@@ -106,6 +106,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .acceptTrial: return ("收下試用", "接受试用", "Accept for trial")
         case .editDraft: return ("改一改", "修改", "Edit first")
         case .fullText: return ("看全文", "查看全文", "Full text")
+        case .hideFullText: return ("收起全文", "收起全文", "Hide full text")
         case .viewFullText: return ("查看全文", "查看全文", "View full text")
         case .skillSuspended: return ("已停用", "已停用", "Disabled")
         case .skillTrial: return ("試用中 · 尚未驗證", "试用中 · 尚未验证", "Trial · not verified")
@@ -139,7 +140,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .skillEditorImportHelp: return ("貼上完整 SKILL.md。有效內容會進入待確認，不會立即啟用。", "粘贴完整的 SKILL.md。有效内容会进入待确认，不会立即启用。", "Paste the full SKILL.md. Valid content waits for review and is not enabled immediately.")
         case .skillEditorEditHelp: return ("檢查全文後核准試用；不會執行程式或授予工具權限。", "检查全文后批准试用；不会运行程序或授予工具权限。", "Review the full text before approving a trial. It cannot run code or grant tool access.")
         case .skillEditorImportTitle: return ("匯入 Skill", "导入技能", "Import skill")
-        case .skillEditorEditTitle: return ("編輯後核准", "编辑后批准", "Edit and approve")
+        case .skillEditorEditTitle: return ("改一改再試用", "修改后试用", "Edit and try")
         case .importAction: return ("匯入", "导入", "Import")
         case .approveAction: return ("核准", "批准", "Approve")
         case .clearFullText: return ("清空全文", "清空全文", "Clear full text")
