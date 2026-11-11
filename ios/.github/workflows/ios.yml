@@ -82,6 +82,8 @@ jobs:
         run: |
           python3 scripts/generate_app_text.py
           python3 scripts/check_ui_test_language.py
+          swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
+          build/CheckMemoryDataLocalization
       - name: Test synthetic PDF fixture evidence guards
         if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","files","file-picker"]'), inputs.test_scope)
         run: python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
