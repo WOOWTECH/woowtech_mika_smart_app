@@ -1,6 +1,7 @@
 import AssistantAttachments
 import AssistantMemory
 import AssistantModels
+import AssistantMCP
 import AssistantPersistence
 import CoreGraphics
 import Foundation
@@ -47,6 +48,19 @@ private actor Model: LifetimeBoundCompletionChatModelClient {
         guard index < replies.count else { throw Failure(name: "unexpected model request") }
         return replies[index]
     }
+}
+private actor ToolExecutor: MCPConversationExecuting {
+    private(set) var calls = 0
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        calls += 1; return .object(["ok": .bool(true)])
+    }
+    func readResource(uri: String) async throws -> JSONValue {
+        calls += 1; return .object(["contents": .array([])])
+    }
+}
+@MainActor private final class ToolValidationProbe {
+    var checks = 0
+    var deletedWhileLocked = false
 }
 private actor StreamRecords {
     var streamed: [[ModelMessage]] = []; var completed: [[ModelMessage]] = []
@@ -237,7 +251,130 @@ private func image() throws -> Data {
         try await staleQuoteDuringPreflight()
         try await nonStreamingFailure()
         try await cancellation()
+        try await toolCallsRecheckArchive()
+        try await memoryCallsRecheckArchive()
+        try await toolValidationKeepsLeasePaired()
+        try await toolApprovalDoesNotHoldArchive()
+        try await toolCancellationRetainsLease(timeout: false)
+        try await toolCancellationRetainsLease(timeout: true)
         print("Chat attachment session checks passed: \(assertions)")
+    }
+    @MainActor static func toolSetup(_ e: Environment, model: Model) async throws ->
+        (ArchivedConversation, ConversationArchiveStore, OneShotAttachmentModelClient, [ModelMessage], ModelConfiguration) {
+        let seed = e.session(Model(["original"]))
+        seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        let messages = [ModelMessage(role: "user", content: "fixture question")]
+        let configuration = ModelConfiguration(baseURL: URL(string: "https://fixture.invalid")!, model: "fixture")
+        let guarded = AttachmentToolLeasedClient(client: model, archive: e.archive, conversationID: row.id,
+            expected: row, quoteSource: nil, validate: {})
+        let attachment = try ModelAttachment.text(utf8: Data("fixture attachment".utf8))
+        let client = try OneShotAttachmentModelClient(client: guarded, attachment: attachment,
+            reviewedMessages: messages, configuration: configuration, apiKey: "fixture-key")
+        return (row, other, client, messages, configuration)
+    }
+    @MainActor static func toolCallsRecheckArchive() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model([#"{"action":"memory_search","arguments":{"query":"tea"}}"#, "must not call"])
+        let (row, other, client, messages, configuration) = try await toolSetup(e, model: model)
+        let executor = ToolExecutor()
+        do {
+            _ = try await MCPConversationRunner(client: client).run(messages: messages, configuration: configuration,
+                apiKey: "fixture-key", tools: [], executor: executor, approve: { _ in false },
+                handleLocal: { _, lease in
+                    try lease.check()
+                    let removed = await MainActor.run { other.delete(id: row.id) }
+                    guard removed else { throw Failure(name: "archive held during local tool") }
+                    return .searchResult(json: #"{"ok":true,"memories":[]}"#)
+                })
+            throw Failure(name: "stale archive permitted later model call")
+        } catch is MCPConversationError { assertions += 1 }
+        let requests = await model.requests
+        try check(requests.count == 1 && requests[0].last?.attachment != nil,
+                  "archive deletion between calls blocks next model request")
+    }
+    @MainActor static func memoryCallsRecheckArchive() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model([#"{"action":"memory_search","arguments":{"query":"tea"}}"#, "must not call"])
+        let (row, other, client, messages, configuration) = try await toolSetup(e, model: model)
+        let flow = try UserProfileChatFlow(messages: messages)
+        let step = try await flow.advance(client: client, configuration: configuration, apiKey: "fixture-key")
+        guard case .memorySearch = step else { throw Failure(name: "expected memory search") }
+        try check(other.delete(id: row.id), "archive unlocked between memory model calls")
+        try flow.recordMemorySearchResult(#"{"ok":true,"memories":[]}"#)
+        do {
+            _ = try await flow.advance(client: client, configuration: configuration, apiKey: "fixture-key")
+            throw Failure(name: "memory flow sent after source deletion")
+        } catch ConversationArchiveError.staleConversation { assertions += 1 }
+        let requests = await model.requests
+        try check(requests.count == 1 && requests[0].last?.attachment != nil, "memory continuation does not resend attachment")
+    }
+    @MainActor static func toolValidationKeepsLeasePaired() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model(["must not call"])
+        let (row, other, _, messages, configuration) = try await toolSetup(e, model: model)
+        let probe = ToolValidationProbe()
+        let client = AttachmentToolLeasedClient(client: model, archive: e.archive, conversationID: row.id,
+            expected: row, quoteSource: nil, validate: {
+                probe.checks += 1
+                if probe.checks == 2 {
+                    probe.deletedWhileLocked = other.delete(id: row.id)
+                    throw Failure(name: "changed reviewed context")
+                }
+            })
+        do {
+            _ = try await client.complete(messages: messages, configuration: configuration, apiKey: "fixture-key")
+            throw Failure(name: "changed context reached model")
+        } catch let error as Failure where error.name == "changed reviewed context" { assertions += 1 }
+        let calls = await model.requests
+        try check(probe.checks == 2 && !probe.deletedWhileLocked && calls.isEmpty, "context rechecked under lease before client")
+        try check(other.delete(id: row.id), "failed second validation releases lease")
+    }
+    @MainActor static func toolApprovalDoesNotHoldArchive() async throws {
+        let e = try Environment(); defer { e.close() }
+        let model = Model([#"{"action":"call_tool","name":"fixture","arguments":{}}"#])
+        let (row, other, client, messages, configuration) = try await toolSetup(e, model: model)
+        let executor = ToolExecutor(), gate = Gate()
+        let tool = MCPTool(name: "fixture", description: "synthetic", inputSchema: .object([:]))
+        let task = Task {
+            try await MCPConversationRunner(client: client).run(messages: messages, configuration: configuration,
+                apiKey: "fixture-key", tools: [tool], executor: executor,
+                approve: { _ in await gate.wait(); return false })
+        }
+        await gate.waitForStart()
+        try check(other.delete(id: row.id), "archive is not locked while waiting for approval")
+        await gate.release()
+        let result = try await task.value, calls = await executor.calls
+        try check(result.stopReason == .approvalDenied && calls == 0, "declined proposal never executes")
+    }
+    @MainActor static func toolCancellationRetainsLease(timeout: Bool) async throws {
+        let e = try Environment(); defer { e.close() }
+        let gate = Gate(), model = Model([#"{"action":"finish","answer":"late"}"#], gate: gate)
+        let (row, other, client, messages, configuration) = try await toolSetup(e, model: model)
+        let executor = ToolExecutor()
+        let limits = MCPConversationLimits(timeout: timeout ? .seconds(2) : .seconds(10))
+        let task = Task {
+            try await MCPConversationRunner(client: client).run(messages: messages, configuration: configuration,
+                apiKey: "fixture-key", tools: [], executor: executor, limits: limits, approve: { _ in false })
+        }
+        await gate.waitForStart()
+        if !timeout { task.cancel() }
+        do { _ = try await task.value; throw Failure(name: "expected stopped runner") }
+        catch is CancellationError { try check(!timeout, "cancelled runner stopped") }
+        catch let error as MCPConversationError { try check(timeout && error == .timedOut, "timed out runner stopped") }
+        try check(!other.delete(id: row.id), "runner stop cannot release a live model producer lease")
+        await gate.release()
+        // The worker is intentionally detached by the runner. Poll only for
+        // the observable cooperative lock release after its controlled gate.
+        var deleted = false
+        for _ in 0..<1000 {
+            if other.delete(id: row.id) { deleted = true; break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        try check(deleted, "lease releases after the model producer returns")
+        let requests = await model.requests
+        try check(requests.count == 1 && requests[0].last?.attachment != nil, "stopped runner never retries attachment")
     }
     @MainActor static func failedReplacementCannotReconfirm() async throws {
         let e = try Environment(); defer { e.close() }

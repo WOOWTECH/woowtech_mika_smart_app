@@ -52,6 +52,45 @@ struct MCPApprovalRequest: Identifiable {
     }
 }
 
+/// Prepared for reviewed attachment tool turns; not connected to `send` yet.
+/// The archive is checked under its cooperative cross-store lock for *each*
+/// model call, and the lease follows the actual completion rather than the
+/// MCP runner's independently cancellable consumer. The caller supplies a
+/// synchronous main-actor validation of the complete reviewed session state.
+struct AttachmentToolLeasedClient: LifetimeBoundCompletionChatModelClient {
+    let client: any LifetimeBoundCompletionChatModelClient
+    let archive: ConversationArchiveStore?
+    let conversationID: UUID
+    let expected: ArchivedConversation?
+    let quoteSource: ArchivedConversation?
+    let validate: @MainActor @Sendable () throws -> Void
+
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try Task.checkCancellation()
+        let lease = try await MainActor.run {
+            try Task.checkCancellation()
+            try validate()
+            let lease = try archive?.acquireAttachmentRequestLease(conversationID: conversationID,
+                expected: expected, quoteSource: quoteSource)
+            do {
+                try Task.checkCancellation()
+                try validate()
+                return lease
+            } catch {
+                lease?.release()
+                throw error
+            }
+        }
+        // Cancellation of the runner can finish its consumer before this
+        // method's client returns. Never release a live producer's lease.
+        defer { withExtendedLifetime(lease) {} }
+        try Task.checkCancellation()
+        let reply = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+        try Task.checkCancellation()
+        return reply
+    }
+}
+
 /// An in-memory consent snapshot. Never encoded, logged or stored in history.
 private struct AttachmentBinding: Equatable {
     let destination: ConversationDestination
