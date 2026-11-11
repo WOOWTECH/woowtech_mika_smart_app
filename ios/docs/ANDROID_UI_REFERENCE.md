@@ -7,6 +7,7 @@
 - Android 主線參考提交：`de5be358c4e24b7eed46a95e46edf35a86881bff`，來源與 24 個介面檔案的 SHA-256 記於 [android-ui-reference.json](android-ui-reference.json)。
 - 另以官方公開的 `v0.1.37-woow.7` arm64 APK 實際查核發行品；其 tag 為 `da8e5781318f159ef6ebb714db51e6bcd2946449`，與上述主線提交不同。參考畫面和行為時須註明採用的版本。
 - 使用 [Craft Anything](https://github.com/storytold/craft-anything) CLI 0.6.0 的 `android-package-show` 與 `android-resources-read` 檢查該 APK。前者辨識出 `io.woowtech.agent`、版本 `0.1.37-woow.7`，對 908 個項目回報完整套件清查；後者確認 APK 含繁中資源，但本次只讀取前 30 項。此結果是套件與資源檢查，不能證明任何 iOS 畫面或功能已對齊。
+- 後續以同一 CLI 的 `android-app-graph-build`、`android-resources-read` 重新檢查 APK（SHA-256：`39f36725c7bac06f91d318cdabdb4c91b90e25af1ce13d413a6f579e2c3b1ea4`）。圖譜識別 Kotlin 與 WebView 內容、4 個 DEX 與 arm64 原生程式庫，但此圖譜不解碼 manifest 元件。繁體中文 `b+zh+Hant` 字串分兩頁共讀取 1,970 項，`zh-rTW` 讀取 131 項；內容包含 Android 框架資源，不能直接當成 2,101 個產品功能。這些靜態資料須與 Android 原始碼及實際操作交叉比對。
 - 使用者提供的 Android 截圖顯示設定與「記憶與資料」頁的深色外觀；其中部分設定頁截圖有勾選標記。標記與個人資料不能當成介面素材。截圖及原始碼均須作為實機對照依據。
 - 第一個安裝至 iPad 的 iOS 提交為 `5084968`。該版本在 iPadOS 26.6.1 成功建置、簽章、安裝並啟動，但原設定僅包含 iPhone 介面家族，iPad 以相容模式顯示；使用者已指出畫面與渥屋助理差異過大，因此不作為視覺驗收通過的證據。
 
@@ -15,7 +16,7 @@
 - Android 的主要入口是對話頁與側欄，導覽定義見 `app/src/main/java/com/wangzan101/mika/ui/Navigation.kt`、`ChatScreen.kt` 和 `ChatDrawer.kt`。原 iOS `ContentView.swift` 使用五個底部分頁，需要重做資訊層級與入口。
 - 品牌色取自 `app/src/woowtech/resources/brand.properties`：淺色強調色 `#4069FB`，深色強調色 `#6183FC`；淺／深色頁面與卡片色取自 `ui/theme/Colors.kt`。字級、間距和圓角取自 `ui/theme/Tokens.kt`，不能僅以色碼宣稱視覺一致。
 - Android 的「記憶與資料」依使用者提供的畫面包含「記憶、技能、待確認」區段；內容與可操作項目仍須對照 iOS 真實資料及目前的支援範圍。
-- 功能範圍依使用者先前選擇：一般對話、模型、MCP、技能、記憶與瀏覽器。Android 的手機操作、其他 App 控制與螢幕錄影不列入 iOS 功能。
+- 功能範圍依使用者最新要求：除手機控制、其他 App 操作與螢幕錄影等排除項外，其他 Android 渥屋助理功能、畫面與操作均應納入逐項對照，包含一般對話、模型、MCP、技能、記憶與瀏覽器；遇到平台差異應記錄具體能力與驗證限制，不能只憑功能名稱判定一致。
 
 ## 後續更新如何比對
 
