@@ -411,6 +411,32 @@ final class WoowAssistantUITests: XCTestCase {
         assertDraft("", in: app)
     }
 
+    func testSavedModelConnectionTestDoesNotUseUnsavedAddress() {
+        let app = launchApp()
+        configure(in: app)
+        let status = app.staticTexts["settings.connectionStatus"]
+        let test = app.buttons["settings.testConnection"]
+        revealSettings(test, in: app)
+        XCTAssertEqual(status.label, "尚未測試連線。")
+        XCTAssertTrue(test.isEnabled)
+        test.tap()
+        let passed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@",
+            "文字回覆測試通過；未驗證工具或其他能力。"), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [passed], timeout: 10), .completed)
+        XCTAssertFalse(app.staticTexts["settings.notice"].exists)
+
+        replaceBaseURL("https://different.example.invalid/v1", in: app)
+        revealSettings(test, in: app)
+        XCTAssertEqual(status.label, "尚未測試連線。")
+        XCTAssertFalse(test.isEnabled, "An unsaved address must never receive the stored key")
+
+        app.terminate()
+        let relaunched = launchApp(resetStorage: false)
+        openSection("settings", in: relaunched); openModelSettings(in: relaunched)
+        XCTAssertEqual(relaunched.textFields["settings.baseURL"].value as? String, fixtureURL)
+        XCTAssertEqual(relaunched.staticTexts["settings.connectionStatus"].label, "尚未測試連線。")
+    }
+
     func testKeychainWriteFailureDoesNotPublishConfiguration() {
         let app = launchApp(keychainWriteFails: true)
         fillConfiguration(in: app)
