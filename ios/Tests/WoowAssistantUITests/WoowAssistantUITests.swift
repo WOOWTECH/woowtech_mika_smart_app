@@ -186,6 +186,12 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertFalse(build.label.contains("$("))
         XCTAssertEqual(homeVersion, version.label,
                        "Home and detail show the same installed version")
+        for (id, expectedLabel) in [("repository", "開源專案"), ("guide", "專案說明"),
+                                    ("feedback", "回報問題"), ("license", "開源授權")] {
+            let resource = app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch
+            XCTAssertTrue(resource.waitForExistence(timeout: 10), "Missing About resource: \(id)")
+            XCTAssertEqual(resource.label, expectedLabel)
+        }
 
         XCTAssertFalse(app.buttons["section.back"].isHittable)
         let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch

@@ -60,6 +60,7 @@ import SwiftUI
                 Text(verbatim: copy.text(key)).foregroundStyle(palette.ink)
                 Spacer(minLength: 8)
                 Image(systemName: "arrow.up.right").foregroundStyle(palette.secondary)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 52)
