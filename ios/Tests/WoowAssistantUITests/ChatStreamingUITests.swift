@@ -8,6 +8,33 @@ final class ChatStreamingUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
     override func tearDownWithError() throws { app.terminate() }
 
+    func testMemoryEnabledStructuredStreamPreviewsThenArchivesCompletedAnswer() {
+        launch(); configure()
+        navigate("memory")
+        let toggle = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(toggle, in: app); ready(toggle)
+        XCTAssertEqual(toggle.value as? String, "1", "Exercise the memory-enabled structured path")
+        XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
+        navigate("chat")
+
+        compose("[fixture:structured-stream-complete]"); tap("chat.send")
+        assertLabel(identifiedText("chat.partialReply"), "結構化串流：第一段")
+        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
+        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
+        XCTAssertFalse(app.buttons["chat.archive"].firstMatch.isEnabled)
+
+        let completed = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label == %@", "結構化串流：第一段；完整回覆。"), on: completed, seconds: 35)
+        XCTAssertFalse(identifiedText("chat.partialReply").exists)
+        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
+        launch(reset: false); tap("chat.archive")
+        let saved = row("[fixture:structured-stream-complete]")
+        ready(saved); saved.tap()
+        assertLabel(identifiedText("archive.turn.0.assistant"), "結構化串流：第一段；完整回覆。")
+        print("STRUCTURED_STREAM_UI memoryEnabled=1 partialObserved=1 archiveAfterCompletion=1 archiveRelaunch=1")
+    }
+
     func testPartialBecomesCompletedReplyAndDurableArchive() {
         launch(); configure(); disableMemory(); enableNotifications()
         assertNotificationAttempts(0)
