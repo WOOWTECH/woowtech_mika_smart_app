@@ -3798,6 +3798,46 @@
       }
     },
     {
+      "case": "settingsHomeMyData",
+      "key": "settings.home.myData",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "我的資料",
+        "zh-Hans": "我的数据",
+        "en": "My data"
+      }
+    },
+    {
+      "case": "settingsHomeMemoryDetail",
+      "key": "settings.home.memory.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "管理記憶、技能與已儲存的網站資料",
+        "zh-Hans": "管理记忆、技能与已保存的网站数据",
+        "en": "Manage memories, skills and saved website data"
+      }
+    },
+    {
+      "case": "settingsHomeConnections",
+      "key": "settings.home.connections",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網路與連接",
+        "zh-Hans": "网络与连接",
+        "en": "Network and connections"
+      }
+    },
+    {
+      "case": "settingsHomeMCPDetail",
+      "key": "settings.home.mcp.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連接 MCP 伺服器並管理可用工具",
+        "zh-Hans": "连接 MCP 服务器并管理可用工具",
+        "en": "Connect an MCP server and manage available tools"
+      }
+    },
+    {
       "case": "settingsModelNotSet",
       "key": "settings.model.notSet",
       "parameters": [],

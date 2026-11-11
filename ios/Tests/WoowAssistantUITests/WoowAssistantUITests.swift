@@ -161,6 +161,35 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
     }
 
+    func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        for (linkID, title, destinationID) in [
+            ("settings.memoryJump", "記憶與資料", "memory.segment.memories"),
+            ("settings.mcpJump", "MCP 伺服器", "mcp.status")
+        ] {
+            let link = app.buttons[linkID]
+            revealSettings(link, in: app)
+            link.tap()
+            let bar = app.navigationBars[title]
+            XCTAssertTrue(bar.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: destinationID).firstMatch.waitForExistence(timeout: 10),
+                          "The settings row must open the existing working destination.")
+            XCTAssertFalse(app.buttons["section.back"].isHittable,
+                           "The root back button must not cover the native detail Back button.")
+            let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+            waitUntilHittable(nativeBack)
+            nativeBack.tap()
+            XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons[linkID].exists)
+        }
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+        app.buttons["chat.menu"].tap()
+        XCTAssertTrue(app.buttons["navigation.memory"].exists)
+        XCTAssertTrue(app.buttons["navigation.tools"].exists)
+    }
+
     func testUnconfiguredSendIsDisabledAndDraftSurvivesNavigation() {
         let app = launchApp()
         XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")

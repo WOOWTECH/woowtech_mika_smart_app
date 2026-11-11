@@ -5,17 +5,31 @@ import SwiftUI
 /// Settings root and its model destination share the existing stores. The
 /// model form remains iOS's single configured service, with a real back path.
 @MainActor
-struct MikaAlignedSettingsView: View {
+struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var preferences: SelfConfigurationStore
     @ObservedObject var notifications: TaskNotificationStore
     @ObservedObject var languages: AppLanguageStore
+    private let mcpDestination: () -> MCPDestination
+    private let memoryDestination: () -> MemoryDestination
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
     private var configuredModelName: String {
         session.hasStoredKey ? (session.savedSettings?.model ?? localizer.text(.settingsModelNotSet))
                              : localizer.text(.settingsModelNotSet)
+    }
+
+    init(session: ChatSession, preferences: SelfConfigurationStore,
+         notifications: TaskNotificationStore, languages: AppLanguageStore,
+         @ViewBuilder mcpDestination: @escaping () -> MCPDestination,
+         @ViewBuilder memoryDestination: @escaping () -> MemoryDestination) {
+        self.session = session
+        self.preferences = preferences
+        self.notifications = notifications
+        self.languages = languages
+        self.mcpDestination = mcpDestination
+        self.memoryDestination = memoryDestination
     }
 
     var body: some View {
@@ -57,6 +71,32 @@ struct MikaAlignedSettingsView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("settings.notifications")
                     }
+                }
+                MikaSettingsGroupLabel(title: localizer.text(.settingsHomeMyData))
+                    .padding(.top, 8)
+                MikaSettingsCard {
+                    NavigationLink {
+                        memoryDestination()
+                    } label: {
+                        MikaSettingsRow(icon: .heart, title: localizer.text(.shellMemoryTitle),
+                                        subtitle: localizer.text(.settingsHomeMemoryDetail))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.memoryJump")
+                }
+                MikaSettingsGroupLabel(title: localizer.text(.settingsHomeConnections))
+                    .padding(.top, 8)
+                MikaSettingsCard {
+                    NavigationLink {
+                        mcpDestination()
+                            .navigationTitle(localizer.text(.shellMCPServers))
+                            .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        MikaSettingsRow(icon: .link, title: localizer.text(.shellMCPServers),
+                                        subtitle: localizer.text(.settingsHomeMCPDetail))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.mcpJump")
                 }
             }
             .padding(.horizontal, 16)

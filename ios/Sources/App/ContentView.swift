@@ -198,16 +198,14 @@ struct ContentView: View {
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
                 case .settings:
-                    MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications, languages: languages)
+                    MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications,
+                                            languages: languages,
+                                            mcpDestination: { MCPToolsView(session: mcpSession) },
+                                            memoryDestination: { memoryDataView(resetNavigation: true) })
                 case .tools:
                     MCPToolsView(session: mcpSession)
                 case .memory:
-                    MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
-                                   modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-                                   onOpenBrowser: {
-                                       browserReturnSection = .memory
-                                       selection = .browser
-                                   })
+                    memoryDataView(resetNavigation: false)
                 case .browser:
                     BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
                 }
@@ -217,6 +215,16 @@ struct ContentView: View {
     private func closeDrawer() {
         showsDrawer = false
         if selection == .chat { menuHasVoiceOverFocus = true }
+    }
+
+    private func memoryDataView(resetNavigation: Bool) -> some View {
+        MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
+                       modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+                       onOpenBrowser: {
+                           browserReturnSection = .memory
+                           selection = .browser
+                           if resetNavigation { notificationNavigationID = UUID() }
+                       })
     }
 
     private func requestNewConversation() {

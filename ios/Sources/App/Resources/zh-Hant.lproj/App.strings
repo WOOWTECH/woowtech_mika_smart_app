@@ -361,6 +361,10 @@
 "settings.home.model.openHint" = "開啟模型設定頁";
 "settings.home.appearance.detail" = "介面語言、外觀與模型外觀權限";
 "settings.home.notification.detail" = "什麼時候彈出、去系統裡改";
+"settings.home.myData" = "我的資料";
+"settings.home.memory.detail" = "管理記憶、技能與已儲存的網站資料";
+"settings.home.connections" = "網路與連接";
+"settings.home.mcp.detail" = "連接 MCP 伺服器並管理可用工具";
 "settings.model.notSet" = "未設定";
 "settings.model.configured" = "模型已設定";
 "settings.model.unconfigured" = "尚未設定模型";

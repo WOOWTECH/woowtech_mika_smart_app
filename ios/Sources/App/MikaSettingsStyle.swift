@@ -46,7 +46,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key
+    case spark, globe, bell, key, heart, link
 }
 
 struct MikaSettingsIconTile: View {
@@ -157,6 +157,32 @@ struct MikaSettingsIconShape: Shape {
             path.move(to: CGPoint(x: 10.8, y: 12.2)); path.addLine(to: CGPoint(x: 20, y: 3))
             path.move(to: CGPoint(x: 17, y: 6)); path.addLine(to: CGPoint(x: 20, y: 9))
             path.move(to: CGPoint(x: 14.5, y: 8.5)); path.addLine(to: CGPoint(x: 16.5, y: 10.5))
+        case .heart:
+            path.move(to: CGPoint(x: 12, y: 21))
+            path.addCurve(to: CGPoint(x: 3, y: 11),
+                          control1: CGPoint(x: 8, y: 18), control2: CGPoint(x: 3, y: 15))
+            path.addCurve(to: CGPoint(x: 12, y: 5.5),
+                          control1: CGPoint(x: 3, y: 5), control2: CGPoint(x: 9, y: 3))
+            path.addCurve(to: CGPoint(x: 21, y: 11),
+                          control1: CGPoint(x: 15, y: 3), control2: CGPoint(x: 21, y: 5))
+            path.addCurve(to: CGPoint(x: 12, y: 21),
+                          control1: CGPoint(x: 21, y: 15), control2: CGPoint(x: 16, y: 18))
+            path.closeSubpath()
+        case .link:
+            path.move(to: CGPoint(x: 9, y: 9))
+            path.addLine(to: CGPoint(x: 12, y: 6))
+            path.addCurve(to: CGPoint(x: 18, y: 12),
+                          control1: CGPoint(x: 17, y: 1), control2: CGPoint(x: 23, y: 7))
+            path.addLine(to: CGPoint(x: 15, y: 15))
+            path.move(to: CGPoint(x: 9, y: 15))
+            path.addLine(to: CGPoint(x: 12, y: 12))
+            path.move(to: CGPoint(x: 15, y: 9))
+            path.addLine(to: CGPoint(x: 12, y: 12))
+            path.move(to: CGPoint(x: 9, y: 9))
+            path.addLine(to: CGPoint(x: 6, y: 12))
+            path.addCurve(to: CGPoint(x: 12, y: 18),
+                          control1: CGPoint(x: 1, y: 17), control2: CGPoint(x: 7, y: 23))
+            path.addLine(to: CGPoint(x: 15, y: 15))
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))
