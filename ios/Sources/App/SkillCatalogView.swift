@@ -14,18 +14,43 @@ struct SkillCatalogView: View {
     @State private var failure: AppText?
     @State private var query = ""
     @FocusState private var searchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(localizer.text(.catalogTitle))
-                .font(.headline).accessibilityIdentifier("catalog.status")
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(localizer.text(.catalogTitle))
+                    .font(.title2.bold())
+                    .accessibilityIdentifier("catalog.status")
+                if let catalog {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.stack.3d.up")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(brandAccent)
+                            .frame(width: 32, height: 32)
+                            .background(brandAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+                            .accessibilityHidden(true)
+                        Text(localizer.text(.catalogCount(total: catalog.entries.count, matches: catalog.search(query).count)))
+                            .font(.subheadline.weight(.semibold))
+                            .accessibilityIdentifier("catalog.count")
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
+                    .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.04), radius: 6, y: 2)
+                    TextField(localizer.text(.catalogSearch), text: $query)
+                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+                        .focused($searchFocused).onSubmit { searchFocused = false }
+                        .submitLabel(.search).accessibilityIdentifier("catalog.search")
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
             if let catalog {
-                Text(localizer.text(.catalogCount(total: catalog.entries.count, matches: catalog.search(query).count)))
-                    .font(.subheadline).accessibilityIdentifier("catalog.count")
-                TextField(localizer.text(.catalogSearch), text: $query)
-                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-                    .focused($searchFocused).onSubmit { searchFocused = false }
-                    .submitLabel(.search).accessibilityIdentifier("catalog.search")
                 List {
                     Section {
                         Text(localizer.text(.catalogScope))
@@ -38,11 +63,24 @@ struct SkillCatalogView: View {
                             NavigationLink {
                                 SkillCatalogDetail(store: store, catalog: catalog, entry: entry, modelAccess: modelAccess, modelChanges: modelChanges)
                             } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(verbatim: entry.title)
-                                    Text(verbatim: entry.id).font(.caption).foregroundStyle(.secondary)
-                                    Text(verbatim: localizer.text(AppLocalizer.skillReadiness(id: entry.id))).font(.caption)
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: iconName(for: entry.id))
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.primary)
+                                        .frame(width: 30, height: 30)
+                                        .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04),
+                                                    in: RoundedRectangle(cornerRadius: 9))
+                                        .accessibilityHidden(true)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(verbatim: entry.title)
+                                            .font(.body.weight(.medium))
+                                        Text(verbatim: entry.id)
+                                            .font(.caption).foregroundStyle(.secondary)
+                                        Text(verbatim: localizer.text(AppLocalizer.skillReadiness(id: entry.id)))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
                                 }
+                                .padding(.vertical, 4)
                             }
                             .accessibilityIdentifier("catalog.entry.\(entry.id)")
                         }
@@ -59,17 +97,25 @@ struct SkillCatalogView: View {
                         documentLink(catalog.notice, title: .catalogNotice, identifier: "catalog.notice")
                     }
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
                 .scrollDismissesKeyboard(.interactively)
             } else if let failure {
-                Text(localizer.text(failure)).accessibilityIdentifier("catalog.error")
-                Button(localizer.text(.catalogReload)) { load() }.accessibilityIdentifier("catalog.retry")
+                Text(localizer.text(failure))
+                    .accessibilityIdentifier("catalog.error")
+                    .padding(.horizontal)
+                Button(localizer.text(.catalogReload)) { load() }
+                    .accessibilityIdentifier("catalog.retry")
+                    .padding(.horizontal)
                 Spacer()
             } else {
                 ProgressView(localizer.text(.catalogLoading))
+                    .padding(.horizontal)
                 Spacer()
             }
         }
-        .padding(.horizontal)
+        .tint(brandAccent)
+        .background(pageBackground)
         .navigationTitle(localizer.text(.catalogNavigation))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -83,6 +129,36 @@ struct SkillCatalogView: View {
     private func load() {
         do { catalog = try BundledSkillCatalog.bundled(); failure = nil }
         catch { failure = (error as? SkillCatalogError).map(AppLocalizer.skillCatalogError) ?? .catalogLoadFailure }
+    }
+
+    private func iconName(for id: String) -> String {
+        switch id {
+        case "configure-mika": return "slider.horizontal.3"
+        case "content-transcribe": return "text.bubble"
+        case "documents": return "doc.text"
+        case "info-research": return "globe"
+        case "messaging": return "bubble.left.and.bubble.right"
+        case "skill-authoring": return "square.and.pencil"
+        default: return "square.stack.3d.up"
+        }
+    }
+
+    private var brandAccent: Color {
+        colorScheme == .dark
+            ? Color(red: 97.0 / 255, green: 131.0 / 255, blue: 252.0 / 255)
+            : Color(red: 64.0 / 255, green: 105.0 / 255, blue: 251.0 / 255)
+    }
+
+    private var pageBackground: Color {
+        colorScheme == .dark
+            ? Color(red: 14.0 / 255, green: 14.0 / 255, blue: 16.0 / 255)
+            : Color(red: 247.0 / 255, green: 247.0 / 255, blue: 248.0 / 255)
+    }
+
+    private var cardBackground: Color {
+        colorScheme == .dark
+            ? Color(red: 26.0 / 255, green: 26.0 / 255, blue: 29.0 / 255)
+            : .white
     }
 
     private func documentLink(_ document: SkillCatalogDocument, title: AppText, identifier: String) -> some View {
@@ -206,6 +282,7 @@ private struct SkillCatalogDetail: View {
         }
         .navigationTitle(entry.title)
         .navigationBarTitleDisplayMode(.inline)
+        .listStyle(.insetGrouped)
     }
 }
 
