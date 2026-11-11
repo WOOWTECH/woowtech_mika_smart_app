@@ -1,6 +1,17 @@
 import AssistantPersistence
 import SwiftUI
 
+private struct DrawerRowIdentity: Hashable {
+    let conversationID: UUID
+    let isPinned: Bool
+}
+
+private extension ArchivedConversation {
+    var drawerRowIdentity: DrawerRowIdentity {
+        DrawerRowIdentity(conversationID: id, isPinned: pinnedAt != nil)
+    }
+}
+
 /// Rows for the existing Mika drawer. Only the encrypted archive supplies data;
 /// there is no separate drawer store or synthetic unfinished-conversation row.
 @MainActor struct MikaRecentConversationsSection: View {
@@ -15,8 +26,8 @@ import SwiftUI
     @State private var pinFailed = false
 
     var body: some View {
-        let pinned = store.drawerConversations.filter { $0.pinnedAt != nil }
-        let recent = store.drawerConversations.filter { $0.pinnedAt == nil }
+        let records = store.drawerConversations
+        let hasPinned = records.contains { $0.pinnedAt != nil }
         return VStack(alignment: .leading, spacing: 8) {
             Text(localizer.text(.drawerRecentTitle))
                 .font(.system(size: 12, weight: .semibold))
@@ -49,22 +60,27 @@ import SwiftUI
                     .accessibilityIdentifier("drawer.recent.empty")
             } else {
                 LazyVStack(spacing: 0) {
-                    if !pinned.isEmpty {
-                        Text(localizer.text(.drawerRecentPinned))
-                            .font(.caption.weight(.semibold)).foregroundStyle(secondaryInk)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12).padding(.top, 6)
-                            .accessibilityIdentifier("drawer.pinned.title")
+                    // Keep the lazy stack's direct child shape stable as the
+                    // pinned heading appears or disappears.
+                    VStack(spacing: 0) {
+                        if hasPinned {
+                            Text(localizer.text(.drawerRecentPinned))
+                                .font(.caption.weight(.semibold)).foregroundStyle(secondaryInk)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12).padding(.top, 6)
+                                .accessibilityIdentifier("drawer.pinned.title")
+                        }
                     }
-                    ForEach(pinned) { record in
-                        row(record)
-                        Rectangle().fill(hair).frame(height: 0.5)
-                            .padding(.leading, 12)
-                    }
-                    ForEach(recent) { record in
-                        row(record)
-                        Rectangle().fill(hair).frame(height: 0.5)
-                            .padding(.leading, 12)
+                    // The same conversation moves between pinned and recent.
+                    // Include that transition in the view identity so neither
+                    // its menu closure nor accessibility value can retain the
+                    // previous row snapshot in the lazy stack.
+                    ForEach(records, id: \.drawerRowIdentity) { record in
+                        VStack(spacing: 0) {
+                            row(record)
+                            Rectangle().fill(hair).frame(height: 0.5)
+                                .padding(.leading, 12)
+                        }
                     }
                 }
             }

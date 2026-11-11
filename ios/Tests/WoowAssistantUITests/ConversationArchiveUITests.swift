@@ -123,27 +123,38 @@ final class ConversationArchiveUITests: XCTestCase {
         tap("chat.newConversation"); send("Newer")
         tap("chat.menu")
         let older = revealRecentRow("Older")
+        let olderIdentifier = older.identifier
+        let rowPrefix = "drawer.recent.row."
+        XCTAssertTrue(olderIdentifier.hasPrefix(rowPrefix))
+        let olderUUID = String(olderIdentifier.dropFirst(rowPrefix.count))
+        XCTAssertNotNil(UUID(uuidString: olderUUID))
+        let pinActionIdentifier = "drawer.recent.togglePin." + olderUUID
         ready(older); older.press(forDuration: 1)
         let pin = app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH %@ AND label == %@",
-            "drawer.recent.togglePin.", "釘選")).firstMatch
+            format: "identifier == %@ AND label == %@",
+            pinActionIdentifier, "釘選")).firstMatch
         ready(pin); pin.tap()
         XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.waitForExistence(timeout: 5))
-        XCTAssertEqual(revealRecentRow("Older").value as? String, "已釘選")
+        let livePinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已釘選")
         XCTAssertEqual(revealRecentRow("Newer").value as? String, "目前對話")
-        tap("drawer.close")
+        ready(livePinned); livePinned.press(forDuration: 1)
+        let liveUnpin = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label == %@",
+            pinActionIdentifier, "取消釘選")).firstMatch
+        ready(liveUnpin)
 
         launch(reset: false); tap("chat.menu")
         XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
-        let pinned = revealRecentRow("Older")
-        XCTAssertEqual(pinned.value as? String, "已釘選")
+        let pinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已釘選")
         ready(pinned); pinned.press(forDuration: 1)
         let unpin = app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH %@ AND label == %@",
-            "drawer.recent.togglePin.", "取消釘選")).firstMatch
+            format: "identifier == %@ AND label == %@",
+            pinActionIdentifier, "取消釘選")).firstMatch
         ready(unpin); unpin.tap()
-        XCTAssertFalse(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
-        XCTAssertEqual(revealRecentRow("Older").value as? String, "")
+        let pinnedHeading = app.staticTexts["drawer.pinned.title"].firstMatch
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: pinnedHeading)], timeout: 5), .completed)
+        assertRecentRowValue("Older", identifier: olderIdentifier, value: "")
         tap("drawer.close"); tap("chat.archive")
         let archived = row("Older")
         XCTAssertTrue(archived.waitForExistence(timeout: 10))
@@ -152,7 +163,7 @@ final class ConversationArchiveUITests: XCTestCase {
         assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "測試回覆：Older")
         launch(reset: false); tap("chat.menu")
         XCTAssertFalse(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
-        XCTAssertEqual(revealRecentRow("Older").value as? String, "")
+        assertRecentRowValue("Older", identifier: olderIdentifier, value: "")
         XCTAssertTrue(recentRow("Newer").exists)
     }
 
@@ -379,6 +390,20 @@ final class ConversationArchiveUITests: XCTestCase {
     }
     private func recentRow(_ title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "drawer.recent.row.", title)).firstMatch
+    }
+    @discardableResult private func assertRecentRowValue(_ title: String, identifier: String,
+                                                          value: String) -> XCUIElement {
+        let visible = revealRecentRow(title)
+        XCTAssertEqual(visible.identifier, identifier, "The saved conversation must keep its UUID")
+        let matching = app.buttons.matching(identifier: identifier)
+        let current = matching.firstMatch
+        let status = NSPredicate(format: "exists == true AND value == %@", value)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: status, object: current)],
+                                  timeout: 5), .completed, "The same visible row must update before relaunch")
+        XCTAssertEqual(matching.count, 1, "No stale duplicate accessibility row may mask the current row")
+        XCTAssertEqual(current.label, title)
+        XCTAssertEqual(current.value as? String, value)
+        return current
     }
     private func revealRecentRow(_ title: String) -> XCUIElement {
         let scroll = app.scrollViews["drawer.scroll"].firstMatch
