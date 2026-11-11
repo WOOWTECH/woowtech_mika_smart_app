@@ -102,6 +102,7 @@ class Client:
         req = urllib.request.Request(self.base + path, data=data, method=method, headers={
             "Authorization": "Bearer " + self.token,
             "Accept": "application/json", "Content-Type": "application/json",
+            "User-Agent": "mika-cli/" + VERSION,
             "X-Mika-Client": "mika-cli/" + VERSION,
         })
         try:
