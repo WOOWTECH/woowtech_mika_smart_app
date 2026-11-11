@@ -342,7 +342,11 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)
-        XCTAssertTrue(app.staticTexts["chat.historyNotice"].label.contains("加密保存在此裝置"))
+        app.buttons["chat.menu"].tap()
+        app.buttons["drawer.archive"].tap()
+        XCTAssertTrue(app.staticTexts["archive.boundary"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["archive.boundary"].label.contains("加密保存在此裝置"))
+        app.buttons["archive.close"].tap()
         assertDraft("", in: app)
         attachScreenshot("fixture-reply", in: app)
 

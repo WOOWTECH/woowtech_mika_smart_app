@@ -21,14 +21,15 @@ final class ChatStreamingUITests: XCTestCase {
         assertLabel(identifiedText("chat.partialReply"), "結構化串流：第一段")
         assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
-        XCTAssertFalse(app.buttons["chat.archive"].firstMatch.isEnabled)
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "正在等待模型回覆…")
+        assertArchiveUnavailableDuringRun()
 
         let completed = identifiedText("chat.message.1.assistant")
         wait(NSPredicate(format: "label == %@", "結構化串流：第一段；完整回覆。"), on: completed, seconds: 35)
         XCTAssertFalse(identifiedText("chat.partialReply").exists)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
-        launch(reset: false); tap("chat.archive")
+        launch(reset: false); openArchive()
         let saved = row("[fixture:structured-stream-complete]")
         ready(saved); saved.tap()
         assertLabel(identifiedText("archive.turn.0.assistant"), "結構化串流：第一段；完整回覆。")
@@ -42,7 +43,7 @@ final class ChatStreamingUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
         assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
-        XCTAssertFalse(app.buttons["chat.archive"].firstMatch.isEnabled)
+        assertArchiveUnavailableDuringRun()
         assertNotificationAttempts(0)
         let completed = identifiedText("chat.message.1.assistant")
         wait(NSPredicate(format: "label == %@", "串流測試：第一段；完整回覆。"), on: completed, seconds: 35)
@@ -53,7 +54,7 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
         assertNotificationAttempts(1)
-        launch(reset: false); tap("chat.archive")
+        launch(reset: false); openArchive()
         let saved = row("[fixture:stream-complete]"); ready(saved); saved.tap()
         assertLabel(identifiedText("archive.turn.0.assistant"), "串流測試：第一段；完整回覆。")
         print("CHAT_STREAM_UI partialObserved=1 completedPair=1 archiveRelaunch=1 completionNotificationAttempts=1")
@@ -72,14 +73,14 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(identifiedText("chat.message.0.user").exists)
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         assertNotificationAttempts(0)
-        tap("chat.archive")
+        openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         tap("archive.close")
         assertNotificationAttempts(0)
         launch(reset: false)
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists, "Partials are not claimed durable")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
-        tap("chat.archive")
+        openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_STREAM_UI partialObserved=1 cancelled=1 draftRetained=1 archiveAbsentAfterRelaunch=1 completionNotificationAttempts=0")
     }
@@ -100,7 +101,7 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(identifiedText("chat.partialReply").exists)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
 
-        launch(reset: false); tap("chat.archive")
+        launch(reset: false); openArchive()
         let saved = row("[fixture:stream-markdown]"); ready(saved); saved.tap()
         assertLabel(identifiedText("archive.turn.0.assistant"),
                     "# 標題\n\n**粗體** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
@@ -356,8 +357,6 @@ final class ChatStreamingUITests: XCTestCase {
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.exists)
-        assertLabel(app.staticTexts["chat.historyNotice"].firstMatch,
-                    "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。")
         if !reset { assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定") }
     }
     private func configure() {
@@ -456,6 +455,17 @@ final class ChatStreamingUITests: XCTestCase {
         ready(button); button.tap()
         let absent = NSPredicate(format: "exists == false")
         if !absent.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: absent, object: button)], timeout: 5), .completed) }
+    }
+    private func openArchive() {
+        tap("chat.menu")
+        tap("drawer.archive")
+    }
+    private func assertArchiveUnavailableDuringRun() {
+        tap("chat.menu")
+        let history = app.buttons["drawer.archive"].firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+        XCTAssertFalse(history.isEnabled, "History must remain unavailable during a run")
+        tap("drawer.close")
     }
     private func tap(_ id: String, scroll: Bool = false) {
         let button = app.buttons[id].firstMatch

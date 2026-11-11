@@ -431,6 +431,19 @@ enum AppText: Equatable {
     case newConversationDraftRetained
     case newConversationDiscard
     case newConversationKeep
+    case chatStatusProfileReview
+    case chatStatusMemoryReview
+    case chatStatusMCPApproval
+    case chatStatusMCPWorking
+    case chatStatusWaiting
+    case chatStatusConfigured
+    case chatStatusUnconfigured
+    case chatModelSetupHint
+    case chatFixtureNotice
+    case archiveBoundary
+    case archiveSavedCount(count: Int)
+    case archiveEmpty
+    case archiveClose
 
     var key: String {
         switch self {
@@ -862,6 +875,19 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "newConversation.draftRetained"
         case .newConversationDiscard: return "newConversation.discard"
         case .newConversationKeep: return "newConversation.keep"
+        case .chatStatusProfileReview: return "chat.status.profileReview"
+        case .chatStatusMemoryReview: return "chat.status.memoryReview"
+        case .chatStatusMCPApproval: return "chat.status.mcpApproval"
+        case .chatStatusMCPWorking: return "chat.status.mcpWorking"
+        case .chatStatusWaiting: return "chat.status.waiting"
+        case .chatStatusConfigured: return "chat.status.configured"
+        case .chatStatusUnconfigured: return "chat.status.unconfigured"
+        case .chatModelSetupHint: return "chat.modelSetupHint"
+        case .chatFixtureNotice: return "chat.fixtureNotice"
+        case .archiveBoundary: return "archive.boundary"
+        case .archiveSavedCount: return "archive.savedCount"
+        case .archiveEmpty: return "archive.empty"
+        case .archiveClose: return "archive.close"
         }
     }
 
@@ -886,6 +912,7 @@ enum AppText: Equatable {
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .drawerRecentTurns(let count): return [Int64(count)]
+        case .archiveSavedCount(let count): return [Int64(count)]
         default: return []
         }
     }
@@ -1321,6 +1348,19 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "已有的純文字草稿會保留。"
         case .newConversationDiscard: return "捨棄並開啟新對話"
         case .newConversationKeep: return "返回目前對話"
+        case .chatStatusProfileReview: return "等待你核對個人檔案修改…"
+        case .chatStatusMemoryReview: return "等待你核對記憶修改…"
+        case .chatStatusMCPApproval: return "等待你核准 MCP 工具…"
+        case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
+        case .chatStatusWaiting: return "正在等待模型回覆…"
+        case .chatStatusConfigured: return "模型已設定"
+        case .chatStatusUnconfigured: return "尚未設定模型"
+        case .chatModelSetupHint: return "請先到設定填寫模型服務與 API Key。"
+        case .chatFixtureNotice: return "UI 測試模式：固定回覆，不會呼叫網路。"
+        case .archiveBoundary: return "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。"
+        case .archiveSavedCount: return "已保存的對話（%1$lld）"
+        case .archiveEmpty: return "尚無保存的對話"
+        case .archiveClose: return "關閉"
         }
     }
 }

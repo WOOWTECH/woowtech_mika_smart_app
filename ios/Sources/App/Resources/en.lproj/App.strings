@@ -422,3 +422,16 @@
 "newConversation.draftRetained" = "Your unsent text draft will remain.";
 "newConversation.discard" = "Discard and start new";
 "newConversation.keep" = "Keep current conversation";
+"chat.status.profileReview" = "Waiting for you to review profile changes…";
+"chat.status.memoryReview" = "Waiting for you to review memory changes…";
+"chat.status.mcpApproval" = "Waiting for you to approve the MCP tool…";
+"chat.status.mcpWorking" = "Working with MCP…";
+"chat.status.waiting" = "Waiting for the model…";
+"chat.status.configured" = "Model configured";
+"chat.status.unconfigured" = "Model not configured";
+"chat.modelSetupHint" = "Set up a model service and API key in Settings first.";
+"chat.fixtureNotice" = "UI test mode: fixed replies; no network calls.";
+"archive.boundary" = "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything.";
+"archive.savedCount" = "Saved conversations (%1$lld)";
+"archive.empty" = "No saved conversations yet.";
+"archive.close" = "Close";

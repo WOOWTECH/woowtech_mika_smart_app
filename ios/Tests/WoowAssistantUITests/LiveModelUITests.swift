@@ -42,7 +42,11 @@ final class LiveModelUITests: XCTestCase {
         enterDraft("What token did I ask you to remember? Reply with that token only.", in: app)
         app.buttons["chat.send"].tap()
         assertReply(marker, messageIndex: 3, in: app)
-        XCTAssertTrue(app.staticTexts["chat.historyNotice"].label.contains("本次 App 工作階段"))
+        app.buttons["chat.menu"].tap()
+        app.buttons["drawer.archive"].tap()
+        XCTAssertTrue(app.staticTexts["archive.boundary"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["archive.boundary"].label.contains("加密保存在此裝置"))
+        app.buttons["archive.close"].tap()
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
     }
 

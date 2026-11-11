@@ -241,14 +241,17 @@ final class ChatSession: ObservableObject {
                            key: try repository.key(for: savedSettings))
     }
 
-    var chatStatus: String {
-        if pendingProfileReview != nil { return "等待你核對個人檔案修改…" }
-        if pendingMemoryReview != nil { return "等待你核對記憶修改…" }
-        if pendingMCPApproval != nil { return "等待你核准 MCP 工具…" }
-        if isSubmitting && isMCPRun { return "正在使用 MCP 處理對話…" }
-        if isSubmitting { return "正在等待模型回覆…" }
-        return savedSettings != nil && hasStoredKey ? "模型已設定" : "尚未設定模型"
+    // Keep the state typed so language changes re-render the current status.
+    var chatStatusMessage: AppText {
+        if pendingProfileReview != nil { return .chatStatusProfileReview }
+        if pendingMemoryReview != nil { return .chatStatusMemoryReview }
+        if pendingMCPApproval != nil { return .chatStatusMCPApproval }
+        if isSubmitting && isMCPRun { return .chatStatusMCPWorking }
+        if isSubmitting { return .chatStatusWaiting }
+        return savedSettings != nil && hasStoredKey ? .chatStatusConfigured : .chatStatusUnconfigured
     }
+
+    var chatStatus: String { chatStatusMessage.traditionalFallback }
 
     func saveSettings() {
         guard !isSubmitting else { return }

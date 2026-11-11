@@ -43,7 +43,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
         launch(reset: false); requests(0)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
-        tap("chat.archive"); let saved = row("[fixture:chat-pdf]"); ready(saved); saved.tap()
+        openArchive(); let saved = row("[fixture:chat-pdf]"); ready(saved); saved.tap()
         assertLabel(app.staticTexts["archive.turn.0.assistant"].firstMatch, "PDF 問答已完成：WOOW_SKILL_PDF_PAGE_2")
         recordArchivedPDFAX()
         tapDisclosure("archive.turn.0.pdf")
@@ -61,10 +61,10 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         tap("archive.open"); requests(0)
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "PDF 問答已完成：WOOW_SKILL_PDF_PAGE_2")
         XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists, "Restored evidence never restores an active grant")
-        tap("chat.archive"); let again = row("[fixture:chat-pdf]"); ready(again); again.tap()
+        openArchive(); let again = row("[fixture:chat-pdf]"); ready(again); again.tap()
         tap("archive.delete"); tap("archive.delete.confirm")
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
-        launch(reset: false); tap("chat.archive")
+        launch(reset: false); openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_PDF_UI nativeSelection=1 separateGrants=2 modelRequestEvents=3 citations=1 archiveRelaunch=1 explicitOpen=1 deleteRelaunchAbsent=1")
     }
@@ -80,8 +80,8 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:chat-pdf]")
         XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
-        tap("chat.archive"); XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
-        launch(reset: false); tap("chat.archive")
+        openArchive(); XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+        launch(reset: false); openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_PDF_UI nativeSelection=1 readGrant=1 extractionGrant=0 modelRequestEvents=0 draftRetained=1 archiveAbsent=1")
     }
@@ -103,12 +103,12 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         let confirm = app.buttons["chat.pdf.confirmDestination"].firstMatch
         revealLearningElement(confirm, in: app); ready(confirm)
         XCTAssertFalse(app.staticTexts["chat.pdf.destination"].firstMatch.exists)
-        tap("chat.pdf.done"); tap("chat.archive")
+        tap("chat.pdf.done"); openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         launch(reset: false); requests(0)
         XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
-        tap("chat.archive"); XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+        openArchive(); XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_PDF_UI cancelled=1 modelRequestEvents=1 sourceRetained=1 draftRetained=1 archiveAbsentAfterRelaunch=1")
     }
 
@@ -129,7 +129,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
 
-        tap("chat.archive"); tap("archive.new")
+        openArchive(); tap("archive.new")
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
         XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
         XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "選取的 PDF 尚未送出")).firstMatch.exists)
@@ -145,7 +145,7 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.pdf.card"].firstMatch.exists)
         XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String, "Unsent PDF question")
         requests(0)
-        tap("chat.archive")
+        openArchive()
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
     }
 
@@ -296,8 +296,6 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.exists)
-        assertLabel(app.staticTexts["chat.historyNotice"].firstMatch,
-                    "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。")
         if !reset { assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定") }
     }
     private func configure() {
@@ -365,6 +363,10 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         ready(button); button.tap()
         let absent = NSPredicate(format: "exists == false")
         if !absent.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: absent, object: button)], timeout: 5), .completed) }
+    }
+    private func openArchive() {
+        tap("chat.menu")
+        tap("drawer.archive")
     }
     private func tap(_ id: String, scroll: Bool = false) {
         let button = app.buttons[id].firstMatch

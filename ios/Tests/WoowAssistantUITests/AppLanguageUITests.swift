@@ -67,6 +67,38 @@ final class AppLanguageUITests: XCTestCase {
         XCTAssertFalse(app.buttons["selfConfiguration.start"].exists)
     }
 
+    func testChatHeaderAndArchiveBoundaryInEverySupportedLanguage() {
+        let cases: [(String, String, String, String)] = [
+            ("(zh-Hant)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置"),
+            ("(zh-Hans)", "尚未设置模型", "请先到设置填写模型服务与 API Key。", "已完成的问答会加密保存在此设备"),
+            ("(en)", "Model not configured", "Set up a model service and API key in Settings first.", "Completed exchanges are encrypted on this device"),
+            ("(fr-FR)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置")
+        ]
+        for (systemLanguages, status, hint, boundary) in cases {
+            app.terminate()
+            app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+            app.launchEnvironment = [:]
+            app.launch()
+            let headerStatus = app.staticTexts["chat.status"].firstMatch
+            XCTAssertTrue(headerStatus.waitForExistence(timeout: 15))
+            XCTAssertEqual(headerStatus.label, status)
+            let transcript = app.scrollViews["chat.transcript"].firstMatch
+            XCTAssertTrue(transcript.waitForExistence(timeout: 10))
+            XCTAssertLessThan(headerStatus.frame.midY, transcript.frame.minY, "Status belongs in the navigation header")
+            XCTAssertEqual(app.staticTexts["chat.explanation"].firstMatch.label, hint)
+            XCTAssertFalse(app.buttons["chat.archive"].exists)
+            XCTAssertFalse(app.staticTexts["chat.historyNotice"].exists)
+            let menu = app.buttons["chat.menu"].firstMatch
+            XCTAssertTrue(menu.isHittable); menu.tap()
+            let history = app.buttons["drawer.archive"].firstMatch
+            XCTAssertTrue(history.waitForExistence(timeout: 10)); XCTAssertTrue(history.isEnabled); history.tap()
+            let notice = app.staticTexts["archive.boundary"].firstMatch
+            XCTAssertTrue(notice.waitForExistence(timeout: 10)); XCTAssertTrue(notice.label.contains(boundary))
+            app.buttons["archive.close"].tap()
+        }
+    }
+
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]

@@ -47,6 +47,24 @@ import AssistantSkills
             let state = SelfConfigurationMessage.changed(.dark)
             try check(state.text(using: l).contains(l.appearanceName(.dark)), "stored dynamic status renders current localized argument")
         }
+        // Every fixed status and the archive explanation must resolve from each
+        // shipped bundle, including after the interface language changes.
+        let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
+            .chatStatusMCPApproval, .chatStatusMCPWorking, .chatStatusWaiting,
+            .chatStatusConfigured, .chatStatusUnconfigured, .chatModelSetupHint,
+            .chatFixtureNotice, .archiveBoundary, .archiveSavedCount(count: 2), .archiveEmpty, .archiveClose]
+        for language in AppDisplayLanguage.allCases {
+            let localizer = AppLocalizer(language: language, bundle: bundle)
+            for message in chatMessages {
+                let rendered = localizer.resolve(message)
+                try check(!rendered.usedFallback && rendered.language == language && !rendered.text.isEmpty,
+                          "chat and archive text exists in each actual bundle")
+            }
+        }
+        try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
+                  "in-flight status uses the current language")
+        try check(AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的对话（2）",
+                  "archive count is formatted with the selected language")
         let state = SelfConfigurationMessage.running
         let en = AppLocalizer(language: .english, bundle: bundle)
         let hans = AppLocalizer(language: .simplifiedChinese, bundle: bundle)

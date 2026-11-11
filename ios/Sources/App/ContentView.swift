@@ -111,7 +111,7 @@ struct ContentView: View {
                       .buttonStyle(.plain)
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
-                          status: session.chatStatus,
+                          status: localizer.text(session.chatStatusMessage),
                           session: session,
                           canStartNew: !session.isSubmitting,
                           canOpenArchive: session.archive != nil && !session.isSubmitting,
@@ -177,6 +177,19 @@ struct ContentView: View {
                     }
                 }
                 if selection == .chat {
+                    ToolbarItem(placement: .principal) {
+                        VStack(spacing: 1) {
+                            Text(localizer.text(.shellBrandTitle))
+                                .font(.system(size: 17, weight: .semibold))
+                                .lineLimit(1)
+                            Text(verbatim: localizer.text(session.chatStatusMessage))
+                                .font(.system(size: 12))
+                                .foregroundStyle(palette.secondaryInk)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .accessibilityIdentifier("chat.status")
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: requestNewConversation) {
                             Image(systemName: "square.and.pencil")
@@ -193,8 +206,7 @@ struct ContentView: View {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsArchive: $showsArchive,
-                             showsDrawer: $showsDrawer, localizer: localizer)
+                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer)
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
                 case .settings:
@@ -434,7 +446,6 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var mcp: MCPSession
-    @Binding var showsArchive: Bool
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     @Environment(\.colorScheme) private var colorScheme
@@ -479,32 +490,11 @@ private struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 6) {
-                HStack(spacing: 6) {
-                    if session.isSubmitting {
-                        ProgressView().controlSize(.mini).accessibilityLabel("等待回覆")
-                    }
-                    Text(session.chatStatus)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(palette.secondaryInk)
-                        .accessibilityIdentifier("chat.status")
-                }
-                Text("已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。")
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.secondaryInk)
-                    .accessibilityIdentifier("chat.historyNotice")
-                if session.archive != nil {
-                    Button(localizer.text(.shellChatHistory)) { isEditingDraft = false; showsArchive = true }
-                        .disabled(session.isSubmitting)
-                        .accessibilityIdentifier("chat.archive")
-                }
-                if session.isUITestMode {
-                    Text("UI 測試模式：固定回覆，不會呼叫網路。")
-                        .font(.caption)
-                        .accessibilityIdentifier("uitest.banner")
-                }
+            if session.isUITestMode {
+                Text(verbatim: localizer.text(.chatFixtureNotice))
+                    .font(.caption)
+                    .accessibilityIdentifier("uitest.banner")
             }
-            .multilineTextAlignment(.center)
 
             LearningChatNotes(store: session.learning)
 
@@ -552,7 +542,7 @@ private struct ChatView: View {
                             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
                         }
                         if !session.hasStoredKey {
-                            Text(AppSection.chat.explanation)
+                            Text(verbatim: localizer.text(.chatModelSetupHint))
                                 .foregroundStyle(.secondary)
                                 .accessibilityIdentifier("chat.explanation")
                         }

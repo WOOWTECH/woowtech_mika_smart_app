@@ -74,6 +74,19 @@ private actor FixturePauseRecorder {
     func pause(_ nanoseconds: UInt64) { intervals.append(nanoseconds) }
     func recorded() -> [UInt64] { intervals }
 }
+private actor FixturePauseGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var released = false
+    func pause() async {
+        if released { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func release() {
+        released = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
 #endif
 @MainActor private final class StreamNotifications: TaskNotificationClient {
     var operations = 0, adds = 0
@@ -175,6 +188,22 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(intervals.reduce(0, +) + 15 * second <= ChatSession.plainRequestDeadlineSeconds * second,
                 "fixture completion must precede the real host deadline by 15 seconds for \(test.prompt)")
         }
+        let structuredClock = FixturePauseRecorder()
+        let structuredClient = UITestStreamingChatModelClient(configuration: fixture,
+            sleep: { nanoseconds in await structuredClock.pause(nanoseconds) })
+        var structuredFragments: [String] = []
+        for try await fragment in structuredClient.stream(messages: [
+            .init(role: "system", content: "Ordinary chat with an available profile_edit tool."),
+            .init(role: "user", content: "[fixture:structured-stream-complete]")
+        ], configuration: configuration, apiKey: "synthetic") {
+            structuredFragments.append(fragment)
+        }
+        let structuredIntervals = await structuredClock.recorded()
+        try a.check(structuredFragments.count == 2 && structuredFragments[0].contains("結構化串流：第一段")
+                    && structuredFragments[1].contains("；完整回覆。"), "structured fixture retains ordered fragments")
+        try a.check(structuredIntervals == [30 * second], "structured archive interaction has a 30-second window")
+        try a.check(structuredIntervals.reduce(0, +) + 15 * second <= ChatSession.plainRequestDeadlineSeconds * second,
+                    "structured fixture completes before the host request deadline")
         return a.count
     }
     #endif
@@ -208,11 +237,13 @@ private actor StreamMCP: MCPDiscovering {
         await service.refresh(); let baseline = notifications.operations
         let bridge = TaskNotificationChatBridge(session: session, service: service); defer { bridge.invalidate() }
         let learningBytes = try Data(contentsOf: e.learningFile)
+        try a.check(session.chatStatusMessage == .chatStatusConfigured, "configured status before request")
         let task = try start(session, "A complete streaming question")
         try await wait("stream requested") { client.counts.stream == 1 }
         client.emit("Hello "); try await wait("first real partial") { session.replyPreview?.text == "Hello " }
         let id = session.replyPreview!.id
         try a.check(session.isSubmitting && session.replyPreview?.phase == .receiving, "partial explicitly unfinished")
+        try a.check(session.chatStatusMessage == .chatStatusWaiting, "in-flight status reflects the actual request")
         try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && !FileManager.default.fileExists(atPath: e.archiveFile.path), "partial not complete or durable")
         try a.check(session.draft == "A complete streaming question", "draft not consumed by partial")
         await service.waitUntilIdle()
@@ -222,6 +253,7 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(session.replyPreview?.id == id && session.entries.isEmpty, "one preview identity across Unicode deltas")
         client.finish(); await task.value; await service.waitUntilIdle()
         try a.check(!session.isSubmitting && session.replyPreview == nil && session.entries.count == 2, "only completed stream publishes pair")
+        try a.check(session.chatStatusMessage == .chatStatusConfigured, "completed request restores configured status")
         try a.check(session.entries[1].content == "Hello 世界 🏡" && session.draft.isEmpty, "exact completed text and draft clearing")
         try a.check(e.archive.conversations.count == 1 && e.reopen().conversations[0].turns[0].assistantText == session.entries[1].content, "actual encrypted completion relaunch")
         try a.check(notifications.adds == 1 && notifications.kinds == [.completed] && service.trackedCount == 1, "one completed notification retained by existing service until expiry")
@@ -336,6 +368,7 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Please remember that I prefer jasmine tea")
             try await wait("actual profile review") { session.pendingProfileReview != nil || !session.isSubmitting }
             guard let review = session.pendingProfileReview else { throw Failure(name: "missing actual profile review") }
+            try a.check(session.chatStatusMessage == .chatStatusProfileReview, "profile approval takes precedence in status")
             try a.check(client.counts.stream == 0 && session.replyPreview == nil && session.entries.isEmpty, "profile raw JSON is never streamed")
             try a.check(e.archive.conversations.isEmpty && e.learning.profile.snapshot().entries.isEmpty, "profile approval still required before effect")
             session.resolveProfileReview(id: review.id, approved: approve); await task.value
@@ -353,6 +386,7 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Read selected tool", mcp: connection)
             try await wait("actual MCP approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
             guard let approval = session.pendingMCPApproval else { throw Failure(name: "missing actual MCP approval") }
+            try a.check(session.chatStatusMessage == .chatStatusMCPApproval, "MCP approval takes precedence in status")
             let before = await server.calls
             try a.check(before == 0 && session.replyPreview == nil && session.entries.isEmpty && client.counts.stream == 0, "MCP JSON hidden until explicit approval and execution")
             session.resolveMCPApproval(id: approval.id, approved: approve); await task.value
@@ -617,13 +651,20 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(e.reopen().conversations.count == 2, "only approved completed profile answer adds a durable pair")
 
         session.newConversation()
-        let structured = try start(session, "[fixture:structured-stream-complete]")
-        try await wait("actual structured fixture first delta") { session.replyPreview?.text == "結構化串流：第一段" }
-        try a.check(session.replyPreview?.phase == .receiving && session.entries.isEmpty
-                    && session.pendingProfileReview == nil && e.reopen().conversations.count == 2,
+        // Gate the fixture only in this host integration test, so it can
+        // inspect the unfinished state without sleeping for the UI window.
+        let gate = FixturePauseGate()
+        let gatedClient = UITestStreamingChatModelClient(configuration: configuration,
+            sleep: { _ in await gate.pause() })
+        let structuredSession = e.session(gatedClient)
+        let structured = try start(structuredSession, "[fixture:structured-stream-complete]")
+        try await wait("actual structured fixture first delta") { structuredSession.replyPreview?.text == "結構化串流：第一段" }
+        try a.check(structuredSession.replyPreview?.phase == .receiving && structuredSession.entries.isEmpty
+                    && structuredSession.pendingProfileReview == nil && e.reopen().conversations.count == 2,
                     "split finish.answer previews without exposing a command or saving an unfinished answer")
+        await gate.release()
         await structured.value
-        try a.check(session.replyPreview == nil && session.entries.last?.content == "結構化串流：第一段；完整回覆。"
+        try a.check(structuredSession.replyPreview == nil && structuredSession.entries.last?.content == "結構化串流：第一段；完整回覆。"
                     && e.reopen().conversations.count == 3,
                     "the actual second JSON delta validates and archives only the completed answer")
         return a.count
@@ -1030,7 +1071,7 @@ private actor StreamMCP: MCPDiscovering {
 final class ChatStreamingAppTests: XCTestCase {
     #if DEBUG
     @MainActor func testFixtureTimingWithinHostDeadline() async throws {
-        let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 9)
+        let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 12)
     }
     #endif
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }

@@ -89,7 +89,9 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                        messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true {
                         if messages.last?.role == "user", prompt == "[fixture:structured-stream-complete]" {
                             continuation.yield("{\"action\":\"finish\",\"answer\":\"結構化串流：第一段")
-                            try await Task.sleep(nanoseconds: 12_000_000_000)
+                            // Allow the native test to open the drawer, check
+                            // the disabled archive entry, and close it before completion.
+                            try await sleep(30_000_000_000)
                             try Task.checkCancellation()
                             continuation.yield("；完整回覆。\"}")
                         } else {

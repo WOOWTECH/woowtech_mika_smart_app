@@ -13,16 +13,16 @@ import SwiftUI
         NavigationStack {
             List {
                 Section {
-                    Text("僅保存已完成的問答。未完成任務、未送出的草稿與工具操作不會還原；開啟歷史不會自動傳送。")
+                    Text(verbatim: localizer.text(.archiveBoundary))
                         .font(.footnote).accessibilityIdentifier("archive.boundary")
                     if let error = store.error {
                         Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error")
                         Button("重新讀取") { store.reload() }.accessibilityIdentifier("archive.reload")
                     }
                 }
-                Section("已保存的對話（\(store.conversations.count)）") {
+                Section(localizer.text(.archiveSavedCount(count: store.conversations.count))) {
                     if store.conversations.isEmpty {
-                        Text("尚無保存的對話").accessibilityIdentifier("archive.empty")
+                        Text(verbatim: localizer.text(.archiveEmpty)).accessibilityIdentifier("archive.empty")
                     }
                     ForEach(store.conversations) { record in
                         NavigationLink {
@@ -41,13 +41,13 @@ import SwiftUI
                     }
                 }
             }
-            .navigationTitle("歷史對話")
+            .navigationTitle(localizer.text(.shellChatHistory))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("關閉") { dismiss() }.accessibilityIdentifier("archive.close")
+                    Button(localizer.text(.archiveClose)) { dismiss() }.accessibilityIdentifier("archive.close")
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("新對話", action: requestNewConversation)
+                    Button(localizer.text(.shellNewConversation), action: requestNewConversation)
                         .disabled(session.isSubmitting).accessibilityIdentifier("archive.new")
                 }
             }

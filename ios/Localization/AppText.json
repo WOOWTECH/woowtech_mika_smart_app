@@ -4353,6 +4353,141 @@
       "key": "newConversation.keep",
       "parameters": [],
       "translations": { "zh-Hant": "返回目前對話", "zh-Hans": "返回当前对话", "en": "Keep current conversation" }
+    },
+    {
+      "case": "chatStatusProfileReview",
+      "key": "chat.status.profileReview",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等待你核對個人檔案修改…",
+        "zh-Hans": "等待你核对个人档案修改…",
+        "en": "Waiting for you to review profile changes…"
+      }
+    },
+    {
+      "case": "chatStatusMemoryReview",
+      "key": "chat.status.memoryReview",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等待你核對記憶修改…",
+        "zh-Hans": "等待你核对记忆修改…",
+        "en": "Waiting for you to review memory changes…"
+      }
+    },
+    {
+      "case": "chatStatusMCPApproval",
+      "key": "chat.status.mcpApproval",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等待你核准 MCP 工具…",
+        "zh-Hans": "等待你批准 MCP 工具…",
+        "en": "Waiting for you to approve the MCP tool…"
+      }
+    },
+    {
+      "case": "chatStatusMCPWorking",
+      "key": "chat.status.mcpWorking",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在使用 MCP 處理對話…",
+        "zh-Hans": "正在使用 MCP 处理对话…",
+        "en": "Working with MCP…"
+      }
+    },
+    {
+      "case": "chatStatusWaiting",
+      "key": "chat.status.waiting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在等待模型回覆…",
+        "zh-Hans": "正在等待模型回复…",
+        "en": "Waiting for the model…"
+      }
+    },
+    {
+      "case": "chatStatusConfigured",
+      "key": "chat.status.configured",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型已設定",
+        "zh-Hans": "模型已设置",
+        "en": "Model configured"
+      }
+    },
+    {
+      "case": "chatStatusUnconfigured",
+      "key": "chat.status.unconfigured",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未設定模型",
+        "zh-Hans": "尚未设置模型",
+        "en": "Model not configured"
+      }
+    },
+    {
+      "case": "chatModelSetupHint",
+      "key": "chat.modelSetupHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先到設定填寫模型服務與 API Key。",
+        "zh-Hans": "请先到设置填写模型服务与 API Key。",
+        "en": "Set up a model service and API key in Settings first."
+      }
+    },
+    {
+      "case": "chatFixtureNotice",
+      "key": "chat.fixtureNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "UI 測試模式：固定回覆，不會呼叫網路。",
+        "zh-Hans": "UI 测试模式：固定回复，不会调用网络。",
+        "en": "UI test mode: fixed replies; no network calls."
+      }
+    },
+    {
+      "case": "archiveBoundary",
+      "key": "archive.boundary",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。",
+        "zh-Hans": "已完成的问答会加密保存在此设备；未完成任务与未发送的草稿不会保存。工具操作不会恢复；打开历史不会自动发送。",
+        "en": "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything."
+      }
+    },
+    {
+      "case": "archiveSavedCount",
+      "key": "archive.savedCount",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已保存的對話（%1$lld）",
+        "zh-Hans": "已保存的对话（%1$lld）",
+        "en": "Saved conversations (%1$lld)"
+      }
+    },
+    {
+      "case": "archiveEmpty",
+      "key": "archive.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚無保存的對話",
+        "zh-Hans": "尚无保存的对话",
+        "en": "No saved conversations yet."
+      }
+    },
+    {
+      "case": "archiveClose",
+      "key": "archive.close",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉",
+        "zh-Hans": "关闭",
+        "en": "Close"
+      }
     }
   ]
 }

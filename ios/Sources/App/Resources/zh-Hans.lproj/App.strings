@@ -422,3 +422,16 @@
 "newConversation.draftRetained" = "已有的纯文字草稿会保留。";
 "newConversation.discard" = "舍弃并开启新对话";
 "newConversation.keep" = "返回当前对话";
+"chat.status.profileReview" = "等待你核对个人档案修改…";
+"chat.status.memoryReview" = "等待你核对记忆修改…";
+"chat.status.mcpApproval" = "等待你批准 MCP 工具…";
+"chat.status.mcpWorking" = "正在使用 MCP 处理对话…";
+"chat.status.waiting" = "正在等待模型回复…";
+"chat.status.configured" = "模型已设置";
+"chat.status.unconfigured" = "尚未设置模型";
+"chat.modelSetupHint" = "请先到设置填写模型服务与 API Key。";
+"chat.fixtureNotice" = "UI 测试模式：固定回复，不会调用网络。";
+"archive.boundary" = "已完成的问答会加密保存在此设备；未完成任务与未发送的草稿不会保存。工具操作不会恢复；打开历史不会自动发送。";
+"archive.savedCount" = "已保存的对话（%1$lld）";
+"archive.empty" = "尚无保存的对话";
+"archive.close" = "关闭";
