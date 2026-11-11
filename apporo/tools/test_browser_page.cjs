@@ -15,10 +15,10 @@ function page(href='https://apporo.example/open?redirect=https://bad.example#pay
     setTimeout:fn=>{timers.set(++id,fn);return id;}, clearTimeout:key=>timers.delete(key)});
   return {nodes, timers, listeners, document, location};
 }
-test('Apporo identity and compatible download are independent of WOOWTECH',()=>{
+test('Apporo identity and compatible download use the current public release',()=>{
   assert.match(html, /<html lang="en">/);
-  assert.match(html, /apporo\.7-qa\.20261110/);
-  assert.doesNotMatch(html, /io\.woowtech\.agent|渥屋|releases\/latest/);
+  assert.match(html, /https:\/\/github\.com\/WOOWTECH\/apporo-assistant-releases\/releases\/latest/);
+  assert.doesNotMatch(html, /io\.woowtech\.agent|渥屋|apporo\.7-qa/);
 });
 test('only Apporo is targeted; fallback stays on the deployed page without payload',()=>{
   const p=page();
