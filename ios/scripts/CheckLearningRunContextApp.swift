@@ -75,7 +75,15 @@ private actor DraftReferenceModel: ChatModelClient {
         if messages.first?.content.hasPrefix("Draft a reusable") == true {
             draftCalls += 1
             let name = mode == "duplicate" ? "reference-guide" : "new-reference-workflow"
-            return """
+            return Self.draft(name: name)
+        }
+        if firstRequest.isEmpty { firstRequest=messages }
+        let next=researchCalls;researchCalls += 1
+        if next < (mode == "too-few" ? 4 : 5) { return "{\"action\":\"open\",\"linkID\":\(next)}" }
+        return #"{"action":"finish","answer":"Fixture guide answer."}"#
+    }
+    static func draft(name: String) -> String {
+        """
             ---
             name: \(name)
             description: Research public guide sections
@@ -91,11 +99,6 @@ private actor DraftReferenceModel: ChatModelClient {
             ## When to stop
             Ask the user if evidence is missing.
             """
-        }
-        if firstRequest.isEmpty { firstRequest=messages }
-        let next=researchCalls;researchCalls += 1
-        if next < (mode == "too-few" ? 4 : 5) { return "{\"action\":\"open\",\"linkID\":\(next)}" }
-        return #"{"action":"finish","answer":"Fixture guide answer."}"#
     }
 }
 private actor ReferenceGate {
@@ -539,9 +542,16 @@ private actor ReferenceBrowser: WebResearchExecuting {
     #if DEBUG
     static func actualReferenceOnlyDrafting() async throws {
         group="actualReferenceOnlyDrafting"
-        for mode in ["eligible","duplicate","too-few","switch-off"] {
+        for mode in ["eligible","duplicate","same-body","too-few","switch-off"] {
             let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
             if mode == "switch-off" {try expect(f.store.updatePreferences{$0.learnSkills=false},"fixture disables auto-learning")}
+            if mode == "same-body" {
+                try expect(f.store.mutateSkills { state in
+                    let draft = try state.importMarkdown(DraftReferenceModel.draft(name:"reference-guide"),
+                                                         availableToolNames:BrowserSession.toolNames)
+                    _ = try state.approveDraft(id:draft.id,availableToolNames:BrowserSession.toolNames)
+                },"fixture installs the same body under the existing reference name")
+            }
             let before=f.store.skills
             let suite="io.woowtech.reference-draft-check."+UUID().uuidString
             let defaults=UserDefaults(suiteName:suite)!
@@ -584,7 +594,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
                            "new learned text remains pending and is not automatically enabled")
             } else {
                 try expect(f.store.skills.pending == before.pending,"existing duplicate, too few actions, or disabled learning produces no draft")
-                try expect(draftCalls == (mode == "duplicate" ? 1 : 0),"existing duplicate and eligibility guards still execute")
+                try expect(draftCalls == (["duplicate","same-body"].contains(mode) ? 1 : 0),"existing duplicate and eligibility guards still execute")
             }
             try expect(f.store.skills.installed == before.installed && f.store.skills.revisions == before.revisions,
                        "reference-only task does not change installed skills or their history")

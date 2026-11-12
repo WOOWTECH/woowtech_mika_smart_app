@@ -87,7 +87,7 @@ public struct SkillJudgment: Equatable, Sendable {
 
 public enum SkillLearningSkipReason: String, Sendable {
     case ineligible, invalidTrajectory, unsafeEvidence, noGroundedEvidence
-    case judgeUnavailable, invalidJudgment, tooFewActions, draftDisabled, draftUnavailable, invalidDraft, nameTaken
+    case judgeUnavailable, invalidJudgment, tooFewActions, draftDisabled, draftUnavailable, invalidDraft, nameTaken, duplicateContent
 }
 
 public struct SkillLearningAssessment: Equatable, Sendable {

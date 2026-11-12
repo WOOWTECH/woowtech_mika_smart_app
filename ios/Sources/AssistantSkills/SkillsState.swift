@@ -21,6 +21,15 @@ public struct SkillsState: Codable, Equatable, Sendable {
         BundledSkillCatalog.entryIDs.contains(name) || additional.contains(name)
     }
 
+    /// Only block new automatic skills with exactly the same parsed body. A
+    /// manual import, or an explicit update to an existing name, is separate.
+    func hasDuplicateNewLearnedBody(_ document: SkillDocument) -> Bool {
+        guard !installed.contains(where: { $0.name == document.name }),
+              !pending.contains(where: { $0.name == document.name }) else { return false }
+        return installed.contains { $0.document.body.utf8.elementsEqual(document.body.utf8) } ||
+               pending.contains { $0.document.body.utf8.elementsEqual(document.body.utf8) }
+    }
+
     @discardableResult
     public mutating func importMarkdown(_ raw: String, availableToolNames: Set<String>,
                                         builtinNames: Set<String> = [], now: Date = Date(),
@@ -55,6 +64,7 @@ public struct SkillsState: Codable, Equatable, Sendable {
         let text = try SkillDocument.importText(raw, source: source)
         let document = try SkillDocument.parse(text, availableToolNames: availableToolNames)
         guard !Self.isReservedName(document.name, additional: builtinNames) else { throw SkillsError.builtinName }
+        if source == .learned, hasDuplicateNewLearnedBody(document) { throw SkillsError.duplicateContent }
         guard !pending.contains(where: { $0.name == document.name }) else { throw SkillsError.draftPending }
         guard !pending.contains(where: { $0.id == draftID }) else { throw SkillsError.duplicateID }
         guard pending.count < Self.maxPending else { throw SkillsError.capacityReached }
@@ -184,6 +194,7 @@ public struct SkillsState: Codable, Equatable, Sendable {
         let document = try SkillDocument.parse(proposal.markdown, availableToolNames: availableToolNames,
                                                trustedProvenance: proposal.runID)
         guard !Self.isReservedName(document.name, additional: builtinNames) else { throw SkillsError.builtinName }
+        if hasDuplicateNewLearnedBody(document) { throw SkillsError.duplicateContent }
         let draft: SkillDraft
         if let id = proposal.replacesPendingID {
             guard let index = pending.firstIndex(where: { $0.id == id && $0.name == document.name }) else {
