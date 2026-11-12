@@ -36,6 +36,10 @@ def render(name):
                  "    paths: ['ios/**', '.github/workflows/ios-*.yml']\n")
         assert before in source
         source = source.replace(before, after, 1)
+        before_call = "    uses: ./.github/workflows/core-native-diagnostic.yml\n"
+        after_call = "    uses: ./.github/workflows/ios-core-native-diagnostic.yml\n"
+        assert source.count(before_call) == 1
+        source = source.replace(before_call, after_call, 1)
     if name == "android-ui-reference.yml":
         before = ('          git clone --depth 1 https://github.com/WOOWTECH/woowtech_mika_smart_app.git "$RUNNER_TEMP/woow-android-reference"\n'
                   '          python3 scripts/check_android_ui_reference.py --android-repo "$RUNNER_TEMP/woow-android-reference"')

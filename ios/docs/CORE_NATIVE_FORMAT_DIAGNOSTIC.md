@@ -51,7 +51,38 @@ the candidate. A timeout can leave incomplete evidence; it is never retried or
 converted to success.
 
 GitHub requires a workflow-dispatch file to exist on the repository's default
-branch before it can be triggered; a branch-only candidate cannot by itself be
-manually dispatched there. After authorized integration, select the desired
-ref explicitly and compare artifact source/toolchain metadata. Do not assume
+branch before it can be directly triggered; the new standalone workflow
+cannot be directly dispatched while it exists only on the candidate branch.
+The existing iOS workflow route below may provide an alternative. Do not assume
 that an Xcode 27 capture proves either of the CI versions.
+
+## Candidate-ref dispatch through existing iOS workflow
+
+The candidate also adds the `core-format-diagnostic` choice to the existing
+`ios-app.yml` dispatch input and calls this workflow from the **same commit**
+via `workflow_call`. The seven ordinary targets run in the two fixed matrix
+variants above; manual current/compact/large/fresh flags do not alter this
+scope. It excludes the existing focused `build-and-test` job, full regression
+and live jobs. It does not pass application secrets. GitHub still supplies its
+normal read-only `GITHUB_TOKEN` to reusable workflows; checkout does not
+persist it and native subprocesses receive the restricted environment.
+
+The diagnostic dispatch receives a unique concurrency group incorporating
+`github.run_id` and `github.run_attempt`, with a prefix distinct from all
+current workflow groups. Different diagnostic runs therefore do not cancel
+one another or normal regression runs. For other scopes the reformulated
+expression preserves the prior group values and cancellation behavior.
+
+Once this candidate ref is available on GitHub, use the *existing* `iOS`
+workflow / root `.github/workflows/ios-app.yml`, select the exact candidate ref
+and scope `core-format-diagnostic`. GitHub documents dispatching an existing
+default-branch workflow on a selected ref, and that a local reusable-workflow
+path resolves at the caller's commit. This route does not require the new
+standalone diagnostic workflow to be present on the default branch. It remains
+unverified whether this repository's UI and API will expose or accept a new
+choice present only on the selected ref: the default branch still has the old
+choice list. If GitHub rejects or hides it, do not choose `all`, `core` or a
+live scope as a workaround; preserve the rejection and investigate without
+running a different workload. Check the launched run's SHA, inputs, job names
+and artifact manifests before treating the captures as this candidate's
+actual evidence. No run is initiated by this change.

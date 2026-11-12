@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -118,6 +119,7 @@ class DiagnosticTests(unittest.TestCase):
         text = template.read_text()
         self.assertEqual(generated.read_text(), sync.render(template.name))
         self.assertIn('  workflow_dispatch:', text)
+        self.assertIn('  workflow_call:', text)
         self.assertNotIn('pull_request:', text)
         self.assertNotIn('  push:', text)
         self.assertNotIn('secrets.', text)
@@ -129,6 +131,44 @@ class DiagnosticTests(unittest.TestCase):
         self.assertIn("xcode: '16.4'", text)
         self.assertIn("xcode: '26.2'", text)
         self.assertIn('if: always()', text)
+
+    def test_existing_dispatch_scope_only_calls_diagnostic_without_collision(self):
+        template = sync.TEMPLATES / 'ios.yml'
+        generated = sync.DESTINATION / 'ios-app.yml'
+        self.assertEqual(generated.read_text(), sync.render('ios.yml'))
+        for source, call in ((template.read_text(), './.github/workflows/core-native-diagnostic.yml'),
+                             (generated.read_text(), './.github/workflows/ios-core-native-diagnostic.yml')):
+            job_names = set(re.findall(r'(?m)^  ([\w-]+):$', source.split('\njobs:\n', 1)[1]))
+            self.assertEqual(job_names, {'full-regression-plan', 'full-regression-preflight',
+                'full-regression-build', 'full-regression-test', 'full-regression-gate', 'build-and-test',
+                'core-format-diagnostic', 'live-model-acceptance', 'live-mcp-acceptance', 'unsigned-device-for-local-signing'})
+            def job(name):
+                found = re.search(r'(?ms)^  ' + re.escape(name) + r':\n(.*?)(?=^  [\w-]+:|\Z)', source)
+                self.assertIsNotNone(found, name)
+                return found.group(1)
+            self.assertIn('core, core-format-diagnostic, native', source)
+            diagnostic = job('core-format-diagnostic')
+            self.assertIn("github.event_name == 'workflow_dispatch' && inputs.test_scope == 'core-format-diagnostic'", diagnostic)
+            self.assertIn('uses: ' + call, diagnostic)
+            self.assertIn('contents: read', diagnostic)
+            self.assertNotIn('secrets:', diagnostic)
+            self.assertNotIn('needs:', diagnostic)
+            self.assertIn("inputs.test_scope != 'core-format-diagnostic'", job('build-and-test'))
+            for name in ('full-regression-plan', 'full-regression-preflight', 'full-regression-gate'):
+                self.assertIn("github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all'", job(name))
+            self.assertIn("needs.full-regression-plan.result == 'success'", job('full-regression-build'))
+            self.assertIn("needs.full-regression-plan.result == 'success'", job('full-regression-test'))
+            for name in ('live-model-acceptance', 'live-mcp-acceptance'):
+                self.assertIn("inputs.test_scope == '" + name.removesuffix('-acceptance') + "'", job(name))
+            self.assertIn("if: github.event_name == 'pull_request'", job('unsigned-device-for-local-signing'))
+            self.assertIn("format('woow-core-format-diagnostic-v1-{0}-{1}', github.run_id, github.run_attempt)", source)
+            old_components = ["github.workflow", "github.event_name == 'pull_request' && github.sha || github.ref",
+                "inputs.test_scope || 'all'", "inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix'",
+                "github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing'",
+                "startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version || 'standard'"]
+            expected_fallback = "|| format('ios-{0}-{1}-{2}-{3}-{4}-{5}', " + ', '.join(old_components) + ")"
+            self.assertIn(expected_fallback, source)
+            self.assertIn('  cancel-in-progress: true', source)
 
     def test_actual_subprocess_environment_and_timeout(self):
         environment = diag.clean_environment()

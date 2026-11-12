@@ -30,7 +30,7 @@ on:
       test_scope:
         description: Focused validation without cancelling the full regression matrix
         type: choice
-        options: [all, live-model, live-mcp, interaction, parity, workspace, login, files, file-picker, picker-direct, picker-coordinated, picker-uikit, picker-uikit-copy, picker-user-copy, pdf-assembly, pdf-assembly-uikit, pdf-assembly-copy, pdf-assembly-multi, pdf-pair-coordinated, profile-tool, memory-tools, documents-chat, pdf-export, authoring, skill-settings, transcript, memory-ui, memory-rollback, learning, browser, core, native, startup, ui-startup, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-profile, ui-memory-tools, ui-skills, ui-documents, ui-pdf-capability, ui-download-pdf, ui-mcp]
+        options: [all, live-model, live-mcp, interaction, parity, workspace, login, files, file-picker, picker-direct, picker-coordinated, picker-uikit, picker-uikit-copy, picker-user-copy, pdf-assembly, pdf-assembly-uikit, pdf-assembly-copy, pdf-assembly-multi, pdf-pair-coordinated, profile-tool, memory-tools, documents-chat, pdf-export, authoring, skill-settings, transcript, memory-ui, memory-rollback, learning, browser, core, core-format-diagnostic, native, startup, ui-startup, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-profile, ui-memory-tools, ui-skills, ui-documents, ui-pdf-capability, ui-download-pdf, ui-mcp]
         default: all
 
 permissions:
@@ -42,7 +42,7 @@ defaults:
 
 concurrency:
   # PR revisions retain their own evidence while the next revision is built.
-  group: ios-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing' }}-${{ startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version || 'standard' }}
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'core-format-diagnostic' && format('woow-core-format-diagnostic-v1-{0}-{1}', github.run_id, github.run_attempt) || format('ios-{0}-{1}-{2}-{3}-{4}-{5}', github.workflow, github.event_name == 'pull_request' && github.sha || github.ref, inputs.test_scope || 'all', inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix', github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing', startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version || 'standard') }}
   cancel-in-progress: true
 
 jobs:
@@ -340,7 +340,7 @@ jobs:
     # Preserve the existing focused manual scopes. Normal PR/push and manual
     # `all` use the source-bound portable-build matrix above.
     needs: unsigned-device-for-local-signing
-    if: ${{ always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.test_scope != 'all' && !contains(fromJSON('["live-model","live-mcp"]'), inputs.test_scope) }}
+    if: ${{ always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.test_scope != 'all' && inputs.test_scope != 'core-format-diagnostic' && !contains(fromJSON('["live-model","live-mcp"]'), inputs.test_scope) }}
     runs-on: macos-15
     timeout-minutes: 70
     strategy:
@@ -623,6 +623,13 @@ jobs:
             build/diagnostics/
           if-no-files-found: warn
           retention-days: 14
+
+  core-format-diagnostic:
+    # This is evidence collection only, never a full-regression or MCP gate.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'core-format-diagnostic' }}
+    uses: ./.github/workflows/core-native-diagnostic.yml
+    permissions:
+      contents: read
 
   live-model-acceptance:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'live-model' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
