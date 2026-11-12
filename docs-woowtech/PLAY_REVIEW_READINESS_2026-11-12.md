@@ -10,6 +10,7 @@
 - 候選 AAB manifest 經獨立解析為 min API 30、target API 36；含網路、錄音、通知、wake lock 與前景服務權限；未列無障礙服務、`McpService` 或 `SandboxService`。`TaskService` 與 `ChatGptSignInService` 為 `specialUse`。應在最終簽章 AAB 重新檢查；manifest 不足以單獨證明所有程式路徑均不可達。
 - Google Play 對含原生程式的 App 要求支援 16 KB 頁面。[官方說明](https://developer.android.com/guide/practices/page-sizes) 本機候選 AAB 有 11 個 `.so`；以 ELF 程式表檢查所有 7 個 64 位元 arm64／x86_64 函式庫，`PT_LOAD` 對齊均為 `0x4000`，且位址與檔案偏移符合 16 KB 同餘；另以 Android NDK `llvm-readelf` 交叉檢查 `libproot.so`。AAB 內的 11 個 `.so` 為壓縮項目，但這些結果不足以代表 Play 產生 APK 的封裝或 16 KB 裝置執行已通過，最終版仍需檢查與實機／模擬器驗證。
 - 候選 AAB 仍包含 arm64 `libmikarun.so`、`libproot.so`、`libproot_loader.so`，程式中它們用於沙箱程序。商店版主流程及 manifest 已關閉相應能力，但僅憑檔案存在不能判定仍可執行或已違反政策；需在最終包確認可達路徑與是否應移除這些未使用的原生檔案。
+- Google 預告自 2027 年 2 月起，DEX 大於 10 MB 的 App 上傳版本需達到指定的程式碼縮減、最佳化與混淆門檻；記憶體使用也有新指標。候選 AAB 四個 DEX 的未壓縮總和為 38,091,168 bytes，Gradle 目前未明確啟用 release minify。這是**未來風險、非本次拒件證據**；應在 Play 內測的 App Bundle Explorer 核對 Google 實際計算與適用情況，再規劃 R8、相容性測試及效能驗收。[Google 技術品質要求](https://support.google.com/googleplay/android-developer/answer/17492799?hl=en)
 - POCO `play.2` 已經 ADB 安裝與啟動，但完整真實模型與 MCP 驗收多為 `play.1` 的紀錄；尚無從 Play 測試軌安裝本版的證據。詳見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 - 使用者選取帳戶後，Play Console 首頁明確顯示 WOOWTECH 為**機構帳戶**，首頁列出七個正式版和一個內部測試 App，當中未見 `io.woowtech.assistant`；首頁未列出不等於已排除所有可能的草稿或其他帳戶。此帳戶不屬新個人帳戶的 12 人、14 天規則。尚未確認渥屋助理套件是否能建立、簽章、測試軌與審查狀態。
 - 已只讀核對同帳戶三個案例：`io.woowtech.smart`（渥屋智能）、`io.woowtech.odoo`（woowtech platform）、`com.woowtech.aiot`（渥屋科技）皆顯示已有正式版。渥屋智能的「測試及發布」也顯示已有內部測試版，可參考先測試再發布的流程；這些案例不能直接複製其隱私、權限或內容申報。
@@ -45,6 +46,8 @@ AI 回覆檢舉可能仍傳送到 WoowTech 的 relay 收件端；這與移除手
 Google 要求 AI 生成 App 防止其政策禁止的內容；官方列出的輸入／輸出過濾器及分類器是可參考的措施，並未指定唯一技術。[AI 政策](https://support.google.com/googleplay/android-developer/answer/13985936?hl=en)、[防護最佳實務](https://support.google.com/googleplay/android-developer/answer/16353813?hl=en)
 
 應在保留使用者自備模型／API Key 的產品要求下，評估模型供應商防護能力、App 額外審核與無法驗證的端點／多模態如何處理。若使用外部分類服務，需評估額外資料傳送、隱私揭露、費用、延遲及服務失敗；若要先緩衝串流或限制某些端點，須先評估對使用體驗的影響。這是待設計與測試的選項，不能聲稱 Google 已指定必須採用某一種架構。
+
+已查核兩個本機方案的實際界線：Google 的 [ShieldGemma](https://ai.google.dev/responsible/docs/safeguards/shieldgemma) 文字模型最小為 2B 參數，其[文字模型卡](https://ai.google.dev/gemma/docs/shieldgemma/model_card)列為英文，不能直接假設支援繁體中文或適合 POCO；[ML Kit GenAI](https://developers.google.com/ml-kit/genai) 的設備支援、模型版本與配額有限，且官方說明推論僅允許 App 位於前景，不能直接覆蓋所有裝置及背景任務。因此本機優先仍需實測記憶體、速度、語言、背景與下載大小；服務端方案則須單獨評估資料傳送和成本，兩者均不能單憑名稱宣稱符合 Play 政策。
 
 ## 截圖的實際尺寸問題
 
