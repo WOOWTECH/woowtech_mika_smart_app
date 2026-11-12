@@ -171,6 +171,7 @@ struct MessageQuoteChip: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.quote.preview")
     }
 }
@@ -211,6 +212,7 @@ struct MessageSentQuote: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(8)
         .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(identifier)
     }
 }
