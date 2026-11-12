@@ -559,7 +559,12 @@ final class MemoryUITests: XCTestCase {
         let native = element.switches.firstMatch
         let target = native.exists ? native : element
         waitUntilHittable(target)
-        target.tap()
+        // AssistiveTouch can cover the middle/right of a switch on iPad.
+        if native.exists {
+            native.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+        } else {
+            element.tap()
+        }
         let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
         XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed)
         XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists, "Memory settings could not be persisted.")

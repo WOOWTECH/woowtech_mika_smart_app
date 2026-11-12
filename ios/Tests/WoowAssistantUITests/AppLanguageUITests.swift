@@ -1,4 +1,5 @@
 import XCTest
+import CoreGraphics
 
 /// Actual settings UI acceptance. Never sets defaults/bindings or overrides a
 /// product DEBUG locale. Each case owns fresh storage; model requests stay off.
@@ -15,7 +16,13 @@ final class AppLanguageUITests: XCTestCase {
         revealLearningElement(permission, in: app)
         XCTAssertEqual(permission.value as? String, "0")
         let native = permission.switches.firstMatch
-        (native.exists ? native : permission).tap()
+        // AssistiveTouch may float over the right side of an iPad switch.
+        // Tap the exposed left side of the actual switch surface.
+        if native.exists {
+            native.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+        } else {
+            permission.tap()
+        }
         let draft = app.textViews["selfConfiguration.request"]
         revealLearningElement(draft, in: app); draft.tap(); draft.typeText("保留 Tea")
         app.buttons["selfConfiguration.keyboard.done"].tap()
