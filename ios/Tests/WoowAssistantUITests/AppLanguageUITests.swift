@@ -134,7 +134,9 @@ final class AppLanguageUITests: XCTestCase {
                 let value = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: draft)
                 XCTAssertEqual(XCTWaiter.wait(for: [value], timeout: 5), .completed, id)
                 XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-                XCTAssertFalse(app.buttons["chat.send"].isEnabled) // no model configured
+                // An example only fills the draft; nothing is sent. Like Android, the
+                // send key is then ready and a tap explains the missing model.
+                XCTAssertTrue(app.buttons["chat.send"].isEnabled)
             }
         }
     }
