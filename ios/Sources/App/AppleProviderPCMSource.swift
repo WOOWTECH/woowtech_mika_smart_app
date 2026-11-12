@@ -9,9 +9,10 @@ final class AppleProviderPCMSource: ProviderPCMSource {
     func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) {
         source.requestPermission(completion)
     }
-    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+    func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
+               mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
-        try source.start(buffer: buffer, mayStart: mayStart, onFailure: onFailure)
+        try source.start(buffer: buffer, activate: activate, mayStart: mayStart, onFailure: onFailure)
     }
     func stop() { source.stop() }
 }

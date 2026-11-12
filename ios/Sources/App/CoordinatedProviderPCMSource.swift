@@ -39,7 +39,8 @@ final class CoordinatedProviderPCMSource: ProviderPCMSource {
         platform.requestPermission(completion)
     }
 
-    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+    func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
+               mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
         guard engine == nil, !stopping else { throw SourceError.alreadyActive }
         generation &+= 1
@@ -58,11 +59,16 @@ final class CoordinatedProviderPCMSource: ProviderPCMSource {
             if self.isCurrent(current) { self.stop() }
         }
         do {
-            // Observe before potentially expensive format/filter setup, so an
-            // interruption during setup closes the buffer before engine start.
+            // Arm before activating the lease or doing format/filter setup.
+            // A notification closes the buffer synchronously, even when its
+            // main-actor failure callback cannot run until activation returns.
             let token = platform.observeSystemChanges(buffer: buffer, onFailure: failure)
             guard isCurrent(current) else { token.cancel(); return }
             observation = token
+            guard permitted(current, buffer: buffer, mayStart, failure: failure) else { return }
+            let activated = activate()
+            guard isCurrent(current) else { return }
+            guard activated else { failure(); return }
             guard permitted(current, buffer: buffer, mayStart, failure: failure) else { return }
             try newEngine.install(buffer: buffer, onFailure: failure)
             guard permitted(current, buffer: buffer, mayStart, failure: failure) else { return }

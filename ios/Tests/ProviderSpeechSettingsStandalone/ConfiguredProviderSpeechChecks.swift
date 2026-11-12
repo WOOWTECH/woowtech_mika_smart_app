@@ -66,9 +66,10 @@ private final class DispatchSignals: @unchecked Sendable {
 @MainActor private final class FixturePCMSource: ProviderPCMSource {
     var buffer: ProviderPCMBuffer?
     func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) { completion(true) }
-    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+    func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
+               mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
-        if mayStart() { self.buffer = buffer }
+        if mayStart(), activate(), mayStart() { self.buffer = buffer }
     }
     func stop() { buffer = nil }
 }

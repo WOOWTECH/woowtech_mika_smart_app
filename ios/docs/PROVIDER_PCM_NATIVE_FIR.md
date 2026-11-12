@@ -7,8 +7,10 @@ service is used by the included tests.
 `AppleProviderPCMSource` now delegates source ownership to
 `CoordinatedProviderPCMSource`, whose platform and engine are injectable. The
 source creates an engine only after the driver obtains the shared voice lease
-and permission, observes interruptions/routes/media reset, installs the tap,
-and rechecks the live start permission and collector before and after setup.
+and permission, observes interruptions/routes/media reset before activating the
+lease, installs the tap, and rechecks permission and the collector after each
+setup stage. A notification during activation closes the collector immediately
+and prevents engine installation even if the main-actor callback is delayed.
 Cleanup detaches observers and synchronously stops the engine before the driver
 releases the lease. Generation checks reject old errors, including an observer
 returned after synchronous cancellation. A detected malformed tap buffer or
@@ -18,8 +20,8 @@ cannot be sent. As before, the future host must actively cancel on scene,
 settings, conversation and gesture changes. Notifications not yet delivered
 cannot be detected retroactively.
 
-The observer is registered after lease activation, leaving an unobserved gap
-before registration. A notification can also arrive between the final check
+Notifications before registration or not delivered by the platform cannot be
+detected retroactively. A notification can also arrive between the final check
 and engine start: the closed collector and post-start check prevent delivering
 the captured data and stop the engine, but cannot rule out a brief start. These
 timing limits require native investigation before exposing this source.
@@ -36,7 +38,12 @@ actual permission, observer delivery, audio routes and background behavior have
 not been SDK-typechecked or run on this host. The iOS cases are in the hosted
 `AssistantSkillsTests` target, which still needs to run with the iOS SDK. The
 portable fixture is also invoked by `scripts/test_provider_pcm.py` during
-macOS unittest discovery.
+macOS unittest discovery. The non-Live GitHub full preflight and focused
+simulator jobs also run `scripts/check_provider_speech_ci.sh`, which invokes
+all four provider standalone scripts with failure propagation and retains
+individual logs plus the source commit in their existing evidence artifacts.
+The pending GitHub run must be made against the revised commit to cover this
+gate; a run of its parent cannot validate it.
 
 ## Anti-aliasing
 

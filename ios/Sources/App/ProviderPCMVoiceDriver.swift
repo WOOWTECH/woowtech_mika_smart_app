@@ -3,12 +3,14 @@ import Foundation
 /// The source is controlled on the main actor; its audio callback may append
 /// to the supplied thread-safe buffer from another thread. stop() must stop
 /// capture synchronously before returning, including on lease revocation. A
-/// source must check mayStart immediately before starting its capture engine
-/// and return without starting if that check fails.
+/// source must arm interruption observation before calling activate, and check
+/// mayStart immediately before starting its capture engine. An activation
+/// failure must stop setup; callers clean up through onFailure or cancellation.
 @MainActor
 protocol ProviderPCMSource: AnyObject {
     func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void)
-    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+    func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
+               mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws
     func stop()
 }
@@ -73,15 +75,17 @@ final class ProviderPCMVoiceDriver: VoiceInputDriver {
     private func permission(_ granted: Bool, id: UUID) {
         guard permitted(id), phase == .permission else { return }
         guard granted else { fail(.microphoneDenied, id: id); return }
-        guard lease.activateForRecording() else { fail(.audio, id: id); return }
-        guard permitted(id), phase == .permission else { return }
         let collector = ProviderPCMBuffer()
         buffer = collector
         // Set before starting so reentrant failure stops the source as well.
         sourceStarted = true
         phase = .recording
         do {
-            try source.start(buffer: collector, mayStart: { [weak self] in self?.permitted(id) == true },
+            try source.start(buffer: collector, activate: { [weak self] in
+                guard let self, self.permitted(id) else { return false }
+                guard self.lease.activateForRecording() else { self.fail(.audio, id: id); return false }
+                return self.permitted(id)
+            }, mayStart: { [weak self] in self?.permitted(id) == true },
                              onFailure: { [weak self] in self?.sourceFailed(id: id) })
             guard permitted(id) else { return }
         } catch { fail(.audio, id: id) }

@@ -9,10 +9,12 @@ import Foundation
     var onStop: (() -> Void)?
     var beforeStartCheck: (() -> Void)?
     func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) { permissions.append(completion) }
-    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+    func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
+               mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
         beforeStartCheck?()
         guard mayStart() else { return }
+        guard activate(), mayStart() else { return }
         starts += 1; sinks.append(buffer); failures.append(onFailure)
     }
     func stop() { stops += 1; onStop?() }
@@ -20,10 +22,11 @@ import Foundation
 @MainActor private final class FakeMixedSession: MixedVoiceAudioSession {
     var current = VoiceAudioSettings(category: "original", mode: "default", options: 0)
     var onActivate: (() -> Void)?
+    var activations = 0
     func settings() -> VoiceAudioSettings? { current }
     func configureMixedRecording() -> Bool { current = VoiceAudioSettings(category: "mixed", mode: "default", options: 1); return true }
     func isMixedRecording(_ settings: VoiceAudioSettings) -> Bool { settings.category == "mixed" }
-    func activate() -> Bool { onActivate?(); return true }
+    func activate() -> Bool { activations += 1; onActivate?(); return true }
     func restore(_ settings: VoiceAudioSettings) -> Bool { current = settings; return true }
 }
 @MainActor private final class FakeTranscriber {
@@ -62,6 +65,7 @@ import Foundation
     var engines: [FixtureEngine] = []
     var observations: [FixtureObservation] = []
     var failures: [@MainActor () -> Void] = []
+    var buffers: [ProviderPCMBuffer] = []
     var makeHook: (() -> Void)?, observeHook: ((@MainActor () -> Void) -> Void)?
     var configure: ((FixtureEngine) -> Void)?
     var failMake = false
@@ -72,6 +76,7 @@ import Foundation
     }
     func observeSystemChanges(buffer: ProviderPCMBuffer,
                               onFailure: @escaping @MainActor () -> Void) -> any ProviderPCMObservation {
+        buffers.append(buffer)
         let failure: @MainActor () -> Void = { buffer.discard(); onFailure() }
         failures.append(failure)
         let token = FixtureObservation(); observations.append(token)
@@ -544,10 +549,54 @@ import Foundation
               sourceEvents.last?.1 == .failed(.audio), "engine creation failure is reported")
         check(device.acquire(onRevoked: {}), "engine creation failure returns the voice lease")
         device.release()
+        let activationInterrupted = sourceBegin()
+        let beforeActivation = audioSession.activations
+        audioSession.onActivate = { platform.failures.last?() }
+        platform.permissions.last!(true)
+        audioSession.onActivate = nil
+        check(audioSession.activations == beforeActivation + 1 && sourceEvents.last?.0 == activationInterrupted &&
+              sourceEvents.last?.1 == .failed(.audio) && platform.engines.last?.log == ["stop"] &&
+              platform.observations.last?.cancelCount == 1,
+              "observer catches synchronous interruption during audio session activation before engine install")
+        check(device.acquire(onRevoked: {}), "interrupted activation releases lease after reentrant cleanup")
+        device.release()
+        let delayedActivationFailure = sourceBegin()
+        audioSession.onActivate = { platform.buffers.last?.discard() }
+        platform.permissions.last!(true)
+        audioSession.onActivate = nil
+        let activationCallback = platform.failures.last!
+        check(sourceEvents.last?.0 == delayedActivationFailure && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines.last?.log == ["stop"] && platform.observations.last?.cancelCount == 1,
+              "notification detected during activation closes collector before queued failure and engine install")
+        let afterActivationFailure = sourceBegin()
+        platform.permissions.last!(true)
+        let afterActivationEngine = platform.engines.last!
+        activationCallback()
+        check(afterActivationEngine.log == ["install", "prepare", "start"],
+              "late activation notification cannot stop the next capture")
+        sourceDriver.cancel(id: afterActivationFailure)
+        check(device.acquire(onRevoked: {}), "late activation notification and cancellation return lease")
+        device.release()
+        let backgroundDuringActivation = sourceBegin()
+        audioSession.onActivate = { sourceAllowed = false }
+        platform.permissions.last!(true)
+        audioSession.onActivate = nil
+        check(sourceEvents.last?.0 == backgroundDuringActivation && sourceEvents.last?.1 == .cancelled &&
+              platform.engines.last?.log == ["stop"] && platform.observations.last?.cancelCount == 1,
+              "background or setting change during activation cancels before engine install")
+        sourceAllowed = true
+        let cancelledDuringActivation = sourceBegin()
+        audioSession.onActivate = { sourceDriver.cancel(id: cancelledDuringActivation) }
+        platform.permissions.last!(true)
+        audioSession.onActivate = nil
+        check(sourceEnded.contains(cancelledDuringActivation) && platform.engines.last?.log == ["stop"] &&
+              platform.observations.last?.cancelCount == 1 && device.acquire(onRevoked: {}),
+              "explicit cancellation during activation removes observer and releases lease")
+        device.release()
         let standalonePlatform = FixturePlatform()
         let standaloneSource = CoordinatedProviderPCMSource(platform: standalonePlatform)
         let standaloneBuffer = ProviderPCMBuffer()
-        try standaloneSource.start(buffer: standaloneBuffer, mayStart: { true }, onFailure: {})
+        try standaloneSource.start(buffer: standaloneBuffer, activate: { true }, mayStart: { true }, onFailure: {})
         _ = standaloneBuffer.append([1], sampleRate: 16_000, channels: 1)
         standaloneSource.stop()
         standaloneSource.stop()
