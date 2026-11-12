@@ -449,6 +449,7 @@ enum AppText: Equatable {
     case localPDFSearchOpen
     case localPDFSearchTitle
     case localPDFSearchNotice
+    case localPDFSearchIgnoreASCIICase
     case localPDFSearchPlaceholder
     case localPDFSearchButton
     case localPDFSearchInvalid
@@ -923,6 +924,7 @@ enum AppText: Equatable {
         case .localPDFSearchOpen: return "localPDFSearch.open"
         case .localPDFSearchTitle: return "localPDFSearch.title"
         case .localPDFSearchNotice: return "localPDFSearch.notice"
+        case .localPDFSearchIgnoreASCIICase: return "localPDFSearch.ignoreASCIICase"
         case .localPDFSearchPlaceholder: return "localPDFSearch.placeholder"
         case .localPDFSearchButton: return "localPDFSearch.button"
         case .localPDFSearchInvalid: return "localPDFSearch.invalid"
@@ -1428,7 +1430,8 @@ enum AppText: Equatable {
         case .archiveClose: return "關閉"
         case .localPDFSearchOpen: return "離線搜尋擷取文字"
         case .localPDFSearchTitle: return "離線搜尋已擷取文字"
-        case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。"
+        case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。"
+        case .localPDFSearchIgnoreASCIICase: return "不區分英文字母大小寫（A–Z）"
         case .localPDFSearchPlaceholder: return "輸入文字，最多 256 UTF-8 位元組"
         case .localPDFSearchButton: return "搜尋"
         case .localPDFSearchInvalid: return "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。"

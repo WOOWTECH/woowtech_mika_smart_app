@@ -439,7 +439,8 @@
 "archive.close" = "關閉";
 "localPDFSearch.open" = "離線搜尋擷取文字";
 "localPDFSearch.title" = "離線搜尋已擷取文字";
-"localPDFSearch.notice" = "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。";
+"localPDFSearch.notice" = "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。";
+"localPDFSearch.ignoreASCIICase" = "不區分英文字母大小寫（A–Z）";
 "localPDFSearch.placeholder" = "輸入文字，最多 256 UTF-8 位元組";
 "localPDFSearch.button" = "搜尋";
 "localPDFSearch.invalid" = "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。";

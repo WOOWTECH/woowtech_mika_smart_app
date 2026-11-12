@@ -650,6 +650,35 @@ final class SkillExecutionUITests: XCTestCase {
         assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)
     }
 
+    func testOfflineSearchCanIgnoreEnglishCaseAfterApproval() {
+        launchFixture(fromCatalog: false)
+        chooseSyntheticPDF()
+        approve(capability: "selectedPDFRead")
+        approve(capability: "nativePDFText")
+        tap("skillExecution.localSearch.open", scroll: true)
+        let field = app.textFields["skillExecution.localSearch.query"]
+        revealLearningElement(field, in: app)
+        requireHittable(field)
+        field.tap(); field.typeText("woow_skill_pdf_page_1\n")
+        let summary = app.staticTexts["skillExecution.localSearch.summary"]
+        revealLearningElement(summary, in: app, visibility: .readableText)
+        XCTAssertEqual(summary.label, "本次擷取頁面沒有符合的文字。")
+        let option = app.switches["skillExecution.localSearch.ignoreASCIICase"]
+        revealLearningElement(option, in: app)
+        requireHittable(option)
+        option.tap()
+        XCTAssertFalse(summary.exists, "Changing the search mode clears old results.")
+        let search = app.buttons["skillExecution.localSearch.search"]
+        revealLearningElement(search, in: app)
+        requireHittable(search); search.tap()
+        revealLearningElement(summary, in: app, visibility: .readableText)
+        XCTAssertEqual(summary.label, "找到 1 處。")
+        let hit = app.staticTexts["skillExecution.localSearch.hit.1"]
+        revealLearningElement(hit, in: app, visibility: .readableText)
+        XCTAssertEqual(hit.label, "原第 1 頁（選取序號 1）")
+        assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)
+    }
+
     func testNativeExportSavesTextToChosenLocalFolder() {
         extractFixtureForExport()
         openNativeExporter()

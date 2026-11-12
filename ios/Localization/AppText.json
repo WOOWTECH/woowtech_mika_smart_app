@@ -4610,9 +4610,19 @@
       "key": "localPDFSearch.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。",
-        "zh-Hans": "只搜索本次选择并批准提取的页面；区分大小写，没有 OCR，也不会发送数据。",
-        "en": "Searches only the pages selected and approved for this extraction. Case-sensitive; no OCR or data transmission."
+        "zh-Hant": "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。",
+        "zh-Hans": "只搜索本次选择并批准提取的页面；没有 OCR，也不会发送数据。",
+        "en": "Searches only the pages selected and approved for this extraction. No OCR or data transmission."
+      }
+    },
+    {
+      "case": "localPDFSearchIgnoreASCIICase",
+      "key": "localPDFSearch.ignoreASCIICase",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不區分英文字母大小寫（A–Z）",
+        "zh-Hans": "不区分英文字母大小写（A–Z）",
+        "en": "Ignore English letter case (A–Z)"
       }
     },
     {

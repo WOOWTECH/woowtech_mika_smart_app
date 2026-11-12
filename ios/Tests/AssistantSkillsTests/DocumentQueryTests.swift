@@ -149,6 +149,31 @@ import XCTest
         try expect(offline.error == nil, "editing clears error")
         offline.search()
         try expect(offline.result?.hits.count == 3 && offline.result?.truncated == false, "retry after error")
+        // The App's opt-in option acts on the actual approved PDFKit snapshot.
+        offline.setQuery("beta"); offline.search()
+        try expect(offline.result?.hits.isEmpty == true, "default remains case-sensitive")
+        offline.setIgnoreASCIICase(true)
+        try expect(offline.result == nil && offline.error == nil, "changing case mode clears stale results")
+        offline.search()
+        try expect(offline.result?.hits.map(\.pageNumber) == [2, 2] &&
+                   offline.result?.hits.map(\.pageIndex) == [1, 3], "ASCII-insensitive search preserves repeated PDF pages")
+        try expect(offline.result?.hits.allSatisfy { $0.snippet.contains("BETA budget is 17.") } == true,
+                   "snippets retain actual source spelling")
+        offline.setIgnoreASCIICase(false)
+        try expect(offline.result == nil, "disabling case mode clears old results")
+        offline.search()
+        try expect(offline.result?.hits.isEmpty == true, "case-sensitive mode restored")
+        let unicodeSnapshot = try source(["臺灣ABC🙂 É e\u{301} ABC", "臺灣abc🙂 é"])
+        let unicodeTools = DocumentTextTools(source: unicodeSnapshot)
+        let folded = try unicodeTools.search(query: "臺灣abc🙂", ignoreASCIICase: true)
+        try expect(folded.hits.map(\.pageIndex) == [1, 2] && folded.hits[0].offset == 0 &&
+                   folded.hits[0].length == "臺灣ABC🙂".utf8.count && folded.hits[0].snippet.contains("臺灣ABC🙂"),
+                   "UTF-8 byte positions and original Unicode snippets are preserved")
+        try expect(try unicodeTools.search(query: "é", ignoreASCIICase: true).hits.map(\.pageIndex) == [2],
+                   "non-ASCII case and normalization remain exact")
+        try expect(try unicodeTools.search(query: "abc", limit: 2, ignoreASCIICase: true).truncated,
+                   "insensitive mode retains the match limit and truncation")
+        try expect(unicodeTools.reads.isEmpty, "search still creates no citation read evidence")
         var bounded = DocumentLocalSearch(source: try source([String(repeating: "x ", count: 21)]))
         bounded.setQuery("x"); bounded.search()
         try expect(bounded.result?.hits.count == 20 && bounded.result?.truncated == true, "offline hit limit reports truncation")

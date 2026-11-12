@@ -137,6 +137,7 @@ public struct DocumentSearchResult: Sendable, Encodable {
 public struct DocumentLocalSearch: Sendable {
     public let source: DocumentTextSnapshot
     public private(set) var query = ""
+    public private(set) var ignoreASCIICase = false
     public private(set) var result: DocumentSearchResult?
     public private(set) var error: DocumentQueryError?
 
@@ -147,9 +148,14 @@ public struct DocumentLocalSearch: Sendable {
         query = value; result = nil; error = nil
     }
 
+    public mutating func setIgnoreASCIICase(_ value: Bool) {
+        guard ignoreASCIICase != value else { return }
+        ignoreASCIICase = value; result = nil; error = nil
+    }
+
     public mutating func search() {
         result = nil; error = nil
-        do { result = try DocumentTextTools(source: source).search(query: query, limit: 20) }
+        do { result = try DocumentTextTools(source: source).search(query: query, limit: 20, ignoreASCIICase: ignoreASCIICase) }
         catch let failure as DocumentQueryError { error = failure }
         catch is CancellationError { error = .cancelled }
         catch { self.error = .invalidSearch }
@@ -189,18 +195,23 @@ public struct DocumentTextTools: Sendable {
         return read
     }
 
-    public func search(query: String, limit: Int = 10) throws -> DocumentSearchResult {
+    public func search(query: String, limit: Int = 10, ignoreASCIICase: Bool = false) throws -> DocumentSearchResult {
         let needle = Data(query.utf8)
         guard (1...256).contains(needle.count), (1...20).contains(limit),
               !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !query.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
             throw DocumentQueryError.invalidSearch
         }
+        let searchNeedle = ignoreASCIICase ? documentASCIIFold(needle) : needle
         var hits: [DocumentSearchHit] = []
         for page in source.pages {
+            try Task.checkCancellation()
+            // ASCII folding preserves byte counts and every non-ASCII UTF-8 byte.
+            // Offsets/snippets always refer to the original approved snapshot.
+            let haystack = ignoreASCIICase ? documentASCIIFold(page.bytes) : page.bytes
             var cursor = 0
             while cursor < page.byteCount,
-                  let range = page.bytes.range(of: needle, in: cursor..<page.byteCount) {
+                  let range = haystack.range(of: searchNeedle, in: cursor..<page.byteCount) {
                 try Task.checkCancellation()
                 guard hits.count < limit else { return .init(hits: hits, truncated: true, sourceSHA256: source.sha256) }
                 // Literal valid UTF-8 matching cannot begin inside a continuation
@@ -234,6 +245,9 @@ public struct DocumentTextTools: Sendable {
     }
 }
 
+private func documentASCIIFold(_ bytes: Data) -> Data {
+    Data(bytes.map { (65...90).contains($0) ? $0 + 32 : $0 })
+}
 private func documentBoundary(_ bytes: Data, _ offset: Int) -> Bool {
     offset >= 0 && offset <= bytes.count && (offset == bytes.count || bytes[offset] & 0xC0 != 0x80)
 }

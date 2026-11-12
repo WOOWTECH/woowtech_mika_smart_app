@@ -4,13 +4,25 @@ This increment provides actual selected-file PDF execution. It does not execute 
 
 ## Querying an extracted PDF
 
+Android's `documents/SKILL.md` names `search_files` for extracted text. The
+Android sandbox compiles its `pattern` with Kotlin `Regex`, so `(?i)budget`
+matches an ASCII case variant such as `BUDGET`. This local iOS option supports
+that narrow case-insensitive literal use without interpreting the user's text
+as a regular expression. It operates only on the immutable, approved PDF text
+snapshot, returns original bytes and page/selection numbers, and neither runs a
+worker nor sends data. General regular expressions, arbitrary workspace files,
+and full Android execution parity remain unsupported by this option.
+
+
 The completed extraction also offers a separate local literal-text search. The
 user explicitly starts it on the already approved snapshot; it uses no model,
 worker, network or additional file read. It shows original page numbers and
 selection indices (including repeated pages), up to 20 matches and a truncation
-notice. Editing the term clears old results and invalid terms show an error. It
-searches only extracted selected pages, is case-sensitive, and does not supply
-OCR or Android's arbitrary workspace/regex search. The snippets can contain
+notice. Editing the term or changing its case option clears old results and
+invalid terms show an error. An explicit, default-off option matches ASCII A–Z
+without case; all other UTF-8 bytes remain exact, with no Unicode normalization.
+The search operates on extracted selected pages; it does not supply OCR or
+Android's arbitrary workspace/regex search. The snippets can contain
 document text and should be treated as sensitive on screen. Search controls,
 results and errors use the selected Traditional Chinese, Simplified Chinese or
 English interface language; extracted snippets remain verbatim. Other parts of

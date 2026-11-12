@@ -14,6 +14,10 @@ struct DocumentLocalSearchSection: View {
                 Text(verbatim: localizer.text(.localPDFSearchNotice))
                     .font(.caption)
                 searchField
+                Toggle(localizer.text(.localPDFSearchIgnoreASCIICase), isOn: Binding(
+                    get: { search?.ignoreASCIICase ?? false },
+                    set: { search?.setIgnoreASCIICase($0) }))
+                    .accessibilityIdentifier("skillExecution.localSearch.ignoreASCIICase")
                 Button(localizer.text(.localPDFSearchButton)) { performSearch() }
                     .accessibilityIdentifier("skillExecution.localSearch.search")
                 if let error = current.error {

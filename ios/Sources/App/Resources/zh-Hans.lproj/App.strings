@@ -439,7 +439,8 @@
 "archive.close" = "关闭";
 "localPDFSearch.open" = "离线搜索提取文字";
 "localPDFSearch.title" = "离线搜索已提取文字";
-"localPDFSearch.notice" = "只搜索本次选择并批准提取的页面；区分大小写，没有 OCR，也不会发送数据。";
+"localPDFSearch.notice" = "只搜索本次选择并批准提取的页面；没有 OCR，也不会发送数据。";
+"localPDFSearch.ignoreASCIICase" = "不区分英文字母大小写（A–Z）";
 "localPDFSearch.placeholder" = "输入文字，最多 256 UTF-8 字节";
 "localPDFSearch.button" = "搜索";
 "localPDFSearch.invalid" = "请输入 1–256 UTF-8 字节的非空白搜索文字，不能包含控制字符。";

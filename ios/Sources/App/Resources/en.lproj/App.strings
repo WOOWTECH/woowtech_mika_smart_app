@@ -439,7 +439,8 @@
 "archive.close" = "Close";
 "localPDFSearch.open" = "Search extracted text offline";
 "localPDFSearch.title" = "Search extracted text offline";
-"localPDFSearch.notice" = "Searches only the pages selected and approved for this extraction. Case-sensitive; no OCR or data transmission.";
+"localPDFSearch.notice" = "Searches only the pages selected and approved for this extraction. No OCR or data transmission.";
+"localPDFSearch.ignoreASCIICase" = "Ignore English letter case (A–Z)";
 "localPDFSearch.placeholder" = "Enter text, up to 256 UTF-8 bytes";
 "localPDFSearch.button" = "Search";
 "localPDFSearch.invalid" = "Enter 1–256 UTF-8 bytes of nonblank search text without control characters.";
