@@ -2,6 +2,7 @@
 import copy
 import itertools
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -286,6 +287,23 @@ class FullRegressionPlanTests(unittest.TestCase):
         self.assertIn('simulator_options+=(--fresh)', full)
         self.assertIn('aggregate_options+=(--require-full)', full)
         self.assertIn("inputs.test_scope != 'all'", source)
+
+    def test_live_service_acceptance_is_manual_and_limited_to_trusted_refs(self):
+        source = (ROOT / '.github/workflows/ios.yml').read_text()
+        for kind in ('model', 'mcp'):
+            match = re.search(rf'(?ms)^  live-{kind}-acceptance:\n(.*?)(?=^  [\w-]+:|\Z)', source)
+            self.assertIsNotNone(match)
+            job = match.group(1)
+            self.assertIn("github.event_name == 'workflow_dispatch'", job)
+            self.assertIn(f"inputs.test_scope == 'live-{kind}'", job)
+            self.assertIn("github.ref == 'refs/heads/ios/integrate-woow-assistant'", job)
+            self.assertIn(f'uses: ./.github/workflows/ios-live-{kind}.yml', job)
+            workflow = (ROOT / f'.github/workflows/live-{kind}.yml').read_text()
+            self.assertIn('  workflow_call:\n', workflow)
+            self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
+            self.assertIn("github.ref == 'refs/heads/ios/integrate-woow-assistant'", workflow)
+            self.assertIn('WOOW_MODEL_TEST_API_KEY:', workflow)
+        self.assertIn("!contains(fromJSON('[\"live-model\",\"live-mcp\"]'), inputs.test_scope)", source)
 
 
 if __name__ == '__main__':

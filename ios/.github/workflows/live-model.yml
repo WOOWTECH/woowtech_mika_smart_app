@@ -2,6 +2,21 @@ name: Live model on iOS Simulator
 
 # No push/PR trigger: every run consumes the owner's model quota.
 on:
+  workflow_call:
+    inputs:
+      ios_version:
+        type: string
+        default: '18.5'
+      ui_scope:
+        type: string
+        default: all
+    secrets:
+      WOOW_MODEL_TEST_BASE_URL:
+        required: true
+      WOOW_MODEL_TEST_MODEL:
+        required: true
+      WOOW_MODEL_TEST_API_KEY:
+        required: true
   workflow_dispatch:
     inputs:
       ios_version:
@@ -30,7 +45,7 @@ concurrency:
 
 jobs:
   live-native-model:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
     runs-on: macos-15
     timeout-minutes: 70
     env:
