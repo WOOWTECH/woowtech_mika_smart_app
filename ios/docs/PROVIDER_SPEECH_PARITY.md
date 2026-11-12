@@ -117,12 +117,13 @@ This foundation is not proof that any endpoint/model accepts the protocol. It
 does not validate transcripts, capture microphone input, ensure billing is off,
 or perform the Android probe. Generic `SpeechProviderTransport` implementations
 must provide their own timeout, cancellation, redirect and privacy guarantees.
-The endpoint identity check does not detect a provider URL or credential change
-under the same ID; a future integration must bind explicit upload consent to
-the provider, exact destination and credential version, and invalidate consent
-and require renewed review when any binding or relevant setting changes. It
-must check that binding again immediately before upload. No such consent or
-settings integration is implemented by this isolated core.
+The endpoint identity check alone does not detect a provider URL or credential
+change under the same ID. The separate [upload-consent state candidate](PROVIDER_SPEECH_UPLOAD_CONSENT.md)
+binds an in-memory review to an exact final destination, model, credential
+version and recording, and rechecks it before invoking an injected transport.
+It remains unconnected: real UI approval, settings and Keychain change
+observation, scene lifecycle, and enforcement against direct transport calls
+must be implemented and verified before any upload.
 Provider-specific headers, model enumeration, Keychain provider inventory,
 probe selection policy and error presentation remain to be designed and tested.
 

@@ -161,7 +161,7 @@ public enum SpeechWAV {
         for sample in samples { u16(UInt16(bitPattern: sample)) }
         return data
     }
-    fileprivate static func isCanonical(_ data: Data) -> Bool {
+    static func isCanonical(_ data: Data) -> Bool {
         guard data.count >= 46, data.count <= 44 + maxSamples * 2, data.count % 2 == 0 else { return false }
         let bytes = [UInt8](data.prefix(44))
         func u16(_ n: Int) -> UInt32 { UInt32(bytes[n]) | (UInt32(bytes[n+1]) << 8) }
