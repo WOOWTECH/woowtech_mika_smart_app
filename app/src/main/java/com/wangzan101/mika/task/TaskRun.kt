@@ -1177,8 +1177,17 @@ class TaskRun(
     suspend fun settleOutcome(end: TaskState, conversations: ConversationStore): JudgedOutcome? {
         val k = kit ?: return null
         if (end !is TaskState.Succeeded) return null
-        val judged = OutcomeJudge(k.light ?: k.model, k.model).judge(k.agent.taskText ?: goal, end.answer, k.priorTurns)
         val runId = _runId.value
+        val completedTools = if (runId == null) emptyList() else withContext(Dispatchers.IO) {
+            runCatching { k.runStore?.events(runId).orEmpty().filterIsInstance<RunEvent.ToolResult>()
+                .filter { event -> runCatching {
+                    kotlinx.serialization.json.Json.parseToJsonElement(event.resultJson)
+                        .let { it as? kotlinx.serialization.json.JsonObject }
+                        ?.get("ok") == kotlinx.serialization.json.JsonPrimitive(true)
+                }.getOrDefault(false) }
+                .map { it.tool } }.getOrDefault(emptyList())
+        }
+        val judged = OutcomeJudge(k.light ?: k.model, k.model).judge(k.agent.taskText ?: goal, end.answer, k.priorTurns, completedTools)
         if (runId != null) withContext(Dispatchers.IO) {
             k.runStore?.append(runId, judged.event(System.currentTimeMillis()))
             if (BuildConfig.DEBUG) k.runStore?.mirrorToExternal(runId)

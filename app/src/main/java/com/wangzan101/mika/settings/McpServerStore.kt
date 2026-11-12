@@ -280,6 +280,10 @@ class McpServerStore(
                 previewChars = config.previewChars,
                 trust = if (config.trust == "trust-annotations") McpTrust.TrustAnnotations else McpTrust.Restricted,
                 allowedTools = config.allowedTools?.toSet(),
+                isAllowedNow = { tool ->
+                    _servers.value.firstOrNull { it.id == config.id }
+                        ?.let { it.enabled && (it.allowedTools == null || tool in it.allowedTools) } == true
+                },
                 provenance = McpProvenance(config.name, when (config.transport) {
                     "stdio" -> McpTransport.Stdio
                     "http-sse" -> McpTransport.SSE
