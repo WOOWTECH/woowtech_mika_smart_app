@@ -1,5 +1,7 @@
 # 渥屋助理 Google Play 版本：初步政策與程式盤點
 
+本檔記錄 2026-11-11 的研究狀態；後續 Worker 部署、POCO 檢舉驗收與送審阻礙以 [2026-11-12 準備紀錄](PLAY_REVIEW_READINESS_2026-11-12.md) 為準。
+
 日期：2026-11-11。基準：`WOOWTECH/woowtech_mika_smart_app` 的 `main`，工作分支 `playstore/woowtech-compliant-20261111`。這是原始碼、合併 Manifest 與公開政策盤點，**不是 Google Play 審核結果**。使用者確認尚未送審，沒有 Play Console 拒件通知；過去 APK 遭 Play Protect 攔截，也不能直接當作商店審核結論。
 
 以下為改造前的基準盤點，並非目前工作樹的建置結果。當時已執行 `:app:processWoowtechReleaseMainManifest`，檢查 `app/build/intermediates/merged_manifest/woowtechRelease/processWoowtechReleaseMainManifest/AndroidManifest.xml`：其中含 `REQUEST_INSTALL_PACKAGES`、`USE_EXACT_ALARM`、`READ_MEDIA_IMAGES`、`WRITE_SECURE_SETTINGS`、`FOREGROUND_SERVICE_SPECIAL_USE`、AccessibilityService 與三個 `specialUse` 服務。`SCHEDULE_EXACT_ALARM` 也出現在當時的合併檔，但 Woowtech 來源 Manifest 將它限於 API 32。下表的「目前程式證據」同樣指改造前版本。

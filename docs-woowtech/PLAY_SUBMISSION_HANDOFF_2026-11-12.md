@@ -16,8 +16,8 @@
 
 - 分支 `playstore/woowtech-compliant-20261111`；本機有候選 Release AAB，尚無標準上傳簽章，也尚未上傳 Play Console。最終提交前須從確定的版本重建並簽章，詳見準備報告。
 - 商店文案草稿 `PLAY_STORE_LISTING_DRAFT.md`、新版隱私政策草稿 `PLAY_PRIVACY_POLICY_MCP_DRAFT.md`、審查資料草稿 `PLAY_CONSOLE_REVIEW_INPUT_DRAFT.md`；舊 `PLAY_DISCLOSURES_DRAFT.md` 含已移除功能的敘述，不可直接填報。
-- APK 權限已核對；仍須按最終 AAB 重新檢查。AI 回覆檢舉中繼程式已通過測試，正式服務尚未部署與驗收。POCO Debug APK 已可 ADB 安裝；實測細節見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
-- 2026-11-12 重跑 `:core:test`：3,019 項、0 失敗、7 跳過。商店分支的獨立 README 不沿用原版 README 自動段落及翻譯結構，相關 4 項文件檢查明確跳過；其餘跳過為原有項目。中繼 `wrangler deploy --dry-run` 通過，**未部署**。
+- APK 權限已核對；仍須按最終 AAB 重新檢查。AI 回覆檢舉收件端已正式部署，POCO `play.2` Debug APK 的待送檢舉重試、回執持久化及測試資料刪除均通過；實測細節見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。這不等於 Play 軌道安裝或審核通過。
+- 2026-11-12 重跑 `:core:test`：3,019 項、0 失敗、7 跳過。商店分支的獨立 README 不沿用原版 README 自動段落及翻譯結構，相關 4 項文件檢查明確跳過；其餘跳過為原有項目。中繼型別檢查、smoke、雙帳號測試、`wrangler deploy --dry-run` 均通過；正式 Worker 已部署 v3，檢舉線上測試通過。
 
 ## 目前需要負責人提供的事項
 
@@ -30,7 +30,7 @@
 ## 技術與 Console 驗收順序
 
 1. 完成手機安裝、首次啟動、模型登入／Key、真實對話、語音辨識、照片與文件附件、瀏覽器、記憶、AI 檢舉、外部 MCP 工具呼叫的實機紀錄。檢查崩潰與前景服務通知。
-2. 定稿並公開隱私政策；在 App 內加入入口，驗證 HTTPS 頁免登入可由全球開啟。部署並驗證 AI 檢舉收件端；按最終網路流量填 Data safety。
+2. 定稿並公開隱私政策；在 App 內加入入口，驗證 HTTPS 頁免登入可由全球開啟。確認檢舉審查與刪除營運流程，按最終網路流量填 Data safety。
 3. 對最終 AAB 檢查套件名稱、versionCode、target API、簽章、權限及服務；補 Play Console 的 App content、App access、內容分級、目標受眾、廣告、前景服務用途與商店圖文。
 4. 先上傳內部測試軌，用 Play 商店安裝到 POCO 驗證更新與基本功能；再依 Console 顯示的帳號資格選封閉測試或正式軌。以 Console 顯示的處理／審核狀態為準。
 

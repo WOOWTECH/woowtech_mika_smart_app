@@ -1,6 +1,6 @@
 # 渥屋助理 Google Play 上架研究與送審準備
 
-檢查時間：2026-11-12，Asia/Taipei。這是上架準備記錄，**不是 Google 的審核結果**。本次未上傳 AAB、未送審、未發布服務，也未在 Play Console 修改設定。
+檢查時間：2026-11-12，Asia/Taipei。這是上架準備記錄，**不是 Google 的審核結果**。本次已發布並實測 AI 檢舉收件服務；未上傳 AAB、未送審，也未在 Play Console 修改設定。
 
 ## 已核對的版本與證據
 
@@ -21,8 +21,10 @@
 - 先前只讀執行預設 profile 的 `wrangler whoami` 時，CLI 列出的 Cloudflare 帳戶未包含 Worker 設定的目標帳戶；因此改用下述獨立 profile，不更改帳戶設定。
 - 先前已使用 Cloudflare 官方 MCP 完成 OAuth 登入，但在新啟動的 Codex 執行環境中，MCP 通用 `execute` 工具即使執行唯讀 GET 仍要求核准，而當時核准政策無法提供互動核准。這條工具路徑的查詢被阻擋；改由 Cloudflare 官方 Wrangler 的獨立 profile 完成以下驗證。
 - 2026-11-12 使用者完成 Cloudflare 授權後，已在 Wrangler 的獨立 OAuth profile `woowtech-relay` 驗證登入，列出目標帳戶 `9c27f623ee596e0b67be56263bcb1974`；該 profile 僅綁定本 Worker 目錄，原有預設 profile 未變更。已取得 Worker 與路由所需的帳戶讀取、Worker 寫入及 zone 讀取範圍；Wrangler 顯示的其他 Cloudflare 產品缺少授權範圍，與本 Worker 的部署無關。
-- 只讀查詢正式 Worker `woowtech-assistant-relay`：線上 100% 使用版本 `4c250667-9758-4afe-9d75-e6890e988747`，建立於 2026-11-10 14:02:58 UTC，runtime migration tag 為 `v2`，綁定只有 `RELAY`、`AUTH` 及既有 `OWNER_KEY` secret，**沒有 `REPORTS`**。[Cloudflare Worker Domains API](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/list/) 查得 `assistant-relay.woowtech.io` 的自訂網域 `enabled=true`、service 為此 Worker、zone 為 `woowtech.io`。公開 `/docs/app-integration.md` 的 SHA-256 與本地檔一致，`GET /device/info` 回 401，佐證公開網域目前仍提供這個中繼 Worker 的既有功能；`GET /api/v1/ai-reports` 回 503，與尚未部署檢舉路由相符。這些證據已能把問題定位為正式 Worker 尚未更新，而非帳戶權限或網域指向錯誤。
-- 以商店分支 `9b4ebd40` 的候選 Worker 重新跑 `npm run check`、`npm test`、`npm run test:accounts` 與 `wrangler deploy --dry-run`，均通過。dry run 顯示新增 `REPORTS (ReportInbox)`；與原 Worker 原始碼的差異限於檢舉收件路由、Durable Object 與 v3 migration、CLI User-Agent、回應標頭及測試文件。既有 `OWNER_KEY` secret 名稱已查得且不需重設。這些仍是本地驗證，**未部署或證明實際收件**。
+- 部署前只讀查詢正式 Worker `woowtech-assistant-relay`：線上 100% 使用版本 `4c250667-9758-4afe-9d75-e6890e988747`，建立於 2026-11-10 14:02:58 UTC，runtime migration tag 為 `v2`，綁定只有 `RELAY`、`AUTH` 及既有 `OWNER_KEY` secret，**沒有 `REPORTS`**。[Cloudflare Worker Domains API](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/list/) 查得 `assistant-relay.woowtech.io` 的自訂網域 `enabled=true`、service 為此 Worker、zone 為 `woowtech.io`。當時公開 `/docs/app-integration.md` 的 SHA-256 與本地檔一致，`GET /device/info` 回 401，`GET /api/v1/ai-reports` 回 503；據此定位為正式 Worker 尚未更新。
+- 部署前以商店分支 `9b4ebd40` 的候選 Worker 重新跑 `npm run check`、`npm test`、`npm run test:accounts` 與 `wrangler deploy --dry-run`，均通過。dry run 顯示新增 `REPORTS (ReportInbox)`；與原 Worker 原始碼的差異限於檢舉收件路由、Durable Object 與 v3 migration、CLI User-Agent、回應標頭及測試文件。既有 `OWNER_KEY` secret 名稱已查得且不需重設。
+- 使用者核准後，2026-11-12 已將正式 Worker 部署為 `132d25e1-8925-4886-bfc9-a9c3bed61cce`（第 11 版，100% 流量），migration tag `v3`，綁定 `RELAY`、`AUTH`、`REPORTS` 及原有 `OWNER_KEY`。正式網域首頁、整合文件和 CLI 下載回 200；無憑證 `/device/info` 回 401；`GET /api/v1/ai-reports` 由原 503 變為預期的 405。
+- 線上合成檢舉獲 201 回執，瀏覽器 Origin 和未授權管理查詢均被拒絕（403）；刪除測試檢舉回 200，再刪回 404。POCO 商店 Debug 版原本待送的檢舉，經 App「重新傳送」後顯示已收到，重啟 App 仍保持同一 ID 的送達狀態；伺服器測試報告已用回執刪除，手機上這筆有明確測試標記的本機紀錄亦已移除。完整步驟見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 
 ## 舊文件須先釐清
 
@@ -32,9 +34,9 @@
 
 資料流靜態複核：自訂模型位址可使用 HTTP，非本機／私人網路位址會警告但不阻止（`ModelSetupViewModel.kt`）；MCP 亦可由使用者開啟本機／私人網路 HTTP。因此 Data safety 的傳輸加密答案須按最終版全部適用資料流與 Console 定義核對，不應僅憑預設 HTTPS 填寫。未找到商店版建立渥屋助理帳號的入口，但需核對最終 AAB 與外部授權頁才可定案。
 
-檢舉本機紀錄包含選取的回覆、狀態及可能取得的刪除憑據；目前未找到使用者可操作的本機／伺服器檢舉刪除介面。候選收件端程式設定 30 天到期並依 alarm 清理，但執行時機、正式部署與日誌／備份處理尚未驗證；App 內收件成功或伺服器刪除 API 的存在都不等於已提供完整使用者刪除途徑。
+檢舉本機紀錄包含選取的回覆、狀態及可能取得的刪除憑據；目前未找到使用者可操作的本機／伺服器檢舉刪除介面。正式收件端程式設定 30 天到期並依 alarm 清理，但實際到期執行、日誌／備份處理尚未驗證；App 內收件成功及伺服器刪除 API 的存在都不等於已提供完整使用者刪除途徑。
 
-AI 回覆檢舉可能仍傳送到 WoowTech 的 relay 收件端；這與移除手機遠端配對是不同資料流。檢查時不可把前者誤刪，也不能假定它已部署成功。
+使用者在 App 內提交 AI 回覆檢舉時，資料會傳送到 WoowTech 的 relay 收件端；這與移除手機遠端配對是不同資料流。需在隱私政策和 Data safety 中按實際內容揭露。
 
 ## 主要待辦與送審證據
 
@@ -42,13 +44,13 @@ AI 回覆檢舉可能仍傳送到 WoowTech 的 relay 收件端；這與移除手
 
 原隔離分支 `fix/play-ai-report-recovery-20261112` 的修正已於 2026-11-12 以 `ba8e84e7`、`60ccf357`、`15d4d5f7` 整合到商店版分支，補充本機檢舉狀態恢復及重試，並針對舊回覆無法可靠識別、原檢舉已超過收件期限等情況提供明確處理。為避免誤認送達，仍須取得服務端回執；使用者選擇重新建立檢舉時，若原請求曾送達但回執遺失，仍可能產生重複報告。
 
-2026-11-12 整合後在商店版分支重新執行 `:app:testUpstreamDebugUnitTest` 的 `AiResponseReportsTest` 24 項及 `ChatViewModelTest` 115 項，均為 0 失敗、0 跳過；同次 `:app:assembleWoowtechDebug` 成功。此為指定測試與 Debug 建置，並非全套測試或正式 AAB 驗收。手機端的既有對話升級、離線重試與真實服務收件仍需完整驗證。正式服務此前對測試請求回覆 503，因此不能宣稱檢舉已可正常送達。
+2026-11-12 整合後在商店版分支重新執行 `:app:testUpstreamDebugUnitTest` 的 `AiResponseReportsTest` 24 項及 `ChatViewModelTest` 115 項，均為 0 失敗、0 跳過；同次 `:app:assembleWoowtechDebug` 成功。此為指定測試與 Debug 建置，並非全套測試或正式 AAB 驗收。後續已用 POCO 既有對話與待送報告驗證重新傳送及真實服務收件；未驗證所有錯誤路徑或 Play 簽章版。
 
-後續 POCO USB 實測：以 `adb install -r` 更新商店版 Debug APK（不清除既有 App 資料），進入既有測試對話並長按 AI 回覆，確認「檢舉 AI 回覆」表單可開啟。以清楚標記為測試的說明送出後，畫面顯示「等待傳送」與本機報告 ID；強制停止並重新開啟 App，再進入同一回覆，仍顯示相同 ID，手動重試也沿用該 ID。這驗證本機狀態恢復及重試入口；沒有收件端回執，不能算送達。測試報告留在商店測試版的本機待送佇列，待有使用者可操作的刪除功能或服務可收件時再清理；本次未清除既有商店版資料。手機前景已恢復原版渥屋助理。
+部署前 POCO USB 實測：以 `adb install -r` 更新商店版 Debug APK（不清除既有 App 資料），進入既有測試對話並長按 AI 回覆，確認「檢舉 AI 回覆」表單可開啟。當時以清楚標記為測試的說明送出後，畫面顯示「等待傳送」與本機報告 ID；強制停止並重新開啟 App，再進入同一回覆，仍顯示相同 ID，手動重試也沿用該 ID。正式收件端部署後，這筆原有待送報告已透過 App 成功重試、取得回執、跨重啟保持狀態，最後清除伺服器與本機測試資料；其他商店版資料保留。手機前景已恢復原版渥屋助理。
 
 | 項目 | 已知狀態 | 下一步 |
 | --- | --- | --- |
-| AI 檢舉與內容政策 | App 內檢舉表單可開啟，未有正式服務的完整送達驗收。2026-11-12 對設定網址以 App 格式提交一筆不含個資的有效測試 POST，回 `503 device_offline`，未得到受理回應；這次沒有產生已確認的報告。僅憑此回應不能判定根因或代表 App 端完整實測。程式的重試依對話畫面執行，三次後恢復流程待補證據；伺服器程式會拒收建立超過七天的報告。 | 確認並部署正式收件功能後，用專屬測試資料驗證提交、收件、錯誤、恢復及刪除；建立報告審查與處置機制。另驗證支援的自備模型對禁止內容的防護，不能只因使用者自備 Key 就推定政策不適用。Google 要求 AI 生成 App 內可向開發者檢舉內容。[AI 政策](https://support.google.com/googleplay/android-developer/answer/13985936?hl=en) |
+| AI 檢舉與內容政策 | 正式收件端已部署；POCO Debug 版對既有待送檢舉的重試、送達回執、重啟後狀態及測試資料刪除已通過。公開端點拒絕 Origin、未授權管理查詢。管理員持金鑰的正式審查讀取、30 天到期清理及使用者自行刪除尚未實測；自備模型內容防護亦未完成。 | 建立檢舉審查與處置流程，驗證正式管理讀取及到期清理；提供使用者可操作的刪除途徑。另驗證支援的自備模型對禁止內容的防護，不能只因使用者自備 Key 就推定政策不適用。Google 要求 AI 生成 App 內可向開發者檢舉內容。[AI 政策](https://support.google.com/googleplay/android-developer/answer/13985936?hl=en) |
 | 隱私政策與資料安全 | 政策草稿有營運資料待決、舊配對敘述，且未完整涵蓋外部 MCP；目前未找到明確 App 內政策入口，亦未證實公開政策已發布。 | 以最終產品的模型、語音、使用者選取檔案、外部 MCP、檢舉及 SDK 實際資料流重寫；確認接收者、用途、保留與刪除，公開可免登入讀取的政策頁，並在 App 與 Play Console 加入口。Google 也要求第三方 SDK 資料處理納入 Data safety。[政策要求](https://support.google.com/googleplay/android-developer/answer/9859455?hl=en)、[Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en) |
 | 傳輸加密 | 外部 MCP 對本機／私人網路 HTTP 有使用者可啟用的選項，POCO 先前曾測過本機 HTTP。 | 盤點最終版各種資料、目的端與使用情境，依 Google 對收集、分享與例外的定義作答；不能只看到 HTTPS 的檢舉端點就填寫所有資料均加密。 |
 | 審查員存取 | 使用者需自備模型登入或 API Key；現有測試服務曾限流，沒有可證實可供審查的穩定模型。 | 準備在審查期間可用的受限測試服務、必要登入與逐步操作方式，透過 Console App access 提交；不將憑證寫入倉庫。此方案能否被審核使用仍需實際驗證。[準備審查](https://support.google.com/googleplay/android-developer/answer/9859455?hl=en) |
@@ -82,5 +84,5 @@ Google 要求 AI 生成 App 防止其政策禁止的內容；官方列出的輸�
 
 - 確認 App 建立狀態、可用上傳簽章方式及測試人員名單；**不要在聊天或倉庫提供私人金鑰**。
 - 決定審查員可用且有額度限制的模型服務與安全交付方式。
-- 確認正式檢舉由誰處理、伺服器與基礎設施的保存及刪除方式、隱私聯絡方式與可公開的政策網址；現有草稿的 30 天只代表程式設計或待確認內容，不等於正式環境已驗證。
+- 確認正式檢舉由誰處理、伺服器與基礎設施的保存及刪除方式、隱私聯絡方式與可公開的政策網址；收件程式的 30 天到期設定已部署，但尚未實測正式環境的到期刪除，也未核對日誌與備份。
 - 確認商店版支援模型的內容安全處置、使用者報告的處理責任，以及外部 MCP 傳送資料的提示與告知方式。
