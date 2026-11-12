@@ -32,12 +32,16 @@ with tempfile.TemporaryDirectory(prefix='woow-attachment-session-check-') as fol
         run(name + ' build', [*common, '-enable-testing', '-emit-library', '-emit-module', '-module-name', name,
             '-emit-module-path', str(out / (name + '.swiftmodule')), *map(str, modules[name]),
             *['-l' + dep for dep in dependencies], '-o', str(out / ('lib' + name + '.dylib'))])
-    for label, flags in [('Debug', ['-DDEBUG']), ('Release', [])]:
+    # The opt-in fixture is compiled only in this offline harness. Release
+    # remains flag-free and cannot contain its synthetic session entry points.
+    for label, flags in [('Debug fixture', ['-DDEBUG', '-DATTACHMENT_TOOL_SESSION_FIXTURE']), ('Release', [])]:
         binary = out / ('checks-' + label)
         run(label + ' iOS syntax', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0',
             *flags, *map(str, apps), str(view), str(protocol_fixture), str(harness)])
         run(label + ' compile', [*common, *flags, *['-l' + name for name, _ in MODULES],
             '-Xlinker', '-rpath', '-Xlinker', str(out), *map(str, apps), str(protocol_fixture), str(harness), '-o', str(binary)])
+        if label == 'Release' and b'fixtureSendAttachmentMemory' in binary.read_bytes():
+            raise SystemExit('Release unexpectedly contains the synthetic attachment memory entry point')
         run(label + ' session checks', [str(binary)], timeout=90)
     if any(hashlib.sha256(path.read_bytes()).digest() != digest for path, digest in hashes.items()):
         raise SystemExit('Sources changed during check; result is not current')

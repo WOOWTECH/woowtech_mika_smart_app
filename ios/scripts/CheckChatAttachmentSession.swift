@@ -49,6 +49,9 @@ private actor Model: LifetimeBoundCompletionChatModelClient {
         return replies[index]
     }
 }
+#if DEBUG && ATTACHMENT_TOOL_SESSION_FIXTURE
+extension Model: AttachmentToolSyntheticModelClient {}
+#endif
 private actor ToolExecutor: MCPConversationExecuting {
     private(set) var calls = 0
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
@@ -257,8 +260,142 @@ private func image() throws -> Data {
         try await toolApprovalDoesNotHoldArchive()
         try await toolCancellationRetainsLease(timeout: false)
         try await toolCancellationRetainsLease(timeout: true)
+        #if DEBUG && ATTACHMENT_TOOL_SESSION_FIXTURE
+        try await fixtureAttachmentMemoryFlow()
+        try await fixtureAttachmentMemoryAuthority()
+        try await fixtureAttachmentMemoryReview()
+        try await fixtureAttachmentMemoryCancellation()
+        try await fixtureAttachmentMemoryStaleArchive()
+        try await fixtureAttachmentMemoryChangedModel()
+        #endif
         print("Chat attachment session checks passed: \(assertions)")
     }
+    #if DEBUG && ATTACHMENT_TOOL_SESSION_FIXTURE
+    @MainActor static func fixtureStage(_ session: ChatSession, _ url: URL) async throws {
+        session.attachmentPresenter.picked(url)
+        try await wait { if case .ready = session.attachmentPresenter.state.phase { return true }; return false }
+        try check(session.fixturePrepareAttachmentMemoryReview(), "fixture prepares reviewed memory context")
+        let data = session.attachmentPresenter.state.context?.additionalData ?? []
+        try check(data.contains(.memory) && data.contains(.profile), "fixture discloses memory and profile")
+        try session.attachmentPresenter.confirm()
+        try check(!session.canSend, "ordinary product route remains blocked")
+    }
+    @MainActor static func fixtureAttachmentMemoryFlow() async throws {
+        let e = try Environment(); defer { e.close() }
+        try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+        let model = Model([#"{"action":"finish","answer":"fixture reply"}"#]), s = e.session(model)
+        s.draft = "describe selected file"; try await fixtureStage(s, e.file())
+        s.send(); try check(!s.isSubmitting && s.draft == "describe selected file", "production send remains blocked")
+        s.fixtureSendAttachmentMemory()
+        guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+        await task.value
+        let requests = await model.requests
+        try check(requests.count == 1 && requests[0].last?.attachment != nil, "confirmed file reaches actual profile flow once")
+        try check(s.entries.map(\.content) == ["describe selected file", "fixture reply"] && s.draft.isEmpty,
+                  "successful fixture answer completes")
+        try check(e.archive.state.conversations.first?.turns.first?.assistantText == "fixture reply",
+                  "actual answer remains archivable")
+        let encoded = try JSONEncoder().encode(e.archive.state)
+        try check(!String(decoding: encoded, as: UTF8.self).contains("fixture attachment secret"), "raw file not archived")
+    }
+    @MainActor static func fixtureAttachmentMemoryAuthority() async throws {
+        let e = try Environment(); defer { e.close() }
+        try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+        let malicious = #"{"action":"memory_save","arguments":{"kind":"fact","content":"fixture attachment secret","quote":"fixture attachment secret"}}"#
+        let model = Model([malicious]), s = e.session(model)
+        s.draft = "summarize this file"; try await fixtureStage(s, e.file())
+        s.fixtureSendAttachmentMemory(); guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+        await task.value
+        let requests = await model.requests
+        try check(requests.count == 1 && s.pendingMemoryReview == nil && e.learning.memory.memories.isEmpty,
+                  "attachment text cannot authorize memory change")
+        try check(s.draft == "summarize this file" && s.attachmentIssue == .chatAttachmentReselect,
+                  "unauthorized memory proposal preserves draft and consumes file")
+    }
+    @MainActor static func fixtureAttachmentMemoryReview() async throws {
+        for approved in [false, true] {
+            let e = try Environment(); defer { e.close() }
+            try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+            let proposal = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
+            let model = Model([proposal, #"{"action":"finish","answer":"late"}"#]), s = e.session(model)
+            s.draft = "Please remember Prefer jasmine tea"; try await fixtureStage(s, e.file())
+            s.fixtureSendAttachmentMemory(); guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+            try await wait { s.pendingMemoryReview != nil || !s.isSubmitting }
+            guard let review = s.pendingMemoryReview else { throw Failure(name: "typed evidence did not reach review") }
+            try check(review.quote == "Please remember Prefer jasmine tea" && review.after?.content == "Prefer jasmine tea",
+                      "visible review contains exact user words and proposed value")
+            try check(e.learning.memory.memories.isEmpty, "typed proposal has no effect before approval")
+            s.resolveMemoryReview(id: UUID(), approved: true)
+            try check(s.pendingMemoryReview?.id == review.id && e.learning.memory.memories.isEmpty, "wrong review cannot approve")
+            s.resolveMemoryReview(id: review.id, approved: approved); await task.value
+            let requests = await model.requests
+            try check(requests.count == 1 && s.draft == "Please remember Prefer jasmine tea", "no silent attachment retry after review")
+            if approved {
+                try check(e.learning.memory.memories.count == 1 && s.memoryReceipt != nil,
+                          "only explicitly approved typed evidence is saved")
+                try check(s.chatError?.contains("變更已儲存") == true, "saved receipt reported when continuation stops")
+            } else {
+                try check(e.learning.memory.memories.isEmpty && s.memoryReceipt == nil, "declined change has no effect")
+            }
+            try check(s.attachmentIssue == .chatAttachmentReselect, "consumed attachment needs explicit decision")
+        }
+    }
+    @MainActor static func fixtureAttachmentMemoryCancellation() async throws {
+        let e = try Environment(); defer { e.close() }
+        try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+        let proposal = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
+        let model = Model([proposal]), s = e.session(model)
+        s.draft = "Please remember Prefer jasmine tea"; try await fixtureStage(s, e.file())
+        s.fixtureSendAttachmentMemory(); guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+        try await wait { s.pendingMemoryReview != nil || !s.isSubmitting }
+        guard let review = s.pendingMemoryReview else { throw Failure(name: "expected memory review") }
+        s.cancel(); s.resolveMemoryReview(id: review.id, approved: true); await task.value
+        let requests = await model.requests
+        try check(requests.count == 1 && e.learning.memory.memories.isEmpty && s.memoryReceipt == nil,
+                  "cancelled review cannot be approved late")
+        try check(s.pendingMemoryReview == nil && s.draft == "Please remember Prefer jasmine tea" &&
+                  s.attachmentIssue == .chatAttachmentReselect, "cancel retains draft and requires reselection")
+    }
+    @MainActor static func fixtureAttachmentMemoryStaleArchive() async throws {
+        let e = try Environment(); defer { e.close() }
+        let seed = e.session(Model(["original"])); seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+        let proposal = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
+        let model = Model([proposal]), s = e.session(model)
+        try check(s.openConversation(id: row.id), "open fixture source")
+        s.draft = "Please remember Prefer jasmine tea"; try await fixtureStage(s, e.file())
+        s.fixtureSendAttachmentMemory(); guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+        try await wait { s.pendingMemoryReview != nil || !s.isSubmitting }
+        guard let review = s.pendingMemoryReview else { throw Failure(name: "expected memory review") }
+        try check(other.delete(id: row.id), "other store changes conversation while approval waits")
+        s.resolveMemoryReview(id: review.id, approved: true); await task.value
+        let requests = await model.requests
+        try check(requests.count == 1 && e.learning.memory.memories.isEmpty && s.memoryReceipt == nil,
+                  "stale archive prevents approved local effect")
+        try check(s.draft == "Please remember Prefer jasmine tea" && s.attachmentIssue == .chatAttachmentReselect,
+                  "stale archive preserves draft")
+    }
+    @MainActor static func fixtureAttachmentMemoryChangedModel() async throws {
+        let e = try Environment(); defer { e.close() }
+        try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "enable synthetic memory")
+        let proposal = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
+        let model = Model([proposal]), s = e.session(model)
+        s.draft = "Please remember Prefer jasmine tea"; try await fixtureStage(s, e.file())
+        s.fixtureSendAttachmentMemory(); guard let task = s.capturedArchiveRequest else { throw Failure(name: "fixture request missing") }
+        try await wait { s.pendingMemoryReview != nil || !s.isSubmitting }
+        guard let review = s.pendingMemoryReview else { throw Failure(name: "expected memory review") }
+        let old = s.savedSettings!
+        _ = try e.repository.save(baseURL: old.baseURL.absoluteString, model: "different-fixture-model", newKey: "")
+        s.resolveMemoryReview(id: review.id, approved: true); await task.value
+        let requests = await model.requests
+        try check(requests.count == 1 && e.learning.memory.memories.isEmpty && s.memoryReceipt == nil,
+                  "model setting change during review prevents local effect")
+        try check(s.draft == "Please remember Prefer jasmine tea" && s.attachmentIssue == .chatAttachmentReselect,
+                  "model change preserves draft and needs explicit reselection")
+    }
+    #endif
     @MainActor static func toolSetup(_ e: Environment, model: Model) async throws ->
         (ArchivedConversation, ConversationArchiveStore, OneShotAttachmentModelClient, [ModelMessage], ModelConfiguration) {
         let seed = e.session(Model(["original"]))

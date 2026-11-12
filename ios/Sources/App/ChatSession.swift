@@ -91,6 +91,12 @@ struct AttachmentToolLeasedClient: LifetimeBoundCompletionChatModelClient {
     }
 }
 
+#if DEBUG && ATTACHMENT_TOOL_SESSION_FIXTURE
+/// Only the separately compiled offline harness may opt in. Production HTTP
+/// clients cannot conform to this fixture-only protocol.
+protocol AttachmentToolSyntheticModelClient: LifetimeBoundCompletionChatModelClient {}
+#endif
+
 /// An in-memory consent snapshot. Never encoded, logged or stored in history.
 private struct AttachmentBinding: Equatable {
     let destination: ConversationDestination
@@ -922,6 +928,113 @@ final class ChatSession: ObservableObject {
         }
     }
 
+    #if DEBUG && ATTACHMENT_TOOL_SESSION_FIXTURE
+    /// Harness-only wiring. The real composer remains blocked while transport
+    /// start fencing, cross-store learning revisions and MCP approval are open.
+    @discardableResult func fixturePrepareAttachmentMemoryReview() -> Bool {
+        guard !isSubmitting, !usesMCP, pdfAttachment == nil, hasStoredKey,
+              client is any AttachmentToolSyntheticModelClient,
+              learning.available, learning.memory.preferences.useMemory,
+              (try? repository.load()) == savedSettings, let binding = currentAttachmentBinding() else { return false }
+        if attachmentBinding != binding { attachmentRevision = UUID() }
+        guard let refreshed = currentAttachmentBinding(), let url = URL(string: refreshed.destination.baseURL) else { return false }
+        var data: Set<ChatAttachmentAdditionalData> = [.systemInstructions, .currentQuestion, .profile, .memory, .skills]
+        if !refreshed.history.isEmpty { data.insert(.conversationHistory) }
+        guard let context = try? ChatAttachmentReviewContext(baseURL: url, model: refreshed.destination.model,
+            credentialRevision: refreshed.destination.credentialAccount, inputRevision: refreshed.revision,
+            additionalData: data, vision: refreshed.vision) else { return false }
+        attachmentBinding = refreshed; attachmentPresenter.updateContext(context)
+        return true
+    }
+
+    /// No network client can enter this compiled-only fixture. This exercises
+    /// the production import, confirmation, profile runner, memory review and
+    /// archive APIs without exposing a user-facing feature switch.
+    func fixtureSendAttachmentMemory() {
+        guard !isSubmitting, !usesMCP, pdfAttachment == nil,
+              let fixtureClient = client as? any AttachmentToolSyntheticModelClient,
+              learning.available, learning.memory.preferences.useMemory,
+              (try? repository.load()) == savedSettings,
+              let reviewed = attachmentBinding, reviewed == currentAttachmentBinding(),
+              let context = attachmentPresenter.state.context, case .confirmed = attachmentPresenter.state.phase,
+              attachmentPresenter.state.error == nil, let savedSettings,
+              let destination = archiveDestination, let key = try? repository.key(for: savedSettings) else { return }
+        let prompt = ConversationQuote.compose(reviewed.quote, words: reviewed.draft)
+        guard let window = try? ChatContextWindow(history: reviewed.history,
+            context: learning.contextMessages(for: reviewed.draft), prompt: prompt),
+            reviewed == currentAttachmentBinding() else { return }
+        learning.cancelLearning()
+        guard let binding = currentAttachmentBinding() else { return }
+        var beforeCancellation = binding; beforeCancellation.learningGeneration = reviewed.learningGeneration
+        guard beforeCancellation == reviewed else { return }
+        attachmentBinding = binding
+        let id = UUID(), archiveID = UUID(uuidString: binding.conversationID)!
+        let savedConfiguration = savedSettings.configuration
+        let configuration = ModelConfiguration(baseURL: savedConfiguration.baseURL, model: savedConfiguration.model,
+            maxOutputTokens: savedConfiguration.maxOutputTokens, vision: context.vision)
+        requestID = id; attachmentRequestID = id; isSubmitting = true; attachmentIssue = nil; chatError = nil
+        request = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let attachment = try await self.attachmentPresenter.takeConfirmed(context: context)
+                await self.attachmentPreflightProbe()
+                try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                let guarded = AttachmentToolLeasedClient(client: fixtureClient, archive: self.archive,
+                    conversationID: archiveID, expected: binding.archivePrior, quoteSource: binding.quoteSource,
+                    validate: { [weak self] in
+                        guard let self else { throw CancellationError() }
+                        try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                    })
+                let oneShot = try OneShotAttachmentModelClient(client: guarded, attachment: attachment,
+                    reviewedMessages: window.messages, configuration: configuration, apiKey: key)
+                let reply = try await self.completeWithProfile(messages: window.messages, utterance: binding.draft,
+                    state: binding.profile, memoryState: binding.memory, generation: binding.learningGeneration,
+                    configuration: configuration, key: key, client: oneShot, requestID: id,
+                    attachmentEffectFence: { [weak self] in
+                        guard let self else { throw CancellationError() }
+                        try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                        let lease = try self.archive?.acquireAttachmentRequestLease(conversationID: archiveID,
+                            expected: binding.archivePrior, quoteSource: binding.quoteSource)
+                        do {
+                            try self.validateAttachmentStart(binding: binding, context: context, key: key, id: id)
+                            return lease
+                        } catch { lease?.release(); throw error }
+                    })
+                try Task.checkCancellation()
+                guard self.requestID == id, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw HTTPChatModelError.invalidResponse
+                }
+                let user = ChatEntry(role: "user", content: prompt), assistant = ChatEntry(role: "assistant", content: reply)
+                if let archive = self.archive {
+                    let all = self.entries + [user, assistant]
+                    let turns = try stride(from: 0, to: all.count, by: 2).map { index in
+                        try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
+                            userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf)
+                    }
+                    let record = try ArchivedConversation(id: archiveID, destination: destination, updatedAt: Date(), turns: turns)
+                    self.pendingArchiveSave = (record, binding.archivePrior)
+                    do { try archive.save(record, expected: binding.archivePrior); self.pendingArchiveSave = nil }
+                    catch { self.archiveNotice = Self.archiveSaveFailure }
+                }
+                self.conversationDestination = destination; self.entries.append(user); self.entries.append(assistant)
+                if self.draft == binding.draft && self.pendingQuote == binding.quote {
+                    self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
+                }
+                self.attachmentRequestID = nil; self.attachmentRequiresDecision = false
+                self.attachmentPresenter.discard(); self.finish(id: id)
+            } catch {
+                guard self.requestID == id else { return }
+                self.attachmentRequestID = nil; self.attachmentRequiresDecision = true
+                self.attachmentIssue = .chatAttachmentReselect
+                let message = self.memoryReceiptRequestID == id || self.profileReceiptRequestID == id
+                    ? "變更已儲存，但後續回覆未完成；請先查看已保存結果。草稿保留，附件須重新選取。"
+                    : AppText.chatAttachmentReselect.traditionalFallback
+                self.finish(id: id, error: message)
+            }
+        }
+    }
+    #endif
+
     /// Native picker callback only. Selecting creates a plan, never reads bytes.
     func selectPDF(url: URL, pages: String? = nil, password: String? = nil) {
         guard !hasGeneralAttachment else { setAttachmentIssue(.chatAttachmentRemoveFirst); return }
@@ -1157,7 +1270,8 @@ final class ChatSession: ObservableObject {
     private func completeWithProfile(messages: [ModelMessage], utterance: String,
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
-                                     client: any ChatModelClient, requestID: UUID) async throws -> String {
+                                     client: any ChatModelClient, requestID: UUID,
+                                     attachmentEffectFence: (() throws -> EncryptedLearningFile.ExclusiveLease?)? = nil) async throws -> String {
         let flow = try UserProfileChatFlow(messages: messages)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         var expectedProfileRevision = state.revision
@@ -1195,8 +1309,12 @@ final class ChatSession: ObservableObject {
                 try Task.checkCancellation()
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw ProfileChatStop.declined }
-                try flow.validateReview()
-                let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
+                let receipt = try { () throws -> UserProfileToolReceipt in
+                    let lease = try attachmentEffectFence?()
+                    defer { withExtendedLifetime(lease) {} }
+                    try flow.validateReview()
+                    return try learning.commitProfileTool(proposal, expectedGeneration: generation)
+                }()
                 profileReceipt = receipt // Retained even if the next model call fails.
                 profileReceiptRequestID = requestID
                 expectedProfileRevision = learning.profile.revision
@@ -1212,9 +1330,13 @@ final class ChatSession: ObservableObject {
                 try Task.checkCancellation()
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw MemoryChatStop.declined }
-                try flow.validateReview()
-                let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
-                    conversationID: conversationID)
+                let receipt = try { () throws -> MemoryToolReceipt in
+                    let lease = try attachmentEffectFence?()
+                    defer { withExtendedLifetime(lease) {} }
+                    try flow.validateReview()
+                    return try learning.commitMemoryTool(review, expectedGeneration: generation,
+                        conversationID: conversationID)
+                }()
                 memoryReceipt = receipt
                 memoryReceiptRequestID = requestID
                 expectedMemoryRevision = learning.memory.revision
