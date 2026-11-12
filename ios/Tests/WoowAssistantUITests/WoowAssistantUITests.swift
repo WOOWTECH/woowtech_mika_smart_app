@@ -283,15 +283,16 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["navigation.tools"].exists)
     }
 
-    func testUnconfiguredSendIsDisabledAndDraftSurvivesNavigation() {
+    func testUnconfiguredSendExplainsMissingModelAndDraftSurvivesNavigation() {
         let app = launchApp()
         XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")
-        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled, "An empty draft has nothing to send.")
         let draft = chatDraftControl(in: app)
         waitUntilHittable(draft)
         draft.tap()
         draft.typeText("Keep this draft 42")
-        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        assertSendExplainsMissingModel(in: app)
+        assertDraft("Keep this draft 42", in: app)
         // Opening the drawer resigns the keyboard while retaining the draft.
         openSection("browser", in: app)
         openSection("settings", in: app)
@@ -313,7 +314,7 @@ final class WoowAssistantUITests: XCTestCase {
         assertDraft("Keep this draft 42\nSecond line", in: app)
         app.buttons["chat.dismissKeyboard"].tap()
         assertDraft("Keep this draft 42\nSecond line", in: app)
-        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
         attachScreenshot("unconfigured-draft-retained", in: app)
     }
 
@@ -348,7 +349,7 @@ final class WoowAssistantUITests: XCTestCase {
                                      "Composer controls must remain above the keyboard on a compact iPhone.")
         }
         XCTAssertTrue(attach.isHittable)
-        XCTAssertFalse(send.isEnabled, "Typing does not bypass missing model configuration.")
+        XCTAssertTrue(send.isEnabled, "A typed draft is sendable; a missing model is explained on tap.")
         let done = app.buttons["chat.dismissKeyboard"]
         waitUntilHittable(done)
         done.tap()
@@ -363,7 +364,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(closePDF.waitForExistence(timeout: 5))
         closePDF.tap()
         XCTAssertEqual(chatDraftControl(in: app).value as? String, expected)
-        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
     }
 
     func testBrowserReportsCurrentLimitationsAndToolsIsReachable() {
@@ -611,7 +612,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertFalse(relaunched.buttons["chat.send"].isEnabled)
     }
 
-    func testRemovingConfigurationKeepsDraftAndDisablesSending() {
+    func testRemovingConfigurationKeepsDraftAndExplainsMissingModel() {
         let app = launchApp()
         enterChatDraft("Draft after key removal", in: app)
         configure(in: app)
@@ -622,7 +623,20 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
         openSection("chat", in: app)
         assertDraft("Draft after key removal", in: app)
-        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        // 去設定 dismisses the card and opens Settings, like Android's card.
+        let send = app.buttons["chat.send"]
+        XCTAssertTrue(send.isEnabled)
+        waitUntilHittable(send)
+        send.tap()
+        let openSettings = app.buttons["chat.sendBlocked.openSettings"]
+        XCTAssertTrue(openSettings.waitForExistence(timeout: 5))
+        XCTAssertEqual(openSettings.label, "去設定")
+        waitUntilHittable(openSettings)
+        openSettings.tap()
+        XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 5))
+        openSection("chat", in: app)
+        XCTAssertFalse(app.descendants(matching: .any)["chat.sendBlocked"].exists)
+        assertDraft("Draft after key removal", in: app)
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         XCTAssertEqual(relaunched.staticTexts["chat.status"].label, "尚未設定模型")
@@ -819,6 +833,30 @@ final class WoowAssistantUITests: XCTestCase {
         waitUntilHittable(send)
         XCTAssertTrue(send.isEnabled)
         send.tap()
+    }
+
+    /// Like the Android store build, a typed draft can be sent before a model is
+    /// set up; the tap shows 還不能開始任務 instead of doing nothing, starts no
+    /// request, and 知道了 dismisses the card.
+    private func assertSendExplainsMissingModel(in app: XCUIApplication,
+                                                file: StaticString = #filePath, line: UInt = #line) {
+        let send = app.buttons["chat.send"]
+        XCTAssertTrue(send.isEnabled, file: file, line: line)
+        waitUntilHittable(send, file: file, line: line)
+        send.tap()
+        let card = app.descendants(matching: .any)["chat.sendBlocked"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(card.staticTexts["還不能開始任務"].exists, file: file, line: line)
+        XCTAssertTrue(card.staticTexts["還缺:還沒有能用的模型"].exists, file: file, line: line)
+        XCTAssertEqual(app.buttons["chat.sendBlocked.openSettings"].label, "去設定", file: file, line: line)
+        XCTAssertFalse(app.buttons["chat.cancel"].exists, "No request may start without a model.", file: file, line: line)
+        attachScreenshot("unconfigured-send-explained", in: app)
+        let dismiss = app.buttons["chat.sendBlocked.dismiss"]
+        XCTAssertEqual(dismiss.label, "知道了", file: file, line: line)
+        waitUntilHittable(dismiss, file: file, line: line)
+        dismiss.tap()
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: card)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 5), .completed, file: file, line: line)
     }
 
     private func assertReply(_ expected: String, in app: XCUIApplication) {

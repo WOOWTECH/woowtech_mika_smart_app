@@ -432,6 +432,10 @@
 "chat.status.configured" = "模型已设置";
 "chat.status.unconfigured" = "尚未设置模型";
 "chat.modelSetupHint" = "请先到设置填写模型服务与 API Key。";
+"chat.sendBlocked.title" = "还不能开始任务";
+"chat.sendBlocked.noModel" = "还缺:还没有能用的模型";
+"chat.sendBlocked.dismiss" = "知道了";
+"chat.sendBlocked.openSettings" = "去设置";
 "chat.fixtureNotice" = "UI 测试模式：固定回复，不会调用网络。";
 "archive.boundary" = "已完成的问答会加密保存在此设备；未完成任务与未发送的草稿不会保存。工具操作不会恢复；打开历史不会自动发送。";
 "archive.savedCount" = "已保存的对话（%1$lld）";

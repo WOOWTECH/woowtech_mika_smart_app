@@ -441,6 +441,10 @@ enum AppText: Equatable {
     case chatStatusConfigured
     case chatStatusUnconfigured
     case chatModelSetupHint
+    case chatSendBlockedTitle
+    case chatSendBlockedNoModel
+    case chatSendBlockedDismiss
+    case chatSendBlockedOpenSettings
     case chatFixtureNotice
     case archiveBoundary
     case archiveSavedCount(count: Int)
@@ -931,6 +935,10 @@ enum AppText: Equatable {
         case .chatStatusConfigured: return "chat.status.configured"
         case .chatStatusUnconfigured: return "chat.status.unconfigured"
         case .chatModelSetupHint: return "chat.modelSetupHint"
+        case .chatSendBlockedTitle: return "chat.sendBlocked.title"
+        case .chatSendBlockedNoModel: return "chat.sendBlocked.noModel"
+        case .chatSendBlockedDismiss: return "chat.sendBlocked.dismiss"
+        case .chatSendBlockedOpenSettings: return "chat.sendBlocked.openSettings"
         case .chatFixtureNotice: return "chat.fixtureNotice"
         case .archiveBoundary: return "archive.boundary"
         case .archiveSavedCount: return "archive.savedCount"
@@ -1453,6 +1461,10 @@ enum AppText: Equatable {
         case .chatStatusConfigured: return "模型已設定"
         case .chatStatusUnconfigured: return "尚未設定模型"
         case .chatModelSetupHint: return "請先到設定填寫模型服務與 API Key。"
+        case .chatSendBlockedTitle: return "還不能開始任務"
+        case .chatSendBlockedNoModel: return "還缺:還沒有能用的模型"
+        case .chatSendBlockedDismiss: return "知道了"
+        case .chatSendBlockedOpenSettings: return "去設定"
         case .chatFixtureNotice: return "UI 測試模式：固定回覆，不會呼叫網路。"
         case .archiveBoundary: return "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。"
         case .archiveSavedCount: return "已保存的對話（%1$lld）"

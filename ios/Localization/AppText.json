@@ -4531,6 +4531,46 @@
       }
     },
     {
+      "case": "chatSendBlockedTitle",
+      "key": "chat.sendBlocked.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還不能開始任務",
+        "zh-Hans": "还不能开始任务",
+        "en": "Can’t start tasks yet"
+      }
+    },
+    {
+      "case": "chatSendBlockedNoModel",
+      "key": "chat.sendBlocked.noModel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還缺:還沒有能用的模型",
+        "zh-Hans": "还缺:还没有能用的模型",
+        "en": "Missing: No usable model yet"
+      }
+    },
+    {
+      "case": "chatSendBlockedDismiss",
+      "key": "chat.sendBlocked.dismiss",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "知道了",
+        "zh-Hans": "知道了",
+        "en": "Got it"
+      }
+    },
+    {
+      "case": "chatSendBlockedOpenSettings",
+      "key": "chat.sendBlocked.openSettings",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "去設定",
+        "zh-Hans": "去设置",
+        "en": "Open Settings"
+      }
+    },
+    {
       "case": "chatFixtureNotice",
       "key": "chat.fixtureNotice",
       "parameters": [],

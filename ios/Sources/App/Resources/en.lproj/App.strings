@@ -432,6 +432,10 @@
 "chat.status.configured" = "Model configured";
 "chat.status.unconfigured" = "Model not configured";
 "chat.modelSetupHint" = "Set up a model service and API key in Settings first.";
+"chat.sendBlocked.title" = "Can’t start tasks yet";
+"chat.sendBlocked.noModel" = "Missing: No usable model yet";
+"chat.sendBlocked.dismiss" = "Got it";
+"chat.sendBlocked.openSettings" = "Open Settings";
 "chat.fixtureNotice" = "UI test mode: fixed replies; no network calls.";
 "archive.boundary" = "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything.";
 "archive.savedCount" = "Saved conversations (%1$lld)";
