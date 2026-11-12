@@ -26,6 +26,7 @@ val SteerState.unconsumed: Boolean get() = this == SteerState.Pending || this ==
 data class SteerNote(
     val id: String, val text: String, val state: SteerState, val interrupted: String? = null, val finished: String? = null,
     val remote: Boolean = false,
+    val savedIndex: Int? = null,
 )
 
 /** 电脑只看到自己追加的消息去向,不带手机上插的话或正文;远程插话撤不回(`RunInbox.withdrawSteer`),[SteerState.Withdrawn] 只为穷举,按没用上报。 */

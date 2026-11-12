@@ -399,7 +399,12 @@ class TaskService : Service() {
             stopRunId?.let { id -> taskState._summarizing.update { it + id } }
             run.mcpExternalId?.let { (application as com.wangzan101.mika.MikaApp).remoteTasks.ended(it, end, run.steers.value) }
             run.end(end)
-            if (!run.conditionCheck) recordTurn(store, run.conversationId, run.goal, end, run.runId.value, run.sharedFiles.value, run.joinedSteers(), run.usedGroups, run.joinedInterrupted(), run.joinedFinished())
+            if (!run.conditionCheck) {
+                val joined = run.joinedNotes()
+                recordTurn(store, run.conversationId, run.goal, end, run.runId.value, run.sharedFiles.value,
+                    joined.map { it.text }, run.usedGroups, joined.map { it.interrupted.orEmpty() },
+                    joined.map { it.finished.orEmpty() }, joined.map { it.id })
+            }
             stopRunId?.let { summarizeStop(run, it, draft, store) }
             if (run.conditionCheck) {
                 val outcome = if (end is TaskState.Succeeded) ConditionOutcome.parse(end.answer)
@@ -586,14 +591,14 @@ class TaskService : Service() {
     /** 任务结束时记一轮,后续消息可带上它作参考。写盘失败不影响任务结果。 */
     private fun recordTurn(store: ConversationStore, id: String, goal: String, end: TaskState, runId: String?, files: List<SharedFile> = emptyList(),
         steers: List<String> = emptyList(), groups: List<String> = emptyList(), interrupted: List<String> = emptyList(),
-        finished: List<String> = emptyList()) {
+        finished: List<String> = emptyList(), steerIds: List<String> = emptyList()) {
         val turn = when (end) {
             // 没核对过的(聊天、回答里没有可核对的值)和核实过的一样记成 succeeded;核对过却没能核实的才记 unverified
             is TaskState.Succeeded -> if (end.doubtful) Turn(goal, end.answer, "unverified", end.note, unconfirmed = end.unconfirmed) else Turn(goal, end.answer, "succeeded")
             is TaskState.Failed -> Turn(goal, end.reason, "failed")
             TaskState.Cancelled -> Turn(goal, Conversation.CANCELLED_OUTCOME, "cancelled")
             else -> return
-        }.copy(runId = runId, steers = steers, groups = groups, interruptedReplies = interrupted, finishedReplies = finished)
+        }.copy(runId = runId, steers = steers, groups = groups, interruptedReplies = interrupted, finishedReplies = finished, steerIds = steerIds)
             // 这一轮留下了一页:记下站点(已经关了的连同原因),对话页那一轮下面据此显示
             .let { t -> keeper.recordFor(runId)?.let { (host, closed) -> t.copy(keptPage = host, keptPageClosed = closed) } ?: t }
         runCatching { store.append(id, turn, files) }.onFailure { Log.w(TAG, "could not save conversation turn", it) }

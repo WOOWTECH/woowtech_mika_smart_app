@@ -43,6 +43,11 @@
     <string name="chat_report_save_failed">Couldn’t save the report. Try again.</string>
     <string name="chat_report_loading">Checking for an existing report…</string>
     <string name="chat_report_load_failed">Couldn’t check the saved report. Try again.</string>
+    <string name="chat_report_ambiguous">An older report cannot be linked to this response with certainty. A new report cannot be created here.</string>
+    <string name="chat_report_no_identity">This response has no stable reference, so its report cannot be safely identified.</string>
+    <string name="chat_report_unidentified">An older report cannot be read or linked to a response. Continuing could send a report the developer has already received. Continue with this response?</string>
+    <string name="chat_report_continue_risk">Continue despite risk</string>
+    <string name="chat_report_continue_notice">You chose to continue. Retry this report here if delivery is not confirmed; other reports will not be sent automatically while the unreadable record remains.</string>
     <string name="chat_report_pending">Pending delivery. Reference: %1$s</string>
     <string name="chat_report_acknowledged">Received by the developer. Reference: %1$s</string>
     <string name="chat_report_needs_retry">Delivery has not been confirmed. Reference: %1$s</string>

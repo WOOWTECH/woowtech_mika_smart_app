@@ -83,7 +83,8 @@ internal object AiResponseReportDelivery {
                 queue.all().filter { it.status == "queued_local" && it.attempts < MAX_ATTEMPTS && it.nextAttemptAtMs <= now() }
                     .forEach { report ->
                         val current = queue.get(report.id) ?: return@forEach
-                        if (queue.find(current.reference)?.id == current.id && current.status == "queued_local" &&
+                        val selected = try { queue.find(current.reference) } catch (_: AmbiguousReportReferenceException) { null }
+                        if (selected?.id == current.id && current.status == "queued_local" &&
                             current.attempts < MAX_ATTEMPTS && current.nextAttemptAtMs <= now()) {
                             queue.recordAttempt(current.id, sender.send(current), now())
                         }
@@ -92,16 +93,29 @@ internal object AiResponseReportDelivery {
         }
     }
 
-    suspend fun retry(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String): AiResponseReport =
+    suspend fun retry(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String,
+        allowUnidentified: Boolean = false): AiResponseReport =
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                val current = requireNotNull(queue.get(id))
-                val selected = requireNotNull(queue.find(current.reference))
+                val current = requireNotNull(queue.get(id, allowUnidentified))
+                val selected = requireNotNull(queue.find(current.reference, allowUnidentified))
                 if (selected.status == "acknowledged") selected
                 else {
-                    val report = queue.retry(selected.id)
-                    queue.recordAttempt(report.id, sender.send(report), System.currentTimeMillis())
+                    val report = queue.retry(selected.id, allowUnidentified)
+                    queue.recordAttempt(report.id, sender.send(report), System.currentTimeMillis(), allowUnidentified)
                 }
+            }
+        }
+
+    /** A user explicitly accepted the risk for this report; do not send unrelated queued reports. */
+    suspend fun deliverOne(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String): AiResponseReport =
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val current = requireNotNull(queue.get(id, allowUnidentified = true))
+                val selected = requireNotNull(queue.find(current.reference, allowUnidentified = true))
+                if (selected.status != "queued_local" || selected.attempts >= MAX_ATTEMPTS ||
+                    selected.nextAttemptAtMs > System.currentTimeMillis()) selected
+                else queue.recordAttempt(selected.id, sender.send(selected), System.currentTimeMillis(), allowUnidentified = true)
             }
         }
 }

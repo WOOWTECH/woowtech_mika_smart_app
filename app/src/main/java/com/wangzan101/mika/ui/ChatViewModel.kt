@@ -1382,8 +1382,9 @@ class ChatViewModel(
                 memoryNotes = t.memoryNotes, usedMemory = t.usedMemory, skillNotes = t.skillNotes,
                 keptPage = t.keptPage, keptPageClosed = t.keptPageClosed,
                 steers = t.steers.mapIndexed { i, text ->
-                    SteerNote("turn-$i", text, SteerState.Joined, t.interruptedReplies.getOrNull(i)?.takeIf(String::isNotEmpty),
-                        t.finishedReplies.getOrNull(i)?.takeIf(String::isNotEmpty))
+                    val ids = t.steerIds.takeIf { it.size == t.steers.size && it.all(String::isNotBlank) && it.toSet().size == it.size }
+                    SteerNote(ids?.get(i) ?: "turn-$i", text, SteerState.Joined, t.interruptedReplies.getOrNull(i)?.takeIf(String::isNotEmpty),
+                        t.finishedReplies.getOrNull(i)?.takeIf(String::isNotEmpty), savedIndex = i)
                 })
         }
 

@@ -33,6 +33,8 @@ data class Turn(
     val keptPage: String? = null,
     /** 留下的那一页后来关掉的原因([com.wangzan101.mika.core.cap.web.KeptPageClose.wire]);还开着或没留为 null。 */
     val keptPageClosed: String? = null,
+    /** Stable IDs aligned with steers; older conversations do not have them. */
+    val steerIds: List<String> = emptyList(),
 )
 
 object Conversation {
