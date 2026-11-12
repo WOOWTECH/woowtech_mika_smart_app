@@ -1,5 +1,7 @@
 # 渥屋助理商店版：送審與實機驗收交接
 
+> 2026-11-12 後續 Console 核對：WOOWTECH 已確認為機構帳戶；首頁列出的八個 App 未見 `io.woowtech.assistant`，尚未確認是否存在其他草稿。本次未建立或送審渥屋助理；完整狀態與舊文件落差見 `PLAY_REVIEW_READINESS_2026-11-12.md`。
+
 狀態：準備中，尚未送審。套件 `io.woowtech.assistant`，與 GitHub APK `io.woowtech.agent` 共存。送審依據是最終 AAB、實際網路流量與 Play Console 畫面，不能從其他渥屋 App 的申報複製答案。
 
 ## 可借用的既有案例
