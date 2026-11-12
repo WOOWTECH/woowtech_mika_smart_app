@@ -70,8 +70,11 @@ final class ChatAttachmentUITests: XCTestCase {
         let sees = app.switches["settings.seesImages"].firstMatch
         revealLearningElement(sees, in: app); ready(sees)
         XCTAssertEqual(sees.value as? String, "0")
-        sees.tap()
-        XCTAssertEqual(sees.value as? String, "1")
+        // Tap the switch itself, as the other settings tests do; the row's middle is its label.
+        let native = sees.switches.firstMatch
+        (native.exists ? native : sees).tap()
+        let on = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: sees)
+        XCTAssertEqual(XCTWaiter.wait(for: [on], timeout: 5), .completed)
         returnFromModelSettings(in: app)
         navigate("chat")
 
