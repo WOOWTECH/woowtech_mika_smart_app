@@ -264,6 +264,24 @@ class McpClientTest {
         assertFalse(none.any { it.startsWith("mcp_") })
     }
 
+    @Test fun revokingPermissionBlocksNextCallWithoutReconnecting() = runBlocking {
+        val endpoint = FakeEndpoint().apply {
+            offeredResources = listOf(McpResourceDescriptor("file://a", "A"))
+        }
+        var allowed = setOf("search", "resource_read")
+        val tools = toolDispatcher(FakeScreen(), mcpServers = listOf(McpConnection(
+            endpoint, allowedTools = allowed, isAllowedNow = { it in allowed },
+        )))
+        assertTrue(tools.definitions().any { it.name == "mcp_demo__search" })
+        assertTrue(tools.definitions().any { it.name == "mcp_demo__resource_read" })
+        allowed = emptySet()
+        val search = tools.execute(Part.ToolCall("s", "mcp_demo__search", "{}"), ActionPass())
+        val resource = tools.execute(Part.ToolCall("r", "mcp_demo__resource_read", """{"uri":"file://a"}"""), ActionPass())
+        assertEquals("mcp_tool_not_allowed", search.content["error"]?.toString()?.trim('"'))
+        assertEquals("mcp_tool_not_allowed", resource.content["error"]?.toString()?.trim('"'))
+        assertEquals(0, endpoint.calls)
+    }
+
     @Test fun largeResultUsesReferenceAndUntrustedObservation() = runBlocking {
         val endpoint = FakeEndpoint().apply { result = McpResult("x".repeat(40)) }
         var saved: String? = null

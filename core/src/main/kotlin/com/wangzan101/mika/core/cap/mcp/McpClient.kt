@@ -101,6 +101,8 @@ data class McpConnection(
     val trust: McpTrust = McpTrust.Restricted,
     /** 只暴露这些工具;null 表示全部,空集表示一个都不给。 */
     val allowedTools: Set<String>? = null,
+    /** Recheck the current server configuration immediately before each call. */
+    val isAllowedNow: (String) -> Boolean = { true },
     val provenance: McpProvenance? = null,
 ) {
     init { require(previewChars > 0 && (maxCostUnits == null || maxCostUnits >= 0)) }
@@ -136,7 +138,7 @@ internal class McpCapability(connection: McpConnection, override val id: String)
         descriptors.forEachIndexed { index, descriptor ->
             val name = toolNames[index]
             val assembled = assembleMcpTool(id, endpoint, descriptor, name) {
-                McpClientTool(id, endpoint, descriptor, name, budget, connection.resultStore, connection.previewChars, connection.trust)
+                McpClientTool(id, endpoint, descriptor, name, budget, connection.resultStore, connection.previewChars, connection.trust, connection.isAllowedNow)
             }
             add(assembled.tool)
             assembled.failure?.let(assemblyFailures::add)
@@ -185,6 +187,7 @@ internal class McpCapability(connection: McpConnection, override val id: String)
             resultStore = connection.resultStore,
             previewChars = connection.previewChars,
             storeName = "resource_read",
+            isAllowedNow = connection.isAllowedNow,
             call = { args -> endpoint.readResource(args["uri"]?.jsonPrimitive?.contentOrNull.orEmpty()) },
         )
     }
@@ -216,6 +219,7 @@ internal class McpCapability(connection: McpConnection, override val id: String)
             resultStore = connection.resultStore,
             previewChars = connection.previewChars,
             storeName = "prompt_get",
+            isAllowedNow = connection.isAllowedNow,
             call = { args ->
                 val name = args["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
                 endpoint.getPrompt(name, args["arguments"] as? JsonObject ?: JsonObject(emptyMap()))
@@ -345,6 +349,7 @@ private class McpClientTool(
     private val resultStore: McpResultStore?,
     private val previewChars: Int,
     trust: McpTrust,
+    private val isAllowedNow: (String) -> Boolean,
 ) : AgentTool {
     private val schema = descriptor.inputSchema
     private val approval = mcpApprovalRisk(descriptor.annotations, trust)
@@ -370,6 +375,7 @@ private class McpClientTool(
         capability = capability,
         serverId = endpoint.serverId,
         storeName = descriptor.name,
+        isAllowedNow = isAllowedNow,
         budget = budget,
         costUnits = descriptor.estimatedCostUnits,
         resultStore = resultStore,
@@ -387,6 +393,7 @@ private class McpSyntheticTool(
     private val resultStore: McpResultStore?,
     private val previewChars: Int,
     private val storeName: String,
+    private val isAllowedNow: (String) -> Boolean,
     private val call: suspend (JsonObject) -> McpResult,
 ) : AgentTool {
     override val verb = Verb.Interact
@@ -399,6 +406,7 @@ private class McpSyntheticTool(
         capability = capability,
         serverId = serverId,
         storeName = storeName,
+        isAllowedNow = isAllowedNow,
         budget = budget,
         costUnits = 0,
         resultStore = resultStore,
@@ -411,12 +419,16 @@ private suspend fun mcpExecution(
     capability: String,
     serverId: String,
     storeName: String,
+    isAllowedNow: (String) -> Boolean,
     budget: McpBudget,
     costUnits: Long,
     resultStore: McpResultStore?,
     previewChars: Int,
     call: suspend () -> McpResult,
 ): ToolExecution {
+    if (!isAllowedNow(storeName)) return ToolExecution(buildJsonObject {
+        put("ok", false); put("error", "mcp_tool_not_allowed")
+    })
     if (!budget.charge(costUnits)) return ToolExecution(buildJsonObject {
         put("ok", false); put("error", "mcp_cost_limit")
     })
