@@ -124,6 +124,45 @@ enum UserProfilePersistenceChecks {
         ## When to stop
         Ask the user.
         """
+        // Exercise the actual store and encrypted file, not just an in-memory value.
+        let restoreURL = root.appendingPathComponent("restore-review.vault"), restoreKeys = ProfileTestKeys()
+        func reopenRestore() -> LearningStore {
+            LearningStore(vault: EncryptedLearningFile(url: restoreURL, keys: restoreKeys))
+        }
+        let restoreStore = reopenRestore()
+        let updatedMarkdown = markdown.replacingOccurrences(of: "List useful details.", with: "List updated details.")
+        for content in [markdown, updatedMarkdown] {
+            try check(restoreStore.mutateSkills {
+                let draft = try $0.importMarkdown(content, availableToolNames: [])
+                _ = try $0.approveDraft(id: draft.id, availableToolNames: [])
+            }, "Approved version saved through real encrypted store")
+        }
+        guard let current = restoreStore.skills.installed.first,
+              let previous = restoreStore.skills.revisions.last(where: { $0.canRestore }),
+              let review = SkillRestoreTarget(current: current, revision: previous) else {
+            throw Failure(message: "Missing restore fixture")
+        }
+        let beforeRestore = restoreStore.skills, beforeRestoreBytes = try Data(contentsOf: restoreURL)
+        try check(reopenRestore().skills == beforeRestore && (try Data(contentsOf: restoreURL)) == beforeRestoreBytes,
+                  "Selecting a target leaves encrypted data unchanged across restart")
+        restoreKeys.failReads = true
+        try check(!restoreStore.mutateSkills { _ = try review.apply(to: &$0, availableToolNames: []) },
+                  "A storage failure cannot report a successful restore")
+        try check(restoreStore.skills == beforeRestore && restoreStore.error != nil &&
+                  (try Data(contentsOf: restoreURL)) == beforeRestoreBytes,
+                  "A storage failure retains the current version and encrypted history")
+        restoreKeys.failReads = false
+        try check(restoreStore.mutateSkills { _ = try review.apply(to: &$0, availableToolNames: []) },
+                  "Direct restore persists through real encrypted store")
+        let restored = reopenRestore().skills
+        try check(restored.installed.first?.markdown == previous.previous?.markdown &&
+                  restored.revisions.contains(previous) && restored.revisions.last?.previous == current,
+                  "Restart retains restored version, original history and replaced version")
+        let restoredBytes = try Data(contentsOf: restoreURL)
+        try check(!restoreStore.mutateSkills { _ = try review.apply(to: &$0, availableToolNames: []) },
+                  "Old target cannot be replayed")
+        try check(reopenRestore().skills == restored && (try Data(contentsOf: restoreURL)) == restoredBytes,
+                  "Rejected stale target changes neither vault nor history")
         try check(store.mutateSkills {
             let draft = try $0.importMarkdown(markdown, availableToolNames: [])
             _ = try $0.approveDraft(id: draft.id, availableToolNames: [])

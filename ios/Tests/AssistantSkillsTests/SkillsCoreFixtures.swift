@@ -258,6 +258,83 @@ enum SkillsCoreFixtures {
         return checks.count
     }
 
+    static func restoreTarget() throws -> Int {
+        var c = Checks(); var state = SkillsState()
+        let first = try install(markdown("reviewed-restore", detail: "First version"), into: &state)
+        let second = try install(markdown("reviewed-restore", detail: "Second version"), into: &state)
+        guard let revision = state.revisions.reversed().first(where: { $0.name == second.name && $0.canRestore }),
+              let review = SkillRestoreTarget(current: second, revision: revision) else {
+            throw Failure(description: "restore review fixture")
+        }
+        let original = state
+        try c.expect(try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state)) == original,
+                     "selecting target does not change persisted state")
+
+        var disabled = state
+        try disabled.suspend(name: second.name)
+        let disabledBefore = disabled
+        try c.expect(disabled.installed.first?.fingerprint == second.fingerprint, "status change retains fingerprint")
+        try c.error(.changedSinceRead, "status change invalidates review") {
+            try review.apply(to: &disabled, availableToolNames: [], now: now)
+        }
+        try c.expect(disabled == disabledBefore, "stale status and history retained")
+
+        var assessed = state
+        _ = try assessed.recordOutcome(name: second.name, evidence: .init(wasRead: true))
+        let assessedBefore = assessed
+        try c.expect(assessed.installed.first?.fingerprint == second.fingerprint, "outcome change retains fingerprint")
+        try c.error(.changedSinceRead, "outcome change invalidates review") {
+            try review.apply(to: &assessed, availableToolNames: [], now: now)
+        }
+        try c.expect(assessed == assessedBefore, "stale outcome and history retained")
+
+        var updated = state
+        _ = try install(markdown("reviewed-restore", detail: "Third version"), into: &updated)
+        let updatedBefore = updated
+        try c.error(.changedSinceRead, "new version invalidates review") {
+            try review.apply(to: &updated, availableToolNames: [], now: now)
+        }
+        try c.expect(updated == updatedBefore, "new version and history retained")
+
+        var unrelated = state
+        _ = try install(markdown("another-skill"), into: &unrelated)
+        _ = try review.apply(to: &unrelated, availableToolNames: [], now: now)
+        try c.expect(unrelated.installed.contains(first) && unrelated.installed.contains { $0.name == "another-skill" },
+                     "unrelated skill changes do not block restore or lose data")
+
+        var restricted = SkillsState()
+        _ = try install(markdown("tool-version", detail: "Use `web_read`."), into: &restricted, tools: ["web_read"])
+        let restrictedCurrent = try install(markdown("tool-version", detail: "Read user text."), into: &restricted)
+        guard let restrictedRevision = restricted.revisions.last,
+              let restrictedReview = SkillRestoreTarget(current: restrictedCurrent, revision: restrictedRevision) else {
+            throw Failure(description: "capability fixture")
+        }
+        let restrictedBefore = restricted
+        try c.error(.unknownTool, "restore revalidates current tool availability") {
+            try restrictedReview.apply(to: &restricted, availableToolNames: [], now: now)
+        }
+        try c.expect(restricted == restrictedBefore, "capability failure retains installed version and history")
+
+        _ = try review.apply(to: &state, availableToolNames: [], now: now)
+        try c.expect(state.installed.first == first, "restore applies selected exact version")
+        try c.expect(state.revisions.contains(revision) && state.revisions.last?.previous == second &&
+                     state.revisions.last?.operation == .restore, "both old record and replaced version remain in history")
+        let reopened = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state))
+        try c.expect(reopened == state, "restore survives snapshot reload")
+        guard let newest = state.revisions.last,
+              let reverse = SkillRestoreTarget(current: first, revision: newest) else {
+            throw Failure(description: "reverse restore fixture")
+        }
+        _ = try reverse.apply(to: &state, availableToolNames: [], now: now)
+        try c.expect(state.installed.first == second, "replaced version can be restored")
+        let afterReverse = state
+        try c.error(.changedSinceRead, "old review cannot replay after current value cycles back") {
+            try review.apply(to: &state, availableToolNames: [], now: now)
+        }
+        try c.expect(state == afterReverse, "stale revision cannot overwrite history")
+        return c.count
+    }
+
     static func outcomeLifecycle() throws -> Int {
         var c = Checks(); var state = SkillsState()
         let seed = try install(into: &state)

@@ -12,6 +12,7 @@ struct SkillsCoreStandaloneChecks {
             ("documents", SkillsCoreFixtures.documents),
             ("reviewAndRevisions", SkillsCoreFixtures.reviewAndRevisions),
             ("deletionReview", SkillsCoreFixtures.deletionReview),
+            ("restoreTarget", SkillsCoreFixtures.restoreTarget),
             ("outcomeLifecycle", SkillsCoreFixtures.outcomeLifecycle),
             ("learningGates", SkillsCoreFixtures.learningGates),
             ("retrievalAndContext", SkillsCoreFixtures.retrievalAndContext),

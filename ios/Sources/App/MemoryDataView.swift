@@ -602,10 +602,11 @@ struct MemoryDataView: View {
                     .accessibilityIdentifier("skills.delete.\(skill.name)")
                     .memoryActionPill(palette)
             }
-            if let previous = store.skills.revisions.reversed().first(where: { $0.name == skill.name && $0.canRestore }) {
+            if let previous = store.skills.revisions.reversed().first(where: { $0.name == skill.name && $0.canRestore }),
+               let target = SkillRestoreTarget(current: skill, revision: previous) {
                 Button(copy.text(.restorePrevious)) {
-                    store.mutateSkills {
-                        _ = try $0.restoreRevision(id: previous.id, expectedCurrentHash: skill.fingerprint, availableToolNames: toolNames)
+                    store.mutateSkills { skills in
+                        _ = try target.apply(to: &skills, availableToolNames: toolNames)
                     }
                 }
                 .accessibilityIdentifier("skills.rollback.\(skill.name)")

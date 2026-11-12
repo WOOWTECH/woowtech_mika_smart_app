@@ -311,11 +311,18 @@ final class MemoryUITests: XCTestCase {
         tap("skills.approve.notes-test", scroll: true)
         select("skills")
         tap("skills.rollback.notes-test", scroll: true)
+        XCTAssertFalse(app.alerts.firstMatch.exists, "Restore should execute directly")
         assertSkillText(contains: "VersionOne")
         launch(reset: false)
         openMemory()
         select("skills")
         assertSkillText(contains: "VersionOne")
+        tap("skills.rollback.notes-test", scroll: true)
+        assertSkillText(contains: "VersionTwo")
+        launch(reset: false)
+        openMemory()
+        select("skills")
+        assertSkillText(contains: "VersionTwo")
     }
 
     func testInstalledSkillDeletionRequiresConfirmationAndPersists() {
