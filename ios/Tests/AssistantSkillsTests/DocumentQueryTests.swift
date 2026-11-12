@@ -482,6 +482,76 @@ import XCTest
         try expect(cancelClient.requests.count == 1, "cancel before search result transmission")
     }
 
+    /// Real coordinated read, both execution approvals and PDFKit extraction;
+    /// only the model transport is scripted. Runs in XCTest and the CLT harness.
+    static func approvedPDFModelPatternRoundtrip() async throws {
+        let bytes = try pdf()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("document-pattern-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("synthetic.pdf")
+        try bytes.write(to: url, options: .withoutOverwriting)
+        let extraction = try SkillExecutionRuntime(selectedFile: .init(userSelectedURL: url),
+                                                    options: .init(pages: "2,1,2,3"), catalog: catalog())
+        try expect(extraction.plan.steps.count == 2 && !extraction.plan.grantsAuthorization, "plan alone grants neither approval")
+        let readGrant = try await extraction.authorize(stepID: extraction.plan.steps[0].id)
+        guard case .selectedFileRead(let size, let hash) = try await extraction.execute(readGrant) else {
+            throw Failure(message: "approved PDF read")
+        }
+        try expect(size == bytes.count && hash == digest(bytes), "approved coordinated read of synthetic PDF")
+        let extractGrant = try await extraction.authorize(stepID: extraction.plan.steps[1].id)
+        guard case .pdf(let pdfResult) = try await extraction.execute(extractGrant) else {
+            throw Failure(message: "approved PDFKit extraction")
+        }
+        let snapshot = try DocumentTextSnapshot(result: pdfResult, filename: "synthetic.pdf", catalog: catalog())
+        try expect(snapshot.engine == "Apple PDFKit" && snapshot.pages.map(\.pageNumber) == [2, 1, 2, 3], "actual repeated-page snapshot")
+        try FileManager.default.removeItem(at: url)
+        let runtime = try DocumentQueryRuntime(source: snapshot, question: "What is the BETA budget?")
+        var searches = 0, reads = 0
+        let client = DocumentScriptClient { call, messages in
+            switch call {
+            case 1:
+                try expect(!messages.contains { $0.content.contains("BETA budget is 17.") }, "initial request omits extracted page text")
+                return #"{"action":"search_files","pattern":"BETA budget is \\d{2}","path":"/workspace","glob":"**/*.txt"}"#
+            case 2:
+                let output = try toolResult(messages)
+                guard let matches = output["matches"] as? [[String: Any]], matches.count == 2 else {
+                    throw Failure(message: "two actual PDF matching lines")
+                }
+                try expect(matches.compactMap { $0["pageIndex"] as? Int } == [1, 3], "search retains repeated selection identities")
+                try expect(matches.allSatisfy { ($0["pageNumber"] as? Int) == 2 && ($0["offset"] as? Int) == 0 }, "original page and UTF-8 line offsets")
+                try expect(matches.allSatisfy { ($0["file"] as? String) == "/workspace/approved-document.txt" && ($0["text"] as? String) == "BETA budget is 17." }, "virtual single file and exact PDFKit lines")
+                try expect((matches[0]["line"] as? Int) == 1 && (matches[1]["line"] as? Int ?? 0) > 1, "one-based ordered virtual lines")
+                try expect(output["sourceSHA256"] as? String == snapshot.sha256 && output["truncated"] as? Bool == false, "result identifies approved snapshot")
+                try expect(runtime.reads.isEmpty, "search does not create read receipt")
+                return #"{"action":"search_files","pattern":"BETA","path":"/workspace/../private","glob":"*.txt"}"#
+            case 3:
+                let output = try toolResult(messages)
+                try expect(output["error"] as? String == "outside_approved_snapshot" && output["matches"] == nil, "traversal is rejected, not a no-match")
+                try expect(!(messages.last?.content.contains("BETA budget is 17.") ?? true) && runtime.reads.isEmpty, "rejected path returns no extracted text or read")
+                return #"{"action":"search_files","pattern":"BETA","path":"/workspace/approved-document.txt","glob":"*.pdf"}"#
+            case 4:
+                let output = try toolResult(messages)
+                try expect((output["matches"] as? [[String: Any]])?.isEmpty == true && output["truncated"] as? Bool == false, "nonmatching glob excludes virtual file")
+                try expect(runtime.reads.isEmpty, "excluded virtual file creates no read")
+                return #"{"action":"read_file","pageIndex":3,"offset":0,"limit":8192}"#
+            case 5:
+                let output = try toolResult(messages)
+                try expect(output["pageIndex"] as? Int == 3 && output["pageNumber"] as? Int == 2, "actual explicit read targets searched occurrence")
+                return try finish(messages, quote: "BETA budget is 17.")
+            default: throw Failure(message: "unexpected model request")
+            }
+        }
+        guard case .completed(let result) = try await run(runtime, client, event: { event in
+            if case .searched = event { searches += 1 }
+            if case .read = event { reads += 1 }
+        }) else { throw Failure(message: "verified PDF pattern roundtrip") }
+        try expect(client.requests.count == 5 && result.modelCalls == 5 && searches == 2 && reads == 1, "tool and model call counts")
+        try expect(result.reads.count == 1 && result.citations.count == 1 && result.citations[0].pageIndex == 3 &&
+                   result.citations[0].pageNumber == 2 && result.citations[0].quote == "BETA budget is 17.", "citation is from actual page read")
+        try expect(result.source.sha256 == snapshot.sha256, "completed answer retains approved snapshot identity")
+    }
+
     static func actualModelRoundtrip() async throws {
         let source = try nativeSource(), runtime = try DocumentQueryRuntime(source: source, question: "原第 1 頁的預算？")
         var searchEvents = 0, readEvents = 0
@@ -820,6 +890,7 @@ private actor DocumentDelayClient: ChatModelClient {
             ("utf8AndLedger", { try DocumentQueryChecks.utf8AndLedger() }),
             ("boundedPatternSearch", { try await DocumentQueryChecks.boundedPatternSearch() }),
             ("modelLineSearch", { try await DocumentQueryChecks.modelLineSearch() }),
+            ("approvedPDFModelPatternRoundtrip", { try await DocumentQueryChecks.approvedPDFModelPatternRoundtrip() }),
             ("actualModelRoundtrip", { try await DocumentQueryChecks.actualModelRoundtrip() }),
             ("hostileCommands", { try await DocumentQueryChecks.hostileCommands() }),
             ("citationRejections", { try await DocumentQueryChecks.citationRejections() }),
@@ -842,6 +913,7 @@ final class DocumentQueryTests: XCTestCase {
     @MainActor func testUTF8AndLedger() throws { try DocumentQueryChecks.utf8AndLedger() }
     @MainActor func testBoundedPatternSearch() async throws { try await DocumentQueryChecks.boundedPatternSearch() }
     @MainActor func testModelLineSearch() async throws { try await DocumentQueryChecks.modelLineSearch() }
+    @MainActor func testApprovedPDFModelPatternRoundtrip() async throws { try await DocumentQueryChecks.approvedPDFModelPatternRoundtrip() }
     @MainActor func testActualModelRoundtrip() async throws { try await DocumentQueryChecks.actualModelRoundtrip() }
     @MainActor func testHostileCommands() async throws { try await DocumentQueryChecks.hostileCommands() }
     @MainActor func testCitationRejections() async throws { try await DocumentQueryChecks.citationRejections() }
