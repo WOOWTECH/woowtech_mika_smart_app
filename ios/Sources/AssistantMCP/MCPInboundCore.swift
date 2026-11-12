@@ -118,10 +118,13 @@ public enum MCPInboundFormat {
             let requestID = try optionalUUID(arguments["request_id"])
             var conversation: String?
             if let value = arguments["conversation"], value != .null {
-                guard let text = value.stringValue, text.hasPrefix("mcp-"),
-                      let uuid = UUID(uuidString: String(text.dropFirst(4))),
-                      text == "mcp-" + uuid.uuidString.lowercased() else { throw MCPInboundFormatError.invalidParameters }
-                conversation = text
+                guard let raw = value.stringValue else { throw MCPInboundFormatError.invalidParameters }
+                let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    guard text.hasPrefix("mcp-"), let uuid = UUID(uuidString: String(text.dropFirst(4))),
+                          text == "mcp-" + uuid.uuidString.lowercased() else { throw MCPInboundFormatError.invalidParameters }
+                    conversation = text
+                }
             }
             return .runTask(id, MCPInboundModelTask(goal: goal, requestID: requestID, conversation: conversation))
         default: throw MCPInboundFormatError.unsupportedMethod
