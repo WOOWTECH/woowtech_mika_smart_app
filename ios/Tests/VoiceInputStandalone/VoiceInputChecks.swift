@@ -9,7 +9,7 @@ final class FakeVoiceDriver: VoiceInputDriver {
     var finalOnFinish: String?
     var callbackOnCancel = false
     var onCancel: (() -> Void)?
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         starts.append(id); callbacks[id] = emit
     }
     func finish(id: UUID) {

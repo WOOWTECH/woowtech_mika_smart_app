@@ -6,7 +6,10 @@ final class ChatFakeDriver: VoiceInputDriver {
     var current: UUID!
     var cancelled: [UUID] = []
     var finished: [UUID] = []
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) { current = id; callbacks[id] = emit }
+    var permits: [UUID: () -> Bool] = [:]
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+        current = id; callbacks[id] = emit; permits[id] = mayContinue
+    }
     func finish(id: UUID) { finished.append(id) }
     func cancel(id: UUID) { cancelled.append(id) }
     func emit(_ event: VoiceInputEvent, _ id: UUID) { callbacks[id]?(id, event) }
@@ -89,6 +92,26 @@ final class ChatFakeDriver: VoiceInputDriver {
         controller.release()
         check(controller.state == .failed(.timeout) && writes == 2 && driver.cancelled.contains(held),
               "held deadline never commits even an early final")
+        var authorization: String? = "first"
+        let guardedDriver = ChatFakeDriver()
+        let guardedController = ChatVoiceController(driver: guardedDriver, now: { time }, conversation: { conversation },
+            readDraft: { draft }, writeDraft: { draft = $0 }, voiceAuthorization: { authorization })
+        guardedController.begin(gestureStartedAt: time)
+        let pending = guardedDriver.current!
+        check(guardedDriver.permits[pending]?() == true, "active capture permits delayed permission")
+        authorization = nil
+        check(guardedDriver.permits[pending]?() == false, "authorization revoked before permission blocks start")
+        guardedController.authorizationChanged()
+        guardedDriver.emit(.final("過期"), pending)
+        check(guardedDriver.cancelled.contains(pending) && draft == "編輯後語音 hello",
+              "revocation cancels and discards delayed result")
+        authorization = "second"
+        guardedController.begin(gestureStartedAt: time)
+        let replacement = guardedDriver.current!
+        check(guardedDriver.permits[replacement]?() == true && guardedDriver.permits[pending]?() == false,
+              "replacement capture does not reactivate old permission")
+        guardedController.cancel()
+        check(guardedDriver.permits[replacement]?() == false, "background cancellation blocks delayed permission")
         print("PASS ChatVoice composer semantics (fake driver; no Apple SDK)")
     }
 }
