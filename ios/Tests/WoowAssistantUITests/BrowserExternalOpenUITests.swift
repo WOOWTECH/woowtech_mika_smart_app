@@ -17,7 +17,7 @@ final class BrowserExternalOpenUITests: XCTestCase {
 
     func testNativeMoreMenuTapLeavesAppForSystemHandoff() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestExternalOpenDiagnostics"]
         app.launch()
         navigateMikaSection("browser", in: app)
 
@@ -43,13 +43,35 @@ final class BrowserExternalOpenUITests: XCTestCase {
         XCTAssertEqual(handoff.value as? String, url,
                        "The real button must expose the exact checked hash-route destination")
 
+        let tapStarted = ProcessInfo.processInfo.systemUptime
         handoff.tap()
+        let tapReturned = ProcessInfo.processInfo.systemUptime
+        var observedStates: [String] = []
         let leftForeground = XCTWaiter.wait(for: [XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in
-                self.app.state == .runningBackground || self.app.state == .runningBackgroundSuspended
+                let state = self.app.state
+                let sample = "\(state.rawValue)"
+                if observedStates.last != sample { observedStates.append(sample) }
+                return state == .runningBackground || state == .runningBackgroundSuspended
             }, object: nil
         )], timeout: 20)
         let appStateAfterWait = app.state.rawValue
+        // Never reactivate the App to read diagnostics: doing so would destroy
+        // the state we are testing. NSLog also records the production callback.
+        var observation = "unavailable_while_not_foreground"
+        if appStateAfterWait == XCUIApplication.State.runningForeground.rawValue {
+            observation = ["browser.externalHandoff.observation", "browser.externalHandoff.sheetObservation"].map { id in
+                let field = app.staticTexts[id].firstMatch
+                return "\(id)=\(field.exists ? (field.value as? String ?? "no_accessibility_value") : "not_in_accessibility_tree")"
+            }.joined(separator: ",")
+        }
+        // These are observations only: another default browser may be in use.
+        let safariState = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").state.rawValue
+        let springboardState = XCUIApplication(bundleIdentifier: "com.apple.springboard").state.rawValue
+        let diagnostics = XCTAttachment(string: "tapStarted=\(tapStarted);tapReturned=\(tapReturned);states=\(observedStates.joined(separator: ","));stateAfterWait=\(appStateAfterWait);safariState=\(safariState);springboardState=\(springboardState);trace=\(observation)")
+        diagnostics.name = "External handoff action and application states"
+        diagnostics.lifetime = .keepAlways
+        add(diagnostics)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "System foreground after browser handoff; URL unverified"
         screenshot.lifetime = .keepAlways

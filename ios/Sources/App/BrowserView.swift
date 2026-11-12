@@ -25,6 +25,9 @@ struct BrowserView: View {
     private var palette: BrowserPalette { BrowserPalette(colorScheme) }
     private var isStartPage: Bool { browser.loadedURL == nil && browser.address.isEmpty || showInvalidStartInput }
     @State private var showInvalidStartInput = false
+    #if DEBUG
+    @State private var externalHandoffTrace = BrowserExternalHandoffTrace(arguments: ProcessInfo.processInfo.arguments)
+    #endif
     private var pageCovered: Bool {
         isStartPage || showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch
             || showSearchSettings || showMore || browser.pageDialog != nil
@@ -184,6 +187,17 @@ struct BrowserView: View {
             if !isStartPage { pageToolbar }
         }
         .background(palette.background)
+        #if DEBUG
+        .overlay(alignment: .bottomLeading) {
+            if externalHandoffTrace.enabled {
+                Text("外部開啟測試觀測")
+                    .font(.caption2)
+                    .accessibilityIdentifier("browser.externalHandoff.observation")
+                    .accessibilityValue(externalHandoffTrace.observation)
+                    .allowsHitTesting(false)
+            }
+        }
+        #endif
         .sheet(isPresented: $showResearch) {
             BrowserResearchView(browser: browser, chat: chat)
         }
@@ -345,12 +359,45 @@ struct BrowserView: View {
                         Button(localizer.text(.browserChromeCopyLink)) { UIPasteboard.general.url = url; showMore = false }
                             .accessibilityIdentifier("browser.more.copy")
                         Button(localizer.text(.browserChromeOpenOutside)) {
+                            #if DEBUG
+                            externalHandoffTrace.tapped(active: scenePhase == .active, available: workspace.available,
+                                                        clearing: workspace.isClearingWebsiteData)
+                            if externalHandoffTrace.enabled { NSLog("BROWSER_EXTERNAL_HANDOFF %@", externalHandoffTrace.observation) }
+                            #endif
                             guard scenePhase == .active, workspace.available,
-                                  !workspace.isClearingWebsiteData else { return }
-                            browser.handoffVisiblePage { destination in
-                                showMore = false
-                                openURL(destination)
+                                  !workspace.isClearingWebsiteData else {
+                                #if DEBUG
+                                externalHandoffTrace.rejectedByViewGuard()
+                                if externalHandoffTrace.enabled { NSLog("BROWSER_EXTERNAL_HANDOFF %@", externalHandoffTrace.observation) }
+                                #endif
+                                return
                             }
+                            let handedOff = browser.handoffVisiblePage { destination in
+                                showMore = false
+                                #if DEBUG
+                                if externalHandoffTrace.enabled {
+                                    externalHandoffTrace.invoked(destination)
+                                    NSLog("BROWSER_EXTERNAL_HANDOFF %@", externalHandoffTrace.observation)
+                                    openURL(destination) { accepted in
+                                        // Log before scheduling UI state, which may not run after backgrounding.
+                                        NSLog("BROWSER_EXTERNAL_HANDOFF completion=%@", accepted ? "accepted" : "rejected")
+                                        DispatchQueue.main.async { externalHandoffTrace.completed(accepted) }
+                                    }
+                                } else {
+                                    openURL(destination)
+                                }
+                                #else
+                                openURL(destination)
+                                #endif
+                            }
+                            #if DEBUG
+                            if !handedOff {
+                                externalHandoffTrace.rejectedBySessionGuard()
+                                if externalHandoffTrace.enabled { NSLog("BROWSER_EXTERNAL_HANDOFF %@", externalHandoffTrace.observation) }
+                            }
+                            #else
+                            _ = handedOff
+                            #endif
                         }
                         .disabled(scenePhase != .active || !workspace.available
                                   || workspace.isClearingWebsiteData || browser.externalOpenURL == nil)
@@ -380,6 +427,17 @@ struct BrowserView: View {
                 Button(localizer.text(.browserChromeDone)) { showMore = false }.accessibilityIdentifier("browser.more.close")
             } }
         }
+        #if DEBUG
+        .overlay(alignment: .bottomLeading) {
+            if externalHandoffTrace.enabled {
+                Text("外部開啟測試觀測")
+                    .font(.caption2)
+                    .accessibilityIdentifier("browser.externalHandoff.sheetObservation")
+                    .accessibilityValue(externalHandoffTrace.observation)
+                    .allowsHitTesting(false)
+            }
+        }
+        #endif
         .presentationDetents([.medium, .large])
     }
 
