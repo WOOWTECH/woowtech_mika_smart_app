@@ -53,6 +53,7 @@ final class ChatAttachmentUITests: XCTestCase {
         let trayGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: tray)
         XCTAssertEqual(XCTWaiter.wait(for: [trayGone], timeout: 10), .completed)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+        assertRecentTitle("fixture-notes.txt")
     }
 
     func testPhotoReachesModelOnlyAfterSeesImagesIsOn() {
@@ -78,6 +79,7 @@ final class ChatAttachmentUITests: XCTestCase {
         tap("chat.send")
         // The second turn of the same conversation.
         assertContains(identifiedText("chat.message.3.assistant"), "收到附件 2 個（圖片 1）")
+        assertRecentTitle("照片和檔案")
     }
 
     // MARK: - Helpers (same native paths as ChatStreamingUITests)
@@ -91,6 +93,15 @@ final class ChatAttachmentUITests: XCTestCase {
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.exists)
+    }
+    /// The sidebar titles an attachment-only first message like Android, never by its 附件 lines.
+    private func assertRecentTitle(_ title: String) {
+        tap("chat.menu")
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@",
+                                                   "drawer.recent.row.", title)).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), title)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@",
+                                                        "drawer.recent.row.", "附件:")).firstMatch.exists)
     }
     private func addFixtureAttachments() {
         tap("uitest.attach.fixture")

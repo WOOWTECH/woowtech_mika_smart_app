@@ -324,7 +324,7 @@ final class WoowAssistantUITests: XCTestCase {
         attachScreenshot("unconfigured-draft-retained", in: app)
     }
 
-    func testComposerGrowsThenScrollsAtFiveLinesAndPDFSheetKeepsDraft() {
+    func testComposerGrowsThenScrollsAtFiveLinesAndAttachPanelKeepsDraft() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)
         waitUntilHittable(draft)
