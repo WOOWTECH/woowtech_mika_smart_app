@@ -163,6 +163,146 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
+    /// Uses the real Settings Picker and a fresh Debug defaults namespace.
+    /// The second launch deliberately omits reset to exercise persistence.
+    func testMCPModelCallLimitPersistsThroughSettingsAndRelaunch() {
+        executionTimeAllowance = 300
+        let id = UUID().uuidString
+        launchMCPSetting(language: "(zh-Hant)", namespace: id, reset: true)
+        let title = "MCP 模型呼叫上限"
+        openMCPModelLimit(title: title)
+        assertMCPPickerValue("12")
+        assertMCPDetails(["遠端 MCP 工具與資源每次須核准", "合計最多執行 6 次", "本機操作不計入", "本機記憶搜尋不經遠端核准", "本機變更另須審核"])
+        chooseMCPModelLimit("3")
+        assertMCPPickerValue("3")
+        let bar = app.navigationBars[title]
+        let back = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 10) && back.isHittable)
+        back.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+        assertMCPSettingsRowValue("3")
+        app.terminate()
+        launchMCPSetting(language: "(zh-Hant)", namespace: id, reset: false)
+        assertMCPSettingsRowValue("3")
+        openMCPModelLimit(title: title)
+        assertMCPPickerValue("3")
+        assertMCPDetails(["遠端 MCP 工具與資源每次須核准", "本機記憶搜尋不經遠端核准"])
+    }
+
+    func testMCPModelCallLimitExplanationsInThreeLanguages() {
+        executionTimeAllowance = 300
+        let cases: [(String, String, [String])] = [
+            ("(zh-Hant)", "MCP 模型呼叫上限", ["遠端 MCP 工具與資源每次須核准", "合計最多執行 6 次", "本機操作不計入", "本機記憶搜尋不經遠端核准", "本機變更另須審核"]),
+            ("(zh-Hans)", "MCP 模型调用上限", ["远程 MCP 工具与资源每次须批准", "合计最多执行 6 次", "本地操作不计入", "本地记忆搜索不经远程批准", "本地更改另须审核"]),
+            ("(en)", "MCP model call limit", ["Remote MCP tools and resources require approval for each operation", "combined limit of 6", "Local actions do not count", "Local memory searches do not use remote approval", "local changes require separate review"])
+        ]
+        for (language, title, phrases) in cases {
+            app.terminate()
+            launchMCPSetting(language: language, namespace: UUID().uuidString, reset: true)
+            openMCPModelLimit(title: title)
+            assertMCPPickerValue("12")
+            assertMCPDetails(phrases)
+        }
+    }
+
+    private func launchMCPSetting(language: String, namespace: String, reset: Bool) {
+        app.launchArguments = ["-AppleLanguages", language, "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", namespace]
+        if reset { app.launchArguments.append("-UITestResetStorage") }
+        app.launchEnvironment = [:]
+        app.launch()
+        navigateMikaSection("settings", in: app)
+    }
+    private func openMCPModelLimit(title: String) {
+        let link = app.buttons["settings.mcpModelCallLimit"].firstMatch
+        revealLearningElement(link, in: app)
+        XCTAssertTrue(link.exists && link.isEnabled && link.isHittable)
+        link.tap()
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10))
+    }
+    private func mcpPicker() -> XCUIElement {
+        // A different Form Picker was recorded as a Button on three iPhone
+        // runtimes. This Picker/iPad role has not yet been observed natively.
+        let button = app.buttons["settings.mcpModelCallLimit.picker"].firstMatch
+        if button.exists { return button }
+        return app.descendants(matching: .any).matching(identifier: "settings.mcpModelCallLimit.picker").firstMatch
+    }
+    private func recordMCPAccessibility(_ name: String, _ element: XCUIElement) {
+        guard element.exists else { return }
+        XCTContext.runActivity(named: name) { activity in
+            let detail = "elementType=\(element.elementType.rawValue)\n" + element.debugDescription
+            let attachment = XCTAttachment(string: detail)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
+    }
+    private func assertMCPPickerValue(_ expected: String) {
+        let picker = mcpPicker()
+        revealLearningElement(picker, in: app)
+        recordMCPAccessibility("MCP picker", picker)
+        let condition = NSPredicate { _, _ in
+            let combined = picker.label + " " + String(describing: picker.value ?? "")
+            return combined.range(of: "(?<![0-9])" + expected + "(?![0-9])", options: .regularExpression) != nil
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: condition, object: picker)], timeout: 10),
+                       .completed, "Picker did not expose selected value; element: \(picker.debugDescription)")
+    }
+    private func assertMCPSettingsRowValue(_ expected: String) {
+        let row = app.buttons["settings.mcpModelCallLimit"].firstMatch
+        revealLearningElement(row, in: app)
+        let condition = NSPredicate { _, _ in
+            let combined = row.label + " " + String(describing: row.value ?? "")
+            return combined.range(of: "(?<![0-9])" + expected + "(?![0-9])", options: .regularExpression) != nil
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: condition, object: row)], timeout: 10),
+                       .completed, "Settings row did not expose saved value; element: \(row.debugDescription)")
+    }
+    private func assertMCPDetails(_ phrases: [String]) {
+        guard let first = phrases.first else { XCTFail("Expected localized phrases"); return }
+        let text = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", first)).firstMatch
+        revealLearningElement(text, in: app, visibility: .readableText)
+        XCTAssertTrue(text.exists)
+        for phrase in phrases { XCTAssertTrue(text.label.contains(phrase), "Missing localized explanation: \(phrase)") }
+    }
+    private func chooseMCPModelLimit(_ value: String) {
+        let picker = mcpPicker()
+        revealLearningElement(picker, in: app)
+        if picker.elementType == .pickerWheel {
+            recordMCPAccessibility("MCP picker wheel", picker)
+            picker.adjust(toPickerWheelValue: value)
+            return
+        }
+        let nestedWheel = picker.pickerWheels.firstMatch
+        if nestedWheel.exists {
+            recordMCPAccessibility("MCP nested picker wheel", nestedWheel)
+            nestedWheel.adjust(toPickerWheelValue: value)
+            return
+        }
+        guard picker.isHittable else { XCTFail("Picker is not tappable: \(picker.debugDescription)"); return }
+        picker.tap()
+        let wheel = app.pickerWheels.firstMatch
+        if wheel.exists && wheel.isHittable {
+            XCTAssertEqual(app.pickerWheels.count, 1, "Ambiguous picker wheels")
+            recordMCPAccessibility("MCP presented picker wheel", wheel)
+            wheel.adjust(toPickerWheelValue: value)
+            return
+        }
+        // Menu popovers and navigation-style pickers expose different AX
+        // element roles across device families. Match the exact option label;
+        // never use blind coordinates or silently accept an unselected value.
+        let options = [app.buttons[value].firstMatch, app.menuItems[value].firstMatch,
+                       app.cells[value].firstMatch, app.staticTexts[value].firstMatch]
+        for _ in 0..<20 {
+            if let option = options.first(where: { $0.exists && $0.isHittable }) {
+                recordMCPAccessibility("MCP chosen option", option)
+                option.tap(); return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        XCTFail("Picker did not expose an actionable option \(value); picker: \(picker.debugDescription)")
+    }
+
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
