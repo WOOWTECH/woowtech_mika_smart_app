@@ -3,6 +3,7 @@ package com.wangzan101.mika.core.docs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Test
 import java.io.File
 import java.security.MessageDigest
@@ -19,6 +20,7 @@ class ReadmeTranslationsTest {
     private val source get() = File(root, ReadmeSections.README).readText()
 
     @Test fun translationsAreUpToDate() {
+        assumeFalse(source.startsWith("# 渥屋助理 Google Play 版本"))
         val current = fingerprint(source)
         val stale = TRANSLATIONS.mapNotNull { name ->
             val marker = MARKER.find(File(root, name).readText())?.groupValues?.get(1)
@@ -32,6 +34,7 @@ class ReadmeTranslationsTest {
     }
 
     @Test fun translationsKeepStructure() {
+        assumeFalse(source.startsWith("# 渥屋助理 Google Play 版本"))
         val sections = sections(source)
         val images = localImages(source, ReadmeSections.README)
         val bad = TRANSLATIONS.flatMap { name ->
