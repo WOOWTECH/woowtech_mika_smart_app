@@ -34,12 +34,28 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     @Published private(set) var isLearning = false
     @Published private(set) var available = false
     private var vault: EncryptedLearningFile?
+    private var loadedRevision: Data?
+    private var hasLoadedRevision = false
     private var extraction: Task<Void, Never>?
     private var extractionID: UUID?
     private(set) var generation = UUID()
     var onUserChange: (() -> Void)?
     var referenceSnapshots: [WeakLearningRunSnapshot] = []
     var referenceEditInProgress = false
+
+    /// The snapshot and the persistent ciphertext must still match while the
+    /// caller owns this lease. No blocking wait is allowed on the main actor.
+    func acquireCurrentReferenceLease() throws -> EncryptedLearningFile.ExclusiveLease {
+        guard available, hasLoadedRevision, let vault else { throw LearningFileError.notLoaded }
+        let lease = try vault.acquireExclusiveAccess(nonBlocking: true)
+        do {
+            guard try vault.diskRevision() == loadedRevision else { throw LearningFileError.conflict }
+            return lease
+        } catch {
+            lease.release()
+            throw error
+        }
+    }
 
     init() {
         do {
@@ -48,7 +64,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 keys: LearningKeychainStore(service: location.service))
             vault = file
             if location.reset {
-                _ = try file.save(LearningSnapshot(), rotateKey: true)
+                _ = try file.withExclusiveAccess(nonBlocking: true) { try file.save(LearningSnapshot(), rotateKey: true) }
             }
             reload()
         } catch {
@@ -67,17 +83,27 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         revokeRunReferences()
         onUserChange?()
         cancelLearning()
+        hasLoadedRevision = false
         do {
             guard let vault else { throw LearningFileError.unavailable }
-            let snapshot = try vault.load(LearningSnapshot.self) ?? LearningSnapshot()
-            guard snapshot.version == 1 || snapshot.version == 2 else { throw LearningFileError.invalidData }
+            let snapshot = try vault.withExclusiveAccess(nonBlocking: true) {
+                // Retain even an unreadable snapshot's opaque revision so an
+                // explicit clear-all can detect a change since confirmation.
+                loadedRevision = try vault.diskRevision()
+                hasLoadedRevision = true
+                let value = try vault.load(LearningSnapshot.self) ?? LearningSnapshot()
+                guard vault.loadedRevision == loadedRevision else { throw LearningFileError.conflict }
+                guard value.version == 1 || value.version == 2 else { throw LearningFileError.invalidData }
+                return value
+            }
             memory = snapshot.memory; skills = snapshot.skills
             websites = snapshot.websites ?? .init(); routes = snapshot.routes ?? .init()
             profile = snapshot.profile ?? .init()
             available = true; error = nil; notes = []
         } catch {
             available = false
-            self.error = "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
+            self.error = (error as? LearningFileError) == .busy ? Self.message(error)
+                : "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
         }
     }
 
@@ -271,11 +297,10 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         onUserChange?()
         cancelLearning()
         do {
-            guard let vault else { throw LearningFileError.unavailable }
             let nextMemory = MemoryState(preferences: memory.preferences)
             let nextSkills = SkillsState()
             let nextProfile = UserProfileState()
-            let retiredKeysRemoved = try vault.save(LearningSnapshot(memory: nextMemory, skills: nextSkills, profile: nextProfile), rotateKey: true)
+            let retiredKeysRemoved = try saveSnapshot(LearningSnapshot(memory: nextMemory, skills: nextSkills, profile: nextProfile), rotateKey: true)
             memory = nextMemory; skills = nextSkills; notes = []; available = true; error = nil
             websites = .init(); routes = .init(); profile = nextProfile
             notice = retiredKeysRemoved
@@ -309,6 +334,17 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
 
     func contextMessages(for prompt: String) -> [ModelMessage] {
         guard available else { return [] }
+        do {
+            guard let vault, hasLoadedRevision else { throw LearningFileError.notLoaded }
+            try vault.withExclusiveAccess(nonBlocking: true) {
+                guard try vault.diskRevision() == loadedRevision else { throw LearningFileError.conflict }
+            }
+        } catch {
+            available = false
+            self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error)
+                : "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
+            return []
+        }
         let context = memory.context(goal: prompt)
         // Capture at run start, before the current user request. Profile writes
         // during a run cannot alter the already captured message array.
@@ -326,7 +362,12 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 try next.markUsed(context.usedIDs)
                 try persist(memory: next, skills: skills)
                 memory = next
-            } catch { self.error = "已讀取記憶，但使用次數未能儲存；原記憶保留。" }
+            } catch {
+                if [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) {
+                    available = false; self.error = Self.message(error); return []
+                }
+                self.error = "已讀取記憶，但使用次數未能儲存；原記憶保留。"
+            }
         }
         return messages
     }
@@ -341,12 +382,17 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         cancelLearning()
         guard available, memory.preferences.useMemory, memory.preferences.autoRemember else { return }
         let snapshot = memory
+        // Extraction sends related saved memories along with the utterance.
+        // Bind its separate producer to the generation created above as well.
+        let extractionClient: any ChatModelClient
+        do { extractionClient = try fencedChatClient(client, fence: ChatContextFence(store: self, generation: generation)) }
+        catch { notice = "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。"; return }
         let input = MemoryExtractionInput(utterances: [utterance], conversationID: conversationID)
         let id = UUID()
         extractionID = id; isLearning = true; notice = nil
         extraction = Task { [weak self] in
             do {
-                let plan = try await MemoryExtractor(client: client).extract(input: input, state: snapshot,
+                let plan = try await MemoryExtractor(client: extractionClient).extract(input: input, state: snapshot,
                     configuration: configuration, apiKey: apiKey)
                 try Task.checkCancellation()
                 guard let self, self.extractionID == id else { return }
@@ -368,7 +414,13 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 guard let self, self.extractionID == id else { return }
                 self.extractionID = nil; self.extraction = nil; self.isLearning = false
                 if !(error is CancellationError) {
-                    self.notice = "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。"
+                    if (error as? LearningFileError) == .conflict {
+                        self.notice = "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"
+                    } else if (error as? LearningFileError) == .busy {
+                        self.notice = "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。"
+                    } else {
+                        self.notice = "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。"
+                    }
                 }
             }
         }
@@ -391,14 +443,14 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         if cancelResearch { notifyReferenceEdit() }
         cancelLearning()
         do {
-            guard available, let vault else { throw LearningFileError.notLoaded }
+            guard available else { throw LearningFileError.notLoaded }
             var nextWebsites = websites, nextRoutes = routes
             try change(&nextWebsites, &nextRoutes)
-            try vault.save(LearningSnapshot(memory: memory, skills: skills, websites: nextWebsites, routes: nextRoutes, profile: profile))
+            try saveSnapshot(LearningSnapshot(memory: memory, skills: skills, websites: nextWebsites, routes: nextRoutes, profile: profile))
             revokeRunReferences(kind: .website, keeping: Set(nextWebsites.lessons.filter { $0.status == .approved }.map { $0.id.uuidString }))
             websites = nextWebsites; routes = nextRoutes; error = nil
             return true
-        } catch { self.error = "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。"; return false }
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。"; return false }
     }
 
     func websiteContext(for url: URL) -> String {
@@ -410,7 +462,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     @discardableResult
     func applyResearch(_ assessment: SkillLearningAssessment, goal: String, actions: [WebResearchAction],
                        expectedGeneration: UUID) -> Bool {
-        guard available, generation == expectedGeneration, let vault else { return false }
+        guard available, generation == expectedGeneration else { return false }
         do {
             var nextSkills = skills, nextWebsites = websites, nextRoutes = routes
             _ = try nextSkills.apply(assessment, availableToolNames: BrowserSession.toolNames)
@@ -438,11 +490,11 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                     _ = try nextRoutes.record(intent: goal, steps: steps, task: task)
                 }
             }
-            try vault.save(LearningSnapshot(memory: memory, skills: nextSkills, websites: nextWebsites, routes: nextRoutes, profile: profile))
+            try saveSnapshot(LearningSnapshot(memory: memory, skills: nextSkills, websites: nextWebsites, routes: nextRoutes, profile: profile))
             checkSkillReferenceRemoval(nextSkills)
             skills = nextSkills; websites = nextWebsites; routes = nextRoutes; error = nil
             return true
-        } catch { self.error = "學習資料未儲存；原有技能、網站知識與路線保留。"; return false }
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能、網站知識與路線保留。"; return false }
     }
 
     func recordResearchFailure(usedSkills: [SkillUsedReference], kind: SkillFailureKind, expectedGeneration: UUID) {
@@ -454,12 +506,24 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             try persist(memory: memory, skills: next)
             checkSkillReferenceRemoval(next)
             skills = next
-        } catch { self.error = "任務已停止；技能結果紀錄未能儲存，既有資料保留。" }
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "任務已停止；技能結果紀錄未能儲存，既有資料保留。" }
     }
 
     private func persist(memory: MemoryState, skills: SkillsState, profile: UserProfileState? = nil) throws {
-        guard available, let vault else { throw LearningFileError.notLoaded }
-        try vault.save(LearningSnapshot(memory: memory, skills: skills, websites: websites, routes: routes, profile: profile ?? self.profile))
+        guard available else { throw LearningFileError.notLoaded }
+        try saveSnapshot(LearningSnapshot(memory: memory, skills: skills, websites: websites, routes: routes, profile: profile ?? self.profile))
+    }
+
+    /// Every LearningStore writer participates in the same cross-instance
+    /// lock, and publishes nothing when the reviewed ciphertext changed.
+    @discardableResult private func saveSnapshot(_ snapshot: LearningSnapshot, rotateKey: Bool = false) throws -> Bool {
+        guard let vault, hasLoadedRevision else { throw LearningFileError.notLoaded }
+        return try vault.withExclusiveAccess(nonBlocking: true) {
+            guard try vault.diskRevision() == loadedRevision else { throw LearningFileError.conflict }
+            let result = try vault.save(snapshot, rotateKey: rotateKey)
+            loadedRevision = vault.loadedRevision
+            return result
+        }
     }
 
     @discardableResult
@@ -468,6 +532,12 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     }
 
     static func message(_ error: Error) -> String {
+        if (error as? LearningFileError) == .busy {
+            return "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。"
+        }
+        if (error as? LearningFileError) == .conflict {
+            return "學習資料已在其他位置變更；本次未儲存，原有資料保留。請重新讀取並再次確認。"
+        }
         if let profile = error as? UserProfileError {
             switch profile {
             case .invalidSentence: return "請輸入單句、1–160 字元的個人檔案；不可包含換行、密碼、驗證碼或金鑰等敏感資料。"

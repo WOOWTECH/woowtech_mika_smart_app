@@ -80,6 +80,7 @@ struct DocumentQueryAudit {
             let runtime = try DocumentQueryRuntime(source: source, question: question)
             let snapshot = try learning.captureRunReferences(goal: question,
                 capabilities: DocumentQueryRuntime.referenceCapabilities)
+            let model = try ReferenceFencedModelClient(client: approvedAccess.client, snapshot: snapshot)
             let id = UUID()
             operationID = id; self.runtime = runtime
             references = snapshot
@@ -89,7 +90,7 @@ struct DocumentQueryAudit {
             status = "正在依問題搜尋與分段讀取已核准的 PDF 文字…"
             task = Task { [weak self] in
                 do {
-                    let outcome = try await runtime.run(client: approvedAccess.client,
+                    let outcome = try await runtime.run(client: model,
                         configuration: approvedAccess.configuration, apiKey: approvedAccess.key,
                         references: snapshot.references,
                         validateContext: { [weak self] in
