@@ -545,6 +545,28 @@ enum AppText: Equatable {
     case settingsVisionStale
     case settingsVisionCancel
     case settingsVisionTarget(endpoint: String, model: String)
+    case toolReviewAdd
+    case toolReviewUpdate
+    case toolReviewDelete
+    case toolReviewKindFact
+    case toolReviewKindPreference
+    case toolReviewKindProcedure
+    case toolReviewKindMemory
+    case toolReviewQuote
+    case toolReviewBefore
+    case toolReviewAfter
+    case toolReviewKeywords
+    case toolReviewNone
+    case memoryToolReviewHelp
+    case memoryToolReviewPending
+    case memoryToolReviewTitle
+    case memoryToolReviewDecline
+    case memoryToolReviewApprove
+    case profileToolReviewHelp
+    case profileToolReviewDeleted
+    case profileToolReviewTitle
+    case profileToolReviewDecline
+    case profileToolReviewApprove
 
     var key: String {
         switch self {
@@ -1090,6 +1112,28 @@ enum AppText: Equatable {
         case .settingsVisionStale: return "settings.vision.stale"
         case .settingsVisionCancel: return "settings.vision.cancel"
         case .settingsVisionTarget: return "settings.vision.target"
+        case .toolReviewAdd: return "toolReview.toolReviewAdd"
+        case .toolReviewUpdate: return "toolReview.toolReviewUpdate"
+        case .toolReviewDelete: return "toolReview.toolReviewDelete"
+        case .toolReviewKindFact: return "toolReview.toolReviewKindFact"
+        case .toolReviewKindPreference: return "toolReview.toolReviewKindPreference"
+        case .toolReviewKindProcedure: return "toolReview.toolReviewKindProcedure"
+        case .toolReviewKindMemory: return "toolReview.toolReviewKindMemory"
+        case .toolReviewQuote: return "toolReview.toolReviewQuote"
+        case .toolReviewBefore: return "toolReview.toolReviewBefore"
+        case .toolReviewAfter: return "toolReview.toolReviewAfter"
+        case .toolReviewKeywords: return "toolReview.toolReviewKeywords"
+        case .toolReviewNone: return "toolReview.toolReviewNone"
+        case .memoryToolReviewHelp: return "toolReview.memoryToolReviewHelp"
+        case .memoryToolReviewPending: return "toolReview.memoryToolReviewPending"
+        case .memoryToolReviewTitle: return "toolReview.memoryToolReviewTitle"
+        case .memoryToolReviewDecline: return "toolReview.memoryToolReviewDecline"
+        case .memoryToolReviewApprove: return "toolReview.memoryToolReviewApprove"
+        case .profileToolReviewHelp: return "toolReview.profileToolReviewHelp"
+        case .profileToolReviewDeleted: return "toolReview.profileToolReviewDeleted"
+        case .profileToolReviewTitle: return "toolReview.profileToolReviewTitle"
+        case .profileToolReviewDecline: return "toolReview.profileToolReviewDecline"
+        case .profileToolReviewApprove: return "toolReview.profileToolReviewApprove"
         }
     }
 
@@ -1672,6 +1716,28 @@ enum AppText: Equatable {
         case .settingsVisionStale: return "模型設定已變更，請重新檢查服務與模型後再設定圖片支援。"
         case .settingsVisionCancel: return "取消"
         case .settingsVisionTarget: return "服務：%1$@\n模型：%2$@"
+        case .toolReviewAdd: return "新增"
+        case .toolReviewUpdate: return "修改"
+        case .toolReviewDelete: return "刪除"
+        case .toolReviewKindFact: return "事實"
+        case .toolReviewKindPreference: return "偏好"
+        case .toolReviewKindProcedure: return "操作偏好"
+        case .toolReviewKindMemory: return "記憶"
+        case .toolReviewQuote: return "你的原話"
+        case .toolReviewBefore: return "目前內容"
+        case .toolReviewAfter: return "儲存後內容"
+        case .toolReviewKeywords: return "搜尋關鍵字"
+        case .toolReviewNone: return "無"
+        case .memoryToolReviewHelp: return "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。"
+        case .memoryToolReviewPending: return "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。"
+        case .memoryToolReviewTitle: return "核對記憶修改"
+        case .memoryToolReviewDecline: return "拒絕"
+        case .memoryToolReviewApprove: return "核准"
+        case .profileToolReviewHelp: return "模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。"
+        case .profileToolReviewDeleted: return "這條內容將不再用於後續對話；修改歷史會保留。"
+        case .profileToolReviewTitle: return "核對個人檔案"
+        case .profileToolReviewDecline: return "拒絕並停止"
+        case .profileToolReviewApprove: return "核准並儲存"
         }
     }
 }

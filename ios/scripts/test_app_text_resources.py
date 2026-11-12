@@ -1,6 +1,7 @@
 import copy
 import json
 from pathlib import Path
+import re
 import unittest
 from generate_app_text import validate, outputs
 
@@ -41,5 +42,28 @@ class AppTextResourceTests(unittest.TestCase):
         generated = outputs(self.catalog)
         root = Path(__file__).resolve().parents[1]
         for path, expected in generated.items(): self.assertEqual((root/path).read_bytes(), expected, path)
+
+    def test_learning_tool_reviews_use_localized_labels_and_keep_review_fields(self):
+        root = Path(__file__).resolve().parents[1]
+        entries = {e['case']: e for e in self.catalog['entries']}
+        cases = {
+            'MemoryToolReviewView.swift': ['memoryTool.operation', 'memoryTool.kind', 'memoryTool.quote',
+                                           'memoryTool.before', 'memoryTool.after', 'memoryTool.keywords',
+                                           'memoryTool.decline', 'memoryTool.approve'],
+            'UserProfileToolReviewView.swift': ['profileTool.operation', 'profileTool.quote',
+                                                'profileTool.before', 'profileTool.after',
+                                                'profileTool.decline', 'profileTool.approve'],
+        }
+        for filename, identifiers in cases.items():
+            source = (root / 'Sources/App' / filename).read_text()
+            self.assertIn('@Environment(\\.appLocalizer)', source)
+            self.assertNotRegex(source, r'\b(?:Text|Button|navigationTitle)\s*\(\s*"')
+            for identifier in identifiers: self.assertIn('"' + identifier + '"', source)
+            referenced = (re.findall(r'localizer\.text\(\.([A-Za-z][A-Za-z0-9]*)\)', source)
+                          + re.findall(r'return \.(toolReview[A-Za-z0-9]+)', source))
+            for case in referenced:
+                self.assertIn(case, entries)
+                for language in ('zh-Hant', 'zh-Hans', 'en'):
+                    self.assertTrue(entries[case]['translations'][language].strip())
 
 if __name__ == '__main__': unittest.main()

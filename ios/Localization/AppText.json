@@ -5626,6 +5626,226 @@
         "zh-Hans": "服务：%1$@\n模型：%2$@",
         "en": "Service: %1$@\nModel: %2$@"
       }
+    },
+    {
+      "case": "toolReviewAdd",
+      "key": "toolReview.toolReviewAdd",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "zh-Hans": "新增",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "toolReviewUpdate",
+      "key": "toolReview.toolReviewUpdate",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "修改",
+        "zh-Hans": "修改",
+        "en": "Update"
+      }
+    },
+    {
+      "case": "toolReviewDelete",
+      "key": "toolReview.toolReviewDelete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "zh-Hans": "删除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "toolReviewKindFact",
+      "key": "toolReview.toolReviewKindFact",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "事實",
+        "zh-Hans": "事实",
+        "en": "Fact"
+      }
+    },
+    {
+      "case": "toolReviewKindPreference",
+      "key": "toolReview.toolReviewKindPreference",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "偏好",
+        "zh-Hans": "偏好",
+        "en": "Preference"
+      }
+    },
+    {
+      "case": "toolReviewKindProcedure",
+      "key": "toolReview.toolReviewKindProcedure",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "操作偏好",
+        "zh-Hans": "操作偏好",
+        "en": "Procedure preference"
+      }
+    },
+    {
+      "case": "toolReviewKindMemory",
+      "key": "toolReview.toolReviewKindMemory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶",
+        "zh-Hans": "记忆",
+        "en": "Memory"
+      }
+    },
+    {
+      "case": "toolReviewQuote",
+      "key": "toolReview.toolReviewQuote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你的原話",
+        "zh-Hans": "你的原话",
+        "en": "Your words"
+      }
+    },
+    {
+      "case": "toolReviewBefore",
+      "key": "toolReview.toolReviewBefore",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前內容",
+        "zh-Hans": "当前内容",
+        "en": "Current content"
+      }
+    },
+    {
+      "case": "toolReviewAfter",
+      "key": "toolReview.toolReviewAfter",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存後內容",
+        "zh-Hans": "保存后内容",
+        "en": "Content after saving"
+      }
+    },
+    {
+      "case": "toolReviewKeywords",
+      "key": "toolReview.toolReviewKeywords",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋關鍵字",
+        "zh-Hans": "搜索关键词",
+        "en": "Search keywords"
+      }
+    },
+    {
+      "case": "toolReviewNone",
+      "key": "toolReview.toolReviewNone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無",
+        "zh-Hans": "无",
+        "en": "None"
+      }
+    },
+    {
+      "case": "memoryToolReviewHelp",
+      "key": "toolReview.memoryToolReviewHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。",
+        "zh-Hans": "请核对这次记忆修改。批准后会保存，并提供撤销按钮。",
+        "en": "Review this memory change. If approved, it will be saved and you can undo it."
+      }
+    },
+    {
+      "case": "memoryToolReviewPending",
+      "key": "toolReview.memoryToolReviewPending",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。",
+        "zh-Hans": "这条操作偏好会先列为待确认；需另行批准后，后续任务才会参考。",
+        "en": "This procedure preference remains pending until you separately approve it for future tasks."
+      }
+    },
+    {
+      "case": "memoryToolReviewTitle",
+      "key": "toolReview.memoryToolReviewTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核對記憶修改",
+        "zh-Hans": "核对记忆修改",
+        "en": "Review memory change"
+      }
+    },
+    {
+      "case": "memoryToolReviewDecline",
+      "key": "toolReview.memoryToolReviewDecline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "拒絕",
+        "zh-Hans": "拒绝",
+        "en": "Decline"
+      }
+    },
+    {
+      "case": "memoryToolReviewApprove",
+      "key": "toolReview.memoryToolReviewApprove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准",
+        "zh-Hans": "批准",
+        "en": "Approve"
+      }
+    },
+    {
+      "case": "profileToolReviewHelp",
+      "key": "toolReview.profileToolReviewHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。",
+        "zh-Hans": "模型提出以下个人档案修改。请核对是否符合你本次的要求；批准后会保存，下次对话开始时生效。",
+        "en": "The model proposed this profile change. Check it against your request; approval saves it for future conversations."
+      }
+    },
+    {
+      "case": "profileToolReviewDeleted",
+      "key": "toolReview.profileToolReviewDeleted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條內容將不再用於後續對話；修改歷史會保留。",
+        "zh-Hans": "这条内容将不再用于后续对话；修改历史会保留。",
+        "en": "This content will no longer be used in future conversations; its change history remains."
+      }
+    },
+    {
+      "case": "profileToolReviewTitle",
+      "key": "toolReview.profileToolReviewTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核對個人檔案",
+        "zh-Hans": "核对个人档案",
+        "en": "Review profile"
+      }
+    },
+    {
+      "case": "profileToolReviewDecline",
+      "key": "toolReview.profileToolReviewDecline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "拒絕並停止",
+        "zh-Hans": "拒绝并停止",
+        "en": "Decline and stop"
+      }
+    },
+    {
+      "case": "profileToolReviewApprove",
+      "key": "toolReview.profileToolReviewApprove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准並儲存",
+        "zh-Hans": "批准并保存",
+        "en": "Approve and save"
+      }
     }
   ]
 }

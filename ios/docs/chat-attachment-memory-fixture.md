@@ -50,10 +50,10 @@ remain separate tests, and a combined session timeout still needs validation.
   connection after approval and immediately before every dispatch. A generic
   MCP executor has no producer-lifetime contract, so consumer cancellation
   alone cannot release a lease safely. No MCP attachment path is enabled here.
-* The existing memory and profile permission views need localized fixed labels
-  for Traditional Chinese, Simplified Chinese and English. Their displayed
-  content, accessibility and language switching need native iOS verification;
-  test model/provider delivery, real MCP behavior,
+* The existing memory and profile permission views now obtain their fixed
+  labels from the Traditional Chinese, Simplified Chinese and English catalog.
+  Their actual displayed content, accessibility and language switching still
+  need native iOS verification; test model/provider delivery, real MCP behavior,
   cancellation and system picker lifecycle only in the appropriate isolated
   environment. The fixture never establishes those results.
 

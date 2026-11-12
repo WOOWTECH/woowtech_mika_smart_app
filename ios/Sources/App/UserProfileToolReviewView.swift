@@ -2,42 +2,43 @@ import AssistantMemory
 import SwiftUI
 
 struct UserProfileToolReviewView: View {
+    @Environment(\.appLocalizer) private var localizer
     let review: UserProfileToolReview
     let approve: () -> Void
     let decline: () -> Void
 
-    private var operation: String {
-        switch review.op { case .add: return "新增"; case .replace: return "修改"; case .delete: return "刪除" }
+    private var operation: AppText {
+        switch review.op { case .add: return .toolReviewAdd; case .replace: return .toolReviewUpdate; case .delete: return .toolReviewDelete }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。")
-                    Text(operation).font(.headline).accessibilityIdentifier("profileTool.operation")
-                    Text("你的原話").font(.headline)
+                    Text(localizer.text(.profileToolReviewHelp))
+                    Text(localizer.text(operation)).font(.headline).accessibilityIdentifier("profileTool.operation")
+                    Text(localizer.text(.toolReviewQuote)).font(.headline)
                     Text(verbatim: review.quote).textSelection(.enabled).accessibilityIdentifier("profileTool.quote")
                     if let before = review.before {
-                        Text("目前內容").font(.headline)
+                        Text(localizer.text(.toolReviewBefore)).font(.headline)
                         Text(verbatim: before).textSelection(.enabled).accessibilityIdentifier("profileTool.before")
                     }
                     if let after = review.after {
-                        Text("儲存後內容").font(.headline)
+                        Text(localizer.text(.toolReviewAfter)).font(.headline)
                         Text(verbatim: after).textSelection(.enabled).accessibilityIdentifier("profileTool.after")
                     } else {
-                        Text("這條內容將不再用於後續對話；修改歷史會保留。")
+                        Text(localizer.text(.profileToolReviewDeleted))
                     }
                 }.padding()
             }
-            .navigationTitle("核對個人檔案")
+            .navigationTitle(localizer.text(.profileToolReviewTitle))
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
                 HStack {
-                    Button("拒絕並停止", role: .cancel, action: decline)
+                    Button(localizer.text(.profileToolReviewDecline), role: .cancel, action: decline)
                         .accessibilityIdentifier("profileTool.decline")
                     Spacer()
-                    Button("核准並儲存", action: approve)
+                    Button(localizer.text(.profileToolReviewApprove), action: approve)
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("profileTool.approve")
                 }.padding().background(.bar)
             }
