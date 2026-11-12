@@ -41,7 +41,8 @@
 - POCO：`io.woowtech.assistant` `0.1.37-play.2`（versionCode 2）是 17:39 以 ADB 更新安裝的 Debug 版，不是 Play 下載。Craft 從實機取出的 APK 讀到繁中字串 1,983 項；未設定模型時 Android 聊天顯示卡片「還不能開始任務」「還缺:還沒有能用的模型」，按鈕「知道了」「去設定」。品牌替換正常，只有 2 項含 Mika（來源授權標示）；先前懷疑 `explain_no_model_body` 品牌外洩不成立。
 - iPad 實機（`bf34bd9` Release）：「可以按，但沒有反應」是未設定模型或金鑰時 `chat.send` 停用且沒有說明。另有 `chat.transcript` 高度 0、輸入列被推到導覽列下方，「請先到設定…」提示因此被藏住；這個狀態在鍵盤收放、畫面重建及 App 重開後都持續。18:29 已重開機，待解鎖後驗證；根因（鍵盤或容器安全區）未定。
 - 修正候選 `ios/chat-send-feedback-bf34bd9`（`0f58b08`、`6bb2d88`、`7493223`）：送出回饋比照 Android（有文字就能按，按下時說明缺少的條件，含 PDF；VoiceOver 會播報）；聊天畫面改為不採用 SwiftUI 鍵盤安全區，只為本 App 停靠底部的鍵盤留白，且只在編輯草稿時留白。本機 macOS 檢查通過（ChatSession Debug 245／Release 202 項、鍵盤幾何 14 項）；Xcode 型別檢查、模擬器與實機尚未驗證。另有只在帶 `-ChatLayoutProbe` 參數啟動時才輸出幾何數值的診斷版，不併入候選。
-- 新增差距（owner 指出）：Android「＋」是附件面板（相簿多張、拍照、最近照片、任意檔案），iOS 只有「附加 PDF」。iOS 可以實作，必須對齊；由 MacBook 實測對話在 `ios/attach-tray-android-parity` 負責。既有附件候選分支（`10b049d` 等）在 GitHub 上沒有任何 Actions 執行紀錄，只能當作未經模擬器驗證的參考實作。
+- 新增差距（owner 指出）：Android「＋」是附件面板，iOS 只有「附加 PDF」。核對 Play 來源（playstore 分支 `826e6cfc` 的 `ChatAttachments.kt`）與 POCO 上的 play.2 APK：面板只有「相機、相簿、檔案」三鈕，最多 9 個附件、單檔 200 MB；APK 沒有 READ_MEDIA_* 與 CAMERA 權限，拍照交給系統相機；「最近的照片」字串仍在但未使用。iOS 必須對齊三鈕與上限，由 MacBook 實測對話在 `ios/attach-tray-android-parity` 負責。既有附件候選分支（`10b049d` 等）在 GitHub 上沒有任何 Actions 執行紀錄，只能當作未經模擬器驗證的參考實作。
+- **Android 待修（owner 2026-11-12 決定）**：play.2 的附件會匯入對話工作區，但主任務的工具分派是 `sandbox = null`（`TaskRun.kt`），沒有 `read_file`，模型讀不到附件內容，只能拿來網頁上傳。owner 決定 iOS 在本機讀取附件內容：有視覺能力的模型看圖片，文字與 PDF 轉成文字；這是刻意與 play.2 不同。Android 這項列為上架版待修，尚未修改。
 - 已知未對齊：iOS 的「還不能開始任務」卡片放在輸入列上方；Android 則放在對話列表最後，並在阻擋時隱藏首頁歡迎區，樣式為 surface 底色、0.5 dp 邊線、16 dp 圓角。待版面根因確認後再決定是否移入對話列表。
 
 商店候選本身刻意移除定時任務、手機對電腦 MCP 服務及手機操控等能力；不得把這些視為已從商店候選驗收的共同功能。其他不涉及手機控制的既有使用者需求仍需獨立追蹤，不能因本表未列而宣稱完成。
