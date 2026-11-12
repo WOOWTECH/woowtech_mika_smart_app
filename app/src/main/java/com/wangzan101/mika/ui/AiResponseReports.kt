@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
@@ -44,6 +45,7 @@ internal fun aiResponseReference(conversationId: String?, exchanges: List<Exchan
 private enum class ReferenceMatch { Same, Different, Ambiguous }
 internal class AmbiguousReportReferenceException : IllegalStateException()
 internal class UnidentifiedReportException : IllegalStateException()
+internal class DamagedReportReferenceException : IllegalStateException()
 
 private fun compareReferences(a: AiResponseReference, b: AiResponseReference): ReferenceMatch {
     if (a.conversationId != b.conversationId) return ReferenceMatch.Different
@@ -97,6 +99,8 @@ internal data class AiResponseReport(
     val nextAttemptAtMs: Long = 0,
     val acknowledgedAtMs: Long? = null,
     val deletionReceipt: String? = null,
+    val manualOnly: Boolean = false,
+    val replacementOf: String? = null,
 )
 
 internal fun reportOutsideIntakeWindow(report: AiResponseReport, now: Long): Boolean {
@@ -123,11 +127,13 @@ internal class AiResponseReportQueue(private val dir: File) {
     }
 
     // Prefer an acknowledgement if older versions left multiple reports for the same response.
-    fun find(reference: AiResponseReference, allowUnidentified: Boolean = false): AiResponseReport? = synchronized(lock) {
+    fun find(reference: AiResponseReference, allowUnidentified: Boolean = false,
+        promote: Boolean = true): AiResponseReport? = synchronized(lock) {
         val scan = scan()
         if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
-        check(scan.damagedReferences.none { compareReferences(it, reference) != ReferenceMatch.Different })
-        val comparisons = scan.reports.map { it to compareReferences(it.reference, reference) }
+        if (scan.damagedReferences.any { compareReferences(it, reference) != ReferenceMatch.Different })
+            throw DamagedReportReferenceException()
+        val comparisons = scan.reports.filterNot { it.manualOnly }.map { it to compareReferences(it.reference, reference) }
         if (comparisons.any { it.second == ReferenceMatch.Ambiguous }) throw AmbiguousReportReferenceException()
         val matches = comparisons.filter { it.second == ReferenceMatch.Same }.map { it.first }
         val steerId = reference.answerId?.takeIf { it.startsWith("steer:") }?.removePrefix("steer:")
@@ -136,7 +142,7 @@ internal class AiResponseReportQueue(private val dir: File) {
             throw AmbiguousReportReferenceException()
         // Keep the evidence and ID, and add the proven stable identity for future background delivery.
         val promoted = matches.map { report ->
-            val updated = if (reference.answerId == null) report else report.copy(reference = report.reference.copy(
+            val updated = if (!promote || reference.answerId == null) report else report.copy(reference = report.reference.copy(
                 answerId = reference.answerId, savedSteerIndex = report.reference.savedSteerIndex ?: reference.savedSteerIndex))
             if (updated != report) write(updated)
             updated
@@ -166,10 +172,53 @@ internal class AiResponseReportQueue(private val dir: File) {
         else old.copy(status = "queued_local", attempts = 0, nextAttemptAtMs = 0).also(::write)
     }
 
+    /** Independent reports are only sent when the user explicitly submits or retries them. */
+    fun createManual(reference: AiResponseReference, response: String, reason: String, note: String,
+        replacementOf: String? = null, now: Long = System.currentTimeMillis()): AiResponseReport = synchronized(lock) {
+        require(reason in setOf("offensive", "unsafe", "other") && response.isNotBlank())
+        AiResponseReport(UUID.randomUUID().toString(), reference, response.take(MAX_RESPONSE), reason,
+            note.trim().take(MAX_NOTE), now, manualOnly = true, replacementOf = replacementOf).also(::write)
+    }
+
+    fun manualReports(conversationId: String, allowUnidentified: Boolean = false): List<AiResponseReport> = synchronized(lock) {
+        val scan = scan()
+        if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
+        scan.reports.filter { it.manualOnly && it.reference.conversationId == conversationId }.asReversed()
+    }
+
+    /** A new independent submission pauses automatic sends of any possibly related old record. */
+    fun autoBlockedByManual(report: AiResponseReport, allowUnidentified: Boolean = false): Boolean = synchronized(lock) {
+        val scan = scan()
+        if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
+        scan.reports.any { it.manualOnly && compareReferences(it.reference, report.reference) != ReferenceMatch.Different }
+    }
+
+    fun getManual(id: String, allowUnidentified: Boolean = false): AiResponseReport? = synchronized(lock) {
+        val scan = scan()
+        if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
+        scan.reports.firstOrNull { it.id == id && it.manualOnly }
+    }
+
+    fun recordManualAttempt(id: String, result: ReportDeliveryResult, now: Long,
+        allowUnidentified: Boolean = false): AiResponseReport = synchronized(lock) {
+        val old = requireNotNull(getManual(id, allowUnidentified))
+        if (old.status == "acknowledged") return@synchronized old
+        val attempts = old.attempts + 1
+        val updated = when (result) {
+            is ReportDeliveryResult.Acknowledged -> old.copy(status = "acknowledged", attempts = attempts,
+                acknowledgedAtMs = now, deletionReceipt = result.deletionReceipt)
+            ReportDeliveryResult.Rejected -> old.copy(status = "rejected", attempts = attempts)
+            ReportDeliveryResult.Retryable -> old.copy(status = "queued_local", attempts = attempts)
+        }
+        write(updated)
+        updated
+    }
+
     private fun write(report: AiResponseReport) {
         dir.mkdirs()
-        val target = File(dir, "${report.id}.json")
-        val temp = File(dir, "${report.id}.tmp")
+        val name = if (report.manualOnly) "manual-${report.id}" else report.id
+        val target = File(dir, "$name.json")
+        val temp = File(dir, "$name.tmp")
         try {
             FileOutputStream(temp).use { stream ->
                 stream.write(report.toJson().toString().toByteArray(Charsets.UTF_8))
@@ -202,7 +251,10 @@ internal class AiResponseReportQueue(private val dir: File) {
             if (json == null) { unidentified = true; continue }
             val report = runCatching {
                 parseReport(json).also {
-                    require(it.id == file.nameWithoutExtension && UUID.fromString(it.id).toString() == it.id)
+                    val name = file.nameWithoutExtension
+                    val manualFile = name.startsWith("manual-")
+                    require(it.manualOnly == manualFile && it.id == (if (manualFile) name.removePrefix("manual-") else name))
+                    require(UUID.fromString(it.id).toString() == it.id)
                     require(it.status in setOf("queued_local", "rejected", "acknowledged"))
                     require(it.reason in setOf("offensive", "unsafe", "other") && it.response.isNotBlank())
                     require(it.attempts >= 0)
@@ -222,6 +274,8 @@ internal class AiResponseReportQueue(private val dir: File) {
         put("note", note); put("createdAtMs", createdAtMs); put("status", status)
         put("attempts", attempts); put("nextAttemptAtMs", nextAttemptAtMs)
         put("acknowledgedAtMs", acknowledgedAtMs); put("deletionReceipt", deletionReceipt)
+        if (manualOnly) put("manualOnly", true)
+        replacementOf?.let { put("replacementOf", it) }
     }
 
     private fun parseReference(o: JsonObject): AiResponseReference {
@@ -249,6 +303,8 @@ internal class AiResponseReportQueue(private val dir: File) {
             nextAttemptAtMs = (o["nextAttemptAtMs"] as? JsonPrimitive)?.longOrNull ?: 0,
             acknowledgedAtMs = (o["acknowledgedAtMs"] as? JsonPrimitive)?.longOrNull,
             deletionReceipt = text("deletionReceipt"),
+            manualOnly = o["manualOnly"]?.let { (it as? JsonPrimitive)?.booleanOrNull ?: error("Invalid manual flag") } ?: false,
+            replacementOf = text("replacementOf"),
         )
     }
 

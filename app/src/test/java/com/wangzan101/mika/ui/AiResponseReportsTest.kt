@@ -253,7 +253,7 @@ class AiResponseReportsTest {
         }
     }
 
-    @Test fun intakeAgeWarningKeepsRejectedReportUnconfirmed() = runBlocking {
+    @Test fun expiredReportIsKeptAndExplicitReplacementIsManual() = runBlocking {
         val server = MockWebServer()
         server.start()
         val dir = Files.createTempDirectory("ai-reports").toFile()
@@ -267,17 +267,147 @@ class AiResponseReportsTest {
             val oldCreatedAt = report.createdAtMs - week - 1_000
             val file = java.io.File(dir, "${report.id}.json")
             file.writeText(file.readText().replace("\"createdAtMs\":${report.createdAtMs}", "\"createdAtMs\":$oldCreatedAt"))
-            server.enqueue(MockResponse().setResponseCode(400))
-            val rejected = AiResponseReportDelivery.retry(queue, AiResponseReportSender(server.url("/").toString()), report.id)
-            assertEquals("rejected", rejected.status)
-            assertNull(rejected.acknowledgedAtMs)
-            assertEquals(oldCreatedAt, rejected.createdAtMs)
-            assertEquals(oldCreatedAt.toString(), (Json.parseToJsonElement(server.takeRequest().body.readUtf8()) as JsonObject)["created_at_ms"].toString())
+            val oldBytes = file.readText()
+            val sender = AiResponseReportSender(server.url("/").toString())
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            val expired = AiResponseReportDelivery.retry(queue, sender, report.id)
+            assertEquals("queued_local", expired.status)
+            assertNull(expired.acknowledgedAtMs)
+            assertEquals(oldCreatedAt, expired.createdAtMs)
+            assertEquals(0, server.requestCount)
+            val replacement = AiResponseReportDelivery.createManual(queue, report.reference, "answer", "other", "", report.id)
+            assertTrue(replacement.manualOnly)
+            assertEquals(report.id, replacement.replacementOf)
+            assertTrue(replacement.id != report.id)
+            assertFalse(reportOutsideIntakeWindow(replacement, System.currentTimeMillis()))
+            assertEquals(replacement.id, AiResponseReportDelivery.createManual(queue, report.reference, "answer", "other", "", report.id).id)
+            val different = runCatching {
+                AiResponseReportDelivery.createManual(queue, report.reference, "answer", "other", "different details", report.id)
+            }.exceptionOrNull() as ExistingManualReportException
+            assertEquals(replacement.id, different.report.id)
+            assertEquals("", different.report.note)
+            assertEquals(0, server.requestCount)
+            assertEquals(oldBytes, file.readText())
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            // Even if the device clock is corrected, the retained old report must not resume automatically.
+            AiResponseReportDelivery.deliverDue(queue, sender) { oldCreatedAt + 1 }
+            assertEquals(0, server.requestCount)
+            server.enqueue(MockResponse().setResponseCode(503))
+            assertEquals("queued_local", AiResponseReportDelivery.sendManual(queue, sender, replacement.id).status)
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            assertEquals(1, server.requestCount)
+            assertEquals(replacement.id, AiResponseReportQueue(dir).manualReports("conversation").single().id)
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${replacement.id}","accepted":true}"""))
+            assertEquals("acknowledged", AiResponseReportDelivery.sendManual(queue, sender, replacement.id).status)
+            assertEquals("acknowledged", AiResponseReportDelivery.sendManual(queue, sender, replacement.id).status)
+            assertEquals(replacement.id, AiResponseReportDelivery.createManual(queue, report.reference, "answer", "other", "", report.id).id)
+            assertEquals(2, server.requestCount)
+            val firstBody = Json.parseToJsonElement(server.takeRequest().body.readUtf8()) as JsonObject
+            assertEquals(replacement.id, firstBody["id"]?.toString()?.trim('"'))
+            assertEquals(replacement.createdAtMs.toString(), firstBody["created_at_ms"].toString())
+            assertEquals(oldBytes, file.readText())
             assertEquals(report.id, queue.find(report.reference)?.id)
         } finally {
             server.shutdown()
             dir.deleteRecursively()
         }
+    }
+
+    @Test fun manualReportsAreIndependentAndNeverGuessedByText() = runBlocking {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val legacy = AiResponseReference("c", "run", "a0-old-uuid")
+            val old = queue.save(legacy, "same answer", "other", "")
+            queue.recordAttempt(old.id, ReportDeliveryResult.Acknowledged(null), 10)
+            val uncertain = AiResponseReference("c", "run", "a0-turn-0", "steer:turn-0", 0)
+            assertTrue(runCatching { queue.find(uncertain) }.exceptionOrNull() is AmbiguousReportReferenceException)
+            val independent = AiResponseReportDelivery.createManual(queue, uncertain, "same answer", "other", "", null)
+            val runless = AiResponseReference("c", null, "r0")
+            val other = AiResponseReportDelivery.createManual(queue, runless, "same answer", "other", "", null)
+            assertTrue(independent.id != other.id && independent.id != old.id)
+            assertEquals(setOf(independent.id, other.id), AiResponseReportQueue(dir).manualReports("c").map { it.id }.toSet())
+            assertTrue(queue.manualReports("different-conversation").isEmpty())
+            assertEquals("acknowledged", queue.get(old.id)?.status)
+            assertTrue(runCatching { queue.find(uncertain) }.exceptionOrNull() is AmbiguousReportReferenceException)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun independentReportPausesPossibleOldReportButNotOtherConversations() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val legacy = queue.save(AiResponseReference("c", "run", "a0-uuid"), "same", "other", "")
+            val unrelated = queue.save(AiResponseReference("other", "run", "r0"), "answer", "other", "")
+            val uncertain = AiResponseReference("c", "run", "a0-turn-0", "steer:turn-0", 0)
+            val manual = AiResponseReportDelivery.createManual(queue, uncertain, "same", "other", "", null)
+            val sender = AiResponseReportSender(server.url("/").toString())
+            server.enqueue(MockResponse().setResponseCode(503))
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            assertEquals(1, server.requestCount)
+            val body = Json.parseToJsonElement(server.takeRequest().body.readUtf8()) as JsonObject
+            assertEquals(unrelated.id, body["id"]?.toString()?.trim('"'))
+            assertEquals(0, queue.get(legacy.id)?.attempts)
+            assertEquals(0, queue.getManual(manual.id)?.attempts)
+        } finally { server.shutdown(); dir.deleteRecursively() }
+    }
+
+    @Test fun replacementRechecksAcknowledgmentBeforeCreating() = runBlocking {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val ref = AiResponseReference("c", "run", "r0", "final")
+            val old = queue.save(ref, "answer", "other", "")
+            val file = java.io.File(dir, "${old.id}.json")
+            val oldCreated = old.createdAtMs - 8L * 24 * 60 * 60 * 1_000
+            file.writeText(file.readText().replace("\"createdAtMs\":${old.createdAtMs}", "\"createdAtMs\":$oldCreated"))
+            queue.recordAttempt(old.id, ReportDeliveryResult.Acknowledged(null), System.currentTimeMillis())
+            val result = AiResponseReportDelivery.createManual(queue, ref, "answer", "other", "", old.id)
+            assertEquals(old.id, result.id)
+            assertEquals("acknowledged", result.status)
+            assertTrue(queue.manualReports("c").isEmpty())
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun concurrentManualSendsStopAfterFirstAcknowledgment() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val ref = AiResponseReference("c", null, "r0")
+            val report = AiResponseReportDelivery.createManual(queue, ref, "answer", "other", "", null)
+            val sender = AiResponseReportSender(server.url("/").toString())
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${report.id}","accepted":true}""")
+                .setBodyDelay(500, TimeUnit.MILLISECONDS))
+            val first = async(Dispatchers.IO) { AiResponseReportDelivery.sendManual(queue, sender, report.id) }
+            assertTrue(server.takeRequest(5, TimeUnit.SECONDS) != null)
+            val second = async(Dispatchers.IO) { AiResponseReportDelivery.sendManual(AiResponseReportQueue(dir), sender, report.id) }
+            assertEquals("acknowledged", first.await().status)
+            assertEquals("acknowledged", second.await().status)
+            assertEquals(1, server.requestCount)
+        } finally { server.shutdown(); dir.deleteRecursively() }
+    }
+
+    @Test fun damagedManualFlagCannotTurnIntoAutomaticDelivery() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val ref = AiResponseReference("c", "run", "r0", "final")
+            queue.save(ref, "answer", "other", "")
+            val manual = AiResponseReportDelivery.createManual(queue, ref, "answer", "other", "", null)
+            val file = java.io.File(dir, "manual-${manual.id}.json")
+            val json = Json.parseToJsonElement(file.readText()) as JsonObject
+            file.writeText(JsonObject(json - "manualOnly").toString())
+            assertTrue(queue.manualReports("c").isEmpty())
+            assertTrue(runCatching { queue.find(ref) }.exceptionOrNull() is DamagedReportReferenceException)
+            AiResponseReportDelivery.deliverDue(queue, AiResponseReportSender(server.url("/").toString()))
+            assertEquals(0, server.requestCount)
+        } finally { server.shutdown(); dir.deleteRecursively() }
     }
     @Test fun reportPersistsLocallyWithReferenceAndNoDeliveryClaim() {
         val dir = Files.createTempDirectory("ai-reports").toFile()

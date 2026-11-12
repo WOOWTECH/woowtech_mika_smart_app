@@ -27,6 +27,8 @@ internal sealed interface ReportDeliveryResult {
     data object Rejected : ReportDeliveryResult
 }
 
+internal class ExistingManualReportException(val report: AiResponseReport) : IllegalStateException()
+
 /** The relay's public intake accepts reports without a device token or pairing. */
 internal class AiResponseReportSender(
     private val endpoint: String,
@@ -80,11 +82,14 @@ internal object AiResponseReportDelivery {
     suspend fun deliverDue(queue: AiResponseReportQueue, sender: AiResponseReportSender, now: () -> Long = System::currentTimeMillis) {
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                queue.all().filter { it.status == "queued_local" && it.attempts < MAX_ATTEMPTS && it.nextAttemptAtMs <= now() }
+                queue.all().filter { !it.manualOnly && !reportOutsideIntakeWindow(it, now()) &&
+                    it.status == "queued_local" && it.attempts < MAX_ATTEMPTS && it.nextAttemptAtMs <= now() }
                     .forEach { report ->
                         val current = queue.get(report.id) ?: return@forEach
+                        if (queue.autoBlockedByManual(current)) return@forEach
                         val selected = try { queue.find(current.reference) } catch (_: AmbiguousReportReferenceException) { null }
-                        if (selected?.id == current.id && current.status == "queued_local" &&
+                        if (selected?.id == current.id && !current.manualOnly &&
+                            !reportOutsideIntakeWindow(current, now()) && current.status == "queued_local" &&
                             current.attempts < MAX_ATTEMPTS && current.nextAttemptAtMs <= now()) {
                             queue.recordAttempt(current.id, sender.send(current), now())
                         }
@@ -98,8 +103,9 @@ internal object AiResponseReportDelivery {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val current = requireNotNull(queue.get(id, allowUnidentified))
+                require(!current.manualOnly)
                 val selected = requireNotNull(queue.find(current.reference, allowUnidentified))
-                if (selected.status == "acknowledged") selected
+                if (selected.status == "acknowledged" || reportOutsideIntakeWindow(selected, System.currentTimeMillis())) selected
                 else {
                     val report = queue.retry(selected.id, allowUnidentified)
                     queue.recordAttempt(report.id, sender.send(report), System.currentTimeMillis(), allowUnidentified)
@@ -112,10 +118,45 @@ internal object AiResponseReportDelivery {
         mutex.withLock {
             withContext(Dispatchers.IO) {
                 val current = requireNotNull(queue.get(id, allowUnidentified = true))
+                require(!current.manualOnly)
                 val selected = requireNotNull(queue.find(current.reference, allowUnidentified = true))
-                if (selected.status != "queued_local" || selected.attempts >= MAX_ATTEMPTS ||
+                if (selected.status != "queued_local" || queue.autoBlockedByManual(selected, allowUnidentified = true) ||
+                    reportOutsideIntakeWindow(selected, System.currentTimeMillis()) || selected.attempts >= MAX_ATTEMPTS ||
                     selected.nextAttemptAtMs > System.currentTimeMillis()) selected
                 else queue.recordAttempt(selected.id, sender.send(selected), System.currentTimeMillis(), allowUnidentified = true)
             }
         }
+
+    /** Recheck the old report while no other delivery is in flight; never replace a known receipt. */
+    suspend fun createManual(queue: AiResponseReportQueue, reference: AiResponseReference, response: String,
+        reason: String, note: String, sourceId: String?, allowUnidentified: Boolean = false): AiResponseReport =
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                if (sourceId != null) {
+                    val source = queue.getManual(sourceId, allowUnidentified) ?: requireNotNull(queue.get(sourceId, allowUnidentified))
+                    val selected = if (source.manualOnly) source else requireNotNull(queue.find(source.reference, allowUnidentified, promote = false))
+                    if (selected.status == "acknowledged") return@withContext selected
+                    require(selected.id == source.id && reportOutsideIntakeWindow(source, System.currentTimeMillis()))
+                    require(reference == source.reference && response == source.response)
+                    val replacements = queue.manualReports(reference.conversationId, allowUnidentified)
+                        .filter { it.replacementOf == sourceId }
+                    replacements.firstOrNull { it.status == "acknowledged" }?.let { return@withContext it }
+                    replacements.firstOrNull { !reportOutsideIntakeWindow(it, System.currentTimeMillis()) }?.let {
+                        if (it.response != response || it.reason != reason || it.note != note.trim().take(1_000))
+                            throw ExistingManualReportException(it)
+                        return@withContext it
+                    }
+                }
+                queue.createManual(reference, response, reason, note, sourceId)
+            }
+        }
+
+    suspend fun sendManual(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String,
+        allowUnidentified: Boolean = false): AiResponseReport = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val report = requireNotNull(queue.getManual(id, allowUnidentified))
+            if (report.status == "acknowledged" || reportOutsideIntakeWindow(report, System.currentTimeMillis())) report
+            else queue.recordManualAttempt(id, sender.send(report), System.currentTimeMillis(), allowUnidentified)
+        }
+    }
 }
