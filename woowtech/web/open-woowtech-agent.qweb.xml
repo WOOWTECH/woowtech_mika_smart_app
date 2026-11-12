@@ -16,9 +16,9 @@ p { font-size: 16px; line-height: 1.6; color: #334155; }
 <p>如果沒有自動打開，請按下面的按鈕。</p>
 <a id="open" class="btn" href="intent://open#Intent;scheme=io.woowtech.agent;package=io.woowtech.agent;S.browser_fallback_url=https%3A%2F%2Faiot.woowtech.io%2Fopen-woowtech-agent%3Fv%3Dfb;end">打開渥屋助理</a>
 <div id="fail" class="note" hidden="hidden">沒有打開？請再按一次上方按鈕。仍無反應時，請確認 App 版本，或從 LINE 右下角選單改用外部瀏覽器。</div>
-<div id="fallback" class="note" hidden="hidden">瀏覽器未能自動開啟 App。請按上方按鈕再試；仍無法開啟時，請確認已安裝支援網頁開啟的候選版，或改用 Chrome。</div>
+<div id="fallback" class="note" hidden="hidden">瀏覽器未能自動開啟 App。請按上方按鈕再試；仍無法開啟時，請確認已安裝最新版渥屋助理，或改用 Chrome。</div>
 <div id="ios" class="note" hidden="hidden">渥屋助理目前只有 Android 版。</div>
-<p class="small"><a href="https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/tag/v0.1.37-woow.4-browser.20261110">下載支援網頁開啟的測試版</a></p>
+<p class="small"><a href="https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/latest">下載最新版渥屋助理</a></p>
 <p class="small">這是 woowtech 的測試頁。只開啟 App，不傳送訊息或執行任務。</p>
 <script>
 (function () {
