@@ -5,6 +5,7 @@
 ## 基準與來源
 
 - Android 商店分支 `playstore/woowtech-compliant-20261111`，來源 `420b1d26f99110635d6a2827ee9414541c7a6c35`；`io.woowtech.assistant`、`0.1.37-play.2`。依[送審準備紀錄](https://github.com/WOOWTECH/woowtech_mika_smart_app/blob/420b1d26f99110635d6a2827ee9414541c7a6c35/docs-woowtech/PLAY_REVIEW_READINESS_2026-11-12.md)，當時尚未上傳 AAB 或送審；不可稱作已經 Play 發行的安裝檔。分支正在開發，後續來源變更須重新固定版本。
+- 2026-11-12 再查商店分支已到 `6a6cf18bc46e1672b0e124a3288cfe666a2bcc0e`；與上述基準比較只有送審文件增加 16 KB 相容性紀錄，沒有產品源碼差異。本表及 APK 仍固定在 `420b1d26`；後續若產品源碼變更須重新建置及比對。
 - POCO Android 15 的真模型對話、記憶、技能與唯讀 HA MCP 多數證據來自 ADB 安裝的 `play.1`；`play.2` 的安裝與重啟紀錄不能升格成全部流程重測。參見[實機紀錄](https://github.com/WOOWTECH/woowtech_mika_smart_app/blob/420b1d26f99110635d6a2827ee9414541c7a6c35/docs-woowtech/PLAY_POCO_ACCEPTANCE_2026-11-12.md)。
 - iOS 實體 iPad 第 9 代／iPadOS 26.6.1 的產品來源為 `bf34bd9976f0407f44518761d9b20a50ebb79bc6`，本機簽章 Release 已安裝；[實機紀錄](https://github.com/WOOWTECH/woow-assistant-ios/issues/1#issuecomment-6818332596)。`d60fd8a` 是 `bf34bd9` 的 Git 祖先；分支指向時間不能證明前者較新。
 - 舊版 iOS 18.5 模擬器曾有[真模型個人資料](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42868747738)與[真模型／HA 混合對話](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42879196152)各 1/1 的紀錄，來源分別為 `017976b`／`395ee5a`；不代表目前 iPad 或最新整合候選通過。
@@ -27,5 +28,11 @@
 | 瀏覽器 | `bf34` iPad 分頁及真 HTTPS 通過；點擊最近瀏覽後仍停首頁的實機案例失敗。 | 原斷言保留，定位點擊／狀態／載入，修正後測分頁、歷史、書籤、網站資料、登入與檔案。 |
 | 設定、語言、通知、關於 | `bf34` iPad 有基本入口及測試隔離資料的記憶開關通過，未完成逐頁畫面及通知聲音驗收。 | 按商店版逐入口比對；必要的系統授權及 iPad 權限狀態單獨記錄。 |
 | AI 回覆檢舉 | 商店候選有入口，正式收件與重試仍待驗；iOS 尚未找到同等入口。 | 先核對商店版最終資料流與可用後端，再對照 iOS 實作及可靠送達，不以畫面存在代替服務可用。 |
+
+## 對話候選審查
+
+- `5fc067499e0bcae19d6468b20b0c88747ce822ee` 是一般對話與技能模型 HTTP 429 分類的隔離修正，並非 iPad 已安裝版本。合成測試通過；GitHub iOS 原生測試排隊中，尚未驗證實機。
+- 獨立審查發現兩條尚未覆蓋的限流路徑：回答完成後的自動記憶整理，以及 PDF 問答。前者必須清楚表示回答已完成，而不能誤稱草稿保留；兩者均不得自動重送或洩漏服務回應。已交付補修及重測，未把候選列為完整修復。
+- 對話首次畫面六項建議文字已按商用候選 APK 比對；`8d4130c8c040b47caccbf29862b45a5c4d65bdaf` 為另行審查中的可及性候選，尚未整合或在 iOS 真機／模擬器通過。Android 式插話、回答模式及首頁提示狀態仍需比對與實作。
 
 商店候選本身刻意移除定時任務、手機對電腦 MCP 服務及手機操控等能力；不得把這些視為已從商店候選驗收的共同功能。其他不涉及手機控制的既有使用者需求仍需獨立追蹤，不能因本表未列而宣稱完成。
