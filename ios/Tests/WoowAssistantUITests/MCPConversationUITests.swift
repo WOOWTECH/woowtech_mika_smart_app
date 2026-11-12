@@ -51,7 +51,9 @@ final class MCPConversationUITests: XCTestCase {
         let toggle = app.switches["memory.toggle.useMemory"].firstMatch
         revealLearningElement(toggle, in: app)
         XCTAssertEqual(toggle.value as? String, "1")
-        toggle.tap()
+        let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+        XCTAssertTrue(target.isHittable)
+        target.tap()
         let alert = app.alerts.firstMatch
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
         XCTAssertTrue(alert.staticTexts["設定未儲存"].exists)
