@@ -5,6 +5,7 @@ An English-first Android assistant for your spaces, your work and your next step
 - [Research and capability map (繁體中文)](RESEARCH.zh-TW.md)
 - [Connect a computer](agent-quickstart.en.md)
 - [MCP setup](mcp.en.md)
+- [apporo.10 shared MCP and skill alignment](ALIGNMENT-20261112.md)
 - [WOOWTECH woow.4 alignment](PARITY-WOOW4-20261108.zh-TW.md)
 - [apporo.4 accessibility and speech alignment](ALIGNMENT-20261109.md)
 - [Emulator wave5: accessibility, system panels, shopping quantities and remote control](EMULATOR-WAVE5-20261108.zh-TW.md)

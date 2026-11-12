@@ -137,8 +137,8 @@ android {
         create("apporo") {
             dimension = "brand"
             applicationId = "com.apporo.assistant"
-            versionCode = (defaultConfig.versionCode ?: 0) * 100 + 9
-            versionName = "${defaultConfig.versionName}-apporo.9"
+            versionCode = (defaultConfig.versionCode ?: 0) * 100 + 10
+            versionName = "${defaultConfig.versionName}-apporo.10"
             resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
         create("woowtech") {

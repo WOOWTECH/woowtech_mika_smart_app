@@ -22,7 +22,7 @@ spec = importlib.util.spec_from_file_location('alignment_startup_helpers', ROOT 
 smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 PACKAGE = 'com.apporo.assistant'
-EXPECTED_VERSION_CODE = 3809
+EXPECTED_VERSION_CODE = 3810
 TEST_CLASS = 'com.wangzan101.mika.ui.ApporoAlignmentTest'
 COMPONENT = PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner'
 SERIAL = 'emulator-5554'

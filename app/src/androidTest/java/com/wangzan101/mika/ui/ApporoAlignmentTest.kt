@@ -83,7 +83,7 @@ class ApporoAlignmentTest {
         assertTrue("API 35/36 only", Build.VERSION.SDK_INT in 35..36)
         assertEquals("en", context.resources.configuration.locales[0].language)
         assertEquals("en", context.getString(R.string.ui_locale))
-        assertEquals(3809L, context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
+        assertEquals(3810L, context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
         val identity = com.wangzan101.mika.core.agent.SystemPrompt.identity(context.packageName)
         assertTrue(identity, identity.contains("Android package com.apporo.assistant"))
         assertFalse(identity, identity.contains("Android package io.woowtech.agent"))
