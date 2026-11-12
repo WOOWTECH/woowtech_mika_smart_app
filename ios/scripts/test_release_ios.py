@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 import release_ios as release
 import release_ios17 as ios17
+import check_mcp_inbound_xctest_completion as inbound_gate
 
 
 TEAM = "ABCD123456"
@@ -37,6 +38,11 @@ def synthetic_xctest_completion(scope):
     ui_only = bool(ios17.TEST_SCOPES[scope]) and all(
         s.startswith("WoowAssistantUITests/") for s in ios17.TEST_SCOPES[scope])
     count = len(selected) + (0 if ui_only else 1)
+    if ios17.scope_requires_inbound(scope):
+        log += "".join("Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' started.\n"
+                       "Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' passed (0.1 seconds).\n" % (name, name)
+                       for name in sorted(inbound_gate.EXPECTED)).encode()
+        count += len(inbound_gate.EXPECTED)
     return log, {"result": "Passed", "totalTestCount": count, "passedTests": count,
                  "failedTests": 0, "skippedTests": 0, "expectedFailures": 0}
 
@@ -429,6 +435,37 @@ class UIShardTests(unittest.TestCase):
                 with self.assertRaises(release.ReleaseError):
                     ios17.ui_inventory(root, {"ui-example": ["ExampleUITests"]})
 
+    def test_inbound_completion_required_by_native_core_parity_and_full(self):
+        for scope in ("native", "core", "parity", "all"):
+            self.assertTrue(ios17.scope_requires_inbound(scope), scope)
+        self.assertFalse(ios17.scope_requires_inbound("ui-learning"))
+        summary = {"result": "Passed", "totalTestCount": 100, "passedTests": 100,
+                   "failedTests": 0, "skippedTests": 0, "expectedFailures": 0}
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder) / "native.log"
+            with self.assertRaises(TypeError):
+                ios17.test_completion(summary, log, [], False)
+            names = sorted(inbound_gate.EXPECTED)
+            def events(selected):
+                return "".join("Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' started.\n"
+                               "Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' passed (0.1 seconds).\n" % (name, name)
+                               for name in selected)
+            for selected in ([], names[:4]):
+                log.write_text(events(selected))
+                result = ios17.test_completion(summary, log, [], False, require_inbound=True)
+                self.assertFalse(result["verified"])
+                self.assertFalse(result["inbound_methods_verified"])
+            complete = events(names)
+            log.write_text(complete)
+            result = ios17.test_completion(summary, log, [], False, require_inbound=True)
+            self.assertTrue(result["verified"])
+            self.assertTrue(result["inbound_methods_verified"])
+            for invalid in (complete + complete.splitlines(keepends=True)[0],
+                            complete.replace("passed (", "skipped (", 1),
+                            complete.replace("passed (", "failed (", 1)):
+                log.write_text(invalid)
+                self.assertFalse(ios17.test_completion(summary, log, [], False, require_inbound=True)["verified"])
+
     def test_zero_exit_is_insufficient_with_skips_missing_repeated_or_wrong_cases(self):
         log, summary = synthetic_xctest_completion("ui-learning")
         # This shard now owns more than one class. Derive the expected complete
@@ -438,20 +475,20 @@ class UIShardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "tests.log"
             path.write_bytes(log)
-            self.assertTrue(ios17.test_completion(summary, path, expected, True)["verified"])
+            self.assertTrue(ios17.test_completion(summary, path, expected, True, require_inbound=False)["verified"])
             for key in ("failedTests", "skippedTests", "expectedFailures"):
                 wrong = dict(summary, **{key: 1})
-                self.assertFalse(ios17.test_completion(wrong, path, expected, True)["verified"])
+                self.assertFalse(ios17.test_completion(wrong, path, expected, True, require_inbound=False)["verified"])
             for wrong in [{}, dict(summary, passedTests=0), dict(summary, totalTestCount=0),
                           dict(summary, result="Failed"), dict(summary, passedTests=True),
                           dict(summary, totalTestCount=len(expected) + 1, passedTests=len(expected) + 1)]:
-                self.assertFalse(ios17.test_completion(wrong, path, expected, True)["verified"])
+                self.assertFalse(ios17.test_completion(wrong, path, expected, True, require_inbound=False)["verified"])
             lines = log.splitlines(keepends=True)
             for wrong_log in [b"", b"".join(lines[1:]), log + lines[0],
                               log.replace(b"passed", b"skipped", 1),
                               log.replace(b"BrowserLearningUITests", b"OtherUITests", 1)]:
                 path.write_bytes(wrong_log)
-                self.assertFalse(ios17.test_completion(summary, path, expected, True)["verified"])
+                self.assertFalse(ios17.test_completion(summary, path, expected, True, require_inbound=False)["verified"])
 
 
 class RuntimeTests(unittest.TestCase):
@@ -594,6 +631,7 @@ class RuntimeTests(unittest.TestCase):
                 def child(args, **kwargs):
                     if args[0] == "xcodebuild":
                         tested.append(args)
+                        kwargs["stdout"].write(synthetic_xctest_completion("core")[0])
                         return subprocess.CompletedProcess(args, test_exit)
                     if "shutdown" in args and cleanup_failed:
                         raise subprocess.TimeoutExpired(args, kwargs["timeout"])

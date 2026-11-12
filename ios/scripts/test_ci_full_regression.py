@@ -11,6 +11,7 @@ import unittest
 from unittest import mock
 
 import ci_full_regression as ci
+import check_mcp_inbound_xctest_completion as inbound_gate
 from release_ios17 import ui_inventory
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -183,9 +184,26 @@ class FullRegressionPlanTests(unittest.TestCase):
             log.write_text(core_log)
             summary.write_text(json.dumps(dict(valid, totalTestCount=100, passedTests=100)))
             self.assertFalse(ci.finish(core_row, core, summary, log, 0)['verified'])
-            log.write_text(core_log + "Test Suite '%s.xctest' passed at 2026-01-01.\n" %
-                           ci.TEST_SCOPES['core'][-1])
+            core_log += "Test Suite '%s.xctest' passed at 2026-01-01.\n" % ci.TEST_SCOPES['core'][-1]
+            methods = sorted(inbound_gate.EXPECTED)
+            def inbound_events(names):
+                return ''.join("Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' started.\n"
+                               "Test Case '-[AssistantMCPTests.MCPInboundCoreTests %s]' passed (0.1 seconds).\n" % (name, name)
+                               for name in names)
+            for names in ([], methods[:4]):
+                log.write_text(core_log + inbound_events(names))
+                result = ci.finish(core_row, core, summary, log, 0)
+                self.assertFalse(result['verified'])
+                self.assertFalse(result['inbound_methods_verified'])
+            full_events = inbound_events(methods)
+            log.write_text(core_log + full_events)
             self.assertTrue(ci.finish(core_row, core, summary, log, 0)['verified'])
+            self.assertTrue(ci.finish(core_row, core, summary, log, 0)['inbound_methods_verified'])
+            for invalid in (full_events + full_events.splitlines(keepends=True)[0],
+                            full_events.replace('passed (', 'skipped (', 1),
+                            full_events.replace('passed (', 'failed (', 1)):
+                log.write_text(core_log + invalid)
+                self.assertFalse(ci.finish(core_row, core, summary, log, 0)['verified'])
 
     def test_aggregate_rejects_missing_duplicate_and_mixed_source(self):
         row = self.plan['rows'][0]
@@ -304,6 +322,15 @@ class FullRegressionPlanTests(unittest.TestCase):
         self.assertIn('Tests/AssistantMCPTests', (ROOT / 'project.yml').read_text())
         self.assertIn('final class MCPInboundCoreTests: XCTestCase',
                       (ROOT / 'Tests/AssistantMCPTests/MCPInboundCoreTests.swift').read_text())
+
+    def test_manual_native_and_parity_require_inbound_completion_gate(self):
+        source = (ROOT / '.github/workflows/ios.yml').read_text()
+        block = source.split('      - name: Verify all inbound MCP XCTest methods completed', 1)[1].split('      - name:', 1)[0]
+        self.assertIn('"core","native","parity"', block)
+        self.assertIn('contains(fromJSON(', block)
+        self.assertIn('scripts/check_mcp_inbound_xctest_completion.py', block)
+        self.assertIn('require_inbound=scope_requires_inbound(scope)', source)
+        self.assertIn('-only-testing:AssistantMCPTests', source.split('            parity)', 1)[1].split('              ;;', 1)[0])
 
     def test_live_service_acceptance_is_manual_and_limited_to_trusted_refs(self):
         source = (ROOT / '.github/workflows/ios.yml').read_text()

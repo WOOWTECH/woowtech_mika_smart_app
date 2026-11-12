@@ -302,8 +302,8 @@ model execution.
 
 `AssistantMCPTests/MCPInboundCoreTests` contains five offline XCTest methods for
 Android's seven advertised schemas and original request formats, a 50-item
-maximum list and its two JSON representations, parse errors without an ID,
-expiration of pending reviews and capacity, and stale review callbacks. The
+maximum list and its two JSON representations, the error encoder for a missing
+ID (the tests do not connect a parser failure to that encoder), expiration of pending reviews and capacity, and stale review callbacks. The
 manual GitHub `core` scope explicitly selects this class alongside its existing
 targets. A focused completion gate checks that all five methods started and
 passed once, and fails on skipped, missing, repeated or failed methods or an
@@ -316,3 +316,18 @@ a temporary assertion shim exercises the same five method bodies but is not a
 native XCTest or simulator result. GitHub iOS simulator verification remains
 required before any iPad run; no listener, model, real service or iPad is used
 by these tests.
+
+
+## Native completion gate correction (base 836b258)
+
+Full-regression core receipts, manual `core`/`native`/`parity` and the iOS 17
+`all`/`core`/`parity` completion paths require evidence that each of the five
+inbound XCTest methods both started and passed exactly once, with no skipped,
+failed, missing or duplicate method. Bundle-level success alone is insufficient.
+The parser-error XCTest calls the error encoder directly; no parser-to-encoder
+handling or network transport is connected or tested.
+
+This correction verifies only these five inbound methods. It does not inventory
+or prove completion of every other class or method in a core bundle; a bundle
+can still pass while unrelated core tests are absent. This limitation also
+applies to the iPad core receipt and requires a separate core-wide inventory.

@@ -19,6 +19,7 @@ import time
 import uuid
 
 from release_ios import ReleaseError, ReleaseToolError, generate_project, run, version, verify_settings
+from check_mcp_inbound_xctest_completion import verify as verify_inbound_completion
 
 RUNTIME_INVENTORY_TIMEOUT_SECONDS = 120
 RUNTIME_INVENTORY_MAX_ATTEMPTS = 2
@@ -193,7 +194,19 @@ def selected_ui_tests(catalog, scope):
                                          for selector in TEST_SCOPES[scope]))
 
 
-def test_completion(summary, log_path, expected_ui, ui_only):
+def scope_requires_inbound(scope):
+    """Full schemes and any selector owning the inbound class require its evidence."""
+    if scope == "all":
+        return True
+    if scope == "native":
+        scope = "core"
+    return any(selector == "AssistantMCPTests" or
+               selector == "AssistantMCPTests/MCPInboundCoreTests" or
+               selector.startswith("AssistantMCPTests/MCPInboundCoreTests/")
+               for selector in TEST_SCOPES[scope])
+
+
+def test_completion(summary, log_path, expected_ui, ui_only, *, require_inbound):
     """Require summary success AND each selected UI method's actual completion.
 
     Started-only, duplicate attempts, skipped cases, expected failures and an
@@ -218,12 +231,16 @@ def test_completion(summary, log_path, expected_ui, ui_only):
     missing = sorted(set(expected_ui) - completions.keys())
     unexpected = sorted(completions.keys() - set(expected_ui))
     incomplete = sorted(t for t in expected_ui if t in completions and completions[t] != ["passed"])
+    inbound_verified = (verify_inbound_completion(summary, log_path.read_text(errors="replace"))
+                        if require_inbound else None)
     complete = bool(complete and not missing and not unexpected and not incomplete
-                    and (not ui_only or counts["totalTestCount"] == len(expected_ui)))
+                    and (not ui_only or counts["totalTestCount"] == len(expected_ui))
+                    and inbound_verified is not False)
     return {"verified": complete, "counts": counts, "result": summary.get("result"),
             "expected_ui_count": len(expected_ui), "completed_ui_count": len(completions),
             "missing_ui_tests": missing, "unexpected_ui_tests": unexpected,
-            "nonpassing_or_repeated_ui_tests": incomplete}
+            "nonpassing_or_repeated_ui_tests": incomplete,
+            "inbound_methods_verified": inbound_verified}
 
 
 def select_runtime(payload, requested):
@@ -721,7 +738,8 @@ def execute(output, requested, download, test_scope="all", expected_host_arch=No
             raise ReleaseError("XCTest 摘要格式不符，不能宣稱測試完成。")
         report["test_completion"] = test_completion(summary, output / "tests.log",
             report["expected_ui_tests"], bool(TEST_SCOPES[test_scope]) and
-            all(t.startswith("WoowAssistantUITests/") for t in TEST_SCOPES[test_scope]))
+            all(t.startswith("WoowAssistantUITests/") for t in TEST_SCOPES[test_scope]),
+            require_inbound=scope_requires_inbound(test_scope))
         if not report["test_completion"]["verified"]:
             raise ReleaseError("XCTest 摘要或 UI 完成清單不符：有略過、遺漏、重複或未通過案例；不視為驗收通過。")
         report["selected_tests_succeeded"] = True

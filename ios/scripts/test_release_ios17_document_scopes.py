@@ -97,7 +97,7 @@ class DocumentFocusedScopesTests(unittest.TestCase):
                 for selected, accepted in ((expected, True), (wrong_method_same_count, False)):
                     path.write_text("".join("Test Case '-[WoowAssistantUITests.%s %s]' passed (1.0 seconds).\n" %
                                             tuple(name.split("/")[1:]) for name in selected))
-                    result = ios17.test_completion(summary, path, expected, True)
+                    result = ios17.test_completion(summary, path, expected, True, require_inbound=False)
                     self.assertEqual(result["verified"], accepted)
 
     def test_assembly_focused_scopes_select_distinct_actual_methods_and_keep_completion_gate(self):
@@ -134,7 +134,7 @@ class DocumentFocusedScopesTests(unittest.TestCase):
             for methods, accepted in ((expected, True), (other, False)):
                 path.write_text("".join("Test Case '-[WoowAssistantUITests.%s %s]' passed (1.0 seconds).\n" %
                                         tuple(method.split("/")[1:]) for method in methods))
-                self.assertEqual(ios17.test_completion(summary, path, expected, True)["verified"], accepted)
+                self.assertEqual(ios17.test_completion(summary, path, expected, True, require_inbound=False)["verified"], accepted)
 
     def test_directory_candidate_cannot_be_satisfied_by_baseline_pair(self):
         catalog = ios17.ui_inventory(ROOT)
@@ -148,7 +148,7 @@ class DocumentFocusedScopesTests(unittest.TestCase):
             for methods, accepted in ((expected, True), (baseline, False)):
                 path.write_text("".join("Test Case '-[WoowAssistantUITests.%s %s]' passed (1.0 seconds).\n" %
                                         tuple(method.split("/")[1:]) for method in methods))
-                self.assertEqual(ios17.test_completion(summary, path, expected, True)["verified"], accepted)
+                self.assertEqual(ios17.test_completion(summary, path, expected, True, require_inbound=False)["verified"], accepted)
 
 
 if __name__ == "__main__":

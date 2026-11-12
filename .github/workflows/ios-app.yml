@@ -572,7 +572,7 @@ jobs:
             xcrun xcresulttool export diagnostics --path build/Tests.xcresult --output-path build/diagnostics
           fi
       - name: Verify all inbound MCP XCTest methods completed
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.test_scope == 'core'
+        if: always() && github.event_name == 'workflow_dispatch' && contains(fromJSON('["core","native","parity"]'), inputs.test_scope)
         run: |
           python3 scripts/check_mcp_inbound_xctest_completion.py \
             --summary build/test-summary.json --log build/ios-tests.log
@@ -585,12 +585,13 @@ jobs:
           import json, os, sys
           from pathlib import Path
           sys.path.insert(0, 'scripts')
-          from release_ios17 import ui_inventory, selected_ui_tests, test_completion
+          from release_ios17 import ui_inventory, selected_ui_tests, test_completion, scope_requires_inbound
           scope = os.environ['VALIDATION_SCOPE']
           catalog = ui_inventory(Path.cwd())
           expected = selected_ui_tests(catalog, 'core' if scope == 'native' else scope)
           summary = json.loads(Path('build/test-summary.json').read_text())
-          completion = test_completion(summary, Path('build/ios-tests.log'), expected, scope != 'native')
+          completion = test_completion(summary, Path('build/ios-tests.log'), expected, scope != 'native',
+                                       require_inbound=scope_requires_inbound(scope))
           Path('build/ui-shard-completion.json').write_text(json.dumps(completion, indent=2) + '\n')
           print(json.dumps(completion, sort_keys=True))
           if not completion['verified']:

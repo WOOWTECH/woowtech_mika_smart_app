@@ -165,7 +165,8 @@ def finish(row, sl, summary_path, log_path, exit_code):
         return receipt
     try:
         summary = json.loads(summary_path.read_text())
-        completion = test_completion(summary, log_path, sl["methods"], sl["scope"] != "core")
+        completion = test_completion(summary, log_path, sl["methods"], sl["scope"] != "core",
+                                     require_inbound=sl["scope"] == "core")
     except (OSError, ValueError, TypeError, KeyError):
         receipt["reason"] = "invalid_test_summary_or_log"
         return receipt
