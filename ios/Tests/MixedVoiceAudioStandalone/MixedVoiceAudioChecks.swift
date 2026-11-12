@@ -47,11 +47,13 @@ final class FakeMixedDriver: VoiceInputDriver {
     init(session: FakeMixedSession, coordinator: MixedVoiceAudioCoordinator) {
         self.session = session; self.slot = VoiceAudioLeaseSlot(coordinator: coordinator)
     }
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         latest = id; callbacks[id] = emit
+        guard mayContinue() else { return }
         guard slot.acquire(onRevoked: { [weak self] in
             self?.session.engineRecording = false; self?.slot.release(); emit(id, .failed(.audio))
-        }), slot.activateForRecording() else { emit(id, .failed(.audio)); return }
+        }), mayContinue(), slot.activateForRecording() else { emit(id, .failed(.audio)); return }
+        guard mayContinue() else { slot.release(); return }
         session.engineRecording = true
     }
     func finish(id: UUID) {

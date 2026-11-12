@@ -6,14 +6,49 @@ final class ChatFakeDriver: VoiceInputDriver {
     var current: UUID!
     var cancelled: [UUID] = []
     var finished: [UUID] = []
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) { current = id; callbacks[id] = emit }
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) { current = id; callbacks[id] = emit }
     func finish(id: UUID) { finished.append(id) }
     func cancel(id: UUID) { cancelled.append(id) }
     func emit(_ event: VoiceInputEvent, _ id: UUID) { callbacks[id]?(id, event) }
 }
 
+/// Retains real callbacks through cancellation so a test can deliver a
+/// delayed synthetic permission response without relying on sleep or timing.
+@MainActor
+final class DelayedPermissionVoiceDriver: VoiceInputDriver {
+    private var permits: [UUID: () -> Bool] = [:]
+    private var callbacks: [UUID: (UUID, VoiceInputEvent) -> Void] = [:]
+    var current: UUID?
+    var cancellations: [UUID] = []
+    var microphoneRequests: [UUID] = []
+    var engineStarts: [UUID] = []
+    var activations: [UUID] = []
+    var onActivation: (() -> Void)?
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+        current = id; permits[id] = mayContinue; callbacks[id] = emit
+    }
+    func finish(id: UUID) {}
+    func cancel(id: UUID) { cancellations.append(id) }
+    private func allowed(_ id: UUID) -> Bool {
+        guard permits[id]?() == true else { callbacks[id]?(id, .cancelled); return false }
+        return true
+    }
+    func completeSpeechPermission(_ id: UUID) {
+        guard allowed(id) else { return }
+        microphoneRequests.append(id)
+    }
+    func completeMicrophonePermission(_ id: UUID) {
+        guard allowed(id) else { return }
+        activations.append(id)
+        onActivation?()
+        guard allowed(id) else { return }
+        engineStarts.append(id)
+    }
+    func emitFinal(_ id: UUID, _ text: String) { callbacks[id]?(id, .final(text)) }
+}
+
 @main struct ChatVoiceChecks {
-    @MainActor static func main() {
+    @MainActor static func main() async {
         var time = 10.0
         var conversation = "one"
         var draft = "原文"
@@ -160,6 +195,91 @@ final class ChatFakeDriver: VoiceInputDriver {
         check(VoiceChoiceStore.application(arguments: fixtureArgs + ["-UITestResetStorage"]).load() == .automatic,
               "fixture reset clears only its namespace")
         #endif
+        // Production state machine + the real preference binding; the fake
+        // driver deliberately retains pending permission callbacks after cancel.
+        let delayedStore = VoiceChoiceStore(defaults: defaults)
+        delayedStore.select(.system)
+        let delayedPreferences = VoicePreferences(store: delayedStore)
+        let delayed = DelayedPermissionVoiceDriver()
+        var result = ""
+        let guarded = ChatVoiceController(driver: delayed, now: { time }, conversation: { conversation },
+            readDraft: { result }, writeDraft: { result = $0 },
+            voiceAuthorization: { delayedPreferences.authorization })
+        let binding = ChatVoicePreferenceBinding(preferences: delayedPreferences, controller: guarded)
+        _ = binding
+        guarded.begin(gestureStartedAt: time - 1)
+        let beforeNotification = delayed.current!
+        secondStore.select(.off)
+        delayed.completeSpeechPermission(beforeNotification)
+        delayed.completeMicrophonePermission(beforeNotification)
+        check(delayed.microphoneRequests.isEmpty && delayed.engineStarts.isEmpty,
+              "live settings guard blocks permission callbacks before notification or tick")
+        check(delayed.cancellations.contains(beforeNotification) && guarded.state == .idle,
+              "rejected permission callback immediately cancels state")
+        delayedPreferences.select(.system)
+        guarded.begin(gestureStartedAt: time - 1)
+        let notificationSession = delayed.current!
+        secondStore.select(.off)
+        // Deliver notification while the permissions are still pending, with
+        // no permission callback and no controller tick.
+        NotificationCenter.default.post(name: UserDefaults.didChangeNotification, object: nil)
+        for _ in 0..<100 where !delayed.cancellations.contains(notificationSession) { await Task.yield() }
+        check(delayed.cancellations.contains(notificationSession) && guarded.state == .idle,
+              "settings notification actively cancels without waiting for tick")
+        delayedPreferences.select(.system)
+        guarded.begin(gestureStartedAt: time - 1)
+        let betweenPermissions = delayed.current!
+        delayed.completeSpeechPermission(betweenPermissions)
+        check(delayed.microphoneRequests == [betweenPermissions], "normal speech permission reaches microphone request")
+        delayedPreferences.select(.off)
+        check(delayed.cancellations.contains(betweenPermissions), "same-process settings action cancels synchronously")
+        delayed.completeMicrophonePermission(betweenPermissions)
+        check(delayed.engineStarts.isEmpty, "late microphone permission cannot start audio engine")
+        delayedPreferences.select(.system)
+        guarded.begin(gestureStartedAt: time - 1)
+        let activationRace = delayed.current!
+        delayed.completeSpeechPermission(activationRace)
+        delayed.onActivation = { secondStore.select(.off) }
+        delayed.completeMicrophonePermission(activationRace)
+        delayed.onActivation = nil
+        check(delayed.activations.contains(activationRace) && delayed.engineStarts.isEmpty,
+              "settings change during audio activation blocks engine start")
+        delayedPreferences.refresh()
+        check(delayed.cancellations.contains(activationRace), "activation race is cancelled")
+        delayedPreferences.select(.system)
+        guarded.begin(gestureStartedAt: time - 1)
+        let abaPermission = delayed.current!
+        delayed.completeSpeechPermission(abaPermission)
+        secondStore.select(.off); secondStore.select(.system)
+        delayed.completeMicrophonePermission(abaPermission)
+        check(delayed.engineStarts.isEmpty, "off/on ABA cannot authorize an old permission callback")
+        delayedPreferences.refresh()
+        check(delayed.cancellations.contains(abaPermission), "same-label revision change cancels active capture")
+        guarded.begin(gestureStartedAt: time - 1)
+        let backgroundPermission = delayed.current!
+        delayed.completeSpeechPermission(backgroundPermission)
+        guarded.cancel() // The production scene/background and explicit cancel path.
+        delayed.completeMicrophonePermission(backgroundPermission)
+        check(delayed.engineStarts.isEmpty && delayed.cancellations.contains(backgroundPermission),
+              "background cancellation fences delayed permission")
+        guarded.begin(gestureStartedAt: time - 1)
+        let userCancelledPermission = delayed.current!
+        delayed.completeSpeechPermission(userCancelledPermission)
+        guarded.cancel()
+        delayed.completeMicrophonePermission(userCancelledPermission)
+        check(delayed.engineStarts.isEmpty && delayed.cancellations.contains(userCancelledPermission),
+              "explicit cancellation fences delayed permission")
+        guarded.begin(gestureStartedAt: time - 1)
+        let validPermission = delayed.current!
+        delayed.completeSpeechPermission(validPermission)
+        delayed.completeMicrophonePermission(backgroundPermission)
+        delayed.completeMicrophonePermission(validPermission)
+        check(delayed.engineStarts == [validPermission], "old callback cannot affect the new valid session")
+        guarded.release()
+        delayed.emitFinal(validPermission, "ok")
+        check(result == "ok", "unchanged permission and normal release still work")
+        delayed.emitFinal(backgroundPermission, "late")
+        check(result == "ok", "late cancelled result cannot overwrite draft")
         print("PASS ChatVoice composer semantics (fake driver; no Apple SDK)")
     }
 }

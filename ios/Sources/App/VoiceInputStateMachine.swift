@@ -4,7 +4,7 @@ import Foundation
 /// callback with the ID it was given; callbacks can arrive even after cancellation.
 @MainActor
 protocol VoiceInputDriver: AnyObject {
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void)
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void)
     func finish(id: UUID)
     func cancel(id: UUID)
 }
@@ -17,6 +17,7 @@ enum VoiceInputEvent: Equatable {
     case partial(String)
     case final(String)
     case failed(VoiceInputFailure)
+    case cancelled
 }
 
 enum VoiceInputState: Equatable {
@@ -50,6 +51,9 @@ final class VoiceInputStateMachine {
     private(set) var state: VoiceInputState = .idle {
         didSet { onStateChange?(state) }
     }
+    /// The driver must call this again after asynchronous permissions and
+    /// immediately before starting capture; callbacks can precede observers.
+    var mayContinue: () -> Bool = { true }
     var onStateChange: ((VoiceInputState) -> Void)?
     /// Receives final text once; the caller merges it into the CURRENT draft,
     /// checks conversation identity, and never sends it automatically.
@@ -81,7 +85,10 @@ final class VoiceInputStateMachine {
         finishBy = nil
         state = .listening(partial: "", cancelArmed: false, elapsed: max(0, now() - startedAt))
         guard id == newID, case .listening = state else { return }
-        driver.start(id: newID) { [weak self] id, event in self?.receive(id: id, event: event) }
+        driver.start(id: newID, mayContinue: { [weak self] in
+            guard let self, self.id == newID, case .listening = self.state else { return false }
+            return self.mayContinue()
+        }) { [weak self] id, event in self?.receive(id: id, event: event) }
     }
 
     func drag(upwardDistance: Double, cancelThreshold: Double) {
@@ -164,6 +171,8 @@ final class VoiceInputStateMachine {
             return
         }
         switch event {
+        case .cancelled:
+            cancel()
         case .partial(let text):
             guard case let .listening(_, armed, elapsed) = state, pendingFinal == nil, pendingFailure == nil else { return }
             state = .listening(partial: text, cancelArmed: armed, elapsed: elapsed)

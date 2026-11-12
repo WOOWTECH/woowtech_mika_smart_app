@@ -18,7 +18,7 @@ import Foundation
         let fixture = VoiceUITestFixture()
         let session = UUID()
         var received: [VoiceInputEvent] = []
-        fixture.start(id: session) { id, event in
+        fixture.start(id: session, mayContinue: { true }) { id, event in
             check(id == session, "result session identity")
             received.append(event)
         }

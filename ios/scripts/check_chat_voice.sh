@@ -7,6 +7,7 @@ build_and_run() {
   swiftc -swift-version 5 -parse-as-library -strict-concurrency=complete -warnings-as-errors "$@" \
     "$root/Sources/App/VoiceInputStateMachine.swift" "$root/Sources/App/ChatVoiceController.swift" \
     "$root/Sources/App/VoiceChoiceStore.swift" "$root/Sources/App/VoicePreferences.swift" \
+    "$root/Sources/App/ChatVoicePreferenceBinding.swift" \
     "$root/Tests/VoiceInputStandalone/ChatVoiceChecks.swift" -o "$binary"
   "$binary"
 }

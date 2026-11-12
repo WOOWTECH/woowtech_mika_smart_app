@@ -6,6 +6,7 @@ final class ChatVoiceViewModel: ObservableObject {
     @Published private(set) var state: VoiceInputState = .idle
     @Published private(set) var wasInterrupted = false
     private var controller: ChatVoiceController?
+    private var preferenceBinding: ChatVoicePreferenceBinding?
     private let makeDriver: @MainActor () -> any VoiceInputDriver
     private let preferences = VoicePreferences.shared
 
@@ -27,6 +28,7 @@ final class ChatVoiceViewModel: ObservableObject {
         }, voiceAuthorization: { [weak preferences] in preferences?.authorization })
         controller.onStateChange = { [weak self] in self?.state = $0 }
         self.controller = controller
+        preferenceBinding = ChatVoicePreferenceBinding(preferences: preferences, controller: controller)
     }
     func begin(startedAt: TimeInterval) {
         preferences.refresh()
