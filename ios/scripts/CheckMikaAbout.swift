@@ -40,14 +40,31 @@ import Foundation
         try check(unresolved.version == nil && unresolved.build == nil,
                   "Do not display build placeholders or control characters")
 
+        let report = MikaAboutDiagnostics(info: installed,
+            osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 2, patchVersion: 1),
+            language: .english).text
+        try check(report == "woowtech assistant diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
+                  "Report contains only the explicitly selected metadata")
+        let missingReport = MikaAboutDiagnostics(info: unresolved,
+            osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 0, patchVersion: 0),
+            language: .english).text
+        try check(!missingReport.contains("$(") && !missingReport.contains("line\nbreak"),
+                  "Report does not include invalid bundle values")
+
         let expected = [
             AppDisplayLanguage.traditionalChinese: "關於渥屋助理",
             .simplifiedChinese: "关于渥屋助理",
             .english: "About woowtech agent"
         ]
+        let taglines: [AppDisplayLanguage: String] = [
+            .traditionalChinese: "你的私人助理，替你把事辦成",
+            .simplifiedChinese: "你的私人助理，替你把事办成",
+            .english: "Your personal assistant, getting things done for you"
+        ]
         for language in AppDisplayLanguage.allCases {
             let copy = MikaAboutCopy(language: language)
             try check(copy.text(.title) == expected[language], "About title follows interface language")
+            try check(copy.text(.tagline) == taglines[language], "About tagline follows interface language")
             for key in MikaAboutKey.allCases {
                 try check(!copy.text(key).isEmpty, "About copy has no empty language entry")
             }

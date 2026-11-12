@@ -9,6 +9,7 @@ swiftc -emit-module -emit-library -module-name AssistantModels \
 swiftc -D PROFILE_CHAT_STANDALONE -parse-as-library -warnings-as-errors \
   -I "$profile_chat_build" -L "$profile_chat_build" -lAssistantModels \
   -Xlinker -rpath -Xlinker "$profile_chat_build" \
+  Sources/AssistantMemory/StructuredAnswerPreview.swift \
   Sources/AssistantMemory/UserProfileChatFlow.swift \
   Tests/AssistantMemoryTests/UserProfileChatFlowTests.swift -o "$profile_chat_build/checks"
 "$profile_chat_build/checks"
