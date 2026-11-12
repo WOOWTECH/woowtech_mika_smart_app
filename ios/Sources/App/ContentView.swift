@@ -876,6 +876,11 @@ private struct ChatView: View {
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
         .onChange(of: scenePhase) { _, phase in if phase != .active { voice.cancel(interrupted: true) } }
         .task(id: voice.isActive) {
+            #if DEBUG
+            // The isolated fake driver controls its own lifetime. Repeated
+            // elapsed-time publications keep XCTest from seeing an idle UI.
+            if VoiceUITestFixture.selected() != nil { return }
+            #endif
             while voice.isActive && !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 guard !Task.isCancelled else { return }
