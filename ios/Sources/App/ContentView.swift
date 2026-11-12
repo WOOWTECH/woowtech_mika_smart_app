@@ -945,7 +945,8 @@ private struct ChatView: View {
         HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
-            TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
+            TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
+                      text: $session.draft, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()

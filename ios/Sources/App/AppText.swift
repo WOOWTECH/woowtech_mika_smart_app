@@ -35,6 +35,7 @@ enum AppText: Equatable {
     case shellAttachPDF
     case shellViewPDFAttachment
     case shellMessagePlaceholder
+    case shellMessageContinuationPlaceholder
     case shellMessageDraft
     case shellStop
     case shellReturnToLatest
@@ -577,6 +578,7 @@ enum AppText: Equatable {
         case .shellAttachPDF: return "shell.attachPDF"
         case .shellViewPDFAttachment: return "shell.viewPDFAttachment"
         case .shellMessagePlaceholder: return "shell.messagePlaceholder"
+        case .shellMessageContinuationPlaceholder: return "shell.messageContinuationPlaceholder"
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
         case .shellReturnToLatest: return "shell.returnToLatest"
@@ -1160,6 +1162,7 @@ enum AppText: Equatable {
         case .shellAttachPDF: return "附加 PDF"
         case .shellViewPDFAttachment: return "檢視 PDF 附件"
         case .shellMessagePlaceholder: return "輸入訊息"
+        case .shellMessageContinuationPlaceholder: return "繼續說點什麼…"
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "取消"
         case .shellReturnToLatest: return "回到最新訊息"
