@@ -3,44 +3,165 @@ import Combine
 import Darwin
 import Foundation
 
-/// An exclusive, nonsecret marker reserved before the first remote dispatch.
-/// It survives ordinary process restarts and prevents another app session from
-/// silently retrying an unfinished turn. External writers bypassing this
-/// protocol and storage erased by the user are outside this guarantee.
+/// A reviewed marker version, never an operation, endpoint or user content.
+struct MCPRecoveryReview: Identifiable, Equatable {
+    fileprivate let generation: UUID
+    var id: UUID { generation }
+}
+
+enum MCPRecoveryPhase { case beforeRemoval, afterRemoval, beforeRestore }
+private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
+
+/// All cooperating stores use one advisory lock for marker creation, review,
+/// acknowledgement and successful-turn cleanup. A marker contains only a UUID.
 @MainActor private final class MCPDispatchRecovery {
     private let url: URL
-    private var owner: UUID?
-    init(url: URL) { self.url = url }
+    private let recoveryProbe: (MCPRecoveryPhase) throws -> Void
+    private var owner: (request: UUID, generation: UUID)?
+    private static var failedClosed: Set<String> = []
+    private static var retainedLocks: [String: Int32] = [:]
+    init(url: URL, recoveryProbe: @escaping (MCPRecoveryPhase) throws -> Void = { _ in }) {
+        self.url = url; self.recoveryProbe = recoveryProbe
+    }
 
     var blocked: Bool {
+        if Self.failedClosed.contains(url.path) { return true }
+        // Another cooperating process can retain this lock after an
+        // unrecoverable storage error, even if the marker could not be restored.
+        let lockFD = open(url.path + ".lock", O_RDWR | O_NOFOLLOW)
+        if lockFD >= 0 {
+            let acquired = flock(lockFD, LOCK_EX | LOCK_NB) == 0
+            if acquired { flock(lockFD, LOCK_UN) }
+            close(lockFD)
+            if !acquired { return true }
+        } else if errno != ENOENT { return true }
         do { _ = try FileManager.default.attributesOfItem(atPath: url.path); return true }
         catch let error as NSError {
             return !(error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError)
         }
     }
 
-    func reserve(_ id: UUID) throws {
-        if owner == id { return }
+    private func locked<T>(_ body: () throws -> T) throws -> T {
+        guard !Self.failedClosed.contains(url.path) else { throw MCPRecoveryError.unavailable }
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
-        guard fd >= 0 else { throw MCPError.busy }
-        let flushed = fsync(fd) == 0
+        let lockFD = open(url.path + ".lock", O_RDWR | O_CREAT | O_NOFOLLOW, mode_t(0o600))
+        guard lockFD >= 0 else { throw MCPRecoveryError.unavailable }
+        var info = stat()
+        guard fstat(lockFD, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
+              flock(lockFD, LOCK_EX | LOCK_NB) == 0 else { close(lockFD); throw MCPRecoveryError.unavailable }
+        defer {
+            if Self.failedClosed.contains(url.path) {
+                // Retain the cooperative lock until process exit if even the
+                // pending marker cannot be restored. Never publish success.
+                Self.retainedLocks[url.path] = lockFD
+            } else { flock(lockFD, LOCK_UN); close(lockFD) }
+        }
+        return try body()
+    }
+
+    private func syncDirectory() throws {
+        let fd = open(url.deletingLastPathComponent().path, O_RDONLY)
+        guard fd >= 0 else { throw MCPRecoveryError.unavailable }
+        let synced = fsync(fd) == 0
         let closed = close(fd) == 0
-        // On any failure leave the marker in place and reject dispatch.
-        guard flushed, closed else { throw MCPError.busy }
-        let directoryFD = open(directory.path, O_RDONLY)
-        guard directoryFD >= 0 else { throw MCPError.busy }
-        let directoryFlushed = fsync(directoryFD) == 0
-        let directoryClosed = close(directoryFD) == 0
-        guard directoryFlushed, directoryClosed else { throw MCPError.busy }
-        owner = id
+        guard synced, closed else { throw MCPRecoveryError.unavailable }
+    }
+
+    private func writeGeneration(_ generation: UUID, fd: Int32) throws {
+        let bytes = Array(generation.uuidString.utf8)
+        let written = bytes.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+        guard written == bytes.count, fsync(fd) == 0 else { throw MCPRecoveryError.unavailable }
+    }
+
+    /// Existing f62849a markers are empty. Upgrade them under the same lock
+    /// before showing a review, so a stale review cannot clear a later marker.
+    private func generation(upgradeLegacy: Bool) throws -> UUID {
+        let fd = open(url.path, O_RDWR | O_NOFOLLOW | O_NONBLOCK)
+        guard fd >= 0 else { throw errno == ENOENT ? MCPRecoveryError.changed : MCPRecoveryError.unavailable }
+        defer { close(fd) }
+        var info = stat()
+        guard fstat(fd, &info) == 0 else { throw MCPRecoveryError.unavailable }
+        guard (info.st_mode & S_IFMT) == S_IFREG,
+              info.st_size == 0 || info.st_size == 36 else { throw MCPRecoveryError.corrupt }
+        if info.st_size == 0 {
+            guard upgradeLegacy else { throw MCPRecoveryError.changed }
+            let value = UUID()
+            try writeGeneration(value, fd: fd)
+            return value
+        }
+        var bytes = [UInt8](repeating: 0, count: 36)
+        let count = bytes.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
+        guard count == 36, let text = String(bytes: bytes, encoding: .utf8),
+              let value = UUID(uuidString: text) else { throw MCPRecoveryError.corrupt }
+        return value
+    }
+
+    func reserve(_ id: UUID) throws {
+        try locked {
+            guard !Self.failedClosed.contains(url.path) else { throw MCPRecoveryError.unavailable }
+            if let owner, owner.request == id {
+                guard try generation(upgradeLegacy: false) == owner.generation else { throw MCPRecoveryError.changed }
+                return
+            }
+            let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+            guard fd >= 0 else { throw MCPRecoveryError.unavailable }
+            let value = UUID()
+            do { try writeGeneration(value, fd: fd) }
+            catch { close(fd); throw error }
+            guard close(fd) == 0 else { throw MCPRecoveryError.unavailable }
+            try syncDirectory()
+            owner = (id, value)
+        }
+    }
+
+    func review() throws -> MCPRecoveryReview {
+        try locked {
+            guard !Self.failedClosed.contains(url.path) else { throw MCPRecoveryError.unavailable }
+            return MCPRecoveryReview(generation: try generation(upgradeLegacy: true))
+        }
+    }
+
+    private func remove(_ expected: UUID, forRecovery: Bool) throws {
+        guard try generation(upgradeLegacy: false) == expected else { throw MCPRecoveryError.changed }
+        if forRecovery { try recoveryProbe(.beforeRemoval) }
+        // Verify the directory can be synced before removing the only marker.
+        try syncDirectory()
+        guard unlink(url.path) == 0 else { throw MCPRecoveryError.unavailable }
+        do {
+            if forRecovery { try recoveryProbe(.afterRemoval) }
+            try syncDirectory()
+        } catch {
+            // Preserve a pending marker if the removal could not be confirmed.
+            let canRestore: Bool
+            do { if forRecovery { try recoveryProbe(.beforeRestore) }; canRestore = true }
+            catch { canRestore = false }
+            let fd = canRestore ? open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600)) : -1
+            var restored = false
+            if fd >= 0 {
+                let wrote: Bool
+                do { try writeGeneration(expected, fd: fd); wrote = true }
+                catch { wrote = false }
+                let closed = close(fd) == 0
+                if wrote && closed { do { try syncDirectory(); restored = true } catch {} }
+            }
+            if !restored { Self.failedClosed.insert(url.path) }
+            throw MCPRecoveryError.unavailable
+        }
+    }
+
+    func acknowledge(_ review: MCPRecoveryReview) throws {
+        try locked {
+            guard !Self.failedClosed.contains(url.path) else { throw MCPRecoveryError.unavailable }
+            try remove(review.generation, forRecovery: true)
+            owner = nil
+        }
     }
 
     func complete(_ id: UUID) {
-        guard owner == id else { return }
-        do { try FileManager.default.removeItem(at: url); owner = nil }
-        catch { /* Failure leaves the conservative block in place. */ }
+        guard let owner, owner.request == id else { return }
+        do { try locked { try remove(owner.generation, forRecovery: false) }; self.owner = nil }
+        catch { /* Retain the marker or fail closed on storage failure. */ }
     }
 }
 
@@ -88,13 +209,42 @@ final class MCPSession: ObservableObject {
     private var deadline: Task<Void, Never>?
     private var requestID: UUID?
     private let dispatchRecovery: MCPDispatchRecovery?
+    @Published private(set) var recoveryIssue: AppText?
+    @Published private(set) var recoveryNotice: AppText?
 
     /// Re-read the marker, rather than relying on a cached store instance.
     var unresolvedToolOutcome: Bool { dispatchRecovery?.blocked ?? true }
 
+    func prepareToolRecovery() -> MCPRecoveryReview? {
+        recoveryNotice = nil
+        do {
+            guard let dispatchRecovery else { throw MCPRecoveryError.unavailable }
+            let review = try dispatchRecovery.review()
+            recoveryIssue = nil; recoveryNotice = nil
+            return review
+        } catch MCPRecoveryError.corrupt { recoveryIssue = .mcpRecoveryCorrupt; return nil }
+        catch MCPRecoveryError.changed { recoveryIssue = .mcpRecoveryChanged; return nil }
+        catch { recoveryIssue = .mcpRecoveryStorageError; return nil }
+    }
+
+    @discardableResult func acknowledgeToolRecovery(_ review: MCPRecoveryReview) -> Bool {
+        do {
+            guard let dispatchRecovery else { throw MCPRecoveryError.unavailable }
+            try dispatchRecovery.acknowledge(review)
+            recoveryIssue = nil; recoveryNotice = .mcpRecoveryReleased; objectWillChange.send()
+            return true
+        } catch MCPRecoveryError.corrupt { recoveryIssue = .mcpRecoveryCorrupt }
+        catch MCPRecoveryError.changed { recoveryIssue = .mcpRecoveryChanged }
+        catch { recoveryIssue = .mcpRecoveryStorageError }
+        objectWillChange.send()
+        return false
+    }
+
     func reserveToolDispatch(requestID: UUID) throws {
         guard let dispatchRecovery else { throw MCPError.busy }
+        recoveryNotice = nil
         try dispatchRecovery.reserve(requestID)
+        recoveryIssue = nil
         objectWillChange.send()
     }
 
@@ -143,10 +293,11 @@ final class MCPSession: ObservableObject {
 
     init(repository: any MCPEndpointStoring, allowsNetwork: Bool = true,
          recoveryURL: URL = FileManager.default.temporaryDirectory.appendingPathComponent("mcp-recovery-" + UUID().uuidString).appendingPathComponent("marker"),
+         recoveryProbe: @escaping (MCPRecoveryPhase) throws -> Void = { _ in },
          clientFactory: @escaping @Sendable (URL) -> any MCPDiscovering = { MCPClient(endpoint: $0) }) {
         self.repository = repository
         self.allowsNetwork = allowsNetwork
-        self.dispatchRecovery = MCPDispatchRecovery(url: recoveryURL)
+        self.dispatchRecovery = MCPDispatchRecovery(url: recoveryURL, recoveryProbe: recoveryProbe)
         self.clientFactory = clientFactory
         do {
             hasStoredEndpoint = try repository.load() != nil

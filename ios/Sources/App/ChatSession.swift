@@ -794,6 +794,15 @@ final class ChatSession: ObservableObject {
         cancel()
     }
 
+    /// Clear only the obsolete MCP warning. Preserve draft and any separate
+    /// memory/profile receipt or failure message.
+    func mcpRecoveryAcknowledged() {
+        guard let error = chatError, error.contains(Self.mcpOutcomeWarning) else { return }
+        let remaining = error.replacingOccurrences(of: Self.mcpOutcomeWarning, with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        chatError = remaining.isEmpty ? nil : remaining
+    }
+
     /// Pending profile and memory reviews are invalidated immediately. Structured
     /// ordinary-chat responses also recheck learning state before publication.
     func invalidateProfileReview() {

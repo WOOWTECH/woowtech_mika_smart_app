@@ -4889,10 +4889,42 @@
       "key": "mcp.unknownOutcomeRecovery",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 操作結果未明，已暫停新的 MCP 操作。已送出的操作仍可能生效；請向服務端確認，不要重試。",
-        "zh-Hans": "MCP 操作结果未明，已暂停新的 MCP 操作。已发送的操作仍可能生效；请向服务端确认，不要重试。",
-        "en": "An MCP operation has an unknown outcome. New MCP operations are paused. A sent operation may still take effect; check with the service and do not retry."
+        "zh-Hant": "先前的 MCP 操作結果未知，可能已執行或稍後生效。新操作暫停；請先查核服務端。",
+        "zh-Hans": "先前的 MCP 操作结果未知，可能已执行或稍后生效。新操作暂停；请先核查服务端。",
+        "en": "A previous MCP operation has an unknown outcome and may have executed or may take effect later. New operations are paused; check the service first."
       }
+    },
+    {
+      "case": "mcpRecoveryButton", "key": "mcp.recoveryButton", "parameters": [],
+      "translations": {"zh-Hant": "核對後解除 MCP 封鎖", "zh-Hans": "核查后解除 MCP 封锁", "en": "Unblock MCP after checking"}
+    },
+    {
+      "case": "mcpRecoveryTitle", "key": "mcp.recoveryTitle", "parameters": [],
+      "translations": {"zh-Hant": "解除 MCP 封鎖？", "zh-Hans": "解除 MCP 封锁？", "en": "Unblock MCP?"}
+    },
+    {
+      "case": "mcpRecoveryExplanation", "key": "mcp.recoveryExplanation", "parameters": [],
+      "translations": {"zh-Hant": "先前操作的結果未知，無法保證未執行，即使現在尚未看到結果，也可能稍後生效。解除後不會自動重送草稿；再次送出相同要求可能重複執行。請先查核服務端，再自行決定是否繼續。", "zh-Hans": "先前操作的结果未知，无法保证未执行，即使现在尚未看到结果，也可能稍后生效。解除后不会自动重发草稿；再次发送相同请求可能重复执行。请先核查服务端，再自行决定是否继续。", "en": "The previous operation has an unknown outcome and may already have executed or may take effect later, even if no result is visible yet. Unblocking will not resend your draft. Sending the same request again may duplicate the operation. Check the service before deciding whether to continue."}
+    },
+    {
+      "case": "mcpRecoveryConfirm", "key": "mcp.recoveryConfirm", "parameters": [],
+      "translations": {"zh-Hant": "我已核對，解除封鎖", "zh-Hans": "我已核查，解除封锁", "en": "I checked; unblock"}
+    },
+    {
+      "case": "mcpRecoveryReleased", "key": "mcp.recoveryReleased", "parameters": [],
+      "translations": {"zh-Hant": "已解除 MCP 封鎖。草稿保留，未自動傳送；先前操作仍可能稍後生效。", "zh-Hans": "已解除 MCP 封锁。草稿保留，未自动发送；先前操作仍可能稍后生效。", "en": "MCP is unblocked. Your draft was kept and was not sent; the previous operation may still take effect later."}
+    },
+    {
+      "case": "mcpRecoveryCorrupt", "key": "mcp.recoveryCorrupt", "parameters": [],
+      "translations": {"zh-Hant": "MCP 恢復狀態資料受損，無法安全解除；封鎖與草稿保留，請先確認儲存狀態。", "zh-Hans": "MCP 恢复状态数据损坏，无法安全解除；封锁与草稿保留，请先确保存储状态。", "en": "The MCP recovery state is damaged and cannot be safely cleared. The block and draft remain; check storage before trying again."}
+    },
+    {
+      "case": "mcpRecoveryChanged", "key": "mcp.recoveryChanged", "parameters": [],
+      "translations": {"zh-Hant": "MCP 狀態已變更；沒有解除新的封鎖。請重新查看後再決定。", "zh-Hans": "MCP 状态已更改；没有解除新的封锁。请重新查看后再决定。", "en": "The MCP state changed; a newer block was not cleared. Review it again before deciding."}
+    },
+    {
+      "case": "mcpRecoveryStorageError", "key": "mcp.recoveryStorageError", "parameters": [],
+      "translations": {"zh-Hant": "無法讀取或更新 MCP 恢復狀態，未確認解除；草稿保留。請檢查儲存狀態後再試。", "zh-Hans": "无法读取或更新 MCP 恢复状态，未确认解除；草稿保留。请检查存储状态后再试。", "en": "The MCP recovery state could not be read or updated, so unblocking was not confirmed. Your draft remains; check storage and try again."}
     }
   ]
 }

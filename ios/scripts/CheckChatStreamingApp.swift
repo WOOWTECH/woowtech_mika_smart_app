@@ -5,6 +5,7 @@ import AssistantMCP
 import AssistantPersistence
 import AssistantDomain
 import Combine
+import Darwin
 import Foundation
 #if !CHAT_STREAM_APP_STANDALONE
 import XCTest
@@ -438,8 +439,9 @@ private actor DelayedMCP: MCPDiscovering {
         try a.check(!connection.unresolvedToolOutcome, "approval alone has no dispatch marker")
         session.resolveMCPApproval(id: approval.id, approved: true)
         await server.waitForStart()
-        try a.check(connection.unresolvedToolOutcome && (try Data(contentsOf: marker)).isEmpty,
-                    "nonsecret marker exists before executor entry")
+        let markerText = try String(contentsOf: marker, encoding: .utf8)
+        try a.check(connection.unresolvedToolOutcome && UUID(uuidString: markerText) != nil,
+                    "nonsecret version marker exists before executor entry")
         session.cancel(); await task.value
         try a.check(session.draft == "perform synthetic operation" && session.chatError?.contains("結果未明") == true,
                     "cancellation preserves draft and reports unknown outcome")
@@ -452,10 +454,102 @@ private actor DelayedMCP: MCPDiscovering {
         session.send(mcp: reopened)
         try a.check(!session.isSubmitting && reopened.unresolvedToolOutcome && client.counts.complete == 1,
                     "new session and new conversation cannot bypass marker")
+        guard let review = reopened.prepareToolRecovery() else { throw Failure(name: "recovery review unavailable") }
+        let afterCancel = MCPSession(repository: StreamEndpoint(), recoveryURL: marker, clientFactory: { _ in server })
+        try a.check(afterCancel.unresolvedToolOutcome && session.draft == "perform synthetic operation",
+                    "dismissing review preserves durable block and draft")
+        try a.check(reopened.acknowledgeToolRecovery(review), "explicit reviewed recovery succeeds")
+        session.mcpRecoveryAcknowledged()
+        try a.check(!reopened.unresolvedToolOutcome && session.draft == "perform synthetic operation" &&
+                    client.counts.complete == 1 && session.chatError == nil && reopened.recoveryNotice == .mcpRecoveryReleased,
+                    "unblocking preserves draft, reports uncertainty, and starts no request")
+        let newID = UUID()
+        try reopened.reserveToolDispatch(requestID: newID)
+        try a.check(!reopened.acknowledgeToolRecovery(review) && reopened.unresolvedToolOutcome &&
+                    reopened.recoveryIssue == .mcpRecoveryChanged,
+                    "old confirmation cannot remove a new operation marker")
+        reopened.completeToolTurn(requestID: newID)
+        let nextServer = DelayedMCP()
+        let nextConnection = MCPSession(repository: StreamEndpoint(), recoveryURL: marker, clientFactory: { _ in nextServer })
+        nextConnection.connect(); try await wait("new MCP fixture connects") { !nextConnection.isBusy }
+        nextConnection.selectTool("synthetic_read", enabled: true)
+        let nextClient = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"New task finished."}"#])
+        let next = e.session(nextClient); next.usesMCP = true
+        let nextTask = try start(next, "new synthetic task", mcp: nextConnection)
+        try await wait("new MCP approval") { next.pendingMCPApproval != nil || !next.isSubmitting }
+        guard let nextApproval = next.pendingMCPApproval else { throw Failure(name: "new approval missing") }
+        next.resolveMCPApproval(id: nextApproval.id, approved: true); await nextServer.waitForStart()
         await server.release(); await server.waitForEffect()
         let calls = await server.calls, effects = await server.effects
-        try a.check(calls == 1 && effects == 1 && reopened.unresolvedToolOutcome,
-                    "late side effect remains possible and never triggers automatic retry")
+        try a.check(calls == 1 && effects == 1 && nextConnection.unresolvedToolOutcome,
+                    "late old side effect cannot clear the new task marker")
+        await nextServer.release(); await nextTask.value
+        let nextCalls = await nextServer.calls
+        try a.check(nextCalls == 1 && next.entries.count == 2 && !nextConnection.unresolvedToolOutcome,
+                    "a separately approved new task completes after manual recovery")
+        return a.count
+    }
+
+    static func mcpRecoveryStorageFailures() async throws -> Int {
+        var a = Assertions()
+        let e = try StreamEnvironment(); defer { e.close() }
+        for failureAfterRemoval in [false, true] {
+            let marker = e.root.appendingPathComponent("failure-\(failureAfterRemoval)/marker")
+            let store = MCPSession(repository: StreamEndpoint(), recoveryURL: marker, recoveryProbe: { phase in
+                switch phase {
+                case .beforeRemoval where !failureAfterRemoval: throw Failure(name: "synthetic storage failure")
+                case .afterRemoval where failureAfterRemoval: throw Failure(name: "synthetic sync failure")
+                default: break
+                }
+            })
+            try store.reserveToolDispatch(requestID: UUID())
+            guard let review = store.prepareToolRecovery() else { throw Failure(name: "storage review missing") }
+            let draft = e.session(CompleteOnlyClient()); draft.draft = "retained draft"
+            try a.check(!store.acknowledgeToolRecovery(review) && store.unresolvedToolOutcome &&
+                        store.recoveryIssue == .mcpRecoveryStorageError && draft.draft == "retained draft",
+                        "storage failure does not report success or clear draft")
+            let reopened = MCPSession(repository: StreamEndpoint(), recoveryURL: marker)
+            try a.check(reopened.unresolvedToolOutcome && reopened.prepareToolRecovery() != nil,
+                        "failed recovery retains a valid marker for another session")
+        }
+        let catastrophic = e.root.appendingPathComponent("restore-failure/marker")
+        let failing = MCPSession(repository: StreamEndpoint(), recoveryURL: catastrophic, recoveryProbe: { phase in
+            switch phase {
+            case .afterRemoval, .beforeRestore: throw Failure(name: "synthetic unrecoverable storage failure")
+            default: break
+            }
+        })
+        try failing.reserveToolDispatch(requestID: UUID())
+        guard let failedReview = failing.prepareToolRecovery() else { throw Failure(name: "restore failure review missing") }
+        try a.check(!failing.acknowledgeToolRecovery(failedReview) && failing.unresolvedToolOutcome &&
+                    failing.recoveryIssue == .mcpRecoveryStorageError,
+                    "unrestorable marker never reports successful recovery")
+        let other = MCPSession(repository: StreamEndpoint(), recoveryURL: catastrophic)
+        try a.check(other.unresolvedToolOutcome && other.prepareToolRecovery() == nil,
+                    "unrestorable marker stays blocked in another store")
+        let lockFD = open(catastrophic.path + ".lock", O_RDWR | O_NOFOLLOW)
+        guard lockFD >= 0 else { throw Failure(name: "retained lock missing") }
+        let secondLock = flock(lockFD, LOCK_EX | LOCK_NB)
+        if secondLock == 0 { flock(lockFD, LOCK_UN) }
+        close(lockFD)
+        try a.check(secondLock != 0, "unrestorable state retains the cooperative lock")
+        let corrupt = e.root.appendingPathComponent("corrupt/marker")
+        try FileManager.default.createDirectory(at: corrupt.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let damaged = Data("damaged".utf8); try damaged.write(to: corrupt)
+        let badStore = MCPSession(repository: StreamEndpoint(), recoveryURL: corrupt)
+        try a.check(badStore.prepareToolRecovery() == nil && badStore.recoveryIssue == .mcpRecoveryCorrupt &&
+                    badStore.unresolvedToolOutcome && (try Data(contentsOf: corrupt)) == damaged,
+                    "corrupt state stays blocked and is not overwritten")
+        let legacy = e.root.appendingPathComponent("legacy/marker")
+        try FileManager.default.createDirectory(at: legacy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: legacy)
+        let old = MCPSession(repository: StreamEndpoint(), recoveryURL: legacy)
+        guard let legacyReview = old.prepareToolRecovery() else { throw Failure(name: "legacy marker review missing") }
+        let reloaded = MCPSession(repository: StreamEndpoint(), recoveryURL: legacy)
+        try a.check(reloaded.unresolvedToolOutcome && reloaded.prepareToolRecovery() == legacyReview,
+                    "legacy empty marker is safely versioned and remains blocked across sessions")
+        try a.check(reloaded.acknowledgeToolRecovery(legacyReview) && !old.unresolvedToolOutcome,
+                    "explicit acknowledgement clears the matching legacy marker")
         return a.count
     }
 
@@ -1186,7 +1280,7 @@ private actor DelayedMCP: MCPDiscovering {
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
-                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.cancelledMCPDispatchRecovery(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
+                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.cancelledMCPDispatchRecovery(), ChatStreamingChecks.mcpRecoveryStorageFailures(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
@@ -1211,6 +1305,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredFlowsRemainReviewed() async throws { let n = try await ChatStreamingChecks.structuredFlowsRemainReviewed(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancelledMCPDispatchRecovery() async throws { let n = try await ChatStreamingChecks.cancelledMCPDispatchRecovery(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testMCPRecoveryStorageFailures() async throws { let n = try await ChatStreamingChecks.mcpRecoveryStorageFailures(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingAnswerAndReview() async throws { let n = try await ChatStreamingChecks.structuredStreamingAnswerAndReview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingRejectionsAndCancellation() async throws { let n = try await ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testActualHTTPStream() async throws { let n = try await ChatStreamingChecks.actualHTTPStream(); XCTAssertGreaterThan(n, 0) }
