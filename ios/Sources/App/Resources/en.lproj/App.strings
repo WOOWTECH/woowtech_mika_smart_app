@@ -465,3 +465,4 @@
 "chat.voiceSettings" = "Open Settings";
 "chat.voiceInterrupted" = "Voice input was interrupted. If you just granted access, hold to speak again.";
 "chat.voiceAccessibilityCancel" = "Cancel voice input";
+"mcp.unknownOutcomeRecovery" = "An MCP operation has an unknown outcome. New MCP operations are paused. A sent operation may still take effect; check with the service and do not retry.";

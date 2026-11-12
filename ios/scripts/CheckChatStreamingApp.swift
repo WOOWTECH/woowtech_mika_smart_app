@@ -137,6 +137,30 @@ private actor StreamMCP: MCPDiscovering {
     func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
     func cancel() async {}
 }
+/// Ignores cancellation until released; its synthetic side effect occurs only
+/// after the runner has already returned to the host.
+private actor DelayedMCP: MCPDiscovering {
+    private(set) var calls = 0, effects = 0
+    private var started = false, finished = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = [], finishWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
+    func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        calls += 1; started = true
+        let pending = startWaiters; startWaiters = []; pending.forEach { $0.resume() }
+        await withCheckedContinuation { releaseContinuation = $0 }
+        effects += 1; finished = true
+        let done = finishWaiters; finishWaiters = []; done.forEach { $0.resume() }
+        return .object(["isError": .bool(false)])
+    }
+    func waitForStart() async { if !started { await withCheckedContinuation { startWaiters.append($0) } } }
+    func release() { releaseContinuation?.resume(); releaseContinuation = nil }
+    func waitForEffect() async { if !finished { await withCheckedContinuation { finishWaiters.append($0) } } }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
 
 @MainActor enum ChatStreamingChecks {
     struct Failure: Error { let name: String }
@@ -392,8 +416,46 @@ private actor StreamMCP: MCPDiscovering {
             session.resolveMCPApproval(id: approval.id, approved: approve); await task.value
             let after = await server.calls
             try a.check(after == (approve ? 1 : 0), "MCP refusal and one approved effect retained")
+            try a.check(!connection.unresolvedToolOutcome, "completed or denied MCP turn leaves no retry fence")
             try a.check((session.entries.count == 2) == approve && session.replyPreview == nil && client.counts.stream == 0, "MCP finish validator still precedes delivered answer")
         }
+        return a.count
+    }
+
+    static func cancelledMCPDispatchRecovery() async throws -> Int {
+        var a = Assertions()
+        let e = try StreamEnvironment(); defer { e.close() }
+        let marker = e.root.appendingPathComponent("mcp/marker")
+        let server = DelayedMCP()
+        let connection = MCPSession(repository: StreamEndpoint(), recoveryURL: marker, clientFactory: { _ in server })
+        connection.connect(); try await wait("MCP fixture connects") { !connection.isBusy }
+        connection.selectTool("synthetic_read", enabled: true)
+        let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#])
+        let session = e.session(client); session.usesMCP = true
+        let task = try start(session, "perform synthetic operation", mcp: connection)
+        try await wait("MCP fixture approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+        guard let approval = session.pendingMCPApproval else { throw Failure(name: "missing MCP approval") }
+        try a.check(!connection.unresolvedToolOutcome, "approval alone has no dispatch marker")
+        session.resolveMCPApproval(id: approval.id, approved: true)
+        await server.waitForStart()
+        try a.check(connection.unresolvedToolOutcome && (try Data(contentsOf: marker)).isEmpty,
+                    "nonsecret marker exists before executor entry")
+        session.cancel(); await task.value
+        try a.check(session.draft == "perform synthetic operation" && session.chatError?.contains("結果未明") == true,
+                    "cancellation preserves draft and reports unknown outcome")
+        session.send(mcp: connection)
+        try a.check(!session.isSubmitting && client.counts.complete == 1, "same-session retry does not call model")
+        session.newConversation(); session.usesMCP = true; session.draft = "perform synthetic operation"
+        let reopened = MCPSession(repository: StreamEndpoint(), recoveryURL: marker, clientFactory: { _ in server })
+        reopened.connect(); try await wait("reopened MCP connects") { !reopened.isBusy }
+        reopened.selectTool("synthetic_read", enabled: true)
+        session.send(mcp: reopened)
+        try a.check(!session.isSubmitting && reopened.unresolvedToolOutcome && client.counts.complete == 1,
+                    "new session and new conversation cannot bypass marker")
+        await server.release(); await server.waitForEffect()
+        let calls = await server.calls, effects = await server.effects
+        try a.check(calls == 1 && effects == 1 && reopened.unresolvedToolOutcome,
+                    "late side effect remains possible and never triggers automatic retry")
         return a.count
     }
 
@@ -1124,7 +1186,7 @@ private actor StreamMCP: MCPDiscovering {
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
-                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
+                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.cancelledMCPDispatchRecovery(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
@@ -1148,6 +1210,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredFlowsRemainReviewed() async throws { let n = try await ChatStreamingChecks.structuredFlowsRemainReviewed(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testCancelledMCPDispatchRecovery() async throws { let n = try await ChatStreamingChecks.cancelledMCPDispatchRecovery(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingAnswerAndReview() async throws { let n = try await ChatStreamingChecks.structuredStreamingAnswerAndReview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingRejectionsAndCancellation() async throws { let n = try await ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testActualHTTPStream() async throws { let n = try await ChatStreamingChecks.actualHTTPStream(); XCTAssertGreaterThan(n, 0) }

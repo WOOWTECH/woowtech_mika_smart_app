@@ -80,6 +80,9 @@ public enum MCPConversationError: String, Error, Sendable, Equatable, LocalizedE
     case invalidInput, invalidCatalog, invalidLimits, invalidCommand, unknownTool, unknownResource
     case inputTooLarge, modelResponseTooLarge, outputTooLarge, invalidExecutionResult
     case modelFailed, approvalFailed, executionFailed, timedOut
+    /// An entered or conservatively reserved executor may still have an effect.
+    /// This carries no operation, arguments, endpoint or underlying error.
+    case executionOutcomeUnknown, dispatchFenceUnavailable
     case localUnavailable, invalidLocalResult, localLeaseExpired
     /// Provider request failures are distinct from the whole-conversation deadline.
     /// HTTP status numbers, bodies and underlying error descriptions are discarded.

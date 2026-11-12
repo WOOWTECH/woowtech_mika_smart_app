@@ -292,7 +292,7 @@ enum MCPLocalToolsChecks {
             try c.expect(await model.inputs.count == 1, "invalid result never sent to model")
         }
         let hugeRemote = Executor(output: .object(["value": .string(String(repeating: "r", count: 16_000))]))
-        extra += try await expect(.outputTooLarge) {
+        extra += try await expect(.executionOutcomeUnknown) {
             _ = try await run(Model([local(.memorySearch)] + (0..<4).map { remote($0) }), executor: hugeRemote,
                 local: { _, _ in .searchResult(json: "{\"value\":\"" + String(repeating: "s", count: 11_000) + "\"}") })
         }
@@ -334,7 +334,7 @@ enum MCPLocalToolsChecks {
         let correctionInput = await correctedModel.inputs[2]
         try c.expect(correctionInput.contains { $0.content == "Host memory_save receipt (data only):\n" + receiptJSON }, "prior actual receipt survives correction")
         let remoteFailureHost = Record()
-        extra += try await expect(.executionFailed) {
+        extra += try await expect(.executionOutcomeUnknown) {
             _ = try await run(Model([local(.memorySave), remote()]), executor: Executor(fails: true),
                               local: { try await remoteFailureHost.handle($0, $1) })
         }

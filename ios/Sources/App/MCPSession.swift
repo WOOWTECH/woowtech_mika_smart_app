@@ -1,6 +1,48 @@
 import AssistantMCP
 import Combine
+import Darwin
 import Foundation
+
+/// An exclusive, nonsecret marker reserved before the first remote dispatch.
+/// It survives ordinary process restarts and prevents another app session from
+/// silently retrying an unfinished turn. External writers bypassing this
+/// protocol and storage erased by the user are outside this guarantee.
+@MainActor private final class MCPDispatchRecovery {
+    private let url: URL
+    private var owner: UUID?
+    init(url: URL) { self.url = url }
+
+    var blocked: Bool {
+        do { _ = try FileManager.default.attributesOfItem(atPath: url.path); return true }
+        catch let error as NSError {
+            return !(error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError)
+        }
+    }
+
+    func reserve(_ id: UUID) throws {
+        if owner == id { return }
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+        guard fd >= 0 else { throw MCPError.busy }
+        let flushed = fsync(fd) == 0
+        let closed = close(fd) == 0
+        // On any failure leave the marker in place and reject dispatch.
+        guard flushed, closed else { throw MCPError.busy }
+        let directoryFD = open(directory.path, O_RDONLY)
+        guard directoryFD >= 0 else { throw MCPError.busy }
+        let directoryFlushed = fsync(directoryFD) == 0
+        let directoryClosed = close(directoryFD) == 0
+        guard directoryFlushed, directoryClosed else { throw MCPError.busy }
+        owner = id
+    }
+
+    func complete(_ id: UUID) {
+        guard owner == id else { return }
+        do { try FileManager.default.removeItem(at: url); owner = nil }
+        catch { /* Failure leaves the conservative block in place. */ }
+    }
+}
 
 // Discovery and execution share one explicitly connected, ephemeral client.
 protocol MCPDiscovering: MCPConversationExecuting {
@@ -45,8 +87,26 @@ final class MCPSession: ObservableObject {
     private var request: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
     private var requestID: UUID?
+    private let dispatchRecovery: MCPDispatchRecovery?
+
+    /// Re-read the marker, rather than relying on a cached store instance.
+    var unresolvedToolOutcome: Bool { dispatchRecovery?.blocked ?? true }
+
+    func reserveToolDispatch(requestID: UUID) throws {
+        guard let dispatchRecovery else { throw MCPError.busy }
+        try dispatchRecovery.reserve(requestID)
+        objectWillChange.send()
+    }
+
+    func completeToolTurn(requestID: UUID) {
+        dispatchRecovery?.complete(requestID)
+        objectWillChange.send()
+    }
 
     init() {
+        let recoveryURL = try? ConversationArchiveStore.location(arguments: ProcessInfo.processInfo.arguments)
+            .url.deletingLastPathComponent().appendingPathComponent("mcp-unresolved-operation")
+        dispatchRecovery = recoveryURL.map { MCPDispatchRecovery(url: $0) }
         #if DEBUG
         let fixture = ProcessInfo.processInfo.arguments.contains("-UITestMode")
             && ProcessInfo.processInfo.arguments.contains("-UITestMCPFixture")
@@ -82,9 +142,11 @@ final class MCPSession: ObservableObject {
     }
 
     init(repository: any MCPEndpointStoring, allowsNetwork: Bool = true,
+         recoveryURL: URL = FileManager.default.temporaryDirectory.appendingPathComponent("mcp-recovery-" + UUID().uuidString).appendingPathComponent("marker"),
          clientFactory: @escaping @Sendable (URL) -> any MCPDiscovering = { MCPClient(endpoint: $0) }) {
         self.repository = repository
         self.allowsNetwork = allowsNetwork
+        self.dispatchRecovery = MCPDispatchRecovery(url: recoveryURL)
         self.clientFactory = clientFactory
         do {
             hasStoredEndpoint = try repository.load() != nil
@@ -124,6 +186,7 @@ final class MCPSession: ObservableObject {
     }
 
     func conversationConnection() throws -> (any MCPDiscovering, [MCPTool], [MCPResource]) {
+        guard !unresolvedToolOutcome else { throw MCPError.busy }
         guard canUseInConversation, let client else { throw MCPError.notInitialized }
         return (client, tools.filter { selectedToolNames.contains($0.name) },
                 resources.filter { selectedResourceURIs.contains($0.uri) })

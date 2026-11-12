@@ -42,6 +42,9 @@ enum MCPConversationChecks {
     actor Executor: MCPConversationExecuting {
         var results: [JSONValue]
         var calls: [MCPConversationAction] = []
+        var effects = 0
+        private var completed = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
         let fail: Bool
         let gate: Gate?
         init(_ results: [JSONValue] = [ok], fail: Bool = false, gate: Gate? = nil) {
@@ -57,7 +60,13 @@ enum MCPConversationChecks {
             if let gate { _ = await gate.wait() }
             if fail { throw Failure.secret }
             guard !results.isEmpty else { throw Failure.secret }
+            effects += 1
+            completed = true
+            let pending = waiters; waiters = []; pending.forEach { $0.resume() }
             return results.removeFirst()
+        }
+        func waitForEffect() async {
+            if !completed { await withCheckedContinuation { waiters.append($0) } }
         }
     }
 
@@ -208,15 +217,15 @@ enum MCPConversationChecks {
         try c.expect(result.steps[0].isError && result.steps[0].result == failure, "all error content preserved")
         try c.expect(await model.inputs.count == 1, "tool error is not silently retried")
         let broken = Executor(fail: true), brokenModel = Model([try call(), finish])
-        count += try await expect(.executionFailed) { _ = try await run(brokenModel, broken) }
+        count += try await expect(.executionOutcomeUnknown) { _ = try await run(brokenModel, broken) }
         let brokenCalls = await broken.calls.count, brokenInputs = await brokenModel.inputs.count
         try c.expect(brokenCalls == 1 && brokenInputs == 1, "transport failure never replays execution")
         count += try await expect(.approvalFailed) { _ = try await run(Model([try call()]), Executor(), approve: { _ in throw Failure.secret }) }
         count += try await expect(.modelFailed) { _ = try await run(Model([]), Executor()) }
-        count += try await expect(.outputTooLarge) {
+        count += try await expect(.executionOutcomeUnknown) {
             _ = try await run(Model([try call(), finish]), Executor([.object(["text": .string(String(repeating: "x", count: 16 * 1024))])]))
         }
-        count += try await expect(.invalidExecutionResult) {
+        count += try await expect(.executionOutcomeUnknown) {
             _ = try await run(Model([try call()]), Executor([.object(["isError": .string("false")])]))
         }
         count += try await expect(.modelResponseTooLarge) { _ = try await run(Model([String(repeating: "x", count: 24 * 1024 + 1)]), Executor()) }
@@ -294,7 +303,7 @@ enum MCPConversationChecks {
         let replies = try (0..<6).map { try call(.object(["text": .string("\($0)")])) }
         let big: JSONValue = .object(["text": .string(String(repeating: "x", count: 15000))])
         let executor = Executor(Array(repeating: big, count: 6)), model = Model(replies)
-        let n = try await expect(.outputTooLarge) { _ = try await run(model, executor) }
+        let n = try await expect(.executionOutcomeUnknown) { _ = try await run(model, executor) }
         let aggregateCalls = await executor.calls.count, aggregateInputs = await model.inputs.count
         try c.expect(aggregateCalls == 5 && aggregateInputs == 5, "aggregate output limit stops without additional calls")
         return c.count + n
@@ -336,13 +345,31 @@ enum MCPConversationChecks {
         let inFlight = Task { try await run(Model([try call(), finish]), executing, event: { await events.event($0) }) }
         try await executingGate.waitUntilEntered()
         inFlight.cancel()
-        do { _ = try await inFlight.value; throw Failure.secret } catch is CancellationError { }
+        do { _ = try await inFlight.value; throw Failure.secret }
+        catch MCPConversationError.executionOutcomeUnknown { c.count += 1 }
         await executingGate.release(true)
-        try await Task.sleep(nanoseconds: 20_000_000)
+        await executing.waitForEffect()
         try c.expect(await executing.calls.count == 1, "cancelled in-flight execution is not retried")
+        try c.expect(await executing.effects == 1, "cancel cannot retract a late executor effect")
         let recorded = await events.events
         try c.expect(!recorded.contains(where: { if case .completed = $0 { return true }; return false }), "late executor result is not published as completion")
-        return c.count + n
+        let timeoutGate = Gate(), timeoutExecutor = Executor(gate: timeoutGate)
+        let executingTimeout = Task { try await run(Model([try call()]), timeoutExecutor, limits: .init(timeout: .milliseconds(200))) }
+        try await timeoutGate.waitUntilEntered()
+        let timeoutCount = try await expect(.executionOutcomeUnknown) { _ = try await executingTimeout.value }
+        await timeoutGate.release(true); await timeoutExecutor.waitForEffect()
+        let timeoutEffects = await timeoutExecutor.effects, timeoutCalls = await timeoutExecutor.calls.count
+        try c.expect(timeoutEffects == 1 && timeoutCalls == 1,
+                     "deadline reports unknown and cannot retract late effect or retry")
+        let reservationExecutor = Executor()
+        let reservationCount = try await expect(.dispatchFenceUnavailable) {
+            _ = try await MCPConversationRunner(client: Model([try call()])).run(
+                messages: [.init(role: "user", content: "fixture")], configuration: configuration,
+                apiKey: "fixture", tools: [tool], executor: reservationExecutor,
+                approve: { _ in true }, beforeDispatch: { _ in throw Failure.secret })
+        }
+        try c.expect(await reservationExecutor.calls.isEmpty, "failed durable reservation prevents executor entry")
+        return c.count + n + timeoutCount + reservationCount
     }
 
     static func singleCallTransportAPI() async throws -> Int {

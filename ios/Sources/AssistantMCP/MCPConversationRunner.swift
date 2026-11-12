@@ -13,6 +13,7 @@ public struct MCPConversationRunner: Sendable {
                     executor: any MCPConversationExecuting,
                     limits: MCPConversationLimits = .init(),
                     approve: @escaping @Sendable (MCPConversationProposal) async throws -> Bool,
+                    beforeDispatch: @escaping @Sendable (MCPConversationProposal) async throws -> Void = { _ in },
                     onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void = { _ in },
                     handleLocal: MCPLocalHandler? = nil) async throws -> MCPConversationResult {
         guard (1...12).contains(limits.maximumModelCalls), (1...6).contains(limits.maximumToolCalls),
@@ -35,7 +36,7 @@ public struct MCPConversationRunner: Sendable {
                         let result = try await execute(messages: messages, configuration: configuration, apiKey: apiKey,
                                                        tools: tools, resources: resources, executor: executor,
                                                        limits: limits, deadline: deadline, race: race, approve: approve,
-                                                       onEvent: onEvent, handleLocal: handleLocal)
+                                                       beforeDispatch: beforeDispatch, onEvent: onEvent, handleLocal: handleLocal)
                         race.finish(.success(result))
                     } catch { race.finish(.failure(error)) }
                 }
@@ -55,6 +56,7 @@ public struct MCPConversationRunner: Sendable {
                          limits: MCPConversationLimits, deadline: ContinuousClock.Instant,
                          race: MCPConversationRace,
                          approve: @escaping @Sendable (MCPConversationProposal) async throws -> Bool,
+                         beforeDispatch: @escaping @Sendable (MCPConversationProposal) async throws -> Void,
                          onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void,
                          handleLocal: MCPLocalHandler?) async throws -> MCPConversationResult {
         func check() throws {
@@ -197,7 +199,13 @@ public struct MCPConversationRunner: Sendable {
             catch { try check(); throw MCPConversationError.approvalFailed }
             try check()
             guard allowed else { return stopped(.approvalDenied) }
+            // The host can durably reserve a no-retry fence before any executor
+            // entry. A failed reservation must prevent dispatch.
+            do { try await beforeDispatch(proposal) }
+            catch { try check(); throw MCPConversationError.dispatchFenceUnavailable }
+            try check()
             await onEvent(.executing(proposal)); try check()
+            try race.beginDispatch(deadline: deadline)
             let result: JSONValue
             do {
                 switch proposal.action {
@@ -205,7 +213,9 @@ public struct MCPConversationRunner: Sendable {
                     result = try await executor.callAuthorizedTool(name: name, arguments: arguments)
                 case .readResource(let uri): result = try await executor.readResource(uri: uri)
                 }
-            } catch { try check(); throw MCPConversationError.executionFailed }
+            } catch {
+                throw MCPConversationError.executionOutcomeUnknown
+            }
             try check()
             try validateJSON(result, error: .outputTooLarge)
             guard case .object = result else { throw MCPConversationError.invalidExecutionResult }
@@ -221,7 +231,9 @@ public struct MCPConversationRunner: Sendable {
             }
             let step = MCPConversationStep(proposal: proposal, result: result, isError: isError)
             steps.append(step)
-            await onEvent(.completed(step)); try check()
+            await onEvent(.completed(step))
+            race.endDispatch()
+            try check()
             if isError { return stopped(.toolError) }
             messages.append(ModelMessage(role: "assistant", content: raw))
             let payload: JSONValue = .object(["result": result, "isError": .bool(isError)])
@@ -381,9 +393,22 @@ final class MCPConversationRace: @unchecked Sendable {
     private var worker: Task<Void, Never>?
     private var timer: Task<Void, Never>?
     private var attached = false
+    private var dispatchInFlight = false
     private var startContinuation: CheckedContinuation<Void, Error>?
 
     var isFinished: Bool { lock.lock(); defer { lock.unlock() }; return result != nil }
+
+    /// Serialize dispatch reservation with cancel/timeout completion. The
+    /// executor may never be entered after this reservation; in that case an
+    /// unknown result is deliberately conservative.
+    func beginDispatch(deadline: ContinuousClock.Instant) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard result == nil, !Task.isCancelled else { throw CancellationError() }
+        guard ContinuousClock.now < deadline else { throw MCPConversationError.timedOut }
+        dispatchInFlight = true
+    }
+
+    func endDispatch() { lock.lock(); dispatchInFlight = false; lock.unlock() }
 
     func waitUntilAttached() async throws {
         try await withCheckedThrowingContinuation { (start: CheckedContinuation<Void, Error>) in
@@ -413,7 +438,10 @@ final class MCPConversationRace: @unchecked Sendable {
     func finish(_ outcome: Result<MCPConversationResult, Error>) {
         lock.lock()
         guard result == nil else { lock.unlock(); return }
-        result = outcome
+        let final: Result<MCPConversationResult, Error>
+        if dispatchInFlight, case .failure = outcome { final = .failure(MCPConversationError.executionOutcomeUnknown) }
+        else { final = outcome }
+        result = final
         let continuation = self.continuation, worker = self.worker, timer = self.timer
         let start = startContinuation
         self.continuation = nil; self.worker = nil; self.timer = nil
@@ -424,6 +452,6 @@ final class MCPConversationRace: @unchecked Sendable {
         // approval resumed after run returns cannot start an executor call.
         worker?.cancel(); timer?.cancel()
         start?.resume(throwing: CancellationError())
-        continuation?.resume(with: outcome)
+        continuation?.resume(with: final)
     }
 }
