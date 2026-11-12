@@ -472,6 +472,8 @@ private struct ChatView: View {
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
     #endif
     @FocusState private var isEditingDraft: Bool
+    @StateObject private var keyboardDock = ChatKeyboardDock()
+    @State private var chatFrame = CGRect.zero
     @State private var showsMCPResults = false
     @State private var showsPDF = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
@@ -479,6 +481,8 @@ private struct ChatView: View {
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    /// Only the draft's own docked keyboard lifts the composer (see ChatKeyboardDock).
+    private var keyboardReserve: CGFloat { isEditingDraft ? keyboardDock.reserve(below: chatFrame) : 0 }
 
     private var voiceMessage: AppText? {
         switch voice.state {
@@ -637,6 +641,7 @@ private struct ChatView: View {
                 }
                 .coordinateSpace(name: "chat.transcript.viewport")
                 .accessibilityIdentifier("chat.transcript")
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 // A simultaneous drag observes scrolling without taking the
                 // long-press/text-selection gesture away from selectable Text.
                 .simultaneousGesture(DragGesture(minimumDistance: 5)
@@ -820,7 +825,19 @@ private struct ChatView: View {
             .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
+        .padding(.bottom, keyboardReserve)
+        .animation(.easeOut(duration: 0.25), value: keyboardReserve)
         .background(palette.background)
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { chatFrame = proxy.frame(in: .global) }
+                    .onChange(of: proxy.frame(in: .global)) { _, frame in chatFrame = frame }
+            }
+        }
+        // SwiftUI's keyboard safe area is ignored here; ChatKeyboardDock
+        // reserves the draft keyboard's space instead.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
