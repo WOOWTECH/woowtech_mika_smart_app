@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import com.wangzan101.mika.i18n.AppLanguage
 import com.wangzan101.mika.settings.Provider
 import com.wangzan101.mika.settings.ProviderStore
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 
 /** 界面(输入栏、悬浮胶囊)拿语音会话的地方;App 里是 [VoiceInput],界面测试换成假的。 */
 interface VoiceSource {
@@ -28,7 +29,8 @@ class VoiceInput(
 
     /** 界面先问一下能不能用、用的是哪个(卡片顶上那个小标签)。 */
     override fun spec(): SpeechEngineSpec =
-        SpeechResolver.resolve(settings.choice.value, SystemSpeech.capability(context, settings.systemSilent.value), providers.providers.value)
+        SpeechResolver.resolve(settings.choice.value, SystemSpeech.capability(context, settings.systemSilent.value),
+            providers.providers.value.filter { PlayModelProviderPolicy.permits(it.kind, it.baseUrl) })
 
     /**
      * 开一次会话,按下时调(要在主线程)。[language] 是识别语言(BCP-47);null 跟 App 界面语言。

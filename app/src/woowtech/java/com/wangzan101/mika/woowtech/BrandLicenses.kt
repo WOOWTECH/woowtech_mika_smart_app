@@ -9,7 +9,7 @@ import com.wangzan101.mika.ui.Licenses
 
 /**
  * 品牌版的第三方元件清單,跟著 App 語言顯示英文或繁中(上游的說明寫死簡體中文)。
- * 上游 Mika 列在第一個(署名 wangzan101),補上上游清單漏掉的 ML Kit,運行環境的套件接在最後(版本那句也翻譯)。
+ * 上游 Mika 列在第一個(署名 wangzan101)；商店版不包含跨 App OCR 與沙箱。
  * 每個上游條目在 [TEXTS] 有一組譯文(woowtech/tools/brand-check.sh sources 會核對)。
  * 同步上游後新增、還沒翻譯的條目照上游原文顯示,只換產品名。
  */
@@ -39,11 +39,8 @@ object BrandLicenses {
         "commonmark-java" to Text(R.string.woow_lic_commonmark),
     )
 
-    /** 運行環境套件的說明「版本 <x>。<網址>」(Licenses.runtimePackages)。 */
-    private val RUNTIME_NOTE = Regex("^版本 (.*?)。(.*)$")
-
     @Composable
-    fun thirdParty(entries: List<Licenses.Entry>, runtime: List<Licenses.Entry>): List<Licenses.Entry> {
+    fun thirdParty(entries: List<Licenses.Entry>, @Suppress("UNUSED_PARAMETER") runtime: List<Licenses.Entry>): List<Licenses.Entry> {
         val upstream = entries.map { e ->
             val t = TEXTS[e.name]
             if (t == null) {
@@ -56,13 +53,8 @@ object BrandLicenses {
                 )
             }
         }
-        val mlKit = Licenses.Entry(
-            stringResource(R.string.woow_lic_mlkit_name), stringResource(R.string.woow_lic_mlkit_license), stringResource(R.string.woow_lic_mlkit),
-        )
-        val packages = runtime.map { e ->
-            val m = RUNTIME_NOTE.matchEntire(e.note)
-            if (m == null) e else e.copy(note = stringResource(R.string.woow_lic_runtime_package, m.groupValues[1], m.groupValues[2]).trim())
-        }
-        return upstream.filter { it.name == "Mika" } + upstream.filter { it.name != "Mika" } + mlKit + packages
+        // The Play edition omits cross-app OCR and the executable sandbox, including its GPL runtime.
+        val omitted = setOf("PRoot", "talloc", "scrcpy", "Alpine Linux")
+        return upstream.filter { it.name !in omitted }
     }
 }

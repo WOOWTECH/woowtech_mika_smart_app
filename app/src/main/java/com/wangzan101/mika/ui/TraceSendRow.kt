@@ -22,6 +22,7 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.core.trace.TraceArchive
 import com.wangzan101.mika.record.OtlpReceipt
 import com.wangzan101.mika.record.OtlpSender
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import com.wangzan101.mika.ui.components.ListRow
 import com.wangzan101.mika.ui.components.MikaDialog
 import com.wangzan101.mika.ui.components.RowChevron
@@ -81,7 +82,7 @@ internal fun TraceSendRow(archive: TraceArchive) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     OutlinedTextField(address, { address = it }, Modifier.testTag("trace-endpoint"), singleLine = true, isError = address.isNotBlank() && !validAddress,
                         label = { Text(stringResource(R.string.trace_endpoint)) },
-                        supportingText = { Text(stringResource(R.string.trace_endpoint_hint)) })
+                        supportingText = { Text(stringResource(if (PlayTransportPolicy.enabled) R.string.trace_endpoint_hint_play else R.string.trace_endpoint_hint)) })
                     OutlinedTextField(name, { name = it }, Modifier.testTag("trace-auth-name"), singleLine = true, isError = !validHeader,
                         label = { Text(stringResource(R.string.trace_header_name)) })
                     OutlinedTextField(value, { value = it }, Modifier.testTag("trace-auth-value"), singleLine = true, isError = !validHeader,

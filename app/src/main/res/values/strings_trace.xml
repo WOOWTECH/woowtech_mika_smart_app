@@ -26,6 +26,7 @@
     <string name="trace_network_hint">Send this trace’s metadata only.</string>
     <string name="trace_endpoint">Traces endpoint</string>
     <string name="trace_endpoint_hint">Use HTTPS for public addresses. HTTP is allowed on localhost and the local network.</string>
+    <string name="trace_endpoint_hint_play">Use HTTPS except for a service on this phone at localhost or 127.0.0.1.</string>
     <string name="trace_header_name">Auth header name</string>
     <string name="trace_header_value">Auth header value (optional)</string>
     <string name="trace_sent">Trace accepted</string>

@@ -22,8 +22,8 @@ import java.security.MessageDigest
 class BundledRuntimeTest {
     @get:Rule val texts = ChineseTexts()
 
-    private val asset = File("src/main/assets/${BundledRuntime.ASSET}")
-    private val manifest = Json.parseToJsonElement(File("src/main/assets/runtime/packages.json").readText()).jsonObject
+    private val asset = File("src/nonplay/assets/${BundledRuntime.ASSET}")
+    private val manifest = Json.parseToJsonElement(File("src/nonplay/assets/runtime/packages.json").readText()).jsonObject
 
     @Test
     fun assetMatchesGeneratedConstants() {

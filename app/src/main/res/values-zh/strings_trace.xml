@@ -26,6 +26,7 @@
     <string name="trace_network_hint">仅发送本次 Trace 的诊断元数据。</string>
     <string name="trace_endpoint">接收地址</string>
     <string name="trace_endpoint_hint">公网地址使用 HTTPS。本机和局域网可以使用 HTTP。</string>
+    <string name="trace_endpoint_hint_play">手机以外的服务须使用 HTTPS；本机 localhost 或 127.0.0.1 可使用 HTTP。</string>
     <string name="trace_header_name">鉴权头名称</string>
     <string name="trace_header_value">鉴权值（选填）</string>
     <string name="trace_sent">接收端已接受</string>

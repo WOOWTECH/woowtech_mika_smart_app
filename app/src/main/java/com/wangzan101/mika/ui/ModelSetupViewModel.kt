@@ -21,6 +21,7 @@ import com.wangzan101.mika.settings.ProviderPresets
 import com.wangzan101.mika.settings.ProbeResult
 import com.wangzan101.mika.settings.ProviderStore
 import com.wangzan101.mika.settings.PlayTransportPolicy
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 import com.wangzan101.mika.settings.ModelContextSettings
 import com.wangzan101.mika.settings.RoleChoice
 import com.wangzan101.mika.settings.RoleChoices
@@ -142,6 +143,7 @@ data class AddForm(
             baseUrl.isBlank() -> tr(R.string.model_need_url)
             !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://") -> tr(R.string.model_url_scheme)
             !PlayTransportPolicy.permits(baseUrl.trim()) -> tr(R.string.model_url_https_required_play)
+            !PlayModelProviderPolicy.permits(kind, baseUrl.trim()) -> tr(R.string.model_provider_unavailable_play)
             else -> null
         }
 
@@ -250,7 +252,9 @@ data class ModelSetupUi(
         (providerId == pickToProbe || providers.firstOrNull { it.id == providerId }?.savedUntested == true)
 
     /** 选好了主模型就能「下一步」。 */
-    val canNext: Boolean get() = roles.main != null
+    val canNext: Boolean get() = configFor(ModelRole.Main)?.let { cfg ->
+        PlayModelProviderPolicy.permits(cfg.kind, cfg.baseUrl, providerOf(cfg)?.models?.firstOrNull { it.id == cfg.model }?.endpoint)
+    } == true
 
     /** 这个用途实际用的配置(「用主模型」时是主模型的)。 */
     fun configFor(role: ModelRole): ProviderConfig? = roles.resolve(role)?.let { id -> configs.firstOrNull { it.id == id } }
@@ -319,7 +323,7 @@ class ModelSetupViewModel(
     /** 选语音模型时试转用的转写器,和按住说话用的是同一种建法(带客户端标识头)。 */
     private val transcriber: (Provider) -> Transcriber = { p -> Transcriber(ProviderStore.modelHttp, store.clientHeaders(p)) },
 ) {
-    private val _state = MutableStateFlow(snapshot(ModelSetupUi(AddForm.of(ProviderPresets.all.first()))))
+    private val _state = MutableStateFlow(snapshot(ModelSetupUi(AddForm.of(PlayModelProviderPolicy.presets.first()))))
     val state: StateFlow<ModelSetupUi> = _state.asStateFlow()
 
     private val _speechProbe = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -411,10 +415,11 @@ class ModelSetupViewModel(
 
     fun closeForm() {
         testJob?.cancel()
-        _state.update { it.copy(formOpen = false, form = AddForm.of(ProviderPresets.all.first())) }
+        _state.update { it.copy(formOpen = false, form = AddForm.of(PlayModelProviderPolicy.presets.first())) }
     }
 
     fun selectPreset(label: String) {
+        if (PlayModelProviderPolicy.presets.none { it.label == label }) return
         val p = AddForm.presetFor(label)
         if (p.label == _state.value.form.preset) return
         val key = _state.value.form.apiKey
@@ -505,7 +510,7 @@ class ModelSetupViewModel(
                     if (!noTools && store.roles.value.main == null) use(ModelRole.Main, p, typed, ModelOptions.ofProvider(p, store.list()))
                 }
                 val note = if (noTools) tr(R.string.model_probe_no_tools, typed) else null
-                _state.update { snapshot(it.copy(form = AddForm.of(ProviderPresets.all.first()), formOpen = false, probeNote = note)) }
+                _state.update { snapshot(it.copy(form = AddForm.of(PlayModelProviderPolicy.presets.first()), formOpen = false, probeNote = note)) }
                 return@launch
             }
             val probed = when (val r = probe(f, baseUrl, key.ifEmpty { null }, models)) {
@@ -528,7 +533,7 @@ class ModelSetupViewModel(
             }
             _state.update {
                 snapshot(it.copy(
-                    form = AddForm.of(ProviderPresets.all.first()), formOpen = false,
+                    form = AddForm.of(PlayModelProviderPolicy.presets.first()), formOpen = false,
                     probeNote = probeNote(probed), pickToProbe = saved.id.takeIf { noneUsable },
                 ))
             }
@@ -562,7 +567,7 @@ class ModelSetupViewModel(
             }
             _state.update {
                 snapshot(it.copy(
-                    form = AddForm.of(ProviderPresets.all.first()), formOpen = false,
+                    form = AddForm.of(PlayModelProviderPolicy.presets.first()), formOpen = false,
                     probeNote = tr(R.string.model_saved_untested, f.providerName),
                     // 没有主模型时,在它里面选主模型会先试调用
                     pickToProbe = saved.id.takeIf { store.roles.value.main == null },

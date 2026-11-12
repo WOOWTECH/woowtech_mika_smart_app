@@ -1,6 +1,6 @@
 # 沙箱原生程序:来源、许可证与源码发布
 
-Mika 的沙箱带三个可执行文件,都在 `app/src/main/jniLibs/arm64-v8a/`,随 APK 安装到 `nativeLibraryDir`。
+Mika 的沙箱带三个可执行文件,都在 `app/src/nonplay/jniLibs/arm64-v8a/`,只随非商店版 APK 安装到 `nativeLibraryDir`。
 Mika 只以子进程方式运行它们,不链接它们。
 
 | 文件 | 是什么 | 来源 | 版本 | 许可证 |
@@ -14,7 +14,7 @@ Mika 只以子进程方式运行它们,不链接它们。
 ## 自带的运行环境
 
 运行环境(Alpine 3.22 最小根文件系统 + Python、Node 等软件包)随 APK 发布,在
-`app/src/main/assets/runtime/rootfs.tar.xz`。手机首次启动 Mika 时在后台解到 `files/sandbox/rootfs`,不联网。
+`app/src/nonplay/assets/runtime/rootfs.tar.xz`。手机首次启动非商店版 Mika 时在后台解到 `files/sandbox/rootfs`,不联网。
 
 - `runtime/sources.lock`:最小根文件系统的地址与 SHA-256,以及每个软件包的仓库、版本、APKINDEX 校验值、`.apk` 的 SHA-256。
 - `build-runtime.py`:按 `sources.lock` 下载、校验后拼成 `rootfs.tar.xz`。全程不运行 apk:按 apk 的布局解开软件包,
@@ -23,7 +23,7 @@ Mika 只以子进程方式运行它们,不链接它们。
   数据段与签过名的 `.PKGINFO` 里的 `datahash` 一致。会在手机上执行的安装脚本与触发器必须逐个列进 `SCRIPTS_NOT_RUN`
   (按内容的 SHA-256 钉住,并写明为什么不跑也正确),否则构建失败。
   同时生成 `app/src/main/java/com/wangzan101/mika/cap/sandbox/BundledRuntime.kt`(版本、SHA-256、大小)与
-  `app/src/main/assets/runtime/packages.json`(所有软件包、版本、许可证;「开源许可」页从它生成)。
+  `app/src/nonplay/assets/runtime/packages.json`(所有软件包、版本、许可证;「开源许可」页从它生成)。
 - 产物逐字节可重现:
 
 ```bash
@@ -51,7 +51,7 @@ python3 tools/sandbox/build-runtime.py --check     # 重新生成并与仓库里
 
 ```bash
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358
-tools/sandbox/build-native.sh           # 编译并覆盖 app/src/main/jniLibs/arm64-v8a/ 里的产物
+tools/sandbox/build-native.sh           # 编译并覆盖 app/src/nonplay/jniLibs/arm64-v8a/ 里的产物
 tools/sandbox/build-native.sh --check   # 只重编并与仓库里的产物比较 SHA-256,不一致退出 1
 ```
 
@@ -75,7 +75,7 @@ cp -R tools/sandbox/patches tools/sandbox/sources.lock tools/sandbox/build-nativ
 cp licenses/GPL-2.0.txt licenses/GPL-3.0.txt licenses/LGPL-3.0.txt "$OUT/"
 # 运行环境里每个 GPL/LGPL/MPL 软件包:Alpine 的构建配方(钉在软件包记录的 aports 提交)与上游源码,逐个按 SHA-512 核对
 python3 tools/sandbox/runtime-sources.py "$OUT/runtime"
-cp tools/sandbox/build-runtime.py tools/sandbox/runtime-sources.py app/src/main/assets/runtime/packages.json "$OUT/runtime/"
+cp tools/sandbox/build-runtime.py tools/sandbox/runtime-sources.py app/src/nonplay/assets/runtime/packages.json "$OUT/runtime/"
 cp -R tools/sandbox/runtime "$OUT/runtime/lock"
 COPYFILE_DISABLE=1 tar -czf "build/gpl-sources/$NAME.tar.gz" -C build/gpl-sources "$NAME"
 ```

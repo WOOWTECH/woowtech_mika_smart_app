@@ -1,6 +1,6 @@
 # Google Play Console 審查資料草稿
 
-狀態：**待完成、未提交**。正式收件端與 POCO Debug 版的送達已實測；仍須確認管理員審查、最終簽署版本及 Play 軌道安裝後再使用。此檔不應包含 API Key、密碼、一次性驗證碼或完整私人端點。
+狀態：**待完成、未提交**。正式收件端與 POCO Debug 版的送達、管理員讀取及使用者刪除已實測；最終簽署版本的 Play 軌道安裝仍待驗收。此檔不應包含 API Key、密碼、一次性驗證碼或完整私人端點。
 
 ## 建立 App 表單的候選值
 
@@ -21,12 +21,12 @@ Only submit these instructions after a test provider has been provisioned and a 
 > The app is free and the reviewer can open the app without creating a WoowTech account. AI responses require the test model service listed in the accompanying restricted credentials.
 >
 > 1. Open the app and complete the welcome screens.
-> 2. Open model setup. Add the test provider using the supplied base URL, model name, and test API key. Select the provider as the main model and save it.
+> 2. Open model setup. Select the supplied official OpenAI, Anthropic, or Gemini provider, enter its model name and dedicated test API key, test and save it, then select it as the main model. Custom model base URLs are unavailable in this Play edition.
 > 3. Start a new conversation, enter “Please reply with OK”, and send it. A successful response demonstrates the core AI chat.
 > 4. To review reporting, long-press an AI response and select the report action. Select a reason and submit a clearly identified test report. Verify the reporter confirms delivery.
 > 5. Memory, external MCP servers, voice input, and the in-app browser can be reached from the app’s navigation and settings. An external MCP endpoint is optional for the basic chat review; if its review is required, use the separately provided read-only test endpoint and instructions.
 
-**Required before use:** confirm onboarding and labels against the final Play build; supply a working, rate-limited and renewable reviewer credential, model/base URL, any locale or network requirements, support contact and expiry handling. Confirm that reporting actually delivers to an operated inbox, and provide test MCP credentials if the review requires that capability. Do not promise that a third-party sign-in or API key will be accepted by Play reviewers before verifying the process.
+**Required before use:** confirm onboarding and labels against the final Play build; supply a working, rate-limited and renewable reviewer credential for one of the three official APIs, its model name, any locale or network requirements, support contact and expiry handling. Confirm that reporting actually delivers to an operated inbox, and provide test MCP credentials if the review requires that capability. Do not promise that a third-party sign-in or API key will be accepted by Play reviewers before verifying the process.
 
 ## 前景服務申報素材草稿
 
@@ -41,7 +41,7 @@ Only submit these instructions after a test provider has been provisioned and a 
 
 ## 其他 Console 欄位
 
-- 隱私政策：待最終 App 資料流、營運保存和刪除方式確認並公開後填入；同時提供 App 內入口。
-- Data safety：依最終模型、語音、附件、外部 MCP、檢舉及 SDK 的實際行為填答；現有舊草稿不可直接提交。
+- 隱私政策：雙語頁 `https://assistant-relay.woowtech.io/privacy/play` 已公開並有 App 內入口；在 Console 填入前核對最終 AAB 的資料流。
+- Data safety：依 `PLAY_DATA_SAFETY_WORKSHEET_2026-11-12.md` 及最終模型、語音、附件、外部 MCP、檢舉與 SDK 的實際行為逐題填答。
 - 內容分級、目標對象、廣告、AI 內容與其他聲明：依最終版本和 Console 題目逐項核實，不推測答案。
 - 內部測試：待確定上傳簽章、版本碼及測試人員後準備；由 Play 安裝驗證不等於正式審核通過。

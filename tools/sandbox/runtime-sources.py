@@ -6,7 +6,7 @@
 Usage:
   runtime-sources.py OUT_DIR [--only ORIGIN ...]
 
-Reads app/src/main/assets/runtime/packages.json (written by build-runtime.py). For each package whose license names
+Reads app/src/nonplay/assets/runtime/packages.json (written by build-runtime.py). For each package whose license names
 GPL, LGPL or MPL, takes its Alpine build recipe at the exact aports commit recorded in the package
 (APKBUILD and local patches), plus every upstream source file listed in the recipe's sha512sums, and checks each
 file against that SHA-512. Writes OUT_DIR/<origin>-<version>/ and OUT_DIR/SOURCES.txt (file, SHA-512, where from).
@@ -24,7 +24,7 @@ import urllib.error
 import urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-MANIFEST = os.path.join(ROOT, "app", "src", "main", "assets", "runtime", "packages.json")
+MANIFEST = os.path.join(ROOT, "app", "src", "nonplay", "assets", "runtime", "packages.json")
 RECIPES = "https://raw.githubusercontent.com/alpinelinux/aports"
 COPYLEFT = re.compile(r"\b(L?GPL|MPL)")
 

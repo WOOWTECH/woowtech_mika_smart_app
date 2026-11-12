@@ -12,7 +12,7 @@ Drafted 2026-11-12. Product: 渥屋助理 / woowtech agent. Developer identity i
 
 woowtech agent brings AI conversation, voice input, a built-in browser, and personal memory together in one Android app.
 
-- Connect a supported AI model with your own account or API key. Model availability and provider terms depend on the service you choose.
+- Connect the official OpenAI, Anthropic, or Gemini API with your own key, or sign in with your ChatGPT account. Model availability and provider terms depend on the service you choose.
 - Ask questions by typing or speaking. Voice input can use Android's speech service or a supported model provider, according to your settings.
 - Open and use websites in the built-in browser. Choose a page yourself and return to your conversation when you need to ask about it.
 - Keep conversation history and personal memories on your device. Review or remove saved memories in the app.
@@ -31,7 +31,7 @@ Internet access is needed for online AI providers and websites. The app does not
 
 渥屋助理把 AI 對話、語音輸入、內建瀏覽器與個人記憶放在同一個 Android App。
 
-- 使用自己的模型帳號或 API Key 連接支援的 AI 服務。可用模型與服務條款依所選服務而定。
+- 使用自己的 API Key 連接 OpenAI、Anthropic 或 Gemini 官方服務，或登入 ChatGPT 帳號。可用模型與服務條款依所選服務而定。
 - 打字或說話提出問題。語音輸入可依設定使用 Android 語音服務或支援的模型服務商。
 - 在內建瀏覽器自行開啟及操作網站，需要時可針對正在看的頁面提問。
 - 在手機保存對話紀錄與個人記憶，並可在 App 內檢視或刪除記憶。

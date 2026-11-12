@@ -35,10 +35,10 @@ import zlib
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HERE = os.path.join(ROOT, "tools", "sandbox", "runtime")
 LOCK = os.path.join(HERE, "sources.lock")
-MANIFEST = os.path.join(ROOT, "app", "src", "main", "assets", "runtime", "packages.json")
-ASSET = os.path.join(ROOT, "app", "src", "main", "assets", "runtime", "rootfs.tar.xz")
+MANIFEST = os.path.join(ROOT, "app", "src", "nonplay", "assets", "runtime", "packages.json")
+ASSET = os.path.join(ROOT, "app", "src", "nonplay", "assets", "runtime", "rootfs.tar.xz")
 KOTLIN = os.path.join(ROOT, "app", "src", "main", "java", "com", "wangzan101", "mika", "cap", "sandbox", "BundledRuntime.kt")
-CLIENT = os.path.join(ROOT, "app", "src", "main", "assets", "sandbox", "mika")
+CLIENT = os.path.join(ROOT, "app", "src", "nonplay", "assets", "sandbox", "mika")
 CACHE = os.path.join(ROOT, "build", "sandbox-runtime", "dl")
 CDN = "https://dl-cdn.alpinelinux.org/alpine"
 ARCH = "aarch64"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 编译沙箱的三个原生程序(安卓 arm64),产物放进 app/src/main/jniLibs/arm64-v8a/:
+# 编译沙箱的三个原生程序(安卓 arm64),产物放进 app/src/nonplay/jniLibs/arm64-v8a/:
 #   libproot.so         PRoot(GPL-2.0-or-later),静态链接 talloc(LGPL-3.0-or-later)
 #   libproot_loader.so  PRoot 的载入器(静态、-nostdlib)
 #   libmikarun.so       Mika 的启动器(MIT)
@@ -15,7 +15,7 @@ API=30
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SANDBOX_DIR="$ROOT/tools/sandbox"
-OUT_DIR="$ROOT/app/src/main/jniLibs/arm64-v8a"
+OUT_DIR="$ROOT/app/src/nonplay/jniLibs/arm64-v8a"
 WORK="$ROOT/build/sandbox-native"
 
 CHECK=0

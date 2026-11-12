@@ -36,7 +36,7 @@ class LicensesTest {
     /** 「开源许可」页逐个列出自带运行环境里的软件包,每个都有许可证。 */
     @Test
     fun runtimePackagesListed() {
-        val manifest = File("src/main/assets/runtime/packages.json")
+        val manifest = File("src/nonplay/assets/runtime/packages.json")
         val entries = Licenses.runtimePackages(manifest.readText())
         assertTrue(entries.size > 40)
         listOf("busybox", "musl", "python3", "nodejs", "py3-pillow", "py3-pypdf").forEach { n -> assertTrue(n, entries.any { it.name == n }) }

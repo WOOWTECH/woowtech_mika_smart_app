@@ -5,6 +5,7 @@ import com.wangzan101.mika.core.model.ModelError
 import com.wangzan101.mika.core.model.ModelHttp
 import com.wangzan101.mika.settings.Provider
 import com.wangzan101.mika.settings.ProviderConfig
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -36,6 +37,9 @@ class Transcriber(
     suspend fun transcribe(
         p: Provider, key: String?, model: String, method: TranscribeMethod, wav: ByteArray, language: String?,
     ): String {
+        if (!PlayModelProviderPolicy.permits(p.kind, p.baseUrl)) {
+            throw ModelError.BadResponse("This model provider is unavailable in the Play edition")
+        }
         val base = p.baseUrl.trim().trimEnd('/')
         val gemini = p.kind == ProviderConfig.Kind.Gemini
         val request = when (method) {

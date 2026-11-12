@@ -66,6 +66,7 @@ import com.wangzan101.mika.settings.ModelOption
 import com.wangzan101.mika.settings.ModelOptions
 import com.wangzan101.mika.settings.ProviderConfig
 import com.wangzan101.mika.settings.ProviderPresets
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 import com.wangzan101.mika.settings.ProviderStore
 import com.wangzan101.mika.settings.RoleChoice
 import com.wangzan101.mika.ui.components.ButtonKind
@@ -319,10 +320,15 @@ private fun ProvidersSection(ui: ModelSetupUi, actions: ModelSetupActions) {
         GroupLabel(ModelsCopy.PROVIDERS)
         GroupCard {
             ui.providers.forEachIndexed { i, p ->
-                val line = if (ui.signedOut(p)) ModelsCopy.CHATGPT_SIGNED_OUT else ModelsCopy.providerLine(p, ui.listing[p.id], ui.rolesOf(p))
+                val permitted = PlayModelProviderPolicy.permits(p.kind, p.baseUrl)
+                val line = when {
+                    !permitted -> stringResource(R.string.model_provider_unavailable_play)
+                    ui.signedOut(p) -> ModelsCopy.CHATGPT_SIGNED_OUT
+                    else -> ModelsCopy.providerLine(p, ui.listing[p.id], ui.rolesOf(p))
+                }
                 // 有用着却没试通过的模型、或跳过测试存下且已经在用:这一行就提醒「没测试通过」
-                val warning = ModelsCopy.UNVERIFIED.takeIf {
-                    ui.unverified(p).isNotEmpty() || (ui.untested(p) && ui.rolesOf(p).isNotEmpty())
+                val warning = ModelsCopy.UNVERIFIED.takeIf { permitted &&
+                    (ui.unverified(p).isNotEmpty() || (ui.untested(p) && ui.rolesOf(p).isNotEmpty()))
                 }
                 ProviderRow(p, line, first = i == 0, warning = warning) { actions.openProvider(p.id) }
             }
@@ -370,7 +376,7 @@ private fun AddProviderForm(ui: ModelSetupUi, actions: ModelSetupActions) {
         Modifier.fillMaxWidth().padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ProviderPresets.all.forEach { p ->
+        PlayModelProviderPolicy.presets.forEach { p ->
             // 「自定义」按界面语言显示;服务商的名字原样
             SelectChip(if (p == ProviderPresets.custom) stringResource(R.string.preset_custom) else p.label, f.preset == p.label, { actions.selectPreset(p.label) }, Modifier.testTag("preset-${p.label}"))
         }

@@ -2,6 +2,7 @@ package com.wangzan101.mika.record
 
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.trace.TraceStore
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import io.opentelemetry.proto.collector.trace.v1.ExportTracePartialSuccess
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse
 import kotlinx.coroutines.runBlocking
@@ -19,11 +20,15 @@ class OtlpSenderTest {
     @get:Rule val temp = TemporaryFolder()
 
     @Test fun validatesEndpointAndHeaderBeforeSending() {
-        for (url in listOf("https://example.com/v1/traces", "http://localhost:4318/v1/traces",
-            "http://192.168.1.9/v1/traces", "http://[::1]:4318/v1/traces", "http://collector.local/v1/traces")) {
+        val allowed = listOf("https://example.com/v1/traces", "http://localhost:4318/v1/traces") +
+            if (PlayTransportPolicy.enabled) emptyList() else listOf(
+                "http://192.168.1.9/v1/traces", "http://[::1]:4318/v1/traces", "http://collector.local/v1/traces")
+        for (url in allowed) {
             assertNotNull(url, OtlpSender.endpoint(url))
         }
-        for (url in listOf("http://example.com/v1/traces", "http://8.8.8.8", "https://user:password@example.com", "ftp://localhost", "https://host/#fragment")) {
+        val rejected = listOf("http://example.com/v1/traces", "http://8.8.8.8", "https://user:password@example.com", "ftp://localhost", "https://host/#fragment") +
+            if (PlayTransportPolicy.enabled) listOf("http://192.168.1.9/v1/traces", "http://[::1]:4318/v1/traces", "http://collector.local/v1/traces") else emptyList()
+        for (url in rejected) {
             assertNull(url, OtlpSender.endpoint(url))
         }
         assertTrue(OtlpSender.validHeader("Authorization", "Bearer test"))

@@ -26,6 +26,7 @@
     <string name="trace_network_hint">僅傳送本次 Trace 的診斷中繼資料。</string>
     <string name="trace_endpoint">接收位址</string>
     <string name="trace_endpoint_hint">公網位址使用 HTTPS。本機和區域網路可以使用 HTTP。</string>
+    <string name="trace_endpoint_hint_play">手機以外的服務須使用 HTTPS；本機 localhost 或 127.0.0.1 可使用 HTTP。</string>
     <string name="trace_header_name">驗證標頭名稱</string>
     <string name="trace_header_value">驗證值（選填）</string>
     <string name="trace_sent">接收端已接受</string>

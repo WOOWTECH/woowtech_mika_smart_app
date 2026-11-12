@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/** 两套内置模型均在本机运行；同一帧并行识别，完成后才释放位图。两套都出错时抛异常(不当成没字)。 */
+/** 两套内置模型均在本机运行；同一帧并行识别，完成后才释放位图。仅供非商店版使用。 */
 internal object PhoneOcr {
     private const val TAG = "PhoneOcr"
 

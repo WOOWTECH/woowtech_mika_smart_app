@@ -332,6 +332,7 @@ class ProviderStore(
      */
     @Synchronized
     fun save(cfg: ProviderConfig, apiKey: String?) {
+        require(PlayModelProviderPolicy.permits(cfg.kind, cfg.baseUrl)) { "This model provider is unavailable in the Play edition" }
         val p = provider(cfg.providerId) ?: findOrAddProvider(ProviderConnection.displayName(cfg), cfg.kind, cfg.baseUrl)
         val attached = cfg.copy(providerId = p.id, kind = p.kind, baseUrl = p.baseUrl, name = p.name)
         val list = _configs.value
@@ -374,6 +375,7 @@ class ProviderStore(
         untested: Boolean = false,
     ): Provider {
         require(PlayTransportPolicy.permits(baseUrl)) { "HTTPS is required for off-device model services in this edition" }
+        require(PlayModelProviderPolicy.permits(kind, baseUrl)) { "This model provider is unavailable in the Play edition" }
         val found = findOrAddProvider(name, kind, baseUrl, signIn)
         // 跳过测试时没有列表可存:这家之前列过的留着,不要用空表把已有的列表盖掉
         val listed = if (untested && models.isEmpty()) found.models ?: models else models
@@ -454,6 +456,7 @@ class ProviderStore(
     @Synchronized
     fun use(role: ModelRole, providerId: String, model: String, caps: Capabilities): Boolean {
         val p = provider(providerId) ?: return false
+        if (!PlayModelProviderPolicy.permits(p.kind, p.baseUrl)) return false
         val id = _configs.value.firstOrNull { it.providerId == p.id && it.model == model }?.id
             ?: newId().also { save(ProviderConfig(it, p.kind, p.baseUrl, model, caps, p.name, p.id), null) }
         return choose(role, RoleChoice.Model(id))
@@ -559,6 +562,7 @@ class ProviderStore(
         val p = provider(cfg.providerId)
         val source = UsageSource(cfg.providerId, p?.name ?: cfg.name, cfg.model, UsagePurpose.of(role))
         val listed = listedOf(cfg)
+        if (!PlayModelProviderPolicy.permits(cfg.kind, cfg.baseUrl, listed?.endpoint)) return@let null
         val settings = p?.contextSettings?.get(cfg.model)
         val configured = if (settings == null) cfg else cfg.copy(capabilities = cfg.capabilities.copy(
             contextTokens = settings.windowTokens ?: cfg.capabilities.contextTokens,
@@ -580,6 +584,9 @@ class ProviderStore(
         kind: ProviderConfig.Kind, baseUrl: String, apiKey: String?, sessionHeader: String?,
         model: String, endpoint: ModelEndpoint?, caps: Capabilities,
     ): ProbeResult {
+        if (!PlayModelProviderPolicy.permits(kind, baseUrl, endpoint)) {
+            return ProbeResult.Failed(ModelError.BadResponse("This model provider is unavailable in the Play edition"))
+        }
         val cfg = ProviderConfig(PROBE_ID, kind, baseUrl, model, caps.copy(toolCalls = true))
         val m = modelFactory(cfg, apiKey, endpoint, ClientSetup(headers(sessionHeader, ModelSession.fresh()), PROBE_MAX_TOKENS))
         return try {
@@ -605,11 +612,19 @@ class ProviderStore(
 
     /** 列出这个服务商的可用模型(见 [ModelCatalog]);不属于任何对话,声明了会话头的用新的会话号。 */
     suspend fun listModels(kind: ProviderConfig.Kind, baseUrl: String, apiKey: String?, sessionHeader: String? = null): ModelListResult =
-        if (PlayTransportPolicy.permits(baseUrl)) modelLister(kind, baseUrl, apiKey, headers(sessionHeader, ModelSession.fresh()))
-        else ModelListResult.Failed(ListFailure.Server, "HTTPS is required for off-device model services in this edition")
+        when {
+            !PlayModelProviderPolicy.permits(kind, baseUrl) ->
+                ModelListResult.Failed(ListFailure.Server, "This model provider is unavailable in the Play edition")
+            !PlayTransportPolicy.permits(baseUrl) ->
+                ModelListResult.Failed(ListFailure.Server, "HTTPS is required for off-device model services in this edition")
+            else -> modelLister(kind, baseUrl, apiKey, headers(sessionHeader, ModelSession.fresh()))
+        }
 
     /** 重新列一个已连接服务商的模型:用存着的 Key;订阅登录用访问令牌(快过期先换新的)。 */
     suspend fun listModels(p: Provider): ModelListResult {
+        if (!PlayModelProviderPolicy.permits(p.kind, p.baseUrl)) {
+            return ModelListResult.Failed(ListFailure.Server, "This model provider is unavailable in the Play edition")
+        }
         if (p.kind != ProviderConfig.Kind.ChatGpt && p.kind != ProviderConfig.Kind.Xai) {
             return listModels(p.kind, p.baseUrl, providerKey(p.id), p.sessionHeader)
         }
@@ -781,6 +796,7 @@ class ProviderStore(
      * 连接测试就会误报),Responses 也不给(ChatGPT 套餐那条路不收 `max_output_tokens`)。
      */
     private fun buildModel(cfg: ProviderConfig, apiKey: String?, endpoint: ModelEndpoint?, setup: ClientSetup): ChatModel {
+        require(PlayModelProviderPolicy.permits(cfg.kind, cfg.baseUrl, endpoint)) { "This model provider is unavailable in the Play edition" }
         val (kind, adapterBase) = adapterFor(cfg, endpoint)
         // 订阅登录用服务商当前的地址(登录时可能换过),配置里存的是添加时的
         val baseUrl = if (cfg.kind == ProviderConfig.Kind.Xai) {

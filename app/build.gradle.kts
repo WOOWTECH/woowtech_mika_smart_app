@@ -95,10 +95,6 @@ dependencies {
     implementation(libs.commonmark)
     implementation(libs.commonmark.ext.gfm.tables)
     implementation(libs.commonmark.ext.gfm.strikethrough)
-    // 两种识别模型都随 APK 安装；首次使用不依赖 Play 服务下载。
-    implementation(libs.mlkit.text.recognition)
-    implementation(libs.mlkit.text.recognition.chinese)
-
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
@@ -147,6 +143,7 @@ android {
             applicationId = "io.woowtech.assistant"
             versionCode = 3
             versionName = "${defaultConfig.versionName}-play.3"
+            buildConfigField("boolean", "BETA", "false")
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
             // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
@@ -157,6 +154,12 @@ android {
     }
     sourceSets.getByName("apporo").res.srcDir(apporoBrandRes)
     sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
+    sourceSets.getByName("upstream").java.srcDir("src/nonplay/java")
+    sourceSets.getByName("apporo").java.srcDir("src/nonplay/java")
+    for (name in listOf("upstream", "apporo")) {
+        sourceSets.getByName(name).assets.srcDir("src/nonplay/assets")
+        sourceSets.getByName(name).jniLibs.srcDir("src/nonplay/jniLibs")
+    }
     if (woowtechSigning != null) {
         productFlavors.getByName("woowtech").signingConfig = signingConfigs.create("woowtech") {
             storeFile = file(woowtechSigning.getProperty("storeFile"))
@@ -165,6 +168,13 @@ android {
             keyPassword = woowtechSigning.getProperty("keyPassword")
         }
     }
+}
+// Screen OCR belongs to the direct-download editions. The Play edition has no phone control.
+dependencies {
+    add("upstreamImplementation", libs.mlkit.text.recognition)
+    add("upstreamImplementation", libs.mlkit.text.recognition.chinese)
+    add("apporoImplementation", libs.mlkit.text.recognition)
+    add("apporoImplementation", libs.mlkit.text.recognition.chinese)
 }
 androidComponents {
     // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑

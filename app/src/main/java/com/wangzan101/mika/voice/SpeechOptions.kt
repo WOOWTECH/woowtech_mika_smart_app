@@ -3,6 +3,7 @@ package com.wangzan101.mika.voice
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.settings.Provider
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 
 /**
  * 设置 › 模型 里「语音转文字」用到的纯逻辑:选择页怎么给服务商分组、用途卡片右边写什么。
@@ -16,7 +17,7 @@ object SpeechOptions {
     data class Group(val provider: Provider, val models: List<String>)
 
     /** 能做转写的服务商各一组;列表里只留像语音模型的。 */
-    fun groups(providers: List<Provider>): List<Group> = providers.filter(Transcriber::supports).map { p ->
+    fun groups(providers: List<Provider>): List<Group> = providers.filter { PlayModelProviderPolicy.permits(it.kind, it.baseUrl) && Transcriber.supports(it) }.map { p ->
         Group(p, p.models.orEmpty().filter(Transcriber::looksLikeSpeech).map { it.id })
     }
 

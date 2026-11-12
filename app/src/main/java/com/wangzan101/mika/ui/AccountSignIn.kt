@@ -29,6 +29,7 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.settings.ProviderConfig
 import com.wangzan101.mika.settings.ProviderStore
+import com.wangzan101.mika.settings.PlayModelProviderPolicy
 import com.wangzan101.mika.ui.components.ButtonKind
 import com.wangzan101.mika.ui.components.ButtonSize
 import com.wangzan101.mika.ui.components.GroupCard
@@ -85,7 +86,8 @@ internal fun ModelSetupUi.signInState(kind: SignInKind): Triple<String?, Boolean
 internal fun AccountSignInGroup(ui: ModelSetupUi, onOpen: (SignInKind) -> Unit, openProvider: (String) -> Unit) {
     GroupLabel(ModelsCopy.SIGN_IN_GROUP)
     GroupCard {
-        SignInKind.entries.forEachIndexed { i, kind ->
+        val kinds = if (PlayModelProviderPolicy.enabled) listOf(SignInKind.ChatGpt) else SignInKind.entries
+        kinds.forEachIndexed { i, kind ->
             val (signedIn, running, _) = ui.signInState(kind)
             Box(Modifier.testTag("signin-${kind.tag}")) {
                 ListRow(

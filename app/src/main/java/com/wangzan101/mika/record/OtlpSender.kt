@@ -2,6 +2,7 @@ package com.wangzan101.mika.record
 
 import com.wangzan101.mika.core.trace.TraceArchive
 import com.wangzan101.mika.core.net.LocalHosts
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -47,7 +48,8 @@ internal object OtlpSender {
         "connection", "proxy-connection", "proxy-authorization", "accept", "accept-encoding", "te", "trailer", "upgrade", "expect", "cookie")
 
     fun endpoint(text: String): HttpUrl? = text.trim().toHttpUrlOrNull()?.takeIf {
-        it.username.isEmpty() && it.password.isEmpty() && it.fragment == null && (it.isHttps || LocalHosts.isLocal(it.host))
+        it.username.isEmpty() && it.password.isEmpty() && it.fragment == null &&
+            (it.isHttps || LocalHosts.isLocal(it.host)) && PlayTransportPolicy.permits(it.toString())
     }
 
     fun validHeader(name: String, value: String): Boolean = value.isEmpty() ||

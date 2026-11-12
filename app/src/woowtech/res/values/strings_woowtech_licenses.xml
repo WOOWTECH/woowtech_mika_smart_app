@@ -4,10 +4,10 @@
   One entry per upstream Licenses.ENTRIES item; used by app/src/woowtech/java/.../woowtech/BrandLicenses.kt.
 -->
 <resources>
-    <string name="woow_lic_mika">This app is based on the open-source project Mika (Copyright 2026 wangzan101, https://github.com/wangzan101/Mika), modified and distributed by WOOW TECH CO., LTD., including the runtime launcher and its mika command and skill scripts. The full license text is at the top of this page; the changes are listed in docs-woowtech/FORK.md in the source repository, and upstream\'s NOTICE is kept with the source code.</string>
+    <string name="woow_lic_mika">This app is based on the open-source project Mika (Copyright 2026 wangzan101, https://github.com/wangzan101/Mika), modified and distributed by WOOW TECH CO., LTD. The full license text is at the top of this page; the changes are listed in docs-woowtech/FORK.md in the source repository, and upstream\'s NOTICE is kept with the source code.</string>
     <string name="woow_lic_proot">The environment for running programs such as Python and Node, version 5.4.0, with one patch (PRoot ends all child processes when it exits). PRoot (GPL-2.0-or-later) and talloc (LGPL-3.0-or-later) ship with this app\'s installer as separate programs; the app does not link them. Their complete source code, patches and build scripts are on this app\'s GitHub Releases page with every version, as mika-&lt;version&gt;-gpl-sources.tar.gz; tools/sandbox/ in the source repository also has the source addresses, checksums, patches and build scripts, so you can rebuild them yourself.</string>
     <string name="woow_lic_talloc">Version 2.4.3, unmodified, statically linked into the PRoot program. It can be relinked with the source code and scripts in tools/sandbox/.</string>
-    <string name="woow_lic_commons_compress">Unpacks the bundled runtime on first launch. Copyright 2002-2025 The Apache Software Foundation.</string>
+    <string name="woow_lic_commons_compress">Apache archive handling library. Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_codec">A dependency of Apache Commons Compress. Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_io">A dependency of Apache Commons Compress. Copyright 2002-2025 The Apache Software Foundation.</string>
     <string name="woow_lic_commons_lang">A dependency of Apache Commons Compress. Copyright 2001-2025 The Apache Software Foundation.</string>
@@ -26,7 +26,7 @@
     <string name="woow_lic_scrcpy">Getting a system context as the shell user follows scrcpy\'s approach; the source files concerned keep the attribution in their headers.</string>
     <string name="woow_lic_alpine_license">Each package\'s own license</string>
     <string name="woow_lic_alpine">The system for running programs such as Python and Node ships with this app\'s installer. It comes from Alpine Linux 3.22; its packages and their licenses are listed below one by one. The source code of the GPL, LGPL and MPL packages (Alpine\'s build recipes and upstream sources) is also in mika-&lt;version&gt;-gpl-sources.tar.gz.</string>
-    <string name="woow_lic_xz">Version 1.10, decompresses the bundled runtime on first launch. https://tukaani.org/xz/java.html</string>
+    <string name="woow_lic_xz">Version 1.10, XZ archive support library. https://tukaani.org/xz/java.html</string>
     <string name="woow_lic_commonmark">Version 0.30.1 (with the tables and strikethrough extensions); parses the Markdown in answers for display. Copyright (c) 2015, Atlassian Pty Ltd. https://github.com/commonmark/commonmark-java</string>
     <string name="woow_lic_mlkit_name">Google ML Kit text recognition</string>
     <string name="woow_lic_mlkit_license">Google APIs Terms of Service and ML Kit Terms</string>
