@@ -245,14 +245,15 @@ private actor SleepGate {
     static func formats() throws {
         let id = "01234567-89ab-cdef-0123-456789abcdef"
         func body(_ name: String, _ args: String) -> Data { Data("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"\(name)\",\"arguments\":\(args)}}".utf8) }
-        let taskID = UUID(uuidString: id)!
+        let taskID = id
+        let extensionID = UUID(uuidString: id)!
         try check(try MCPInboundFormat.parse(body("mika_wait_task", "{\"task_id\":\"\(id)\"}")) == .waitTask(.number(1), taskID, 30), "default wait")
         try check(try MCPInboundFormat.parse(body("mika_wait_task", "{\"task_id\":\"\(id)\",\"timeout_s\":50}")) == .waitTask(.number(1), taskID, 50), "max wait")
         let answer = "{\"task_id\":\"\(id)\",\"question_id\":\"\(id)\",\"request_id\":\"\(id)\",\"text\":\" hello \"}"
-        try check(try MCPInboundFormat.parse(body("mika_answer", answer)) == .answerTask(.number(1), taskID, taskID, taskID, "hello"), "answer format")
+        try check(try MCPInboundFormat.parse(body("mika_answer", answer)) == .answerTask(.number(1), taskID, extensionID, extensionID, "hello"), "answer format")
         let steer = "{\"task_id\":\"\(id)\",\"request_id\":\"\(id)\",\"text\":\"note\"}"
-        try check(try MCPInboundFormat.parse(body("mika_steer_task", steer)) == .steerTask(.number(1), taskID, taskID, "note"), "steer format")
-        let bad = [body("mika_wait_task", "{\"task_id\":\"\(id)\",\"timeout_s\":51}"), body("mika_answer", "{\"task_id\":\"\(id)\",\"text\":\"yes\"}"), body("mika_steer_task", "{\"task_id\":\"\(id)\",\"text\":\"yes\"}"), body("mika_wait_task", "{\"task_id\":\"\(id)\",\"timeout_s\":0}")]
+        try check(try MCPInboundFormat.parse(body("mika_steer_task", steer)) == .steerTask(.number(1), taskID, extensionID, "note"), "steer format")
+        let bad = [body("mika_wait_task", "{\"task_id\":\"\(id)\",\"timeout_s\":51}"), body("mika_answer", "{\"task_id\":\"\(id)\"}"), body("mika_steer_task", "{\"task_id\":\"\(id)\"}"), body("mika_wait_task", "{\"task_id\":\"\(id)\",\"timeout_s\":0}")]
         for input in bad {
             do { _ = try MCPInboundFormat.parse(input); throw Failure(label: "invalid format accepted") }
             catch MCPInboundFormatError.invalidParameters { count += 1 }

@@ -18,12 +18,12 @@ public enum MCPInboundRequest: Sendable, Equatable {
     case ping(MCPInboundID)
     case listTools(MCPInboundID)
     case runTask(MCPInboundID, MCPInboundModelTask)
-    case taskStatus(MCPInboundID, UUID)
-    case cancelTask(MCPInboundID, UUID)
+    case taskStatus(MCPInboundID, String)
+    case cancelTask(MCPInboundID, String)
     case listTasks(MCPInboundID, Int)
-    case waitTask(MCPInboundID, UUID, Int)
-    case answerTask(MCPInboundID, UUID, UUID, UUID, String)
-    case steerTask(MCPInboundID, UUID, UUID, String)
+    case waitTask(MCPInboundID, String, Int)
+    case answerTask(MCPInboundID, String, UUID?, UUID?, String)
+    case steerTask(MCPInboundID, String, UUID?, String)
 }
 
 public enum MCPInboundFormatError: Error, Sendable, Equatable {
@@ -79,28 +79,27 @@ public enum MCPInboundFormat {
                   let name = params["name"]?.stringValue,
                   case .object(let arguments)? = params["arguments"] else { throw MCPInboundFormatError.invalidParameters }
             if name == "mika_task_status" || name == "mika_cancel_task" {
-                guard Set(arguments.keys) == ["task_id"], let taskID = try optionalUUID(arguments["task_id"]) else {
+                guard Set(arguments.keys) == ["task_id"], let taskID = taskIdentifier(arguments["task_id"]) else {
                     throw MCPInboundFormatError.invalidParameters
                 }
                 return name == "mika_task_status" ? .taskStatus(id, taskID) : .cancelTask(id, taskID)
             }
             if name == "mika_wait_task" {
                 guard Set(arguments.keys).isSubset(of: ["task_id", "timeout_s"]),
-                      let taskID = try optionalUUID(arguments["task_id"]) else { throw MCPInboundFormatError.invalidParameters }
+                      let taskID = taskIdentifier(arguments["task_id"]) else { throw MCPInboundFormatError.invalidParameters }
                 let timeout = try boundedInteger(arguments["timeout_s"], defaultValue: 30, maximum: 50)
                 return .waitTask(id, taskID, timeout)
             }
             if name == "mika_answer" || name == "mika_steer_task" {
-                let keys: Set<String> = name == "mika_answer" ? ["task_id", "question_id", "request_id", "text"] : ["task_id", "request_id", "text"]
-                guard Set(arguments.keys) == keys, let taskID = try optionalUUID(arguments["task_id"]),
-                      let requestID = try optionalUUID(arguments["request_id"]), let raw = arguments["text"]?.stringValue else {
-                    throw MCPInboundFormatError.invalidParameters
-                }
+                let allowed: Set<String> = name == "mika_answer" ? ["task_id", "question_id", "request_id", "text"] : ["task_id", "request_id", "text"]
+                guard Set(arguments.keys).isSubset(of: allowed), let taskID = taskIdentifier(arguments["task_id"]),
+                      let raw = arguments["text"]?.stringValue else { throw MCPInboundFormatError.invalidParameters }
+                let requestID = try optionalUUID(arguments["request_id"])
                 let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
                 let maximum = name == "mika_answer" ? 2000 : 4000
                 guard !text.isEmpty, text.utf16.count <= maximum else { throw MCPInboundFormatError.invalidParameters }
                 if name == "mika_answer" {
-                    guard let questionID = try optionalUUID(arguments["question_id"]) else { throw MCPInboundFormatError.invalidParameters }
+                    let questionID = try optionalUUID(arguments["question_id"])
                     return .answerTask(id, taskID, questionID, requestID, text)
                 }
                 return .steerTask(id, taskID, requestID, text)
@@ -129,6 +128,13 @@ public enum MCPInboundFormat {
         }
     }
 
+    /// Android accepts opaque task_id strings and trims before lookup. The
+    /// current in-memory host issues UUIDs; unknown strings must map to missing.
+    private static func taskIdentifier(_ value: JSONValue?) -> String? {
+        guard let value = value?.stringValue else { return nil }
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? nil : clean
+    }
     private static func boundedInteger(_ input: JSONValue?, defaultValue: Int, maximum: Int) throws -> Int {
         guard let input else { return defaultValue }
         guard case .number(let number) = input, number >= 1, number <= Decimal(maximum) else { throw MCPInboundFormatError.invalidParameters }
@@ -265,15 +271,15 @@ public actor MCPInboundReviewState {
     }
     /// Approval is a local action on the displayed immutable task and binding.
     public func approveLocally(ticket: UUID, current: MCPInboundReviewBinding) -> UUID? {
-        guard enabled, active, case .pending(let expected, let binding, let task) = state,
-              expected == ticket, binding == current else { state = .idle; return nil }
+        guard case .pending(let expected, let binding, let task) = state, expected == ticket else { return nil }
+        guard enabled, active, binding == current else { state = .idle; return nil }
         let grant = UUID(); state = .approved(grant, binding, task); return grant
     }
     /// A grant is consumed once. It does not provide durable replay protection.
     public func consume(grant: UUID, current: MCPInboundReviewBinding) -> MCPInboundModelTask? {
+        guard case .approved(let expected, let binding, let task) = state, expected == grant else { return nil }
         defer { state = .idle }
-        guard enabled, active, case .approved(let expected, let binding, let task) = state,
-              expected == grant, binding == current else { return nil }
+        guard enabled, active, binding == current else { return nil }
         return task
     }
 }
