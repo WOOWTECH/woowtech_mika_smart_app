@@ -13,10 +13,13 @@
 - 查核三個 Google Play 公開頁列出的既有網站連結：渥屋智能的[隱私政策](https://aiot.woowtech.io/blog/help-center-7/woowtech-smart-app-yin-si-quan-zheng-ce-privacy-policy-391)、platform 的[隱私政策](https://aiot.woowtech.io/odoo-privacy)與[帳號刪除頁](https://aiot.woowtech.io/odoo-account-deletion)、渥屋科技的[隱私政策](https://aiot.woowtech.io/privacy)，本地不帶登入的 HTTP 檢查均回 200 HTML。這可作為助理政策頁的託管參考，不能證明全球可訪問或作為助理自身的資料處理聲明。
 - 已查看「建立應用程式」表單，建議填寫名稱 `渥屋助理`、套件 `io.woowtech.assistant`、繁體中文 `zh-TW`、應用程式、免費；名稱與套件仍以建立頁校驗為準。表單要求確認符合所有開發者政策並聲明符合美國出口法律；目前政策工作仍有未完成項目，尚未代表公司勾選、送出或建立草稿。
 - 使用本機 Node 22 串行執行 relay worker 的 `npm test` 與 `npm run test:accounts`，兩者均通過。前者包含測試收件、管理讀取與刪除，後者涵蓋兩帳號隔離及配對；測試使用本機 worker 與臨時資料，不代表正式服務已部署或能收件。
+- 只讀執行 `wrangler whoami` 時，CLI 已登入，但列出的 Cloudflare 帳戶未包含 worker 設定的目標帳戶。這不證明其他登入方式不可用；部署前需核對目標帳戶存取權及目前線上版本，不應改寫帳戶設定來猜測。
 
 ## 舊文件須先釐清
 
 `PLAY_DISCLOSURES_DRAFT.md` 與 `PLAY_PRIVACY_POLICY_DRAFT.md` 仍描述手機遠端配對、中繼讀取對話、Odoo 帳號和已移除的服務；`PLAY_SUBMISSION_HANDOFF_2026-11-12.md` 亦有較舊版狀態。使用者已指定商店版保留**向外連接 MCP 伺服器**，不保留手機對電腦的 MCP 服務及遠端配對。必須先依最終 AAB 和實際流程重盤，不能直接提交舊草稿。
+
+新的 `PLAY_PRIVACY_POLICY_MCP_DRAFT.md` 已按目前產品範圍重寫，仍含待確認項目，不能直接發布。`PLAY_CONSOLE_REVIEW_INPUT_DRAFT.md` 提供建立 App、審查員存取和前景服務素材草稿。
 
 AI 回覆檢舉可能仍傳送到 WoowTech 的 relay 收件端；這與移除手機遠端配對是不同資料流。檢查時不可把前者誤刪，也不能假定它已部署成功。
 
