@@ -273,7 +273,7 @@ fun ChatScreen(
         val queue = AiResponseReportQueue(context.applicationContext)
         val sender = AiResponseReportDelivery.sender(context.applicationContext)
         while (true) {
-            AiResponseReportDelivery.deliverDue(queue, sender)
+            runCatching { AiResponseReportDelivery.deliverDue(queue, sender) }
             delay(30_000)
         }
     }

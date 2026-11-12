@@ -83,11 +83,25 @@ internal object AiResponseReportDelivery {
                 queue.all().filter { it.status == "queued_local" && it.attempts < MAX_ATTEMPTS && it.nextAttemptAtMs <= now() }
                     .forEach { report ->
                         val current = queue.get(report.id) ?: return@forEach
-                        if (current.status == "queued_local" && current.attempts < MAX_ATTEMPTS && current.nextAttemptAtMs <= now()) {
+                        if (queue.find(current.reference)?.id == current.id && current.status == "queued_local" &&
+                            current.attempts < MAX_ATTEMPTS && current.nextAttemptAtMs <= now()) {
                             queue.recordAttempt(current.id, sender.send(current), now())
                         }
                     }
             }
         }
     }
+
+    suspend fun retry(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String): AiResponseReport =
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val current = requireNotNull(queue.get(id))
+                val selected = requireNotNull(queue.find(current.reference))
+                if (selected.status == "acknowledged") selected
+                else {
+                    val report = queue.retry(selected.id)
+                    queue.recordAttempt(report.id, sender.send(report), System.currentTimeMillis())
+                }
+            }
+        }
 }

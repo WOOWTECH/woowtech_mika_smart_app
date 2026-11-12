@@ -1,6 +1,11 @@
 package com.wangzan101.mika.ui
 
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -80,6 +85,194 @@ class AiResponseReportsTest {
             assertEquals("queued_local", pending.status)
             assertEquals(3, pending.attempts)
             assertNull(pending.acknowledgedAtMs)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun reopenAndRetryPreservesIdentityThroughFailureRejectionAndAcknowledgment() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val ref = AiResponseReference("conversation", "run", "r0")
+            val queue = AiResponseReportQueue(dir)
+            val report = queue.save(ref, "private answer", "unsafe", "private note")
+            val sender = AiResponseReportSender(server.url("/api/v1/ai-reports").toString())
+            repeat(3) { server.enqueue(MockResponse().setResponseCode(503)) }
+            var now = report.createdAtMs
+            repeat(3) {
+                AiResponseReportDelivery.deliverDue(queue, sender) { now }
+                now = requireNotNull(queue.get(report.id)).nextAttemptAtMs
+            }
+            val reopened = AiResponseReportQueue(dir)
+            assertEquals(3, reopened.find(ref)?.attempts)
+            assertEquals(report.id, reopened.save(ref, "other text", "other", "").id)
+            server.enqueue(MockResponse().setResponseCode(400))
+            assertEquals("rejected", AiResponseReportDelivery.retry(reopened, sender, report.id).status)
+            assertEquals("rejected", AiResponseReportQueue(dir).find(ref)?.status)
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${report.id}","accepted":true}"""))
+            assertEquals("acknowledged", AiResponseReportDelivery.retry(reopened, sender, report.id).status)
+            assertEquals("acknowledged", AiResponseReportQueue(dir).find(ref)?.status)
+            assertEquals("acknowledged", AiResponseReportDelivery.retry(reopened, sender, report.id).status)
+            assertEquals(5, server.requestCount)
+            repeat(5) {
+                val body = Json.parseToJsonElement(server.takeRequest().body.readUtf8()) as JsonObject
+                assertEquals(report.id, body["id"]?.toString()?.trim('"'))
+                assertEquals("private answer", body["response"]?.toString()?.trim('"'))
+            }
+            assertEquals(1, reopened.all().size)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun concurrentQueueInstancesDeduplicateAndIsolateReferences() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        val pool = Executors.newFixedThreadPool(8)
+        try {
+            val ref = AiResponseReference("conversation", "run", "r0")
+            val start = CountDownLatch(1)
+            val saves = (1..16).map {
+                pool.submit<AiResponseReport> {
+                    start.await()
+                    AiResponseReportQueue(dir).save(ref, "answer", "other", "")
+                }
+            }
+            start.countDown()
+            assertEquals(1, saves.map { it.get(10, TimeUnit.SECONDS).id }.toSet().size)
+            val queue = AiResponseReportQueue(dir)
+            val otherRefs = listOf(ref.copy(conversationId = "other"), ref.copy(runId = "other"),
+                ref.copy(messageKey = "r1"), ref.copy(messageKey = "a0-steer"), ref.copy(runId = null))
+            otherRefs.forEach {
+                assertNull(queue.find(it))
+                queue.save(it, "answer", "other", "")
+            }
+            assertEquals(6, queue.all().map { it.id }.toSet().size)
+        } finally {
+            pool.shutdownNow()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun retryWaitsForConcurrentDeliveryAndDoesNotResendAnAcknowledgedReport() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val report = queue.save(AiResponseReference("conversation", "run", "r0"), "answer", "other", "")
+            val sender = AiResponseReportSender(server.url("/").toString())
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${report.id}","accepted":true}""")
+                .setBodyDelay(500, TimeUnit.MILLISECONDS))
+            val delivery = async(Dispatchers.IO) { AiResponseReportDelivery.deliverDue(queue, sender) }
+            assertTrue(server.takeRequest(5, TimeUnit.SECONDS) != null)
+            val retry = async(Dispatchers.IO) { AiResponseReportDelivery.retry(AiResponseReportQueue(dir), sender, report.id) }
+            delivery.await()
+            assertEquals("acknowledged", retry.await().status)
+            assertEquals(1, server.requestCount)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun legacyDuplicateAcknowledgmentSuppressesPendingCopies() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val ref = AiResponseReference("conversation", "run", "r0")
+            val pending = queue.save(ref, "answer", "other", "")
+            val duplicateId = java.util.UUID.randomUUID().toString()
+            val original = java.io.File(dir, "${pending.id}.json").readText()
+            java.io.File(dir, "$duplicateId.json").writeText(original.replace(pending.id, duplicateId))
+            queue.recordAttempt(duplicateId, ReportDeliveryResult.Acknowledged(null), 100)
+            assertEquals(duplicateId, queue.find(ref)?.id)
+            val sender = AiResponseReportSender(server.url("/").toString())
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            assertEquals(duplicateId, AiResponseReportDelivery.retry(queue, sender, pending.id).id)
+            assertEquals(0, server.requestCount)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun offlineRetryRemainsPendingAndUnreadableQueueDoesNotCreateDuplicates() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val sender = AiResponseReportSender(server.url("/").toString())
+        server.shutdown()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val ref = AiResponseReference("conversation", null, "r0")
+            val queue = AiResponseReportQueue(dir)
+            val report = queue.save(ref, "answer", "other", "")
+            val retried = AiResponseReportDelivery.retry(queue, sender, report.id)
+            assertEquals("queued_local", retried.status)
+            assertNull(retried.acknowledgedAtMs)
+            assertEquals(report.id, AiResponseReportQueue(dir).find(ref)?.id)
+            java.io.File(dir, "broken.json").writeText("{")
+            assertTrue(runCatching { queue.find(ref) }.isFailure)
+            assertTrue(runCatching { queue.save(ref, "answer", "other", "") }.isFailure)
+            assertEquals(2, dir.listFiles { file -> file.extension == "json" }?.size)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun identifiableDamagedRecordBlocksOnlyItsOwnResponse() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val blockedRef = AiResponseReference("conversation", "run", "r0")
+            val healthyRef = blockedRef.copy(messageKey = "r1")
+            val blocked = queue.save(blockedRef, "answer", "other", "")
+            val healthy = queue.save(healthyRef, "answer", "other", "")
+            java.io.File(dir, "damaged.json").writeText(
+                """{"conversationId":"conversation","runId":"run","messageKey":"r0"}"""
+            )
+            assertTrue(runCatching { queue.find(blockedRef) }.isFailure)
+            assertTrue(runCatching { queue.save(blockedRef, "answer", "other", "") }.isFailure)
+            assertEquals(healthy.id, queue.find(healthyRef)?.id)
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${healthy.id}","accepted":true}"""))
+            AiResponseReportDelivery.deliverDue(queue, AiResponseReportSender(server.url("/").toString()))
+            assertEquals(1, server.requestCount)
+            assertEquals("acknowledged", queue.find(healthyRef)?.status)
+            assertNull(queue.get(blocked.id))
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun intakeAgeWarningKeepsRejectedReportUnconfirmed() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val report = queue.save(AiResponseReference("conversation", null, "r0"), "answer", "other", "")
+            val week = 7L * 24 * 60 * 60 * 1_000
+            assertFalse(reportOutsideIntakeWindow(report, report.createdAtMs + week))
+            assertTrue(reportOutsideIntakeWindow(report, report.createdAtMs + week + 1))
+            assertTrue(reportOutsideIntakeWindow(report, report.createdAtMs - week - 1))
+            val oldCreatedAt = report.createdAtMs - week - 1_000
+            val file = java.io.File(dir, "${report.id}.json")
+            file.writeText(file.readText().replace("\"createdAtMs\":${report.createdAtMs}", "\"createdAtMs\":$oldCreatedAt"))
+            server.enqueue(MockResponse().setResponseCode(400))
+            val rejected = AiResponseReportDelivery.retry(queue, AiResponseReportSender(server.url("/").toString()), report.id)
+            assertEquals("rejected", rejected.status)
+            assertNull(rejected.acknowledgedAtMs)
+            assertEquals(oldCreatedAt, rejected.createdAtMs)
+            assertEquals(oldCreatedAt.toString(), (Json.parseToJsonElement(server.takeRequest().body.readUtf8()) as JsonObject)["created_at_ms"].toString())
+            assertEquals(report.id, queue.find(report.reference)?.id)
         } finally {
             server.shutdown()
             dir.deleteRecursively()
