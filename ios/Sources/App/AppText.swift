@@ -524,6 +524,24 @@ enum AppText: Equatable {
     case settingsSeesImagesUnconfirmed
     case settingsSeesImagesUser
     case chatAttachImagesNotSeen(count: Int)
+    case chatMessageCopy
+    case chatMessageCopied
+    case chatMessageQuote
+    case chatMessageQuoteFailed
+    case chatQuoteRemove
+    case chatQuotingAssistant(text: String)
+    case chatQuotingYou(text: String)
+    case chatMessageSelectText
+    case chatMessageSelectHint
+    case chatMessageSelectDone
+    case chatBranch
+    case chatBranchRetry
+    case chatBranchDone
+    case chatBranchFailed
+    case chatBranchTitleSuffix
+    case chatBranchAttachmentsReadd
+    case chatBranchComposerInUse
+    case chatBranchOrigin
 
     var key: String {
         switch self {
@@ -1048,6 +1066,24 @@ enum AppText: Equatable {
         case .settingsSeesImagesUnconfirmed: return "settings.seesImages.unconfirmed"
         case .settingsSeesImagesUser: return "settings.seesImages.user"
         case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
+        case .chatMessageCopy: return "chat.message.copy"
+        case .chatMessageCopied: return "chat.message.copied"
+        case .chatMessageQuote: return "chat.message.quote"
+        case .chatMessageQuoteFailed: return "chat.message.quoteFailed"
+        case .chatQuoteRemove: return "chat.quote.remove"
+        case .chatQuotingAssistant: return "chat.quote.assistant"
+        case .chatQuotingYou: return "chat.quote.you"
+        case .chatMessageSelectText: return "chat.message.selectText"
+        case .chatMessageSelectHint: return "chat.message.selectHint"
+        case .chatMessageSelectDone: return "chat.message.selectDone"
+        case .chatBranch: return "chat.branch"
+        case .chatBranchRetry: return "chat.branch.retry"
+        case .chatBranchDone: return "chat.branch.done"
+        case .chatBranchFailed: return "chat.branch.failed"
+        case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
+        case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
+        case .chatBranchComposerInUse: return "chat.branch.composerInUse"
+        case .chatBranchOrigin: return "chat.branch.origin"
         }
     }
 
@@ -1083,6 +1119,8 @@ enum AppText: Equatable {
         case .chatAttachOverLimit(let limit, let count): return [Int64(limit), Int64(count)]
         case .chatAttachRefused(let names): return [names]
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
+        case .chatQuotingAssistant(let text): return [text]
+        case .chatQuotingYou(let text): return [text]
         default: return []
         }
     }
@@ -1611,6 +1649,24 @@ enum AppText: Equatable {
         case .settingsSeesImagesUnconfirmed: return "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。"
         case .settingsSeesImagesUser: return "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。"
         case .chatAttachImagesNotSeen: return "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+        case .chatMessageCopy: return "複製"
+        case .chatMessageCopied: return "已複製"
+        case .chatMessageQuote: return "引用"
+        case .chatMessageQuoteFailed: return "沒能引用這則訊息"
+        case .chatQuoteRemove: return "移除引用"
+        case .chatQuotingAssistant: return "引用渥屋助理:%1$@"
+        case .chatQuotingYou: return "引用你的話:%1$@"
+        case .chatMessageSelectText: return "選取文字"
+        case .chatMessageSelectHint: return "長按文字就能選取"
+        case .chatMessageSelectDone: return "完成"
+        case .chatBranch: return "從這裡分支"
+        case .chatBranchRetry: return "從這裡重新問"
+        case .chatBranchDone: return "已建立分支"
+        case .chatBranchFailed: return "沒能建立分支"
+        case .chatBranchTitleSuffix: return " · 分支"
+        case .chatBranchAttachmentsReadd: return "附件需要重新加入"
+        case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
+        case .chatBranchOrigin: return "從另一個對話分支"
         }
     }
 }

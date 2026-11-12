@@ -84,6 +84,34 @@ enum ChatSendBlocker: Equatable {
     case noModel
 }
 
+/// Which messages the long-press menu can quote, branch from or ask again
+/// from right now (Android MessageMenu shows those entries only when they
+/// work). Built once per transcript render; copy and select text need none.
+struct ChatMessageActionTargets: Equatable {
+    static let none = ChatMessageActionTargets(saved: [], replies: [], questions: [])
+    /// Saved messages of the conversation on screen; quoting works on these.
+    let saved: Set<UUID>
+    /// Finished, saved replies to branch from (從這裡分支).
+    let replies: Set<UUID>
+    /// Your saved messages to ask again from (從這裡重新問).
+    let questions: Set<UUID>
+}
+
+/// What 從這裡分支 or 從這裡重新問 did; the chat view says it in a toast
+/// like the Android store build.
+enum ChatBranchOutcome: Equatable {
+    /// A new branch conversation is open (已建立分支).
+    case created
+    /// As created, but the message's attachments stay behind (附件需要重新加入).
+    case needsReattach
+    /// The first message asked again: a new conversation with its words back.
+    case startedOver
+    /// The input bar holds a draft, quote or attachments that would be lost.
+    case composerInUse
+    /// Busy, changed or unsaved conversation, or a failed save (沒能建立分支).
+    case failed
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -315,20 +343,88 @@ final class ChatSession: ObservableObject {
               matchesArchivedTranscript(record),
               let entry = entries.first(where: { $0.id == messageID }), entry.content == expectedContent else { return false }
         let source: ConversationQuote.Source
-        let text: String
         switch entry.role {
-        case "user": source = .user; text = ConversationQuote.parse(entry.content).words
-        case "assistant": source = .assistant; text = assistantQuoteText(entry.content)
+        case "user": source = .user
+        case "assistant": source = .assistant
         default: return false
         }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        pendingQuote = .init(source: source, text: trimmed)
+        let text = plainText(of: entry)
+        guard !text.isEmpty else { return false }
+        pendingQuote = .init(source: source, text: text)
         quoteSource = record
         return true
     }
 
     func clearQuote() { guard !isSubmitting else { return }; pendingQuote = nil; quoteSource = nil }
+
+    /// What copy, quote and select text use, like Android's MessageTarget.text:
+    /// a reply's visible text without Markdown, or your own words without the
+    /// quote and attachment lines.
+    func plainText(of entry: ChatEntry) -> String {
+        let text = entry.role == "assistant" ? assistantQuoteText(entry.content)
+            : ConversationQuote.parse(ChatAttachmentLines.displayText(entry.content, items: entry.attachments)).words
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The saved conversation on screen, while nothing runs and the screen
+    /// still matches it.
+    private var savedConversationOnScreen: ArchivedConversation? {
+        guard !isSubmitting, replyPreview == nil, pendingArchiveSave == nil, let archive, archive.available,
+              let id = UUID(uuidString: conversationID),
+              let record = archive.state.conversations.first(where: { $0.id == id }),
+              matchesArchivedTranscript(record) else { return nil }
+        return record
+    }
+
+    var messageActionTargets: ChatMessageActionTargets {
+        guard let record = savedConversationOnScreen else { return .none }
+        let saved = Set(record.turns.flatMap { [$0.userID, $0.assistantID] })
+        // A branch opens only under the model setup its conversation was saved with.
+        guard canOpenConversation(record) else { return ChatMessageActionTargets(saved: saved, replies: [], questions: []) }
+        return ChatMessageActionTargets(
+            saved: saved, replies: Set(record.turns.map(\.assistantID)),
+            questions: Set(record.turns.filter { !$0.userText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.userID)))
+    }
+
+    /// Unlike Android, branching never discards what is waiting in the input bar.
+    private var composerIsEmpty: Bool { draft.isEmpty && pendingQuote == nil && pendingAttachments.isEmpty }
+
+    /// 從這裡分支: the turns through this finished reply become a new
+    /// conversation, titled by `title` from the source, and it opens.
+    func branch(fromReply replyID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
+        guard composerIsEmpty else { return .composerInUse }
+        guard let record = savedConversationOnScreen, record.turns.contains(where: { $0.assistantID == replyID }) else {
+            return .failed
+        }
+        do { try commitBranch(prepareBranch(source: record, assistantID: replyID, title: title(record))) }
+        catch { return .failed }
+        chatNotice = nil
+        return .created
+    }
+
+    /// 從這裡重新問: a new conversation with the turns before this message of
+    /// yours, its words back in the input bar and nothing sent. The first
+    /// message has nothing before it, so that is a new, unsaved conversation.
+    func askAgain(from messageID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
+        guard composerIsEmpty else { return .composerInUse }
+        guard let record = savedConversationOnScreen, canOpenConversation(record),
+              let index = record.turns.firstIndex(where: { $0.userID == messageID }),
+              let entry = entries.first(where: { $0.id == messageID }) else { return .failed }
+        let words = ConversationQuote.parse(ChatAttachmentLines.displayText(entry.content, items: entry.attachments)).words
+        let reattach = !entry.attachments.isEmpty || entry.pdf != nil
+        if index == 0 {
+            newConversation()
+            guard entries.isEmpty else { return .failed }
+        } else {
+            do {
+                try commitBranch(prepareBranch(source: record, assistantID: record.turns[index - 1].assistantID,
+                                               title: title(record)))
+            } catch { return .failed }
+            chatNotice = nil
+        }
+        draft = words
+        return reattach ? .needsReattach : index == 0 ? .startedOver : .created
+    }
 
     /// Drafts and attachments cannot be silently discarded by branching.
     private var branchHasUnfinishedOrUnsavedWork: Bool {

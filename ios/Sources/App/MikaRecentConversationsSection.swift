@@ -113,6 +113,12 @@ private extension ArchivedConversation {
                                 .font(.caption2).foregroundStyle(secondaryInk)
                                 .accessibilityHidden(true)
                         }
+                        // Android marks a branch with its route icon (從另一個對話分支).
+                        if record.branchOrigin != nil {
+                            Image(systemName: "arrow.triangle.branch")
+                                .font(.caption2).foregroundStyle(secondaryInk)
+                                .accessibilityHidden(true)
+                        }
                         if current {
                             Text(localizer.text(.drawerRecentCurrent))
                                 .font(.caption2).foregroundStyle(secondaryInk)
@@ -134,7 +140,8 @@ private extension ArchivedConversation {
             .disabled(!current && block != nil)
             .accessibilityIdentifier("drawer.recent.row." + record.id.uuidString)
             .accessibilityLabel(title)
-            .accessibilityValue(accessibilityValue(current: current, block: block, pinned: record.pinnedAt != nil))
+            .accessibilityValue(accessibilityValue(current: current, block: block, pinned: record.pinnedAt != nil,
+                                                   branch: record.branchOrigin != nil))
         }
         // Metadata actions remain available even when switching is unsafe.
         .contextMenu {
@@ -151,12 +158,11 @@ private extension ArchivedConversation {
         }
     }
 
-    private func accessibilityValue(current: Bool, block: RecentConversationBlock?, pinned: Bool) -> String {
+    private func accessibilityValue(current: Bool, block: RecentConversationBlock?, pinned: Bool, branch: Bool) -> String {
         let status = current ? localizer.text(.drawerRecentCurrent)
             : block.map { localizer.text($0.message) } ?? ""
-        guard pinned else { return status }
-        let marker = localizer.text(.drawerRecentPinned)
-        return status.isEmpty ? marker : status + " · " + marker
+        let markers = [pinned ? localizer.text(.drawerRecentPinned) : nil, branch ? localizer.text(.chatBranchOrigin) : nil]
+        return ([status] + markers.compactMap { $0 }).filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     private func formattedDate(_ date: Date) -> String {

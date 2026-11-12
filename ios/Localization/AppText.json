@@ -5442,6 +5442,196 @@
           "other": "This model can’t see images, so %lld images weren’t sent to it. Turn on Sees images on the model settings page."
         }
       }
+    },
+    {
+      "case": "chatMessageCopy",
+      "key": "chat.message.copy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "複製",
+        "zh-Hans": "复制",
+        "en": "Copy"
+      }
+    },
+    {
+      "case": "chatMessageCopied",
+      "key": "chat.message.copied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已複製",
+        "zh-Hans": "已复制",
+        "en": "Copied"
+      }
+    },
+    {
+      "case": "chatMessageQuote",
+      "key": "chat.message.quote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引用",
+        "zh-Hans": "引用",
+        "en": "Quote"
+      }
+    },
+    {
+      "case": "chatMessageQuoteFailed",
+      "key": "chat.message.quoteFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒能引用這則訊息",
+        "zh-Hans": "没能引用这条消息",
+        "en": "Couldn’t quote this message"
+      }
+    },
+    {
+      "case": "chatQuoteRemove",
+      "key": "chat.quote.remove",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "移除引用",
+        "zh-Hans": "移除引用",
+        "en": "Remove quote"
+      }
+    },
+    {
+      "case": "chatQuotingAssistant",
+      "key": "chat.quote.assistant",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "引用渥屋助理:%1$@",
+        "zh-Hans": "引用渥屋助理:%1$@",
+        "en": "Quoting woowtech agent: %1$@"
+      }
+    },
+    {
+      "case": "chatQuotingYou",
+      "key": "chat.quote.you",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "引用你的話:%1$@",
+        "zh-Hans": "引用你的话:%1$@",
+        "en": "Quoting you: %1$@"
+      }
+    },
+    {
+      "case": "chatMessageSelectText",
+      "key": "chat.message.selectText",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選取文字",
+        "zh-Hans": "选取文字",
+        "en": "Select text"
+      }
+    },
+    {
+      "case": "chatMessageSelectHint",
+      "key": "chat.message.selectHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "長按文字就能選取",
+        "zh-Hans": "长按文字就能选取",
+        "en": "Press and hold the text to select it"
+      }
+    },
+    {
+      "case": "chatMessageSelectDone",
+      "key": "chat.message.selectDone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "完成",
+        "zh-Hans": "完成",
+        "en": "Done"
+      }
+    },
+    {
+      "case": "chatBranch",
+      "key": "chat.branch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "從這裡分支",
+        "zh-Hans": "从这里分支",
+        "en": "Branch from here"
+      }
+    },
+    {
+      "case": "chatBranchRetry",
+      "key": "chat.branch.retry",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "從這裡重新問",
+        "zh-Hans": "从这里重新问",
+        "en": "Ask again from here"
+      }
+    },
+    {
+      "case": "chatBranchDone",
+      "key": "chat.branch.done",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已建立分支",
+        "zh-Hans": "已创建分支",
+        "en": "Branch created"
+      }
+    },
+    {
+      "case": "chatBranchFailed",
+      "key": "chat.branch.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒能建立分支",
+        "zh-Hans": "没能创建分支",
+        "en": "Couldn’t create branch"
+      }
+    },
+    {
+      "case": "chatBranchTitleSuffix",
+      "key": "chat.branch.titleSuffix",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": " · 分支",
+        "zh-Hans": " · 分支",
+        "en": " · branch"
+      }
+    },
+    {
+      "case": "chatBranchAttachmentsReadd",
+      "key": "chat.branch.attachmentsReadd",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附件需要重新加入",
+        "zh-Hans": "附件需要重新加入",
+        "en": "Re-add the attachments you want to include"
+      }
+    },
+    {
+      "case": "chatBranchComposerInUse",
+      "key": "chat.branch.composerInUse",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。",
+        "zh-Hans": "输入框还有内容；请先发送或清除草稿、引用或附件，再从这里分支或重新问。",
+        "en": "The input bar isn’t empty. Send or clear the draft, quote or attachments first."
+      }
+    },
+    {
+      "case": "chatBranchOrigin",
+      "key": "chat.branch.origin",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "從另一個對話分支",
+        "zh-Hans": "从另一个对话分支",
+        "en": "Branched from another chat"
+      }
     }
   ]
 }

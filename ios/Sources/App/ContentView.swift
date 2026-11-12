@@ -481,6 +481,8 @@ private struct ChatView: View {
     @State private var attachPicker: ChatAttachPicker?
     @State private var showsCamera = false
     @State private var attachmentPreview: ChatAttachmentPreviewTarget?
+    @State private var selectingText: ChatSelectTextTarget?
+    @State private var messageToast: ChatToast?
     @StateObject private var recentPhotos = ChatRecentPhotos()
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
@@ -488,6 +490,7 @@ private struct ChatView: View {
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private var attachmentText: ChatAttachmentText { ChatAttachmentText(localizer: localizer) }
+    private var menuText: ChatMessageMenuText { ChatMessageMenuText(localizer: localizer) }
     private var attachmentColors: ChatAttachmentColors {
         ChatAttachmentColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
                              surface: palette.surface, fill: palette.assistant, hair: palette.hair)
@@ -559,10 +562,17 @@ private struct ChatView: View {
         }
     }
 
-    /// One transcript message: attachments above the bubble; attachments alone get no empty bubble.
-    @ViewBuilder private func messageRow(index: Int, entry: ChatEntry) -> some View {
+    /// One transcript message, like Android's UserBubble: what it quoted on top,
+    /// then attachments, then the bubble; attachments alone get no empty bubble.
+    /// A long press opens the message menu (ChatMessageMenu).
+    @ViewBuilder private func messageRow(index: Int, entry: ChatEntry, targets: ChatMessageActionTargets) -> some View {
         let shown = ChatAttachmentLines.displayText(entry.content, items: entry.attachments)
+        // Only your own messages carry a quote; a reply that starts with the marker stays text.
+        let parsed = ConversationQuote.parse(shown)
+        let quote = entry.role == "user" ? parsed.quote : nil
+        let words = quote == nil ? shown : parsed.words
         VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
+            if let quote { sentQuote(quote, index: index) }
             if !entry.attachments.isEmpty {
                 ChatSentAttachments(items: entry.attachments, store: session.attachmentStore,
                                     colors: attachmentColors, text: attachmentText,
@@ -570,25 +580,67 @@ private struct ChatView: View {
                                     onOpen: openAttachment)
             }
             // Attachments alone get no empty bubble.
-            if !shown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
-                HStack {
-                    if entry.role == "user" { Spacer(minLength: 40) }
-                    Text(entry.role == "assistant"
-                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(shown))
-                        .font(.system(size: 15.5))
-                        .lineSpacing(entry.role == "user" ? 1 : 4)
-                        .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
-                        .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
-                        .background(entry.role == "user" ? palette.accent : palette.assistant,
-                                    in: RoundedRectangle(cornerRadius: 20))
-                    if entry.role != "user" { Spacer(minLength: 0) }
-                }
+            if !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
+                messageBubble(index: index, entry: entry, words: words, targets: targets)
             }
         }
         .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
         .id(entry.id)
+    }
+
+    private func sentQuote(_ quote: ConversationQuote.Quote, index: Int) -> some View {
+        HStack {
+            Spacer(minLength: 40)
+            ChatSentQuote(quote: quote, colors: attachmentColors, label: menuText.quoting(quote))
+                .accessibilityIdentifier("chat.message.\(index).quote")
+        }
+    }
+
+    private func messageBubble(index: Int, entry: ChatEntry, words: String, targets: ChatMessageActionTargets) -> some View {
+        let user = entry.role == "user"
+        return HStack {
+            if user { Spacer(minLength: 40) }
+            Text(user ? AttributedString(words) : ChatReplyMarkdown.render(entry.content))
+                .font(.system(size: 15.5))
+                .lineSpacing(user ? 1 : 4)
+                .foregroundStyle(user ? Color.white : palette.ink)
+                .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+                .padding(.horizontal, 14).padding(.vertical, user ? 10 : 12)
+                .background(user ? palette.accent : palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+                .modifier(ChatMessageMenu(entry: entry, targets: targets, text: menuText,
+                                          perform: { perform($0, on: entry) }))
+            if !user { Spacer(minLength: 0) }
+        }
+    }
+
+    private func perform(_ action: ChatMessageAction, on entry: ChatEntry) {
+        switch action {
+        case .copy:
+            UIPasteboard.general.string = session.plainText(of: entry)
+            showToast(menuText.copied)
+        case .quote:
+            guard let conversation = UUID(uuidString: session.conversationID),
+                  session.selectQuote(messageID: entry.id, expectedContent: entry.content, in: conversation) else {
+                showToast(menuText.quoteFailed); return
+            }
+        case .selectText:
+            selectingText = ChatSelectTextTarget(text: session.plainText(of: entry))
+        case .branch:
+            if let toast = menuText.toast(for: session.branch(fromReply: entry.id, title: branchTitle)) { showToast(toast) }
+        case .askAgain:
+            if let toast = menuText.toast(for: session.askAgain(from: entry.id, title: branchTitle)) { showToast(toast) }
+        }
+    }
+
+    /// The source's sidebar title without a quote, then " · 分支" (Android ChatCopy.branchTitle).
+    private func branchTitle(_ record: ArchivedConversation) -> String {
+        ChatBranchTitle.make(base: ConversationQuote.parse(ChatAttachmentLines.title(of: record, localizer: localizer)).words,
+                             suffix: menuText.titleSuffix, fallback: localizer.text(.shellNewConversation))
+    }
+
+    private func showToast(_ text: String) {
+        withAnimation(.easeOut(duration: 0.2)) { messageToast = ChatToast(text: text) }
+        UIAccessibility.post(notification: .announcement, argument: text)
     }
 
     private func openCamera() {
@@ -678,7 +730,9 @@ private struct ChatView: View {
     }
 
     private func transcriptContent(viewportHeight: Double) -> some View {
-        LazyVStack(alignment: .leading, spacing: 16) {
+        // Which messages can be quoted or branched from, read once per render.
+        let targets = session.messageActionTargets
+        return LazyVStack(alignment: .leading, spacing: 16) {
             if session.entries.isEmpty && session.replyPreview == nil {
                 ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
             }
@@ -688,7 +742,7 @@ private struct ChatView: View {
                     .accessibilityIdentifier("chat.explanation")
             }
             ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                messageRow(index: index, entry: entry)
+                messageRow(index: index, entry: entry, targets: targets)
             }
             if let preview = session.replyPreview {
                 VStack(alignment: .leading, spacing: 4) {
@@ -726,8 +780,8 @@ private struct ChatView: View {
         .coordinateSpace(name: "chat.transcript.viewport")
         .accessibilityIdentifier("chat.transcript")
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        // A simultaneous drag observes scrolling without taking the
-        // long-press/text-selection gesture away from selectable Text.
+        // A simultaneous drag observes scrolling without taking the long
+        // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
             .onChanged { drag in
                 scrollFollow.beginDrag()
@@ -781,6 +835,19 @@ private struct ChatView: View {
             ScrollViewReader { proxy in
                 transcriptScroll(proxy: proxy, viewportHeight: Double(viewport.size.height))
             }
+        }
+        .overlay(alignment: .top) {
+            if let messageToast {
+                ChatToastView(toast: messageToast).padding(.top, 8).transition(.opacity)
+            }
+        }
+    }
+
+    /// The quote waiting to go with the next message (Android QuoteChip), above the tray.
+    @ViewBuilder private var quoteChip: some View {
+        if let quote = session.pendingQuote {
+            ChatQuoteChip(quote: quote, colors: attachmentColors, text: menuText,
+                          canRemove: !session.isSubmitting) { session.clearQuote() }
         }
     }
 
@@ -921,6 +988,7 @@ private struct ChatView: View {
             chatHeader
             transcript
             chatStatus
+            quoteChip
             attachmentRows
             composer
             attachPanel
@@ -954,6 +1022,7 @@ private struct ChatView: View {
                     .interactiveDismissDisabled()
             }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
+            .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
                 UserProfileToolReviewView(review: review,
                     approve: { session.resolveProfileReview(id: review.id, approved: true) },
@@ -985,6 +1054,12 @@ private struct ChatView: View {
                 guard blocker != nil else { return }
                 UIAccessibility.post(notification: .announcement,
                                      argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
+            }
+            .task(id: messageToast?.id) {
+                guard messageToast != nil else { return }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.2)) { messageToast = nil }
             }
             .onAppear { voice.attach(session: session) }
             .onDisappear { voice.cancel() }
