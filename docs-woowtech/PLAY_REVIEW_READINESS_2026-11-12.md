@@ -8,6 +8,8 @@
 - 本機候選 AAB：`app/build/outputs/bundle/woowtechRelease/app-woowtech-release.aab`，64,927,365 bytes，SHA-256 `5f3d9f3c7d35e08280413b130809ae7f44d7f0e3eb7e4596147163c3adfee994`。直接檢查 ZIP 未見 AAB/JAR `.SF`／`.RSA`／`.DSA`／`.EC` 簽章項目；**此候選檔尚無標準上傳簽章**。檔案時間早於上述 commit，不能據時間判定內容是否與該 commit 一致。需從確定的最終 commit 重建、驗證內容並用受控的上傳金鑰簽章；版本碼是否可用取決於 Console 已使用的版本。
 - Gradle 的渥屋版簽章配置由環境變數 `WOOWTECH_SIGNING_PROPERTIES` 指向的外部 properties 檔提供；本次執行環境未設定該變數。這不能證明簽章金鑰不存在，也不能用既有 App 的簽章推定新套件設定；需確認安全提供方式及 Play Console 新 App 的簽章方案。
 - 候選 AAB manifest 經獨立解析為 min API 30、target API 36；含網路、錄音、通知、wake lock 與前景服務權限；未列無障礙服務、`McpService` 或 `SandboxService`。`TaskService` 與 `ChatGptSignInService` 為 `specialUse`。應在最終簽章 AAB 重新檢查；manifest 不足以單獨證明所有程式路徑均不可達。
+- Google Play 對含原生程式的 App 要求支援 16 KB 頁面。[官方說明](https://developer.android.com/guide/practices/page-sizes) 本機候選 AAB 有 11 個 `.so`；以 ELF 程式表檢查所有 7 個 64 位元 arm64／x86_64 函式庫，`PT_LOAD` 對齊均為 `0x4000`，且位址與檔案偏移符合 16 KB 同餘；另以 Android NDK `llvm-readelf` 交叉檢查 `libproot.so`。AAB 內的 11 個 `.so` 為壓縮項目，但這些結果不足以代表 Play 產生 APK 的封裝或 16 KB 裝置執行已通過，最終版仍需檢查與實機／模擬器驗證。
+- 候選 AAB 仍包含 arm64 `libmikarun.so`、`libproot.so`、`libproot_loader.so`，程式中它們用於沙箱程序。商店版主流程及 manifest 已關閉相應能力，但僅憑檔案存在不能判定仍可執行或已違反政策；需在最終包確認可達路徑與是否應移除這些未使用的原生檔案。
 - POCO `play.2` 已經 ADB 安裝與啟動，但完整真實模型與 MCP 驗收多為 `play.1` 的紀錄；尚無從 Play 測試軌安裝本版的證據。詳見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 - 使用者選取帳戶後，Play Console 首頁明確顯示 WOOWTECH 為**機構帳戶**，首頁列出七個正式版和一個內部測試 App，當中未見 `io.woowtech.assistant`；首頁未列出不等於已排除所有可能的草稿或其他帳戶。此帳戶不屬新個人帳戶的 12 人、14 天規則。尚未確認渥屋助理套件是否能建立、簽章、測試軌與審查狀態。
 - 已只讀核對同帳戶三個案例：`io.woowtech.smart`（渥屋智能）、`io.woowtech.odoo`（woowtech platform）、`com.woowtech.aiot`（渥屋科技）皆顯示已有正式版。渥屋智能的「測試及發布」也顯示已有內部測試版，可參考先測試再發布的流程；這些案例不能直接複製其隱私、權限或內容申報。
