@@ -31,7 +31,10 @@ object SkillOutcomes {
         val outcomes = (s.outcomes + r.name).takeLast(KEEP)
         if (s.status == SkillStatus.trial) return s.copy(outcomes = outcomes, status = when (r) {
             SkillResult.verified -> SkillStatus.active
-            SkillResult.failed, SkillResult.verifier_rejected -> SkillStatus.suspended
+            // An answer-only outcome judgment cannot prove the skill failed: it may miss a
+            // successful tool call. Keep trials available; a verifier rejection is stronger evidence.
+            SkillResult.failed -> SkillStatus.trial
+            SkillResult.verifier_rejected -> if (followed || shouldSuspend(outcomes, false)) SkillStatus.suspended else SkillStatus.trial
             else -> SkillStatus.trial
         })
         val suspend = s.status == SkillStatus.active &&
