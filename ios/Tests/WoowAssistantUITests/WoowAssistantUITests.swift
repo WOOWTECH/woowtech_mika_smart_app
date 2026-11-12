@@ -162,6 +162,25 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
     }
 
+    func testDrawerAboutOpensAndReturnsToChat() {
+        let app = launchApp()
+        let draft = app.textFields["chat.draft"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("保留草稿")
+        let dismiss = app.buttons["chat.dismissKeyboard"]
+        if dismiss.exists { dismiss.tap() }
+        app.buttons["chat.menu"].tap()
+        let about = app.buttons["navigation.about"]
+        XCTAssertTrue(about.waitForExistence(timeout: 10))
+        XCTAssertEqual(about.label, "關於渥屋助理")
+        about.tap()
+        XCTAssertTrue(app.staticTexts["settings.about.appName"].waitForExistence(timeout: 10))
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        XCTAssertEqual(draft.value as? String, "保留草稿")
+    }
+
     func testSettingsAboutShowsInstalledVersionAndReturnsToSettings() {
         let app = launchApp()
         openSection("settings", in: app)
