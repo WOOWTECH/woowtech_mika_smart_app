@@ -31,6 +31,20 @@
 - HA 端點目前免 OAuth 即可呼叫；OAuth 真實登入需有要求 OAuth 的測試伺服器與可登入帳號才能完成端到端驗收。
 - Play Console、內部測試軌安裝、隱私政策公開頁及 AI 檢舉正式收件端尚未驗收。
 
+## ChatGPT 登入後的真實模型實測（13:03–13:18）
+
+手機的主模型已改為 ChatGPT `gpt-6-sol`，以下均由 POCO 商店版對話實際送出並核對 `files/runs/` 執行事件；測試內容為可刪除資料。原自訂 `apporo/gpt-6-sol` 的限流結論仍適用於該端點，不能用 ChatGPT 的成功推定原端點恢復。
+
+| 項目 | 結果 | 執行證據 |
+| --- | --- | --- |
+| 真實模型基本對話 | 通過 | 要求只答 `OK`，手機顯示 `OK`；執行 ID `20261112-130300-vslj8u`。 |
+| 模型自主呼叫 HA MCP | 通過唯讀 | 要求讀取測試用虛擬開關狀態，模型實際呼叫 `ha_get_state`，回覆 `input_boolean.bidir_cover_state: off`；執行 ID `20261112-130355-4msdqn`。 |
+| MCP 長結果二次讀取 | 通過 | 模型先呼叫 `ha_get_overview` 取得 `fullResult`，再呼叫 `mcp_local_results__read` 讀取 offset 4000 起的 500 字，兩個工具都有 `tool_result` 事件；執行 ID `20261112-130454-ptghkq`。 |
+| 記憶建立與跨對話查詢 | 通過 | 模型以 `memory_save` 儲存測試偏好；新對話以 `memory_search` 找回並逐字回覆。執行 ID `20261112-130656-zvfck8`、`20261112-130930-ceujmo`。第一次把測試字串稱為 code 時模型拒存，此為內容判斷，沒有寫入。 |
+| 個人技能建立與跨對話使用 | 功能通過，評分器缺陷已修正程式碼 | 模型依序 `skill_read`、`skill_search`、`skill_save` 建立試用技能 `codex-checklist`；新對話 `skill_read` 後回答三步清單與指定字。執行 ID `20261112-130818-kup1lh`、`20261112-131145-at8u9q`。背景評分器只看最終文字，誤認未使用技能並自動暫停。已改成評分時帶入成功工具名稱，且不因僅憑文字判定的失敗自動停用試用技能；核心測試與 APK/AAB 建置通過。修正版尚待 POCO 重裝後驗證。 |
+
+測試技能與測試偏好目前仍在手機，待手機的 Google 登入確認畫面由使用者處理後，會安裝修正版、重測評分並透過 App 刪除這兩筆測試資料。手機仍只允許四項唯讀 HA 工具；本次沒有讓模型控制實際設備或測 MCP OAuth 登入。
+
 實機畫面暫存於本機 `/tmp/woow-play-*.png`，不提交倉庫。測試用本機模型服務在本次測試結束後停止；該模型及設定不可當成正式服務。
 
 最終來源已重新建置 `assembleWoowtechDebug` 與 `bundleWoowtechRelease`；Debug APK 重裝後，POCO 再驗證模型只看到四項 HA 工具。合併後的 Release Manifest 沒有 `McpService`，但對話任務與登入仍使用各自的前景服務。`core:test --tests ...McpClientTest` 通過，覆蓋 MCP 合成資源／提示工具的允許清單。`app` 模組沒有 `testWoowtechDebugUnitTest` Gradle 任務，因此 App 層本次依據是上述實機連線與執行記錄。

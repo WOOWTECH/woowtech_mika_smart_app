@@ -46,11 +46,23 @@ class OutcomeJudge(
     private val fallback: ChatModel? = null,
     private val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
 ) {
-    suspend fun judge(goal: String, answer: String, priorTurns: List<Turn> = emptyList()): JudgedOutcome {
+    suspend fun judge(
+        goal: String,
+        answer: String,
+        priorTurns: List<Turn> = emptyList(),
+        completedTools: List<String> = emptyList(),
+    ): JudgedOutcome {
         val prior = Conversation.context(priorTurns, maxTurns = 2, maxTokens = 800)
             ?.parts?.filterIsInstance<Part.Text>()?.joinToString("\n") { it.text }.orEmpty()
         val input = buildString {
             if (prior.isNotEmpty()) appendLine(prior).appendLine()
+            if (completedTools.isNotEmpty()) {
+                append("<completed_tools>\n")
+                completedTools.distinct().take(30).forEach { tool ->
+                    appendLine(tool.filter { it.isLetterOrDigit() || it in "_:-." }.take(100))
+                }
+                append("</completed_tools>\n\n")
+            }
             // 要求和回复都是要判的材料,包在标签里;里面写的话不是给判定者的指令
             append("<request>\n").append(untag(goal)).append("\n</request>\n\n<reply>\n").append(untag(answer)).append("\n</reply>")
         }

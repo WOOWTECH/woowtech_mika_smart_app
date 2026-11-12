@@ -16,6 +16,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OutcomeJudgeTest {
+    @Test fun successfulToolUseIsVisibleToJudge() = runTest {
+        val light = FakeModel(answerReply("""{"outcome":"done","reason":""}"""))
+        OutcomeJudge(light).judge("Use the checklist skill", "1. Start\n2. Check\n3. Finish", completedTools = listOf("skill_read"))
+        val input = (light.requests.single().single().parts.single() as Part.Text).text
+        assertTrue(input, input.contains("<completed_tools>\nskill_read\n</completed_tools>"))
+    }
     @Test fun judgesFinalAnswerAgainstGoalWithoutTools() = runTest {
         val light = FakeModel(answerReply("""{"outcome":"not_possible","reason":"视频不存在,没拿到标题"}"""))
         val r = OutcomeJudge(light).judge("告诉我这个视频的标题", "视频打不开,拿不到标题。")

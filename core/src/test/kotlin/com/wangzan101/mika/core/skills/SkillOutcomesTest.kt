@@ -14,6 +14,12 @@ class SkillOutcomesTest {
         assertEquals(SkillStatus.active, SkillOutcomes.record(draft, SkillResult.verified, followed = true).status)
         assertEquals(SkillStatus.suspended, SkillOutcomes.record(draft, SkillResult.verifier_rejected, followed = true).status)
     }
+    @Test fun answerOnlyJudgmentsDoNotSuspendTrial() {
+        val draft = personalSkill("trial-skill", status = SkillStatus.trial)
+        val first = SkillOutcomes.record(draft, SkillResult.failed, followed = true)
+        assertEquals(SkillStatus.trial, first.status)
+        assertEquals(SkillStatus.trial, SkillOutcomes.record(first, SkillResult.failed, followed = true).status)
+    }
     private val s = personalSkill("wechat-msg")
 
     @Test fun keepsLast5() {
