@@ -118,6 +118,14 @@ final class ConfiguredProviderSpeech {
         return id
     }
 
+    /// Abandon an unsent recording without discarding the verified provider.
+    /// A stale recording must never revoke a newer gesture's authorization.
+    func discardUnsentRecording(_ id: UUID) {
+        guard attempt == id else { return }
+        attempt = nil
+        generation = UUID()
+    }
+
     func transcribe(recording id: UUID, samples: [Int16]) async throws -> String {
         guard let verified, attempt == id else { throw Failure.invalidAttempt }
         attempt = nil

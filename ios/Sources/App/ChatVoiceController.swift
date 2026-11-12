@@ -16,12 +16,13 @@ final class ChatVoiceController {
 
     init(driver: VoiceInputDriver, now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          conversation: @escaping () -> String, readDraft: @escaping () -> String,
-         writeDraft: @escaping (String) -> Void, voiceAuthorization: @escaping () -> String? = { "device" }) {
+         writeDraft: @escaping (String) -> Void, voiceAuthorization: @escaping () -> String? = { "device" },
+         finishTimeout: TimeInterval = 5) {
         self.conversation = conversation
         self.voiceAuthorization = voiceAuthorization
         self.readDraft = readDraft
         self.writeDraft = writeDraft
-        self.machine = VoiceInputStateMachine(driver: driver, now: now)
+        self.machine = VoiceInputStateMachine(driver: driver, now: now, finishTimeout: finishTimeout)
         machine.mayContinue = { [weak self] in
             guard let self, let revision = self.voiceRevision else { return false }
             return revision == self.voiceAuthorization()

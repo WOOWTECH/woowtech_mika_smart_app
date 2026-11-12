@@ -63,3 +63,6 @@ tests are needed before enabling the feature.
 
 A later isolated fix addresses a pre-dispatch settings race in this seam;
 see `PROVIDER_SPEECH_DISPATCH_FENCE.md` for its ordering and limits.
+
+A later isolated candidate adds an unconnected PCM source and driver; see
+`PROVIDER_PCM_CAPTURE_STAGE.md`. It does not enable provider speech.

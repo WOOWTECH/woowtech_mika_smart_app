@@ -34,7 +34,9 @@ private final class DispatchSignals: @unchecked Sendable {
     }
     var blockBeforeDispatch = false
     var beforeDispatch: CheckedContinuation<Void, Never>?
+    var completed = 0
     func send(_ request: URLRequest, permit: SpeechDispatchPermit) async throws -> (Data, Int) {
+        defer { completed += 1 }
         if blockBeforeDispatch {
             blockBeforeDispatch = false
             await withCheckedContinuation { beforeDispatch = $0 }
@@ -50,6 +52,25 @@ private final class DispatchSignals: @unchecked Sendable {
     func isWaiting() -> Bool { waiting != nil }
     func count() -> Int { requests.count }
     func request(_ index: Int) -> URLRequest { requests[index] }
+}
+
+@MainActor private final class FixtureLease: VoiceAudioLease, VoiceAudioCoordinating {
+    private(set) var held = false
+    func acquire(onRevoked: @escaping VoiceAudioRevocation) -> (any VoiceAudioLease)? {
+        guard !held else { return nil }
+        held = true; return self
+    }
+    func activateForRecording() -> Bool { held }
+    func release() { held = false }
+}
+@MainActor private final class FixturePCMSource: ProviderPCMSource {
+    var buffer: ProviderPCMBuffer?
+    func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) { completion(true) }
+    func start(buffer: ProviderPCMBuffer, mayStart: @escaping @MainActor () -> Bool,
+               onFailure: @escaping @MainActor () -> Void) throws {
+        if mayStart() { self.buffer = buffer }
+    }
+    func stop() { buffer = nil }
 }
 
 @main enum Checks {
@@ -71,6 +92,13 @@ private final class DispatchSignals: @unchecked Sendable {
                 await Task.yield()
             }
             fatalError("transport did not reach pre-dispatch gate")
+        }
+        func waitForCompletions(_ fake: FakeTransport, _ expected: Int) async {
+            for _ in 0..<100_000 {
+                if fake.completed >= expected { return }
+                await Task.yield()
+            }
+            fatalError("transport did not finish")
         }
         let suite = "configured-speech-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
@@ -188,6 +216,132 @@ private final class DispatchSignals: @unchecked Sendable {
         fake.release()
         do { _ = try await changingResult.value; fatalError("old credential result accepted") }
         catch ConfiguredProviderSpeech.Failure.stale { count += 1 }
+        // Exercise the actual PCM->WAV->request->response path using only an
+        // injected source and transport; this does not wire any product UI.
+        fake.enqueue(200, "{\"text\":\"ok\"}")
+        _ = try await flow.probe(rawBaseURL: url, kind: .openAICompatible, model: "speech-model")
+        let token = try flow.beginRecording()
+        let source = FixturePCMSource(), lease = FixtureLease()
+        var final: VoiceInputEvent?
+        let driver = ProviderPCMVoiceDriver(source: source, coordinator: lease, mayFinish: { true },
+                                            onEnd: { _ in flow.discardUnsentRecording(token) },
+                                            transcribe: { _, samples in
+            try await flow.transcribe(recording: token, samples: samples)
+        })
+        let captureID = UUID()
+        driver.start(id: captureID, mayContinue: { true }, emit: { _, event in final = event })
+        check(source.buffer != nil && lease.held, "fixture source acquired shared lease")
+        check(source.buffer!.append([Float](repeating: 0.5, count: 8_000), sampleRate: 16_000, channels: 1) == .accepted,
+              "fixture PCM captured")
+        fake.enqueue(200, "{\"text\":\"fixture transcript\"}")
+        driver.finish(id: captureID)
+        for _ in 0..<10_000 where final == nil { await Task.yield() }
+        check(final == .final("fixture transcript") && !lease.held, "captured PCM produces parsed transcript")
+        let recordedIndex = fake.count() - 1
+        let recorded = fake.request(recordedIndex)
+        let body = recorded.httpBody!
+        guard let riff = body.range(of: Data("RIFF".utf8)) else { fatalError("missing WAV") }
+        let firstSample = body.index(riff.lowerBound, offsetBy: 44)
+        check(body[firstSample] == 0 && body[body.index(after: firstSample)] == 64,
+              "multipart WAV contains converted 16-bit fixture audio")
+
+
+        // Exercise a real captured-PCM path while settings change between
+        // transport handoff and the authorized dispatch boundary.
+        fake.enqueue(200, "{\"text\":\"ok\"}")
+        _ = try await flow.probe(rawBaseURL: url, kind: .openAICompatible, model: "speech-model")
+        let fencedToken = try flow.beginRecording()
+        let fencedRevision = repository.revision
+        let fencedSource = FixturePCMSource(), fencedLease = FixtureLease()
+        var fencedEvent: VoiceInputEvent?
+        let fencedDriver = ProviderPCMVoiceDriver(source: fencedSource, coordinator: fencedLease,
+            mayFinish: { repository.revision == fencedRevision },
+            onEnd: { _ in flow.discardUnsentRecording(fencedToken) },
+            transcribe: { _, samples in try await flow.transcribe(recording: fencedToken, samples: samples) })
+        let fencedID = UUID()
+        fencedDriver.start(id: fencedID, mayContinue: { true }, emit: { _, event in fencedEvent = event })
+        let fencedBuffer = fencedSource.buffer!
+        check(fencedBuffer.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1) == .accepted,
+              "fenced fixture PCM captured")
+        fake.blockBeforeDispatch = true
+        fake.enqueue(200, "{\"text\":\"must not dispatch\"}")
+        let beforeFenced = fake.count(), expectedFencedCompletion = fake.completed + 1
+        fencedDriver.finish(id: fencedID)
+        check(fencedSource.buffer == nil && !fencedLease.held &&
+              fencedBuffer.append([1], sampleRate: 16_000, channels: 1) == .closed,
+              "finishing closes audio and releases its lease before transport")
+        await waitBeforeDispatch(fake)
+        let windowRepository = ModelSettingsRepository(defaults: defaults, credentials: credentials)
+        _ = try windowRepository.save(baseURL: url, model: "pcm-settings-changed", newKey: "")
+        fake.releaseBeforeDispatch()
+        await waitForCompletions(fake, expectedFencedCompletion)
+        for _ in 0..<10_000 where fencedEvent == nil { await Task.yield() }
+        check(fake.count() == beforeFenced && fencedEvent == .cancelled,
+              "settings changed after capture but before dispatch sends nothing")
+        fake.replies.removeAll()
+
+        // The canceled task must close the permit even if its transport is
+        // suspended and later returns after cancellation.
+        fake.enqueue(200, "{\"text\":\"ok\"}")
+        _ = try await flow.probe(rawBaseURL: url, kind: .openAICompatible, model: "speech-model")
+        let canceledToken = try flow.beginRecording()
+        let canceledSource = FixturePCMSource(), canceledLease = FixtureLease()
+        var canceledEvent: VoiceInputEvent?
+        let canceledDriver = ProviderPCMVoiceDriver(source: canceledSource, coordinator: canceledLease,
+            mayFinish: { true }, onEnd: { _ in flow.discardUnsentRecording(canceledToken) },
+            transcribe: { _, samples in try await flow.transcribe(recording: canceledToken, samples: samples) })
+        let canceledCaptureID = UUID()
+        canceledDriver.start(id: canceledCaptureID, mayContinue: { true }, emit: { _, event in canceledEvent = event })
+        let canceledBuffer = canceledSource.buffer!
+        check(canceledBuffer.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1) == .accepted,
+              "cancel fixture PCM captured")
+        fake.blockBeforeDispatch = true
+        fake.enqueue(200, "{\"text\":\"must not dispatch\"}")
+        let beforeCanceledPCM = fake.count(), expectedCanceledCompletion = fake.completed + 1
+        canceledDriver.finish(id: canceledCaptureID)
+        await waitBeforeDispatch(fake)
+        canceledDriver.cancel(id: canceledCaptureID)
+        fake.releaseBeforeDispatch()
+        await waitForCompletions(fake, expectedCanceledCompletion)
+        check(fake.count() == beforeCanceledPCM && canceledEvent == nil && !canceledLease.held &&
+              canceledBuffer.append([1], sampleRate: 16_000, channels: 1) == .closed,
+              "cancellation before dispatch sends nothing and keeps audio resources closed")
+        fake.replies.removeAll()
+
+        // A canceled recording that never reaches transcribe must not leave a
+        // reusable one-shot token, and must not clear the provider selection.
+        let abandonedToken = try flow.beginRecording()
+        let abandonedSource = FixturePCMSource(), abandonedLease = FixtureLease()
+        var abandonedEnds = 0
+        let abandonedDriver = ProviderPCMVoiceDriver(source: abandonedSource, coordinator: abandonedLease,
+            mayFinish: { true }, onEnd: { _ in abandonedEnds += 1; flow.discardUnsentRecording(abandonedToken) },
+            transcribe: { _, samples in try await flow.transcribe(recording: abandonedToken, samples: samples) })
+        let abandonedID = UUID()
+        abandonedDriver.start(id: abandonedID, mayContinue: { true }, emit: { _, _ in })
+        let abandonedBuffer = abandonedSource.buffer!
+        _ = abandonedBuffer.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        let beforeAbandon = fake.count()
+        abandonedDriver.cancel(id: abandonedID)
+        abandonedDriver.cancel(id: abandonedID)
+        check(abandonedEnds == 1 && !abandonedLease.held && abandonedSource.buffer == nil &&
+              abandonedBuffer.append([1], sampleRate: 16_000, channels: 1) == .closed,
+              "cancel during capture closes audio and ends exactly once")
+        do { _ = try await flow.transcribe(recording: abandonedToken, samples: [Int16](repeating: 1, count: 8_000)); fatalError("abandoned token reused") }
+        catch ConfiguredProviderSpeech.Failure.invalidAttempt { count += 1 }
+        check(fake.count() == beforeAbandon, "abandoned recording cannot dispatch")
+        let oldToken = try flow.beginRecording()
+        let oldSource = FixturePCMSource(), oldLease = FixtureLease()
+        let oldDriver = ProviderPCMVoiceDriver(source: oldSource, coordinator: oldLease,
+            mayFinish: { true }, onEnd: { _ in flow.discardUnsentRecording(oldToken) },
+            transcribe: { _, samples in try await flow.transcribe(recording: oldToken, samples: samples) })
+        let oldCaptureID = UUID()
+        oldDriver.start(id: oldCaptureID, mayContinue: { true }, emit: { _, _ in })
+        let newToken = try flow.beginRecording()
+        oldDriver.cancel(id: oldCaptureID)
+        check(!oldLease.held && oldSource.buffer == nil, "old capture releases resources")
+        fake.enqueue(200, "{\"text\":\"new recording\"}")
+        let recoveredText = try await flow.transcribe(recording: newToken, samples: [Int16](repeating: 1, count: 8_000))
+        check(recoveredText == "new recording", "stale cancellation preserves newer recording and provider selection")
 
         let gate = FakeTransport()
         let guarded = ConfiguredProviderSpeech(repository: repository, transport: gate)
