@@ -567,3 +567,14 @@ final class DocumentQueryAppIntegrationTests: XCTestCase {
 }
 #endif
 #endif
+
+#if DOCUMENT_QUERY_APP_STANDALONE || canImport(WoowAssistant)
+extension DocumentCheckModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+#endif

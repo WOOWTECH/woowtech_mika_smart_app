@@ -1,6 +1,7 @@
 import AssistantBrowser
 import AssistantMemory
 import AssistantModels
+import AssistantPersistence
 import AssistantSkills
 import Foundation
 
@@ -50,6 +51,17 @@ struct PersonalSkillReadEvidence {
     }
     func check() throws {
         guard !revoked, !Task.isCancelled, let store, store.available else { throw RunReferenceError.revoked }
+        let lease = try Self.lease(from: store) { self.revoke() }
+        lease.release()
+    }
+    func acquireRequestLease() throws -> EncryptedLearningFile.ExclusiveLease {
+        guard !revoked, !Task.isCancelled, let store, store.available else { throw RunReferenceError.revoked }
+        return try Self.lease(from: store) { self.revoke() }
+    }
+    static func lease(from store: LearningStore, onStale: () -> Void = {}) throws -> EncryptedLearningFile.ExclusiveLease {
+        do { return try store.acquireCurrentReferenceLease() }
+        catch LearningFileError.busy { throw RunReferenceError.busy }
+        catch { onStale(); throw RunReferenceError.revoked }
     }
     func revoke() {
         guard !revoked else { return }
@@ -106,6 +118,31 @@ struct PersonalSkillReadEvidence {
     }
 }
 
+/// The producer owns the lease until actual dispatch begins or it finishes.
+/// An already dispatched request cannot be recalled by later revocation.
+struct ReferenceFencedModelClient: ChatModelClient {
+    private let client: any ReferenceDispatchBoundChatModelClient
+    private let snapshot: LearningRunSnapshot
+
+    @MainActor init(client: any ChatModelClient, snapshot: LearningRunSnapshot) throws {
+        guard let bounded = client as? any ReferenceDispatchBoundChatModelClient else {
+            throw RunReferenceError.unsupportedClient
+        }
+        self.client = bounded; self.snapshot = snapshot
+    }
+
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try Task.checkCancellation()
+        let lease = try await MainActor.run { try snapshot.acquireRequestLease() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        let value = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey,
+                                              onDispatch: { lease.release() })
+        try Task.checkCancellation()
+        return value
+    }
+}
+
 @MainActor final class WeakLearningRunSnapshot {
     weak var value: LearningRunSnapshot?
     init(_ value: LearningRunSnapshot) { self.value = value }
@@ -125,6 +162,8 @@ extension LearningStore {
     func captureRunReferences(goal: String, capabilities: Set<String>, websiteURLs: [URL]) throws -> LearningRunSnapshot {
         guard available else { throw RunReferenceError.revoked }
         guard websiteURLs.count <= 3 else { throw RunReferenceError.invalidEntry }
+        let lease = try LearningRunSnapshot.lease(from: self)
+        defer { lease.release() }
         var buckets: [[RunReferenceEntry]] = []
         let profileEntries = memory.preferences.useMemory ? profile.snapshot().entries.map {
             RunReferenceEntry(kind: .profile, id: $0.id.uuidString, text: $0.text)

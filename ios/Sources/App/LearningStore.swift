@@ -43,6 +43,20 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     var referenceSnapshots: [WeakLearningRunSnapshot] = []
     var referenceEditInProgress = false
 
+    /// The snapshot and the persistent ciphertext must still match while the
+    /// caller owns this lease. No blocking wait is allowed on the main actor.
+    func acquireCurrentReferenceLease() throws -> EncryptedLearningFile.ExclusiveLease {
+        guard available, hasLoadedRevision, let vault else { throw LearningFileError.notLoaded }
+        let lease = try vault.acquireExclusiveAccess(nonBlocking: true)
+        do {
+            guard try vault.diskRevision() == loadedRevision else { throw LearningFileError.conflict }
+            return lease
+        } catch {
+            lease.release()
+            throw error
+        }
+    }
+
     init() {
         do {
             let location = try Self.location()

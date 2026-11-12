@@ -40,22 +40,38 @@ public final class EncryptedLearningFile {
         self.keys = keys
     }
 
-    /// Coordinates read-modify-write transactions across independent vault
-    /// instances and processes. Callers must re-load inside this lock before
-    /// changing the snapshot; atomic rename alone does not prevent lost writes.
-    @discardableResult public func withExclusiveAccess<T>(nonBlocking: Bool = false, _ operation: () throws -> T) throws -> T {
+    /// The lease remains owned by the actual producer, including cancellation.
+    public final class ExclusiveLease: @unchecked Sendable {
+        private let mutex = NSLock()
+        private var descriptor: Int32
+        fileprivate init(descriptor: Int32) { self.descriptor = descriptor }
+        public func release() {
+            mutex.lock(); let fd = descriptor; descriptor = -1; mutex.unlock()
+            if fd >= 0 { _ = flock(fd, LOCK_UN); close(fd) }
+        }
+        deinit { release() }
+    }
+
+    public func acquireExclusiveAccess(nonBlocking: Bool = false) throws -> ExclusiveLease {
         let directory = url.deletingLastPathComponent()
         do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
         catch { throw LearningFileError.unavailable }
         let lockPath = url.path + ".lock"
         let descriptor = open(lockPath, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
         guard descriptor >= 0 else { throw LearningFileError.unavailable }
-        defer { close(descriptor) }
         while flock(descriptor, LOCK_EX | (nonBlocking ? LOCK_NB : 0)) != 0 {
-            if nonBlocking && (errno == EWOULDBLOCK || errno == EAGAIN) { throw LearningFileError.busy }
-            guard errno == EINTR else { throw LearningFileError.unavailable }
+            if errno == EINTR { continue }
+            let busy = nonBlocking && (errno == EWOULDBLOCK || errno == EAGAIN)
+            close(descriptor)
+            throw busy ? LearningFileError.busy : LearningFileError.unavailable
         }
-        defer { _ = flock(descriptor, LOCK_UN) }
+        return ExclusiveLease(descriptor: descriptor)
+    }
+
+    /// Cooperating writers must recheck their snapshot inside this lock.
+    @discardableResult public func withExclusiveAccess<T>(nonBlocking: Bool = false, _ operation: () throws -> T) throws -> T {
+        let lease = try acquireExclusiveAccess(nonBlocking: nonBlocking)
+        defer { lease.release() }
         return try operation()
     }
 
