@@ -189,6 +189,13 @@ private actor ReferenceBrowser: WebResearchExecuting {
         do {
             let f = try fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
             let old = try capture(f)
+            let skillRead = try capture(f), evidenceSnapshot = try capture(f), validationSnapshot = try capture(f)
+            guard let skillID = skillRead.references.included.first(where: { $0.kind == .personalSkill })?.id else {
+                throw Failure(label:"missing captured skill for cross-instance check")
+            }
+            _ = try evidenceSnapshot.readPersonalSkill(id:skillID)
+            _ = try validationSnapshot.readPersonalSkill(id:skillID)
+            let evidence = try validationSnapshot.personalSkillReadEvidence()
             let before = ReferenceGate(), after = ReferenceGate()
             let producer = ReferenceDispatchProbe(beforeDispatch:before,afterDispatch:after)
             let beforePeerChange = try ReferenceFencedModelClient(client:producer,snapshot:try capture(f))
@@ -200,6 +207,12 @@ private actor ReferenceBrowser: WebResearchExecuting {
             let bytes = try Data(contentsOf:f.url)
             do { _ = try capture(f); throw Failure(label:"stale new capture was accepted") }
             catch RunReferenceError.revoked { try expect(true,"stale new capture fails") }
+            do { _ = try skillRead.readPersonalSkill(id:skillID); throw Failure(label:"stale skill read accepted") }
+            catch RunReferenceError.revoked { try expect(true,"skill read checks persistent revision") }
+            do { _ = try evidenceSnapshot.personalSkillReadEvidence(); throw Failure(label:"stale skill evidence accepted") }
+            catch RunReferenceError.revoked { try expect(true,"skill evidence checks persistent revision") }
+            do { _ = try validationSnapshot.validatePersonalSkillReadEvidence(evidence); throw Failure(label:"stale skill evidence validation accepted") }
+            catch RunReferenceError.revoked { try expect(true,"skill evidence validation checks persistent revision") }
             do { _ = try await beforePeerChange.complete(messages:[.init(role:"user",content:"synthetic")],configuration:configuration,apiKey:"synthetic")
                  throw Failure(label:"stale request was accepted") }
             catch RunReferenceError.revoked { try expect(true,"peer change before request blocks dispatch") }
@@ -770,6 +783,10 @@ private actor ReferenceBrowser: WebResearchExecuting {
         app.run()
     }
     @MainActor static func run() async throws {
+        if CommandLine.arguments.contains("--focus-cross-instance") {
+            try await LearningRunAppChecks.crossInstanceReferencesAndDispatchFence()
+            print(String(decoding:try JSONSerialization.data(withJSONObject:["groups":LearningRunAppChecks.counts,"failed":0],options:.sortedKeys),as:UTF8.self));return
+        }
         #if DEBUG
         if CommandLine.arguments.contains("--focus-reference-draft") {
             try await LearningRunAppChecks.actualReferenceOnlyDrafting()
@@ -835,6 +852,20 @@ extension ReferenceModel: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                   onDispatch: @escaping @Sendable () -> Void) async throws -> String {
         // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+extension OutcomeReferenceModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+extension DraftReferenceModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
         onDispatch()
         return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
