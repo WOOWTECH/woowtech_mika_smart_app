@@ -40,7 +40,9 @@ class RuntimeInventoryError(ReleaseError):
 # This partition, unlike the legacy focused scopes below, owns every non-Live
 # UI class exactly once. Keep class selectors so new methods cannot be omitted.
 UI_SHARDS = {
-    "ui-startup": ["WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
+    # ui-startup (37 methods) exceeded the 30-minute slice on iOS 18 CI runners; chat classes are their own shard.
+    "ui-startup": ["WoowAssistantUITests"],
+    "ui-chat": ["SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
     "ui-language": ["AppLanguageUITests", "AppLanguagePhase2UITests"],
     "ui-notifications": ["NotificationUITests", "NotificationApprovalUITests"],
     "ui-archive": ["ConversationArchiveUITests"],
