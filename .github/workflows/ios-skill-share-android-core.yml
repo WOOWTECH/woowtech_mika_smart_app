@@ -6,6 +6,7 @@ on:
     paths:
       - 'ios/Sources/AssistantSkills/**'
       - 'ios/Sources/AssistantModels/**'
+      - 'ios/Sources/App/MemoryDataView.swift'
       - 'ios/scripts/GenerateAndroidSkillShareFixtures.swift'
       - 'core/src/**'
       - 'core/build.gradle.kts'
