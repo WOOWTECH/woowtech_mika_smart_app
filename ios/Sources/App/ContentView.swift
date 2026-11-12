@@ -215,6 +215,8 @@ struct ContentView: View {
                                             languages: languages,
                                             mcpDestination: { MCPToolsView(session: mcpSession) },
                                             memoryDestination: { memoryDataView(resetNavigation: true) })
+                case .about:
+                    MikaAboutView(languages: languages, info: MikaAboutInfo(bundle: .main))
                 case .tools:
                     MCPToolsView(session: mcpSession)
                 case .memory:
@@ -356,6 +358,8 @@ private struct MikaNavigationDrawer: View {
             Divider().overlay(palette.hair)
             row(localizer.text(.shellSettings), symbol: "gearshape", id: "navigation.settings") { onSelect(.settings) }
                 .padding(.horizontal, 12).padding(.vertical, 6)
+            row(MikaAboutCopy(language: localizer.language).text(.title), symbol: "info.circle", id: "navigation.about") { onSelect(.about) }
+                .padding(.horizontal, 12).padding(.bottom, 6)
         }
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
@@ -408,6 +412,7 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
     case tools
     case memory
     case settings
+    case about
 
     var id: String { rawValue }
 
@@ -418,6 +423,7 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
         case .tools: return localizer.text(.shellToolsTitle)
         case .memory: return localizer.text(.shellMemoryTitle)
         case .settings: return localizer.text(.shellSettings)
+        case .about: return MikaAboutCopy(language: localizer.language).text(.title)
         }
     }
 
@@ -433,6 +439,8 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
             return "記憶、個人技能與待確認草稿；附件與網站資料另行管理。"
         case .settings:
             return "設定模型服務；通知、語言與外觀設定仍待實作。"
+        case .about:
+            return "版本、資源與支援。"
         }
     }
 }

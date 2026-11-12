@@ -99,6 +99,34 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
+    func testAboutHeroAndDiagnosticsInEverySupportedLanguage() {
+        let cases: [(String, String, String, String)] = [
+            ("(zh-Hant)", "關於渥屋助理", "你的私人助理，替你把事辦成", "診斷資訊"),
+            ("(zh-Hans)", "关于渥屋助理", "你的私人助理，替你把事办成", "诊断信息"),
+            ("(en)", "About woowtech agent", "Your personal assistant, getting things done for you", "Diagnostic information")
+        ]
+        for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
+            app.terminate()
+            app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+            app.launchEnvironment = [:]
+            app.launch()
+            navigateMikaSection("settings", in: app)
+            let about = app.buttons["settings.about"]
+            revealLearningElement(about, in: app)
+            XCTAssertTrue(about.isHittable); about.tap()
+            XCTAssertTrue(app.navigationBars[aboutTitle].waitForExistence(timeout: 10))
+            XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, tagline)
+            XCTAssertTrue(app.staticTexts["settings.about.version"].exists)
+            XCTAssertTrue(app.staticTexts["settings.about.build"].exists)
+            let diagnostics = app.buttons["settings.about.diagnostics"]
+            revealLearningElement(diagnostics, in: app)
+            XCTAssertTrue(diagnostics.isHittable); diagnostics.tap()
+            XCTAssertTrue(app.navigationBars[diagnosticsTitle].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["settings.about.diagnostics.report"].exists)
+        }
+    }
+
     func testAdvancedSettingsAndMCPNavigationInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "設定", "進階與其他", "MCP 伺服器"),
