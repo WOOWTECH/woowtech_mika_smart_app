@@ -269,6 +269,14 @@ fun ChatScreen(
     val c = MikaTheme.colors
     val backdrop = rememberGlassBackdrop()
     val context = LocalContext.current
+    LaunchedEffect(context) {
+        val queue = AiResponseReportQueue(context.applicationContext)
+        val sender = AiResponseReportDelivery.sender(context.applicationContext)
+        while (true) {
+            AiResponseReportDelivery.deliverDue(queue, sender)
+            delay(30_000)
+        }
+    }
     /** 长按了的那条消息;菜单开着(收起的动画放完才清掉)。 */
     var menu by remember { mutableStateOf<MessageTarget?>(null) }
     var reportDraft by remember(ui.conversationId) { mutableStateOf<Pair<AiResponseReference, String>?>(null) }

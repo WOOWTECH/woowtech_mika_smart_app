@@ -30,7 +30,7 @@ internal fun aiResponseReference(conversationId: String?, exchanges: List<Exchan
     return AiResponseReference(conversationId, exchanges[turn].runId, key)
 }
 
-/** No transport exists yet. Every saved item remains explicitly queued on this device. */
+/** A report stays pending until the relay acknowledges this exact ID. */
 internal data class AiResponseReport(
     val id: String,
     val reference: AiResponseReference,
@@ -39,6 +39,10 @@ internal data class AiResponseReport(
     val note: String,
     val createdAtMs: Long,
     val status: String = "queued_local",
+    val attempts: Int = 0,
+    val nextAttemptAtMs: Long = 0,
+    val acknowledgedAtMs: Long? = null,
+    val deletionReceipt: String? = null,
 )
 
 internal class AiResponseReportQueue(private val dir: File) {
@@ -50,6 +54,37 @@ internal class AiResponseReportQueue(private val dir: File) {
         require(response.isNotBlank())
         val report = AiResponseReport(UUID.randomUUID().toString(), reference, response.take(MAX_RESPONSE), reason,
             note.trim().take(MAX_NOTE), System.currentTimeMillis())
+        write(report)
+        return report
+    }
+
+    @Synchronized
+    fun get(id: String): AiResponseReport? = all().firstOrNull { it.id == id }
+
+    @Synchronized
+    fun recordAttempt(id: String, result: ReportDeliveryResult, now: Long): AiResponseReport {
+        val old = requireNotNull(get(id))
+        if (old.status == "acknowledged") return old
+        val attempts = old.attempts + 1
+        val updated = when (result) {
+            is ReportDeliveryResult.Acknowledged -> old.copy(status = "acknowledged", attempts = attempts,
+                acknowledgedAtMs = now, deletionReceipt = result.deletionReceipt)
+            ReportDeliveryResult.Rejected -> old.copy(status = "rejected", attempts = attempts)
+            ReportDeliveryResult.Retryable -> old.copy(attempts = attempts,
+                nextAttemptAtMs = now + if (attempts == 1) 30_000 else 120_000)
+        }
+        write(updated)
+        return updated
+    }
+
+    @Synchronized
+    fun retry(id: String): AiResponseReport {
+        val old = requireNotNull(get(id))
+        require(old.status != "acknowledged")
+        return old.copy(status = "queued_local", attempts = 0, nextAttemptAtMs = 0).also(::write)
+    }
+
+    private fun write(report: AiResponseReport) {
         dir.mkdirs()
         val target = File(dir, "${report.id}.json")
         val temp = File(dir, "${report.id}.tmp")
@@ -62,9 +97,9 @@ internal class AiResponseReportQueue(private val dir: File) {
         } finally {
             temp.delete()
         }
-        return report
     }
 
+    @Synchronized
     fun all(): List<AiResponseReport> = dir.listFiles { file -> file.extension == "json" }.orEmpty()
         .mapNotNull { file -> runCatching { parseReport(Json.parseToJsonElement(file.readText()) as JsonObject) }.getOrNull() }
         .sortedBy { it.createdAtMs }
@@ -73,6 +108,8 @@ internal class AiResponseReportQueue(private val dir: File) {
         put("id", id); put("conversationId", reference.conversationId); put("runId", reference.runId)
         put("messageKey", reference.messageKey); put("response", response); put("reason", reason)
         put("note", note); put("createdAtMs", createdAtMs); put("status", status)
+        put("attempts", attempts); put("nextAttemptAtMs", nextAttemptAtMs)
+        put("acknowledgedAtMs", acknowledgedAtMs); put("deletionReceipt", deletionReceipt)
     }
 
     private fun parseReport(o: JsonObject): AiResponseReport {
@@ -83,6 +120,10 @@ internal class AiResponseReportQueue(private val dir: File) {
             response = requireNotNull(text("response")), reason = requireNotNull(text("reason")), note = text("note").orEmpty(),
             createdAtMs = (o["createdAtMs"] as? JsonPrimitive)?.longOrNull ?: error("Missing date"),
             status = requireNotNull(text("status")),
+            attempts = (o["attempts"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 0,
+            nextAttemptAtMs = (o["nextAttemptAtMs"] as? JsonPrimitive)?.longOrNull ?: 0,
+            acknowledgedAtMs = (o["acknowledgedAtMs"] as? JsonPrimitive)?.longOrNull,
+            deletionReceipt = text("deletionReceipt"),
         )
     }
 
