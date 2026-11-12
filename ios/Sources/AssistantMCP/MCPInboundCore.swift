@@ -18,6 +18,9 @@ public enum MCPInboundRequest: Sendable, Equatable {
     case ping(MCPInboundID)
     case listTools(MCPInboundID)
     case runTask(MCPInboundID, MCPInboundModelTask)
+    case taskStatus(MCPInboundID, UUID)
+    case cancelTask(MCPInboundID, UUID)
+    case listTasks(MCPInboundID, Int)
 }
 
 public enum MCPInboundFormatError: Error, Sendable, Equatable {
@@ -70,8 +73,26 @@ public enum MCPInboundFormat {
             return .listTools(id)
         case "tools/call":
             guard Set(params.keys).isSubset(of: ["name", "arguments"]),
-                  params["name"] == .string("mika_run_task"),
-                  case .object(let arguments)? = params["arguments"],
+                  let name = params["name"]?.stringValue,
+                  case .object(let arguments)? = params["arguments"] else { throw MCPInboundFormatError.invalidParameters }
+            if name == "mika_task_status" || name == "mika_cancel_task" {
+                guard Set(arguments.keys) == ["task_id"], let taskID = try optionalUUID(arguments["task_id"]) else {
+                    throw MCPInboundFormatError.invalidParameters
+                }
+                return name == "mika_task_status" ? .taskStatus(id, taskID) : .cancelTask(id, taskID)
+            }
+            if name == "mika_list_tasks" {
+                guard Set(arguments.keys).isSubset(of: ["limit"]) else { throw MCPInboundFormatError.invalidParameters }
+                var limit = 10
+                if let input = arguments["limit"] {
+                    guard case .number(let number) = input, number >= 1, number <= 50 else { throw MCPInboundFormatError.invalidParameters }
+                    let n = NSDecimalNumber(decimal: number).intValue
+                    guard Decimal(n) == number else { throw MCPInboundFormatError.invalidParameters }
+                    limit = n
+                }
+                return .listTasks(id, limit)
+            }
+            guard name == "mika_run_task",
                   Set(arguments.keys).isSubset(of: ["goal", "request_id", "conversation"]),
                   let raw = arguments["goal"]?.stringValue else { throw MCPInboundFormatError.invalidParameters }
             let goal = raw.trimmingCharacters(in: .whitespacesAndNewlines)
