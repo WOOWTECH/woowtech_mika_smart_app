@@ -449,6 +449,13 @@
 "localPDFSearch.truncated" = "Matches: %1$lld; more matches exist.";
 "localPDFSearch.hit" = "Original page %1$lld (selection %2$lld)";
 "localPDFSearch.sourceFailed" = "Could not create a search snapshot. Make sure readable text was extracted.";
+"voice.choice.title" = "Speech to text";
+"voice.choice.system" = "On-device speech recognition";
+"voice.choice.off" = "Turn off voice input";
+"voice.choice.unknown" = "Current choice unavailable";
+"voice.choice.rowDetail" = "Choose on-device recognition or turn it off";
+"voice.choice.notice" = "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported.";
+"voice.choice.disabledHint" = "Voice input is off or the choice is unavailable. Choose an option in model settings under Speech to text.";
 "chat.voiceLabel" = "Voice input";
 "chat.voiceHint" = "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop, or choose the cancel voice input action.";
 "chat.voiceListening" = "Listening. Release to add to draft; slide up to cancel.";

@@ -7,6 +7,7 @@ final class ChatVoiceViewModel: ObservableObject {
     @Published private(set) var wasInterrupted = false
     private var controller: ChatVoiceController?
     private let makeDriver: @MainActor () -> any VoiceInputDriver
+    private let preferences = VoicePreferences.shared
 
     init(makeDriver: @escaping @MainActor () -> any VoiceInputDriver = {
         #if DEBUG
@@ -23,11 +24,14 @@ final class ChatVoiceViewModel: ObservableObject {
             session?.conversationID ?? ""
         }, readDraft: { [weak session] in session?.draft ?? "" }, writeDraft: { [weak session] in
             session?.draft = $0
-        })
+        }, voiceAuthorization: { [weak preferences] in preferences?.authorization })
         controller.onStateChange = { [weak self] in self?.state = $0 }
         self.controller = controller
     }
-    func begin(startedAt: TimeInterval) { wasInterrupted = false; controller?.begin(gestureStartedAt: startedAt) }
+    func begin(startedAt: TimeInterval) {
+        preferences.refresh()
+        wasInterrupted = false; controller?.begin(gestureStartedAt: startedAt)
+    }
     func drag(_ distance: Double) { controller?.drag(upwardDistance: distance) }
     func release() { controller?.release() }
     func cancel(interrupted: Bool = false) {
@@ -35,7 +39,7 @@ final class ChatVoiceViewModel: ObservableObject {
         controller?.cancel()
         wasInterrupted = interrupted ? (wasInterrupted || wasActive) : false
     }
-    func tick() { controller?.tick() }
+    func tick() { preferences.refresh(); controller?.tick() }
     var isActive: Bool {
         switch state { case .listening, .finishing: return true; default: return false }
     }
@@ -45,6 +49,8 @@ final class ChatVoiceViewModel: ObservableObject {
 /// interrupted gesture cannot accidentally be interpreted as a release.
 @MainActor
 struct ChatVoicePressControl: UIViewRepresentable {
+    @ObservedObject private var voicePreferences = VoicePreferences.shared
+    @Environment(\.appLocalizer) private var localizer
     let label: String
     let hint: String
     let cancelLabel: String
@@ -54,6 +60,14 @@ struct ChatVoicePressControl: UIViewRepresentable {
     let drag: (Double) -> Void
     let release: () -> Void
     let cancel: () -> Void
+
+    init(label: String, hint: String, cancelLabel: String, active: Bool, enabled: Bool,
+         begin: @escaping (TimeInterval) -> Void, drag: @escaping (Double) -> Void,
+         release: @escaping () -> Void, cancel: @escaping () -> Void) {
+        self.label = label; self.hint = hint; self.cancelLabel = cancelLabel
+        self.active = active; self.enabled = enabled
+        self.begin = begin; self.drag = drag; self.release = release; self.cancel = cancel
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
     func makeUIView(context: Context) -> VoicePressButton {
@@ -81,11 +95,12 @@ struct ChatVoicePressControl: UIViewRepresentable {
     func updateUIView(_ button: VoicePressButton, context: Context) {
         context.coordinator.parent = self
         button.accessibilityLabel = label
-        button.accessibilityHint = hint
+        button.accessibilityHint = voicePreferences.choice.allowsDeviceRecognition
+            ? hint : localizer.text(.voiceChoiceDisabledHint)
         button.accessibilityCustomActions = active
             ? [UIAccessibilityCustomAction(name: cancelLabel, target: button, selector: #selector(VoicePressButton.cancelVoice(_:)))]
             : nil
-        button.isEnabled = enabled
+        button.isEnabled = enabled && voicePreferences.choice.allowsDeviceRecognition
         button.tintColor = active ? .systemRed : .label
     }
     static func dismantleUIView(_ button: VoicePressButton, coordinator: Coordinator) {

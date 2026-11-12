@@ -449,6 +449,13 @@
 "localPDFSearch.truncated" = "找到 %1$lld 處；還有其他符合位置。";
 "localPDFSearch.hit" = "原第 %1$lld 頁（選取序號 %2$lld）";
 "localPDFSearch.sourceFailed" = "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。";
+"voice.choice.title" = "語音轉文字";
+"voice.choice.system" = "裝置上語音辨識";
+"voice.choice.off" = "不用語音輸入";
+"voice.choice.unknown" = "目前選項不可用";
+"voice.choice.rowDetail" = "選擇裝置辨識或關閉";
+"voice.choice.notice" = "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。";
+"voice.choice.disabledHint" = "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。";
 "chat.voiceLabel" = "語音輸入";
 "chat.voiceHint" = "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。";
 "chat.voiceListening" = "正在聆聽，放開加入草稿；上滑取消";

@@ -458,6 +458,13 @@ enum AppText: Equatable {
     case localPDFSearchTruncated(count: Int)
     case localPDFSearchHit(page: Int, index: Int)
     case localPDFSearchSourceFailed
+    case voiceChoiceTitle
+    case voiceChoiceSystem
+    case voiceChoiceOff
+    case voiceChoiceUnknown
+    case voiceChoiceRowDetail
+    case voiceChoiceNotice
+    case voiceChoiceDisabledHint
     case voiceLabel
     case voiceHint
     case voiceListening
@@ -935,6 +942,13 @@ enum AppText: Equatable {
         case .localPDFSearchTruncated: return "localPDFSearch.truncated"
         case .localPDFSearchHit: return "localPDFSearch.hit"
         case .localPDFSearchSourceFailed: return "localPDFSearch.sourceFailed"
+        case .voiceChoiceTitle: return "voice.choice.title"
+        case .voiceChoiceSystem: return "voice.choice.system"
+        case .voiceChoiceOff: return "voice.choice.off"
+        case .voiceChoiceUnknown: return "voice.choice.unknown"
+        case .voiceChoiceRowDetail: return "voice.choice.rowDetail"
+        case .voiceChoiceNotice: return "voice.choice.notice"
+        case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
         case .voiceLabel: return "chat.voiceLabel"
         case .voiceHint: return "chat.voiceHint"
         case .voiceListening: return "chat.voiceListening"
@@ -1444,6 +1458,13 @@ enum AppText: Equatable {
         case .localPDFSearchTruncated: return "找到 %1$lld 處；還有其他符合位置。"
         case .localPDFSearchHit: return "原第 %1$lld 頁（選取序號 %2$lld）"
         case .localPDFSearchSourceFailed: return "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。"
+        case .voiceChoiceTitle: return "語音轉文字"
+        case .voiceChoiceSystem: return "裝置上語音辨識"
+        case .voiceChoiceOff: return "不用語音輸入"
+        case .voiceChoiceUnknown: return "目前選項不可用"
+        case .voiceChoiceRowDetail: return "選擇裝置辨識或關閉"
+        case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
+        case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
         case .voiceLabel: return "語音輸入"
         case .voiceHint: return "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。"
         case .voiceListening: return "正在聆聽，放開加入草稿；上滑取消"

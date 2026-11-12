@@ -449,6 +449,13 @@
 "localPDFSearch.truncated" = "找到 %1$lld 处；还有其他匹配位置。";
 "localPDFSearch.hit" = "原第 %1$lld 页（选择序号 %2$lld）";
 "localPDFSearch.sourceFailed" = "无法为本次提取结果创建搜索快照，请确认已提取可读取的文字。";
+"voice.choice.title" = "语音转文字";
+"voice.choice.system" = "设备上语音识别";
+"voice.choice.off" = "不使用语音输入";
+"voice.choice.unknown" = "当前选项不可用";
+"voice.choice.rowDetail" = "选择设备识别或关闭";
+"voice.choice.notice" = "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。";
+"voice.choice.disabledHint" = "语音输入已关闭或选项不可用；请在模型设置的“语音转文字”中选择。";
 "chat.voiceLabel" = "语音输入";
 "chat.voiceHint" = "按住说话，上滑取消，放开加入草稿。VoiceOver 可激活开始及结束，或选择取消语音输入操作。";
 "chat.voiceListening" = "正在聆听，放开加入草稿；上滑取消";

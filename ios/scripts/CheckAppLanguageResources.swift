@@ -56,6 +56,13 @@ import AssistantSkills
             for phrase in required {
                 try check(detail.contains(phrase), "MCP model limit accurately distinguishes remote and local operations")
             }
+            for message: AppText in [.voiceChoiceTitle, .voiceChoiceSystem, .voiceChoiceOff,
+                                     .voiceChoiceUnknown, .voiceChoiceRowDetail, .voiceChoiceNotice,
+                                     .voiceChoiceDisabledHint] {
+                let resolved = l.resolve(message)
+                try check(resolved.language == language && !resolved.usedFallback && !resolved.text.isEmpty,
+                          "voice settings text uses selected language")
+            }
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))

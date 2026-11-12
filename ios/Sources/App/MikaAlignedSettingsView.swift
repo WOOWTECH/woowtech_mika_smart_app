@@ -260,9 +260,20 @@ private struct MikaModelSettingsDetailView: View {
                     .padding(.top, 12)
                 MikaSettingsGroupLabel(title: localizer.text(.settingsModelRoles))
                 MikaSettingsCard {
-                    MikaSettingsRow(icon: .spark, title: localizer.text(.settingsModelMain),
-                                    subtitle: localizer.text(.settingsModelMainDetail),
-                                    value: configuredModelName, accessory: .none)
+                    VStack(spacing: 0) {
+                        MikaSettingsRow(icon: .spark, title: localizer.text(.settingsModelMain),
+                                        subtitle: localizer.text(.settingsModelMainDetail),
+                                        value: configuredModelName, accessory: .none)
+                        Divider().padding(.leading, 60)
+                        NavigationLink {
+                            VoiceSettingsView(languages: languages)
+                        } label: {
+                            MikaSettingsRow(icon: .spark, title: localizer.text(.voiceChoiceTitle),
+                                            subtitle: localizer.text(.voiceChoiceRowDetail))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.voice.open")
+                    }
                 }
                 MikaSettingsGroupLabel(title: localizer.text(.settingsModelProviders))
                     .padding(.top, 8)
