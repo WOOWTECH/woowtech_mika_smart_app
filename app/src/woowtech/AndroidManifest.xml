@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The woowtech flavor adds the browser entry below. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The Play edition never prepares the executable sandbox. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:node="remove" />
 
     <application>
+        <service
+            android:name=".sandbox.SandboxService"
+            tools:node="remove" />
         <!-- Browser input stops here; MainActivity must never receive its extras or URI grants. -->
         <activity
             android:name=".woowtech.BrowserOpenActivity"
