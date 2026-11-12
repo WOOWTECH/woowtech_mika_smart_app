@@ -978,6 +978,13 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("initial structured POST is awaiting completion") {
                 fixture.requestCount == 1 && fixture.bodyDelivered
             }
+            // URLProtocol delivery and the URLSession dispatch callback run on
+            // different executors. Body delivery alone does not prove that the
+            // host's dispatch lease has already been released.
+            try await wait("initial structured dispatch lease released") {
+                guard let lease = try? e.learning.acquireCurrentReferenceLease() else { return false }
+                lease.release(); return true
+            }
             let generation = e.learning.generation
             switch kind {
             case "switch":
