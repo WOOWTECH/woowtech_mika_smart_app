@@ -465,3 +465,6 @@
 "chat.voiceSettings" = "Open Settings";
 "chat.voiceInterrupted" = "Voice input was interrupted. If you just granted access, hold to speak again.";
 "chat.voiceAccessibilityCancel" = "Cancel voice input";
+"mcp.call.limit.title" = "MCP model call limit";
+"mcp.call.limit.subtitle" = "Limit model calls per message using MCP";
+"mcp.call.limit.details" = "Includes format corrections. Each message uses the setting captured when sent; changes apply to the next message. The maximum is 12; tool calls still require individual approval and are capped at 6. Reaching the limit may leave no final answer; completed actions are not undone. This does not affect ordinary chat or skills.";

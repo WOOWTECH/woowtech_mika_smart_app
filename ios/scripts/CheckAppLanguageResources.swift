@@ -34,6 +34,11 @@ import AssistantSkills
         let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "外觀與模型權限", "個步驟"), (.simplifiedChinese, "外观与模型权限", "个步骤"), (.english, "Appearance and model permissions", "steps")]
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
+            for message: AppText in [.mcpCallLimitTitle, .mcpCallLimitSubtitle, .mcpCallLimitDetails] {
+                let resolved = l.resolve(message)
+                try check(resolved.language == language && !resolved.usedFallback && !resolved.text.isEmpty,
+                          "MCP call limit text uses selected language")
+            }
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))

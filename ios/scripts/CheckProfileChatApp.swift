@@ -142,7 +142,8 @@ private actor RecordingUIModel: ChatModelClient {
     func reopen() -> LearningStore { LearningStore(vault: EncryptedLearningFile(url: file, keys: keys)) }
     func bytes() throws -> Data { try Data(contentsOf: file) }
     func session(_ client: any ChatModelClient) -> ChatSession {
-        ChatSession(learning: store, repository: repository, client: client)
+        ChatSession(learning: store, repository: repository, client: client,
+                    mcpLimitPreferences: MCPConversationModelCallPreference(defaults: defaults))
     }
     // Real atomic file replacement failure; never changes the production writer.
     func blockWrite() throws {
@@ -578,6 +579,45 @@ private enum CheckProfileChatApp {
     }
 
     static let remoteRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
+
+    @MainActor static func mcpModelCallLimitSetting() async throws {
+        let env = try Environment(); defer { try? env.close() }
+        let preferences = MCPConversationModelCallPreference(defaults: env.defaults)
+        try check(preferences.load() == 12, "MCP default retains existing model limit")
+        try check(!preferences.save(0) && !preferences.save(13) && preferences.load() == 12,
+                  "invalid limits do not change preference")
+        env.defaults.set("999", forKey: "mcp.conversation.modelCallLimit.v1")
+        try check(preferences.load() == 12, "corrupt stored limit cannot raise hard ceiling")
+        let server = LearningMCPServer(), connection = try await connectedMCP(server)
+        defer { connection.disconnect() }
+        let model = ScriptedModel([.init(remoteRead), .init(finished)])
+        let settingsSession = env.session(model), session = env.session(model)
+        try check(session.mcpModelCallLimit == 12, "other window initially sees default")
+        try check(settingsSession.setMCPModelCallLimit(1) && env.session(model).mcpModelCallLimit == 1,
+                  "selected MCP limit persists to next session")
+        let running = try startMCP(session, connection: connection, draft: "Run the selected synthetic tool")
+        try check(session.mcpModelCallLimit == 1, "submission refreshes shared setting from another window")
+        try await until("Limited MCP proposal") { session.pendingMCPApproval != nil || !session.isSubmitting }
+        guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "Limited MCP approval missing") }
+        try check(settingsSession.setMCPModelCallLimit(2), "change preference while approval is pending")
+        session.resolveMCPApproval(id: approval.id, approved: true)
+        await running.value
+        let firstCalls = await model.requests.count, firstDispatches = await server.calls.count
+        try check(firstCalls == 1 && firstDispatches == 1 && session.mcpSteps.count == 1 && session.entries.isEmpty
+                  && !session.draft.isEmpty && session.chatError != nil,
+                  "captured one-call limit stops without fabricated answer and preserves the approved result")
+        let secondModel = ScriptedModel([.init(remoteRead), .init(finished)])
+        let second = env.session(secondModel)
+        try check(second.mcpModelCallLimit == 2, "next run loads updated preference")
+        let next = try startMCP(second, connection: connection, draft: "Run the selected synthetic tool")
+        try await until("Next MCP approval") { second.pendingMCPApproval != nil || !second.isSubmitting }
+        guard let nextApproval = second.pendingMCPApproval else { throw CheckFailure(check: "Next MCP approval missing") }
+        second.resolveMCPApproval(id: nextApproval.id, approved: true)
+        await next.value
+        let secondCalls = await secondModel.requests.count, allDispatches = await server.calls.count
+        try check(secondCalls == 2 && allDispatches == 2 && second.chatError == nil && second.entries.count == 2,
+                  "next run uses new limit, actual approval and actual final response")
+    }
 
     @MainActor static func mcpMemoryAndRemoteApprovals() async throws {
         let env = try Environment(); defer { try? env.close() }
@@ -1299,6 +1339,7 @@ private enum CheckProfileChatApp {
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
             try await group("mcpMemoryAndRemoteApprovals", mcpMemoryAndRemoteApprovals)
+            try await group("mcpModelCallLimitSetting", mcpModelCallLimitSetting)
             try await group("mcpProfileReceiptSurvivesRemoteRefusal", mcpProfileReceiptSurvivesRemoteRefusal)
             try await group("mcpMemorySearchDeleteAndFences", mcpMemorySearchDeleteAndFences)
             try await group("mcpLocalAuthorityAndLimits", mcpLocalAuthorityAndLimits)
@@ -1371,6 +1412,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMCPMemoryAndRemoteApprovalsAreSeparate() async throws {
         try await CheckProfileChatApp.mcpMemoryAndRemoteApprovals()
+    }
+    @MainActor func testMCPModelCallLimitPersistsAndIsCapturedPerRun() async throws {
+        try await CheckProfileChatApp.mcpModelCallLimitSetting()
     }
     @MainActor func testMCPProfileReceiptSurvivesRemoteRefusal() async throws {
         try await CheckProfileChatApp.mcpProfileReceiptSurvivesRemoteRefusal()

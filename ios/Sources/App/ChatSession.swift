@@ -79,6 +79,7 @@ final class ChatSession: ObservableObject {
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
     @Published var usesMCP = false
+    @Published private(set) var mcpModelCallLimit = MCPConversationModelCallPreference.defaultValue
     @Published private(set) var pendingMCPApproval: MCPApprovalRequest?
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
@@ -104,6 +105,7 @@ final class ChatSession: ObservableObject {
     let isUITestMode: Bool
     private let repository: ModelSettingsRepository
     private let client: any ChatModelClient
+    private let mcpLimitPreferences: MCPConversationModelCallPreference?
     private let assistantQuoteText: @MainActor (String) -> String
     private var request: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
@@ -113,6 +115,8 @@ final class ChatSession: ObservableObject {
 
     init() {
         assistantQuoteText = Self.plainAssistantQuote
+        mcpLimitPreferences = Self.makeMCPLimitPreferences(arguments: ProcessInfo.processInfo.arguments)
+        mcpModelCallLimit = mcpLimitPreferences?.load() ?? MCPConversationModelCallPreference.defaultValue
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         let streamFixture: UITestChatStreamingConfiguration?
@@ -164,14 +168,48 @@ final class ChatSession: ObservableObject {
     /// lifecycles with isolated storage; production uses the initializer above.
     init(learning: LearningStore, repository: ModelSettingsRepository, client: any ChatModelClient,
          archive: ConversationArchiveStore? = nil,
+         mcpLimitPreferences: MCPConversationModelCallPreference? = nil,
          assistantQuoteText: @escaping @MainActor (String) -> String = ChatSession.plainAssistantQuote) {
         self.learning = learning
         self.archive = archive
         self.repository = repository
         self.client = client
+        self.mcpLimitPreferences = mcpLimitPreferences
+        mcpModelCallLimit = mcpLimitPreferences?.load() ?? MCPConversationModelCallPreference.defaultValue
         self.assistantQuoteText = assistantQuoteText
         isUITestMode = false
         loadSettings()
+    }
+
+    @discardableResult func setMCPModelCallLimit(_ value: Int) -> Bool {
+        guard MCPConversationModelCallPreference.allowed.contains(value) else { return false }
+        if let mcpLimitPreferences, !mcpLimitPreferences.save(value) { return false }
+        mcpModelCallLimit = value
+        return true
+    }
+
+    func refreshMCPModelCallLimit() {
+        if let mcpLimitPreferences { mcpModelCallLimit = mcpLimitPreferences.load() }
+    }
+
+    private static func makeMCPLimitPreferences(arguments: [String]) -> MCPConversationModelCallPreference? {
+        #if DEBUG
+        let mode: (String, String)? = arguments.contains("-UITestMode") ? ("ui", "-UITestNamespace")
+            : (arguments.contains("-LiveModelUITest") ? ("live", "-LiveModelUITestNamespace") : nil)
+        if let (kind, flag) = mode {
+            guard arguments.filter({ $0 == flag }).count == 1,
+                  let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1),
+                  let id = UUID(uuidString: arguments[index + 1]) else { return nil }
+            let name = "io.woowtech.assistant.mcp-call-limit.\(kind).\(id.uuidString)"
+            guard let defaults = UserDefaults(suiteName: name) else { return nil }
+            if arguments.contains("-UITestResetStorage") || arguments.contains("-LiveModelUITestCleanup") {
+                defaults.removePersistentDomain(forName: name)
+            }
+            return MCPConversationModelCallPreference(defaults: defaults)
+        }
+        if arguments.contains(where: { $0.hasPrefix("-UITest") || $0.hasPrefix("-LiveModelUITest") }) { return nil }
+        #endif
+        return MCPConversationModelCallPreference(defaults: .standard)
     }
 
     static func plainAssistantQuote(_ text: String) -> String {
@@ -474,6 +512,10 @@ final class ChatSession: ObservableObject {
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
         let configuration = savedSettings.configuration
+        // Capture at submission. Changing settings never extends an active run.
+        // Another app window may have changed the shared preference.
+        if mcpConnection != nil { refreshMCPModelCallLimit() }
+        let mcpLimits = MCPConversationLimits(maximumModelCalls: mcpModelCallLimit)
         let id = UUID()
         requestID = id
         replyPreview = nil
@@ -494,7 +536,8 @@ final class ChatSession: ObservableObject {
                     reply = try await self?.completeWithMCP(messages: messages, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
+                        key: key, client: client, connection: connection, tools: tools, resources: resources,
+                        limits: mcpLimits, requestID: id) ?? ""
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: messages, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
@@ -936,7 +979,8 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
+                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource],
+                                 limits: MCPConversationLimits, requestID: UUID) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
@@ -948,7 +992,7 @@ final class ChatSession: ObservableObject {
         } else { local = nil }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: connection,
+            tools: tools, resources: resources, executor: connection, limits: limits,
             approve: { [weak self] proposal in
                 switch proposal.action {
                 case .callTool(let name, let arguments):

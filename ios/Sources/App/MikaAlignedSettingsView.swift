@@ -1,6 +1,8 @@
 #if os(iOS)
 import AssistantSkills
 import AssistantModels
+import AssistantMCP
+import Combine
 import SwiftUI
 
 /// Settings root and its model destination share the existing stores. The
@@ -73,6 +75,16 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("settings.notifications")
+                        Divider().padding(.leading, 60)
+                        NavigationLink {
+                            MCPConversationLimitSettingsView(session: session, languages: languages)
+                        } label: {
+                            MikaSettingsRow(icon: .spark, title: localizer.text(.mcpCallLimitTitle),
+                                            subtitle: localizer.text(.mcpCallLimitSubtitle),
+                                            value: String(session.mcpModelCallLimit))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.mcpModelCallLimit")
                     }
                 }
                 MikaSettingsGroupLabel(title: localizer.text(.settingsHomeMyData))
@@ -118,6 +130,36 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
         }
         .background(palette.page)
         .navigationTitle(localizer.text(.settingsHomeTitle))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { session.refreshMCPModelCallLimit() }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in
+            session.refreshMCPModelCallLimit()
+        }
+    }
+}
+
+@MainActor
+private struct MCPConversationLimitSettingsView: View {
+    @ObservedObject var session: ChatSession
+    @ObservedObject var languages: AppLanguageStore
+    private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker(localizer.text(.mcpCallLimitTitle), selection: Binding(
+                    get: { session.mcpModelCallLimit },
+                    set: { _ = session.setMCPModelCallLimit($0) })) {
+                    ForEach(Array(MCPConversationModelCallPreference.allowed), id: \.self) { value in
+                        Text(verbatim: String(value)).tag(value)
+                    }
+                }
+                .accessibilityIdentifier("settings.mcpModelCallLimit.picker")
+                Text(localizer.text(.mcpCallLimitDetails))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle(localizer.text(.mcpCallLimitTitle))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -74,6 +74,26 @@ public struct MCPConversationLimits: Sendable {
     }
 }
 
+/// User preference for MCP conversation model requests only. A malformed value
+/// falls back to the existing hard limit; it cannot enlarge the runner budget.
+public struct MCPConversationModelCallPreference {
+    public static let allowed = 1...12
+    public static let defaultValue = 12
+    private static let key = "mcp.conversation.modelCallLimit.v1"
+    private let defaults: UserDefaults
+    public init(defaults: UserDefaults) { self.defaults = defaults }
+    public func load() -> Int {
+        guard let raw = defaults.object(forKey: Self.key) as? String,
+              let value = Int(raw), raw == String(value), Self.allowed.contains(value) else { return Self.defaultValue }
+        return value
+    }
+    @discardableResult public func save(_ value: Int) -> Bool {
+        guard Self.allowed.contains(value) else { return false }
+        defaults.set(String(value), forKey: Self.key)
+        return true
+    }
+}
+
 /// Fixed categories only: never embed credentials, catalog, arguments, server
 /// output or an underlying localizedDescription in a thrown error.
 public enum MCPConversationError: String, Error, Sendable, Equatable, LocalizedError {

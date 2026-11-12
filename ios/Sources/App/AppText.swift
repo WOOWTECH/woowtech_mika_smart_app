@@ -474,6 +474,9 @@ enum AppText: Equatable {
     case voiceSettings
     case voiceInterrupted
     case voiceAccessibilityCancel
+    case mcpCallLimitTitle
+    case mcpCallLimitSubtitle
+    case mcpCallLimitDetails
 
     var key: String {
         switch self {
@@ -948,6 +951,9 @@ enum AppText: Equatable {
         case .voiceSettings: return "chat.voiceSettings"
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
+        case .mcpCallLimitTitle: return "mcp.call.limit.title"
+        case .mcpCallLimitSubtitle: return "mcp.call.limit.subtitle"
+        case .mcpCallLimitDetails: return "mcp.call.limit.details"
         }
     }
 
@@ -1454,6 +1460,9 @@ enum AppText: Equatable {
         case .voiceSettings: return "前往設定"
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
+        case .mcpCallLimitTitle: return "MCP 模型呼叫上限"
+        case .mcpCallLimitSubtitle: return "限制每則啟用 MCP 的訊息所使用的模型呼叫次數"
+        case .mcpCallLimitDetails: return "包含格式修正；每則訊息送出時固定，變更從下一則訊息生效。最多 12 次，工具呼叫仍須逐次核准且最多 6 次。達到上限可能沒有最終答覆，已執行的操作不會撤銷。此設定不影響一般聊天或技能。"
         }
     }
 }
