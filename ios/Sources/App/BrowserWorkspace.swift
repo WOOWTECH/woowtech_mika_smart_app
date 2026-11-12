@@ -84,7 +84,12 @@ final class BrowserWorkspace: ObservableObject {
         if reset {
             isClearingWebsiteData = true
             dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { [weak self] in
-                self?.isClearingWebsiteData = false
+                guard let self else { return }
+                self.isClearingWebsiteData = false
+                // BrowserView may have appeared while its isolated profile was
+                // being reset. Resume that visible navigation after WebKit
+                // finishes clearing, just as a user-initiated clear does.
+                self.finishDeferredBrowserActivation(success: true)
             }
         }
         // Restore metadata only. Visiting a saved page starts when Browser opens,
