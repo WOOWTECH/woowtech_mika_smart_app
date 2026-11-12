@@ -6,6 +6,7 @@
 
 - 商店分支 `playstore/woowtech-compliant-20261111`，檢查時 HEAD 為 `2ac89a89`。原始碼設定套件 `io.woowtech.assistant`、`versionCode=2`、`0.1.37-play.2`、target API 36。Google 要求一般手機新 App 與更新自 2026-08-31 起 target API 36 以上；原始碼和本機候選 AAB 的數值符合該條件。[Google 目標 API 規則](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en)
 - 本機候選 AAB：`app/build/outputs/bundle/woowtechRelease/app-woowtech-release.aab`，64,927,365 bytes，SHA-256 `5f3d9f3c7d35e08280413b130809ae7f44d7f0e3eb7e4596147163c3adfee994`。直接檢查 ZIP 未見 AAB/JAR `.SF`／`.RSA`／`.DSA`／`.EC` 簽章項目；**此候選檔尚無標準上傳簽章**。檔案時間早於上述 commit，不能據時間判定內容是否與該 commit 一致。需從確定的最終 commit 重建、驗證內容並用受控的上傳金鑰簽章；版本碼是否可用取決於 Console 已使用的版本。
+- Gradle 的渥屋版簽章配置由環境變數 `WOOWTECH_SIGNING_PROPERTIES` 指向的外部 properties 檔提供；本次執行環境未設定該變數。這不能證明簽章金鑰不存在，也不能用既有 App 的簽章推定新套件設定；需確認安全提供方式及 Play Console 新 App 的簽章方案。
 - 候選 AAB manifest 經獨立解析為 min API 30、target API 36；含網路、錄音、通知、wake lock 與前景服務權限；未列無障礙服務、`McpService` 或 `SandboxService`。`TaskService` 與 `ChatGptSignInService` 為 `specialUse`。應在最終簽章 AAB 重新檢查；manifest 不足以單獨證明所有程式路徑均不可達。
 - POCO `play.2` 已經 ADB 安裝與啟動，但完整真實模型與 MCP 驗收多為 `play.1` 的紀錄；尚無從 Play 測試軌安裝本版的證據。詳見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 - 使用者選取帳戶後，Play Console 首頁明確顯示 WOOWTECH 為**機構帳戶**，首頁列出七個正式版和一個內部測試 App，當中未見 `io.woowtech.assistant`；首頁未列出不等於已排除所有可能的草稿或其他帳戶。此帳戶不屬新個人帳戶的 12 人、14 天規則。尚未確認渥屋助理套件是否能建立、簽章、測試軌與審查狀態。
