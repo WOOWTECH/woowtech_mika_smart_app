@@ -3414,6 +3414,26 @@
       }
     },
     {
+      "case": "browserRecoveryOverflow",
+      "key": "browser.recovery.overflow",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "部分下載提示超出數量上限，未列出的下載已取消。請返回網頁重新發起。",
+        "zh-Hans": "部分下载提示超出数量上限，未列出的下载已取消。请返回网页重新发起。",
+        "en": "Some download prompts exceeded the limit and those downloads were cancelled. Return to the page to try again."
+      }
+    },
+    {
+      "case": "browserRecoveryClose",
+      "key": "browser.recovery.close",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉並捨棄未確認的下載",
+        "zh-Hans": "关闭并舍弃未确认的下载",
+        "en": "Close and discard unconfirmed downloads"
+      }
+    },
+    {
       "case": "browserRecoveryTimeout",
       "key": "browser.recovery.timeout",
       "parameters": [],

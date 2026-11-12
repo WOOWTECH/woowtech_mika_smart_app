@@ -17,8 +17,12 @@ policy APIs do not identify the issuing `WKNavigation`, and a time limit or
 initial URL comparison cannot prove that old callbacks have drained. Main-frame
 attachment/unsupported-MIME responses and download actions from this view are
 cancelled instead of being given a download permit. When otherwise eligible,
-the selected tab presents one confirmation at a time. Repeated delivery of the
-same policy object does not create another offer. Automated/research work is not
+the selected tab presents a list of untrusted candidates, with a separate
+confirmation for each. This includes callbacks whose origin may be an old
+navigation; displaying one is never permission to start a request. Up to 16
+candidates are retained. Further candidates are cancelled and an explicit
+overflow message tells the user to return to the page and retry. Repeated
+delivery of the same policy object does not create another offer. Automated/research work is not
 offered this flow. Action requests other than GET do not offer recovery.
 
 The confirmation displays the proposed URL and explains that proceeding starts
@@ -30,9 +34,11 @@ still applies its HTTPS/URL, redirect, TLS, size and storage checks. The
 isolated WebView does not provide network-level isolation of the original page,
 its scripts, DNS or subresources.
 
-A confirmation is single-use. Dismissal, tab switching, page/tab closure,
-website-data retirement and starting automation revoke pending confirmation and
-pending isolated-download handoff. If the asynchronous WebKit callback arrives
+A confirmation is single-use. Dismissing an offer discards that offer; closing
+the list discards all unconfirmed offers. Starting another explicit navigation
+also discards the list. Tab switching, page/tab closure, website-data retirement and starting automation revoke pending offers and a
+pending isolated-download handoff. Closing the list alone does not retract a
+GET the user already confirmed. If the asynchronous WebKit callback arrives
 later, the returned download is cancelled. A GET already handed to WebKit can
 reach the server before cancellation; this is not a promise to undo a request.
 An accepted download is subsequently managed by the existing download manager.
@@ -52,7 +58,11 @@ Run `python3 ios/scripts/check_browser_stop_redirect.py` on macOS with command
 line tools. Its synthetic loopback fixture and nonpersistent website store use
 no external site, personal keychain or real credentials. It runs same-URL and
 redirect response-policy interleavings, checks the old response is cancelled,
-and checks a user-confirmed isolated GET completes. It exercises ordinary
+and checks a user-confirmed isolated GET completes. Two distinct real WebKit
+actions are held and delivered old-first: both offers remain visible and each
+requires a separate GET. A bounded-state check covers overflow and tab-switch
+revocation. The close test holds a real WebKit download handoff, closes the page,
+then synchronously observes its rejection. The suite exercises ordinary
 action download before stop, action confirmation afterward, delayed action and
 response `didBecome` callbacks, duplicate confirmation, dismissal, page closure,
 and the prior loopback checks for back, forward and a new form POST after stop.

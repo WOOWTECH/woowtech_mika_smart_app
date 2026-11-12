@@ -254,8 +254,9 @@ struct BrowserView: View {
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
         }
-        .sheet(item: $browser.downloadRecovery) { offer in
-            BrowserDownloadRecoveryView(browser: browser, offer: offer)
+        .sheet(item: Binding(get: { browser.downloadRecovery }, set: { _ in })) { _ in
+            BrowserDownloadRecoveryView(browser: browser)
+                .interactiveDismissDisabled()
         }
         .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
         .onDisappear { browser.setPageFindHostVisible(false) }
@@ -418,18 +419,33 @@ struct BrowserView: View {
 private struct BrowserDownloadRecoveryView: View {
     @Environment(\.appLocalizer) private var localizer
     @ObservedObject var browser: BrowserSession
-    let offer: BrowserDownloadRecovery
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 18) {
                 Text(localizer.text(.browserRecoveryNotice))
-                ScrollView { Text(verbatim: offer.url.absoluteString).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-                    .frame(maxHeight: 180)
-                Button(localizer.text(.browserRecoveryConfirm)) { browser.confirmDownloadRecovery(id: offer.id) }
-                    .buttonStyle(.borderedProminent).accessibilityIdentifier("browser.downloadRecovery.confirm")
-                Button(localizer.text(.commonCancel)) { browser.downloadRecovery = nil }
+                if browser.downloadRecoveryTimedOut {
+                    Text(localizer.text(.browserRecoveryTimeout)).foregroundStyle(.secondary)
+                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        ForEach(browser.downloadRecoveryOffers) { offer in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(verbatim: offer.url.absoluteString).textSelection(.enabled)
+                                HStack {
+                                    Button(localizer.text(.browserRecoveryConfirm)) { browser.confirmDownloadRecovery(id: offer.id) }
+                                        .buttonStyle(.borderedProminent).disabled(browser.downloadRecoveryBusy)
+                                        .accessibilityIdentifier("browser.downloadRecovery.confirm")
+                                    Button(localizer.text(.commonCancel)) { browser.dismissDownloadRecovery(id: offer.id) }
+                                }
+                            }
+                        }
+                        if browser.downloadRecoveryOverflow {
+                            Text(localizer.text(.browserRecoveryOverflow)).foregroundStyle(.secondary)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Button(localizer.text(.browserRecoveryClose)) { browser.dismissDownloadRecoveryOffers() }
                     .accessibilityIdentifier("browser.downloadRecovery.cancel")
-                Spacer()
             }
             .padding()
             .navigationTitle(localizer.text(.browserRecoveryTitle))

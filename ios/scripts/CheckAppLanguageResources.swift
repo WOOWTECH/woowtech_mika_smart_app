@@ -43,7 +43,7 @@ import AssistantSkills
             }
             try check(stopped.text == stoppedExpected && stopped.language == language && !stopped.usedFallback,
                       "stopped page status uses selected language")
-            for message: AppText in [.browserRecoveryTitle, .browserRecoveryNotice, .browserRecoveryConfirm, .browserRecoveryTimeout] {
+            for message: AppText in [.browserRecoveryTitle, .browserRecoveryNotice, .browserRecoveryConfirm, .browserRecoveryTimeout, .browserRecoveryOverflow, .browserRecoveryClose] {
                 let resolved = l.resolve(message)
                 try check(resolved.language == language && !resolved.usedFallback && !resolved.text.isEmpty,
                           "download recovery text uses selected language")

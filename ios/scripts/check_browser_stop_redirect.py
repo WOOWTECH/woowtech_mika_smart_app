@@ -28,5 +28,6 @@ if same.returncode != 0 or expected not in same.stdout:
     raise SystemExit('same-URL regression failed: ' + same.stdout + same.stderr)
 print('same_url_quarantined_and_isolated_get_completed=true', flush=True)
 subprocess.run([str(binary), *flags, str(uuid.uuid4()), '-UITestBrowserStopRedirect'], check=True, timeout=180)
+subprocess.run([str(binary), *flags, str(uuid.uuid4()), '-UITestBrowserDistinctActions'], check=True, timeout=180)
 subprocess.run([str(binary), '-UITestMode', '-UITestBrowserLogin', '-UITestNamespace', str(uuid.uuid4())],
                check=True, timeout=180)

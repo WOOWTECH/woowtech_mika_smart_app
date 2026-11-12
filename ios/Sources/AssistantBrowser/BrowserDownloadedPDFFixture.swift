@@ -22,10 +22,11 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
     public var transferCount: Int { queue.sync { downloads } }
 
     public static func validatedNamespace(_ arguments: [String]) -> UUID? {
-        let allowed = Set(["-UITestMode", "-UITestNamespace", "-UITestResetStorage", "-UITestBrowserDownloadedPDF", "-UITestBrowserStopRedirect"])
+        let allowed = Set(["-UITestMode", "-UITestNamespace", "-UITestResetStorage", "-UITestBrowserDownloadedPDF", "-UITestBrowserStopRedirect", "-UITestBrowserDistinctActions"])
         guard ["-UITestMode", "-UITestNamespace", "-UITestBrowserDownloadedPDF"].allSatisfy({ flag in arguments.filter { $0 == flag }.count == 1 }),
               arguments.filter({ $0 == "-UITestResetStorage" }).count <= 1,
               arguments.filter({ $0 == "-UITestBrowserStopRedirect" }).count <= 1,
+              arguments.filter({ $0 == "-UITestBrowserDistinctActions" }).count <= 1,
               !arguments.contains(where: { $0.hasPrefix("-Live") || ($0.hasPrefix("-UITest") && !allowed.contains($0)) }),
               let index = arguments.firstIndex(of: "-UITestNamespace"), arguments.indices.contains(index + 1),
               arguments[index + 1].utf8.count == 36 else { return nil }
@@ -42,10 +43,10 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
         } onCancel: { [weak self] in self?.stop() }
     }
     public func allowsNavigation(_ url: URL) -> Bool {
-        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/page" || url.absoluteString == $0 + prefix + "/file.pdf" || url.absoluteString == $0 + prefix + "/redirect-to-file" } == true }
+        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/page" || url.absoluteString == $0 + prefix + "/file.pdf" || url.absoluteString == $0 + prefix + "/redirect-to-file" || url.absoluteString == $0 + prefix + "/other.pdf" } == true }
     }
     public func allowsDownload(_ url: URL) -> Bool {
-        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/file.pdf" } == true }
+        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/file.pdf" || url.absoluteString == $0 + prefix + "/other.pdf" } == true }
     }
     public func stop() { queue.async { self.stopOnQueue(.stopped) } }
     deinit {
@@ -145,7 +146,7 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
                 self.reply(client, status: 200, data: Data(html.utf8), type: "text/html; charset=utf-8")
             } else if first[1] == self.prefix + "/redirect-to-file" {
                 self.reply(client, status: 302, data: Data(), location: self.prefix + "/file.pdf")
-            } else if first[1] == self.prefix + "/file.pdf" {
+            } else if first[1] == self.prefix + "/file.pdf" || first[1] == self.prefix + "/other.pdf" {
                 self.downloads += 1
                 self.reply(client, status: 200, data: Self.payload, type: "application/pdf", attachment: self.filename)
             } else { self.reply(client, status: 404, data: Data()) }

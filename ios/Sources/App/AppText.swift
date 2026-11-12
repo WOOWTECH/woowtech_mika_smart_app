@@ -332,6 +332,8 @@ enum AppText: Equatable {
     case browserRecoveryTitle
     case browserRecoveryNotice
     case browserRecoveryConfirm
+    case browserRecoveryOverflow
+    case browserRecoveryClose
     case browserRecoveryTimeout
     case browserChromeReload
     case browserChromeOpen
@@ -811,6 +813,8 @@ enum AppText: Equatable {
         case .browserRecoveryTitle: return "browser.recovery.title"
         case .browserRecoveryNotice: return "browser.recovery.notice"
         case .browserRecoveryConfirm: return "browser.recovery.confirm"
+        case .browserRecoveryOverflow: return "browser.recovery.overflow"
+        case .browserRecoveryClose: return "browser.recovery.close"
         case .browserRecoveryTimeout: return "browser.recovery.timeout"
         case .browserChromeReload: return "browser.chrome.reload"
         case .browserChromeOpen: return "browser.chrome.open"
@@ -1322,6 +1326,8 @@ enum AppText: Equatable {
         case .browserRecoveryTitle: return "確認新的下載請求"
         case .browserRecoveryNotice: return "停止載入後無法確認這個下載屬於哪次導覽。繼續將在獨立頁面對下列網址發出新的 GET，不會重送先前的 POST。一次性連結可能已失效或再次產生作用。Cookie 可能共用，但登入狀態、表單、頁面歷史及工作階段可能不同。"
         case .browserRecoveryConfirm: return "以新 GET 下載"
+        case .browserRecoveryOverflow: return "部分下載提示超出數量上限，未列出的下載已取消。請返回網頁重新發起。"
+        case .browserRecoveryClose: return "關閉並捨棄未確認的下載"
         case .browserRecoveryTimeout: return "新的下載請求未能啟動，請返回網頁再試。"
         case .browserChromeReload: return "重新整理"
         case .browserChromeOpen: return "開啟"

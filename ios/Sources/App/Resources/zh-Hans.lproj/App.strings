@@ -324,6 +324,8 @@
 "browser.recovery.title" = "确认新的下载请求";
 "browser.recovery.notice" = "停止加载后无法确认此下载属于哪次导航。继续将在独立页面向下列网址发出新的 GET，不会重发之前的 POST。一次性链接可能已失效或再次产生作用。Cookie 可能共享，但登录状态、表单、页面历史及会话可能不同。";
 "browser.recovery.confirm" = "以新 GET 下载";
+"browser.recovery.overflow" = "部分下载提示超出数量上限，未列出的下载已取消。请返回网页重新发起。";
+"browser.recovery.close" = "关闭并舍弃未确认的下载";
 "browser.recovery.timeout" = "新的下载请求未能启动，请返回网页重试。";
 "browser.chrome.reload" = "重新加载";
 "browser.chrome.open" = "打开";

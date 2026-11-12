@@ -53,6 +53,9 @@ private final class SiteModeKeys: LearningKeyStore {
         var deferResponseURL: URL?
         var deferredResponse: (() -> Void)?
         var deferredPolicies: [WKNavigationResponsePolicy] = []
+        var holdNextDownloadAction = false
+        var deferredDownloadAction: (() -> Void)?
+        var deliveredActionPolicies: [WKNavigationActionPolicy] = []
         var holdNextDownload = false
         var deferredDownload: (() -> Void)?
         var actions: [(host: String?, main: Bool, method: String?, incomingMode: WKWebpagePreferences.ContentMode,
@@ -60,6 +63,15 @@ private final class SiteModeKeys: LearningKeyStore {
         init(_ browser: BrowserSession) { self.browser = browser }
         func webView(_ view: WKWebView, decidePolicyFor action: WKNavigationAction, preferences: WKWebpagePreferences,
                      decisionHandler: @escaping (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {
+            if holdNextDownloadAction && action.shouldPerformDownload {
+                holdNextDownloadAction = false
+                deferredDownloadAction = { [browser, weak self] in
+                    browser.webView(view, decidePolicyFor: action, preferences: preferences) { policy, result in
+                        self?.deliveredActionPolicies.append(policy); decisionHandler(policy, result)
+                    }
+                }
+                return
+            }
             let incomingMode = preferences.preferredContentMode
             events.append("policy:\(action.request.httpMethod ?? "nil"):body=\(action.request.httpBody?.count ?? -1):stream=\(action.request.httpBodyStream != nil)")
             if omitNextPolicyObservation, localHTMLURL == action.request.url {
@@ -599,12 +611,15 @@ private final class SiteModeKeys: LearningKeyStore {
         guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy delivered") }
         let oldPolicy = probe.deferredPolicies[0]
         guard oldPolicy == .cancel, browser.downloadRecovery != nil else { throw Failure(check: "old redirected response must be quarantined") }
-        browser.downloadRecovery = nil
+        let staleOffer = browser.downloadRecoveryOffers[0]
         newResponse()
         guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .cancel,
-              let offer = browser.downloadRecovery else {
-            throw Failure(check: "new redirected download should offer explicit GET")
+              browser.downloadRecoveryOffers.count == 2,
+              browser.downloadRecoveryOffers[0].id == staleOffer.id else {
+            throw Failure(check: "overlapping redirected responses retained as separate untrusted offers")
         }
+        browser.dismissDownloadRecovery(id: staleOffer.id)
+        guard let offer = browser.downloadRecoveryOffers.first else { throw Failure(check: "new redirected offer lost") }
         browser.confirmDownloadRecovery(id: offer.id)
         browser.confirmDownloadRecovery(id: offer.id)
         try await wait("new redirected download completes", { workspace.downloads.items.contains { $0.status == .completed } })
@@ -617,6 +632,78 @@ private final class SiteModeKeys: LearningKeyStore {
                 "old_response_policy_cancel": true, "new_isolated_get_completed": true,
                 "actual_webkit": true, "actual_loopback_http": true,
                 "callback_order_injected_by_proxy": true, "native_ios_execution": false]
+    }
+
+    // Two real WebKit action objects are held by the proxy and delivered old-first.
+    // Their provenance is deliberately never inferred from that test ordering.
+    static func runDistinctActionOverlap() async throws {
+        guard let fixture = BrowserDownloadedPDFFixture.enabled else { throw Failure(check: "fixture required") }
+        let pageURL = try await fixture.start(); defer { fixture.stop() }
+        let oldURL = pageURL.deletingLastPathComponent().appendingPathComponent("file.pdf")
+        let newURL = pageURL.deletingLastPathComponent().appendingPathComponent("other.pdf")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-distinct-action-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(),
+            vault: EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: SiteModeKeys()),
+            downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(); defer { host.close(); workspace.cancelAllWork() }
+        let browser = workspace.selected, probe = Probe(workspace.selected)
+        probe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        browser.manualNavigation(to: pageURL) { browser.webView.load(URLRequest(url: pageURL)) }
+        try await wait("distinct action page", { probe.finishes > 0 && !browser.isPageLoading })
+        probe.holdNextDownloadAction = true
+        _ = try await browser.webView.evaluateJavaScript("document.querySelector('a[download]').click(); true")
+        try await wait("old action held", { probe.deferredDownloadAction != nil })
+        let oldAction = probe.deferredDownloadAction!; probe.deferredDownloadAction = nil
+        probe.deferResponseURL = oldURL
+        browser.manualNavigation(to: oldURL) { browser.webView.load(URLRequest(url: oldURL)) }
+        try await wait("response held before stop", { probe.deferredResponse != nil && browser.isPageLoading })
+        guard browser.stopManualPageLoading() else { throw Failure(check: "stop before distinct action") }
+        let stoppedResponse = probe.deferredResponse!; probe.deferredResponse = nil
+        stoppedResponse()
+        probe.holdNextDownloadAction = true
+        _ = try await browser.webView.evaluateJavaScript("const a=document.createElement('a');a.href='\(newURL.absoluteString)';a.download='fresh.pdf';document.body.appendChild(a);a.click();true")
+        try await wait("new distinct action held", { probe.deferredDownloadAction != nil })
+        let newAction = probe.deferredDownloadAction!; probe.deferredDownloadAction = nil
+        oldAction(); newAction()
+        guard probe.deliveredActionPolicies == [.cancel, .cancel], browser.downloadRecoveryOffers.count == 2,
+              browser.downloadRecoveryOffers.map(\.url) == [oldURL, newURL], workspace.downloads.items.isEmpty else {
+            throw Failure(check: "distinct old/new offers are both retained without authorization")
+        }
+        let oldOffer = browser.downloadRecoveryOffers[0], newOffer = browser.downloadRecoveryOffers[1]
+        let before = fixture.transferCount
+        browser.confirmDownloadRecovery(id: oldOffer.id)
+        browser.confirmDownloadRecovery(id: oldOffer.id)
+        guard browser.downloadRecoveryOffers.map(\.id) == [newOffer.id] else { throw Failure(check: "new offer lost after confirming old") }
+        try await wait("old explicit GET completes", { workspace.downloads.items.filter { $0.status == .completed }.count == 1 })
+        guard browser.downloadRecoveryOffers.map(\.id) == [newOffer.id], fixture.transferCount == before + 1 else {
+            throw Failure(check: "new offer changed or unexpected GET")
+        }
+        browser.confirmDownloadRecovery(id: newOffer.id)
+        browser.confirmDownloadRecovery(id: newOffer.id)
+        try await wait("distinct new explicit GET completes", { workspace.downloads.items.filter { $0.status == .completed }.count == 2 })
+        guard fixture.transferCount == before + 2, browser.downloadRecoveryOffers.isEmpty else {
+            throw Failure(check: "duplicate confirmation or remaining offers")
+        }
+        // Bound callback storage and retain a visible warning without network I/O.
+        let issuers = (0..<17).map { _ in NSObject() }
+        for issuer in issuers { browser.testOfferDownloadRecovery(oldURL, issuer: issuer) }
+        guard browser.downloadRecoveryOffers.count == 16, browser.downloadRecoveryOverflow,
+              browser.downloadRecovery != nil else { throw Failure(check: "overflow must be visible") }
+        let offers = browser.downloadRecoveryOffers
+        browser.dismissDownloadRecovery(id: offers[0].id)
+        guard browser.downloadRecoveryOverflow, browser.downloadRecoveryOffers.count == 15 else {
+            throw Failure(check: "overflow warning lost after one dismissal")
+        }
+        let tabID = workspace.library.selectedID
+        workspace.newTab()
+        guard browser.downloadRecoveryOffers.isEmpty, !browser.downloadRecoveryOverflow,
+              browser.downloadRecovery == nil else { throw Failure(check: "tab switch retained multiple offers") }
+        workspace.selectTab(tabID)
+        browser.confirmDownloadRecovery(id: offers[1].id)
+        guard fixture.transferCount == before + 2 else { throw Failure(check: "revoked offer started a GET") }
+        print("DISTINCT_ACTION_OVERLAP both_untrusted_offers_retained=true explicit_gets=2")
     }
 
     // Same URL needs a new explicit GET once the old view has been stopped.
@@ -650,7 +737,7 @@ private final class SiteModeKeys: LearningKeyStore {
         guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy was not delivered") }
         let oldPolicy = probe.deferredPolicies[0]
         guard oldPolicy == .cancel, browser.downloadRecovery != nil else { throw Failure(check: "old response was not quarantined") }
-        browser.downloadRecovery = nil
+        browser.dismissDownloadRecoveryOffers()
         newResponse()
         guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .cancel,
               let offer = browser.downloadRecovery else {
@@ -741,7 +828,7 @@ private final class SiteModeKeys: LearningKeyStore {
         try await wait("cancellable action confirmation", { actionBrowser.downloadRecovery != nil })
         let cancelledOffer = actionBrowser.downloadRecovery!
         let transfersBeforeDismissal = fixture.transferCount
-        actionBrowser.downloadRecovery = nil
+        actionBrowser.dismissDownloadRecoveryOffers()
         actionBrowser.confirmDownloadRecovery(id: cancelledOffer.id)
         try await Task.sleep(nanoseconds: 200_000_000)
         guard workspace.downloads.items.count == 4, fixture.transferCount == transfersBeforeDismissal else {
@@ -759,10 +846,20 @@ private final class SiteModeKeys: LearningKeyStore {
         try await clickDownload()
         try await wait("close-page action confirmation", { actionBrowser.downloadRecovery != nil })
         let closingOffer = actionBrowser.downloadRecovery!
+        var heldHandoff: (() -> Void)?
+        var rejectedAfterClose = false
+        actionBrowser.deferIsolatedDownloadHandoff = { heldHandoff = $0 }
+        actionBrowser.onIsolatedDownloadRejected = { rejectedAfterClose = true }
         actionBrowser.confirmDownloadRecovery(id: closingOffer.id)
+        try await wait("actual WebKit isolated handoff held", { heldHandoff != nil })
         guard workspace.closeCurrentPage() else { throw Failure(check: "close page") }
-        try await Task.sleep(nanoseconds: 500_000_000)
-        guard workspace.downloads.items.count == 4 else { throw Failure(check: "closed page accepted pending download") }
+        guard let handoff = heldHandoff else { throw Failure(check: "missing real handoff") }
+        handoff()
+        guard rejectedAfterClose, workspace.downloads.items.count == 4 else {
+            throw Failure(check: "closed page did not synchronously reject held WebKit handoff")
+        }
+        actionBrowser.deferIsolatedDownloadHandoff = nil
+        actionBrowser.onIsolatedDownloadRejected = nil
         workspace.newTab()
         let responseBrowser = workspace.selected, responseProbe = Probe(workspace.selected)
         responseProbe.allowsNetworkFixture = fixture.allowsNavigation
@@ -781,7 +878,7 @@ private final class SiteModeKeys: LearningKeyStore {
         try await wait("fresh response after second stop", { responseProbe.deferredResponse != nil })
         stoppedResponse()
         let stoppedOffer = responseBrowser.downloadRecovery
-        responseBrowser.downloadRecovery = nil
+        responseBrowser.dismissDownloadRecoveryOffers()
         let freshResponse = responseProbe.deferredResponse!; responseProbe.deferredResponse = nil
         freshResponse()
         guard stoppedOffer != nil, let freshOffer = responseBrowser.downloadRecovery else { throw Failure(check: "both ambiguous responses offered") }
@@ -792,7 +889,7 @@ private final class SiteModeKeys: LearningKeyStore {
               workspace.downloads.errorMessage == managerErrorBeforeLateResponse else {
             throw Failure(check: "late response didBecome affected new confirmation")
         }
-        responseBrowser.downloadRecovery = nil
+        responseBrowser.dismissDownloadRecoveryOffers()
         print("REGRESSION positive_new_download=completed old_response_policy=\(oldPolicy == .cancel ? "cancel" : "not_cancel") isolated_views=pass")
         guard oldPolicy == .cancel else { throw Failure(check: "stopped PDF response authorized by later same-URL intent") }
         return ["old_response_cancelled": true, "new_download_completed": true,
@@ -811,6 +908,10 @@ private final class SiteModeKeys: LearningKeyStore {
                 #if DEBUG
                 if BrowserDownloadedPDFFixture.enabled != nil && ProcessInfo.processInfo.arguments.contains("-UITestBrowserStopRedirect") {
                     result = try await BrowserSiteModesAppChecks.runRedirectStopDiagnostic()
+                }
+                else if BrowserDownloadedPDFFixture.enabled != nil && ProcessInfo.processInfo.arguments.contains("-UITestBrowserDistinctActions") {
+                    try await BrowserSiteModesAppChecks.runDistinctActionOverlap()
+                    result = ["distinct_actions": true, "actual_webkit": true, "native_ios_execution": false]
                 }
                 else if BrowserDownloadedPDFFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runSameURLStopRegression() }
                 else if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }

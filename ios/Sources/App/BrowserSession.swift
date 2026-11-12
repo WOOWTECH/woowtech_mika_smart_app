@@ -39,7 +39,17 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     // Once stopped, this view can never prove a later download callback is fresh.
     private var downloadProvenanceAmbiguous = false
     private let seenAmbiguousDownloads = NSHashTable<AnyObject>.weakObjects()
-    @Published var downloadRecovery: BrowserDownloadRecovery?
+    // The presentation token stays stable while multiple untrusted offers are shown.
+    @Published private(set) var downloadRecovery: BrowserDownloadRecovery?
+    @Published private(set) var downloadRecoveryOffers: [BrowserDownloadRecovery] = []
+    @Published private(set) var downloadRecoveryOverflow = false
+    @Published private(set) var downloadRecoveryBusy = false
+    private let maxDownloadRecoveryOffers = 16
+    #if DEBUG
+    // Hold a real WebKit handoff before production handles it, for close-race tests.
+    var deferIsolatedDownloadHandoff: ((@escaping () -> Void) -> Void)?
+    var onIsolatedDownloadRejected: (() -> Void)?
+    #endif
     private var isolatedDownloadID: UUID?
     private var isolatedDownloadView: WKWebView?
     private var isolatedDownloadTimeout: Task<Void, Never>?
@@ -899,7 +909,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     // explicit-user gate, using real WKNavigation objects and commit callbacks.
     func manualNavigation(to target: URL?, _ operation: () -> WKNavigation?) {
         guard !isRunning, !isInteracting, let target, manualPermitted(target) else { return }
-        downloadRecovery = nil
+        dismissDownloadRecoveryOffers()
         invalidateControls(); error = nil; current = nil
         suppressStoppedLoading = false
         preparePageNavigation()
@@ -1127,12 +1137,23 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     private func offerDownloadRecovery(_ url: URL, issuer: AnyObject) {
-        guard !seenAmbiguousDownloads.contains(issuer) else { return }
+        guard !seenAmbiguousDownloads.contains(issuer), canPresentUI(),
+              !retiredForDataRemoval, !discardingPage, recoveryPermitted(url) else { return }
         seenAmbiguousDownloads.add(issuer)
-        guard canPresentUI(), !retiredForDataRemoval, !discardingPage,
-              downloadRecovery == nil, isolatedDownloadID == nil, recoveryPermitted(url) else { return }
-        downloadRecovery = BrowserDownloadRecovery(url: url)
+        if downloadRecoveryOffers.count >= maxDownloadRecoveryOffers {
+            downloadRecoveryOverflow = true
+            return
+        }
+        let offer = BrowserDownloadRecovery(url: url)
+        downloadRecoveryOffers.append(offer)
+        if downloadRecovery == nil { downloadRecovery = offer }
     }
+
+    #if DEBUG
+    func testOfferDownloadRecovery(_ url: URL, issuer: AnyObject) {
+        offerDownloadRecovery(url, issuer: issuer)
+    }
+    #endif
 
     private func recoveryPermitted(_ url: URL) -> Bool {
         #if DEBUG && canImport(Network)
@@ -1141,40 +1162,68 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         return BrowserDownloadPolicy.allows(url) && manualPermitted(url)
     }
 
-    func cancelDownloadRecovery() {
+    func dismissDownloadRecoveryOffers() {
+        downloadRecoveryOffers.removeAll()
+        downloadRecoveryOverflow = false
         downloadRecovery = nil
+    }
+
+    func dismissDownloadRecovery(id: UUID) {
+        downloadRecoveryOffers.removeAll { $0.id == id }
+        if downloadRecoveryOffers.isEmpty && !downloadRecoveryOverflow { downloadRecovery = nil }
+    }
+
+    private func cancelIsolatedDownload() {
         isolatedDownloadID = nil
+        downloadRecoveryBusy = false
         isolatedDownloadTimeout?.cancel(); isolatedDownloadTimeout = nil
         isolatedDownloadView?.stopLoading()
         isolatedDownloadView = nil
     }
 
+    func cancelDownloadRecovery() {
+        dismissDownloadRecoveryOffers()
+        cancelIsolatedDownload()
+    }
+
     func confirmDownloadRecovery(id: UUID) {
-        guard let offer = downloadRecovery, offer.id == id else { return }
-        downloadRecovery = nil
-        guard isolatedDownloadID == nil, canPresentUI(), !retiredForDataRemoval, !discardingPage,
+        guard let offer = downloadRecoveryOffers.first(where: { $0.id == id }),
+              isolatedDownloadID == nil, canPresentUI(), !retiredForDataRemoval, !discardingPage,
               !isRunning, !isInteracting, !automationOwnsDocument,
               let downloads, recoveryPermitted(offer.url) else { return }
+        dismissDownloadRecovery(id: id)
         let id = UUID(), config = WKWebViewConfiguration()
         config.websiteDataStore = websiteDataStore
         let isolated = WKWebView(frame: .zero, configuration: config)
         downloadRecoveryTimedOut = false
-        isolatedDownloadID = id; isolatedDownloadView = isolated
+        isolatedDownloadID = id; isolatedDownloadView = isolated; downloadRecoveryBusy = true
         isolatedDownloadTimeout = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: 30_000_000_000) } catch { return }
             guard let self, self.isolatedDownloadID == id else { return }
-            self.cancelDownloadRecovery(); self.downloadRecoveryTimedOut = true
+            self.cancelIsolatedDownload(); self.downloadRecoveryTimedOut = true
         }
         var request = URLRequest(url: offer.url)
         request.httpMethod = "GET"
         isolated.startDownload(using: request) { [weak self, weak downloads] download in
-            guard let self, self.isolatedDownloadID == id, self.canPresentUI(),
-                  !self.retiredForDataRemoval, !self.discardingPage,
-                  !self.isRunning, !self.isInteracting, !self.automationOwnsDocument,
-                  let downloads else { download.cancel(nil); return }
-            self.isolatedDownloadID = nil; self.isolatedDownloadTimeout?.cancel(); self.isolatedDownloadTimeout = nil
-            _ = downloads.accept(download, sourceURL: offer.url, allowsDownload: true)
-            self.isolatedDownloadView = nil
+            let handoff = { [weak self, weak downloads] in
+                guard let self, self.isolatedDownloadID == id, self.canPresentUI(),
+                      !self.retiredForDataRemoval, !self.discardingPage,
+                      !self.isRunning, !self.isInteracting, !self.automationOwnsDocument,
+                      let downloads else {
+                    #if DEBUG
+                    self?.onIsolatedDownloadRejected?()
+                    #endif
+                    download.cancel(nil); return
+                }
+                self.isolatedDownloadID = nil; self.downloadRecoveryBusy = false
+                self.isolatedDownloadTimeout?.cancel(); self.isolatedDownloadTimeout = nil
+                _ = downloads.accept(download, sourceURL: offer.url, allowsDownload: true)
+                self.isolatedDownloadView = nil
+            }
+            #if DEBUG
+            if let deferHandoff = self?.deferIsolatedDownloadHandoff { deferHandoff(handoff); return }
+            #endif
+            handoff()
         }
     }
 
