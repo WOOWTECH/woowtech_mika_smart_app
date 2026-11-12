@@ -1,7 +1,9 @@
 # Provider PCM capture stage
 
-This candidate is based on `00259358d75cce62a0e8f565db3d2b3e7023c80c`
-and incorporates the earlier PCM candidate `151f377`.
+The original capture candidate `6dc7d87de70710bf6b1c9f8a8ea68972194766db`
+was based on `00259358d75cce62a0e8f565db3d2b3e7023c80c` and incorporated
+the earlier PCM candidate `151f377`. A later isolated candidate adds the
+native-source seam and FIR described below.
 It adds capture and lifecycle components, but does not add a selectable
 provider or connect a real recorder to the composer, settings or transport.
 The dispatch-fence and prior data-flow candidates are under independent
@@ -19,13 +21,14 @@ Android's `PcmRecorder.kt` captures mono 16-bit 16 kHz PCM. Its
   injected transcriber. An unavailable lease denies capture.
 * Bounded `ProviderPCMBuffer` conversion from interleaved Float samples at an
   integer 8–192 kHz, 1–8 channels, to signed 16-bit mono 16 kHz. It clips,
-  mixes channels and performs a streaming time-weighted box average with
-  integer phase. It rejects malformed samples and a mid-stream format change.
-  The buffer discards on the 60-second sample limit rather than treating that
-  limit as user release. Box averaging is a deliberately simple low-pass
-  approach; native recording quality and alias rejection are not established.
-* An iOS `AppleProviderPCMSource` using an AVAudioEngine input tap, plus a
-  factory on the same `AppleMixedVoiceRuntime` coordinator as device speech.
+  mixes channels and uses a bounded streaming low-pass FIR before downsampling,
+  with integer timing and quantized fractional-phase banks. It rejects malformed
+  samples and a mid-stream format change. The buffer discards on the 60-second
+  sample limit rather than treating that limit as user release. Filter
+  measurements, startup delay, and limits are in `PROVIDER_PCM_NATIVE_FIR.md`.
+* An iOS `AppleProviderPCMSource` using an AVAudioEngine input tap, an injectable
+  `CoordinatedProviderPCMSource` for source lifecycle, plus a factory on the
+  same `AppleMixedVoiceRuntime` coordinator as device speech.
   The factory is not used by the app. Source interruption, relevant route
   changes and media-service reset fail capture. Buffer closure precedes source
   stop, so a late audio callback cannot add to the finished recording.

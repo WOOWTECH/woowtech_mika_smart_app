@@ -8,6 +8,6 @@ swiftc -swift-version 5 -parse-as-library -strict-concurrency=complete -warnings
   "$root/Sources/App/ChatVoiceController.swift" \
   "$root/Sources/App/SharedVoiceAudioCoordinator.swift" "$root/Sources/App/MixedVoiceAudioCoordinator.swift" \
   "$root/Sources/App/ProviderPCMBuffer.swift" "$root/Sources/App/ProviderPCMVoiceDriver.swift" \
-  "$root/Sources/App/AppleProviderPCMSource.swift" \
+  "$root/Sources/App/CoordinatedProviderPCMSource.swift" "$root/Sources/App/AppleProviderPCMSource.swift" \
   "$root/Tests/ProviderPCMStandalone/ProviderPCMChecks.swift" -o "$binary"
 "$binary"

@@ -36,6 +36,50 @@ import Foundation
     func resolve(_ text: String) { continuation?.resume(returning: text); continuation = nil }
 }
 
+@MainActor private final class FixtureEngine: ProviderPCMEngine {
+    enum Failure: Error { case install, start }
+    var log: [String] = []
+    var sink: ProviderPCMBuffer?
+    var failure: (@MainActor () -> Void)?
+    var failInstall = false, failStart = false
+    var duringInstall: (() -> Void)?, duringPrepare: (() -> Void)?, duringStart: (() -> Void)?
+    func install(buffer: ProviderPCMBuffer, onFailure: @escaping @MainActor () -> Void) throws {
+        log.append("install"); sink = buffer; failure = onFailure
+        duringInstall?()
+        if failInstall { throw Failure.install }
+    }
+    func prepare() { log.append("prepare"); duringPrepare?() }
+    func start() throws { log.append("start"); duringStart?(); if failStart { throw Failure.start } }
+    func stop() { log.append("stop"); sink = nil }
+}
+@MainActor private final class FixtureObservation: ProviderPCMObservation {
+    var cancelCount = 0
+    func cancel() { cancelCount += 1 }
+}
+@MainActor private final class FixturePlatform: ProviderPCMPlatform {
+    enum Failure: Error { case make }
+    var permissions: [@MainActor (Bool) -> Void] = []
+    var engines: [FixtureEngine] = []
+    var observations: [FixtureObservation] = []
+    var failures: [@MainActor () -> Void] = []
+    var makeHook: (() -> Void)?, observeHook: ((@MainActor () -> Void) -> Void)?
+    var configure: ((FixtureEngine) -> Void)?
+    var failMake = false
+    func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) { permissions.append(completion) }
+    func makeEngine() throws -> any ProviderPCMEngine {
+        if failMake { throw Failure.make }
+        let engine = FixtureEngine(); configure?(engine); engines.append(engine); makeHook?(); return engine
+    }
+    func observeSystemChanges(buffer: ProviderPCMBuffer,
+                              onFailure: @escaping @MainActor () -> Void) -> any ProviderPCMObservation {
+        let failure: @MainActor () -> Void = { buffer.discard(); onFailure() }
+        failures.append(failure)
+        let token = FixtureObservation(); observations.append(token)
+        observeHook?(failure)
+        return token
+    }
+}
+
 @main private enum Checks {
     @MainActor static func main() async throws {
         var checks = 0
@@ -56,20 +100,84 @@ import Foundation
         check(basic == [-32768, 0, 32767, 32767, -32768], "clipping and signed encoding")
         let stereo = capture([1, -1, 1, 1], rate: 16_000, channels: 2, pieces: 2)
         check(stereo == [0, 32767], "stereo downmix")
-        let down = capture([1, 0, -1, 1, 1, 1], rate: 48_000, channels: 1, pieces: 6)
-        check(down == [0, 32767], "48k weighted downsample")
+        let down = capture([Float](repeating: 1, count: 4_800), rate: 48_000, channels: 1, pieces: 301)
+        check(down.count == 1_600 && down.dropFirst(128).allSatisfy { $0 >= 32766 }, "48k filtered downsample retains DC and length")
         let up = capture([-1, 1], rate: 8_000, channels: 1, pieces: 1)
         check(up == [-32768, -32768, 32767, 32767], "8k upsample")
         let wave = (0..<44_100).map { Float(($0 % 100) - 50) / 50 }
         let whole = capture(wave, rate: 44_100, channels: 1, pieces: 8000)
         let split = capture(wave, rate: 44_100, channels: 1, pieces: 137)
         check(whole.count == 16_000 && split == whole, "44.1k rate and chunk independence")
+        let reviewFrames = 7_999
+        let reviewInput = (0..<reviewFrames).map { Float(($0 % 71) - 35) / 35 }
+        for sampleRate in [8_000, 16_000, 22_050, 44_100, 48_000, 96_000, 192_000] {
+            let one = capture(reviewInput, rate: sampleRate, channels: 1, pieces: reviewFrames)
+            let many = capture(reviewInput, rate: sampleRate, channels: 1, pieces: 73)
+            check(one == many && one.count == reviewFrames * 16_000 / sampleRate,
+                  "review sample rates preserve length and chunk independence")
+        }
+        let reviewTone = (0..<4_800).map { Float(sin(2 * .pi * 10_000 * Double($0) / 48_000)) }
+        let reviewOutput = capture(reviewTone, rate: 48_000, channels: 1, pieces: 400)
+        let reviewRMS = sqrt(reviewOutput.reduce(0.0) { $0 + pow(Double($1) / 32768.0, 2) } / Double(reviewOutput.count))
+        check(reviewOutput.count == 1_600 && reviewRMS < 0.01, "review 10k tone including startup transient")
+        func toneRMS(rate: Int, frequency: Double) -> Double {
+            let frames = rate / 4
+            let tone = (0..<frames).map { Float(0.8 * sin(2 * .pi * frequency * Double($0) / Double(rate))) }
+            let output = capture(tone, rate: rate, channels: 1, pieces: 317).dropFirst(128)
+            return sqrt(output.reduce(0.0) { $0 + pow(Double($1) / 32768.0, 2) } / Double(output.count))
+        }
+        func fundamentalRMS(rate: Int, frequency: Double) -> Double {
+            let tone = (0..<(rate / 4)).map { Float(0.8 * sin(2 * .pi * frequency * Double($0) / Double(rate))) }
+            let output = Array(capture(tone, rate: rate, channels: 1, pieces: 317).dropFirst(128))
+            var sine = 0.0, cosine = 0.0
+            for (index, sample) in output.enumerated() {
+                let angle = 2 * .pi * frequency * Double(index) / 16_000
+                let value = Double(sample) / 32768.0
+                sine += value * sin(angle); cosine += value * cos(angle)
+            }
+            return sqrt(2) * hypot(sine, cosine) / Double(output.count)
+        }
+        let pass1k = toneRMS(rate: 48_000, frequency: 1_000)
+        let pass6k = toneRMS(rate: 48_000, frequency: 6_000)
+        let stop10k = toneRMS(rate: 48_000, frequency: 10_000)
+        let stop12k = toneRMS(rate: 48_000, frequency: 12_000)
+        let stop44k = toneRMS(rate: 44_100, frequency: 10_000)
+        let pass44k = toneRMS(rate: 44_100, frequency: 6_000)
+        let pass22k = toneRMS(rate: 22_050, frequency: 6_000)
+        let pass192k = toneRMS(rate: 192_000, frequency: 6_000)
+        let stop192k = toneRMS(rate: 192_000, frequency: 10_000)
+        let fundamental22k = fundamentalRMS(rate: 22_050, frequency: 6_000)
+        let fundamental44k = fundamentalRMS(rate: 44_100, frequency: 6_000)
+        let expectedRMS = 0.8 / sqrt(2.0)
+        check(abs(pass1k / expectedRMS - 1) < 0.01, "1k passband retained within 1%")
+        check(abs(pass6k / expectedRMS - 1) < 0.02, "6k passband retained within 2%")
+        check(stop10k / expectedRMS < 0.01, "10k alias suppressed by at least 40 dB")
+        check(stop12k / expectedRMS < 0.01, "12k alias suppressed by at least 40 dB")
+        check(stop44k / expectedRMS < 0.01, "44.1k input rejects 10k by at least 40 dB")
+        check(abs(pass44k / expectedRMS - 1) < 0.02, "44.1k input preserves 6k RMS")
+        check(abs(pass22k / expectedRMS - 1) < 0.02, "22.05k input preserves 6k RMS")
+        check(abs(fundamental22k / expectedRMS - 1) < 0.02, "22.05k input preserves 6k fundamental")
+        check(abs(fundamental44k / expectedRMS - 1) < 0.02, "44.1k input preserves 6k fundamental")
+        check(abs(pass192k / expectedRMS - 1) < 0.02, "192k input preserves 6k passband")
+        check(stop192k / expectedRMS < 0.01, "192k input rejects 10k by at least 40 dB")
+        print(String(format: "Synthetic 48k->16k RMS (input peak 0.8): 1k=%.6f 6k=%.6f 10k=%.6f 12k=%.6f", pass1k, pass6k, stop10k, stop12k))
+        print(String(format: "Synthetic 10k stopband RMS: 44.1k=%.6f 192k=%.6f; 192k 6k passband RMS=%.6f", stop44k, stop192k, pass192k))
+        print(String(format: "Synthetic 6k passband RMS: 22.05k=%.6f 44.1k=%.6f", pass22k, pass44k))
+        print(String(format: "Synthetic 6k fundamental RMS: 22.05k=%.6f 44.1k=%.6f", fundamental22k, fundamental44k))
+        print(String(format: "Review 10k tone output RMS, including startup: %.6f", reviewRMS))
         let invalid = ProviderPCMBuffer()
         check(invalid.append([.nan], sampleRate: 16_000, channels: 1) == .invalid, "nonfinite rejected")
         check(invalid.finish() == nil, "invalid audio discarded")
         let mismatch = ProviderPCMBuffer()
         check(mismatch.append([0], sampleRate: 16_000, channels: 1) == .accepted, "initial format")
         check(mismatch.append([0], sampleRate: 48_000, channels: 1) == .invalid, "format change rejected")
+        let prepared = ProviderPCMBuffer()
+        check(prepared.prepare(sampleRate: 48_000, channels: 2), "native format prepares filter before tap")
+        check(!prepared.prepare(sampleRate: 44_100, channels: 2), "prepared format cannot silently change")
+        check(prepared.append([0, 0, 0, 0, 0, 0], sampleRate: 48_000, channels: 2) == .accepted,
+              "prepared filter accepts matching frames")
+        prepared.discard()
+        check(!prepared.prepare(sampleRate: 48_000, channels: 2), "discarded collector cannot be prepared again")
         let limit = ProviderPCMBuffer(maxSamples: 3)
         check(limit.append([0, 0, 0], sampleRate: 16_000, channels: 1) == .limit, "limit fails closed")
         check(limit.finish() == nil, "limit never releases audio")
@@ -269,6 +377,182 @@ import Foundation
         composerTranscriber.resolve("result")
         for _ in 0..<1000 where draft == "prefix " { await Task.yield() }
         check(draft == "prefix result", "real composer state machine accepts released fake transcription")
+
+        // Test the source's real orchestration, with only its platform and
+        // engine substituted. No native engine or microphone is constructed.
+        let platform = FixturePlatform(), coordinated = CoordinatedProviderPCMSource(platform: platform)
+        let audioSession = FakeMixedSession(), shared = MixedVoiceAudioCoordinator(session: audioSession)
+        let device = VoiceAudioLeaseSlot(coordinator: shared)
+        var sourceAllowed = true
+        var sourceEvents: [(UUID, VoiceInputEvent)] = []
+        var sourceEnded: [UUID] = []
+        let sourceDriver = ProviderPCMVoiceDriver(source: coordinated, coordinator: shared,
+            mayFinish: { sourceAllowed }, onEnd: { sourceEnded.append($0) }, transcribe: { _, _ in "fixture" })
+        func sourceBegin() -> UUID {
+            let id = UUID()
+            sourceDriver.start(id: id, mayContinue: { sourceAllowed }, emit: { sourceEvents.append(($0, $1)) })
+            return id
+        }
+        let permissionPending = sourceBegin()
+        check(platform.engines.isEmpty && platform.permissions.count == 1, "permission prompt does not create an engine")
+        sourceDriver.cancel(id: permissionPending)
+        platform.permissions[0](true)
+        check(platform.engines.isEmpty && sourceEnded.contains(permissionPending), "late permission after cancellation cannot create engine")
+        let active = sourceBegin()
+        platform.permissions[1](true)
+        let firstEngine = platform.engines[0]
+        let firstObservation = platform.observations[0]
+        check(firstEngine.log == ["install", "prepare", "start"], "source installs, prepares and starts in order")
+        check(!device.acquire(onRevoked: {}), "device speech cannot acquire the provider lease")
+        let sinkBeforeInterrupt = firstEngine.sink!
+        _ = sinkBeforeInterrupt.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        platform.failures[0]()
+        check(sourceEvents.last?.0 == active && sourceEvents.last?.1 == .failed(.audio), "interruption fails active capture")
+        check(firstEngine.log.last == "stop" && firstObservation.cancelCount == 1 && sinkBeforeInterrupt.finish() == nil,
+              "interruption stops engine, removes observers and discards audio")
+        check(device.acquire(onRevoked: {}), "audio lease is available after interruption cleanup")
+        device.release()
+        let replacementCapture = sourceBegin()
+        platform.permissions[2](true)
+        let replacementEngine = platform.engines[1]
+        platform.failures[0]()
+        firstEngine.failure?()
+        check(replacementEngine.log == ["install", "prepare", "start"], "old system and tap errors cannot stop new engine")
+        check(!device.acquire(onRevoked: {}), "stale error cannot release the replacement lease")
+        sourceDriver.cancel(id: replacementCapture)
+        check(replacementEngine.log.last == "stop" && platform.observations[1].cancelCount == 1,
+              "cancellation stops replacement and removes observers")
+
+        let revokedDuringObserve = sourceBegin()
+        platform.observeHook = { failure in failure() }
+        platform.permissions[3](true)
+        platform.observeHook = nil
+        check(sourceEvents.last?.0 == revokedDuringObserve && sourceEvents.last?.1 == .failed(.audio),
+              "synchronous interruption during observer setup fails once")
+        check(platform.engines[2].log == ["stop"] && platform.observations[2].cancelCount == 1,
+              "observer returned after cancellation is still removed")
+        let revokedDuringPrepare = sourceBegin()
+        platform.configure = { engine in engine.duringPrepare = { sourceAllowed = false } }
+        platform.permissions[4](true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == revokedDuringPrepare && sourceEvents.last?.1 == .cancelled,
+              "authorization change during prepare cancels capture")
+        check(platform.engines[3].log == ["install", "prepare", "stop"] && platform.observations[3].cancelCount == 1,
+              "authorization rechecked immediately before engine start")
+        sourceAllowed = true
+        let installFailure = sourceBegin()
+        platform.configure = { $0.failInstall = true }
+        platform.permissions[5](true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == installFailure && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines[4].log == ["install", "stop"] && platform.observations[4].cancelCount == 1,
+              "failed install tears down engine, observer and lease")
+        let startFailure = sourceBegin()
+        platform.configure = { $0.failStart = true }
+        platform.permissions[6](true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == startFailure && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines[5].log == ["install", "prepare", "start", "stop"] && platform.observations[5].cancelCount == 1,
+              "failed start removes observer and stops engine")
+        let canceledDuringMake = sourceBegin()
+        platform.makeHook = { sourceDriver.cancel(id: canceledDuringMake) }
+        platform.permissions[7](true)
+        platform.makeHook = nil
+        check(platform.engines[6].log == ["stop"] && sourceEnded.contains(canceledDuringMake),
+              "engine returned after cancellation is stopped without install")
+        check(device.acquire(onRevoked: {}), "all synthetic source error paths release the shared lease")
+        device.release()
+        let successfulCapture = sourceBegin()
+        platform.permissions[8](true)
+        let successfulEngine = platform.engines[7]
+        let successfulSink = successfulEngine.sink!
+        _ = successfulSink.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        sourceDriver.finish(id: successfulCapture)
+        check(successfulEngine.log.last == "stop" && platform.observations[6].cancelCount == 1 &&
+              successfulSink.append([1], sampleRate: 16_000, channels: 1) == .closed,
+              "release synchronously closes source before transcription")
+        for _ in 0..<1_000 where sourceEvents.last?.0 != successfulCapture { await Task.yield() }
+        check(sourceEvents.last?.0 == successfulCapture && sourceEvents.last?.1 == .final("fixture"),
+              "coordinated source delivers synthetic recorded data on release")
+        let invalidBeforeRelease = sourceBegin()
+        platform.permissions[9](true)
+        let invalidEngine = platform.engines[8]
+        let invalidNativeSink = invalidEngine.sink!
+        _ = invalidNativeSink.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        // A tap or observer has detected an error on its callback thread,
+        // but the main-actor error delivery has not run yet.
+        invalidNativeSink.discard()
+        sourceDriver.finish(id: invalidBeforeRelease)
+        platform.failures[7]()
+        check(sourceEvents.last?.0 == invalidBeforeRelease && sourceEvents.last?.1 == .failed(.audio),
+              "release after detected error never transcribes earlier PCM")
+        check(invalidEngine.log.last == "stop" && device.acquire(onRevoked: {}), "error-before-release still frees audio lease")
+        device.release()
+        let beforeDeniedCount = platform.engines.count
+        let deniedPermission = sourceBegin()
+        platform.permissions.last!(false)
+        check(platform.engines.count == beforeDeniedCount && sourceEvents.last?.0 == deniedPermission &&
+              sourceEvents.last?.1 == .failed(.microphoneDenied), "denied permission never constructs engine")
+        let changedBeforePermission = sourceBegin()
+        sourceAllowed = false
+        platform.permissions.last!(true)
+        check(platform.engines.count == beforeDeniedCount && sourceEvents.last?.0 == changedBeforePermission &&
+              sourceEvents.last?.1 == .cancelled, "settings or background change before permission cannot create engine")
+        sourceAllowed = true
+        check(device.acquire(onRevoked: {}), "denied and revoked permission release the audio lease")
+        device.release()
+        let failureDuringInstall = sourceBegin()
+        let observerCount = platform.observations.count
+        platform.configure = { engine in engine.duringInstall = { [weak engine] in engine?.failure?() } }
+        platform.permissions.last!(true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == failureDuringInstall && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines.last?.log == ["install", "stop"] && platform.observations.count == observerCount + 1 &&
+              platform.observations.last?.cancelCount == 1,
+              "synchronous tap error during install stops and removes observer")
+        let failureDuringStart = sourceBegin()
+        platform.configure = { engine in engine.duringStart = { [weak engine] in engine?.failure?() } }
+        platform.permissions.last!(true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == failureDuringStart && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines.last?.log == ["install", "prepare", "start", "stop"] &&
+              platform.observations.last?.cancelCount == 1,
+              "synchronous error during start stops engine and removes observer")
+        let discardedDuringInstall = sourceBegin()
+        platform.configure = { engine in engine.duringInstall = { [weak engine] in engine?.sink?.discard() } }
+        platform.permissions.last!(true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == discardedDuringInstall && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines.last?.log == ["install", "stop"] && platform.observations.last?.cancelCount == 1,
+              "buffer closed during install stops before prepare without waiting for callback")
+        let discardedDuringStart = sourceBegin()
+        platform.configure = { engine in engine.duringStart = { [weak engine] in engine?.sink?.discard() } }
+        platform.permissions.last!(true)
+        platform.configure = nil
+        check(sourceEvents.last?.0 == discardedDuringStart && sourceEvents.last?.1 == .failed(.audio) &&
+              platform.engines.last?.log == ["install", "prepare", "start", "stop"] &&
+              platform.observations.last?.cancelCount == 1,
+              "buffer closed during start stops before capture can finish")
+        check(device.acquire(onRevoked: {}), "synchronous setup failures return the voice lease")
+        device.release()
+        let makeFailure = sourceBegin()
+        let beforeMakeFailure = platform.engines.count
+        platform.failMake = true
+        platform.permissions.last!(true)
+        platform.failMake = false
+        check(platform.engines.count == beforeMakeFailure && sourceEvents.last?.0 == makeFailure &&
+              sourceEvents.last?.1 == .failed(.audio), "engine creation failure is reported")
+        check(device.acquire(onRevoked: {}), "engine creation failure returns the voice lease")
+        device.release()
+        let standalonePlatform = FixturePlatform()
+        let standaloneSource = CoordinatedProviderPCMSource(platform: standalonePlatform)
+        let standaloneBuffer = ProviderPCMBuffer()
+        try standaloneSource.start(buffer: standaloneBuffer, mayStart: { true }, onFailure: {})
+        _ = standaloneBuffer.append([1], sampleRate: 16_000, channels: 1)
+        standaloneSource.stop()
+        standaloneSource.stop()
+        check(standaloneBuffer.finish() == nil && standalonePlatform.engines[0].log == ["install", "prepare", "start", "stop"] &&
+              standalonePlatform.observations[0].cancelCount == 1, "source stop discards its buffer and is idempotent")
         print("PASS provider PCM: \(checks) checks; injected source and transcriber, no microphone or network")
     }
 }
