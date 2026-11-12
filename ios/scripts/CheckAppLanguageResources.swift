@@ -62,7 +62,9 @@ import AssistantSkills
             }
         }
         let searchMessages: [AppText] = [.localPDFSearchOpen, .localPDFSearchTitle, .localPDFSearchNotice,
-            .localPDFSearchPlaceholder, .localPDFSearchButton, .localPDFSearchInvalid, .localPDFSearchFailed,
+            .localPDFSearchPlaceholder, .localPDFSearchIgnoreASCIICase, .localPDFSearchPatternMode,
+            .localPDFSearchPatternHelp, .localPDFSearchPatternInvalid, .localPDFSearchPatternUnsupported,
+            .localPDFSearchPatternBudget, .localPDFSearchStop, .localPDFSearchRunning, .localPDFSearchButton, .localPDFSearchInvalid, .localPDFSearchFailed,
             .localPDFSearchEmpty, .localPDFSearchCount(count: 2), .localPDFSearchTruncated(count: 20),
             .localPDFSearchHit(page: 3, index: 1), .localPDFSearchSourceFailed]
         for language in AppDisplayLanguage.allCases {

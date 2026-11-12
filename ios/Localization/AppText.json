@@ -4610,9 +4610,89 @@
       "key": "localPDFSearch.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "只搜尋本次選取並核准擷取的頁面；區分大小寫，沒有 OCR，也不傳送資料。",
-        "zh-Hans": "只搜索本次选择并批准提取的页面；区分大小写，没有 OCR，也不会发送数据。",
-        "en": "Searches only the pages selected and approved for this extraction. Case-sensitive; no OCR or data transmission."
+        "zh-Hant": "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。",
+        "zh-Hans": "只搜索本次选择并批准提取的页面；没有 OCR，也不会发送数据。",
+        "en": "Searches only the pages selected and approved for this extraction. No OCR or data transmission."
+      }
+    },
+    {
+      "case": "localPDFSearchIgnoreASCIICase",
+      "key": "localPDFSearch.ignoreASCIICase",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不區分英文字母大小寫（A–Z）",
+        "zh-Hans": "不区分英文字母大小写（A–Z）",
+        "en": "Ignore English letter case (A–Z)"
+      }
+    },
+    {
+      "case": "localPDFSearchPatternMode",
+      "key": "localPDFSearch.patternMode",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "使用有限正規表示式",
+        "zh-Hans": "使用有限正则表达式",
+        "en": "Use limited regular expressions"
+      }
+    },
+    {
+      "case": "localPDFSearchPatternHelp",
+      "key": "localPDFSearch.patternHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "支援文字、.、\\d、\\w、\\s、字元類別如 [A-Z0-9] 或 [^0-9]、+、*、固定次數 {n}（1–16）及跳脫符號；例：[A-Z]+。只列非空匹配，不支援 ?、群組、或跨行。",
+        "zh-Hans": "支持文字、.、\\d、\\w、\\s、字符类如 [A-Z0-9] 或 [^0-9]、+、*、固定次数 {n}（1–16）及转义符号；例：[A-Z]+。只列非空匹配，不支持 ?、分组或跨行。",
+        "en": "Use text, ., \\d, \\w, \\s, classes such as [A-Z0-9] or [^0-9], +, *, {n} exact repeats (1–16), and escaped symbols; e.g. [A-Z]+. Empty matches are omitted. No ?, groups, alternation, or cross-line matches."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternInvalid",
+      "key": "localPDFSearch.patternInvalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正規表示式為空或格式無效，請檢查後重試。",
+        "zh-Hans": "正则表达式为空或格式无效，请检查后重试。",
+        "en": "The pattern is empty or malformed. Check it and try again."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternUnsupported",
+      "key": "localPDFSearch.patternUnsupported",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此寫法尚未支援；請使用上方列出的有限語法。",
+        "zh-Hans": "此写法尚不支持；请使用上方列出的有限语法。",
+        "en": "This syntax is not supported. Use the limited syntax listed above."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternBudget",
+      "key": "localPDFSearch.patternBudget",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。",
+        "zh-Hans": "搜索已达运算上限而停止；请缩小页数或简化条件。没有显示不完整结果。",
+        "en": "Search reached its work limit. Select fewer pages or simplify the pattern; partial results are not shown."
+      }
+    },
+    {
+      "case": "localPDFSearchStop",
+      "key": "localPDFSearch.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止搜尋",
+        "zh-Hans": "停止搜索",
+        "en": "Stop search"
+      }
+    },
+    {
+      "case": "localPDFSearchRunning",
+      "key": "localPDFSearch.running",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋中…",
+        "zh-Hans": "搜索中…",
+        "en": "Searching…"
       }
     },
     {

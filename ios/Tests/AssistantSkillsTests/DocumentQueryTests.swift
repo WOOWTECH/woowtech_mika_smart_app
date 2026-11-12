@@ -149,6 +149,31 @@ import XCTest
         try expect(offline.error == nil, "editing clears error")
         offline.search()
         try expect(offline.result?.hits.count == 3 && offline.result?.truncated == false, "retry after error")
+        // The App's opt-in option acts on the actual approved PDFKit snapshot.
+        offline.setQuery("beta"); offline.search()
+        try expect(offline.result?.hits.isEmpty == true, "default remains case-sensitive")
+        offline.setIgnoreASCIICase(true)
+        try expect(offline.result == nil && offline.error == nil, "changing case mode clears stale results")
+        offline.search()
+        try expect(offline.result?.hits.map(\.pageNumber) == [2, 2] &&
+                   offline.result?.hits.map(\.pageIndex) == [1, 3], "ASCII-insensitive search preserves repeated PDF pages")
+        try expect(offline.result?.hits.allSatisfy { $0.snippet.contains("BETA budget is 17.") } == true,
+                   "snippets retain actual source spelling")
+        offline.setIgnoreASCIICase(false)
+        try expect(offline.result == nil, "disabling case mode clears old results")
+        offline.search()
+        try expect(offline.result?.hits.isEmpty == true, "case-sensitive mode restored")
+        let unicodeSnapshot = try source(["臺灣ABC🙂 É e\u{301} ABC", "臺灣abc🙂 é"])
+        let unicodeTools = DocumentTextTools(source: unicodeSnapshot)
+        let folded = try unicodeTools.search(query: "臺灣abc🙂", ignoreASCIICase: true)
+        try expect(folded.hits.map(\.pageIndex) == [1, 2] && folded.hits[0].offset == 0 &&
+                   folded.hits[0].length == "臺灣ABC🙂".utf8.count && folded.hits[0].snippet.contains("臺灣ABC🙂"),
+                   "UTF-8 byte positions and original Unicode snippets are preserved")
+        try expect(try unicodeTools.search(query: "é", ignoreASCIICase: true).hits.map(\.pageIndex) == [2],
+                   "non-ASCII case and normalization remain exact")
+        try expect(try unicodeTools.search(query: "abc", limit: 2, ignoreASCIICase: true).truncated,
+                   "insensitive mode retains the match limit and truncation")
+        try expect(unicodeTools.reads.isEmpty, "search still creates no citation read evidence")
         var bounded = DocumentLocalSearch(source: try source([String(repeating: "x ", count: 21)]))
         bounded.setQuery("x"); bounded.search()
         try expect(bounded.result?.hits.count == 20 && bounded.result?.truncated == true, "offline hit limit reports truncation")
@@ -216,6 +241,173 @@ import XCTest
         try expect(try tools.search(query: "e\u{301}", limit: 20).hits.count == 4, "decomposed exact matching")
         while tools.reads.count < 12 { _ = try tools.read(pageIndex: 1, offset: 0, limit: 1) }
         try rejects(.budgetExceeded) { _ = try tools.read(pageIndex: 1, offset: 0, limit: 1) }
+    }
+
+    static func boundedPatternSearch() async throws {
+        let actual = try nativeSource()
+        let pdfHits = try DocumentPatternSearch.search(source: actual, pattern: #"BETA budget is \d{2}"#)
+        try expect(pdfHits.hits.map(\.pageNumber) == [2, 2] && pdfHits.hits.map(\.pageIndex) == [1, 3],
+                   "real PDFKit repeated pages retain original identity")
+        try expect(pdfHits.hits[0].snippet.contains("BETA budget is 17."), "snippet comes from actual approved PDF")
+        let unicode = try source(["臺🙂Ab3-42\n臺🙂AB4-43", "臺🙂ab5-44"], numbers: [2, 1])
+        let hits = try DocumentPatternSearch.search(source: unicode, pattern: #"臺🙂a.\d-\d{2}"#, ignoreASCIICase: true)
+        try expect(hits.hits.count == 3 && hits.hits.map(\.pageNumber) == [2, 2, 1], "Unicode scalars and ASCII case with actual page labels")
+        try expect(hits.hits[0].offset == 0 && hits.hits[0].length == "臺🙂Ab3-42".utf8.count,
+                   "pattern offsets and lengths are original UTF-8 bytes")
+        try expect(hits.hits[0].snippet.contains("臺🙂Ab3-42"), "pattern never rewrites original text")
+        let space = try source(["A B\tC", "A\nB"])
+        try expect(try DocumentPatternSearch.search(source: space, pattern: #"A\sB"#).hits.count == 1,
+                   "whitespace pattern cannot cross lines")
+        try expect(try DocumentPatternSearch.search(source: space, pattern: #"B\sC"#).hits.count == 1,
+                   "tab is supported")
+        let lineSeparators = try source(["A\u{85}B\u{2028}C\u{2029}D"])
+        let dots = try DocumentPatternSearch.search(source: lineSeparators, pattern: ".")
+        try expect(dots.hits.count == 4, "dot does not consume Java Unicode line terminators")
+        let punctuation = try source(["value: (x)+", "value: (x)+"])
+        try expect(try DocumentPatternSearch.search(source: punctuation, pattern: #"\(x\)\+"#).hits.count == 2,
+                   "escaped regex metacharacters match as literals")
+        let clipped = try DocumentPatternSearch.search(source: try source([String(repeating: "a ", count: 21)]), pattern: "a")
+        try expect(clipped.hits.count == 20 && clipped.truncated, "real next match proves truncation")
+        for invalid in ["", "\\", "a{", "a{0}", "a{2}{2}", "*", "a**", "[]", "[z-a]", "[a-]", "[a", String(repeating: "x", count: 257)] {
+            do { _ = try DocumentPatternSearch.search(source: actual, pattern: invalid); throw Failure(message: "invalid pattern accepted") }
+            catch let error as DocumentPatternError { try expect(error == .invalidPattern, "invalid pattern classification") }
+        }
+        for unsupported in ["a?", "a++", "a*+", "a+?", "(ab)", "a|b", "^abc", #"\p{L}"#, "a{1,3}", "a{17}", #"[\d]"#, "[a&&b]"] {
+            do { _ = try DocumentPatternSearch.search(source: actual, pattern: unsupported); throw Failure(message: "unsupported pattern accepted") }
+            catch let error as DocumentPatternError { try expect(error == .unsupportedPattern, "unsupported syntax classification") }
+        }
+        let composed = "é", decomposed = "e\u{301}"
+        try expect(composed == decomposed && !composed.utf8.elementsEqual(decomposed.utf8),
+                   "fixture distinguishes Swift canonical equality from exact bytes")
+        let exactSource = try source([composed + " " + decomposed])
+        var exactQuery = DocumentLocalSearch(source: exactSource)
+        exactQuery.setQuery(composed); exactQuery.search()
+        try expect(exactQuery.result?.hits.map(\.offset) == [0], "composed literal source")
+        exactQuery.setQuery(decomposed)
+        try expect(exactQuery.query.utf8.elementsEqual(decomposed.utf8) && exactQuery.result == nil,
+                   "decomposed edit replaces canonically equal query and clears old result")
+        let decomposedHits = try DocumentPatternSearch.search(source: exactSource, pattern: exactQuery.query)
+        try expect(decomposedHits.hits.map(\.offset) == [3] && decomposedHits.hits[0].length == decomposed.utf8.count,
+                   "pattern uses the actual decomposed query and source bytes")
+        exactQuery.search(); exactQuery.setQuery(composed)
+        try expect(exactQuery.query.utf8.elementsEqual(composed.utf8) && exactQuery.result == nil,
+                   "composed edit also replaces decomposed query and clears old result")
+        let composedHits = try DocumentPatternSearch.search(source: exactSource, pattern: exactQuery.query)
+        try expect(composedHits.hits.map(\.offset) == [0] && composedHits.hits[0].length == composed.utf8.count,
+                   "pattern uses actual composed query after reverse edit")
+        let asciiClass = try DocumentPatternSearch.search(source: try source(["AbC 12"]), pattern: "[a-z]+", ignoreASCIICase: true)
+        try expect(asciiClass.hits.count == 1 && asciiClass.hits[0].offset == 0 && asciiClass.hits[0].length == 3,
+                   "ASCII case option applies to regex classes")
+        let javaUnicode = try DocumentPatternSearch.search(source: try source(["x臺灣🙂z"]), pattern: "[臺灣🙂]+")
+        try expect(javaUnicode.hits.count == 1 && javaUnicode.hits[0].offset == 1 && javaUnicode.hits[0].length == 10,
+                   "Unicode class result has same UTF-8 byte range as Java Pattern example")
+        let examples = try source(["aaab 42 臺灣🙂 ZZ", "BETA budget is 17.", "bbb"])
+        let repeated = try DocumentPatternSearch.search(source: examples, pattern: #"a+b"#)
+        try expect(repeated.hits.count == 1 && repeated.hits[0].offset == 0 && repeated.hits[0].length == 4,
+                   "greedy plus returns complete original match")
+        let digits = try DocumentPatternSearch.search(source: examples, pattern: #"[0-9]+"#)
+        try expect(digits.hits.map(\.pageNumber) == [1, 2] && digits.hits.map(\.length) == [2, 2],
+                   "class ranges and plus return actual page numbers")
+        let stars = try DocumentPatternSearch.search(source: examples, pattern: #"a*b"#)
+        try expect(stars.hits.count == 5 && stars.hits[0].length == 4, "star supports zero and many characters")
+        let greedy = try DocumentPatternSearch.search(source: try source(["aaaa"]), pattern: "a*a")
+        try expect(greedy.hits.count == 1 && greedy.hits[0].length == 4, "greedy repeat leaves input for suffix")
+        let emptyOnly = try DocumentPatternSearch.search(source: try source(["bbb"]), pattern: "a*")
+        try expect(emptyOnly.hits.isEmpty && !emptyOnly.truncated, "empty matches are omitted and never loop")
+        let nullable = try DocumentPatternSearch.search(source: try source(["baaacaa"]), pattern: "a*")
+        try expect(nullable.hits.map(\.offset) == [1, 5] && nullable.hits.map(\.length) == [3, 2],
+                   "nullable expression still returns greedy nonempty matches")
+        let negated = try DocumentPatternSearch.search(source: try source(["AbC 12🙂"]), pattern: "[^a-c]+", ignoreASCIICase: true)
+        try expect(negated.hits.count == 1 && negated.hits[0].offset == 3 && negated.hits[0].snippet.contains("AbC 12🙂"),
+                   "negated classes honor ASCII case and preserve Unicode source")
+        let unicodeClass = try DocumentPatternSearch.search(source: examples, pattern: "[臺灣🙂]+")
+        try expect(unicodeClass.hits.count == 1 && unicodeClass.hits[0].length == "臺灣🙂".utf8.count,
+                   "Unicode scalar classes return original UTF-8 lengths")
+        let punctuationClass = try DocumentPatternSearch.search(source: try source(["x-y]z"]), pattern: #"[\-\]]+"#)
+        try expect(punctuationClass.hits.map(\.offset) == [1, 3], "escaped class punctuation")
+        let bigMatch = try DocumentPatternSearch.search(source: try source([String(repeating: "a", count: 2000)]), pattern: "a+")
+        try expect(bigMatch.hits.count == 1 && bigMatch.hits[0].length == 2000 && bigMatch.hits[0].snippet.utf8.count <= 320,
+                   "long matches retain actual length while snippets stay bounded")
+        // A test-only standard engine checks the shared subset on short synthetic
+        // inputs; the production matcher never calls a backtracking engine.
+        for text in ["b", "aaaa", "baaab", "aabbcc", "🙂a🙂b", "12A"] {
+            let short = try source([text])
+            for pattern in ["a*", "a+", "a*b", "a*a", "[ab]+", "[^a]*b", "a*b*", "[0-9]+", ".*b"] {
+                let expected = try NSRegularExpression(pattern: pattern).matches(in: text, range: NSRange(text.startIndex..., in: text))
+                    .filter { $0.range.length > 0 }.compactMap { result -> [Int]? in
+                        guard let range = Range(result.range, in: text) else { return nil }
+                        return [text[..<range.lowerBound].utf8.count, text[range].utf8.count]
+                    }
+                let actual = try DocumentPatternSearch.search(source: short, pattern: pattern).hits.map { [$0.offset, $0.length] }
+                try expect(actual == expected, "supported subset matches reference greedy ranges")
+            }
+        }
+        let long = try source([String(repeating: "a", count: 250_000) + "END"])
+        let found = try DocumentPatternSearch.search(source: long, pattern: "END")
+        try expect(found.hits.count == 1 && found.hits[0].offset == 250_000, "long approved page searched without truncation")
+        do {
+            _ = try DocumentPatternSearch.search(source: long, pattern: "a{16}a{16}a{16}a{15}z")
+            throw Failure(message: "work budget not enforced")
+        } catch let error as DocumentPatternError { try expect(error == .budgetExceeded, "work limit reports no partial success") }
+
+        do {
+            _ = try DocumentPatternSearch.search(source: try source([String(repeating: "a", count: 262_145)]), pattern: "a+")
+            throw Failure(message: "page memory bound not enforced")
+        } catch let error as DocumentPatternError { try expect(error == .budgetExceeded, "oversized page reports bounded memory limit") }
+        do {
+            _ = try DocumentPatternSearch.search(source: long, pattern: "a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*z")
+            throw Failure(message: "nested star states exceeded budget")
+        } catch let error as DocumentPatternError { try expect(error == .budgetExceeded, "adversarial star states stay bounded") }
+
+        let checkpointGate = PatternCheckpointGate(target: 500)
+        let task = Task.detached {
+            try DocumentPatternSearch.search(source: long, pattern: "a*a*a*a*a*z", checkpoint: {
+                checkpointGate.checkpoint()
+            })
+        }
+        let reached = await Task.detached { waitForPatternStart(checkpointGate.started) }.value
+        guard reached else {
+            task.cancel(); checkpointGate.resume.signal(); throw Failure(message: "search never reached checkpoint")
+        }
+        task.cancel(); checkpointGate.resume.signal()
+        do { _ = try await task.value; throw Failure(message: "stopped search returned a result") }
+        catch is CancellationError { try expect(true, "in-progress real search stops cooperatively") }
+
+        let gate = PatternLateGate()
+        let previous = try DocumentPatternSearch.search(source: actual, pattern: "BETA")
+        let controller = DocumentPatternSearchController(runner: { _, _, _ in await gate.wait(); return previous })
+        controller.start(source: actual, pattern: "BETA", ignoreASCIICase: false)
+        await gate.waitForStart()
+        guard let stoppedPublisher = controller.inFlightTask else { throw Failure(message: "missing in-flight publisher") }
+        controller.reset(); await gate.release(); await stoppedPublisher.value
+        if case .idle = controller.state { try expect(true, "stopped controller discards uncooperative late result") }
+        else { throw Failure(message: "late search result published after stop") }
+        let replacement = try source(["replacement 42"])
+        let replacementResult = try DocumentPatternSearch.search(source: replacement, pattern: "replacement")
+        let replacedGate = PatternLateGate()
+        let switching = DocumentPatternSearchController(runner: { _, pattern, _ in
+            if pattern == "old" { await replacedGate.wait(); return previous }
+            return replacementResult
+        })
+        switching.start(source: actual, pattern: "old", ignoreASCIICase: false)
+        await replacedGate.waitForStart()
+        guard let oldPublisher = switching.inFlightTask else { throw Failure(message: "missing old search") }
+        switching.start(source: replacement, pattern: "new", ignoreASCIICase: false)
+        for _ in 0..<200 {
+            if case .running = switching.state { try await Task.sleep(nanoseconds: 10_000_000) } else { break }
+        }
+        await replacedGate.release(); await oldPublisher.value
+        if case .completed(let result) = switching.state {
+            try expect(result.sourceSHA256 == replacement.sha256 && switching.sourceID == replacement.id,
+                       "old completion cannot replace a new source result")
+        } else { throw Failure(message: "replacement search lost or old result published") }
+        let live = DocumentPatternSearchController()
+        live.start(source: actual, pattern: #"BETA budget is \d{2}"#, ignoreASCIICase: false)
+        for _ in 0..<200 {
+            if case .running = live.state { try await Task.sleep(nanoseconds: 10_000_000) } else { break }
+        }
+        if case .completed(let result) = live.state { try expect(result.hits.count == 2, "controller publishes real detached search") }
+        else { throw Failure(message: "real controller did not finish") }
     }
 
     static func actualModelRoundtrip() async throws {
@@ -503,6 +695,41 @@ private actor DocumentGateClient: ChatModelClient {
     func release(_ reply: String) { released = reply; let continuation = pending; pending = nil; continuation?.resume(returning: reply) }
 }
 
+private func waitForPatternStart(_ signal: DispatchSemaphore) -> Bool {
+    signal.wait(timeout: .now() + 15) == .success
+}
+
+private final class PatternCheckpointGate: @unchecked Sendable {
+    let started = DispatchSemaphore(value: 0)
+    let resume = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private let target: Int
+    private var count = 0
+    init(target: Int) { self.target = target }
+    func checkpoint() {
+        lock.lock(); count += 1; let pause = count == target; lock.unlock()
+        if pause { started.signal(); resume.wait() }
+    }
+}
+
+private actor PatternLateGate {
+    private var started = false
+    private var startWaiter: CheckedContinuation<Void, Never>?
+    private var pending: CheckedContinuation<Void, Never>?
+    private var released = false
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            started = true; startWaiter?.resume(); startWaiter = nil
+            if released { continuation.resume() } else { pending = continuation }
+        }
+    }
+    func waitForStart() async {
+        if started { return }
+        await withCheckedContinuation { startWaiter = $0 }
+    }
+    func release() { released = true; pending?.resume(); pending = nil }
+}
+
 private actor DocumentDelayClient: ChatModelClient {
     private(set) var calls = 0
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -519,6 +746,7 @@ private actor DocumentDelayClient: ChatModelClient {
             ("nativeSnapshot", { try await DocumentQueryChecks.nativeSnapshot() }),
             ("sourceBoundaries", { try DocumentQueryChecks.sourceBoundaries() }),
             ("utf8AndLedger", { try DocumentQueryChecks.utf8AndLedger() }),
+            ("boundedPatternSearch", { try await DocumentQueryChecks.boundedPatternSearch() }),
             ("actualModelRoundtrip", { try await DocumentQueryChecks.actualModelRoundtrip() }),
             ("hostileCommands", { try await DocumentQueryChecks.hostileCommands() }),
             ("citationRejections", { try await DocumentQueryChecks.citationRejections() }),
@@ -539,6 +767,7 @@ final class DocumentQueryTests: XCTestCase {
     @MainActor func testNativeSnapshot() async throws { try await DocumentQueryChecks.nativeSnapshot() }
     @MainActor func testSourceBoundaries() throws { try DocumentQueryChecks.sourceBoundaries() }
     @MainActor func testUTF8AndLedger() throws { try DocumentQueryChecks.utf8AndLedger() }
+    @MainActor func testBoundedPatternSearch() async throws { try await DocumentQueryChecks.boundedPatternSearch() }
     @MainActor func testActualModelRoundtrip() async throws { try await DocumentQueryChecks.actualModelRoundtrip() }
     @MainActor func testHostileCommands() async throws { try await DocumentQueryChecks.hostileCommands() }
     @MainActor func testCitationRejections() async throws { try await DocumentQueryChecks.citationRejections() }
