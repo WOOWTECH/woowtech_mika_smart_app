@@ -1450,7 +1450,7 @@ enum AppText: Equatable {
         case .localPDFSearchPatternHelp: return "支援文字、.、\\d、\\w、\\s、字元類別如 [A-Z0-9] 或 [^0-9]、+、*、固定次數 {n}（1–16）及跳脫符號；例：[A-Z]+。只列非空匹配，不支援 ?、群組、或跨行。"
         case .localPDFSearchPatternInvalid: return "正規表示式為空或格式無效，請檢查後重試。"
         case .localPDFSearchPatternUnsupported: return "此寫法尚未支援；請使用上方列出的有限語法。"
-        case .localPDFSearchPatternBudget: return "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。"
+        case .localPDFSearchPatternBudget: return "搜尋已達上限而停止。若單頁過長，請改用字面搜尋；否則可縮小頁數或簡化條件。沒有顯示不完整結果。"
         case .localPDFSearchStop: return "停止搜尋"
         case .localPDFSearchRunning: return "搜尋中…"
         case .localPDFSearchPlaceholder: return "輸入文字，最多 256 UTF-8 位元組"

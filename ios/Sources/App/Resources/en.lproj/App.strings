@@ -445,7 +445,7 @@
 "localPDFSearch.patternHelp" = "Use text, ., \\d, \\w, \\s, classes such as [A-Z0-9] or [^0-9], +, *, {n} exact repeats (1–16), and escaped symbols; e.g. [A-Z]+. Empty matches are omitted. No ?, groups, alternation, or cross-line matches.";
 "localPDFSearch.patternInvalid" = "The pattern is empty or malformed. Check it and try again.";
 "localPDFSearch.patternUnsupported" = "This syntax is not supported. Use the limited syntax listed above.";
-"localPDFSearch.patternBudget" = "Search reached its work limit. Select fewer pages or simplify the pattern; partial results are not shown.";
+"localPDFSearch.patternBudget" = "Search reached a limit. For an oversized single page, use literal search; otherwise select fewer pages or simplify the pattern. Partial results are not shown.";
 "localPDFSearch.stop" = "Stop search";
 "localPDFSearch.running" = "Searching…";
 "localPDFSearch.placeholder" = "Enter text, up to 256 UTF-8 bytes";

@@ -445,7 +445,7 @@
 "localPDFSearch.patternHelp" = "支持文字、.、\\d、\\w、\\s、字符类如 [A-Z0-9] 或 [^0-9]、+、*、固定次数 {n}（1–16）及转义符号；例：[A-Z]+。只列非空匹配，不支持 ?、分组或跨行。";
 "localPDFSearch.patternInvalid" = "正则表达式为空或格式无效，请检查后重试。";
 "localPDFSearch.patternUnsupported" = "此写法尚不支持；请使用上方列出的有限语法。";
-"localPDFSearch.patternBudget" = "搜索已达运算上限而停止；请缩小页数或简化条件。没有显示不完整结果。";
+"localPDFSearch.patternBudget" = "搜索已达上限而停止。若单页过长，请改用字面搜索；否则可缩小页数或简化条件。没有显示不完整结果。";
 "localPDFSearch.stop" = "停止搜索";
 "localPDFSearch.running" = "搜索中…";
 "localPDFSearch.placeholder" = "输入文字，最多 256 UTF-8 字节";

@@ -119,6 +119,108 @@ public enum DocumentPatternSearch {
         return .init(hits: hits, truncated: false, sourceSHA256: source.sha256)
     }
 
+    /// Android-like line results over one approved in-memory PDF snapshot.
+    /// The virtual file is not a filesystem path. No partial result survives
+    /// cancellation, the work budget, or an oversized page.
+    public struct LineMatch: Sendable, Encodable {
+        public let file: String
+        public let line: Int
+        public let text: String
+        public let textTruncated: Bool
+        public let pageIndex: Int
+        public let pageNumber: Int
+        public let offset: Int
+    }
+    public struct LineResult: Sendable, Encodable {
+        public let matches: [LineMatch]
+        public let truncated: Bool
+        public let sourceSHA256: String
+    }
+    public static let virtualFile = "/workspace/approved-document.txt"
+    static func validatePattern(_ pattern: String) throws { _ = try compile(pattern) }
+
+    public static func searchLines(source: DocumentTextSnapshot, pattern: String,
+                                   deadline: ContinuousClock.Instant? = nil) throws -> LineResult {
+        try searchLines(source: source, pattern: pattern, deadline: deadline, checkpoint: nil)
+    }
+
+    static func searchLines(source: DocumentTextSnapshot, pattern: String,
+                            deadline: ContinuousClock.Instant? = nil,
+                            checkpoint: (@Sendable () -> Void)?) throws -> LineResult {
+        let terms = try compile(pattern)
+        var matches: [LineMatch] = [], work = 0, lineNumber = 0
+        func check() throws {
+            try Task.checkCancellation()
+            if let deadline, ContinuousClock.now >= deadline { throw DocumentQueryError.timedOut }
+        }
+        func tick() throws {
+            work += 1
+            if work > 5_000_000 { throw DocumentPatternError.budgetExceeded }
+            if work % 1024 == 0 { try check(); checkpoint?(); try check() }
+        }
+        try check()
+        for page in source.pages {
+            try check()
+            var scalars: [UInt32] = [], offsets: [Int32] = [0], byteOffset = 0
+            for scalar in page.text.unicodeScalars {
+                try tick()
+                guard scalars.count < 262_144 else { throw DocumentPatternError.budgetExceeded }
+                scalars.append(scalar.value); byteOffset += scalar.utf8.count
+                offsets.append(Int32(byteOffset))
+            }
+            let count = scalars.count
+            var next = [Int32](repeating: -1, count: count + 1)
+            var current = [Int32](repeating: -1, count: count + 1)
+            for index in 0...count { try tick(); next[index] = Int32(index) }
+            for term in terms.reversed() {
+                try check()
+                switch term.repetition {
+                case .one: current[count] = -1
+                case .zeroOrMore: current[count] = next[count]
+                }
+                if count > 0 {
+                    for index in stride(from: count - 1, through: 0, by: -1) {
+                        try tick()
+                        let found = term.atom.matches(scalars[index], ignoreASCIICase: false)
+                        switch term.repetition {
+                        case .one: current[index] = found ? next[index + 1] : -1
+                        case .zeroOrMore: current[index] = found && current[index + 1] >= 0 ? current[index + 1] : next[index]
+                        }
+                    }
+                }
+                swap(&next, &current)
+            }
+            var start = 0
+            while true {
+                var end = start
+                while end < count && scalars[end] != 10 && scalars[end] != 13 { try tick(); end += 1 }
+                lineNumber += 1
+                var found = false
+                for index in start...end {
+                    try tick()
+                    if next[index] >= 0 { found = true; break }
+                }
+                if found {
+                    guard matches.count < 20 else {
+                        try check()
+                        return .init(matches: matches, truncated: true, sourceSHA256: source.sha256)
+                    }
+                    let byteStart = Int(offsets[start]), byteEnd = Int(offsets[end])
+                    var clipped = min(byteEnd, byteStart + 300)
+                    while !boundary(page.bytes, clipped) { clipped -= 1 }
+                    matches.append(.init(file: virtualFile, line: lineNumber,
+                        text: String(decoding: page.bytes[byteStart..<clipped], as: UTF8.self), textTruncated: clipped < byteEnd,
+                        pageIndex: page.index, pageNumber: page.pageNumber, offset: byteStart))
+                }
+                if end == count { break }
+                start = end + 1
+                if scalars[end] == 13 && start < count && scalars[start] == 10 { start += 1 }
+            }
+        }
+        try check()
+        return .init(matches: matches, truncated: false, sourceSHA256: source.sha256)
+    }
+
     private static func boundary(_ data: Data, _ offset: Int) -> Bool {
         offset >= 0 && offset <= data.count && (offset == data.count || data[offset] & 0xc0 != 0x80)
     }
