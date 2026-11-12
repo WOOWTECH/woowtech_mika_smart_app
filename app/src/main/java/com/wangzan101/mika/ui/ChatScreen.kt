@@ -271,6 +271,7 @@ fun ChatScreen(
     val context = LocalContext.current
     /** 长按了的那条消息;菜单开着(收起的动画放完才清掉)。 */
     var menu by remember { mutableStateOf<MessageTarget?>(null) }
+    var reportDraft by remember(ui.conversationId) { mutableStateOf<Pair<AiResponseReference, String>?>(null) }
     /** 选了「选择文字」的那条:它换回系统的长按选中;换对话时清掉。 */
     var selecting by remember(ui.conversationId) { mutableStateOf<String?>(null) }
     /** 菜单出现的进度:0 是没有,1 是完全出来;关了动画时直接到位。 */
@@ -407,6 +408,7 @@ fun ChatScreen(
         // 长按消息的菜单盖在最上面:复制纯文字;引用放到输入框上方;选择文字让那条换回系统的长按选中;
         // 已经答完的一轮还能从这里分支
         menu?.let { m ->
+            val reportReference = if (m.from == QuoteMessage.From.Mika) aiResponseReference(ui.conversationId, ui.exchanges, m.key) else null
             val pending = withdrawableSteer(ui.exchanges, m.key)
             val canEdit = input.isBlank() && ui.quote == null && ui.attachments.isEmpty() && !ui.importing
             val branchTurn = vm.branchTurn(m.key)
@@ -422,6 +424,7 @@ fun ChatScreen(
                     }
                 },
                 onDismiss = { closeMenu() },
+                onReport = reportReference?.let { reference -> ({ closeMenu { reportDraft = reference to m.text } }) },
                 onBranch = branchTurn?.let { turn -> {
                     closeMenu {
                         scope.launch {
@@ -463,6 +466,9 @@ fun ChatScreen(
                 } }) else null,
                 onWithdraw = pending?.let { n -> ({ closeMenu { vm.withdrawSteer(n.id) } }) },
             )
+        }
+        reportDraft?.let { (reference, response) ->
+            AiResponseReportDialog(reference, response) { reportDraft = null }
         }
     }
 }
