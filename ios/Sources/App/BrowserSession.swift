@@ -5,6 +5,13 @@ import Combine
 import Foundation
 import WebKit
 
+#if DEBUG
+// Keep bounded diagnostics separate from machine-readable harness stdout.
+func browserWebsiteDiagnostic(_ message: String) {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+}
+#endif
+
 @MainActor
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
@@ -126,6 +133,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private var pageGeneration = UUID()
     private var trackedNavigation: WKNavigation?
     private var requestedNavigationPending = false
+    /// Prevent lifecycle re-entry from issuing a second restore while the
+    /// selected session's first manual navigation is still in flight.
+    var hasPendingManualNavigation: Bool {
+        requestedNavigationPending || (trackedNavigation != nil && loadedURL == nil)
+    }
     private var pageObservationTask: Task<Void, Never>?
     @Published private(set) var manualLoadDiagnostics: String?
     private var loadTrace = ManualLoadTrace()
@@ -1303,7 +1315,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         guard let view = storedWebView else { return true }
         guard discardCompletion == nil else { return false }
         #if DEBUG
-        print("BROWSER_WEBSITE_DISCARD phase=begin loading=\(view.isLoading ? 1 : 0) attached=\(view.window == nil ? 0 : 1) delegate=\(view.navigationDelegate == nil ? 0 : 1)")
+        browserWebsiteDiagnostic("BROWSER_WEBSITE_DISCARD phase=begin loading=\(view.isLoading ? 1 : 0) attached=\(view.window == nil ? 0 : 1) delegate=\(view.navigationDelegate == nil ? 0 : 1)")
         #endif
         return await withCheckedContinuation { continuation in
             discardingPage = true; discardCompletion = continuation
@@ -1311,14 +1323,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             discardTimeout = Task { [weak self] in
                 do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
                 #if DEBUG
-                print("BROWSER_WEBSITE_DISCARD phase=timeout")
+                browserWebsiteDiagnostic("BROWSER_WEBSITE_DISCARD phase=timeout")
                 #endif
                 self?.finishDiscard(false)
             }
             discardNavigation = view.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
             if discardNavigation == nil {
                 #if DEBUG
-                print("BROWSER_WEBSITE_DISCARD phase=noNavigation")
+                browserWebsiteDiagnostic("BROWSER_WEBSITE_DISCARD phase=noNavigation")
                 #endif
                 finishDiscard(false)
             }
@@ -1327,7 +1339,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private func finishDiscard(_ success: Bool) {
         guard let completion = discardCompletion else { return }
         #if DEBUG
-        print("BROWSER_WEBSITE_DISCARD phase=finished success=\(success ? 1 : 0) blank=\(storedWebView?.url?.absoluteString == "about:blank" ? 1 : 0) loading=\(storedWebView?.isLoading == true ? 1 : 0)")
+        browserWebsiteDiagnostic("BROWSER_WEBSITE_DISCARD phase=finished success=\(success ? 1 : 0) blank=\(storedWebView?.url?.absoluteString == "about:blank" ? 1 : 0) loading=\(storedWebView?.isLoading == true ? 1 : 0)")
         #endif
         discardCompletion = nil; discardTimeout?.cancel(); discardTimeout = nil
         discardNavigation = nil

@@ -288,3 +288,18 @@ or bundled-catalog parity, physical-device behavior, or native-app knowledge/con
 Evidence and remaining failures are recorded in [VERIFICATION.md](VERIFICATION.md).
 Do not substitute fixture-only UI counts for real-service behavior or missing
 browser/action-learning acceptance.
+
+Pending general-skill card candidate (based on the separate memory-layout branch):
+the four review controls use the existing skill store; the edited version is
+approved directly into trial, and full text can be expanded without approving.
+The Android card also toggles text from its title row; the iOS candidate exposes
+the explicit full-text control instead. Android shows every changed line on an
+update, while the current iOS preview shows at most six; the complete draft is
+still available. Native iOS, accessibility, long-card and visual validation are
+outstanding.
+
+Automatically creating a comparable general-task draft remains a separate
+backend parity question. On this iOS baseline the app calls
+`SkillLearningService` from browser research and route handling; the card does
+not make unsupported task execution or other-app knowledge available. See
+`Sources/App/BrowserSession.swift` and `Sources/AssistantSkills/SkillLearningService.swift`.

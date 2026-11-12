@@ -26,6 +26,49 @@ final class MemoryUITests: XCTestCase {
         app.terminate()
     }
 
+    func testMemoryHomeSearchAndDataOrder() {
+        launch()
+        openMemory()
+        let empty = app.staticTexts["memory.empty"].firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        XCTAssertEqual(empty.label, "還沒有記住的事")
+        XCTAssertFalse(app.textFields["memory.search"].exists)
+        XCTAssertEqual(app.buttons["memory.add"].firstMatch.label, "手寫一條")
+
+        tap("memory.search.toggle")
+        let search = app.textFields["memory.search"].firstMatch
+        enter(" \n", into: search)
+        XCTAssertEqual(search.value as? String, " ", "The regression uses an actual whitespace query")
+        XCTAssertEqual(empty.label, "還沒有記住的事")
+        select("pending")
+        XCTAssertEqual(app.staticTexts["memory.pending.empty"].firstMatch.label, "沒有待確認的內容。")
+        select("memories")
+        tap("memory.search.toggle")
+        tap("memory.search.toggle")
+        enter("no matching fixture\n", into: app.textFields["memory.search"].firstMatch)
+        XCTAssertEqual(empty.label, "找不到符合的記憶。")
+        tap("memory.search.toggle")
+        XCTAssertFalse(app.textFields["memory.search"].exists)
+        XCTAssertEqual(empty.label, "還沒有記住的事", "Closing search clears the active filter")
+
+        let switches = ["useMemory", "autoRemember", "learnSkills"].map {
+            app.switches["memory.toggle.\($0)"].firstMatch
+        }
+        reveal(switches[2])
+        XCTAssertTrue(switches.allSatisfy { $0.exists && $0.isEnabled })
+        XCTAssertLessThan(switches[0].frame.midY, switches[1].frame.midY)
+        XCTAssertLessThan(switches[1].frame.midY, switches[2].frame.midY)
+
+        let website = app.buttons["memory.manageWebsites"].firstMatch
+        let routes = app.buttons["memory.websites"].firstMatch
+        reveal(routes)
+        XCTAssertTrue(website.exists && routes.exists)
+        XCTAssertEqual(website.label, "網站登入", "Website record count must not be presented as a login count")
+        XCTAssertLessThan(website.frame.midY, routes.frame.midY)
+        reveal(app.buttons["memory.clear"].firstMatch)
+        reveal(app.buttons["memory.profile.open"].firstMatch)
+    }
+
     func testSegmentsAndPreferencePersistence() {
         launch()
         openMemory()
@@ -35,7 +78,7 @@ final class MemoryUITests: XCTestCase {
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].firstMatch.exists)
         reveal(app.staticTexts["memory.browserPending"].firstMatch)
-        XCTAssertTrue(app.staticTexts["memory.browserPending"].firstMatch.label.contains("瀏覽器的網站頁面"))
+        XCTAssertTrue(app.staticTexts["memory.browserPending"].firstMatch.label.contains("不一定已登入"))
         select("memories")
         for name in ["useMemory", "autoRemember", "learnSkills"] {
             let toggle = app.switches["memory.toggle.\(name)"].firstMatch
@@ -58,20 +101,35 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(scope.exists)
     }
 
-    func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
+    func testWebsiteDataFromMemoryReturnsHereAndDrawerRemainsReachable() {
         launch()
         openMemory()
-        tap("memory.manageWebsites", scroll: true)
-        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
-        let back = app.buttons["section.back"]
-        XCTAssertEqual(back.label, "返回記憶")
-        back.tap()
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
+        select("pending")
+        let link = app.buttons["memory.manageWebsites"].firstMatch
+        reveal(link)
+        XCTAssertEqual(link.label, "網站登入", "WebKit record count is not a count of signed-in sites")
+        link.tap()
+        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["browser.sites.help"].label.contains("不代表目前已登入"))
+        XCTAssertTrue(app.staticTexts["browser.sites.empty"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.segmentedControls["browser.library.sections"].exists)
         XCTAssertFalse(app.staticTexts["browser.status"].isHittable)
+        tap("browser.library.close")
+        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["memory.segment.pending"].value as? String, "已選取")
 
-        tap("memory.manageWebsites", scroll: true)
         navigateMikaSection("settings", in: app)
-        XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 10))
+        let settingsMemory = app.buttons["settings.memoryJump"].firstMatch
+        revealLearningElement(settingsMemory, in: app); settingsMemory.tap()
+        let memoryBar = app.navigationBars["記憶與資料"]
+        XCTAssertTrue(memoryBar.waitForExistence(timeout: 10))
+        tap("memory.manageWebsites", scroll: true)
+        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
+        tap("browser.library.close")
+        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
+        let nativeBack = memoryBar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
+        XCTAssertTrue(nativeBack.isHittable); nativeBack.tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
         navigateMikaSection("browser", in: app)
         XCTAssertEqual(app.buttons["section.back"].label, "返回對話")
     }
@@ -124,6 +182,7 @@ final class MemoryUITests: XCTestCase {
         tapFirst(prefix: "memory.edit.")
         replaceEditor("memory", text: "Prefer jasmine tea")
         saveMemoryEditor()
+        tap("memory.search.toggle")
         enter("tea\n", into: app.textFields["memory.search"].firstMatch)
         XCTAssertTrue(memory("Prefer jasmine tea").waitForExistence(timeout: 5))
         launch(reset: false)
@@ -158,6 +217,49 @@ final class MemoryUITests: XCTestCase {
         XCTAssertFalse(memory("Ask before changing a plan").exists)
     }
 
+    func testPendingSkillCardsExpandApproveAndRejectPersistently() {
+        launch()
+        openMemory()
+        importSkill(version: "FirstDraft")
+        importSkill(version: "SecondDraft", name: "notes-second")
+        let first = app.staticTexts["skills.draft.notes-test"].firstMatch
+        let second = app.staticTexts["skills.draft.notes-second"].firstMatch
+        reveal(second)
+        XCTAssertTrue(first.exists && second.exists)
+        XCTAssertLessThan(first.frame.midY, second.frame.midY)
+        XCTAssertFalse(app.staticTexts["skills.item.notes-test"].exists)
+        XCTAssertFalse(app.staticTexts["skills.item.notes-second"].exists)
+
+        tap("skills.draftFullText.notes-test", scroll: true)
+        let firstText = app.staticTexts["skills.draftDocument.notes-test"].firstMatch
+        XCTAssertTrue(firstText.waitForExistence(timeout: 5))
+        XCTAssertTrue(firstText.label.contains("FirstDraft"))
+        XCTAssertEqual(app.buttons["skills.draftFullText.notes-test"].firstMatch.label, "收起全文")
+        tap("skills.draftFullText.notes-second", scroll: true)
+        let secondText = app.staticTexts["skills.draftDocument.notes-second"].firstMatch
+        XCTAssertTrue(secondText.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondText.label.contains("SecondDraft"))
+        XCTAssertFalse(firstText.exists, "Opening another draft collapses the first")
+        tap("skills.draftFullText.notes-second", scroll: true)
+        XCTAssertFalse(secondText.exists)
+
+        tap("skills.approve.notes-test", scroll: true)
+        XCTAssertFalse(first.exists)
+        XCTAssertTrue(second.exists, "Approving one draft must leave the other pending")
+        tap("skills.reject.notes-second", scroll: true)
+        XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
+        launch(reset: false)
+        openMemory()
+        select("pending")
+        XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
+        select("skills")
+        let state = app.staticTexts["skills.state.notes-test"].firstMatch
+        reveal(state)
+        XCTAssertEqual(state.label, "試用中 · 尚未驗證")
+        XCTAssertFalse(app.staticTexts["skills.item.notes-second"].exists)
+        assertSkillText(contains: "FirstDraft")
+    }
+
     func testSkillImportFailureReviewAndEnablementPersist() {
         launch()
         openMemory()
@@ -174,9 +276,14 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["skills.empty"].firstMatch.exists)
         select("pending")
         tap("skills.edit.notes-test", scroll: true)
+        XCTAssertEqual(app.buttons["skills.editor.save"].firstMatch.label, "收下試用")
+        tap("skills.editor.cancel")
+        XCTAssertTrue(app.staticTexts["skills.draft.notes-test"].firstMatch.exists)
+        tap("skills.edit.notes-test", scroll: true)
         replaceEditor("skills", text: markdown(version: "ReviewedVersion"))
         saveSkillEditor()
         XCTAssertTrue(app.staticTexts["skills.item.notes-test"].firstMatch.exists)
+        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "試用中 · 尚未驗證")
         let enabled = app.switches["skills.enabled.notes-test"].firstMatch
         reveal(enabled)
         setSwitch(enabled, value: "0")
@@ -365,10 +472,10 @@ final class MemoryUITests: XCTestCase {
         waitForAbsence(app.buttons["skills.editor.save"].firstMatch)
     }
 
-    private func importSkill(version: String) {
+    private func importSkill(version: String, name: String = "notes-test") {
         select("skills")
         tap("skills.import", scroll: true)
-        enter(markdown(version: version), into: app.textViews["skills.editor.markdown"].firstMatch)
+        enter(markdown(version: version, name: name), into: app.textViews["skills.editor.markdown"].firstMatch)
         saveSkillEditor()
     }
 
@@ -380,10 +487,10 @@ final class MemoryUITests: XCTestCase {
         tap("skills.document.close")
     }
 
-    private func markdown(version: String) -> String {
+    private func markdown(version: String, name: String = "notes-test") -> String {
         """
         ---
-        name: notes-test
+        name: \(name)
         description: Organize notes.
         ---
         ## Entry

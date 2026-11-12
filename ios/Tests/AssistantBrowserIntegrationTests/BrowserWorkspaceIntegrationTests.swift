@@ -151,6 +151,139 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         XCTAssertEqual(calls, 1, "A repeated discard cannot revive the session")
     }
 
+    #if DEBUG
+    @MainActor func testDeferredBrowserAppearanceResumesOnlyAfterWebsiteClearCompletes() async throws {
+        try await checkDeferredAppearance(.appearance)
+    }
+
+    @MainActor func testDeferredBrowserAppearanceDoesNotResumeAfterLeaving() async throws {
+        try await checkDeferredAppearance(.leaves)
+    }
+
+    @MainActor func testBackgroundCancellationRevokesDeferredRestore() async throws {
+        try await checkDeferredAppearance(.backgroundCancellation)
+    }
+
+    @MainActor func testDismissalRestoresBrowserAlreadyVisibleBeforeClear() async throws {
+        try await checkDeferredAppearance(.sheetAfterClear)
+    }
+
+    @MainActor func testDismissalDuringClearDefersUntilCompletion() async throws {
+        try await checkDeferredAppearance(.sheetDuringClear)
+    }
+
+    @MainActor func testHiddenOrInactiveDismissalDoesNotRestore() async throws {
+        try await checkDeferredAppearance(.hiddenSheet)
+        try await checkDeferredAppearance(.inactiveSheet)
+    }
+
+    @MainActor func testForegroundWithLibraryWaitsForDismissal() async throws {
+        try await checkDeferredAppearance(.backgroundToSheetAfterClear)
+        try await checkDeferredAppearance(.backgroundToSheetDuringClear)
+    }
+
+    @MainActor func testLibraryOpenedDuringClearSuppressesRestoreUntilDismissed() async throws {
+        try await checkDeferredAppearance(.sheetOpenedDuringClear)
+        try await checkDeferredAppearance(.sheetOpenedThenBackground)
+    }
+
+    private enum ClearScenario: Equatable {
+        case appearance, leaves, backgroundCancellation, sheetAfterClear, sheetDuringClear, hiddenSheet, inactiveSheet
+        case backgroundToSheetAfterClear, backgroundToSheetDuringClear
+        case sheetOpenedDuringClear, sheetOpenedThenBackground
+    }
+
+    @MainActor private func checkDeferredAppearance(_ scenario: ClearScenario) async throws {
+        let host = try Host()
+        let gate = WebsiteRemovalGate()
+        addTeardownBlock { await gate.release(); await host.close() }
+        let workspace = try XCTUnwrap(host.workspace)
+        let original = host.attachSelected()
+        let url = try XCTUnwrap(URL(string: "https://research.example.invalid/deferred-clear"))
+        try await host.load(original, url: url, marker: "Before clear")
+        XCTAssertEqual(workspace.library.tabs.first?.url, url)
+        workspace.browserDidAppear() // Browser was already visible before presenting its sheet.
+        let synthetic = try cookie(name: "deferred_clear_cookie", domain: "research.example.invalid", value: "FIXTURE")
+        await setCookie(synthetic, in: host.store)
+        workspace.refreshWebsiteRecords()
+        try await waitUntil("Synthetic website record missing", timeout: 30) {
+            !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName.contains("example.invalid") }
+        }
+        let record = try XCTUnwrap(workspace.websiteRecords.first { $0.displayName.contains("example.invalid") })
+        workspace.websiteRemovalTestGate = { await gate.wait() }
+        var restoreCount = 0
+        workspace.restoredNavigationTestHook = { session in
+            restoreCount += 1
+            host.attach(session)
+            session.manualNavigation(to: url) {
+                session.webView.loadHTMLString("<html><head><title>Restored after clear</title></head><body>RESTORED</body></html>", baseURL: url)
+            }
+            if restoreCount == 1 { workspace.browserDidAppear() } // Re-entry must not repeat an in-flight restore.
+        }
+        workspace.removeWebsiteData([record])
+        try await waitUntil("Removal did not reach the controlled gate", timeout: 30) { gate.entered }
+        XCTAssertTrue(workspace.isClearingWebsiteData)
+        switch scenario {
+        case .appearance, .leaves, .backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear,
+             .sheetOpenedDuringClear, .sheetOpenedThenBackground:
+            workspace.browserDidAppear()
+        case .sheetDuringClear:
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        case .hiddenSheet:
+            workspace.browserLibraryDidDismiss(isVisible: false, isActive: true)
+        case .inactiveSheet:
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: false)
+        case .sheetAfterClear:
+            break
+        }
+        XCTAssertEqual(restoreCount, 0, "No navigation while data removal is pending")
+        if [.sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.browserLibraryWillPresent()
+        }
+        if scenario == .leaves { workspace.browserDidDisappear() }
+        if [.backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.cancelAllWork()
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true) // Delayed stale callback.
+        }
+        if [.backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.browserDidAppear(activate: false)
+            XCTAssertEqual(restoreCount, 0, "Foregrounding under the sheet must not load a page")
+        }
+        if scenario == .backgroundToSheetDuringClear {
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        }
+        gate.release()
+        try await waitUntil("Website data removal did not finish", timeout: 75) { !workspace.isClearingWebsiteData }
+        XCTAssertNil(workspace.error)
+        XCTAssertFalse(workspace.selected === original)
+        if [.leaves, .backgroundCancellation, .hiddenSheet, .inactiveSheet, .sheetAfterClear, .backgroundToSheetAfterClear,
+            .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            XCTAssertEqual(restoreCount, 0, "Leaving, cancellation or a covered browser must not restore")
+            XCTAssertNil(workspace.selected.loadedURL)
+            if [.sheetAfterClear, .backgroundToSheetAfterClear, .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+                workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+            } else { workspace.browserDidAppear() }
+        }
+        try await waitUntil("Visible browser did not restore its selected document", timeout: 75) {
+            restoreCount == 1 && workspace.selected.loadedURL == url && workspace.selected.pageTitle == "Restored after clear"
+        }
+        XCTAssertEqual(restoreCount, 1, "A deferred appearance must trigger exactly one navigation")
+        let left = await cookies(in: host.store)
+        XCTAssertFalse(left.contains { $0.name == synthetic.name }, "The selected cookie must actually be removed")
+        workspace.browserDidDisappear()
+    }
+
+    @MainActor private final class WebsiteRemovalGate {
+        var entered = false
+        private var continuation: CheckedContinuation<Void, Never>?
+        func wait() async {
+            entered = true
+            await withCheckedContinuation { continuation = $0 }
+        }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+    #endif
+
     @MainActor func testPersistentCookiesAreSharedAndRemovingOneRecordPreservesOtherSites() async throws {
         let host = try Host()
         addTeardownBlock { await host.close() }
@@ -205,8 +338,11 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
             }.sorted()
         }
         workspace.refreshWebsiteRecords()
+        XCTAssertTrue(workspace.isLoadingWebsiteRecords, "Do not report an empty site list before WebKit responds")
         do {
-            try await waitUntil("Website-record callback did not publish within 15 seconds") { enumeration.records != nil }
+            try await waitUntil("Website-record callback did not publish within 15 seconds") {
+                enumeration.records != nil && !workspace.isLoadingWebsiteRecords
+            }
             let returned = try XCTUnwrap(enumeration.records)
             guard returned.contains(where: {
                 $0.displayName.contains("example.invalid") && $0.dataTypes.contains(WKWebsiteDataTypeCookies)
@@ -265,7 +401,9 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         _ = try await javascript("localStorage.setItem('workspace_late_record', 'FIXTURE_LATE'); 'written'", in: secondWebView)
         let publicationsBeforeClear = enumeration.publicationCount
         workspace.refreshWebsiteRecords() // Its callback must be invalidated by the clear below.
+        XCTAssertTrue(workspace.isLoadingWebsiteRecords)
         workspace.removeWebsiteData(records)
+        XCTAssertFalse(workspace.isLoadingWebsiteRecords, "A cancelled enumeration must not leave loading stuck")
         XCTAssertTrue(workspace.isClearingWebsiteData)
         // A refresh initiated while deleting must not race the final verified list.
         workspace.refreshWebsiteRecords()

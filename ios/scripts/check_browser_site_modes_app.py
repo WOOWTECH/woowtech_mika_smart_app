@@ -15,6 +15,14 @@ import uuid
 from check_profile_chat_app import APP_SOURCES, MODULES
 
 
+def parse_run_result(stdout):
+    """A successful harness emits exactly one JSON object on stdout."""
+    value = json.loads(stdout)
+    if not isinstance(value, dict):
+        raise ValueError("harness result must be a JSON object")
+    return value
+
+
 def main():
     repo = Path(__file__).resolve().parents[1]
     out = Path(tempfile.mkdtemp(prefix="woow-site-mode-check-"))
@@ -46,7 +54,14 @@ def main():
         (out / (name + ".log")).write_bytes(result.stdout + result.stderr)
         row = {"name": name, "exit_code": result.returncode, "seconds": round(time.monotonic() - started, 3)}
         if name.endswith("-run") and result.returncode == 0:
-            row["result"] = json.loads(result.stdout)
+            try:
+                row["result"] = parse_run_result(result.stdout)
+            except (UnicodeDecodeError, ValueError) as error:
+                row["parse_error"] = type(error).__name__
+                report["checks"].append(row)
+                save(); print(json.dumps(row), flush=True)
+                print("DIAGNOSTIC=" + str(out / (name + ".log")), flush=True)
+                raise RuntimeError(name + " emitted invalid JSON") from error
         report["checks"].append(row)
         save(); print(json.dumps(row), flush=True)
         if result.returncode:
@@ -62,8 +77,12 @@ def main():
         apps = [copy("Sources/App/" + name + ".swift") for name in APP_SOURCES]
         checks = copy("Tests/AssistantDomainTests/BrowserUserSiteModesChecks.swift")
         harness = copy("scripts/CheckBrowserSiteModesApp.swift")
-        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Tests/AssistantDomainTests/BrowserUserSiteModesTests.swift",
-                  "Tests/AssistantBrowserIntegrationTests/BrowserSiteModesIntegrationTests.swift", "Tests/WoowAssistantUITests/BrowserSiteModesUITests.swift"]]
+        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/BrowserLibraryView.swift", "Sources/App/MemoryDataView.swift",
+                  "Sources/App/MemoryDataLocalization.swift", "Tests/AssistantDomainTests/BrowserUserSiteModesTests.swift",
+                  "Tests/AssistantBrowserIntegrationTests/BrowserSiteModesIntegrationTests.swift",
+                  "Tests/AssistantBrowserIntegrationTests/BrowserWorkspaceIntegrationTests.swift",
+                  "Tests/WoowAssistantUITests/BrowserSiteModesUITests.swift", "Tests/WoowAssistantUITests/BrowserLoginUITests.swift",
+                  "Tests/WoowAssistantUITests/MemoryUITests.swift"]]
         common = ["swiftc", "-swift-version", "5", "-parse-as-library", "-I", str(out), "-L", str(out)]
         for name, deps in MODULES:
             run(name + "-build", common + ["-emit-module", "-emit-library", "-module-name", name,
@@ -79,6 +98,8 @@ def main():
             run(config + "-webkit-run", [str(binary)], 180)
             if config == "Debug":
                 run("Debug-loopback-http-run", [str(binary), "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", str(uuid.uuid4())], 180)
+                run("Debug-loopback-delayed-ui-run", [str(binary), "-UITestMode", "-UITestBrowserLogin",
+                    "-UITestNamespace", str(uuid.uuid4()), "-UITestBrowserDelayedClear", "-UITestBrowserLoginSecondSite"], 180)
         report["sources_still_current"] = all(hashlib.sha256((repo / p).read_bytes()).hexdigest() == h
                                                for p, h in report["source_sha256"].items())
         report["status"] = "PASS" if report["sources_still_current"] else "SOURCES_CHANGED"

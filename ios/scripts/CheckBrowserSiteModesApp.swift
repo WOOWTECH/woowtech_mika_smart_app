@@ -144,6 +144,114 @@ private final class SiteModeKeys: LearningKeyStore {
         }
     }
 
+    #if DEBUG
+    @MainActor final class WebsiteClearGate {
+        var entered = false
+        private var continuation: CheckedContinuation<Void, Never>?
+        func wait() async { entered = true; await withCheckedContinuation { continuation = $0 } }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+
+    enum ClearScenario: CaseIterable, Equatable {
+        case appearance, leaves, backgroundCancellation, sheetAfterClear, sheetDuringClear, hiddenSheet, inactiveSheet
+        case backgroundToSheetAfterClear, backgroundToSheetDuringClear
+        case sheetOpenedDuringClear, sheetOpenedThenBackground
+    }
+
+    static func checkDeferredWebsiteClear(_ scenario: ClearScenario) async throws -> Int {
+        var checks = 0
+        func expect(_ condition: @autoclosure () throws -> Bool, _ label: String) throws {
+            guard try condition() else { throw Failure(check: label) }; checks += 1
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-deferred-clear-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = SiteModeKeys(), store = WKWebsiteDataStore.nonPersistent()
+        let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
+        let workspace = BrowserWorkspace(dataStore: store, vault: vault, downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(); let gate = WebsiteClearGate()
+        defer { gate.release(); workspace.cancelAllWork(); host.close() }
+        let original = workspace.selected
+        host.attach(original)
+        let url = URL(string: "https://research.example.invalid/deferred-clear")!
+        original.manualNavigation(to: url) {
+            original.webView.loadHTMLString("<html><head><title>Before clear</title></head><body>LOCAL</body></html>", baseURL: url)
+        }
+        try await wait("deferred fixture initial load", { original.loadedURL == url && workspace.library.tabs.first?.url == url })
+        // The browser was already on screen before its library sheet opened.
+        workspace.browserDidAppear()
+        let cookie = HTTPCookie(properties: [.domain: "research.example.invalid", .path: "/", .name: "woow_deferred_fixture", .value: "synthetic", .expires: Date().addingTimeInterval(3600)])!
+        await store.httpCookieStore.setCookie(cookie)
+        workspace.refreshWebsiteRecords()
+        try await wait("deferred fixture site record", {
+            !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName.contains("example.invalid") }
+        })
+        guard let record = workspace.websiteRecords.first(where: { $0.displayName.contains("example.invalid") }) else { throw Failure(check: "no fixture record") }
+        workspace.websiteRemovalTestGate = { await gate.wait() }
+        var navigations = 0
+        workspace.restoredNavigationTestHook = { session in
+            navigations += 1; host.attach(session)
+            session.manualNavigation(to: url) {
+                session.webView.loadHTMLString("<html><head><title>Restored</title></head><body>LOCAL</body></html>", baseURL: url)
+            }
+            if navigations == 1 { workspace.browserDidAppear() } // Re-entry must not repeat an in-flight restore.
+        }
+        workspace.removeWebsiteData([record])
+        try await wait("real clear reached gate", { gate.entered })
+        try expect(workspace.isClearingWebsiteData, "clear is held")
+        switch scenario {
+        case .appearance, .leaves, .backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear,
+             .sheetOpenedDuringClear, .sheetOpenedThenBackground:
+            workspace.browserDidAppear()
+        case .sheetDuringClear:
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        case .hiddenSheet:
+            workspace.browserLibraryDidDismiss(isVisible: false, isActive: true)
+        case .inactiveSheet:
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: false)
+        case .sheetAfterClear:
+            break
+        }
+        try expect(navigations == 0, "no navigation during removal")
+        if [.sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.browserLibraryWillPresent() // No BrowserView disappearance callback.
+        }
+        if scenario == .leaves { workspace.browserDidDisappear() }
+        if [.backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.cancelAllWork()
+            // A late sheet callback cannot undo a background cancellation.
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        }
+        if [.backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            workspace.browserDidAppear(activate: false) // Foreground, but still covered by the library.
+            try expect(navigations == 0, "foreground sheet must not load behind itself")
+        }
+        if scenario == .backgroundToSheetDuringClear {
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        }
+        gate.release()
+        try await wait("real clear completed", { !workspace.isClearingWebsiteData })
+        try expect(workspace.errorText == nil, "clear succeeded")
+        try expect(workspace.selected !== original, "selected session replaced")
+        if [.leaves, .backgroundCancellation, .hiddenSheet, .inactiveSheet, .sheetAfterClear, .backgroundToSheetAfterClear,
+            .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            try expect(navigations == 0 && workspace.selected.loadedURL == nil, "no unauthorised restoration")
+            if [.sheetAfterClear, .backgroundToSheetAfterClear, .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+                workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+            } else {
+                workspace.browserDidAppear()
+            }
+        }
+        try await wait("deferred actual WebKit restoration", {
+            navigations == 1 && workspace.selected.loadedURL == url && workspace.selected.pageTitle == "Restored"
+        })
+        try expect(navigations == 1, "one restoration only")
+        let remaining = await store.httpCookieStore.allCookies()
+        try expect(!remaining.contains { $0.name == cookie.name }, "fixture cookie really removed")
+        workspace.browserDidDisappear()
+        return checks
+    }
+    #endif
+
     static func run() async throws -> [String: Any] {
         var count = try BrowserUserSiteModesChecks.run()
         func check(_ condition: @autoclosure () throws -> Bool, _ name: String) throws {
@@ -320,6 +428,9 @@ private final class SiteModeKeys: LearningKeyStore {
                   && migrated.library.bookmarks == state.bookmarks && migrated.library.selectedID == state.selectedID,
                   "legacy encrypted library migrates without metadata loss")
         try check(migrated.library.userSiteModes.desktopHosts.isEmpty, "legacy encrypted library starts mobile")
+        #if DEBUG
+        for scenario in ClearScenario.allCases { count += try await checkDeferredWebsiteClear(scenario) }
+        #endif
         // Corrupt ciphertext: fail closed and leave original bytes untouched.
         try Data("corrupt fixture".utf8).write(to: file)
         let corrupt = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("OtherDownloads"))
@@ -332,6 +443,162 @@ private final class SiteModeKeys: LearningKeyStore {
     }
 
     #if DEBUG
+    enum HTTPDelayedClearScenario: CaseIterable, Equatable {
+        case foreground, backgroundUntilClear, foregroundDuringClear
+    }
+
+    /// Real WKWebView requests to the strictly gated loopback fixture. The
+    /// persisted URL is a local HTML public-origin placeholder because the
+    /// production library deliberately refuses to persist loopback addresses.
+    /// A Debug-only restoration hook attaches the replacement WKWebView and
+    /// opens the real protected URL; the server, not the hook, counts requests.
+    static func checkHTTPDelayedClear(_ scenario: HTTPDelayedClearScenario,
+                                      fixture: BrowserLoginFixture, statusURL: URL) async throws -> Int {
+        var checks = 0
+        func check(_ value: @autoclosure () -> Bool, _ description: String) throws {
+            guard value() else { throw Failure(check: description) }; checks += 1
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-http-delayed-clear-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = WKWebsiteDataStore.nonPersistent(), keys = SiteModeKeys()
+        let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
+        let workspace = BrowserWorkspace(dataStore: store, vault: vault, downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(), gate = WebsiteClearGate()
+        defer { gate.release(); workspace.cancelAllWork(); host.close() }
+        let original = workspace.selected
+        host.attach(original)
+        workspace.browserDidAppear() // Auto-opens the strictly gated fixture status URL.
+        try await wait("HTTP delayed fixture status", { original.loadedURL == statusURL && !original.webView.isLoading })
+        let protectedURL = statusURL.deletingLastPathComponent().appendingPathComponent("protected")
+        _ = try await original.webView.evaluateJavaScript("document.getElementById('username').value='\(BrowserLoginFixture.username)'; document.getElementById('password').value='\(BrowserLoginFixture.password)'; document.querySelector('form').requestSubmit(); true")
+        try await wait("HTTP delayed fixture login", { original.loadedURL == protectedURL && !original.webView.isLoading })
+        let loginBody = try await original.webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
+        try check(loginBody.contains("LOGIN_PROTECTED_AUTHENTICATED"), "fixture login uses a real server cookie")
+        let publicURL = URL(string: "https://research.example.invalid/clear-fixture")!
+        original.manualNavigation(to: publicURL) {
+            original.webView.loadHTMLString("<html><head><title>Fixture metadata</title></head><body>LOCAL</body></html>", baseURL: publicURL)
+        }
+        try await wait("HTTP delayed saved metadata", { original.loadedURL == publicURL && workspace.library.tabs.first?.url == publicURL })
+        original.address = protectedURL.absoluteString; original.openAddress()
+        try await wait("HTTP delayed protected page", { original.loadedURL == protectedURL && !original.webView.isLoading })
+        let other = HTTPCookie(properties: [.domain: "other-site.example.org", .path: "/", .name: "woow_other_fixture", .value: "synthetic", .secure: "TRUE", .expires: Date().addingTimeInterval(3600)])!
+        await store.httpCookieStore.setCookie(other)
+        let initialCookies = await store.httpCookieStore.allCookies()
+        try check(initialCookies.contains { $0.name == BrowserLoginFixture.cookieName }, "real fixture cookie exists")
+        try check(initialCookies.contains { $0.name == other.name }, "other site cookie exists")
+        workspace.refreshWebsiteRecords()
+        try await wait("HTTP delayed site records", {
+            !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName == "127.0.0.1" }
+        })
+        guard let record = workspace.websiteRecords.first(where: { $0.displayName == "127.0.0.1" }) else {
+            throw Failure(check: "fixture site record missing")
+        }
+        let before = await fixture.protectedRequestCount()
+        var restored = 0
+        workspace.restoredNavigationTestHook = { session in
+            restored += 1; host.attach(session)
+            session.address = protectedURL.absoluteString; session.openAddress()
+        }
+        workspace.websiteRemovalTestGate = { await gate.wait() }
+        workspace.browserDidDisappear() // Navigate from the memory sheet to the browser.
+        workspace.removeWebsiteData([record])
+        try await wait("HTTP delayed clear gate", { gate.entered })
+        workspace.browserDidAppear() // Queues restoration during clearing.
+        workspace.browserLibraryWillPresent() // Browser stays mounted behind the sheet.
+        if scenario != .foreground {
+            workspace.cancelAllWork()
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true) // stale callback
+        }
+        if scenario == .foregroundDuringClear { workspace.browserDidAppear(activate: false) }
+        gate.release()
+        try await wait("HTTP delayed removal completes", { !workspace.isClearingWebsiteData })
+        try check(workspace.errorText == nil, "actual site deletion succeeded")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let whileCovered = await fixture.protectedRequestCount()
+        try check(whileCovered == before && restored == 0, "no protected request while sheet covers browser")
+        let afterClear = await store.httpCookieStore.allCookies()
+        try check(!afterClear.contains { $0.name == BrowserLoginFixture.cookieName }, "selected site's cookie deleted")
+        try check(afterClear.contains { $0.name == other.name }, "other site's cookie preserved")
+        if scenario == .backgroundUntilClear { workspace.browserDidAppear(activate: false) }
+        try await Task.sleep(nanoseconds: 150_000_000)
+        let foregroundCovered = await fixture.protectedRequestCount()
+        try check(foregroundCovered == before && restored == 0, "foreground under sheet does not request")
+        workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+        workspace.browserDidAppear() // Reentrant callbacks cannot duplicate the in-flight request.
+        try await wait("HTTP delayed restored page", { workspace.selected.loadedURL == protectedURL && !workspace.selected.webView.isLoading })
+        let restoredBody = try await workspace.selected.webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let afterDismiss = await fixture.protectedRequestCount()
+        try check(afterDismiss == before + 1 && restored == 1, "exactly one real protected request after dismissal")
+        try check(restoredBody.contains("LOGIN_PROTECTED_DENIED"), "server sees deleted cookie on restored page")
+        workspace.browserDidDisappear()
+        return checks
+    }
+
+    /// Exercise the same Debug-only gate and loopback restoration address used
+    /// by native UI tests. No manual navigation override is used after clear.
+    static func runHTTPUIDelayedFixture() async throws -> [String: Any] {
+        guard let fixture = BrowserLoginFixture.enabled else { throw Failure(check: "UI HTTP fixture flags required") }
+        let statusURL = try await fixture.start()
+        defer { fixture.stop() }
+        let protectedURL = statusURL.deletingLastPathComponent().appendingPathComponent("protected")
+        var count = 0
+        func check(_ value: @autoclosure () -> Bool, _ description: String) throws {
+            guard value() else { throw Failure(check: description) }; count += 1
+        }
+        for background in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-ui-gate-http-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let store = WKWebsiteDataStore.nonPersistent(), keys = SiteModeKeys()
+            let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
+            let workspace = BrowserWorkspace(dataStore: store, vault: vault, downloadDirectory: root.appendingPathComponent("downloads"))
+            let host = try Host()
+            defer { workspace.releaseDelayedClearUIFixture(); workspace.cancelAllWork(); host.close() }
+            try check(workspace.delayedClearUIFixtureEnabled, "strict gated UI fixture enabled")
+            let original = workspace.selected
+            host.attach(original); workspace.browserDidAppear()
+            try await wait("UI-gate fixture status", { original.loadedURL == statusURL && !original.webView.isLoading })
+            _ = try await original.webView.evaluateJavaScript("document.getElementById('username').value='\(BrowserLoginFixture.username)'; document.getElementById('password').value='\(BrowserLoginFixture.password)'; document.querySelector('form').requestSubmit(); true")
+            try await wait("UI-gate fixture login", { original.loadedURL == protectedURL && !original.webView.isLoading })
+            let cookies = await store.httpCookieStore.allCookies()
+            try check(cookies.contains { $0.name == BrowserLoginFixture.cookieName }, "real fixture cookie present")
+            try check(cookies.contains { $0.name == "woow_second_site_fixture" }, "isolated second site present")
+            workspace.refreshWebsiteRecords()
+            try await wait("UI-gate fixture site", { !workspace.isLoadingWebsiteRecords && workspace.websiteRecords.contains { $0.displayName == "127.0.0.1" } })
+            guard let record = workspace.websiteRecords.first(where: { $0.displayName == "127.0.0.1" }) else { throw Failure(check: "UI-gate site missing") }
+            let before = await fixture.protectedRequestCount()
+            workspace.browserDidDisappear()
+            workspace.removeWebsiteData([record])
+            try await wait("UI-gate held", { workspace.delayedClearUIFixtureWaiting })
+            workspace.browserDidAppear()
+            workspace.browserLibraryWillPresent()
+            if background { workspace.cancelAllWork(); workspace.browserDidAppear(activate: false) }
+            workspace.releaseDelayedClearUIFixture()
+            try await wait("UI-gate removal", { !workspace.isClearingWebsiteData })
+            try check(!workspace.delayedClearUIFixtureTimedOut && workspace.errorText == nil, "UI gate released and actual deletion succeeded")
+            host.attach(workspace.selected)
+            try await Task.sleep(nanoseconds: 300_000_000)
+            let covered = await fixture.protectedRequestCount()
+            try check(covered == before && workspace.selected.loadedURL == nil, "UI gate made no request behind the library")
+            let remaining = await store.httpCookieStore.allCookies()
+            try check(!remaining.contains { $0.name == BrowserLoginFixture.cookieName }, "UI-gate removed selected cookie")
+            try check(remaining.contains { $0.name == "woow_second_site_fixture" }, "UI-gate preserved other site")
+            try check(workspace.selected.address == protectedURL.absoluteString, "debug fixture restores only its approved loopback URL")
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
+            try await wait("UI-gate restored page", { workspace.selected.loadedURL == protectedURL && !workspace.selected.webView.isLoading })
+            try await Task.sleep(nanoseconds: 300_000_000)
+            let after = await fixture.protectedRequestCount()
+            try check(after == before + 1, "UI gate makes exactly one protected request after dismissal")
+            let body = try await workspace.selected.webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
+            try check(body.contains("LOGIN_PROTECTED_DENIED"), "UI gate restore has no deleted cookie")
+            workspace.browserDidDisappear()
+        }
+        return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
+                "debug_ui_gate_scenarios": 2, "external_network_or_personal_keychain": false]
+    }
+
     static func runHTTPFixture() async throws -> [String: Any] {
         guard let fixture = BrowserLoginFixture.enabled else { throw Failure(check: "existing HTTP fixture flags required") }
         let statusURL = try await fixture.start()
@@ -400,9 +667,13 @@ private final class SiteModeKeys: LearningKeyStore {
         try await Task.sleep(nanoseconds: 300_000_000)
         try check(probe.actions.count == postActions && probe.finishes == postFinishes && probe.lastNavigation === postNavigation,
                   "no POST resubmission or replacement GET")
+        for scenario in HTTPDelayedClearScenario.allCases {
+            count += try await checkHTTPDelayedClear(scenario, fixture: fixture, statusURL: statusURL)
+        }
         return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
                 "completed_get_reloads": 1, "additional_server_gets": 1, "post_replays": 0,
-                "retained_cookie_authenticated_by_server": true, "external_network_or_personal_keychain": false]
+                "retained_cookie_authenticated_by_server": true, "delayed_clear_loopback_scenarios": 3,
+                "external_network_or_personal_keychain": false]
     }
     #endif
 }
@@ -415,7 +686,11 @@ private final class SiteModeKeys: LearningKeyStore {
             do {
                 let result: [String: Any]
                 #if DEBUG
-                if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
+                if BrowserLoginFixture.enabled != nil {
+                    if ProcessInfo.processInfo.arguments.contains("-UITestBrowserDelayedClear") {
+                        result = try await BrowserSiteModesAppChecks.runHTTPUIDelayedFixture()
+                    } else { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
+                }
                 else { result = try await BrowserSiteModesAppChecks.run() }
                 #else
                 result = try await BrowserSiteModesAppChecks.run()

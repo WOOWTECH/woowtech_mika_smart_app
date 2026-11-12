@@ -1,5 +1,15 @@
 import Foundation
 
+/// Use the same query for filtering and choosing the empty-state message.
+func normalizedMemorySearch(_ query: String) -> String {
+    query.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func emptyMemoryMessage(for query: String, pending: Bool) -> MemoryDataKey {
+    if normalizedMemorySearch(query).isEmpty { return pending ? .emptyPending : .emptyHomeMemory }
+    return pending ? .pendingNotFound : .memoryNotFound
+}
+
 // Closed, memory-specific display keys. Keep this table separate from the
 // generated shared AppText catalog so independent UI work does not reorder it.
 enum MemoryDataKey: String, CaseIterable {
@@ -8,7 +18,7 @@ enum MemoryDataKey: String, CaseIterable {
     case profile, routeTitle, websiteKnowledgeCount, routeCount, websitesAndRoutes
     case routesHelp, webLogins, webLoginsHelp, storedData
     case clearAll, clearSubtitle, clearDetails
-    case emptyMemory, memoryNotFound, addMemory, emptyPending, pendingNotFound
+    case emptyMemory, emptyHomeMemory, memoryNotFound, addMemory, emptyPending, pendingNotFound
     case pendingProcedure, pendingSkills, pendingSearchHint
     case manualSource, conversationSource, pinned, originalContent
     case accept, reject, edit, unpin, pin, delete
@@ -16,7 +26,7 @@ enum MemoryDataKey: String, CaseIterable {
     case emptySkills, skillsScope, mineSkills, importSkill, importHint, importSafety
     case getSkills, catalog, pdfRead, agentWrite, transcript, builtInHelp, builtInTools
     case draftImported, draftPending, draftUpdate, changedLines
-    case acceptTrial, editDraft, fullText, viewFullText, skillSuspended, skillTrial, skillEnabled
+    case acceptTrial, editDraft, fullText, hideFullText, viewFullText, skillSuspended, skillTrial, skillEnabled
     case enableReference, share, restorePrevious
     case skillDeleteTitle, skillDeleteMessage, confirmSkillDelete
     case useMemory, useMemorySub, autoRemember, autoRememberSub
@@ -49,12 +59,13 @@ enum MemoryDataKey: String, CaseIterable {
         case .websitesAndRoutes: return ("網站知識與路線（%lld／%lld）", "网站知识与路线（%lld／%lld）", "Website notes and routes (%lld/%lld)")
         case .routesHelp: return ("網頁路線以實際讀取與完成判定建立；目前只支援公開網站的導覽與核對。", "网页路线根据实际读取和完成判定建立；目前仅支持公开网站的导航与核对。", "Web routes are saved after actual reading and outcome review. Only navigation and verification on public sites are supported.")
         case .webLogins: return ("網站登入", "网站登录", "Website logins")
-        case .webLoginsHelp: return ("網站登入資料由 WebKit 儲存，可在瀏覽器的網站頁面查看與清除。", "网站登录数据由 WebKit 保存，可在浏览器的网站页面查看和清除。", "WebKit stores website login data. View or clear it from the browser's Websites page.")
+        case .webLoginsHelp: return ("查看與清除 WebKit 網站資料；清單中的網站不一定已登入。", "查看和清除 WebKit 网站数据；列表中的网站不一定已登录。", "View and clear WebKit website data. Listed sites are not necessarily signed in.")
         case .storedData: return ("儲存的資料", "保存的数据", "Saved data")
         case .clearAll: return ("全部清除", "全部清除", "Clear all")
         case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "删除所有记忆和学到的技能", "Delete all memories and learned skills")
         case .clearDetails: return ("需要兩次確認，並包含個人檔案。模型設定、模型金鑰與 MCP 端點不會被清除。", "需要确认两次，且会清除个人档案。模型设置、模型密钥和 MCP 端点不会被清除。", "Requires two confirmations and includes your profile. Model settings, keys, and MCP endpoints are kept.")
         case .emptyMemory: return ("尚未儲存記憶。", "还没有保存的记忆。", "No saved memories yet.")
+        case .emptyHomeMemory: return ("還沒有記住的事", "还没有记住的事", "Nothing remembered yet")
         case .memoryNotFound: return ("找不到符合的記憶。", "没有找到匹配的记忆。", "No matching memories.")
         case .addMemory: return ("手寫一條", "手写一条", "Write a memory")
         case .emptyPending: return ("沒有待確認的內容。", "没有待确认的内容。", "Nothing pending review.")
@@ -95,6 +106,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .acceptTrial: return ("收下試用", "接受试用", "Accept for trial")
         case .editDraft: return ("改一改", "修改", "Edit first")
         case .fullText: return ("看全文", "查看全文", "Full text")
+        case .hideFullText: return ("收起全文", "收起全文", "Hide full text")
         case .viewFullText: return ("查看全文", "查看全文", "View full text")
         case .skillSuspended: return ("已停用", "已停用", "Disabled")
         case .skillTrial: return ("試用中 · 尚未驗證", "试用中 · 尚未验证", "Trial · not verified")
@@ -128,7 +140,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .skillEditorImportHelp: return ("貼上完整 SKILL.md。有效內容會進入待確認，不會立即啟用。", "粘贴完整的 SKILL.md。有效内容会进入待确认，不会立即启用。", "Paste the full SKILL.md. Valid content waits for review and is not enabled immediately.")
         case .skillEditorEditHelp: return ("檢查全文後核准試用；不會執行程式或授予工具權限。", "检查全文后批准试用；不会运行程序或授予工具权限。", "Review the full text before approving a trial. It cannot run code or grant tool access.")
         case .skillEditorImportTitle: return ("匯入 Skill", "导入技能", "Import skill")
-        case .skillEditorEditTitle: return ("編輯後核准", "编辑后批准", "Edit and approve")
+        case .skillEditorEditTitle: return ("改一改再試用", "修改后试用", "Edit and try")
         case .importAction: return ("匯入", "导入", "Import")
         case .approveAction: return ("核准", "批准", "Approve")
         case .clearFullText: return ("清空全文", "清空全文", "Clear full text")

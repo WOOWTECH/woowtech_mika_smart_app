@@ -7,11 +7,17 @@ import SwiftUI
 struct MemoryDataView: View {
     @ObservedObject var store: LearningStore
     @ObservedObject var browser: BrowserSession
+    #if os(iOS)
+    let browserWorkspace: BrowserWorkspace
+    @State private var showWebsiteData = false
+    #endif
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
+    @State private var searching = false
+    @State private var expandedDraftID: UUID?
     @State private var sheet: LearningSheet?
     @State private var deletionReview: SkillDeletionReview?
     @FocusState private var searchFocused: Bool
@@ -48,6 +54,19 @@ struct MemoryDataView: View {
                     .font(.headline)
                     .accessibilityIdentifier("memory.status")
             }
+            if segment != .skills {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        searching.toggle()
+                        if !searching { query = ""; searchFocused = false }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel(copy.text(.search))
+                    .accessibilityValue(copy.text(searching ? .selected : .unselected))
+                    .accessibilityIdentifier("memory.search.toggle")
+                }
+            }
         }
         .memoryNavigationBackground(palette.background)
         .tint(palette.accent)
@@ -71,6 +90,11 @@ struct MemoryDataView: View {
                 }
             }
         }
+        #if os(iOS)
+        .sheet(isPresented: $showWebsiteData) {
+            BrowserLibraryView(workspace: browserWorkspace, sitesOnly: true)
+        }
+        #endif
         .alert(copy.text(.skillDeleteTitle), isPresented: Binding(
             get: { deletionReview != nil }, set: { if !$0 { deletionReview = nil } }
         ), presenting: deletionReview) { review in
@@ -111,7 +135,7 @@ struct MemoryDataView: View {
             }
             .padding(4)
             .background(palette.fill, in: RoundedRectangle(cornerRadius: 16))
-            if segment != .skills {
+            if segment != .skills && (searching || !query.isEmpty) {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(palette.ink3)
@@ -175,51 +199,21 @@ struct MemoryDataView: View {
             Section {
                 card {
                     VStack(spacing: 0) {
-                        NavigationLink {
-                            UserProfileView(store: store)
+                        Button {
+                            #if os(iOS)
+                            showWebsiteData = true
+                            #else
+                            onOpenBrowser()
+                            #endif
                         } label: {
-                            dataRow(copy.text(.profile), systemImage: "person.crop.circle")
-                        }
-                        .disabled(!store.available)
-                        .accessibilityIdentifier("memory.profile.open")
-                        cardDivider
-                        Button { sheet = .websites } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                                    .font(.body)
-                                    .frame(width: 38, height: 38)
-                                    .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
-                                    .accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(copy.text(.routeTitle))
-                                    Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
-                                        .font(.caption).foregroundStyle(palette.ink3)
-                                }
-                                Spacer(minLength: 0)
-                                Text(copy.text(.routeCount, Int64(store.routes.routes.count)))
-                                    .foregroundStyle(palette.ink3)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(palette.ink3)
-                                    .accessibilityHidden(true)
-                            }
-                            .foregroundStyle(palette.ink)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        }
-                            .accessibilityLabel(copy.text(.websitesAndRoutes,
-                                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
-                            .accessibilityIdentifier("memory.websites")
-                        Text(copy.text(.routesHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.routesPending")
-                        cardDivider
-                        Button { onOpenBrowser() } label: {
                             dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
                         Text(copy.text(.webLoginsHelp))
                             .font(.caption).foregroundStyle(palette.ink3)
                             .accessibilityIdentifier("memory.browserPending")
+                        cardDivider
+                        routeManagementRow
                     }
                 }
             } header: { sectionTitle(copy.text(.storedData)) }
@@ -249,6 +243,27 @@ struct MemoryDataView: View {
                         .font(.caption).foregroundStyle(palette.ink3)
                 }
             }
+            Section {
+                card {
+                    NavigationLink {
+                        UserProfileView(store: store)
+                    } label: {
+                        dataRow(copy.text(.profile), systemImage: "person.crop.circle")
+                    }
+                    .disabled(!store.available)
+                    .accessibilityIdentifier("memory.profile.open")
+                }
+                Text(copy.text(.preferenceScope))
+                    .font(.caption).foregroundStyle(palette.ink3)
+                    .accessibilityIdentifier("memory.preferenceScope")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                Text(copy.text(.learningLimit))
+                    .font(.caption).foregroundStyle(palette.ink3)
+                    .accessibilityIdentifier("skills.learningLimit")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -261,7 +276,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .active)
         if items.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyMemory : .memoryNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: false)))
                     .font(.body)
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 150)
@@ -304,7 +319,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .pending)
         if items.isEmpty && store.skills.pending.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyPending : .pendingNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: true)))
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .listRowBackground(Color.clear)
@@ -319,7 +334,14 @@ struct MemoryDataView: View {
         }
         if !store.skills.pending.isEmpty {
             Section {
-                ForEach(store.skills.pending) { draft in card { draftRow(draft) } }
+                card {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(store.skills.pending) { draft in
+                            draftRow(draft)
+                            if draft.id != store.skills.pending.last?.id { cardDivider }
+                        }
+                    }
+                }
                 Text(copy.text(.pendingSearchHint))
                     .font(.caption)
                     .foregroundStyle(palette.ink3)
@@ -467,12 +489,13 @@ struct MemoryDataView: View {
 
     private func draftRow(_ draft: SkillDraft) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: skillTitle(draft.document)).font(.headline)
+            Text(verbatim: skillTitle(draft.document)).font(.body.weight(.medium))
                 .accessibilityIdentifier("skills.draft.\(draft.name)")
             Text(verbatim: draft.document.description)
-                .foregroundStyle(palette.ink2)
-            Text(copy.text(draft.source == .imported ? .draftImported : .draftPending))
-                .font(.caption).foregroundStyle(palette.ink3)
+                .foregroundStyle(palette.ink3)
+            if draft.source == .imported {
+                Text(copy.text(.draftImported)).font(.caption).foregroundStyle(palette.ink3)
+            }
             if let previous = store.skills.installed.first(where: { $0.name == draft.replacesName }) {
                 Text(copy.text(.draftUpdate))
                     .font(.caption)
@@ -485,6 +508,14 @@ struct MemoryDataView: View {
                         .font(.caption)
                         .foregroundStyle(entry.element.hasPrefix("+") ? palette.ok : palette.bad)
                 }
+            }
+            if expandedDraftID == draft.id {
+                Text(verbatim: draft.markdown)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(palette.ink2)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("skills.draftDocument.\(draft.name)")
             }
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) {
@@ -518,7 +549,9 @@ struct MemoryDataView: View {
                 .accessibilityIdentifier("skills.edit.\(draft.name)")
                 .memoryActionPill(palette)
         case .fullText:
-            Button(copy.text(.fullText)) { sheet = .fullText(skillTitle(draft.document), draft.markdown) }
+            Button(copy.text(expandedDraftID == draft.id ? .hideFullText : .fullText)) {
+                expandedDraftID = expandedDraftID == draft.id ? nil : draft.id
+            }
                 .accessibilityIdentifier("skills.draftFullText.\(draft.name)")
                 .memoryActionPill(palette)
         case .reject:
@@ -582,6 +615,35 @@ struct MemoryDataView: View {
         .buttonStyle(.borderless)
     }
 
+    private var routeManagementRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { sheet = .websites } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
+                        .font(.body).frame(width: 38, height: 38)
+                        .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(copy.text(.routeTitle))
+                        Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                    }
+                    Spacer(minLength: 0)
+                    Text(copy.text(.routeCount, Int64(store.routes.routes.count))).foregroundStyle(palette.ink3)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.ink3).accessibilityHidden(true)
+                }
+                .foregroundStyle(palette.ink)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .accessibilityLabel(copy.text(.websitesAndRoutes,
+                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
+            .accessibilityIdentifier("memory.websites")
+            Text(copy.text(.routesHelp)).font(.caption).foregroundStyle(palette.ink3)
+                .accessibilityIdentifier("memory.routesPending")
+        }
+    }
+
     private var preferencesSection: some View {
         Section {
             card {
@@ -603,16 +665,6 @@ struct MemoryDataView: View {
                 }
                 .tint(palette.accent)
             }
-            Text(copy.text(.preferenceScope))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .accessibilityIdentifier("memory.preferenceScope")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            Text(copy.text(.learningLimit))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .accessibilityIdentifier("skills.learningLimit")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             if store.isLearning { ProgressView(copy.text(.learningProgress)) }
         } header: { sectionTitle(copy.text(.switches)) }
         .disabled(!store.available)
@@ -625,7 +677,7 @@ struct MemoryDataView: View {
     }
 
     private func matchingMemories(status: MemoryStatus) -> [MemoryItem] {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = normalizedMemorySearch(query)
         return store.memory.search(text, limit: 500, includePending: true)
             .filter { $0.status == status }
     }
@@ -909,7 +961,7 @@ private struct SkillEditor: View {
                 Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("skills.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(copy.text(draft == nil ? .importAction : .approveAction)) {
+                Button(copy.text(draft == nil ? .importAction : .acceptTrial)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
                         else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames) }

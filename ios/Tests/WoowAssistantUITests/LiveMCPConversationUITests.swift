@@ -189,13 +189,16 @@ final class LiveMCPConversationUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["memory.unavailable"].firstMatch.exists)
             XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
             segment("memories")
+            let searchButton = app.buttons["memory.search.toggle"].firstMatch
+            XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
             let search = app.textFields["memory.search"].firstMatch
+            if !search.exists { searchButton.tap() }
             XCTAssertTrue(search.waitForExistence(timeout: 5))
             let value = search.value as? String ?? ""
             XCTAssertTrue(value.isEmpty || value == "搜尋記憶或關鍵字", "Check absence in the unfiltered memory list.")
         }
         func emptyMemories() {
-            readable("memory.empty", equals: "尚未儲存記憶。")
+            readable("memory.empty", equals: "還沒有記住的事")
             XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
         }
         func diagnosticCount(_ key: String, in raw: String) -> Int? {
@@ -327,7 +330,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
         openMemory(); emptyMemories()
-        let activeEmpty = app.staticTexts["memory.empty"].firstMatch.label == "尚未儲存記憶。"
+        let activeEmpty = app.staticTexts["memory.empty"].firstMatch.label == "還沒有記住的事"
         segment("pending")
         readable("memory.pending.empty", equals: "沒有待確認的內容。")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)

@@ -2140,6 +2140,21 @@
       }
     },
     {
+      "case": "browserClearSiteTarget",
+      "key": "browser.clear.site.target",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "將清除「%1$@」的本機網站資料；不保證網站伺服器端登出。",
+        "zh-Hans": "将清除“%1$@”的本地网站数据；不保证网站服务器端退出登录。",
+        "en": "Clear local website data for “%1$@”. This does not guarantee sign-out on the website server."
+      }
+    },
+    {
       "case": "browserClearSite",
       "key": "browser.clear.site",
       "parameters": [],
