@@ -194,6 +194,7 @@ final class WoowAssistantUITests: XCTestCase {
         let bar = app.navigationBars["關於渥屋助理"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
+        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "你的私人助理，替你把事辦成")
         let version = app.staticTexts["settings.about.version"]
         let build = app.staticTexts["settings.about.build"]
         XCTAssertTrue(version.exists && build.exists)

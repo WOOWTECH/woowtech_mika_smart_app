@@ -25,7 +25,7 @@ struct MikaAboutInfo: Equatable {
 
 /// About-only copy stays separate from the generated shared AppText catalog.
 enum MikaAboutKey: CaseIterable {
-    case title, group, version, build, unavailable, installedVersion
+    case title, group, version, build, unavailable, installedVersion, tagline
     case resources, repository, guide, feedback, license
     case diagnostics, diagnosticsNote, diagnosticsCopy, diagnosticsCopied, diagnosticsShare, close
 
@@ -37,6 +37,8 @@ enum MikaAboutKey: CaseIterable {
         case .build: return ("建置", "构建", "Build")
         case .unavailable: return ("版本資訊不可用", "版本信息不可用", "Version unavailable")
         case .installedVersion: return ("此裝置目前安裝的 App 版本", "此设备当前安装的 App 版本", "App version installed on this device")
+        // Android About's product description, adapted for both iPhone and iPad.
+        case .tagline: return ("你的私人助理，替你把事辦成", "你的私人助理，替你把事办成", "Your personal assistant, getting things done for you")
         case .resources: return ("資源與支援", "资源与支持", "Resources and support")
         case .repository: return ("開源專案", "开源项目", "Source repository")
         case .guide: return ("專案說明", "项目说明", "Project guide")
