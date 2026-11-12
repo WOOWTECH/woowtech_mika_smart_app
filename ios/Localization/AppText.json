@@ -4626,6 +4626,76 @@
       }
     },
     {
+      "case": "localPDFSearchPatternMode",
+      "key": "localPDFSearch.patternMode",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "使用有限正規表示式",
+        "zh-Hans": "使用有限正则表达式",
+        "en": "Use limited regular expressions"
+      }
+    },
+    {
+      "case": "localPDFSearchPatternHelp",
+      "key": "localPDFSearch.patternHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "支援文字、.、\\d（數字）、\\w（英數及底線）、\\s（空格或定位字元）、固定次數 {n}（n 為 1–16）及反斜線跳脫符號；例：\\d{4}-\\d{2}。不支援 +、*、?、群組、字元類別或跨行。",
+        "zh-Hans": "支持文字、.、\\d（数字）、\\w（英数及下划线）、\\s（空格或制表符）、固定次数 {n}（n 为 1–16）及反斜杠转义符号；例：\\d{4}-\\d{2}。不支持 +、*、?、分组、字符类或跨行。",
+        "en": "Use text, ., \\d (digits), \\w (ASCII letters, digits, underscore), \\s (space or tab), {n} exact repeats (n is 1–16), and backslash-escaped symbols; e.g. \\d{4}-\\d{2}. No +, *, ?, groups, character classes, or cross-line matches."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternInvalid",
+      "key": "localPDFSearch.patternInvalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正規表示式為空或格式無效，請檢查後重試。",
+        "zh-Hans": "正则表达式为空或格式无效，请检查后重试。",
+        "en": "The pattern is empty or malformed. Check it and try again."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternUnsupported",
+      "key": "localPDFSearch.patternUnsupported",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此寫法尚未支援；請使用上方列出的有限語法。",
+        "zh-Hans": "此写法尚不支持；请使用上方列出的有限语法。",
+        "en": "This syntax is not supported. Use the limited syntax listed above."
+      }
+    },
+    {
+      "case": "localPDFSearchPatternBudget",
+      "key": "localPDFSearch.patternBudget",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。",
+        "zh-Hans": "搜索已达运算上限而停止；请缩小页数或简化条件。没有显示不完整结果。",
+        "en": "Search reached its work limit. Select fewer pages or simplify the pattern; partial results are not shown."
+      }
+    },
+    {
+      "case": "localPDFSearchStop",
+      "key": "localPDFSearch.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止搜尋",
+        "zh-Hans": "停止搜索",
+        "en": "Stop search"
+      }
+    },
+    {
+      "case": "localPDFSearchRunning",
+      "key": "localPDFSearch.running",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋中…",
+        "zh-Hans": "搜索中…",
+        "en": "Searching…"
+      }
+    },
+    {
       "case": "localPDFSearchPlaceholder",
       "key": "localPDFSearch.placeholder",
       "parameters": [],

@@ -441,6 +441,13 @@
 "localPDFSearch.title" = "離線搜尋已擷取文字";
 "localPDFSearch.notice" = "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。";
 "localPDFSearch.ignoreASCIICase" = "不區分英文字母大小寫（A–Z）";
+"localPDFSearch.patternMode" = "使用有限正規表示式";
+"localPDFSearch.patternHelp" = "支援文字、.、\\d（數字）、\\w（英數及底線）、\\s（空格或定位字元）、固定次數 {n}（n 為 1–16）及反斜線跳脫符號；例：\\d{4}-\\d{2}。不支援 +、*、?、群組、字元類別或跨行。";
+"localPDFSearch.patternInvalid" = "正規表示式為空或格式無效，請檢查後重試。";
+"localPDFSearch.patternUnsupported" = "此寫法尚未支援；請使用上方列出的有限語法。";
+"localPDFSearch.patternBudget" = "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。";
+"localPDFSearch.stop" = "停止搜尋";
+"localPDFSearch.running" = "搜尋中…";
 "localPDFSearch.placeholder" = "輸入文字，最多 256 UTF-8 位元組";
 "localPDFSearch.button" = "搜尋";
 "localPDFSearch.invalid" = "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。";

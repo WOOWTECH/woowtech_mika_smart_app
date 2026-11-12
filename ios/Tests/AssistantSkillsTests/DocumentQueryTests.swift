@@ -243,6 +243,95 @@ import XCTest
         try rejects(.budgetExceeded) { _ = try tools.read(pageIndex: 1, offset: 0, limit: 1) }
     }
 
+    static func boundedPatternSearch() async throws {
+        let actual = try nativeSource()
+        let pdfHits = try DocumentPatternSearch.search(source: actual, pattern: #"BETA budget is \d{2}"#)
+        try expect(pdfHits.hits.map(\.pageNumber) == [2, 2] && pdfHits.hits.map(\.pageIndex) == [1, 3],
+                   "real PDFKit repeated pages retain original identity")
+        try expect(pdfHits.hits[0].snippet.contains("BETA budget is 17."), "snippet comes from actual approved PDF")
+        let unicode = try source(["臺🙂Ab3-42\n臺🙂AB4-43", "臺🙂ab5-44"], numbers: [2, 1])
+        let hits = try DocumentPatternSearch.search(source: unicode, pattern: #"臺🙂a.\d-\d{2}"#, ignoreASCIICase: true)
+        try expect(hits.hits.count == 3 && hits.hits.map(\.pageNumber) == [2, 2, 1], "Unicode scalars and ASCII case with actual page labels")
+        try expect(hits.hits[0].offset == 0 && hits.hits[0].length == "臺🙂Ab3-42".utf8.count,
+                   "pattern offsets and lengths are original UTF-8 bytes")
+        try expect(hits.hits[0].snippet.contains("臺🙂Ab3-42"), "pattern never rewrites original text")
+        let space = try source(["A B\tC", "A\nB"])
+        try expect(try DocumentPatternSearch.search(source: space, pattern: #"A\sB"#).hits.count == 1,
+                   "whitespace pattern cannot cross lines")
+        try expect(try DocumentPatternSearch.search(source: space, pattern: #"B\sC"#).hits.count == 1,
+                   "tab is supported")
+        let punctuation = try source(["value: (x)+", "value: (x)+"])
+        try expect(try DocumentPatternSearch.search(source: punctuation, pattern: #"\(x\)\+"#).hits.count == 2,
+                   "escaped regex metacharacters match as literals")
+        let clipped = try DocumentPatternSearch.search(source: try source([String(repeating: "a ", count: 21)]), pattern: "a")
+        try expect(clipped.hits.count == 20 && clipped.truncated, "real next match proves truncation")
+        for invalid in ["", "\\", "a{", "a{0}", "a{2}{2}", String(repeating: "x", count: 257)] {
+            do { _ = try DocumentPatternSearch.search(source: actual, pattern: invalid); throw Failure(message: "invalid pattern accepted") }
+            catch let error as DocumentPatternError { try expect(error == .invalidPattern, "invalid pattern classification") }
+        }
+        for unsupported in ["a+", "a*", "a?", "(ab)", "[0-9]", "a|b", "^abc", #"\p{L}"#, "a{1,3}", "a{17}"] {
+            do { _ = try DocumentPatternSearch.search(source: actual, pattern: unsupported); throw Failure(message: "unsupported pattern accepted") }
+            catch let error as DocumentPatternError { try expect(error == .unsupportedPattern, "unsupported syntax classification") }
+        }
+        let long = try source([String(repeating: "a", count: 250_000) + "END"])
+        let found = try DocumentPatternSearch.search(source: long, pattern: "END")
+        try expect(found.hits.count == 1 && found.hits[0].offset == 250_000, "long approved page searched without truncation")
+        do {
+            _ = try DocumentPatternSearch.search(source: long, pattern: "a{16}a{16}a{16}a{15}z")
+            throw Failure(message: "work budget not enforced")
+        } catch let error as DocumentPatternError { try expect(error == .budgetExceeded, "work limit reports no partial success") }
+
+        let started = DispatchSemaphore(value: 0), resume = DispatchSemaphore(value: 0)
+        let task = Task.detached {
+            try DocumentPatternSearch.search(source: long, pattern: "a{16}a{16}z", checkpoint: {
+                started.signal(); resume.wait()
+            })
+        }
+        let reached = await Task.detached { waitForPatternStart(started) }.value
+        guard reached else {
+            task.cancel(); resume.signal(); throw Failure(message: "search never reached checkpoint")
+        }
+        task.cancel(); resume.signal()
+        do { _ = try await task.value; throw Failure(message: "stopped search returned a result") }
+        catch is CancellationError { try expect(true, "in-progress real search stops cooperatively") }
+
+        let gate = PatternLateGate()
+        let previous = try DocumentPatternSearch.search(source: actual, pattern: "BETA")
+        let controller = DocumentPatternSearchController(runner: { _, _, _ in await gate.wait(); return previous })
+        controller.start(source: actual, pattern: "BETA", ignoreASCIICase: false)
+        await gate.waitForStart()
+        guard let stoppedPublisher = controller.inFlightTask else { throw Failure(message: "missing in-flight publisher") }
+        controller.reset(); await gate.release(); await stoppedPublisher.value
+        if case .idle = controller.state { try expect(true, "stopped controller discards uncooperative late result") }
+        else { throw Failure(message: "late search result published after stop") }
+        let replacement = try source(["replacement 42"])
+        let replacementResult = try DocumentPatternSearch.search(source: replacement, pattern: "replacement")
+        let replacedGate = PatternLateGate()
+        let switching = DocumentPatternSearchController(runner: { _, pattern, _ in
+            if pattern == "old" { await replacedGate.wait(); return previous }
+            return replacementResult
+        })
+        switching.start(source: actual, pattern: "old", ignoreASCIICase: false)
+        await replacedGate.waitForStart()
+        guard let oldPublisher = switching.inFlightTask else { throw Failure(message: "missing old search") }
+        switching.start(source: replacement, pattern: "new", ignoreASCIICase: false)
+        for _ in 0..<200 {
+            if case .running = switching.state { try await Task.sleep(nanoseconds: 10_000_000) } else { break }
+        }
+        await replacedGate.release(); await oldPublisher.value
+        if case .completed(let result) = switching.state {
+            try expect(result.sourceSHA256 == replacement.sha256 && switching.sourceID == replacement.id,
+                       "old completion cannot replace a new source result")
+        } else { throw Failure(message: "replacement search lost or old result published") }
+        let live = DocumentPatternSearchController()
+        live.start(source: actual, pattern: #"BETA budget is \d{2}"#, ignoreASCIICase: false)
+        for _ in 0..<200 {
+            if case .running = live.state { try await Task.sleep(nanoseconds: 10_000_000) } else { break }
+        }
+        if case .completed(let result) = live.state { try expect(result.hits.count == 2, "controller publishes real detached search") }
+        else { throw Failure(message: "real controller did not finish") }
+    }
+
     static func actualModelRoundtrip() async throws {
         let source = try nativeSource(), runtime = try DocumentQueryRuntime(source: source, question: "原第 1 頁的預算？")
         var searchEvents = 0, readEvents = 0
@@ -528,6 +617,28 @@ private actor DocumentGateClient: ChatModelClient {
     func release(_ reply: String) { released = reply; let continuation = pending; pending = nil; continuation?.resume(returning: reply) }
 }
 
+private func waitForPatternStart(_ signal: DispatchSemaphore) -> Bool {
+    signal.wait(timeout: .now() + 5) == .success
+}
+
+private actor PatternLateGate {
+    private var started = false
+    private var startWaiter: CheckedContinuation<Void, Never>?
+    private var pending: CheckedContinuation<Void, Never>?
+    private var released = false
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            started = true; startWaiter?.resume(); startWaiter = nil
+            if released { continuation.resume() } else { pending = continuation }
+        }
+    }
+    func waitForStart() async {
+        if started { return }
+        await withCheckedContinuation { startWaiter = $0 }
+    }
+    func release() { released = true; pending?.resume(); pending = nil }
+}
+
 private actor DocumentDelayClient: ChatModelClient {
     private(set) var calls = 0
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
@@ -544,6 +655,7 @@ private actor DocumentDelayClient: ChatModelClient {
             ("nativeSnapshot", { try await DocumentQueryChecks.nativeSnapshot() }),
             ("sourceBoundaries", { try DocumentQueryChecks.sourceBoundaries() }),
             ("utf8AndLedger", { try DocumentQueryChecks.utf8AndLedger() }),
+            ("boundedPatternSearch", { try await DocumentQueryChecks.boundedPatternSearch() }),
             ("actualModelRoundtrip", { try await DocumentQueryChecks.actualModelRoundtrip() }),
             ("hostileCommands", { try await DocumentQueryChecks.hostileCommands() }),
             ("citationRejections", { try await DocumentQueryChecks.citationRejections() }),
@@ -564,6 +676,7 @@ final class DocumentQueryTests: XCTestCase {
     @MainActor func testNativeSnapshot() async throws { try await DocumentQueryChecks.nativeSnapshot() }
     @MainActor func testSourceBoundaries() throws { try DocumentQueryChecks.sourceBoundaries() }
     @MainActor func testUTF8AndLedger() throws { try DocumentQueryChecks.utf8AndLedger() }
+    @MainActor func testBoundedPatternSearch() async throws { try await DocumentQueryChecks.boundedPatternSearch() }
     @MainActor func testActualModelRoundtrip() async throws { try await DocumentQueryChecks.actualModelRoundtrip() }
     @MainActor func testHostileCommands() async throws { try await DocumentQueryChecks.hostileCommands() }
     @MainActor func testCitationRejections() async throws { try await DocumentQueryChecks.citationRejections() }

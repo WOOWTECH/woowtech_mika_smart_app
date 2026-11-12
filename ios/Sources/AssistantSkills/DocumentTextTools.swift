@@ -153,6 +153,8 @@ public struct DocumentLocalSearch: Sendable {
         ignoreASCIICase = value; result = nil; error = nil
     }
 
+    public mutating func clearResults() { result = nil; error = nil }
+
     public mutating func search() {
         result = nil; error = nil
         do { result = try DocumentTextTools(source: source).search(query: query, limit: 20, ignoreASCIICase: ignoreASCIICase) }

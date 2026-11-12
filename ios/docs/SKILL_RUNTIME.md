@@ -4,11 +4,42 @@ This increment provides actual selected-file PDF execution. It does not execute 
 
 ## Querying an extracted PDF
 
+### Limited regular expressions over an approved PDF snapshot
+
+The offline search offers a separate, default-off limited pattern mode. It
+supports Unicode literal scalars, `.` (one scalar), ASCII `\d`, `\w` and `\s`
+(space or tab), `\` to escape a regex metacharacter, and exact repetitions
+`{n}` for 1–16. For example `\d{4}-\d{2}` matches a year-month pattern.
+The existing A–Z case option applies only to ASCII literal letters. Unicode
+normalization and non-ASCII case folding are not performed. Matching is
+non-overlapping and cannot cross CR or LF; reported UTF-8 offsets, snippets,
+original page and selection index all refer to the unchanged snapshot.
+
+Empty/malformed expressions are reported separately from unsupported syntax.
+Character classes, groups, alternation, anchors, variable repeats (`*`, `+`,
+`?`, `{m,n}`), backreferences and Unicode property classes are unsupported;
+they are never passed to a backtracking engine or silently treated as literals.
+Patterns are bounded to 256 UTF-8 bytes and 64 expanded units. Matching is
+bounded to 5,000,000 scalar comparisons with cooperative cancellation checks;
+reaching the limit reports an error and discards partial results. At most 20
+matches are returned with a truncation indicator only when another actual
+match exists. The App runs pattern matching away from the main actor and has a
+Stop control. Editing the input, changing mode or case, replacing the source,
+or leaving the view invalidates a pending result. A worker that returns after
+cancellation cannot publish to the screen.
+
+Android `search_files` instead supports Java regular expressions and scans
+workspace lines with its own 10-second deadline and 100-line match limit. The
+fixed-width iOS subset is not full regex or workspace parity, does not invoke a
+model, external PDF worker or network, and does not create read/citation
+receipts. Native iOS UI and device responsiveness remain revision-specific
+acceptance checks.
+
 Android's `documents/SKILL.md` names `search_files` for extracted text. The
 Android sandbox compiles its `pattern` with Kotlin `Regex`, so `(?i)budget`
 matches an ASCII case variant such as `BUDGET`. This local iOS option supports
-that narrow case-insensitive literal use without interpreting the user's text
-as a regular expression. It operates only on the immutable, approved PDF text
+that narrow case-insensitive literal use; the separate limited pattern mode is
+explicitly selected by the user. It operates only on the immutable, approved PDF text
 snapshot, returns original bytes and page/selection numbers, and neither runs a
 worker nor sends data. General regular expressions, arbitrary workspace files,
 and full Android execution parity remain unsupported by this option.
@@ -22,7 +53,7 @@ notice. Editing the term or changing its case option clears old results and
 invalid terms show an error. An explicit, default-off option matches ASCII A–Z
 without case; all other UTF-8 bytes remain exact, with no Unicode normalization.
 The search operates on extracted selected pages; it does not supply OCR or
-Android's arbitrary workspace/regex search. The snippets can contain
+Android's arbitrary workspace/full-regex search. The snippets can contain
 document text and should be treated as sensitive on screen. Search controls,
 results and errors use the selected Traditional Chinese, Simplified Chinese or
 English interface language; extracted snippets remain verbatim. Other parts of

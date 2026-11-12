@@ -450,6 +450,13 @@ enum AppText: Equatable {
     case localPDFSearchTitle
     case localPDFSearchNotice
     case localPDFSearchIgnoreASCIICase
+    case localPDFSearchPatternMode
+    case localPDFSearchPatternHelp
+    case localPDFSearchPatternInvalid
+    case localPDFSearchPatternUnsupported
+    case localPDFSearchPatternBudget
+    case localPDFSearchStop
+    case localPDFSearchRunning
     case localPDFSearchPlaceholder
     case localPDFSearchButton
     case localPDFSearchInvalid
@@ -925,6 +932,13 @@ enum AppText: Equatable {
         case .localPDFSearchTitle: return "localPDFSearch.title"
         case .localPDFSearchNotice: return "localPDFSearch.notice"
         case .localPDFSearchIgnoreASCIICase: return "localPDFSearch.ignoreASCIICase"
+        case .localPDFSearchPatternMode: return "localPDFSearch.patternMode"
+        case .localPDFSearchPatternHelp: return "localPDFSearch.patternHelp"
+        case .localPDFSearchPatternInvalid: return "localPDFSearch.patternInvalid"
+        case .localPDFSearchPatternUnsupported: return "localPDFSearch.patternUnsupported"
+        case .localPDFSearchPatternBudget: return "localPDFSearch.patternBudget"
+        case .localPDFSearchStop: return "localPDFSearch.stop"
+        case .localPDFSearchRunning: return "localPDFSearch.running"
         case .localPDFSearchPlaceholder: return "localPDFSearch.placeholder"
         case .localPDFSearchButton: return "localPDFSearch.button"
         case .localPDFSearchInvalid: return "localPDFSearch.invalid"
@@ -1432,6 +1446,13 @@ enum AppText: Equatable {
         case .localPDFSearchTitle: return "離線搜尋已擷取文字"
         case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。"
         case .localPDFSearchIgnoreASCIICase: return "不區分英文字母大小寫（A–Z）"
+        case .localPDFSearchPatternMode: return "使用有限正規表示式"
+        case .localPDFSearchPatternHelp: return "支援文字、.、\\d（數字）、\\w（英數及底線）、\\s（空格或定位字元）、固定次數 {n}（n 為 1–16）及反斜線跳脫符號；例：\\d{4}-\\d{2}。不支援 +、*、?、群組、字元類別或跨行。"
+        case .localPDFSearchPatternInvalid: return "正規表示式為空或格式無效，請檢查後重試。"
+        case .localPDFSearchPatternUnsupported: return "此寫法尚未支援；請使用上方列出的有限語法。"
+        case .localPDFSearchPatternBudget: return "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。"
+        case .localPDFSearchStop: return "停止搜尋"
+        case .localPDFSearchRunning: return "搜尋中…"
         case .localPDFSearchPlaceholder: return "輸入文字，最多 256 UTF-8 位元組"
         case .localPDFSearchButton: return "搜尋"
         case .localPDFSearchInvalid: return "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。"

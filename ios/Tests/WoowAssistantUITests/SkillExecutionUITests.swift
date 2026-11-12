@@ -679,6 +679,36 @@ final class SkillExecutionUITests: XCTestCase {
         assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)
     }
 
+    func testOfflineLimitedPatternSearchUsesApprovedPDF() {
+        launchFixture(fromCatalog: false)
+        chooseSyntheticPDF()
+        approve(capability: "selectedPDFRead")
+        approve(capability: "nativePDFText")
+        tap("skillExecution.localSearch.open", scroll: true)
+        let mode = app.switches["skillExecution.localSearch.patternMode"]
+        revealLearningElement(mode, in: app); requireHittable(mode); mode.tap()
+        let search = app.buttons["skillExecution.localSearch.search"]
+        revealLearningElement(search, in: app); requireHittable(search); search.tap()
+        let error = app.staticTexts["skillExecution.localSearch.error"]
+        revealLearningElement(error, in: app, visibility: .readableText)
+        XCTAssertEqual(error.label, "正規表示式為空或格式無效，請檢查後重試。")
+        let field = app.textFields["skillExecution.localSearch.query"]
+        revealLearningElement(field, in: app); requireHittable(field); field.tap()
+        field.typeText("WOOW_SKILL_PDF_PAGE_\\d\n")
+        let summary = app.staticTexts["skillExecution.localSearch.summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 10))
+        revealLearningElement(summary, in: app, visibility: .readableText)
+        XCTAssertEqual(summary.label, "找到 1 處。")
+        let hit = app.staticTexts["skillExecution.localSearch.hit.1"]
+        revealLearningElement(hit, in: app, visibility: .readableText)
+        XCTAssertEqual(hit.label, "原第 1 頁（選取序號 1）")
+        revealLearningElement(field, in: app); field.tap(); field.typeText("+\n")
+        XCTAssertTrue(error.waitForExistence(timeout: 10))
+        revealLearningElement(error, in: app, visibility: .readableText)
+        XCTAssertEqual(error.label, "此寫法尚未支援；請使用上方列出的有限語法。")
+        assertAudit(selections: 1, reads: 1, extractionAttempts: 1, results: 1)
+    }
+
     func testNativeExportSavesTextToChosenLocalFolder() {
         extractFixtureForExport()
         openNativeExporter()
