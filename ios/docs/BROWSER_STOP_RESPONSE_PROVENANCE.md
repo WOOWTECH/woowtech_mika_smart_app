@@ -72,3 +72,65 @@ normal attachment downloads, page actions and POSTs, tab switch/close,
 automation/research restrictions and native iOS WebKit/ATS behavior. No
 identity inference from URL, timing, response order or a fixed delay is a
 substitute for a provenance boundary.
+
+## Scoped download recovery investigation
+
+The broad old-view quarantine in `5179bbf` is not equivalent to the existing
+browser: it prevents normal navigation in that view. This branch starts from
+`e7a5539` instead, and makes no product-policy or UI change. The diagnostic
+`python3 ios/scripts/check_browser_stop_redirect.py` builds DEBUG macOS
+WebKit against synthetic loopback only. It first confirms the known-red
+same-URL case, including a successful new download and the separate-view
+control. It then holds an old real attachment response, stops, and starts a new
+request at a **different** URL, whose 302 response leads to the same attachment
+URL. The test proxy releases the old response after the redirected new response
+is held. Both receive `.download`, and the new synthetic file completes. Thus
+comparing only the two initial URLs misses this controlled case. The diagnostic
+passes when it reproduces the unsafe current behavior; it is not a fix.
+
+The proxy deliberately changes when the production delegate receives genuine
+WebKit objects. It does not establish that iOS naturally delivers this order,
+or that WebKit starts an old transfer after stop. In particular, neither test
+proves a bounded period after which all stopped callbacks have drained. A
+redirect destination can differ from the initial URL, and callbacks' URL or
+object identity alone do not reveal their issuing `WKNavigation`. A larger
+set of observed URLs may reduce prompts but has no demonstrated completeness
+for unobserved or late redirects. Likewise, the action policy delegate also
+lacks a `WKNavigation` parameter; treating every action as certainly fresh
+needs separate evidence.
+
+The least disruptive conservative UX to investigate is:
+
+1. Keep the original WebView alive for ordinary pages, back/forward, form
+   interactions and subsequent navigation. Stop itself does not replay a POST.
+2. When a download decision in that view cannot be proven fresh, cancel that
+   **individual** decision and offer an explicit, clearly labelled new GET in
+   a dedicated single-use WebView. The user chooses whether to proceed; show
+   the proposed destination and explain that this is a new request. Keep the
+   existing URL, redirect, authentication and download gates; do not import
+   an old response's headers, POST body, or authorization as proof of intent.
+3. If the original action was a POST, a one-time link, or needs page-specific
+   state, explain that this new GET may fail or have different effects. Let the
+   user return to the original page to initiate the intended action. A shared
+   website data store can retain some cookies and storage, but does not promise
+   sessionStorage, native history, DOM/form state, referrer, HTTP authentication
+   or equivalent server behavior in the new view.
+
+This avoids blocking all page navigation and is not a blanket ban on downloads.
+However, public response policy fields do not identify *only* the unsafe
+responses in the same view. A conservative implementation may have to prompt
+for otherwise legitimate response downloads after a stop, including different
+initial URLs that redirect to a common final URL. An implementation that admits
+other downloads without prompting needs a defensible provenance boundary for
+each such path, including action downloads and delayed `didBecome` callbacks.
+Otherwise it would silently trade away the safety goal. Do not present this
+proposal as implemented, as equivalent to the original download, or as network
+isolation of page scripts or subresources.
+
+The loopback site-mode check also exercises the original view after stop: back,
+forward, and a newly initiated form POST. It stops a held GET following a
+completed POST document and checks that no additional POST action is issued.
+On the local macOS run, all 37 assertions passed. This exercises current
+behavior, not the proposed recovery UI. Native iOS SDK,
+ATS, authentication, website data sharing, action-policy interleavings, tab
+closure and the single-use flow itself remain to be implemented and tested.

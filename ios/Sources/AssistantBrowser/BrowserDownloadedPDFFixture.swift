@@ -22,9 +22,10 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
     public var transferCount: Int { queue.sync { downloads } }
 
     public static func validatedNamespace(_ arguments: [String]) -> UUID? {
-        let allowed = Set(["-UITestMode", "-UITestNamespace", "-UITestResetStorage", "-UITestBrowserDownloadedPDF"])
+        let allowed = Set(["-UITestMode", "-UITestNamespace", "-UITestResetStorage", "-UITestBrowserDownloadedPDF", "-UITestBrowserStopRedirect"])
         guard ["-UITestMode", "-UITestNamespace", "-UITestBrowserDownloadedPDF"].allSatisfy({ flag in arguments.filter { $0 == flag }.count == 1 }),
               arguments.filter({ $0 == "-UITestResetStorage" }).count <= 1,
+              arguments.filter({ $0 == "-UITestBrowserStopRedirect" }).count <= 1,
               !arguments.contains(where: { $0.hasPrefix("-Live") || ($0.hasPrefix("-UITest") && !allowed.contains($0)) }),
               let index = arguments.firstIndex(of: "-UITestNamespace"), arguments.indices.contains(index + 1),
               arguments[index + 1].utf8.count == 36 else { return nil }
@@ -41,7 +42,7 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
         } onCancel: { [weak self] in self?.stop() }
     }
     public func allowsNavigation(_ url: URL) -> Bool {
-        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/page" || url.absoluteString == $0 + prefix + "/file.pdf" } == true }
+        queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/page" || url.absoluteString == $0 + prefix + "/file.pdf" || url.absoluteString == $0 + prefix + "/redirect-to-file" } == true }
     }
     public func allowsDownload(_ url: URL) -> Bool {
         queue.sync { !stopped && origin.map { url.absoluteString == $0 + prefix + "/file.pdf" } == true }
@@ -142,16 +143,19 @@ public final class BrowserDownloadedPDFFixture: @unchecked Sendable {
                 <p><a href="\(self.prefix)/page">檢查下載傳送次數</a></p></body></html>
                 """
                 self.reply(client, status: 200, data: Data(html.utf8), type: "text/html; charset=utf-8")
+            } else if first[1] == self.prefix + "/redirect-to-file" {
+                self.reply(client, status: 302, data: Data(), location: self.prefix + "/file.pdf")
             } else if first[1] == self.prefix + "/file.pdf" {
                 self.downloads += 1
                 self.reply(client, status: 200, data: Self.payload, type: "application/pdf", attachment: self.filename)
             } else { self.reply(client, status: 404, data: Data()) }
         }
     }
-    private func reply(_ client: Client, status: Int, data: Data, type: String = "text/plain", attachment: String? = nil) {
+    private func reply(_ client: Client, status: Int, data: Data, type: String = "text/plain", attachment: String? = nil, location: String? = nil) {
         guard !client.replied else { return }; client.replied = true
         var headers = "HTTP/1.1 \(status) Fixture\r\nContent-Type: \(type)\r\nContent-Length: \(data.count)\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\r\n"
         if let attachment { headers += "Content-Disposition: attachment; filename=\"\(attachment)\"\r\n" }
+        if let location { headers += "Location: \(location)\r\n" }
         client.connection.send(content: Data((headers + "\r\n").utf8) + data, completion: .contentProcessed { [weak self, weak client] _ in
             if let client { self?.close(client) }
         })

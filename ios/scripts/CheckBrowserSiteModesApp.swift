@@ -419,6 +419,16 @@ private final class SiteModeKeys: LearningKeyStore {
         try await Task.sleep(nanoseconds: 300_000_000)
         try check(probe.actions.count == postActions && probe.finishes == postFinishes && probe.lastNavigation === postNavigation,
                   "no POST resubmission or replacement GET")
+        let postsBeforeStop = probe.actions.filter { $0.method == "POST" }.count
+        fixture.setHoldStatus(true)
+        browser.manualNavigation(to: statusURL) { browser.webView.load(URLRequest(url: statusURL)) }
+        try await wait("held GET after POST document", { fixture.heldStatusCount > 0 && browser.isPageLoading })
+        try check(browser.stopManualPageLoading(), "stop while POST document is visible")
+        fixture.setHoldStatus(false)
+        try await wait("stopped GET after POST is idle", { !browser.webView.isLoading && !browser.isPageLoading })
+        try await Task.sleep(nanoseconds: 300_000_000)
+        try check(probe.actions.filter { $0.method == "POST" }.count == postsBeforeStop && browser.webView === originalView,
+                  "stop does not replay the visible POST document")
 
         // The server holds an actual HTTP response while both sessions remain
         // isolated from the user's profile and the rest of the network.
@@ -523,10 +533,77 @@ private final class SiteModeKeys: LearningKeyStore {
         try await Task.sleep(nanoseconds: 300_000_000)
         try check(firstLoad.manualLoadStopped && firstLoad.loadedURL == nil && firstProbe.finishes == 0 && firstProbe.actions.count == firstActions,
                   "tab switches do not restart a stopped first navigation")
+        // This baseline keeps the original view: verify what the broad
+        // quarantine candidate would remove, using actual WebKit history and a
+        // new user-requested synthetic form POST after a stop.
+        workspace.selectTab(oldID)
+        let retainedView = selected.webView
+        selected.address = protectedURL.absoluteString; selected.openAddress()
+        try await wait("post-stop new page", { selected.loadedURL == protectedURL && !selected.isPageLoading })
+        try check(selected.webView === retainedView && selected.webView.canGoBack, "old view and back history retained")
+        selected.goBack()
+        try await wait("post-stop back", { selected.loadedURL == statusURL && !selected.isPageLoading })
+        try check(selected.webView.canGoForward, "forward history retained")
+        selected.goForward()
+        try await wait("post-stop forward", { selected.loadedURL == protectedURL && !selected.isPageLoading })
+        selected.goBack()
+        try await wait("return to form", { selected.loadedURL == statusURL && !selected.isPageLoading })
+        let postCount = selectedProbe.actions.filter { $0.method == "POST" }.count
+        _ = try await selected.webView.evaluateJavaScript("document.getElementById('username').value='\(BrowserLoginFixture.username)'; document.getElementById('password').value='\(BrowserLoginFixture.password)'; document.querySelector('form').requestSubmit(); true")
+        try await wait("new post-stop form submission", { selected.loadedURL == protectedURL && !selected.isPageLoading })
+        try check(selected.webView === retainedView && selectedProbe.actions.filter { $0.method == "POST" }.count == postCount + 1,
+                  "new user-requested form POST works exactly once in old view")
         return ["assertions": count, "actual_webkit": true, "actual_loopback_http": true,
                 "completed_get_reloads": 1, "additional_server_gets": 1, "post_replays": 0,
+                "post_stop_original_view_back_forward_and_explicit_form_post": true,
                 "retained_cookie_authenticated_by_server": true, "external_network_or_personal_keychain": false]
     }
+    // Diagnostic of a proposed initial-URL-only mitigation. The proxy holds
+    // genuine WebKit policy objects; this controlled order is not a claim
+    // that WebKit naturally delivers callbacks in this order on iOS.
+    static func runRedirectStopDiagnostic() async throws -> [String: Any] {
+        guard let fixture = BrowserDownloadedPDFFixture.enabled else { throw Failure(check: "PDF fixture flags required") }
+        let pageURL = try await fixture.start(); defer { fixture.stop() }
+        let attachmentURL = pageURL.deletingLastPathComponent().appendingPathComponent("file.pdf")
+        let redirectURL = pageURL.deletingLastPathComponent().appendingPathComponent("redirect-to-file")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-stop-redirect-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(),
+            vault: EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: SiteModeKeys()),
+            downloadDirectory: root.appendingPathComponent("downloads"))
+        let host = try Host(); defer { host.close(); workspace.cancelAllWork() }
+        let browser = workspace.selected, probe = Probe(workspace.selected)
+        probe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(browser); browser.webView.navigationDelegate = probe
+        probe.deferResponseURL = attachmentURL
+        browser.manualNavigation(to: attachmentURL) { browser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("old real PDF policy held", { probe.deferredResponse != nil && browser.isPageLoading })
+        let oldResponse = probe.deferredResponse!; probe.deferredResponse = nil
+        guard browser.stopManualPageLoading() else { throw Failure(check: "stop old PDF") }
+        probe.deferResponseURL = attachmentURL
+        browser.manualNavigation(to: redirectURL) { browser.webView.load(URLRequest(url: redirectURL)) }
+        try await wait("new redirected PDF policy held", { probe.deferredResponse != nil && browser.isPageLoading })
+        let newResponse = probe.deferredResponse!; probe.deferredResponse = nil
+        oldResponse()
+        guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy delivered") }
+        let oldPolicy = probe.deferredPolicies[0]
+        newResponse()
+        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .download else {
+            throw Failure(check: "new redirected download denied")
+        }
+        try await wait("new redirected download completes", { workspace.downloads.items.contains { $0.status == .completed } })
+        guard let item = workspace.downloads.items.first(where: { $0.status == .completed }),
+              let file = try? workspace.downloads.fileURL(id: item.id),
+              let contents = try? Data(contentsOf: file), contents == BrowserDownloadedPDFFixture.payload else {
+            throw Failure(check: "downloaded fixture bytes")
+        }
+        guard oldPolicy == .download else { throw Failure(check: "expected current behavior changed; reassess diagnostic") }
+        return ["different_initial_urls": true, "same_response_url_after_redirect": true,
+                "old_response_policy_download": true, "new_download_completed": true,
+                "actual_webkit": true, "actual_loopback_http": true,
+                "callback_order_injected_by_proxy": true, "native_ios_execution": false]
+    }
+
     // A deliberately failing regression until response provenance is fixed.
     // The proxy retains real WebKit response objects and controls when the app
     // sees them. It does not establish that iOS naturally delivers this order.
@@ -613,7 +690,10 @@ private final class SiteModeKeys: LearningKeyStore {
             do {
                 let result: [String: Any]
                 #if DEBUG
-                if BrowserDownloadedPDFFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runSameURLStopRegression() }
+                if BrowserDownloadedPDFFixture.enabled != nil && ProcessInfo.processInfo.arguments.contains("-UITestBrowserStopRedirect") {
+                    result = try await BrowserSiteModesAppChecks.runRedirectStopDiagnostic()
+                }
+                else if BrowserDownloadedPDFFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runSameURLStopRegression() }
                 else if BrowserLoginFixture.enabled != nil { result = try await BrowserSiteModesAppChecks.runHTTPFixture() }
                 else { result = try await BrowserSiteModesAppChecks.run() }
                 #else
