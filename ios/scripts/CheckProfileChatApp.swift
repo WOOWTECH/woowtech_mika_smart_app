@@ -970,6 +970,109 @@ private enum CheckProfileChatApp {
         try check((try env.bytes()) == disabled, "Disabled direct transaction writes no ciphertext")
     }
 
+    /// Same shared encrypted file as the attachment-fixture negative control:
+    /// the actual ChatSession waits for approval while a second store changes it.
+    @MainActor static func crossInstanceApprovalAndCancellation() async throws {
+        for scenario in ["memory", "profile", "cancel"] {
+            let env = try Environment(); defer { try? env.close() }
+            let command = scenario == "profile" ? proposal : try memorySave()
+            let model = ScriptedModel([.init(command), .init(finished)])
+            let session = env.session(model), running = try start(session)
+            var memoryID: UUID?, profileID: UUID?
+            if scenario == "profile" { profileID = try await review(session).id }
+            else { memoryID = try await memoryReview(session).id }
+            let other = env.reopen()
+            try check(other.updatePreferences { $0.useMemory = false }, "second store disables memory")
+            let current = other.memory, ciphertext = try env.bytes(), keyIDs = Set(env.keys.values.keys)
+            if scenario == "cancel" { session.cancel() }
+            if let memoryID { session.resolveMemoryReview(id: memoryID, approved: true) }
+            if let profileID { session.resolveProfileReview(id: profileID, approved: true) }
+            await running.value
+            let disk = env.reopen()
+            try check(!disk.memory.preferences.useMemory && disk.memory == current && disk.memory.memories.isEmpty,
+                      scenario + " retains newer master switch and no stale memory")
+            try check(disk.profile.entries.isEmpty && (try env.bytes()) == ciphertext && Set(env.keys.values.keys) == keyIDs,
+                      scenario + " leaves newer ciphertext, profile and keys unchanged")
+            try check(session.memoryReceipt == nil && session.profileReceipt == nil && session.draft == utterance,
+                      scenario + " creates no receipt and retains draft")
+            let requests = await model.requests.count
+            try check(requests == 1, scenario + " never retries or emits a fabricated receipt")
+            if scenario != "cancel" {
+                try check(session.chatError?.contains("其他位置變更") == true, "conflict tells user to reload and re-confirm")
+            }
+        }
+        let env = try Environment(); defer { try? env.close() }
+        let stale = env.reopen()
+        try check(env.store.mutateProfile { try $0.add(text: "Prefer quiet hotels") }, "newer profile persisted")
+        let current = try env.bytes(), keys = Set(env.keys.values.keys)
+        try check(!stale.updatePreferences { $0.useMemory = false }, "stale preferences cannot overwrite profile")
+        try check(!stale.mutateWeb { _, _ in }, "stale website writer cannot overwrite profile")
+        try check(!stale.clearAll(), "stale clear cannot remove newer data or rotate key")
+        try check((try env.bytes()) == current && Set(env.keys.values.keys) == keys &&
+                  env.reopen().profile.snapshot().entries.first?.text == "Prefer quiet hotels",
+                  "all stale writes preserve exact ciphertext, keys and newer profile")
+        try check(stale.error?.contains("重新讀取") == true, "stale clear reports conflict")
+        stale.reload()
+        try check(stale.updatePreferences { $0.useMemory = false }, "explicit reload permits fresh action")
+        try check(!env.reopen().memory.preferences.useMemory && env.reopen().profile.snapshot().entries.first?.text == "Prefer quiet hotels",
+                  "fresh action preserves sibling profile")
+
+        let contextEnv = try Environment(); defer { try? contextEnv.close() }
+        try check(contextEnv.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed profile")
+        let contextOther = contextEnv.reopen()
+        try check(contextOther.updatePreferences { $0.useMemory = false }, "other store disables profile context")
+        let contextModel = ScriptedModel([.init("fresh synthetic answer")]), contextSession = contextEnv.session(contextModel)
+        contextSession.draft = "synthetic question"; contextSession.send()
+        let contextRequests = await contextModel.requests.count
+        try check(contextRequests == 0 && !contextSession.isSubmitting && contextSession.draft == "synthetic question" && !contextEnv.store.available,
+                  "detected stale context stops send and preserves draft")
+        try check(contextSession.chatError?.contains("重新讀取") == true, "chat reports stale context conflict")
+        try check(contextEnv.store.error?.contains("重新讀取") == true, "stale context requests reload")
+
+        let damagedEnv = try Environment(); defer { try? damagedEnv.close() }
+        try Data("synthetic corrupt ciphertext".utf8).write(to: damagedEnv.file, options: .atomic)
+        damagedEnv.store.reload()
+        try check(!damagedEnv.store.available, "corrupt vault fails closed")
+        let corruptPeer = damagedEnv.reopen()
+        try check(damagedEnv.store.clearAll(), "explicit recovery clear rotates corrupt vault")
+        let recovered = try damagedEnv.bytes(), recoveredKeys = Set(damagedEnv.keys.values.keys)
+        try check(!corruptPeer.clearAll(), "stale recovery confirmation cannot clear newer vault")
+        try check((try damagedEnv.bytes()) == recovered && Set(damagedEnv.keys.values.keys) == recoveredKeys,
+                  "stale recovery preserves newer ciphertext and keys")
+
+        let emptyRoot = FileManager.default.temporaryDirectory.appendingPathComponent("woow-learning-empty-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: emptyRoot) }
+        let emptyFile = emptyRoot.appendingPathComponent("learning.vault"), emptyKeys = SyntheticKeys()
+        func emptyStore() -> LearningStore { LearningStore(vault: EncryptedLearningFile(url: emptyFile, keys: emptyKeys)) }
+        let first = emptyStore(), second = emptyStore()
+        try check(first.available && second.available, "both instances initially see an absent vault")
+        try check(first.updatePreferences { $0.useMemory = false }, "first instance creates encrypted vault")
+        let created = try Data(contentsOf: emptyFile), createdKeys = Set(emptyKeys.values.keys)
+        try check(!second.mutateProfile { try $0.add(text: "Stale synthetic write") }, "second instance cannot overwrite newly created vault")
+        try check((try Data(contentsOf: emptyFile)) == created && Set(emptyKeys.values.keys) == createdKeys,
+                  "absent-to-present conflict preserves exact bytes and keys")
+
+        let busyEnv = try Environment(); defer { try? busyEnv.close() }
+        let run = MemoryToolRun(state: busyEnv.store.memory, utterances: [utterance])
+        let pending = try run.prepare(toolName: "memory_save", argumentsJSON:
+            #"{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}"#)
+        let busyBytes = try busyEnv.bytes(), busyKeys = Set(busyEnv.keys.values.keys)
+        let locker = EncryptedLearningFile(url: busyEnv.file, keys: busyEnv.keys)
+        try locker.withExclusiveAccess {
+            do {
+                _ = try busyEnv.store.commitMemoryTool(pending, expectedGeneration: busyEnv.store.generation,
+                                                       conversationID: "synthetic")
+                throw CheckFailure(check: "held lock must not block or allow commit")
+            } catch LearningFileError.busy { assertions += 1 }
+            try check(busyEnv.store.error?.contains("正在其他位置") == true, "busy status is actionable")
+            try check((try busyEnv.bytes()) == busyBytes && Set(busyEnv.keys.values.keys) == busyKeys,
+                      "busy lock leaves ciphertext and keys unchanged")
+        }
+        _ = try busyEnv.store.commitMemoryTool(pending, expectedGeneration: busyEnv.store.generation,
+                                               conversationID: "synthetic")
+        try check(busyEnv.reopen().memory.memories.count == 1, "review can be committed after unchanged lock is released")
+    }
+
     @MainActor static func memorySearchGrounding() async throws {
         for scenario in ["noSearch", "guessedID", "emptySearch", "negatedEdit", "foreignQuote"] {
             let env = try Environment(); defer { try? env.close() }
@@ -1282,6 +1385,13 @@ private enum CheckProfileChatApp {
     #if PROFILE_CHAT_APP_STANDALONE
     @MainActor static func main() async {
         do {
+            if ProcessInfo.processInfo.environment["WOOW_CROSS_INSTANCE_ONLY"] == "1" {
+                try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+                let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
+                    "groups": groups, "native_ui_executed": false, "real_encrypted_files": true], options: [.sortedKeys])
+                print(String(decoding: data, as: UTF8.self))
+                return
+            }
             try await group("encryptedTransaction", transactionChecks)
             try await group("approvalAndDurableReceipt", approveAndReceipt)
             try await group("refusalCancellationAndCommitFences", deniedOrCancelled)
@@ -1294,6 +1404,7 @@ private enum CheckProfileChatApp {
             try await group("memorySaveSearchEditUndo", memorySaveSearchEditUndo)
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
+            try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
             try await group("memorySearchGrounding", memorySearchGrounding)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
@@ -1324,6 +1435,9 @@ private enum CheckProfileChatApp {
 
 #if !PROFILE_CHAT_APP_STANDALONE
 final class ProfileChatAppIntegrationTests: XCTestCase {
+    @MainActor func testCrossInstanceApprovalAndCancellation() async throws {
+        try await CheckProfileChatApp.crossInstanceApprovalAndCancellation()
+    }
     @MainActor func testEncryptedTransactionRevisionGenerationAndMasterSwitch() async throws {
         try await CheckProfileChatApp.transactionChecks()
     }

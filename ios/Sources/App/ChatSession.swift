@@ -458,11 +458,17 @@ final class ChatSession: ObservableObject {
         let archiveID = UUID(uuidString: conversationID)!
         let destination = archiveDestination
         let archivePrior = archive?.state.conversations.first { $0.id == archiveID }
+        let learningWasAvailable = learning.available
+        let context = learning.contextMessages(for: utterance)
+        if learningWasAvailable && !learning.available {
+            chatError = (learning.error ?? "無法讀取學習資料，請重新讀取後再試。") + "草稿已保留。"
+            return
+        }
         let window: ChatContextWindow
         do {
             window = try ChatContextWindow(
                 history: entries.map { ModelMessage(role: $0.role, content: $0.content) },
-                context: learning.contextMessages(for: utterance), prompt: prompt)
+                context: context, prompt: prompt)
         } catch {
             chatError = ((error as? ChatContextWindowError)?.errorDescription ?? "無法準備本次對話。")
                 + "草稿已保留。"
@@ -919,6 +925,12 @@ final class ChatSession: ObservableObject {
     }
 
     private static func profileFailureMessage(_ error: Error) -> String? {
+        if (error as? LearningFileError) == .busy {
+            return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
+        }
+        if (error as? LearningFileError) == .conflict {
+            return "學習資料已在其他位置變更；本次修改未儲存，草稿保留。請重新讀取資料並再次確認。"
+        }
         if error is LearningFileError {
             return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
         }
