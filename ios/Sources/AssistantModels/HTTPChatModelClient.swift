@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPChatModelClient: StructuredStreamingChatModelClient, ReferenceDispatchBoundChatModelClient {
+public struct HTTPChatModelClient: StructuredStreamingChatModelClient, ReferenceDispatchBoundStreamingChatModelClient {
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private static let maximumTimeout: UInt64 = 90_000_000_000
@@ -58,14 +58,23 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
 
     /// Yields text deltas (not accumulated text). Slow consumers fail rather than lose text.
     public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
+    }
+
+    public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                       onDispatch: @escaping @Sendable () -> Void,
+                       onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
             let worker = Task {
                 do {
                     let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: true)
                     try await bounded {
                         try Task.checkCancellation()
-                        let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects())
+                        let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects(onDispatch: onDispatch))
                         defer { bytes.task.cancel() }
+                        // A response proves this request has started even when
+                        // URLSession omitted the body-progress delegate callback.
+                        onDispatch()
                         if let http = response as? HTTPURLResponse {
                             if (200..<300).contains(http.statusCode), http.mimeType?.lowercased() == "application/json" {
                                 // A complete-only endpoint ignored stream=true. Use its
@@ -123,8 +132,10 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                             bytes.task.cancel()
                         }
                     }
+                    onProducerFinished()
                     continuation.finish()
                 } catch {
+                    onProducerFinished()
                     continuation.finish(throwing: Self.sanitized(error))
                 }
             }

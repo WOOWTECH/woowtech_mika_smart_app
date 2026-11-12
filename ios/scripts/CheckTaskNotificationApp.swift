@@ -307,3 +307,12 @@ final class TaskNotificationAppTests: XCTestCase {
 }
 #endif
 #endif
+
+#if TASK_NOTIFICATIONS_APP_STANDALONE || canImport(WoowAssistant)
+extension NotificationScriptedModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+#endif

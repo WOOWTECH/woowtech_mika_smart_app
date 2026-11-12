@@ -71,6 +71,80 @@ private actor ScriptedModel: ChatModelClient {
         return text
     }
 }
+extension ScriptedModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch() // Synthetic in-process request, never a real transport.
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+
+/// Separate gates model the producer before and after its dispatch event.
+/// Waiting deliberately ignores cancellation so tests can observe lease ownership.
+private actor BoundedCompleteProbe: ReferenceDispatchBoundChatModelClient {
+    let before = ModelGate(), after = ModelGate()
+    let failBeforeDispatch: Bool
+    private(set) var entered = 0, dispatched = 0, finished = 0
+    private(set) var lastMessages: [ModelMessage] = []
+    init(failBeforeDispatch: Bool = false) { self.failBeforeDispatch = failBeforeDispatch }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await complete(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {})
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        entered += 1; lastMessages = messages
+        defer { finished += 1 }
+        await before.wait()
+        try Task.checkCancellation()
+        if failBeforeDispatch { throw URLError(.cannotConnectToHost) }
+        dispatched += 1; onDispatch()
+        await after.wait()
+        return #"{"action":"finish","answer":"synthetic"}"#
+    }
+}
+
+private final class BoundedStreamProbe: StructuredStreamingChatModelClient, ReferenceDispatchBoundStreamingChatModelClient, @unchecked Sendable {
+    let before = ModelGate(), after = ModelGate()
+    let failBeforeDispatch: Bool
+    private let lock = NSLock()
+    private var counters = (entered: 0, dispatched: 0, finished: 0)
+    init(failBeforeDispatch: Bool = false) { self.failBeforeDispatch = failBeforeDispatch }
+    var state: (entered: Int, dispatched: Int, finished: Int) { lock.lock(); defer { lock.unlock() }; return counters }
+    private func record(_ change: (inout (entered: Int, dispatched: Int, finished: Int)) -> Void) {
+        lock.lock(); defer { lock.unlock() }; change(&counters)
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        throw CheckFailure(check: "stream probe must not downgrade")
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        throw CheckFailure(check: "stream probe must not downgrade")
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let producer = Task {
+                self.record { $0.entered += 1 }
+                await self.before.wait()
+                do {
+                    try Task.checkCancellation()
+                    if self.failBeforeDispatch { throw URLError(.cannotConnectToHost) }
+                    onDispatch(); self.record { $0.dispatched += 1 }
+                    await self.after.wait()
+                    continuation.yield(#"{"action":"finish","answer":"synthetic"}"#)
+                    onProducerFinished(); self.record { $0.finished += 1 }; continuation.finish()
+                } catch {
+                    onProducerFinished(); self.record { $0.finished += 1 }; continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in producer.cancel() }
+        }
+    }
+}
 
 private struct SyntheticMCPEndpoint: MCPEndpointStoring {
     func load() throws -> URL? { URL(string: "https://mcp-learning.example.invalid/fixture") }
@@ -110,6 +184,13 @@ private actor RecordingUIModel: ChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         requests.append(messages)
         return try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+extension RecordingUIModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
 #endif
@@ -191,6 +272,177 @@ private enum CheckProfileChatApp {
         try check(session.canSend, "Synthetic settings load through real initializer")
         session.send()
         return try task(session)
+    }
+    @MainActor static func chatContextDispatchFences() async throws {
+        // The exact race from independent review, now asserting that the
+        // asynchronous model is never entered after the peer's write.
+        for mcp in [false, true] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed private context")
+            let peer = env.reopen(), model = ScriptedModel([.init(finished)]), session = env.session(model)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let running = try connection.map { try startMCP(session, connection:$0, draft:"synthetic question") }
+                ?? start(session, draft:"synthetic question")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer turns memory off before dispatch")
+            await running.value
+            let count = await model.requests.count
+            try check(count == 0 && session.entries.isEmpty && session.draft == "synthetic question", "stale ordinary or MCP context never reaches model")
+            try check(session.chatError?.contains("重新讀取") == true, "stale request reports conflict")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "publication fixture saves profile")
+            let peer=env.reopen(), session=env.session(ScriptedModel([.init(finished)]))
+            var peerSaveAfterPublication = false
+            let observation = session.$isSubmitting.dropFirst().sink { submitting in
+                if !submitting { peerSaveAfterPublication = peer.updatePreferences { $0.useMemory = false } }
+            }
+            let running=try start(session,draft:"synthetic question"); await running.value
+            withExtendedLifetime(observation) {}
+            try check(peerSaveAfterPublication && session.entries.count == 2,
+                      "reply is published and lease released before completion observers")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "pre-stream race saves profile")
+            let peer=env.reopen(), probe=BoundedStreamProbe(), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer disables before stream producer starts")
+            await running.value
+            try check(probe.state.entered == 0 && session.entries.isEmpty, "stale stream producer is never started")
+        }
+        // Both structured and plain streaming own the lock until the real
+        // producer ends, even when the consumer is cancelled first.
+        for (plain, cancel) in [(false, true), (true, true), (false, false), (true, false)] {
+            let env = try Environment(); defer { try? env.close() }
+            if plain {
+                try check(env.store.updatePreferences { $0.useMemory = false }, "plain fixture disables memory")
+                let skill = """
+                ---
+                name: reference-guide
+                description: reference guide
+                ---
+                ## Entry
+                Reference page.
+                ## Steps
+                Read reference.
+                ## Pitfalls
+                Missing evidence.
+                ## Success criteria
+                Grounded answer.
+                ## When to stop
+                Ask the user.
+                """
+                try check(env.store.mutateSkills { state in
+                    let draft = try state.importMarkdown(skill, availableToolNames: [])
+                    _ = try state.approveDraft(id:draft.id, availableToolNames: [])
+                }, "plain fixture saves personal skill")
+                try check(env.store.contextMessages(for:"reference guide").contains { $0.content.contains("reference-guide") },
+                          "plain fixture includes a personal reference")
+            } else {
+                try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "stream fixture saves profile")
+            }
+            let peer=env.reopen(), probe=BoundedStreamProbe(failBeforeDispatch:!cancel), session=env.session(probe)
+            let running=try start(session,draft:"reference guide")
+            try await until("stream producer entered") { probe.state.entered == 1 }
+            try check(!peer.updatePreferences { $0.autoRemember.toggle() }, "peer write is busy before stream dispatch")
+            if cancel { session.cancel() }
+            try check(!peer.updatePreferences { $0.autoRemember.toggle() }, "consumer cancellation does not release live producer lease")
+            await probe.before.release()
+            try await until("cancelled stream producer finished") { probe.state.finished == 1 }
+            await running.value
+            try check(probe.state.dispatched == 0 && session.entries.isEmpty, "cancelled or failed stream never dispatches or publishes")
+            try check(peer.updatePreferences { $0.autoRemember.toggle() }, "producer finish releases stream lease")
+        }
+        // A model response arriving after a peer's post-dispatch change cannot
+        // be published, even though already dispatched bytes cannot be recalled.
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "late response fixture saves profile")
+            let peer=env.reopen(), probe=BoundedStreamProbe(), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try await until("late stream entered") { probe.state.entered == 1 }
+            await probe.before.release()
+            try await until("late stream dispatched") { probe.state.dispatched == 1 }
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer change allowed after dispatch")
+            await probe.after.release(); await running.value
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "late stale stream result is not published")
+        }
+        for fail in [false, true] {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "complete fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(failBeforeDispatch:fail), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try await until("complete producer entered") { await probe.entered == 1 }
+            try check(!peer.updatePreferences { $0.useMemory = false }, "peer write is busy before complete dispatch")
+            if !fail { session.cancel() }
+            try check(!peer.updatePreferences { $0.useMemory = false }, "lease held until complete producer returns")
+            await probe.before.release(); await probe.after.release(); await running.value
+            let sent=await probe.dispatched, done=await probe.finished
+            try check(sent == 0 && done == 1 && session.entries.isEmpty, "cancel or failure never dispatches and preserves chat")
+            try check(peer.updatePreferences { $0.useMemory = false }, "failed or cancelled producer releases lease")
+        }
+        for mcp in [false, true] {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "late complete fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let running = try connection.map { try startMCP(session,connection:$0,draft:"synthetic question") }
+                ?? start(session,draft:"synthetic question")
+            try await until("late complete entered") { await probe.entered == 1 }
+            await probe.before.release()
+            try await until("late complete dispatched") { await probe.dispatched == 1 }
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer change allowed after complete dispatch")
+            await probe.after.release(); await running.value
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "late ordinary or MCP reply is not published")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "MCP producer fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
+            let connection=try await connectedMCP(LearningMCPServer()); defer { connection.disconnect() }
+            let running=try startMCP(session,connection:connection,draft:"synthetic question")
+            try await until("MCP producer entered") { await probe.entered == 1 }
+            session.cancelMCP(); await running.value
+            try check(!peer.updatePreferences { $0.useMemory = false }, "MCP runner cancellation cannot release a live producer lease")
+            await probe.before.release(); await probe.after.release()
+            try await until("cancelled MCP producer finished") { await probe.finished == 1 }
+            let sent=await probe.dispatched
+            try check(sent == 0 && session.entries.isEmpty, "cancelled MCP producer sends nothing")
+            try check(peer.updatePreferences { $0.useMemory = false }, "MCP producer finish releases lease")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable synthetic extraction")
+            try check(env.store.mutateMemory { _ = try $0.add(kind:.preference, content:"Prefer jasmine tea") }, "seed related personal memory")
+            let peer=env.reopen(), probe=BoundedCompleteProbe()
+            env.store.rememberAfterReply(utterance:utterance, conversationID:"synthetic", expectedGeneration:env.store.generation,
+                client:probe, configuration:.init(baseURL:URL(string:"https://example.invalid/v1")!,model:"synthetic"), apiKey:"synthetic")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer disables before extraction producer starts")
+            try await until("stale extraction finishes") { !env.store.isLearning }
+            let entered=await probe.entered
+            try check(entered == 0, "stale related memory never reaches extraction model")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable extraction control")
+            try check(env.store.mutateMemory { _ = try $0.add(kind:.preference, content:"Prefer jasmine tea") }, "seed extraction control memory")
+            let probe=BoundedCompleteProbe()
+            env.store.rememberAfterReply(utterance:utterance, conversationID:"synthetic", expectedGeneration:env.store.generation,
+                client:probe, configuration:.init(baseURL:URL(string:"https://example.invalid/v1")!,model:"synthetic"), apiKey:"synthetic")
+            try await until("control extraction reaches producer") { await probe.entered == 1 }
+            let sent = await probe.lastMessages
+            let related = sent.compactMap { message -> [[String:Any]]? in
+                guard let data = message.content.data(using:.utf8),
+                      let object = try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { return nil }
+                return object["related"] as? [[String:Any]]
+            }.flatMap { $0 }
+            try check(related.contains { ($0["content"] as? String) == "Prefer jasmine tea" }, "control extraction carries related memory")
+            env.store.cancelLearning(); await probe.before.release(); await probe.after.release()
+            try await until("control extraction producer finishes") { await probe.finished == 1 }
+        }
     }
     @MainActor static func review(_ session: ChatSession) async throws -> UserProfileToolReview {
         try await until("Pending actual profile review") { session.pendingProfileReview != nil || !session.isSubmitting }
@@ -1385,6 +1637,12 @@ private enum CheckProfileChatApp {
     #if PROFILE_CHAT_APP_STANDALONE
     @MainActor static func main() async {
         do {
+            if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
+                try await group("chatContextDispatchFences", chatContextDispatchFences)
+                let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
+                    "groups": groups, "native_ui_executed": false, "real_encrypted_files": true], options: [.sortedKeys])
+                print(String(decoding: data, as: UTF8.self)); return
+            }
             if ProcessInfo.processInfo.environment["WOOW_CROSS_INSTANCE_ONLY"] == "1" {
                 try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
                 let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
@@ -1405,6 +1663,7 @@ private enum CheckProfileChatApp {
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
             try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+            try await group("chatContextDispatchFences", chatContextDispatchFences)
             try await group("memorySearchGrounding", memorySearchGrounding)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
@@ -1435,6 +1694,7 @@ private enum CheckProfileChatApp {
 
 #if !PROFILE_CHAT_APP_STANDALONE
 final class ProfileChatAppIntegrationTests: XCTestCase {
+    @MainActor func testChatContextDispatchFences() async throws { try await CheckProfileChatApp.chatContextDispatchFences() }
     @MainActor func testCrossInstanceApprovalAndCancellation() async throws {
         try await CheckProfileChatApp.crossInstanceApprovalAndCancellation()
     }

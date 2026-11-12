@@ -73,6 +73,15 @@ public protocol StreamingChatModelClient: ChatModelClient {
 /// recognized, decoded finish.answer field. Plain-only fixtures stay on complete.
 public protocol StructuredStreamingChatModelClient: StreamingChatModelClient {}
 
+/// A stream producer must call `onProducerFinished` only after it can no
+/// longer start or continue this request, including after consumer cancellation.
+/// `onDispatch` has the same meaning as for the complete-only capability.
+public protocol ReferenceDispatchBoundStreamingChatModelClient: StreamingChatModelClient, ReferenceDispatchBoundChatModelClient {
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error>
+}
+
 /// A structured provider error explicitly identifying `stream` as unsupported.
 /// Kept separate from HTTPChatModelError so the host can permit one bounded,
 /// content-free complete fallback without guessing from a status code.

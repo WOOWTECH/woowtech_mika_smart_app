@@ -382,12 +382,17 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         cancelLearning()
         guard available, memory.preferences.useMemory, memory.preferences.autoRemember else { return }
         let snapshot = memory
+        // Extraction sends related saved memories along with the utterance.
+        // Bind its separate producer to the generation created above as well.
+        let extractionClient: any ChatModelClient
+        do { extractionClient = try fencedChatClient(client, fence: ChatContextFence(store: self, generation: generation)) }
+        catch { notice = "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。"; return }
         let input = MemoryExtractionInput(utterances: [utterance], conversationID: conversationID)
         let id = UUID()
         extractionID = id; isLearning = true; notice = nil
         extraction = Task { [weak self] in
             do {
-                let plan = try await MemoryExtractor(client: client).extract(input: input, state: snapshot,
+                let plan = try await MemoryExtractor(client: extractionClient).extract(input: input, state: snapshot,
                     configuration: configuration, apiKey: apiKey)
                 try Task.checkCancellation()
                 guard let self, self.extractionID == id else { return }
