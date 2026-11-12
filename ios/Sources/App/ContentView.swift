@@ -815,8 +815,11 @@ private struct ChatView: View {
                 scheduleScrollSettle()
             })
         .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
+            // An empty conversation is a browsable list, not a transcript
+            // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
-            if scrollFollow.observe(position) {
+            let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil
+            if scrollFollow.observe(position, hasTranscript: hasTranscript) {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
             scheduleScrollSettle()
@@ -824,7 +827,9 @@ private struct ChatView: View {
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
             scrollFollow.conversationChanged()
-            proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            if !session.entries.isEmpty || session.replyPreview != nil {
+                proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            }
         }
         .onChange(of: session.isSubmitting) { _, submitting in
             guard submitting else { return }
@@ -836,7 +841,7 @@ private struct ChatView: View {
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if !scrollFollow.followsTail {
+            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil) {
                 Button {
                     cancelScrollSettle()
                     scrollFollow.userRequestedLatest()
@@ -1177,10 +1182,10 @@ private struct ChatEmptyState: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(greeting).font(.system(size: 28, weight: .bold))
+            Text(greeting).font(.title.bold())
                 .foregroundStyle(palette.ink)
             Text(localizer.text(.shellWhatToDo))
-                .font(.system(size: 15)).foregroundStyle(palette.secondaryInk)
+                .font(.body).foregroundStyle(palette.secondaryInk)
                 .padding(.top, 6)
             VStack(spacing: 0) {
                 ForEach(Array(examples.enumerated()), id: \.offset) { index, example in
@@ -1193,7 +1198,9 @@ private struct ChatEmptyState: View {
                                 .foregroundStyle(palette.secondaryInk)
                                 .accessibilityHidden(true)
                             Text(localizer.text(example.text))
-                                .font(.system(size: 15)).foregroundStyle(palette.ink)
+                                .font(.body)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundStyle(palette.ink)
                             Spacer(minLength: 0)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 10).frame(minHeight: 56)
