@@ -11,7 +11,8 @@ final class ChatPDFAttachmentUITests: XCTestCase {
     private var nativeNavigation: XCUIElement { app.navigationBars["FullDocumentManagerViewControllerNavigationBar"].firstMatch }
     private var nativeCancel: XCUIElement { nativeNavigation.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "取消"])).firstMatch }
     private let appLabels = ["渥屋助理", "WoowAssistant"]
-    private let localLabels = ["On My iPhone", "我的 iPhone", "在我的 iPhone 上"]
+    private let localLabels = ["On My iPhone", "我的 iPhone", "在我的 iPhone 上",
+                               "On My iPad", "我的 iPad", "在我的 iPad 上"]
     private let browseLabels = ["瀏覽", "Browse", "位置", "Locations"]
     private enum Failure: Error { case nativeTarget, route, readiness }
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
