@@ -61,6 +61,19 @@ import AssistantSkills
                           "chat and archive text exists in each actual bundle")
             }
         }
+        let rateMessages: [AppText] = [.chatModelRateLimited, .chatModelRateLimitedMCP,
+            .chatModelRateLimitedMemorySaved, .chatModelRateLimitedProfileSaved, .skillModelRateLimited, .skillAnswerRetained, .skillRateLimitActivity]
+        for language in AppDisplayLanguage.allCases {
+            let localizer = AppLocalizer(language: language, bundle: bundle)
+            for message in rateMessages {
+                let rendered = localizer.resolve(message)
+                try check(!rendered.usedFallback && rendered.language == language && !rendered.text.isEmpty,
+                          "rate limit uses the selected packaged language")
+            }
+        }
+        try check(AppLocalizer(language: .english, bundle: bundle).text(.chatModelRateLimited).contains("Too many requests") &&
+                  AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.chatModelRateLimited).contains("请求太频繁"),
+                  "rate limit follows language selection")
         let searchMessages: [AppText] = [.localPDFSearchOpen, .localPDFSearchTitle, .localPDFSearchNotice,
             .localPDFSearchPlaceholder, .localPDFSearchIgnoreASCIICase, .localPDFSearchPatternMode,
             .localPDFSearchPatternHelp, .localPDFSearchPatternInvalid, .localPDFSearchPatternUnsupported,

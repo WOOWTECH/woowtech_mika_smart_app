@@ -683,7 +683,7 @@ private struct ChatView: View {
             }
 
             if let error = session.chatError {
-                Text(error)
+                Text(session.chatErrorMessage.map { localizer.text($0) } ?? error)
                     .font(.callout)
                     .foregroundStyle(.red)
                     .accessibilityIdentifier("chat.error")

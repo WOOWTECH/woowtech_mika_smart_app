@@ -481,3 +481,10 @@
 "voice.choice.notice" = "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。";
 "voice.choice.disabledHint" = "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。";
 "voice.choice.saveFailed" = "無法儲存語音設定，請再試一次。";
+"chat.modelRateLimited" = "模型服務請求太頻繁，請稍後再試；草稿已保留。";
+"chat.modelRateLimitedMCP" = "模型服務請求太頻繁；草稿與已收到的工具結果保留。請先確認已送出的操作，不會自動重試。";
+"chat.modelRateLimitedMemorySaved" = "模型服務請求太頻繁；記憶修改已儲存，草稿保留。請先查看保存結果與已完成的操作，避免重複修改；不會自動重試。";
+"chat.modelRateLimitedProfileSaved" = "模型服務請求太頻繁；個人檔案已儲存，草稿保留。請先查看已保存內容與已完成的操作，避免重複修改；不會自動重試。";
+"skill.modelRateLimited" = "模型服務請求太頻繁，請稍後再試；本次技能尚未儲存，不會自動重試。";
+"skill.answerRetained" = "未完成的補充要求已保留";
+"skill.rateLimitActivity" = "技能協作已停止，尚未儲存。";

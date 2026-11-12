@@ -5043,6 +5043,76 @@
         "zh-Hans": "无法保存语音设置，请再试一次。",
         "en": "Could not save the voice setting. Try again."
       }
+    },
+    {
+      "case": "chatModelRateLimited",
+      "key": "chat.modelRateLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務請求太頻繁，請稍後再試；草稿已保留。",
+        "zh-Hans": "模型服务请求太频繁，请稍后再试；草稿已保留。",
+        "en": "Too many requests to the model service. Try again later; your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelRateLimitedMCP",
+      "key": "chat.modelRateLimitedMCP",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務請求太頻繁；草稿與已收到的工具結果保留。請先確認已送出的操作，不會自動重試。",
+        "zh-Hans": "模型服务请求太频繁；草稿和已收到的工具结果保留。请先确认已发送的操作，不会自动重试。",
+        "en": "Too many requests to the model service. Your draft and received tool results are preserved. Check any actions already sent; they will not be retried automatically."
+      }
+    },
+    {
+      "case": "chatModelRateLimitedMemorySaved",
+      "key": "chat.modelRateLimitedMemorySaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務請求太頻繁；記憶修改已儲存，草稿保留。請先查看保存結果與已完成的操作，避免重複修改；不會自動重試。",
+        "zh-Hans": "模型服务请求太频繁；记忆修改已保存，草稿保留。请先查看保存结果与已完成的操作，避免重复修改；不会自动重试。",
+        "en": "Too many requests to the model service. The memory change was saved and your draft is preserved. Review the saved change and completed actions before trying again; they will not be retried automatically."
+      }
+    },
+    {
+      "case": "chatModelRateLimitedProfileSaved",
+      "key": "chat.modelRateLimitedProfileSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務請求太頻繁；個人檔案已儲存，草稿保留。請先查看已保存內容與已完成的操作，避免重複修改；不會自動重試。",
+        "zh-Hans": "模型服务请求太频繁；个人档案已保存，草稿保留。请先查看已保存内容与已完成的操作，避免重复修改；不会自动重试。",
+        "en": "Too many requests to the model service. The profile change was saved and your draft is preserved. Review the saved change and completed actions before trying again; they will not be retried automatically."
+      }
+    },
+    {
+      "case": "skillModelRateLimited",
+      "key": "skill.modelRateLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務請求太頻繁，請稍後再試；本次技能尚未儲存，不會自動重試。",
+        "zh-Hans": "模型服务请求太频繁，请稍后再试；本次技能尚未保存，不会自动重试。",
+        "en": "Too many requests to the model service. The skill was not saved and will not be retried automatically."
+      }
+    },
+    {
+      "case": "skillAnswerRetained",
+      "key": "skill.answerRetained",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未完成的補充要求已保留",
+        "zh-Hans": "未完成的补充要求已保留",
+        "en": "Your unfinished clarification is preserved"
+      }
+    },
+    {
+      "case": "skillRateLimitActivity",
+      "key": "skill.rateLimitActivity",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能協作已停止，尚未儲存。",
+        "zh-Hans": "技能协作已停止，尚未保存。",
+        "en": "Skill collaboration stopped; nothing was saved."
+      }
     }
   ]
 }

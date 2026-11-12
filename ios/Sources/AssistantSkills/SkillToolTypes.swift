@@ -26,7 +26,7 @@ public enum SkillToolOutcome: Sendable {
 public enum SkillToolError: String, Error, Equatable, Sendable, LocalizedError {
     case invalidLimits, invalidCommand, invalidState, sourceReadRequired, searchRequired
     case unknownReference, staleVersion, unsupportedFile, budgetExceeded, timedOut
-    case modelFailed, modelRejected, modelInvalidResponse, cancelled, tooManyFailures
+    case modelFailed, modelRejected, modelRateLimited, modelInvalidResponse, cancelled, tooManyFailures
     public var errorDescription: String? {
         switch self {
         case .invalidLimits: return "技能協作的執行上限設定無效。"
@@ -41,6 +41,7 @@ public enum SkillToolError: String, Error, Equatable, Sendable, LocalizedError {
         case .timedOut: return "模型等待已達本次時間上限，尚未儲存。"
         case .modelFailed: return "無法連線至設定的模型，尚未儲存。"
         case .modelRejected: return "設定的模型服務拒絕要求，尚未儲存。"
+        case .modelRateLimited: return "模型服務請求太頻繁，請稍後再試；本次技能尚未儲存，不會自動重試。"
         case .modelInvalidResponse: return "模型回覆不完整或格式無效，尚未儲存。"
         case .cancelled: return "已取消技能協作，尚未儲存。"
         case .tooManyFailures: return "技能草稿連續未通過檢查，尚未儲存；請調整要求後重新開始。"

@@ -217,6 +217,18 @@ import XCTest
             _ = try await session.advance(client: HTTPChatModelClient(session: transport), configuration: .init(baseURL: url, model: "fixture"), apiKey: key)
         }
         try expect(scenario.count == 1 && store.writes == 0, "HTTP failure has no automatic retry or draft")
+        let limited = SkillToolHTTPFixture.Scenario(["PRIVATE_RATE_LIMIT_BODY"], status: 429)
+        let limitedURL = SkillToolHTTPFixture.register(limited); defer { SkillToolHTTPFixture.remove(limitedURL) }
+        let limitedTransport = SkillToolHTTPFixture.session(); defer { limitedTransport.invalidateAndCancel() }
+        let limitedSession = try runtime(store, catalog)
+        try await rejects(SkillToolError.modelRateLimited) {
+            _ = try await limitedSession.advance(client: HTTPChatModelClient(session: limitedTransport),
+                configuration: .init(baseURL: limitedURL, model: "fixture"), apiKey: key)
+        }
+        try expect(limited.count == 1 && store.writes == 0 &&
+                   !(SkillToolError.modelRateLimited.errorDescription ?? "").contains("PRIVATE_RATE_LIMIT_BODY"),
+                   "429 remains a safe fixed category with no retry, write or body leak")
+
     }
 
     static func lateResponseAndChangedHost(_ catalog: BundledSkillCatalog) async throws {

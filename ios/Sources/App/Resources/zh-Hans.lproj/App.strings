@@ -481,3 +481,10 @@
 "voice.choice.notice" = "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。";
 "voice.choice.disabledHint" = "语音输入已关闭或选项不可用；请在模型设置的“语音转文字”中选择。";
 "voice.choice.saveFailed" = "无法保存语音设置，请再试一次。";
+"chat.modelRateLimited" = "模型服务请求太频繁，请稍后再试；草稿已保留。";
+"chat.modelRateLimitedMCP" = "模型服务请求太频繁；草稿和已收到的工具结果保留。请先确认已发送的操作，不会自动重试。";
+"chat.modelRateLimitedMemorySaved" = "模型服务请求太频繁；记忆修改已保存，草稿保留。请先查看保存结果与已完成的操作，避免重复修改；不会自动重试。";
+"chat.modelRateLimitedProfileSaved" = "模型服务请求太频繁；个人档案已保存，草稿保留。请先查看已保存内容与已完成的操作，避免重复修改；不会自动重试。";
+"skill.modelRateLimited" = "模型服务请求太频繁，请稍后再试；本次技能尚未保存，不会自动重试。";
+"skill.answerRetained" = "未完成的补充要求已保留";
+"skill.rateLimitActivity" = "技能协作已停止，尚未保存。";

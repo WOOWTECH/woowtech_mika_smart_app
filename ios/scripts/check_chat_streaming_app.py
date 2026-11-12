@@ -42,11 +42,15 @@ def main():
     print('OUTPUT=' + str(out), flush=True)
     try:
         modules = {name: [copy(str(p.relative_to(repo))) for p in sorted((repo / 'Sources' / name).glob('*.swift'))] for name, _ in MODULES}
-        apps = [copy('Sources/App/' + name + '.swift') for name in [*APPS, 'RecentConversationAccess', 'NewConversationProtection']]
+        apps = [copy('Sources/App/' + name + '.swift') for name in [*APPS, 'RecentConversationAccess', 'NewConversationProtection', 'SkillAgentSession']]
         markdown = copy('Sources/App/ChatReplyMarkdown.swift')
         apps.append(markdown)
         markdown_checks = copy('scripts/CheckChatReplyMarkdown.swift')
         view = copy('Sources/App/ContentView.swift')
+        skill_view = copy('Sources/App/SkillAgentView.swift')
+        skill_fixture = copy('Tests/AssistantSkillsTests/SkillToolFixtures.swift')
+        skill_checks = copy('Tests/AssistantSkillsTests/SkillToolSessionTests.swift')
+        skill_catalog = copy('Sources/AssistantSkills/Resources/MikaBundledSkills.json')
         harness = copy('scripts/CheckChatStreamingApp.swift')
         ui = copy('Tests/WoowAssistantUITests/ChatStreamingUITests.swift')
         ui_support = copy('Tests/WoowAssistantUITests/LearningUITestSupport.swift')
@@ -64,6 +68,10 @@ def main():
             run(name + '-compile', [*common, '-enable-testing', '-emit-module', '-emit-library', '-module-name', name,
                 '-emit-module-path', str(out / (name + '.swiftmodule')), *modules[name], *['-l' + d for d in deps],
                 '-o', str(out / ('lib' + name + '.dylib'))])
+        skill_binary = out / 'skill-tool-checks'
+        run('skill-tool-compile', [*common, '-DSKILL_TOOL_SMOKE', '-lAssistantSkills', '-lAssistantModels',
+            '-lAssistantPersistence', *link, skill_fixture, skill_checks, '-o', str(skill_binary)])
+        run('skill-tool-run', [str(skill_binary), skill_catalog], 60)
         markdown_binary = out / 'chat-reply-markdown'
         run('markdown-compile', ['swiftc', '-swift-version', '5', '-parse-as-library', markdown,
                                  markdown_checks, '-o', str(markdown_binary)])
@@ -75,11 +83,11 @@ def main():
                                           preview_tests, '-o', str(preview_binary)])
         run('structured-preview-execute', [str(preview_binary)], 15)
         for config, flags in [('Debug', ['-DDEBUG']), ('Release', [])]:
-            run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support])
+            run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, skill_view, harness, fixture, ui, ui_support])
             binary = out / (config + '-stream-app')
             run(config + '-compile', [*common, '-DCHAT_STREAM_APP_STANDALONE', *flags,
                 *['-l' + m for m, _ in MODULES], *link, *apps, fixture, harness, '-o', str(binary)])
-            run(config + '-execute', [str(binary)], 60)
+            run(config + '-execute', [str(binary), skill_catalog], 60)
             if config == 'Release':
                 data = binary.read_bytes()
                 if b'-UITestChatStreaming' in data or b'UITestStreamingChatModelClient' in data:

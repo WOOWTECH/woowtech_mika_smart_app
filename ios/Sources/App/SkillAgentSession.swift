@@ -10,8 +10,14 @@ import Foundation
     @Published private(set) var review: SkillAuthoringSaveReview?
     @Published private(set) var receipt: SkillAuthoringSaveReceipt?
     @Published private(set) var message: String?
-    @Published private(set) var error: String?
+    @Published private(set) var error: String? { didSet { errorMessage = nil } }
+    @Published private(set) var errorMessage: AppText?
+    @Published private(set) var acceptedAnswerRevision = UUID()
     @Published private(set) var steps: [String] = []
+    private let loadCatalog: () throws -> BundledSkillCatalog
+    init(loadCatalog: @escaping () throws -> BundledSkillCatalog = { try .bundled() }) {
+        self.loadCatalog = loadCatalog
+    }
     private var runtime: SkillToolSession?
     private var task: Task<Void, Never>?
     private var operationID: UUID?
@@ -25,7 +31,7 @@ import Foundation
         do {
             let access = try modelAccess()
             let request = try SkillAuthoringUserRequest(quote: request)
-            runtime = try SkillToolSession(request: request, store: store, catalog: .bundled())
+            runtime = try SkillToolSession(request: request, store: store, catalog: loadCatalog())
             self.access = access; storeGeneration = store.generation
             advance()
         } catch { fail(error) }
@@ -93,6 +99,7 @@ import Foundation
                 }
                 guard let self, self.operationID == id, !Task.isCancelled else { return }
                 self.running = false; self.task = nil
+                if answer != nil { self.acceptedAnswerRevision = UUID() }
                 switch outcome {
                 case .review(let review): self.review = review; self.activity = "草稿待你核對，尚未儲存。"
                 case .question(let question): self.question = question; self.activity = "等待你補充要求。"
@@ -111,6 +118,9 @@ import Foundation
         cancel(showNotice: false)
         activity = "技能協作未完成，尚未儲存。"
         self.error = Self.explain(error)
+        if (error as? SkillToolError) == .modelRateLimited {
+            self.errorMessage = .skillModelRateLimited
+        }
     }
 
     private static func explain(_ error: Error) -> String {

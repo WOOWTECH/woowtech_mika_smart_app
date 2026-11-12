@@ -490,6 +490,13 @@ enum AppText: Equatable {
     case voiceChoiceNotice
     case voiceChoiceDisabledHint
     case voiceChoiceSaveFailed
+    case chatModelRateLimited
+    case chatModelRateLimitedMCP
+    case chatModelRateLimitedMemorySaved
+    case chatModelRateLimitedProfileSaved
+    case skillModelRateLimited
+    case skillAnswerRetained
+    case skillRateLimitActivity
 
     var key: String {
         switch self {
@@ -980,6 +987,13 @@ enum AppText: Equatable {
         case .voiceChoiceNotice: return "voice.choice.notice"
         case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
         case .voiceChoiceSaveFailed: return "voice.choice.saveFailed"
+        case .chatModelRateLimited: return "chat.modelRateLimited"
+        case .chatModelRateLimitedMCP: return "chat.modelRateLimitedMCP"
+        case .chatModelRateLimitedMemorySaved: return "chat.modelRateLimitedMemorySaved"
+        case .chatModelRateLimitedProfileSaved: return "chat.modelRateLimitedProfileSaved"
+        case .skillModelRateLimited: return "skill.modelRateLimited"
+        case .skillAnswerRetained: return "skill.answerRetained"
+        case .skillRateLimitActivity: return "skill.rateLimitActivity"
         }
     }
 
@@ -1502,6 +1516,13 @@ enum AppText: Equatable {
         case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
         case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
         case .voiceChoiceSaveFailed: return "無法儲存語音設定，請再試一次。"
+        case .chatModelRateLimited: return "模型服務請求太頻繁，請稍後再試；草稿已保留。"
+        case .chatModelRateLimitedMCP: return "模型服務請求太頻繁；草稿與已收到的工具結果保留。請先確認已送出的操作，不會自動重試。"
+        case .chatModelRateLimitedMemorySaved: return "模型服務請求太頻繁；記憶修改已儲存，草稿保留。請先查看保存結果與已完成的操作，避免重複修改；不會自動重試。"
+        case .chatModelRateLimitedProfileSaved: return "模型服務請求太頻繁；個人檔案已儲存，草稿保留。請先查看已保存內容與已完成的操作，避免重複修改；不會自動重試。"
+        case .skillModelRateLimited: return "模型服務請求太頻繁，請稍後再試；本次技能尚未儲存，不會自動重試。"
+        case .skillAnswerRetained: return "未完成的補充要求已保留"
+        case .skillRateLimitActivity: return "技能協作已停止，尚未儲存。"
         }
     }
 }

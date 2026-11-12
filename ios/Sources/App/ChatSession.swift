@@ -97,7 +97,11 @@ final class ChatSession: ObservableObject {
     @Published private(set) var savedSettings: SavedModelSettings?
     @Published private(set) var hasStoredKey = false
     @Published private(set) var isSubmitting = false
-    @Published private(set) var chatError: String?
+    @Published private(set) var chatError: String? {
+        didSet { chatErrorMessage = nil }
+    }
+    /// A closed display key for known failures; user/provider content is never a key.
+    @Published private(set) var chatErrorMessage: AppText?
     @Published private(set) var chatNotice: String?
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
@@ -604,6 +608,19 @@ final class ChatSession: ObservableObject {
                 let fenceFailure: Error?
                 do { try contextFence?.check(); fenceFailure = nil }
                 catch { fenceFailure = error }
+                // Classify only a typed model 429, never arbitrary response text.
+                let rateLimited = fenceFailure == nil &&
+                    ((error as? HTTPChatModelError) == .httpStatus(429) ||
+                     (error as? MCPConversationError) == .modelRateLimited)
+                if rateLimited {
+                    let text: AppText
+                    if self.memoryReceiptRequestID == id { text = .chatModelRateLimitedMemorySaved }
+                    else if self.profileReceiptRequestID == id { text = .chatModelRateLimitedProfileSaved }
+                    else if mcpConnection != nil { text = .chatModelRateLimitedMCP }
+                    else { text = .chatModelRateLimited }
+                    self.finish(id: id, error: text.traditionalFallback, message: text)
+                    return
+                }
                 let message = fenceFailure.flatMap(Self.profileFailureMessage)
                     ?? (error as? MCPChatStop)?.message
                     ?? (error as? ProfileChatStop)?.message
@@ -1164,7 +1181,7 @@ final class ChatSession: ObservableObject {
         chatError = nil; chatNotice = "已開啟新對話；已確認的記憶與技能保留。"
     }
 
-    private func finish(id: UUID, error: String? = nil) {
+    private func finish(id: UUID, error: String? = nil, message: AppText? = nil) {
         guard requestID == id else { return }
         if error != nil { stopPreview(id: id, phase: .failed) }
         if let pending = pendingMCPApproval { resolveMCPApproval(id: pending.id, approved: false) }
@@ -1177,6 +1194,7 @@ final class ChatSession: ObservableObject {
         deadline?.cancel()
         deadline = nil
         chatError = error
+        chatErrorMessage = message
     }
 
     private static func liveRepository() -> ModelSettingsRepository {

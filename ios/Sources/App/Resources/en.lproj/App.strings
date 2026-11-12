@@ -481,3 +481,10 @@
 "voice.choice.notice" = "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported.";
 "voice.choice.disabledHint" = "Voice input is off or the choice is unavailable. Choose an option in model settings under Speech to text.";
 "voice.choice.saveFailed" = "Could not save the voice setting. Try again.";
+"chat.modelRateLimited" = "Too many requests to the model service. Try again later; your draft is preserved.";
+"chat.modelRateLimitedMCP" = "Too many requests to the model service. Your draft and received tool results are preserved. Check any actions already sent; they will not be retried automatically.";
+"chat.modelRateLimitedMemorySaved" = "Too many requests to the model service. The memory change was saved and your draft is preserved. Review the saved change and completed actions before trying again; they will not be retried automatically.";
+"chat.modelRateLimitedProfileSaved" = "Too many requests to the model service. The profile change was saved and your draft is preserved. Review the saved change and completed actions before trying again; they will not be retried automatically.";
+"skill.modelRateLimited" = "Too many requests to the model service. The skill was not saved and will not be retried automatically.";
+"skill.answerRetained" = "Your unfinished clarification is preserved";
+"skill.rateLimitActivity" = "Skill collaboration stopped; nothing was saved.";

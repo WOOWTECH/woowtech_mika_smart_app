@@ -244,6 +244,7 @@ import Foundation
             if let error = error as? HTTPChatModelError {
                 switch error {
                 case .timedOut: throw SkillToolError.timedOut
+                case .httpStatus(429): throw SkillToolError.modelRateLimited
                 case .httpStatus: throw SkillToolError.modelRejected
                 case .invalidResponse, .incompleteResponse, .responseTooLarge: throw SkillToolError.modelInvalidResponse
                 default: break

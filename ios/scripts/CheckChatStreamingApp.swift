@@ -3,6 +3,7 @@ import AssistantModels
 import AssistantMemory
 import AssistantMCP
 import AssistantPersistence
+import AssistantSkills
 import AssistantDomain
 import Combine
 import Foundation
@@ -80,6 +81,37 @@ private final class CompleteSequenceClient: ReferenceDispatchBoundChatModelClien
     }
     var counts: (complete: Int, stream: Int) { lock.lock(); defer { lock.unlock() }; return (requests, 0) }
 }
+private struct CompleteHTTPAdapter: ReferenceDispatchBoundChatModelClient {
+    let client: HTTPChatModelClient
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch()
+        return try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+private final class LimitedCompleteClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private let firstReply: String?
+    private var requests = 0
+    init(firstReply: String? = nil) { self.firstReply = firstReply }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try next()
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try next()
+    }
+    private func next() throws -> String {
+        lock.lock(); defer { lock.unlock() }
+        requests += 1
+        if requests == 1, let firstReply { return firstReply }
+        throw HTTPChatModelError.httpStatus(429)
+    }
+    var count: Int { lock.lock(); defer { lock.unlock() }; return requests }
+}
 private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
@@ -144,6 +176,8 @@ private struct StreamEndpoint: MCPEndpointStoring {
     func remove() throws {}
 }
 private actor StreamMCP: MCPDiscovering {
+    private let reject: Bool
+    init(reject: Bool = false) { self.reject = reject }
     private(set) var calls = 0
     func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
     func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
@@ -151,6 +185,7 @@ private actor StreamMCP: MCPDiscovering {
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         guard name == "synthetic_read" else { throw MCPError.invalidRequest }
         calls += 1
+        if reject { throw MCPError.httpStatus(statusCode: 429) }
         return .object(["isError": .bool(false), "content": .array([.object(["type": .string("text"), "text": .string("Read value")])])])
     }
     func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
@@ -724,6 +759,150 @@ private actor StreamMCP: MCPDiscovering {
         }
         return a.count
     }
+    static func rateLimitPresentation() async throws -> Int {
+        var a = Assertions()
+        // Exercise the real HTTP transport through URLProtocol, both ordinary
+        // and memory-enabled structured chat. The response body is a canary.
+        for memory in [false, true] {
+            let body = Data("PRIVATE_RATE_LIMIT_BODY".utf8)
+            let fixture = ModelProtocolFixture.Scenario(status: 429, mime: "application/json", chunks: [body])
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            if memory { _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false } }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Retain this draft")
+            await task.value
+            try a.check(session.chatErrorMessage == .chatModelRateLimited && session.draft == "Retain this draft",
+                        "intercepted HTTP 429 reaches typed rate limit and preserves draft")
+            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && fixture.requestCount == 1,
+                        "HTTP 429 never saves a completion or retries")
+            try a.check(!(session.chatError ?? "").contains("PRIVATE_RATE_LIMIT_BODY") &&
+                        !(session.chatError ?? "").contains(url.host ?? "missing"),
+                        "provider error body and destination never reach visible failure")
+        }
+        for memory in [false, true] {
+            let fixture = ModelProtocolFixture.Scenario(status: 429, mime: "application/json",
+                chunks: [Data("PRIVATE_COMPLETE_ERROR".utf8)])
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            if memory { _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false } }
+            let session = e.session(CompleteHTTPAdapter(client: HTTPChatModelClient(session: transport)))
+            let task = try start(session, "Complete intercepted request"); await task.value
+            try a.check(session.chatErrorMessage == .chatModelRateLimited && fixture.requestCount == 1 &&
+                        session.draft == "Complete intercepted request" && session.entries.isEmpty,
+                        "real complete HTTP 429 is terminal and preserves the draft")
+            try a.check(!(session.chatError ?? "").contains("PRIVATE_COMPLETE_ERROR"),
+                        "complete HTTP error body remains private")
+        }
+        // Complete-only transport retains the same category for both ordinary
+        // and memory/skill structured chat.
+        for memory in [false, true] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            if memory { _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false } }
+            let client = LimitedCompleteClient(), session = e.session(client)
+            let task = try start(session, "Complete request"); await task.value
+            try a.check(session.chatErrorMessage == .chatModelRateLimited && session.draft == "Complete request" &&
+                        client.count == 1 && session.entries.isEmpty, "complete 429 is localized and never retried")
+        }
+        // Model 429 after an approved remote tool preserves the real result.
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            let server = StreamMCP(), connection = MCPSession(repository: StreamEndpoint(), clientFactory: { _ in server })
+            connection.connect(); try await wait("rate MCP discovery") { !connection.isBusy }
+            connection.selectTool("synthetic_read", enabled: true)
+            let client = LimitedCompleteClient(firstReply: #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#)
+            let session = e.session(client); session.usesMCP = true
+            let task = try start(session, "Read selected tool", mcp: connection)
+            try await wait("rate MCP review") { session.pendingMCPApproval != nil }
+            session.resolveMCPApproval(id: session.pendingMCPApproval!.id, approved: true)
+            await task.value
+            let calls = await server.calls
+            try a.check(session.chatErrorMessage == .chatModelRateLimitedMCP && client.count == 2 && calls == 1,
+                        "MCP model 429 after approved call never replays")
+            try a.check(session.draft == "Read selected tool" && session.mcpSteps.count == 1 && session.entries.isEmpty,
+                        "MCP draft and completed tool result remain available")
+        }
+        // A remote MCP server's own 429 is not the model's rate limit.
+        do {
+            let e = try StreamEnvironment(); defer { e.close() }
+            let server = StreamMCP(reject: true), connection = MCPSession(repository: StreamEndpoint(), clientFactory: { _ in server })
+            connection.connect(); try await wait("remote MCP discovery") { !connection.isBusy }
+            connection.selectTool("synthetic_read", enabled: true)
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#])
+            let session = e.session(client); session.usesMCP = true
+            let task = try start(session, "Read remote tool", mcp: connection)
+            try await wait("remote MCP review") { session.pendingMCPApproval != nil }
+            session.resolveMCPApproval(id: session.pendingMCPApproval!.id, approved: true)
+            await task.value
+            let calls = await server.calls
+            try a.check(session.chatErrorMessage == nil && session.chatError != nil && calls == 1 && client.counts.complete == 1,
+                        "MCP server 429 never impersonates model throttling or replays tool")
+        }
+        for status in [401, 500] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Other failure")
+            try await wait("other model failure") { client.counts.stream == 1 }
+            client.finish(HTTPChatModelError.httpStatus(status)); await task.value
+            try a.check(session.chatErrorMessage == nil && session.chatError != nil && session.draft == "Other failure",
+                        "other model errors do not acquire rate-limit text")
+        }
+        for profile in [true, false] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let client = StreamClient(), session = e.session(client)
+            let prompt = profile ? "Please remember that I prefer jasmine tea" : "Remember preference Prefer jasmine tea"
+            let task = try start(session, prompt)
+            try await wait("rate structured proposal") { client.counts.stream == 1 }
+            if profile {
+                client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
+            } else {
+                client.emit(#"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Prefer jasmine tea","keywords":["tea"]}}"#)
+            }
+            client.finish()
+            if profile {
+                try await wait("rate profile review") { session.pendingProfileReview != nil }
+                session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
+            } else {
+                try await wait("rate memory review") { session.pendingMemoryReview != nil }
+                session.resolveMemoryReview(id: session.pendingMemoryReview!.id, approved: true)
+            }
+            try await wait("rate post-save stream") { client.counts.stream == 2 }
+            client.finish(HTTPChatModelError.httpStatus(429), at: 1); await task.value
+            let expected: AppText = profile ? .chatModelRateLimitedProfileSaved : .chatModelRateLimitedMemorySaved
+            try a.check(session.chatErrorMessage == expected && session.draft == prompt &&
+                        client.counts.stream == 2 && client.counts.complete == 0 && session.entries.isEmpty,
+                        "post-save 429 retains receipt, draft and prohibits retry")
+            try a.check(profile ? session.profileReceipt != nil : session.memoryReceipt != nil,
+                        "approved saved change is still presented")
+        }
+        // Actual skill-authoring host: a failed clarification must not clear
+        // the view's answer revision or publish any write.
+        do {
+            #if CHAT_STREAM_APP_STANDALONE
+            let catalog = try BundledSkillCatalog.load(data: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
+            #else
+            let catalog = try BundledSkillCatalog.bundled()
+            #endif
+            let e = try StreamEnvironment(); defer { e.close() }
+            let client = LimitedCompleteClient(firstReply: #"{"action":"ask_user","question":"Where should it stop?"}"#)
+            let access = ModelAccess(client: client, configuration: .init(baseURL: URL(string: "https://fixture.invalid/v1")!, model: "fixture"), key: "synthetic")
+            let agent = SkillAgentSession(loadCatalog: { catalog })
+            agent.start(request: "Create a source checking skill", store: e.learning, modelAccess: { access })
+            try await wait("skill clarification") { agent.question != nil || !agent.running }
+            guard agent.question != nil else { throw Failure(name: "skill clarification missing") }
+            let previousRevision = agent.acceptedAnswerRevision
+            agent.answer("Stop before sending anything", store: e.learning, modelAccess: { access })
+            try await wait("skill rate failure") { !agent.running }
+            try a.check(agent.errorMessage == .skillModelRateLimited && agent.acceptedAnswerRevision == previousRevision &&
+                        agent.receipt == nil && client.count == 2,
+                        "skill clarification 429 retains its draft signal without retry or save")
+        }
+        return a.count
+    }
+
     static func structuredTransportCompatibility() async throws -> Int {
         var a = Assertions()
         do {
@@ -1152,7 +1331,7 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
-                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
+                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.rateLimitPresentation(), ChatStreamingChecks.structuredLearningRevocation(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
@@ -1168,6 +1347,7 @@ final class ChatStreamingAppTests: XCTestCase {
         let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 12)
     }
     #endif
+    @MainActor func testRateLimitPresentation() async throws { let n = try await ChatStreamingChecks.rateLimitPresentation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }

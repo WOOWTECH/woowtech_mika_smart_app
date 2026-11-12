@@ -11,13 +11,15 @@ import SwiftUI
     @State private var answer = ""
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appLocalizer) private var localizer
 
     var body: some View {
         Form {
             Section {
-                Text(agent.activity).accessibilityIdentifier("skillAgent.status")
+                Text(agent.errorMessage == .skillModelRateLimited ? localizer.text(.skillRateLimitActivity) : agent.activity)
+                    .accessibilityIdentifier("skillAgent.status")
                 if let error = agent.error {
-                    Text(verbatim: error).foregroundStyle(.red).accessibilityIdentifier("skillAgent.error")
+                    Text(verbatim: agent.errorMessage.map { localizer.text($0) } ?? error).foregroundStyle(.red).accessibilityIdentifier("skillAgent.error")
                 }
             }
             if let receipt = agent.receipt {
@@ -61,6 +63,12 @@ import SwiftUI
                     }
                 }
             }
+            if !agent.running && agent.error != nil && !answer.isEmpty {
+                Section(localizer.text(.skillAnswerRetained)) {
+                    TextEditor(text: $answer).frame(minHeight: 110)
+                        .accessibilityIdentifier("skillAgent.retainedAnswer")
+                }
+            }
             if !agent.steps.isEmpty {
                 Section("本次工具紀錄") {
                     ForEach(Array(agent.steps.enumerated()), id: \.offset) { index, step in
@@ -82,7 +90,7 @@ import SwiftUI
                     Button("捨棄草稿") { agent.cancel() }.accessibilityIdentifier("skillAgent.refuse")
                 } else if agent.question != nil {
                     Button("送出補充") {
-                        focused = false; agent.answer(answer, store: store, modelAccess: modelAccess); answer = ""
+                        focused = false; agent.answer(answer, store: store, modelAccess: modelAccess)
                     }
                     .disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("skillAgent.answer.send")
@@ -104,6 +112,7 @@ import SwiftUI
                 Spacer(); Button("完成輸入") { focused = false }.accessibilityIdentifier("skillAgent.keyboard.done")
             }
         }
+        .onChange(of: agent.acceptedAnswerRevision) { _, _ in answer = "" }
         .onReceive(store.objectWillChange) { agent.hostChanged() }
         .onDisappear { agent.cancel(showNotice: false) }
     }
