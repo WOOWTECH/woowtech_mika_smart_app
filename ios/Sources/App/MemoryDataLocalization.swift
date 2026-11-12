@@ -21,6 +21,7 @@ enum MemoryDataKey: String, CaseIterable {
     case skillDeleteTitle, skillDeleteMessage, confirmSkillDelete
     case useMemory, useMemorySub, autoRemember, autoRememberSub
     case learnSkills, learnSkillsSub, preferenceScope, learningLimit, learningProgress, switches
+    case preferenceSaveFailed, preferenceStillOn, preferenceStillOff
     case memoryEditorKind, memoryEditorContent, memoryEditorKeywords, memoryEditorProcedureHelp
     case memoryEditorAddTitle, memoryEditorEditTitle, cancel, save, clearContent, doneTyping
     case skillEditorImportHelp, skillEditorEditHelp, skillEditorImportTitle, skillEditorEditTitle
@@ -107,6 +108,9 @@ enum MemoryDataKey: String, CaseIterable {
         case .confirmSkillDelete: return ("確認刪除", "确认删除", "Confirm deletion")
         case .useMemory: return ("使用記憶", "使用记忆", "Use memory")
         case .useMemorySub: return ("關掉後不讀也不記", "关闭后不读取也不记录", "Off means do not read or save memories")
+        case .preferenceSaveFailed: return ("設定未儲存", "设置未保存", "Setting not saved")
+        case .preferenceStillOn: return ("「%@」畫面仍顯示開啟。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@”画面仍显示开启。请稍后重试；若数据已在其他位置变更，请重新读取后再试。", "“%@” still shows as on. Try again later; if data changed elsewhere, reload it first.")
+        case .preferenceStillOff: return ("「%@」畫面仍顯示關閉。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@”画面仍显示关闭。请稍后重试；若数据已在其他位置变更，请重新读取后再试。", "“%@” still shows as off. Try again later; if data changed elsewhere, reload it first.")
         case .autoRemember: return ("自動記住我說過的事", "自动记住我说过的事", "Remember what I say automatically")
         case .autoRememberSub: return ("任務結束後從你的原話整理", "任务结束后根据你的原话整理", "Organize your words after a task")
         case .learnSkills: return ("從做過的事裡學（技能和網站知識）", "从做过的事中学习（技能和网站知识）", "Learn from completed tasks (skills and website notes)")

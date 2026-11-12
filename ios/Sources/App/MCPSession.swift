@@ -3,6 +3,10 @@ import Combine
 import Foundation
 
 // Discovery and execution share one explicitly connected, ephemeral client.
+// An execution method must not return while a detached producer could still
+// begin its request. The chat context lease follows the method's lifetime,
+// including cancellation. MCPClient awaits its worker and transport tasks;
+// injected implementations must preserve the same completion contract.
 protocol MCPDiscovering: MCPConversationExecuting {
     func initialize() async throws -> MCPServerInfo
     func listTools() async throws -> [MCPTool]

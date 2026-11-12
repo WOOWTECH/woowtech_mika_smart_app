@@ -37,7 +37,16 @@ enum CheckMemoryDataLocalization {
         precondition(english.text(.clearTitle) == "Clear data")
         precondition(traditional.text(.title) != simplified.text(.title))
         precondition(simplified.text(.title) != english.text(.title))
+        for copy in [traditional, simplified, english] {
+            let name = copy.text(.useMemory)
+            let on = copy.text(.preferenceStillOn, name), off = copy.text(.preferenceStillOff, name)
+            precondition(!copy.text(.preferenceSaveFailed).isEmpty && on.contains(name) && off.contains(name) && on != off)
+        }
+        precondition(traditional.text(.preferenceStillOn, traditional.text(.useMemory)).contains("仍顯示開啟"))
+        precondition(traditional.text(.preferenceStillOn, traditional.text(.useMemory)).contains("稍後重試"))
+        precondition(simplified.text(.preferenceStillOff, simplified.text(.useMemory)).contains("仍显示关闭"))
+        precondition(english.text(.preferenceStillOn, english.text(.useMemory)).contains("still shows as on"))
 
-        print("PASS memoryData keys=\(keys.count) languages=\(AppDisplayLanguage.allCases.count) exactLabels=10 dynamicFormats=4")
+        print("PASS memoryData keys=\(keys.count) languages=\(AppDisplayLanguage.allCases.count) preferenceFailure=on/off")
     }
 }

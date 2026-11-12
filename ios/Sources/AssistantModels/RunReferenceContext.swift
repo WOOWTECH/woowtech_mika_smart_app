@@ -20,13 +20,17 @@ public struct RunReferenceIdentity: Equatable, Hashable, Sendable {
 }
 
 public enum RunReferenceError: String, Error, Sendable, Equatable, LocalizedError {
-    case invalidBudget, invalidEntry, duplicateEntry, revoked
+    case invalidBudget, invalidEntry, duplicateEntry, revoked, busy, unsupportedClient
     public var errorDescription: String? {
         switch self {
         case .invalidBudget, .invalidEntry, .duplicateEntry:
             return "無法準備本次參考資料，尚未開始研究。"
         case .revoked:
             return "本次參考資料已撤銷，研究已停止；請確認目前設定後重新開始。"
+        case .busy:
+            return "學習資料正在使用中；請稍後重新開始。"
+        case .unsupportedClient:
+            return "目前模型連線無法確認請求生命週期；尚未送出參考資料。"
         }
     }
 }

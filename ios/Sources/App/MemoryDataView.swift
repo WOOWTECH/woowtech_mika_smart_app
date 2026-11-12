@@ -14,6 +14,11 @@ struct MemoryDataView: View {
     @State private var query = ""
     @State private var sheet: LearningSheet?
     @State private var deletionReview: SkillDeletionReview?
+    @State private var preferenceFailure: WritableKeyPath<MemoryPreferences, Bool>?
+    @State private var preferenceRefreshID = UUID()
+    #if DEBUG
+    @ObservedObject private var mcpLeaseFixture = UITestMCPLeaseControl.shared
+    #endif
     @FocusState private var searchFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
     #if os(iOS)
@@ -84,6 +89,16 @@ struct MemoryDataView: View {
         } message: { review in
             Text(copy.text(.skillDeleteMessage, skillTitle(review.skill.document)))
         }
+        .alert(copy.text(.preferenceSaveFailed), isPresented: Binding(
+            get: { preferenceFailure != nil }, set: { if !$0 { preferenceFailure = nil } }
+        )) {
+            Button(copy.text(.done)) { preferenceFailure = nil }
+        } message: {
+            if let keyPath = preferenceFailure {
+                Text(copy.text(store.memory.preferences[keyPath: keyPath] ? .preferenceStillOn : .preferenceStillOff,
+                               copy.text(preferenceName(keyPath))))
+            }
+        }
     }
 
     private var header: some View {
@@ -135,6 +150,12 @@ struct MemoryDataView: View {
 
     private var contentList: some View {
         List {
+            #if DEBUG
+            if UITestMCPLeaseControl.enabled(arguments: ProcessInfo.processInfo.arguments), mcpLeaseFixture.isHolding {
+                Text("Synthetic MCP executor is waiting")
+                    .accessibilityIdentifier("fixture.mcp.lease.holding")
+            }
+            #endif
             if !store.available {
                 Section {
                     card {
@@ -601,8 +622,15 @@ struct MemoryDataView: View {
                     }
                     .accessibilityIdentifier("memory.toggle.learnSkills")
                 }
+                .id(preferenceRefreshID)
                 .tint(palette.accent)
             }
+            #if DEBUG
+            if UITestMCPLeaseControl.enabled(arguments: ProcessInfo.processInfo.arguments), mcpLeaseFixture.isHolding {
+                Button("Release synthetic MCP fixture") { mcpLeaseFixture.release() }
+                    .accessibilityIdentifier("fixture.mcp.lease.release")
+            }
+            #endif
             Text(copy.text(.preferenceScope))
                 .font(.caption).foregroundStyle(palette.ink3)
                 .accessibilityIdentifier("memory.preferenceScope")
@@ -620,8 +648,19 @@ struct MemoryDataView: View {
 
     private func preference(_ keyPath: WritableKeyPath<MemoryPreferences, Bool>) -> Binding<Bool> {
         Binding(get: { store.memory.preferences[keyPath: keyPath] }, set: { value in
-            store.updatePreferences { $0[keyPath: keyPath] = value }
+            if !store.updatePreferences({ $0[keyPath: keyPath] = value }) {
+                // UIKit can optimistically animate the switch before SwiftUI
+                // rereads the unchanged persisted value. Recreate that control.
+                preferenceRefreshID = UUID()
+                preferenceFailure = keyPath
+            }
         })
+    }
+
+    private func preferenceName(_ keyPath: WritableKeyPath<MemoryPreferences, Bool>) -> MemoryDataKey {
+        if keyPath == \MemoryPreferences.useMemory { return .useMemory }
+        if keyPath == \MemoryPreferences.autoRemember { return .autoRemember }
+        return .learnSkills
     }
 
     private func matchingMemories(status: MemoryStatus) -> [MemoryItem] {
