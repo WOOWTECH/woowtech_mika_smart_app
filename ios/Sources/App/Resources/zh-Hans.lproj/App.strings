@@ -27,6 +27,11 @@
 "shell.greetingEvening" = "晚上好";
 "shell.greetingNight" = "夜深了";
 "shell.whatToDo" = "想让渥屋助理做什么？";
+"shell.replyExample" = "帮我写一则友善的消息回复";
+"shell.documentExample" = "帮我摘要附上的文件，列出重点";
+"shell.shoppingExample" = "在 momo 购物找 1,000 元以内、4.5 星以上的无线耳机，比较三款的优缺点";
+"shell.rememberExample" = "记住我偏好使用繁体中文，回答简短一点";
+"shell.recallExample" = "你记得我有哪些偏好？";
 "shell.webExample" = "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较";
 "shell.attachPDF" = "附加 PDF";
 "shell.viewPDFAttachment" = "查看 PDF 附件";

@@ -31,6 +31,11 @@ enum AppText: Equatable {
     case shellGreetingEvening
     case shellGreetingNight
     case shellWhatToDo
+    case shellReplyExample
+    case shellDocumentExample
+    case shellShoppingExample
+    case shellRememberExample
+    case shellRecallExample
     case shellWebExample
     case shellAttachPDF
     case shellViewPDFAttachment
@@ -522,6 +527,11 @@ enum AppText: Equatable {
         case .shellGreetingEvening: return "shell.greetingEvening"
         case .shellGreetingNight: return "shell.greetingNight"
         case .shellWhatToDo: return "shell.whatToDo"
+        case .shellReplyExample: return "shell.replyExample"
+        case .shellDocumentExample: return "shell.documentExample"
+        case .shellShoppingExample: return "shell.shoppingExample"
+        case .shellRememberExample: return "shell.rememberExample"
+        case .shellRecallExample: return "shell.recallExample"
         case .shellWebExample: return "shell.webExample"
         case .shellAttachPDF: return "shell.attachPDF"
         case .shellViewPDFAttachment: return "shell.viewPDFAttachment"
@@ -1045,6 +1055,11 @@ enum AppText: Equatable {
         case .shellGreetingEvening: return "晚上好"
         case .shellGreetingNight: return "夜深了"
         case .shellWhatToDo: return "想讓渥屋助理做什麼？"
+        case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
+        case .shellDocumentExample: return "幫我摘要附上的文件，列出重點"
+        case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
+        case .shellRememberExample: return "記住我偏好使用繁體中文，回答簡短一點"
+        case .shellRecallExample: return "你記得我有哪些偏好？"
         case .shellWebExample: return "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"
         case .shellAttachPDF: return "附加 PDF"
         case .shellViewPDFAttachment: return "檢視 PDF 附件"

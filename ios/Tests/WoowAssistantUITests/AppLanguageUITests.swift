@@ -99,6 +99,36 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
+    /// Offline fixture: every example replaces the draft but never sends it.
+    func testStoreExamplesFillDraftInEveryLanguageWithoutSending() {
+        let cases: [(String, [String])] = [
+            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "幫我摘要附上的文件，列出重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            ("(zh-Hans)", ["帮我写一则友善的消息回复", "帮我摘要附上的文件，列出重点", "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较", "在 momo 购物找 1,000 元以内、4.5 星以上的无线耳机，比较三款的优缺点", "记住我偏好使用繁体中文，回答简短一点", "你记得我有哪些偏好？"]),
+            ("(en)", ["Help me write a friendly reply to this message.", "Summarize the document I attach and list its key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
+        ]
+        let identifiers = ["reply", "document", "web", "shopping", "remember", "recall"]
+        for (language, expected) in cases {
+            app.terminate()
+            app.launchArguments = ["-AppleLanguages", language, "-AppleLocale", "zh_TW",
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+            app.launchEnvironment = [:]
+            app.launch()
+            let draft = chatDraftControl(in: app)
+            XCTAssertTrue(draft.waitForExistence(timeout: 15))
+            for (id, text) in zip(identifiers, expected) {
+                let button = app.buttons["chat.emptyExample." + id]
+                revealLearningElement(button, in: app)
+                XCTAssertTrue(button.isHittable, id)
+                XCTAssertEqual(button.label, text)
+                button.tap()
+                let value = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", text), object: draft)
+                XCTAssertEqual(XCTWaiter.wait(for: [value], timeout: 5), .completed, id)
+                XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+                XCTAssertFalse(app.buttons["chat.send"].isEnabled) // no model configured
+            }
+        }
+    }
+
     func testAboutHeroAndDiagnosticsInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "關於渥屋助理", "你的私人助理，替你把事辦成", "診斷資訊"),
