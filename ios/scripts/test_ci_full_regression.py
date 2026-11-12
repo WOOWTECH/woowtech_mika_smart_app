@@ -304,7 +304,7 @@ class FullRegressionPlanTests(unittest.TestCase):
             self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
             self.assertIn("github.ref == 'refs/heads/ios/integrate-woow-assistant'", workflow)
             self.assertIn('WOOW_MODEL_TEST_API_KEY:', workflow)
-        self.assertIn("!contains(fromJSON('[\"live-model\",\"live-mcp\"]'), inputs.test_scope)", source)
+        self.assertIn("!contains(fromJSON('[\"live-model\",\"live-mcp\",\"runner-probe\"]'), inputs.test_scope)", source)
         self.assertIn("startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version", source)
 
 
