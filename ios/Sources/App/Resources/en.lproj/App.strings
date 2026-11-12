@@ -465,4 +465,12 @@
 "chat.voiceSettings" = "Open Settings";
 "chat.voiceInterrupted" = "Voice input was interrupted. If you just granted access, hold to speak again.";
 "chat.voiceAccessibilityCancel" = "Cancel voice input";
-"mcp.unknownOutcomeRecovery" = "An MCP operation has an unknown outcome. New MCP operations are paused. A sent operation may still take effect; check with the service and do not retry.";
+"mcp.unknownOutcomeRecovery" = "A previous MCP operation has an unknown outcome and may have executed or may take effect later. New operations are paused; check the service first.";
+"mcp.recoveryButton" = "Unblock MCP after checking";
+"mcp.recoveryTitle" = "Unblock MCP?";
+"mcp.recoveryExplanation" = "The previous operation has an unknown outcome and may already have executed or may take effect later, even if no result is visible yet. Unblocking will not resend your draft. Sending the same request again may duplicate the operation. Check the service before deciding whether to continue.";
+"mcp.recoveryConfirm" = "I checked; unblock";
+"mcp.recoveryReleased" = "MCP is unblocked. Your draft was kept and was not sent; the previous operation may still take effect later.";
+"mcp.recoveryCorrupt" = "The MCP recovery state is damaged and cannot be safely cleared. The block and draft remain; check storage before trying again.";
+"mcp.recoveryChanged" = "The MCP state changed; a newer block was not cleared. Review it again before deciding.";
+"mcp.recoveryStorageError" = "The MCP recovery state could not be read or updated, so unblocking was not confirmed. Your draft remains; check storage and try again.";

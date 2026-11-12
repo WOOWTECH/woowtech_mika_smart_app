@@ -467,6 +467,8 @@ private struct ChatView: View {
     #endif
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
+    @State private var showsMCPRecovery = false
+    @State private var mcpRecoveryReview: MCPRecoveryReview?
     @State private var showsPDF = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
@@ -683,10 +685,26 @@ private struct ChatView: View {
             }
 
             if mcp.unresolvedToolOutcome && !session.isSubmitting {
-                Text(localizer.text(.mcpUnknownOutcomeRecovery))
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("chat.mcpUnknownOutcome")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(localizer.text(.mcpUnknownOutcomeRecovery))
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                        .accessibilityIdentifier("chat.mcpUnknownOutcome")
+                    Button(localizer.text(.mcpRecoveryButton)) {
+                        if let review = mcp.prepareToolRecovery() {
+                            mcpRecoveryReview = review; showsMCPRecovery = true
+                        }
+                    }
+                    .accessibilityIdentifier("chat.mcpRecovery")
+                }
+            }
+            if let issue = mcp.recoveryIssue {
+                Text(localizer.text(issue)).font(.callout).foregroundStyle(.red)
+                    .accessibilityIdentifier("chat.mcpRecoveryError")
+            }
+            if let notice = mcp.recoveryNotice {
+                Text(localizer.text(notice)).font(.callout)
+                    .accessibilityIdentifier("chat.mcpRecoveryNotice")
             }
             if let error = session.chatError {
                 Text(error)
@@ -813,6 +831,14 @@ private struct ChatView: View {
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
+        .alert(localizer.text(.mcpRecoveryTitle), isPresented: $showsMCPRecovery) {
+            Button(localizer.text(.configurationCancel), role: .cancel) { mcpRecoveryReview = nil }
+            Button(localizer.text(.mcpRecoveryConfirm)) {
+                guard let review = mcpRecoveryReview else { return }
+                mcpRecoveryReview = nil
+                if mcp.acknowledgeToolRecovery(review) { session.mcpRecoveryAcknowledged() }
+            }
+        } message: { Text(localizer.text(.mcpRecoveryExplanation)) }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
                             approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },

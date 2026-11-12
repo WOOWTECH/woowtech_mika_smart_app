@@ -465,4 +465,12 @@
 "chat.voiceSettings" = "前往设置";
 "chat.voiceInterrupted" = "语音输入已中断；如果刚完成授权，请再次按住说话。";
 "chat.voiceAccessibilityCancel" = "取消语音输入";
-"mcp.unknownOutcomeRecovery" = "MCP 操作结果未明，已暂停新的 MCP 操作。已发送的操作仍可能生效；请向服务端确认，不要重试。";
+"mcp.unknownOutcomeRecovery" = "先前的 MCP 操作结果未知，可能已执行或稍后生效。新操作暂停；请先核查服务端。";
+"mcp.recoveryButton" = "核查后解除 MCP 封锁";
+"mcp.recoveryTitle" = "解除 MCP 封锁？";
+"mcp.recoveryExplanation" = "先前操作的结果未知，无法保证未执行，即使现在尚未看到结果，也可能稍后生效。解除后不会自动重发草稿；再次发送相同请求可能重复执行。请先核查服务端，再自行决定是否继续。";
+"mcp.recoveryConfirm" = "我已核查，解除封锁";
+"mcp.recoveryReleased" = "已解除 MCP 封锁。草稿保留，未自动发送；先前操作仍可能稍后生效。";
+"mcp.recoveryCorrupt" = "MCP 恢复状态数据损坏，无法安全解除；封锁与草稿保留，请先确保存储状态。";
+"mcp.recoveryChanged" = "MCP 状态已更改；没有解除新的封锁。请重新查看后再决定。";
+"mcp.recoveryStorageError" = "无法读取或更新 MCP 恢复状态，未确认解除；草稿保留。请检查存储状态后再试。";

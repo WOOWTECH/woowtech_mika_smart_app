@@ -475,6 +475,14 @@ enum AppText: Equatable {
     case voiceInterrupted
     case voiceAccessibilityCancel
     case mcpUnknownOutcomeRecovery
+    case mcpRecoveryButton
+    case mcpRecoveryTitle
+    case mcpRecoveryExplanation
+    case mcpRecoveryConfirm
+    case mcpRecoveryReleased
+    case mcpRecoveryCorrupt
+    case mcpRecoveryChanged
+    case mcpRecoveryStorageError
 
     var key: String {
         switch self {
@@ -950,6 +958,14 @@ enum AppText: Equatable {
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
         case .mcpUnknownOutcomeRecovery: return "mcp.unknownOutcomeRecovery"
+        case .mcpRecoveryButton: return "mcp.recoveryButton"
+        case .mcpRecoveryTitle: return "mcp.recoveryTitle"
+        case .mcpRecoveryExplanation: return "mcp.recoveryExplanation"
+        case .mcpRecoveryConfirm: return "mcp.recoveryConfirm"
+        case .mcpRecoveryReleased: return "mcp.recoveryReleased"
+        case .mcpRecoveryCorrupt: return "mcp.recoveryCorrupt"
+        case .mcpRecoveryChanged: return "mcp.recoveryChanged"
+        case .mcpRecoveryStorageError: return "mcp.recoveryStorageError"
         }
     }
 
@@ -1456,7 +1472,15 @@ enum AppText: Equatable {
         case .voiceSettings: return "前往設定"
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
-        case .mcpUnknownOutcomeRecovery: return "MCP 操作結果未明，已暫停新的 MCP 操作。已送出的操作仍可能生效；請向服務端確認，不要重試。"
+        case .mcpUnknownOutcomeRecovery: return "先前的 MCP 操作結果未知，可能已執行或稍後生效。新操作暫停；請先查核服務端。"
+        case .mcpRecoveryButton: return "核對後解除 MCP 封鎖"
+        case .mcpRecoveryTitle: return "解除 MCP 封鎖？"
+        case .mcpRecoveryExplanation: return "先前操作的結果未知，無法保證未執行，即使現在尚未看到結果，也可能稍後生效。解除後不會自動重送草稿；再次送出相同要求可能重複執行。請先查核服務端，再自行決定是否繼續。"
+        case .mcpRecoveryConfirm: return "我已核對，解除封鎖"
+        case .mcpRecoveryReleased: return "已解除 MCP 封鎖。草稿保留，未自動傳送；先前操作仍可能稍後生效。"
+        case .mcpRecoveryCorrupt: return "MCP 恢復狀態資料受損，無法安全解除；封鎖與草稿保留，請先確認儲存狀態。"
+        case .mcpRecoveryChanged: return "MCP 狀態已變更；沒有解除新的封鎖。請重新查看後再決定。"
+        case .mcpRecoveryStorageError: return "無法讀取或更新 MCP 恢復狀態，未確認解除；草稿保留。請檢查儲存狀態後再試。"
         }
     }
 }
