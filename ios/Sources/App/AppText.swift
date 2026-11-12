@@ -512,6 +512,9 @@ enum AppText: Equatable {
     case chatAttachGone
     case chatAttachNoCamera
     case chatAttachPhoto
+    case chatAttachPhotoCount(count: Int)
+    case chatAttachFileAndMore(name: String, count: Int)
+    case chatAttachPhotosAndFiles
     case chatAttachSelected
     case chatAttachRemove(name: String)
     case chatAttachFull(limit: Int)
@@ -1033,6 +1036,9 @@ enum AppText: Equatable {
         case .chatAttachGone: return "chat.attach.gone"
         case .chatAttachNoCamera: return "chat.attach.noCamera"
         case .chatAttachPhoto: return "chat.attach.photo"
+        case .chatAttachPhotoCount: return "chat.attach.photoCount"
+        case .chatAttachFileAndMore: return "chat.attach.fileAndMore"
+        case .chatAttachPhotosAndFiles: return "chat.attach.photosAndFiles"
         case .chatAttachSelected: return "chat.attach.selected"
         case .chatAttachRemove: return "chat.attach.remove"
         case .chatAttachFull: return "chat.attach.full"
@@ -1070,6 +1076,8 @@ enum AppText: Equatable {
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
         case .localPDFSearchHit(let page, let index): return [Int64(page), Int64(index)]
+        case .chatAttachPhotoCount(let count): return [Int64(count)]
+        case .chatAttachFileAndMore(let name, let count): return [name, Int64(count)]
         case .chatAttachRemove(let name): return [name]
         case .chatAttachFull(let limit): return [Int64(limit)]
         case .chatAttachOverLimit(let limit, let count): return [Int64(limit), Int64(count)]
@@ -1591,6 +1599,9 @@ enum AppText: Equatable {
         case .chatAttachGone: return "這個附件已經不在了"
         case .chatAttachNoCamera: return "沒有能拍照的相機"
         case .chatAttachPhoto: return "照片"
+        case .chatAttachPhotoCount: return "%lld 張照片"
+        case .chatAttachFileAndMore: return "%1$@ 等 %2$lld 個檔案"
+        case .chatAttachPhotosAndFiles: return "照片和檔案"
         case .chatAttachSelected: return "已選取"
         case .chatAttachRemove: return "去掉%1$@"
         case .chatAttachFull: return "一次最多 %1$lld 個附件"

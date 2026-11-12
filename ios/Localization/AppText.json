@@ -5265,6 +5265,58 @@
       }
     },
     {
+      "case": "chatAttachPhotoCount",
+      "key": "chat.attach.photoCount",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "%lld 張照片"
+        },
+        "zh-Hans": {
+          "other": "%lld 张照片"
+        },
+        "en": {
+          "one": "%lld photo",
+          "other": "%lld photos"
+        }
+      }
+    },
+    {
+      "case": "chatAttachFileAndMore",
+      "key": "chat.attach.fileAndMore",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ 等 %2$lld 個檔案",
+        "zh-Hans": "%1$@ 等 %2$lld 个文件",
+        "en": "%1$@ and others (%2$lld files)"
+      }
+    },
+    {
+      "case": "chatAttachPhotosAndFiles",
+      "key": "chat.attach.photosAndFiles",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "照片和檔案",
+        "zh-Hans": "照片和文件",
+        "en": "Photos and files"
+      }
+    },
+    {
       "case": "chatAttachSelected",
       "key": "chat.attach.selected",
       "parameters": [],

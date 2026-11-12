@@ -94,17 +94,29 @@ enum ChatAttachmentLines {
         return kept.joined(separator: "\n")
     }
 
-    /// Android's titles for a message that is only attachments (AttachmentMessage.kt:39-47).
-    static func title(for items: [ChatAttachmentItem]) -> String {
+    /// What Android calls a message that is only attachments (AttachmentMessage.label).
+    static func label(for items: [ChatAttachmentItem], localizer: AppLocalizer) -> String {
         let photos = items.filter { $0.kind == .photo }
         let files = items.filter { $0.kind == .file }
         switch (photos.count, files.count) {
-        case (1, 0): return "照片"
-        case (let n, 0): return "\(n) 張照片"
+        case (0, 0): return ""
+        case (1, 0): return localizer.text(.chatAttachPhoto)
+        case (let n, 0): return localizer.text(.chatAttachPhotoCount(count: n))
         case (0, 1): return files[0].name
-        case (0, let n): return "\(files[0].name) 等 \(n) 個檔案"
-        default: return "照片和檔案"
+        case (0, let n): return localizer.text(.chatAttachFileAndMore(name: files[0].name, count: n))
+        default: return localizer.text(.chatAttachPhotosAndFiles)
         }
+    }
+
+    /// The archive and sidebar title, like Android's AttachmentMessage.plain: the first
+    /// message without its attachment lines, or the label when it was only attachments.
+    static func title(of record: ArchivedConversation, localizer: AppLocalizer) -> String {
+        guard record.customTitle == nil, let first = record.turns.first, !first.attachments.isEmpty else {
+            return record.title
+        }
+        let items = first.attachments.map(ChatAttachmentItem.init(archived:))
+        let words = displayText(first.userText, items: items).trimmingCharacters(in: .whitespacesAndNewlines)
+        return words.isEmpty ? label(for: items, localizer: localizer) : String(words.prefix(60))
     }
 }
 

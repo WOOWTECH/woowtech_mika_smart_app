@@ -98,11 +98,12 @@ private extension ArchivedConversation {
     private func row(_ record: ArchivedConversation) -> some View {
         let current = RecentConversationAccess.isCurrent(record, in: session)
         let block = RecentConversationAccess.block(record, in: session)
+        let title = ChatAttachmentLines.title(of: record, localizer: localizer)
         return HStack(spacing: 0) {
             Button { onOpen(record) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(verbatim: record.title)
+                        Text(verbatim: title)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(ink)
                             .lineLimit(2)
@@ -132,7 +133,7 @@ private extension ArchivedConversation {
             .buttonStyle(.plain)
             .disabled(!current && block != nil)
             .accessibilityIdentifier("drawer.recent.row." + record.id.uuidString)
-            .accessibilityLabel(record.title)
+            .accessibilityLabel(title)
             .accessibilityValue(accessibilityValue(current: current, block: block, pinned: record.pinnedAt != nil))
         }
         // Metadata actions remain available even when switching is unsafe.
@@ -178,7 +179,7 @@ private extension ArchivedConversation {
 
     init(record: ArchivedConversation, localizer: AppLocalizer, save: @escaping (String) throws -> Void) {
         self.record = record; self.localizer = localizer; self.save = save
-        _draft = State(initialValue: record.title)
+        _draft = State(initialValue: ChatAttachmentLines.title(of: record, localizer: localizer))
     }
 
     var body: some View {

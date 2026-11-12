@@ -503,6 +503,8 @@
 "chat.attach.gone" = "这个附件已经不在了";
 "chat.attach.noCamera" = "没有能拍照的相机";
 "chat.attach.photo" = "照片";
+"chat.attach.fileAndMore" = "%1$@ 等 %2$lld 个文件";
+"chat.attach.photosAndFiles" = "照片和文件";
 "chat.attach.selected" = "已选取";
 "chat.attach.remove" = "去掉%1$@";
 "chat.attach.full" = "一次最多 %1$lld 个附件";

@@ -503,6 +503,8 @@
 "chat.attach.gone" = "This attachment is no longer available";
 "chat.attach.noCamera" = "No camera is available";
 "chat.attach.photo" = "Photo";
+"chat.attach.fileAndMore" = "%1$@ and others (%2$lld files)";
+"chat.attach.photosAndFiles" = "Photos and files";
 "chat.attach.selected" = "Selected";
 "chat.attach.remove" = "Remove %1$@";
 "chat.attach.full" = "Up to %1$lld attachments at a time";
