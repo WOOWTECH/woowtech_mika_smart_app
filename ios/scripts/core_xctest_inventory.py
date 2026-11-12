@@ -56,6 +56,11 @@ def read_json(path):
     return json.loads(path.read_text(), object_pairs_hook=unique)
 
 
+def read_utf8_exact(path):
+    """Decode without universal-newline conversion so hashes cover input bytes."""
+    return path.read_bytes().decode("utf-8", errors="strict")
+
+
 def target_blocks(text):
     """Read only the supported project.yml target/source subset; reject variants."""
     if re.search(r"(?m)^\s*(?:include|configFiles|preBuildScripts|postBuildScripts|postCompileScripts)\s*:", text):
@@ -226,7 +231,7 @@ def declared_tests(root, snapshot):
                 continue
             text = mask_swift((root / relative).read_text())
             points, states = preprocessor_states(text)
-            if re.search(r"@Test\b|\b(?:class|extension)\s+\w+\s*<", text):
+            if re.search(r"@Test\b|@objc\s*\(|\bfunc\s+`|\b(?:class|extension)\s+\w+\s*<", text):
                 raise EvidenceError("unsupported test syntax")
             declarations = list(re.finditer(r"\bclass\s+(\w+)(?:\s*:\s*([^\n{]+))?\s*\{", text))
             scanned.append((relative, text, declarations, points, states))
@@ -416,10 +421,10 @@ def verify(inventory, root, discovery, execution, summary, log, product):
         raise EvidenceError("incomplete, skipped or failed result")
     seen = {}
     for line in log.splitlines():
-        if "Test Case '" not in line:
+        if "Test Case" not in line:
             continue
         match = EVENT.search(line)
-        if not match:
+        if not match or line.count("Test Case") != 1 or line[match.end():].strip():
             raise EvidenceError("unrecognized test event")
         target, cls, method, outcome = match.groups()
         identity = target + "/" + cls + "/" + method
@@ -450,7 +455,7 @@ def main():
             print("Draft only: review sources, conditions, inheritance and expected methods before verification")
         else:
             result = verify(read_json(args.inventory), args.root, read_json(args.discovery), read_json(args.execution), read_json(args.summary),
-                            args.log.read_text(errors="strict"), args.product)
+                            read_utf8_exact(args.log), args.product)
             print(json.dumps(result, sort_keys=True))
     except (EvidenceError, OSError, ValueError, TypeError, UnicodeError, subprocess.SubprocessError) as error:
         print("Core XCTest evidence rejected: " + str(error), file=sys.stderr)

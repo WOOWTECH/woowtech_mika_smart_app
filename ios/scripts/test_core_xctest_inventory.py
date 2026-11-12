@@ -143,6 +143,8 @@ class CoreInventoryChecks(unittest.TestCase):
         lines = self.log.splitlines()
         for log in ("", "\n".join(lines[1:]), "\n".join(lines[:-1]), self.log + "\n" + "\n".join(lines[:2]),
                     "\n".join([lines[1], lines[0], *lines[2:]]), self.log + "\n" + lines[0],
+                    self.log.replace(lines[1], lines[1] + " Test Case '-[AssistantDomainTests.OrdinaryTests testNormal]' failed (0.1 seconds).", 1),
+                    self.log + '\nTest Case "-[AssistantDomainTests.OrdinaryTests testNormal]" failed (0.1 seconds).',
                     self.log.replace("passed (", "failed (", 1), self.log.replace("passed (", "skipped (", 1),
                     self.log + "\nTest Case '-[Bad invalid]' passed (0.1 seconds)."):
             with self.subTest(log=log[:50]): self.rejected(log=log)
@@ -195,6 +197,8 @@ class CoreInventoryChecks(unittest.TestCase):
         source = self.root / "Tests/AssistantDomainTests/Fixture.swift"
         for text in ("class Derived: OrdinaryTests {}", "class Innocent: ExternalTestBase {}", "extension OrdinaryTests {}",
                      "class UnknownTests: ExternalBase {}", "class GenericTests<T>: XCTestCase {}",
+                     "class Hidden: XCTestCase { func `testHidden`() {} }",
+                     "class Hidden: XCTestCase { @objc(testViaSelector) func ordinaryName() {} }",
                      "class NewTests: XCTestCase { func testWithArguments(_ x: Int) {} }"):
             with self.subTest(text=text):
                 original = source.read_text()
@@ -221,6 +225,21 @@ class CoreInventoryChecks(unittest.TestCase):
         path = self.root / "duplicate.json"
         path.write_text('{"complete":true,"complete":false}')
         with self.assertRaises(gate.EvidenceError): gate.read_json(path)
+
+    def test_crlf_log_hash_preserves_original_bytes(self):
+        path = self.root / "raw.log"
+        raw = self.log.replace("\n", "\r\n").encode()
+        path.write_bytes(raw)
+        exact = gate.read_utf8_exact(path)
+        self.assertEqual(exact.encode(), raw)
+        self.assertNotEqual(gate.digest(raw), gate.digest(self.log.encode()))
+        self.assertTrue(self.verify(log=exact)["contract_verified"])
+        execution = {"schema": "core-xctest-execution-v1", "snapshot_sha256": self.discovery["snapshot_sha256"],
+                     "product_sha256": self.discovery["product_sha256"], "profile": self.profile,
+                     "discovery_sha256": gate.digest(gate.canonical(self.discovery)),
+                     "summary_sha256": gate.digest(gate.canonical(self.summary)),
+                     "log_sha256": gate.digest(self.log.encode()), "run_id": "fixture", "destination": "fixture", "runtime": "fixture"}
+        self.rejected(log=exact, execution=execution)
 
 
 if __name__ == "__main__":
