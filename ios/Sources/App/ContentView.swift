@@ -674,6 +674,12 @@ private struct ChatView: View {
               }
             }
 
+            if mcp.unresolvedToolOutcome && !session.isSubmitting {
+                Text(localizer.text(.mcpUnknownOutcomeRecovery))
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("chat.mcpUnknownOutcome")
+            }
             if let error = session.chatError {
                 Text(error)
                     .font(.callout)
@@ -782,11 +788,11 @@ private struct ChatView: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(session.canSend ? Color.white : palette.secondaryInk)
+                        .foregroundStyle(session.canSend && !(session.usesMCP && mcp.unresolvedToolOutcome) ? Color.white : palette.secondaryInk)
                         .frame(width: 40, height: 40)
-                        .background(session.canSend ? palette.accent : palette.assistant, in: Circle())
+                        .background(session.canSend && !(session.usesMCP && mcp.unresolvedToolOutcome) ? palette.accent : palette.assistant, in: Circle())
                 }
-                .disabled(!session.canSend)
+                .disabled(!session.canSend || (session.usesMCP && mcp.unresolvedToolOutcome))
                 .accessibilityLabel(localizer.text(.shellSend))
                 .accessibilityIdentifier("chat.send")
             }

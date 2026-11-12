@@ -96,6 +96,8 @@ final class ChatSession: ObservableObject {
     private var mcpFormatCorrections = 0
     private var mcpApprovalContinuation: CheckedContinuation<Bool, Never>?
     private var isMCPRun = false
+    private weak var activeMCPSession: MCPSession?
+    private static let mcpOutcomeWarning = "MCP 操作結果未明，已暫停新的 MCP 操作。已送出的操作仍可能生效；請先向服務端確認，勿重試。草稿保留。"
     private var mcpSentCount = 0
 
     #if DEBUG
@@ -435,6 +437,7 @@ final class ChatSession: ObservableObject {
         if usesMCP {
             do {
                 guard let mcp else { throw MCPError.notInitialized }
+                guard !mcp.unresolvedToolOutcome else { chatError = Self.mcpOutcomeWarning; return }
                 mcpConnection = try mcp.conversationConnection()
             } catch {
                 chatError = "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
@@ -479,6 +482,7 @@ final class ChatSession: ObservableObject {
         replyPreview = nil
         isSubmitting = true
         isMCPRun = mcpConnection != nil
+        activeMCPSession = mcpConnection == nil ? nil : mcp
         mcpActivity = nil
         mcpSteps = []
         mcpSentCount = 0
@@ -494,7 +498,8 @@ final class ChatSession: ObservableObject {
                     reply = try await self?.completeWithMCP(messages: messages, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
+                        key: key, client: client, connection: connection, tools: tools, resources: resources,
+                        recovery: mcp!, requestID: id) ?? ""
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: messages, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
@@ -535,6 +540,7 @@ final class ChatSession: ObservableObject {
                 self.replyPreview = nil
                 self.entries.append(userEntry)
                 self.entries.append(assistantEntry)
+                if mcpConnection != nil { mcp?.completeToolTurn(requestID: id) }
                 if self.draft == draftAtStart && self.pendingQuote == quoteAtStart {
                     self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
                 }
@@ -561,11 +567,13 @@ final class ChatSession: ObservableObject {
                         ? "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。" : nil)
                     ?? (mcpConnection == nil ? "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
                         : "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
+                let uncertain = mcpConnection != nil && (mcp?.unresolvedToolOutcome ?? true)
                 if self.memoryReceiptRequestID == id {
-                    self.finish(id: id, error: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。")
+                    self.finish(id: id, error: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。" + (uncertain ? " " + Self.mcpOutcomeWarning : ""))
                 } else {
-                    self.finish(id: id, error: self.profileReceiptRequestID != id ? message
-                        : "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。")
+                    let base = self.profileReceiptRequestID != id ? message
+                        : "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。"
+                    self.finish(id: id, error: uncertain ? base + " " + Self.mcpOutcomeWarning : base)
                 }
             }
         }
@@ -576,12 +584,14 @@ final class ChatSession: ObservableObject {
             guard let self, self.requestID == id else { return }
             self.request?.cancel()
             if mcpConnection != nil { self.updateMCPDiagnostics(failure: "hostDeadline") }
+            let uncertain = mcpConnection != nil && (mcp?.unresolvedToolOutcome ?? true)
             if self.memoryReceiptRequestID == id {
-                self.finish(id: id, error: "記憶修改已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存結果或撤銷。草稿保留。")
+                self.finish(id: id, error: "記憶修改已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存結果或撤銷。草稿保留。" + (uncertain ? " " + Self.mcpOutcomeWarning : ""))
             } else {
-                self.finish(id: id, error: self.profileReceiptRequestID != id
-                    ? "等待超過 \(seconds) 秒，已停止等待；草稿已保留，可重試。"
-                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存內容。草稿保留。")
+                let base = self.profileReceiptRequestID != id
+                    ? "等待超過 \(seconds) 秒，已停止等待；草稿已保留。"
+                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存內容。草稿保留。"
+                self.finish(id: id, error: uncertain ? base + " " + Self.mcpOutcomeWarning : base)
             }
         }
     }
@@ -772,10 +782,11 @@ final class ChatSession: ObservableObject {
         guard let id = requestID else { return }
         pdfAttachment?.revokeDestination()
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
+        let uncertain = isMCPRun && (activeMCPSession?.unresolvedToolOutcome ?? true)
         stopPreview(id: id, phase: .cancelled)
         request?.cancel()
-        finish(id: id)
-        chatNotice = "已取消等待，草稿已保留。伺服器可能已收到請求。"
+        finish(id: id, error: uncertain ? Self.mcpOutcomeWarning : nil)
+        chatNotice = uncertain ? nil : "已取消等待，草稿已保留。伺服器可能已收到請求。"
     }
 
     func cancelMCP() {
@@ -936,7 +947,8 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
+                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource],
+                                 recovery: MCPSession, requestID: UUID) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
@@ -955,6 +967,12 @@ final class ChatSession: ObservableObject {
                     return await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
                 case .readResource(let uri):
                     return await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
+                }
+            }, beforeDispatch: { [weak self, weak recovery] _ in
+                guard let self, let recovery else { throw CancellationError() }
+                try await MainActor.run {
+                    guard self.requestID == requestID, !Task.isCancelled else { throw CancellationError() }
+                    try recovery.reserveToolDispatch(requestID: requestID)
                 }
             }, onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
@@ -1084,6 +1102,7 @@ final class ChatSession: ObservableObject {
         requestID = nil
         isSubmitting = false
         isMCPRun = false
+        activeMCPSession = nil
         request = nil
         deadline?.cancel()
         deadline = nil

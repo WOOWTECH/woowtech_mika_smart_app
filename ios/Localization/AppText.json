@@ -4883,6 +4883,16 @@
         "zh-Hans": "取消语音输入",
         "en": "Cancel voice input"
       }
+    },
+    {
+      "case": "mcpUnknownOutcomeRecovery",
+      "key": "mcp.unknownOutcomeRecovery",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 操作結果未明，已暫停新的 MCP 操作。已送出的操作仍可能生效；請向服務端確認，不要重試。",
+        "zh-Hans": "MCP 操作结果未明，已暂停新的 MCP 操作。已发送的操作仍可能生效；请向服务端确认，不要重试。",
+        "en": "An MCP operation has an unknown outcome. New MCP operations are paused. A sent operation may still take effect; check with the service and do not retry."
+      }
     }
   ]
 }

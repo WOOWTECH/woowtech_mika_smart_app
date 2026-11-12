@@ -465,3 +465,4 @@
 "chat.voiceSettings" = "前往设置";
 "chat.voiceInterrupted" = "语音输入已中断；如果刚完成授权，请再次按住说话。";
 "chat.voiceAccessibilityCancel" = "取消语音输入";
+"mcp.unknownOutcomeRecovery" = "MCP 操作结果未明，已暂停新的 MCP 操作。已发送的操作仍可能生效；请向服务端确认，不要重试。";

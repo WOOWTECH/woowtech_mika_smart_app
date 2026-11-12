@@ -474,6 +474,7 @@ enum AppText: Equatable {
     case voiceSettings
     case voiceInterrupted
     case voiceAccessibilityCancel
+    case mcpUnknownOutcomeRecovery
 
     var key: String {
         switch self {
@@ -948,6 +949,7 @@ enum AppText: Equatable {
         case .voiceSettings: return "chat.voiceSettings"
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
+        case .mcpUnknownOutcomeRecovery: return "mcp.unknownOutcomeRecovery"
         }
     }
 
@@ -1454,6 +1456,7 @@ enum AppText: Equatable {
         case .voiceSettings: return "前往設定"
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
+        case .mcpUnknownOutcomeRecovery: return "MCP 操作結果未明，已暫停新的 MCP 操作。已送出的操作仍可能生效；請向服務端確認，不要重試。"
         }
     }
 }
