@@ -162,6 +162,25 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
     }
 
+    func testDrawerAboutOpensAndReturnsToChat() {
+        let app = launchApp()
+        let draft = chatDraftControl(in: app)
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("保留草稿")
+        let dismiss = app.buttons["chat.dismissKeyboard"]
+        if dismiss.exists { dismiss.tap() }
+        app.buttons["chat.menu"].tap()
+        let about = app.buttons["navigation.about"]
+        XCTAssertTrue(about.waitForExistence(timeout: 10))
+        XCTAssertEqual(about.label, "關於渥屋助理")
+        about.tap()
+        XCTAssertTrue(app.staticTexts["settings.about.appName"].waitForExistence(timeout: 10))
+        app.buttons["section.back"].tap()
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        XCTAssertEqual(draft.value as? String, "保留草稿")
+    }
+
     func testSettingsAboutShowsInstalledVersionAndReturnsToSettings() {
         let app = launchApp()
         openSection("settings", in: app)
@@ -175,6 +194,7 @@ final class WoowAssistantUITests: XCTestCase {
         let bar = app.navigationBars["關於渥屋助理"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
+        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "你的私人助理，替你把事辦成")
         let version = app.staticTexts["settings.about.version"]
         let build = app.staticTexts["settings.about.build"]
         XCTAssertTrue(version.exists && build.exists)
@@ -199,6 +219,29 @@ final class WoowAssistantUITests: XCTestCase {
         nativeBack.tap()
         XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["settings.about"].exists)
+    }
+
+    func testAboutDiagnosticsCanBeReviewedAndCopied() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        let link = app.buttons["settings.about"]
+        revealSettings(link, in: app)
+        link.tap()
+        let entry = app.buttons["settings.about.diagnostics"]
+        for _ in 0..<5 where !entry.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(entry.isHittable)
+        entry.tap()
+        let report = app.staticTexts["settings.about.diagnostics.report"]
+        XCTAssertTrue(report.waitForExistence(timeout: 10))
+        XCTAssertTrue(report.label.contains("App version:"))
+        XCTAssertTrue(report.label.contains("iOS/iPadOS:"))
+        let copy = app.buttons["settings.about.diagnostics.copy"]
+        XCTAssertTrue(app.buttons["settings.about.diagnostics.share"].exists)
+        XCTAssertEqual(copy.label, "複製")
+        copy.tap()
+        XCTAssertEqual(copy.label, "已複製")
+        app.navigationBars["診斷資訊"].buttons["完成"].tap()
+        XCTAssertTrue(app.navigationBars["關於渥屋助理"].waitForExistence(timeout: 10))
     }
 
     func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
