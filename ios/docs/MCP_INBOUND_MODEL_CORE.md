@@ -297,3 +297,22 @@ context immediately at each actual disclosure or execution boundary.
 GitHub simulator verification is required before iPad verification. Neither
 has been performed by this offline candidate; the core has no listener or real
 model execution.
+
+## Native test candidate (base d60fd8a)
+
+`AssistantMCPTests/MCPInboundCoreTests` contains five offline XCTest methods for
+Android's seven advertised schemas and original request formats, a 50-item
+maximum list and its two JSON representations, parse errors without an ID,
+expiration of pending reviews and capacity, and stale review callbacks. The
+manual GitHub `core` scope explicitly selects this class alongside its existing
+targets. A focused completion gate checks that all five methods started and
+passed once, and fails on skipped, missing, repeated or failed methods or an
+incomplete summary. Full-regression core already selects the entire
+`AssistantMCPTests` bundle. The standalone checks remain separate.
+
+The `core` selector is configured for future runs of this candidate. Earlier
+runs on other commits do not contain these XCTest methods. Local execution via
+a temporary assertion shim exercises the same five method bodies but is not a
+native XCTest or simulator result. GitHub iOS simulator verification remains
+required before any iPad run; no listener, model, real service or iPad is used
+by these tests.

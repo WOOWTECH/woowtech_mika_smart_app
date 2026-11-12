@@ -552,7 +552,7 @@ jobs:
               test_filters=(-only-testing:AssistantMemoryTests -only-testing:AssistantSkillsTests -only-testing:AssistantPersistenceTests -only-testing:AssistantDomainTests/WebsiteLearningTests -only-testing:AssistantDomainTests/WebResearchRunnerTests -only-testing:WoowAssistantUITests/MemoryUITests -only-testing:WoowAssistantUITests/MemoryRaceUITests -only-testing:WoowAssistantUITests/BrowserLearningUITests)
               ;;
             core)
-              test_filters=(-only-testing:AssistantMemoryTests -only-testing:AssistantSkillsTests -only-testing:AssistantPersistenceTests)
+              test_filters=(-only-testing:AssistantMemoryTests -only-testing:AssistantSkillsTests -only-testing:AssistantPersistenceTests -only-testing:AssistantMCPTests/MCPInboundCoreTests)
               ;;
           esac
           xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
@@ -571,6 +571,11 @@ jobs:
             xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots
             xcrun xcresulttool export diagnostics --path build/Tests.xcresult --output-path build/diagnostics
           fi
+      - name: Verify all inbound MCP XCTest methods completed
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.test_scope == 'core'
+        run: |
+          python3 scripts/check_mcp_inbound_xctest_completion.py \
+            --summary build/test-summary.json --log build/ios-tests.log
       - name: Verify every selected shard case completed without skips
         if: always() && github.event_name == 'workflow_dispatch' && (startsWith(inputs.test_scope, 'ui-') || contains(fromJSON('["native","picker-user-copy","pdf-assembly","pdf-assembly-uikit","pdf-assembly-copy","pdf-assembly-multi","pdf-pair-coordinated","profile-tool","memory-tools","documents-chat"]'), inputs.test_scope))
         env:

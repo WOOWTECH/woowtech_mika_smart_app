@@ -288,6 +288,23 @@ class FullRegressionPlanTests(unittest.TestCase):
         self.assertIn('aggregate_options+=(--require-full)', full)
         self.assertIn("inputs.test_scope != 'all'", source)
 
+    def test_manual_core_selects_inbound_native_xctests(self):
+        paths = [ROOT / '.github/workflows/ios.yml']
+        generated = ROOT.parent / '.github/workflows/ios-app.yml'
+        if generated.exists():
+            paths.append(generated)
+        for path in paths:
+            source = path.read_text()
+            match = re.search(r'(?ms)^            core\)\n(.*?)^              ;;', source)
+            self.assertIsNotNone(match, str(path))
+            self.assertIn('-only-testing:AssistantMCPTests/MCPInboundCoreTests', match.group(1))
+            self.assertIn('scripts/check_mcp_inbound_xctest_completion.py', source)
+            for existing in ('AssistantMemoryTests', 'AssistantSkillsTests', 'AssistantPersistenceTests'):
+                self.assertIn('-only-testing:' + existing, match.group(1))
+        self.assertIn('Tests/AssistantMCPTests', (ROOT / 'project.yml').read_text())
+        self.assertIn('final class MCPInboundCoreTests: XCTestCase',
+                      (ROOT / 'Tests/AssistantMCPTests/MCPInboundCoreTests.swift').read_text())
+
     def test_live_service_acceptance_is_manual_and_limited_to_trusted_refs(self):
         source = (ROOT / '.github/workflows/ios.yml').read_text()
         for kind in ('model', 'mcp'):
