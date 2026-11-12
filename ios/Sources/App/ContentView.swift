@@ -475,7 +475,6 @@ private struct ChatView: View {
     #endif
     @FocusState private var isEditingDraft: Bool
     @StateObject private var keyboardDock = ChatKeyboardDock()
-    @State private var chatFrame = CGRect.zero
     @State private var showsMCPResults = false
     /// Android's attach panel takes the keyboard's place under the input bar.
     @State private var showsAttachPanel = false
@@ -488,8 +487,6 @@ private struct ChatView: View {
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
-    /// Only the draft's own docked keyboard lifts the composer (see ChatKeyboardDock).
-    private var keyboardReserve: CGFloat { isEditingDraft ? keyboardDock.reserve(below: chatFrame) : 0 }
     private var attachmentText: ChatAttachmentText { ChatAttachmentText(localizer: localizer) }
     private var attachmentColors: ChatAttachmentColors {
         ChatAttachmentColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
@@ -929,19 +926,10 @@ private struct ChatView: View {
             attachPanel
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
-        .padding(.bottom, keyboardReserve)
-        .animation(.easeOut(duration: 0.25), value: keyboardReserve)
         .background(palette.background)
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { chatFrame = proxy.frame(in: .global) }
-                    .onChange(of: proxy.frame(in: .global)) { _, frame in chatFrame = frame }
-            }
-        }
-        // SwiftUI's keyboard safe area is ignored here; ChatKeyboardDock
-        // reserves the draft keyboard's space instead.
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // This app's own docked keyboard lifts the composer (see ChatKeyboardDock);
+        // the attach panel takes the keyboard's place, so it drops that space at once.
+        .chatKeyboardReserve(keyboardDock, replaced: showsAttachPanel)
     }
 
     /// The attach pickers, Quick Look and the review sheets.
