@@ -328,6 +328,16 @@
       }
     },
     {
+      "case": "shellMessageContinuationPlaceholder",
+      "key": "shell.messageContinuationPlaceholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "繼續說點什麼…",
+        "zh-Hans": "继续说点什么…",
+        "en": "Say something more…"
+      }
+    },
+    {
       "case": "shellMessageDraft",
       "key": "shell.messageDraft",
       "parameters": [],

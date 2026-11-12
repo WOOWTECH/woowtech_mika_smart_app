@@ -31,6 +31,7 @@
 "shell.attachPDF" = "附加 PDF";
 "shell.viewPDFAttachment" = "查看 PDF 附件";
 "shell.messagePlaceholder" = "输入消息";
+"shell.messageContinuationPlaceholder" = "继续说点什么…";
 "shell.messageDraft" = "消息草稿";
 "shell.stop" = "取消";
 "shell.returnToLatest" = "回到最新消息";

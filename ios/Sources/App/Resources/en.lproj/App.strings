@@ -31,6 +31,7 @@
 "shell.attachPDF" = "Attach PDF";
 "shell.viewPDFAttachment" = "View PDF attachment";
 "shell.messagePlaceholder" = "Type a message";
+"shell.messageContinuationPlaceholder" = "Say something more…";
 "shell.messageDraft" = "Message draft";
 "shell.stop" = "Stop";
 "shell.returnToLatest" = "Jump to latest";

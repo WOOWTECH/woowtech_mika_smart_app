@@ -38,6 +38,8 @@ final class ChatStreamingUITests: XCTestCase {
 
     func testPartialBecomesCompletedReplyAndDurableArchive() {
         launch(); configure(); disableMemory(); enableNotifications()
+        let draft = chatDraftControl(in: app)
+        wait(NSPredicate(format: "placeholderValue == %@", "輸入訊息"), on: draft)
         assertNotificationAttempts(0)
         compose("[fixture:stream-complete]"); tap("chat.send")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
@@ -50,7 +52,8 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertEqual(completed.label, "串流測試：第一段；完整回覆。")
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
         XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
-        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:stream-complete]")
+        XCTAssertNotEqual(draft.value as? String, "[fixture:stream-complete]")
+        wait(NSPredicate(format: "placeholderValue == %@", "繼續說點什麼…"), on: draft)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
         assertNotificationAttempts(1)
