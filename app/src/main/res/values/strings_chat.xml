@@ -41,9 +41,12 @@
     <string name="chat_report_note">Add details (optional)</string>
     <string name="chat_report_submit">Submit report</string>
     <string name="chat_report_save_failed">Couldn’t save the report. Try again.</string>
+    <string name="chat_report_loading">Checking for an existing report…</string>
+    <string name="chat_report_load_failed">Couldn’t check the saved report. Try again.</string>
     <string name="chat_report_pending">Pending delivery. Reference: %1$s</string>
     <string name="chat_report_acknowledged">Received by the developer. Reference: %1$s</string>
     <string name="chat_report_needs_retry">Delivery has not been confirmed. Reference: %1$s</string>
+    <string name="chat_report_expired">Delivery has not been confirmed. The server accepts reports dated within seven days. Check your device’s date and time. Reference: %1$s</string>
     <string name="chat_report_retry">Retry delivery</string>
     <string name="chat_report_cancel">Cancel</string>
     <string name="chat_report_close">Close</string>

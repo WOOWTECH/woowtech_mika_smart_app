@@ -41,11 +41,21 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
     var saving by remember(reference) { mutableStateOf(false) }
     var savedReport by remember(reference) { mutableStateOf<AiResponseReport?>(null) }
     var failed by remember(reference) { mutableStateOf(false) }
+    var loading by remember(reference) { mutableStateOf(true) }
+    var loadFailed by remember(reference) { mutableStateOf(false) }
+    var loadVersion by remember(reference) { mutableStateOf(0) }
+    LaunchedEffect(reference, loadVersion) {
+        loading = true
+        val result = withContext(Dispatchers.IO) { runCatching { queue.find(reference) } }
+        result.onSuccess { savedReport = it; loadFailed = false }.onFailure { loadFailed = true }
+        loading = false
+    }
     LaunchedEffect(savedReport?.id) {
         val id = savedReport?.id ?: return@LaunchedEffect
         while (true) {
             delay(5_000)
-            savedReport = withContext(Dispatchers.IO) { queue.get(id) }
+            val result = withContext(Dispatchers.IO) { runCatching { queue.get(id) } }
+            if (!saving) result.getOrNull()?.let { savedReport = it }
         }
     }
     val reasons = listOf(
@@ -61,7 +71,9 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
                 Text(stringResource(R.string.chat_report_delivery_notice))
                 Text(stringResource(R.string.chat_report_reference, reference.runId ?: reference.conversationId, reference.messageKey))
                 Text(response.take(300), maxLines = 5, overflow = TextOverflow.Ellipsis)
-                if (savedReport == null) {
+                if (loading) Text(stringResource(R.string.chat_report_loading))
+                if (loadFailed) Text(stringResource(R.string.chat_report_load_failed))
+                if (!loading && !loadFailed && savedReport == null) {
                     reasons.forEach { (id, label) ->
                         FilterChip(selected = reason == id, onClick = { reason = id }, label = { Text(label) }, enabled = !saving)
                     }
@@ -71,6 +83,7 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
                 if (failed) Text(stringResource(R.string.chat_report_save_failed), Modifier.testTag("report-save-failed"))
                 savedReport?.let { report ->
                     Text(stringResource(if (report.status == "acknowledged") R.string.chat_report_acknowledged
+                        else if (reportOutsideIntakeWindow(report, System.currentTimeMillis())) R.string.chat_report_expired
                         else if (report.status == "rejected" || report.attempts >= 3) R.string.chat_report_needs_retry
                         else R.string.chat_report_pending, report.id),
                         Modifier.testTag("report-delivery-status"))
@@ -78,31 +91,38 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
             }
         },
         confirmButton = {
-            if (savedReport == null) TextButton(
+            if (loadFailed && !loading) TextButton(onClick = { loadVersion++ }) {
+                Text(stringResource(R.string.chat_report_retry))
+            }
+            else if (!loading && savedReport == null) TextButton(
                 onClick = {
                     saving = true
                     failed = false
                     scope.launch {
                         val result = withContext(Dispatchers.IO) { runCatching { queue.save(reference, response, reason, note) } }
-                        saving = false
                         result.onSuccess { report ->
                             savedReport = report
-                            AiResponseReportDelivery.deliverDue(queue, AiResponseReportDelivery.sender(context.applicationContext))
-                            savedReport = withContext(Dispatchers.IO) { queue.get(report.id) }
-                        }.onFailure { failed = true }
+                            saving = false
+                            runCatching {
+                                AiResponseReportDelivery.deliverDue(queue, AiResponseReportDelivery.sender(context.applicationContext))
+                                withContext(Dispatchers.IO) { queue.get(report.id) }
+                            }.getOrNull()?.let { savedReport = it }
+                        }.onFailure { failed = true; saving = false }
                     }
                 }, enabled = !saving,
             ) { Text(stringResource(R.string.chat_report_submit)) }
-            else if (savedReport?.status != "acknowledged" &&
-                (savedReport?.status == "rejected" || (savedReport?.attempts ?: 0) >= 3)) TextButton(
+            else if (!loading && !loadFailed && savedReport != null && savedReport?.status != "acknowledged") TextButton(
                 onClick = {
                     val id = savedReport?.id ?: return@TextButton
+                    saving = true
+                    failed = false
                     scope.launch {
-                        savedReport = withContext(Dispatchers.IO) { queue.retry(id) }
-                        AiResponseReportDelivery.deliverDue(queue, AiResponseReportDelivery.sender(context.applicationContext))
-                        savedReport = withContext(Dispatchers.IO) { queue.get(id) }
+                        runCatching {
+                            AiResponseReportDelivery.retry(queue, AiResponseReportDelivery.sender(context.applicationContext), id)
+                        }.onSuccess { savedReport = it }.onFailure { failed = true }
+                        saving = false
                     }
-                }
+                }, enabled = !saving,
             ) { Text(stringResource(R.string.chat_report_retry)) }
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) {

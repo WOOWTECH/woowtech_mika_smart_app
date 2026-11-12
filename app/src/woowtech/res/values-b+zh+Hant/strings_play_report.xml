@@ -10,9 +10,12 @@
     <string name="chat_report_note">補充說明（選填）</string>
     <string name="chat_report_submit">送出檢舉</string>
     <string name="chat_report_save_failed">無法儲存檢舉，請重試。</string>
+    <string name="chat_report_loading">正在查詢先前的檢舉…</string>
+    <string name="chat_report_load_failed">無法讀取已儲存的檢舉，請重試。</string>
     <string name="chat_report_pending">等待傳送。編號：%1$s</string>
     <string name="chat_report_acknowledged">開發者已收到。編號：%1$s</string>
     <string name="chat_report_needs_retry">尚未確認送達。編號：%1$s</string>
+    <string name="chat_report_expired">尚未確認送達。伺服器只接受建立時間在七天內的檢舉，請檢查裝置日期與時間。編號：%1$s</string>
     <string name="chat_report_retry">重新傳送</string>
     <string name="chat_report_cancel">取消</string>
     <string name="chat_report_close">關閉</string>

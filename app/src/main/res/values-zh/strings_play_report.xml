@@ -10,9 +10,12 @@
     <string name="chat_report_note">补充说明（选填）</string>
     <string name="chat_report_submit">提交举报</string>
     <string name="chat_report_save_failed">无法保存举报，请重试。</string>
+    <string name="chat_report_loading">正在查找已有举报…</string>
+    <string name="chat_report_load_failed">无法读取已保存的举报，请重试。</string>
     <string name="chat_report_pending">等待发送。编号：%1$s</string>
     <string name="chat_report_acknowledged">开发者已收到。编号：%1$s</string>
     <string name="chat_report_needs_retry">尚未确认送达。编号：%1$s</string>
+    <string name="chat_report_expired">尚未确认送达。服务器只接受创建时间在七天内的举报，请检查设备日期和时间。编号：%1$s</string>
     <string name="chat_report_retry">重新发送</string>
     <string name="chat_report_cancel">取消</string>
     <string name="chat_report_close">关闭</string>
