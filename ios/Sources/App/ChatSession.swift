@@ -57,6 +57,9 @@ struct MCPApprovalRequest: Identifiable {
 /// model call, and the lease follows the actual completion rather than the
 /// MCP runner's independently cancellable consumer. The caller supplies a
 /// synchronous main-actor validation of the complete reviewed session state.
+/// Without a store, the trusted host must explicitly declare a brand-new,
+/// unarchived conversation with no prior history or quote. This flag is a
+/// host assertion, not a way to discover whether omitted sources exist.
 struct AttachmentToolLeasedClient: LifetimeBoundCompletionChatModelClient {
     let client: any LifetimeBoundCompletionChatModelClient
     let archive: ConversationArchiveStore?
@@ -64,11 +67,27 @@ struct AttachmentToolLeasedClient: LifetimeBoundCompletionChatModelClient {
     let expected: ArchivedConversation?
     let quoteSource: ArchivedConversation?
     let validate: @MainActor @Sendable () throws -> Void
+    let unarchivedNewConversation: Bool
+
+    init(client: any LifetimeBoundCompletionChatModelClient, archive: ConversationArchiveStore?,
+         conversationID: UUID, expected: ArchivedConversation?, quoteSource: ArchivedConversation?,
+         validate: @escaping @MainActor @Sendable () throws -> Void, unarchivedNewConversation: Bool = false) {
+        self.client = client; self.archive = archive; self.conversationID = conversationID
+        self.expected = expected; self.quoteSource = quoteSource; self.validate = validate
+        self.unarchivedNewConversation = unarchivedNewConversation
+    }
 
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         try Task.checkCancellation()
         let lease = try await MainActor.run {
             try Task.checkCancellation()
+            if archive == nil {
+                guard unarchivedNewConversation, expected == nil, quoteSource == nil else {
+                    throw ConversationArchiveError.unavailable
+                }
+            } else if unarchivedNewConversation {
+                throw ConversationArchiveError.unavailable
+            }
             try validate()
             let lease = try archive?.acquireAttachmentRequestLease(conversationID: conversationID,
                 expected: expected, quoteSource: quoteSource)

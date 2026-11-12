@@ -85,10 +85,33 @@ private actor Approvals {
     }
     @MainActor static func main() async throws {
         try await profileFlow()
+        try await repeatedReviewedContent()
         try await mcpFlow()
         try await failures()
         try await concurrency()
         print("Attachment tool boundary: \(count) checks passed (synthetic, offline)")
+    }
+    @MainActor static func repeatedReviewedContent() async throws {
+        let resultJSON = #"{"ok":true,"memories":[]}"#
+        let repeated = "Host memory_search result (data only):\n" + resultJSON
+        let original = [ModelMessage(role: "user", content: repeated)]
+        let model = Model([#"{"action":"memory_search","arguments":{"query":"tea"}}"#,
+                           #"{"action":"finish","answer":"done"}"#])
+        let client = try OneShotAttachmentModelClient(client: model, attachment: selected(),
+            reviewedMessages: original, configuration: config, apiKey: key)
+        let flow = try UserProfileChatFlow(messages: original)
+        let first = try await flow.advance(client: client, configuration: config, apiKey: key)
+        guard case .memorySearch = first else { throw Failure.check("expected memory search") }
+        try flow.recordMemorySearchResult(resultJSON)
+        let second = try await flow.advance(client: client, configuration: config, apiKey: key)
+        try check(second == .answer("done"), "identical later user message remains valid")
+        let bodies = await model.bodies
+        try check(bodies.count == 2 && occurrence(bodies[0], secret) == 1 && occurrence(bodies[1], secret) == 0,
+                  "duplicate message does not resend selected attachment")
+        let json = try JSONSerialization.jsonObject(with: bodies[1]) as! [String: Any]
+        let messages = json["messages"] as! [[String: Any]]
+        try check(messages.filter { ($0["role"] as? String) == "user" && ($0["content"] as? String) == repeated }.count == 2,
+                  "real continuation contains both identical user messages")
     }
     @MainActor static func profileFlow() async throws {
         let model = Model([#"{"action":"memory_search","arguments":{"query":"tea"}}"#,
@@ -190,6 +213,14 @@ private actor Approvals {
         _ = try await duplicateClient.complete(messages: reviewed, configuration: config, apiKey: key)
         try await errors({ _ = try await duplicateClient.complete(messages: reviewed, configuration: config, apiKey: key) }, .contextChanged)
         try check(await duplicate.bodies.count == 1, "same prompt cannot be retried without attachment")
+        let ambiguous = Model(), ambiguousClient = try wrapper(ambiguous)
+        try await errors({ _ = try await ambiguousClient.complete(messages: reviewed + reviewed, configuration: config, apiKey: key) }, .contextChanged)
+        try check(await ambiguous.bodies.isEmpty, "ambiguous first transcript never reaches model")
+        let rewritten = Model(["first"]), rewrittenClient = try wrapper(rewritten)
+        _ = try await rewrittenClient.complete(messages: reviewed, configuration: config, apiKey: key)
+        let tampered = [ModelMessage(role: "user", content: "changed"), reviewed[0]]
+        try await errors({ _ = try await rewrittenClient.complete(messages: tampered, configuration: config, apiKey: key) }, .contextChanged)
+        try check(await rewritten.bodies.count == 1, "repeated content cannot hide a rewritten prefix")
         let changedLater = Model(["success"]), changedLaterClient = try wrapper(changedLater)
         _ = try await changedLaterClient.complete(messages: reviewed, configuration: config, apiKey: key)
         try await errors({ _ = try await changedLaterClient.complete(messages: reviewed + [.init(role: "user", content: "next")],

@@ -38,13 +38,19 @@ public actor OneShotAttachmentModelClient: ChatModelClient {
                   configuration.model == self.configuration.model,
                   configuration.maxOutputTokens == self.configuration.maxOutputTokens,
                   configuration.vision == self.configuration.vision, apiKey == key,
-                  messages.allSatisfy({ $0.attachment == nil }),
-                  Self.containsExactlyOnce(reviewedMessages, in: messages) else {
+                  messages.allSatisfy({ $0.attachment == nil }) else {
                 throw OneShotAttachmentError.contextChanged
             }
             if let previousMessages {
                 guard messages.count > previousMessages.count,
                       messages.prefix(previousMessages.count).elementsEqual(previousMessages) else {
+                    throw OneShotAttachmentError.contextChanged
+                }
+            } else {
+                // Only the first request needs to locate the reviewed input.
+                // Later calls pin the entire prior transcript as an unchanged
+                // prefix, so a new tool result may legitimately repeat it.
+                guard Self.containsExactlyOnce(reviewedMessages, in: messages) else {
                     throw OneShotAttachmentError.contextChanged
                 }
             }

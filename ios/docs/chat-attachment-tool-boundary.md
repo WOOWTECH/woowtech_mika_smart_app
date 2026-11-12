@@ -28,6 +28,9 @@ declaration and credential on every call; messages supplied by the runner must
 not already carry an attachment. It consumes the selected attachment before
 the first asynchronous call, attaches it to that call's last user message,
 and permits only strictly extended, attachment-free subsequent transcripts.
+The first call must contain the reviewed messages exactly once. Later calls
+must preserve the complete preceding transcript as a prefix; an appended
+message may have identical content to an earlier message.
 Failure, cancellation, invalid input or a changed binding ends the wrapper;
 concurrent calls are rejected. A failed first call is never retried even when
 the provider's receipt is unknown. The wrapper intentionally exposes only

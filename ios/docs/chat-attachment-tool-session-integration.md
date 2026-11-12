@@ -5,12 +5,22 @@ This worktree does not enable attachment plus MCP or memory. It adds
 real multi-call MCP runner, the one-shot model adapter and two archive stores.
 The adapter takes a synchronous main-actor validation supplied by a future
 host and rechecks it before and after acquiring the archive's cooperative
-lease. Each model call rereads the exact conversation and quote-source while
-locked. The lease stays alive until the lifetime-bound model client returns,
+lease. When a store exists, each model call rereads the exact conversation and
+quote-source while locked. The lease stays alive until the lifetime-bound model client returns,
 even when the MCP runner's cancellation or deadline returns first. It is not
 held while waiting for a tool approval. The current tests supply a synthetic
 validator, not `ChatSession.validateAttachmentStart`; this is not yet an
 end-to-end session integration.
+
+Without a store, the adapter rejects every request by default. It can be
+explicitly marked `unarchivedNewConversation` only when both the expected
+archived conversation and quote source are absent. This is reserved for a
+brand-new conversation with no prior history and no quote. The trusted host
+must verify that fact when forming the reviewed binding: the flag does not
+prove that omitted sources never existed. An absent store with either source,
+or a new-unarchived declaration alongside a store, is rejected before the
+client is entered. None of this protects a caller that lies about its inputs or
+a writer that does not cooperate with the archive lock.
 
 For a future host, compose the client in this order:
 

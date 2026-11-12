@@ -252,12 +252,64 @@ private func image() throws -> Data {
         try await nonStreamingFailure()
         try await cancellation()
         try await toolCallsRecheckArchive()
+        try await toolMissingArchiveRejectsSources()
         try await memoryCallsRecheckArchive()
         try await toolValidationKeepsLeasePaired()
         try await toolApprovalDoesNotHoldArchive()
         try await toolCancellationRetainsLease(timeout: false)
         try await toolCancellationRetainsLease(timeout: true)
         print("Chat attachment session checks passed: \(assertions)")
+    }
+    @MainActor static func toolMissingArchiveRejectsSources() async throws {
+        let e = try Environment(); defer { e.close() }
+        let seed = e.session(Model(["original"]))
+        seed.draft = "first"; try await finish(seed)
+        let row = e.archive.state.conversations[0]
+        let other = ConversationArchiveStore(vault: EncryptedLearningFile(url: e.root.appendingPathComponent("archive.vault"), keys: e.archiveKeys))
+        try check(other.delete(id: row.id), "second store deletes reviewed conversation")
+        let config = ModelConfiguration(baseURL: URL(string: "https://fixture.invalid")!, model: "fixture")
+        let attachment = try ModelAttachment.text(utf8: Data("synthetic file".utf8))
+        let messages = [ModelMessage(userText: "fixture question", attachment: attachment)]
+        for (prior, source) in [(row as ArchivedConversation?, nil), (nil, row as ArchivedConversation?), (row, row)] {
+            for claimedNew in [false, true] {
+                let model = Model(["must not send"])
+                let client = AttachmentToolLeasedClient(client: model, archive: nil, conversationID: row.id,
+                    expected: prior, quoteSource: source, validate: {}, unarchivedNewConversation: claimedNew)
+                do {
+                    _ = try await client.complete(messages: messages, configuration: config, apiKey: "fixture-key")
+                    throw Failure(name: "missing archive allowed reviewed source")
+                } catch ConversationArchiveError.unavailable { assertions += 1 }
+                let calls = await model.requests
+                try check(calls.isEmpty, "missing archive never reaches attachment client")
+            }
+        }
+        let unclaimed = Model(["must not send"])
+        let noDeclaration = AttachmentToolLeasedClient(client: unclaimed, archive: nil, conversationID: UUID(),
+            expected: nil, quoteSource: nil, validate: {})
+        do {
+            _ = try await noDeclaration.complete(messages: messages, configuration: config, apiKey: "fixture-key")
+            throw Failure(name: "unclaimed unarchived conversation sent")
+        } catch ConversationArchiveError.unavailable { assertions += 1 }
+        let unclaimedCalls = await unclaimed.requests
+        try check(unclaimedCalls.isEmpty, "absence of archive is not an implicit new-conversation declaration")
+
+        let fresh = Model(["new reply"])
+        let declared = AttachmentToolLeasedClient(client: fresh, archive: nil, conversationID: UUID(),
+            expected: nil, quoteSource: nil, validate: {}, unarchivedNewConversation: true)
+        let response = try await declared.complete(messages: messages, configuration: config, apiKey: "fixture-key")
+        let freshCalls = await fresh.requests
+        try check(response == "new reply" && freshCalls.count == 1 && freshCalls[0].last?.attachment != nil,
+                  "explicit new unarchived conversation may send once")
+
+        let mismatched = Model(["must not send"])
+        let contradictory = AttachmentToolLeasedClient(client: mismatched, archive: e.archive, conversationID: UUID(),
+            expected: nil, quoteSource: nil, validate: {}, unarchivedNewConversation: true)
+        do {
+            _ = try await contradictory.complete(messages: messages, configuration: config, apiKey: "fixture-key")
+            throw Failure(name: "conflicting archive scope accepted")
+        } catch ConversationArchiveError.unavailable { assertions += 1 }
+        let mismatchedCalls = await mismatched.requests
+        try check(mismatchedCalls.isEmpty, "new unarchived declaration cannot accompany a store")
     }
     @MainActor static func toolSetup(_ e: Environment, model: Model) async throws ->
         (ArchivedConversation, ConversationArchiveStore, OneShotAttachmentModelClient, [ModelMessage], ModelConfiguration) {
