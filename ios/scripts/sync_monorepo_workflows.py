@@ -11,6 +11,7 @@ TEMPLATES = IOS / ".github/workflows"
 DESTINATION = ROOT / ".github/workflows"
 NAMES = {
     "ios.yml": "ios-app.yml",
+    "core-native-diagnostic.yml": "ios-core-native-diagnostic.yml",
     "release-ios.yml": "ios-release.yml",
     "live-model.yml": "ios-live-model.yml",
     "live-mcp.yml": "ios-live-mcp.yml",

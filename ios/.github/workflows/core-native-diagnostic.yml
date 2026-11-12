@@ -1,0 +1,86 @@
+name: iOS core native format diagnostics (not a gate)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect-native-formats:
+    name: Diagnostic only — Xcode ${{ matrix.xcode }} (not a gate)
+    runs-on: macos-15
+    timeout-minutes: 115
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - xcode: '16.4'
+            runtime: iOS-18-5
+            device: iPhone SE (3rd generation)
+          - xcode: '26.2'
+            runtime: iOS-26-2
+            device: iPhone 17
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      WOOW_DIAG_XCODE: ${{ matrix.xcode }}
+      WOOW_DIAG_RUNTIME: ${{ matrix.runtime }}
+      WOOW_DIAG_DEVICE: ${{ matrix.device }}
+    steps:
+      - name: Check out requested revision without retaining credentials
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Record source and selected toolchain
+        run: |
+          mkdir -p build/core-native-evidence/origin
+          git rev-parse HEAD > build/core-native-evidence/origin/source-commit.txt
+          test "$(cat build/core-native-evidence/origin/source-commit.txt)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          xcodebuild -version > build/core-native-evidence/origin/xcode-version.txt
+          test "$(head -1 build/core-native-evidence/origin/xcode-version.txt)" = "Xcode $WOOW_DIAG_XCODE"
+          xcodebuild -showsdks > build/core-native-evidence/origin/sdks.txt
+          printf '%s\n' 'DIAGNOSTIC ONLY: capture is not a native test gate; no live service configuration.' > build/core-native-evidence/origin/README.txt
+          printf '%s\n' '## Diagnostic only: this workflow is not a core regression gate.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install pinned XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: Build test products from this checkout
+        timeout-minutes: 45
+        run: |
+          xcodegen generate
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DiagnosticDerivedData -testProductsPath build/Diagnostic.xctestproducts \
+            build-for-testing CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES \
+            > build/core-native-evidence/origin/build.log 2>&1
+      - name: Create and boot a fresh owned simulator
+        timeout-minutes: 10
+        run: |
+          device_id="$(python3 scripts/prepare_test_simulator.py prepare --runtime "$WOOW_DIAG_RUNTIME" --device "$WOOW_DIAG_DEVICE" --state build/core-native-evidence/origin/simulator.json --fresh)"
+          printf '%s\n' "$device_id" > build/core-native-evidence/origin/simulator-id.txt
+          xcrun simctl bootstatus "$device_id" -b > build/core-native-evidence/origin/simulator-boot.log 2>&1
+          products_dir="$(python3 scripts/ci_full_regression.py product-directory --bundle build/Diagnostic.xctestproducts)"
+          xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py --runtime "$WOOW_DIAG_RUNTIME" --products "$products_dir"
+      - name: Capture discovery and one core execution (not a gate)
+        timeout-minutes: 50
+        run: |
+          python3 scripts/diagnose_core_native.py \
+            --products build/Diagnostic.xctestproducts \
+            --simulator "$(cat build/core-native-evidence/origin/simulator-id.txt)" \
+            --output build/core-native-evidence/capture \
+            --source-commit "$GITHUB_SHA" --workflow-ref "$GITHUB_WORKFLOW_REF" \
+            --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --xcode "$WOOW_DIAG_XCODE" --runtime "$WOOW_DIAG_RUNTIME" --device "$WOOW_DIAG_DEVICE"
+      - name: Delete only the owned disposable simulator
+        if: always()
+        timeout-minutes: 4
+        run: python3 scripts/prepare_test_simulator.py cleanup --state build/core-native-evidence/origin/simulator.json
+      - name: Preserve raw diagnostic evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-core-format-diagnostic-not-gate-${{ matrix.xcode }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/core-native-evidence/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 7
