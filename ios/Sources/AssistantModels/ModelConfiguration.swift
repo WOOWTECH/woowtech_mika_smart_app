@@ -52,6 +52,14 @@ public protocol ChatModelClient: Sendable {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String
 }
 
+/// `onDispatch` may run only after this exact request has begun dispatching.
+/// If it never runs, returning or throwing must mean no producer can start it
+/// later. No automatic retries or detached future requests are allowed.
+public protocol ReferenceDispatchBoundChatModelClient: ChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String
+}
+
 /// Optional text-delta capability. Finishing normally certifies a complete reply;
 /// truncation, cancellation and provider errors must finish by throwing.
 /// Structured tool flows use this only when separately opted in and keep their

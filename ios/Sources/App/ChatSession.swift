@@ -645,6 +645,7 @@ final class ChatSession: ObservableObject {
             let runtime = try DocumentQueryRuntime(source: source, question: prompt)
             learning.cancelLearning()
             let references = try learning.captureRunReferences(goal: draftAtStart, capabilities: DocumentQueryRuntime.referenceCapabilities)
+            let model = try ReferenceFencedModelClient(client: access.client, snapshot: references)
             let id = UUID(); requestID = id; replyPreview = nil; chatError = nil
             isMCPRun = false; isSubmitting = true
             #if DEBUG
@@ -658,7 +659,7 @@ final class ChatSession: ObservableObject {
             request = Task { [weak self] in
                 defer { references.onRevoke = nil; references.revoke() }
                 do {
-                    let outcome = try await runtime.run(client: access.client, configuration: access.configuration,
+                    let outcome = try await runtime.run(client: model, configuration: access.configuration,
                         apiKey: access.key, references: references.references, validateContext: { [weak self] in
                             guard let self, self.requestID == id, self.pdfAttachment?.id == attachment.id,
                                   self.draft == draftAtStart, self.pendingQuote == quoteAtStart,

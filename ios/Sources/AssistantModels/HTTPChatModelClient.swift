@@ -1,6 +1,6 @@
 import Foundation
 
-public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
+public struct HTTPChatModelClient: StructuredStreamingChatModelClient, ReferenceDispatchBoundChatModelClient {
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private static let maximumTimeout: UInt64 = 90_000_000_000
@@ -26,11 +26,16 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
     }
 
     public func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await complete(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {})
+    }
+
+    public func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                         onDispatch: @escaping @Sendable () -> Void) async throws -> String {
         do {
             let request = try Self.request(messages: messages, configuration: configuration, apiKey: apiKey, stream: false)
             return try await bounded {
                 try Task.checkCancellation()
-                let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects())
+                let (bytes, response) = try await session.bytes(for: request, delegate: RejectModelRedirects(onDispatch: onDispatch))
                 defer { bytes.task.cancel() }
                 try Self.validate(response, stream: false)
                 return try await withTaskCancellationHandler {
@@ -220,6 +225,12 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient {
 }
 
 final class RejectModelRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let onDispatch: @Sendable () -> Void
+    init(onDispatch: @escaping @Sendable () -> Void = {}) { self.onDispatch = onDispatch }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64,
+                    totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        if totalBytesSent > 0 { onDispatch() }
+    }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(nil)

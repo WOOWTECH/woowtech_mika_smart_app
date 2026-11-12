@@ -119,6 +119,7 @@ import Foundation
             // contents, filenames, model output or page text as a new request.
             let snapshot = try learning.captureRunReferences(goal: "文字稿 字幕 " + format.title,
                 capabilities: TranscriptRuntime.referenceCapabilities)
+            let model = try ReferenceFencedModelClient(client: approvedAccess.client, snapshot: snapshot)
             self.runtime = runtime; error = nil; result = nil; refusal = nil
             resetDiagnostic(); recordDiagnostic(.running)
             let id = UUID(); operationID = id; running = true
@@ -128,7 +129,7 @@ import Foundation
                 do {
                     let configuration = ModelConfiguration(baseURL: approvedAccess.configuration.baseURL,
                         model: approvedAccess.configuration.model, maxOutputTokens: 8192)
-                    let outcome = try await runtime.run(client: approvedAccess.client, configuration: configuration,
+                    let outcome = try await runtime.run(client: model, configuration: configuration,
                         apiKey: approvedAccess.key, references: snapshot.references, validateContext: { [weak self] in
                             guard let self, self.operationID == id else { throw TranscriptError.cancelled }
                             try snapshot.check()
