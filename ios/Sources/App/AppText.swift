@@ -1462,7 +1462,7 @@ enum AppText: Equatable {
         case .voiceAccessibilityCancel: return "取消語音輸入"
         case .mcpCallLimitTitle: return "MCP 模型呼叫上限"
         case .mcpCallLimitSubtitle: return "限制每則啟用 MCP 的訊息所使用的模型呼叫次數"
-        case .mcpCallLimitDetails: return "包含格式修正；每則訊息送出時固定，變更從下一則訊息生效。最多 12 次，工具呼叫仍須逐次核准且最多 6 次。達到上限可能沒有最終答覆，已執行的操作不會撤銷。此設定不影響一般聊天或技能。"
+        case .mcpCallLimitDetails: return "包含格式修正；每則訊息送出時固定，變更從下一則訊息生效。每則訊息最多 12 次模型呼叫。遠端 MCP 工具與資源每次須核准，合計最多執行 6 次；本機操作不計入這個遠端上限。本機記憶搜尋不經遠端核准，本機變更另須審核。達到模型呼叫上限可能沒有最終答覆，已執行的操作不會撤銷。此設定不影響一般聊天或技能。"
         }
     }
 }

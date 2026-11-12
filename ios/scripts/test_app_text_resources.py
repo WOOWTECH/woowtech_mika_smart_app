@@ -37,6 +37,14 @@ class AppTextResourceTests(unittest.TestCase):
     def test_fallback_cannot_silently_change(self):
         self.reject(lambda c: c.update(fallback='en'))
 
+    def test_mcp_limit_title_names_model_calls(self):
+        title = next(entry for entry in self.catalog['entries'] if entry['case'] == 'mcpCallLimitTitle')
+        self.assertEqual(title['translations'], {
+            'zh-Hant': 'MCP 模型呼叫上限',
+            'zh-Hans': 'MCP 模型调用上限',
+            'en': 'MCP model call limit',
+        })
+
     def test_generated_assets_are_complete(self):
         generated = outputs(self.catalog)
         root = Path(__file__).resolve().parents[1]

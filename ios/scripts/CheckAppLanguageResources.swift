@@ -39,6 +39,23 @@ import AssistantSkills
                 try check(resolved.language == language && !resolved.usedFallback && !resolved.text.isEmpty,
                           "MCP call limit text uses selected language")
             }
+            let detail = l.text(.mcpCallLimitDetails)
+            let required: [String]
+            switch language {
+            case .traditionalChinese:
+                required = ["12 次模型呼叫", "遠端 MCP 工具與資源每次須核准", "合計最多執行 6 次",
+                            "本機操作不計入", "本機記憶搜尋不經遠端核准", "本機變更另須審核"]
+            case .simplifiedChinese:
+                required = ["12 次模型调用", "远程 MCP 工具与资源每次须批准", "合计最多执行 6 次",
+                            "本地操作不计入", "本地记忆搜索不经远程批准", "本地更改另须审核"]
+            case .english:
+                required = ["12 model calls", "Remote MCP tools and resources require approval for each operation",
+                            "combined limit of 6", "Local actions do not count", "Local memory searches do not use remote approval",
+                            "local changes require separate review"]
+            }
+            for phrase in required {
+                try check(detail.contains(phrase), "MCP model limit accurately distinguishes remote and local operations")
+            }
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))

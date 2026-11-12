@@ -28,7 +28,10 @@ This candidate adds only a user-selectable **MCP model-call limit** per sent
 message, from 1 to 12, default 12. The app refreshes the shared preference
 and captures it at submission, including when another window changed it, so a
 change during an approval applies to the next run. It does not raise the
-existing runner ceiling, the six-call remote-tool ceiling or the time limit.
+existing runner ceiling, the combined six-operation remote MCP tool/resource
+ceiling or the time limit. Each remote operation has separate approval. Host
+local actions do not consume that remote ceiling: memory search has no separate
+remote approval, while local mutations have their own review and limits.
 One call means one MCP runner model request, including format correction and the
 request that returns a final answer. In contrast to Android's final turn, no
 extra finishing call is granted after the iOS limit. An approved remote action

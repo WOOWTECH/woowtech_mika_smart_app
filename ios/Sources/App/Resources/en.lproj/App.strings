@@ -467,4 +467,4 @@
 "chat.voiceAccessibilityCancel" = "Cancel voice input";
 "mcp.call.limit.title" = "MCP model call limit";
 "mcp.call.limit.subtitle" = "Limit model calls per message using MCP";
-"mcp.call.limit.details" = "Includes format corrections. Each message uses the setting captured when sent; changes apply to the next message. The maximum is 12; tool calls still require individual approval and are capped at 6. Reaching the limit may leave no final answer; completed actions are not undone. This does not affect ordinary chat or skills.";
+"mcp.call.limit.details" = "Includes format corrections. Each message uses the setting captured when sent; changes apply to the next message. Each message has at most 12 model calls. Remote MCP tools and resources require approval for each operation and have a combined limit of 6. Local actions do not count toward that remote limit. Local memory searches do not use remote approval; local changes require separate review. Reaching the model call limit may leave no final answer; completed actions are not undone. This does not affect ordinary chat or skills.";
