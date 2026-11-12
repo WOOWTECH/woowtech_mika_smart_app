@@ -382,6 +382,48 @@ private enum CheckProfileChatApp {
                       "reentrant deletion and approved addition remain durable with receipt and draft")
         }
     }
+    #if DEBUG
+    @MainActor static func mcpLeaseUIFixtureAndPreferenceFailure() async throws {
+        let args = ["app", "-UITestMode", "-UITestNamespace", UUID().uuidString,
+                    "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+        try check(UITestMCPLeaseControl.enabled(arguments: args), "fixture requires valid isolated UI mode")
+        try check(!UITestMCPLeaseControl.enabled(arguments: args.filter { $0 != "-UITestMCPFixture" }), "fixture rejects missing MCP mode")
+        try check(!UITestMCPLeaseControl.enabled(arguments: args + ["-LiveModelUITest"]), "fixture rejects live mode")
+        try check(!UITestMCPLeaseControl.enabled(arguments: args + ["-UITestMCPLeaseHold"]), "fixture rejects duplicate flag")
+        let env = try Environment(); defer { try? env.close() }
+        let fixture = UITestMCPFixture(arguments: args)
+        let connection = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in fixture })
+        connection.connect()
+        defer { connection.disconnect() }
+        try await until("fixture discovery") { !connection.isBusy }
+        try check(connection.phase == .connected, "actual fixture discovery completes")
+        connection.selectTool("fixture_echo", enabled: true)
+        let command = #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
+        let model = ScriptedModel([.init(command), .init(finished)]), session = env.session(model)
+        let running = try startMCP(session, connection: connection)
+        try await until("fixture approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+        guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "fixture approval missing") }
+        session.resolveMCPApproval(id: approval.id, approved: true)
+        try await until("fixture holds actual executor") { UITestMCPLeaseControl.shared.isHolding }
+        let before = try env.bytes()
+        try check(!env.store.updatePreferences { $0.useMemory = false }, "real lease blocks preference write")
+        try check(env.store.memory.preferences.useMemory && (try env.bytes()) == before,
+                  "failed preference save leaves published and encrypted state on")
+        try check(env.store.error?.contains("稍後再試") == true, "busy error asks user to retry")
+        UITestMCPLeaseControl.shared.release()
+        await running.value
+        try check(session.mcpSteps.count == 1, "fixture executor returned and released its real lease")
+        try check(env.store.updatePreferences { $0.useMemory = false }, "preference retry succeeds after executor")
+        try check(!env.reopen().memory.preferences.useMemory, "successful retry is encrypted and durable")
+        let wait = Task { @MainActor in try await UITestMCPLeaseControl.shared.wait() }
+        try await until("fixture cancellation gate") { UITestMCPLeaseControl.shared.isHolding }
+        wait.cancel()
+        do { try await wait.value; throw CheckFailure(check: "cancelled fixture must throw") }
+        catch is CancellationError { }
+        try check(!UITestMCPLeaseControl.shared.isHolding, "fixture cancellation releases continuation")
+    }
+    #endif
+
     @MainActor static func mcpExecutorDispatchFences() async throws {
         let resourceCommand = #"{"action":"read_resource","uri":"fixture://synthetic"}"#
         // Reproduce the independent review at the precise .executing event,
@@ -1840,6 +1882,9 @@ private enum CheckProfileChatApp {
     @MainActor static func main() async {
         do {
             if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
+                #if DEBUG
+                try await group("mcpLeaseUIFixtureAndPreferenceFailure", mcpLeaseUIFixtureAndPreferenceFailure)
+                #endif
                 try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
                 try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
                 try await group("chatContextDispatchFences", chatContextDispatchFences)
@@ -1867,6 +1912,9 @@ private enum CheckProfileChatApp {
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
             try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+            #if DEBUG
+            try await group("mcpLeaseUIFixtureAndPreferenceFailure", mcpLeaseUIFixtureAndPreferenceFailure)
+            #endif
             try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
             try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
             try await group("chatContextDispatchFences", chatContextDispatchFences)
@@ -1940,6 +1988,11 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     @MainActor func testMCPExecutorDispatchFences() async throws {
         try await CheckProfileChatApp.mcpExecutorDispatchFences()
     }
+    #if DEBUG
+    @MainActor func testMCPLeaseUIFixtureAndPreferenceFailure() async throws {
+        try await CheckProfileChatApp.mcpLeaseUIFixtureAndPreferenceFailure()
+    }
+    #endif
     @MainActor func testMemoryProcedureApprovalRejectionAndReapproval() async throws {
         try await CheckProfileChatApp.memoryProcedureReview()
     }

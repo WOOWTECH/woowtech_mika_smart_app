@@ -11,6 +11,10 @@ final class MCPConversationUITests: XCTestCase {
             "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture"]
         app.launchEnvironment = [:]
         app.launch()
+        connectFixture()
+    }
+
+    private func connectFixture() {
         navigateMikaSection("tools", in: app)
         tap("mcp.connect")
         waitForStatus("已連線，目錄擷取完成")
@@ -21,6 +25,66 @@ final class MCPConversationUITests: XCTestCase {
         let chatEnabled = app.switches["chat.useMCP"]
         XCTAssertTrue(chatEnabled.waitForExistence(timeout: 5))
         setSwitch(chatEnabled, on: true)
+    }
+
+    func testMemorySwitchReportsBusyAndRetriesAfterActualMCPLease() {
+        // Start a new isolated namespace so no production state or previous
+        // fixture run can supply the result. The held fake executor is reached
+        // through the real MCP runner and context-fenced executor.
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+            "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
+            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+        app.launchEnvironment = [:]
+        app.launch()
+        connectFixture()
+        send("[fixture:mcp] hello")
+        assertApproval()
+        app.buttons["mcp.approval.approve"].tap()
+        navigateMikaSection("memory", in: app)
+        XCTAssertTrue(app.staticTexts["fixture.mcp.lease.holding"].waitForExistence(timeout: 10),
+                      "The synthetic executor must enter its held call")
+        let release = app.buttons["fixture.mcp.lease.release"]
+        revealLearningElement(release, in: app)
+        XCTAssertTrue(release.waitForExistence(timeout: 10), "The actual fixture executor must be holding before the switch is touched")
+        let toggle = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(toggle, in: app)
+        XCTAssertEqual(toggle.value as? String, "1")
+        toggle.tap()
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.staticTexts["設定未儲存"].exists)
+        let message = alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "仍顯示開啟")).firstMatch
+        XCTAssertTrue(message.exists)
+        XCTAssertTrue(message.label.contains("請稍後重試"))
+        alert.buttons["完成"].tap()
+        let current = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(current, in: app)
+        XCTAssertEqual(current.value as? String, "1", "A failed write must never appear switched off")
+        revealLearningElement(release, in: app)
+        release.tap()
+        // The completed event is published only after the real executor and
+        // its lease return. Do not treat gate release as lock release.
+        navigateMikaSection("chat", in: app)
+        let activity = app.staticTexts["chat.mcpActivity"]
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "已收到 1 次結果"), object: activity)
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 15), .completed)
+        navigateMikaSection("memory", in: app)
+        let retry = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(retry, in: app)
+        XCTAssertEqual(retry.value as? String, "1")
+        setSwitch(retry, on: false)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        // Reload the real store through a fresh app launch in the same isolated
+        // namespace, without resetting it, to prove the retry was persisted.
+        let args = app.launchArguments.filter { $0 != "-UITestResetStorage" && $0 != "-UITestMCPLeaseHold" }
+        app.terminate()
+        app = XCUIApplication(); app.launchArguments = args; app.launchEnvironment = [:]; app.launch()
+        navigateMikaSection("memory", in: app)
+        let restored = app.switches["memory.toggle.useMemory"].firstMatch
+        revealLearningElement(restored, in: app)
+        XCTAssertEqual(restored.value as? String, "0")
     }
 
     override func tearDownWithError() throws {

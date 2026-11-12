@@ -16,19 +16,25 @@ instances, and a controlled in-process model. It exercises ordinary/profile,
 MCP, stream cancellation, late replies, and extraction. It is a hosted App
 integration test, **not** a two-window UI test. The companion
 `testMCPExecutorDispatchFences` covers post-event stale data, tool and resource
-dispatch, cancellation, failure, and cooperative lease lifetime. On a Mac with XcodeGen and an
-available iOS simulator, from `ios/`:
+dispatch, cancellation, failure, and cooperative lease lifetime. Run native
+tests on the GitHub macOS simulator runner, from `ios/`:
 
 ```sh
 make project
 xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
   -destination 'platform=iOS Simulator,id=<SIMULATOR_UDID>' \
   -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testChatContextDispatchFences \
-  -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testMCPExecutorDispatchFences test
+  -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testMCPExecutorDispatchFences \
+  -only-testing:WoowAssistantUITests/MCPConversationUITests/testMemorySwitchReportsBusyAndRetriesAfterActualMCPLease test
 ```
 
 Replace the placeholder with an available simulator UUID and retain the
 `.xcresult`, actual runtime version, test counts and any failures or skips.
+The UI case uses a fresh namespace and a DEBUG-only synthetic executor gate;
+the real chat wrapper must acquire the real encrypted-store lease. It verifies
+the failed preference switch, user-facing message, retry and encrypted relaunch.
+The `ui-mcp` full-regression shard includes the case on each configured iPhone
+and iPad simulator; no native pass is implied until the GitHub results exist.
 
 ## Real two-window UI test still to build and run
 
