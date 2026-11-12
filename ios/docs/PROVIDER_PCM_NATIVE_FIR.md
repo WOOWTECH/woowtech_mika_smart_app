@@ -7,9 +7,10 @@ service is used by the included tests.
 `AppleProviderPCMSource` now delegates source ownership to
 `CoordinatedProviderPCMSource`, whose platform and engine are injectable. The
 source creates an engine only after the driver obtains the shared voice lease
-and permission, observes interruptions/routes/media reset before activating the
-lease, installs the tap, and rechecks permission and the collector after each
-setup stage. A notification during activation closes the collector immediately
+and permission. It registers observation for interruptions/routes/media reset
+before creating the engine or activating the lease, installs the tap, and
+rechecks permission and the collector after each setup stage. A notification
+delivered during engine creation or activation closes the collector immediately
 and prevents engine installation even if the main-actor callback is delayed.
 Cleanup detaches observers and synchronously stops the engine before the driver
 releases the lease. Generation checks reject old errors, including an observer

@@ -42,14 +42,11 @@ final class CoordinatedProviderPCMSource: ProviderPCMSource {
     func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
                mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
-        guard engine == nil, !stopping else { throw SourceError.alreadyActive }
+        guard activeBuffer == nil, !stopping else { throw SourceError.alreadyActive }
         generation &+= 1
         let current = generation
-        let newEngine = try platform.makeEngine()
-        guard generation == current, !stopping, engine == nil else {
-            newEngine.stop(); return
-        }
-        engine = newEngine
+        // Establish ownership before calling any reentrant platform code, so
+        // observers and cancellation also work while no engine exists yet.
         activeBuffer = buffer
         let failure: @MainActor () -> Void = { [weak self] in
             guard let self, self.isCurrent(current) else { return }
@@ -59,12 +56,16 @@ final class CoordinatedProviderPCMSource: ProviderPCMSource {
             if self.isCurrent(current) { self.stop() }
         }
         do {
-            // Arm before activating the lease or doing format/filter setup.
+            // Arm before engine creation, lease activation or format setup.
             // A notification closes the buffer synchronously, even when its
             // main-actor failure callback cannot run until activation returns.
             let token = platform.observeSystemChanges(buffer: buffer, onFailure: failure)
             guard isCurrent(current) else { token.cancel(); return }
             observation = token
+            guard permitted(current, buffer: buffer, mayStart, failure: failure) else { return }
+            let newEngine = try platform.makeEngine()
+            guard isCurrent(current) else { newEngine.stop(); return }
+            engine = newEngine
             guard permitted(current, buffer: buffer, mayStart, failure: failure) else { return }
             let activated = activate()
             guard isCurrent(current) else { return }
@@ -85,7 +86,7 @@ final class CoordinatedProviderPCMSource: ProviderPCMSource {
     }
 
     private func isCurrent(_ current: UInt64) -> Bool {
-        generation == current && engine != nil && !stopping
+        generation == current && activeBuffer != nil && !stopping
     }
     private func permitted(_ current: UInt64, buffer: ProviderPCMBuffer, _ mayStart: () -> Bool,
                            failure: () -> Void) -> Bool {

@@ -429,20 +429,21 @@ import Foundation
               "cancellation stops replacement and removes observers")
 
         let revokedDuringObserve = sourceBegin()
+        let enginesBeforeObservation = platform.engines.count
         platform.observeHook = { failure in failure() }
         platform.permissions[3](true)
         platform.observeHook = nil
         check(sourceEvents.last?.0 == revokedDuringObserve && sourceEvents.last?.1 == .failed(.audio),
               "synchronous interruption during observer setup fails once")
-        check(platform.engines[2].log == ["stop"] && platform.observations[2].cancelCount == 1,
-              "observer returned after cancellation is still removed")
+        check(platform.engines.count == enginesBeforeObservation && platform.observations.last?.cancelCount == 1,
+              "observer returned after cancellation is removed without creating engine")
         let revokedDuringPrepare = sourceBegin()
         platform.configure = { engine in engine.duringPrepare = { sourceAllowed = false } }
         platform.permissions[4](true)
         platform.configure = nil
         check(sourceEvents.last?.0 == revokedDuringPrepare && sourceEvents.last?.1 == .cancelled,
               "authorization change during prepare cancels capture")
-        check(platform.engines[3].log == ["install", "prepare", "stop"] && platform.observations[3].cancelCount == 1,
+        check(platform.engines.last?.log == ["install", "prepare", "stop"] && platform.observations.last?.cancelCount == 1,
               "authorization rechecked immediately before engine start")
         sourceAllowed = true
         let installFailure = sourceBegin()
@@ -450,30 +451,30 @@ import Foundation
         platform.permissions[5](true)
         platform.configure = nil
         check(sourceEvents.last?.0 == installFailure && sourceEvents.last?.1 == .failed(.audio) &&
-              platform.engines[4].log == ["install", "stop"] && platform.observations[4].cancelCount == 1,
+              platform.engines.last?.log == ["install", "stop"] && platform.observations.last?.cancelCount == 1,
               "failed install tears down engine, observer and lease")
         let startFailure = sourceBegin()
         platform.configure = { $0.failStart = true }
         platform.permissions[6](true)
         platform.configure = nil
         check(sourceEvents.last?.0 == startFailure && sourceEvents.last?.1 == .failed(.audio) &&
-              platform.engines[5].log == ["install", "prepare", "start", "stop"] && platform.observations[5].cancelCount == 1,
+              platform.engines.last?.log == ["install", "prepare", "start", "stop"] && platform.observations.last?.cancelCount == 1,
               "failed start removes observer and stops engine")
         let canceledDuringMake = sourceBegin()
         platform.makeHook = { sourceDriver.cancel(id: canceledDuringMake) }
         platform.permissions[7](true)
         platform.makeHook = nil
-        check(platform.engines[6].log == ["stop"] && sourceEnded.contains(canceledDuringMake),
+        check(platform.engines.last?.log == ["stop"] && platform.observations.last?.cancelCount == 1 && sourceEnded.contains(canceledDuringMake),
               "engine returned after cancellation is stopped without install")
         check(device.acquire(onRevoked: {}), "all synthetic source error paths release the shared lease")
         device.release()
         let successfulCapture = sourceBegin()
         platform.permissions[8](true)
-        let successfulEngine = platform.engines[7]
+        let successfulEngine = platform.engines.last!
         let successfulSink = successfulEngine.sink!
         _ = successfulSink.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
         sourceDriver.finish(id: successfulCapture)
-        check(successfulEngine.log.last == "stop" && platform.observations[6].cancelCount == 1 &&
+        check(successfulEngine.log.last == "stop" && platform.observations.last?.cancelCount == 1 &&
               successfulSink.append([1], sampleRate: 16_000, channels: 1) == .closed,
               "release synchronously closes source before transcription")
         for _ in 0..<1_000 where sourceEvents.last?.0 != successfulCapture { await Task.yield() }
@@ -481,14 +482,14 @@ import Foundation
               "coordinated source delivers synthetic recorded data on release")
         let invalidBeforeRelease = sourceBegin()
         platform.permissions[9](true)
-        let invalidEngine = platform.engines[8]
+        let invalidEngine = platform.engines.last!
         let invalidNativeSink = invalidEngine.sink!
         _ = invalidNativeSink.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
         // A tap or observer has detected an error on its callback thread,
         // but the main-actor error delivery has not run yet.
         invalidNativeSink.discard()
         sourceDriver.finish(id: invalidBeforeRelease)
-        platform.failures[7]()
+        platform.failures.last!()
         check(sourceEvents.last?.0 == invalidBeforeRelease && sourceEvents.last?.1 == .failed(.audio),
               "release after detected error never transcribes earlier PCM")
         check(invalidEngine.log.last == "stop" && device.acquire(onRevoked: {}), "error-before-release still frees audio lease")
@@ -546,7 +547,8 @@ import Foundation
         platform.permissions.last!(true)
         platform.failMake = false
         check(platform.engines.count == beforeMakeFailure && sourceEvents.last?.0 == makeFailure &&
-              sourceEvents.last?.1 == .failed(.audio), "engine creation failure is reported")
+              sourceEvents.last?.1 == .failed(.audio) && platform.observations.last?.cancelCount == 1,
+              "engine creation failure is reported and observer removed")
         check(device.acquire(onRevoked: {}), "engine creation failure returns the voice lease")
         device.release()
         let activationInterrupted = sourceBegin()
@@ -593,6 +595,74 @@ import Foundation
               platform.observations.last?.cancelCount == 1 && device.acquire(onRevoked: {}),
               "explicit cancellation during activation removes observer and releases lease")
         device.release()
+
+        // Popper's regression: a delivered system change while makeEngine is
+        // running must not allow a later 8,000-sample capture to be sent.
+        let makePlatform = FixturePlatform()
+        let makeSession = FakeMixedSession()
+        let makeCoordinator = MixedVoiceAudioCoordinator(session: makeSession)
+        let makeDevice = VoiceAudioLeaseSlot(coordinator: makeCoordinator)
+        var makeEvents: [(UUID, VoiceInputEvent)] = []
+        var makeTranscriptions = 0
+        let makeDriver = ProviderPCMVoiceDriver(source: CoordinatedProviderPCMSource(platform: makePlatform),
+            coordinator: makeCoordinator, mayFinish: { true }, onEnd: { _ in }, transcribe: { _, _ in
+                makeTranscriptions += 1; return "fixture"
+            })
+        let interruptedMake = UUID()
+        makeDriver.start(id: interruptedMake, mayContinue: { true }, emit: { makeEvents.append(($0, $1)) })
+        makePlatform.makeHook = { makePlatform.failures.last?() }
+        makePlatform.permissions.last!(true)
+        makePlatform.makeHook = nil
+        if let sink = makePlatform.engines.last?.sink {
+            _ = sink.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        }
+        makeDriver.finish(id: interruptedMake)
+        for _ in 0..<1000 { await Task.yield() }
+        check(makeEvents.last?.0 == interruptedMake && makeEvents.last?.1 == .failed(.audio) &&
+              makeTranscriptions == 0 && makePlatform.engines.last?.log == ["stop"] &&
+              makePlatform.observations.last?.cancelCount == 1,
+              "delivered interruption during makeEngine cannot send 8000 samples")
+        check(makeDevice.acquire(onRevoked: {}), "interruption during engine creation returns lease")
+        makeDevice.release()
+        let delayedMake = UUID()
+        makeDriver.start(id: delayedMake, mayContinue: { true }, emit: { makeEvents.append(($0, $1)) })
+        makePlatform.makeHook = { makePlatform.buffers.last?.discard() }
+        makePlatform.permissions.last!(true)
+        makePlatform.makeHook = nil
+        let lateMakeFailure = makePlatform.failures.last!
+        check(makeEvents.last?.0 == delayedMake && makeEvents.last?.1 == .failed(.audio) &&
+              makePlatform.engines.last?.log == ["stop"] && makePlatform.observations.last?.cancelCount == 1 &&
+              makeSession.activations == 0 && makeTranscriptions == 0,
+              "collector closed during makeEngine fails before activation without waiting for callback")
+        let nextMake = UUID()
+        makeDriver.start(id: nextMake, mayContinue: { true }, emit: { makeEvents.append(($0, $1)) })
+        makePlatform.permissions.last!(true)
+        let nextMakeEngine = makePlatform.engines.last!
+        lateMakeFailure()
+        check(nextMakeEngine.log == ["install", "prepare", "start"],
+              "late error from interrupted engine creation cannot stop replacement capture")
+        _ = nextMakeEngine.sink!.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        makeDriver.finish(id: nextMake)
+        for _ in 0..<1000 where makeTranscriptions == 0 { await Task.yield() }
+        check(makeTranscriptions == 1 && makeEvents.last?.0 == nextMake && makeEvents.last?.1 == .final("fixture"),
+              "new authorized capture still transcribes after late interrupted callback")
+        check(makeDevice.acquire(onRevoked: {}), "replacement capture releases lease")
+        makeDevice.release()
+        let reentrantPlatform = FixturePlatform()
+        let reentrantSource = CoordinatedProviderPCMSource(platform: reentrantPlatform)
+        var duplicateRejected = false
+        reentrantPlatform.makeHook = {
+            do {
+                try reentrantSource.start(buffer: ProviderPCMBuffer(), activate: { true }, mayStart: { true }, onFailure: {})
+            } catch { duplicateRejected = true }
+        }
+        try reentrantSource.start(buffer: ProviderPCMBuffer(), activate: { true }, mayStart: { true }, onFailure: {})
+        check(duplicateRejected && reentrantPlatform.engines.count == 1 && reentrantPlatform.observations.count == 1 &&
+              reentrantPlatform.engines.last?.log == ["install", "prepare", "start"],
+              "engine creation retains authoritative ownership against reentrant starts")
+        reentrantSource.stop()
+        check(reentrantPlatform.engines.last?.log.last == "stop" && reentrantPlatform.observations.last?.cancelCount == 1,
+              "reentrant start rejection leaves original capture cleanup intact")
         let standalonePlatform = FixturePlatform()
         let standaloneSource = CoordinatedProviderPCMSource(platform: standalonePlatform)
         let standaloneBuffer = ProviderPCMBuffer()
