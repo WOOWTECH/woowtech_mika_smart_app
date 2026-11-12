@@ -513,9 +513,11 @@ private actor DelayedMCP: MCPDiscovering {
                         "failed recovery retains a valid marker for another session")
         }
         let catastrophic = e.root.appendingPathComponent("restore-failure/marker")
+        var restoreAttempts = 0
         let failing = MCPSession(repository: StreamEndpoint(), recoveryURL: catastrophic, recoveryProbe: { phase in
             switch phase {
-            case .afterRemoval, .beforeRestore: throw Failure(name: "synthetic unrecoverable storage failure")
+            case .afterRemoval: throw Failure(name: "synthetic post-removal sync failure")
+            case .beforeRestore: restoreAttempts += 1; throw Failure(name: "synthetic restore failure")
             default: break
             }
         })
@@ -524,15 +526,57 @@ private actor DelayedMCP: MCPDiscovering {
         try a.check(!failing.acknowledgeToolRecovery(failedReview) && failing.unresolvedToolOutcome &&
                     failing.recoveryIssue == .mcpRecoveryStorageError,
                     "unrestorable marker never reports successful recovery")
+        try a.check(restoreAttempts == 0 && !FileManager.default.fileExists(atPath: catastrophic.path) &&
+                    FileManager.default.fileExists(atPath: catastrophic.path + ".pending"),
+                    "durable backup survives without attempting restoration")
         let other = MCPSession(repository: StreamEndpoint(), recoveryURL: catastrophic)
-        try a.check(other.unresolvedToolOutcome && other.prepareToolRecovery() == nil,
-                    "unrestorable marker stays blocked in another store")
-        let lockFD = open(catastrophic.path + ".lock", O_RDWR | O_NOFOLLOW)
-        guard lockFD >= 0 else { throw Failure(name: "retained lock missing") }
-        let secondLock = flock(lockFD, LOCK_EX | LOCK_NB)
-        if secondLock == 0 { flock(lockFD, LOCK_UN) }
-        close(lockFD)
-        try a.check(secondLock != 0, "unrestorable state retains the cooperative lock")
+        guard let backupReview = other.prepareToolRecovery() else { throw Failure(name: "backup review missing") }
+        try a.check(other.unresolvedToolOutcome && backupReview == failedReview,
+                    "another store reviews the original durable generation")
+        #if CHAT_STREAM_APP_STANDALONE && os(macOS)
+        let child = Process(), output = Pipe()
+        child.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        child.arguments = ["--inspect-mcp-recovery", catastrophic.path]
+        child.standardOutput = output; child.standardError = output
+        try child.run(); child.waitUntilExit()
+        let childText = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        try a.check(child.terminationStatus == 0 && childText.contains("blocked-and-reviewable"),
+                    "fresh process sees durable backup without retained process lock")
+        #endif
+        try a.check(other.acknowledgeToolRecovery(backupReview) && !other.unresolvedToolOutcome,
+                    "user can explicitly recover after storage is healthy")
+        #if CHAT_STREAM_APP_STANDALONE && os(macOS)
+        // No algorithm can persist a failure if the final unlink and every
+        // compensation fail. Model that boundary in separate processes.
+        let extreme = e.root.appendingPathComponent("last-name-failure/marker")
+        func runChild(_ mode: String) throws -> String {
+            let p = Process(), pipe = Pipe()
+            p.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+            p.arguments = [mode, extreme.path]; p.standardOutput = pipe; p.standardError = pipe
+            try p.run(); p.waitUntilExit()
+            guard p.terminationStatus == 0 else { throw Failure(name: "extreme failure child") }
+            return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        }
+        try a.check(try runChild("--make-mcp-final-fault").contains("blocked-in-process"),
+                    "final removal double failure stays blocked in its process")
+        try a.check(try runChild("--inspect-mcp-recovery").contains("unblocked"),
+                    "unpersistable last-name failure is not falsely guaranteed across restart")
+        #endif
+
+        let noticePath = e.root.appendingPathComponent("notice/marker")
+        let noticeA = MCPSession(repository: StreamEndpoint(), recoveryURL: noticePath)
+        let noticeB = MCPSession(repository: StreamEndpoint(), recoveryURL: noticePath)
+        try noticeA.reserveToolDispatch(requestID: UUID())
+        guard let noticeReview = noticeA.prepareToolRecovery() else { throw Failure(name: "notice review missing") }
+        try a.check(noticeA.acknowledgeToolRecovery(noticeReview) && noticeA.recoveryNotice == .mcpRecoveryReleased,
+                    "success notice initially visible")
+        let otherRequest = UUID()
+        try noticeB.reserveToolDispatch(requestID: otherRequest)
+        try a.check(noticeA.unresolvedToolOutcome && noticeA.recoveryNotice == nil,
+                    "new marker from another store immediately suppresses stale success")
+        noticeB.completeToolTurn(requestID: otherRequest)
+        try a.check(!noticeA.unresolvedToolOutcome && noticeA.recoveryNotice == nil,
+                    "observed new block permanently clears old notice")
         let corrupt = e.root.appendingPathComponent("corrupt/marker")
         try FileManager.default.createDirectory(at: corrupt.deletingLastPathComponent(), withIntermediateDirectories: true)
         let damaged = Data("damaged".utf8); try damaged.write(to: corrupt)
@@ -1308,6 +1352,27 @@ private actor DelayedMCP: MCPDiscovering {
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
     @MainActor static func main() async {
+        #if os(macOS)
+        if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "--inspect-mcp-recovery" {
+            let session = MCPSession(repository: StreamEndpoint(), recoveryURL: URL(fileURLWithPath: CommandLine.arguments[2]))
+            if session.unresolvedToolOutcome {
+                guard session.prepareToolRecovery() != nil else { exit(2) }
+                print("blocked-and-reviewable")
+            } else { print("unblocked") }
+            return
+        }
+        if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "--make-mcp-final-fault" {
+            let session = MCPSession(repository: StreamEndpoint(), recoveryURL: URL(fileURLWithPath: CommandLine.arguments[2]), recoveryProbe: { phase in
+                switch phase { case .afterFinalRemoval, .beforeRestore: throw ChatStreamingChecks.Failure(name: "injected")
+                default: break }
+            })
+            do {
+                try session.reserveToolDispatch(requestID: UUID())
+                guard let review = session.prepareToolRecovery(), !session.acknowledgeToolRecovery(review), session.unresolvedToolOutcome else { exit(2) }
+                print("blocked-in-process"); return
+            } catch { exit(2) }
+        }
+        #endif
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),

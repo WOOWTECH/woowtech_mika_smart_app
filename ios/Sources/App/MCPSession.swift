@@ -9,7 +9,7 @@ struct MCPRecoveryReview: Identifiable, Equatable {
     var id: UUID { generation }
 }
 
-enum MCPRecoveryPhase { case beforeRemoval, afterRemoval, beforeRestore }
+enum MCPRecoveryPhase { case beforeRemoval, afterRemoval, afterFinalRemoval, beforeRestore }
 private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
 
 /// All cooperating stores use one advisory lock for marker creation, review,
@@ -17,6 +17,7 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
 @MainActor private final class MCPDispatchRecovery {
     private let url: URL
     private let recoveryProbe: (MCPRecoveryPhase) throws -> Void
+    private var backupPath: String { url.path + ".pending" }
     private var owner: (request: UUID, generation: UUID)?
     private static var failedClosed: Set<String> = []
     private static var retainedLocks: [String: Int32] = [:]
@@ -35,10 +36,14 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
             close(lockFD)
             if !acquired { return true }
         } else if errno != ENOENT { return true }
-        do { _ = try FileManager.default.attributesOfItem(atPath: url.path); return true }
-        catch let error as NSError {
-            return !(error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError)
+        // Either path is sufficient to retain the block. Errors fail closed.
+        for path in [url.path, backupPath] {
+            do { _ = try FileManager.default.attributesOfItem(atPath: path); return true }
+            catch let error as NSError {
+                if !(error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError) { return true }
+            }
         }
+        return false
     }
 
     private func locked<T>(_ body: () throws -> T) throws -> T {
@@ -76,8 +81,8 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
 
     /// Existing f62849a markers are empty. Upgrade them under the same lock
     /// before showing a review, so a stale review cannot clear a later marker.
-    private func generation(upgradeLegacy: Bool) throws -> UUID {
-        let fd = open(url.path, O_RDWR | O_NOFOLLOW | O_NONBLOCK)
+    private func readGeneration(path: String, upgradeLegacy: Bool) throws -> UUID {
+        let fd = open(path, O_RDWR | O_NOFOLLOW | O_NONBLOCK)
         guard fd >= 0 else { throw errno == ENOENT ? MCPRecoveryError.changed : MCPRecoveryError.unavailable }
         defer { close(fd) }
         var info = stat()
@@ -97,6 +102,25 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
         return value
     }
 
+    private func exists(_ path: String) throws -> Bool {
+        var info = stat()
+        if lstat(path, &info) == 0 { return true }
+        guard errno == ENOENT else { throw MCPRecoveryError.unavailable }
+        return false
+    }
+
+    /// A remaining backup is itself a durable pending marker. If both exist,
+    /// require the same generation; never discard a different or corrupt one.
+    private func generation(upgradeLegacy: Bool) throws -> UUID {
+        let mainExists = try exists(url.path), backupExists = try exists(backupPath)
+        guard mainExists || backupExists else { throw MCPRecoveryError.changed }
+        let main = mainExists ? try readGeneration(path: url.path, upgradeLegacy: upgradeLegacy) : nil
+        let backup = backupExists ? try readGeneration(path: backupPath, upgradeLegacy: upgradeLegacy) : nil
+        if let main, let backup, main != backup { throw MCPRecoveryError.corrupt }
+        guard let value = main ?? backup else { throw MCPRecoveryError.changed }
+        return value
+    }
+
     func reserve(_ id: UUID) throws {
         try locked {
             guard !Self.failedClosed.contains(url.path) else { throw MCPRecoveryError.unavailable }
@@ -104,6 +128,7 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
                 guard try generation(upgradeLegacy: false) == owner.generation else { throw MCPRecoveryError.changed }
                 return
             }
+            guard try !exists(backupPath) else { throw MCPRecoveryError.unavailable }
             let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
             guard fd >= 0 else { throw MCPRecoveryError.unavailable }
             let value = UUID()
@@ -125,26 +150,37 @@ private enum MCPRecoveryError: Error { case changed, corrupt, unavailable }
     private func remove(_ expected: UUID, forRecovery: Bool) throws {
         guard try generation(upgradeLegacy: false) == expected else { throw MCPRecoveryError.changed }
         if forRecovery { try recoveryProbe(.beforeRemoval) }
-        // Verify the directory can be synced before removing the only marker.
-        try syncDirectory()
-        guard unlink(url.path) == 0 else { throw MCPRecoveryError.unavailable }
-        do {
+        if try exists(url.path) {
+            if try !exists(backupPath) {
+                // Create and sync a second link before removing the first name.
+                // A later sync failure needs no restoration to remain blocked.
+                guard link(url.path, backupPath) == 0 else { throw MCPRecoveryError.unavailable }
+                try syncDirectory()
+            }
+            guard try generation(upgradeLegacy: false) == expected else { throw MCPRecoveryError.changed }
+            guard unlink(url.path) == 0 else { throw MCPRecoveryError.unavailable }
             if forRecovery { try recoveryProbe(.afterRemoval) }
             try syncDirectory()
+        }
+        // Last-name removal still has an unavoidable indeterminate outcome if
+        // storage cannot persist it or any compensating write. Fail closed in
+        // this process; a subsequent process cannot infer an unpersisted error.
+        guard unlink(backupPath) == 0 else { throw MCPRecoveryError.unavailable }
+        do {
+            if forRecovery { try recoveryProbe(.afterFinalRemoval) }
+            try syncDirectory()
         } catch {
-            // Preserve a pending marker if the removal could not be confirmed.
-            let canRestore: Bool
-            do { if forRecovery { try recoveryProbe(.beforeRestore) }; canRestore = true }
-            catch { canRestore = false }
-            let fd = canRestore ? open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600)) : -1
             var restored = false
-            if fd >= 0 {
-                let wrote: Bool
-                do { try writeGeneration(expected, fd: fd); wrote = true }
-                catch { wrote = false }
-                let closed = close(fd) == 0
-                if wrote && closed { do { try syncDirectory(); restored = true } catch {} }
-            }
+            do {
+                if forRecovery { try recoveryProbe(.beforeRestore) }
+                let fd = open(backupPath, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+                guard fd >= 0 else { throw MCPRecoveryError.unavailable }
+                do { try writeGeneration(expected, fd: fd) }
+                catch { close(fd); throw error }
+                guard close(fd) == 0 else { throw MCPRecoveryError.unavailable }
+                try syncDirectory()
+                restored = true
+            } catch { /* The last durable state is genuinely indeterminate. */ }
             if !restored { Self.failedClosed.insert(url.path) }
             throw MCPRecoveryError.unavailable
         }
@@ -210,17 +246,20 @@ final class MCPSession: ObservableObject {
     private var requestID: UUID?
     private let dispatchRecovery: MCPDispatchRecovery?
     @Published private(set) var recoveryIssue: AppText?
-    @Published private(set) var recoveryNotice: AppText?
+    private var storedRecoveryNotice: AppText?
+    private var lastObservedBlock: Bool?
+    private var recoveryChangeObserver: AnyCancellable?
+    var recoveryNotice: AppText? { unresolvedToolOutcome ? nil : storedRecoveryNotice }
 
     /// Re-read the marker, rather than relying on a cached store instance.
     var unresolvedToolOutcome: Bool { dispatchRecovery?.blocked ?? true }
 
     func prepareToolRecovery() -> MCPRecoveryReview? {
-        recoveryNotice = nil
+        storedRecoveryNotice = nil
         do {
             guard let dispatchRecovery else { throw MCPRecoveryError.unavailable }
             let review = try dispatchRecovery.review()
-            recoveryIssue = nil; recoveryNotice = nil
+            recoveryIssue = nil; storedRecoveryNotice = nil
             return review
         } catch MCPRecoveryError.corrupt { recoveryIssue = .mcpRecoveryCorrupt; return nil }
         catch MCPRecoveryError.changed { recoveryIssue = .mcpRecoveryChanged; return nil }
@@ -228,29 +267,51 @@ final class MCPSession: ObservableObject {
     }
 
     @discardableResult func acknowledgeToolRecovery(_ review: MCPRecoveryReview) -> Bool {
+        defer { publishRecoveryChange(); objectWillChange.send() }
         do {
             guard let dispatchRecovery else { throw MCPRecoveryError.unavailable }
             try dispatchRecovery.acknowledge(review)
-            recoveryIssue = nil; recoveryNotice = .mcpRecoveryReleased; objectWillChange.send()
+            recoveryIssue = nil; storedRecoveryNotice = .mcpRecoveryReleased
             return true
         } catch MCPRecoveryError.corrupt { recoveryIssue = .mcpRecoveryCorrupt }
         catch MCPRecoveryError.changed { recoveryIssue = .mcpRecoveryChanged }
         catch { recoveryIssue = .mcpRecoveryStorageError }
-        objectWillChange.send()
         return false
     }
 
+    private func observeRecoveryChanges() {
+        lastObservedBlock = unresolvedToolOutcome
+        // All publishers are MainActor methods, so delivery is synchronous.
+        recoveryChangeObserver = NotificationCenter.default.publisher(for: .mcpRecoveryChanged)
+            .sink { [weak self] _ in self?.refreshRecoveryState() }
+    }
+
+    /// Call while the view is visible to observe other processes, which do not
+    /// share NotificationCenter. A stale success notice is discarded forever.
+    func refreshRecoveryState() {
+        let blocked = unresolvedToolOutcome
+        let changed = lastObservedBlock != blocked
+        lastObservedBlock = blocked
+        if blocked { storedRecoveryNotice = nil }
+        if changed { objectWillChange.send() }
+    }
+
+    private func publishRecoveryChange() {
+        refreshRecoveryState()
+        NotificationCenter.default.post(name: .mcpRecoveryChanged, object: nil)
+    }
+
     func reserveToolDispatch(requestID: UUID) throws {
+        defer { publishRecoveryChange(); objectWillChange.send() }
         guard let dispatchRecovery else { throw MCPError.busy }
-        recoveryNotice = nil
+        storedRecoveryNotice = nil
         try dispatchRecovery.reserve(requestID)
         recoveryIssue = nil
-        objectWillChange.send()
     }
 
     func completeToolTurn(requestID: UUID) {
         dispatchRecovery?.complete(requestID)
-        objectWillChange.send()
+        publishRecoveryChange(); objectWillChange.send()
     }
 
     init() {
@@ -274,6 +335,7 @@ final class MCPSession: ObservableObject {
         allowsNetwork = MCPSettingsStore.networkAllowed()
         clientFactory = { MCPClient(endpoint: $0) }
         #endif
+        defer { observeRecoveryChanges() }
         let store: MCPSettingsStore
         do {
             store = try MCPSettingsStore.makeDefault()
@@ -302,6 +364,7 @@ final class MCPSession: ObservableObject {
         self.allowsNetwork = allowsNetwork
         self.dispatchRecovery = MCPDispatchRecovery(url: recoveryURL, recoveryProbe: recoveryProbe)
         self.clientFactory = clientFactory
+        defer { observeRecoveryChanges() }
         do {
             hasStoredEndpoint = try repository.load() != nil
             phase = hasStoredEndpoint ? .saved : .notConfigured
@@ -528,4 +591,8 @@ final class MCPSession: ObservableObject {
         let title = String(String.UnicodeScalarView(scalars)).prefix(160)
         return title.isEmpty ? "（未提供可顯示的名稱）" : String(title)
     }
+}
+
+private extension Notification.Name {
+    static let mcpRecoveryChanged = Notification.Name("io.woowtech.mcpRecoveryChanged")
 }

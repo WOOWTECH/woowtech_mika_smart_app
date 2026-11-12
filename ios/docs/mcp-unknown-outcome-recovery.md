@@ -23,17 +23,32 @@ details, after a restart the user may need to inspect the service's records.
 Review and acknowledgement are bound to the same random marker version. A
 cooperative cross-store lock serializes marker creation, review, acknowledgement
 and successful-turn cleanup; a stale confirmation cannot clear a newer marker.
-The lock is advisory and does not constrain noncooperating writers. A malformed,
-unreadable, nonregular or unavailable marker stays blocked and produces a
-localized error. Storage failures do not report successful recovery; if a
-failure occurs after removal, the host tries to restore the original marker and
-keeps a process-wide fail-closed state and retains the cooperative lock until
-process exit if restoration fails. Cooperating stores treat the held lock as a
-block. No software-only fallback can guarantee durable state across process
-exit if the filesystem cannot persist either removal or restoration; storage
-repair and independent review are then needed.
-Deleting app storage, reinstalling, other clients and filesystem behavior after
-sudden power loss are outside this local guarantee.
+Before unlinking the main pending marker, the host creates a second hard link to
+the same version and syncs the directory. Either path blocks another turn. If
+the first unlink or its subsequent sync fails, the backup remains reviewable
+across process exit without attempting a compensating write. Both names must
+refer to the same valid generation. A malformed, unreadable, nonregular or
+unavailable marker stays blocked and produces a localized error. A subsequent
+explicit review can clear a surviving backup when storage is healthy.
+
+The last marker name must eventually be removed to unblock. If its removal has
+an indeterminate sync outcome, the host attempts to recreate and sync the
+marker; if that also fails it keeps the cooperative lock and a process-wide
+fail-closed state until exit. **If the filesystem cannot persist the last marker
+or its restoration, another process after exit may observe no marker and cannot
+reconstruct the failed write.** The fault-injection checks demonstrate this
+limit; this is not a guarantee against arbitrary I/O failure or sudden power
+loss. Deleting app storage, reinstalling, noncooperating writers and other
+clients are outside this local guarantee. Directory fsync and hard-link
+behavior also require native iOS verification.
+
+A recovery success notice is hidden whenever a marker is observed, and an
+observed later block permanently clears the old notice. Cooperating stores in
+one process notify one another synchronously; while the chat is visible and
+active, it polls at one-second intervals for changes from other processes.
+That polling is not an atomic cross-process UI guarantee: a short-lived change
+between polls may not be displayed. Actual dispatch still rechecks under the
+cooperative lock.
 
 The runner independently coordinates executor entry with cancellation and
 reports `executionOutcomeUnknown` when an entered or conservatively reserved
@@ -45,7 +60,9 @@ work or that a server can undo or deduplicate an operation.
 The local synthetic checks cover cancellation and timeout with a late effect,
 confirmation cancellation, reconstructed sessions, manual recovery without
 resend, stale confirmations, an independently approved new task, legacy markers,
-malformed data and injected storage failures before and after removal. These
+malformed data, cross-instance notices, a fresh-process backup check, and
+injected storage failures before and after removal. A separate-process test
+also demonstrates the unrecoverable last-marker failure limitation. These
 checks do not verify native iOS UI/accessibility, real services, server-side
 cancellation or idempotency.
 

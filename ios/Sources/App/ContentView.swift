@@ -881,6 +881,16 @@ private struct ChatView: View {
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
         .onChange(of: scenePhase) { _, phase in if phase != .active { voice.cancel(interrupted: true) } }
+        // Other processes cannot publish to this process's NotificationCenter.
+        // Poll only while this chat view is active, and update only on change.
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                mcp.refreshRecoveryState()
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) }
+                catch { return }
+            }
+        }
         .task(id: voice.isActive) {
             while voice.isActive && !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
