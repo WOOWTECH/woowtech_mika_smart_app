@@ -252,6 +252,16 @@ class McpClientTest {
             ActionPass(),
         )
         assertTrue(prompt.observations.single().text.contains("prompt:summarize"))
+
+        val restricted = toolDispatcher(FakeScreen(), mcpServers = listOf(
+            McpConnection(endpoint, allowedTools = setOf("resource_read")),
+        )).definitions().map { it.name }
+        assertTrue("mcp_demo__resource_read" in restricted)
+        assertFalse("mcp_demo__prompt_get" in restricted)
+        val none = toolDispatcher(FakeScreen(), mcpServers = listOf(
+            McpConnection(endpoint, allowedTools = emptySet()),
+        )).definitions().map { it.name }
+        assertFalse(none.any { it.startsWith("mcp_") })
     }
 
     @Test fun largeResultUsesReferenceAndUntrustedObservation() = runBlocking {

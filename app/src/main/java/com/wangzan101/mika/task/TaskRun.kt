@@ -764,7 +764,15 @@ class TaskRun(
                 priorTurns,
                 provenance, if (conditionCheck) setOf("web", "sandbox") else null, readOnly = conditionCheck,
                 stepBudget = stepLimit)
-            // Play edition does not attach arbitrary third-party MCP tools to the model.
+            // External MCP is outbound only. Keep each connection inside this run's resource scope;
+            // the server allowlist and the normal tool approval rules still apply.
+            if (!conditionCheck && provenance.origin == RunOrigin.Ui) {
+                mcpConnections = (service.application as MikaApp).mcpServers.connectionsFor(
+                    resources,
+                    resultStore = com.wangzan101.mika.mcp.ConversationMcpResultStore(SandboxDirs(service), conversationId),
+                    workspace = conversationId,
+                )
+            }
             val runApproval = approvalControl.start(remote = provenance.origin == RunOrigin.Mcp).also { approval = it }
             val childRunner = if (provenance.origin == RunOrigin.Ui && web != null) ChildAgentRunner(
                 create = { childSpec ->
@@ -774,7 +782,8 @@ class TaskRun(
                         appPacing = { pace.appPacing() }, appPace = { PlacePace.of(catalog.appPace(it)) }, appIdleScroll = { IdleScroll(Random.Default) },
                         sandbox = null, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
-                        adaptiveVision = speed.adaptiveVision)
+                        adaptiveVision = speed.adaptiveVision,
+                        mcpServers = mcpEndpoints())
                     AgentLoop(model, childTools, SystemPrompt.identity(service.packageName), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
@@ -817,7 +826,7 @@ class TaskRun(
                 personalSkills = memoryRuntime.skills(),
                 // 这个对话之前几轮的运行记录(只读;history_read 只认 runSpec 里这个对话的轮次)
                 runRecords = RunStore(service).reader(),
-                mcpServers = emptyList(),
+                mcpServers = mcpEndpoints(),
                 // 已 root 的手机上用户打开了「允许 Mika 执行 root 命令」才登记 root 工具(子任务、条件检查不给)
                 root = null)
             dispatcher = tools

@@ -141,15 +141,19 @@ internal class McpCapability(connection: McpConnection, override val id: String)
             add(assembled.tool)
             assembled.failure?.let(assemblyFailures::add)
         }
-        try {
-            resourceTool(connection)?.let(::add)
-        } catch (e: Exception) {
-            assemblyFailures += "resource_read: ${mcpAssemblyReason(e)}"
+        if (connection.allowedTools == null || "resource_read" in connection.allowedTools) {
+            try {
+                resourceTool(connection)?.let(::add)
+            } catch (e: Exception) {
+                assemblyFailures += "resource_read: ${mcpAssemblyReason(e)}"
+            }
         }
-        try {
-            promptTool(connection)?.let(::add)
-        } catch (e: Exception) {
-            assemblyFailures += "prompt_get: ${mcpAssemblyReason(e)}"
+        if (connection.allowedTools == null || "prompt_get" in connection.allowedTools) {
+            try {
+                promptTool(connection)?.let(::add)
+            } catch (e: Exception) {
+                assemblyFailures += "prompt_get: ${mcpAssemblyReason(e)}"
+            }
         }
     }
     override fun status(): CapabilityStatus = if (assemblyFailures.isEmpty()) CapabilityStatus.Available

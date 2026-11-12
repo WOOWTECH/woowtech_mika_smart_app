@@ -17,13 +17,17 @@
 | AI 回覆檢舉入口 | 部分通過 | 長按回覆可開啟檢舉表單；未送出。實機發現原畫面是英文，已補繁中與簡中翻譯、重建並安裝 APK，繁中選單及表單已重驗通過。正式收件端仍待驗。 |
 | 真人語音輸入 | 通過 | 允許麥克風權限後，使用者對 POCO 說「商店版語音測試一二三」；手機內建轉寫顯示「商店版語音測試123」，鬆手後留在輸入框，未自動送出。 |
 | 外部 MCP 伺服器 | 通過基本連線 | 最新 Debug APK 的側欄有「MCP 伺服器」，已無「連接電腦」入口。透過 ADB 反向連線到本機 HTTP 測試伺服器，勾選本機 HTTP 後「儲存並測試」顯示 `OK: POCO test MCP · 1`，列表顯示「可用 · 1 個工具」；刪除後列表回到空狀態。測試伺服器已從 App 刪除。尚未經真實模型呼叫 MCP 工具。 |
+| HA MCP 公開 HTTPS 端點 | 通過連線與唯讀呼叫 | 使用者提供的 HA MCP 在 POCO 上第一次初始化回 502，重試後顯示 `OK: ha-mcp · 77`。直接協定檢查取得 77 個工具、17 個資源、0 個提示；唯讀 `ha_get_skill_guide`、`ha_get_overview`、`ha_get_todo` 呼叫成功。完整 webhook 路徑不寫入本報告。手機保留此連線，對話工具清單限於 `ha_get_overview`、`ha_get_state`、`ha_search`、`ha_get_skill_guide` 四項。未對 HA 設備或設定執行寫入。 |
+| 記憶與技能完整操作 | 通過本機流程 | POCO 新增、編輯、刪除測試記憶；匯入測試技能後先進「待確認」，看全文、收下試用、暫停、恢復、刪除均通過。測試資料已清除，原鍵盤已恢復。 |
+| 對話中使用記憶、技能與 HA MCP | 以本機模型回覆服務通過 | 原版任務接線漏掛外部 MCP；修正後，對話模型請求包含測試技能索引、記憶內容及四項 HA 工具。實機執行記錄顯示 `skill_read`、`memory_search`、`ha_get_overview` 三步均 `ok=true`，最終回覆出現在對話。HA 總覽較長，完整內容存到對話工作區，工具回傳前 4,000 字及檔案參照。這是受控模型回覆服務驗證，不代表真實模型已通過。 |
 
 ## 未通過或尚未驗收
 
-- 真實模型 `apporo/gpt-6-sol` 的工具探測兩次回報「請求太頻繁，請稍後再試」。因此真實對話、回答、附件理解、記憶在對話中的使用與 AI 回覆檢舉尚未通過。未繼續密集重試。
-- 外部 MCP 的本機測試伺服器連線與工具列舉通過；真實模型選用／呼叫外部工具，以及公開 HTTPS MCP 伺服器與 OAuth 登入尚未驗收。商店版不提供手機對電腦的 MCP 服務與遠端配對。
+- 真實模型 `apporo/gpt-6-sol` 的工具探測及本次唯讀對話仍回報「請求太頻繁，請稍後再試」。因此真實模型的回答、選用 HA MCP 工具、附件理解及 AI 回覆檢舉尚未通過。原服務商與加密金鑰保留，測試後主模型已切回它；未繼續密集重試。
+- HA MCP 的 OAuth 登入、寫入工具及設備控制未驗收；這次只執行唯讀項目。商店版不提供手機對電腦的 MCP 服務與遠端配對。
+- MCP 長結果目前提供 4,000 字預覽與工作區檔案參照；商店版沒有通用檔案讀取工具，模型無法自行讀取完整檔案。需要讀取超長結果的工作流仍待補強。
 - Play Console、內部測試軌安裝、隱私政策公開頁及 AI 檢舉正式收件端尚未驗收。
 
 實機畫面暫存於本機 `/tmp/woow-play-*.png`，不提交倉庫。測試用本機模型服務在本次測試結束後停止；該模型及設定不可當成正式服務。
 
-最終來源已重新建置 `assembleWoowtechDebug` 與 `bundleWoowtechRelease`；Debug APK 重裝後，POCO 側欄及 MCP 頁面再次顯示更新內容。合併後的 Release Manifest 沒有 `McpService`，但對話任務與登入仍使用各自的前景服務。`app` 模組沒有 `testWoowtechDebugUnitTest` Gradle 任務，因此 MCP 的本次驗收依據是上述實機連線；既有 `core:test` 結果記在送審交接文件。
+最終來源已重新建置 `assembleWoowtechDebug` 與 `bundleWoowtechRelease`；Debug APK 重裝後，POCO 再驗證模型只看到四項 HA 工具。合併後的 Release Manifest 沒有 `McpService`，但對話任務與登入仍使用各自的前景服務。`core:test --tests ...McpClientTest` 通過，覆蓋 MCP 合成資源／提示工具的允許清單。`app` 模組沒有 `testWoowtechDebugUnitTest` Gradle 任務，因此 App 層本次依據是上述實機連線與執行記錄。
