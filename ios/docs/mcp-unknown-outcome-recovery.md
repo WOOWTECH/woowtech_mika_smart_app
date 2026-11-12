@@ -48,3 +48,32 @@ resend, stale confirmations, an independently approved new task, legacy markers,
 malformed data and injected storage failures before and after removal. These
 checks do not verify native iOS UI/accessibility, real services, server-side
 cancellation or idempotency.
+
+## Synthetic native UI regression
+
+`MCPRecoveryUITests` launches the Debug app with an explicit
+`-UITestMCPRecovery` flag, a fresh UUID namespace, the existing in-process
+model fixture and an in-process MCP fixture. The fixture publishes only an
+executor-entry count and delays its reply; no endpoint or tool arguments are
+shown by this probe. Invalid recovery-fixture flags fail closed, and Release
+excludes the fixture. The tests wait until the fake executor has entered,
+cancel, inspect the unknown-outcome warning, dismiss review, and explicitly
+unblock. They assert the current draft remains and is not automatically sent.
+A separate relaunch test checks that the block persists, can be dismissed and
+then cleared, and starts no fake call on relaunch. It does not assert that an
+unsent in-memory draft survives process termination.
+
+On a Mac with Xcode, XcodeGen and an installed iOS Simulator, from `ios/`:
+
+```sh
+xcodegen generate
+xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+  -configuration Debug -sdk iphonesimulator \
+  -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+  -only-testing:WoowAssistantUITests/MCPRecoveryUITests test
+```
+
+Select a simulator UUID in `SIMULATOR_ID`. These are synthetic tests, not a
+real MCP or model service test. This candidate has not yet been built or run
+with the iOS SDK; SwiftUI accessibility and simulator behavior remain to be
+verified there.

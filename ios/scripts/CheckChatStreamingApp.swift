@@ -743,6 +743,37 @@ private actor DelayedMCP: MCPDiscovering {
         return a.count
     }
     #if DEBUG
+    static func nativeMCPRecoveryFixture() async throws -> Int {
+        var a = Assertions()
+        let namespace = UUID().uuidString
+        let valid = ["-UITestMode", "-UITestNamespace", namespace, "-UITestMCPFixture", "-UITestMCPRecovery"]
+        try a.check(try UITestMCPRecoveryConfiguration.resolve(arguments: valid), "isolated recovery fixture enabled")
+        try a.check(try UITestMCPRecoveryConfiguration.resolve(arguments: []) == false, "recovery fixture opt-in only")
+        var invalid = [["-UITestMCPRecovery"], ["-UITestMode", "-UITestMCPFixture", "-UITestMCPRecovery"],
+                       ["-UITestMode", "-UITestNamespace", "bad", "-UITestMCPFixture", "-UITestMCPRecovery"]]
+        for extra: [String] in [["-LiveMCPUITest"], ["-LiveModelUITest"], ["-UITestMCPRecovery"],
+                               ["-UITestMode"], ["-UITestMCPFixture"], ["-UITestNamespace", namespace],
+                               ["-UITestResetStorage", "-UITestResetStorage"], ["-UITestMCPRecovery=true"]] {
+            invalid.append(valid + extra)
+        }
+        invalid.append(Array(valid.dropLast()) + ["-UITestMCPRecovery=true"])
+        for arguments in invalid {
+            do { _ = try UITestMCPRecoveryConfiguration.resolve(arguments: arguments); throw Failure(name: "invalid MCP recovery fixture enabled") }
+            catch is UITestMCPRecoveryConfiguration.Invalid { a.count += 1 }
+        }
+        let gate = FixturePauseGate()
+        let fixture = UITestMCPFixture(delayRecovery: true, sleep: { _ in await gate.pause() })
+        let before = UITestMCPRecoveryObservation.shared.entries
+        let work = Task { try await fixture.callAuthorizedTool(name: "fixture_echo", arguments: .object(["text": .string("synthetic")])) }
+        try await wait("fake executor has entered") { UITestMCPRecoveryObservation.shared.entries == before + 1 }
+        work.cancel()
+        await gate.release()
+        do { _ = try await work.value; throw Failure(name: "cancelled fake returned result") }
+        catch is CancellationError { a.count += 1 }
+        try a.check(UITestMCPRecoveryObservation.shared.entries == before + 1, "single executor entry remains observable")
+        return a.count
+    }
+
     private static func nativeStreamingFixture() async throws -> Int {
         var a = Assertions()
         let namespace = UUID().uuidString
@@ -1286,6 +1317,7 @@ private actor DelayedMCP: MCPDiscovering {
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
+            groups.append(try await ChatStreamingChecks.nativeMCPRecoveryFixture())
             #endif
             print("{\"groups\":\(groups.count),\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
@@ -1294,6 +1326,9 @@ private actor DelayedMCP: MCPDiscovering {
 #else
 final class ChatStreamingAppTests: XCTestCase {
     #if DEBUG
+    @MainActor func testNativeMCPRecoveryFixture() async throws {
+        let n = try await ChatStreamingChecks.nativeMCPRecoveryFixture(); XCTAssertGreaterThan(n, 0)
+    }
     @MainActor func testFixtureTimingWithinHostDeadline() async throws {
         let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 12)
     }

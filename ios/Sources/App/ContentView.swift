@@ -464,6 +464,7 @@ private struct ChatView: View {
     @StateObject private var voice = ChatVoiceViewModel()
     #if DEBUG
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
+    @ObservedObject private var mcpRecoveryFixture = UITestMCPRecoveryObservation.shared
     #endif
     @FocusState private var isEditingDraft: Bool
     @State private var showsMCPResults = false
@@ -530,6 +531,12 @@ private struct ChatView: View {
                     .accessibilityIdentifier("uitest.banner")
             }
 
+            #if DEBUG
+            if (try? UITestMCPRecoveryConfiguration.resolve(arguments: ProcessInfo.processInfo.arguments)) == true {
+                Text(verbatim: "entries=\(mcpRecoveryFixture.entries)")
+                    .font(.caption).accessibilityIdentifier("mcp.recovery.fixtureEntries")
+            }
+            #endif
             LearningChatNotes(store: session.learning)
 
             if let attachment = session.pdfAttachment {
@@ -833,11 +840,12 @@ private struct ChatView: View {
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
         .alert(localizer.text(.mcpRecoveryTitle), isPresented: $showsMCPRecovery) {
             Button(localizer.text(.configurationCancel), role: .cancel) { mcpRecoveryReview = nil }
+                .accessibilityIdentifier("chat.mcpRecovery.cancel")
             Button(localizer.text(.mcpRecoveryConfirm)) {
                 guard let review = mcpRecoveryReview else { return }
                 mcpRecoveryReview = nil
                 if mcp.acknowledgeToolRecovery(review) { session.mcpRecoveryAcknowledged() }
-            }
+            }.accessibilityIdentifier("chat.mcpRecovery.confirm")
         } message: { Text(localizer.text(.mcpRecoveryExplanation)) }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,

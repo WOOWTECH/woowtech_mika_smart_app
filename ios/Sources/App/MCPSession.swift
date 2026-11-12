@@ -258,11 +258,14 @@ final class MCPSession: ObservableObject {
             .url.deletingLastPathComponent().appendingPathComponent("mcp-unresolved-operation")
         dispatchRecovery = recoveryURL.map { MCPDispatchRecovery(url: $0) }
         #if DEBUG
-        let fixture = ProcessInfo.processInfo.arguments.contains("-UITestMode")
-            && ProcessInfo.processInfo.arguments.contains("-UITestMCPFixture")
+        let arguments = ProcessInfo.processInfo.arguments
+        let recoveryFixture: Bool
+        do { recoveryFixture = try UITestMCPRecoveryConfiguration.resolve(arguments: arguments) }
+        catch { preconditionFailure("Invalid isolated MCP recovery fixture arguments") }
+        let fixture = arguments.contains("-UITestMode") && arguments.contains("-UITestMCPFixture")
         if fixture {
             allowsNetwork = true
-            clientFactory = { _ in UITestMCPFixture() }
+            clientFactory = { _ in UITestMCPFixture(delayRecovery: recoveryFixture) }
         } else {
             allowsNetwork = MCPSettingsStore.networkAllowed()
             clientFactory = { MCPClient(endpoint: $0) }

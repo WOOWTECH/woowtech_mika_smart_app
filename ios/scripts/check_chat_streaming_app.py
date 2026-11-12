@@ -50,6 +50,7 @@ def main():
         harness = copy('scripts/CheckChatStreamingApp.swift')
         ui = copy('Tests/WoowAssistantUITests/ChatStreamingUITests.swift')
         ui_support = copy('Tests/WoowAssistantUITests/LearningUITestSupport.swift')
+        mcp_ui = copy('Tests/WoowAssistantUITests/MCPConversationUITests.swift')
         fixture = copy('Tests/AssistantModelsTests/ModelProtocolFixture.swift')
         transport = copy('Tests/AssistantModelsTests/ModelClientChecks.swift')
         preview_tests = copy('Tests/AssistantMemoryTests/StructuredAnswerPreviewTests.swift')
@@ -75,14 +76,14 @@ def main():
                                           preview_tests, '-o', str(preview_binary)])
         run('structured-preview-execute', [str(preview_binary)], 15)
         for config, flags in [('Debug', ['-DDEBUG']), ('Release', [])]:
-            run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support])
+            run(config + '-iOS-syntax-only', ['swiftc', '-frontend', '-parse', '-target', 'arm64-apple-ios17.0', *flags, *apps, view, harness, fixture, ui, ui_support, mcp_ui])
             binary = out / (config + '-stream-app')
             run(config + '-compile', [*common, '-DCHAT_STREAM_APP_STANDALONE', *flags,
                 *['-l' + m for m, _ in MODULES], *link, *apps, fixture, harness, '-o', str(binary)])
             run(config + '-execute', [str(binary)], 60)
             if config == 'Release':
                 data = binary.read_bytes()
-                if b'-UITestChatStreaming' in data or b'UITestStreamingChatModelClient' in data:
+                if any(marker in data for marker in (b'-UITestChatStreaming', b'UITestStreamingChatModelClient', b'-UITestMCPRecovery', b'UITestMCPRecoveryObservation')):
                     raise RuntimeError('Release_fixture_not_excluded')
                 report['release_stream_fixture_absent_from_executable'] = True
             if not args.focused:

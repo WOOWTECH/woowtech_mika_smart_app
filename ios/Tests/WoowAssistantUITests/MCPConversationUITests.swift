@@ -157,3 +157,114 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: 5), .completed)
     }
 }
+
+/// Runs entirely against the opt-in, UUID-scoped in-process model and MCP fixtures.
+/// The entry counter changes only after the fake executor has actually started.
+final class MCPRecoveryUITests: XCTestCase {
+    private var app = XCUIApplication()
+    private let namespace = UUID().uuidString
+    private let prompt = "[fixture:mcp] hello"
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        executionTimeAllowance = 180
+        app.launchEnvironment = [:]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage",
+            "-UITestMCPFixture", "-UITestMCPRecovery"]
+        app.launch()
+        navigateMikaSection("tools", in: app)
+        tap("mcp.connect")
+        waitFor(app.staticTexts["mcp.status"], label: "已連線，目錄擷取完成")
+        let tool = app.switches["mcp.enable.fixture_echo"]
+        revealLearningElement(tool, in: app)
+        setOn(tool)
+        navigateMikaSection("chat", in: app)
+        let toggle = app.switches["chat.useMCP"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        setOn(toggle)
+    }
+
+    override func tearDownWithError() throws { app.terminate() }
+
+    func testCancellationReviewDismissalAndExplicitUnblockKeepDraftWithoutResend() {
+        dispatchAndCancel()
+        let recovery = app.buttons["chat.mcpRecovery"]
+        revealLearningElement(recovery, in: app)
+        XCTAssertTrue(recovery.isHittable)
+        recovery.tap()
+        let alert = app.alerts["解除 MCP 封鎖？"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "無法保證未執行")).firstMatch.exists)
+        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "不會自動重送草稿")).firstMatch.exists)
+        alert.buttons["取消"].tap()
+        XCTAssertTrue(app.staticTexts["chat.mcpUnknownOutcome"].exists)
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
+        recovery.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["我已核對，解除封鎖"].tap()
+        XCTAssertTrue(app.staticTexts["chat.mcpRecoveryNotice"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["chat.mcpUnknownOutcome"].exists)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
+        XCTAssertEqual(app.staticTexts["mcp.recovery.fixtureEntries"].label, "entries=1")
+        XCTAssertFalse(app.buttons["chat.cancel"].exists)
+        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+    }
+
+    func testUnknownOutcomeSurvivesRelaunchAndCanBeReviewed() {
+        dispatchAndCancel()
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-UITestResetStorage" }
+        app.launch()
+        let warning = app.staticTexts["chat.mcpUnknownOutcome"]
+        XCTAssertTrue(warning.waitForExistence(timeout: 10))
+        XCTAssertTrue(warning.label.contains("結果未知"))
+        let recovery = app.buttons["chat.mcpRecovery"]
+        revealLearningElement(recovery, in: app)
+        recovery.tap()
+        let alert = app.alerts["解除 MCP 封鎖？"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["取消"].tap()
+        XCTAssertTrue(warning.exists)
+        recovery.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["我已核對，解除封鎖"].tap()
+        XCTAssertTrue(app.staticTexts["chat.mcpRecoveryNotice"].waitForExistence(timeout: 5))
+        XCTAssertFalse(warning.exists)
+        XCTAssertEqual(app.staticTexts["mcp.recovery.fixtureEntries"].label, "entries=0")
+        XCTAssertFalse(app.buttons["chat.cancel"].exists)
+    }
+
+    private func dispatchAndCancel() {
+        let draft = chatDraftControl(in: app)
+        XCTAssertTrue(draft.isHittable)
+        draft.tap(); draft.typeText(prompt)
+        app.buttons["chat.dismissKeyboard"].tap()
+        app.buttons["chat.send"].tap()
+        XCTAssertTrue(app.buttons["mcp.approval.approve"].waitForExistence(timeout: 10))
+        app.buttons["mcp.approval.approve"].tap()
+        waitFor(app.staticTexts["mcp.recovery.fixtureEntries"], label: "entries=1")
+        XCTAssertTrue(app.buttons["chat.cancel"].waitForExistence(timeout: 5))
+        app.buttons["chat.cancel"].tap()
+        XCTAssertTrue(app.staticTexts["chat.mcpUnknownOutcome"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
+    }
+    private func waitFor(_ element: XCUIElement, label: String) {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", label), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 15), .completed)
+    }
+    private func tap(_ id: String) {
+        let button = app.buttons[id]
+        revealLearningElement(button, in: app)
+        button.tap()
+    }
+    private func setOn(_ toggle: XCUIElement) {
+        let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+        XCTAssertTrue(target.isHittable)
+        target.tap()
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: toggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
+    }
+}
