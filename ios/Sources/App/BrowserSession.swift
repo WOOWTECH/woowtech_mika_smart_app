@@ -337,7 +337,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             // The current browser runner can inject personal skills as untrusted
             // reference data, but has no actual skill_read operation or use event.
             // Neither a finished answer nor a failed task proves skill use.
-            let hasSkillReferences = snapshot.hasIncludedPersonalSkills
             origin = current.flatMap { Self.origin($0.url) }
             runID = id; isRunning = true; status = "正在研究網站…"
             work = Task { [weak self, weak chat] in
@@ -362,7 +361,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     self.status = result.reachedLimit ? "研究已停止，尚未確認完成" : "回答已交付，正在判定成果…"
                     // Learning is separately judged; raw model success is never verification.
                     if !result.reachedLimit {
-                        await self.processLearning(result: result, goal: taskGoal, hasSkillReferences: hasSkillReferences,
+                        await self.processLearning(result: result, goal: taskGoal,
                             generation: generation, chat: chat, access: access, runID: id)
                     }
                     guard self.runID == id else { return }
@@ -402,7 +401,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
 
     static let toolNames: Set<String> = ["browser_inspect", "browser_open_link", "browser_find"]
 
-    private func processLearning(result: WebResearchResult, goal: String, hasSkillReferences: Bool,
+    private func processLearning(result: WebResearchResult, goal: String,
                                  generation: UUID, chat: ChatSession, access: ModelAccess, runID: UUID) async {
         guard chat.learning.generation == generation else { learningStatus = "資料已變更，未套用這次學習。"; return }
         do {
@@ -410,9 +409,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             let assessment = try await SkillLearningService(client: access.client).assess(goal: goal, answer: result.answer,
                 actions: evidence, context: SkillTaskContext(runID: runID),
                 state: chat.learning.skills, availableToolNames: Self.toolNames,
-                // Preserve the prior duplicate-draft guard: a run influenced by
-                // injected skill text is not evidence for a new learned recipe.
-                allowDraft: chat.learning.memory.preferences.learnSkills && !hasSkillReferences,
+                // No skill_read is connected to this runner yet. Merely injecting
+                // a reference is not a use event and must not suppress drafting.
+                // The learning service still enforces the actual trajectory,
+                // replay, interruption and duplicate-name/update safeguards.
+                allowDraft: chat.learning.memory.preferences.learnSkills,
                 configuration: access.configuration, apiKey: access.key)
             try Task.checkCancellation()
             guard self.runID == runID else { return }

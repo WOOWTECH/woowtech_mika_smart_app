@@ -60,6 +60,44 @@ private actor OutcomeReferenceModel: ChatModelClient {
         return #"{"action":"finish","answer":"OBSERVED answer"}"#
     }
 }
+/// Deterministic model fixture. WebKit navigation and LearningStore writes are
+/// real and isolated; these replies do not claim a real-world task succeeded.
+private actor DraftReferenceModel: ChatModelClient {
+    let mode: String
+    private(set) var researchCalls=0, judgeCalls=0, draftCalls=0
+    private(set) var firstRequest: [ModelMessage] = []
+    init(_ mode: String) { self.mode=mode }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if messages.first?.content.hasPrefix("Assess whether") == true {
+            judgeCalls += 1
+            return #"{"outcome":"done","reason":"Fixture observation","evidence":[{"actionID":"action-0","quote":"WOOW_WEB_GUIDE"}]}"#
+        }
+        if messages.first?.content.hasPrefix("Draft a reusable") == true {
+            draftCalls += 1
+            let name = mode == "duplicate" ? "reference-guide" : "new-reference-workflow"
+            return """
+            ---
+            name: \(name)
+            description: Research public guide sections
+            ---
+            ## Entry
+            The user selects a guide.
+            ## Steps
+            Inspect the relevant pages.
+            ## Pitfalls
+            Avoid inventing information.
+            ## Success criteria
+            Ground the answer in observations.
+            ## When to stop
+            Ask the user if evidence is missing.
+            """
+        }
+        if firstRequest.isEmpty { firstRequest=messages }
+        let next=researchCalls;researchCalls += 1
+        if next < (mode == "too-few" ? 4 : 5) { return "{\"action\":\"open\",\"linkID\":\(next)}" }
+        return #"{"action":"finish","answer":"Fixture guide answer."}"#
+    }
+}
 private actor ReferenceGate {
     var open = false; var waiter: CheckedContinuation<Void,Never>?
     func wait() async { await withCheckedContinuation { if open { $0.resume() } else { waiter = $0 } } }
@@ -434,6 +472,128 @@ private actor ReferenceBrowser: WebResearchExecuting {
         }
     }
 
+    static func actualPersonalSkillReads() async throws {
+        group="actualPersonalSkillReads"
+        for mode in ["read","stale","revoked","cancelled","wrong-run","missing-capability"] {
+            let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            let snapshot = try f.store.captureRunReferences(goal:"reference",capabilities:mode == "missing-capability" ? [] : BrowserSession.toolNames)
+            let before=f.store.skills, bytes=try Data(contentsOf:f.url)
+            let empty=try snapshot.personalSkillReadEvidence()
+            try expect(try snapshot.validatePersonalSkillReadEvidence(empty).isEmpty,"injected reference does not mint a read")
+            do { _ = try snapshot.readPersonalSkill(id:"not-captured");throw Failure(label:"uncaptured ID was read") }
+            catch PersonalSkillReadError.notCaptured {try expect(true,"uncaptured ID is rejected")}
+            if mode == "missing-capability" {
+                do { _ = try snapshot.readPersonalSkill(id:"reference-guide");throw Failure(label:"unsupported skill was read") }
+                catch PersonalSkillReadError.notCaptured {try expect(true,"unsupported capability cannot produce a read")}
+                try expect(f.store.skills == before && (try Data(contentsOf:f.url)) == bytes,"failed read does not modify the vault")
+                continue
+            }
+            guard let installed=before.installed.first(where:{$0.id == "reference-guide"}) else {throw Failure(label:"fixture skill missing")}
+            let read=try snapshot.readPersonalSkill(id:installed.id)
+            try expect(read.id == installed.id && read.fingerprint == installed.fingerprint &&
+                       read.markdown == (try f.store.skills.exportMarkdown(name:installed.name)),
+                       "actual encrypted-store skill export matches exact captured ID and fingerprint")
+            let evidence=try snapshot.personalSkillReadEvidence()
+            let refs=try snapshot.validatePersonalSkillReadEvidence(evidence)
+            try expect(refs.count == 1 && refs[0].name == installed.id && refs[0].fingerprint == installed.fingerprint,
+                       "successful read mints one version-bound event")
+            _ = try snapshot.readPersonalSkill(id:installed.id)
+            try expect(try snapshot.validatePersonalSkillReadEvidence(evidence) == refs,"duplicate read cannot multiply events")
+            do { _ = try snapshot.validatePersonalSkillReadEvidence(empty);throw Failure(label:"pre-read receipt remained current") }
+            catch PersonalSkillReadError.stale {try expect(true,"pre-read evidence cannot hide a later read")}
+            if mode == "wrong-run" {
+                let other=try capture(f);_ = try other.readPersonalSkill(id:installed.id)
+                do { _ = try other.validatePersonalSkillReadEvidence(evidence);throw Failure(label:"cross-run receipt accepted") }
+                catch PersonalSkillReadError.wrongRun {try expect(true,"another run cannot reuse the receipt")}
+            } else if mode == "stale" {
+                try expect(f.store.mutateSkills { state in
+                    let updated=skill().replacingOccurrences(of:"Do not invent sources.",with:"Compare observed sources carefully.")
+                    let draft=try state.importMarkdown(updated,availableToolNames:BrowserSession.toolNames)
+                    _ = try state.approveDraft(id:draft.id,availableToolNames:BrowserSession.toolNames)
+                },"fixture saves a reviewed replacement")
+                let changed=f.store.skills,changedBytes=try Data(contentsOf:f.url)
+                try expect(changed.installed.first?.fingerprint != installed.fingerprint && !changed.revisions.isEmpty,
+                           "replacement preserves real revision history")
+                do { _ = try snapshot.validatePersonalSkillReadEvidence(evidence);throw Failure(label:"old version evidence accepted") }
+                catch PersonalSkillReadError.stale {try expect(true,"old version cannot yield outcome references")}
+                try expect(f.store.skills == changed && (try Data(contentsOf:f.url)) == changedBytes,"stale evidence leaves replacement and history untouched")
+            } else if mode == "revoked" {
+                snapshot.revoke()
+                do { _ = try snapshot.validatePersonalSkillReadEvidence(evidence);throw Failure(label:"revoked receipt accepted") }
+                catch RunReferenceError.revoked {try expect(true,"revoked snapshot rejects evidence")}
+            } else if mode == "cancelled" {
+                let task=Task { @MainActor in
+                    withUnsafeCurrentTask { $0?.cancel() }
+                    return try snapshot.validatePersonalSkillReadEvidence(evidence)
+                }
+                do { _ = try await task.value;throw Failure(label:"cancelled task accepted evidence") }
+                catch RunReferenceError.revoked {try expect(true,"cancelled task rejects evidence")}
+            }
+            if mode != "stale" {
+                try expect(f.store.skills == before && (try Data(contentsOf:f.url)) == bytes,"reads and rejected events do not mutate any installed skill or history")
+                try expect(LearningStore(vault:.init(url:f.url,keys:f.keys)).skills == before,"encrypted relaunch preserves the exact prior skills")
+            }
+        }
+    }
+
+    #if DEBUG
+    static func actualReferenceOnlyDrafting() async throws {
+        group="actualReferenceOnlyDrafting"
+        for mode in ["eligible","duplicate","too-few","switch-off"] {
+            let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            if mode == "switch-off" {try expect(f.store.updatePreferences{$0.learnSkills=false},"fixture disables auto-learning")}
+            let before=f.store.skills
+            let suite="io.woowtech.reference-draft-check."+UUID().uuidString
+            let defaults=UserDefaults(suiteName:suite)!
+            defer{defaults.removePersistentDomain(forName:suite)}
+            let repository=ModelSettingsRepository(defaults:defaults,credentials:RunReferenceCredentials())
+            _ = try repository.save(baseURL:configuration.baseURL.absoluteString,model:configuration.model,newKey:"synthetic-not-a-key")
+            let model=DraftReferenceModel(mode),chat=ChatSession(learning:f.store,repository:repository,client:model)
+            let browser=BrowserSession(dataStore:.nonPersistent()),web=browser.webView
+            try expect(browser.fixtureMode,"isolated debug fixture enabled; no remote website is contacted")
+            web.frame=CGRect(x:0,y:0,width:700,height:500)
+            #if canImport(AppKit)
+            let window=NSWindow(contentRect:web.frame,styleMask:[.borderless],backing:.buffered,defer:false)
+            window.isReleasedWhenClosed=false;window.contentView=web;window.orderFront(nil)
+            defer{window.close()}
+            #else
+            guard let scene=UIApplication.shared.connectedScenes.compactMap({$0 as? UIWindowScene}).first else {throw Failure(label:"hosted UIWindowScene unavailable")}
+            let previous=scene.windows.first(where: \.isKeyWindow)
+            let window=UIWindow(windowScene:scene),controller=UIViewController()
+            window.rootViewController=controller;window.makeKeyAndVisible();controller.view.addSubview(web)
+            defer{web.removeFromSuperview();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+            #endif
+            defer{browser.cancel();web.stopLoading()}
+            browser.address="https://research.example.invalid/start";browser.openAddress()
+            let loadEnd=ContinuousClock.now.advanced(by:.seconds(75))
+            while (browser.current == nil || web.isLoading),ContinuousClock.now < loadEnd {try await Task.sleep(nanoseconds:20_000_000)}
+            try expect(browser.current?.text.contains("WOOW_WEB_GUIDE") == true,"real WebKit loaded the controlled first page")
+            browser.goal="reference research guide";browser.beginResearch(using:chat)
+            let end=ContinuousClock.now.advanced(by:.seconds(100))
+            while browser.isRunning,ContinuousClock.now < end {try await Task.sleep(nanoseconds:20_000_000)}
+            try expect(!browser.isRunning && browser.error == nil,"actual research session completed")
+            let request=await model.firstRequest, judgeCalls=await model.judgeCalls, draftCalls=await model.draftCalls
+            try expect(request.contains{$0.content.contains("reference-guide")},"personal skill was supplied only as reference data")
+            let expected=mode == "too-few" ? 4 : 5
+            try expect(browser.actions.filter{$0.tool == "browser_open_link"}.count == expected && judgeCalls == 1,
+                       "real executor completed the expected distinct navigations and independent judgment")
+            if mode == "eligible" {
+                try expect(draftCalls == 1 && f.store.skills.pending.count == before.pending.count + 1,
+                           "reference injection alone does not suppress a grounded draft")
+                try expect(f.store.skills.pending.last?.source == .learned && !f.store.skills.installed.contains{$0.name == "new-reference-workflow"},
+                           "new learned text remains pending and is not automatically enabled")
+            } else {
+                try expect(f.store.skills.pending == before.pending,"existing duplicate, too few actions, or disabled learning produces no draft")
+                try expect(draftCalls == (mode == "duplicate" ? 1 : 0),"existing duplicate and eligibility guards still execute")
+            }
+            try expect(f.store.skills.installed == before.installed && f.store.skills.revisions == before.revisions,
+                       "reference-only task does not change installed skills or their history")
+            try expect(LearningStore(vault:.init(url:f.url,keys:f.keys)).skills == f.store.skills,
+                       "real encrypted relaunch preserves pending and installed state")
+        }
+    }
+    #endif
+
     /// Genuine WebKit observation and encrypted store; only the model replies
     /// are synthetic. No personal skill or user data is touched by this fixture.
     static func injectedSkillDoesNotBecomeOutcome() async throws {
@@ -515,6 +675,12 @@ private actor ReferenceBrowser: WebResearchExecuting {
         app.run()
     }
     @MainActor static func run() async throws {
+        #if DEBUG
+        if CommandLine.arguments.contains("--focus-reference-draft") {
+            try await LearningRunAppChecks.actualReferenceOnlyDrafting()
+            print(String(decoding:try JSONSerialization.data(withJSONObject:["passed":LearningRunAppChecks.counts.values.reduce(0,+),"failed":0],options:.sortedKeys),as:UTF8.self));return
+        }
+        #endif
         if CommandLine.arguments.contains("--focus-skill-outcomes") {
             try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()
             print(String(decoding:try JSONSerialization.data(withJSONObject:["passed":LearningRunAppChecks.counts.values.reduce(0,+),"failed":0],options:.sortedKeys),as:UTF8.self));return
@@ -538,6 +704,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
         try await LearningRunAppChecks.actualRunnerAndLateCancellation()
         try await LearningRunAppChecks.actualBrowserSessionReferences()
         try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()
+        try await LearningRunAppChecks.actualPersonalSkillReads()
         let groups=LearningRunAppChecks.counts
         print(String(decoding:try JSONSerialization.data(withJSONObject:["passed":groups.values.reduce(0,+),"failed":0,"groups":groups,"cancellation_probe":LearningRunAppChecks.cancellationProbe],options:.sortedKeys),as:UTF8.self))
     }
@@ -555,6 +722,13 @@ final class LearningRunAppIntegrationTests: XCTestCase {
     @MainActor func testActualRunnerAndLateCancellation() async throws {try await LearningRunAppChecks.actualRunnerAndLateCancellation()}
     @MainActor func testActualBrowserSessionReferences() async throws {try await LearningRunAppChecks.actualBrowserSessionReferences()}
     @MainActor func testInjectedSkillDoesNotBecomeOutcome() async throws {try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()}
+    @MainActor func testActualPersonalSkillReads() async throws {try await LearningRunAppChecks.actualPersonalSkillReads()}
+    #if DEBUG
+    @MainActor func testActualReferenceOnlyDrafting() async throws {
+        guard ProcessInfo.processInfo.arguments.contains("-UITestMode") else {throw XCTSkip("Requires isolated debug WebKit fixture launch")}
+        try await LearningRunAppChecks.actualReferenceOnlyDrafting()
+    }
+    #endif
 }
 #endif
 #endif

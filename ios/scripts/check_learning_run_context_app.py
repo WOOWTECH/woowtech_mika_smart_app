@@ -49,6 +49,8 @@ try:
         # Five distinct native WebKit cases, each with an explicit initial-load
         # deadline; not a retry or a larger production research deadline.
         run(config+'-run',[str(binary)],timeout=400)
+        if config == 'Debug':
+            run('Debug-reference-draft-run',[str(binary),'-UITestMode','--focus-reference-draft'],timeout=400)
         if old:
             binary=out/('chat-regression-'+config)
             run(config+'-chat-build',common+['-DPROFILE_CHAT_APP_STANDALONE',old,'-o',str(binary)])

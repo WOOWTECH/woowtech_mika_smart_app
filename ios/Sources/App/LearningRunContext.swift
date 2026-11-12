@@ -4,6 +4,25 @@ import AssistantModels
 import AssistantSkills
 import Foundation
 
+enum PersonalSkillReadError: Error, Equatable { case notCaptured, stale, wrongRun }
+
+/// The exported document is untrusted data and grants no execution permission.
+struct PersonalSkillRead {
+    let id: String
+    let fingerprint: String
+    let markdown: String
+}
+
+/// Only the run snapshot may create this value. It is not Codable and model
+/// content, imported documents and other snapshots cannot mint its identity.
+struct PersonalSkillReadEvidence {
+    fileprivate let runID: UUID
+    fileprivate let references: [SkillUsedReference]
+    fileprivate init(runID: UUID, references: [SkillUsedReference]) {
+        self.runID = runID; self.references = references
+    }
+}
+
 /// Per-run, read-only reference value plus a monotonic revocation latch. Changes
 /// to unrelated chat/extraction generations do not invalidate it.
 @MainActor final class LearningRunSnapshot {
@@ -11,14 +30,22 @@ import Foundation
     /// Inclusion in a prompt is not an executor-observed skill_read event.
     /// Keep it distinct from the evidence required to record an outcome.
     var hasIncludedPersonalSkills: Bool { references.included.contains { $0.kind == .personalSkill } }
+    private let readRunID = UUID()
+    private let readGeneration: UUID
+    private let capturedSkills: [String: PersonalSkill]
+    private let readCapabilities: Set<String>
+    private var readIDs: Set<String> = []
     private(set) var revoked = false
     var onRevoke: (() -> Void)?
     private weak var store: LearningStore?
     // Current descendants of captured profile rows. Only identity moves on a
     // successful replacement; immutable reference text and domain IDs do not.
     private var profileLineageIDs: Set<String>
-    init(references: RunReferenceContext, store: LearningStore) {
+    init(references: RunReferenceContext, capturedSkills: [String: PersonalSkill],
+         capabilities: Set<String>, store: LearningStore) {
         self.references = references; self.store = store
+        self.capturedSkills = capturedSkills; readCapabilities = capabilities
+        readGeneration = store.generation
         profileLineageIDs = Set(references.included.filter { $0.kind == .profile }.map(\.id))
     }
     func check() throws {
@@ -28,6 +55,47 @@ import Foundation
         guard !revoked else { return }
         revoked = true
         let callback = onRevoke; onRevoke = nil; callback?()
+    }
+
+    /// Call only from a trusted executor after it requests this exact ID. A
+    /// supplied model name alone or an injected reference is not a read event.
+    func readPersonalSkill(id: String) throws -> PersonalSkillRead {
+        try check()
+        guard let captured = capturedSkills[id] else { throw PersonalSkillReadError.notCaptured }
+        guard let store, store.generation == readGeneration,
+              let live = store.skills.installed.first(where: { $0.id == id }),
+              live == captured, live.isEnabled,
+              live.document.referencedToolNames.isSubset(of: readCapabilities) else {
+            throw PersonalSkillReadError.stale
+        }
+        let markdown = try store.skills.exportMarkdown(name: id)
+        try check()
+        readIDs.insert(id) // only after the actual stored export succeeds
+        return PersonalSkillRead(id: id, fingerprint: live.fingerprint, markdown: markdown)
+    }
+
+    func personalSkillReadEvidence() throws -> PersonalSkillReadEvidence {
+        try check()
+        guard let store, store.generation == readGeneration else { throw PersonalSkillReadError.stale }
+        let references = try readIDs.sorted().map { id in
+            guard let captured = capturedSkills[id],
+                  let live = store.skills.installed.first(where: { $0.id == id }),
+                  live == captured, live.isEnabled,
+                  live.document.referencedToolNames.isSubset(of: readCapabilities) else {
+                throw PersonalSkillReadError.stale
+            }
+            return SkillUsedReference(name: id, fingerprint: live.fingerprint)
+        }
+        return PersonalSkillReadEvidence(runID: readRunID, references: references)
+    }
+
+    /// In-memory validation only; this deliberately is not a commit API. A
+    /// future settlement must revalidate under coordinated latest-vault access.
+    func validatePersonalSkillReadEvidence(_ evidence: PersonalSkillReadEvidence) throws -> [SkillUsedReference] {
+        guard evidence.runID == readRunID else { throw PersonalSkillReadError.wrongRun }
+        let current = try personalSkillReadEvidence()
+        guard current.references == evidence.references else { throw PersonalSkillReadError.stale }
+        return current.references
     }
     func followProfileReplacement(from previous: UUID, to replacement: UUID) {
         guard !revoked, profileLineageIDs.remove(previous.uuidString) != nil else { return }
@@ -93,7 +161,10 @@ extension LearningStore {
             for bucket in buckets where bucket.indices.contains(index) { entries.append(bucket[index]) }
         }
         let reference = try RunReferenceContext(entries: entries)
-        let result = LearningRunSnapshot(references: reference, store: self)
+        let included = Set(reference.included.filter { $0.kind == .personalSkill }.map(\.id))
+        let capturedSkills = Dictionary(uniqueKeysWithValues: eligible.filter { included.contains($0.id) }.map { ($0.id, $0) })
+        let result = LearningRunSnapshot(references: reference, capturedSkills: capturedSkills,
+                                         capabilities: capabilities, store: self)
         referenceSnapshots.removeAll { $0.value == nil }
         referenceSnapshots.append(.init(result))
         return result
