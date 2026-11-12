@@ -1797,6 +1797,29 @@ class ChatViewModelTest {
         assertEquals("今天晴,最高 25 度。", vm.ui.value.exchanges.single().steers.single().finished)
     }
 
+    @Test fun creatingManualReportDoesNotChangeRunningConversation() = runTest {
+        val vm = vm()
+        vm.send("查今天的天气", ok)
+        emit(TaskState.Running(1, "", preview = "今天晴"))
+        assertTrue(vm.send("改成查明天", ok))
+        val steerId = steerIds.single()
+        steerFlow.value = listOf(SteerNote(steerId, "改成查明天", SteerState.Joined, finished = "今天晴"))
+        emit(TaskState.Running(2, "正在继续"))
+        runCurrent()
+        val before = vm.ui.value
+        val callsBefore = calls.toList()
+        val reference = requireNotNull(aiResponseReference(before.conversationId, before.exchanges, "a0-$steerId"))
+        val queue = AiResponseReportQueue(tmp.newFolder())
+        val report = AiResponseReportDelivery.createManual(queue, reference, "今天晴", "other", "", null)
+        runCurrent()
+        assertTrue(report.manualOnly)
+        assertEquals(before, vm.ui.value)
+        assertEquals(callsBefore, calls)
+        emit(TaskState.Running(3, "仍在运行"))
+        assertEquals(ComposerMode.Busy, vm.ui.value.composer)
+        assertEquals("今天晴", vm.ui.value.exchanges.single().steers.single().finished)
+    }
+
     @Test fun finishedRepliesSurviveReopening() = runTest {
         val store = ConversationStore(tmp.newFolder())
         val id = store.newConversation()
