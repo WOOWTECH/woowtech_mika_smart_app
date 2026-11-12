@@ -9,6 +9,11 @@ on:
     paths: ['ios/**', '.github/workflows/ios-*.yml']
   workflow_dispatch:
     inputs:
+      live_ios_version:
+        description: Exact iOS runtime for manually requested live service tests
+        type: choice
+        options: ['18.5', '17.0.1']
+        default: '18.5'
       current_only:
         description: Run only the current iOS 26.2 regression variant
         type: boolean
@@ -41,7 +46,7 @@ defaults:
 
 concurrency:
   # PR revisions retain their own evidence while the next revision is built.
-  group: ios-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing' }}
+  group: ios-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing' }}-${{ startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version || 'standard' }}
   cancel-in-progress: true
 
 jobs:
@@ -621,6 +626,8 @@ jobs:
   live-model-acceptance:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'live-model' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
     uses: ./.github/workflows/ios-live-model.yml
+    with:
+      ios_version: ${{ inputs.live_ios_version || '18.5' }}
     secrets:
       WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
       WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
@@ -629,6 +636,8 @@ jobs:
   live-mcp-acceptance:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'live-mcp' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
     uses: ./.github/workflows/ios-live-mcp.yml
+    with:
+      ios_version: ${{ inputs.live_ios_version || '18.5' }}
     secrets:
       WOOW_HA_MCP_TEST_URL: ${{ secrets.WOOW_HA_MCP_TEST_URL }}
       WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
