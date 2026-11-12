@@ -7,12 +7,35 @@
     <!-- Not translatable="false" here: the woowtech flavor has a Chinese name in values-b+zh+Hant. -->
     <string name="app_name">woowtech agent</string>
     <string name="about_author">© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)</string>
-    <string name="about_repo_sub">%1$s · source code and downloads</string>
-    <string name="about_data_note">What you send woowtech agent — messages, screen content and screenshots — goes only to the model provider you set up. WOOW TECH runs no servers for this app and collects none of your data; checking for updates only contacts GitHub.</string>
-    <string name="chat_example_follow">Open the woowtech aiot app and turn off the living room lights.</string>
-    <string name="chat_example_group_summary">Open LINE and summarize today\'s unread group messages, highlighting anything that needs my reply.</string>
+    <string name="about_repo_sub">%1$s · source code and project information</string>
+    <string name="about_data_note">Content you share may be sent to your chosen model provider. Connected features may also use WOOW TECH services. Review those services before sharing sensitive information.</string>
+    <string name="chat_empty_prompt">What would you like help with?</string>
+    <string name="chat_example_follow">Help me write a friendly reply to this message.</string>
+    <string name="chat_example_group_summary">Summarize the document I attach and list its key points.</string>
     <string name="chat_example_jobs">Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.</string>
     <string name="chat_example_multi_step">Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.</string>
+    <string name="chat_example_alarms">Remember that I prefer concise answers in Traditional Chinese.</string>
+    <string name="chat_example_ai_apps">What preferences have I told you to remember?</string>
+    <string name="plans_footer">Create plans for supported chat, web, and memory tasks. This edition cannot operate other apps on your phone.</string>
+    <string name="task_app_blocked">This edition cannot read or operate “%1$s” outside its own browser. Share the information here or use the built-in browser instead.</string>
+    <string name="task_app_access_unavailable">Cross-app access is unavailable in this edition. Chat, browser, and memory tasks are still available.</string>
+    <string name="err_app_unavailable">Cross-app access unavailable in this edition</string>
+    <string name="task_no_phone_helper_usb">This edition does not support phone control. Ask for help in chat or use the built-in browser instead.</string>
+    <string name="settings_pace_foot">Task speed settings apply only to supported tasks. This edition does not operate other apps.</string>
+    <string name="phone_success_note">This edition does not control other apps. USB and Wireless debugging are not needed.</string>
+    <string name="phone_usage_note">This edition does not control other apps. Chat, the built-in browser, and memory remain available.</string>
+    <string name="fail_usb_stopped_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_usb_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_usb_again_body">This edition cannot start phone control with a USB command.</string>
+    <string name="phone_success_note_usb">This edition does not control other apps. USB debugging is not needed.</string>
+    <string name="phone_usage_note_usb">This edition does not control other apps. Chat, the built-in browser, and memory remain available.</string>
+    <string name="phone_root_start_sub">This edition cannot start phone control with root.</string>
+    <string name="rec_boot">Automatic phone control recovery is unavailable in this edition</string>
+    <string name="rec_boot_body">This edition does not enable Wireless debugging or automatically control other apps.</string>
+    <string name="rec_auto_wireless_body">This edition does not automatically enable Wireless debugging.</string>
+    <string name="rec_restarted_at">A previous edition recorded an automatic accessibility restart at %1$s.</string>
+    <string name="rec_setting_unavailable">Automatic Wireless debugging recovery is unavailable in this edition.</string>
+    <string name="rec_needs_pairing">This edition does not support Wireless debugging pairing or USB phone control.</string>
     <string name="relay_gateway_hint" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>

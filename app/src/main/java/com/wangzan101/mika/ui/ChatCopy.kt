@@ -2,6 +2,7 @@ package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.core.agent.QuoteMessage
 import com.wangzan101.mika.core.cap.web.AttachedPage
+import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.i18n.trPlural
@@ -23,7 +24,14 @@ object ChatCopy {
     enum class ExampleKind { App, Web, File, Schedule, Device }
     data class Example(val kind: ExampleKind, val text: String)
 
-    val examples get() = listOf(
+    val examples get() = if (BuildConfig.FLAVOR == "woowtech") listOf(
+        Example(ExampleKind.File, tr(R.string.chat_example_follow)),
+        Example(ExampleKind.File, tr(R.string.chat_example_group_summary)),
+        Example(ExampleKind.Web, tr(R.string.chat_example_jobs)),
+        Example(ExampleKind.Web, tr(R.string.chat_example_multi_step)),
+        Example(ExampleKind.File, tr(R.string.chat_example_alarms)),
+        Example(ExampleKind.File, tr(R.string.chat_example_ai_apps)),
+    ) else listOf(
         Example(ExampleKind.App, tr(R.string.chat_example_follow)),
         Example(ExampleKind.App, tr(R.string.chat_example_group_summary)),
         Example(ExampleKind.Web, tr(R.string.chat_example_jobs)),

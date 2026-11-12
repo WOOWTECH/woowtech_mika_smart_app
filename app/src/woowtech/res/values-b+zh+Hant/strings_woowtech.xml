@@ -6,12 +6,15 @@
 <resources>
     <string name="app_name">渥屋助理</string>
     <string name="about_author">© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）</string>
-    <string name="about_repo_sub">%1$s · 原始碼與下載</string>
-    <string name="about_data_note">你發給渥屋助理的話、螢幕內容和截圖，只會送到你自己設定的模型服務商。渥屋科技沒有為這個 App 架設伺服器，也不收集你的資料；檢查更新時只連線 GitHub。</string>
-    <string name="chat_example_follow">打開渥屋科技 App，把客廳的燈關掉</string>
-    <string name="chat_example_group_summary">幫我整理 LINE 群組今天的未讀訊息，標出需要我回覆的重點</string>
+    <string name="about_repo_sub">%1$s · 原始碼與專案資訊</string>
+    <string name="about_data_note">你分享的內容可能傳送給所選的模型服務商。使用連線功能時，也可能經過渥屋科技的服務。分享敏感資訊前，請先確認相關服務。</string>
+    <string name="chat_empty_prompt">想聊什麼，或需要幫忙查找什麼？</string>
+    <string name="chat_example_follow">幫我寫一則友善的訊息回覆</string>
+    <string name="chat_example_group_summary">幫我摘要附上的文件，列出重點</string>
     <string name="chat_example_jobs">在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較</string>
     <string name="chat_example_multi_step">在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點</string>
+    <string name="chat_example_alarms">記住我偏好使用繁體中文，回答簡短一點</string>
+    <string name="chat_example_ai_apps">你記得我有哪些偏好？</string>
     <string name="relay_gateway_hint">https://assistant-relay.woowtech.io/</string>
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>
