@@ -1,11 +1,14 @@
 #if os(iOS)
 import SwiftUI
+import UIKit
 
 /// Installed version and user-initiated project resource links.
 @MainActor struct MikaAboutView: View {
     @ObservedObject var languages: AppLanguageStore
     let info: MikaAboutInfo
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showingDiagnostics = false
+    @State private var copiedDiagnostics = false
 
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
     private var copy: MikaAboutCopy { MikaAboutCopy(language: languages.resolved) }
@@ -43,6 +46,19 @@ import SwiftUI
                         Divider().padding(.leading, 16)
                         resource(.feedback, url: MikaAboutLinks.feedback, identifier: "feedback")
                         Divider().padding(.leading, 16)
+                        Button { copiedDiagnostics = false; showingDiagnostics = true } label: {
+                            HStack {
+                                Text(verbatim: copy.text(.diagnostics)).foregroundStyle(palette.ink)
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right").foregroundStyle(palette.secondary)
+                                    .accessibilityHidden(true)
+                            }
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 52)
+                            .contentShape(Rectangle())
+                        }
+                        .accessibilityIdentifier("settings.about.diagnostics")
+                        Divider().padding(.leading, 16)
                         resource(.license, url: MikaAboutLinks.license, identifier: "license")
                     }
                 }
@@ -52,6 +68,36 @@ import SwiftUI
         .background(palette.page)
         .navigationTitle(copy.text(.title))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingDiagnostics) {
+            let report = MikaAboutDiagnostics(info: info, osVersion: ProcessInfo.processInfo.operatingSystemVersion,
+                                              language: languages.resolved).text
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(verbatim: copy.text(.diagnosticsNote)).font(.subheadline)
+                    ScrollView {
+                        Text(verbatim: report).frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .accessibilityIdentifier("settings.about.diagnostics.report")
+                    }
+                    HStack {
+                        Button {
+                            UIPasteboard.general.string = report
+                            copiedDiagnostics = true
+                        } label: { Text(verbatim: copy.text(copiedDiagnostics ? .diagnosticsCopied : .diagnosticsCopy)) }
+                        .accessibilityIdentifier("settings.about.diagnostics.copy")
+                        Spacer()
+                        ShareLink(item: report) { Text(verbatim: copy.text(.diagnosticsShare)) }
+                            .accessibilityIdentifier("settings.about.diagnostics.share")
+                    }
+                }
+                .padding()
+                .navigationTitle(copy.text(.diagnostics))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) {
+                    Button(copy.text(.close)) { showingDiagnostics = false }
+                } }
+            }
+        }
     }
 
     private func resource(_ key: MikaAboutKey, url: URL, identifier: String) -> some View {

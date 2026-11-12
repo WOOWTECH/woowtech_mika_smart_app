@@ -27,6 +27,7 @@ struct MikaAboutInfo: Equatable {
 enum MikaAboutKey: CaseIterable {
     case title, group, version, build, unavailable, installedVersion
     case resources, repository, guide, feedback, license
+    case diagnostics, diagnosticsNote, diagnosticsCopy, diagnosticsCopied, diagnosticsShare, close
 
     var translations: (hant: String, hans: String, en: String) {
         switch self {
@@ -41,7 +42,27 @@ enum MikaAboutKey: CaseIterable {
         case .guide: return ("專案說明", "项目说明", "Project guide")
         case .feedback: return ("回報問題", "反馈问题", "Report an issue")
         case .license: return ("開源授權", "开源许可", "Open-source license")
+        case .diagnostics: return ("診斷資訊", "诊断信息", "Diagnostic information")
+        case .diagnosticsNote: return ("請先檢視資訊，再自行複製或分享。", "请先查看信息，再自行复制或分享。", "Review this information before copying or sharing it.")
+        case .diagnosticsCopy: return ("複製", "复制", "Copy")
+        case .diagnosticsCopied: return ("已複製", "已复制", "Copied")
+        case .diagnosticsShare: return ("分享", "分享", "Share")
+        case .close: return ("完成", "完成", "Done")
         }
+    }
+}
+
+/// An allowlisted snapshot; never reads account, network or conversation data.
+struct MikaAboutDiagnostics {
+    let info: MikaAboutInfo
+    let osVersion: OperatingSystemVersion
+    let language: AppDisplayLanguage
+
+    var text: String {
+        let copy = MikaAboutCopy(language: language)
+        let os = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
+        return ["woowtech assistant diagnostics", "App version: \(info.version ?? copy.text(.unavailable))",
+                "Build: \(info.build ?? copy.text(.unavailable))", "iOS/iPadOS: \(os)"].joined(separator: "\n")
     }
 }
 

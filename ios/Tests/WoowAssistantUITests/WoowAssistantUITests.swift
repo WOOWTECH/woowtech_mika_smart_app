@@ -201,6 +201,29 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings.about"].exists)
     }
 
+    func testAboutDiagnosticsCanBeReviewedAndCopied() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        let link = app.buttons["settings.about"]
+        revealSettings(link, in: app)
+        link.tap()
+        let entry = app.buttons["settings.about.diagnostics"]
+        for _ in 0..<5 where !entry.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(entry.isHittable)
+        entry.tap()
+        let report = app.staticTexts["settings.about.diagnostics.report"]
+        XCTAssertTrue(report.waitForExistence(timeout: 10))
+        XCTAssertTrue(report.label.contains("App version:"))
+        XCTAssertTrue(report.label.contains("iOS/iPadOS:"))
+        let copy = app.buttons["settings.about.diagnostics.copy"]
+        XCTAssertTrue(app.buttons["settings.about.diagnostics.share"].exists)
+        XCTAssertEqual(copy.label, "複製")
+        copy.tap()
+        XCTAssertEqual(copy.label, "已複製")
+        app.navigationBars["診斷資訊"].buttons["完成"].tap()
+        XCTAssertTrue(app.navigationBars["關於渥屋助理"].waitForExistence(timeout: 10))
+    }
+
     func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
         let app = launchApp()
         openSection("settings", in: app)

@@ -40,6 +40,17 @@ import Foundation
         try check(unresolved.version == nil && unresolved.build == nil,
                   "Do not display build placeholders or control characters")
 
+        let report = MikaAboutDiagnostics(info: installed,
+            osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 2, patchVersion: 1),
+            language: .english).text
+        try check(report == "woowtech assistant diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
+                  "Report contains only the explicitly selected metadata")
+        let missingReport = MikaAboutDiagnostics(info: unresolved,
+            osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 0, patchVersion: 0),
+            language: .english).text
+        try check(!missingReport.contains("$(") && !missingReport.contains("line\nbreak"),
+                  "Report does not include invalid bundle values")
+
         let expected = [
             AppDisplayLanguage.traditionalChinese: "關於渥屋助理",
             .simplifiedChinese: "关于渥屋助理",
