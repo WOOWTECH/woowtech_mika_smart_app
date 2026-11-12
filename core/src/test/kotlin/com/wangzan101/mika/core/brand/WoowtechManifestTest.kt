@@ -35,7 +35,9 @@ class WoowtechManifestTest {
     /** A new permission in the Play build is a product decision and needs policy review. */
     @Test
     fun woowtechFlavorManifestAddsNoOtherPermission() {
-        assertEquals(emptySet<String>(), permissions("woowtech/AndroidManifest.xml").keys)
+        assertEquals(setOf("android.permission.FOREGROUND_SERVICE_DATA_SYNC"), permissions("woowtech/AndroidManifest.xml").keys)
+        val removed = manifest("woowtech/AndroidManifest.xml").getElementsByTagName("uses-permission").item(0) as Element
+        assertEquals("remove", removed.getAttributeNS("http://schemas.android.com/tools", "node"))
         // The flavor manifest has a higher priority than src/main; the package comes from the module's namespace.
         assertFalse(manifest("woowtech/AndroidManifest.xml").hasAttribute("package"))
     }

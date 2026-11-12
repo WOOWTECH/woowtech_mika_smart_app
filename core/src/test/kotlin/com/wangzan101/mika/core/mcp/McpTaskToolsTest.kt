@@ -70,8 +70,7 @@ class McpTaskToolsTest {
         rejects(McpTaskTools.RUN, args("goal" to "   "), "goal")
         rejects(McpTaskTools.RUN, args("goal" to 5), "goal must be a string")
         rejects(McpTaskTools.RUN, args("goal" to "x".repeat(McpTaskTools.MAX_GOAL + 1)), "too long")
-        // 只能接着电脑自己开的对话,手机上的对话编号不收
-        rejects(McpTaskTools.RUN, args("goal" to "hi", "conversation" to "3f2c1d7e-0000-4000-8000-000000000000"), "conversation")
+        // The Play remote API also accepts canonical IDs from phone history.
         rejects(McpTaskTools.RUN, args("goal" to "hi", "conversation" to "mcp-../../x"), "earlier MCP task")
         assertTrue(fake.tasks.isEmpty())
     }

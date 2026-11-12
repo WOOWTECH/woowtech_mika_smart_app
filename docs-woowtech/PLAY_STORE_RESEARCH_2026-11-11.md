@@ -6,16 +6,22 @@
 
 ## Play 工作樹進度（2026-11-11）
 
+### 2026-11-12 接續驗證
+
+- `:app:assembleWoowtechDebug` 與聚焦的 `WoowtechManifestTest`、`McpTaskToolsTest` 通過。APK 為 `io.woowtech.assistant` / `0.1.37-play.1`；`brand-check.sh apk` 通過。`aapt2 dump permissions` 只列網路、錄音、網路狀態、前景服務／specialUse、通知、喚醒鎖和 Android 自動產生的內部接收器權限。
+- 中繼 Worker 的 `npm run check`、`npm test` 通過；正式 Worker 尚未部署。全套 `:core:test` 執行 3019 項，5 項失敗、3 項跳過。後續已修正其中兩項過時斷言；剩餘 README 生成／翻譯檢查仍未排除。因此不能宣稱全套測試通過。
+- POCO 已透過 USB 連線，但 `adb install -r` 回報 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，商店版未安裝到該機；此輪沒有 POCO 實測通過結果。原本直接下載版的套件未被覆蓋。
+
 - `playstore/woowtech-compliant-20261111` 改為 `io.woowtech.assistant`、`targetSdk=36`，與原 APK 套件名稱分開。移除 GitHub APK 更新流程、相片廣泛讀取、精確鬧鐘、無障礙服務、ADB 助手交接與開機恢復入口；附件改用系統 Photo Picker。
 - 任務組裝不註冊手機、Root、沙箱、排程及外部 MCP 工具；遠端 MCP 端點不提供讀鎖屏、喚醒或解鎖。電腦連結頁只展示遠端配對；手機設定、復原、Root 及背景計畫入口已隱藏。
 - `:app:assembleWoowtechDebug` 成功；APK 的 `aapt2 dump permissions` 未列 `REQUEST_INSTALL_PACKAGES`、`READ_MEDIA_IMAGES`、`USE_EXACT_ALARM`、`SCHEDULE_EXACT_ALARM` 或 `WRITE_SECURE_SETTINGS`。合併 Manifest 未列 AccessibilityService 或 shell 交接 Provider；`brand-check.sh apk` 通過。核心的工具隔離、子代理、Manifest 與文件一致性測試通過；商店版聊天啟動條件亦通過單元測試。這些驗證不等於 Play Console 審核或實機功能驗收。
-- **尚未完成**：舊版 Accessibility／ADB／shell 程式碼仍打入 APK，須進一步移除或證明沒有可達路徑；遠端「資料同步」缺少伺服器協定與 App 實作；AI 不當內容回報、隱私政策／Data safety、三個 `specialUse` 前景服務申報、商店素材與實機驗收仍待處理。不可把此工作樹標為可送審版本。
+- **尚未完成**：舊版 Accessibility／ADB／shell 程式碼仍打入 APK，須進一步移除或證明沒有可達路徑；遠端已有手機在線時的唯讀對話與附件 API，但缺少離線儲存、跨裝置寫入與帳號資料同步；AI 回報的 App 流程及中繼收件匣已實作並通過中繼 smoke test，但正式中繼尚未部署。隱私政策／Data safety、三個 `specialUse` 前景服務申報與實機驗收仍待完成。不可把此工作樹標為可送審版本。
 
 後續可達性稽核未找到正常入口能執行跨 App 手機工具：主代理與子代理都沒有註冊手機能力，遠端端點也沒有裝置狀態、喚醒或解鎖。`connectPhone()` 等舊碼仍在 APK 中，屬於未來誤接回能力的維護風險；僅有原始碼存在不能當作已違反無障礙政策的證據。商店版啟動時也已避免建立手機助手狀態監測及遠端解鎖物件。
 
 Android 16 模擬器已對最新 `0.1.37-play.1` APK 執行全新資料安裝、啟動及英／繁中歡迎頁截圖驗證。首次畫面原先仍宣稱能操作 App 並要求手機控制；已修正為對話、語音、瀏覽器、記憶與自備模型帳號／API Key，重新建置與雙語實測通過。模型設定頁能開啟，但模擬器沒有模型帳號或 Key，因此沒有執行真實模型對話、語音辨識、附件或遠端流程。
 
-中繼目前只在手機在線時轉送遠端任務與回覆，沒有對話或附件的帳號儲存 API。若要手機離線仍可在電腦查閱歷史，須新增伺服器儲存、保留期限與刪除機制；若只需在線存取，可先在手機端提供經現有權杖驗證的唯讀對話 API。AI 回覆檢舉現有 GitHub／Email 入口不能保證在 App 內完成送達，仍須決定並實作接收端。
+中繼目前只在手機在線時轉送遠端任務與回覆；本分支已加入手機端經既有權杖驗證的唯讀對話與附件 API，沒有對話或附件的帳號儲存 API。若要手機離線仍可在電腦查閱歷史，須新增伺服器儲存、保留期限與刪除機制。AI 回覆檢舉已加入 App 內送出與本分支中繼接收程式；正式中繼部署及端到端驗證仍待完成。
 
 ## 確定需要改的部分
 
