@@ -518,6 +518,82 @@ private struct ChatView: View {
         scheduledSettleRevision = nil
     }
 
+    /// Notices, the copying caption and the tray above the input bar (Android ChatScreen).
+    @ViewBuilder private var attachmentRows: some View {
+        if let notice = session.attachmentNotice {
+            ChatAttachmentNoticeRow(notice: notice, colors: attachmentColors, text: attachmentText) { session.dismissAttachmentNotice() }
+        }
+        if session.isAddingAttachments {
+            Text(verbatim: attachmentText.adding)
+                .font(.caption).foregroundStyle(palette.secondaryInk)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("chat.attach.adding")
+        }
+        if !session.pendingAttachments.isEmpty {
+            ChatAttachmentTray(items: session.pendingAttachments, store: session.attachmentStore,
+                               colors: attachmentColors, text: attachmentText, canRemove: !session.isSubmitting) { session.removeAttachment(id: $0) }
+        }
+    }
+
+    private var attachToggle: some View {
+        Button {
+            voice.cancel()
+            // Like Android: × brings the keyboard back and the panel goes away.
+            if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
+            else { isEditingDraft = false; showsAttachPanel = true }
+        } label: {
+            Image(systemName: "plus").frame(width: 40, height: 40)
+                .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
+                .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
+        }
+        .accessibilityLabel(showsAttachPanel ? attachmentText.close : attachmentText.add)
+        .disabled(session.isSubmitting || session.isAddingAttachments)
+        .accessibilityIdentifier("chat.attach.toggle")
+    }
+
+    /// Android's attach panel takes the keyboard's place under the input bar.
+    @ViewBuilder private var attachPanel: some View {
+        if showsAttachPanel {
+            ChatAttachPanel(photos: recentPhotos, selectedAssets: session.pendingAttachments.compactMap(\.sourceKey),
+                            colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
+                            onFiles: { attachPicker = .files }, onToggle: toggleRecentPhoto)
+                .frame(height: 320)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    /// One transcript message: attachments above the bubble; attachments alone get no empty bubble.
+    @ViewBuilder private func messageRow(index: Int, entry: ChatEntry) -> some View {
+        let shown = ChatAttachmentLines.displayText(entry.content, items: entry.attachments)
+        VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
+            if !entry.attachments.isEmpty {
+                ChatSentAttachments(items: entry.attachments, store: session.attachmentStore,
+                                    colors: attachmentColors, text: attachmentText,
+                                    identifier: "chat.message.\(index).attachments",
+                                    onOpen: openAttachment)
+            }
+            // Attachments alone get no empty bubble.
+            if !shown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
+                HStack {
+                    if entry.role == "user" { Spacer(minLength: 40) }
+                    Text(entry.role == "assistant"
+                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(shown))
+                        .font(.system(size: 15.5))
+                        .lineSpacing(entry.role == "user" ? 1 : 4)
+                        .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
+                        .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
+                        .background(entry.role == "user" ? palette.accent : palette.assistant,
+                                    in: RoundedRectangle(cornerRadius: 20))
+                    if entry.role != "user" { Spacer(minLength: 0) }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
+        .id(entry.id)
+    }
+
     private func openCamera() {
         guard ChatCameraPicker.isAvailable else { session.attachmentNotice = .cameraUnavailable; return }
         guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
@@ -616,34 +692,7 @@ private struct ChatView: View {
                                 .accessibilityIdentifier("chat.explanation")
                         }
                         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                            let shown = ChatAttachmentLines.displayText(entry.content, items: entry.attachments)
-                            VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
-                                if !entry.attachments.isEmpty {
-                                    ChatSentAttachments(items: entry.attachments, store: session.attachmentStore,
-                                                        colors: attachmentColors, text: attachmentText,
-                                                        identifier: "chat.message.\(index).attachments",
-                                                        onOpen: openAttachment)
-                                }
-                                // Attachments alone get no empty bubble.
-                                if !shown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
-                                HStack {
-                                    if entry.role == "user" { Spacer(minLength: 40) }
-                                    Text(entry.role == "assistant"
-                                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(shown))
-                                        .font(.system(size: 15.5))
-                                        .lineSpacing(entry.role == "user" ? 1 : 4)
-                                        .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
-                                        .textSelection(.enabled)
-                                        .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
-                                        .padding(.horizontal, 14).padding(.vertical, entry.role == "user" ? 10 : 12)
-                                        .background(entry.role == "user" ? palette.accent : palette.assistant,
-                                                    in: RoundedRectangle(cornerRadius: 20))
-                                    if entry.role != "user" { Spacer(minLength: 0) }
-                                }
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
-                            .id(entry.id)
+                            messageRow(index: index, entry: entry)
                         }
                         if let preview = session.replyPreview {
                             VStack(alignment: .leading, spacing: 4) {
@@ -795,33 +844,9 @@ private struct ChatView: View {
                                         openSettings()
                                     })
             }
-            if let notice = session.attachmentNotice {
-                ChatAttachmentNoticeRow(notice: notice, colors: attachmentColors, text: attachmentText) { session.dismissAttachmentNotice() }
-            }
-            if session.isAddingAttachments {
-                Text(verbatim: attachmentText.adding)
-                    .font(.caption).foregroundStyle(palette.secondaryInk)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("chat.attach.adding")
-            }
-            if !session.pendingAttachments.isEmpty {
-                ChatAttachmentTray(items: session.pendingAttachments, store: session.attachmentStore,
-                                   colors: attachmentColors, text: attachmentText, canRemove: !session.isSubmitting) { session.removeAttachment(id: $0) }
-            }
+            attachmentRows
             HStack(alignment: .bottom, spacing: 4) {
-                Button {
-                    voice.cancel()
-                    // Like Android: × brings the keyboard back and the panel goes away.
-                    if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
-                    else { isEditingDraft = false; showsAttachPanel = true }
-                } label: {
-                    Image(systemName: "plus").frame(width: 40, height: 40)
-                        .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
-                        .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
-                }
-                    .accessibilityLabel(showsAttachPanel ? attachmentText.close : attachmentText.add)
-                    .disabled(session.isSubmitting || session.isAddingAttachments)
-                    .accessibilityIdentifier("chat.attach.toggle")
+                attachToggle
                 // Return adds a line; the keyboard toolbar Done closes editing without sending.
                 TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
                     .lineLimit(1...5)
@@ -876,13 +901,7 @@ private struct ChatView: View {
             .padding(6)
             .background(palette.glass, in: Capsule())
             .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
-            if showsAttachPanel {
-                ChatAttachPanel(photos: recentPhotos, selectedAssets: session.pendingAttachments.compactMap(\.sourceKey),
-                                colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
-                                onFiles: { attachPicker = .files }, onToggle: toggleRecentPhoto)
-                    .frame(height: 320)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            attachPanel
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .padding(.bottom, keyboardReserve)
@@ -898,36 +917,11 @@ private struct ChatView: View {
         // SwiftUI's keyboard safe area is ignored here; ChatKeyboardDock
         // reserves the draft keyboard's space instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .sheet(item: $attachPicker) { picker in
-            switch picker {
-            case .album:
-                // Close as soon as copying starts; originals from iCloud keep loading behind "正在新增附件…".
-                ChatPhotoLibraryPicker(selectionLimit: max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count),
-                                       onPicked: { files in
-                                           attachPicker = nil
-                                           Task { await session.addAttachments(files) }
-                                       },
-                                       onLoadingStarted: {
-                                           session.attachmentsLoadingStarted()
-                                           attachPicker = nil
-                                       })
-                .ignoresSafeArea()
-            case .files:
-                ChatDocumentPicker { files in
-                    attachPicker = nil
-                    Task { await session.addAttachments(files) }
-                }
-                .ignoresSafeArea()
-            }
-        }
-        .fullScreenCover(isPresented: $showsCamera) {
-            ChatCameraPicker(onCaptured: { data in
-                showsCamera = false
-                if let file = ChatAttachmentImport.temporaryPhoto(jpeg: data) { Task { await session.addAttachments([file]) } }
-            }, onCancel: { showsCamera = false })
-            .ignoresSafeArea()
-        }
-        .sheet(item: $attachmentPreview) { target in ChatAttachmentPreview(url: target.url).ignoresSafeArea() }
+        .modifier(ChatAttachPresentations(
+            picker: $attachPicker, showsCamera: $showsCamera, preview: $attachmentPreview,
+            photoLimit: max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count),
+            add: { files in Task { await session.addAttachments(files) } },
+            loadingStarted: { session.attachmentsLoadingStarted() }))
         .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
         .onChange(of: showsAttachPanel) { _, open in
             guard open else { return }

@@ -156,6 +156,9 @@ struct ChatAttachmentTray: View {
                         .accessibilityLabel(text.remove(item.name))
                         .accessibilityIdentifier("chat.attach.remove.\(index)")
                     }
+                    // A container keeps the item and its remove button as separate VoiceOver
+                    // elements; otherwise this identifier would replace the button's own.
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("chat.attach.item.\(index)")
                 }
             }
@@ -427,3 +430,44 @@ struct ChatAttachmentPreviewTarget: Identifiable {
     let id = UUID()
     let url: URL
 }
+
+// MARK: - Presentations
+
+/// The panel's photo, file and camera pickers and Quick Look, kept out of the
+/// chat view's body so every supported compiler can type-check it quickly.
+struct ChatAttachPresentations: ViewModifier {
+    @Binding var picker: ChatAttachPicker?
+    @Binding var showsCamera: Bool
+    @Binding var preview: ChatAttachmentPreviewTarget?
+    let photoLimit: Int
+    let add: ([ChatPickedFile]) -> Void
+    let loadingStarted: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: $picker) { kind in sheet(kind) }
+            .fullScreenCover(isPresented: $showsCamera) {
+                ChatCameraPicker(onCaptured: { data in
+                    showsCamera = false
+                    if let file = ChatAttachmentImport.temporaryPhoto(jpeg: data) { add([file]) }
+                }, onCancel: { showsCamera = false })
+                .ignoresSafeArea()
+            }
+            .sheet(item: $preview) { target in ChatAttachmentPreview(url: target.url).ignoresSafeArea() }
+    }
+
+    @ViewBuilder private func sheet(_ kind: ChatAttachPicker) -> some View {
+        switch kind {
+        case .album:
+            // Close as soon as copying starts; originals from iCloud keep loading behind "正在新增附件…".
+            ChatPhotoLibraryPicker(selectionLimit: photoLimit,
+                                   onPicked: { files in picker = nil; add(files) },
+                                   onLoadingStarted: { loadingStarted(); picker = nil })
+                .ignoresSafeArea()
+        case .files:
+            ChatDocumentPicker { files in picker = nil; add(files) }
+                .ignoresSafeArea()
+        }
+    }
+}
+
