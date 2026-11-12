@@ -99,6 +99,7 @@ struct KeychainModelCredentials: ModelCredentialStoring {
 
 final class ModelSettingsRepository {
     static let configurationKey = "model.configuration.v1"
+    private static let revisionKey = "model.configuration.revision.v1"
     private let defaults: UserDefaults
     private let credentials: any ModelCredentialStoring
 
@@ -162,6 +163,10 @@ final class ModelSettingsRepository {
         return key
     }
 
+    // Every successful in-process write advances this value, including an
+    // edit followed by a return to the original values. It contains no key.
+    var revision: String { defaults.string(forKey: Self.revisionKey) ?? "legacy" }
+
     func save(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
         let configuration = try Self.validate(baseURL: baseURL, model: model)
         let previous = try load()
@@ -183,6 +188,7 @@ final class ModelSettingsRepository {
         if !newKey.isEmpty { try credentials.insert(newKey, account: account) }
         // Publish the nonsecret record only after Keychain succeeds. A new item avoids
         // associating a replacement key with the old host if interrupted during save.
+        defaults.set(UUID().uuidString, forKey: Self.revisionKey)
         defaults.set(data, forKey: Self.configurationKey)
         var cleanupFailed = false
         if let previous, previous.credentialAccount != account {
@@ -194,6 +200,7 @@ final class ModelSettingsRepository {
 
     func remove() throws {
         try credentials.removeAll()
+        defaults.set(UUID().uuidString, forKey: Self.revisionKey)
         defaults.removeObject(forKey: Self.configurationKey)
     }
 

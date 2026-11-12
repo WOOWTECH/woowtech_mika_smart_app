@@ -23,8 +23,9 @@ Apple driver explicitly requires on-device recognition.
 On iOS, model settings currently contain a single chat base URL, chat model,
 and Keychain account, not Android's provider inventory, provider kind, model
 catalog or verified transcription method. A chat endpoint/model is not evidence
-of a compatible speech provider. The earlier `49b409f` provider request core and
-`0b2ccb1` upload-consent experiment are separate, unmerged candidates: neither
+of a compatible speech provider. At the comparison base, the earlier `49b409f`
+provider request core and `0b2ccb1` upload-consent experiment were separate
+unmerged candidates: neither
 is wired to iOS settings, a recorder, lifecycle notifications or the composer.
 The earlier consent experiment requires an explicit confirmation per recording;
 that flow must not be presented as Android parity or added blindly. A later
@@ -34,6 +35,10 @@ binding and retries, without inventing an extra confirmation on every press.
 It must also review the raw destination serialization and path, actual
 credential lifetime, provider capabilities, redirects, TLS, size limits and
 scene/gesture races before sending audio.
+
+A later isolated candidate imports the request core and adds an unconnected
+settings-to-transport seam; see `PROVIDER_SPEECH_DATAFLOW_STAGE.md`. It still
+does not enable provider recording or the per-recording consent experiment.
 
 This candidate adds a real Settings > Model > Speech to text destination with
 only two working selections: on-device recognition and off. An absent setting
