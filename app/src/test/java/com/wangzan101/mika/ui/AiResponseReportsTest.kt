@@ -145,7 +145,8 @@ class AiResponseReportsTest {
             assertEquals(1, saves.map { it.get(10, TimeUnit.SECONDS).id }.toSet().size)
             val queue = AiResponseReportQueue(dir)
             val otherRefs = listOf(ref.copy(conversationId = "other"), ref.copy(runId = "other"),
-                ref.copy(messageKey = "r1"), ref.copy(messageKey = "a0-steer"), ref.copy(runId = null))
+                ref.copy(runId = "another", messageKey = "r1"), ref.copy(messageKey = "a0-steer"),
+                ref.copy(conversationId = "third", runId = null))
             otherRefs.forEach {
                 assertNull(queue.find(it))
                 queue.save(it, "answer", "other", "")
@@ -232,7 +233,7 @@ class AiResponseReportsTest {
         try {
             val queue = AiResponseReportQueue(dir)
             val blockedRef = AiResponseReference("conversation", "run", "r0")
-            val healthyRef = blockedRef.copy(messageKey = "r1")
+            val healthyRef = blockedRef.copy(runId = "another-run", messageKey = "r1")
             val blocked = queue.save(blockedRef, "answer", "other", "")
             val healthy = queue.save(healthyRef, "answer", "other", "")
             java.io.File(dir, "damaged.json").writeText(
@@ -314,14 +315,132 @@ class AiResponseReportsTest {
     @Test fun onlyFinishedAiAnswersHaveReportReferences() {
         val done = Exchange("question", emptyList(), ExchangeStatus.Done("answer", null), live = false, runId = "run-1")
         val working = done.copy(status = ExchangeStatus.Working)
-        assertEquals(AiResponseReference("conversation", "run-1", "r0"), aiResponseReference("conversation", listOf(done), "r0"))
+        assertEquals(AiResponseReference("conversation", "run-1", "r0", "final"), aiResponseReference("conversation", listOf(done), "r0"))
         assertNull(aiResponseReference("conversation", listOf(working), "r0"))
         assertNull(aiResponseReference("conversation", listOf(done), "u0"))
         assertNull(aiResponseReference("conversation", listOf(done), "r1"))
         assertNull(aiResponseReference(null, listOf(done), "r0"))
         val withSteer = done.copy(steers = listOf(com.wangzan101.mika.task.SteerNote("steer-1", "more", com.wangzan101.mika.task.SteerState.Joined, finished = "earlier answer")))
-        assertEquals(AiResponseReference("conversation", "run-1", "a0-steer-1"),
+        assertEquals(AiResponseReference("conversation", "run-1", "a0-steer-1", "steer:steer-1"),
             aiResponseReference("conversation", listOf(withSteer), "a0-steer-1"))
         assertNull(aiResponseReference("conversation", listOf(done), "a0-steer-1"))
+    }
+
+    @Test fun stableRunAndSteerIdsSurviveReorderingAndKeepIdenticalAnswersSeparate() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val steers = listOf("first", "second").map {
+                com.wangzan101.mika.task.SteerNote(it, "question", com.wangzan101.mika.task.SteerState.Joined, finished = "same answer")
+            }
+            val ex = Exchange("question", emptyList(), ExchangeStatus.Done("same answer", null), false, "run", steers = steers)
+            val first = requireNotNull(aiResponseReference("c", listOf(ex), "a0-first"))
+            val second = requireNotNull(aiResponseReference("c", listOf(ex), "a0-second"))
+            val firstReport = queue.save(first, "same answer", "other", "")
+            val secondReport = queue.save(second, "same answer", "other", "")
+            queue.recordAttempt(firstReport.id, ReportDeliveryResult.Acknowledged(null), 10)
+            val rebuilt = ex.copy(steers = steers.mapIndexed { i, s -> s.copy(savedIndex = i) })
+            val other = ex.copy(runId = "other")
+            val movedFirst = requireNotNull(aiResponseReference("c", listOf(other, rebuilt), "a1-first"))
+            val movedSecond = requireNotNull(aiResponseReference("c", listOf(other, rebuilt), "a1-second"))
+            assertEquals(firstReport.id, queue.find(movedFirst)?.id)
+            assertEquals("acknowledged", queue.find(movedFirst)?.status)
+            assertEquals(secondReport.id, queue.find(movedSecond)?.id)
+            assertEquals(2, queue.all().size)
+            val oldFinal = queue.save(AiResponseReference("c", "run", "r0"), "same answer", "other", "")
+            assertEquals(oldFinal.id, queue.find(requireNotNull(aiResponseReference("c", listOf(other, rebuilt), "r1")))?.id)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun legacySteerIndexesMigrateOnlyWithProvenMapping() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val old = queue.save(AiResponseReference("c", "run", "a0-turn-1"), "same", "other", "")
+            queue.recordAttempt(old.id, ReportDeliveryResult.Acknowledged(null), 10)
+            val pending = queue.save(AiResponseReference("c", "run", "a0-turn-0"), "same", "other", "")
+            val mapped = AiResponseReference("c", "run", "a3-live-id", "steer:live-id", savedSteerIndex = 1)
+            assertEquals(old.id, queue.find(mapped)?.id)
+            assertEquals("acknowledged", AiResponseReportQueue(dir).find(mapped)?.status)
+            val different = AiResponseReference("c", "run", "a3-other-id", "steer:other-id", savedSteerIndex = 0)
+            assertEquals(pending.id, queue.find(different)?.id)
+            assertEquals("queued_local", AiResponseReportQueue(dir).find(different)?.status)
+            assertEquals(2, queue.all().size)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun legacyUuidWithoutMappingNeverGuessesFromIdenticalText() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val old = queue.save(AiResponseReference("c", "run", "a0-old-uuid"), "same", "other", "")
+            queue.recordAttempt(old.id, ReportDeliveryResult.Acknowledged(null), 10)
+            val rebuilt = AiResponseReference("c", "run", "a0-turn-0", "steer:turn-0", savedSteerIndex = 0)
+            assertTrue(runCatching { queue.find(rebuilt) }.exceptionOrNull() is AmbiguousReportReferenceException)
+            assertTrue(runCatching { queue.save(rebuilt, "same", "other", "") }.exceptionOrNull() is AmbiguousReportReferenceException)
+            val second = AiResponseReference("c", "run", "a0-turn-1", "steer:turn-1", savedSteerIndex = 1)
+            assertTrue(runCatching { queue.find(second) }.exceptionOrNull() is AmbiguousReportReferenceException)
+            assertEquals(1, queue.all().size)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun steerUuidBridgesRunIdAvailabilityWithoutUsingText() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val old = queue.save(AiResponseReference("c", null, "a0-uuid-one"), "same", "other", "")
+            val moved = AiResponseReference("c", "run", "a4-uuid-one", "steer:uuid-one", savedSteerIndex = 0)
+            assertEquals(old.id, queue.find(moved)?.id)
+            assertNull(queue.find(AiResponseReference("c", "run", "a4-uuid-two", "steer:uuid-two", savedSteerIndex = 1)))
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun runlessFinalReportsWithReusedKeyAreNotMerged() {
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val ref = AiResponseReference("c", null, "r0")
+            val first = queue.save(ref, "same", "other", "")
+            val secondId = java.util.UUID.randomUUID().toString()
+            val original = java.io.File(dir, "${first.id}.json").readText()
+            java.io.File(dir, "$secondId.json").writeText(original.replace(first.id, secondId))
+            queue.recordAttempt(first.id, ReportDeliveryResult.Acknowledged(null), 10)
+            assertTrue(runCatching { queue.find(ref) }.exceptionOrNull() is AmbiguousReportReferenceException)
+            assertEquals(2, queue.all().size)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun unidentifiedDamageRequiresExplicitChoiceAndSendsOnlySelectedReport() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val chosen = queue.save(AiResponseReference("c", "run", "r0", "final"), "answer", "other", "")
+            val other = queue.save(AiResponseReference("c", "other-run", "r1", "final"), "other answer", "other", "")
+            java.io.File(dir, "broken.json").writeText("{")
+            assertTrue(runCatching { queue.find(chosen.reference) }.exceptionOrNull() is UnidentifiedReportException)
+            assertTrue(runCatching { queue.save(chosen.reference, "answer", "other", "") }.exceptionOrNull() is UnidentifiedReportException)
+            val sender = AiResponseReportSender(server.url("/").toString())
+            assertTrue(runCatching { AiResponseReportDelivery.deliverDue(queue, sender) }.exceptionOrNull() is UnidentifiedReportException)
+            assertEquals(0, server.requestCount)
+            assertEquals(chosen.id, queue.find(chosen.reference, allowUnidentified = true)?.id)
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${chosen.id}","accepted":true}"""))
+            assertEquals("acknowledged", AiResponseReportDelivery.deliverOne(queue, sender, chosen.id).status)
+            assertEquals(1, server.requestCount)
+            assertEquals("queued_local", queue.get(other.id, allowUnidentified = true)?.status)
+            assertEquals("acknowledged", AiResponseReportDelivery.retry(queue, sender, chosen.id, allowUnidentified = true).status)
+            assertEquals(1, server.requestCount)
+            val newRef = AiResponseReference("c", "third-run", "r2", "final")
+            assertTrue(runCatching { queue.save(newRef, "new answer", "other", "") }.exceptionOrNull() is UnidentifiedReportException)
+            val newReport = queue.save(newRef, "new answer", "other", "", allowUnidentified = true)
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"id":"${newReport.id}","accepted":true}"""))
+            assertEquals("acknowledged", AiResponseReportDelivery.deliverOne(queue, sender, newReport.id).status)
+            assertEquals(2, server.requestCount)
+            assertEquals("queued_local", queue.get(other.id, allowUnidentified = true)?.status)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
     }
 }

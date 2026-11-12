@@ -13,8 +13,11 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
-/** A selected answer's location. UI keys are only hints; the saved text is the evidence. */
-internal data class AiResponseReference(val conversationId: String, val runId: String?, val messageKey: String)
+/** messageKey is a UI location; answerId is stable when the run has an ID. */
+internal data class AiResponseReference(
+    val conversationId: String, val runId: String?, val messageKey: String,
+    val answerId: String? = null, val savedSteerIndex: Int? = null,
+)
 
 internal fun aiResponseReference(conversationId: String?, exchanges: List<Exchange>, key: String): AiResponseReference? {
     if (conversationId == null) return null
@@ -28,7 +31,57 @@ internal fun aiResponseReference(conversationId: String?, exchanges: List<Exchan
         }
         else -> null
     } ?: return null
-    return AiResponseReference(conversationId, exchanges[turn].runId, key)
+    val exchange = exchanges[turn]
+    val steer = if (key.startsWith("a")) exchange.steers.first { it.id == key.substringAfter('-') } else null
+    val answerId = when {
+        steer != null && (exchange.runId != null || !steer.id.startsWith("turn-")) -> "steer:${steer.id}"
+        steer == null && exchange.runId != null -> "final"
+        else -> null
+    }
+    return AiResponseReference(conversationId, exchange.runId, key, answerId, steer?.savedIndex)
+}
+
+private enum class ReferenceMatch { Same, Different, Ambiguous }
+internal class AmbiguousReportReferenceException : IllegalStateException()
+internal class UnidentifiedReportException : IllegalStateException()
+
+private fun compareReferences(a: AiResponseReference, b: AiResponseReference): ReferenceMatch {
+    if (a.conversationId != b.conversationId) return ReferenceMatch.Different
+    fun identity(r: AiResponseReference): String = r.answerId ?: when {
+        r.messageKey.startsWith("r") -> "final"
+        r.messageKey.startsWith("a") -> "steer:${r.messageKey.substringAfter('-', "") }"
+        else -> "unknown"
+    }
+    val ai = identity(a)
+    val bi = identity(b)
+    if (a.runId != b.runId) {
+        if (a.runId != null && b.runId != null) return ReferenceMatch.Different
+        if (ai.startsWith("steer:") && bi.startsWith("steer:") &&
+            !ai.startsWith("steer:turn-") && !bi.startsWith("steer:turn-")) {
+            return if (ai == bi) ReferenceMatch.Same else ReferenceMatch.Different
+        }
+        return if (ai == "final" && bi == "final" || ai.startsWith("steer:") && bi.startsWith("steer:"))
+            ReferenceMatch.Ambiguous else ReferenceMatch.Different
+    }
+    if (a.runId == null) {
+        if (a.messageKey == b.messageKey) return ReferenceMatch.Same
+        if (ai == "final" && bi == "final") return ReferenceMatch.Ambiguous
+        if (ai.startsWith("steer:") && bi.startsWith("steer:") &&
+            (ai.startsWith("steer:turn-") || bi.startsWith("steer:turn-"))) return ReferenceMatch.Ambiguous
+        return if (ai == bi && ai.startsWith("steer:")) ReferenceMatch.Same else ReferenceMatch.Different
+    }
+    if (ai == bi && ai != "unknown") return ReferenceMatch.Same
+    if (!ai.startsWith("steer:") || !bi.startsWith("steer:")) return ReferenceMatch.Different
+    fun legacyIndex(id: String): Int? = id.removePrefix("steer:").removePrefix("turn-")
+        .toIntOrNull()?.takeIf { id.startsWith("steer:turn-") && it >= 0 }
+    val aIndex = legacyIndex(ai)
+    val bIndex = legacyIndex(bi)
+    if (aIndex != null && bIndex != null) return ReferenceMatch.Different
+    if (aIndex == null && bIndex == null) return ReferenceMatch.Different
+    val named = if (aIndex != null) b else a
+    val index = aIndex ?: requireNotNull(bIndex)
+    if (named.savedSteerIndex != null) return if (named.savedSteerIndex == index) ReferenceMatch.Same else ReferenceMatch.Different
+    return ReferenceMatch.Ambiguous
 }
 
 /** A report stays pending until the relay acknowledges this exact ID. */
@@ -54,28 +107,46 @@ internal fun reportOutsideIntakeWindow(report: AiResponseReport, now: Long): Boo
 internal class AiResponseReportQueue(private val dir: File) {
     constructor(context: Context) : this(File(context.filesDir, "ai-response-reports"))
 
-    fun save(reference: AiResponseReference, response: String, reason: String, note: String): AiResponseReport = synchronized(lock) {
+    fun save(reference: AiResponseReference, response: String, reason: String, note: String,
+        allowUnidentified: Boolean = false): AiResponseReport = synchronized(lock) {
         require(reason in setOf("offensive", "unsafe", "other"))
         require(response.isNotBlank())
-        find(reference)?.let { return@synchronized it }
+        find(reference, allowUnidentified)?.let { return@synchronized it }
         val report = AiResponseReport(UUID.randomUUID().toString(), reference, response.take(MAX_RESPONSE), reason,
             note.trim().take(MAX_NOTE), System.currentTimeMillis())
         write(report)
         report
     }
 
-    fun get(id: String): AiResponseReport? = synchronized(lock) { all().firstOrNull { it.id == id } }
-
-    // Prefer an acknowledgement if older versions left multiple reports for the same response.
-    fun find(reference: AiResponseReference): AiResponseReport? = synchronized(lock) {
-        val scan = scan()
-        check(reference !in scan.damagedReferences)
-        val matches = scan.reports.filter { it.reference == reference }
-        matches.firstOrNull { it.status == "acknowledged" } ?: matches.firstOrNull()
+    fun get(id: String, allowUnidentified: Boolean = false): AiResponseReport? = synchronized(lock) {
+        all(allowUnidentified).firstOrNull { it.id == id }
     }
 
-    fun recordAttempt(id: String, result: ReportDeliveryResult, now: Long): AiResponseReport = synchronized(lock) {
-        val old = requireNotNull(get(id))
+    // Prefer an acknowledgement if older versions left multiple reports for the same response.
+    fun find(reference: AiResponseReference, allowUnidentified: Boolean = false): AiResponseReport? = synchronized(lock) {
+        val scan = scan()
+        if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
+        check(scan.damagedReferences.none { compareReferences(it, reference) != ReferenceMatch.Different })
+        val comparisons = scan.reports.map { it to compareReferences(it.reference, reference) }
+        if (comparisons.any { it.second == ReferenceMatch.Ambiguous }) throw AmbiguousReportReferenceException()
+        val matches = comparisons.filter { it.second == ReferenceMatch.Same }.map { it.first }
+        val steerId = reference.answerId?.takeIf { it.startsWith("steer:") }?.removePrefix("steer:")
+            ?: reference.messageKey.takeIf { it.startsWith("a") }?.substringAfter('-', "")
+        if (reference.runId == null && (steerId.isNullOrEmpty() || steerId.startsWith("turn-")) && matches.size > 1)
+            throw AmbiguousReportReferenceException()
+        // Keep the evidence and ID, and add the proven stable identity for future background delivery.
+        val promoted = matches.map { report ->
+            val updated = if (reference.answerId == null) report else report.copy(reference = report.reference.copy(
+                answerId = reference.answerId, savedSteerIndex = report.reference.savedSteerIndex ?: reference.savedSteerIndex))
+            if (updated != report) write(updated)
+            updated
+        }
+        promoted.firstOrNull { it.status == "acknowledged" } ?: promoted.firstOrNull()
+    }
+
+    fun recordAttempt(id: String, result: ReportDeliveryResult, now: Long,
+        allowUnidentified: Boolean = false): AiResponseReport = synchronized(lock) {
+        val old = requireNotNull(get(id, allowUnidentified))
         if (old.status == "acknowledged") return@synchronized old
         val attempts = old.attempts + 1
         val updated = when (result) {
@@ -89,8 +160,8 @@ internal class AiResponseReportQueue(private val dir: File) {
         updated
     }
 
-    fun retry(id: String): AiResponseReport = synchronized(lock) {
-        val old = requireNotNull(get(id))
+    fun retry(id: String, allowUnidentified: Boolean = false): AiResponseReport = synchronized(lock) {
+        val old = requireNotNull(get(id, allowUnidentified))
         if (old.status == "acknowledged") old
         else old.copy(status = "queued_local", attempts = 0, nextAttemptAtMs = 0).also(::write)
     }
@@ -110,22 +181,25 @@ internal class AiResponseReportQueue(private val dir: File) {
         }
     }
 
-    fun all(): List<AiResponseReport> = synchronized(lock) {
+    fun all(allowUnidentified: Boolean = false): List<AiResponseReport> = synchronized(lock) {
         val scan = scan()
-        scan.reports.filterNot { it.reference in scan.damagedReferences }
+        if (scan.unidentified && !allowUnidentified) throw UnidentifiedReportException()
+        scan.reports.filterNot { report -> scan.damagedReferences.any { compareReferences(it, report.reference) != ReferenceMatch.Different } }
     }
 
-    private data class Scan(val reports: List<AiResponseReport>, val damagedReferences: Set<AiResponseReference>)
+    private data class Scan(val reports: List<AiResponseReport>, val damagedReferences: Set<AiResponseReference>, val unidentified: Boolean)
 
     // A damaged record with no readable reference could be an acknowledged duplicate of any
     // report. Fail closed in that case; a known reference only blocks reports for that response.
     private fun scan(): Scan {
-        if (!dir.exists()) return Scan(emptyList(), emptySet())
+        if (!dir.exists()) return Scan(emptyList(), emptySet(), false)
         require(dir.isDirectory)
         val reports = mutableListOf<AiResponseReport>()
         val damaged = mutableSetOf<AiResponseReference>()
+        var unidentified = false
         for (file in requireNotNull(dir.listFiles { file -> file.extension == "json" })) {
-            val json = Json.parseToJsonElement(file.readText()) as JsonObject
+            val json = runCatching { Json.parseToJsonElement(file.readText()) as JsonObject }.getOrNull()
+            if (json == null) { unidentified = true; continue }
             val report = runCatching {
                 parseReport(json).also {
                     require(it.id == file.nameWithoutExtension && UUID.fromString(it.id).toString() == it.id)
@@ -135,14 +209,16 @@ internal class AiResponseReportQueue(private val dir: File) {
                 }
             }.getOrNull()
             if (report != null) reports += report
-            else damaged += parseReference(json)
+            else runCatching { parseReference(json) }.onSuccess { damaged += it }.onFailure { unidentified = true }
         }
-        return Scan(reports.sortedWith(compareBy({ it.createdAtMs }, { it.id })), damaged)
+        return Scan(reports.sortedWith(compareBy({ it.createdAtMs }, { it.id })), damaged, unidentified)
     }
 
     private fun AiResponseReport.toJson() = buildJsonObject {
         put("id", id); put("conversationId", reference.conversationId); put("runId", reference.runId)
         put("messageKey", reference.messageKey); put("response", response); put("reason", reason)
+        reference.answerId?.let { put("answerId", it) }
+        reference.savedSteerIndex?.let { put("savedSteerIndex", it) }
         put("note", note); put("createdAtMs", createdAtMs); put("status", status)
         put("attempts", attempts); put("nextAttemptAtMs", nextAttemptAtMs)
         put("acknowledgedAtMs", acknowledgedAtMs); put("deletionReceipt", deletionReceipt)
@@ -156,7 +232,9 @@ internal class AiResponseReportQueue(private val dir: File) {
         }
         val run = requireNotNull(o["runId"])
         val runId = if (run is JsonNull) null else text("runId")
-        return AiResponseReference(text("conversationId"), runId, text("messageKey"))
+        val index = (o["savedSteerIndex"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+        val answerId = (o["answerId"] as? JsonPrimitive)?.contentOrNull
+        return AiResponseReference(text("conversationId"), runId, text("messageKey"), answerId, index)
     }
 
     private fun parseReport(o: JsonObject): AiResponseReport {

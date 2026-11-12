@@ -742,6 +742,33 @@ class ChatViewModelTest {
         assertEquals(id, vm.ui.value.conversationId)
     }
 
+    @Test fun rebuiltConversationKeepsSteerIdsAndLegacyTurnsUseIndexes() = runTest {
+        val store = ConversationStore(tmp.newFolder())
+        val conversation = store.newConversation()
+        store.append(conversation, Turn("q", "final", "succeeded", runId = "run-new",
+            steers = listOf("one", "two"), finishedReplies = listOf("same", "same"),
+            steerIds = listOf("uuid-one", "uuid-two")))
+        store.append(conversation, Turn("old", "final", "succeeded", runId = "run-old",
+            steers = listOf("one", "two"), finishedReplies = listOf("same", "same")))
+        val queue = AiResponseReportQueue(tmp.newFolder())
+        val existing = queue.save(AiResponseReference(conversation, "run-new", "a9-uuid-one"), "same", "other", "")
+        queue.recordAttempt(existing.id, ReportDeliveryResult.Acknowledged(null), 10)
+        val vm = vm(store)
+        vm.openConversation(conversation)
+        val exchanges = vm.ui.value.exchanges
+        assertEquals(listOf("uuid-one", "uuid-two"), exchanges[0].steers.map { it.id })
+        assertEquals(listOf("turn-0", "turn-1"), exchanges[1].steers.map { it.id })
+        assertEquals(listOf(0, 1), exchanges[0].steers.map { it.savedIndex })
+        val first = requireNotNull(aiResponseReference(conversation, exchanges, "a0-uuid-one"))
+        val second = requireNotNull(aiResponseReference(conversation, exchanges, "a0-uuid-two"))
+        assertEquals(existing.id, queue.find(first)?.id)
+        assertEquals("acknowledged", queue.find(first)?.status)
+        assertNull(queue.find(second))
+        vm.newConversation()
+        vm.openConversation(conversation)
+        assertEquals(existing.id, queue.find(requireNotNull(aiResponseReference(conversation, vm.ui.value.exchanges, "a0-uuid-one")))?.id)
+    }
+
     @Test fun confirmationCardShowsButtons() = runTest {
         val vm = vm()
         assertTrue(vm.send("给张三发明天见", ok))

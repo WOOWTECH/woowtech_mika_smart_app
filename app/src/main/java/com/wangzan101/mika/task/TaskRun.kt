@@ -426,6 +426,8 @@ class TaskRun(
 
     fun joinedSteers(): List<String> = joined().map { it.text }
 
+    fun joinedNotes(): List<SteerNote> = joined()
+
     /** 和 [joinedSteers] 一一对应:每句插话打断的那段回复,没打断的是空串。 */
     fun joinedInterrupted(): List<String> = joined().map { it.interrupted.orEmpty() }
 

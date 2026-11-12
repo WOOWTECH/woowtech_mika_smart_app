@@ -43,18 +43,30 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
     var failed by remember(reference) { mutableStateOf(false) }
     var loading by remember(reference) { mutableStateOf(true) }
     var loadFailed by remember(reference) { mutableStateOf(false) }
+    var ambiguous by remember(reference) { mutableStateOf(false) }
+    var unidentified by remember(reference) { mutableStateOf(false) }
+    var allowUnidentified by remember(reference) { mutableStateOf(false) }
     var loadVersion by remember(reference) { mutableStateOf(0) }
     LaunchedEffect(reference, loadVersion) {
         loading = true
-        val result = withContext(Dispatchers.IO) { runCatching { queue.find(reference) } }
-        result.onSuccess { savedReport = it; loadFailed = false }.onFailure { loadFailed = true }
+        if (reference.runId == null && reference.answerId == null) {
+            loadFailed = true
+            loading = false
+            return@LaunchedEffect
+        }
+        val result = withContext(Dispatchers.IO) { runCatching { queue.find(reference, allowUnidentified) } }
+        result.onSuccess { savedReport = it; loadFailed = false; ambiguous = false; unidentified = false }.onFailure {
+            loadFailed = true
+            ambiguous = it is AmbiguousReportReferenceException
+            unidentified = it is UnidentifiedReportException
+        }
         loading = false
     }
-    LaunchedEffect(savedReport?.id) {
+    LaunchedEffect(savedReport?.id, allowUnidentified) {
         val id = savedReport?.id ?: return@LaunchedEffect
         while (true) {
             delay(5_000)
-            val result = withContext(Dispatchers.IO) { runCatching { queue.get(id) } }
+            val result = withContext(Dispatchers.IO) { runCatching { queue.get(id, allowUnidentified) } }
             if (!saving) result.getOrNull()?.let { savedReport = it }
         }
     }
@@ -72,7 +84,13 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
                 Text(stringResource(R.string.chat_report_reference, reference.runId ?: reference.conversationId, reference.messageKey))
                 Text(response.take(300), maxLines = 5, overflow = TextOverflow.Ellipsis)
                 if (loading) Text(stringResource(R.string.chat_report_loading))
-                if (loadFailed) Text(stringResource(R.string.chat_report_load_failed))
+                if (loadFailed) Text(stringResource(when {
+                    reference.runId == null && reference.answerId == null -> R.string.chat_report_no_identity
+                    unidentified -> R.string.chat_report_unidentified
+                    ambiguous -> R.string.chat_report_ambiguous
+                    else -> R.string.chat_report_load_failed
+                }))
+                if (allowUnidentified) Text(stringResource(R.string.chat_report_continue_notice))
                 if (!loading && !loadFailed && savedReport == null) {
                     reasons.forEach { (id, label) ->
                         FilterChip(selected = reason == id, onClick = { reason = id }, label = { Text(label) }, enabled = !saving)
@@ -91,23 +109,37 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
             }
         },
         confirmButton = {
-            if (loadFailed && !loading) TextButton(onClick = { loadVersion++ }) {
+            if (loadFailed && !loading && unidentified) TextButton(onClick = {
+                allowUnidentified = true
+                loadVersion++
+            }) { Text(stringResource(R.string.chat_report_continue_risk)) }
+            else if (loadFailed && !loading && (reference.runId != null || reference.answerId != null)) TextButton(onClick = { loadVersion++ }) {
                 Text(stringResource(R.string.chat_report_retry))
             }
-            else if (!loading && savedReport == null) TextButton(
+            else if (!loading && !loadFailed && savedReport == null) TextButton(
                 onClick = {
                     saving = true
                     failed = false
                     scope.launch {
-                        val result = withContext(Dispatchers.IO) { runCatching { queue.save(reference, response, reason, note) } }
+                        val result = withContext(Dispatchers.IO) { runCatching { queue.save(reference, response, reason, note, allowUnidentified) } }
                         result.onSuccess { report ->
                             savedReport = report
                             saving = false
                             runCatching {
-                                AiResponseReportDelivery.deliverDue(queue, AiResponseReportDelivery.sender(context.applicationContext))
-                                withContext(Dispatchers.IO) { queue.get(report.id) }
-                            }.getOrNull()?.let { savedReport = it }
-                        }.onFailure { failed = true; saving = false }
+                                val sender = AiResponseReportDelivery.sender(context.applicationContext)
+                                if (allowUnidentified) AiResponseReportDelivery.deliverOne(queue, sender, report.id)
+                                else {
+                                    AiResponseReportDelivery.deliverDue(queue, sender)
+                                    withContext(Dispatchers.IO) { queue.get(report.id) }
+                                }
+                            }.onSuccess { it?.let { report -> savedReport = report } }.onFailure {
+                                if (it is UnidentifiedReportException) { loadFailed = true; unidentified = true }
+                            }
+                        }.onFailure {
+                            if (it is UnidentifiedReportException) { loadFailed = true; unidentified = true }
+                            else failed = true
+                            saving = false
+                        }
                     }
                 }, enabled = !saving,
             ) { Text(stringResource(R.string.chat_report_submit)) }
@@ -118,8 +150,11 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
                     failed = false
                     scope.launch {
                         runCatching {
-                            AiResponseReportDelivery.retry(queue, AiResponseReportDelivery.sender(context.applicationContext), id)
-                        }.onSuccess { savedReport = it }.onFailure { failed = true }
+                            AiResponseReportDelivery.retry(queue, AiResponseReportDelivery.sender(context.applicationContext), id, allowUnidentified)
+                        }.onSuccess { savedReport = it }.onFailure {
+                            if (it is UnidentifiedReportException) { loadFailed = true; unidentified = true }
+                            else failed = true
+                        }
                         saving = false
                     }
                 }, enabled = !saving,

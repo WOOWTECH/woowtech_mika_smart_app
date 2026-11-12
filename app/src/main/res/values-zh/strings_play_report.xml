@@ -12,6 +12,11 @@
     <string name="chat_report_save_failed">无法保存举报，请重试。</string>
     <string name="chat_report_loading">正在查找已有举报…</string>
     <string name="chat_report_load_failed">无法读取已保存的举报，请重试。</string>
+    <string name="chat_report_ambiguous">无法确认先前的举报是否属于这条回复，因此不能在此新建举报。</string>
+    <string name="chat_report_no_identity">这条回复没有稳定的编号，无法安全识别它的举报。</string>
+    <string name="chat_report_unidentified">有一份旧举报无法读取，也无法确认属于哪条回复。继续可能重复发送开发者已收到的举报。要继续处理这条回复吗？</string>
+    <string name="chat_report_continue_risk">了解风险并继续</string>
+    <string name="chat_report_continue_notice">你已选择继续。如果尚未确认送达，请在此手动重试；无法读取的记录存在期间，其他举报不会自动发送。</string>
     <string name="chat_report_pending">等待发送。编号：%1$s</string>
     <string name="chat_report_acknowledged">开发者已收到。编号：%1$s</string>
     <string name="chat_report_needs_retry">尚未确认送达。编号：%1$s</string>
