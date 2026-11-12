@@ -223,6 +223,69 @@ enum SkillsCoreFixtures {
         return c.count
     }
 
+    static func sharingRoundTrip() throws -> Int {
+        var c = Checks()
+        for language in 0..<3 {
+            var raw = markdown("share-example", extra: "display: Share Example\naliases: [notes, summary]\nupdates: private-target\nlearned_from: private-run\nsource: user")
+            for aliases in SkillDocument.sectionAliases {
+                let translated = language == 0 ? aliases[0] : (language == 1 ? aliases.last! : aliases[min(1, aliases.count - 1)])
+                raw = raw.replacingOccurrences(of: "## \(aliases[0])", with: "## \(translated) — detail")
+            }
+            // Headings inside fenced source are data and must never be translated.
+            raw += "\n````markdown\n## Steps\n```\n## When to stop\n````\n~~~text\n## 步驟\n~~~"
+            var source = SkillsState()
+            let installed = try install(raw, into: &source)
+            let original = source
+            let internalReference = try source.exportMarkdown(name: installed.name)
+            let shared = try source.exportForSharing(name: installed.name)
+            try c.expect(source == original && source.installed.first == installed, "sharing leaves installed data and history unchanged")
+            try c.expect(internalReference.contains("## Steps\n```") && internalReference == (try source.exportMarkdown(name: installed.name)),
+                         "internal references remain separate from the external share")
+            try c.expect(!shared.contains("source:") && !shared.contains("learned_from:") && !shared.contains("updates:") &&
+                         shared.contains("display: Share Example") && shared.contains("aliases: [notes, summary]"),
+                         "only local metadata is removed")
+            try c.expect(shared.contains("````markdown\n## Steps\n```\n## When to stop\n````") &&
+                         shared.contains("~~~text\n## 步驟\n~~~"), "fenced code stays byte-for-byte intact")
+            let headings = shared.components(separatedBy: "\n").filter { $0.hasPrefix("## ") }
+                .map { $0.dropFirst(3).trimmingCharacters(in: .whitespaces) }
+            try c.expect(SkillDocument.sectionAliases.allSatisfy { aliases in
+                headings.contains { $0.hasPrefix(aliases[0]) && $0.hasSuffix(" — detail") }
+            }, "shared headings match Android's five required section prefixes and keep suffixes")
+            var recipient = SkillsState()
+            let pending = try recipient.importMarkdown(shared, availableToolNames: [])
+            try c.expect(pending.source == .imported && recipient.installed.isEmpty && recipient.pending.count == 1,
+                         "actual shared text imports only as pending")
+            try c.expect(pending.document.name == installed.name && pending.document.description == installed.document.description &&
+                         pending.document.frontMatter["display"] == installed.document.frontMatter["display"] &&
+                         pending.document.frontMatter["aliases"] == installed.document.frontMatter["aliases"],
+                         "name, description and public metadata survive import")
+            let approved = try recipient.approveDraft(id: pending.id, availableToolNames: [])
+            try c.expect(approved.status == .trial && approved.outcomes.isEmpty &&
+                         (try recipient.exportForSharing(name: approved.name)) == shared,
+                         "approval stays trial and export-import-export is stable")
+        }
+        var caseState = SkillsState()
+        let mixedCase = markdown("case-example").replacingOccurrences(of: "## 步骤", with: "##   sTePs suffix")
+        _ = try install(mixedCase, into: &caseState)
+        let text = try caseState.exportForSharing(name: "case-example")
+        try c.expect(text.contains("##   步骤 suffix"), "case-insensitive accepted headings retain whitespace and suffix")
+        try c.expect(try caseState.exportMarkdown(name: "case-example").contains("##   sTePs suffix"),
+                     "internal skill reference retains the original heading")
+        var delimiterState = SkillsState()
+        let indentedDelimiter = markdown("delimiter-example").replacingOccurrences(of: "---\n## 入口", with: "  ---  \n## 入口")
+        _ = try install(indentedDelimiter, into: &delimiterState)
+        let delimiterShare = try delimiterState.exportForSharing(name: "delimiter-example")
+        try c.expect(delimiterShare.contains("\n---\n## 入口") &&
+                     (try delimiterState.exportMarkdown(name: "delimiter-example")).contains("  ---  \n## 入口"),
+                     "Android delimiter syntax is normalized only in the share")
+        var delimiterRecipient = SkillsState()
+        let importedDelimiter = try delimiterRecipient.importMarkdown(delimiterShare, availableToolNames: [])
+        try c.expect(importedDelimiter.name == "delimiter-example" && delimiterRecipient.installed.isEmpty,
+                     "normalized external share is accepted as an unapproved import")
+        try c.error(.notFound, "cannot share a missing skill") { _ = try caseState.exportForSharing(name: "absent") }
+        return c.count
+    }
+
     static func deletionReview() throws -> Int {
         var checks = Checks()
         var state = SkillsState()

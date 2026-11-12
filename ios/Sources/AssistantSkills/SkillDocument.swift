@@ -145,6 +145,48 @@ public struct SkillDocument: Codable, Equatable, Sendable {
         try replacingLocalFields(markdown, source: nil)
     }
 
+    /// Android's importer currently recognizes the five original simplified
+    /// Chinese section names, while iOS also accepts translated aliases.
+    /// Convert only real heading lines in the external share representation;
+    /// leave stored documents, code blocks and internal references unchanged.
+    static func shareableForAndroidImport(_ markdown: String) throws -> String {
+        var lines = try shareable(markdown).components(separatedBy: "\n")
+        guard let end = closingDelimiter(lines) else { throw SkillsError.invalidFrontMatter }
+        // iOS accepts indentation around this delimiter; Android's parser
+        // accepts trailing whitespace only. The delimiter is syntax, not data.
+        lines[end] = "---"
+        var fence: (character: Character, count: Int)?
+        for index in lines.indices.dropFirst(end + 1) {
+            let line = lines[index]
+            let indent = line.prefix(while: { $0 == " " }).count
+            if indent <= 3 {
+                let rest = line.dropFirst(indent)
+                if let character = rest.first, character == "`" || character == "~" {
+                    let count = rest.prefix(while: { $0 == character }).count
+                    if count >= 3 {
+                        if let open = fence {
+                            if open.character == character, count >= open.count,
+                               rest.dropFirst(count).trimmingCharacters(in: .whitespaces).isEmpty { fence = nil }
+                        } else { fence = (character, count) }
+                        continue
+                    }
+                }
+            }
+            guard fence == nil, line.hasPrefix("## ") else { continue }
+            let content = line.dropFirst(3)
+            let whitespace = content.prefix(while: { $0.isWhitespace })
+            let title = content.dropFirst(whitespace.count)
+            for aliases in sectionAliases {
+                guard let match = aliases.compactMap({ alias in
+                    title.range(of: alias, options: [.anchored, .caseInsensitive])
+                }).first else { continue }
+                lines[index] = "## " + whitespace + aliases[0] + title[match.upperBound...]
+                break
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     static func replacingField(_ markdown: String, key: String, value: String) throws -> String {
         let lines = normalize(markdown).components(separatedBy: "\n")
         guard lines.first == "---", let end = closingDelimiter(lines) else { throw SkillsError.invalidFrontMatter }

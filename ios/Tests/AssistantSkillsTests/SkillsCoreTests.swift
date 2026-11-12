@@ -4,6 +4,7 @@ import XCTest
 final class SkillsCoreTests: XCTestCase {
     func testDocumentsAndValidation() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.documents(), 0) }
     func testReviewAndOptimisticRevisions() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.reviewAndRevisions(), 0) }
+    func testSharedSkillExportCanBeImportedWithoutChangingTheOriginal() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.sharingRoundTrip(), 0) }
     func testConfirmedSkillDeletionRejectsStaleSelection() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.deletionReview(), 0) }
     func testOutcomeLifecycle() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.outcomeLifecycle(), 0) }
     func testTrustedJudgementAndLearningGates() throws { XCTAssertGreaterThan(try SkillsCoreFixtures.learningGates(), 0) }

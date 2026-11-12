@@ -126,6 +126,17 @@ enum SkillLearningFixtures {
         try c.expect(!exported.contains("learned_from") && !exported.contains("source:"), "learned export strips provenance")
         try c.expect(!exported.contains(runID), "export never includes the runtime run UUID")
         try c.expect(try restored.exportMarkdown(name: approved.name) == exported, "reloaded export strips the same local fields")
+        let actualShare = try restored.exportForSharing(name: approved.name)
+        try c.expect(!actualShare.contains("learned_from") && !actualShare.contains("source:") && !actualShare.contains(runID),
+                     "actual learned-skill share contains no trusted provenance")
+        var shareRecipient = SkillsState()
+        let shareDraft = try shareRecipient.importMarkdown(actualShare, availableToolNames: tools)
+        try c.expect(shareDraft.source == .imported && shareDraft.document.localProvenance == nil && shareRecipient.installed.isEmpty,
+                     "learned skill returns from external share as untrusted pending import")
+        let shareApproval = try shareRecipient.approveDraft(id: shareDraft.id, availableToolNames: tools)
+        try c.expect(shareApproval.status == .trial && shareApproval.outcomes.isEmpty &&
+                     (try shareRecipient.exportForSharing(name: shareApproval.name)) == actualShare,
+                     "shared learned skill requires approval and remains a trial on re-export")
 
         // Exercise both review entry points. Neither a forged UUID nor deleting
         // the metadata in the editor can replace the original draft's provenance.

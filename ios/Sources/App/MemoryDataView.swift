@@ -590,7 +590,7 @@ struct MemoryDataView: View {
                 Button(copy.text(.viewFullText)) { sheet = .fullText(skillTitle(skill.document), skill.markdown) }
                     .accessibilityIdentifier("skills.fullText.\(skill.name)")
                     .memoryActionPill(palette)
-                if let shared = try? store.skills.exportMarkdown(name: skill.name) {
+                if let shared = try? store.skills.exportForSharing(name: skill.name) {
                     ShareLink(item: shared, subject: Text(skillTitle(skill.document))) { Text(copy.text(.share)) }
                         .accessibilityIdentifier("skills.share.\(skill.name)")
                         .memoryActionPill(palette)

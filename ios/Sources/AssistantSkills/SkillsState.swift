@@ -148,6 +148,13 @@ public struct SkillsState: Codable, Equatable, Sendable {
         return try SkillDocument.shareable(skill.markdown)
     }
 
+    /// ShareLink uses the Android-compatible external representation. The
+    /// existing export remains unchanged for internal skill references.
+    public func exportForSharing(name: String) throws -> String {
+        guard let skill = installed.first(where: { $0.name == name }) else { throw SkillsError.notFound }
+        return try SkillDocument.shareableForAndroidImport(skill.markdown)
+    }
+
     @discardableResult
     public mutating func recordOutcome(name: String, evidence: SkillRunEvidence) throws -> SkillResult? {
         guard let index = installed.firstIndex(where: { $0.name == name }) else { throw SkillsError.notFound }
