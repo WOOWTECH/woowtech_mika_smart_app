@@ -644,263 +644,288 @@ private struct ChatView: View {
         }
     }
 
-    var body: some View {
-        VStack(spacing: 12) {
-            if session.isUITestMode {
-                Text(verbatim: localizer.text(.chatFixtureNotice))
-                    .font(.caption)
-                    .accessibilityIdentifier("uitest.banner")
-            }
+    /// Notes, MCP switches and receipts above the transcript.
+    @ViewBuilder private var chatHeader: some View {
+        if session.isUITestMode {
+            Text(verbatim: localizer.text(.chatFixtureNotice))
+                .font(.caption)
+                .accessibilityIdentifier("uitest.banner")
+        }
 
-            LearningChatNotes(store: session.learning)
+        LearningChatNotes(store: session.learning)
 
-            if mcp.canUseInConversation || session.usesMCP {
-                Toggle("本次對話使用 MCP 工具", isOn: $session.usesMCP)
-                    .font(.callout)
-                    .disabled(session.isSubmitting)
-                    .accessibilityIdentifier("chat.useMCP")
-            }
-            if let activity = session.mcpActivity {
-                Text(activity).font(.caption)
-                    .accessibilityIdentifier("chat.mcpActivity")
-                    .accessibilityValue(session.mcpDiagnostics ?? "")
-            }
-            if session.profileReceipt != nil {
-                Text("本次對話曾儲存個人檔案；可到資料頁查看目前內容。")
-                    .font(.caption).accessibilityIdentifier("chat.profileReceipt")
-            }
-            if session.memoryReceipt != nil {
-                Text("本次對話曾儲存記憶修改；可在資料頁查看目前內容。")
-                    .font(.caption).accessibilityIdentifier("chat.memoryReceipt")
-            }
-            if !session.mcpSteps.isEmpty {
-                Button("檢視工具結果（\(session.mcpSteps.count)）") { showsMCPResults = true }
-                    .font(.caption).accessibilityIdentifier("chat.mcpResults")
-                    .disabled(session.isSubmitting)
-            }
+        if mcp.canUseInConversation || session.usesMCP {
+            Toggle("本次對話使用 MCP 工具", isOn: $session.usesMCP)
+                .font(.callout)
+                .disabled(session.isSubmitting)
+                .accessibilityIdentifier("chat.useMCP")
+        }
+        if let activity = session.mcpActivity {
+            Text(activity).font(.caption)
+                .accessibilityIdentifier("chat.mcpActivity")
+                .accessibilityValue(session.mcpDiagnostics ?? "")
+        }
+        if session.profileReceipt != nil {
+            Text("本次對話曾儲存個人檔案；可到資料頁查看目前內容。")
+                .font(.caption).accessibilityIdentifier("chat.profileReceipt")
+        }
+        if session.memoryReceipt != nil {
+            Text("本次對話曾儲存記憶修改；可在資料頁查看目前內容。")
+                .font(.caption).accessibilityIdentifier("chat.memoryReceipt")
+        }
+        if !session.mcpSteps.isEmpty {
+            Button("檢視工具結果（\(session.mcpSteps.count)）") { showsMCPResults = true }
+                .font(.caption).accessibilityIdentifier("chat.mcpResults")
+                .disabled(session.isSubmitting)
+        }
+    }
 
-            GeometryReader { viewport in
-              ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16) {
-                        if session.entries.isEmpty && session.replyPreview == nil {
-                            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
-                        }
-                        if !session.hasStoredKey {
-                            Text(verbatim: localizer.text(.chatModelSetupHint))
-                                .foregroundStyle(.secondary)
-                                .accessibilityIdentifier("chat.explanation")
-                        }
-                        ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                            messageRow(index: index, entry: entry)
-                        }
-                        if let preview = session.replyPreview {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
-                                    .accessibilityIdentifier("chat.partialStatus")
-                                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
-                                    .font(.system(size: 15.5)).lineSpacing(4)
-                                    .foregroundStyle(palette.ink).textSelection(.enabled)
-                                    .accessibilityIdentifier("chat.partialReply")
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 14).padding(.vertical, 12)
-                                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .id(preview.id)
-                        }
-                        Color.clear.frame(height: 1).id("chat.transcript.tail")
-                    }
-                    .padding(.vertical, 4)
-                    .background {
-                        GeometryReader { content in
-                            Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
-                                value: ChatTranscriptViewport(
-                                    contentHeight: Double(content.size.height),
-                                    bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY),
-                                    viewportHeight: Double(viewport.size.height)))
-                        }
-                    }
+    private func transcriptContent(viewportHeight: Double) -> some View {
+        LazyVStack(alignment: .leading, spacing: 16) {
+            if session.entries.isEmpty && session.replyPreview == nil {
+                ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+            }
+            if !session.hasStoredKey {
+                Text(verbatim: localizer.text(.chatModelSetupHint))
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("chat.explanation")
+            }
+            ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+                messageRow(index: index, entry: entry)
+            }
+            if let preview = session.replyPreview {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("chat.partialStatus")
+                    Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
+                        .font(.system(size: 15.5)).lineSpacing(4)
+                        .foregroundStyle(palette.ink).textSelection(.enabled)
+                        .accessibilityIdentifier("chat.partialReply")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14).padding(.vertical, 12)
+                        .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
                 }
-                .coordinateSpace(name: "chat.transcript.viewport")
-                .accessibilityIdentifier("chat.transcript")
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                // A simultaneous drag observes scrolling without taking the
-                // long-press/text-selection gesture away from selectable Text.
-                .simultaneousGesture(DragGesture(minimumDistance: 5)
-                    .onChanged { drag in
-                        scrollFollow.beginDrag()
-                        if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
-                        if drag.translation.height < -4 { scrollFollow.userDraggedTowardLatestContent() }
-                    }
-                    .onEnded { _ in
-                        scrollFollow.endDrag()
-                        scheduleScrollSettle()
-                    })
-                .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
-                    guard let position else { return }
-                    if scrollFollow.observe(position) {
-                        proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
-                    }
-                    scheduleScrollSettle()
-                }
-                .onChange(of: session.conversationID) { _, _ in
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .id(preview.id)
+            }
+            Color.clear.frame(height: 1).id("chat.transcript.tail")
+        }
+        .padding(.vertical, 4)
+        .background {
+            GeometryReader { content in
+                Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
+                    value: ChatTranscriptViewport(
+                        contentHeight: Double(content.size.height),
+                        bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY),
+                        viewportHeight: viewportHeight))
+            }
+        }
+    }
+
+    private func transcriptScroll(proxy: ScrollViewProxy, viewportHeight: Double) -> some View {
+        ScrollView {
+            transcriptContent(viewportHeight: viewportHeight)
+        }
+        .coordinateSpace(name: "chat.transcript.viewport")
+        .accessibilityIdentifier("chat.transcript")
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // A simultaneous drag observes scrolling without taking the
+        // long-press/text-selection gesture away from selectable Text.
+        .simultaneousGesture(DragGesture(minimumDistance: 5)
+            .onChanged { drag in
+                scrollFollow.beginDrag()
+                if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
+                if drag.translation.height < -4 { scrollFollow.userDraggedTowardLatestContent() }
+            }
+            .onEnded { _ in
+                scrollFollow.endDrag()
+                scheduleScrollSettle()
+            })
+        .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
+            guard let position else { return }
+            if scrollFollow.observe(position) {
+                proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+            }
+            scheduleScrollSettle()
+        }
+        .onChange(of: session.conversationID) { _, _ in
+            cancelScrollSettle()
+            scrollFollow.conversationChanged()
+            proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+        }
+        .onChange(of: session.isSubmitting) { _, submitting in
+            guard submitting else { return }
+            cancelScrollSettle()
+            scrollFollow.userSubmitted()
+            proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+        }
+        .onChange(of: scrollToTailRequest) { _, _ in
+            proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !scrollFollow.followsTail {
+                Button {
                     cancelScrollSettle()
-                    scrollFollow.conversationChanged()
-                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                    scrollFollow.userRequestedLatest()
+                    scrollToTailRequest += 1
+                } label: {
+                    Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
                 }
-                .onChange(of: session.isSubmitting) { _, submitting in
-                    guard submitting else { return }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accent)
+                .accessibilityIdentifier("chat.returnToLatest")
+                .padding(12)
+            }
+        }
+    }
+
+    private var transcript: some View {
+        GeometryReader { viewport in
+            ScrollViewReader { proxy in
+                transcriptScroll(proxy: proxy, viewportHeight: Double(viewport.size.height))
+            }
+        }
+    }
+
+    /// Errors, notices, voice status and the send-blocked card above the composer.
+    @ViewBuilder private var chatStatus: some View {
+        if let error = session.chatError {
+            Text(error)
+                .font(.callout)
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("chat.error")
+        }
+        if let notice = session.chatNotice {
+            Text(notice)
+                .font(.callout)
+                .accessibilityIdentifier("chat.notice")
+        }
+        if let notice = session.archiveNotice {
+            Text(notice).font(.callout).foregroundStyle(.orange)
+                .accessibilityIdentifier("chat.archiveNotice")
+            if session.canRetryArchiveSave {
+                Button("重試保存") { session.retryArchiveSave() }
+                    .accessibilityIdentifier("chat.archiveRetry")
+            }
+        }
+        #if DEBUG
+        if VoiceUITestFixture.selected() != nil {
+            VStack {
+                Text(verbatim: voiceFixture.observation)
+                    .accessibilityIdentifier("voice.fixture.observation")
+                HStack {
+                    Button("Emit") { voiceFixture.emitLatest() }
+                        .accessibilityIdentifier("voice.fixture.emit")
+                    Button("AX") { _ = voiceFixture.activateAccessibility?() }
+                        .accessibilityIdentifier("voice.fixture.accessibility")
+                    Button("Cancel AX") { voiceFixture.performAccessibilityCancel() }
+                        .accessibilityIdentifier("voice.fixture.cancelAccessibility")
+                }
+                if !voiceFixture.accessibilityAction.isEmpty {
+                    Text(verbatim: voiceFixture.accessibilityAction)
+                        .accessibilityIdentifier("voice.fixture.actionName")
+                }
+            }.font(.caption2)
+        }
+        #endif
+        if let message = voiceMessage {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: localizer.text(message))
+                    if case .listening(let partial, _, _) = voice.state, !partial.isEmpty {
+                        Text(verbatim: partial).lineLimit(2)
+                    }
+                }
+                .font(.caption)
+                .accessibilityIdentifier("chat.voice.status")
+                Spacer(minLength: 0)
+                if voice.state == .failed(.microphoneDenied) || voice.state == .failed(.speechDenied) {
+                    Button(localizer.text(.voiceSettings)) {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
+                    .font(.caption)
+                    .accessibilityIdentifier("chat.voice.settings")
+                }
+            }
+        }
+        if session.shownSendBlocker != nil {
+            ChatSendBlockedCard(palette: palette, localizer: localizer,
+                                dismiss: { session.dismissSendBlocker() },
+                                openSettings: {
+                                    session.dismissSendBlocker()
+                                    isEditingDraft = false
+                                    openSettings()
+                                })
+        }
+    }
+
+    private var composer: some View {
+        HStack(alignment: .bottom, spacing: 4) {
+            attachToggle
+            // Return adds a line; the keyboard toolbar Done closes editing without sending.
+            TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
+                .lineLimit(1...5)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+                .focused($isEditingDraft)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+                .disabled(session.isSubmitting)
+                .accessibilityLabel(localizer.text(.shellMessageDraft))
+                .accessibilityIdentifier("chat.draft")
+            ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
+                                  cancelLabel: localizer.text(.voiceAccessibilityCancel),
+                                  active: voice.isActive, enabled: !session.isSubmitting,
+                                  begin: { time in isEditingDraft = false; voice.begin(startedAt: time) },
+                                  drag: { voice.drag($0) }, release: { voice.release() },
+                                  cancel: { voice.cancel() })
+                .frame(width: 40, height: 40)
+            if session.isSubmitting {
+                Button { session.cancel() } label: {
+                    Image(systemName: "stop.fill").frame(width: 40, height: 40)
+                }
+                .accessibilityLabel(localizer.text(.shellStop))
+                .accessibilityIdentifier("chat.cancel")
+            }
+            Button {
+                voice.cancel()
+                isEditingDraft = false
+                showsAttachPanel = false
+                session.attemptSend(mcp: session.usesMCP ? mcp : nil)
+                if session.isSubmitting {
+                    // Only an accepted send restores follow.
                     cancelScrollSettle()
                     scrollFollow.userSubmitted()
-                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
+                    scrollToTailRequest += 1
                 }
-                .onChange(of: scrollToTailRequest) { _, _ in
-                    proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    if !scrollFollow.followsTail {
-                        Button {
-                            cancelScrollSettle()
-                            scrollFollow.userRequestedLatest()
-                            scrollToTailRequest += 1
-                        } label: {
-                            Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(palette.accent)
-                        .accessibilityIdentifier("chat.returnToLatest")
-                        .padding(12)
-                    }
-                }
-              }
-            }
-
-            if let error = session.chatError {
-                Text(error)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("chat.error")
-            }
-            if let notice = session.chatNotice {
-                Text(notice)
-                    .font(.callout)
-                    .accessibilityIdentifier("chat.notice")
-            }
-            if let notice = session.archiveNotice {
-                Text(notice).font(.callout).foregroundStyle(.orange)
-                    .accessibilityIdentifier("chat.archiveNotice")
-                if session.canRetryArchiveSave {
-                    Button("重試保存") { session.retryArchiveSave() }
-                        .accessibilityIdentifier("chat.archiveRetry")
-                }
-            }
-            #if DEBUG
-            if VoiceUITestFixture.selected() != nil {
-                VStack {
-                    Text(verbatim: voiceFixture.observation)
-                        .accessibilityIdentifier("voice.fixture.observation")
-                    HStack {
-                        Button("Emit") { voiceFixture.emitLatest() }
-                            .accessibilityIdentifier("voice.fixture.emit")
-                        Button("AX") { _ = voiceFixture.activateAccessibility?() }
-                            .accessibilityIdentifier("voice.fixture.accessibility")
-                        Button("Cancel AX") { voiceFixture.performAccessibilityCancel() }
-                            .accessibilityIdentifier("voice.fixture.cancelAccessibility")
-                    }
-                    if !voiceFixture.accessibilityAction.isEmpty {
-                        Text(verbatim: voiceFixture.accessibilityAction)
-                            .accessibilityIdentifier("voice.fixture.actionName")
-                    }
-                }.font(.caption2)
-            }
-            #endif
-            if let message = voiceMessage {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(verbatim: localizer.text(message))
-                        if case .listening(let partial, _, _) = voice.state, !partial.isEmpty {
-                            Text(verbatim: partial).lineLimit(2)
-                        }
-                    }
-                    .font(.caption)
-                    .accessibilityIdentifier("chat.voice.status")
-                    Spacer(minLength: 0)
-                    if voice.state == .failed(.microphoneDenied) || voice.state == .failed(.speechDenied) {
-                        Button(localizer.text(.voiceSettings)) {
-                            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                        }
-                        .font(.caption)
-                        .accessibilityIdentifier("chat.voice.settings")
-                    }
-                }
-            }
-            if session.shownSendBlocker != nil {
-                ChatSendBlockedCard(palette: palette, localizer: localizer,
-                                    dismiss: { session.dismissSendBlocker() },
-                                    openSettings: {
-                                        session.dismissSendBlocker()
-                                        isEditingDraft = false
-                                        openSettings()
-                                    })
-            }
-            attachmentRows
-            HStack(alignment: .bottom, spacing: 4) {
-                attachToggle
-                // Return adds a line; the keyboard toolbar Done closes editing without sending.
-                TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .autocorrectionDisabled()
-                    .focused($isEditingDraft)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(1)
-                    .disabled(session.isSubmitting)
-                    .accessibilityLabel(localizer.text(.shellMessageDraft))
-                    .accessibilityIdentifier("chat.draft")
-                ChatVoicePressControl(label: localizer.text(.voiceLabel), hint: localizer.text(.voiceHint),
-                                      cancelLabel: localizer.text(.voiceAccessibilityCancel),
-                                      active: voice.isActive, enabled: !session.isSubmitting,
-                                      begin: { time in isEditingDraft = false; voice.begin(startedAt: time) },
-                                      drag: { voice.drag($0) }, release: { voice.release() },
-                                      cancel: { voice.cancel() })
+            } label: {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                     .frame(width: 40, height: 40)
-                if session.isSubmitting {
-                    Button { session.cancel() } label: {
-                        Image(systemName: "stop.fill").frame(width: 40, height: 40)
-                    }
-                    .accessibilityLabel(localizer.text(.shellStop))
-                    .accessibilityIdentifier("chat.cancel")
-                }
-                Button {
-                    voice.cancel()
-                    isEditingDraft = false
-                    showsAttachPanel = false
-                    session.attemptSend(mcp: session.usesMCP ? mcp : nil)
-                    if session.isSubmitting {
-                        // Only an accepted send restores follow. The observer
-                        // also covers sends launched from the PDF sheet.
-                        cancelScrollSettle()
-                        scrollFollow.userSubmitted()
-                        scrollToTailRequest += 1
-                    }
-                } label: {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
-                        .frame(width: 40, height: 40)
-                        .background(session.canAttemptSend ? palette.accent : palette.assistant, in: Circle())
-                }
-                .disabled(!session.canAttemptSend)
-                .accessibilityLabel(localizer.text(.shellSend))
-                .accessibilityIdentifier("chat.send")
+                    .background(session.canAttemptSend ? palette.accent : palette.assistant, in: Circle())
             }
-            .frame(minHeight: 52)
-            .layoutPriority(1)
-            .padding(6)
-            .background(palette.glass, in: Capsule())
-            .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+            .disabled(!session.canAttemptSend)
+            .accessibilityLabel(localizer.text(.shellSend))
+            .accessibilityIdentifier("chat.send")
+        }
+        .frame(minHeight: 52)
+        .layoutPriority(1)
+        .padding(6)
+        .background(palette.glass, in: Capsule())
+        .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+    }
+
+    private var photoPickerLimit: Int { max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count) }
+
+    private var chatColumn: some View {
+        VStack(spacing: 12) {
+            chatHeader
+            transcript
+            chatStatus
+            attachmentRows
+            composer
             attachPanel
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
@@ -917,69 +942,78 @@ private struct ChatView: View {
         // SwiftUI's keyboard safe area is ignored here; ChatKeyboardDock
         // reserves the draft keyboard's space instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .modifier(ChatAttachPresentations(
-            picker: $attachPicker, showsCamera: $showsCamera, preview: $attachmentPreview,
-            photoLimit: max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count),
-            add: { files in Task { await session.addAttachments(files) } },
-            loadingStarted: { session.attachmentsLoadingStarted() }))
-        .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
-        .onChange(of: showsAttachPanel) { _, open in
-            guard open else { return }
-            recentPhotos.refresh()
-            // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
-            if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
-        }
-        .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
-            MCPApprovalView(proposal: proposal,
-                            approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
-                            decline: { session.resolveMCPApproval(id: proposal.id, approved: false) })
-                .interactiveDismissDisabled()
-        }
-        .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
-        .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
-            UserProfileToolReviewView(review: review,
-                approve: { session.resolveProfileReview(id: review.id, approved: true) },
-                decline: { session.resolveProfileReview(id: review.id, approved: false) })
-                .interactiveDismissDisabled()
-        }
-        .sheet(item: Binding(get: { session.pendingMemoryReview }, set: { _ in })) { review in
-            MemoryToolReviewView(review: review,
-                approve: { session.resolveMemoryReview(id: review.id, approved: true) },
-                decline: { session.resolveMemoryReview(id: review.id, approved: false) })
-                .interactiveDismissDisabled()
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("完成") { isEditingDraft = false }
-                    .accessibilityIdentifier("chat.dismissKeyboard")
+    }
+
+    /// The attach pickers, Quick Look and the review sheets.
+    private var presentedChat: some View {
+        chatColumn
+            .modifier(ChatAttachPresentations(
+                picker: $attachPicker, showsCamera: $showsCamera, preview: $attachmentPreview,
+                photoLimit: photoPickerLimit,
+                add: { files in Task { await session.addAttachments(files) } },
+                loadingStarted: { session.attachmentsLoadingStarted() }))
+            .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
+            .onChange(of: showsAttachPanel) { _, open in
+                guard open else { return }
+                recentPhotos.refresh()
+                // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
+                if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
             }
-        }
-        .onChange(of: showsDrawer) { _, visible in
-            if visible { voice.cancel(); isEditingDraft = false }
-        }
-        .onChange(of: session.shownSendBlocker) { _, blocker in
-            // VoiceOver users hear why the tap did not send.
-            guard blocker != nil else { return }
-            UIAccessibility.post(notification: .announcement,
-                                 argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
-        }
-        .onAppear { voice.attach(session: session) }
-        .onDisappear { voice.cancel() }
-        .onChange(of: session.conversationID) { _, _ in voice.cancel() }
-        .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { voice.cancel(interrupted: true) }
-            // Photo access may have changed in Settings, as Android re-checks on return.
-            else if showsAttachPanel { recentPhotos.refresh() }
-        }
-        .task(id: voice.isActive) {
-            while voice.isActive && !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                guard !Task.isCancelled else { return }
-                voice.tick()
+            .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
+                MCPApprovalView(proposal: proposal,
+                                approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
+                                decline: { session.resolveMCPApproval(id: proposal.id, approved: false) })
+                    .interactiveDismissDisabled()
             }
-        }
+            .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
+            .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
+                UserProfileToolReviewView(review: review,
+                    approve: { session.resolveProfileReview(id: review.id, approved: true) },
+                    decline: { session.resolveProfileReview(id: review.id, approved: false) })
+                    .interactiveDismissDisabled()
+            }
+            .sheet(item: Binding(get: { session.pendingMemoryReview }, set: { _ in })) { review in
+                MemoryToolReviewView(review: review,
+                    approve: { session.resolveMemoryReview(id: review.id, approved: true) },
+                    decline: { session.resolveMemoryReview(id: review.id, approved: false) })
+                    .interactiveDismissDisabled()
+            }
+    }
+
+    var body: some View {
+        presentedChat
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") { isEditingDraft = false }
+                        .accessibilityIdentifier("chat.dismissKeyboard")
+                }
+            }
+            .onChange(of: showsDrawer) { _, visible in
+                if visible { voice.cancel(); isEditingDraft = false }
+            }
+            .onChange(of: session.shownSendBlocker) { _, blocker in
+                // VoiceOver users hear why the tap did not send.
+                guard blocker != nil else { return }
+                UIAccessibility.post(notification: .announcement,
+                                     argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
+            }
+            .onAppear { voice.attach(session: session) }
+            .onDisappear { voice.cancel() }
+            .onChange(of: session.conversationID) { _, _ in voice.cancel() }
+            .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { voice.cancel(interrupted: true) }
+                // Photo access may have changed in Settings, as Android re-checks on return.
+                else if showsAttachPanel { recentPhotos.refresh() }
+            }
+            .task(id: voice.isActive) {
+                while voice.isActive && !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    guard !Task.isCancelled else { return }
+                    voice.tick()
+                }
+            }
     }
 }
 
