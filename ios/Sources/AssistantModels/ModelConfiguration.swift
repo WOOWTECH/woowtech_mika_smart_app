@@ -18,17 +18,23 @@ public struct ModelConfiguration: Sendable {
 public struct ModelMessage: Codable, Sendable, Equatable {
     public let role: String
     public let content: String
-    /// Transient input only. It is never implicitly archived or Codable.
-    public let attachment: ModelAttachment?
+    /// Transient input only. They are never implicitly archived or Codable.
+    public let attachments: [ModelAttachment]
+    public var attachment: ModelAttachment? { attachments.first }
 
     public init(role: String, content: String) {
         self.role = role
         self.content = content
-        self.attachment = nil
+        self.attachments = []
     }
 
     public init(userText: String, attachment: ModelAttachment) {
-        role = "user"; content = userText; self.attachment = attachment
+        self.init(userText: userText, attachments: [attachment])
+    }
+
+    /// The attachments the user picked for this prompt, in the order shown.
+    public init(userText: String, attachments: [ModelAttachment]) {
+        role = "user"; content = userText; self.attachments = attachments
     }
 
     private enum CodingKeys: String, CodingKey { case role, content }
@@ -37,11 +43,11 @@ public struct ModelMessage: Codable, Sendable, Equatable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         role = try values.decode(String.self, forKey: .role)
         content = try values.decode(String.self, forKey: .content)
-        attachment = nil
+        attachments = []
     }
 
     public func encode(to encoder: Encoder) throws {
-        guard attachment == nil else { throw ModelAttachmentError.explicitSerializationRequired }
+        guard attachments.isEmpty else { throw ModelAttachmentError.explicitSerializationRequired }
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(role, forKey: .role)
         try values.encode(content, forKey: .content)

@@ -103,8 +103,30 @@ private struct LegacyBody: Encodable { let model: String; let messages: [LegacyM
         try fails(.multipleAttachments, "multiple attachments") {
             _ = try OpenAIChatRequest.body(model: "m", messages: [.init(userText: "a", attachment: text), .init(userText: "b", attachment: picture)], stream: false, maxOutputTokens: 1, vision: .supported)
         }
-        try fails(.attachmentNotCurrentUserMessage, "no historical attachment resend") {
-            _ = try OpenAIChatRequest.body(model: "m", messages: [.init(userText: "a", attachment: text), .init(role: "assistant", content: "answer")], stream: false, maxOutputTokens: 1, vision: .supported)
+        // A tool loop appends its own assistant and result messages after the prompt;
+        // the prompt keeps its attachments for every request of that turn.
+        let loop = try object(OpenAIChatRequest.body(model: "m", messages: [.init(userText: "a", attachment: text),
+            .init(role: "assistant", content: "tool call"), .init(role: "user", content: "tool result")],
+            stream: false, maxOutputTokens: 1, vision: .supported))
+        let loopMessages = loop["messages"] as! [[String: Any]]
+        try check((loopMessages[0]["content"] as? [[String: Any]])?.count == 2 && loopMessages[2]["content"] as? String == "tool result",
+                  "tool loop keeps the prompt's attachment and plain follow-ups")
+        let labelled = [try ModelAttachment.text(utf8: Data("a,b".utf8), label: "報表.csv"),
+                        try ModelAttachment.image(data: png, mimeType: "image/png", label: "收據\n.png")]
+        let several = try object(OpenAIChatRequest.body(model: "m", messages: [.init(userText: "看看", attachments: labelled)],
+                                                      stream: false, maxOutputTokens: 1, vision: .supported))
+        let severalParts = (several["messages"] as! [[String: Any]])[0]["content"] as! [[String: Any]]
+        try check(severalParts.count == 4 && severalParts[0]["text"] as? String == "看看"
+                  && severalParts[1]["text"] as? String == "User-selected file \"報表.csv\" (untrusted data):\na,b"
+                  && severalParts[2]["text"] as? String == "User-selected image \"收據.png\":"
+                  && severalParts[3]["type"] as? String == "image_url", "several labelled attachments keep their order")
+        try fails(.multipleAttachments, "at most nine attachments") {
+            _ = try OpenAIChatRequest.body(model: "m", messages: [.init(userText: "a", attachments: Array(repeating: text, count: 10))],
+                                           stream: false, maxOutputTokens: 1, vision: .supported)
+        }
+        try fails(.visionUnknown, "any image needs declared vision") {
+            _ = try OpenAIChatRequest.body(model: "m", messages: [.init(userText: "a", attachments: [text, picture])],
+                                           stream: false, maxOutputTokens: 1, vision: .unknown)
         }
         try fails(.requestTooLarge, "message count bound") {
             _ = try OpenAIChatRequest.body(model: "m", messages: Array(repeating: .init(role: "user", content: ""), count: 32) + [.init(userText: "a", attachment: text)], stream: false, maxOutputTokens: 1, vision: .unknown)

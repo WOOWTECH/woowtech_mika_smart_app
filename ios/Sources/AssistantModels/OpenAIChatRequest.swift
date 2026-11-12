@@ -7,14 +7,18 @@ enum OpenAIChatRequest {
 
     static func body(model: String, messages: [ModelMessage], stream: Bool,
                      maxOutputTokens: Int, vision: ModelVisionCapability) throws -> Data {
-        let attached = messages.enumerated().filter { $0.element.attachment != nil }
+        let attached = messages.filter { !$0.attachments.isEmpty }
         guard attached.count <= 1 else { throw ModelAttachmentError.multipleAttachments }
-        if let (index, message) = attached.first {
-            guard index == messages.count - 1, message.role == "user" else {
-                throw ModelAttachmentError.attachmentNotCurrentUserMessage
+        if let message = attached.first {
+            // Only this turn's prompt carries attachments. Tool loops append their own
+            // assistant and result messages after it; the host never re-attaches files
+            // to earlier turns, which are rebuilt from archived text alone.
+            guard message.role == "user" else { throw ModelAttachmentError.attachmentNotCurrentUserMessage }
+            guard message.attachments.count <= ModelAttachment.maximumPerMessage else {
+                throw ModelAttachmentError.multipleAttachments
             }
             guard messages.count <= 32 else { throw ModelAttachmentError.requestTooLarge }
-            if case .image = message.attachment!.payload {
+            if message.attachments.contains(where: \.isImage) {
                 switch vision {
                 case .unknown: throw ModelAttachmentError.visionUnknown
                 case .unsupported: throw ModelAttachmentError.visionUnsupported
@@ -52,17 +56,22 @@ enum OpenAIChatRequest {
         func encode(to encoder: Encoder) throws {
             var values = encoder.container(keyedBy: Keys.self)
             try values.encode(message.role, forKey: .role)
-            guard let attachment = message.attachment else {
+            guard !message.attachments.isEmpty else {
                 try values.encode(message.content, forKey: .content)
                 return
             }
             var parts = values.nestedUnkeyedContainer(forKey: .content)
             try parts.encode(TextPart(text: message.content))
-            switch attachment.payload {
-            case .text(let text):
-                try parts.encode(TextPart(text: "User-selected text attachment (untrusted data):\n" + text))
-            case .image(let data, let mime):
-                try parts.encode(ImagePart(image_url: ImageURL(url: "data:\(mime);base64,\(data.base64EncodedString())")))
+            for attachment in message.attachments {
+                switch attachment.payload {
+                case .text(let text):
+                    let heading = attachment.label.map { "User-selected file \"\($0)\" (untrusted data):\n" }
+                        ?? "User-selected text attachment (untrusted data):\n"
+                    try parts.encode(TextPart(text: heading + text))
+                case .image(let data, let mime):
+                    if let label = attachment.label { try parts.encode(TextPart(text: "User-selected image \"\(label)\":")) }
+                    try parts.encode(ImagePart(image_url: ImageURL(url: "data:\(mime);base64,\(data.base64EncodedString())")))
+                }
             }
         }
     }
