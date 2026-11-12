@@ -1143,6 +1143,41 @@ private actor StreamMCP: MCPDiscovering {
         return a.count
     }
 
+    /// Android parity: a typed draft is tappable before a model exists, and the
+    /// tap shows 還不能開始任務 instead of doing nothing or starting a request.
+    static func sendBlockerExplainsWithoutStarting() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let suite = "woow.stream.blocker." + UUID().uuidString
+        guard let defaults = UserDefaults(suiteName: suite) else { throw Failure(name: "isolated blocker defaults") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let repository = ModelSettingsRepository(defaults: defaults, credentials: StreamCredentials())
+        // StreamClient without replies throws on any model request.
+        let session = ChatSession(learning: e.learning, repository: repository, client: StreamClient(), archive: e.archive)
+        try a.check(!session.hasStoredKey && !session.canAttemptSend, "an empty draft offers nothing to send")
+        session.draft = "Keep this draft"
+        try a.check(session.canAttemptSend && !session.canSend, "a typed draft is tappable before a model is set up")
+        session.attemptSend()
+        try a.check(session.shownSendBlocker == .noModel && !session.isSubmitting && session.capturedArchiveRequest == nil
+                    && session.entries.isEmpty && session.draft == "Keep this draft" && session.chatError == nil,
+                    "a send without a model shows the card, keeps the draft and starts no request")
+        session.dismissSendBlocker()
+        try a.check(session.shownSendBlocker == nil && session.draft == "Keep this draft", "知道了 dismisses only the card")
+        session.attemptSend()
+        session.baseURLDraft = "https://stream.example.invalid/v1"
+        session.modelDraft = "fixture"
+        session.keyDraft = "synthetic-not-a-key"
+        session.saveSettings()
+        try a.check(session.hasStoredKey && session.shownSendBlocker == nil && session.draft == "Keep this draft",
+                    "saving a model clears the card and keeps the draft")
+        session.removeSettings()
+        session.attemptSend()
+        try a.check(session.shownSendBlocker == .noModel && session.capturedArchiveRequest == nil,
+                    "removing the model blocks the next send again")
+        session.newConversation()
+        try a.check(session.shownSendBlocker == nil && session.draft == "Keep this draft", "a new conversation clears the card")
+        return a.count
+    }
+
 }
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
@@ -1153,7 +1188,7 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
-                ChatStreamingChecks.unfinishedAndUnsavedBranchFences()]
+                ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
             #endif
@@ -1169,6 +1204,7 @@ final class ChatStreamingAppTests: XCTestCase {
     }
     #endif
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testSendBlockerExplainsWithoutStarting() async throws { let n = try await ChatStreamingChecks.sendBlockerExplainsWithoutStarting(); XCTAssertEqual(n, 7) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
