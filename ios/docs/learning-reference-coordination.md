@@ -7,6 +7,12 @@ separately and does not itself revoke the snapshot. Reload and obtain fresh user
 confirmation after a conflict. The lock and revision checks do not change the
 encrypted format or migrate existing data.
 
+The same compare-and-save transaction covers skill restore: a review selected
+against an older file revision cannot overwrite another instance's newer skill,
+disabled state, or history. Reloading alone does not approve the old target;
+the user must review the current target again. A busy lock leaves both the
+published state and ciphertext unchanged.
+
 Reference-bearing model calls acquire the same lock after their final revision
 check. The producer retains the lease until the request begins sending body data
 or the producer has actually returned. Cancellation does not release it early.
@@ -24,3 +30,5 @@ cancellation after dispatch can stop publication of a late result, but cannot
 recall request bytes already handed to the networking stack. A process crash
 releases its OS file lock; it does not provide an acknowledgement that a remote
 service did or did not receive data. The implementation does not claim otherwise.
+Older app versions that do not take this lock can still overwrite newer data;
+this candidate cannot make those versions cooperate or prevent their writes.

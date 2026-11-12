@@ -145,6 +145,56 @@ enum UserProfilePersistenceChecks {
         let beforeRestore = restoreStore.skills, beforeRestoreBytes = try Data(contentsOf: restoreURL)
         try check(reopenRestore().skills == beforeRestore && (try Data(contentsOf: restoreURL)) == beforeRestoreBytes,
                   "Selecting a target leaves encrypted data unchanged across restart")
+        // Review is bound to the loaded ciphertext as well as the skill value:
+        // another store may suspend and update the skill while the dialog is open.
+        let crossURL = root.appendingPathComponent("restore-cross-store.vault"), crossKeys = ProfileTestKeys()
+        func crossStore() -> LearningStore { LearningStore(vault: .init(url: crossURL, keys: crossKeys)) }
+        let selected = crossStore()
+        for content in [markdown, updatedMarkdown] {
+            try check(selected.mutateSkills {
+                let draft = try $0.importMarkdown(content, availableToolNames: [])
+                _ = try $0.approveDraft(id: draft.id, availableToolNames: [])
+            }, "cross-store fixture version saved")
+        }
+        guard let selectedCurrent = selected.skills.installed.first,
+              let selectedPrevious = selected.skills.revisions.last(where: { $0.canRestore }),
+              let selectedTarget = SkillRestoreTarget(current: selectedCurrent, revision: selectedPrevious) else {
+            throw Failure(message: "Missing cross-store review")
+        }
+        let other = crossStore()
+        try check(other.mutateSkills { try $0.suspend(name: selectedCurrent.name) }, "peer suspends skill")
+        let thirdMarkdown = markdown.replacingOccurrences(of: "List useful details.", with: "List third-version details.")
+        try check(other.mutateSkills {
+            let draft = try $0.importMarkdown(thirdMarkdown, availableToolNames: [])
+            _ = try $0.approveDraft(id: draft.id, availableToolNames: [])
+        }, "peer saves newer version")
+        let newer = crossStore().skills, newerBytes = try Data(contentsOf: crossURL)
+        try check(newer.installed.first?.markdown.contains("third-version") == true &&
+                  newer.revisions.last?.previous?.status == .suspended, "peer version retains suspended history")
+        try check(!selected.mutateSkills { _ = try selectedTarget.apply(to: &$0, availableToolNames: []) } &&
+                  selected.error?.contains("重新讀取") == true, "stale restore reports conflict")
+        try check(crossStore().skills == newer && (try Data(contentsOf: crossURL)) == newerBytes,
+                  "rejected restore preserves newer encrypted data and history")
+        selected.reload()
+        try check(!selected.mutateSkills { _ = try selectedTarget.apply(to: &$0, availableToolNames: []) },
+                  "reload does not authorize the old review")
+        try check(crossStore().skills == newer && (try Data(contentsOf: crossURL)) == newerBytes,
+                  "old review remains rejected after reload")
+        guard let refreshedCurrent = selected.skills.installed.first,
+              let refreshedPrevious = selected.skills.revisions.last(where: { $0.canRestore }),
+              let refreshedTarget = SkillRestoreTarget(current: refreshedCurrent, revision: refreshedPrevious) else {
+            throw Failure(message: "Missing refreshed cross-store review")
+        }
+        let crossVault = EncryptedLearningFile(url: crossURL, keys: crossKeys)
+        try crossVault.withExclusiveAccess {
+            try check(!selected.mutateSkills { _ = try refreshedTarget.apply(to: &$0, availableToolNames: []) } &&
+                      selected.error?.contains("其他位置") == true, "busy restore fails without blocking")
+            try check(try Data(contentsOf: crossURL) == newerBytes, "busy restore leaves ciphertext unchanged")
+        }
+        try check(selected.mutateSkills { _ = try refreshedTarget.apply(to: &$0, availableToolNames: []) },
+                  "freshly reviewed restore succeeds after lock release")
+        try check(crossStore().skills == selected.skills && selected.skills.revisions.contains(selectedPrevious),
+                  "fresh restore persists and retains history")
         restoreKeys.failReads = true
         try check(!restoreStore.mutateSkills { _ = try review.apply(to: &$0, availableToolNames: []) },
                   "A storage failure cannot report a successful restore")
