@@ -41,9 +41,9 @@ rejected. It validates only the shape of an optional conversation identifier;
 that is not proof that a client owns or may access a conversation. This subset
 is intentionally stricter than Android in some cases (unknown fields, invalid
 version and missing arguments); it is not a complete MCP implementation.
-The format parser does not serialize responses, advertise a tool list, parse
-HTTP or support the 2026-07-28 protocol; the separate access core checks
-already-parsed header values.
+The parser itself does not parse HTTP or support the 2026-07-28 protocol; the
+separate access core checks already-parsed header values. A separate offline
+legacy response encoder is described below.
 
 `MCPInboundReviewState` holds one immutable parsed task in memory and returns
 its exact task and binding in a review snapshot. It starts
@@ -122,9 +122,9 @@ are restricted to the creating connection. Cancel changes only the in-memory
 record; there is no dispatch or claim that an already sent request is undone.
 No device, other-app, file, browser, network or memory tools are assembled.
 
-Actual model/task execution, result/response serialization, remote conversation
-continuation, durable request receipts and cross-restart idempotency are not
-implemented.
+Actual model/task execution, durable request receipts and cross-restart
+idempotency are not implemented. Limited in-memory continuation and response
+formatting are described below.
 The Android device tools are deliberately excluded. Record state disappears on
 connection closure, disable, token rotation, background or process exit; a
 subsequent submission requires a fresh connection and local review, and there
@@ -206,10 +206,9 @@ Android schemas disallow extra properties. This parser accepts the original
 answer/steer arguments plus the explicitly documented iOS-only optional IDs.
 Task identifiers are parsed as nonempty strings; the inert host only creates
 UUID records. A future adapter must map other strings to missing, never infer
-authorization from them. Android supports `conversation`; this actor rejects
-continuation until ownership and revalidation exist. Android's persisted
-request receipts, actual tool results, status schema, error mapping, advertised
-schemas and execution semantics are not implemented. The 32 KiB request and
+authorization from them. Android supports persistent `conversation`; this actor only allows the bounded
+in-memory subset below. Android's persisted request receipts, actual tool
+results and full execution semantics are not implemented. The 32 KiB request and
 in-memory capacity limits are additional restrictions. The optional iOS receipt
 extensions remain bounded to a live record and have no cross-restart guarantee.
 
@@ -218,3 +217,59 @@ its own review/records before assessing capacity. A stale approval callback
 can neither approve nor clear a different current review. No background timer
 is promised; cleanup occurs on the next relevant actor operation. The tests
 are synthetic and do not start a listener or contact a service.
+
+## Offline conversation and legacy response candidate (base 34808fc)
+
+Android `RemoteTaskService.start` trims `conversation`, treats a blank value
+as a new chat and otherwise checks canonical `mcp-<lowercase UUID>` syntax.
+`RemoteTaskHub.launch` creates that identifier for a new task and stores receipts
+in SQLite; its receipt layer and real task service supply the actual app history.
+Unlike Android, this candidate only accepts a conversation issued by the same
+live connection, with the same destination and context revision, after its prior
+task is terminal and a new local review. Another connection, changed revision,
+unknown ID, concurrent task or revoked state is rejected. It does not claim the
+identifier alone proves ownership. Android's receipt layer checks identifier
+shape and does not provide this candidate's same-connection restriction.
+
+For the strictly bounded synthetic subset, a local host can explicitly attest
+that a completed task consisted of precisely the single input goal and final
+answer; only then can its retained goal/answer pair be continued. `reviewConversation`
+provides the exact retained pairs for display before approval, and
+`hostConversation` exposes the same pairs only to the corresponding live host
+lease. The actor will not allow continuation after questions, steers, local
+approval, cancellation after start, or a completion without that explicit
+attestation, because this representation cannot faithfully reconstruct those
+contexts. A host-supplied Boolean is not proof: a future real executor must
+independently establish that no system/tool/other messages were omitted and
+atomically revalidate connection, review, actual data and destination. Up to
+20 pairs and 64 KiB total UTF-8 are held in memory, with a 32 KiB final-answer
+limit; an oversized completion is rejected without committing it. The host may
+finish without retained context or cancel. Queued cancellation has no turn to
+retain. All state vanishes on connection closure, expiry, disable, rotation,
+background/inactive or process exit; no cross-restart continuation, receipt,
+replay protection or exactly-once behavior is provided.
+
+`MCPInboundResponses` formats legacy initialize, ping, original seven tools/list
+schemas and JSON-RPC tool result envelopes. For success the text content is JSON
+for the same `structuredContent` object; errors are `isError` without structured
+content. Run/status/wait/list/answer/steer/cancel payloads use Android field
+names; tests decode actual JSON and compare both representations. Only
+authenticated actor snapshots should be supplied; encoding does not authorize
+or revalidate them, and a future transport must address revocation between
+snapshot, serialization and send. Returned data can contain goals, questions
+and answers; it must not be logged or disclosed to another connection.
+
+Differences from Android: only legacy protocol response helpers are present,
+not modern metadata/header negotiation, actual routing, HTTP status mapping or
+complete Android error strings/statuses. Queued is represented as `starting`;
+running uses synthetic `step: 0` since this core has no executor progress. An
+old-style host completion without an answer has no `answer` field; protected
+local approval uses Android's `waiting_on_phone` status but an iOS-local note.
+Steer status is `received` until a cancelled queued input becomes `not_applied`:
+host dequeue alone does not prove Android's `joined` state. No failure,
+verification metadata, options or device-specific states are fabricated.
+Initialization wording and tool descriptions are iOS-specific, while Android's
+original argument schemas and annotations are retained. Output is bounded to
+256 KiB per encoded JSON document. These helpers neither listen nor execute
+models; native iOS, actual networking, settings, UI and background behavior
+remain unverified.
