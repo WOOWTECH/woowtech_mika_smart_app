@@ -56,9 +56,15 @@ import Foundation
             .simplifiedChinese: "关于渥屋助理",
             .english: "About woowtech agent"
         ]
+        let taglines: [AppDisplayLanguage: String] = [
+            .traditionalChinese: "你的私人助理，替你把事辦成",
+            .simplifiedChinese: "你的私人助理，替你把事办成",
+            .english: "Your personal assistant, getting things done for you"
+        ]
         for language in AppDisplayLanguage.allCases {
             let copy = MikaAboutCopy(language: language)
             try check(copy.text(.title) == expected[language], "About title follows interface language")
+            try check(copy.text(.tagline) == taglines[language], "About tagline follows interface language")
             for key in MikaAboutKey.allCases {
                 try check(!copy.text(key).isEmpty, "About copy has no empty language entry")
             }

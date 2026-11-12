@@ -16,24 +16,39 @@ import UIKit
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(verbatim: AppLocalizer(language: languages.resolved).text(.shellBrandTitle))
-                    .font(.title2.bold())
-                    .foregroundStyle(palette.ink)
-                    .padding(.top, 24)
-                    .accessibilityIdentifier("settings.about.appName")
-                Text(verbatim: copy.text(.installedVersion))
-                    .font(.subheadline)
-                    .foregroundStyle(palette.secondary)
-                    .padding(.top, 6).padding(.bottom, 20)
-                MikaSettingsCard {
-                    VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    Image("AboutBrandIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 72, height: 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .accessibilityHidden(true)
+                    Text(verbatim: AppLocalizer(language: languages.resolved).text(.shellBrandTitle))
+                        .font(.title2.bold())
+                        .foregroundStyle(palette.ink)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 12)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("settings.about.appName")
+                    Text(verbatim: copy.text(.tagline))
+                        .font(.subheadline)
+                        .foregroundStyle(palette.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                        .accessibilityIdentifier("settings.about.tagline")
+                    VStack(spacing: 8) {
                         fact(copy.text(.version), value: info.version ?? copy.text(.unavailable),
                              identifier: "settings.about.version")
-                        Divider().padding(.leading, 16)
                         fact(copy.text(.build), value: info.build ?? copy.text(.unavailable),
                              identifier: "settings.about.build")
                     }
+                    .padding(.top, 12)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
                 Text(verbatim: copy.text(.resources))
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(palette.secondary)
@@ -116,16 +131,18 @@ import UIKit
     }
 
     private func fact(_ label: String, value: String, identifier: String) -> some View {
-        HStack(spacing: 12) {
-            Text(verbatim: label).foregroundStyle(palette.ink)
-            Spacer(minLength: 8)
-            Text(verbatim: value)
+        VStack(spacing: 2) {
+            Text(verbatim: label)
+                .font(.caption)
                 .foregroundStyle(palette.secondary)
-                .multilineTextAlignment(.trailing)
+            Text(verbatim: value)
+                .font(.subheadline)
+                .foregroundStyle(palette.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(identifier)
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 52)
+        .frame(maxWidth: .infinity)
     }
 }
 #endif
