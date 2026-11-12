@@ -20,6 +20,7 @@
 - 使用本機 Node 22 串行執行 relay worker 的 `npm test` 與 `npm run test:accounts`，兩者均通過。前者包含測試收件、管理讀取與刪除，後者涵蓋兩帳號隔離及配對；測試使用本機 worker 與臨時資料，不代表正式服務已部署或能收件。
 - 只讀執行 `wrangler whoami` 時，CLI 已登入，但列出的 Cloudflare 帳戶未包含 worker 設定的目標帳戶。這不證明其他登入方式不可用；部署前需核對目標帳戶存取權及目前線上版本，不應改寫帳戶設定來猜測。
 - 後續已經使用 Cloudflare 官方 MCP 完成 OAuth 登入，授權範圍以讀取帳戶、Worker 和路由為主；但在新啟動的 Codex 執行環境中，MCP 通用 `execute` 工具即使執行唯讀 GET 仍要求核准，而當時核准政策無法提供互動核准，查詢被阻擋。故尚未確認目標帳戶存取、線上路由、Worker 版本與綁定；登入成功不能視為這些驗證已完成，也未進行部署。
+- 後續另備妥 Wrangler 的獨立 OAuth profile `woowtech-relay`，用於目標 Worker 的查詢、部署及路由驗證，不覆寫目前另一個 Cloudflare 帳戶的預設 profile；目標帳戶授權尚待完成。2026-11-12 對公開 `GET /api/v1/ai-reports` 再查詢，回 `503 device_offline`；本地候選收件程式對此 GET 應回 `405 method_not_allowed`。這證明線上回應與候選收件程式不同，但尚不能區分是舊版 Worker、不同路由或其他部署差異。
 
 ## 舊文件須先釐清
 
