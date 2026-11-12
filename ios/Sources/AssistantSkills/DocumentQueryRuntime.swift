@@ -53,14 +53,24 @@ public enum DocumentQueryOutcome: Sendable {
     private var active = true
     private var pending: DocumentQueryModelRace?
     private var pendingSearch: Task<DocumentPatternSearch.LineResult, Error>?
+    private let patternRunner: @Sendable (DocumentTextSnapshot, String, ContinuousClock.Instant) throws -> DocumentPatternSearch.LineResult
 
-    public init(source: DocumentTextSnapshot, question: String, limits: DocumentQueryLimits = .init()) throws {
+    public convenience init(source: DocumentTextSnapshot, question: String, limits: DocumentQueryLimits = .init()) throws {
+        try self.init(source: source, question: question, limits: limits, patternRunner: {
+            try DocumentPatternSearch.searchLines(source: $0, pattern: $1, deadline: $2)
+        })
+    }
+
+    // Internal immutable seam for exercising the actual detached-worker lifecycle.
+    init(source: DocumentTextSnapshot, question: String, limits: DocumentQueryLimits = .init(),
+         patternRunner: @escaping @Sendable (DocumentTextSnapshot, String, ContinuousClock.Instant) throws -> DocumentPatternSearch.LineResult) throws {
         guard !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               question.utf8.count <= 4096 else { throw DocumentQueryError.invalidQuestion }
         guard (1...12).contains(limits.modelCalls), limits.timeout > .zero, limits.timeout <= .seconds(180) else {
             throw DocumentQueryError.invalidLimits
         }
-        self.source = source; self.question = question; self.limits = limits; tools = .init(source: source)
+        self.source = source; self.question = question; self.limits = limits
+        self.patternRunner = patternRunner; tools = .init(source: source)
     }
 
     public func cancel() {
@@ -160,9 +170,9 @@ public enum DocumentQueryOutcome: Sendable {
                                 payload = try Self.json(["error": code])
                             }
                         } else {
-                            let snapshot = source
+                            let snapshot = source, runner = patternRunner
                             let worker = Task.detached {
-                                try DocumentPatternSearch.searchLines(source: snapshot, pattern: pattern, deadline: deadline)
+                                try runner(snapshot, pattern, deadline)
                             }
                             pendingSearch = worker
                             do {
@@ -286,8 +296,10 @@ public enum DocumentQueryOutcome: Sendable {
     one result per matching line, including empty matches, at most 20 lines; text is capped at 300 UTF-8 bytes,
     with textTruncated true when shortened.
     Lines count across ordered selected page occurrences, with a synthetic newline between pages; pageIndex,
-    pageNumber and offset identify the original page occurrence and line start (UTF-8 bytes). On budget errors
-    there are no partial results. Search results ARE NOT reads; use read_file to obtain evidence.
+    pageNumber and offset identify the original page occurrence and line start (UTF-8 bytes). matchOffset and
+    matchLength are the leftmost match's page-relative UTF-8 byte range, potentially length zero; use matchOffset
+    for a bounded read when the line text is truncated. A zero-length match is not textual evidence. On budget
+    errors there are no partial results. Search results ARE NOT reads; use read_file to obtain evidence.
     read_file addresses a one-based selection index, not the original PDF page number; repeated original pages
     have separate indices. Offsets/limits are UTF-8 BYTES within that page; reads require valid character boundaries.
     A read returns at most 8192 bytes and its unique ID. Request another bounded read when evidence lies outside it.

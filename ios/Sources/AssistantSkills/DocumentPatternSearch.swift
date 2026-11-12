@@ -21,7 +21,7 @@ public enum DocumentPatternSearch {
             case .any: return code != 0x85 && code != 0x2028 && code != 0x2029
             case .digit: return (48...57).contains(code)
             case .word: return (48...57).contains(code) || (65...90).contains(code) || (97...122).contains(code) || code == 95
-            case .space: return code == 32 || code == 9
+            case .space: return code == 32 || code == 9 || code == 11 || code == 12
             case .characterClass(let negated, let ranges):
                 let other = (65...90).contains(code) ? code + 32 : ((97...122).contains(code) ? code - 32 : code)
                 let found = ranges.contains { $0.contains(code) || (ignoreASCIICase && $0.contains(other)) }
@@ -129,7 +129,11 @@ public enum DocumentPatternSearch {
         public let textTruncated: Bool
         public let pageIndex: Int
         public let pageNumber: Int
+        /// Page-relative UTF-8 byte offset of the line start (kept for compatibility).
         public let offset: Int
+        /// Leftmost match in this line, including a possible zero-length match.
+        public let matchOffset: Int
+        public let matchLength: Int
     }
     public struct LineResult: Sendable, Encodable {
         public let matches: [LineMatch]
@@ -195,12 +199,16 @@ public enum DocumentPatternSearch {
                 var end = start
                 while end < count && scalars[end] != 10 && scalars[end] != 13 { try tick(); end += 1 }
                 lineNumber += 1
-                var found = false
+                var found: (start: Int, end: Int)?
                 for index in start...end {
                     try tick()
-                    if next[index] >= 0 { found = true; break }
+                    if next[index] >= 0 {
+                        let matchEnd = Int(next[index])
+                        guard matchEnd >= index && matchEnd <= end else { throw DocumentPatternError.invalidPattern }
+                        found = (index, matchEnd); break
+                    }
                 }
-                if found {
+                if let found {
                     guard matches.count < 20 else {
                         try check()
                         return .init(matches: matches, truncated: true, sourceSHA256: source.sha256)
@@ -210,7 +218,9 @@ public enum DocumentPatternSearch {
                     while !boundary(page.bytes, clipped) { clipped -= 1 }
                     matches.append(.init(file: virtualFile, line: lineNumber,
                         text: String(decoding: page.bytes[byteStart..<clipped], as: UTF8.self), textTruncated: clipped < byteEnd,
-                        pageIndex: page.index, pageNumber: page.pageNumber, offset: byteStart))
+                        pageIndex: page.index, pageNumber: page.pageNumber, offset: byteStart,
+                        matchOffset: Int(offsets[found.start]),
+                        matchLength: Int(offsets[found.end]) - Int(offsets[found.start])))
                 }
                 if end == count { break }
                 start = end + 1
