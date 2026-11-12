@@ -50,9 +50,11 @@ Owner decisions (2026-11-12, main conversation, AskUserQuestion answers):
 - Archived turns keep only metadata (`ArchivedAttachment`); old rows decode unchanged and rows without
   attachments keep their previous encoding. Deleting a conversation deletes its files except those a branch made
   from it still shows. A new or different conversation clears the unsent tray, as on Android.
+- The archive list and the sidebar title a conversation by its first message without the attachment lines, or
+  "照片", "N 張照片", the file name, "<name> 等 N 個檔案" or "照片和檔案" when it was only attachments
+  (Android `AttachmentMessage.plain`).
 
 ## Not done / differences
 
-- Archive titles of attachment-only first messages show the "附件:" line (Android titles them "照片", "N 張照片", …).
 - iOS asks for camera and photo library permission; Android's camera intent needs none.
 - Android-only phone control features are out of scope.
