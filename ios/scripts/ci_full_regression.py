@@ -21,7 +21,7 @@ IPHONES = (
 )
 IPAD = {"label": "ios26-ipad", "xcode": "26.2", "runtime": "iOS-26-2", "device": "iPad (A16)"}
 IPAD_ONLY = "WoowAssistantUITests/WoowAssistantUITests/testRealIPadReadOnlyNavigationAudit"
-# A full run needs two portable Xcode builds and 22 test-only jobs. A selected
+# A full run needs two portable Xcode builds and 28 test-only jobs. A selected
 # manual iPhone needs one build and seven jobs. Every shard keeps its own result.
 COHORTS = (
     ("ui-startup", "ui-pdf-capability"),
@@ -70,12 +70,14 @@ def make_plan(root, *, current_only=False, compact_only=False, large_only=False,
         raise ValueError("The iPad-only method must be owned by ui-startup")
     sha = source_sha(root.parent)
     rows = []
-    for device in iphones:
+    devices = (*iphones, IPAD) if selection == "all" else iphones
+    for device in devices:
         for index, scopes in enumerate(COHORTS, start=1):
             slices = []
             for scope in scopes:
                 methods = ([] if scope == "core" else
-                           [method for method in catalog["shards"][scope]["tests"] if method != IPAD_ONLY])
+                           [method for method in catalog["shards"][scope]["tests"]
+                            if device == IPAD or method != IPAD_ONLY])
                 selectors = TEST_SCOPES["core"] if scope == "core" else methods
                 slices.append({"scope": scope, "methods": methods,
                                "selectors": ["-only-testing:" + method for method in selectors]})
@@ -83,12 +85,6 @@ def make_plan(root, *, current_only=False, compact_only=False, large_only=False,
                          "slices": slices, "selection": selection,
                          "fresh_simulator": fresh_simulator, "source_sha": sha,
                          "inventory_sha256": catalog["inventory_sha256"]})
-    if selection == "all":
-        rows.append({**IPAD, "id": "ios26-ipad-ui-startup-audit",
-                     "slices": [{"scope": "ui-startup", "methods": [IPAD_ONLY],
-                                 "selectors": ["-only-testing:" + IPAD_ONLY]}],
-                     "selection": selection, "fresh_simulator": fresh_simulator,
-                     "source_sha": sha, "inventory_sha256": catalog["inventory_sha256"]})
     return {"version": 1, "source_sha": sha, "inventory_sha256": catalog["inventory_sha256"],
             "selection": selection, "fresh_simulator": fresh_simulator,
             "iphone_labels": [device["label"] for device in iphones], "rows": rows}
@@ -100,7 +96,7 @@ def verify_plan(plan, catalog):
     if selection not in SELECTIONS or type(plan["fresh_simulator"]) is not bool:
         raise ValueError("Invalid selected device or simulator mode")
     iphones = SELECTIONS[selection]
-    expected_jobs = len(iphones) * len(COHORTS) + (selection == "all")
+    expected_jobs = (len(iphones) + (selection == "all")) * len(COHORTS)
     if (plan["version"] != 1 or plan["inventory_sha256"] != catalog["inventory_sha256"]
             or len(rows) != expected_jobs
             or len(rows) != len({row["id"] for row in rows})
@@ -109,7 +105,8 @@ def verify_plan(plan, catalog):
     expected = {method for shard in catalog["shards"].values() for method in shard["tests"]}
     if expected & set(catalog["live_tests_excluded"]):
         raise ValueError("Live cases cannot enter the non-Live plan")
-    for device in iphones:
+    devices = (*iphones, IPAD) if selection == "all" else iphones
+    for device in devices:
         label = device["label"]
         own_rows = [row for row in rows if row["label"] == label]
         if (len(own_rows) != len(COHORTS)
@@ -118,19 +115,16 @@ def verify_plan(plan, catalog):
             raise ValueError("Device cohort identity or count changed")
         ui = [method for row in own_rows for sl in row["slices"] if sl["scope"] != "core"
               for method in sl["methods"]]
-        if len(ui) != len(expected) - 1 or set(ui) != expected - {IPAD_ONLY}:
-            raise ValueError("Each iPhone must execute every eligible UI method exactly once")
+        expected_ui = expected if device == IPAD else expected - {IPAD_ONLY}
+        if len(ui) != len(expected_ui) or set(ui) != expected_ui:
+            raise ValueError("Each device must execute every eligible UI method exactly once")
         if [sl["scope"] for row in own_rows for sl in row["slices"]].count("core") != 1:
-            raise ValueError("Each iPhone must execute core exactly once")
+            raise ValueError("Each device must execute core exactly once")
         for index, row in enumerate(own_rows, start=1):
             if [sl["scope"] for sl in row["slices"]] != list(COHORTS[index - 1]):
                 raise ValueError("Cohort shard ownership changed")
     ipad = [row for row in rows if row["label"] == IPAD["label"]]
-    if selection == "all":
-        if (len(ipad) != 1 or ipad[0]["id"] != "ios26-ipad-ui-startup-audit"
-                or len(ipad[0]["slices"]) != 1 or ipad[0]["slices"][0]["methods"] != [IPAD_ONLY]):
-            raise ValueError("The iPad audit must execute once on an iPad")
-    elif ipad:
+    if selection != "all" and ipad:
         raise ValueError("Selected manual iPhone plan cannot include an iPad")
     for row in rows:
         if row["source_sha"] != plan["source_sha"] or row["inventory_sha256"] != plan["inventory_sha256"]:
@@ -142,8 +136,8 @@ def verify_plan(plan, catalog):
             raise ValueError("Unexpected simulator identity")
         for sl in row["slices"]:
             scope = sl["scope"]
-            expected_methods = [] if scope == "core" else ([IPAD_ONLY] if row["label"] == IPAD["label"]
-                else [x for x in catalog["shards"][scope]["tests"] if x != IPAD_ONLY])
+            expected_methods = [] if scope == "core" else [x for x in catalog["shards"][scope]["tests"]
+                if row["label"] == IPAD["label"] or x != IPAD_ONLY]
             selectors = TEST_SCOPES["core"] if scope == "core" else expected_methods
             if sl["methods"] != expected_methods or sl["selectors"] != ["-only-testing:" + x for x in selectors]:
                 raise ValueError("Shard methods or selectors differ from inventory")
