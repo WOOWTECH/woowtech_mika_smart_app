@@ -1,7 +1,9 @@
 # Isolated speech selection and routing candidate
 
-This candidate starts at `dcbcab97fa363778fbca61fd25bae3f8c76f65e7` and is
-not exposed in the app. Android `SpeechModelScreen` presents device and off,
+This candidate starts at `dcbcab97fa363778fbca61fd25bae3f8c76f65e7`.
+The later chat host constructs the router for system/off, but provider
+selection remains unavailable; see `PROVIDER_SPEECH_UI_CANDIDATE.md`.
+Android `SpeechModelScreen` presents device and off,
 plus each supported configured provider and manual model entry. A tap probes
 one second of silence, preserves the previous selection on failure, and uses
 the selected method on subsequent recordings without a per-recording dialog.
@@ -12,8 +14,8 @@ trustworthy provider kind. The candidate accepts an explicitly selected kind,
 speech model and raw saved URL, probes through the existing authorized
 dispatch boundary, and routes an explicit choice to a system driver, off, or a
 PCM provider driver. The iOS-only factory wires the real shared Apple voice
-coordinator, `AppleProviderPCMSource` and `URLSessionSpeechTransport`, but is
-not called by the UI. A host must synchronously call `invalidate()` for scene
+coordinator, `AppleProviderPCMSource` and `URLSessionSpeechTransport`; the UI
+does not select the provider path. A host must call `invalidate()` for scene
 or settings changes, and must use a suitable finish timeout. The router
 rechecks the selected settings on permission and dispatch, releases the lease
 before upload, and fences stale callbacks. Switching choice cancels active

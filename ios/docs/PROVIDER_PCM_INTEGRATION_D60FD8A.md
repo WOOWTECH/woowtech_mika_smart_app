@@ -1,5 +1,9 @@
 # Provider PCM integration on d60fd8a
 
+This describes the earlier integration stage. For subsequent system/off UI
+host wiring and the still-disabled provider path, see
+`PROVIDER_SPEECH_UI_CANDIDATE.md`.
+
 This integration takes the provider core and PCM source through `7cbc517`,
 including its observer-before-engine regression. It keeps the provider factory
 and settings/transport seam disconnected from the composer and settings UI.
@@ -31,7 +35,7 @@ xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
 ```
 
 Inspect the xcresult and confirm all five `ProviderPCMNativeAdapterTests` and
-five `ChatVoiceUITests` ran without skips. The former creates synthetic
+six `ChatVoiceUITests` ran without skips. The former creates synthetic
 AVAudioPCMBuffer values and posts synthetic notifications; it does not create
 an engine or request microphone access. The latter uses a Debug fake speech
 driver, not Apple recognition. For broader regression, run the existing

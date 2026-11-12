@@ -1,8 +1,8 @@
 import AssistantModels
 import Foundation
 
-/// Candidate wiring only: no settings or chat entry constructs this router.
-/// A host must cancel on background and invalidate on settings changes.
+/// Candidate wiring: the chat host uses system/off, while public settings do
+/// not expose provider selection. A host must invalidate on lifecycle changes.
 @MainActor
 final class CandidateSpeechRouter: VoiceInputDriver {
     enum Choice: Equatable { case system, off, unavailable, provider(model: String, method: SpeechProviderMethod) }
@@ -69,6 +69,19 @@ final class CandidateSpeechRouter: VoiceInputDriver {
         selectionGeneration = UUID(); probing = false
         cancelActive(); flow.invalidate()
         // A stale provider never silently falls back to system or a paid model.
+    }
+
+    /// Re-read the shared settings after the active gesture has been canceled.
+    /// A restored provider remains unavailable until a fresh explicit probe.
+    func reloadChoice() {
+        invalidate()
+        do {
+            switch try store.load() {
+            case .automatic, .system: choice = .system
+            case .off: choice = .off
+            case .provider(let selection): choice = .provider(model: selection.model, method: selection.method)
+            }
+        } catch { choice = .unavailable }
     }
 
     func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {

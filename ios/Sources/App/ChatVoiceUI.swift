@@ -1,41 +1,66 @@
 import SwiftUI
 import UIKit
+import Combine
 
 @MainActor
 final class ChatVoiceViewModel: ObservableObject {
     @Published private(set) var state: VoiceInputState = .idle
     @Published private(set) var wasInterrupted = false
     private var controller: ChatVoiceController?
-    private let makeDriver: @MainActor () -> any VoiceInputDriver
+    private var preferenceBinding: ChatVoicePreferenceBinding?
+    private var modelSettingsBinding: AnyCancellable?
+    private var candidateRouter: CandidateSpeechRouter?
+    private let makeDriver: (@MainActor () -> any VoiceInputDriver)?
+    private let preferences = VoicePreferences.shared
 
-    init(makeDriver: @escaping @MainActor () -> any VoiceInputDriver = {
-        #if DEBUG
-        if let fixture = VoiceUITestFixture.selected() { return fixture }
-        #endif
-        return AppleMixedVoiceRuntime.makeDriver()
-    }) {
+    init(makeDriver: (@MainActor () -> any VoiceInputDriver)? = nil) {
         self.makeDriver = makeDriver
     }
 
     func attach(session: ChatSession) {
         guard controller == nil else { return }
-        let controller = ChatVoiceController(driver: makeDriver(), conversation: { [weak session] in
+        #if DEBUG
+        let selectedDriver: (any VoiceInputDriver)? = makeDriver?() ?? VoiceUITestFixture.selected()
+        #else
+        let selectedDriver = makeDriver?()
+        #endif
+        let driver: any VoiceInputDriver
+        if let selectedDriver { driver = selectedDriver }
+        else {
+            let router = CandidateSpeechRouterFactory.make(repository: session.voiceModelRepository,
+                                                            defaults: preferences.routingDefaults)
+            candidateRouter = router
+            driver = router
+        }
+        let controller = ChatVoiceController(driver: driver, conversation: { [weak session] in
             session?.conversationID ?? ""
         }, readDraft: { [weak session] in session?.draft ?? "" }, writeDraft: { [weak session] in
             session?.draft = $0
+        }, voiceAuthorization: { [weak preferences, weak session] in
+            guard let authorization = preferences?.authorization, let session else { return nil }
+            return authorization + ":" + session.voiceModelRepository.revision
         })
         controller.onStateChange = { [weak self] in self?.state = $0 }
         self.controller = controller
+        preferenceBinding = ChatVoicePreferenceBinding(preferences: preferences, controller: controller,
+                                                       onChange: { [weak self] in self?.candidateRouter?.reloadChoice() })
+        modelSettingsBinding = session.$savedSettings.dropFirst().sink { [weak self] _ in
+            self?.cancel(interrupted: true)
+        }
     }
-    func begin(startedAt: TimeInterval) { wasInterrupted = false; controller?.begin(gestureStartedAt: startedAt) }
+    func begin(startedAt: TimeInterval) {
+        preferences.refresh()
+        wasInterrupted = false; controller?.begin(gestureStartedAt: startedAt)
+    }
     func drag(_ distance: Double) { controller?.drag(upwardDistance: distance) }
     func release() { controller?.release() }
     func cancel(interrupted: Bool = false) {
         let wasActive = isActive
         controller?.cancel()
+        candidateRouter?.invalidate()
         wasInterrupted = interrupted ? (wasInterrupted || wasActive) : false
     }
-    func tick() { controller?.tick() }
+    func tick() { preferences.refresh(); controller?.tick() }
     var isActive: Bool {
         switch state { case .listening, .finishing: return true; default: return false }
     }
@@ -45,6 +70,8 @@ final class ChatVoiceViewModel: ObservableObject {
 /// interrupted gesture cannot accidentally be interpreted as a release.
 @MainActor
 struct ChatVoicePressControl: UIViewRepresentable {
+    @ObservedObject private var voicePreferences = VoicePreferences.shared
+    @Environment(\.appLocalizer) private var localizer
     let label: String
     let hint: String
     let cancelLabel: String
@@ -54,6 +81,14 @@ struct ChatVoicePressControl: UIViewRepresentable {
     let drag: (Double) -> Void
     let release: () -> Void
     let cancel: () -> Void
+
+    init(label: String, hint: String, cancelLabel: String, active: Bool, enabled: Bool,
+         begin: @escaping (TimeInterval) -> Void, drag: @escaping (Double) -> Void,
+         release: @escaping () -> Void, cancel: @escaping () -> Void) {
+        self.label = label; self.hint = hint; self.cancelLabel = cancelLabel
+        self.active = active; self.enabled = enabled
+        self.begin = begin; self.drag = drag; self.release = release; self.cancel = cancel
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
     func makeUIView(context: Context) -> VoicePressButton {
@@ -81,11 +116,12 @@ struct ChatVoicePressControl: UIViewRepresentable {
     func updateUIView(_ button: VoicePressButton, context: Context) {
         context.coordinator.parent = self
         button.accessibilityLabel = label
-        button.accessibilityHint = hint
+        button.accessibilityHint = voicePreferences.choice.allowsDeviceRecognition
+            ? hint : localizer.text(.voiceChoiceDisabledHint)
         button.accessibilityCustomActions = active
             ? [UIAccessibilityCustomAction(name: cancelLabel, target: button, selector: #selector(VoicePressButton.cancelVoice(_:)))]
             : nil
-        button.isEnabled = enabled
+        button.isEnabled = enabled && voicePreferences.choice.allowsDeviceRecognition
         button.tintColor = active ? .systemRed : .label
     }
     static func dismantleUIView(_ button: VoicePressButton, coordinator: Coordinator) {

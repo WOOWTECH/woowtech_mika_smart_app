@@ -95,6 +95,45 @@ final class ChatVoiceUITests: XCTestCase {
         }
     }
 
+    func testVoiceSettingOffAndDeviceChoiceControlActualComposer() {
+        launch()
+        tap("chat.menu")
+        tap("navigation.settings")
+        openModelSettings(in: app)
+        tap("settings.voice.open")
+        let voiceSettings = app.navigationBars["語音轉文字"]
+        XCTAssertTrue(voiceSettings.waitForExistence(timeout: 10))
+        tap("settings.voice.off")
+        voiceSettings.buttons.firstMatch.tap()
+        returnFromModelSettings(in: app)
+        tap("section.back")
+        let mic = app.buttons["chat.voice"].firstMatch
+        XCTAssertTrue(mic.waitForExistence(timeout: 10))
+        XCTAssertFalse(mic.isEnabled)
+        observation(contains: "start=0")
+        // Reuse the isolated namespace and omit reset to check persistence.
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-UITestResetStorage" }
+        app.launch()
+        XCTAssertTrue(app.staticTexts["voice.fixture.observation"].waitForExistence(timeout: 10))
+        XCTAssertTrue(mic.waitForExistence(timeout: 10))
+        XCTAssertFalse(mic.isEnabled, "off choice survives application restart")
+        tap("chat.menu")
+        tap("navigation.settings")
+        openModelSettings(in: app)
+        tap("settings.voice.open")
+        XCTAssertTrue(voiceSettings.waitForExistence(timeout: 10))
+        tap("settings.voice.system")
+        voiceSettings.buttons.firstMatch.tap()
+        returnFromModelSettings(in: app)
+        tap("section.back")
+        XCTAssertTrue(voice().isEnabled)
+        voice().press(forDuration: 1.1)
+        observation(contains: "finish=1")
+        tap("voice.fixture.emit")
+        waitValue(draft(), "fixture voice")
+    }
+
     private func launch(systemLanguages: String = "(zh-Hant)") {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",

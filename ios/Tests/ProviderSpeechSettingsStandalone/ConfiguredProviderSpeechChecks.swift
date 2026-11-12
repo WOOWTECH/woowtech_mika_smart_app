@@ -729,6 +729,41 @@ private final class DispatchSignals: @unchecked Sendable {
         let staleSystem = startRoute()
         check(routeEvents.last?.0 == staleSystem && routeEvents.last?.1 == .failed(.unavailable),
               "other-window off blocks a new system capture before notification")
+        router.reloadChoice()
+        check(router.choice == .off, "settings host reloads external off choice")
+        try otherWindowChoice.save(.system)
+        router.reloadChoice()
+        let afterReload = startRoute()
+        check(router.choice == .system && routeSystem.starts >= 3,
+              "settings host reload restores system driver")
+        router.cancel(id: afterReload)
+        let integratedSuite = "voice-routing-ui-" + UUID().uuidString
+        let integratedDefaults = UserDefaults(suiteName: integratedSuite)!
+        defer { integratedDefaults.removePersistentDomain(forName: integratedSuite) }
+        let integratedPrefs = VoicePreferences(store: VoiceChoiceStore(defaults: integratedDefaults))
+        let integratedSystem = FixtureSystemVoice()
+        let integratedRouter = CandidateSpeechRouter(flow: routeFlow,
+            store: SpeechChoiceStore(defaults: integratedDefaults), systemFactory: { integratedSystem },
+            providerFactory: { mayFinish, onEnd, transcribe in
+                ProviderPCMVoiceDriver(source: routeSource, coordinator: routeLease, mayFinish: mayFinish,
+                                       onEnd: onEnd, transcribe: transcribe)
+            })
+        let integratedController = ChatVoiceController(driver: integratedRouter, now: { 10 }, conversation: { "fixture" },
+            readDraft: { "" }, writeDraft: { _ in }, voiceAuthorization: { integratedPrefs.authorization })
+        let integratedBinding = ChatVoicePreferenceBinding(preferences: integratedPrefs, controller: integratedController,
+                                                           onChange: { integratedRouter.reloadChoice() })
+        _ = integratedBinding
+        integratedController.begin(gestureStartedAt: 9)
+        check(integratedSystem.starts == 1, "settings-to-chat host starts the system router")
+        let integratedOtherWindow = VoiceChoiceStore(defaults: UserDefaults(suiteName: integratedSuite)!)
+        integratedOtherWindow.select(.off)
+        check(integratedSystem.cancellations == 1 && integratedController.state == .idle && integratedRouter.choice == .off,
+              "other-window settings synchronously cancel the actual routed chat host")
+        integratedOtherWindow.select(.system)
+        integratedController.begin(gestureStartedAt: 9)
+        check(integratedSystem.starts == 2 && integratedRouter.choice == .system,
+              "routed chat host starts system again after explicit re-enable")
+        integratedController.cancel()
         let reentrantSystem = FixtureSystemVoice()
         var reentrantRouter: CandidateSpeechRouter!
         reentrantRouter = CandidateSpeechRouter(flow: routeFlow,

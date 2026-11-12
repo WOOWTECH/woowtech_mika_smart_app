@@ -465,3 +465,11 @@
 "chat.voiceSettings" = "前往設定";
 "chat.voiceInterrupted" = "語音輸入已中斷；如果剛完成授權，請再次按住說話。";
 "chat.voiceAccessibilityCancel" = "取消語音輸入";
+"voice.choice.title" = "語音轉文字";
+"voice.choice.system" = "裝置上語音辨識";
+"voice.choice.off" = "不用語音輸入";
+"voice.choice.unknown" = "目前選項不可用";
+"voice.choice.rowDetail" = "選擇裝置辨識或關閉";
+"voice.choice.notice" = "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。";
+"voice.choice.disabledHint" = "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。";
+"voice.choice.saveFailed" = "無法儲存語音設定，請再試一次。";

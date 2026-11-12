@@ -11,6 +11,8 @@ swiftc -swift-version 5 -strict-concurrency=complete -warnings-as-errors -parse-
   "$root/Sources/App/ConfiguredProviderSpeech.swift" \
   "$root/Sources/App/CandidateSpeechRouter.swift" \
   "$root/Sources/App/VoiceAudioLease.swift" "$root/Sources/App/VoiceInputStateMachine.swift" \
+  "$root/Sources/App/ChatVoiceController.swift" "$root/Sources/App/VoiceChoiceStore.swift" \
+  "$root/Sources/App/VoicePreferences.swift" "$root/Sources/App/ChatVoicePreferenceBinding.swift" \
   "$root/Sources/App/ProviderPCMBuffer.swift" "$root/Sources/App/ProviderPCMVoiceDriver.swift" \
   "$root/Tests/ProviderSpeechSettingsStandalone/ConfiguredProviderSpeechChecks.swift" -o "$build/checks"
 "$build/checks"

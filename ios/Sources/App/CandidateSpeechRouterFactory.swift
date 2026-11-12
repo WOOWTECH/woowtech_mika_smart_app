@@ -2,8 +2,8 @@
 import AssistantModels
 import Foundation
 
-/// Production adapters, deliberately unreachable from settings and chat
-/// until native lifecycle, destination disclosure and service tests pass.
+/// Chat uses the system/off route; provider selection remains unreachable
+/// until native lifecycle, disclosure and service tests pass.
 @MainActor
 enum CandidateSpeechRouterFactory {
     static func make(repository: ModelSettingsRepository, defaults: UserDefaults) -> CandidateSpeechRouter {

@@ -465,3 +465,11 @@
 "chat.voiceSettings" = "Open Settings";
 "chat.voiceInterrupted" = "Voice input was interrupted. If you just granted access, hold to speak again.";
 "chat.voiceAccessibilityCancel" = "Cancel voice input";
+"voice.choice.title" = "Speech to text";
+"voice.choice.system" = "On-device speech recognition";
+"voice.choice.off" = "Turn off voice input";
+"voice.choice.unknown" = "Current choice unavailable";
+"voice.choice.rowDetail" = "Choose on-device recognition or turn it off";
+"voice.choice.notice" = "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported.";
+"voice.choice.disabledHint" = "Voice input is off or the choice is unavailable. Choose an option in model settings under Speech to text.";
+"voice.choice.saveFailed" = "Could not save the voice setting. Try again.";
