@@ -128,16 +128,58 @@ public enum SpeechModelChoice: Equatable {
 }
 
 /// The host chooses an isolated or application UserDefaults suite explicitly.
+public struct SpeechChoiceSnapshot: Equatable {
+    public let choice: SpeechModelChoice
+    public let revision: String
+}
+
 public struct SpeechChoiceStore {
+    private static let lock = NSRecursiveLock()
+    public static func withCoordination<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock(); defer { lock.unlock() }
+        return try body()
+    }
     private let defaults: UserDefaults
     private let key: String
     public init(defaults: UserDefaults, key: String = "speech.choice.v1") { self.defaults = defaults; self.key = key }
     public func load() throws -> SpeechModelChoice {
-        guard let value = defaults.object(forKey: key) else { return .automatic }
-        guard let data = value as? Data else { throw SpeechProviderError.invalidConfiguration }
-        return try SpeechModelChoice.decode(data)
+        try snapshot().choice
     }
-    public func save(_ choice: SpeechModelChoice) throws { defaults.set(try choice.encoded(), forKey: key) }
+    public func snapshot() throws -> SpeechChoiceSnapshot {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        return try snapshotLocked()
+    }
+    private func snapshotLocked() throws -> SpeechChoiceSnapshot {
+        let revision = defaults.string(forKey: key + ".revision") ?? "legacy"
+        let choice: SpeechModelChoice
+        guard let value = defaults.object(forKey: key) else {
+            return SpeechChoiceSnapshot(choice: .automatic, revision: revision)
+        }
+        guard let data = value as? Data else { throw SpeechProviderError.invalidConfiguration }
+        choice = try SpeechModelChoice.decode(data)
+        return SpeechChoiceSnapshot(choice: choice, revision: revision)
+    }
+    public func save(_ choice: SpeechModelChoice) throws {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        try saveLocked(choice)
+    }
+    private func saveLocked(_ choice: SpeechModelChoice) throws {
+        let encoded = try choice.encoded()
+        let revision = UUID().uuidString
+        defaults.set(revision, forKey: key + ".revision")
+        guard defaults.string(forKey: key + ".revision") == revision else { throw SpeechProviderError.invalidConfiguration }
+        defaults.set(encoded, forKey: key)
+        guard defaults.string(forKey: key + ".revision") == revision,
+              defaults.data(forKey: key) == encoded else { throw SpeechProviderError.invalidConfiguration }
+    }
+    public func withUnchanged<T>(_ expected: SpeechChoiceSnapshot, _ body: () throws -> T) throws -> T {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        guard try snapshotLocked() == expected else { throw SpeechProviderError.invalidConfiguration }
+        return try body()
+    }
+    public func save(_ choice: SpeechModelChoice, ifUnchanged expected: SpeechChoiceSnapshot) throws {
+        try withUnchanged(expected) { try saveLocked(choice) }
+    }
 }
 
 public enum SpeechProviderError: Error, Equatable {

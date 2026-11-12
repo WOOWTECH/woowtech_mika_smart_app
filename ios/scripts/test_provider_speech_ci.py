@@ -12,16 +12,18 @@ class ProviderSpeechCIGateTest(unittest.TestCase):
     def test_provider_audio_has_no_app_entry(self):
         app = Path(__file__).resolve().parents[1] / "Sources" / "App"
         callers = {}
-        patterns = ("makeProviderPCMDriver", "ProviderPCMVoiceDriver", "AppleProviderPCMSource", "ConfiguredProviderSpeech")
+        patterns = ("makeProviderPCMDriver", "ProviderPCMVoiceDriver", "AppleProviderPCMSource", "ConfiguredProviderSpeech", "CandidateSpeechRouter")
         for path in app.glob("*.swift"):
             source = path.read_text()
             for name in patterns:
                 if re.search(r"\b" + name + r"\s*\(", source):
                     callers.setdefault(name, set()).add(path.name)
         self.assertEqual(callers, {
-            "makeProviderPCMDriver": {"AppleMixedVoiceAudioSession.swift"},
+            "makeProviderPCMDriver": {"AppleMixedVoiceAudioSession.swift", "CandidateSpeechRouterFactory.swift"},
             "ProviderPCMVoiceDriver": {"AppleMixedVoiceAudioSession.swift"},
             "AppleProviderPCMSource": {"AppleMixedVoiceAudioSession.swift"},
+            "ConfiguredProviderSpeech": {"CandidateSpeechRouterFactory.swift"},
+            "CandidateSpeechRouter": {"CandidateSpeechRouterFactory.swift"},
         }, "Review provider entry exposure before adding new production callers")
 
     def run_fixture(self, failure=None):

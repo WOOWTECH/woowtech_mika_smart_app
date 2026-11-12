@@ -1,5 +1,38 @@
-import AssistantModels
+@testable import AssistantModels
 import Foundation
+
+private final class LocalRequestRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var requests: [URLRequest] = []
+    func record(_ value: URLRequest) { lock.lock(); defer { lock.unlock() }; requests.append(value) }
+    func snapshot() -> [URLRequest] { lock.lock(); defer { lock.unlock() }; return requests }
+}
+private final class LocalSpeechURLProtocol: URLProtocol {
+    static let recorder = LocalRequestRecorder()
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        var captured = request
+        if captured.httpBody == nil, let stream = captured.httpBodyStream {
+            stream.open()
+            var body = Data(), chunk = [UInt8](repeating: 0, count: 4096)
+            while body.count <= 4_000_000 {
+                let count = stream.read(&chunk, maxLength: chunk.count)
+                if count <= 0 { break }
+                body.append(contentsOf: chunk.prefix(count))
+            }
+            stream.close()
+            captured.httpBody = body
+        }
+        Self.recorder.record(captured)
+        guard let url = request.url else { return }
+        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("{\"text\":\"local transcript\"}".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
 
 private final class Credentials: ModelCredentialStoring {
     enum FixtureFailure: Error { case partialRemoval }
@@ -17,6 +50,10 @@ private final class Credentials: ModelCredentialStoring {
 private final class RepositoryBox: @unchecked Sendable {
     let repository: ModelSettingsRepository
     init(_ repository: ModelSettingsRepository) { self.repository = repository }
+}
+private final class ChoiceBox: @unchecked Sendable {
+    let store: SpeechChoiceStore
+    init(_ store: SpeechChoiceStore) { self.store = store }
 }
 private final class DispatchSignals: @unchecked Sendable {
     let started = DispatchSemaphore(value: 0)
@@ -65,13 +102,28 @@ private final class DispatchSignals: @unchecked Sendable {
 }
 @MainActor private final class FixturePCMSource: ProviderPCMSource {
     var buffer: ProviderPCMBuffer?
-    func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) { completion(true) }
+    var delayPermission = false
+    var pendingPermission: (@MainActor (Bool) -> Void)?
+    var permissionRequests = 0
+    func requestPermission(_ completion: @escaping @MainActor (Bool) -> Void) {
+        permissionRequests += 1
+        if delayPermission { pendingPermission = completion } else { completion(true) }
+    }
     func start(buffer: ProviderPCMBuffer, activate: @escaping @MainActor () -> Bool,
                mayStart: @escaping @MainActor () -> Bool,
                onFailure: @escaping @MainActor () -> Void) throws {
         if mayStart(), activate(), mayStart() { self.buffer = buffer }
     }
     func stop() { buffer = nil }
+}
+@MainActor private final class FixtureSystemVoice: VoiceInputDriver {
+    var starts = 0, cancellations = 0
+    var callbacks: [(UUID, (UUID, VoiceInputEvent) -> Void)] = []
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+        if mayContinue() { starts += 1; callbacks.append((id, emit)) }
+    }
+    func finish(id: UUID) {}
+    func cancel(id: UUID) { cancellations += 1 }
 }
 
 @main enum Checks {
@@ -480,6 +532,278 @@ private final class DispatchSignals: @unchecked Sendable {
                   "cancellation cannot split the synchronous dispatch operation")
         }
         check(cancelSignals.waitForDone(), "cancellation completes after dispatch operation")
+        let coordinatedChoiceStore = SpeechChoiceStore(defaults: lockDefaults, key: "choice-lock-test")
+        try coordinatedChoiceStore.save(.system)
+        let choiceSnapshot = try coordinatedChoiceStore.snapshot()
+        let choiceBox = ChoiceBox(coordinatedChoiceStore), choiceSignals = DispatchSignals()
+        try coordinatedChoiceStore.withUnchanged(choiceSnapshot) {
+            DispatchQueue.global().async {
+                choiceSignals.started.signal()
+                try? choiceBox.store.save(.off)
+                choiceSignals.done.signal()
+            }
+            check(choiceSignals.started.wait(timeout: .now() + 5) == .success, "choice writer attempted mutation")
+            check(choiceSignals.done.wait(timeout: .now() + .milliseconds(50)) == .timedOut,
+                  "choice mutation cannot split dispatch boundary")
+        }
+        check(choiceSignals.waitForDone(), "choice write completes after dispatch boundary")
+        do { try coordinatedChoiceStore.withUnchanged(choiceSnapshot) {}; fatalError("stale choice accepted") }
+        catch SpeechProviderError.invalidConfiguration { count += 1 }
+
+        // Route actual configured provider and PCM driver through synthetic
+        // source/transport; no microphone or network service is contacted.
+        let routeSuite = "candidate-speech-router-" + UUID().uuidString
+        let routeDefaults = UserDefaults(suiteName: routeSuite)!
+        defer { routeDefaults.removePersistentDomain(forName: routeSuite) }
+        let routeRepo = ModelSettingsRepository(defaults: routeDefaults, credentials: Credentials())
+        _ = try routeRepo.save(baseURL: url, model: "chat", newKey: "fixture")
+        let routeTransport = FakeTransport(), routeSource = FixturePCMSource(), routeLease = FixtureLease()
+        let routeFlow = ConfiguredProviderSpeech(repository: routeRepo, transport: routeTransport)
+        let routeSystem = FixtureSystemVoice()
+        let routeStore = SpeechChoiceStore(defaults: routeDefaults, key: "test.speech.choice")
+        let router = CandidateSpeechRouter(flow: routeFlow, store: routeStore, systemFactory: { routeSystem },
+            providerFactory: { mayFinish, onEnd, transcribe in
+                ProviderPCMVoiceDriver(source: routeSource, coordinator: routeLease, mayFinish: mayFinish,
+                                       onEnd: onEnd, transcribe: transcribe)
+            })
+        var routeEvents: [(UUID, VoiceInputEvent)] = []
+        func startRoute() -> UUID {
+            let id = UUID()
+            router.start(id: id, mayContinue: { true }, emit: { routeEvents.append(($0, $1)) })
+            return id
+        }
+        let systemID = startRoute()
+        check(routeSystem.starts == 1 && routeSource.permissionRequests == 0, "default choice routes to system speech")
+        try router.selectOff()
+        let savedOffChoice = try routeStore.load()
+        check(routeSystem.cancellations == 1 && savedOffChoice == .off,
+              "switching off cancels active system driver and persists choice")
+        let offID = startRoute()
+        check(routeEvents.last?.0 == offID && routeEvents.last?.1 == .failed(.unavailable) &&
+              routeSource.permissionRequests == 0, "off requests no provider permission")
+        router.cancel(id: systemID)
+        routeTransport.enqueue(200, "{\"text\":\"\"}")
+        try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "actual-speech-model")
+        check(router.choice == .provider(model: "actual-speech-model", method: .audioTranscriptions),
+              "successful user probe selects exact model and method")
+        let storedChoice = try routeStore.load()
+        check(storedChoice == .provider(try SpeechProviderSelection(providerID: "configured-model", model: "actual-speech-model", method: .audioTranscriptions)),
+              "successful provider choice persists model and method")
+        let choiceData = routeDefaults.data(forKey: "test.speech.choice")!
+        check(choiceData.range(of: Data("fixture".utf8)) == nil && choiceData.range(of: Data("speech.invalid".utf8)) == nil,
+              "stored choice contains neither credential nor destination")
+        let restoredFlow = ConfiguredProviderSpeech(repository: routeRepo, transport: routeTransport)
+        let restored = CandidateSpeechRouter(flow: restoredFlow, store: routeStore, systemFactory: { routeSystem },
+            providerFactory: { mayFinish, onEnd, transcribe in
+                ProviderPCMVoiceDriver(source: routeSource, coordinator: routeLease, mayFinish: mayFinish,
+                                       onEnd: onEnd, transcribe: transcribe)
+            })
+        let restoredID = UUID()
+        var restoredEvent: VoiceInputEvent?
+        restored.start(id: restoredID, mayContinue: { true }, emit: { _, event in restoredEvent = event })
+        check(restored.choice == router.choice && restoredEvent == .failed(.unavailable) && routeTransport.count() == 1,
+              "restored provider choice is visible but cannot send until explicitly re-probed")
+        let probeRequest = routeTransport.request(0)
+        check(probeRequest.url?.absoluteString == "https://speech.invalid/v1/audio/transcriptions" &&
+              probeRequest.httpBody?.range(of: Data("actual-speech-model".utf8)) != nil,
+              "probe dispatch contains selected model and destination")
+        let routedRecording = startRoute()
+        check(routeSource.buffer != nil && routeLease.held, "provider selection starts PCM with shared lease")
+        _ = routeSource.buffer!.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        routeTransport.enqueue(200, "{\"text\":\"actual transcript\"}")
+        router.finish(id: routedRecording)
+        for _ in 0..<10_000 where routeEvents.last?.0 != routedRecording { await Task.yield() }
+        check(routeEvents.last?.0 == routedRecording && routeEvents.last?.1 == .final("actual transcript") &&
+              routeTransport.count() == 2 && !routeLease.held, "provider recording dispatches once and delivers transcript")
+        routeTransport.enqueue(401)
+        do {
+            try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "failed-model")
+            fatalError("failed probe selected")
+        } catch SpeechProviderError.unauthorized { count += 1 }
+        check(router.choice == .provider(model: "actual-speech-model", method: .audioTranscriptions),
+              "failed provider probe retains previous choice")
+        let beforeCanceledSend = routeTransport.count()
+        let canceledRoute = startRoute()
+        _ = routeSource.buffer!.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        routeTransport.blockBeforeDispatch = true
+        routeTransport.enqueue(200, "{\"text\":\"must not send\"}")
+        router.finish(id: canceledRoute)
+        await waitBeforeDispatch(routeTransport)
+        try router.selectOff()
+        routeTransport.releaseBeforeDispatch()
+        for _ in 0..<1_000 { await Task.yield() }
+        check(routeTransport.count() == beforeCanceledSend && !routeLease.held,
+              "switching off before dispatch cancels and prevents audio submission")
+        routeTransport.replies.removeAll()
+        routeTransport.enqueue(200, "{\"text\":\"\"}")
+        try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "actual-speech-model")
+        let changedBeforeDispatch = startRoute()
+        _ = routeSource.buffer!.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        routeTransport.blockBeforeDispatch = true
+        routeTransport.enqueue(200, "{\"text\":\"must not send\"}")
+        router.finish(id: changedBeforeDispatch)
+        await waitBeforeDispatch(routeTransport)
+        let beforeRouteEdit = routeTransport.count()
+        _ = try routeRepo.save(baseURL: url, model: "edited-chat", newKey: "edited-fixture")
+        routeTransport.releaseBeforeDispatch()
+        for _ in 0..<1_000 where routeEvents.last?.0 != changedBeforeDispatch { await Task.yield() }
+        check(routeEvents.last?.0 == changedBeforeDispatch && routeEvents.last?.1 == .cancelled &&
+              routeTransport.count() == beforeRouteEdit && !routeLease.held,
+              "settings and credential change before routed dispatch prevents audio submission")
+        routeTransport.replies.removeAll()
+        routeTransport.enqueue(200, "{\"text\":\"\"}")
+        try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "actual-speech-model")
+        let savedProviderChoice = try routeStore.load()
+        let choiceChangedCapture = startRoute()
+        _ = routeSource.buffer!.append([Float](repeating: 0.25, count: 8_000), sampleRate: 16_000, channels: 1)
+        routeTransport.blockBeforeDispatch = true
+        routeTransport.enqueue(200, "{\"text\":\"must not send\"}")
+        router.finish(id: choiceChangedCapture)
+        await waitBeforeDispatch(routeTransport)
+        let beforeChoiceABA = routeTransport.count()
+        let otherWindowChoice = SpeechChoiceStore(defaults: routeDefaults, key: "test.speech.choice")
+        try otherWindowChoice.save(.off)
+        try otherWindowChoice.save(savedProviderChoice)
+        routeTransport.releaseBeforeDispatch()
+        for _ in 0..<10_000 where routeEvents.last?.0 != choiceChangedCapture { await Task.yield() }
+        check(routeEvents.last?.0 == choiceChangedCapture && routeEvents.last?.1 == .cancelled &&
+              routeTransport.count() == beforeChoiceABA,
+              "other-window off then restore invalidates staged recording before dispatch")
+        routeTransport.replies.removeAll()
+        routeTransport.blockBeforeDispatch = true
+        routeTransport.enqueue(200, "{\"text\":\"must not send\"}")
+        let choiceChangedProbe = Task {
+            try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "new-speech-model")
+        }
+        await waitBeforeDispatch(routeTransport)
+        let beforeChoiceProbe = routeTransport.count()
+        try otherWindowChoice.save(.off)
+        routeTransport.releaseBeforeDispatch()
+        do { try await choiceChangedProbe.value; fatalError("stale choice probe dispatched") }
+        catch SpeechProviderError.invalidConfiguration { count += 1 }
+        let otherWindowOff = try routeStore.load()
+        check(routeTransport.count() == beforeChoiceProbe && otherWindowOff == .off,
+              "other-window off invalidates staged probe before dispatch")
+        routeTransport.replies.removeAll()
+        routeTransport.enqueue(200, "{\"text\":\"\"}")
+        try await router.selectProvider(rawBaseURL: url, kind: .openAICompatible, model: "actual-speech-model")
+        let beforeDelayedPermission = routeTransport.count()
+        routeSource.delayPermission = true
+        let deniedRoute = startRoute()
+        routeSource.pendingPermission!(false)
+        check(routeEvents.last?.0 == deniedRoute && routeEvents.last?.1 == .failed(.microphoneDenied) &&
+              routeSource.buffer == nil && !routeLease.held, "denied microphone permission releases lease")
+        let delayedRoute = startRoute()
+        let delayedPermission = routeSource.pendingPermission!
+        _ = try routeRepo.save(baseURL: "https://changed.invalid/v1", model: "chat", newKey: "changed")
+        delayedPermission(true)
+        check(routeEvents.last?.0 == delayedRoute && routeEvents.last?.1 == .cancelled && routeSource.buffer == nil &&
+              !routeLease.held && routeTransport.count() == beforeDelayedPermission,
+              "settings change before permission cannot start recording or dispatch")
+        routeSource.delayPermission = false
+        let staleRoute = startRoute()
+        check(routeEvents.last?.0 == staleRoute && routeEvents.last?.1 == .failed(.unavailable),
+              "stale provider does not fall back to system")
+        try router.selectSystem()
+        let savedSystemChoice = try routeStore.load()
+        let replacementSystem = startRoute()
+        check(routeSystem.starts == 2 && savedSystemChoice == .system,
+              "system speech remains selectable and persists after provider invalidation")
+        router.cancel(id: replacementSystem)
+        let reused = UUID()
+        router.start(id: reused, mayContinue: { true }, emit: { routeEvents.append(($0, $1)) })
+        let oldCallback = routeSystem.callbacks.last!.1
+        router.start(id: reused, mayContinue: { true }, emit: { routeEvents.append(($0, $1)) })
+        let eventCount = routeEvents.count
+        oldCallback(reused, .final("stale"))
+        check(routeEvents.count == eventCount, "reused ID does not authorize callback from previous system driver")
+        routeSystem.callbacks.last!.1(reused, .final("fresh"))
+        check(routeEvents.last?.1 == .final("fresh"), "current system driver callback remains usable")
+        let otherWindowSystem = UUID()
+        router.start(id: otherWindowSystem, mayContinue: { true }, emit: { routeEvents.append(($0, $1)) })
+        let systemResult = routeSystem.callbacks.last!.1
+        try otherWindowChoice.save(.off)
+        systemResult(otherWindowSystem, .final("must be discarded"))
+        check(routeEvents.last?.0 == otherWindowSystem && routeEvents.last?.1 == .cancelled,
+              "other-window off discards an active system result")
+        let staleSystem = startRoute()
+        check(routeEvents.last?.0 == staleSystem && routeEvents.last?.1 == .failed(.unavailable),
+              "other-window off blocks a new system capture before notification")
+        let reentrantSystem = FixtureSystemVoice()
+        var reentrantRouter: CandidateSpeechRouter!
+        reentrantRouter = CandidateSpeechRouter(flow: routeFlow,
+            store: SpeechChoiceStore(defaults: routeDefaults, key: "test.speech.reentrant"), systemFactory: {
+            try? reentrantRouter.selectOff()
+            return reentrantSystem
+        }, providerFactory: { mayFinish, onEnd, transcribe in
+            ProviderPCMVoiceDriver(source: routeSource, coordinator: routeLease, mayFinish: mayFinish,
+                                   onEnd: onEnd, transcribe: transcribe)
+        })
+        reentrantRouter.start(id: UUID(), mayContinue: { true }, emit: { _, _ in })
+        check(reentrantRouter.choice == .off && reentrantSystem.starts == 0,
+              "reentrant selection during driver creation cannot start the old driver")
+        routeTransport.enqueue(200, "{\"text\":\"late probe\"}", delayed: true)
+        let delayedProbe = Task {
+            try await router.selectProvider(rawBaseURL: "https://changed.invalid/v1", kind: .openAICompatible,
+                                            model: "late-model")
+        }
+        await waitForRequest(routeTransport)
+        try router.selectOff()
+        routeTransport.release()
+        do { try await delayedProbe.value; fatalError("late probe replaced off choice") }
+        catch is CancellationError { count += 1 }
+        let postProbeChoice = try routeStore.load()
+        check(router.choice == .off && postProbeChoice == .off,
+              "late probe result cannot replace off selection")
+        routeDefaults.set(Data("invalid".utf8), forKey: "test.speech.corrupt")
+        let corruptStore = SpeechChoiceStore(defaults: routeDefaults, key: "test.speech.corrupt")
+        let corruptRouter = CandidateSpeechRouter(flow: routeFlow, store: corruptStore, systemFactory: { routeSystem },
+            providerFactory: { mayFinish, onEnd, transcribe in
+                ProviderPCMVoiceDriver(source: routeSource, coordinator: routeLease, mayFinish: mayFinish,
+                                       onEnd: onEnd, transcribe: transcribe)
+            })
+        var corruptEvent: VoiceInputEvent?
+        corruptRouter.start(id: UUID(), mayContinue: { true }, emit: { _, event in corruptEvent = event })
+        check(corruptRouter.choice == .unavailable && corruptEvent == .failed(.unavailable),
+              "corrupt stored choice fails closed without system fallback")
+
+        // Exercise the real URLSession task/resume boundary using an
+        // intercepting protocol for every URL; no DNS or external network.
+        let urlConfiguration = URLSessionConfiguration.ephemeral
+        urlConfiguration.protocolClasses = [LocalSpeechURLProtocol.self]
+        urlConfiguration.urlCache = nil
+        urlConfiguration.httpCookieStorage = nil
+        urlConfiguration.urlCredentialStorage = nil
+        let isolatedSession = URLSession(configuration: urlConfiguration)
+        defer { isolatedSession.invalidateAndCancel() }
+        let sessionFlow = ConfiguredProviderSpeech(repository: routeRepo,
+            transport: URLSessionSpeechTransport(session: isolatedSession))
+        let sessionSource = FixturePCMSource(), sessionLease = FixtureLease()
+        let sessionRouter = CandidateSpeechRouter(flow: sessionFlow,
+            store: SpeechChoiceStore(defaults: routeDefaults, key: "test.speech.session"), systemFactory: { FixtureSystemVoice() },
+            providerFactory: { mayFinish, onEnd, transcribe in
+                ProviderPCMVoiceDriver(source: sessionSource, coordinator: sessionLease, mayFinish: mayFinish,
+                                       onEnd: onEnd, transcribe: transcribe)
+            })
+        let interceptedBefore = LocalSpeechURLProtocol.recorder.snapshot().count
+        try await sessionRouter.selectProvider(rawBaseURL: "https://changed.invalid/v1", kind: .openAICompatible,
+                                               model: "selected-session-model")
+        let sessionID = UUID()
+        var sessionEvent: VoiceInputEvent?
+        sessionRouter.start(id: sessionID, mayContinue: { true }, emit: { _, event in sessionEvent = event })
+        _ = sessionSource.buffer!.append([Float](repeating: 0.125, count: 8_000), sampleRate: 16_000, channels: 1)
+        sessionRouter.finish(id: sessionID)
+        for _ in 0..<200 where sessionEvent == nil { try await Task.sleep(nanoseconds: 10_000_000) }
+        let intercepted = LocalSpeechURLProtocol.recorder.snapshot()
+        check(sessionEvent == .final("local transcript") && intercepted.count == interceptedBefore + 2,
+              "real URLSession task dispatches probe and synthetic recording through local interceptor")
+        let sentRequest = intercepted.last!
+        check(sentRequest.url?.absoluteString == "https://changed.invalid/v1/audio/transcriptions" &&
+              sentRequest.httpBody?.range(of: Data("selected-session-model".utf8)) != nil &&
+              sentRequest.httpBody?.range(of: Data("RIFF".utf8)) != nil &&
+              sentRequest.value(forHTTPHeaderField: "Authorization") == "Bearer changed" &&
+              !sentRequest.httpShouldHandleCookies && !sessionLease.held,
+              "actual dispatch uses selected destination/model, WAV and credential with cookies disabled")
         print("PASS configured provider flow: \(count) checks; isolated defaults, fixture credentials and fake transport")
     }
 }

@@ -7,6 +7,7 @@ import Foundation
 @MainActor
 final class ConfiguredProviderSpeech {
     enum Failure: Error, Equatable { case unavailable, stale, invalidAttempt }
+    typealias DispatchGate = (@escaping @MainActor () throws -> Void) throws -> Void
 
     private struct Binding: Equatable {
         let base: String
@@ -44,14 +45,16 @@ final class ConfiguredProviderSpeech {
     }
 
     private func send(endpoint: SpeechProviderEndpoint, selection: SpeechProviderSelection,
-                      key: String, wav: Data, binding: Binding, generation: UUID) async throws -> String {
+                      key: String, wav: Data, binding: Binding, generation: UUID,
+                      dispatchGate: DispatchGate? = nil) async throws -> String {
         let id = UUID()
         let request = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: key, wav: wav)
         let permit = SpeechDispatchPermit { [weak self] dispatch in
             guard let self else { throw Failure.stale }
             try ModelSettingsRepository.withSpeechDispatchLock {
                 try self.check(binding, generation: generation)
-                try dispatch()
+                if let dispatchGate { try dispatchGate(dispatch) }
+                else { try dispatch() }
             }
         }
         let transport = self.transport
@@ -71,7 +74,8 @@ final class ConfiguredProviderSpeech {
 
     /// Call only in response to a user choosing to test a disclosed destination.
     /// The one-second silence can use provider quota. No request is made on init.
-    func probe(rawBaseURL: String, kind: SpeechProviderKind, model: String) async throws -> SpeechProviderMethod {
+    func probe(rawBaseURL: String, kind: SpeechProviderKind, model: String,
+               dispatchGate: DispatchGate? = nil) async throws -> SpeechProviderMethod {
         // As on Android, a failed selection probe leaves the previous working
         // choice in place; it still has to match the live settings to be used.
         pending?.task.cancel()
@@ -90,7 +94,7 @@ final class ConfiguredProviderSpeech {
             try check(binding, generation: operation)
             do {
                 _ = try await send(endpoint: endpoint, selection: selection, key: key, wav: wav,
-                                   binding: binding, generation: operation)
+                                   binding: binding, generation: operation, dispatchGate: dispatchGate)
                 try check(binding, generation: operation)
                 verified = Verified(binding: binding, endpoint: endpoint, selection: selection)
                 return method
@@ -118,6 +122,13 @@ final class ConfiguredProviderSpeech {
         return id
     }
 
+    /// Live snapshot check for permission and recording gates. A host must
+    /// still call invalidate when settings or scene notifications arrive.
+    func isCurrentSelection() -> Bool {
+        guard let verified else { return false }
+        return (try? check(verified.binding, generation: generation)) != nil
+    }
+
     /// Abandon an unsent recording without discarding the verified provider.
     /// A stale recording must never revoke a newer gesture's authorization.
     func discardUnsentRecording(_ id: UUID) {
@@ -126,7 +137,7 @@ final class ConfiguredProviderSpeech {
         generation = UUID()
     }
 
-    func transcribe(recording id: UUID, samples: [Int16]) async throws -> String {
+    func transcribe(recording id: UUID, samples: [Int16], dispatchGate: DispatchGate? = nil) async throws -> String {
         guard let verified, attempt == id else { throw Failure.invalidAttempt }
         attempt = nil
         let operation = generation
@@ -138,7 +149,7 @@ final class ConfiguredProviderSpeech {
         let wav = try SpeechWAV.encode(samples)
         try check(verified.binding, generation: operation)
         let text = try await send(endpoint: verified.endpoint, selection: verified.selection, key: key, wav: wav,
-                                  binding: verified.binding, generation: operation)
+                                  binding: verified.binding, generation: operation, dispatchGate: dispatchGate)
         try check(verified.binding, generation: operation)
         return text
     }

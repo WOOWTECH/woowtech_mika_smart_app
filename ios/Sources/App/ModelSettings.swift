@@ -102,11 +102,8 @@ final class ModelSettingsRepository {
     private static let revisionKey = "model.configuration.revision.v1"
     // Shared across repository instances in this process. Dispatch of a
     // speech request and every repository mutation use the same boundary.
-    private static let dispatchLock = NSRecursiveLock()
-
     static func withSpeechDispatchLock<T>(_ body: () throws -> T) rethrows -> T {
-        dispatchLock.lock(); defer { dispatchLock.unlock() }
-        return try body()
+        try SpeechChoiceStore.withCoordination(body)
     }
     private let defaults: UserDefaults
     private let credentials: any ModelCredentialStoring
