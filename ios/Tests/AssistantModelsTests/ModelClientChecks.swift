@@ -3,6 +3,13 @@ import Foundation
 
 /// Shared by XCTest and a standalone Swift harness on hosts without XCTest.
 enum ModelClientChecks {
+    final class DispatchEvents: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values = (started: 0, finished: 0)
+        func started() { lock.lock(); defer { lock.unlock() }; values.started += 1 }
+        func finished() { lock.lock(); defer { lock.unlock() }; values.finished += 1 }
+        var snapshot: (started: Int, finished: Int) { lock.lock(); defer { lock.unlock() }; return values }
+    }
     struct CheckFailure: Error { let name: String }
     struct Checks {
         var count = 0
@@ -199,6 +206,43 @@ enum ModelClientChecks {
         return checks.count
     }
 
+    static func boundedStreamLifecycle() async throws -> Int {
+        var checks = Checks()
+        let session = ModelProtocolFixture.session(); defer { session.invalidateAndCancel() }
+        let events = DispatchEvents()
+        let fixture = ModelProtocolFixture.Scenario(mime:"text/event-stream",chunks:[Data((textEvent + stopEvent + doneEvent).utf8)])
+        let base = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(base) }
+        var result = ""
+        for try await text in HTTPChatModelClient(session:session).stream(messages:messages,
+            configuration:.init(baseURL:base,model:"test"),apiKey:fakeKey,
+            onDispatch:{ events.started() },onProducerFinished:{ events.finished() }) { result += text }
+        try checks.expect(result == "你好 🏡" && fixture.requestCount == 1, "bounded streaming sends one intercepted request")
+        try checks.expect(events.snapshot.started >= 1 && events.snapshot.finished == 1, "bounded stream reports dispatch and actual finish")
+
+        let invalid = DispatchEvents()
+        do {
+            for try await _ in HTTPChatModelClient(session:session).stream(messages:messages,
+                configuration:.init(baseURL:base,model:""),apiKey:fakeKey,
+                onDispatch:{ invalid.started() },onProducerFinished:{ invalid.finished() }) {}
+            throw CheckFailure(name:"invalid configuration must fail")
+        } catch let error as HTTPChatModelError { try checks.expect(error == .invalidConfiguration,"invalid stream is rejected") }
+        try checks.expect(invalid.snapshot.started == 0 && invalid.snapshot.finished == 1, "failure before dispatch still finishes producer")
+
+        let cancelled = DispatchEvents(), held = ModelProtocolFixture.Scenario(mime:"text/event-stream",holdBeforeHeaders:true)
+        let heldBase = ModelProtocolFixture.register(held); defer { ModelProtocolFixture.remove(heldBase) }
+        let work = Task {
+            for try await _ in HTTPChatModelClient(session:session).stream(messages:messages,
+                configuration:.init(baseURL:heldBase,model:"test"),apiKey:fakeKey,
+                onDispatch:{ cancelled.started() },onProducerFinished:{ cancelled.finished() }) {}
+        }
+        try await wait { held.requestCount == 1 }
+        work.cancel(); _ = try? await work.value
+        try await wait { held.stopCount > 0 && cancelled.snapshot.finished == 1 }
+        try checks.expect(held.requestCount == 1 && held.stopCount > 0, "cancellation stops the intercepted producer")
+        try checks.expect(cancelled.snapshot.finished == 1, "cancelled producer reports finish exactly once")
+        return checks.count
+    }
+
     static func deadlinesAndCancellation() async throws -> Int {
         var checks = Checks()
         let session = ModelProtocolFixture.session()
@@ -338,6 +382,8 @@ enum ModelClientChecks {
             total += completion; print("completion: \(completion)")
             let streaming = try await ModelClientChecks.streamingTransport()
             total += streaming; print("streaming: \(streaming)")
+            let bounded = try await ModelClientChecks.boundedStreamLifecycle()
+            total += bounded; print("bounded streaming lifecycle: \(bounded)")
             let cancellation = try await ModelClientChecks.deadlinesAndCancellation()
             total += cancellation; print("deadline/cancellation: \(cancellation)")
             let bounds = try await ModelClientChecks.slowConsumerAndRedirectPolicy()

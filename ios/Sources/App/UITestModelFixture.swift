@@ -80,10 +80,17 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
         try await completeClient.complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let worker = Task {
+                defer { onProducerFinished() }
                 do {
                     try Task.checkCancellation()
+                    onDispatch() // Controlled synthetic fixture dispatch.
                     let prompt = messages.last?.content ?? ""
                     if messages.first?.role == "system",
                        messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true {
@@ -345,6 +352,25 @@ actor UITestChatModelClient: ChatModelClient {
             throw URLError(.cannotConnectToHost)
         }
         return "測試回覆：\(prompt)"
+    }
+}
+#endif
+
+#if DEBUG
+extension UITestChatModelClient: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+extension UITestStreamingChatModelClient: ReferenceDispatchBoundStreamingChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
 #endif
