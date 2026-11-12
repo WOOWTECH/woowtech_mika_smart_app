@@ -264,7 +264,15 @@ public actor MCPInboundReviewState {
     /// These calls must come from local user/lifecycle controls, never remote RPC.
     public func setEnabledByUser(_ value: Bool) { enabled = value; state = .idle }
     public func setForegroundActive(_ value: Bool) { active = value; if !value { state = .idle } }
-    public func discard() { state = .idle }
+    /// A stale ticket or grant cannot discard a newer review or grant.
+    @discardableResult public func discard(ticket: UUID) -> Bool {
+        guard case .pending(let expected, _, _) = state, expected == ticket else { return false }
+        state = .idle; return true
+    }
+    @discardableResult public func discard(grant: UUID) -> Bool {
+        guard case .approved(let expected, _, _) = state, expected == grant else { return false }
+        state = .idle; return true
+    }
 
     /// Replaces any previous review, including a previously approved grant.
     public func stage(_ task: MCPInboundModelTask, binding: MCPInboundReviewBinding) -> MCPInboundReview? {

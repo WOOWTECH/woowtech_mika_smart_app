@@ -8,6 +8,20 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class MCPInboundCoreTests(unittest.TestCase):
+    def test_response_and_review_regressions(self):
+        with tempfile.TemporaryDirectory(prefix="woow-inbound-response-review-") as tmp:
+            binary = pathlib.Path(tmp) / "checks"
+            subprocess.run([
+                "swiftc", "-swift-version", "5", "-warnings-as-errors", "-parse-as-library",
+                str(ROOT / "Sources/AssistantMCP/MCPTypes.swift"),
+                str(ROOT / "Sources/AssistantMCP/MCPInboundCore.swift"),
+                str(ROOT / "Sources/AssistantMCP/MCPInboundAccessTasks.swift"),
+                str(ROOT / "Sources/AssistantMCP/MCPInboundResponses.swift"),
+                str(ROOT / "Tests/MCPInboundStandalone/ResponseReviewRegressionChecks.swift"), "-o", str(binary),
+            ], check=True, timeout=120)
+            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True, timeout=90)
+            self.assertIn("PASS response review regressions: 30 checks; synthetic only", result.stdout)
+
     def test_conversation_and_response(self):
         with tempfile.TemporaryDirectory(prefix="woow-inbound-conversation-") as tmp:
             binary = pathlib.Path(tmp) / "checks"

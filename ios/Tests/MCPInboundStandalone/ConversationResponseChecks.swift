@@ -150,7 +150,7 @@ import Foundation
             try await core.hostFinish(lease:boundedLease,answer:"ok")
             let boundedSnapshot = try await core.snapshot(taskID:boundedTask.taskID,connection:c,peer:peer,headers:headers)
             try await rejects(.conflict) { _ = try await core.stage(task:try task("no proof",conversation:boundedSnapshot.conversation),binding:binding,peer:peer,headers:headers) }
-            do { _ = try MCPInboundResponses.success(id:.number(1),payload:.object(["x":.string(String(repeating:"x",count:270_000))])); throw Failure(label:"oversize response accepted") }
+            do { _ = try MCPInboundResponses.success(id:.number(1),payload:.object(["x":.string(String(repeating:"x",count:MCPInboundResponses.maximumPayloadBytes + 1))])); throw Failure(label:"oversize response accepted") }
             catch MCPInboundResponses.Error.tooLarge { count += 1 }
             await core.connectionDidClose(c)
             let replacement = try await core.open(peer:peer,headers:headers)

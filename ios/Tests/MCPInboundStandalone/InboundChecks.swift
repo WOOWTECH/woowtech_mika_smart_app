@@ -98,7 +98,7 @@ import Foundation
             }
             try check(results.compactMap { $0 }.count == 1, "concurrent consumers: exactly one grant")
             guard let discarded = await state.stage(t, binding: binding) else { throw Failure(name: "discard setup") }
-            await state.discard()
+            await state.discard(ticket: discarded.id)
             try check(await state.approveLocally(ticket: discarded.id, current: binding) == nil, "discard invalidates")
             let newConnection = MCPInboundReviewBinding(connection: UUID(), destinationRevision: binding.destinationRevision, contextRevision: binding.contextRevision)
             guard let connectionTicket = await state.stage(t, binding: binding) else { throw Failure(name: "connection setup") }

@@ -4,14 +4,19 @@ import Foundation
 /// snapshots through the authenticated actor; this codec performs no access check.
 public enum MCPInboundResponses {
     public enum Error: Swift.Error { case tooLarge }
+    /// A list has at most 50 goals of 4,000 UTF-16 units. JSON can encode
+    /// one control unit as six bytes and the text copy escapes it again.
+    public static let maximumPayloadBytes = 2 * 1024 * 1024
+    public static let maximumResponseBytes = 4 * 1024 * 1024
+    public enum MissingErrorID: Sendable { case omitted, null }
     private static func id(_ id: MCPInboundID) -> JSONValue {
         switch id { case .string(let value): return .string(value); case .number(let value): return .number(value) }
     }
     private static func uuid(_ value: UUID) -> JSONValue { .string(value.uuidString.lowercased()) }
-    private static func data(_ value: JSONValue) throws -> Data {
+    private static func data(_ value: JSONValue, limit: Int = maximumResponseBytes) throws -> Data {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let result = try encoder.encode(value)
-        guard result.count <= 256 * 1024 else { throw Error.tooLarge }
+        guard result.count <= limit else { throw Error.tooLarge }
         return result
     }
     private static func result(id requestID: MCPInboundID, value: JSONValue) throws -> Data {
@@ -57,16 +62,22 @@ public enum MCPInboundResponses {
         ]
         return try result(id: id, value: .object(["tools": .array(tools)]))
     }
-    public static func protocolError(id requestID: MCPInboundID, code: Int, message: String) throws -> Data {
+    /// Android omits id when parsing fails before it can be read. Callers
+    /// requiring strict JSON-RPC null may opt in explicitly.
+    public static func protocolError(id requestID: MCPInboundID?, code: Int, message: String,
+                                     missingID: MissingErrorID = .omitted) throws -> Data {
         guard [-32600, -32601, -32602, -32700].contains(code), message.utf8.count <= 256 else { throw MCPError.invalidResponse }
-        return try data(.object(["jsonrpc": .string("2.0"), "id": id(requestID),
-            "error": .object(["code": .number(Decimal(code)), "message": .string(message)])]))
+        var envelope: [String: JSONValue] = ["jsonrpc": .string("2.0"),
+            "error": .object(["code": .number(Decimal(code)), "message": .string(message)])]
+        if let requestID { envelope["id"] = id(requestID) }
+        else if missingID == .null { envelope["id"] = .null }
+        return try data(.object(envelope))
     }
     /// Matches Android's legacy envelope: content text contains JSON for the
     /// exact structuredContent object; failures do not contain structuredContent.
     public static func success(id requestID: MCPInboundID, payload: JSONValue) throws -> Data {
         guard case .object = payload else { throw MCPError.invalidResponse }
-        let text = String(decoding: try data(payload), as: UTF8.self)
+        let text = String(decoding: try data(payload, limit: maximumPayloadBytes), as: UTF8.self)
         return try data(.object(["jsonrpc": .string("2.0"), "id": id(requestID), "result": .object([
             "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
             "structuredContent": payload, "isError": .bool(false)
