@@ -142,6 +142,9 @@ public struct SkillLearningService: Sendable {
             guard document.referencedToolNames.isSubset(of: Set(actions.filter(\.succeeded).map(\.toolName))) else {
                 return assessment(judgment, .invalidDraft)
             }
+            guard !state.hasDuplicateNewLearnedBody(document) else {
+                return assessment(judgment, .duplicateContent)
+            }
             let proposal = SkillLearningProposal(document: document, runID: context.runID,
                 replacesPendingID: pending?.id, baseStateFingerprint: snapshotFingerprint, evidence: evidence)
             return assessment(judgment, nil, proposal: proposal)

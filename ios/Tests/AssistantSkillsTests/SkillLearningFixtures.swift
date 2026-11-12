@@ -49,6 +49,64 @@ enum SkillLearningFixtures {
             configuration: configuration, apiKey: key)
     }
 
+    static func duplicateNewBodies() async throws -> Int {
+        var c = SkillsCoreFixtures.Checks()
+        let original = draft("reference-guide", detail: "Inspect the relevant pages.")
+        let duplicate = draft("different-name", detail: "Inspect the relevant pages.")
+        let distinct = draft("different-name", detail: "Compare the relevant pages carefully.")
+        var installed = SkillsState()
+        _ = try SkillsCoreFixtures.install(original, into: &installed, tools: tools)
+        let installedBefore = installed
+        let client = Client([.text(done), .text(duplicate)])
+        let result = try await assess(client, state: installed)
+        let calls = await client.calls()
+        try c.expect(result.judgment.outcome == .done && result.proposal == nil && result.skipReason == .duplicateContent,
+                     "five actions cannot auto-draft the same installed body under a new name")
+        try c.expect(installed == installedBefore && calls == 2,
+                     "independent judgment and draft run without mutating the existing skill")
+        try c.error(.duplicateContent, "low-level learned proposal rejects identical installed body") {
+            _ = try installed.proposeLearnedDraft(duplicate, evidence: .init(outcome: .done, successfulActionCount: 5),
+                                                   availableToolNames: tools)
+        }
+        try c.expect(installed == installedBefore, "duplicate rejection preserves installed skill and history")
+        let imported = try installed.importMarkdown(duplicate, availableToolNames: tools)
+        try c.expect(imported.source == .imported && imported.name == "different-name",
+                     "manual import can deliberately use the same body with another name")
+
+        var pending = SkillsState()
+        _ = try pending.importMarkdown(original, availableToolNames: tools)
+        let pendingBefore = pending
+        let pendingResult = try await assess(Client([.text(done), .text(duplicate)]), state: pending)
+        try c.expect(pendingResult.proposal == nil && pendingResult.skipReason == .duplicateContent && pending == pendingBefore,
+                     "a differently named pending draft also blocks an identical automatic body")
+
+        var distinctState = installedBefore
+        let different = try await assess(Client([.text(done), .text(distinct)]), state: distinctState)
+        try c.expect(different.proposal != nil && different.skipReason == nil, "genuinely different content remains eligible")
+        let staged = try distinctState.apply(different, availableToolNames: tools)
+        try c.expect(staged?.name == "different-name" && distinctState.installed == installedBefore.installed,
+                     "different content becomes a pending draft without changing installed skills")
+
+        let update = try await assess(Client([.text(done), .text(draft("other-name", updates: "reference-guide",
+                                                                       detail: "Inspect the relevant pages."))]),
+                                      state: installedBefore)
+        try c.expect(update.proposal?.name == "reference-guide", "explicit same-name update remains eligible")
+
+        let runID = UUID()
+        var text = try SkillDocument.importText(duplicate, source: .learned)
+        text = try SkillDocument.replacingField(text, key: "learned_from", value: runID.uuidString)
+        let document = try SkillDocument.parse(text, availableToolNames: tools, trustedProvenance: runID)
+        let forged = SkillLearningProposal(document: document, runID: runID, replacesPendingID: nil,
+            baseStateFingerprint: try installedBefore.learningFingerprint(),
+            evidence: .init(outcome: .done, successfulActionCount: 5))
+        var forgedState = installedBefore
+        try c.error(.duplicateContent, "application independently rejects a forged duplicate proposal") {
+            _ = try forgedState.apply(forged, availableToolNames: tools)
+        }
+        try c.expect(forgedState == installedBefore, "failed application does not mutate state")
+        return c.count
+    }
+
     static func actualTrajectoryAndPrivacy() async throws -> Int {
         var c = SkillsCoreFixtures.Checks()
         for name in BundledSkillCatalog.entryIDs {

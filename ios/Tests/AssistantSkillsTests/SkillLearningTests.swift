@@ -9,6 +9,7 @@ struct SkillLearningStandalone {
             SkillsCoreFixtures.retrievalAndContext() + SkillsCoreFixtures.capabilitiesAndBounds()
         print("PASS existing Skills core: \(core) assertions")
         let groups: [(String, () async throws -> Int)] = [
+            ("duplicateNewBodies", SkillLearningFixtures.duplicateNewBodies),
             ("actualTrajectoryAndPrivacy", SkillLearningFixtures.actualTrajectoryAndPrivacy),
             ("gatesAndNoPadding", SkillLearningFixtures.gatesAndNoPadding),
             ("untrustedAndMalformed", SkillLearningFixtures.untrustedAndMalformed),
@@ -30,6 +31,9 @@ struct SkillLearningStandalone {
 import XCTest
 
 final class SkillLearningTests: XCTestCase {
+    func testNewAutomaticBodyDuplicatesAreRejectedWithoutBlockingManualImports() async throws {
+        let count = try await SkillLearningFixtures.duplicateNewBodies(); XCTAssertGreaterThan(count, 0)
+    }
     func testExecutedTrajectoryAndPrivacy() async throws {
         let count = try await SkillLearningFixtures.actualTrajectoryAndPrivacy(); XCTAssertGreaterThan(count, 0)
     }

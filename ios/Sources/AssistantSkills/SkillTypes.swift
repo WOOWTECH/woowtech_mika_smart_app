@@ -14,7 +14,7 @@ public enum SkillsError: String, Error, Codable, Equatable, Sendable, LocalizedE
     case invalidFrontMatter, invalidName, missingDescription, missingSection, tooLong
     case unknownTool, sensitiveContent, builtinName, draftPending, duplicateID
     case notFound, changedSinceRead, nameMismatch, notRestorable, invalidState
-    case insufficientEvidence, capacityReached
+    case insufficientEvidence, capacityReached, duplicateContent
 
     public var errorDescription: String? {
         // Fixed categories only; never echo potentially sensitive imported content.
@@ -29,6 +29,7 @@ public enum SkillsError: String, Error, Codable, Equatable, Sendable, LocalizedE
         case .builtinName: return "Skill name is reserved by a built-in skill."
         case .draftPending: return "A draft for this skill is already pending."
         case .duplicateID: return "Draft identifier already exists."
+        case .duplicateContent: return "An existing skill or draft has the same content."
         case .notFound: return "Skill or revision was not found."
         case .changedSinceRead: return "Skill changed since this version was read."
         case .nameMismatch: return "Editing a draft cannot rename its target skill."
