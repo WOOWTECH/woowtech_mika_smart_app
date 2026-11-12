@@ -22,6 +22,10 @@ final class ChatVoiceController {
         self.readDraft = readDraft
         self.writeDraft = writeDraft
         self.machine = VoiceInputStateMachine(driver: driver, now: now)
+        machine.mayContinue = { [weak self] in
+            guard let self, let revision = self.voiceRevision else { return false }
+            return revision == self.voiceAuthorization()
+        }
         machine.onStateChange = { [weak self] state in
             guard let self else { return }
             self.onStateChange?(state)
@@ -42,6 +46,9 @@ final class ChatVoiceController {
         voiceRevision = revision
         origin = conversation()
         machine.begin(gestureStartedAt: gestureStartedAt)
+    }
+    func authorizationChanged() {
+        if let revision = voiceRevision, revision != voiceAuthorization() { cancel() }
     }
     func drag(upwardDistance: Double) { machine.drag(upwardDistance: upwardDistance, cancelThreshold: 70) }
     func release() { if voiceRevision != nil && voiceRevision == voiceAuthorization() { machine.release() } else { cancel() } }

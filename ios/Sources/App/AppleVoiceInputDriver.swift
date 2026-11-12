@@ -2,6 +2,7 @@
 import Foundation
 import Speech
 import AVFoundation
+import UIKit
 
 /// iOS 17 system recognizer adapter, connected through the mixed-audio candidate.
 /// No provider fallback: if on-device recognition is unavailable, fail closed.
@@ -10,6 +11,7 @@ import AVFoundation
 final class AppleVoiceInputDriver: VoiceInputDriver {
     private var id: UUID?
     private var emit: ((UUID, VoiceInputEvent) -> Void)?
+    private var mayContinue: (() -> Bool)?
     private var engine: AVAudioEngine?
     private var recognizer: SFSpeechRecognizer?
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -33,17 +35,19 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
         self.audioLease = VoiceAudioLeaseSlot(coordinator: audioCoordinator)
     }
 
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         if let old = self.id { cancel(id: old) }
         self.id = id
         self.emit = emit
+        self.mayContinue = mayContinue
         finishing = false
+        guard permittedToStart(id: id) else { return }
         // No permissions, recording, or shared audio changes without a lease.
         guard audioLease.acquire(onRevoked: { [weak self] in self?.fail(.audio, id: id) }) else {
             fail(.unavailable, id: id)
             return
         }
-        guard self.id == id else { return }
+        guard permittedToStart(id: id) else { return }
         // This deadline includes permission prompts, so a forgotten gesture
         // cannot start or continue recording indefinitely.
         scheduleDeadline(id: id, seconds: 60)
@@ -53,7 +57,7 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     }
 
     private func speechAuthorization(_ status: SFSpeechRecognizerAuthorizationStatus, id: UUID) {
-        guard self.id == id, !finishing else { return }
+        guard permittedToStart(id: id) else { return }
         switch status {
         case .authorized:
             AVAudioApplication.requestRecordPermission { [weak self] granted in
@@ -67,13 +71,14 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     }
 
     private func microphoneAuthorization(_ granted: Bool, id: UUID) {
-        guard self.id == id, !finishing else { return }
+        guard permittedToStart(id: id) else { return }
         guard granted else { fail(.microphoneDenied, id: id); return }
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable,
               recognizer.supportsOnDeviceRecognition else { fail(.unavailable, id: id); return }
         self.recognizer = recognizer
+        guard permittedToStart(id: id) else { return }
         guard audioLease.activateForRecording() else { fail(.audio, id: id); return }
-        guard self.id == id else { return }
+        guard permittedToStart(id: id) else { return }
         let audio = AVAudioSession.sharedInstance()
         do {
             let newEngine = AVAudioEngine()
@@ -110,16 +115,32 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
             ) { [weak self] _ in
                 DispatchQueue.main.async { self?.fail(.audio, id: id) }
             }
+            guard permittedToStart(id: id) else { return }
             task = recognizer.recognitionTask(with: newRequest) { [weak self] result, error in
                 let text = result?.bestTranscription.formattedString
                 let final = result?.isFinal == true
                 DispatchQueue.main.async { self?.recognitionResult(text, final: final, failed: error != nil, id: id) }
             }
+            guard permittedToStart(id: id) else { return }
             newEngine.prepare()
+            guard permittedToStart(id: id) else { return }
             try newEngine.start()
         } catch {
             fail(.audio, id: id)
         }
+    }
+
+    /// Re-check the live settings snapshot and the state-machine session after
+    /// each asynchronous permission and immediately before capture starts.
+    private func permittedToStart(id: UUID) -> Bool {
+        guard self.id == id else { return false }
+        guard !finishing, UIApplication.shared.applicationState == .active,
+              mayContinue?() == true else { deliver(.cancelled, id: id); return false }
+        guard self.id == id else { return false }
+        guard !finishing, UIApplication.shared.applicationState == .active else {
+            deliver(.cancelled, id: id); return false
+        }
+        return true
     }
 
     private func recognitionResult(_ text: String?, final: Bool, failed: Bool, id: UUID) {
@@ -174,6 +195,7 @@ final class AppleVoiceInputDriver: VoiceInputDriver {
     private func cleanup() {
         id = nil
         emit = nil
+        mayContinue = nil
         deadline?.cancel(); deadline = nil
         if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
         if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }

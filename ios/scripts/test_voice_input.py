@@ -87,6 +87,13 @@ class VoiceInputStandaloneTests(unittest.TestCase):
         self.assertIn("UnavailableVoiceAudioCoordinator()", source)
         self.assertLess(source.index("audioLease.acquire("), source.index("SFSpeechRecognizer.requestAuthorization"))
         self.assertLess(source.index("audioLease.activateForRecording()"), source.index("AVAudioEngine()"))
+        speech_auth = source[source.index("private func speechAuthorization"):source.index("private func microphoneAuthorization")]
+        microphone_auth = source[source.index("private func microphoneAuthorization"):source.index("private func permittedToStart")]
+        self.assertIn("guard permittedToStart(id: id)", speech_auth)
+        self.assertLess(microphone_auth.index("guard permittedToStart(id: id)"), microphone_auth.index("audioLease.activateForRecording()"))
+        self.assertLess(microphone_auth.index("newEngine.prepare()"), microphone_auth.rindex("guard permittedToStart(id: id)"))
+        self.assertLess(microphone_auth.rindex("guard permittedToStart(id: id)"), microphone_auth.index("try newEngine.start()"))
+        self.assertIn("UIApplication.shared.applicationState == .active", source)
         self.assertNotRegex(source, r"\.\s*setCategory\s*\(")
         self.assertNotRegex(source, r"\.\s*setActive\s*\(")
         cleanup = source[source.index("private func cleanup()"):]

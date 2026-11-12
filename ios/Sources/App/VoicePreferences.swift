@@ -11,21 +11,25 @@ private final class VoicePreferenceObserver: @unchecked Sendable {
 final class VoicePreferences: ObservableObject {
     static let shared = VoicePreferences(store: .application())
     @Published private(set) var choice: VoiceChoice
+    @Published private(set) var observedAuthorization: String?
     private let store: VoiceChoiceStore
     private var observer: VoicePreferenceObserver?
     var authorization: String? { store.snapshot().authorization }
 
     init(store: VoiceChoiceStore) {
         self.store = store
-        choice = store.load()
+        let snapshot = store.snapshot()
+        choice = snapshot.choice
+        observedAuthorization = snapshot.authorization
         observer = VoicePreferenceObserver(NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in self?.refresh() }
             })
     }
     func refresh() {
-        let value = store.load()
-        if value != choice { choice = value }
+        let value = store.snapshot()
+        if value.authorization != observedAuthorization { observedAuthorization = value.authorization }
+        if value.choice != choice { choice = value.choice }
     }
     func select(_ value: VoiceChoice) {
         store.select(value)

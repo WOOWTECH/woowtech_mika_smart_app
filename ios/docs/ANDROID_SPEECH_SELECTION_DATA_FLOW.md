@@ -43,8 +43,11 @@ The actual composer controller consults this preference before driver start,
 release, timer work and draft insertion. Each settings write changes a revision:
 turning off then back on does not revive the previous recording's result. Off or
 an unrecognized/corrupt saved choice cannot start the driver; a settings change
-during capture is canceled at the next controller tick or release, and a late
-result cannot enter the draft. The existing scene, gesture, conversation and
+during capture actively cancels when the preference revision notification is
+processed. Independently, the driver checks the live revision after permission
+callbacks and immediately before starting capture, without waiting for a tick;
+a late result cannot enter the draft. Details and native limits are in
+[the permission-race regression](VOICE_DISABLE_PERMISSION_RACE.md). The existing scene, gesture, conversation and
 recording-time cancellation behavior remains in place. No model or provider is
 created or called, and no new upload/probe permission prompt is added.
 
