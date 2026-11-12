@@ -51,6 +51,29 @@ struct MCPApprovalRequest: Identifiable {
     }
 }
 
+/// The runner publishes .executing before entering its executor. Reacquire the
+/// exact chat fence *after* that callback and hold the cooperative lock until
+/// the real executor returns. Cancellation of the caller does not release the
+/// lock while an executor that ignores cancellation is still running.
+private struct ContextFencedMCPExecutor: MCPConversationExecuting {
+    let executor: any MCPDiscovering
+    let fence: ChatContextFence
+
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        let lease = try await MainActor.run { try fence.acquire() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        return try await executor.callAuthorizedTool(name: name, arguments: arguments)
+    }
+
+    func readResource(uri: String) async throws -> JSONValue {
+        let lease = try await MainActor.run { try fence.acquire() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        return try await executor.readResource(uri: uri)
+    }
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -458,11 +481,17 @@ final class ChatSession: ObservableObject {
         let archiveID = UUID(uuidString: conversationID)!
         let destination = archiveDestination
         let archivePrior = archive?.state.conversations.first { $0.id == archiveID }
+        let learningWasAvailable = learning.available
+        let context = learning.contextMessages(for: utterance)
+        if learningWasAvailable && !learning.available {
+            chatError = (learning.error ?? "無法讀取學習資料，請重新讀取後再試。") + "草稿已保留。"
+            return
+        }
         let window: ChatContextWindow
         do {
             window = try ChatContextWindow(
                 history: entries.map { ModelMessage(role: $0.role, content: $0.content) },
-                context: learning.contextMessages(for: utterance), prompt: prompt)
+                context: context, prompt: prompt)
         } catch {
             chatError = ((error as? ChatContextWindowError)?.errorDescription ?? "無法準備本次對話。")
                 + "草稿已保留。"
@@ -474,6 +503,16 @@ final class ChatSession: ObservableObject {
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
         let configuration = savedSettings.configuration
+        let contextFence: ChatContextFence?
+        let modelClient: any ChatModelClient
+        if learning.available && (!context.isEmpty || useLearningTools) {
+            let fence = ChatContextFence(store: learning, generation: learningGeneration)
+            do { modelClient = try fencedChatClient(client, fence: fence); contextFence = fence }
+            catch {
+                chatError = "目前模型連線無法確認請求生命週期；參考資料尚未送出，草稿保留。"
+                return
+            }
+        } else { modelClient = client; contextFence = nil }
         let id = UUID()
         requestID = id
         replyPreview = nil
@@ -486,7 +525,8 @@ final class ChatSession: ObservableObject {
         chatError = nil
         chatNotice = window.omittedTurns == 0 ? nil
             : "本次傳送最近 \(window.retainedTurns) 輪對話、本輪完整訊息及參考資料；較早 \(window.omittedTurns) 輪仍在畫面中，但未傳送。"
-        let client = client
+        let client = modelClient
+        let extractionClient = self.client
         request = Task { [weak self] in
             do {
                 let reply: String
@@ -494,17 +534,21 @@ final class ChatSession: ObservableObject {
                     reply = try await self?.completeWithMCP(messages: messages, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
+                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id,
+                        contextFence: contextFence) ?? ""
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: messages, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
-                        key: key, client: client, requestID: id) ?? ""
+                        key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
                 } else {
                     reply = try await self?.completePlain(messages: messages, configuration: configuration,
-                        key: key, client: client, requestID: id) ?? ""
+                        key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
                 }
                 try Task.checkCancellation()
                 guard let self, self.requestID == id else { return }
+                // Keep peer edits fenced until the final reply is published.
+                let publicationLease = try contextFence?.acquire()
+                defer { publicationLease?.release() }
                 if mcpConnection != nil { self.mcpPhase = "finished"; self.updateMCPDiagnostics() }
                 guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     self.finish(id: id, error: "模型回傳空白內容，草稿已保留，請重試。")
@@ -538,11 +582,12 @@ final class ChatSession: ObservableObject {
                 if self.draft == draftAtStart && self.pendingQuote == quoteAtStart {
                     self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
                 }
+                publicationLease?.release()
                 self.finish(id: id)
-                // Deliver first. A separate, bounded extraction call receives only
-                // the user's own utterance, never the model reply or MCP/web content.
+                // Deliver first. Extraction receives the user's own utterance and
+                // relevant saved memories, never the model reply or MCP/web content.
                 self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
-                    expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
+                    expectedGeneration: learningGeneration, client: extractionClient, configuration: configuration, apiKey: key,
                     preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
             } catch {
                 guard let self, self.requestID == id else { return }
@@ -553,7 +598,11 @@ final class ChatSession: ObservableObject {
                     self.updateMCPDiagnostics(failure: category)
                 }
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let message = (error as? MCPChatStop)?.message
+                let fenceFailure: Error?
+                do { try contextFence?.check(); fenceFailure = nil }
+                catch { fenceFailure = error }
+                let message = fenceFailure.flatMap(Self.profileFailureMessage)
+                    ?? (error as? MCPChatStop)?.message
                     ?? (error as? ProfileChatStop)?.message
                     ?? Self.profileFailureMessage(error)
                     ?? Self.modelFailureMessage(error as? MCPConversationError)
@@ -639,6 +688,7 @@ final class ChatSession: ObservableObject {
             let runtime = try DocumentQueryRuntime(source: source, question: prompt)
             learning.cancelLearning()
             let references = try learning.captureRunReferences(goal: draftAtStart, capabilities: DocumentQueryRuntime.referenceCapabilities)
+            let model = try ReferenceFencedModelClient(client: access.client, snapshot: references)
             let id = UUID(); requestID = id; replyPreview = nil; chatError = nil
             isMCPRun = false; isSubmitting = true
             #if DEBUG
@@ -652,7 +702,7 @@ final class ChatSession: ObservableObject {
             request = Task { [weak self] in
                 defer { references.onRevoke = nil; references.revoke() }
                 do {
-                    let outcome = try await runtime.run(client: access.client, configuration: access.configuration,
+                    let outcome = try await runtime.run(client: model, configuration: access.configuration,
                         apiKey: access.key, references: references.references, validateContext: { [weak self] in
                             guard let self, self.requestID == id, self.pdfAttachment?.id == attachment.id,
                                   self.draft == draftAtStart, self.pendingQuote == quoteAtStart,
@@ -714,7 +764,8 @@ final class ChatSession: ObservableObject {
     }
 
     private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
-                               key: String, client: any ChatModelClient, requestID id: UUID) async throws -> String {
+                               key: String, client: any ChatModelClient, requestID id: UUID,
+                               contextFence: ChatContextFence?) async throws -> String {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
         guard let streaming = client as? any StreamingChatModelClient else {
@@ -728,6 +779,8 @@ final class ChatSession: ObservableObject {
                 throw HTTPChatModelError.responseTooLarge
             }
             guard !delta.isEmpty else { continue }
+            let publicationLease = try contextFence?.acquire()
+            defer { publicationLease?.release() }
             bytes += delta.utf8.count; text += delta
             replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving)
         }
@@ -793,7 +846,8 @@ final class ChatSession: ObservableObject {
     private func completeWithProfile(messages: [ModelMessage], utterance: String,
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
-                                     client: any ChatModelClient, requestID: UUID) async throws -> String {
+                                     client: any ChatModelClient, requestID: UUID,
+                                     contextFence: ChatContextFence?) async throws -> String {
         let flow = try UserProfileChatFlow(messages: messages)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         var expectedProfileRevision = state.revision
@@ -804,6 +858,7 @@ final class ChatSession: ObservableObject {
                                               validateState: { [weak self] in
                 guard let self, self.requestID == requestID else { throw CancellationError() }
                 try Task.checkCancellation()
+                try contextFence?.check()
                 guard self.learning.available, self.learning.memory.preferences.useMemory,
                       self.learning.generation == generation,
                       self.learning.profile.revision == expectedProfileRevision,
@@ -813,6 +868,10 @@ final class ChatSession: ObservableObject {
                 }
             }) { [weak self] answer in
                 guard let self, self.requestID == requestID, !Task.isCancelled else { return }
+                let publicationLease: EncryptedLearningFile.ExclusiveLease?
+                do { publicationLease = try contextFence?.acquire() }
+                catch { self.replyPreview = nil; return }
+                defer { publicationLease?.release() }
                 self.replyPreview = answer.map { ChatReplyPreview(id: requestID, text: $0, phase: .receiving) }
             }
             try Task.checkCancellation()
@@ -832,9 +891,12 @@ final class ChatSession: ObservableObject {
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw ProfileChatStop.declined }
                 try flow.validateReview()
+                try contextFence?.check()
+                let before = learning.profile
                 let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
                 profileReceipt = receipt // Retained even if the next model call fails.
                 profileReceiptRequestID = requestID
+                if proposal.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
                 expectedProfileRevision = learning.profile.revision
                 try flow.recordCommitted(entryID: receipt.id)
             case .memorySearch(let arguments):
@@ -849,10 +911,13 @@ final class ChatSession: ObservableObject {
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw MemoryChatStop.declined }
                 try flow.validateReview()
+                try contextFence?.check()
+                let before = learning.memory
                 let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
                     conversationID: conversationID)
                 memoryReceipt = receipt
                 memoryReceiptRequestID = requestID
+                if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
                 expectedMemoryRevision = learning.memory.revision
                 try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
             }
@@ -919,6 +984,12 @@ final class ChatSession: ObservableObject {
     }
 
     private static func profileFailureMessage(_ error: Error) -> String? {
+        if (error as? LearningFileError) == .busy {
+            return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
+        }
+        if (error as? LearningFileError) == .conflict {
+            return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
+        }
         if error is LearningFileError {
             return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
         }
@@ -936,26 +1007,33 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
+                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID,
+                                 contextFence: ChatContextFence?) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
         if allowsLearning {
             local = { [weak self] proposal, lease in
                 guard let self else { throw CancellationError() }
-                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID)
+                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID, contextFence: contextFence)
             }
         } else { local = nil }
+        let executor: any MCPConversationExecuting
+        if let contextFence { executor = ContextFencedMCPExecutor(executor: connection, fence: contextFence) }
+        else { executor = connection }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: connection,
+            tools: tools, resources: resources, executor: executor,
             approve: { [weak self] proposal in
+                let approved: Bool
                 switch proposal.action {
                 case .callTool(let name, let arguments):
-                    return await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
+                    approved = await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
                 case .readResource(let uri):
-                    return await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
+                    approved = await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
                 }
+                guard approved else { return false }
+                do { try await MainActor.run { try contextFence?.check() }; return true } catch { return false }
             }, onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
@@ -967,8 +1045,10 @@ final class ChatSession: ObservableObject {
     /// Every proposal is validated against this turn's captured user utterance;
     /// remote catalogs/results cannot supply that authority or replace its IDs.
     private func performMCPLocal(_ proposal: MCPLocalProposal, lease: MCPLocalLease,
-                                 turn: MCPLearningTurn, requestID: UUID) async throws -> MCPLocalOutcome {
+                                 turn: MCPLearningTurn, requestID: UUID,
+                                 contextFence: ChatContextFence?) async throws -> MCPLocalOutcome {
         try lease.check()
+        try contextFence?.check()
         guard self.requestID == requestID else { throw CancellationError() }
         switch proposal.action {
         case .memorySearch:
@@ -988,9 +1068,12 @@ final class ChatSession: ObservableObject {
             try lease.check()
             guard self.requestID == requestID else { throw CancellationError() }
             guard approved else { return .declined }
+            try contextFence?.check()
+            let before = learning.profile
             let receipt = try learning.commitProfileTool(review, expectedGeneration: turn.generation)
             profileReceipt = receipt
             profileReceiptRequestID = requestID
+            if review.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
             let data = try JSONEncoder().encode(receipt)
             return .committedReceipt(json: String(decoding: data, as: UTF8.self))
         case .memorySave, .memoryEdit:
@@ -1001,10 +1084,13 @@ final class ChatSession: ObservableObject {
             try lease.check()
             guard self.requestID == requestID else { throw CancellationError() }
             guard approved else { return .declined }
+            try contextFence?.check()
+            let before = learning.memory
             let receipt = try learning.commitMemoryTool(review, expectedGeneration: turn.generation,
                                                         conversationID: conversationID)
             memoryReceipt = receipt
             memoryReceiptRequestID = requestID
+            if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
             return .committedReceipt(json: try receipt.resultJSON())
         }
     }

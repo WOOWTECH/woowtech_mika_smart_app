@@ -25,7 +25,7 @@ private final class StreamCredentials: ModelCredentialStoring {
     func remove(account: String) throws { values.removeValue(forKey: account) }
     func removeAll() throws { values = [:] }
 }
-private final class StreamClient: StructuredStreamingChatModelClient, @unchecked Sendable {
+private final class StreamClient: StructuredStreamingChatModelClient, ReferenceDispatchBoundStreamingChatModelClient, @unchecked Sendable {
     private let lock = NSLock()
     private let replies: [String]
     private var completions = 0
@@ -38,8 +38,19 @@ private final class StreamClient: StructuredStreamingChatModelClient, @unchecked
         return replies[index]
     }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { try nextReply() }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try nextReply()
+    }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(8)) { c in
+            c.onTermination = { @Sendable _ in onProducerFinished() }
+            onDispatch() // Synthetic in-process dispatch, no real transport.
             lock.lock(); streams.append(c); lock.unlock()
         }
     }
@@ -52,7 +63,7 @@ private final class StreamClient: StructuredStreamingChatModelClient, @unchecked
     }
     func finish(_ error: Error? = nil, at index: Int = 0) { continuation(index).finish(throwing: error) }
 }
-private final class CompleteSequenceClient: ChatModelClient, @unchecked Sendable {
+private final class CompleteSequenceClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
     private let lock = NSLock()
     private let replies: [String]
     private var requests = 0
@@ -63,10 +74,18 @@ private final class CompleteSequenceClient: ChatModelClient, @unchecked Sendable
         guard index < replies.count else { throw ChatStreamingChecks.Failure(name: "unexpected structured fallback request") }
         return replies[index]
     }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
     var counts: (complete: Int, stream: Int) { lock.lock(); defer { lock.unlock() }; return (requests, 0) }
 }
-private struct CompleteOnlyClient: ChatModelClient {
+private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
 }
 #if DEBUG
 private actor FixturePauseRecorder {

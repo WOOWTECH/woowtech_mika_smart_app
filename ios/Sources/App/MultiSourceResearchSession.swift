@@ -48,7 +48,7 @@ import WebKit
             #if DEBUG
             if MultiSourceResearchFixture.enabled && chat.isUITestMode { client = MultiSourceResearchFixtureModel() }
             #endif
-            let model = client
+            let model = try ReferenceFencedModelClient(client: client, snapshot: snapshot)
             task = Task { [weak self] in
                 do {
                     let result = try await MultiSourceResearchRunner(client: model).run(plan: plan, browser: executor,
@@ -240,6 +240,17 @@ private actor MultiSourceResearchFixtureModel: ChatModelClient {
         let finding: [String: Any] = ["kind": "finding", "text": "已讀到來源甲與來源乙的合成頁面標記。", "citations": citations]
         let answer: [String: Any] = ["action": "finish", "findings": [finding], "limitations": ["這是本機 HTML 與合成模型回覆測試，並非公開網路或真模型驗證。"]]
         return String(decoding: try JSONSerialization.data(withJSONObject: answer), as: UTF8.self)
+    }
+}
+#endif
+
+#if DEBUG
+extension MultiSourceResearchFixtureModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
 #endif

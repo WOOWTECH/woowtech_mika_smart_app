@@ -319,6 +319,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             let taskGoal = goal
             let snapshot = try chat.learning.captureRunReferences(goal: taskGoal,
                 capabilities: Self.toolNames, websiteURL: current?.url)
+            let model = try ReferenceFencedModelClient(client: access.client, snapshot: snapshot)
             claimAutomationDocument()
             runReferences = snapshot
             snapshot.onRevoke = { [weak self] in self?.cancel() }
@@ -328,7 +329,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             work = Task { [weak self, weak chat] in
                 guard let self, let chat else { return }
                 do {
-                    let result = try await WebResearchRunner(client: access.client).run(goal: taskGoal,
+                    let result = try await WebResearchRunner(client: model).run(goal: taskGoal,
                         browser: self, configuration: access.configuration, apiKey: access.key,
                         references: snapshot.references, validateContext: {
                             try await MainActor.run {
@@ -348,7 +349,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     // Learning is separately judged; raw model success is never verification.
                     if !result.reachedLimit {
                         await self.processLearning(result: result, goal: taskGoal, usedSkills: usedSkills,
-                            generation: generation, chat: chat, access: access, runID: id)
+                            generation: generation, chat: chat, access: access, client: model, runID: id)
                     } else {
                         chat.learning.recordResearchFailure(usedSkills: usedSkills, kind: .stepLimit, expectedGeneration: generation)
                     }
@@ -391,11 +392,12 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     static let toolNames: Set<String> = ["browser_inspect", "browser_open_link", "browser_find"]
 
     private func processLearning(result: WebResearchResult, goal: String, usedSkills: [SkillUsedReference],
-                                 generation: UUID, chat: ChatSession, access: ModelAccess, runID: UUID) async {
+                                 generation: UUID, chat: ChatSession, access: ModelAccess,
+                                 client: any ChatModelClient, runID: UUID) async {
         guard chat.learning.generation == generation else { learningStatus = "資料已變更，未套用這次學習。"; return }
         do {
             let evidence = Self.executedActions(result.actions)
-            let assessment = try await SkillLearningService(client: access.client).assess(goal: goal, answer: result.answer,
+            let assessment = try await SkillLearningService(client: client).assess(goal: goal, answer: result.answer,
                 actions: evidence, context: SkillTaskContext(runID: runID, usedSkills: usedSkills),
                 state: chat.learning.skills, availableToolNames: Self.toolNames,
                 allowDraft: chat.learning.memory.preferences.learnSkills, configuration: access.configuration, apiKey: access.key)
@@ -589,6 +591,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             let capabilities = Set(plan.steps.map { $0.kind == .navigate ? "browser_open_link" : "browser_inspect" })
             let snapshot = try store.captureRunReferences(goal: route.originalGoal,
                 capabilities: capabilities, websiteURL: route.origin.url)
+            let model = try ReferenceFencedModelClient(client: access.client, snapshot: snapshot)
             claimAutomationDocument(originURL: route.origin.url)
             let id = UUID()
             runReferences = snapshot
@@ -640,11 +643,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     let messages = try Self.replayAnswerMessages(goal: route.originalGoal,
                         observations: self.actions.map(\.observation), references: snapshot.references)
                     try validate()
-                    let reply = try await access.client.complete(messages: messages,
+                    let reply = try await model.complete(messages: messages,
                         configuration: access.configuration, apiKey: access.key)
                     try validate()
                     self.answer = reply
-                    let assessment = try await SkillLearningService(client: access.client).assess(goal: route.originalGoal, answer: reply,
+                    let assessment = try await SkillLearningService(client: model).assess(goal: route.originalGoal, answer: reply,
                         actions: Self.executedActions(self.actions), context: SkillTaskContext(runID: id, replayMatched: true),
                         state: store.skills, availableToolNames: capabilities, allowDraft: false,
                         configuration: access.configuration, apiKey: access.key)
