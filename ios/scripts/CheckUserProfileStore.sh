@@ -19,7 +19,7 @@ swiftc -emit-module -emit-library -module-name AssistantBrowser \
 swiftc -D USER_PROFILE_STORE_STANDALONE -parse-as-library -I "$profile_build" -L "$profile_build" \
   -lAssistantModels -lAssistantMemory -lAssistantSkills -lAssistantPersistence -lAssistantBrowser \
   -Xlinker -rpath -Xlinker "$profile_build" \
-  Sources/App/LearningStore.swift Sources/App/LearningKeychainStore.swift \
+  Sources/App/LearningStore.swift Sources/App/LearningRunContext.swift Sources/App/LearningKeychainStore.swift \
   Tests/AssistantSkillsTests/UserProfilePersistenceTests.swift \
   scripts/CheckUserProfileStore.swift -o "$profile_build/profile-store-checks"
 "$profile_build/profile-store-checks"
