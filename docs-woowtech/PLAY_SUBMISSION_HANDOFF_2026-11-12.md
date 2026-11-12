@@ -10,22 +10,22 @@
 | --- | --- | --- |
 | [woowtech aiot Google Play](https://play.google.com/store/apps/details?id=com.woowtech.aiot) | 商店頁列功能、使用前提、支援聯絡方式與公開隱私政策。 | 助理會把使用者輸入送到自選模型服務，語音可能送辨識服務，另有 AI 回覆檢舉；Data safety 必須重新盤點。 |
 | [woowtech smart 發布文件](https://github.com/WOOWTECH/woowtech-smart/blob/main/docs/android.md) | 建置、提交與 Play Console 軌道狀態分別驗證。 | 本專案是原生 Gradle AAB，不沿用 smart 的 EAS 提交流程或憑證。 |
-| [woowtech platform 公開頁](https://apps.apple.com/tw/app/woowtech-platform/id6814763046) | 公開頁有隱私政策、支援和帳號刪除說明。 | 目前僅核對到 iOS App Store 頁，需負責人提供 Google Play 案例或 Console 紀錄才能參考其 Android 申報。 |
+| woowtech platform（Play Console：`io.woowtech.odoo`） | 已在 WOOWTECH 機構帳戶的 App 清單確認正式版；其公開政策與帳號刪除頁可作為網站配置參考。 | 不能直接套用其他 App 的 Data safety、帳號刪除聲明或簽章；助理應按自身最終功能與資料流核對。 |
 
 ## 現有可交付物
 
-- 分支 `playstore/woowtech-compliant-20261111`；Release AAB 可編譯，位於本機 `app/build/outputs/bundle/woowtechRelease/app-woowtech-release.aab`。AAB 尚未上傳 Play Console。
-- 商店文案草稿 `PLAY_STORE_LISTING_DRAFT.md`、Data safety／隱私政策工作稿 `PLAY_DISCLOSURES_DRAFT.md`、政策與權限盤點 `PLAY_STORE_RESEARCH_2026-11-11.md`。
+- 分支 `playstore/woowtech-compliant-20261111`；本機有候選 Release AAB，尚無標準上傳簽章，也尚未上傳 Play Console。最終提交前須從確定的版本重建並簽章，詳見準備報告。
+- 商店文案草稿 `PLAY_STORE_LISTING_DRAFT.md`、新版隱私政策草稿 `PLAY_PRIVACY_POLICY_MCP_DRAFT.md`、審查資料草稿 `PLAY_CONSOLE_REVIEW_INPUT_DRAFT.md`；舊 `PLAY_DISCLOSURES_DRAFT.md` 含已移除功能的敘述，不可直接填報。
 - APK 權限已核對；仍須按最終 AAB 重新檢查。AI 回覆檢舉中繼程式已通過測試，正式服務尚未部署與驗收。POCO Debug APK 已可 ADB 安裝；實測細節見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 - 2026-11-12 重跑 `:core:test`：3,019 項、0 失敗、7 跳過。商店分支的獨立 README 不沿用原版 README 自動段落及翻譯結構，相關 4 項文件檢查明確跳過；其餘跳過為原有項目。中繼 `wrangler deploy --dry-run` 通過，**未部署**。
 
 ## 目前需要負責人提供的事項
 
 1. **POCO 安裝已完成**：商店版 Debug APK 已透過 ADB 安裝並與 GitHub 版共存；仍須由 Play 內部測試軌安裝最終簽署版本，不能把 ADB 安裝當成商店安裝驗收。
-2. **Play Console 狀態**：確認開發者帳號是否為公司帳號；建立 `io.woowtech.assistant` 草稿 App，提供「需要處理」頁、測試軌與應用程式簽章頁的畫面或協作者存取。請勿在聊天中傳私人金鑰。
+2. **Play Console 狀態**：WOOWTECH 已確認為機構帳戶；核對 `io.woowtech.assistant` 是否已有草稿、套件名稱是否可用及上傳權限。完成政策和出口聲明的事實核對後再建立 App，並查看「需要處理」、測試軌與應用程式簽章頁。請勿在聊天中傳私人金鑰。
 3. **審查員測試方式**：提供可供 Google 審查員使用的模型服務測試帳號／受限 API Key，或選定可公開測試的免費模型流程；使用者自備 Key 的 App 仍需讓審查員進入核心功能。憑證走 Console 的 App access 欄位，不寫入 Git。
 4. **隱私政策實務**：確認 AI 檢舉、中繼與網站日誌的營運者、保存時間、刪除管道及聯絡信箱；指定公開 HTTPS 網址。完成內容審核後，需同一 URL 出現在商店頁與 App 內。
-5. **資料同步範圍**：決定「同步」是僅手機在線時遠端讀取，或手機離線也要跨裝置歷史。後者需要帳號、伺服器儲存、刪除機制與 Data safety 再盤點；目前尚未實作。
+5. **資料同步範圍**：依使用者後續決策，商店版保留對外 MCP 連線，移除電腦連接；先前手機在線時的遠端讀取記錄不應作為商店版現有功能宣傳。若將來需要跨裝置歷史，須另行設計及盤點資料保存、刪除與 Data safety。
 
 ## 技術與 Console 驗收順序
 
