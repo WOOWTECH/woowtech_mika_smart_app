@@ -251,7 +251,11 @@ public actor MCPInboundAccessTasks {
         order.append(id); self.pending = nil
         return .init(taskID: id, phase: .queued)
     }
-    public func discardReview() { pending = nil }
+    /// A late UI callback has no authority to discard a different review.
+    @discardableResult public func discardReview(reviewID: UUID) -> Bool {
+        guard pending?.review.id == reviewID else { return false }
+        pending = nil; return true
+    }
     public func status(taskID: UUID, connection: UUID, peer: MCPInboundPeer, headers: [MCPInboundHeader]) throws -> MCPInboundTaskStatus {
         try check(connection: connection, peer: peer, headers: headers)
         guard let record = records[taskID], record.connection == connection else { throw MCPInboundAccessError.missing }

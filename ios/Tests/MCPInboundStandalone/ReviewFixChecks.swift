@@ -91,7 +91,7 @@ final class Clock: @unchecked Sendable {
         let binding=MCPInboundReviewBinding(connection:id,destinationRevision:UUID(),contextRevision:UUID())
         let a=try makeTask("first"), b=try makeTask("second")
         guard case .review(let old)=try await gate.stage(task:a,binding:binding,peer:peer,headers:good) else { throw Failure(label:"old stage") }
-        await gate.discardReview()
+        await gate.discardReview(reviewID:old.id)
         guard case .review(let fresh)=try await gate.stage(task:b,binding:binding,peer:peer,headers:good) else { throw Failure(label:"fresh stage") }
         do { _=try await gate.approveLocally(reviewID:old.id,current:binding);throw Failure(label:"old accepted") }
         catch MCPInboundAccessError.invalidReview { count += 1 }

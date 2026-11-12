@@ -270,6 +270,30 @@ host dequeue alone does not prove Android's `joined` state. No failure,
 verification metadata, options or device-specific states are fabricated.
 Initialization wording and tool descriptions are iOS-specific, while Android's
 original argument schemas and annotations are retained. Output is bounded to
-256 KiB per encoded JSON document. These helpers neither listen nor execute
+2 MiB for the structured payload and 4 MiB for the final encoded envelope.
+The larger envelope includes both the structured object and its escaped JSON
+text copy; tests cover 50 maximum-length goals, including control characters,
+backslashes and supplementary Unicode. Arbitrary oversized payloads or
+amplified envelopes are still rejected. These helpers neither listen nor execute
 models; native iOS, actual networking, settings, UI and background behavior
 remain unverified.
+
+
+## Response and review correction (base 853c464)
+
+For malformed JSON, the error encoder accepts a missing request ID. Its
+default omits `id`, matching Android `McpRpc.error` when `id` is null; an
+explicit option emits `id: null` for transports choosing strict JSON-RPC
+behavior. A valid string or numeric ID is preserved. This is format-only; no
+HTTP status or parser-to-response dispatch is implemented.
+
+Local discard callbacks are bound to the review ticket or approved grant they
+refer to. An older callback cannot dismiss a newer review/grant. Connection
+revocation still independently clears its own actor state. Values already
+copied out of an actor, including review history or response snapshots, cannot
+be recalled by this operation: future hosts must revalidate authorization and
+context immediately at each actual disclosure or execution boundary.
+
+GitHub simulator verification is required before iPad verification. Neither
+has been performed by this offline candidate; the core has no listener or real
+model execution.
