@@ -3,9 +3,10 @@
 This is a test plan, not a claim that an iOS SDK build, simulator, device, or
 multi-window UI run passed. The local synthetic gate compiles the actual App
 sources with isolated temporary encrypted files and fake model transport.
-The requested order is GitHub iOS simulator gates first, then iPad validation;
-do not schedule or report iPad acceptance before the required simulator gates
-have passed for the exact candidate commit. Keep their run links and xcresults.
+MacBook and GitHub iOS simulator validation may run in parallel on the exact
+candidate commit. Keep their run links and xcresults; no physical iPad setup or
+testing is authorized by this integration task. An iPad simulator is distinct
+from a physical iPad.
 
 ## Hosted iOS test already wired
 
@@ -17,7 +18,7 @@ MCP, stream cancellation, late replies, and extraction. It is a hosted App
 integration test, **not** a two-window UI test. The companion
 `testMCPExecutorDispatchFences` covers post-event stale data, tool and resource
 dispatch, cancellation, failure, and cooperative lease lifetime. Run native
-tests on the GitHub macOS simulator runner, from `ios/`:
+tests on an authorized MacBook or GitHub macOS simulator runner, from `ios/`:
 
 ```sh
 make project
@@ -34,7 +35,7 @@ The UI case uses a fresh namespace and a DEBUG-only synthetic executor gate;
 the real chat wrapper must acquire the real encrypted-store lease. It verifies
 the failed preference switch, user-facing message, retry and encrypted relaunch.
 The `ui-mcp` full-regression shard includes the case on each configured iPhone
-and iPad simulator; no native pass is implied until the GitHub results exist.
+and iPad simulator; report each native run only after its results exist.
 
 ## Real two-window UI test still to build and run
 
