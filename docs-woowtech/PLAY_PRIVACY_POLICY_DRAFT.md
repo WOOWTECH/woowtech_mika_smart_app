@@ -1,5 +1,7 @@
 # Privacy Policy — woowtech agent / 渥屋助理 (Google Play edition)
 
+> **Outdated draft, do not publish:** The relay pairing and account sections below predate the decision to remove computer connection from the Play edition, and this draft does not fully describe outbound MCP servers. Reconcile every section with the final app and actual report-delivery service before use. See `PLAY_REVIEW_READINESS_2026-11-12.md`.
+
 - **Operator:** WOOW TECH CO., LTD. / 渥屋科技股份有限公司
 - **Android package:** `io.woowtech.assistant`
 - **Privacy contact:** woowtech@designsmart.com.tw

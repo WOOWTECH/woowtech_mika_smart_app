@@ -1,5 +1,7 @@
 # Play disclosures and privacy policy working draft — io.woowtech.assistant
 
+> **Outdated worksheet, do not submit:** The remote relay, MCP and foreground-service inventory below predates the current Play edition. Reconcile against the final AAB and real data flows; see `PLAY_REVIEW_READINESS_2026-11-12.md`.
+
 Drafted 2026-11-12 from the repository. This is a review worksheet and proposed policy wording, **not completed Play Console answers or a published privacy policy**. Verify against the final release AAB, actual network traffic, third-party SDK behavior, and operator practices before publication. Do not submit a “no data collected” answer merely because conversations and memory are saved locally: selected online model and speech providers receive user content.
 
 ## Product and data-flow evidence
