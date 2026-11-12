@@ -47,6 +47,30 @@ complete locations rather than treating shortened table paths as filesystem path
 
 ## Deliberate capability boundaries / outstanding integration
 
+### Research references are not skill-use evidence — candidate
+
+Android `AgentLoop.noteResultEvents` records `SkillUsed` after a successful
+personal `skill_read`; `RunLearning.recordOutcomes` uses those events to update
+the corresponding trial/active skill. `RunEvent` also accepts historical
+`injected` events; that is legacy compatibility, not evidence that the current
+iOS reference-injection path performed a read.
+
+Single-site iOS research previously treated each included personal reference as
+a used skill. The current runner has no `skill_read` command, so a judged task
+could falsely promote a trial, or an unrelated failure could record an outcome.
+It now keeps injected references as context only: completion, partial results,
+step limits and errors do not attribute an outcome to those skills. A run that
+received personal-skill references still cannot produce a duplicate learned
+draft. Website-lesson judgment remains separate.
+
+This is a conservative interim boundary: no product path in this runner yet
+proves a personal skill was read and followed, so it does not promote or suspend
+such a skill based on its research result. A future implementation needs a
+bounded actual read event tied to the exact skill version, outcome judgement,
+atomic persistence and cancellation/revocation tests; model claims, page text,
+reference injection and plain chat completion are insufficient. Existing saved
+skills and earlier outcomes are not retroactively rewritten.
+
 ### Reserved built-in names — integration candidate
 
 Android `core/.../skills/SkillImport.kt` rejects built-in names before staging;

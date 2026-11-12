@@ -334,7 +334,10 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             claimAutomationDocument()
             runReferences = snapshot
             snapshot.onRevoke = { [weak self] in self?.cancel() }
-            let usedSkills = snapshot.usedSkills
+            // The current browser runner can inject personal skills as untrusted
+            // reference data, but has no actual skill_read operation or use event.
+            // Neither a finished answer nor a failed task proves skill use.
+            let hasSkillReferences = snapshot.hasIncludedPersonalSkills
             origin = current.flatMap { Self.origin($0.url) }
             runID = id; isRunning = true; status = "正在研究網站…"
             work = Task { [weak self, weak chat] in
@@ -359,10 +362,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     self.status = result.reachedLimit ? "研究已停止，尚未確認完成" : "回答已交付，正在判定成果…"
                     // Learning is separately judged; raw model success is never verification.
                     if !result.reachedLimit {
-                        await self.processLearning(result: result, goal: taskGoal, usedSkills: usedSkills,
+                        await self.processLearning(result: result, goal: taskGoal, hasSkillReferences: hasSkillReferences,
                             generation: generation, chat: chat, access: access, runID: id)
-                    } else {
-                        chat.learning.recordResearchFailure(usedSkills: usedSkills, kind: .stepLimit, expectedGeneration: generation)
                     }
                     guard self.runID == id else { return }
                     if !result.reachedLimit { self.status = "研究已結束" }
@@ -370,7 +371,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     self.origin = nil; self.isRunning = false; self.runID = nil; self.work = nil
                 } catch {
                     guard self.runID == id else { return }
-                    chat.learning.recordResearchFailure(usedSkills: usedSkills, kind: .environment, expectedGeneration: generation)
                     self.runReferences?.onRevoke = nil; self.runReferences = nil
                     self.origin = nil; self.isRunning = false; self.runID = nil; self.work = nil
                     self.reportFailure(error, status: "研究未完成；已讀取內容保留")
@@ -402,15 +402,18 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
 
     static let toolNames: Set<String> = ["browser_inspect", "browser_open_link", "browser_find"]
 
-    private func processLearning(result: WebResearchResult, goal: String, usedSkills: [SkillUsedReference],
+    private func processLearning(result: WebResearchResult, goal: String, hasSkillReferences: Bool,
                                  generation: UUID, chat: ChatSession, access: ModelAccess, runID: UUID) async {
         guard chat.learning.generation == generation else { learningStatus = "資料已變更，未套用這次學習。"; return }
         do {
             let evidence = Self.executedActions(result.actions)
             let assessment = try await SkillLearningService(client: access.client).assess(goal: goal, answer: result.answer,
-                actions: evidence, context: SkillTaskContext(runID: runID, usedSkills: usedSkills),
+                actions: evidence, context: SkillTaskContext(runID: runID),
                 state: chat.learning.skills, availableToolNames: Self.toolNames,
-                allowDraft: chat.learning.memory.preferences.learnSkills, configuration: access.configuration, apiKey: access.key)
+                // Preserve the prior duplicate-draft guard: a run influenced by
+                // injected skill text is not evidence for a new learned recipe.
+                allowDraft: chat.learning.memory.preferences.learnSkills && !hasSkillReferences,
+                configuration: access.configuration, apiKey: access.key)
             try Task.checkCancellation()
             guard self.runID == runID else { return }
             guard chat.learning.applyResearch(assessment, goal: goal, actions: result.actions, expectedGeneration: generation) else {

@@ -41,6 +41,25 @@ private actor ReferenceModel: ChatModelClient {
         requests.append(messages); if let gate { await gate.wait() }; responses += 1; return reply
     }
 }
+/// Controlled replies exercise the actual BrowserSession/learning path; they
+/// never represent a live model or prove that an injected skill was followed.
+private actor OutcomeReferenceModel: ChatModelClient {
+    let mode: String
+    private(set) var requests: [[ModelMessage]] = []
+    init(_ mode: String) { self.mode = mode }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        requests.append(messages)
+        if mode == "error" { throw HTTPChatModelError.transportFailure }
+        if messages.first?.content.hasPrefix("Assess whether") == true {
+            let outcome = mode == "done" ? "done" : (mode == "unknown" ? "unknown" : "partial")
+            return """
+            {"outcome":"\(outcome)","reason":"Fixture outcome","evidence":[{"actionID":"action-0","quote":"ACTUAL_REFERENCE_DOM_ONLY"}]}
+            """
+        }
+        if mode == "limit" { return #"{"action":"find","text":"ACTUAL_REFERENCE_DOM_ONLY"}"# }
+        return #"{"action":"finish","answer":"OBSERVED answer"}"#
+    }
+}
 private actor ReferenceGate {
     var open = false; var waiter: CheckedContinuation<Void,Never>?
     func wait() async { await withCheckedContinuation { if open { $0.resume() } else { waiter = $0 } } }
@@ -106,11 +125,11 @@ private actor ReferenceBrowser: WebResearchExecuting {
         let snapshot=try capture(f)
         try expect(snapshot.references.message?.role == "user","one user-role reference")
         try expect(Set(snapshot.references.included.map(\.kind)) == Set([.profile,.memory,.personalSkill]),"three actual reviewed categories")
-        try expect(snapshot.usedSkills.count == 1,"only included skill fingerprint tracked")
+        try expect(snapshot.hasIncludedPersonalSkills,"included skill is tracked as reference, not as used")
         try expect(try Data(contentsOf:f.url) == before && f.store.memory.revision == revision && f.store.generation == generation,"capture changes no encrypted bytes/revision/generation")
         try expect(f.store.memory.memories.allSatisfy{$0.useCount == 0},"capture does not markUsed")
         let noTools=try f.store.captureRunReferences(goal:"reference",capabilities:[])
-        try expect(noTools.usedSkills.isEmpty && !noTools.references.included.contains{$0.kind == .personalSkill},"runtime capability filter rejects unavailable skill")
+        try expect(!noTools.hasIncludedPersonalSkills && !noTools.references.included.contains{$0.kind == .personalSkill},"runtime capability filter rejects unavailable skill")
         try expect(f.store.updatePreferences{$0.useMemory=false},"master off persisted")
         let disabled=try capture(f)
         try expect(disabled.references.included.allSatisfy{$0.kind == .personalSkill},"skills independent of memory/profile switch")
@@ -414,6 +433,76 @@ private actor ReferenceBrowser: WebResearchExecuting {
             } catch {await gate.release();throw error}
         }
     }
+
+    /// Genuine WebKit observation and encrypted store; only the model replies
+    /// are synthetic. No personal skill or user data is touched by this fixture.
+    static func injectedSkillDoesNotBecomeOutcome() async throws {
+        group="injectedSkillDoesNotBecomeOutcome"
+        for (mode, priorActive) in [("done",false), ("partial",false), ("unknown",false), ("error",false), ("limit",false), ("done",true)] {
+            let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            if priorActive {
+                // Seed only this isolated fixture with prior history; it is not
+                // evidence of any real user task or a current-run skill read.
+                try expect(f.store.mutateSkills {
+                    _ = try $0.recordOutcome(name:"reference-guide",evidence:.init(outcome:.done,wasRead:true))
+                },"fixture seeds an already active version and existing outcome")
+            }
+            let before=f.store.skills
+            try expect(before.installed.first?.status == (priorActive ? .active : .trial) &&
+                       before.installed.first?.outcomes == (priorActive ? [.verified] : []),
+                       "isolated encrypted fixture has the expected preexisting status and history")
+            let suite="io.woowtech.outcome-reference-check."+UUID().uuidString
+            let defaults=UserDefaults(suiteName:suite)!
+            defer{defaults.removePersistentDomain(forName:suite)}
+            let repository=ModelSettingsRepository(defaults:defaults,credentials:RunReferenceCredentials())
+            _ = try repository.save(baseURL:configuration.baseURL.absoluteString,model:configuration.model,newKey:"synthetic-not-a-key")
+            let model=OutcomeReferenceModel(mode)
+            let chat=ChatSession(learning:f.store,repository:repository,client:model)
+            let browser=BrowserSession(dataStore:.nonPersistent()),web=browser.webView
+            web.frame=CGRect(x:0,y:0,width:700,height:500)
+            #if canImport(AppKit)
+            let window=NSWindow(contentRect:web.frame,styleMask:[.borderless],backing:.buffered,defer:false)
+            window.isReleasedWhenClosed=false;window.contentView=web;window.orderFront(nil)
+            defer{window.close()}
+            #else
+            guard let scene=UIApplication.shared.connectedScenes.compactMap({$0 as? UIWindowScene}).first else {throw Failure(label:"hosted UIWindowScene unavailable")}
+            let previous=scene.windows.first(where: \.isKeyWindow)
+            let window=UIWindow(windowScene:scene),controller=UIViewController()
+            window.rootViewController=controller;window.makeKeyAndVisible();controller.view.addSubview(web)
+            defer{web.removeFromSuperview();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+            #endif
+            defer{browser.cancel();web.stopLoading()}
+            let url=URL(string:"https://research.example.invalid/reference")!
+            web.loadHTMLString("<!doctype html><title>Reference fixture</title><p>ACTUAL_REFERENCE_DOM_ONLY</p>",baseURL:url)
+            let loadEnd=ContinuousClock.now.advanced(by:.seconds(75))
+            while (browser.current == nil || web.isLoading),ContinuousClock.now < loadEnd {try await Task.sleep(nanoseconds:20_000_000)}
+            try expect(browser.current?.text.contains("ACTUAL_REFERENCE_DOM_ONLY") == true,"actual WebKit observation loaded")
+            browser.goal="reference current user request"
+            browser.beginResearch(using:chat)
+            let end=ContinuousClock.now.advanced(by:.seconds(40))
+            while browser.isRunning,ContinuousClock.now < end {try await Task.sleep(nanoseconds:20_000_000)}
+            try expect(!browser.isRunning,"actual research task finished within fixture deadline")
+            let requests=await model.requests
+            try expect(requests.first?.contains(where:{$0.content.contains("reference-guide")}) == true,
+                       "the actual model request included the personal skill as data")
+            if mode == "done" || mode == "partial" || mode == "unknown" {
+                try expect(requests.count == 2 && requests[1][0].content.hasPrefix("Assess whether"),
+                           "independent outcome judge actually ran")
+                let expectedStatus = mode == "done" ? "已判定任務完成" : (mode == "unknown" ? "成果尚無法判定" : "判定只完成部分內容")
+                try expect(browser.learningStatus?.contains(expectedStatus) == true,"real learning path returned the expected task outcome")
+                if mode == "done" {try expect(!f.store.websites.lessons.isEmpty,"separate grounded website learning still works")}
+            } else if mode == "limit" {
+                try expect(requests.count == 2 && browser.status.contains("尚未確認完成") && browser.learningStatus == nil,
+                           "repeated real page search stops at the limit without judgement")
+            } else {
+                try expect(requests.count == 1 && browser.error != nil && browser.learningStatus == nil,
+                           "transport failure is surfaced without judgement")
+            }
+            try expect(f.store.skills == before,"injected-only skill status, outcomes and history remain unchanged")
+            let reopened=LearningStore(vault:.init(url:f.url,keys:f.keys))
+            try expect(reopened.skills == before,"actual encrypted relaunch preserves the exact prior skill state")
+        }
+    }
 }
 #if LEARNING_RUN_APP_STANDALONE
 @main enum LearningRunAppMain {
@@ -426,6 +515,10 @@ private actor ReferenceBrowser: WebResearchExecuting {
         app.run()
     }
     @MainActor static func run() async throws {
+        if CommandLine.arguments.contains("--focus-skill-outcomes") {
+            try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()
+            print(String(decoding:try JSONSerialization.data(withJSONObject:["passed":LearningRunAppChecks.counts.values.reduce(0,+),"failed":0],options:.sortedKeys),as:UTF8.self));return
+        }
         if CommandLine.arguments.contains("--focus-profile-deletion") {
             try LearningRunAppChecks.profileReplacementThenUnrelatedDelete()
             print("PROFILE_DELETION_PASS");return
@@ -444,6 +537,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
         try LearningRunAppChecks.websiteEditDeleteAndFailure()
         try await LearningRunAppChecks.actualRunnerAndLateCancellation()
         try await LearningRunAppChecks.actualBrowserSessionReferences()
+        try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()
         let groups=LearningRunAppChecks.counts
         print(String(decoding:try JSONSerialization.data(withJSONObject:["passed":groups.values.reduce(0,+),"failed":0,"groups":groups,"cancellation_probe":LearningRunAppChecks.cancellationProbe],options:.sortedKeys),as:UTF8.self))
     }
@@ -460,6 +554,7 @@ final class LearningRunAppIntegrationTests: XCTestCase {
     @MainActor func testWebsiteEditDeleteAndFailure() throws {try LearningRunAppChecks.websiteEditDeleteAndFailure()}
     @MainActor func testActualRunnerAndLateCancellation() async throws {try await LearningRunAppChecks.actualRunnerAndLateCancellation()}
     @MainActor func testActualBrowserSessionReferences() async throws {try await LearningRunAppChecks.actualBrowserSessionReferences()}
+    @MainActor func testInjectedSkillDoesNotBecomeOutcome() async throws {try await LearningRunAppChecks.injectedSkillDoesNotBecomeOutcome()}
 }
 #endif
 #endif

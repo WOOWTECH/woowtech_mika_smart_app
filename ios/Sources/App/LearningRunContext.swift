@@ -8,15 +8,17 @@ import Foundation
 /// to unrelated chat/extraction generations do not invalidate it.
 @MainActor final class LearningRunSnapshot {
     let references: RunReferenceContext
-    let usedSkills: [SkillUsedReference]
+    /// Inclusion in a prompt is not an executor-observed skill_read event.
+    /// Keep it distinct from the evidence required to record an outcome.
+    var hasIncludedPersonalSkills: Bool { references.included.contains { $0.kind == .personalSkill } }
     private(set) var revoked = false
     var onRevoke: (() -> Void)?
     private weak var store: LearningStore?
     // Current descendants of captured profile rows. Only identity moves on a
     // successful replacement; immutable reference text and domain IDs do not.
     private var profileLineageIDs: Set<String>
-    init(references: RunReferenceContext, skills: [SkillUsedReference], store: LearningStore) {
-        self.references = references; usedSkills = skills; self.store = store
+    init(references: RunReferenceContext, store: LearningStore) {
+        self.references = references; self.store = store
         profileLineageIDs = Set(references.included.filter { $0.kind == .profile }.map(\.id))
     }
     func check() throws {
@@ -91,9 +93,7 @@ extension LearningStore {
             for bucket in buckets where bucket.indices.contains(index) { entries.append(bucket[index]) }
         }
         let reference = try RunReferenceContext(entries: entries)
-        let used = eligible.filter { item in reference.included.contains { $0.kind == .personalSkill && $0.id == item.name } }
-            .map { SkillUsedReference(name: $0.name, fingerprint: $0.fingerprint) }
-        let result = LearningRunSnapshot(references: reference, skills: used, store: self)
+        let result = LearningRunSnapshot(references: reference, store: self)
         referenceSnapshots.removeAll { $0.value == nil }
         referenceSnapshots.append(.init(result))
         return result

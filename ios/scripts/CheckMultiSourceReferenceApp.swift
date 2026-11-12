@@ -136,7 +136,7 @@ private actor MultiReferenceModel: ChatModelClient {
         session.start(plan:try plan(),using:chat)
         guard let captured=env.store.referenceSnapshots.last?.value else {throw Failure(label:"actual Session did not capture")}
         try expect(session.running && captured.references.message?.role == "user","Session captures before reads")
-        try expect(captured.usedSkills.map(\.name) == ["reference-open"],"actual Session excludes unsupported inspect capability")
+        try expect(captured.references.included.filter{$0.kind == .personalSkill}.map(\.id) == ["reference-open"],"actual Session excludes unsupported inspect capability")
         try expect(captured.references.message!.content.contains("PRIVATE_MULTI_PROFILE") && captured.references.message!.content.contains("PRIVATE_MULTI_MEMORY"),"actual captured references include active profile/memory")
         try expect(try Data(contentsOf:env.vaultURL) == before && env.store.generation == generation && env.store.memory.revision == revision,"capture persists nothing and does not alter generation")
         session.cancel()
@@ -146,7 +146,7 @@ private actor MultiReferenceModel: ChatModelClient {
         try expect(env.store.updatePreferences{$0.useMemory=false},"persist master off")
         session.start(plan:try plan(),using:chat)
         guard let disabled=env.store.referenceSnapshots.last?.value else {throw Failure(label:"disabled snapshot missing")}
-        try expect(disabled.references.included.allSatisfy{$0.kind == .personalSkill || $0.kind == .website} && disabled.usedSkills.count == 1,"skills/approved website data remain independent when memory/profile disabled")
+        try expect(disabled.references.included.allSatisfy{$0.kind == .personalSkill || $0.kind == .website} && disabled.hasIncludedPersonalSkills,"skills/approved website data remain independent when memory/profile disabled")
         session.cancel()
         env.keys.unavailable=true;env.store.reload()
         session.start(plan:try plan(),using:chat)
