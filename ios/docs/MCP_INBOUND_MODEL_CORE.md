@@ -11,7 +11,7 @@ inert task core, not a server or feature available in the app.
   loopback-only token), and classifies private addresses. `McpSettings.kt`
   defaults network access off and stores the token encrypted; `McpModes.kt`
   distinguishes loopback and private networks. None of those protections are
-  implemented by this offline core.
+  connected to an actual listener by this offline core.
 - Android `core/.../mcp/McpRpc.kt` handles `/mcp` POST JSON-RPC with legacy
   initialize, tools/list and tools/call, plus a separate newer metadata/header
   protocol. `McpTaskTools.kt` exposes run/status/wait/answer/steer/cancel/list
@@ -33,16 +33,17 @@ inert task core, not a server or feature available in the app.
 
 `MCPInboundFormat` reads only bounded JSON-RPC 2.0 bodies: legacy initialize
 with one of three versions, initialized notification, ping, tools/list and
-`tools/call` for `mika_run_task`, `mika_task_status`, `mika_list_tasks`, and
-`mika_cancel_task`. Input is capped at 32 KiB, 16 nested levels
+`tools/call` for `mika_run_task`, `mika_task_status`, `mika_list_tasks`,
+`mika_cancel_task`, `mika_wait_task`, `mika_answer`, and `mika_steer_task`. Input is capped at 32 KiB, 16 nested levels
 and 512 values; duplicate object keys, malformed UTF-8, malformed JSON,
 unsupported methods, extra tool arguments, invalid IDs and oversized goals are
 rejected. It validates only the shape of an optional conversation identifier;
 that is not proof that a client owns or may access a conversation. This subset
 is intentionally stricter than Android in some cases (unknown fields, invalid
 version and missing arguments); it is not a complete MCP implementation.
-There is no response serializer, advertised tool list, HTTP parsing, header
-validation or 2026-07-28 protocol support.
+The format parser does not serialize responses, advertise a tool list, parse
+HTTP or support the 2026-07-28 protocol; the separate access core checks
+already-parsed header values.
 
 `MCPInboundReviewState` holds one immutable parsed task in memory and returns
 its exact task and binding in a review snapshot. It starts
@@ -109,18 +110,19 @@ HTTP framing, limits, local-network policy and authentication still need
 implementation and native security review.
 
 The parser and actor cover `mika_run_task`, `mika_task_status`,
-`mika_list_tasks`, and `mika_cancel_task` for synthetic **queued records**.
+`mika_list_tasks`, `mika_cancel_task`, `mika_wait_task`, `mika_answer`, and
+`mika_steer_task` for **in-memory records**.
 Run requires a canonical `request_id`, a current connection and explicit local
 review of the immutable task and destination/context revisions. Duplicate IDs
 on the same live connection and same binding return the existing record;
 different content or a different connection conflicts. Status/list/cancel
-are restricted to the creating connection. Cancel only changes an inert queued
+are restricted to the creating connection. Cancel changes only the in-memory
 record; there is no dispatch or claim that an already sent request is undone.
 No device, other-app, file, browser, network or memory tools are assembled.
 
-Android's `mika_wait_task`, `mika_answer`, `mika_steer_task`, real model/task
-execution, result/response serialization, remote conversation continuation,
-durable request receipts and cross-restart idempotency are not implemented.
+Actual model/task execution, result/response serialization, remote conversation
+continuation, durable request receipts and cross-restart idempotency are not
+implemented.
 The Android device tools are deliberately excluded. Record state disappears on
 connection closure, disable, token rotation, background or process exit; a
 subsequent submission requires a fresh connection and local review, and there
@@ -134,3 +136,47 @@ The actor is not connected to the UI, app lifecycle, network transport or
 model settings. Native iOS build, concurrency behavior, Keychain, UI approval,
 local-network behavior and background behavior remain unverified. No claim of
 continuous background availability or complete Android parity is made.
+
+
+## Waiting, answers, and steering
+
+Android waits for a state change or terminal status, with a default 30 seconds
+and maximum 50; a timeout does not cancel the task. This actor provides the
+same bounds with a maximum of 16 simultaneous waits and polls every 250 ms
+while scheduled. A wait authenticates its peer and bearer at entry; after each
+suspension it rechecks the same connection, revocation and peer lockout.
+Rotation and inactivity revoke the session. It does not replay authentication
+on each internal poll, because doing so could reset an attacker's failure count.
+A cancelled wait has no task side effect. Cancellation and timeout depend on a
+cooperative sleeper, advancing monotonic clock and the process being scheduled;
+these are not guarantees while iOS suspends an app.
+
+Android accepts `mika_answer(task_id, text)` while a question is open, and
+`mika_steer_task(task_id, text)` while running; neither authorizes a protected
+local action. To prevent a lost response being retried against a later question,
+this narrower candidate **requires** a canonical `question_id` and `request_id`
+for answers, and a canonical `request_id` for steering. Existing Android-format
+clients need adaptation; this is not wire-compatible parity. Text is trimmed
+and limited to 2,000 UTF-16 units for answers and 4,000 for steering.
+
+The host-only state callbacks model running, a specific question, local
+approval, finished and cancellation; they execute nothing. Remote answers are
+accepted only for the current question and cannot resolve local approval.
+Steers are accepted only while running. Reusing an ID with identical contents
+returns its existing receipt without adding another item; conflicting reuse is
+rejected, including across answer and steer. Each task retains up to 64 answer
+receipts and 64 steer receipts without eviction and permits up to 16 pending
+steers. Capacity is rejected rather than silently forgetting deduplication.
+A host consumes each queued input at most once in this actor. Deduplication
+receipts retain the answer or instruction text in process memory until the
+record is removed; there is no secure memory-erasure guarantee. A receipt means
+only that text was queued, not that any model used it or that an action was
+approved. Host-only methods must never be mapped to remote requests.
+
+The actor does not protect work after the host takes an input, across crashes,
+restarts, reconnections or other processes. Durable exactly-once semantics,
+model-executor lifecycle, effects already dispatched, error/result disclosure,
+real local UI approval and transport integration remain unimplemented. The
+host must revalidate the actual connection, user approval, destination and
+context at the execution boundary; these in-memory revision handles are not a
+cross-store lease. Device and other-app controls remain excluded.

@@ -21,6 +21,9 @@ public enum MCPInboundRequest: Sendable, Equatable {
     case taskStatus(MCPInboundID, UUID)
     case cancelTask(MCPInboundID, UUID)
     case listTasks(MCPInboundID, Int)
+    case waitTask(MCPInboundID, UUID, Int)
+    case answerTask(MCPInboundID, UUID, UUID, UUID, String)
+    case steerTask(MCPInboundID, UUID, UUID, String)
 }
 
 public enum MCPInboundFormatError: Error, Sendable, Equatable {
@@ -81,15 +84,30 @@ public enum MCPInboundFormat {
                 }
                 return name == "mika_task_status" ? .taskStatus(id, taskID) : .cancelTask(id, taskID)
             }
+            if name == "mika_wait_task" {
+                guard Set(arguments.keys).isSubset(of: ["task_id", "timeout_s"]),
+                      let taskID = try optionalUUID(arguments["task_id"]) else { throw MCPInboundFormatError.invalidParameters }
+                let timeout = try boundedInteger(arguments["timeout_s"], defaultValue: 30, maximum: 50)
+                return .waitTask(id, taskID, timeout)
+            }
+            if name == "mika_answer" || name == "mika_steer_task" {
+                let keys: Set<String> = name == "mika_answer" ? ["task_id", "question_id", "request_id", "text"] : ["task_id", "request_id", "text"]
+                guard Set(arguments.keys) == keys, let taskID = try optionalUUID(arguments["task_id"]),
+                      let requestID = try optionalUUID(arguments["request_id"]), let raw = arguments["text"]?.stringValue else {
+                    throw MCPInboundFormatError.invalidParameters
+                }
+                let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                let maximum = name == "mika_answer" ? 2000 : 4000
+                guard !text.isEmpty, text.utf16.count <= maximum else { throw MCPInboundFormatError.invalidParameters }
+                if name == "mika_answer" {
+                    guard let questionID = try optionalUUID(arguments["question_id"]) else { throw MCPInboundFormatError.invalidParameters }
+                    return .answerTask(id, taskID, questionID, requestID, text)
+                }
+                return .steerTask(id, taskID, requestID, text)
+            }
             if name == "mika_list_tasks" {
                 guard Set(arguments.keys).isSubset(of: ["limit"]) else { throw MCPInboundFormatError.invalidParameters }
-                var limit = 10
-                if let input = arguments["limit"] {
-                    guard case .number(let number) = input, number >= 1, number <= 50 else { throw MCPInboundFormatError.invalidParameters }
-                    let n = NSDecimalNumber(decimal: number).intValue
-                    guard Decimal(n) == number else { throw MCPInboundFormatError.invalidParameters }
-                    limit = n
-                }
+                let limit = try boundedInteger(arguments["limit"], defaultValue: 10, maximum: 50)
                 return .listTasks(id, limit)
             }
             guard name == "mika_run_task",
@@ -111,6 +129,13 @@ public enum MCPInboundFormat {
         }
     }
 
+    private static func boundedInteger(_ input: JSONValue?, defaultValue: Int, maximum: Int) throws -> Int {
+        guard let input else { return defaultValue }
+        guard case .number(let number) = input, number >= 1, number <= Decimal(maximum) else { throw MCPInboundFormatError.invalidParameters }
+        let value = NSDecimalNumber(decimal: number).intValue
+        guard Decimal(value) == number else { throw MCPInboundFormatError.invalidParameters }
+        return value
+    }
     private static func optionalUUID(_ value: JSONValue?) throws -> UUID? {
         guard let value else { return nil }
         guard let text = value.stringValue, let uuid = UUID(uuidString: text),
