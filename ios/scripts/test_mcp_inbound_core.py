@@ -8,6 +8,23 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class MCPInboundCoreTests(unittest.TestCase):
+    def test_android_compatibility_and_independent_review_regressions(self):
+        for fixture, expected in [
+            ("AndroidCompatibilityChecks.swift", "PASS Android compatibility: 21 checks; synthetic only"),
+            ("ReviewFixChecks.swift", "INBOUND_INDEPENDENT_PASS checks=50 synthetic_only=1"),
+        ]:
+            with self.subTest(fixture=fixture), tempfile.TemporaryDirectory(prefix="woow-mcp-inbound-regression-") as tmp:
+                binary = pathlib.Path(tmp) / "checks"
+                subprocess.run([
+                    "swiftc", "-swift-version", "5", "-warnings-as-errors", "-parse-as-library",
+                    str(ROOT / "Sources/AssistantMCP/MCPTypes.swift"),
+                    str(ROOT / "Sources/AssistantMCP/MCPInboundCore.swift"),
+                    str(ROOT / "Sources/AssistantMCP/MCPInboundAccessTasks.swift"),
+                    str(ROOT / "Tests/MCPInboundStandalone" / fixture), "-o", str(binary),
+                ], check=True, timeout=120)
+                result = subprocess.run([str(binary)], check=True, capture_output=True, text=True, timeout=20)
+                self.assertIn(expected, result.stdout)
+
     def test_wait_answer_and_steer(self):
         with tempfile.TemporaryDirectory(prefix="woow-mcp-inbound-interactions-") as tmp:
             binary = pathlib.Path(tmp) / "interactions-check"
@@ -45,7 +62,7 @@ class MCPInboundCoreTests(unittest.TestCase):
                 str(ROOT / "Tests/MCPInboundStandalone/InboundChecks.swift"), "-o", str(binary),
             ], check=True, timeout=120)
             result = subprocess.run([str(binary)], check=True, capture_output=True, text=True, timeout=15)
-            self.assertIn("PASS inbound: 47 checks; no network, storage, UI, or model", result.stdout)
+            self.assertIn("PASS inbound: 49 checks; no network, storage, UI, or model", result.stdout)
 
 
 if __name__ == "__main__":

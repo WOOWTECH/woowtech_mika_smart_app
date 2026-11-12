@@ -112,8 +112,10 @@ implementation and native security review.
 The parser and actor cover `mika_run_task`, `mika_task_status`,
 `mika_list_tasks`, `mika_cancel_task`, `mika_wait_task`, `mika_answer`, and
 `mika_steer_task` for **in-memory records**.
-Run requires a canonical `request_id`, a current connection and explicit local
-review of the immutable task and destination/context revisions. Duplicate IDs
+Run accepts Android’s original `{goal}` format, with optional canonical `request_id`,
+a current connection and explicit local review of the immutable task and
+destination/context revisions. Without an ID each approved submission receives a
+new server ID; repeated submissions are indistinguishable and require fresh review. Duplicate IDs
 on the same live connection and same binding return the existing record;
 different content or a different connection conflicts. Status/list/cancel
 are restricted to the creating connection. Cancel changes only the in-memory
@@ -153,16 +155,19 @@ these are not guarantees while iOS suspends an app.
 
 Android accepts `mika_answer(task_id, text)` while a question is open, and
 `mika_steer_task(task_id, text)` while running; neither authorizes a protected
-local action. To prevent a lost response being retried against a later question,
-this narrower candidate **requires** a canonical `question_id` and `request_id`
-for answers, and a canonical `request_id` for steering. Existing Android-format
-clients need adaptation; this is not wire-compatible parity. Text is trimmed
-and limited to 2,000 UTF-16 units for answers and 4,000 for steering.
+local action. Both original argument formats are accepted here. This candidate
+also accepts optional canonical `question_id`/`request_id` for answer and
+optional `request_id` for steer as **iOS-only extensions**, not Android schema.
+Without a client ID an answer retry while running is rejected, but an identical
+delayed retry can answer a later open question; repeated steering submissions
+are separately queued. No deduplication or exactly-once promise applies to these
+original Android requests. Text is trimmed and limited to 2,000 UTF-16 units for
+answers and 4,000 for steering.
 
 The host-only state callbacks model running, a specific question, local
 approval, finished and cancellation; they execute nothing. Remote answers are
 accepted only for the current question and cannot resolve local approval.
-Steers are accepted only while running. Reusing an ID with identical contents
+Steers are accepted only while running. Reusing an explicitly supplied extension ID with identical contents
 returns its existing receipt without adding another item; conflicting reuse is
 rejected, including across answer and steer. Each task retains up to 64 answer
 receipts and 64 steer receipts without eviction and permits up to 16 pending
@@ -180,3 +185,36 @@ real local UI approval and transport integration remain unimplemented. The
 host must revalidate the actual connection, user approval, destination and
 context at the execution boundary; these in-memory revision handles are not a
 cross-store lease. Device and other-app controls remain excluded.
+
+## Android tool schema audit and remaining gaps
+
+The Android source of truth is `core/src/main/kotlin/com/wangzan101/mika/core/mcp/McpTaskTools.kt`
+and `core/src/main/kotlin/com/wangzan101/mika/core/remote/RemoteTaskService.kt`.
+The following is the Android schema, not an advertised iOS tool list:
+
+| Tool | Android required arguments | Android optional arguments |
+| --- | --- | --- |
+| `mika_run_task` | `goal` | `request_id`, `conversation` |
+| `mika_task_status` | `task_id` | — |
+| `mika_wait_task` | `task_id` | `timeout_s` (default 30, 1–50) |
+| `mika_answer` | `task_id`, `text` | — |
+| `mika_steer_task` | `task_id`, `text` | — |
+| `mika_cancel_task` | `task_id` | — |
+| `mika_list_tasks` | — | `limit` (default 10, 1–50) |
+
+Android schemas disallow extra properties. This parser accepts the original
+answer/steer arguments plus the explicitly documented iOS-only optional IDs.
+Task identifiers are parsed as nonempty strings; the inert host only creates
+UUID records. A future adapter must map other strings to missing, never infer
+authorization from them. Android supports `conversation`; this actor rejects
+continuation until ownership and revalidation exist. Android's persisted
+request receipts, actual tool results, status schema, error mapping, advertised
+schemas and execution semantics are not implemented. The 32 KiB request and
+in-memory capacity limits are additional restrictions. The optional iOS receipt
+extensions remain bounded to a live record and have no cross-restart guarantee.
+
+On each monotonic clock check the actor removes every expired connection and
+its own review/records before assessing capacity. A stale approval callback
+can neither approve nor clear a different current review. No background timer
+is promised; cleanup occurs on the next relevant actor operation. The tests
+are synthetic and do not start a listener or contact a service.
