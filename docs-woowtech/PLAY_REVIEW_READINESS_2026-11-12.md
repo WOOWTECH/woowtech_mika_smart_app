@@ -7,6 +7,7 @@
 - 商店分支 `playstore/woowtech-compliant-20261111`，檢查時 HEAD 為 `2ac89a89`。原始碼設定套件 `io.woowtech.assistant`、`versionCode=2`、`0.1.37-play.2`、target API 36。Google 要求一般手機新 App 與更新自 2026-08-31 起 target API 36 以上；原始碼和本機候選 AAB 的數值符合該條件。[Google 目標 API 規則](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en)
 - 本機候選 AAB：`app/build/outputs/bundle/woowtechRelease/app-woowtech-release.aab`，64,927,365 bytes，SHA-256 `5f3d9f3c7d35e08280413b130809ae7f44d7f0e3eb7e4596147163c3adfee994`。直接檢查 ZIP 未見 AAB/JAR `.SF`／`.RSA`／`.DSA`／`.EC` 簽章項目；**此候選檔尚無標準上傳簽章**。檔案時間早於上述 commit，不能據時間判定內容是否與該 commit 一致。需從確定的最終 commit 重建、驗證內容並用受控的上傳金鑰簽章；版本碼是否可用取決於 Console 已使用的版本。
 - Gradle 的渥屋版簽章配置由環境變數 `WOOWTECH_SIGNING_PROPERTIES` 指向的外部 properties 檔提供；本次執行環境未設定該變數。這不能證明簽章金鑰不存在，也不能用既有 App 的簽章推定新套件設定；需確認安全提供方式及 Play Console 新 App 的簽章方案。
+- 使用 JDK `jarsigner -verify` 實查候選 AAB，輸出為 unsigned；此工具即使輸出 unsigned 仍可能回傳退出碼 0，驗證時須讀取結果而非只看退出碼。Google Play 的 App 簽章金鑰與開發者用來簽署上傳 AAB 的上傳金鑰是不同用途；新 App 的 Play 簽章方案與上傳憑證，應在確認套件尚未建立及 Console 實際狀態後設定，不從其他 App 推定。[Google Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en)
 - 候選 AAB manifest 經獨立解析為 min API 30、target API 36；含網路、錄音、通知、wake lock 與前景服務權限；未列無障礙服務、`McpService` 或 `SandboxService`。`TaskService` 與 `ChatGptSignInService` 為 `specialUse`。應在最終簽章 AAB 重新檢查；manifest 不足以單獨證明所有程式路徑均不可達。
 - Google Play 對含原生程式的 App 要求支援 16 KB 頁面。[官方說明](https://developer.android.com/guide/practices/page-sizes) 本機候選 AAB 有 11 個 `.so`；以 ELF 程式表檢查所有 7 個 64 位元 arm64／x86_64 函式庫，`PT_LOAD` 對齊均為 `0x4000`，且位址與檔案偏移符合 16 KB 同餘；另以 Android NDK `llvm-readelf` 交叉檢查 `libproot.so`。AAB 內的 11 個 `.so` 為壓縮項目，但這些結果不足以代表 Play 產生 APK 的封裝或 16 KB 裝置執行已通過，最終版仍需檢查與實機／模擬器驗證。
 - 候選 AAB 仍包含 arm64 `libmikarun.so`、`libproot.so`、`libproot_loader.so`，程式中它們用於沙箱程序。商店版主流程及 manifest 已關閉相應能力，但僅憑檔案存在不能判定仍可執行或已違反政策；需在最終包確認可達路徑與是否應移除這些未使用的原生檔案。
@@ -24,6 +25,10 @@
 `PLAY_DISCLOSURES_DRAFT.md` 與 `PLAY_PRIVACY_POLICY_DRAFT.md` 仍描述手機遠端配對、中繼讀取對話、Odoo 帳號和已移除的服務；`PLAY_SUBMISSION_HANDOFF_2026-11-12.md` 亦有較舊版狀態。使用者已指定商店版保留**向外連接 MCP 伺服器**，不保留手機對電腦的 MCP 服務及遠端配對。必須先依最終 AAB 和實際流程重盤，不能直接提交舊草稿。
 
 新的 `PLAY_PRIVACY_POLICY_MCP_DRAFT.md` 已按目前產品範圍重寫，仍含待確認項目，不能直接發布。`PLAY_CONSOLE_REVIEW_INPUT_DRAFT.md` 提供建立 App、審查員存取和前景服務素材草稿。
+
+資料流靜態複核：自訂模型位址可使用 HTTP，非本機／私人網路位址會警告但不阻止（`ModelSetupViewModel.kt`）；MCP 亦可由使用者開啟本機／私人網路 HTTP。因此 Data safety 的傳輸加密答案須按最終版全部適用資料流與 Console 定義核對，不應僅憑預設 HTTPS 填寫。未找到商店版建立渥屋助理帳號的入口，但需核對最終 AAB 與外部授權頁才可定案。
+
+檢舉本機紀錄包含選取的回覆、狀態及可能取得的刪除憑據；目前未找到使用者可操作的本機／伺服器檢舉刪除介面。候選收件端程式設定 30 天到期並依 alarm 清理，但執行時機、正式部署與日誌／備份處理尚未驗證；App 內收件成功或伺服器刪除 API 的存在都不等於已提供完整使用者刪除途徑。
 
 AI 回覆檢舉可能仍傳送到 WoowTech 的 relay 收件端；這與移除手機遠端配對是不同資料流。檢查時不可把前者誤刪，也不能假定它已部署成功。
 
