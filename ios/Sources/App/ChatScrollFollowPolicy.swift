@@ -108,8 +108,10 @@ struct ChatScrollFollowPolicy {
     }
 
     /// Returns whether the caller should scroll to the transcript's tail.
-    mutating func observe(_ current: ChatTranscriptViewport) -> Bool {
-        guard current.isValid else { return false }
+    mutating func observe(_ current: ChatTranscriptViewport, hasTranscript: Bool = true) -> Bool {
+        // Empty-state examples are browsed independently of transcript follow.
+        // Do not record their geometry: the first real message starts fresh.
+        guard hasTranscript, current.isValid else { return false }
         defer { previous = current }
         guard let previous else { return followsTail && !isDragging && !isSettling }
         let oldOffset = previous.contentHeight - previous.bottomY

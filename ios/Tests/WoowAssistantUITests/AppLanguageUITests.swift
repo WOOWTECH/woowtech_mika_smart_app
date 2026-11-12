@@ -1,5 +1,15 @@
 import XCTest
 
+/// Reuse the isolated, already configured synthetic streaming namespace while
+/// changing only the actual preferred UI language between launches.
+func launchLocalizedStreamingFixture(_ app: XCUIApplication, systemLanguages: String, namespace: String) {
+    app.terminate()
+    app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
+                           "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+    app.launchEnvironment = [:]
+    app.launch()
+}
+
 /// Actual settings UI acceptance. Never sets defaults/bindings or overrides a
 /// product DEBUG locale. Each case owns fresh storage; model requests stay off.
 final class AppLanguageUITests: XCTestCase {
@@ -107,9 +117,9 @@ final class AppLanguageUITests: XCTestCase {
             ("(en)", ["Help me write a friendly reply to this message.", "Summarize the document I attach and list its key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
         ]
         let identifiers = ["reply", "document", "web", "shopping", "remember", "recall"]
-        for (language, expected) in cases {
+        for (systemLanguages, expected) in cases {
             app.terminate()
-            app.launchArguments = ["-AppleLanguages", language, "-AppleLocale", "zh_TW",
+            app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                    "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
             app.launchEnvironment = [:]
             app.launch()

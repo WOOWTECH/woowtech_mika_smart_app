@@ -135,6 +135,16 @@ enum CheckChatScrollFollow {
         expect(follow.followsTail)
         expect(follow.observe(sample(0, 0)))
         expect(!follow.observe(sample(.infinity, 0)))
+        // Browsing a long empty-state list must not be pinned to the tail,
+        // including accessibility scrolls and text-size/viewport changes.
+        var emptyBrowsing = ChatScrollFollowPolicy()
+        expect(!emptyBrowsing.observe(sample(1800, 1800), hasTranscript: false))
+        expect(!emptyBrowsing.observe(sample(1800, 1000), hasTranscript: false))
+        expect(!emptyBrowsing.observe(sample(2600, 1700, 300), hasTranscript: false))
+        expect(!emptyBrowsing.needsTailScroll)
+        expect(emptyBrowsing.observe(sample(600, 600), hasTranscript: true))
+        expect(!emptyBrowsing.observe(sample(600, 500), hasTranscript: true))
+
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }

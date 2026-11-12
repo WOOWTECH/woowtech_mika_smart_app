@@ -53,6 +53,21 @@ class AppTextResourceTests(unittest.TestCase):
             self.assertEqual(entries[case]['zh-Hant'], hant, case)
             self.assertEqual(entries[case]['en'], english, case)
 
+    def test_six_examples_match_supplied_unsigned_apk_resource_evidence(self):
+        root = Path(__file__).resolve().parents[1]
+        evidence = json.loads((root / 'docs/evidence/craft-play-420b1d26-chat.json').read_text())
+        self.assertEqual(evidence['source_commit'], '420b1d26f99110635d6a2827ee9414541c7a6c35')
+        self.assertEqual(evidence['artifact_sha256'], 'a53e5386811b8c3df3a8d70164c3c984188afe71329b5671d4595bd7432fc50c')
+        mapping = {'chat_example_follow': 'shellReplyExample',
+                   'chat_example_group_summary': 'shellDocumentExample',
+                   'chat_example_jobs': 'shellWebExample',
+                   'chat_example_multi_step': 'shellShoppingExample',
+                   'chat_example_alarms': 'shellRememberExample',
+                   'chat_example_ai_apps': 'shellRecallExample'}
+        entries = {e['case']: e['translations'] for e in self.catalog['entries']}
+        for key, case in mapping.items():
+            self.assertEqual(entries[case]['zh-Hant'], evidence['chat_strings'][key], key)
+
     def test_generated_assets_are_complete(self):
         generated = outputs(self.catalog)
         root = Path(__file__).resolve().parents[1]
