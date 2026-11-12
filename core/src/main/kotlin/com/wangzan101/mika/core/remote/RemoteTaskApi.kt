@@ -20,11 +20,13 @@ class RemoteTaskApi(
     private val service: RemoteTaskService,
     private val serverVersion: String,
     private val device: DeviceAccess? = null,
+    private val conversations: RemoteConversationData? = null,
 ) {
     fun handle(req: HttpRequest): HttpResponse = try {
         req.header("accept")?.lowercase()?.let {
-            if ("application/json" !in it && "*/*" !in it && "application/*" !in it)
-                throw ApiError(406, "not_acceptable", "Accept must include application/json")
+            val binary = req.path.contains("/attachments/")
+            if ("application/json" !in it && "*/*" !in it && "application/*" !in it && !(binary && "application/octet-stream" in it))
+                throw ApiError(406, "not_acceptable", "Unsupported Accept header")
         }
         route(req)
     } catch (e: ApiError) {
@@ -42,12 +44,12 @@ class RemoteTaskApi(
 
     private fun route(req: HttpRequest): HttpResponse {
         val query = query(req)
-        if (req.path != "$ROOT/tasks" && query.isNotEmpty()) invalid("This endpoint accepts no query parameters")
+        if (req.path != "$ROOT/tasks" && !req.path.startsWith("$ROOT/conversations") && query.isNotEmpty()) invalid("This endpoint accepts no query parameters")
         if (req.path == ROOT) {
             method(req, "GET")
             return ok(buildJsonObject {
                 put("api_version", 1); put("server_version", serverVersion)
-                putJsonArray("capabilities") { add("tasks"); add("task_steer"); add("task_recovery"); if (device != null) add("device_state") }
+                putJsonArray("capabilities") { add("tasks"); add("task_steer"); add("task_recovery"); if (device != null) add("device_state"); if (conversations != null) add("conversation_read") }
                 putJsonObject("limits") {
                     put("max_wait_s", RemoteTaskService.MAX_WAIT_S)
                     put("max_goal", RemoteTaskService.MAX_GOAL)
@@ -60,6 +62,33 @@ class RemoteTaskApi(
             method(req, "GET")
             val access = device ?: throw ApiError(503, "device_unavailable", "Device state is unavailable")
             return ok(runBlocking { access.state().toJson() })
+        }
+        if (req.path == "$ROOT/conversations" || req.path.startsWith("$ROOT/conversations/")) {
+            method(req, "GET")
+            val source = conversations ?: throw ApiError(404, "not_found", "No such endpoint")
+            val parts = req.path.removePrefix("$ROOT/conversations/").split('/')
+            if (req.path == "$ROOT/conversations") {
+                val (offset, limit) = page(query)
+                val (total, items) = source.list(offset, limit)
+                return bounded(buildJsonObject {
+                    put("total", total); put("offset", offset); putJsonArray("conversations") { items.forEach(::add) }
+                })
+            }
+            if (parts.isEmpty() || !CONVERSATION_ID.matches(parts[0])) throw ApiError(404, "not_found", "No such conversation")
+            val id = parts[0]
+            if (parts.size == 1) {
+                val (offset, limit) = page(query)
+                return bounded(source.get(id, offset, limit) ?: throw ApiError(404, "not_found", "No such conversation"))
+            }
+            if (parts.size == 4 && parts[1] == "attachments" && parts[2].toIntOrNull() != null && parts[3].toIntOrNull() != null) {
+                if (query.keys != setOf("offset")) invalid("Only offset is supported")
+                val offset = query["offset"]?.toLongOrNull()?.takeIf { it >= 0 } ?: invalid("offset must be nonnegative")
+                val bytes = source.attachment(id, parts[2].toInt(), parts[3].toInt(), offset, ATTACHMENT_CHUNK)
+                    ?: throw ApiError(404, "not_found", "No such attachment")
+                if (bytes.size > ATTACHMENT_CHUNK) throw ApiError(500, "invalid_source", "Attachment chunk is too large")
+                return HttpResponse(200, bytes, mapOf("Content-Type" to "application/octet-stream", "Cache-Control" to "no-store"))
+            }
+            throw ApiError(404, "not_found", "No such endpoint")
         }
         if (req.path == "$ROOT/tasks") {
             return when (req.method) {
@@ -157,14 +186,30 @@ class RemoteTaskApi(
         return fields.toMap()
     }
 
+    private fun page(query: Map<String, String>): Pair<Int, Int> {
+        if (query.keys.any { it != "offset" && it != "limit" }) invalid("Only offset and limit are supported")
+        val offset = query["offset"]?.toIntOrNull() ?: if ("offset" in query) invalid("offset must be an integer") else 0
+        val limit = query["limit"]?.toIntOrNull() ?: if ("limit" in query) invalid("limit must be an integer") else 20
+        if (offset < 0 || limit !in 1..50) invalid("offset must be nonnegative and limit must be 1..50")
+        return offset to limit
+    }
+
+    private fun bounded(body: JsonObject): HttpResponse {
+        if (body.toString().toByteArray(Charsets.UTF_8).size > MAX_RESPONSE) throw ApiError(413, "response_too_large", "Request a smaller page")
+        return ok(body)
+    }
+
     private fun method(req: HttpRequest, expected: String) { if (req.method != expected) wrongMethod(expected) }
     private fun wrongMethod(allow: String): Nothing = throw ApiError(405, "method_not_allowed", "Method not allowed", mapOf("Allow" to allow))
     private fun invalid(message: String): Nothing = throw ApiError(400, "invalid_argument", message)
-    private fun ok(body: JsonObject, status: Int = 200) = HttpResponse.json(status, body.toString())
+    private fun ok(body: JsonObject, status: Int = 200) = HttpResponse.json(status, body.toString(), mapOf("Cache-Control" to "no-store"))
     private class ApiError(val status: Int, val code: String, message: String, val headers: Map<String, String> = emptyMap()) : Exception(message)
 
     companion object {
         const val ROOT = "/api/v1"
+        const val ATTACHMENT_CHUNK = 128 * 1024
+        private const val MAX_RESPONSE = 512 * 1024
+        private val CONVERSATION_ID = Regex("[A-Za-z0-9_-]{1,100}")
         private val ID = Regex("[A-Za-z0-9_-]+")
         fun error(status: Int, code: String, message: String, headers: Map<String, String> = emptyMap()) =
             HttpResponse.json(status, buildJsonObject { putJsonObject("error") {

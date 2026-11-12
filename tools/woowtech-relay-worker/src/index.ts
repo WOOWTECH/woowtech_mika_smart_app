@@ -3,12 +3,15 @@ import { AccountAuth, authCall, authRoute, currentAccount, SITE, redirect } from
 import cliSource from '../downloads/woow-relay-cli.py';
 import cliLicense from '../downloads/LICENSE.txt';
 import appIntegration from '../docs/app-integration.md';
+import { ReportInbox } from './reports';
 export { AccountAuth };
+export { ReportInbox };
 
 export interface Env {
   RELAY: DurableObjectNamespace<RelayDurableObject>;
   OWNER_KEY: string;
   AUTH: DurableObjectNamespace<AccountAuth>;
+  REPORTS: DurableObjectNamespace<ReportInbox>;
 }
 
 type RelayFrame = {
@@ -28,7 +31,7 @@ const ORIGIN = "https://assistant-relay.woowtech.io";
 const PROTOCOL = "mika-relay.v2";
 const MAX_BODY = 1 << 20;
 const REQUEST_HEADERS = new Set(["authorization", "origin", "x-mika-client", "content-type", "accept", "mcp-protocol-version", "mcp-method", "mcp-name", "mcp-session-id", "last-event-id"]);
-const RESPONSE_HEADERS = new Set(["content-type", "allow", "retry-after", "www-authenticate", "mcp-protocol-version"]);
+const RESPONSE_HEADERS = new Set(["content-type", "cache-control", "allow", "retry-after", "www-authenticate", "mcp-protocol-version"]);
 const encoder = new TextEncoder();
 
 function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
@@ -139,6 +142,26 @@ export default {
     const url = new URL(request.url);
     if (url.host !== new URL(ORIGIN).host) return security(failure(400, "invalid_host"));
     if (!env.OWNER_KEY || env.OWNER_KEY.length < 32) return security(failure(503, "not_configured"));
+    if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
+      if (request.headers.has('origin')) return security(failure(403, 'browser_not_allowed', true));
+      const admin = url.pathname.startsWith('/admin/');
+      const deleting = request.method === 'DELETE';
+      if (admin ? !(request.method === 'GET' || deleting) : !(request.method === 'POST' && url.pathname === '/api/v1/ai-reports' || deleting))
+        return security(failure(405, 'method_not_allowed', true));
+      if (admin && !await matches(bearer(request), await digest(env.OWNER_KEY))) return security(failure(403, 'access_denied', true));
+      let body: ArrayBuffer | undefined;
+      if (request.method === 'POST') {
+        if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return security(failure(415, 'unsupported_media_type', true));
+        try { body = await boundedBody(request, 16 * 1024); } catch { return security(failure(413, 'body_too_large', true)); }
+      }
+      const path = deleting ? '/delete/' + url.pathname.split('/').at(-1) : admin ? '/review' + url.search : '/intake';
+      const headers = new Headers({ 'content-type': 'application/json' });
+      if (admin) headers.set('x-report-owner', 'yes');
+      else if (deleting) headers.set('x-report-receipt', bearer(request));
+      else headers.set('x-report-ip', client(request));
+      const inbox = env.REPORTS.getByName('ai-reports-v1');
+      return security(await inbox.fetch('https://internal' + path, { method: request.method, headers, body }));
+    }
     if(url.pathname==='/docs/app-integration.md'&&request.method==='GET')return security(new Response(appIntegration,{headers:{'content-type':'text/plain; charset=utf-8'}}));
     if(url.pathname==='/downloads/LICENSE.txt'&&request.method==='GET')return security(new Response(cliLicense,{headers:{'content-type':'text/plain; charset=utf-8'}}));
     if(url.pathname==='/downloads/woow-relay-cli.py'&&request.method==='GET')return security(new Response(cliSource,{headers:{'content-type':'text/x-python; charset=utf-8','content-disposition':'attachment; filename="woow-relay-cli.py"'}}));

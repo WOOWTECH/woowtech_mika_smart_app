@@ -48,7 +48,8 @@ class McpRuntime(
     @Volatile private var host: RemoteHost? = null
     private var hostListen = McpModes.Listen.Off
     // Play edition exposes conversation tasks only. Screen state, wake, and unlock are absent from all endpoints.
-    private val endpoints = RemoteEndpoints(tasks, BuildConfig.VERSION_NAME, device = null)
+    private val endpoints = RemoteEndpoints(tasks, BuildConfig.VERSION_NAME, device = null,
+        conversations = PhoneConversationData(context))
     private val relayAccess = RemoteAccess(token = { if (relaySettings.config.value.enabled) settings.token() else null })
     // 商店版的網關請求不具備螢幕狀態、喚醒或解鎖能力。
     private val relay = RelayClient(CoroutineScope(SupervisorJob() + Dispatchers.IO), { req ->

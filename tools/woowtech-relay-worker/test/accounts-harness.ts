@@ -1,6 +1,6 @@
-import worker, { RelayDurableObject } from '../src/index';
+import worker, { RelayDurableObject, ReportInbox } from '../src/index';
 import { AccountAuth as RealAccountAuth, hash, CLIENT } from '../src/auth';
-export { RelayDurableObject };
+export { RelayDurableObject, ReportInbox };
 // This entrypoint is used ONLY by wrangler.test.toml, never deployed.
 export class AccountAuth extends RealAccountAuth {
  protected override async provider(path:string, form:Record<string,string>):Promise<any> {

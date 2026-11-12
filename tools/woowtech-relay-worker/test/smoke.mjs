@@ -38,6 +38,29 @@ try {
   assert.doesNotMatch(page, /OWNER_KEY|local-test-owner/);
   assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
 
+  const reportId = '123e4567-e89b-42d3-a456-426614174000';
+  const reportBody = { id: reportId, reason: 'incorrect', note: 'test note', response: 'test response', created_at_ms: Date.now() };
+  const reportHeaders = { host: 'assistant-relay.woowtech.io', 'cf-connecting-ip': '192.0.2.42', 'content-type': 'application/json' };
+  response = await fetch(origin + '/api/v1/ai-reports', { method: 'POST', headers: reportHeaders, body: JSON.stringify(reportBody) });
+  assert.equal(response.status, 201, 'unpaired report intake');
+  const acceptedReport = await response.json();
+  assert.deepEqual({ id: acceptedReport.id, accepted: acceptedReport.accepted }, { id: reportId, accepted: true });
+  assert.match(acceptedReport.deletion_receipt, /^[A-Za-z0-9_-]{43}$/);
+  response = await fetch(origin + '/api/v1/ai-reports', { method: 'POST', headers: reportHeaders, body: JSON.stringify(reportBody) });
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), { id: reportId, accepted: true });
+  response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer wrong' } });
+  assert.equal(response.status, 403);
+  response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', 'x-report-owner': 'yes' } });
+  assert.equal(response.status, 403, 'forged internal owner header');
+  response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + owner } });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).reports[0].response, reportBody.response);
+  response = await fetch(origin + '/api/v1/ai-reports/' + reportId, { method: 'DELETE', headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + acceptedReport.deletion_receipt } });
+  assert.equal(response.status, 200);
+  response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + owner } });
+  assert.equal((await response.json()).reports.length, 0);
+
   response = await form("status", "wrong");
   assert.equal(response.status, 403);
   assert.doesNotMatch(await response.text(), /local-test-owner/);

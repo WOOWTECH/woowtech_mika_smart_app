@@ -14,7 +14,7 @@ import java.net.InetAddress
  * 而不是出现了再拒绝。经网关来的请求默认不给,见 docs/dev/remote-mcp.md。
  */
 class RemoteEndpoints(tasks: RemoteTasks, private val serverVersion: String, private val clock: () -> Long = System::currentTimeMillis,
-    device: DeviceAccess? = null) {
+    device: DeviceAccess? = null, private val conversations: RemoteConversationData? = null) {
     private val service = RemoteTaskService(tasks)
     private val clients = LinkedHashMap<String, Long>()
     private val mutable = MutableStateFlow(RemoteActivity())
@@ -22,7 +22,7 @@ class RemoteEndpoints(tasks: RemoteTasks, private val serverVersion: String, pri
 
     /** 一套协议入口:任务 API 加 MCP。两套只差带不带手机屏幕能力,任务服务和近期活动共用。 */
     private inner class Surface(device: DeviceAccess?) {
-        val api = RemoteTaskApi(service, serverVersion, device)
+        val api = RemoteTaskApi(service, serverVersion, device, conversations)
         val rpc = McpRpc(McpTaskTools(service, device), serverVersion) { remote, name -> seen(remote, name) }
     }
     private val withDevice = Surface(device)

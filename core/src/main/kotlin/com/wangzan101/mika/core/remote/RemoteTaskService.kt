@@ -15,7 +15,7 @@ sealed class RemoteTaskError(val code: Code, message: String) : Exception(messag
     class General(code: Code, message: String) : RemoteTaskError(code, message)
     class NoSuchTask(val id: String) : RemoteTaskError(Code.NOT_FOUND, "No remote task with id $id")
     class BadConversation : RemoteTaskError(Code.INVALID_ARGUMENT,
-        "conversation must be one returned by an earlier remote task (looks like mcp-<uuid>)")
+        "conversation must be a canonical UUID from phone history or an earlier remote task (mcp-<uuid>)")
     /** 这一步要用户在手机上处理,不能远程回答。 */
     class NeedsPhone : RemoteTaskError(Code.CONFLICT, Brand.text(RemoteStatus.ON_PHONE_NOTE))  // WOOWTECH fork: CLI 任务 API 原样交出这句
     /** 查到时还在问,交回答时问题已经没了。 */
@@ -127,6 +127,6 @@ class RemoteTaskService(private val tasks: RemoteTasks, private val pollMs: Long
         private const val CONVERSATION_PREFIX = "mcp-"
         fun newConversation(): String = CONVERSATION_PREFIX + UUID.randomUUID()
         private fun isUuid(id: String) = runCatching { UUID.fromString(id).toString() == id }.getOrDefault(false)
-        fun isConversation(id: String): Boolean = id.startsWith(CONVERSATION_PREFIX) && isUuid(id.removePrefix(CONVERSATION_PREFIX))
+        fun isConversation(id: String): Boolean = isUuid(id) || id.startsWith(CONVERSATION_PREFIX) && isUuid(id.removePrefix(CONVERSATION_PREFIX))
     }
 }
