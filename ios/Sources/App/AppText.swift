@@ -1447,7 +1447,7 @@ enum AppText: Equatable {
         case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。"
         case .localPDFSearchIgnoreASCIICase: return "不區分英文字母大小寫（A–Z）"
         case .localPDFSearchPatternMode: return "使用有限正規表示式"
-        case .localPDFSearchPatternHelp: return "支援文字、.、\\d（數字）、\\w（英數及底線）、\\s（空格或定位字元）、固定次數 {n}（n 為 1–16）及反斜線跳脫符號；例：\\d{4}-\\d{2}。不支援 +、*、?、群組、字元類別或跨行。"
+        case .localPDFSearchPatternHelp: return "支援文字、.、\\d、\\w、\\s、字元類別如 [A-Z0-9] 或 [^0-9]、+、*、固定次數 {n}（1–16）及跳脫符號；例：[A-Z]+。只列非空匹配，不支援 ?、群組、或跨行。"
         case .localPDFSearchPatternInvalid: return "正規表示式為空或格式無效，請檢查後重試。"
         case .localPDFSearchPatternUnsupported: return "此寫法尚未支援；請使用上方列出的有限語法。"
         case .localPDFSearchPatternBudget: return "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。"

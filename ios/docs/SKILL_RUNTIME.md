@@ -7,32 +7,47 @@ This increment provides actual selected-file PDF execution. It does not execute 
 ### Limited regular expressions over an approved PDF snapshot
 
 The offline search offers a separate, default-off limited pattern mode. It
-supports Unicode literal scalars, `.` (one scalar), ASCII `\d`, `\w` and `\s`
-(space or tab), `\` to escape a regex metacharacter, and exact repetitions
-`{n}` for 1–16. For example `\d{4}-\d{2}` matches a year-month pattern.
-The existing A–Z case option applies only to ASCII literal letters. Unicode
-normalization and non-ASCII case folding are not performed. Matching is
-non-overlapping and cannot cross CR or LF; reported UTF-8 offsets, snippets,
+supports Unicode literal scalars, `.` (one scalar), ASCII `\d`, `\w`, `\s`
+(space or tab), literal/range classes such as `[A-Z0-9]`, Unicode scalar
+classes, negated classes such as `[^0-9]`, greedy `+` and `*`, exact repeats
+`{n}` for 1–16, and backslash-escaped metacharacters. Classes may contain up
+to 16 literals or ranges; inside a class, escape `]`, `-`, `[` or `\` as
+needed. Class shortcuts such as `[\d]` are not implemented. The A–Z case
+option applies only to ASCII letters, including class ranges; Unicode
+normalization and non-ASCII case folding are not performed. As in Java's default
+mode, `.` excludes CR, LF, U+0085, U+2028 and U+2029. Matching is greedy,
+non-overlapping, and cannot cross CR or LF; UTF-8 offsets, bounded snippets,
 original page and selection index all refer to the unchanged snapshot.
 
+**Only nonempty matches are shown.** For a nullable pattern such as `a*`, empty
+matches are deliberately skipped and a scalar is advanced, preventing infinite
+loops. This differs from Java's complete match list and is stated in the UI.
 Empty/malformed expressions are reported separately from unsupported syntax.
-Character classes, groups, alternation, anchors, variable repeats (`*`, `+`,
-`?`, `{m,n}`), backreferences and Unicode property classes are unsupported;
-they are never passed to a backtracking engine or silently treated as literals.
-Patterns are bounded to 256 UTF-8 bytes and 64 expanded units. Matching is
-bounded to 5,000,000 scalar comparisons with cooperative cancellation checks;
-reaching the limit reports an error and discards partial results. At most 20
-matches are returned with a truncation indicator only when another actual
-match exists. The App runs pattern matching away from the main actor and has a
-Stop control. Editing the input, changing mode or case, replacing the source,
-or leaving the view invalidates a pending result. A worker that returns after
-cancellation cannot publish to the screen.
+Groups, alternation, anchors, `?`, lazy/possessive quantifiers, variable
+`{m,n}`, backreferences, class intersection (`&&`), Unicode property classes
+and class shortcuts remain unsupported and are never passed
+to a backtracking engine or silently treated as literals.
+
+The implementation uses dynamic programming, processing each input scalar once
+per compiled term, with at most 64 terms and 16 ranges per class. Its work is
+linear in input length for this fixed bounded syntax, not exponential
+backtracking. Patterns are capped at 256 UTF-8 bytes; each page at 262,144
+Unicode scalars; and each search at 5,000,000 work steps. Four compact arrays
+need about 4 MiB at the per-page ceiling, in addition to the approved snapshot
+and normal object overhead. A bound reached is an error, not a no-match or
+partial success. At most 20 matches are returned with a truncation indicator
+only if another nonempty match exists. Match snippets are limited to 320 UTF-8
+bytes even for a long match. The background task checks cancellation at least
+every 1,024 work steps and the App offers Stop. Editing the input, changing
+mode or case, replacing the source, or leaving the view invalidates pending
+results. Query edits compare UTF-8 bytes, so switching between canonically
+equivalent composed and decomposed spellings updates the actual query. A worker returning after cancellation cannot publish to the screen.
 
 Android `search_files` instead supports Java regular expressions and scans
 workspace lines with its own 10-second deadline and 100-line match limit. The
-fixed-width iOS subset is not full regex or workspace parity, does not invoke a
-model, external PDF worker or network, and does not create read/citation
-receipts. Native iOS UI and device responsiveness remain revision-specific
+iOS subset is not full Java regex or workspace parity, does not invoke a model,
+external PDF worker or network, and does not create read/citation receipts.
+Native iOS UI, memory and device responsiveness remain revision-specific
 acceptance checks.
 
 Android's `documents/SKILL.md` names `search_files` for extracted text. The

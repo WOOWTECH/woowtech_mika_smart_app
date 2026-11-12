@@ -144,7 +144,10 @@ public struct DocumentLocalSearch: Sendable {
     public init(source: DocumentTextSnapshot) { self.source = source }
 
     public mutating func setQuery(_ value: String) {
-        guard query != value else { return }
+        // Swift String equality considers canonically equivalent spellings
+        // equal. Search is byte/scalar exact, so changing normalization must
+        // replace the query and invalidate results too.
+        guard !query.utf8.elementsEqual(value.utf8) else { return }
         query = value; result = nil; error = nil
     }
 

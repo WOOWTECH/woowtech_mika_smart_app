@@ -4640,9 +4640,9 @@
       "key": "localPDFSearch.patternHelp",
       "parameters": [],
       "translations": {
-        "zh-Hant": "支援文字、.、\\d（數字）、\\w（英數及底線）、\\s（空格或定位字元）、固定次數 {n}（n 為 1–16）及反斜線跳脫符號；例：\\d{4}-\\d{2}。不支援 +、*、?、群組、字元類別或跨行。",
-        "zh-Hans": "支持文字、.、\\d（数字）、\\w（英数及下划线）、\\s（空格或制表符）、固定次数 {n}（n 为 1–16）及反斜杠转义符号；例：\\d{4}-\\d{2}。不支持 +、*、?、分组、字符类或跨行。",
-        "en": "Use text, ., \\d (digits), \\w (ASCII letters, digits, underscore), \\s (space or tab), {n} exact repeats (n is 1–16), and backslash-escaped symbols; e.g. \\d{4}-\\d{2}. No +, *, ?, groups, character classes, or cross-line matches."
+        "zh-Hant": "支援文字、.、\\d、\\w、\\s、字元類別如 [A-Z0-9] 或 [^0-9]、+、*、固定次數 {n}（1–16）及跳脫符號；例：[A-Z]+。只列非空匹配，不支援 ?、群組、或跨行。",
+        "zh-Hans": "支持文字、.、\\d、\\w、\\s、字符类如 [A-Z0-9] 或 [^0-9]、+、*、固定次数 {n}（1–16）及转义符号；例：[A-Z]+。只列非空匹配，不支持 ?、分组或跨行。",
+        "en": "Use text, ., \\d, \\w, \\s, classes such as [A-Z0-9] or [^0-9], +, *, {n} exact repeats (1–16), and escaped symbols; e.g. [A-Z]+. Empty matches are omitted. No ?, groups, alternation, or cross-line matches."
       }
     },
     {

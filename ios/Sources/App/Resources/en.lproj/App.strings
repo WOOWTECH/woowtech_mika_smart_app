@@ -442,7 +442,7 @@
 "localPDFSearch.notice" = "Searches only the pages selected and approved for this extraction. No OCR or data transmission.";
 "localPDFSearch.ignoreASCIICase" = "Ignore English letter case (A–Z)";
 "localPDFSearch.patternMode" = "Use limited regular expressions";
-"localPDFSearch.patternHelp" = "Use text, ., \\d (digits), \\w (ASCII letters, digits, underscore), \\s (space or tab), {n} exact repeats (n is 1–16), and backslash-escaped symbols; e.g. \\d{4}-\\d{2}. No +, *, ?, groups, character classes, or cross-line matches.";
+"localPDFSearch.patternHelp" = "Use text, ., \\d, \\w, \\s, classes such as [A-Z0-9] or [^0-9], +, *, {n} exact repeats (1–16), and escaped symbols; e.g. [A-Z]+. Empty matches are omitted. No ?, groups, alternation, or cross-line matches.";
 "localPDFSearch.patternInvalid" = "The pattern is empty or malformed. Check it and try again.";
 "localPDFSearch.patternUnsupported" = "This syntax is not supported. Use the limited syntax listed above.";
 "localPDFSearch.patternBudget" = "Search reached its work limit. Select fewer pages or simplify the pattern; partial results are not shown.";

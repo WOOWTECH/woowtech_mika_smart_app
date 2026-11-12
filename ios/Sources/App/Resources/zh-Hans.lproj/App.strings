@@ -442,7 +442,7 @@
 "localPDFSearch.notice" = "只搜索本次选择并批准提取的页面；没有 OCR，也不会发送数据。";
 "localPDFSearch.ignoreASCIICase" = "不区分英文字母大小写（A–Z）";
 "localPDFSearch.patternMode" = "使用有限正则表达式";
-"localPDFSearch.patternHelp" = "支持文字、.、\\d（数字）、\\w（英数及下划线）、\\s（空格或制表符）、固定次数 {n}（n 为 1–16）及反斜杠转义符号；例：\\d{4}-\\d{2}。不支持 +、*、?、分组、字符类或跨行。";
+"localPDFSearch.patternHelp" = "支持文字、.、\\d、\\w、\\s、字符类如 [A-Z0-9] 或 [^0-9]、+、*、固定次数 {n}（1–16）及转义符号；例：[A-Z]+。只列非空匹配，不支持 ?、分组或跨行。";
 "localPDFSearch.patternInvalid" = "正则表达式为空或格式无效，请检查后重试。";
 "localPDFSearch.patternUnsupported" = "此写法尚不支持；请使用上方列出的有限语法。";
 "localPDFSearch.patternBudget" = "搜索已达运算上限而停止；请缩小页数或简化条件。没有显示不完整结果。";
