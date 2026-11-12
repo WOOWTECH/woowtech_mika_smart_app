@@ -139,6 +139,33 @@ enum SkillsCoreFixtures {
         try c.error(.builtinName, "built-in collision") {
             _ = try state.importMarkdown(markdown("builtin"), availableToolNames: [], builtinNames: ["builtin"])
         }
+        for name in BundledSkillCatalog.entryIDs {
+            try c.error(.builtinName, "pinned built-in rejected even with an empty caller list") {
+                _ = try state.importMarkdown(markdown(name, extra: "source: user\nlearned_from: forged"), availableToolNames: [])
+            }
+        }
+        try c.expect(state == before, "reserved imports preserve pending state")
+        // Model an older snapshot produced before the invariant existed. It
+        // must load without data loss and stay rejectable, but never activate.
+        struct LegacySkills: Encodable {
+            let installed: [PersonalSkill] = []
+            let pending: [SkillDraft]
+            let revisions: [SkillRevision] = []
+        }
+        let legacyText = try SkillDocument.importText(markdown("documents"), source: .imported)
+        let legacyDocument = try SkillDocument.parse(legacyText, availableToolNames: [])
+        let legacyDraft = SkillDraft(id: UUID(), document: legacyDocument, source: .imported,
+                                     replacesName: nil, baseHash: nil, createdAt: now)
+        var legacy = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(LegacySkills(pending: [legacyDraft])))
+        let legacyBefore = legacy
+        try c.error(.builtinName, "legacy colliding draft cannot be approved") {
+            _ = try legacy.approveDraft(id: legacyDraft.id, availableToolNames: [])
+        }
+        try c.expect(legacy == legacyBefore && legacy.pending.first?.markdown == legacyText,
+                     "failed legacy approval preserves full draft")
+        try legacy.rejectDraft(id: legacyDraft.id)
+        try c.expect(legacy.pending.isEmpty && legacy.revisions.first?.rejectedDraft == legacyDraft,
+                     "legacy collision remains explicitly rejectable")
         try c.error(.duplicateID, "duplicate draft ID") {
             _ = try state.importMarkdown(markdown("other"), availableToolNames: [], draftID: draft.id)
         }

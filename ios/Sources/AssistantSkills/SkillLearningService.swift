@@ -126,7 +126,9 @@ public struct SkillLearningService: Sendable {
                 (state.installed.contains { $0.name == target } || state.pending.contains { $0.name == target }) {
                 return assessment(judgment, .nameTaken)
             }
-            guard !builtinNames.contains(target) else { return assessment(judgment, .nameTaken) }
+            guard !SkillsState.isReservedName(target, additional: builtinNames) else {
+                return assessment(judgment, .nameTaken)
+            }
             // Preserve actual tool identifiers (which can include digits) while
             // removing task-specific numbers/typed values from generated prose.
             var generalized = Self.generalizeDraft(unfenced, goal: goal, actions: actions,

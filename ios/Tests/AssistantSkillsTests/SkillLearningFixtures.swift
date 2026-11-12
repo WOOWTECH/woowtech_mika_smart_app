@@ -51,6 +51,40 @@ enum SkillLearningFixtures {
 
     static func actualTrajectoryAndPrivacy() async throws -> Int {
         var c = SkillsCoreFixtures.Checks()
+        for name in BundledSkillCatalog.entryIDs {
+            let collision = Client([.text(done), .text(draft(name))])
+            let assessment = try await assess(collision)
+            try c.expect(assessment.judgment.outcome == .done && assessment.proposal == nil && assessment.skipReason == .nameTaken,
+                         "model cannot propose a pinned built-in name without an explicit caller list")
+        }
+        struct LegacySkills: Encodable {
+            let installed: [PersonalSkill] = []
+            let pending: [SkillDraft]
+            let revisions: [SkillRevision] = []
+        }
+        let legacyText = try SkillDocument.importText(draft("documents"), source: .imported)
+        let legacyDocument = try SkillDocument.parse(legacyText, availableToolNames: tools)
+        let legacyDraft = SkillDraft(id: UUID(), document: legacyDocument, source: .imported,
+                                     replacesName: nil, baseHash: nil, createdAt: Date())
+        let legacyState = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(LegacySkills(pending: [legacyDraft])))
+        let updateClient = Client([.text(done), .text(draft("safe-name", updates: "documents"))])
+        let attemptedUpdate = try await assess(updateClient, state: legacyState)
+        try c.expect(attemptedUpdate.proposal == nil && attemptedUpdate.skipReason == .nameTaken,
+                     "model cannot use updates to target a pre-existing reserved draft")
+        // A forged old/internal proposal must also be rejected at application,
+        // even if the assessment producer failed to filter it.
+        var collisionState = SkillsState()
+        let collisionRun = UUID()
+        var collisionText = try SkillDocument.importText(draft("documents"), source: .learned)
+        collisionText = try SkillDocument.replacingField(collisionText, key: "learned_from", value: collisionRun.uuidString)
+        let collisionDocument = try SkillDocument.parse(collisionText, availableToolNames: tools, trustedProvenance: collisionRun)
+        let forged = SkillLearningProposal(document: collisionDocument, runID: collisionRun, replacesPendingID: nil,
+            baseStateFingerprint: try collisionState.learningFingerprint(),
+            evidence: SkillRunEvidence(outcome: .done, successfulActionCount: 5))
+        try c.error(.builtinName, "application rechecks reserved name") {
+            _ = try collisionState.apply(forged, availableToolNames: tools)
+        }
+        try c.expect(collisionState == SkillsState(), "reserved learned proposal has no side effects")
         let client = Client([.text(done), .text(draft())])
         var state = SkillsState()
         let assessment = try await assess(client)

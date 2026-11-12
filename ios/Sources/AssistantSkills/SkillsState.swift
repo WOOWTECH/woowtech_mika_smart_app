@@ -15,6 +15,12 @@ public struct SkillsState: Codable, Equatable, Sendable {
 
     public init() {}
 
+    // The pinned Mika names are an invariant of this catalog, not optional
+    // caller-supplied permissions. Extra host-reserved names remain additive.
+    static func isReservedName(_ name: String, additional: Set<String> = []) -> Bool {
+        BundledSkillCatalog.entryIDs.contains(name) || additional.contains(name)
+    }
+
     @discardableResult
     public mutating func importMarkdown(_ raw: String, availableToolNames: Set<String>,
                                         builtinNames: Set<String> = [], now: Date = Date(),
@@ -48,7 +54,7 @@ public struct SkillsState: Codable, Equatable, Sendable {
                                 builtinNames: Set<String>, now: Date, draftID: UUID) throws -> SkillDraft {
         let text = try SkillDocument.importText(raw, source: source)
         let document = try SkillDocument.parse(text, availableToolNames: availableToolNames)
-        guard !builtinNames.contains(document.name) else { throw SkillsError.builtinName }
+        guard !Self.isReservedName(document.name, additional: builtinNames) else { throw SkillsError.builtinName }
         guard !pending.contains(where: { $0.name == document.name }) else { throw SkillsError.draftPending }
         guard !pending.contains(where: { $0.id == draftID }) else { throw SkillsError.duplicateID }
         guard pending.count < Self.maxPending else { throw SkillsError.capacityReached }
@@ -77,6 +83,9 @@ public struct SkillsState: Codable, Equatable, Sendable {
                                       availableToolNames: Set<String>, now: Date = Date()) throws -> PersonalSkill {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { throw SkillsError.notFound }
         let draft = pending[index]
+        // Older vaults may already contain a colliding pending draft. Preserve
+        // it for reading/rejection, but do not install it as a personal skill.
+        guard !Self.isReservedName(draft.name) else { throw SkillsError.builtinName }
         let document = try reviewedDocument(editedMarkdown ?? draft.markdown, draft: draft,
                                             availableToolNames: availableToolNames)
         let current = installed.first { $0.name == draft.name }
@@ -174,7 +183,7 @@ public struct SkillsState: Codable, Equatable, Sendable {
         guard SkillLearningGate.canAutoDraft(proposal.evidence) else { throw SkillsError.insufficientEvidence }
         let document = try SkillDocument.parse(proposal.markdown, availableToolNames: availableToolNames,
                                                trustedProvenance: proposal.runID)
-        guard !builtinNames.contains(document.name) else { throw SkillsError.builtinName }
+        guard !Self.isReservedName(document.name, additional: builtinNames) else { throw SkillsError.builtinName }
         let draft: SkillDraft
         if let id = proposal.replacesPendingID {
             guard let index = pending.firstIndex(where: { $0.id == id && $0.name == document.name }) else {

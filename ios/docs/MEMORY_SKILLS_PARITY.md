@@ -47,6 +47,27 @@ complete locations rather than treating shortened table paths as filesystem path
 
 ## Deliberate capability boundaries / outstanding integration
 
+### Reserved built-in names — integration candidate
+
+Android `core/.../skills/SkillImport.kt` rejects built-in names before staging;
+`SkillDrafter.kt`/`app/.../task/RunLearning.kt` separately gate automatic drafts.
+The iOS import screen and browser learning previously omitted their optional
+reserved-name arguments. `SkillsState` now always reserves the six pinned
+`BundledSkillCatalog.entryIDs`, plus any extra names supplied by the host, at
+import and learned-proposal application. `SkillLearningService` applies the same
+rule before returning a model-generated proposal. A pre-existing colliding
+pending draft remains readable and rejectable, but approval is refused. Existing
+installed collisions are preserved and are not automatically disabled or renamed.
+
+This does not convert a model response, page, attachment or Markdown metadata
+into user consent. Manual import stages an imported pending draft, and automatic
+learning still needs its separately validated trajectory and explicit review.
+Core tests exercise all six names and forged model proposals; the App-store
+fixture checks encrypted persistence, relaunch, legacy pending drafts and
+source spoofing. Native UI, iOS SDK compilation and device acceptance remain
+separate. See [skill runtime](SKILL_RUNTIME.md) for unsupported original
+execution environments; this change does not add any of them.
+
 Manual personal profiles now have a pinned-behavior state core, encrypted LearningStore integration, active/superseded history, master-switch gating and a frozen ordinary/MCP chat context. Local core and actual vault tests passed; native UI and real-model acceptance remain separate. Ordinary chat now has quote-grounded `profile_edit`, `memory_search`, `memory_save` and `memory_edit` paths. Profile integration has revision-specific native acceptance; actual model-to-App transactions also passed locally. The new ordinary-memory integration still requires its native UI acceptance. It adds explicit per-operation review and a one-operation turn limit. MCP-mode local profile/memory dispatch is now wired with a separate reviewed host callback, preserving raw arguments, one local mutation and the existing MCP call/deadline budgets; its native/live acceptance is tracked separately. Profile injection into every independent skill/browser runner is still absent. See [personal profile scope](USER_PROFILE.md) and [memory tool behavior and deliberate differences](MEMORY_TOOLS.md).
 
 - Browser website logins now use persistent WebKit website-data records with
