@@ -42,7 +42,7 @@ final class VoiceUITestFixture: ObservableObject, VoiceInputDriver {
         precondition(valid(arguments: arguments, simulator: simulator), "Invalid isolated voice UI fixture")
         return shared
     }
-    func start(id: UUID, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
+    func start(id: UUID, mayContinue: @escaping () -> Bool, emit: @escaping (UUID, VoiceInputEvent) -> Void) {
         latest = id
         callbacks[id] = emit
         starts += 1

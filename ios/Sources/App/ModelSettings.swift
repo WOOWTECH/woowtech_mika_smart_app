@@ -99,6 +99,12 @@ struct KeychainModelCredentials: ModelCredentialStoring {
 
 final class ModelSettingsRepository {
     static let configurationKey = "model.configuration.v1"
+    private static let revisionKey = "model.configuration.revision.v1"
+    // Shared across repository instances in this process. Dispatch of a
+    // speech request and every repository mutation use the same boundary.
+    static func withSpeechDispatchLock<T>(_ body: () throws -> T) rethrows -> T {
+        try SpeechChoiceStore.withCoordination(body)
+    }
     private let defaults: UserDefaults
     private let credentials: any ModelCredentialStoring
 
@@ -110,6 +116,7 @@ final class ModelSettingsRepository {
     static func validate(baseURL: String, model: String) throws -> ModelConfiguration {
         let address = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
+              validRawPort(in: address),
               let components = URLComponents(string: address),
               components.scheme?.lowercased() == "https",
               let host = components.host, !host.isEmpty,
@@ -122,6 +129,28 @@ final class ModelSettingsRepository {
             throw ModelSettingsError.missingModel
         }
         return ModelConfiguration(baseURL: url, model: model)
+    }
+
+    /// Inspect the original authority before Foundation can discard an empty
+    /// or overflowing port. Leading-zero numeric ports remain valid for chat;
+    /// speech has its own stricter reviewed-destination rules.
+    private static func validRawPort(in address: String) -> Bool {
+        guard let separator = address.range(of: "://") else { return false }
+        let rest = address[separator.upperBound...]
+        let authority = rest.prefix { $0 != "/" && $0 != "?" && $0 != "#" }
+        let suffix: Substring
+        if authority.first == "[" {
+            guard let closing = authority.firstIndex(of: "]") else { return false }
+            suffix = authority[authority.index(after: closing)...]
+        } else if let colon = authority.firstIndex(of: ":") {
+            suffix = authority[colon...]
+        } else { return true }
+        if suffix.isEmpty { return true }
+        guard suffix.first == ":" else { return false }
+        let digits = suffix.dropFirst()
+        guard !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
+              let port = Int(digits), (1...65535).contains(port) else { return false }
+        return true
     }
 
     func load() throws -> SavedModelSettings? {
@@ -139,7 +168,15 @@ final class ModelSettingsRepository {
         return key
     }
 
+    // Every successful in-process write advances this value, including an
+    // edit followed by a return to the original values. It contains no key.
+    var revision: String { defaults.string(forKey: Self.revisionKey) ?? "legacy" }
+
     func save(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
+        try Self.withSpeechDispatchLock { try saveLocked(baseURL: baseURL, model: model, newKey: newKey) }
+    }
+
+    private func saveLocked(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
         let configuration = try Self.validate(baseURL: baseURL, model: model)
         let previous = try load()
         let newKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -160,6 +197,7 @@ final class ModelSettingsRepository {
         if !newKey.isEmpty { try credentials.insert(newKey, account: account) }
         // Publish the nonsecret record only after Keychain succeeds. A new item avoids
         // associating a replacement key with the old host if interrupted during save.
+        defaults.set(UUID().uuidString, forKey: Self.revisionKey)
         defaults.set(data, forKey: Self.configurationKey)
         var cleanupFailed = false
         if let previous, previous.credentialAccount != account {
@@ -170,8 +208,13 @@ final class ModelSettingsRepository {
     }
 
     func remove() throws {
-        try credentials.removeAll()
-        defaults.removeObject(forKey: Self.configurationKey)
+        try Self.withSpeechDispatchLock {
+            // Even a failing Keychain operation may have partially mutated
+            // credentials. Invalidate staged uploads before attempting it.
+            defaults.set(UUID().uuidString, forKey: Self.revisionKey)
+            try credentials.removeAll()
+            defaults.removeObject(forKey: Self.configurationKey)
+        }
     }
 
     private static func sameOrigin(_ lhs: URL, _ rhs: URL) -> Bool {

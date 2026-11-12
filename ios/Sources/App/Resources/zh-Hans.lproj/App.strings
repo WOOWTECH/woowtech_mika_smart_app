@@ -473,3 +473,11 @@
 "chat.voiceSettings" = "前往设置";
 "chat.voiceInterrupted" = "语音输入已中断；如果刚完成授权，请再次按住说话。";
 "chat.voiceAccessibilityCancel" = "取消语音输入";
+"voice.choice.title" = "语音转文字";
+"voice.choice.system" = "设备上语音识别";
+"voice.choice.off" = "不使用语音输入";
+"voice.choice.unknown" = "当前选项不可用";
+"voice.choice.rowDetail" = "选择设备识别或关闭";
+"voice.choice.notice" = "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。";
+"voice.choice.disabledHint" = "语音输入已关闭或选项不可用；请在模型设置的“语音转文字”中选择。";
+"voice.choice.saveFailed" = "无法保存语音设置，请再试一次。";

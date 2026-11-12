@@ -4963,6 +4963,86 @@
         "zh-Hans": "取消语音输入",
         "en": "Cancel voice input"
       }
+    },
+    {
+      "case": "voiceChoiceTitle",
+      "key": "voice.choice.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音轉文字",
+        "zh-Hans": "语音转文字",
+        "en": "Speech to text"
+      }
+    },
+    {
+      "case": "voiceChoiceSystem",
+      "key": "voice.choice.system",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "裝置上語音辨識",
+        "zh-Hans": "设备上语音识别",
+        "en": "On-device speech recognition"
+      }
+    },
+    {
+      "case": "voiceChoiceOff",
+      "key": "voice.choice.off",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不用語音輸入",
+        "zh-Hans": "不使用语音输入",
+        "en": "Turn off voice input"
+      }
+    },
+    {
+      "case": "voiceChoiceUnknown",
+      "key": "voice.choice.unknown",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前選項不可用",
+        "zh-Hans": "当前选项不可用",
+        "en": "Current choice unavailable"
+      }
+    },
+    {
+      "case": "voiceChoiceRowDetail",
+      "key": "voice.choice.rowDetail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選擇裝置辨識或關閉",
+        "zh-Hans": "选择设备识别或关闭",
+        "en": "Choose on-device recognition or turn it off"
+      }
+    },
+    {
+      "case": "voiceChoiceNotice",
+      "key": "voice.choice.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。",
+        "zh-Hans": "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。",
+        "en": "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported."
+      }
+    },
+    {
+      "case": "voiceChoiceDisabledHint",
+      "key": "voice.choice.disabledHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。",
+        "zh-Hans": "语音输入已关闭或选项不可用；请在模型设置的“语音转文字”中选择。",
+        "en": "Voice input is off or the choice is unavailable. Choose an option in model settings under Speech to text."
+      }
+    },
+    {
+      "case": "voiceChoiceSaveFailed",
+      "key": "voice.choice.saveFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法儲存語音設定，請再試一次。",
+        "zh-Hans": "无法保存语音设置，请再试一次。",
+        "en": "Could not save the voice setting. Try again."
+      }
     }
   ]
 }

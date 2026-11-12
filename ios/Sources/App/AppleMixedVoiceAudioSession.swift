@@ -1,5 +1,6 @@
 #if os(iOS) && canImport(AVFoundation)
 import AVFoundation
+import Foundation
 
 /// iOS candidate: simultaneous recording/playback and mixing with other apps.
 /// Bluetooth routing and WebKit interaction require native validation.
@@ -45,6 +46,14 @@ enum AppleMixedVoiceRuntime {
     private static let coordinator = MixedVoiceAudioCoordinator(session: AppleMixedVoiceAudioSession())
     static func makeDriver() -> AppleVoiceInputDriver {
         AppleVoiceInputDriver(audioCoordinator: coordinator)
+    }
+    // Not exposed by settings or the composer yet. Both voice drivers must use
+    // this same coordinator when the provider path is eventually connected.
+    static func makeProviderPCMDriver(mayFinish: @escaping () -> Bool,
+                                      onEnd: @escaping (UUID) -> Void,
+                                      transcribe: @escaping ProviderPCMVoiceDriver.Transcribe) -> ProviderPCMVoiceDriver {
+        ProviderPCMVoiceDriver(source: AppleProviderPCMSource(), coordinator: coordinator,
+                               mayFinish: mayFinish, onEnd: onEnd, transcribe: transcribe)
     }
     static var lastCleanup: MixedVoiceAudioCleanup? { coordinator.lastCleanup }
     static func revokeForSystemChange() { coordinator.revokeForSystemChange() }

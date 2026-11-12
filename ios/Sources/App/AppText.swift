@@ -482,6 +482,14 @@ enum AppText: Equatable {
     case voiceSettings
     case voiceInterrupted
     case voiceAccessibilityCancel
+    case voiceChoiceTitle
+    case voiceChoiceSystem
+    case voiceChoiceOff
+    case voiceChoiceUnknown
+    case voiceChoiceRowDetail
+    case voiceChoiceNotice
+    case voiceChoiceDisabledHint
+    case voiceChoiceSaveFailed
 
     var key: String {
         switch self {
@@ -964,6 +972,14 @@ enum AppText: Equatable {
         case .voiceSettings: return "chat.voiceSettings"
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
+        case .voiceChoiceTitle: return "voice.choice.title"
+        case .voiceChoiceSystem: return "voice.choice.system"
+        case .voiceChoiceOff: return "voice.choice.off"
+        case .voiceChoiceUnknown: return "voice.choice.unknown"
+        case .voiceChoiceRowDetail: return "voice.choice.rowDetail"
+        case .voiceChoiceNotice: return "voice.choice.notice"
+        case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
+        case .voiceChoiceSaveFailed: return "voice.choice.saveFailed"
         }
     }
 
@@ -1478,6 +1494,14 @@ enum AppText: Equatable {
         case .voiceSettings: return "前往設定"
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
+        case .voiceChoiceTitle: return "語音轉文字"
+        case .voiceChoiceSystem: return "裝置上語音辨識"
+        case .voiceChoiceOff: return "不用語音輸入"
+        case .voiceChoiceUnknown: return "目前選項不可用"
+        case .voiceChoiceRowDetail: return "選擇裝置辨識或關閉"
+        case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
+        case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
+        case .voiceChoiceSaveFailed: return "無法儲存語音設定，請再試一次。"
         }
     }
 }

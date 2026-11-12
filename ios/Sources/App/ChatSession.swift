@@ -126,6 +126,9 @@ final class ChatSession: ObservableObject {
     #endif
     let isUITestMode: Bool
     private let repository: ModelSettingsRepository
+    /// Shares the exact repository used by this session, including UI-test
+    /// isolation. The provider choice remains unavailable in the public UI.
+    var voiceModelRepository: ModelSettingsRepository { repository }
     private let client: any ChatModelClient
     private let assistantQuoteText: @MainActor (String) -> String
     private var request: Task<Void, Never>?
