@@ -110,6 +110,7 @@ final class ModelSettingsRepository {
     static func validate(baseURL: String, model: String) throws -> ModelConfiguration {
         let address = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
+              validRawPort(in: address),
               let components = URLComponents(string: address),
               components.scheme?.lowercased() == "https",
               let host = components.host, !host.isEmpty,
@@ -122,6 +123,28 @@ final class ModelSettingsRepository {
             throw ModelSettingsError.missingModel
         }
         return ModelConfiguration(baseURL: url, model: model)
+    }
+
+    /// Inspect the original authority before Foundation can discard an empty
+    /// or overflowing port. Leading-zero numeric ports remain valid for chat;
+    /// speech has its own stricter reviewed-destination rules.
+    private static func validRawPort(in address: String) -> Bool {
+        guard let separator = address.range(of: "://") else { return false }
+        let rest = address[separator.upperBound...]
+        let authority = rest.prefix { $0 != "/" && $0 != "?" && $0 != "#" }
+        let suffix: Substring
+        if authority.first == "[" {
+            guard let closing = authority.firstIndex(of: "]") else { return false }
+            suffix = authority[authority.index(after: closing)...]
+        } else if let colon = authority.firstIndex(of: ":") {
+            suffix = authority[colon...]
+        } else { return true }
+        if suffix.isEmpty { return true }
+        guard suffix.first == ":" else { return false }
+        let digits = suffix.dropFirst()
+        guard !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
+              let port = Int(digits), (1...65535).contains(port) else { return false }
+        return true
     }
 
     func load() throws -> SavedModelSettings? {

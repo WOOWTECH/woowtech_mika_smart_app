@@ -64,7 +64,7 @@ private final class SpeechURLProtocol: URLProtocol {
         expect(.invalidConfiguration) { _ = try store.load() }
         expect(.invalidConfiguration) { _ = try SpeechProviderSelection(providerID: "", model: "x", method: .audioTranscriptions) }
         expect(.invalidConfiguration) { _ = try SpeechProviderSelection(providerID: "p", model: "bad\r\ninjection", method: .audioTranscriptions) }
-        let open = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: URL(string: "https://example.invalid/v1/")!)
+        let open = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible, rawBaseURL: "https://example.invalid/v1/")
         let multipart = try SpeechProviderRequest.make(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav, language: "zh")
         check(multipart.url?.absoluteString == "https://example.invalid/v1/audio/transcriptions", "multipart endpoint")
         // Test both explicit malformed authorities and valid boundary ports.
@@ -82,17 +82,36 @@ private final class SpeechURLProtocol: URLProtocol {
             "https://user@site.invalid/v1", "https://site.invalid%3a443/v1"
         ]
         for raw in invalidAuthorities {
-            guard let url = URL(string: raw) else { check(true, "Foundation rejects \(raw)"); continue }
-            let endpoint = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: url)
-            expect(.invalidConfiguration) { _ = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: "k", wav: wav) }
+            expect(.invalidConfiguration) { _ = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible, rawBaseURL: raw) }
         }
         let validAuthorities = ["site.invalid", "site.invalid:1", "site.invalid:443", "site.invalid:65535",
                                 "[::1]", "[2001:db8::1]:1", "[2001:db8::1]:65535"]
         for authority in validAuthorities {
-            let endpoint = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible,
-                                                  baseURL: URL(string: "https://\(authority)/v1")!)
+            let endpoint = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible,
+                                                  rawBaseURL: "https://\(authority)/v1")
             let request = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: "k", wav: wav)
             check(request.url?.absoluteString == "https://\(authority)/v1/audio/transcriptions", "final destination preserved: \(authority)")
+        }
+        let storedBase = URL(string: "https://site.invalid/v1")!
+        for raw in ["https://site.invalid:/v1", "https://site.invalid:999999999999999999999999/v1",
+                    "https://[::1]:/v1", "https://[::1]:999999999999999999999999/v1"] {
+            expect(.invalidConfiguration) {
+                _ = try SpeechProviderEndpoint.reviewSaved(providerID: "provider-1", kind: .openAICompatible,
+                    rawBaseURL: raw, savedBaseURL: storedBase)
+            }
+        }
+        let confirmed = try SpeechProviderEndpoint.reviewSaved(providerID: "provider-1", kind: .openAICompatible,
+            rawBaseURL: "https://site.invalid/v1", savedBaseURL: storedBase)
+        let confirmedRequest = try SpeechProviderRequest.make(endpoint: confirmed, selection: selection, apiKey: "k", wav: wav)
+        check(confirmedRequest.url?.absoluteString == "https://site.invalid/v1/audio/transcriptions", "saved destination must be re-entered exactly")
+        for different in ["https://other.invalid/v1", "https://site.invalid:443/v1", "https://site.invalid/v2"] {
+            expect(.invalidConfiguration) {
+                _ = try SpeechProviderEndpoint.reviewSaved(providerID: "provider-1", kind: .openAICompatible,
+                    rawBaseURL: different, savedBaseURL: storedBase)
+            }
+        }
+        expect(.invalidConfiguration) {
+            _ = try SpeechProviderEndpoint.reviewNew(providerID: "", kind: .openAICompatible, rawBaseURL: "https://site.invalid/v1")
         }
         check(multipart.value(forHTTPHeaderField: "Authorization") == "Bearer test-secret", "bearer header")
         let body = multipart.httpBody!
@@ -113,7 +132,7 @@ private final class SpeechURLProtocol: URLProtocol {
             check(audio["data"] == (method == .chatInputAudio ? base64 : "data:audio/wav;base64," + base64), "audio payload variant")
             check(blocks.count == (method == .chatInputAudioOnly ? 1 : 2), "audio-only excludes instruction")
         }
-        let gemini = SpeechProviderEndpoint(providerID: "g", kind: .gemini, baseURL: URL(string: "https://gemini.example.invalid")!)
+        let gemini = try SpeechProviderEndpoint.reviewNew(providerID: "g", kind: .gemini, rawBaseURL: "https://gemini.example.invalid")
         let gm = try SpeechProviderSelection(providerID: "g", model: "gemini-test", method: .geminiInline)
         let gr = try SpeechProviderRequest.make(endpoint: gemini, selection: gm, apiKey: "test-secret", wav: wav)
         check(gr.url?.path == "/v1beta/models/gemini-test:generateContent", "Gemini endpoint")
@@ -122,8 +141,7 @@ private final class SpeechURLProtocol: URLProtocol {
         let contents = object["contents"] as! [[String: Any]]
         let parts = contents[0]["parts"] as! [[String: Any]]
         check((parts[0]["inline_data"] as? [String: String])?["data"] == base64, "Gemini inline audio")
-        let unsafe = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: URL(string: "http://example.invalid/v1")!)
-        expect(.invalidConfiguration) { _ = try SpeechProviderRequest.make(endpoint: unsafe, selection: selection, apiKey: "k", wav: wav) }
+        expect(.invalidConfiguration) { _ = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible, rawBaseURL: "http://example.invalid/v1") }
         expect(.invalidConfiguration) { _ = try SpeechProviderRequest.make(endpoint: open, selection: selection, apiKey: "a\r\nb", wav: wav) }
         expect(.invalidConfiguration) { _ = try SpeechProviderRequest.make(endpoint: open, selection: gm, apiKey: nil, wav: wav) }
         let wrongProvider = try SpeechProviderSelection(providerID: "other", model: "x", method: .audioTranscriptions)
@@ -175,7 +193,7 @@ private final class SpeechURLProtocol: URLProtocol {
         }
         let sessionTranscript = try await networkClient.transcribe(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav)
         check(sessionTranscript == "mock session", "URLSession transport through intercepting URLProtocol")
-        let redirect = SpeechProviderEndpoint(providerID: "provider-1", kind: .openAICompatible, baseURL: URL(string: "https://example.invalid/redirect")!)
+        let redirect = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible, rawBaseURL: "https://example.invalid/redirect")
         do {
             _ = try await networkClient.transcribe(endpoint: redirect, selection: selection, apiKey: "test-secret", wav: wav)
             fatalError("redirect accepted")

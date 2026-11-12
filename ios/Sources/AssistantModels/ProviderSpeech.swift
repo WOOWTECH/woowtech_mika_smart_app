@@ -8,6 +8,23 @@ import Glibc
 /// Validate the serialized authority as well as Foundation's parsed values.
 /// An empty or overflowing explicit port can otherwise appear as a nil port.
 private enum SpeechHTTPSDestination {
+    /// Inspect the user's original text, not a URL reconstructed from saved
+    /// settings: Foundation may already have removed an invalid explicit port.
+    static func reviewedURL(_ input: String) throws -> URL {
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
+              let delimiter = raw.range(of: "://"),
+              raw[..<delimiter.lowerBound].lowercased() == "https" else {
+            throw SpeechProviderError.invalidConfiguration
+        }
+        let authority = String(raw[delimiter.upperBound...].prefix { $0 != "/" && $0 != "?" && $0 != "#" })
+        guard let url = URL(string: raw), url.absoluteString == raw,
+              try Self.authority(url) == authority else {
+            throw SpeechProviderError.invalidConfiguration
+        }
+        return url
+    }
+
     static func authority(_ url: URL) throws -> String {
         guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
               parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
@@ -161,8 +178,29 @@ public struct SpeechProviderEndpoint: Sendable {
     public let providerID: String
     public let kind: SpeechProviderKind
     public let baseURL: URL
-    public init(providerID: String, kind: SpeechProviderKind, baseURL: URL) {
+    private init(providerID: String, kind: SpeechProviderKind, baseURL: URL) {
         self.providerID = providerID; self.kind = kind; self.baseURL = baseURL
+    }
+
+    /// For a new provider, call only with address text directly entered for
+    /// this speech review. Passing a previously normalized URL string here
+    /// cannot establish what the user originally entered.
+    public static func reviewNew(providerID: String, kind: SpeechProviderKind,
+                                 rawBaseURL: String) throws -> Self {
+        guard SpeechProviderSelection.validField(providerID) else { throw SpeechProviderError.invalidConfiguration }
+        return Self(providerID: providerID, kind: kind, baseURL: try SpeechHTTPSDestination.reviewedURL(rawBaseURL))
+    }
+
+    /// Saved URLs may have lost malformed authority text during an older
+    /// normalization. Require the user to re-enter and review the exact saved
+    /// serialized destination; never infer the original input from the URL.
+    public static func reviewSaved(providerID: String, kind: SpeechProviderKind,
+                                   rawBaseURL: String, savedBaseURL: URL) throws -> Self {
+        let reviewed = try reviewNew(providerID: providerID, kind: kind, rawBaseURL: rawBaseURL)
+        guard reviewed.baseURL.absoluteString == savedBaseURL.absoluteString else {
+            throw SpeechProviderError.invalidConfiguration
+        }
+        return reviewed
     }
 }
 
