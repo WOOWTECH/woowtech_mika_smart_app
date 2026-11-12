@@ -293,6 +293,12 @@ final class WoowAssistantUITests: XCTestCase {
         draft.typeText("Keep this draft 42")
         assertSendExplainsMissingModel(in: app)
         assertDraft("Keep this draft 42", in: app)
+        // The send tap ended editing; resume it so the drawer step below still
+        // proves that opening the drawer resigns the keyboard.
+        let editing = chatDraftControl(in: app)
+        waitUntilHittable(editing)
+        editing.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         // Opening the drawer resigns the keyboard while retaining the draft.
         openSection("browser", in: app)
         openSection("settings", in: app)

@@ -868,6 +868,12 @@ private struct ChatView: View {
         .onChange(of: showsDrawer) { _, visible in
             if visible { voice.cancel(); isEditingDraft = false }
         }
+        .onChange(of: session.shownSendBlocker) { _, blocker in
+            // VoiceOver users hear why the tap did not send.
+            guard blocker != nil else { return }
+            UIAccessibility.post(notification: .announcement,
+                                 argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
+        }
         .onAppear { voice.attach(session: session) }
         .onDisappear { voice.cancel() }
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
@@ -883,11 +889,11 @@ private struct ChatView: View {
     }
 }
 
-@MainActor
 /// The Android store build's chat NeedCard for a send that cannot start:
 /// a warning dot, title, what is missing, then 知道了 and 去設定. Kept above
 /// the composer, outside the transcript, so it stays visible however the
 /// transcript is sized.
+@MainActor
 private struct ChatSendBlockedCard: View {
     let palette: MikaVisualPalette
     let localizer: AppLocalizer
@@ -928,6 +934,7 @@ private struct ChatSendBlockedCard: View {
     }
 }
 
+@MainActor
 private struct ChatEmptyState: View {
     @Binding var draft: String
     let palette: MikaVisualPalette

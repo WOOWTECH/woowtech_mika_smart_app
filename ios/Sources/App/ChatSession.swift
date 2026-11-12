@@ -240,11 +240,10 @@ final class ChatSession: ObservableObject {
     }
 
     /// Whether the send key accepts a tap. Like the Android store build, a
-    /// non-empty draft is enough (an attached PDF, like an Android attachment
-    /// still importing, must finish first); `attemptSend` explains the rest.
+    /// non-empty draft is enough, attachment or not; `attemptSend` explains
+    /// whatever is still missing.
     var canAttemptSend: Bool {
         !isSubmitting && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && (pdfAttachment == nil || pdfAttachment?.isReady == true)
     }
 
     /// Send when every guard passes; otherwise say why and keep the draft.
@@ -259,7 +258,7 @@ final class ChatSession: ObservableObject {
         if let pdfAttachment {
             guard !usesMCP else { chatError = "PDF 查詢不使用 MCP；請先關閉 MCP 選項，草稿已保留。"; return }
             guard pdfAttachment.isReady else {
-                chatError = "PDF 尚未完成讀取與擷取確認；請先在 PDF 附件中完成，草稿已保留。"
+                chatError = "PDF 尚未完成確認；請先在 PDF 附件中完成讀取、擷取與傳送確認，草稿已保留。"
                 return
             }
         }
