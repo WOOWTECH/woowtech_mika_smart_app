@@ -3,6 +3,9 @@
 This is a test plan, not a claim that an iOS SDK build, simulator, device, or
 multi-window UI run passed. The local synthetic gate compiles the actual App
 sources with isolated temporary encrypted files and fake model transport.
+The requested order is GitHub iOS simulator gates first, then iPad validation;
+do not schedule or report iPad acceptance before the required simulator gates
+have passed for the exact candidate commit. Keep their run links and xcresults.
 
 ## Hosted iOS test already wired
 
@@ -11,14 +14,17 @@ sources with isolated temporary encrypted files and fake model transport.
 UUID for each temporary vault and defaults suite, two actual `LearningStore`
 instances, and a controlled in-process model. It exercises ordinary/profile,
 MCP, stream cancellation, late replies, and extraction. It is a hosted App
-integration test, **not** a two-window UI test. On a Mac with XcodeGen and an
+integration test, **not** a two-window UI test. The companion
+`testMCPExecutorDispatchFences` covers post-event stale data, tool and resource
+dispatch, cancellation, failure, and cooperative lease lifetime. On a Mac with XcodeGen and an
 available iOS simulator, from `ios/`:
 
 ```sh
 make project
 xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
   -destination 'platform=iOS Simulator,id=<SIMULATOR_UDID>' \
-  -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testChatContextDispatchFences test
+  -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testChatContextDispatchFences \
+  -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testMCPExecutorDispatchFences test
 ```
 
 Replace the placeholder with an available simulator UUID and retain the

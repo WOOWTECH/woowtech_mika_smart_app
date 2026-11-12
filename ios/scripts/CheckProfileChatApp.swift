@@ -156,15 +156,21 @@ private struct SyntheticMCPEndpoint: MCPEndpointStoring {
 /// transport is synthetic. It cannot edit learning data or approve proposals.
 private actor LearningMCPServer: MCPDiscovering {
     private(set) var calls: [JSONValue] = []
+    private(set) var reads: [String] = []
     private let resultText: String
-    init(resultText: String = "Actual synthetic server result") { self.resultText = resultText }
+    private let resourcesEnabled: Bool
+    init(resultText: String = "Actual synthetic server result", resourcesEnabled: Bool = false) {
+        self.resultText = resultText; self.resourcesEnabled = resourcesEnabled
+    }
     func initialize() async throws -> MCPServerInfo {
-        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools"])
+        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: resourcesEnabled ? ["tools", "resources"] : ["tools"])
     }
     func listTools() async throws -> [MCPTool] {
         [MCPTool(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))]
     }
-    func listResources() async throws -> [MCPResource] { [] }
+    func listResources() async throws -> [MCPResource] {
+        resourcesEnabled ? [MCPResource(uri: "fixture://synthetic", name: "synthetic")] : []
+    }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         try Task.checkCancellation()
         guard name == "synthetic_read" else { throw MCPError.invalidRequest }
@@ -172,7 +178,36 @@ private actor LearningMCPServer: MCPDiscovering {
         return .object(["isError": .bool(false), "content": .array([
             .object(["type": .string("text"), "text": .string(resultText)])])])
     }
-    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue {
+        try Task.checkCancellation()
+        guard resourcesEnabled && uri == "fixture://synthetic" else { throw MCPError.invalidRequest }
+        reads.append(uri)
+        return .object(["contents": .array([.object(["uri": .string(uri), "text": .string(resultText)])])])
+    }
+    func cancel() async {}
+}
+
+/// Holds the actual async executor open even after cancellation. A returned
+/// method has no detached producer, matching the MCPDiscovering contract.
+private actor GatedMCPServer: MCPDiscovering {
+    let gate = ModelGate()
+    let fail: Bool
+    private(set) var entered = 0, sent = 0, finished = 0
+    init(fail: Bool = false) { self.fail = fail }
+    func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools", "resources"]) }
+    func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [.init(uri: "fixture://synthetic", name: "synthetic")] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { try await execute(resource: false) }
+    func readResource(uri: String) async throws -> JSONValue { try await execute(resource: true) }
+    private func execute(resource: Bool) async throws -> JSONValue {
+        entered += 1
+        defer { finished += 1 }
+        await gate.wait()
+        try Task.checkCancellation()
+        if fail { throw MCPError.invalidResponse }
+        sent += 1
+        return resource ? .object(["contents": .array([])]) : .object(["isError": .bool(false), "content": .array([])])
+    }
     func cancel() async {}
 }
 
@@ -345,6 +380,82 @@ private enum CheckProfileChatApp {
             try check(env.reopen().profile.snapshot().entries.map(\.text) == [text]
                       && session.chatError?.contains("已儲存") == true && session.draft == utterance,
                       "reentrant deletion and approved addition remain durable with receipt and draft")
+        }
+    }
+    @MainActor static func mcpExecutorDispatchFences() async throws {
+        let resourceCommand = #"{"action":"read_resource","uri":"fixture://synthetic"}"#
+        // Reproduce the independent review at the precise .executing event,
+        // for both operations and both same-store and peer-store writes.
+        for resource in [false, true] {
+            for change in ["same", "peer", "cancel"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed post-event profile")
+                let peer = env.reopen(), server = LearningMCPServer(resourcesEnabled: true)
+                let connection = try await connectedMCP(server, includeResource: true)
+                defer { connection.disconnect() }
+                let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
+                let session = env.session(model)
+                var changed = false
+                let subscription = session.$mcpActivity.sink { message in
+                    guard !changed, message?.contains("MCP 嘗試呼叫 1 次") == true else { return }
+                    // Set the latch before cancel(), whose publications can reenter.
+                    changed = true
+                    if change == "same" { changed = env.store.deleteProfileReference(segment: "Private synthetic preference") }
+                    else if change == "peer" { changed = peer.updatePreferences { $0.useMemory = false } }
+                    else { session.cancel() }
+                }
+                defer { subscription.cancel() }
+                let running = try startMCP(session, connection: connection, draft: "synthetic question")
+                try await until("post-event approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "post-event approval missing") }
+                session.resolveMCPApproval(id: approval.id, approved: true)
+                await running.value
+                let calls = await server.calls, reads = await server.reads, requests = await model.requests
+                try check(changed && calls.isEmpty && reads.isEmpty && requests.count == 1,
+                          "post-event \(change) prevents \(resource ? "resource" : "tool") dispatch")
+                try check(session.draft == "synthetic question" && session.entries.isEmpty,
+                          "post-event interruption retains draft without inventing result")
+                if change == "same" { try check(env.reopen().profile.snapshot().entries.isEmpty, "same-store deletion remains durable") }
+                if change == "peer" { try check(!env.reopen().memory.preferences.useMemory, "peer disable remains durable") }
+            }
+        }
+        // A producer may suspend before actual dispatch and ignore cancellation.
+        // Both instances remain unable to write until that producer returns.
+        for resource in [false, true] {
+            for mode in ["success", "failure", "cancel"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed in-flight fence")
+                let peer = env.reopen(), server = GatedMCPServer(fail: mode == "failure")
+                let connection = try await connectedMCP(server, includeResource: true)
+                defer { connection.disconnect() }
+                let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
+                let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
+                try await until("gated approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "gated approval missing") }
+                session.resolveMCPApproval(id: approval.id, approved: true)
+                try await until("executor entered") { await server.entered == 1 }
+                if mode == "cancel" { session.cancel() }
+                try check(!env.store.deleteProfileReference(segment: "Private synthetic preference"), "same-store write is busy during executor")
+                try check(!peer.updatePreferences { $0.useMemory = false }, "peer write is busy during executor")
+                try check(env.reopen().available == false, "another real store sees busy until producer finishes")
+                let sentBefore = await server.sent
+                try check(sentBefore == 0, "producer has not sent while gate remains closed")
+                await server.gate.release()
+                await running.value
+                try await until("executor returned") { await server.finished == 1 }
+                let sent = await server.sent, requests = await model.requests
+                try check(sent == (mode == "success" ? 1 : 0), "\(mode) executor dispatch count")
+                try await until("executor lease release") { peer.updatePreferences { $0.useMemory = false } }
+                try check(!peer.memory.preferences.useMemory, "peer can write after actual producer returns")
+                try check(env.reopen().profile.snapshot().entries.map(\.text) == ["Private synthetic preference"],
+                          "busy write did not remove the saved profile")
+                if mode == "success" {
+                    try check(requests.count == 2 && session.entries.count == 2, "unchanged context completes normally")
+                } else {
+                    try check(requests.count == 1 && session.entries.isEmpty && session.draft == "synthetic question",
+                              "\(mode) emits no invented result and retains draft")
+                }
+            }
         }
     }
     @MainActor static func chatContextDispatchFences() async throws {
@@ -883,12 +994,13 @@ private enum CheckProfileChatApp {
         return value
     }
 
-    @MainActor static func connectedMCP(_ server: LearningMCPServer) async throws -> MCPSession {
+    @MainActor static func connectedMCP(_ server: any MCPDiscovering, includeResource: Bool = false) async throws -> MCPSession {
         let connection = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in server })
         connection.connect()
         try await until("Actual synthetic MCP discovery") { !connection.isBusy }
         try check(connection.phase == .connected, "Real MCPSession completes discovery")
         connection.selectTool("synthetic_read", enabled: true)
+        if includeResource { connection.selectResource("fixture://synthetic", enabled: true) }
         try check(connection.canUseInConversation && connection.tools.map(\.name) == ["synthetic_read"],
                   "Local tools are not fabricated remote catalog entries")
         return connection
@@ -1728,6 +1840,7 @@ private enum CheckProfileChatApp {
     @MainActor static func main() async {
         do {
             if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
+                try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
                 try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
                 try await group("chatContextDispatchFences", chatContextDispatchFences)
                 let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
@@ -1754,6 +1867,7 @@ private enum CheckProfileChatApp {
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
             try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+            try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
             try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
             try await group("chatContextDispatchFences", chatContextDispatchFences)
             try await group("memorySearchGrounding", memorySearchGrounding)
@@ -1822,6 +1936,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testSameStoreMCPRevisionFences() async throws {
         try await CheckProfileChatApp.sameStoreMCPRevisionFences()
+    }
+    @MainActor func testMCPExecutorDispatchFences() async throws {
+        try await CheckProfileChatApp.mcpExecutorDispatchFences()
     }
     @MainActor func testMemoryProcedureApprovalRejectionAndReapproval() async throws {
         try await CheckProfileChatApp.memoryProcedureReview()

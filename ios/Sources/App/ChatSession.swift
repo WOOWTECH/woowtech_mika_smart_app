@@ -51,6 +51,29 @@ struct MCPApprovalRequest: Identifiable {
     }
 }
 
+/// The runner publishes .executing before entering its executor. Reacquire the
+/// exact chat fence *after* that callback and hold the cooperative lock until
+/// the real executor returns. Cancellation of the caller does not release the
+/// lock while an executor that ignores cancellation is still running.
+private struct ContextFencedMCPExecutor: MCPConversationExecuting {
+    let executor: any MCPDiscovering
+    let fence: ChatContextFence
+
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        let lease = try await MainActor.run { try fence.acquire() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        return try await executor.callAuthorizedTool(name: name, arguments: arguments)
+    }
+
+    func readResource(uri: String) async throws -> JSONValue {
+        let lease = try await MainActor.run { try fence.acquire() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        return try await executor.readResource(uri: uri)
+    }
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -995,9 +1018,12 @@ final class ChatSession: ObservableObject {
                 return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID, contextFence: contextFence)
             }
         } else { local = nil }
+        let executor: any MCPConversationExecuting
+        if let contextFence { executor = ContextFencedMCPExecutor(executor: connection, fence: contextFence) }
+        else { executor = connection }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: connection,
+            tools: tools, resources: resources, executor: executor,
             approve: { [weak self] proposal in
                 let approved: Bool
                 switch proposal.action {
