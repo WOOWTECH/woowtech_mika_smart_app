@@ -511,7 +511,8 @@ final class ChatSession: ObservableObject {
                     reply = try await self?.completeWithMCP(messages: messages, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
+                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id,
+                        contextFence: contextFence) ?? ""
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: messages, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
@@ -867,9 +868,12 @@ final class ChatSession: ObservableObject {
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw ProfileChatStop.declined }
                 try flow.validateReview()
+                try contextFence?.check()
+                let before = learning.profile
                 let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
                 profileReceipt = receipt // Retained even if the next model call fails.
                 profileReceiptRequestID = requestID
+                if proposal.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
                 expectedProfileRevision = learning.profile.revision
                 try flow.recordCommitted(entryID: receipt.id)
             case .memorySearch(let arguments):
@@ -884,10 +888,13 @@ final class ChatSession: ObservableObject {
                 guard self.requestID == requestID else { throw CancellationError() }
                 guard approved else { throw MemoryChatStop.declined }
                 try flow.validateReview()
+                try contextFence?.check()
+                let before = learning.memory
                 let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
                     conversationID: conversationID)
                 memoryReceipt = receipt
                 memoryReceiptRequestID = requestID
+                if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
                 expectedMemoryRevision = learning.memory.revision
                 try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
             }
@@ -958,7 +965,7 @@ final class ChatSession: ObservableObject {
             return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
         }
         if (error as? LearningFileError) == .conflict {
-            return "學習資料已在其他位置變更；本次修改未儲存，草稿保留。請重新讀取資料並再次確認。"
+            return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
         }
         if error is LearningFileError {
             return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
@@ -977,26 +984,30 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
+                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID,
+                                 contextFence: ChatContextFence?) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
         if allowsLearning {
             local = { [weak self] proposal, lease in
                 guard let self else { throw CancellationError() }
-                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID)
+                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID, contextFence: contextFence)
             }
         } else { local = nil }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
             tools: tools, resources: resources, executor: connection,
             approve: { [weak self] proposal in
+                let approved: Bool
                 switch proposal.action {
                 case .callTool(let name, let arguments):
-                    return await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
+                    approved = await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
                 case .readResource(let uri):
-                    return await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
+                    approved = await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
                 }
+                guard approved else { return false }
+                do { try await MainActor.run { try contextFence?.check() }; return true } catch { return false }
             }, onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
@@ -1008,8 +1019,10 @@ final class ChatSession: ObservableObject {
     /// Every proposal is validated against this turn's captured user utterance;
     /// remote catalogs/results cannot supply that authority or replace its IDs.
     private func performMCPLocal(_ proposal: MCPLocalProposal, lease: MCPLocalLease,
-                                 turn: MCPLearningTurn, requestID: UUID) async throws -> MCPLocalOutcome {
+                                 turn: MCPLearningTurn, requestID: UUID,
+                                 contextFence: ChatContextFence?) async throws -> MCPLocalOutcome {
         try lease.check()
+        try contextFence?.check()
         guard self.requestID == requestID else { throw CancellationError() }
         switch proposal.action {
         case .memorySearch:
@@ -1029,9 +1042,12 @@ final class ChatSession: ObservableObject {
             try lease.check()
             guard self.requestID == requestID else { throw CancellationError() }
             guard approved else { return .declined }
+            try contextFence?.check()
+            let before = learning.profile
             let receipt = try learning.commitProfileTool(review, expectedGeneration: turn.generation)
             profileReceipt = receipt
             profileReceiptRequestID = requestID
+            if review.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
             let data = try JSONEncoder().encode(receipt)
             return .committedReceipt(json: String(decoding: data, as: UTF8.self))
         case .memorySave, .memoryEdit:
@@ -1042,10 +1058,13 @@ final class ChatSession: ObservableObject {
             try lease.check()
             guard self.requestID == requestID else { throw CancellationError() }
             guard approved else { return .declined }
+            try contextFence?.check()
+            let before = learning.memory
             let receipt = try learning.commitMemoryTool(review, expectedGeneration: turn.generation,
                                                         conversationID: conversationID)
             memoryReceipt = receipt
             memoryReceiptRequestID = requestID
+            if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
             return .committedReceipt(json: try receipt.resultJSON())
         }
     }

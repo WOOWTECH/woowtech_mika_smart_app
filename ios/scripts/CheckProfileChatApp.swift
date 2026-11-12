@@ -273,6 +273,80 @@ private enum CheckProfileChatApp {
         session.send()
         return try task(session)
     }
+    @MainActor static func sameStoreMCPRevisionFences() async throws {
+        for mcp in [false, true] {
+            for change in ["delete", "replace", "add", "memory", "skills"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed profile for same-store race")
+                let model = ScriptedModel([.init(finished)]), session = env.session(model)
+                let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+                defer { connection?.disconnect() }
+                let running = try connection.map { try startMCP(session, connection: $0, draft: "synthetic question") }
+                    ?? start(session, draft: "synthetic question")
+                switch change {
+                case "delete": try check(env.store.deleteProfileReference(segment: "Private synthetic preference"), "delete same-store profile")
+                case "replace": try check(env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed"), "replace same-store profile")
+                case "add": try check(env.store.mutateProfile { try $0.add(text: "Another synthetic record") }, "add same-store profile")
+                case "memory": try check(env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }, "change same-store memory")
+                default: try check(env.store.mutateSkills { _ in }, "change same-store skill generation")
+                }
+                await running.value
+                let requests = await model.requests
+                try check(requests.isEmpty && session.entries.isEmpty && session.draft == "synthetic question", "same-store change fences initial model call: \(mcp) \(change)")
+                try check(session.chatError != nil, "same-store change reported")
+            }
+        }
+        for change in ["delete", "replace", "add", "memory", "cancel"] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed approval profile")
+            let server = LearningMCPServer(), connection = try await connectedMCP(server)
+            defer { connection.disconnect() }
+            let secondRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{"round":2}}"#
+            let model = ScriptedModel([.init(remoteRead), .init(secondRead), .init(finished)])
+            let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
+            try await until("first remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+            guard let first = session.pendingMCPApproval else { throw CheckFailure(check: "first approval missing") }
+            session.resolveMCPApproval(id: first.id, approved: true)
+            try await until("second remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+            guard let second = session.pendingMCPApproval, second.id != first.id else { throw CheckFailure(check: "second approval missing") }
+            let before = await model.requests
+            try check(before.count == 2 && before.allSatisfy { $0.contains { $0.content.contains("Private synthetic preference") } }, "two prior requests predate modification")
+            switch change {
+            case "delete": try check(env.store.deleteProfileReference(segment: "Private synthetic preference"), "delete during remote approval")
+            case "replace": try check(env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed"), "replace during remote approval")
+            case "add": try check(env.store.mutateProfile { try $0.add(text: "Another synthetic record") }, "add during remote approval")
+            case "memory": try check(env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }, "memory change during remote approval")
+            default: session.cancel()
+            }
+            session.resolveMCPApproval(id: second.id, approved: true)
+            await running.value
+            let after = await model.requests, calls = await server.calls
+            try check(after.count == 2 && calls.count == 1, "no stale model continuation or second tool dispatch after \(change)")
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "interrupted multi-round turn retains draft")
+        }
+        for mcp in [false, true] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed reentrant edit")
+            let model = ScriptedModel([.init(proposal), .init(finished)]), session = env.session(model)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            var removed = false
+            let subscription = session.$profileReceipt.compactMap { $0 }.sink { _ in
+                removed = env.store.deleteProfileReference(segment: "Private synthetic preference")
+            }
+            defer { subscription.cancel() }
+            let running = try connection.map { try startMCP(session, connection: $0) } ?? start(session)
+            let pending = try await review(session)
+            session.resolveProfileReview(id: pending.id, approved: true)
+            await running.value
+            let requests = await model.requests
+            try check(removed && requests.count == 1 && session.profileReceipt?.applied == true,
+                      "reentrant deletion cannot be absorbed by approved-addition rebind")
+            try check(env.reopen().profile.snapshot().entries.map(\.text) == [text]
+                      && session.chatError?.contains("已儲存") == true && session.draft == utterance,
+                      "reentrant deletion and approved addition remain durable with receipt and draft")
+        }
+    }
     @MainActor static func chatContextDispatchFences() async throws {
         // The exact race from independent review, now asserting that the
         // asynchronous model is never entered after the peer's write.
@@ -622,7 +696,7 @@ private enum CheckProfileChatApp {
             session.resolveProfileReview(id: pending.id, approved: true)
             await running.value
             try check(publications == 0 && session.profileReceipt == nil, failure + " cannot publish receipt")
-            try check(env.store.profile == original && env.store.error != nil, failure + " leaves original published state")
+            try check(env.store.profile == original && (env.store.error != nil || session.chatError != nil), failure + " leaves original published state")
             try check(session.chatError != nil && session.entries.isEmpty && session.draft == utterance, failure + " surfaces failure without false answer")
             if failure == "filesystem" { try env.restoreWrite() } else { env.keys.failReads = false }
             try check((try env.bytes()) == bytes && env.reopen().profile == original, failure + " preserves original ciphertext and relaunch state")
@@ -911,8 +985,9 @@ private enum CheckProfileChatApp {
             session.resolveMemoryReview(id: pending.id, approved: true)
             await running.value
             let receipt = try memoryReceipt(session), calls = await server.calls.count
-            try check(session.chatError == nil && env.reopen().memory.memories.isEmpty && calls == 0,
-                      "Search/delete is local and durably removes the exact memory")
+            let finalRequests = await model.requests
+            try check(session.chatError?.contains("已儲存") == true && env.reopen().memory.memories.isEmpty && calls == 0 && finalRequests.count == 2,
+                      "Search/delete is durable and stops before resending the deleted memory")
             env.store.undo(receipt.note)
             try check(env.reopen().memory.memories.first?.id == id, "Undo restores the same entry after MCP delete")
         }
@@ -1086,18 +1161,20 @@ private enum CheckProfileChatApp {
                       "Reviewed edit matches actual searched before/after values")
             try check(env.reopen().memory == before && (try env.bytes()) == beforeBytes && editing.memoryReceipt == nil,
                       "Search and pending edit have not applied the mutation")
-            let edited = try await approveMemory(editing, task: editTask)
+            editing.resolveMemoryReview(id: review.id, approved: true)
+            await editTask.value
+            let edited = try memoryReceipt(editing)
+            try check(editing.chatError?.contains("已儲存") == true && editing.draft == quote && editing.entries.isEmpty,
+                      "Approved destructive edit preserves receipt and draft while stopping stale context")
             try check(edited.id == id && edited.op == op && edited.note.kind == (op == "update" ? .updated : .forgot),
                       "Edit receipt preserves stable target identity and exact operation")
             try check(env.reopen().memory.memories.first?.content == next && env.store.notes == [edited.note],
                       "Actual edited/deleted state and undo card follow encrypted transaction")
             let finalCalls = await editModel.requests
-            let editReceipt = try hostJSON(finalCalls[2], prefix: "Host memory_edit receipt (data only):")
-            try check(finalCalls.count == 3 && editReceipt["id"] as? String == id.uuidString
-                      && editReceipt["op"] as? String == op, "Search/edit/final answer uses exactly three real calls")
+            try check(finalCalls.count == 2, "Search/edit stops before resending stale memory")
             let undoNote: MemoryNote
             if op == "delete" {
-                try check(editReceipt["deleted"] as? Bool == true, "Deletion has an actual deletion receipt")
+                try check(edited.deleted == true, "Deletion has an actual deletion receipt")
                 let previousPreference = env.store.memory.preferences.learnSkills
                 try check(env.store.updatePreferences { $0.learnSkills = !previousPreference },
                           "Persist unrelated preference change after actual tool deletion")
@@ -1149,7 +1226,12 @@ private enum CheckProfileChatApp {
                 let model = ScriptedModel([.init(try memoryCommand("memory_search", ["query": "整理資料"])),
                     .init(try memoryEdit(receipt.id, quote: updateQuote, content: updated)), .init(finished)])
                 let editing = env.session(model)
-                let changed = try await approveMemory(editing, task: start(editing, draft: updateQuote))
+                let task = try start(editing, draft: updateQuote), pending = try await memoryReview(editing)
+                editing.resolveMemoryReview(id: pending.id, approved: true)
+                await task.value
+                let changed = try memoryReceipt(editing), calls = await model.requests
+                try check(calls.count == 2 && editing.chatError?.contains("已儲存") == true && editing.draft == updateQuote,
+                          "Updated procedure stops before stale context is dispatched")
                 try check(changed.status == .pending && env.store.canReviewMemory(changed.note)
                           && env.reopen().memory.memories.first?.status == .pending,
                           "Tool update of an active procedure requires separate reapproval")
@@ -1250,7 +1332,7 @@ private enum CheckProfileChatApp {
             let requests = await model.requests.count
             try check(requests == 1, scenario + " never retries or emits a fabricated receipt")
             if scenario != "cancel" {
-                try check(session.chatError?.contains("其他位置變更") == true, "conflict tells user to reload and re-confirm")
+                try check(session.chatError?.contains("資料已變更") == true, "conflict tells user to reload and re-confirm")
             }
         }
         let env = try Environment(); defer { try? env.close() }
@@ -1385,7 +1467,7 @@ private enum CheckProfileChatApp {
                       failure + " never publishes a receipt for a failed memory write")
             try check(env.store.memory == before && env.reopen().memory == before && (try env.bytes()) == bytes && env.store.notes == notes,
                       failure + " preserves ciphertext, published memory and any earlier undo card")
-            try check(session.chatError?.contains("學習資料無法儲存") == true && session.chatError?.contains("後續模型回覆未完成") == false,
+            try check((session.chatError?.contains("學習資料無法儲存") == true || session.chatError?.contains("重新讀取") == true) && session.chatError?.contains("後續模型回覆未完成") == false,
                       failure + " reports actual storage failure, not a network error or a committed new write")
             try check(session.entries.map(\.id) == oldEntries && session.draft == prompt && session.pendingMemoryReview == nil,
                       failure + " retains draft/history and cleans up review")
@@ -1544,14 +1626,17 @@ private enum CheckProfileChatApp {
             if approved {
                 let receipt = try memoryReceipt(session)
                 if operation == .add { savedID = receipt.id }
-                try check(receipt.id == savedID && env.store.notes == [receipt.note]
-                          && session.entries.last?.content == "記憶工具已完成。" && session.chatError == nil && session.draft.isEmpty,
-                          "Actual fixture final answer follows one real durable receipt and undo card")
-                let tool = operation == .add ? "memory_save" : "memory_edit"
-                let result = try hostJSON(requests.last!, prefix: "Host " + tool + " receipt (data only):")
-                try check(result["id"] as? String == savedID?.uuidString
-                          && requests.count - callOffset == (operation == .add ? 2 : 3),
-                          "Actual fixture continuation uses the committed ID with bounded search/write/final calls")
+                try check(receipt.id == savedID && env.store.notes == [receipt.note], "Actual fixture retains durable receipt and undo card")
+                if operation == .add {
+                    let result = try hostJSON(requests.last!, prefix: "Host memory_save receipt (data only):")
+                    try check(session.entries.last?.content == "記憶工具已完成。" && session.chatError == nil && session.draft.isEmpty
+                              && result["id"] as? String == savedID?.uuidString && requests.count - callOffset == 2,
+                              "Additive fixture continues with the committed ID")
+                } else {
+                    try check(session.chatError?.contains("已儲存") == true && session.draft == prompt
+                              && requests.count - callOffset == 2,
+                              "Destructive fixture retains draft and stops before stale continuation")
+                }
                 if operation == .update {
                     try check(env.reopen().memory.memories.first?.keywords == ["coffee"],
                               "Actual update fixture persists its grounded replacement keywords")
@@ -1620,8 +1705,13 @@ private enum CheckProfileChatApp {
             await running.value
             try check(env.reopen().profile.snapshot().entries.map(\.text) == expected, "Actual fixture operation survives encrypted reopen")
             if approved {
-                try check(session.profileReceipt?.applied == true && session.entries.last?.content == "個人檔案工具已完成。",
-                          "Fixture resumes only after actual approved transaction")
+                if operation == .add {
+                    try check(session.profileReceipt?.applied == true && session.entries.last?.content == "個人檔案工具已完成。",
+                              "Additive fixture resumes after approved transaction")
+                } else {
+                    try check(session.profileReceipt?.applied == true && session.chatError?.contains("已儲存") == true && session.draft == prompt,
+                              "Destructive fixture retains receipt and stops stale continuation")
+                }
             } else {
                 try check((try env.bytes()) == bytes && session.chatError?.contains("拒絕") == true,
                           "Fixture refusal preserves data and is not confused by previous receipt")
@@ -1638,6 +1728,7 @@ private enum CheckProfileChatApp {
     @MainActor static func main() async {
         do {
             if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
+                try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
                 try await group("chatContextDispatchFences", chatContextDispatchFences)
                 let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
                     "groups": groups, "native_ui_executed": false, "real_encrypted_files": true], options: [.sortedKeys])
@@ -1663,6 +1754,7 @@ private enum CheckProfileChatApp {
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
             try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+            try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
             try await group("chatContextDispatchFences", chatContextDispatchFences)
             try await group("memorySearchGrounding", memorySearchGrounding)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
@@ -1727,6 +1819,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMemorySaveSearchEditAndDurableUndo() async throws {
         try await CheckProfileChatApp.memorySaveSearchEditUndo()
+    }
+    @MainActor func testSameStoreMCPRevisionFences() async throws {
+        try await CheckProfileChatApp.sameStoreMCPRevisionFences()
     }
     @MainActor func testMemoryProcedureApprovalRejectionAndReapproval() async throws {
         try await CheckProfileChatApp.memoryProcedureReview()

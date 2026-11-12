@@ -73,18 +73,54 @@ struct ReferenceFencedModelClient: ChatModelClient {
     }
 }
 
-/// Ordinary chat freezes its learning generation before any asynchronous work.
-/// Approved tool commits keep that generation; edits and reloads invalidate it.
+/// Bind every dispatch to the exact profile and memory captured for the turn.
+/// The store's current disk revision alone cannot detect its own later writes.
 @MainActor final class ChatContextFence {
     private weak var store: LearningStore?
     private let generation: UUID
-    init(store: LearningStore, generation: UUID) { self.store = store; self.generation = generation }
+    private var profileRevision: UUID
+    private var memoryRevision: UUID
+    private let skills: SkillsState
+    init(store: LearningStore, generation: UUID) {
+        self.store = store; self.generation = generation
+        profileRevision = store.profile.revision; memoryRevision = store.memory.revision
+        skills = store.skills
+    }
     func acquire() throws -> EncryptedLearningFile.ExclusiveLease {
         guard !Task.isCancelled else { throw CancellationError() }
-        guard let store, store.available, store.generation == generation else { throw LearningFileError.conflict }
+        guard let store, store.available, store.generation == generation,
+              store.profile.revision == profileRevision, store.memory.revision == memoryRevision,
+              store.skills == skills else {
+            throw LearningFileError.conflict
+        }
         return try store.acquireCurrentReferenceLease()
     }
     func check() throws { let lease = try acquire(); lease.release() }
+
+    // Only a reviewed, strictly additive local tool commit can extend the
+    // frozen turn. Never refresh after an edit/delete: prior messages and tool
+    // search results may still contain the old value. Validate the full old
+    // records as synchronous observers can reenter during store publication.
+    func acceptProfileAddition(before: UserProfileState, receiptID: UUID?) throws {
+        guard let store, store.available, store.generation == generation,
+              before.revision == profileRevision, store.memory.revision == memoryRevision, store.skills == skills,
+              let receiptID, store.profile.entries.count == before.entries.count + 1,
+              Array(store.profile.entries.dropLast()) == before.entries,
+              store.profile.entries.last?.id == receiptID else { throw LearningFileError.conflict }
+        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
+        profileRevision = store.profile.revision
+    }
+
+    func acceptMemoryAddition(before: MemoryState, receiptID: UUID) throws {
+        guard let store, store.available, store.generation == generation,
+              before.revision == memoryRevision, store.profile.revision == profileRevision, store.skills == skills,
+              store.memory.preferences == before.preferences,
+              store.memory.memories.count == before.memories.count + 1,
+              Array(store.memory.memories.dropLast()) == before.memories,
+              store.memory.memories.last?.id == receiptID else { throw LearningFileError.conflict }
+        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
+        memoryRevision = store.memory.revision
+    }
 }
 
 /// A client must explicitly bind cancellation to its real producer. Merely
