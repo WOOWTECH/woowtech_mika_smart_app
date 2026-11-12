@@ -7,6 +7,8 @@
     <!-- Not translatable="false" here: the woowtech flavor has a Chinese name in values-b+zh+Hant. -->
     <string name="app_name">woowtech agent</string>
     <string name="about_author">© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)</string>
+    <string name="about_tagline">Chat, browse, and keep useful information in one place</string>
+    <string name="about_guide_sub">Getting started and contributing to the project</string>
     <string name="about_repo_sub">%1$s · source code and project information</string>
     <string name="about_data_note">Content you share may be sent to your chosen model provider. Connected features may also use WOOW TECH services. Review those services before sharing sensitive information.</string>
     <string name="chat_empty_prompt">What would you like help with?</string>
@@ -16,6 +18,9 @@
     <string name="chat_example_multi_step">Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.</string>
     <string name="chat_example_alarms">Remember that I prefer concise answers in Traditional Chinese.</string>
     <string name="chat_example_ai_apps">What preferences have I told you to remember?</string>
+    <string name="drawer_phone_not_ready">Chat, browser, and memory are available</string>
+    <string name="settings_all_ready_detail">Model ready · Chat and browser available</string>
+    <string name="settings_memory_sub">Memories, skills, and website sign-ins</string>
     <string name="plans_footer">Create plans for supported chat, web, and memory tasks. This edition cannot operate other apps on your phone.</string>
     <string name="task_app_blocked">This edition cannot read or operate “%1$s” outside its own browser. Share the information here or use the built-in browser instead.</string>
     <string name="task_app_access_unavailable">Cross-app access is unavailable in this edition. Chat, browser, and memory tasks are still available.</string>

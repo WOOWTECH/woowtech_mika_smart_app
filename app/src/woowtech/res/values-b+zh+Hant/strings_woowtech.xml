@@ -6,6 +6,8 @@
 <resources>
     <string name="app_name">渥屋助理</string>
     <string name="about_author">© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）</string>
+    <string name="about_tagline">在同一個地方對話、瀏覽網頁，並記住有用的資訊</string>
+    <string name="about_guide_sub">上手指南與參與專案的方式</string>
     <string name="about_repo_sub">%1$s · 原始碼與專案資訊</string>
     <string name="about_data_note">你分享的內容可能傳送給所選的模型服務商。使用連線功能時，也可能經過渥屋科技的服務。分享敏感資訊前，請先確認相關服務。</string>
     <string name="chat_empty_prompt">想聊什麼，或需要幫忙查找什麼？</string>
@@ -15,6 +17,9 @@
     <string name="chat_example_multi_step">在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點</string>
     <string name="chat_example_alarms">記住我偏好使用繁體中文，回答簡短一點</string>
     <string name="chat_example_ai_apps">你記得我有哪些偏好？</string>
+    <string name="drawer_phone_not_ready">對話、內建瀏覽器和記憶功能可使用</string>
+    <string name="settings_all_ready_detail">模型已就緒 · 可使用對話與內建瀏覽器</string>
+    <string name="settings_memory_sub">記憶、技能與網站登入</string>
     <string name="relay_gateway_hint">https://assistant-relay.woowtech.io/</string>
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>
