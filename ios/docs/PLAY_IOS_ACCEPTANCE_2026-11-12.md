@@ -8,7 +8,7 @@
 - POCO Android 15 的真模型對話、記憶、技能與唯讀 HA MCP 多數證據來自 ADB 安裝的 `play.1`；`play.2` 的安裝與重啟紀錄不能升格成全部流程重測。參見[實機紀錄](https://github.com/WOOWTECH/woowtech_mika_smart_app/blob/420b1d26f99110635d6a2827ee9414541c7a6c35/docs-woowtech/PLAY_POCO_ACCEPTANCE_2026-11-12.md)。
 - iOS 實體 iPad 第 9 代／iPadOS 26.6.1 的產品來源為 `bf34bd9976f0407f44518761d9b20a50ebb79bc6`，本機簽章 Release 已安裝；[實機紀錄](https://github.com/WOOWTECH/woow-assistant-ios/issues/1#issuecomment-6818332596)。`d60fd8a` 是 `bf34bd9` 的 Git 祖先；分支指向時間不能證明前者較新。
 - 舊版 iOS 18.5 模擬器曾有[真模型個人資料](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42868747738)與[真模型／HA 混合對話](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42879196152)各 1/1 的紀錄，來源分別為 `017976b`／`395ee5a`；不代表目前 iPad 或最新整合候選通過。
-- 先前 Craft Anything 檢查的 `io.woowtech.agent` `0.1.37-woow.7` 為 GitHub 直載版，不是上面的商店候選。商店候選 APK 以[精確來源建置](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/43183040946)，完成後須確認版本及檔案雜湊再以 Craft 檢查；不能把來源版或 debug APK 說成 Play 正式發行版。
+- Craft Anything CLI 0.6.0 已檢查[精確來源 CI 建置](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/43183040946)的 ARM64 未簽章 Release 候選 APK；檔案雜湊與 CI 一致，解析為 `io.woowtech.assistant`、`0.1.37-play.2`、versionCode 2，繁中字串 1,966/1,966 項已分頁讀取。[選定聊天字串與來源證據](evidence/craft-play-420b1d26-chat.json)不可證明頁面實際顯示或功能可用；APK 不是 Play 發行檔。先前檢查的 `io.woowtech.agent` `0.1.37-woow.7` 則為不同的 GitHub 直載版。
 
 ## 功能與畫面驗收
 
