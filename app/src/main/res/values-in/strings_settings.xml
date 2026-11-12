@@ -143,7 +143,7 @@
     <string name="mcp_servers_testing">Menguji…</string>
     <string name="mcp_servers_count">%1$d server</string>
     <string name="mcp_servers_help">Tentang</string>
-    <string name="mcp_servers_help_text">Server MCP eksternal terpisah dari «Sambungkan komputer». Alatnya muncul dengan sumber MCP di tugas. Bawaan hanya HTTPS; HTTP lokal perlu dicentang. Token tetap di ponsel ini.</string>
+    <string name="mcp_servers_help_text">Hubungkan server MCP eksternal dan pilih alat yang boleh digunakan asisten. Bawaan hanya HTTPS; HTTP lokal perlu dicentang. Token tetap di ponsel ini.</string>
     <string name="mcp_servers_delete">Hapus</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

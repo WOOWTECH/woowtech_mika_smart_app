@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_report_action">举报 AI 回复</string>
+    <string name="chat_report_title">举报这条回复</string>
+    <string name="chat_report_delivery_notice">举报内容会发送给开发者。服务器确认收到前，会保留在这台设备上等待发送。</string>
+    <string name="chat_report_reference">回复编号：%1$s / %2$s</string>
+    <string name="chat_report_offensive">冒犯性内容</string>
+    <string name="chat_report_unsafe">不安全内容</string>
+    <string name="chat_report_other">其他问题</string>
+    <string name="chat_report_note">补充说明（选填）</string>
+    <string name="chat_report_submit">提交举报</string>
+    <string name="chat_report_save_failed">无法保存举报，请重试。</string>
+    <string name="chat_report_pending">等待发送。编号：%1$s</string>
+    <string name="chat_report_acknowledged">开发者已收到。编号：%1$s</string>
+    <string name="chat_report_needs_retry">尚未确认送达。编号：%1$s</string>
+    <string name="chat_report_retry">重新发送</string>
+    <string name="chat_report_cancel">取消</string>
+    <string name="chat_report_close">关闭</string>
+</resources>

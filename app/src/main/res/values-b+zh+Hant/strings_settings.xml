@@ -143,7 +143,7 @@
     <string name="mcp_servers_testing">正在測試…</string>
     <string name="mcp_servers_count">共 %1$d 個</string>
     <string name="mcp_servers_help">說明</string>
-    <string name="mcp_servers_help_text">外部 MCP 伺服器和「連接電腦」是兩回事。它提供的工具會以 MCP 來源出現在任務裡。預設只允許 HTTPS；本機/區域網路 HTTP 要勾選。權杖只保存在本機。</string>
+    <string name="mcp_servers_help_text">連接外部 MCP 伺服器後，可選擇允許助理使用的工具。預設只允許 HTTPS；本機或區域網路 HTTP 需另外勾選。存取權杖只保存在本機。</string>
     <string name="mcp_servers_delete">刪除</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

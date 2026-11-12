@@ -118,16 +118,6 @@
                 android:value="Keeps a user-requested AI conversation or in-app browser task running while showing its progress" />
         </service>
 
-        <!-- 遠端配對連線由 App 自行啟動，不接受外部元件直接啟動服務。 -->
-        <service
-            android:name=".mcp.McpService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps a user-enabled outbound relay connection available for remote AI conversations" />
-        </service>
-
         <!-- 用 ChatGPT 登录期间:用户在浏览器里登录时撑住进程,本机回调才有人接;登录一结束就停 -->
         <service
             android:name=".settings.ChatGptSignInService"

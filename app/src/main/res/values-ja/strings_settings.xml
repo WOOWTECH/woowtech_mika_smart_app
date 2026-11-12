@@ -143,7 +143,7 @@
     <string name="mcp_servers_testing">テスト中…</string>
     <string name="mcp_servers_count">%1$d 台</string>
     <string name="mcp_servers_help">この機能について</string>
-    <string name="mcp_servers_help_text">外部 MCP サーバーは「コンピューターを接続」とは別です。ツールは MCP 由来としてタスクに表示されます。既定では HTTPS のみ、ローカル HTTP はチェックが必要です。トークンはこの端末に保存されます。</string>
+    <string name="mcp_servers_help_text">外部 MCP サーバーに接続し、アシスタントが使えるツールを選択します。既定では HTTPS のみ、ローカル HTTP はチェックが必要です。トークンはこの端末に保存されます。</string>
     <string name="mcp_servers_delete">削除</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

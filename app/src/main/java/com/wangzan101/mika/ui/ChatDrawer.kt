@@ -211,7 +211,6 @@ fun ChatDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
-    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
@@ -244,7 +243,7 @@ fun ChatDrawer(
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
             NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
-            NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onClick = onComputerAccess)
+            NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
         }
         // 侧栏关着时列表只剩末尾那一项;打开时对话插在它前面,列表会按原来那一项停在最底下。最上面一项变了就回到顶上
@@ -489,7 +488,6 @@ fun ChatWithDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
-    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
@@ -594,7 +592,6 @@ fun ChatWithDrawer(
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
                     onMcpServers = { leave(onMcpServers) },
-                    onComputerAccess = { leave(onComputerAccess) },
                     onSettings = { leave(onSettings) },
                     onBrowser = { leave(onBrowser) },
                     onScreens = { leave(onScreens) },

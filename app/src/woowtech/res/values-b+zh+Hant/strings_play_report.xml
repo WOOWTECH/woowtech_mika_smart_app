@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_report_action">檢舉 AI 回覆</string>
+    <string name="chat_report_title">檢舉這則回覆</string>
+    <string name="chat_report_delivery_notice">檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。</string>
+    <string name="chat_report_reference">回覆編號：%1$s / %2$s</string>
+    <string name="chat_report_offensive">冒犯性內容</string>
+    <string name="chat_report_unsafe">不安全內容</string>
+    <string name="chat_report_other">其他問題</string>
+    <string name="chat_report_note">補充說明（選填）</string>
+    <string name="chat_report_submit">送出檢舉</string>
+    <string name="chat_report_save_failed">無法儲存檢舉，請重試。</string>
+    <string name="chat_report_pending">等待傳送。編號：%1$s</string>
+    <string name="chat_report_acknowledged">開發者已收到。編號：%1$s</string>
+    <string name="chat_report_needs_retry">尚未確認送達。編號：%1$s</string>
+    <string name="chat_report_retry">重新傳送</string>
+    <string name="chat_report_cancel">取消</string>
+    <string name="chat_report_close">關閉</string>
+</resources>

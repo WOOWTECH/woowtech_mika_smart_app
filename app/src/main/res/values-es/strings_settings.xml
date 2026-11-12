@@ -151,7 +151,7 @@
     <string name="mcp_servers_testing">Probando…</string>
     <string name="mcp_servers_count">%1$d servidores</string>
     <string name="mcp_servers_help">Acerca de</string>
-    <string name="mcp_servers_help_text">Los servidores MCP externos son independientes de «Conectar un ordenador». Sus herramientas aparecen como MCP en las tareas. Solo HTTPS por defecto; HTTP local requiere la casilla. Los tokens se quedan en este teléfono.</string>
+    <string name="mcp_servers_help_text">Conecta un servidor MCP externo y elige las herramientas que puede usar el asistente. Solo HTTPS por defecto; HTTP local requiere la casilla. Los tokens se quedan en este teléfono.</string>
     <string name="mcp_servers_delete">Eliminar</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

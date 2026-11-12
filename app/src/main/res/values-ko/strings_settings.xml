@@ -143,7 +143,7 @@
     <string name="mcp_servers_testing">테스트 중…</string>
     <string name="mcp_servers_count">%1$d개</string>
     <string name="mcp_servers_help">정보</string>
-    <string name="mcp_servers_help_text">외부 MCP 서버는 ‘컴퓨터 연결’과 별개입니다. 도구는 MCP 출처로 작업에 표시됩니다. 기본은 HTTPS만 허용하며 로컬 HTTP는 선택해야 합니다. 토큰은 이 기기에만 저장됩니다.</string>
+    <string name="mcp_servers_help_text">외부 MCP 서버에 연결하고 도우미가 사용할 도구를 선택하세요. 기본은 HTTPS만 허용하며 로컬 HTTP는 선택해야 합니다. 토큰은 이 기기에만 저장됩니다.</string>
     <string name="mcp_servers_delete">삭제</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

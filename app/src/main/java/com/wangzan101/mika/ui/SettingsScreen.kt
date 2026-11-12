@@ -118,11 +118,6 @@ fun SettingsScreen(
         if (proxy == null) proxy = withContext(Dispatchers.IO) { proxies.get() }
         browserProxy = withContext(Dispatchers.IO) { WebProxy.mode() }
     }
-    val mcp = remember { (context.applicationContext as com.wangzan101.mika.MikaApp).mcp }
-    val mcpNetworkOn by mcp.settings.enabled.collectAsState()
-    val mcpUsbOn by mcp.usb.enabled.collectAsState()
-    val mcpRelayOn by mcp.relaySettings.config.collectAsState()
-    val mcpOn = mcpNetworkOn || mcpUsbOn || mcpRelayOn.enabled
     val mcpServerCount = mcpServers?.servers?.collectAsState()?.value?.size
     val parallel = if (!speed.parallelTasks) null else ParallelSetting(
         parallelMax,
@@ -170,8 +165,7 @@ fun SettingsScreen(
             proxy = proxy, proxyNote = proxy?.let { NetProxyCopy.subtitle(it, browserProxy) }, onOpenProxy = { editingProxy = true },
             sandbox = null, onOpenSandbox = { page = SettingsPage.Sandbox },
             showRecovery = false, onOpenRecovery = { page = SettingsPage.Recovery },
-            computerAccess = mcpOn, onOpenComputerAccess = { page = SettingsPage.ComputerAccess },
-            mcpServersCount = null, onOpenMcpServers = { page = SettingsPage.McpServers },
+            mcpServersCount = mcpServerCount, onOpenMcpServers = { page = SettingsPage.McpServers },
             showRoot = false, rootCommands = false, onOpenRoot = { page = SettingsPage.Root },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             onBack = toHome,
@@ -196,7 +190,7 @@ fun SettingsScreen(
         SettingsPage.Sandbox -> SandboxScreen(onBack = toAdvanced)
         SettingsPage.Recovery -> RecoveryScreen(onBack = toAdvanced, onOpenSelfCheck = { page = SettingsPage.SelfCheck })
         SettingsPage.SelfCheck -> SelfCheckScreen(status, onBack = back)
-        SettingsPage.ComputerAccess -> McpScreen(mcp, onBack = toAdvanced)
+        SettingsPage.ComputerAccess -> mcpServers?.let { McpServersScreen(it, onBack = toAdvanced) }
         SettingsPage.McpServers -> mcpServers?.let { McpServersScreen(it, onBack = toAdvanced) }
         SettingsPage.Root -> RootScreen(helperRow = status.sdkInt >= Prerequisites.MIN_SDK, onBack = toAdvanced)
         SettingsPage.Developer -> DeveloperOptionsScreen(

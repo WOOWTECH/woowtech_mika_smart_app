@@ -163,7 +163,7 @@
     <string name="mcp_servers_testing">جارٍ الاختبار…</string>
     <string name="mcp_servers_count">%1$d خوادم</string>
     <string name="mcp_servers_help">حول</string>
-    <string name="mcp_servers_help_text">خوادم MCP الخارجية منفصلة عن «توصيل كمبيوتر». تظهر أدواتها بمصدر MCP في المهام. يُسمح بـ HTTPS فقط افتراضيًا؛ ويتطلب HTTP المحلي تحديد خانة الاختيار. تبقى الرموز على هذا الهاتف.</string>
+    <string name="mcp_servers_help_text">اتصل بخادم MCP خارجي واختر الأدوات التي يمكن للمساعد استخدامها. يُسمح بـ HTTPS فقط افتراضيًا؛ ويتطلب HTTP المحلي تحديد خانة الاختيار. تبقى الرموز على هذا الهاتف.</string>
     <string name="mcp_servers_delete">حذف</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

@@ -155,7 +155,7 @@
     <string name="mcp_servers_testing">Проверка…</string>
     <string name="mcp_servers_count">%1$d серверов</string>
     <string name="mcp_servers_help">О функции</string>
-    <string name="mcp_servers_help_text">Внешние MCP-серверы не связаны с «Подключить компьютер». Их инструменты появляются в задачах с источником MCP. По умолчанию только HTTPS; для локального HTTP нужна галочка. Токены остаются на этом телефоне.</string>
+    <string name="mcp_servers_help_text">Подключите внешний MCP-сервер и выберите инструменты, доступные помощнику. По умолчанию только HTTPS; для локального HTTP нужна галочка. Токены остаются на этом телефоне.</string>
     <string name="mcp_servers_delete">Удалить</string>
     <string name="mcp_servers_transport_http">HTTP</string>
     <string name="mcp_servers_transport_sse">SSE</string>

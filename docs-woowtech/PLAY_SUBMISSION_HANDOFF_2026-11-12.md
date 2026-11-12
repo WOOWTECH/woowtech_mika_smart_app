@@ -14,12 +14,12 @@
 
 - 分支 `playstore/woowtech-compliant-20261111`；Release AAB 可編譯，位於本機 `app/build/outputs/bundle/woowtechRelease/app-woowtech-release.aab`。AAB 尚未上傳 Play Console。
 - 商店文案草稿 `PLAY_STORE_LISTING_DRAFT.md`、Data safety／隱私政策工作稿 `PLAY_DISCLOSURES_DRAFT.md`、政策與權限盤點 `PLAY_STORE_RESEARCH_2026-11-11.md`。
-- APK 權限已核對；仍須按最終 AAB 重新檢查。AI 回覆檢舉中繼程式已通過測試，正式服務尚未部署與驗收。
+- APK 權限已核對；仍須按最終 AAB 重新檢查。AI 回覆檢舉中繼程式已通過測試，正式服務尚未部署與驗收。POCO Debug APK 已可 ADB 安裝；實測細節見 `PLAY_POCO_ACCEPTANCE_2026-11-12.md`。
 - 2026-11-12 重跑 `:core:test`：3,019 項、0 失敗、7 跳過。商店分支的獨立 README 不沿用原版 README 自動段落及翻譯結構，相關 4 項文件檢查明確跳過；其餘跳過為原有項目。中繼 `wrangler deploy --dry-run` 通過，**未部署**。
 
 ## 目前需要負責人提供的事項
 
-1. **POCO 安裝確認**：保持解鎖，允許手機畫面上的 USB 安裝確認；前次 ADB 回報 `INSTALL_FAILED_USER_RESTRICTED`。若手機由 Apporo 測試占用，先告知可接手時間。不要關閉 Play Protect 來充當商店安裝驗收。
+1. **POCO 安裝已完成**：商店版 Debug APK 已透過 ADB 安裝並與 GitHub 版共存；仍須由 Play 內部測試軌安裝最終簽署版本，不能把 ADB 安裝當成商店安裝驗收。
 2. **Play Console 狀態**：確認開發者帳號是否為公司帳號；建立 `io.woowtech.assistant` 草稿 App，提供「需要處理」頁、測試軌與應用程式簽章頁的畫面或協作者存取。請勿在聊天中傳私人金鑰。
 3. **審查員測試方式**：提供可供 Google 審查員使用的模型服務測試帳號／受限 API Key，或選定可公開測試的免費模型流程；使用者自備 Key 的 App 仍需讓審查員進入核心功能。憑證走 Console 的 App access 欄位，不寫入 Git。
 4. **隱私政策實務**：確認 AI 檢舉、中繼與網站日誌的營運者、保存時間、刪除管道及聯絡信箱；指定公開 HTTPS 網址。完成內容審核後，需同一 URL 出現在商店頁與 App 內。
@@ -27,7 +27,7 @@
 
 ## 技術與 Console 驗收順序
 
-1. 完成手機安裝、首次啟動、模型登入／Key、真實對話、語音辨識、照片與文件附件、瀏覽器、記憶、AI 檢舉、遠端配對／對話的實機紀錄。檢查崩潰與前景服務通知。
+1. 完成手機安裝、首次啟動、模型登入／Key、真實對話、語音辨識、照片與文件附件、瀏覽器、記憶、AI 檢舉、外部 MCP 工具呼叫的實機紀錄。檢查崩潰與前景服務通知。
 2. 定稿並公開隱私政策；在 App 內加入入口，驗證 HTTPS 頁免登入可由全球開啟。部署並驗證 AI 檢舉收件端；按最終網路流量填 Data safety。
 3. 對最終 AAB 檢查套件名稱、versionCode、target API、簽章、權限及服務；補 Play Console 的 App content、App access、內容分級、目標受眾、廣告、前景服務用途與商店圖文。
 4. 先上傳內部測試軌，用 Play 商店安裝到 POCO 驗證更新與基本功能；再依 Console 顯示的帳號資格選封閉測試或正式軌。以 Console 顯示的處理／審核狀態為準。
