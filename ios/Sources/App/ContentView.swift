@@ -14,9 +14,9 @@ struct ContentView: View {
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
-    @StateObject private var session = ChatSession()
-    @StateObject private var mcpSession = MCPSession()
-    @StateObject private var browserWorkspace = BrowserWorkspace()
+    @StateObject private var session = WelcomeStartupTiming.shared.measure(.chatInitStart, .chatInitEnd) { ChatSession() }
+    @StateObject private var mcpSession = WelcomeStartupTiming.shared.measure(.mcpInitStart, .mcpInitEnd) { MCPSession() }
+    @StateObject private var browserWorkspace = WelcomeStartupTiming.shared.measure(.browserInitStart, .browserInitEnd) { BrowserWorkspace() }
     @StateObject private var preferences = SelfConfigurationStore.applicationPreferences()
     @StateObject private var languages = AppLanguageStore.applicationPreferences()
     @StateObject private var notifications = TaskNotificationStore.applicationStore()
@@ -69,6 +69,8 @@ struct ContentView: View {
             notificationNavigationID = UUID()
         }
         .onAppear {
+            WelcomeStartupTiming.shared.mark(.rootAppeared)
+            WelcomeStartupTiming.shared.startHeartbeat()
             session.learning.onUserChange = { [weak browserWorkspace, weak session] in
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
                 session?.invalidateProfileReview()
@@ -189,6 +191,7 @@ struct ContentView: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                                 .accessibilityIdentifier("chat.status")
+                                .onAppear { WelcomeStartupTiming.shared.mark(.headerAppeared) }
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -572,6 +575,7 @@ private struct ChatView: View {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if session.entries.isEmpty && session.replyPreview == nil {
                             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+                                .onAppear { WelcomeStartupTiming.shared.mark(.welcomeAppeared) }
                         }
                         if !session.hasStoredKey {
                             Text(verbatim: localizer.text(.chatModelSetupHint))
@@ -645,7 +649,12 @@ private struct ChatView: View {
                     })
                 .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
                     guard let position else { return }
+                    WelcomeStartupTiming.shared.mark(position.isValid ? .viewportValid : .viewportInvalid)
+                    if position.isValid && position.bottomY - position.viewportHeight > ChatScrollFollowPolicy.tailArrivalTolerance {
+                        WelcomeStartupTiming.shared.mark(.viewportOverflow)
+                    }
                     if scrollFollow.observe(position) {
+                        WelcomeStartupTiming.shared.mark(.tailScrollRequested)
                         proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
                     }
                     scheduleScrollSettle()
@@ -803,6 +812,7 @@ private struct ChatView: View {
             .padding(6)
             .background(palette.glass, in: Capsule())
             .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+            .onAppear { WelcomeStartupTiming.shared.mark(.composerAppeared) }
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
@@ -836,7 +846,7 @@ private struct ChatView: View {
         .onChange(of: showsDrawer) { _, visible in
             if visible { voice.cancel(); isEditingDraft = false }
         }
-        .onAppear { voice.attach(session: session) }
+        .onAppear { WelcomeStartupTiming.shared.mark(.chatAppeared); voice.attach(session: session) }
         .onDisappear { voice.cancel() }
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
