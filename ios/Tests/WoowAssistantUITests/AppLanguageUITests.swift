@@ -205,8 +205,8 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
-    private func launchMCPSetting(language: String, namespace: String, reset: Bool) {
-        app.launchArguments = ["-AppleLanguages", language, "-AppleLocale", "zh_TW",
+    private func launchMCPSetting(language systemLanguages: String, namespace: String, reset: Bool) {
+        app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]
