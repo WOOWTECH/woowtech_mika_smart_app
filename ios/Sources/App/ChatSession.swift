@@ -15,11 +15,15 @@ struct ModelAccess {
 struct ChatEntry: Identifiable {
     let id: UUID
     let role: String
+    /// What the model saw in later turns, including one "附件:" line per attachment.
     let content: String
     let pdf: ArchivedPDFAnswer?
-    init(id: UUID = UUID(), role: String, content: String, pdf: ArchivedPDFAnswer? = nil) {
+    let attachments: [ChatAttachmentItem]
+    init(id: UUID = UUID(), role: String, content: String, pdf: ArchivedPDFAnswer? = nil,
+         attachments: [ChatAttachmentItem] = []) {
         self.id = id; self.role = role; self.content = content
         self.pdf = pdf
+        self.attachments = attachments
     }
 }
 
@@ -98,8 +102,13 @@ final class ChatSession: ObservableObject {
     @Published var keyDraft = ""
     @Published private(set) var entries: [ChatEntry] = []
     @Published private(set) var replyPreview: ChatReplyPreview?
-    @Published private(set) var pdfAttachment: ChatPDFAttachment?
-    private var pdfChanges: AnyCancellable?
+    /// Photos and files waiting for the next prompt, in the order picked (Android's tray).
+    @Published private(set) var pendingAttachments: [ChatAttachmentItem] = []
+    /// While picked files are copied, "+" and send wait, as on Android.
+    @Published private(set) var isAddingAttachments = false
+    @Published var attachmentNotice: ChatAttachmentNotice?
+    let attachmentStore: ChatAttachmentStore
+    private var attachmentImport: Task<Void, Never>?
     @Published private(set) var savedSettings: SavedModelSettings?
     @Published private(set) var hasStoredKey = false
     @Published private(set) var isSubmitting = false
@@ -130,7 +139,6 @@ final class ChatSession: ObservableObject {
     private var mcpSentCount = 0
 
     #if DEBUG
-    @Published private(set) var pdfModelRequestEvents = 0
     #endif
     let isUITestMode: Bool
     private let repository: ModelSettingsRepository
@@ -150,15 +158,14 @@ final class ChatSession: ObservableObject {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         let streamFixture: UITestChatStreamingConfiguration?
-        let pdfFixture: ChatPDFUITestConfiguration?
         do {
             streamFixture = try UITestChatStreamingConfiguration.resolve(arguments: arguments)
-            pdfFixture = try ChatPDFUITestConfiguration.resolve(arguments: arguments)
         }
         catch { preconditionFailure("Chat UI fixture requires one isolated UI test mode and UUID namespace; no Live mode") }
         #endif
         learning = LearningStore()
         archive = ConversationArchiveStore()
+        attachmentStore = ChatAttachmentStore.live()
         var bootstrapFailure: String?
         #if DEBUG
         precondition(!(arguments.contains("-UITestMode") && arguments.contains("-LiveModelUITest")), "Choose one UI test mode")
@@ -176,8 +183,7 @@ final class ChatSession: ObservableObject {
             catch { bootstrapFailure = Self.settingsMessage(error) }
         } else if arguments.contains("-UITestMode") {
             repository = UITestModelFixture.repository(arguments: arguments)
-            if let pdfFixture { client = UITestPDFChatModelClient(configuration: pdfFixture) }
-            else if let streamFixture { client = UITestStreamingChatModelClient(configuration: streamFixture) }
+            if let streamFixture { client = UITestStreamingChatModelClient(configuration: streamFixture) }
             else { client = UITestChatModelClient() }
             isUITestMode = true
         } else {
@@ -197,10 +203,13 @@ final class ChatSession: ObservableObject {
     /// Dependency boundary for exercising actual App transactions and request
     /// lifecycles with isolated storage; production uses the initializer above.
     init(learning: LearningStore, repository: ModelSettingsRepository, client: any ChatModelClient,
-         archive: ConversationArchiveStore? = nil,
+         archive: ConversationArchiveStore? = nil, attachmentStore: ChatAttachmentStore? = nil,
          assistantQuoteText: @escaping @MainActor (String) -> String = ChatSession.plainAssistantQuote) {
         self.learning = learning
         self.archive = archive
+        // Hosted tests get a throwaway folder, never the user's attachments.
+        self.attachmentStore = attachmentStore ?? ChatAttachmentStore(root: FileManager.default.temporaryDirectory
+            .appendingPathComponent("ChatAttachments-" + UUID().uuidString, isDirectory: true))
         self.repository = repository
         self.client = client
         self.assistantQuoteText = assistantQuoteText
@@ -232,18 +241,22 @@ final class ChatSession: ObservableObject {
     }
 
     var canSend: Bool {
-        savedSettings != nil && hasStoredKey && !isSubmitting
+        savedSettings != nil && hasStoredKey && !isSubmitting && !isAddingAttachments
             && quoteSourceIsCurrent
             && (conversationDestination == nil || conversationDestination == archiveDestination)
-            && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && (pdfAttachment == nil || (pdfAttachment?.isReady == true && !usesMCP))
+            && hasSomethingToSend
+    }
+
+    /// Words, attachments, or both: on Android a photo alone can start a task.
+    private var hasSomethingToSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
     }
 
     /// Whether the send key accepts a tap. Like the Android store build, a
-    /// non-empty draft is enough, attachment or not; `attemptSend` explains
-    /// whatever is still missing.
+    /// non-empty draft or any attachment is enough; `attemptSend` explains
+    /// whatever is still missing. Picked files still being copied make it wait.
     var canAttemptSend: Bool {
-        !isSubmitting && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !isSubmitting && !isAddingAttachments && hasSomethingToSend
     }
 
     /// Send when every guard passes; otherwise say why and keep the draft.
@@ -254,13 +267,6 @@ final class ChatSession: ObservableObject {
         guard conversationDestination == nil || conversationDestination == archiveDestination else {
             chatError = "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
             return
-        }
-        if let pdfAttachment {
-            guard !usesMCP else { chatError = "PDF 查詢不使用 MCP；請先關閉 MCP 選項，草稿已保留。"; return }
-            guard pdfAttachment.isReady else {
-                chatError = "PDF 尚未完成確認；請先在 PDF 附件中完成讀取、擷取與傳送確認，草稿已保留。"
-                return
-            }
         }
         send(mcp: mcp)
     }
@@ -290,12 +296,14 @@ final class ChatSession: ObservableObject {
     /// not yet been saved. Compare the entire visible transcript, not just IDs.
     private func matchesArchivedTranscript(_ record: ArchivedConversation) -> Bool {
         let expected = record.turns.flatMap { turn in
-            [ChatEntry(id: turn.userID, role: "user", content: turn.userText, pdf: turn.pdf),
+            [ChatEntry(id: turn.userID, role: "user", content: turn.userText, pdf: turn.pdf,
+                       attachments: turn.attachments.map(ChatAttachmentItem.init(archived:))),
              ChatEntry(id: turn.assistantID, role: "assistant", content: turn.assistantText)]
         }
         return isCurrentConversation(id: record.id) && entries.count == expected.count
             && zip(entries, expected).allSatisfy { actual, saved in
                 actual.id == saved.id && actual.role == saved.role && actual.content == saved.content && actual.pdf == saved.pdf
+                    && actual.attachments == saved.attachments
             }
     }
 
@@ -325,7 +333,7 @@ final class ChatSession: ObservableObject {
     /// Drafts and attachments cannot be silently discarded by branching.
     private var branchHasUnfinishedOrUnsavedWork: Bool {
         replyPreview != nil || pendingArchiveSave != nil || archiveNotice != nil
-            || !draft.isEmpty || pendingQuote != nil || pdfAttachment != nil
+            || !draft.isEmpty || pendingQuote != nil || !pendingAttachments.isEmpty
     }
 
     func prepareBranch(source: ArchivedConversation, assistantID: UUID, title: String,
@@ -365,7 +373,8 @@ final class ChatSession: ObservableObject {
         conversationID = record.id.uuidString
         conversationDestination = record.destination
         draft = ""
-        entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf),
+        entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf,
+                                                   attachments: $0.attachments.map(ChatAttachmentItem.init(archived:))),
                                          ChatEntry(id: $0.assistantID, role: "assistant", content: $0.assistantText)] }
         chatNotice = "已開啟保存的對話；尚未傳送任何訊息。"
         return true
@@ -375,6 +384,8 @@ final class ChatSession: ObservableObject {
         guard !isCurrentConversation(id: id) || pendingQuote == nil else { return false }
         if conversationID == id.uuidString { cancel() }
         guard archive?.delete(id: id) == true else { return false }
+        attachmentStore.deleteConversation(id.uuidString,
+            keeping: ChatAttachmentStore.referencedFolders(in: archive?.state.conversations ?? []))
         if conversationID == id.uuidString { newConversation() }
         return true
     }
@@ -426,7 +437,6 @@ final class ChatSession: ObservableObject {
             modelDraft = result.record.model
             keyDraft = ""
             if changed {
-                pdfAttachment?.revokeDestination()
                 entries = []
                 replyPreview = nil
                 pendingQuote = nil
@@ -436,6 +446,7 @@ final class ChatSession: ObservableObject {
                 profileReceiptRequestID = nil
                 memoryReceipt = nil
                 memoryReceiptRequestID = nil
+                discardPendingAttachments()
                 conversationID = UUID().uuidString
                 learning.resetConversationPresentation()
             }
@@ -459,7 +470,6 @@ final class ChatSession: ObservableObject {
         settingsNotice = nil
         do {
             try repository.remove()
-            pdfAttachment?.revokeDestination()
             savedSettings = nil
             hasStoredKey = false
             baseURLDraft = ""
@@ -474,6 +484,7 @@ final class ChatSession: ObservableObject {
             profileReceiptRequestID = nil
             memoryReceipt = nil
             memoryReceiptRequestID = nil
+            discardPendingAttachments()
             conversationID = UUID().uuidString
             learning.resetConversationPresentation()
             chatError = nil
@@ -493,7 +504,6 @@ final class ChatSession: ObservableObject {
             chatError = "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
             return
         }
-        if let pdfAttachment { sendPDF(pdfAttachment); return }
         let mcpConnection: ((any MCPDiscovering), [MCPTool], [MCPResource])?
         if usesMCP {
             do {
@@ -514,7 +524,10 @@ final class ChatSession: ObservableObject {
         }
         let draftAtStart = draft
         let quoteAtStart = pendingQuote
-        let prompt = ConversationQuote.compose(quoteAtStart, words: draftAtStart)
+        let attachmentsAtStart = pendingAttachments
+        // The archived prompt names each attachment, so later turns know what was shared.
+        let prompt = ChatAttachmentLines.compose(prompt: ConversationQuote.compose(quoteAtStart, words: draftAtStart),
+                                                 items: attachmentsAtStart)
         // Neither quote markers nor quoted text authorize tools or memory.
         // Evidence is exclusively the words actually entered for this request.
         let utterance = draftAtStart
@@ -567,21 +580,37 @@ final class ChatSession: ObservableObject {
             : "本次傳送最近 \(window.retainedTurns) 輪對話、本輪完整訊息及參考資料；較早 \(window.omittedTurns) 輪仍在畫面中，但未傳送。"
         let client = modelClient
         let extractionClient = self.client
+        let attachmentStore = self.attachmentStore
+        let attachmentBudget = ChatAttachmentPreparation.textBudget(promptBytes: prompt.utf8.count,
+                                                                     contextBytes: context.reduce(0) { $0 + $1.content.utf8.count })
         request = Task { [weak self] in
             do {
+                var outgoing = messages
+                if !attachmentsAtStart.isEmpty, let last = outgoing.popLast() {
+                    // Read the app's own copies off the main actor. Whatever the model
+                    // cannot use is named in a note instead of being dropped silently.
+                    let prepared = await Task.detached(priority: .userInitiated) {
+                        ChatAttachmentPreparation.prepare(attachmentsAtStart, store: attachmentStore,
+                                                          vision: configuration.vision, textBudgetBytes: attachmentBudget)
+                    }.value
+                    try Task.checkCancellation()
+                    if prepared.unseenImages > 0 { self?.attachmentNotice = .imagesNotSeen(prepared.unseenImages) }
+                    outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: prepared.notes),
+                                                 attachments: prepared.attachments))
+                }
                 let reply: String
                 if let (connection, tools, resources) = mcpConnection {
-                    reply = try await self?.completeWithMCP(messages: messages, utterance: utterance,
+                    reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
                         key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id,
                         contextFence: contextFence) ?? ""
                 } else if useLearningTools {
-                    reply = try await self?.completeWithProfile(messages: messages, utterance: utterance,
+                    reply = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
                         key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
                 } else {
-                    reply = try await self?.completePlain(messages: messages, configuration: configuration,
+                    reply = try await self?.completePlain(messages: outgoing, configuration: configuration,
                         key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
                 }
                 try Task.checkCancellation()
@@ -594,7 +623,7 @@ final class ChatSession: ObservableObject {
                     self.finish(id: id, error: "模型回傳空白內容，草稿已保留，請重試。")
                     return
                 }
-                let userEntry = ChatEntry(role: "user", content: prompt)
+                let userEntry = ChatEntry(role: "user", content: prompt, attachments: attachmentsAtStart.map(\.sent))
                 let assistantEntry = ChatEntry(role: "assistant", content: reply)
                 if let archive = self.archive {
                     self.pendingArchiveSave = nil
@@ -603,7 +632,8 @@ final class ChatSession: ObservableObject {
                         let all = self.entries + [userEntry, assistantEntry]
                         let turns = try stride(from: 0, to: all.count, by: 2).map { index in
                             try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
-                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf)
+                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf,
+                                attachments: all[index].attachments.map { try $0.archived() })
                         }
                         let record = try ArchivedConversation(id: archiveID, destination: destination,
                             updatedAt: Date(), turns: turns)
@@ -622,6 +652,8 @@ final class ChatSession: ObservableObject {
                 if self.draft == draftAtStart && self.pendingQuote == quoteAtStart {
                     self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
                 }
+                // Sent attachments now belong to the transcript; their files stay.
+                if self.pendingAttachments == attachmentsAtStart { self.pendingAttachments = [] }
                 publicationLease?.release()
                 self.finish(id: id)
                 // Deliver first. Extraction receives the user's own utterance and
@@ -675,132 +707,73 @@ final class ChatSession: ObservableObject {
         }
     }
 
-    /// Native picker callback only. Selecting creates a plan, never reads bytes.
-    func selectPDF(url: URL, pages: String? = nil, password: String? = nil) {
+    /// Copies picked photos and files into this conversation's folder. The tray
+    /// keeps at most nine; the rest and anything too large are named in a notice.
+    func addAttachments(_ picked: [ChatPickedFile]) async {
+        // One batch at a time, so quick taps on recent photos all land in order.
+        let previous = attachmentImport
+        let task = Task { @MainActor [weak self] in
+            await previous?.value
+            await self?.importAttachments(picked)
+        }
+        attachmentImport = task
+        await task.value
+    }
+
+    /// A picker is still copying photos (for example originals from iCloud):
+    /// "+" and send wait, and the input bar says so.
+    func attachmentsLoadingStarted() {
         guard !isSubmitting else { return }
-        do {
-            let selected = try ChatPDFAttachment(userSelectedURL: url, pages: pages, password: password)
-            removePDF()
-            pdfAttachment = selected
-            pdfChanges = selected.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
-            chatError = nil
-        } catch {
-            chatError = (error as? SkillExecutionError)?.errorDescription ?? "無法選取這份 PDF。"
+        isAddingAttachments = true
+    }
+
+    private func importAttachments(_ picked: [ChatPickedFile]) async {
+        guard !picked.isEmpty, !isSubmitting else {
+            ChatAttachmentImport.discardTemporary(picked)
+            isAddingAttachments = false
+            return
         }
+        isAddingAttachments = true
+        defer { isAddingAttachments = false }
+        let store = attachmentStore, conversation = conversationID, existing = pendingAttachments
+        let outcome = await Task.detached(priority: .userInitiated) {
+            store.importFiles(picked, conversationID: conversation, existing: existing)
+        }.value
+        // A new conversation started meanwhile: these belong to nobody.
+        guard conversation == conversationID else { store.discard(outcome.added); return }
+        // Removals during the copy are kept; the limit is checked again against the tray now.
+        let room = max(0, ChatAttachmentLimits.maximumCount - pendingAttachments.count)
+        let kept = Array(outcome.added.prefix(room))
+        store.discard(Array(outcome.added.dropFirst(room)))
+        pendingAttachments += kept
+        let overflow = outcome.overflow + (outcome.added.count - kept.count)
+        if !outcome.refused.isEmpty { attachmentNotice = .refused(outcome.refused) }
+        else if overflow > 0 { attachmentNotice = .overLimit(overflow) }
     }
 
-    func removePDF() {
-        if pdfAttachment != nil && isSubmitting { cancel() }
-        pdfAttachment?.remove(); pdfChanges = nil; pdfAttachment = nil
+    func removeAttachment(id: UUID) {
+        guard !isSubmitting, let item = pendingAttachments.first(where: { $0.id == id }) else { return }
+        pendingAttachments.removeAll { $0.id == id }
+        attachmentStore.discard([item])
     }
 
-    func pdfEnteredBackground() {
-        guard let attachment = pdfAttachment else { return }
-        if isSubmitting { cancel() }
-        attachment.stopPreparation()
-        attachment.revokeDestination()
+    func dismissAttachmentNotice() { attachmentNotice = nil }
+
+    /// Android clears the tray for a new or different chat; unsent copies are deleted.
+    private func discardPendingAttachments() {
+        let unsent = pendingAttachments
+        pendingAttachments = []
+        attachmentNotice = nil
+        attachmentStore.discard(unsent)
     }
 
-    func confirmPDFDestination() {
-        guard !isSubmitting, let attachment = pdfAttachment, let destination = archiveDestination else { return }
-        do { attachment.confirmDestination(access: try currentPDFModelAccess(), destination: destination); chatError = nil }
-        catch { chatError = "無法確認模型服務，請先檢查已儲存的設定。" }
-    }
+    /// The "能看圖" answer for the saved model. It changes only what later prompts send.
+    var seesImages: Bool? { savedSettings?.seesImages }
 
-    private func currentPDFModelAccess() throws -> ModelAccess {
-        guard let stored = try repository.load(), let savedSettings,
-              stored.baseURL == savedSettings.baseURL, stored.model == savedSettings.model,
-              stored.credentialAccount == savedSettings.credentialAccount else { throw DocumentQueryError.contextChanged }
-        return try modelAccess()
-    }
-
-    private func sendPDF(_ attachment: ChatPDFAttachment) {
-        guard !usesMCP, let source = attachment.source else { return }
-        let draftAtStart = draft
-        let quoteAtStart = pendingQuote
-        let prompt = ConversationQuote.compose(quoteAtStart, words: draftAtStart)
-        let archiveID = UUID(uuidString: conversationID)!
-        let archivePrior = archive?.state.conversations.first { $0.id == archiveID }
-        do {
-            let access = try currentPDFModelAccess()
-            try attachment.validate(access: access, destination: archiveDestination)
-            guard let destination = archiveDestination else { throw DocumentQueryError.contextChanged }
-            let runtime = try DocumentQueryRuntime(source: source, question: prompt)
-            learning.cancelLearning()
-            let references = try learning.captureRunReferences(goal: draftAtStart, capabilities: DocumentQueryRuntime.referenceCapabilities)
-            let model = try ReferenceFencedModelClient(client: access.client, snapshot: references)
-            let id = UUID(); requestID = id; replyPreview = nil; chatError = nil
-            isMCPRun = false; isSubmitting = true
-            #if DEBUG
-            pdfModelRequestEvents = 0
-            #endif
-            chatNotice = nil // The attached card already displays the disclosure; keep the composer reachable.
-            references.onRevoke = { [weak self] in
-                guard let self, self.requestID == id else { return }
-                self.cancel(); self.chatError = "本次參考資料已撤銷，PDF 查詢已停止；請重新確認後再傳送。"
-            }
-            request = Task { [weak self] in
-                defer { references.onRevoke = nil; references.revoke() }
-                do {
-                    let outcome = try await runtime.run(client: model, configuration: access.configuration,
-                        apiKey: access.key, references: references.references, validateContext: { [weak self] in
-                            guard let self, self.requestID == id, self.pdfAttachment?.id == attachment.id,
-                                  self.draft == draftAtStart, self.pendingQuote == quoteAtStart,
-                                  !Task.isCancelled else { throw DocumentQueryError.contextChanged }
-                            try references.check()
-                            try attachment.validate(access: self.currentPDFModelAccess(), destination: self.archiveDestination)
-                        }, onEvent: { [weak self] event in
-                            #if DEBUG
-                            guard let self, self.requestID == id else { return }
-                            if case .requestingModel(let count) = event { self.pdfModelRequestEvents = count }
-                            #endif
-                        })
-                    guard let self, self.requestID == id else { return }
-                    guard self.pdfAttachment?.id == attachment.id, self.draft == draftAtStart,
-                          self.pendingQuote == quoteAtStart, !Task.isCancelled
-                    else { throw DocumentQueryError.contextChanged }
-                    try references.check()
-                    try attachment.validate(access: self.currentPDFModelAccess(), destination: self.archiveDestination)
-                    guard case .completed(let result) = outcome else {
-                        self.finish(id: id, error: "模型未完成 PDF 查詢；問題與擷取文字保留，未保存完成問答。")
-                        return
-                    }
-                    let evidence = try ChatPDFAttachment.archive(result)
-                    let user = ChatEntry(role: "user", content: prompt, pdf: evidence)
-                    let assistant = ChatEntry(role: "assistant", content: result.answer)
-                    if let archive = self.archive {
-                        self.pendingArchiveSave = nil
-                        do {
-                            let all = self.entries + [user, assistant]
-                            let turns = try stride(from: 0, to: all.count, by: 2).map { i in
-                                try ArchivedConversationTurn(userID: all[i].id, assistantID: all[i + 1].id,
-                                    userText: all[i].content, assistantText: all[i + 1].content, pdf: all[i].pdf)
-                            }
-                            let record = try ArchivedConversation(id: archiveID, destination: destination, updatedAt: Date(), turns: turns)
-                            self.pendingArchiveSave = (record, archivePrior)
-                            try archive.save(record, expected: archivePrior)
-                            self.pendingArchiveSave = nil; self.archiveNotice = nil
-                        } catch { self.archiveNotice = Self.archiveSaveFailure }
-                    }
-                    self.conversationDestination = destination
-                    self.entries.append(user); self.entries.append(assistant)
-                    if self.draft == draftAtStart && self.pendingQuote == quoteAtStart {
-                        self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
-                    }
-                    self.finish(id: id)
-                    self.removePDF()
-                    // Deliberately no rememberAfterReply: source text is not a user utterance.
-                } catch {
-                    guard let self, self.requestID == id else { return }
-                    if (error as? DocumentQueryError) == .contextChanged { attachment.revokeDestination() }
-                    self.finish(id: id, error: (error as? DocumentQueryError)?.errorDescription
-                        ?? "PDF 查詢未完成；問題與擷取文字保留，未保存完成問答。")
-                }
-            }
-        } catch {
-            attachment.revokeDestination()
-            chatError = (error as? DocumentQueryError)?.errorDescription ?? "無法開始 PDF 查詢；請確認目的服務與來源。"
-        }
+    func setSeesImages(_ value: Bool?) {
+        guard !isSubmitting, savedSettings != nil else { return }
+        do { savedSettings = try repository.setSeesImages(value); settingsError = nil }
+        catch { settingsError = Self.settingsMessage(error) }
     }
 
     private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
@@ -863,7 +836,6 @@ final class ChatSession: ObservableObject {
     func cancel() {
         learning.cancelLearning()
         guard let id = requestID else { return }
-        pdfAttachment?.revokeDestination()
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
         stopPreview(id: id, phase: .cancelled)
         request?.cancel()
@@ -1185,7 +1157,7 @@ final class ChatSession: ObservableObject {
 
     func newConversation() {
         guard !isSubmitting, pendingQuote == nil else { return }
-        removePDF()
+        discardPendingAttachments()
         learning.resetConversationPresentation()
         entries = []; conversationID = UUID().uuidString
         replyPreview = nil

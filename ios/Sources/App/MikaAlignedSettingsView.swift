@@ -223,6 +223,18 @@ private struct MikaModelSettingsDetailView: View {
                                         subtitle: localizer.text(.settingsModelMainDetail),
                                         value: configuredModelName, accessory: .none)
                         Divider().padding(.leading, 60)
+                        // Android models_sees_images: the user says whether the main model can see images.
+                        Toggle(isOn: Binding(get: { session.seesImages == true }, set: { session.setSeesImages($0) })) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(verbatim: localizer.text(.settingsSeesImages))
+                                Text(verbatim: localizer.text(session.seesImages == nil ? .settingsSeesImagesUnconfirmed : .settingsSeesImagesUser))
+                                    .font(.footnote).foregroundStyle(palette.hint)
+                            }
+                        }
+                        .disabled(session.savedSettings == nil || !session.hasStoredKey || session.isSubmitting)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                        .accessibilityIdentifier("settings.seesImages")
+                        Divider().padding(.leading, 60)
                         NavigationLink {
                             VoiceSettingsView(languages: languages)
                         } label: {

@@ -7,9 +7,13 @@ struct SavedModelSettings: Codable {
     let model: String
     // This is a Keychain item identifier, never the key itself.
     let credentialAccount: String
+    /// The user's "能看圖" answer for exactly this endpoint and model, as on
+    /// Android; nil means not said, which never counts as support.
+    var seesImages: Bool? = nil
 
     var configuration: ModelConfiguration {
-        ModelConfiguration(baseURL: baseURL, model: model)
+        ModelConfiguration(baseURL: baseURL, model: model,
+                           vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown)
     }
 }
 
@@ -192,7 +196,11 @@ final class ModelSettingsRepository {
             }
             account = UUID().uuidString
         }
-        let record = SavedModelSettings(baseURL: configuration.baseURL, model: configuration.model, credentialAccount: account)
+        var record = SavedModelSettings(baseURL: configuration.baseURL, model: configuration.model, credentialAccount: account)
+        // The image answer belongs to one endpoint and model; a new key for the same model keeps it.
+        if let previous, previous.baseURL == record.baseURL, previous.model == record.model {
+            record.seesImages = previous.seesImages
+        }
         let data = try JSONEncoder().encode(record)
         if !newKey.isEmpty { try credentials.insert(newKey, account: account) }
         // Publish the nonsecret record only after Keychain succeeds. A new item avoids
@@ -205,6 +213,19 @@ final class ModelSettingsRepository {
             catch { cleanupFailed = true }
         }
         return (record, cleanupFailed)
+    }
+
+    /// Records whether the saved model can see images. Same boundary and
+    /// revision bump as every other mutation, so in-flight work notices.
+    func setSeesImages(_ value: Bool?) throws -> SavedModelSettings {
+        try Self.withSpeechDispatchLock {
+            guard var record = try load() else { throw ModelSettingsError.missingModel }
+            record.seesImages = value
+            let data = try JSONEncoder().encode(record)
+            defaults.set(UUID().uuidString, forKey: Self.revisionKey)
+            defaults.set(data, forKey: Self.configurationKey)
+            return record
+        }
     }
 
     func remove() throws {

@@ -347,7 +347,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertLessThanOrEqual(draft.frame.height, fiveLineHeight + 4,
                                  "The sixth line should scroll inside the composer.")
 
-        let attach = app.buttons["chat.pdf.open"]
+        let attach = app.buttons["chat.attach.toggle"]
         let send = app.buttons["chat.send"]
         for control in [draft, attach, send] {
             XCTAssertFalse(control.frame.isEmpty)
@@ -356,6 +356,9 @@ final class WoowAssistantUITests: XCTestCase {
         }
         XCTAssertTrue(attach.isHittable)
         XCTAssertTrue(send.isEnabled, "A typed draft is sendable; a missing model is explained on tap.")
+        // Raw frames for the keyboard-reserve review (ChatKeyboardDock).
+        print("WOOW_FRAMES keyboard-up draft=\(draft.frame) attach=\(attach.frame) send=\(send.frame) "
+              + "keyboard=\(app.keyboards.firstMatch.frame) unobscuredBottom=\(mikaUnobscuredBottom(in: app)) window=\(app.frame)")
         let done = app.buttons["chat.dismissKeyboard"]
         waitUntilHittable(done)
         done.tap()
@@ -364,11 +367,20 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [keyboardGone], timeout: 10), .completed)
         XCTAssertEqual(draft.value as? String, expected)
 
+        // "+" opens the attach panel in the keyboard's place; × brings the keyboard back. The draft survives both.
         waitUntilHittable(attach)
         attach.tap()
-        let closePDF = app.buttons["chat.pdf.done"]
-        XCTAssertTrue(closePDF.waitForExistence(timeout: 5))
-        closePDF.tap()
+        XCTAssertTrue(app.otherElements["chat.attach.panel"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["chat.attach.camera"].exists && app.buttons["chat.attach.album"].exists
+                      && app.buttons["chat.attach.files"].exists, "The panel offers camera, album and files, as on Android.")
+        print("WOOW_FRAMES panel-open draft=\(draft.frame) send=\(send.frame) panel=\(app.otherElements["chat.attach.panel"].frame) "
+              + "keyboardExists=\(app.keyboards.firstMatch.exists)")
+        attach.tap()
+        let panelGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                  object: app.otherElements["chat.attach.panel"])
+        XCTAssertEqual(XCTWaiter.wait(for: [panelGone], timeout: 5), .completed)
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        print("WOOW_FRAMES panel-closed draft=\(draft.frame) send=\(send.frame) keyboard=\(app.keyboards.firstMatch.frame)")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, expected)
         XCTAssertTrue(app.buttons["chat.send"].isEnabled)
     }

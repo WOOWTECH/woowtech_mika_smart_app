@@ -1,3 +1,4 @@
+import Photos
 import SwiftUI
 import UIKit
 import AssistantSkills
@@ -76,7 +77,6 @@ struct ContentView: View {
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { session.pdfEnteredBackground() }
             if phase != .active {
                 session.cancelMCP()
                 session.invalidateProfileReview()
@@ -261,10 +261,12 @@ struct ContentView: View {
     @ViewBuilder private var fixtureObservation: some View {
         #if DEBUG
         VStack(spacing: 0) {
-            if (try? ChatPDFUITestConfiguration.resolve(arguments: ProcessInfo.processInfo.arguments)) != nil {
-                Text("PDF 模型請求事件測試觀測").font(.caption2)
-                    .accessibilityIdentifier("chat.pdf.requestEvents")
-                    .accessibilityValue(String(session.pdfModelRequestEvents))
+            // -UITestAttachments: adds a generated photo and note to the tray on demand,
+            // after a test has saved its model (saving settings starts a new conversation).
+            if session.isUITestMode, ProcessInfo.processInfo.arguments.contains("-UITestAttachments") {
+                Button("加入測試附件") { Task { await session.addAttachments(ChatAttachmentUITestFixture.pickedFiles()) } }
+                    .font(.caption2)
+                    .accessibilityIdentifier("uitest.attach.fixture")
             }
             if (try? UITestChatStreamingConfiguration.resolve(arguments: ProcessInfo.processInfo.arguments)) != nil {
                 Text("串流通知送出測試觀測")
@@ -475,7 +477,12 @@ private struct ChatView: View {
     @StateObject private var keyboardDock = ChatKeyboardDock()
     @State private var chatFrame = CGRect.zero
     @State private var showsMCPResults = false
-    @State private var showsPDF = false
+    /// Android's attach panel takes the keyboard's place under the input bar.
+    @State private var showsAttachPanel = false
+    @State private var attachPicker: ChatAttachPicker?
+    @State private var showsCamera = false
+    @State private var attachmentPreview: ChatAttachmentPreviewTarget?
+    @StateObject private var recentPhotos = ChatRecentPhotos()
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
@@ -483,6 +490,11 @@ private struct ChatView: View {
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     /// Only the draft's own docked keyboard lifts the composer (see ChatKeyboardDock).
     private var keyboardReserve: CGFloat { isEditingDraft ? keyboardDock.reserve(below: chatFrame) : 0 }
+    private var attachmentText: ChatAttachmentText { ChatAttachmentText(localizer: localizer) }
+    private var attachmentColors: ChatAttachmentColors {
+        ChatAttachmentColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
+                             surface: palette.surface, fill: palette.assistant, hair: palette.hair)
+    }
 
     private var voiceMessage: AppText? {
         switch voice.state {
@@ -504,6 +516,32 @@ private struct ChatView: View {
         scrollSettleTask?.cancel()
         scrollSettleTask = nil
         scheduledSettleRevision = nil
+    }
+
+    private func openCamera() {
+        guard ChatCameraPicker.isAvailable else { session.attachmentNotice = .cameraUnavailable; return }
+        guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
+        showsCamera = true
+    }
+
+    private func openAlbum() {
+        guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
+        attachPicker = .album
+    }
+
+    /// A recent photo toggles in and out of the tray, numbered in tray order.
+    private func toggleRecentPhoto(_ asset: PHAsset) {
+        if let item = session.pendingAttachments.first(where: { $0.sourceKey == asset.localIdentifier }) {
+            session.removeAttachment(id: item.id); return
+        }
+        guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
+        Task { if let file = await recentPhotos.export(asset) { await session.addAttachments([file]) } }
+    }
+
+    private func openAttachment(_ item: ChatAttachmentItem) {
+        let url = session.attachmentStore.url(for: item)
+        guard FileManager.default.fileExists(atPath: url.path) else { session.attachmentNotice = .missing; return }
+        attachmentPreview = ChatAttachmentPreviewTarget(url: url)
     }
 
     private func scheduleScrollSettle() {
@@ -539,17 +577,6 @@ private struct ChatView: View {
             }
 
             LearningChatNotes(store: session.learning)
-
-            if let attachment = session.pdfAttachment {
-                HStack {
-                    Text(verbatim: attachment.plan.filename).lineLimit(1).accessibilityIdentifier("chat.pdf.card")
-                    Button("移除") { session.removePDF() }.accessibilityIdentifier("chat.pdf.removeInline")
-                }
-            }
-            if session.pdfAttachment != nil {
-                Text(session.usesMCP ? "PDF 查詢不使用 MCP；請先關閉 MCP 選項。" : ChatPDFAttachment.scopeNotice)
-                    .font(.caption).accessibilityIdentifier("chat.pdf.boundary")
-            }
 
             if mcp.canUseInConversation || session.usesMCP {
                 Toggle("本次對話使用 MCP 工具", isOn: $session.usesMCP)
@@ -589,11 +616,20 @@ private struct ChatView: View {
                                 .accessibilityIdentifier("chat.explanation")
                         }
                         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+                            let shown = ChatAttachmentLines.displayText(entry.content, items: entry.attachments)
                             VStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 6) {
+                                if !entry.attachments.isEmpty {
+                                    ChatSentAttachments(items: entry.attachments, store: session.attachmentStore,
+                                                        colors: attachmentColors, text: attachmentText,
+                                                        identifier: "chat.message.\(index).attachments",
+                                                        onOpen: openAttachment)
+                                }
+                                // Attachments alone get no empty bubble.
+                                if !shown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || entry.attachments.isEmpty {
                                 HStack {
                                     if entry.role == "user" { Spacer(minLength: 40) }
                                     Text(entry.role == "assistant"
-                                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(entry.content))
+                                         ? ChatReplyMarkdown.render(entry.content) : AttributedString(shown))
                                         .font(.system(size: 15.5))
                                         .lineSpacing(entry.role == "user" ? 1 : 4)
                                         .foregroundStyle(entry.role == "user" ? Color.white : palette.ink)
@@ -604,8 +640,6 @@ private struct ChatView: View {
                                                     in: RoundedRectangle(cornerRadius: 20))
                                     if entry.role != "user" { Spacer(minLength: 0) }
                                 }
-                                if let pdf = entry.pdf {
-                                    ArchivedPDFEvidenceView(evidence: pdf, identifier: "chat.pdf.saved.\(index)")
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
@@ -761,15 +795,33 @@ private struct ChatView: View {
                                         openSettings()
                                     })
             }
+            if let notice = session.attachmentNotice {
+                ChatAttachmentNoticeRow(notice: notice, colors: attachmentColors, text: attachmentText) { session.dismissAttachmentNotice() }
+            }
+            if session.isAddingAttachments {
+                Text(verbatim: attachmentText.adding)
+                    .font(.caption).foregroundStyle(palette.secondaryInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("chat.attach.adding")
+            }
+            if !session.pendingAttachments.isEmpty {
+                ChatAttachmentTray(items: session.pendingAttachments, store: session.attachmentStore,
+                                   colors: attachmentColors, text: attachmentText, canRemove: !session.isSubmitting) { session.removeAttachment(id: $0) }
+            }
             HStack(alignment: .bottom, spacing: 4) {
                 Button {
-                    voice.cancel(); isEditingDraft = false; showsPDF = true
+                    voice.cancel()
+                    // Like Android: × brings the keyboard back and the panel goes away.
+                    if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
+                    else { isEditingDraft = false; showsAttachPanel = true }
                 } label: {
                     Image(systemName: "plus").frame(width: 40, height: 40)
+                        .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
+                        .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
                 }
-                    .accessibilityLabel(localizer.text(session.pdfAttachment == nil ? .shellAttachPDF : .shellViewPDFAttachment))
-                    .disabled(session.isSubmitting)
-                    .accessibilityIdentifier("chat.pdf.open")
+                    .accessibilityLabel(showsAttachPanel ? attachmentText.close : attachmentText.add)
+                    .disabled(session.isSubmitting || session.isAddingAttachments)
+                    .accessibilityIdentifier("chat.attach.toggle")
                 // Return adds a line; the keyboard toolbar Done closes editing without sending.
                 TextField(localizer.text(.shellMessagePlaceholder), text: $session.draft, axis: .vertical)
                     .lineLimit(1...5)
@@ -799,6 +851,7 @@ private struct ChatView: View {
                 Button {
                     voice.cancel()
                     isEditingDraft = false
+                    showsAttachPanel = false
                     session.attemptSend(mcp: session.usesMCP ? mcp : nil)
                     if session.isSubmitting {
                         // Only an accepted send restores follow. The observer
@@ -823,6 +876,13 @@ private struct ChatView: View {
             .padding(6)
             .background(palette.glass, in: Capsule())
             .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+            if showsAttachPanel {
+                ChatAttachPanel(photos: recentPhotos, selectedAssets: session.pendingAttachments.compactMap(\.sourceKey),
+                                colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
+                                onFiles: { attachPicker = .files }, onToggle: toggleRecentPhoto)
+                    .frame(height: 320)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .padding(.bottom, keyboardReserve)
@@ -838,7 +898,43 @@ private struct ChatView: View {
         // SwiftUI's keyboard safe area is ignored here; ChatKeyboardDock
         // reserves the draft keyboard's space instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
+        .sheet(item: $attachPicker) { picker in
+            switch picker {
+            case .album:
+                // Close as soon as copying starts; originals from iCloud keep loading behind "正在新增附件…".
+                ChatPhotoLibraryPicker(selectionLimit: max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count),
+                                       onPicked: { files in
+                                           attachPicker = nil
+                                           Task { await session.addAttachments(files) }
+                                       },
+                                       onLoadingStarted: {
+                                           session.attachmentsLoadingStarted()
+                                           attachPicker = nil
+                                       })
+                .ignoresSafeArea()
+            case .files:
+                ChatDocumentPicker { files in
+                    attachPicker = nil
+                    Task { await session.addAttachments(files) }
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .fullScreenCover(isPresented: $showsCamera) {
+            ChatCameraPicker(onCaptured: { data in
+                showsCamera = false
+                if let file = ChatAttachmentImport.temporaryPhoto(jpeg: data) { Task { await session.addAttachments([file]) } }
+            }, onCancel: { showsCamera = false })
+            .ignoresSafeArea()
+        }
+        .sheet(item: $attachmentPreview) { target in ChatAttachmentPreview(url: target.url).ignoresSafeArea() }
+        .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
+        .onChange(of: showsAttachPanel) { _, open in
+            guard open else { return }
+            recentPhotos.refresh()
+            // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
+            if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
+        }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
                             approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
@@ -878,7 +974,11 @@ private struct ChatView: View {
         .onDisappear { voice.cancel() }
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
         .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { voice.cancel(interrupted: true) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { voice.cancel(interrupted: true) }
+            // Photo access may have changed in Settings, as Android re-checks on return.
+            else if showsAttachPanel { recentPhotos.refresh() }
+        }
         .task(id: voice.isActive) {
             while voice.isActive && !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)

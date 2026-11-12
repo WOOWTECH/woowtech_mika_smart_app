@@ -4,7 +4,6 @@ import AssistantPersistence
 /// Captures the particular unsent attachment or unsaved result the user saw
 /// when confirming a new conversation. A changed result needs a fresh review.
 @MainActor struct NewConversationProtection: Equatable {
-    let pdfID: UUID?
     let previewID: UUID?
     let unsavedAnswerID: UUID?
     let hasUnsavedAnswer: Bool
@@ -12,10 +11,9 @@ import AssistantPersistence
 
     static func current(in session: ChatSession) -> Self? {
         let unsaved = session.canRetryArchiveSave || session.archiveNotice != nil
-        let pdfID = session.pdfAttachment?.id
         let previewID = session.replyPreview?.id
-        guard pdfID != nil || previewID != nil || unsaved else { return nil }
-        return Self(pdfID: pdfID, previewID: previewID,
+        guard previewID != nil || unsaved else { return nil }
+        return Self(previewID: previewID,
                     unsavedAnswerID: unsaved ? session.entries.last?.id : nil,
                     hasUnsavedAnswer: unsaved,
                     archiveNotice: unsaved ? session.archiveNotice : nil)
@@ -23,7 +21,6 @@ import AssistantPersistence
 
     var warningKeys: [AppText] {
         var keys: [AppText] = []
-        if pdfID != nil { keys.append(.newConversationPDFWarning) }
         if hasUnsavedAnswer { keys.append(.newConversationUnsavedWarning) }
         if previewID != nil { keys.append(.newConversationPreviewWarning) }
         keys.append(.newConversationDraftRetained)

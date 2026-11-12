@@ -5083,6 +5083,313 @@
         "zh-Hans": "无法保存语音设置，请再试一次。",
         "en": "Could not save the voice setting. Try again."
       }
+    },
+    {
+      "case": "chatAttachAdd",
+      "key": "chat.attach.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增附件",
+        "zh-Hans": "新增附件",
+        "en": "Add attachment"
+      }
+    },
+    {
+      "case": "chatAttachClose",
+      "key": "chat.attach.close",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "收起附件面板",
+        "zh-Hans": "收起附件面板",
+        "en": "Close attachment panel"
+      }
+    },
+    {
+      "case": "chatAttachCamera",
+      "key": "chat.attach.camera",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "相機",
+        "zh-Hans": "相机",
+        "en": "Camera"
+      }
+    },
+    {
+      "case": "chatAttachAlbum",
+      "key": "chat.attach.album",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "相簿",
+        "zh-Hans": "相册",
+        "en": "Photos"
+      }
+    },
+    {
+      "case": "chatAttachFiles",
+      "key": "chat.attach.files",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檔案",
+        "zh-Hans": "文件",
+        "en": "Files"
+      }
+    },
+    {
+      "case": "chatAttachRecent",
+      "key": "chat.attach.recent",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最近的照片",
+        "zh-Hans": "最近的照片",
+        "en": "Recent photos"
+      }
+    },
+    {
+      "case": "chatAttachRecentLimited",
+      "key": "chat.attach.recentLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你允許渥屋助理存取的照片",
+        "zh-Hans": "你允许渥屋助理访问的照片",
+        "en": "Photos you let Woow Assistant access"
+      }
+    },
+    {
+      "case": "chatAttachAllPhotos",
+      "key": "chat.attach.allPhotos",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "全部照片",
+        "zh-Hans": "全部照片",
+        "en": "All photos"
+      }
+    },
+    {
+      "case": "chatAttachChangeScope",
+      "key": "chat.attach.changeScope",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "更改範圍",
+        "zh-Hans": "更改范围",
+        "en": "Change selection"
+      }
+    },
+    {
+      "case": "chatAttachNoPhotos",
+      "key": "chat.attach.noPhotos",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有照片",
+        "zh-Hans": "还没有照片",
+        "en": "No photos yet"
+      }
+    },
+    {
+      "case": "chatAttachAllowPhotos",
+      "key": "chat.attach.allowPhotos",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許存取照片",
+        "zh-Hans": "允许访问照片",
+        "en": "Allow photo access"
+      }
+    },
+    {
+      "case": "chatAttachPhotosNeeded",
+      "key": "chat.attach.photosNeeded",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在這裡直接選照片,需要允許渥屋助理存取照片",
+        "zh-Hans": "在这里直接选照片,需要允许渥屋助理访问照片",
+        "en": "To pick photos here, allow Woow Assistant to access your photos"
+      }
+    },
+    {
+      "case": "chatAttachPhotosHint",
+      "key": "chat.attach.photosHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不允許也可以點上面的「相簿」,用系統的照片選擇器",
+        "zh-Hans": "不允许也可以点上面的「相册」,用系统的照片选择器",
+        "en": "Without access, tap Photos above to use the system photo picker"
+      }
+    },
+    {
+      "case": "chatAttachAdding",
+      "key": "chat.attach.adding",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在新增附件…",
+        "zh-Hans": "正在添加附件…",
+        "en": "Adding attachments…"
+      }
+    },
+    {
+      "case": "chatAttachGotIt",
+      "key": "chat.attach.gotIt",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "知道了",
+        "zh-Hans": "知道了",
+        "en": "Got it"
+      }
+    },
+    {
+      "case": "chatAttachGone",
+      "key": "chat.attach.gone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個附件已經不在了",
+        "zh-Hans": "这个附件已经不在了",
+        "en": "This attachment is no longer available"
+      }
+    },
+    {
+      "case": "chatAttachNoCamera",
+      "key": "chat.attach.noCamera",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有能拍照的相機",
+        "zh-Hans": "没有能拍照的相机",
+        "en": "No camera is available"
+      }
+    },
+    {
+      "case": "chatAttachPhoto",
+      "key": "chat.attach.photo",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "照片",
+        "zh-Hans": "照片",
+        "en": "Photo"
+      }
+    },
+    {
+      "case": "chatAttachSelected",
+      "key": "chat.attach.selected",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已選取",
+        "zh-Hans": "已选取",
+        "en": "Selected"
+      }
+    },
+    {
+      "case": "chatAttachRemove",
+      "key": "chat.attach.remove",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "去掉%1$@",
+        "zh-Hans": "去掉%1$@",
+        "en": "Remove %1$@"
+      }
+    },
+    {
+      "case": "chatAttachFull",
+      "key": "chat.attach.full",
+      "parameters": [
+        {
+          "name": "limit",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "一次最多 %1$lld 個附件",
+        "zh-Hans": "一次最多 %1$lld 个附件",
+        "en": "Up to %1$lld attachments at a time"
+      }
+    },
+    {
+      "case": "chatAttachOverLimit",
+      "key": "chat.attach.overLimit",
+      "parameters": [
+        {
+          "name": "limit",
+          "type": "Int"
+        },
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
+        "zh-Hans": "一次最多 %1$lld 个附件,另外 %2$lld 个没加上",
+        "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
+      }
+    },
+    {
+      "case": "chatAttachRefused",
+      "key": "chat.attach.refused",
+      "parameters": [
+        {
+          "name": "names",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
+        "zh-Hans": "没能添加:%1$@(单个文件不超过 200 MB)",
+        "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
+      }
+    },
+    {
+      "case": "settingsSeesImages",
+      "key": "settings.seesImages",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "能看圖",
+        "zh-Hans": "能看图",
+        "en": "Sees images"
+      }
+    },
+    {
+      "case": "settingsSeesImagesUnconfirmed",
+      "key": "settings.seesImages.unconfirmed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
+        "zh-Hans": "未确认:它能看图就打开,聊天附上的图片会直接交给它看。",
+        "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
+      }
+    },
+    {
+      "case": "settingsSeesImagesUser",
+      "key": "settings.seesImages.user",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
+        "zh-Hans": "按你的设置。打开时,聊天附上的图片会直接交给主模型看。",
+        "en": "As you set it. When on, photos attached in chat go straight to the main model."
+      }
+    },
+    {
+      "case": "chatAttachImagesNotSeen",
+      "key": "chat.attach.imagesNotSeen",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+        },
+        "zh-Hans": {
+          "other": "这个模型不能看图,%lld 张图片没有交给模型。可到设置的模型页打开「能看图」。"
+        },
+        "en": {
+          "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
+          "other": "This model can’t see images, so %lld images weren’t sent to it. Turn on Sees images on the model settings page."
+        }
+      }
     }
   ]
 }

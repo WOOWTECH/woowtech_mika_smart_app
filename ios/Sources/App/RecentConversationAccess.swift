@@ -37,7 +37,8 @@ enum RecentConversationBlock: Equatable {
               session.pendingProfileReview == nil,
               session.pendingMemoryReview == nil
         else { return .pendingApproval }
-        guard session.draft.isEmpty, session.pdfAttachment == nil else { return .unsentDraft }
+        // Waiting attachments, like a draft, are never discarded by opening another chat.
+        guard session.draft.isEmpty, session.pendingAttachments.isEmpty else { return .unsentDraft }
         guard session.archiveNotice == nil, session.replyPreview == nil else { return .unsavedReply }
         guard session.canOpenConversation(record) else { return .differentDestination }
         return nil

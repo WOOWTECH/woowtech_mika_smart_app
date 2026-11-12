@@ -112,9 +112,6 @@ import SwiftUI
                                 Text("助理").font(.caption.bold())
                                 Text(turn.assistantText).textSelection(.enabled)
                                     .accessibilityIdentifier("archive.turn.\(index).assistant")
-                                if let pdf = turn.pdf {
-                                    ArchivedPDFEvidenceView(evidence: pdf, identifier: "archive.turn.\(index).pdf")
-                                }
                             }
                             if let error = store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
                         }
