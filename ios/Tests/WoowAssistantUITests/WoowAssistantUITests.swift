@@ -164,7 +164,7 @@ final class WoowAssistantUITests: XCTestCase {
 
     func testDrawerAboutOpensAndReturnsToChat() {
         let app = launchApp()
-        let draft = app.textFields["chat.draft"]
+        let draft = chatDraftControl(in: app)
         XCTAssertTrue(draft.waitForExistence(timeout: 10))
         draft.tap()
         draft.typeText("保留草稿")
