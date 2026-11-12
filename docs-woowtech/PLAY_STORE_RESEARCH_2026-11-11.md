@@ -11,6 +11,7 @@
 - `:app:assembleWoowtechDebug` 與聚焦的 `WoowtechManifestTest`、`McpTaskToolsTest` 通過。APK 為 `io.woowtech.assistant` / `0.1.37-play.1`；`brand-check.sh apk` 通過。`aapt2 dump permissions` 只列網路、錄音、網路狀態、前景服務／specialUse、通知、喚醒鎖和 Android 自動產生的內部接收器權限。
 - 中繼 Worker 的 `npm run check`、`npm test` 通過；正式 Worker 尚未部署。全套 `:core:test` 執行 3019 項，5 項失敗、3 項跳過。後續已修正其中兩項過時斷言；剩餘 README 生成／翻譯檢查仍未排除。因此不能宣稱全套測試通過。
 - POCO 已透過 USB 連線，但 `adb install -r` 回報 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，商店版未安裝到該機；此輪沒有 POCO 實測通過結果。原本直接下載版的套件未被覆蓋。
+- `:app:bundleWoowtechRelease` 成功，產出本機 62 MB AAB（SHA-256 `535cdaec52da2760167d57c51144ec50ef8b1e6d11b38b207b22dfc1e8f6b5f7`）。這只證明可打包，尚未在 Play Console 上傳或審核，也不能以此取代真機驗收。
 
 - `playstore/woowtech-compliant-20261111` 改為 `io.woowtech.assistant`、`targetSdk=36`，與原 APK 套件名稱分開。移除 GitHub APK 更新流程、相片廣泛讀取、精確鬧鐘、無障礙服務、ADB 助手交接與開機恢復入口；附件改用系統 Photo Picker。
 - 任務組裝不註冊手機、Root、沙箱、排程及外部 MCP 工具；遠端 MCP 端點不提供讀鎖屏、喚醒或解鎖。電腦連結頁只展示遠端配對；手機設定、復原、Root 及背景計畫入口已隱藏。
