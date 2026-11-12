@@ -27,7 +27,7 @@ struct BrowserView: View {
     @State private var showInvalidStartInput = false
     private var pageCovered: Bool {
         isStartPage || showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch
-            || showSearchSettings || showMore || browser.pageDialog != nil
+            || showSearchSettings || showMore || browser.pageDialog != nil || browser.downloadRecovery != nil
     }
     private var pageFindHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
@@ -186,6 +186,9 @@ struct BrowserView: View {
             Text(localizer.text(.browserChromeExplanation))
                 .font(.caption2).foregroundStyle(.secondary).padding(.horizontal)
                 .accessibilityIdentifier("browser.explanation")
+            if browser.downloadRecoveryTimedOut {
+                Text(localizer.text(.browserRecoveryTimeout)).font(.caption).foregroundStyle(.secondary)
+            }
             if !isStartPage { pageToolbar }
         }
         .background(palette.background)
@@ -250,6 +253,9 @@ struct BrowserView: View {
         }
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
+        }
+        .sheet(item: $browser.downloadRecovery) { offer in
+            BrowserDownloadRecoveryView(browser: browser, offer: offer)
         }
         .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
         .onDisappear { browser.setPageFindHostVisible(false) }
@@ -406,6 +412,30 @@ struct BrowserView: View {
         if !showInvalidStartInput { startQuery = "" }
     }
     private func open() { addressFocused = false; browser.openAddress() }
+}
+
+@MainActor
+private struct BrowserDownloadRecoveryView: View {
+    @Environment(\.appLocalizer) private var localizer
+    @ObservedObject var browser: BrowserSession
+    let offer: BrowserDownloadRecovery
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                Text(localizer.text(.browserRecoveryNotice))
+                ScrollView { Text(verbatim: offer.url.absoluteString).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                    .frame(maxHeight: 180)
+                Button(localizer.text(.browserRecoveryConfirm)) { browser.confirmDownloadRecovery(id: offer.id) }
+                    .buttonStyle(.borderedProminent).accessibilityIdentifier("browser.downloadRecovery.confirm")
+                Button(localizer.text(.commonCancel)) { browser.downloadRecovery = nil }
+                    .accessibilityIdentifier("browser.downloadRecovery.cancel")
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(localizer.text(.browserRecoveryTitle))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
 }
 
 @MainActor

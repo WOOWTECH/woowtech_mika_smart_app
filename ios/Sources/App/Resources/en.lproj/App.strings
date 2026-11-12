@@ -321,6 +321,10 @@
 "browser.chrome.clear.input" = "Clear input";
 "browser.chrome.stop" = "Stop";
 "browser.chrome.load.stopped" = "Page loading stopped";
+"browser.recovery.title" = "Confirm a new download request";
+"browser.recovery.notice" = "After stopping, this download cannot be tied to a specific navigation. Continue to send a new GET to the address below in a separate view; no previous POST will be resent. A one-time link may have expired or have an effect again. Cookies may be shared, but sign-in, forms, history and session state may differ.";
+"browser.recovery.confirm" = "Download with a new GET";
+"browser.recovery.timeout" = "The new download did not start. Return to the page to try again.";
 "browser.chrome.reload" = "Reload";
 "browser.chrome.open" = "Open";
 "browser.chrome.search.engine" = "Search engine: %1$@";

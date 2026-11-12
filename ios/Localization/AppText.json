@@ -3384,6 +3384,46 @@
       }
     },
     {
+      "case": "browserRecoveryTitle",
+      "key": "browser.recovery.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "確認新的下載請求",
+        "zh-Hans": "确认新的下载请求",
+        "en": "Confirm a new download request"
+      }
+    },
+    {
+      "case": "browserRecoveryNotice",
+      "key": "browser.recovery.notice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止載入後無法確認這個下載屬於哪次導覽。繼續將在獨立頁面對下列網址發出新的 GET，不會重送先前的 POST。一次性連結可能已失效或再次產生作用。Cookie 可能共用，但登入狀態、表單、頁面歷史及工作階段可能不同。",
+        "zh-Hans": "停止加载后无法确认此下载属于哪次导航。继续将在独立页面向下列网址发出新的 GET，不会重发之前的 POST。一次性链接可能已失效或再次产生作用。Cookie 可能共享，但登录状态、表单、页面历史及会话可能不同。",
+        "en": "After stopping, this download cannot be tied to a specific navigation. Continue to send a new GET to the address below in a separate view; no previous POST will be resent. A one-time link may have expired or have an effect again. Cookies may be shared, but sign-in, forms, history and session state may differ."
+      }
+    },
+    {
+      "case": "browserRecoveryConfirm",
+      "key": "browser.recovery.confirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "以新 GET 下載",
+        "zh-Hans": "以新 GET 下载",
+        "en": "Download with a new GET"
+      }
+    },
+    {
+      "case": "browserRecoveryTimeout",
+      "key": "browser.recovery.timeout",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新的下載請求未能啟動，請返回網頁再試。",
+        "zh-Hans": "新的下载请求未能启动，请返回网页重试。",
+        "en": "The new download did not start. Return to the page to try again."
+      }
+    },
+    {
       "case": "browserChromeReload",
       "key": "browser.chrome.reload",
       "parameters": [],

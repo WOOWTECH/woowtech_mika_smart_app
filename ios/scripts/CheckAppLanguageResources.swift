@@ -43,6 +43,11 @@ import AssistantSkills
             }
             try check(stopped.text == stoppedExpected && stopped.language == language && !stopped.usedFallback,
                       "stopped page status uses selected language")
+            for message: AppText in [.browserRecoveryTitle, .browserRecoveryNotice, .browserRecoveryConfirm, .browserRecoveryTimeout] {
+                let resolved = l.resolve(message)
+                try check(resolved.language == language && !resolved.usedFallback && !resolved.text.isEmpty,
+                          "download recovery text uses selected language")
+            }
             try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
                 let rendered = l.resolve(.configurationStepCount(count: count))

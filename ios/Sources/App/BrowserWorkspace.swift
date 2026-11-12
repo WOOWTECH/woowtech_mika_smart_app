@@ -220,7 +220,7 @@ final class BrowserWorkspace: ObservableObject {
             guard let self, self.library.selectedID == id, !self.isClearingWebsiteData else { return nil }
             var newID: UUID?
             guard self.update({ newID = try $0.addTab() }), let newID else { return nil }
-            self.selected.cancelInteraction()
+            self.selected.cancelInteraction(); self.selected.cancelDownloadRecovery()
             let popup = self.makeSession(id: newID, configuration: configuration)
             popup.prepareManualPopup(request)
             self.selected = popup
@@ -248,12 +248,12 @@ final class BrowserWorkspace: ObservableObject {
     }
     private func suspendSelected() {
         if selected.isRunning { selected.cancel() }
-        selected.cancelInteraction(); selected.resolveDialog(nil)
+        selected.cancelInteraction(); selected.resolveDialog(nil); selected.cancelDownloadRecovery()
     }
     func cancelAllWork(preservingFrozenReferences: Bool = false) {
         for session in sessions.values {
             if session.isRunning && !(preservingFrozenReferences && session.hasActiveRunReferences) { session.cancel() }
-            session.cancelInteraction(); session.resolveDialog(nil)
+            session.cancelInteraction(); session.resolveDialog(nil); session.cancelDownloadRecovery()
         }
     }
     func open(_ url: URL) {

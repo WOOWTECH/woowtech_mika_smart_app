@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a known-red Debug WebKit regression without external network or user data."""
+"""Run the Debug WebKit stop/download regression without external network or user data."""
 from pathlib import Path
 import subprocess, sys, tempfile, uuid
 repo = Path(__file__).resolve().parents[1]

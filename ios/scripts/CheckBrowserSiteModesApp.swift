@@ -53,6 +53,8 @@ private final class SiteModeKeys: LearningKeyStore {
         var deferResponseURL: URL?
         var deferredResponse: (() -> Void)?
         var deferredPolicies: [WKNavigationResponsePolicy] = []
+        var holdNextDownload = false
+        var deferredDownload: (() -> Void)?
         var actions: [(host: String?, main: Bool, method: String?, incomingMode: WKWebpagePreferences.ContentMode,
                        mode: WKWebpagePreferences.ContentMode, policy: WKNavigationActionPolicy, type: WKNavigationType)] = []
         init(_ browser: BrowserSession) { self.browser = browser }
@@ -98,9 +100,19 @@ private final class SiteModeKeys: LearningKeyStore {
             browser.webView(view, decidePolicyFor: response, decisionHandler: decisionHandler)
         }
         func webView(_ view: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            if holdNextDownload {
+                holdNextDownload = false
+                deferredDownload = { [browser] in browser.webView(view, navigationResponse: navigationResponse, didBecome: download) }
+                return
+            }
             browser.webView(view, navigationResponse: navigationResponse, didBecome: download)
         }
         func webView(_ view: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+            if holdNextDownload {
+                holdNextDownload = false
+                deferredDownload = { [browser] in browser.webView(view, navigationAction: navigationAction, didBecome: download) }
+                return
+            }
             browser.webView(view, navigationAction: navigationAction, didBecome: download)
         }
         func webView(_ view: WKWebView, didStartProvisionalNavigation nav: WKNavigation!) {
@@ -558,9 +570,8 @@ private final class SiteModeKeys: LearningKeyStore {
                 "post_stop_original_view_back_forward_and_explicit_form_post": true,
                 "retained_cookie_authenticated_by_server": true, "external_network_or_personal_keychain": false]
     }
-    // Diagnostic of a proposed initial-URL-only mitigation. The proxy holds
-    // genuine WebKit policy objects; this controlled order is not a claim
-    // that WebKit naturally delivers callbacks in this order on iOS.
+    // The proxy holds genuine WebKit policy objects; this controlled order is
+    // not a claim that WebKit naturally delivers this order on iOS.
     static func runRedirectStopDiagnostic() async throws -> [String: Any] {
         guard let fixture = BrowserDownloadedPDFFixture.enabled else { throw Failure(check: "PDF fixture flags required") }
         let pageURL = try await fixture.start(); defer { fixture.stop() }
@@ -587,24 +598,28 @@ private final class SiteModeKeys: LearningKeyStore {
         oldResponse()
         guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy delivered") }
         let oldPolicy = probe.deferredPolicies[0]
+        guard oldPolicy == .cancel, browser.downloadRecovery != nil else { throw Failure(check: "old redirected response must be quarantined") }
+        browser.downloadRecovery = nil
         newResponse()
-        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .download else {
-            throw Failure(check: "new redirected download denied")
+        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .cancel,
+              let offer = browser.downloadRecovery else {
+            throw Failure(check: "new redirected download should offer explicit GET")
         }
+        browser.confirmDownloadRecovery(id: offer.id)
+        browser.confirmDownloadRecovery(id: offer.id)
         try await wait("new redirected download completes", { workspace.downloads.items.contains { $0.status == .completed } })
         guard let item = workspace.downloads.items.first(where: { $0.status == .completed }),
               let file = try? workspace.downloads.fileURL(id: item.id),
               let contents = try? Data(contentsOf: file), contents == BrowserDownloadedPDFFixture.payload else {
             throw Failure(check: "downloaded fixture bytes")
         }
-        guard oldPolicy == .download else { throw Failure(check: "expected current behavior changed; reassess diagnostic") }
         return ["different_initial_urls": true, "same_response_url_after_redirect": true,
-                "old_response_policy_download": true, "new_download_completed": true,
+                "old_response_policy_cancel": true, "new_isolated_get_completed": true,
                 "actual_webkit": true, "actual_loopback_http": true,
                 "callback_order_injected_by_proxy": true, "native_ios_execution": false]
     }
 
-    // A deliberately failing regression until response provenance is fixed.
+    // Same URL needs a new explicit GET once the old view has been stopped.
     // The proxy retains real WebKit response objects and controls when the app
     // sees them. It does not establish that iOS naturally delivers this order.
     static func runSameURLStopRegression() async throws -> [String: Any] {
@@ -634,10 +649,15 @@ private final class SiteModeKeys: LearningKeyStore {
         oldResponse()
         guard probe.deferredPolicies.count == 1 else { throw Failure(check: "old policy was not delivered") }
         let oldPolicy = probe.deferredPolicies[0]
+        guard oldPolicy == .cancel, browser.downloadRecovery != nil else { throw Failure(check: "old response was not quarantined") }
+        browser.downloadRecovery = nil
         newResponse()
-        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .download else {
-            throw Failure(check: "new user-requested same-URL download denied")
+        guard probe.deferredPolicies.count == 2, probe.deferredPolicies[1] == .cancel,
+              let offer = browser.downloadRecovery else {
+            throw Failure(check: "new user-requested same-URL response requires explicit GET")
         }
+        browser.confirmDownloadRecovery(id: offer.id)
+        browser.confirmDownloadRecovery(id: offer.id)
         try await wait("legitimate same-URL download completes", {
             workspace.downloads.items.contains { $0.status == .completed }
         })
@@ -674,6 +694,105 @@ private final class SiteModeKeys: LearningKeyStore {
         try await wait("isolated legitimate download completes", {
             workspace.downloads.items.filter { $0.status == .completed }.count == 2
         })
+        workspace.newTab()
+        let actionBrowser = workspace.selected, actionProbe = Probe(workspace.selected)
+        actionProbe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(actionBrowser); actionBrowser.webView.navigationDelegate = actionProbe
+        actionBrowser.manualNavigation(to: pageURL) { actionBrowser.webView.load(URLRequest(url: pageURL)) }
+        try await wait("download link page", { actionProbe.finishes > 0 && !actionBrowser.isPageLoading })
+        func clickDownload() async throws {
+            _ = try await actionBrowser.webView.evaluateJavaScript("document.querySelector('a[download]').click(); true")
+        }
+        try await clickDownload()
+        try await wait("ordinary action download before stop", { workspace.downloads.items.filter { $0.status == .completed }.count == 3 })
+        actionProbe.holdNextDownload = true
+        try await clickDownload()
+        try await wait("old real action didBecome held", { actionProbe.deferredDownload != nil })
+        let oldDownload = actionProbe.deferredDownload!; actionProbe.deferredDownload = nil
+        actionProbe.deferResponseURL = attachmentURL
+        actionBrowser.manualNavigation(to: attachmentURL) { actionBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("held policy before stopping action test", { actionProbe.deferredResponse != nil && actionBrowser.isPageLoading })
+        guard actionBrowser.stopManualPageLoading() else { throw Failure(check: "stop action test") }
+        let oldActionResponse = actionProbe.deferredResponse!; actionProbe.deferredResponse = nil
+        oldActionResponse()
+        try await Task.sleep(nanoseconds: 300_000_000)
+        guard workspace.downloads.items.count == 3, actionBrowser.downloadRecovery == nil else {
+            throw Failure(check: "late action didBecome or stopped response was accepted")
+        }
+        try await clickDownload()
+        try await wait("post-stop action confirmation", { actionBrowser.downloadRecovery != nil })
+        let actionOffer = actionBrowser.downloadRecovery!
+        let transfersBeforeConfirmation = fixture.transferCount
+        let managerErrorBeforeLateAction = workspace.downloads.errorMessage
+        oldDownload()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        guard actionBrowser.downloadRecovery?.id == actionOffer.id, workspace.downloads.items.count == 3,
+              workspace.downloads.errorMessage == managerErrorBeforeLateAction else {
+            throw Failure(check: "late action didBecome affected new confirmation")
+        }
+        actionBrowser.confirmDownloadRecovery(id: actionOffer.id)
+        actionBrowser.confirmDownloadRecovery(id: actionOffer.id)
+        try await wait("post-stop action isolated GET", { workspace.downloads.items.filter { $0.status == .completed }.count == 4 })
+        try await Task.sleep(nanoseconds: 200_000_000)
+        guard workspace.downloads.items.count == 4, fixture.transferCount == transfersBeforeConfirmation + 1 else {
+            throw Failure(check: "duplicate confirmation created a download request")
+        }
+        try await clickDownload()
+        try await wait("cancellable action confirmation", { actionBrowser.downloadRecovery != nil })
+        let cancelledOffer = actionBrowser.downloadRecovery!
+        let transfersBeforeDismissal = fixture.transferCount
+        actionBrowser.downloadRecovery = nil
+        actionBrowser.confirmDownloadRecovery(id: cancelledOffer.id)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        guard workspace.downloads.items.count == 4, fixture.transferCount == transfersBeforeDismissal else {
+            throw Failure(check: "dismissed offer issued a request")
+        }
+        try await clickDownload()
+        try await wait("tab-switch confirmation", { actionBrowser.downloadRecovery != nil })
+        let tabOffer = actionBrowser.downloadRecovery!, actionTabID = workspace.library.selectedID
+        workspace.newTab()
+        guard actionBrowser.downloadRecovery == nil else { throw Failure(check: "tab switch retained confirmation") }
+        actionBrowser.confirmDownloadRecovery(id: tabOffer.id)
+        workspace.selectTab(actionTabID)
+        try await wait("action page selected again", { workspace.selected === actionBrowser && actionBrowser.loadedURL == pageURL && !actionBrowser.isPageLoading })
+        guard workspace.downloads.items.count == 4 else { throw Failure(check: "tab-switched offer was accepted") }
+        try await clickDownload()
+        try await wait("close-page action confirmation", { actionBrowser.downloadRecovery != nil })
+        let closingOffer = actionBrowser.downloadRecovery!
+        actionBrowser.confirmDownloadRecovery(id: closingOffer.id)
+        guard workspace.closeCurrentPage() else { throw Failure(check: "close page") }
+        try await Task.sleep(nanoseconds: 500_000_000)
+        guard workspace.downloads.items.count == 4 else { throw Failure(check: "closed page accepted pending download") }
+        workspace.newTab()
+        let responseBrowser = workspace.selected, responseProbe = Probe(workspace.selected)
+        responseProbe.allowsNetworkFixture = fixture.allowsNavigation
+        host.attach(responseBrowser); responseBrowser.webView.navigationDelegate = responseProbe
+        responseProbe.holdNextDownload = true
+        responseBrowser.manualNavigation(to: attachmentURL) { responseBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("old real response didBecome held", { responseProbe.deferredDownload != nil })
+        let lateResponseDownload = responseProbe.deferredDownload!; responseProbe.deferredDownload = nil
+        responseProbe.deferResponseURL = attachmentURL
+        responseBrowser.manualNavigation(to: attachmentURL) { responseBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("held response before second stop", { responseProbe.deferredResponse != nil && responseBrowser.isPageLoading })
+        let stoppedResponse = responseProbe.deferredResponse!; responseProbe.deferredResponse = nil
+        guard responseBrowser.stopManualPageLoading() else { throw Failure(check: "stop response didBecome test") }
+        responseProbe.deferResponseURL = attachmentURL
+        responseBrowser.manualNavigation(to: attachmentURL) { responseBrowser.webView.load(URLRequest(url: attachmentURL)) }
+        try await wait("fresh response after second stop", { responseProbe.deferredResponse != nil })
+        stoppedResponse()
+        let stoppedOffer = responseBrowser.downloadRecovery
+        responseBrowser.downloadRecovery = nil
+        let freshResponse = responseProbe.deferredResponse!; responseProbe.deferredResponse = nil
+        freshResponse()
+        guard stoppedOffer != nil, let freshOffer = responseBrowser.downloadRecovery else { throw Failure(check: "both ambiguous responses offered") }
+        let managerErrorBeforeLateResponse = workspace.downloads.errorMessage
+        lateResponseDownload()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        guard responseBrowser.downloadRecovery?.id == freshOffer.id, workspace.downloads.items.count == 4,
+              workspace.downloads.errorMessage == managerErrorBeforeLateResponse else {
+            throw Failure(check: "late response didBecome affected new confirmation")
+        }
+        responseBrowser.downloadRecovery = nil
         print("REGRESSION positive_new_download=completed old_response_policy=\(oldPolicy == .cancel ? "cancel" : "not_cancel") isolated_views=pass")
         guard oldPolicy == .cancel else { throw Failure(check: "stopped PDF response authorized by later same-URL intent") }
         return ["old_response_cancelled": true, "new_download_completed": true,

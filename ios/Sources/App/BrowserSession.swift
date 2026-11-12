@@ -5,6 +5,11 @@ import Combine
 import Foundation
 import WebKit
 
+struct BrowserDownloadRecovery: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 @MainActor
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
@@ -30,6 +35,15 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private var siteModeReloadState = BrowserSiteModeReloadState()
     private var automaticSiteModeReload = false
     private var navigationIntent = BrowserNavigationIntent()
+    // WKNavigationResponse and WKNavigationAction have no issuing navigation ID.
+    // Once stopped, this view can never prove a later download callback is fresh.
+    private var downloadProvenanceAmbiguous = false
+    private let seenAmbiguousDownloads = NSHashTable<AnyObject>.weakObjects()
+    @Published var downloadRecovery: BrowserDownloadRecovery?
+    private var isolatedDownloadID: UUID?
+    private var isolatedDownloadView: WKWebView?
+    private var isolatedDownloadTimeout: Task<Void, Never>?
+    @Published private(set) var downloadRecoveryTimedOut = false
     private var discardCompletion: CheckedContinuation<Bool, Never>?
     private var discardTimeout: Task<Void, Never>?
     private var discardNavigation: WKNavigation?
@@ -296,6 +310,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func cancel() {
+        cancelDownloadRecovery()
         invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         let reference = runReferences; runReferences = nil
@@ -853,6 +868,8 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
               !isRunning, !isInteracting, !automationOwnsDocument,
               let view = storedWebView, !suppressStoppedLoading,
               requestedNavigationPending || view.isLoading else { return false }
+        downloadProvenanceAmbiguous = true
+        cancelDownloadRecovery()
         if let navigation = trackedNavigation { stoppedNavigations.add(navigation) }
         suppressStoppedLoading = true; isPageLoading = false
         trackedNavigation = nil; requestedNavigationPending = false
@@ -882,6 +899,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     // explicit-user gate, using real WKNavigation objects and commit callbacks.
     func manualNavigation(to target: URL?, _ operation: () -> WKNavigation?) {
         guard !isRunning, !isInteracting, let target, manualPermitted(target) else { return }
+        downloadRecovery = nil
         invalidateControls(); error = nil; current = nil
         suppressStoppedLoading = false
         preparePageNavigation()
@@ -893,6 +911,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         else { requestedNavigationPending = false; failManualLoad(.navigationFailed) }
     }
     private func claimAutomationDocument(originURL: URL? = nil) {
+        cancelDownloadRecovery()
         invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         if !automationOwnsDocument {
@@ -984,6 +1003,13 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             preferences?.preferredContentMode = automated ? .recommended
                 : (manualSiteMode(url.host) == .desktop ? .desktop : .mobile)
         }
+        if downloadProvenanceAmbiguous && navigationAction.shouldPerformDownload {
+            if !automated && !automationOwnsDocument && !isRunning && !isInteracting && downloads != nil,
+               navigationAction.targetFrame?.isMainFrame != false, navigationAction.request.httpMethod == "GET" {
+                offerDownloadRecovery(url, issuer: navigationAction)
+            }
+            decisionHandler(.cancel); return
+        }
         if !automated, [.linkActivated, .formSubmitted, .backForward, .reload, .formResubmitted].contains(navigationAction.navigationType),
            navigationAction.targetFrame?.isMainFrame != false {
             navigationIntent.beginManual(url)
@@ -1063,6 +1089,13 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             return
         }
         if BrowserDownloadPolicy.isAttachment(navigationResponse.response) || !navigationResponse.canShowMIMEType {
+            if downloadProvenanceAmbiguous {
+                if !automationOwnsDocument && !isRunning && !isInteracting && downloads != nil,
+                   navigationResponse.isForMainFrame && navigationIntent.containsManualURL(url) {
+                    offerDownloadRecovery(url, issuer: navigationResponse)
+                }
+                decisionHandler(.cancel); return
+            }
             let authorized = (!automationOwnsDocument || manualResponse) && !isRunning && !isInteracting && downloads != nil && navigationResponse.isForMainFrame
                 && navigationIntent.authorizeDownload(url, source: .response(navigationResponse))
             if authorized { explicitManualDownloadPending = manualResponse }
@@ -1083,11 +1116,65 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         let matchedPermit = navigationIntent.consumeDownload(source, source: issuer)
         let approved = matchedPermit && (!automationOwnsDocument || explicitManualDownloadPending) && !isRunning && !isInteracting
         if matchedPermit { explicitManualDownloadPending = false }
-        guard let downloads else { download.cancel(nil); return }
-        if downloads.accept(download, sourceURL: source, allowsDownload: approved) != nil {
+        // An unrelated late callback must not publish the manager's
+        // research-disabled error over the current page or a newer download.
+        guard approved, let downloads else { download.cancel(nil); return }
+        if downloads.accept(download, sourceURL: source, allowsDownload: true) != nil {
             requestedNavigationPending = false; trackedNavigation = nil
             manualDocumentURL = nil; manualDocumentNavigation = nil
             status = "下載已開始，可在下載項目查看進度。"; error = nil
+        }
+    }
+
+    private func offerDownloadRecovery(_ url: URL, issuer: AnyObject) {
+        guard !seenAmbiguousDownloads.contains(issuer) else { return }
+        seenAmbiguousDownloads.add(issuer)
+        guard canPresentUI(), !retiredForDataRemoval, !discardingPage,
+              downloadRecovery == nil, isolatedDownloadID == nil, recoveryPermitted(url) else { return }
+        downloadRecovery = BrowserDownloadRecovery(url: url)
+    }
+
+    private func recoveryPermitted(_ url: URL) -> Bool {
+        #if DEBUG && canImport(Network)
+        if BrowserDownloadedPDFFixture.enabled?.allowsDownload(url) == true { return true }
+        #endif
+        return BrowserDownloadPolicy.allows(url) && manualPermitted(url)
+    }
+
+    func cancelDownloadRecovery() {
+        downloadRecovery = nil
+        isolatedDownloadID = nil
+        isolatedDownloadTimeout?.cancel(); isolatedDownloadTimeout = nil
+        isolatedDownloadView?.stopLoading()
+        isolatedDownloadView = nil
+    }
+
+    func confirmDownloadRecovery(id: UUID) {
+        guard let offer = downloadRecovery, offer.id == id else { return }
+        downloadRecovery = nil
+        guard isolatedDownloadID == nil, canPresentUI(), !retiredForDataRemoval, !discardingPage,
+              !isRunning, !isInteracting, !automationOwnsDocument,
+              let downloads, recoveryPermitted(offer.url) else { return }
+        let id = UUID(), config = WKWebViewConfiguration()
+        config.websiteDataStore = websiteDataStore
+        let isolated = WKWebView(frame: .zero, configuration: config)
+        downloadRecoveryTimedOut = false
+        isolatedDownloadID = id; isolatedDownloadView = isolated
+        isolatedDownloadTimeout = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 30_000_000_000) } catch { return }
+            guard let self, self.isolatedDownloadID == id else { return }
+            self.cancelDownloadRecovery(); self.downloadRecoveryTimedOut = true
+        }
+        var request = URLRequest(url: offer.url)
+        request.httpMethod = "GET"
+        isolated.startDownload(using: request) { [weak self, weak downloads] download in
+            guard let self, self.isolatedDownloadID == id, self.canPresentUI(),
+                  !self.retiredForDataRemoval, !self.discardingPage,
+                  !self.isRunning, !self.isInteracting, !self.automationOwnsDocument,
+                  let downloads else { download.cancel(nil); return }
+            self.isolatedDownloadID = nil; self.isolatedDownloadTimeout?.cancel(); self.isolatedDownloadTimeout = nil
+            _ = downloads.accept(download, sourceURL: offer.url, allowsDownload: true)
+            self.isolatedDownloadView = nil
         }
     }
 

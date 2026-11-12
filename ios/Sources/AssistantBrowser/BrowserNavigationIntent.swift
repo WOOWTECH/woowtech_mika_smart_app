@@ -40,6 +40,7 @@ public struct BrowserNavigationIntent {
     public mutating func invalidate() {
         generation = UUID(); manualURLs = []; pendingDownload = nil
     }
+    public func containsManualURL(_ url: URL) -> Bool { manualURLs.contains(url) }
     @discardableResult public mutating func authorizeDownload(_ url: URL, source: DownloadSource, now: Date = .now) -> Bool {
         guard manualURLs.contains(url) else { return false }
         pendingDownload = (generation, url, source, now.addingTimeInterval(30)); return true

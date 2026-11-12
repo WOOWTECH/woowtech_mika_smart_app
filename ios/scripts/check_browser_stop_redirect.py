@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a Debug macOS WebKit loopback diagnostic; this is not iOS testing."""
+"""Build Debug macOS WebKit loopback regressions; this is not iOS testing."""
 from pathlib import Path
 import subprocess, sys, tempfile, uuid
 
@@ -23,10 +23,10 @@ subprocess.run(common + ['-DDEBUG', '-DBROWSER_SITE_MODE_APP_STANDALONE',
     str(repo / 'scripts/CheckBrowserSiteModesApp.swift'), '-o', str(binary)], check=True)
 flags = ['-UITestMode', '-UITestBrowserDownloadedPDF', '-UITestNamespace']
 same = subprocess.run([str(binary), *flags, str(uuid.uuid4())], capture_output=True, text=True, timeout=180)
-expected = 'REGRESSION positive_new_download=completed old_response_policy=not_cancel isolated_views=pass'
-if same.returncode != 1 or expected not in same.stdout:
-    raise SystemExit('same-URL diagnostic did not reproduce expected result: ' + same.stdout + same.stderr)
-print('same_url_known_red_reproduced=true', flush=True)
+expected = 'REGRESSION positive_new_download=completed old_response_policy=cancel isolated_views=pass'
+if same.returncode != 0 or expected not in same.stdout:
+    raise SystemExit('same-URL regression failed: ' + same.stdout + same.stderr)
+print('same_url_quarantined_and_isolated_get_completed=true', flush=True)
 subprocess.run([str(binary), *flags, str(uuid.uuid4()), '-UITestBrowserStopRedirect'], check=True, timeout=180)
 subprocess.run([str(binary), '-UITestMode', '-UITestBrowserLogin', '-UITestNamespace', str(uuid.uuid4())],
                check=True, timeout=180)

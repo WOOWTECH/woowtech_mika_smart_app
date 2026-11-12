@@ -329,6 +329,10 @@ enum AppText: Equatable {
     case browserChromeClearInput
     case browserChromeStop
     case browserChromeLoadStopped
+    case browserRecoveryTitle
+    case browserRecoveryNotice
+    case browserRecoveryConfirm
+    case browserRecoveryTimeout
     case browserChromeReload
     case browserChromeOpen
     case browserChromeSearchEngine(name: String)
@@ -804,6 +808,10 @@ enum AppText: Equatable {
         case .browserChromeClearInput: return "browser.chrome.clear.input"
         case .browserChromeStop: return "browser.chrome.stop"
         case .browserChromeLoadStopped: return "browser.chrome.load.stopped"
+        case .browserRecoveryTitle: return "browser.recovery.title"
+        case .browserRecoveryNotice: return "browser.recovery.notice"
+        case .browserRecoveryConfirm: return "browser.recovery.confirm"
+        case .browserRecoveryTimeout: return "browser.recovery.timeout"
         case .browserChromeReload: return "browser.chrome.reload"
         case .browserChromeOpen: return "browser.chrome.open"
         case .browserChromeSearchEngine: return "browser.chrome.search.engine"
@@ -1311,6 +1319,10 @@ enum AppText: Equatable {
         case .browserChromeClearInput: return "清除輸入"
         case .browserChromeStop: return "停止"
         case .browserChromeLoadStopped: return "網頁載入已停止"
+        case .browserRecoveryTitle: return "確認新的下載請求"
+        case .browserRecoveryNotice: return "停止載入後無法確認這個下載屬於哪次導覽。繼續將在獨立頁面對下列網址發出新的 GET，不會重送先前的 POST。一次性連結可能已失效或再次產生作用。Cookie 可能共用，但登入狀態、表單、頁面歷史及工作階段可能不同。"
+        case .browserRecoveryConfirm: return "以新 GET 下載"
+        case .browserRecoveryTimeout: return "新的下載請求未能啟動，請返回網頁再試。"
         case .browserChromeReload: return "重新整理"
         case .browserChromeOpen: return "開啟"
         case .browserChromeSearchEngine: return "搜尋引擎：%1$@"

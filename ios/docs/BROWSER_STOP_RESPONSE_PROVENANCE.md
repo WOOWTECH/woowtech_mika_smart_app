@@ -1,136 +1,66 @@
-# Stop and late WebKit response provenance
+# Stop and download response provenance
 
-Status: **unresolved; do not merge the stop-loading candidate on the basis of
-this investigation**. `fa893e1` fixes stale rejection overwriting page state,
-but does not associate response policies with the issuing navigation.
+Status: **isolated candidate; not merged; native iOS validation required**. The
+original `e7a5539` regression showed a stopped response getting `.download`
+after a new same-URL navigation. `8b949dd` additionally reproduced this when
+the new initial URL differed but redirected to the same attachment. The test
+proxy holds genuine WebKit policy objects and controls their delivery order; it
+does not establish that iOS naturally produces that order or that the old
+transfer actually starts.
 
-## Reproducible boundary
+## Candidate behavior
 
-Run `python3 ios/scripts/check_browser_stop_same_url.py` on macOS with the
-Command Line Tools. This is an intentionally red regression until the issue is
-fixed. It builds the app sources and DEBUG browser module and uses the existing
-isolated, synthetic loopback PDF fixture and a nonpersistent website store. It
-does not use a real site, user Keychain or external network. It captures two
-real `WKNavigationResponse` instances and, using a test-only delegate proxy,
-delays forwarding the first one until after stop and a new same-URL navigation.
-The test verifies the new download really completes with the synthetic bytes.
-It separately repeats the scenario in two distinct WebViews/sessions, then
-requires the old same-WebView response policy to be `.cancel`.
+After a manual stop, the original WebView stays alive and remains available for
+page navigation, history and form actions. Its download provenance remains
+ambiguous for the rest of that view's lifetime: the public action and response
+policy APIs do not identify the issuing `WKNavigation`, and a time limit or
+initial URL comparison cannot prove that old callbacks have drained. Main-frame
+attachment/unsupported-MIME responses and download actions from this view are
+cancelled instead of being given a download permit. When otherwise eligible,
+the selected tab presents one confirmation at a time. Repeated delivery of the
+same policy object does not create another offer. Automated/research work is not
+offered this flow. Action requests other than GET do not offer recovery.
 
-On `fa893e1`, the new download completes but the old response receives
-`.download`. With two distinct sessions, the old response is `.cancel` and the
-new same-URL download completes. This exercises existing separate sessions, not
-a production same-tab WebView swap. The proxy creates the ordering intentionally: this demonstrates
-how the application handles it, not that native iOS WebKit naturally delivers
-it. Whether an actual late callback leads to a `WKDownload` is unverified.
+The confirmation displays the proposed URL and explains that proceeding starts
+a **new GET** in a single-use WebView. It never reconstructs the old request,
+POST body, authorization header, referrer, form or sessionStorage. It uses the
+same website data store, so cookies may be shared, but authentication, session
+state and one-time URLs may behave differently. The existing download manager
+still applies its HTTPS/URL, redirect, TLS, size and storage checks. The
+isolated WebView does not provide network-level isolation of the original page,
+its scripts, DNS or subresources.
 
-The macOS SDK's public `WKNavigationResponse` exposes the main-frame flag, a
-`URLResponse`, and `canShowMIMEType`; the response-policy delegate receives a
-`WKWebView` and that response, not a `WKNavigation`. `didStart`, `didFinish`,
-and failure callbacks do carry a `WKNavigation`, but that identity cannot be
-compared to the response. A `WKDownload` exposes its originating WebView and
-original request, not the issuing navigation. Two same-URL responses in the
-same WebView therefore cannot be safely attributed solely using these public
-fields. Matching the response object at `didBecome` is useful to consume an
-already issued permit, but does not establish which navigation was entitled to
-that permit in the first place. This conclusion is based on the installed macOS
-SDK headers; verify the target iOS SDK and callback behavior separately.
+A confirmation is single-use. Dismissal, tab switching, page/tab closure,
+website-data retirement and starting automation revoke pending confirmation and
+pending isolated-download handoff. If the asynchronous WebKit callback arrives
+later, the returned download is cancelled. A GET already handed to WebKit can
+reach the server before cancellation; this is not a promise to undo a request.
+An accepted download is subsequently managed by the existing download manager.
+The original view is never reloaded automatically, and stop does not replay POST.
 
-## Candidate isolation design, not implemented
+This is a deliberate tradeoff: a legitimate action or response download after a
+stop may require an extra confirmation and a new GET, even at a different
+initial URL. A download requiring POST or page-specific state may not be
+recoverable. Before any stop, existing manual download behavior is unchanged.
+This does not claim parity with Android or prove that other callback sequences
+are impossible. Only selected eligible responses create offers; other ambiguous
+callbacks are cancelled without consuming a later permit.
 
-One viable direction is to make the **WebView instance** an epoch boundary.
-After stop, quarantine the old WebView and invalidate its download and document
-authority; run the next explicitly initiated navigation on a fresh WebView with
-a fresh delegate/session state. Check the callback's WebView identity at every
-policy, navigation, download and UI delegate entry, and on asynchronous KVO
-work. Never reuse a quarantined instance for a new epoch. A shared explicitly
-selected `WKWebsiteDataStore` can retain site data, but it does not imply that
-in-memory page state, session storage, popup relationships or WebKit's
-back/forward list survive. Every old download or delayed callback needs its own
-cancellation and teardown policy. Site-initiated navigation on the quarantined
-page must not silently inherit new authority.
+## Local verification
 
-The app currently attaches a WebView once in `BrowserWebView.makeUIView`; its
-`updateUIView` does not replace the view. A production change therefore also
-needs a controlled host swap and published identity, plus a design for history,
-partially loaded documents, form state, tabs, popups, media and accessibility.
-Do not automatically replay POSTs or reconstruct a request from a response URL.
-A simpler explicit new-tab/session recovery can retain existing download support,
-but loses the old page's native history and is not transparent parity.
+Run `python3 ios/scripts/check_browser_stop_redirect.py` on macOS with command
+line tools. Its synthetic loopback fixture and nonpersistent website store use
+no external site, personal keychain or real credentials. It runs same-URL and
+redirect response-policy interleavings, checks the old response is cancelled,
+and checks a user-confirmed isolated GET completes. It exercises ordinary
+action download before stop, action confirmation afterward, delayed action and
+response `didBecome` callbacks, duplicate confirmation, dismissal, page closure,
+and the prior loopback checks for back, forward and a new form POST after stop.
+The callback proxy injects ordering and is not an iOS timing proof.
 
-Another possible product flow is to cancel an ambiguous response and require a
-new, explicit download action in an isolated single-use WebView. It must show
-the destination and must not silently repeat a POST or one-time request; such
-requests may not be recoverable. Cookie, authentication, redirect, same-site
-and referrer behavior require testing. This is not a blanket ban on all later
-downloads, but it changes the user flow and does not establish that every
-previous download can be replayed safely.
-
-Before integrating either approach, require regression coverage for old/new
-same-URL response and action downloads, redirect chains, stale `didBecome`,
-normal attachment downloads, page actions and POSTs, tab switch/close,
-automation/research restrictions and native iOS WebKit/ATS behavior. No
-identity inference from URL, timing, response order or a fixed delay is a
-substitute for a provenance boundary.
-
-## Scoped download recovery investigation
-
-The broad old-view quarantine in `5179bbf` is not equivalent to the existing
-browser: it prevents normal navigation in that view. This branch starts from
-`e7a5539` instead, and makes no product-policy or UI change. The diagnostic
-`python3 ios/scripts/check_browser_stop_redirect.py` builds DEBUG macOS
-WebKit against synthetic loopback only. It first confirms the known-red
-same-URL case, including a successful new download and the separate-view
-control. It then holds an old real attachment response, stops, and starts a new
-request at a **different** URL, whose 302 response leads to the same attachment
-URL. The test proxy releases the old response after the redirected new response
-is held. Both receive `.download`, and the new synthetic file completes. Thus
-comparing only the two initial URLs misses this controlled case. The diagnostic
-passes when it reproduces the unsafe current behavior; it is not a fix.
-
-The proxy deliberately changes when the production delegate receives genuine
-WebKit objects. It does not establish that iOS naturally delivers this order,
-or that WebKit starts an old transfer after stop. In particular, neither test
-proves a bounded period after which all stopped callbacks have drained. A
-redirect destination can differ from the initial URL, and callbacks' URL or
-object identity alone do not reveal their issuing `WKNavigation`. A larger
-set of observed URLs may reduce prompts but has no demonstrated completeness
-for unobserved or late redirects. Likewise, the action policy delegate also
-lacks a `WKNavigation` parameter; treating every action as certainly fresh
-needs separate evidence.
-
-The least disruptive conservative UX to investigate is:
-
-1. Keep the original WebView alive for ordinary pages, back/forward, form
-   interactions and subsequent navigation. Stop itself does not replay a POST.
-2. When a download decision in that view cannot be proven fresh, cancel that
-   **individual** decision and offer an explicit, clearly labelled new GET in
-   a dedicated single-use WebView. The user chooses whether to proceed; show
-   the proposed destination and explain that this is a new request. Keep the
-   existing URL, redirect, authentication and download gates; do not import
-   an old response's headers, POST body, or authorization as proof of intent.
-3. If the original action was a POST, a one-time link, or needs page-specific
-   state, explain that this new GET may fail or have different effects. Let the
-   user return to the original page to initiate the intended action. A shared
-   website data store can retain some cookies and storage, but does not promise
-   sessionStorage, native history, DOM/form state, referrer, HTTP authentication
-   or equivalent server behavior in the new view.
-
-This avoids blocking all page navigation and is not a blanket ban on downloads.
-However, public response policy fields do not identify *only* the unsafe
-responses in the same view. A conservative implementation may have to prompt
-for otherwise legitimate response downloads after a stop, including different
-initial URLs that redirect to a common final URL. An implementation that admits
-other downloads without prompting needs a defensible provenance boundary for
-each such path, including action downloads and delayed `didBecome` callbacks.
-Otherwise it would silently trade away the safety goal. Do not present this
-proposal as implemented, as equivalent to the original download, or as network
-isolation of page scripts or subresources.
-
-The loopback site-mode check also exercises the original view after stop: back,
-forward, and a newly initiated form POST. It stops a held GET following a
-completed POST document and checks that no additional POST action is issued.
-On the local macOS run, all 37 assertions passed. This exercises current
-behavior, not the proposed recovery UI. Native iOS SDK,
-ATS, authentication, website data sharing, action-policy interleavings, tab
-closure and the single-use flow itself remain to be implemented and tested.
+Resource generation and localization checks cover Traditional Chinese,
+Simplified Chinese and English. The available local compiler can parse iOS
+syntax, but there is no iOS SDK in this environment. iOS SwiftUI typechecking,
+native WebKit and ATS, authentication and cookie behavior, backgrounding,
+accessibility and device-level cancellation require further validation before
+integration. URL-policy checks are not a DNS-rebinding or connection sandbox.

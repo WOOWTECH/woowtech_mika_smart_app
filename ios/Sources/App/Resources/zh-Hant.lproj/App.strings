@@ -321,6 +321,10 @@
 "browser.chrome.clear.input" = "清除輸入";
 "browser.chrome.stop" = "停止";
 "browser.chrome.load.stopped" = "網頁載入已停止";
+"browser.recovery.title" = "確認新的下載請求";
+"browser.recovery.notice" = "停止載入後無法確認這個下載屬於哪次導覽。繼續將在獨立頁面對下列網址發出新的 GET，不會重送先前的 POST。一次性連結可能已失效或再次產生作用。Cookie 可能共用，但登入狀態、表單、頁面歷史及工作階段可能不同。";
+"browser.recovery.confirm" = "以新 GET 下載";
+"browser.recovery.timeout" = "新的下載請求未能啟動，請返回網頁再試。";
 "browser.chrome.reload" = "重新整理";
 "browser.chrome.open" = "開啟";
 "browser.chrome.search.engine" = "搜尋引擎：%1$@";

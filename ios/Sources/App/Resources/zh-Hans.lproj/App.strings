@@ -321,6 +321,10 @@
 "browser.chrome.clear.input" = "清除输入";
 "browser.chrome.stop" = "停止";
 "browser.chrome.load.stopped" = "网页加载已停止";
+"browser.recovery.title" = "确认新的下载请求";
+"browser.recovery.notice" = "停止加载后无法确认此下载属于哪次导航。继续将在独立页面向下列网址发出新的 GET，不会重发之前的 POST。一次性链接可能已失效或再次产生作用。Cookie 可能共享，但登录状态、表单、页面历史及会话可能不同。";
+"browser.recovery.confirm" = "以新 GET 下载";
+"browser.recovery.timeout" = "新的下载请求未能启动，请返回网页重试。";
 "browser.chrome.reload" = "重新加载";
 "browser.chrome.open" = "打开";
 "browser.chrome.search.engine" = "搜索引擎：%1$@";
