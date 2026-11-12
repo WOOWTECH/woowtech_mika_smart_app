@@ -18,9 +18,11 @@
 - 查核三個 Google Play 公開頁列出的既有網站連結：渥屋智能的[隱私政策](https://aiot.woowtech.io/blog/help-center-7/woowtech-smart-app-yin-si-quan-zheng-ce-privacy-policy-391)、platform 的[隱私政策](https://aiot.woowtech.io/odoo-privacy)與[帳號刪除頁](https://aiot.woowtech.io/odoo-account-deletion)、渥屋科技的[隱私政策](https://aiot.woowtech.io/privacy)，本地不帶登入的 HTTP 檢查均回 200 HTML。這可作為助理政策頁的託管參考，不能證明全球可訪問或作為助理自身的資料處理聲明。
 - 已查看「建立應用程式」表單，建議填寫名稱 `渥屋助理`、套件 `io.woowtech.assistant`、繁體中文 `zh-TW`、應用程式、免費；名稱與套件仍以建立頁校驗為準。表單要求確認符合所有開發者政策並聲明符合美國出口法律；目前政策工作仍有未完成項目，尚未代表公司勾選、送出或建立草稿。
 - 使用本機 Node 22 串行執行 relay worker 的 `npm test` 與 `npm run test:accounts`，兩者均通過。前者包含測試收件、管理讀取與刪除，後者涵蓋兩帳號隔離及配對；測試使用本機 worker 與臨時資料，不代表正式服務已部署或能收件。
-- 只讀執行 `wrangler whoami` 時，CLI 已登入，但列出的 Cloudflare 帳戶未包含 worker 設定的目標帳戶。這不證明其他登入方式不可用；部署前需核對目標帳戶存取權及目前線上版本，不應改寫帳戶設定來猜測。
-- 後續已經使用 Cloudflare 官方 MCP 完成 OAuth 登入，授權範圍以讀取帳戶、Worker 和路由為主；但在新啟動的 Codex 執行環境中，MCP 通用 `execute` 工具即使執行唯讀 GET 仍要求核准，而當時核准政策無法提供互動核准，查詢被阻擋。故尚未確認目標帳戶存取、線上路由、Worker 版本與綁定；登入成功不能視為這些驗證已完成，也未進行部署。
-- 後續另備妥 Wrangler 的獨立 OAuth profile `woowtech-relay`，用於目標 Worker 的查詢、部署及路由驗證，不覆寫目前另一個 Cloudflare 帳戶的預設 profile；目標帳戶授權尚待完成。2026-11-12 對公開 `GET /api/v1/ai-reports` 再查詢，回 `503 device_offline`；本地候選收件程式對此 GET 應回 `405 method_not_allowed`。這證明線上回應與候選收件程式不同，但尚不能區分是舊版 Worker、不同路由或其他部署差異。
+- 先前只讀執行預設 profile 的 `wrangler whoami` 時，CLI 列出的 Cloudflare 帳戶未包含 Worker 設定的目標帳戶；因此改用下述獨立 profile，不更改帳戶設定。
+- 先前已使用 Cloudflare 官方 MCP 完成 OAuth 登入，但在新啟動的 Codex 執行環境中，MCP 通用 `execute` 工具即使執行唯讀 GET 仍要求核准，而當時核准政策無法提供互動核准。這條工具路徑的查詢被阻擋；改由 Cloudflare 官方 Wrangler 的獨立 profile 完成以下驗證。
+- 2026-11-12 使用者完成 Cloudflare 授權後，已在 Wrangler 的獨立 OAuth profile `woowtech-relay` 驗證登入，列出目標帳戶 `9c27f623ee596e0b67be56263bcb1974`；該 profile 僅綁定本 Worker 目錄，原有預設 profile 未變更。已取得 Worker 與路由所需的帳戶讀取、Worker 寫入及 zone 讀取範圍；Wrangler 顯示的其他 Cloudflare 產品缺少授權範圍，與本 Worker 的部署無關。
+- 只讀查詢正式 Worker `woowtech-assistant-relay`：線上 100% 使用版本 `4c250667-9758-4afe-9d75-e6890e988747`，建立於 2026-11-10 14:02:58 UTC，runtime migration tag 為 `v2`，綁定只有 `RELAY`、`AUTH` 及既有 `OWNER_KEY` secret，**沒有 `REPORTS`**。公開 `/docs/app-integration.md` 的 SHA-256 與本地檔一致，`GET /device/info` 回 401，佐證公開網域目前仍提供這個中繼 Worker 的既有功能；`GET /api/v1/ai-reports` 回 503，與尚未部署檢舉路由相符。這些證據已能把問題定位為正式 Worker 尚未更新，而非 Cloudflare 帳戶權限缺失；不聲稱已逐項讀出控制台路由設定。
+- 以商店分支 `9b4ebd40` 的候選 Worker 重新跑 `npm run check`、`npm test`、`npm run test:accounts` 與 `wrangler deploy --dry-run`，均通過。dry run 顯示新增 `REPORTS (ReportInbox)`；與原 Worker 原始碼的差異限於檢舉收件路由、Durable Object 與 v3 migration、CLI User-Agent、回應標頭及測試文件。既有 `OWNER_KEY` secret 名稱已查得且不需重設。這些仍是本地驗證，**未部署或證明實際收件**。
 
 ## 舊文件須先釐清
 
