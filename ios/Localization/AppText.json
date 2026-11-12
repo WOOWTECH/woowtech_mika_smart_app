@@ -288,6 +288,56 @@
       }
     },
     {
+      "case": "shellReplyExample",
+      "key": "shell.replyExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "幫我寫一則友善的訊息回覆",
+        "zh-Hans": "帮我写一则友善的消息回复",
+        "en": "Help me write a friendly reply to this message."
+      }
+    },
+    {
+      "case": "shellDocumentExample",
+      "key": "shell.documentExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "幫我摘要附上的文件，列出重點",
+        "zh-Hans": "帮我摘要附上的文件，列出重点",
+        "en": "Summarize the document I attach and list its key points."
+      }
+    },
+    {
+      "case": "shellShoppingExample",
+      "key": "shell.shoppingExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
+        "zh-Hans": "在 momo 购物找 1,000 元以内、4.5 星以上的无线耳机，比较三款的优缺点",
+        "en": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons."
+      }
+    },
+    {
+      "case": "shellRememberExample",
+      "key": "shell.rememberExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記住我偏好使用繁體中文，回答簡短一點",
+        "zh-Hans": "记住我偏好使用繁体中文，回答简短一点",
+        "en": "Remember that I prefer concise answers in Traditional Chinese."
+      }
+    },
+    {
+      "case": "shellRecallExample",
+      "key": "shell.recallExample",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你記得我有哪些偏好？",
+        "zh-Hans": "你记得我有哪些偏好？",
+        "en": "What preferences have I told you to remember?"
+      }
+    },
+    {
       "case": "shellWebExample",
       "key": "shell.webExample",
       "parameters": [],

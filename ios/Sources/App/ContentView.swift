@@ -1155,6 +1155,16 @@ private struct ChatEmptyState: View {
     let palette: MikaVisualPalette
     let localizer: AppLocalizer
 
+    // Store-flavor examples only fill the editable draft; they do not start a task.
+    private var examples: [(text: AppText, icon: String, identifier: String)] {
+        [(.shellReplyExample, "doc", "chat.emptyExample.reply"),
+         (.shellDocumentExample, "doc", "chat.emptyExample.document"),
+         (.shellWebExample, "globe", "chat.emptyExample.web"),
+         (.shellShoppingExample, "globe", "chat.emptyExample.shopping"),
+         (.shellRememberExample, "doc", "chat.emptyExample.remember"),
+         (.shellRecallExample, "doc", "chat.emptyExample.recall")]
+    }
+
     private var greeting: String {
         switch Calendar.current.component(.hour, from: Date()) {
         case 5...10: return localizer.text(.shellGreetingMorning)
@@ -1172,25 +1182,30 @@ private struct ChatEmptyState: View {
             Text(localizer.text(.shellWhatToDo))
                 .font(.system(size: 15)).foregroundStyle(palette.secondaryInk)
                 .padding(.top, 6)
-            // This is the WOOWTECH web example. Android's phone/app examples
-            // are outside the iOS feature set and are intentionally omitted.
-            Button {
-                draft = localizer.text(.shellWebExample)
-            } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "globe").font(.system(size: 22))
-                        .foregroundStyle(palette.secondaryInk)
-                    Text(localizer.text(.shellWebExample))
-                        .font(.system(size: 15)).foregroundStyle(palette.ink)
-                    Spacer(minLength: 0)
+            VStack(spacing: 0) {
+                ForEach(Array(examples.enumerated()), id: \.offset) { index, example in
+                    if index > 0 { Divider().padding(.leading, 52) }
+                    Button {
+                        draft = localizer.text(example.text)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: example.icon).font(.system(size: 22))
+                                .foregroundStyle(palette.secondaryInk)
+                                .accessibilityHidden(true)
+                            Text(localizer.text(example.text))
+                                .font(.system(size: 15)).foregroundStyle(palette.ink)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 10).frame(minHeight: 56)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier(example.identifier)
                 }
-                .padding(.horizontal, 16).frame(minHeight: 56)
             }
-            .buttonStyle(.plain)
             .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.hair, lineWidth: 0.5))
             .padding(.top, 28)
-            .accessibilityIdentifier("chat.emptyExample.web")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8).padding(.top, 52)

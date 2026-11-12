@@ -324,6 +324,31 @@ final class WoowAssistantUITests: XCTestCase {
         attachScreenshot("unconfigured-draft-retained", in: app)
     }
 
+    func testExamplesOnlyReplaceDraftWhenSyntheticModelIsConfigured() {
+        let app = launchApp()
+        configure(in: app)
+        returnFromModelSettings(in: app)
+        openSection("chat", in: app)
+        let cases = [
+            ("reply", "幫我寫一則友善的訊息回覆"),
+            ("document", "幫我摘要附上的文件，列出重點"),
+            ("web", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"),
+            ("shopping", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"),
+            ("remember", "記住我偏好使用繁體中文，回答簡短一點"),
+            ("recall", "你記得我有哪些偏好？")
+        ]
+        for (id, text) in cases {
+            let example = app.buttons["chat.emptyExample." + id]
+            revealLearningElement(example, in: app)
+            XCTAssertTrue(example.isHittable)
+            example.tap()
+            assertDraft(text, in: app)
+            XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+            XCTAssertFalse(app.staticTexts["chat.message.0.user"].exists)
+            XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        }
+    }
+
     func testComposerGrowsThenScrollsAtFiveLinesAndAttachPanelKeepsDraft() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)
