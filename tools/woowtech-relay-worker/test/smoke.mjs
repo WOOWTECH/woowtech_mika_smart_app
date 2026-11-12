@@ -8,7 +8,8 @@ const live = process.env.RELAY_LIVE === "1";
 const origin = live ? "https://assistant-relay.woowtech.io" : "http://127.0.0.1:18793";
 const dataDir = live ? null : mkdtempSync(tmpdir()+'/relay-smoke-');
 const owner = live ? readFileSync(process.env.RELAY_OWNER_FILE, "utf8").trim() : "local-test-owner-key-at-least-thirty-two-characters";
-const child = live ? null : spawn("node", ["node_modules/wrangler/bin/wrangler.js", "dev", "--local", "--ip", "127.0.0.1", "--port", "18793", "--persist-to", dataDir, "--var", `OWNER_KEY:${owner}`], { stdio: ["ignore", "pipe", "pipe"] });
+const reportAdmin = "local-test-report-admin-key-at-least-thirty-two-characters";
+const child = live ? null : spawn("node", ["node_modules/wrangler/bin/wrangler.js", "dev", "--local", "--ip", "127.0.0.1", "--port", "18793", "--persist-to", dataDir, "--var", `OWNER_KEY:${owner}`, "--var", `REPORT_ADMIN_KEY:${reportAdmin}`], { stdio: ["ignore", "pipe", "pipe"] });
 let output = "";
 child?.stdout.on("data", (b) => output += b);
 child?.stderr.on("data", (b) => output += b);
@@ -37,6 +38,14 @@ try {
   assert.match(page, /渥屋助理遠端中繼/);
   assert.doesNotMatch(page, /OWNER_KEY|local-test-owner/);
   assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
+  response = await fetch(origin + '/privacy/play', { headers: { host: 'assistant-relay.woowtech.io' } });
+  assert.equal(response.status, 200, 'privacy policy works without sign-in');
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  const privacy = await response.text();
+  assert.match(privacy, /io\.woowtech\.assistant/);
+  assert.match(privacy, /woowtech@designsmart\.com\.tw/);
+  assert.match(privacy, /30 days/);
+  assert.doesNotMatch(privacy, /OWNER_KEY|REPORT_ADMIN_KEY/);
 
   const reportId = '123e4567-e89b-42d3-a456-426614174000';
   const reportBody = { id: reportId, reason: 'incorrect', note: 'test note', response: 'test response', created_at_ms: Date.now() };
@@ -56,6 +65,11 @@ try {
   response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + owner } });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).reports[0].response, reportBody.response);
+  if (!live) {
+    response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + reportAdmin } });
+    assert.equal(response.status, 200, 'dedicated report reviewer key');
+    assert.equal((await response.json()).reports[0].id, reportId);
+  }
   response = await fetch(origin + '/api/v1/ai-reports/' + reportId, { method: 'DELETE', headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + acceptedReport.deletion_receipt } });
   assert.equal(response.status, 200);
   response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + owner } });

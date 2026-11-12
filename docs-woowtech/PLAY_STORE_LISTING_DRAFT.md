@@ -16,6 +16,7 @@ woowtech agent brings AI conversation, voice input, a built-in browser, and pers
 - Ask questions by typing or speaking. Voice input can use Android's speech service or a supported model provider, according to your settings.
 - Open and use websites in the built-in browser. Choose a page yourself and return to your conversation when you need to ask about it.
 - Keep conversation history and personal memories on your device. Review or remove saved memories in the app.
+- Connect an external MCP server over HTTPS and choose which tools the assistant may use.
 - Add photos or files you choose to a conversation. Files are selected through Android's pickers.
 
 Internet access is needed for online AI providers and websites. The app does not operate other apps or unlock your phone. The Play edition installs separately from the direct-download edition; their data is not automatically shared.
@@ -34,6 +35,7 @@ Internet access is needed for online AI providers and websites. The app does not
 - 打字或說話提出問題。語音輸入可依設定使用 Android 語音服務或支援的模型服務商。
 - 在內建瀏覽器自行開啟及操作網站，需要時可針對正在看的頁面提問。
 - 在手機保存對話紀錄與個人記憶，並可在 App 內檢視或刪除記憶。
+- 透過 HTTPS 連接外部 MCP 伺服器，並選擇允許助理使用的工具。
 - 透過 Android 選取介面，將自行挑選的照片或檔案加入對話。
 
 線上 AI 服務與網站需要網路。這個 Google Play 版本不操作其他 App，也不會解鎖手機；它與直接下載的版本分開安裝，資料不會自動共用。
@@ -42,7 +44,7 @@ Internet access is needed for online AI providers and websites. The app does not
 
 - Category suggestion: Productivity. Confirm in Play Console.
 - Support contact: `woowtech@designsmart.com.tw`. Website in brand configuration: `https://aiot.woowtech.io/`; verify the live support destination before entering it.
-- Privacy policy URL: **pending publication and in-app link**. The working text is in `PLAY_DISCLOSURES_DRAFT.md`; this Markdown file is not a public policy URL.
+- Privacy policy URL: `https://assistant-relay.woowtech.io/privacy/play`; published without login and linked from in-app settings.
 - Screenshots: capture the shipped Play build in English and Traditional Chinese, showing model setup, chat/voice, browser, and memory. Do not depict phone control, sync, or a reporting control before those are actually available.
 - Icon and feature graphic: prepare from the Play brand artwork and check the current Play asset specifications in Console.
 

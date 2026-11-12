@@ -64,6 +64,13 @@
     <string name="chat_report_retry">Retry delivery</string>
     <string name="chat_report_cancel">Cancel</string>
     <string name="chat_report_close">Close</string>
+    <string name="chat_report_delete">Delete report</string>
+    <string name="chat_report_delete_title">Delete this report?</string>
+    <string name="chat_report_delete_confirm">A received report will be deleted from the developer’s server and this device. An unsent report will be removed from this device. If delivery cannot be verified, the report will be kept.</string>
+    <string name="chat_report_deleted">Report deleted.</string>
+    <string name="chat_report_delete_failed">Deletion could not be confirmed. The report was kept; try again later.</string>
+    <string name="chat_report_delete_unverified">This report may have reached the developer, but it has no valid deletion receipt. It was kept. Contact the developer using the privacy policy and include the report reference.</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
     <string name="chat_new">New chat</string>
     <string name="chat_expand_steps">Show steps</string>
     <string name="chat_collapse_steps">Hide steps</string>

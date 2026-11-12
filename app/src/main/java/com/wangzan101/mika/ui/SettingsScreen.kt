@@ -80,6 +80,7 @@ fun SettingsScreen(
     autonomous: Boolean = false,
     onAutonomous: (Boolean) -> Unit = {},
     onOpenAbout: () -> Unit = {},
+    onOpenPrivacyPolicy: (() -> Unit)? = null,
     /** 外部 MCP server 设置(outbound);为空时不显示入口。 */
     mcpServers: com.wangzan101.mika.settings.McpServerStore? = null,
 ) {
@@ -158,6 +159,7 @@ fun SettingsScreen(
             onOpenNotifications = { page = SettingsPage.Notifications },
             language = language, onOpenLanguage = { page = SettingsPage.Language },
             onOpenMemory = onOpenMemory,
+            onOpenPrivacyPolicy = onOpenPrivacyPolicy,
             onOpenAdvanced = { page = SettingsPage.Advanced },
             versionName = BuildConfig.VERSION_NAME, onOpenAbout = onOpenAbout,
         )
@@ -256,6 +258,7 @@ fun SettingsContent(
     onOpenAdvanced: () -> Unit = {},
     versionName: String = "",
     onOpenAbout: () -> Unit = {},
+    onOpenPrivacyPolicy: (() -> Unit)? = null,
 ) {
     val check = Prerequisites.check(status, hasMainModel = mainModel != null)
     PageScaffold(stringResource(R.string.settings_title), onBack) {
@@ -283,6 +286,10 @@ fun SettingsContent(
         GroupCard {
             onOpenMemory?.let {
                 ListRow(MikaIcons.Heart, stringResource(R.string.settings_memory_data), stringResource(R.string.settings_memory_sub), first = true, onClick = it) { RowChevron() }
+            }
+            onOpenPrivacyPolicy?.let {
+                ListRow(MikaIcons.Info, stringResource(R.string.settings_privacy_policy),
+                    first = onOpenMemory == null, onClick = it) { RowChevron() }
             }
         }
 

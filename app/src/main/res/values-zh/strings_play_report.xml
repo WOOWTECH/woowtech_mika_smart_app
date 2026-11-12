@@ -33,4 +33,11 @@
     <string name="chat_report_retry">重新发送</string>
     <string name="chat_report_cancel">取消</string>
     <string name="chat_report_close">关闭</string>
+    <string name="chat_report_delete">删除举报</string>
+    <string name="chat_report_delete_title">删除这份举报？</string>
+    <string name="chat_report_delete_confirm">已送达的举报会从开发者服务器和本机删除；未发送的举报会从本机删除。如果无法确认送达，举报会保留。</string>
+    <string name="chat_report_deleted">举报已删除。</string>
+    <string name="chat_report_delete_failed">无法确认删除，举报已保留。请稍后重试。</string>
+    <string name="chat_report_delete_unverified">这份举报可能已送达，但没有有效的删除凭证，因此已保留。请按隐私政策联络开发者并提供举报编号。</string>
+    <string name="settings_privacy_policy">隐私政策</string>
 </resources>

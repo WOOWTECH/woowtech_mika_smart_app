@@ -373,6 +373,7 @@ class ProviderStore(
         typed: Set<String> = emptySet(),
         untested: Boolean = false,
     ): Provider {
+        require(PlayTransportPolicy.permits(baseUrl)) { "HTTPS is required for off-device model services in this edition" }
         val found = findOrAddProvider(name, kind, baseUrl, signIn)
         // 跳过测试时没有列表可存:这家之前列过的留着,不要用空表把已有的列表盖掉
         val listed = if (untested && models.isEmpty()) found.models ?: models else models
@@ -604,7 +605,8 @@ class ProviderStore(
 
     /** 列出这个服务商的可用模型(见 [ModelCatalog]);不属于任何对话,声明了会话头的用新的会话号。 */
     suspend fun listModels(kind: ProviderConfig.Kind, baseUrl: String, apiKey: String?, sessionHeader: String? = null): ModelListResult =
-        modelLister(kind, baseUrl, apiKey, headers(sessionHeader, ModelSession.fresh()))
+        if (PlayTransportPolicy.permits(baseUrl)) modelLister(kind, baseUrl, apiKey, headers(sessionHeader, ModelSession.fresh()))
+        else ModelListResult.Failed(ListFailure.Server, "HTTPS is required for off-device model services in this edition")
 
     /** 重新列一个已连接服务商的模型:用存着的 Key;订阅登录用访问令牌(快过期先换新的)。 */
     suspend fun listModels(p: Provider): ModelListResult {
@@ -784,6 +786,7 @@ class ProviderStore(
         val baseUrl = if (cfg.kind == ProviderConfig.Kind.Xai) {
             provider(cfg.providerId)?.baseUrl?.takeIf { it.isNotBlank() } ?: adapterBase
         } else adapterBase
+        require(PlayTransportPolicy.permits(baseUrl)) { "HTTPS is required for off-device model services in this edition" }
         return when (kind) {
             ProviderConfig.Kind.OpenAiCompat ->
                 OpenAiCompatModel(baseUrl, apiKey, cfg.model, cfg.capabilities, http, endpoint?.reasoningField, setup.headers,

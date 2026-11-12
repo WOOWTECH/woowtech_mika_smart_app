@@ -1,5 +1,7 @@
 # 渥屋助理 Google Play 上架研究與送審準備
 
+> 此檔保留當時的 `play.2` 稽核證據；最新狀態見 `PLAY_SUBMISSION_STATUS_2026-11-12.md`。
+
 檢查時間：2026-11-12，Asia/Taipei。這是上架準備記錄，**不是 Google 的審核結果**。本次已發布並實測 AI 檢舉收件服務；未上傳 AAB、未送審，也未在 Play Console 修改設定。
 
 ## 已核對的版本與證據

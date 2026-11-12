@@ -137,6 +137,7 @@
     <string name="mcp_servers_url">伺服器位址</string>
     <string name="mcp_servers_token">存取權杖（選填）</string>
     <string name="mcp_servers_allow_local_http">允許本機/區域網路 HTTP</string>
+    <string name="mcp_servers_allow_loopback_http">允許同一支手機的 HTTP</string>
     <string name="mcp_servers_trust_annotations">信任伺服器的唯讀註解</string>
     <string name="mcp_servers_save">儲存</string>
     <string name="mcp_servers_save_test">儲存並測試</string>

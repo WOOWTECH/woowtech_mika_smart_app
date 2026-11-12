@@ -55,6 +55,9 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
     var history by remember(reference) { mutableStateOf<List<AiResponseReport>>(emptyList()) }
     var historyFailed by remember(reference) { mutableStateOf(false) }
     var reviewExisting by remember(reference) { mutableStateOf(false) }
+    var confirmDelete by remember(reference) { mutableStateOf(false) }
+    var deletionResult by remember(reference) { mutableStateOf<ReportDeletionResult?>(null) }
+    var deleted by remember(reference) { mutableStateOf(false) }
     var now by remember(reference) { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reference, loadVersion) {
         loading = true
@@ -142,12 +145,19 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
                         label = { Text(stringResource(R.string.chat_report_note)) }, minLines = 2, maxLines = 4, enabled = !saving)
                 }
                 if (failed) Text(stringResource(R.string.chat_report_save_failed), Modifier.testTag("report-save-failed"))
+                if (deleted) Text(stringResource(R.string.chat_report_deleted), Modifier.testTag("report-deleted"))
+                if (deletionResult == ReportDeletionResult.Retryable) Text(stringResource(R.string.chat_report_delete_failed))
+                if (deletionResult == ReportDeletionResult.CannotVerify) Text(stringResource(R.string.chat_report_delete_unverified))
                 savedReport?.let { report ->
                     Text(stringResource(if (report.status == "acknowledged") R.string.chat_report_acknowledged
                         else if (reportOutsideIntakeWindow(report, now)) R.string.chat_report_expired
                         else if (report.status == "rejected" || report.attempts >= 3) R.string.chat_report_needs_retry
                         else R.string.chat_report_pending, report.id),
                         Modifier.testTag("report-delivery-status"))
+                    TextButton(onClick = { deletionResult = null; confirmDelete = true },
+                        enabled = !saving, modifier = Modifier.testTag("report-delete-action")) {
+                        Text(stringResource(R.string.chat_report_delete))
+                    }
                 }
             }
         },
@@ -236,5 +246,33 @@ internal fun AiResponseReportDialog(reference: AiResponseReference, response: St
             Text(stringResource(if (freshWarning) R.string.chat_report_back else if (savedReport == null) R.string.chat_report_cancel else R.string.chat_report_close))
         } },
         modifier = Modifier.testTag("ai-response-report-dialog"),
+    )
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { if (!saving) confirmDelete = false },
+        title = { Text(stringResource(R.string.chat_report_delete_title)) },
+        text = { Text(stringResource(R.string.chat_report_delete_confirm)) },
+        confirmButton = { TextButton(onClick = {
+            val id = savedReport?.id ?: return@TextButton
+            saving = true
+            scope.launch {
+                deletionResult = runCatching {
+                    AiResponseReportDelivery.delete(queue, AiResponseReportDelivery.sender(context.applicationContext), id, allowUnidentified)
+                }.getOrDefault(ReportDeletionResult.Retryable)
+                if (deletionResult == ReportDeletionResult.Deleted) {
+                    savedReport = null
+                    history = history.filterNot { it.id == id }
+                    showHistory = false
+                    deleted = true
+                    loadVersion++
+                }
+                confirmDelete = false
+                saving = false
+            }
+        }, enabled = !saving, modifier = Modifier.testTag("report-confirm-delete")) {
+            Text(stringResource(R.string.chat_report_delete))
+        } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }, enabled = !saving) {
+            Text(stringResource(R.string.chat_report_cancel))
+        } },
     )
 }

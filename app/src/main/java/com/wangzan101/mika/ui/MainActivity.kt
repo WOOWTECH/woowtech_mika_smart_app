@@ -386,6 +386,13 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 onOpenModels = { nav.push(Route.Models) },
                 autonomous = autonomous, onAutonomous = app.approvalControl::setAutonomous,
                 onOpenAbout = { nav.push(Route.About) },
+                onOpenPrivacyPolicy = if (BuildConfig.FLAVOR == "woowtech") ({
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://assistant-relay.woowtech.io/privacy/play")))
+                    } catch (_: ActivityNotFoundException) {
+                        Toast.makeText(context, com.wangzan101.mika.R.string.about_no_browser, Toast.LENGTH_SHORT).show()
+                    }
+                }) else null,
                 mcpServers = app.mcpServers)
         }
         Route.Models -> ModelsScreen(store, onBack = back, onOpenSpeech = { nav.push(Route.SpeechModel) }, onOpenUsage = { nav.push(Route.Usage) })

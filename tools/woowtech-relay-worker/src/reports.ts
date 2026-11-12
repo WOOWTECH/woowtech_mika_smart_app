@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
+import { purgeExpiredReports, REPORT_RETENTION_MS } from './report-retention';
 
-const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const RATE_MS = 60 * 60 * 1000;
 const MAX_PER_IP = 5;
 const encoder = new TextEncoder();
@@ -40,12 +40,12 @@ function valid(value: unknown): value is ReportInput {
 /** Private Worker-facing inbox. No device pairing or phone connection is involved. */
 export class ReportInbox extends DurableObject {
   async alarm(): Promise<void> {
-    const now = Date.now();
-    for (const prefix of ['report:', 'rate:']) {
-      const entries = await this.ctx.storage.list<StoredReport | { expires_at_ms: number }>({ prefix });
-      for (const [key, value] of entries) if (value.expires_at_ms <= now) await this.ctx.storage.delete(key);
-    }
-    await this.ctx.storage.setAlarm(now + 60 * 60 * 1000);
+    await purgeExpiredReports(
+      (prefix, startAfter) => this.ctx.storage.list<StoredReport | { expires_at_ms: number }>({ prefix, startAfter, limit: 1000 }),
+      key => this.ctx.storage.delete(key),
+      at => this.ctx.storage.setAlarm(at),
+      Date.now(),
+    );
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -77,7 +77,7 @@ export class ReportInbox extends DurableObject {
     if (await this.ctx.storage.get(key)) return result({ id: body.id.toLowerCase(), accepted: true }, 201);
     const deletionReceipt = receipt();
     await this.ctx.storage.put(key, { ...body, id: body.id.toLowerCase(), received_at_ms: now,
-      expires_at_ms: now + RETENTION_MS, receipt_hash: await hash(deletionReceipt) } satisfies StoredReport);
+      expires_at_ms: now + REPORT_RETENTION_MS, receipt_hash: await hash(deletionReceipt) } satisfies StoredReport);
     if (!await this.ctx.storage.getAlarm()) await this.ctx.storage.setAlarm(now + 60 * 60 * 1000);
     return result({ id: body.id.toLowerCase(), accepted: true, deletion_receipt: deletionReceipt }, 201);
   }

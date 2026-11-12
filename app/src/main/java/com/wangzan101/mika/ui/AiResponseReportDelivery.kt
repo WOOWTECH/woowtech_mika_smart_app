@@ -27,6 +27,8 @@ internal sealed interface ReportDeliveryResult {
     data object Rejected : ReportDeliveryResult
 }
 
+internal enum class ReportDeletionResult { Deleted, Retryable, CannotVerify }
+
 internal class ExistingManualReportException(val report: AiResponseReport) : IllegalStateException()
 
 /** The relay's public intake accepts reports without a device token or pairing. */
@@ -68,6 +70,33 @@ internal class AiResponseReportSender(
             ReportDeliveryResult.Retryable
         }
     }
+
+
+    fun delete(report: AiResponseReport): ReportDeletionResult {
+        val token = report.deletionReceipt?.takeIf { it.isNotBlank() } ?: return ReportDeletionResult.CannotVerify
+        val url = endpoint.toHttpUrlOrNull() ?: return ReportDeletionResult.Retryable
+        if (url.scheme != "https" && url.host !in setOf("localhost", "127.0.0.1")) return ReportDeletionResult.Retryable
+        val request = Request.Builder().url(url.newBuilder().addPathSegment(report.id).build())
+            .header("Authorization", "Bearer $token").delete().build()
+        return try {
+            client.newCall(request).execute().use { response ->
+                when (response.code) {
+                    200 -> runCatching {
+                        val json = Json.parseToJsonElement(response.peekBody(16_384).string()) as JsonObject
+                        if ((json["id"] as? JsonPrimitive)?.contentOrNull == report.id &&
+                            (json["deleted"] as? JsonPrimitive)?.booleanOrNull == true) ReportDeletionResult.Deleted
+                        else ReportDeletionResult.Retryable
+                    }.getOrDefault(ReportDeletionResult.Retryable)
+                    // Expired or previously removed on the server; local copy can now be removed.
+                    404 -> ReportDeletionResult.Deleted
+                    401, 403 -> ReportDeletionResult.CannotVerify
+                    else -> ReportDeletionResult.Retryable
+                }
+            }
+        } catch (_: IOException) {
+            ReportDeletionResult.Retryable
+        }
+    }
 }
 
 internal object AiResponseReportDelivery {
@@ -77,6 +106,19 @@ internal object AiResponseReportDelivery {
     fun sender(context: Context): AiResponseReportSender {
         val base = context.getString(R.string.relay_gateway_default).trim().trimEnd('/')
         return AiResponseReportSender(if (base.isEmpty()) "" else "$base/api/v1/ai-reports")
+    }
+
+
+    suspend fun delete(queue: AiResponseReportQueue, sender: AiResponseReportSender, id: String,
+        allowUnidentified: Boolean = false): ReportDeletionResult = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val report = queue.get(id, allowUnidentified) ?: return@withContext ReportDeletionResult.Deleted
+            val result = if (report.status == "acknowledged") sender.delete(report)
+                else if (report.attempts == 0) ReportDeletionResult.Deleted
+                else ReportDeletionResult.CannotVerify // A lost acknowledgement could have left a server copy.
+            if (result == ReportDeletionResult.Deleted && !queue.remove(id, allowUnidentified))
+                ReportDeletionResult.Retryable else result
+        }
     }
 
     suspend fun deliverDue(queue: AiResponseReportQueue, sender: AiResponseReportSender, now: () -> Long = System::currentTimeMillis) {

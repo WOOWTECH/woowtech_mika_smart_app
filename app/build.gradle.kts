@@ -145,8 +145,8 @@ android {
             dimension = "brand"
             // Play edition lives beside the direct-download app instead of replacing its data or signature.
             applicationId = "io.woowtech.assistant"
-            versionCode = 2
-            versionName = "${defaultConfig.versionName}-play.2"
+            versionCode = 3
+            versionName = "${defaultConfig.versionName}-play.3"
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
             // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
@@ -170,7 +170,8 @@ androidComponents {
     // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
     beforeVariants { variant ->
         if (variant.flavorName in setOf("woowtech", "apporo")) {
-            variant.enableUnitTest = false
+            variant.enableUnitTest = variant.flavorName == "woowtech" &&
+                providers.gradleProperty("playTransportTests").isPresent
             // Explicit cloud acceptance only; ordinary branded release builds still omit test APKs.
             variant.androidTest.enable = variant.flavorName == "apporo" &&
                 providers.gradleProperty("apporoAlignmentTests").isPresent

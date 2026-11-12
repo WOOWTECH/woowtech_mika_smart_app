@@ -43,6 +43,7 @@
     <string name="cap_reasoning">推理</string>
     <string name="model_need_url">請填寫介面網址</string>
     <string name="model_url_scheme">介面網址要以 http:// 或 https:// 開頭</string>
+    <string name="model_url_https_required_play">手機以外的服務請使用 HTTPS；HTTP 僅可用於 127.0.0.1 或 localhost。</string>
     <string name="model_url_unencrypted">這個網址不加密，API Key 和對話內容可能被同一網路裡的人看到。</string>
     <string name="model_probe_failed">試著讓 %1$s 呼叫一個工具沒成功：%2$s</string>
     <string name="model_probe_timeout">試著讓 %1$s 呼叫一個工具，%2$d 秒沒有回應</string>

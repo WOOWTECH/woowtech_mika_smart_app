@@ -159,6 +159,7 @@ class McpServerStore(
         val url = config.url.toHttpUrlOrNull() ?: return "invalid URL"
         if (url.username.isNotEmpty() || url.password.isNotEmpty()) return "URL must not contain user info"
         if (isBlockedHost(url.host)) return "this host is not allowed"
+        if (!PlayTransportPolicy.permits(config.url)) return "HTTPS is required for off-device servers in this edition"
         if (url.scheme == "http") {
             if (!config.allowLocalHttp) return "HTTP is only allowed for local/private servers after enabling it"
             if (!isLocalHost(url.host)) return "HTTP is only allowed for local/private hosts"
@@ -305,6 +306,8 @@ class McpServerStore(
         headers: Map<String, String>,
         workspace: String,
     ): Result<com.wangzan101.mika.core.cap.mcp.McpEndpoint> = try {
+        // Recheck saved configurations: older editions may contain private-network HTTP endpoints.
+        validate(config)?.let { throw IllegalArgumentException(it) }
         when (config.transport) {
             "stdio" -> {
                 val launcher = stdio ?: throw IllegalStateException("stdio MCP servers are not available on this build")

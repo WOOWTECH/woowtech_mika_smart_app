@@ -126,6 +126,14 @@ internal class AiResponseReportQueue(private val dir: File) {
         all(allowUnidentified).firstOrNull { it.id == id }
     }
 
+    /** Remove only a known report. Network deletion must be confirmed before calling this for sent reports. */
+    fun remove(id: String, allowUnidentified: Boolean = false): Boolean = synchronized(lock) {
+        val report = get(id, allowUnidentified) ?: return@synchronized false
+        val name = if (report.manualOnly) "manual-${report.id}" else report.id
+        val target = File(dir, "$name.json")
+        target.delete() && !target.exists()
+    }
+
     // Prefer an acknowledgement if older versions left multiple reports for the same response.
     fun find(reference: AiResponseReference, allowUnidentified: Boolean = false,
         promote: Boolean = true): AiResponseReport? = synchronized(lock) {

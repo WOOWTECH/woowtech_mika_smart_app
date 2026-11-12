@@ -151,6 +151,7 @@
     <string name="mcp_servers_url">Server URL</string>
     <string name="mcp_servers_token">Access token (optional)</string>
     <string name="mcp_servers_allow_local_http">Allow HTTP for local/private servers</string>
+    <string name="mcp_servers_allow_loopback_http">Allow HTTP on this phone</string>
     <string name="mcp_servers_trust_annotations">Trust the server’s read-only annotations</string>
     <string name="mcp_servers_save">Save</string>
     <string name="mcp_servers_save_test">Save &amp; test</string>

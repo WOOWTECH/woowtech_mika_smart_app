@@ -18,6 +18,59 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiResponseReportsTest {
+    @Test fun deletingAcknowledgedReportRequiresMatchingServerConfirmation() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val report = queue.save(AiResponseReference("conversation", "run", "r0"), "private answer", "unsafe", "note")
+            queue.recordAttempt(report.id, ReportDeliveryResult.Acknowledged("receipt-secret"), System.currentTimeMillis())
+            val sender = AiResponseReportSender(server.url("/api/v1/ai-reports").toString())
+            server.enqueue(MockResponse().setResponseCode(503))
+            assertEquals(ReportDeletionResult.Retryable, AiResponseReportDelivery.delete(queue, sender, report.id))
+            assertEquals("acknowledged", AiResponseReportQueue(dir).get(report.id)?.status)
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"id":"${report.id}","deleted":false}"""))
+            assertEquals(ReportDeletionResult.Retryable, AiResponseReportDelivery.delete(queue, sender, report.id))
+            assertEquals("acknowledged", queue.get(report.id)?.status)
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"id":"${report.id}","deleted":true}"""))
+            assertEquals(ReportDeletionResult.Deleted, AiResponseReportDelivery.delete(queue, sender, report.id))
+            assertNull(AiResponseReportQueue(dir).get(report.id))
+            repeat(3) {
+                val request = server.takeRequest()
+                assertEquals("DELETE", request.method)
+                assertEquals("/api/v1/ai-reports/${report.id}", request.path)
+                assertEquals("Bearer receipt-secret", request.getHeader("Authorization"))
+            }
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test fun deletionHandlesUnsentAndUncertainReportsWithoutLosingEvidence() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        val dir = Files.createTempDirectory("ai-reports").toFile()
+        try {
+            val queue = AiResponseReportQueue(dir)
+            val sender = AiResponseReportSender(server.url("/api/v1/ai-reports").toString())
+            val unsent = queue.save(AiResponseReference("conversation", "run", "r0"), "answer", "other", "")
+            assertEquals(ReportDeletionResult.Deleted, AiResponseReportDelivery.delete(queue, sender, unsent.id))
+            assertNull(queue.get(unsent.id))
+            val uncertain = queue.save(AiResponseReference("conversation", "run2", "r1"), "answer", "other", "")
+            queue.recordAttempt(uncertain.id, ReportDeliveryResult.Retryable, System.currentTimeMillis())
+            assertEquals(ReportDeletionResult.CannotVerify, AiResponseReportDelivery.delete(queue, sender, uncertain.id))
+            queue.recordAttempt(uncertain.id, ReportDeliveryResult.Acknowledged(null), System.currentTimeMillis())
+            assertEquals(ReportDeletionResult.CannotVerify, AiResponseReportDelivery.delete(queue, sender, uncertain.id))
+            assertEquals("acknowledged", AiResponseReportQueue(dir).get(uncertain.id)?.status)
+            assertEquals(0, server.requestCount)
+        } finally {
+            server.shutdown()
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun senderUsesReceiverContractAndRequiresMatchingAcknowledgment() {
         val server = MockWebServer()
         server.start()

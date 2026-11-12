@@ -225,7 +225,10 @@ private fun McpServerDialog(
                         }
                     }) { Text(signInLabel) }
                 }
-                if (transport != "stdio") ToggleRow(stringResource(R.string.mcp_servers_allow_local_http), allowLocal) { feedback.edited(); allowLocal = it }
+                if (transport != "stdio") ToggleRow(
+                    stringResource(if (com.wangzan101.mika.settings.PlayTransportPolicy.enabled) R.string.mcp_servers_allow_loopback_http else R.string.mcp_servers_allow_local_http),
+                    allowLocal,
+                ) { feedback.edited(); allowLocal = it }
                 ToggleRow(stringResource(R.string.mcp_servers_trust_annotations), trustAnnotations) { feedback.edited(); trustAnnotations = it }
                 feedback.message?.let { Text(it, Modifier.padding(top = 6.dp)) }
                 if (testing) Text(stringResource(R.string.mcp_servers_testing), Modifier.padding(top = 6.dp))

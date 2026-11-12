@@ -16,6 +16,7 @@ internal fun mcpValidationMessage(message: String?, text: (Int) -> String): Stri
     "this host is not allowed" -> text(R.string.mcp_validation_blocked_host)
     "HTTP is only allowed for local/private servers after enabling it" -> text(R.string.mcp_validation_http_opt_in)
     "HTTP is only allowed for local/private hosts" -> text(R.string.mcp_validation_http_local_only)
+    "HTTPS is required for off-device servers in this edition" -> text(R.string.mcp_validation_https_required_play)
     "URL must be https (or http for a local server)" -> text(R.string.mcp_validation_https_required)
     else -> message
 }

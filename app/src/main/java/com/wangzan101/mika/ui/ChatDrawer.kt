@@ -21,6 +21,7 @@ import com.wangzan101.mika.chat.DeleteImpact
 import com.wangzan101.mika.i18n.trPlural
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -219,33 +220,13 @@ fun ChatDrawer(
     onActions: (DrawerConversation, Rect) -> Unit = { _, _ -> },
 ) {
     val c = MikaTheme.colors
-    Column(
+    BoxWithConstraints(
         Modifier.fillMaxHeight().widthIn(max = DrawerWidth).fillMaxWidth()
             .clip(DrawerShape).background(c.bg, DrawerShape)
             .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.navigationBars))
             .testTag("drawer"),
     ) {
-        val (state, ok) = readiness(check)
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            MikaLogo(36.dp, corner = 10.dp)
-            Column {
-                Text(stringResource(R.string.app_name), style = MikaType.Title, color = c.ink)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Box(Modifier.size(6.dp).background(if (ok) c.ok else c.warnSolid, CircleShape))
-                    Text(state, style = MikaType.Hint, fontWeight = FontWeight.Medium, color = c.ink3)
-                }
-            }
-        }
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-            NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
-            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
-            NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
-            NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
-        }
+        val compact = maxHeight < 500.dp
         // 侧栏关着时列表只剩末尾那一项;打开时对话插在它前面,列表会按原来那一项停在最底下。最上面一项变了就回到顶上
         val list = rememberLazyListState()
         val first = when {
@@ -254,8 +235,8 @@ fun ChatDrawer(
             sections.recent.isNotEmpty() -> "h-recent"
             else -> "end"
         }
-        LaunchedEffect(first) { list.scrollToItem(0) }
-        LazyColumn(Modifier.fillMaxWidth().weight(1f).lazyListScrollbar(list), state = list) {
+        LaunchedEffect(first, compact) { list.scrollToItem(0) }
+        fun LazyListScope.conversations() {
             if (sections.running.isNotEmpty()) {
                 // 「进行中」这一段的右边进「后台屏」页:看每个在跑的任务正在用哪个 App、实时画面
                 item("h-running") { RunningLabel(onScreens) }
@@ -284,14 +265,68 @@ fun ChatDrawer(
             }
             item("end") { Box(Modifier.height(12.dp)) }
         }
-        // Keep both destinations fixed at the bottom, with a full row for long brand names.
-        Column(
-            Modifier.fillMaxWidth().drawBehind { drawLine(c.hair, Offset(0f, 0f), Offset(size.width, 0f), 0.5.dp.toPx()) }
-                .padding(horizontal = 12.dp, vertical = 6.dp).testTag("drawer-footer"),
-        ) {
-            NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), wrapLabel = true, onClick = onSettings)
-            NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, onClick = onAbout)
+        if (compact) {
+            // On short landscape screens, fixed navigation and footer can consume the whole height.
+            // Keep every destination in one scrollable list; two-column shortcuts leave room for recent chats.
+            LazyColumn(Modifier.fillMaxSize().lazyListScrollbar(list), state = list) {
+                item("header") { DrawerHeader(check) }
+                item("shortcuts") {
+                    Column(Modifier.padding(horizontal = 12.dp)) {
+                        Row {
+                            NavEntry(MikaIcons.New, stringResource(R.string.chat_new), Modifier.weight(1f),
+                                enabled = canSwitch, onClick = onNew)
+                            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), Modifier.weight(1f), onClick = onMemory)
+                        }
+                        Row {
+                            NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), Modifier.weight(1f), onClick = onMcpServers)
+                            NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), Modifier.weight(1f), onClick = onBrowser)
+                        }
+                    }
+                }
+                conversations()
+                item("footer") { DrawerFooter(onSettings, onAbout) }
+            }
+        } else {
+            Column {
+                DrawerHeader(check)
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
+                    NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
+                    NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
+                    NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
+                }
+                LazyColumn(Modifier.fillMaxWidth().weight(1f).lazyListScrollbar(list), state = list) { conversations() }
+                DrawerFooter(onSettings, onAbout)
+            }
         }
+    }
+}
+
+@Composable
+private fun DrawerHeader(check: Prerequisites.Check) {
+    val c = MikaTheme.colors
+    val (state, ok) = readiness(check)
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        MikaLogo(36.dp, corner = 10.dp)
+        Column {
+            Text(stringResource(R.string.app_name), style = MikaType.Title, color = c.ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.size(6.dp).background(if (ok) c.ok else c.warnSolid, CircleShape))
+                Text(state, style = MikaType.Hint, fontWeight = FontWeight.Medium, color = c.ink3)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawerFooter(onSettings: () -> Unit, onAbout: () -> Unit) {
+    val c = MikaTheme.colors
+    Column(Modifier.fillMaxWidth().drawBehind {
+        drawLine(c.hair, Offset(0f, 0f), Offset(size.width, 0f), 0.5.dp.toPx())
+    }.padding(horizontal = 12.dp, vertical = 6.dp).testTag("drawer-footer")) {
+        NavEntry(MikaIcons.Gear, stringResource(R.string.settings_title), wrapLabel = true, onClick = onSettings)
+        NavEntry(MikaIcons.Info, AboutCopy.TITLE, wrapLabel = true, onClick = onAbout)
     }
 }
 

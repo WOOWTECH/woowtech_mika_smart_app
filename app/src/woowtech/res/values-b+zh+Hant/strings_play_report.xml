@@ -33,4 +33,11 @@
     <string name="chat_report_retry">重新傳送</string>
     <string name="chat_report_cancel">取消</string>
     <string name="chat_report_close">關閉</string>
+    <string name="chat_report_delete">刪除檢舉</string>
+    <string name="chat_report_delete_title">刪除這份檢舉？</string>
+    <string name="chat_report_delete_confirm">已送達的檢舉會從開發者伺服器和本機刪除；未傳送的檢舉會從本機刪除。如果無法確認送達，檢舉會保留。</string>
+    <string name="chat_report_deleted">檢舉已刪除。</string>
+    <string name="chat_report_delete_failed">無法確認刪除，檢舉已保留。請稍後重試。</string>
+    <string name="chat_report_delete_unverified">這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。</string>
+    <string name="settings_privacy_policy">隱私權政策</string>
 </resources>

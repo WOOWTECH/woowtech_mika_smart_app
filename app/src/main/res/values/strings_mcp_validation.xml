@@ -10,4 +10,5 @@
     <string name="mcp_validation_http_opt_in">Enable local/private HTTP access before using this address.</string>
     <string name="mcp_validation_http_local_only">HTTP is allowed only for local or private hosts.</string>
     <string name="mcp_validation_https_required">Use HTTPS, or HTTP for a local server.</string>
+    <string name="mcp_validation_https_required_play">Use HTTPS for servers outside this phone. HTTP is allowed only for 127.0.0.1 or localhost.</string>
 </resources>

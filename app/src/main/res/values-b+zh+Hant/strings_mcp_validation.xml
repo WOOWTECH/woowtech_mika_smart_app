@@ -10,4 +10,5 @@
     <string name="mcp_validation_http_opt_in">使用此位址前，請先允許本機／區域網路 HTTP。</string>
     <string name="mcp_validation_http_local_only">HTTP 僅允許用於本機或私人網路主機。</string>
     <string name="mcp_validation_https_required">請使用 HTTPS；本機伺服器可使用 HTTP。</string>
+    <string name="mcp_validation_https_required_play">手機以外的伺服器請使用 HTTPS；HTTP 僅可用於 127.0.0.1 或 localhost。</string>
 </resources>

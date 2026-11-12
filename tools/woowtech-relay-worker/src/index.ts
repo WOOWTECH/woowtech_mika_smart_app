@@ -4,12 +4,14 @@ import cliSource from '../downloads/woow-relay-cli.py';
 import cliLicense from '../downloads/LICENSE.txt';
 import appIntegration from '../docs/app-integration.md';
 import { ReportInbox } from './reports';
+import { privacyPlayHtml, privacyPlayCss } from './privacy-play';
 export { AccountAuth };
 export { ReportInbox };
 
 export interface Env {
   RELAY: DurableObjectNamespace<RelayDurableObject>;
   OWNER_KEY: string;
+  REPORT_ADMIN_KEY?: string;
   AUTH: DurableObjectNamespace<AccountAuth>;
   REPORTS: DurableObjectNamespace<ReportInbox>;
 }
@@ -142,13 +144,23 @@ export default {
     const url = new URL(request.url);
     if (url.host !== new URL(ORIGIN).host) return security(failure(400, "invalid_host"));
     if (!env.OWNER_KEY || env.OWNER_KEY.length < 32) return security(failure(503, "not_configured"));
+    if (url.pathname === '/privacy/play' && request.method === 'GET')
+      return security(new Response(privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+    if (url.pathname === '/privacy/play.css' && request.method === 'GET')
+      return security(new Response(privacyPlayCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
     if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
       if (request.headers.has('origin')) return security(failure(403, 'browser_not_allowed', true));
       const admin = url.pathname.startsWith('/admin/');
       const deleting = request.method === 'DELETE';
       if (admin ? !(request.method === 'GET' || deleting) : !(request.method === 'POST' && url.pathname === '/api/v1/ai-reports' || deleting))
         return security(failure(405, 'method_not_allowed', true));
-      if (admin && !await matches(bearer(request), await digest(env.OWNER_KEY))) return security(failure(403, 'access_denied', true));
+      if (admin) {
+        const key = bearer(request);
+        const owner = await matches(key, await digest(env.OWNER_KEY));
+        const reportAdmin = env.REPORT_ADMIN_KEY && env.REPORT_ADMIN_KEY.length >= 32 &&
+          await matches(key, await digest(env.REPORT_ADMIN_KEY));
+        if (!owner && !reportAdmin) return security(failure(403, 'access_denied', true));
+      }
       let body: ArrayBuffer | undefined;
       if (request.method === 'POST') {
         if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return security(failure(415, 'unsupported_media_type', true));

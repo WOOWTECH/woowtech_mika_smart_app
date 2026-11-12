@@ -20,6 +20,7 @@ import com.wangzan101.mika.settings.ProviderPreset
 import com.wangzan101.mika.settings.ProviderPresets
 import com.wangzan101.mika.settings.ProbeResult
 import com.wangzan101.mika.settings.ProviderStore
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import com.wangzan101.mika.settings.ModelContextSettings
 import com.wangzan101.mika.settings.RoleChoice
 import com.wangzan101.mika.settings.RoleChoices
@@ -140,6 +141,7 @@ data class AddForm(
         get() = when {
             baseUrl.isBlank() -> tr(R.string.model_need_url)
             !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://") -> tr(R.string.model_url_scheme)
+            !PlayTransportPolicy.permits(baseUrl.trim()) -> tr(R.string.model_url_https_required_play)
             else -> null
         }
 
