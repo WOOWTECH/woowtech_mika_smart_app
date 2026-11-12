@@ -18,6 +18,7 @@
 
 1. **審查員模型憑證。** 使用者已選擇準備一把可持續用於審查、限制用量的專用 OpenAI、Anthropic 或 Gemini 官方 API Key 和模型名。先在乾淨的 Play 安裝驗證對話，再把憑證填進 Play Console 限制存取欄位；不放在 Git、聊天或公開商店文案。舊的自訂 Base URL 不能用於本版審查。[App access](https://support.google.com/googleplay/android-developer/answer/15748846?hl=en)
 2. **Play Console 表單與上傳。** Chrome 已登入 WOOWTECH 機構帳戶，但本次 `System Events` 自動化再次 AppleEvent 逾時 `-1712`，所以尚未能確認草稿、建立 App 或上傳 AAB。取得可操作的 Console 後填商店圖文、分級、目標對象、廣告、Data safety、AI 內容、App access、隱私政策與前景服務聲明。草稿見 `PLAY_CONSOLE_REVIEW_INPUT_DRAFT.md`。
+   - 這個套件名稱曾以 Debug 簽章安裝在 POCO。Google 的 Android 開發者驗證說明指出，若新 Play App 的套件名稱先在已認證裝置使用，Console 可能要求驗證當時的簽章私鑰所有權；遇到該提示時依 Console 流程使用本機既有的 Debug 簽章材料，不應猜測已自動通過。[官方說明](https://developer.android.com/developer-verification/assets/pdfs/updates-to-play-console-for-android-developer-verification.pdf)
 3. **前景服務申報。** Manifest 有 `TaskService` 及 `ChatGptSignInService` 兩項 `specialUse`，各需用途、啟動／停止與中斷影響說明，並提交已準備的示範影片。公開說明要求影片展示 App 中觸發功能的步驟；兩片均已涵蓋。Console 仍須實際接受用途與影片。[FGS 申報](https://support.google.com/googleplay/android-developer/answer/13392821?hl=en)
 4. **Play 內測。** 使用和提交版本一致的簽章 AAB，核對 manifest／16 KB 相容性後上傳內部測試。從 Play 商店安裝到 POCO，再驗證首次設定、官方模型對話、HTTPS MCP、語音、瀏覽器、技能／記憶、檢舉與刪除；內測通過後才進入正式送審流程。
 5. **營運交接。** 指派實際每日處理檢舉的人員，確認隱私聯絡信箱持續可收件；依 `PLAY_AI_REPORT_OPERATIONS.md` 留下去識別化的處理紀錄。

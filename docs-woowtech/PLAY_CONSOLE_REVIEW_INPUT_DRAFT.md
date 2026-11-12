@@ -37,6 +37,24 @@ Only submit these instructions after a test provider has been provisioned and a 
 | 使用者啟動的 AI 任務 `TaskService` | 從 App 送出任務、顯示進度與通知、使用者停止、完成或中斷後的狀態。 | 前景服務何時啟動／停止、延後或中斷對使用者的影響；最終服務類型是否適合。 |
 | 模型登入 `ChatGptSignInService` | 在 App 主動開始登入、切到登入畫面、回到 App、完成或取消，及服務通知。 | 是否有必要使用前景服務、實際可停止方式、延誤與中斷影響。 |
 
+### 可貼入 Console 的英文用途說明候選稿
+
+以下兩項使用 `specialUse`。需依 Console 當時顯示的用途選項選擇相符項目；若沒有，使用自訂用途並保留具體說明。最終接受與否由 Google 決定。
+
+**User-started AI task (`TaskService`)**
+
+- Function: A foreground service keeps a conversation or an in-app browser task started by the user running while the app is in the background. It shows a persistent progress notification with a Stop action. An in-app browser page intentionally kept open has a Close action; the service ends when no active task or kept page remains.
+- If deferred: The requested answer or browser task does not start promptly, so the user must wait or retry.
+- If interrupted: The current task may stop before delivering a complete answer. The app records its interrupted state; the user can inspect the conversation and retry.
+- Video: `https://raw.githubusercontent.com/WOOWTECH/woowtech_mika_smart_app/playstore/woowtech-compliant-20261111/docs-woowtech/play-assets/fgs-task-demo-redacted.mp4` (publicly reachable; verify Console accepts this URL).
+
+**User-started ChatGPT sign-in (`ChatGptSignInService`)**
+
+- Function: A foreground service keeps the user-initiated ChatGPT sign-in session alive while the user completes authentication in the external browser or while the app waits for a device-code response. A persistent notification offers Cancel. The service ends when sign-in finishes or is canceled.
+- If deferred: Sign-in may not begin promptly and the user may need to start it again.
+- If interrupted: The current authentication may fail to complete; the user can return to model settings and retry. The app does not silently sign in on the user's behalf.
+- Video: `https://raw.githubusercontent.com/WOOWTECH/woowtech_mika_smart_app/playstore/woowtech-compliant-20261111/docs-woowtech/play-assets/fgs-chatgpt-signin-demo.mp4` (publicly reachable; verify Console accepts this URL).
+
 影片應使用最終候選版及測試帳號，遮蔽個資與憑證；先確認功能實際存在再錄製。Google 要求對申報的前景服務類型說明功能與延遲／中斷影響，並提供示範影片。[Google 前景服務說明](https://support.google.com/googleplay/android-developer/answer/13392821?hl=en)
 
 ## 其他 Console 欄位
