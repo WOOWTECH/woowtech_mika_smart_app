@@ -96,6 +96,18 @@ multiple-provider inventory or session headers.
   does not provide DNS pinning or establish user consent. Path normalization
   across URL loading, proxies and servers remains unresolved; comparing the
   serialized path is not proof that all parties interpret it identically.
+- `ModelSettingsRepository` checks the original authority before Foundation
+  parses it, rejecting empty and overflowing ports without rejecting valid
+  leading-zero numeric ports for ordinary chat. Previously saved normalized
+  model settings remain readable. Their original text cannot be recovered:
+  they are not evidence that the user entered a valid speech destination.
+  The speech endpoint has no public URL-only initializer. `reviewNew` takes
+  freshly entered raw text; `reviewSaved` also requires the re-entered text
+  to equal the saved URL's exact serialization, including explicit port and
+  path. The integration must collect that text from an explicit user review,
+  rather than silently passing a saved URL's `absoluteString` to either API.
+  These functions validate addresses; they do not themselves display a review
+  or prove that a user approved recording/upload.
 - An injectable async transport and an ephemeral URLSession transport with
   30-second configured request/resource timeouts, rejected redirects, disabled
   cookies/cache/credential storage, bounded success response and sanitized
@@ -147,3 +159,6 @@ Local reproducible check: `bash ios/scripts/check_provider_speech.sh`. It uses
 small synthetic PCM, an injected fake transport and an intercepted URLSession;
 it never sends audio or credentials over a network. Passing host tests is not
 iOS SDK validation or evidence of service compatibility.
+`bash ios/scripts/check_provider_speech_settings.sh` additionally exercises
+the actual model-settings repository with isolated defaults, fake credentials,
+synthetic legacy normalized records and the speech re-entry boundary.
