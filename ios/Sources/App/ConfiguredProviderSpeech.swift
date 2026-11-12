@@ -20,15 +20,15 @@ final class ConfiguredProviderSpeech {
         let selection: SpeechProviderSelection
     }
     private let repository: ModelSettingsRepository
-    private let client: ProviderSpeechClient
+    private let transport: any AuthorizedSpeechProviderTransport
     private var generation = UUID()
     private var verified: Verified?
     private var attempt: UUID?
     private var pending: (id: UUID, task: Task<String, Error>)?
 
-    init(repository: ModelSettingsRepository, transport: any SpeechProviderTransport) {
+    init(repository: ModelSettingsRepository, transport: any AuthorizedSpeechProviderTransport) {
         self.repository = repository
-        self.client = ProviderSpeechClient(transport: transport)
+        self.transport = transport
     }
 
     private func current() throws -> (SavedModelSettings, Binding) {
@@ -44,10 +44,24 @@ final class ConfiguredProviderSpeech {
     }
 
     private func send(endpoint: SpeechProviderEndpoint, selection: SpeechProviderSelection,
-                      key: String, wav: Data) async throws -> String {
+                      key: String, wav: Data, binding: Binding, generation: UUID) async throws -> String {
         let id = UUID()
-        let client = self.client
-        let task = Task { try await client.transcribe(endpoint: endpoint, selection: selection, apiKey: key, wav: wav) }
+        let request = try SpeechProviderRequest.make(endpoint: endpoint, selection: selection, apiKey: key, wav: wav)
+        let permit = SpeechDispatchPermit { [weak self] dispatch in
+            guard let self else { throw Failure.stale }
+            try ModelSettingsRepository.withSpeechDispatchLock {
+                try self.check(binding, generation: generation)
+                try dispatch()
+            }
+        }
+        let transport = self.transport
+        let task = Task {
+            try await withTaskCancellationHandler {
+                let (data, status) = try await transport.send(request, permit: permit)
+                try Task.checkCancellation()
+                return try SpeechProviderRequest.parse(data, status: status, method: selection.method)
+            } onCancel: { permit.cancellation.cancel() }
+        }
         pending = (id, task)
         defer { if pending?.id == id { pending = nil } }
         return try await withTaskCancellationHandler {
@@ -75,7 +89,8 @@ final class ConfiguredProviderSpeech {
             let selection = try SpeechProviderSelection(providerID: endpoint.providerID, model: model, method: method)
             try check(binding, generation: operation)
             do {
-                _ = try await send(endpoint: endpoint, selection: selection, key: key, wav: wav)
+                _ = try await send(endpoint: endpoint, selection: selection, key: key, wav: wav,
+                                   binding: binding, generation: operation)
                 try check(binding, generation: operation)
                 verified = Verified(binding: binding, endpoint: endpoint, selection: selection)
                 return method
@@ -114,7 +129,8 @@ final class ConfiguredProviderSpeech {
         let key = try repository.key(for: record)
         let wav = try SpeechWAV.encode(samples)
         try check(verified.binding, generation: operation)
-        let text = try await send(endpoint: verified.endpoint, selection: verified.selection, key: key, wav: wav)
+        let text = try await send(endpoint: verified.endpoint, selection: verified.selection, key: key, wav: wav,
+                                  binding: verified.binding, generation: operation)
         try check(verified.binding, generation: operation)
         return text
     }

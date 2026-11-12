@@ -373,3 +373,136 @@ public struct ProviderSpeechClient: Sendable {
         return try SpeechProviderRequest.parse(data, status: status, method: selection.method)
     }
 }
+
+/// A trusted transport invokes the one-shot permit at the exact synchronous
+/// dispatch operation (URLSessionTask.resume for URLSession). It may prepare a
+/// suspended task earlier, but must not send or expose the request elsewhere.
+public final class SpeechDispatchCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    public init() {}
+    public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
+    fileprivate func check() throws {
+        lock.lock(); defer { lock.unlock() }
+        guard !cancelled else { throw CancellationError() }
+    }
+    fileprivate func perform(_ body: () throws -> Void) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard !cancelled else { throw CancellationError() }
+        try body()
+    }
+}
+
+@MainActor
+public final class SpeechDispatchPermit {
+    private let operation: (@escaping @MainActor () throws -> Void) throws -> Void
+    private var used = false
+    public nonisolated let cancellation = SpeechDispatchCancellation()
+    public init(_ operation: @escaping (@escaping @MainActor () throws -> Void) throws -> Void) { self.operation = operation }
+    public func dispatch(_ start: @escaping @MainActor () -> Void) throws {
+        guard !used else { throw SpeechProviderError.invalidConfiguration }
+        used = true
+        try cancellation.check()
+        // The policy's repository lock is acquired first. Cancellation never
+        // acquires that lock, avoiding lock inversion with settings observers.
+        try operation {
+            try self.cancellation.perform {
+                try Task.checkCancellation()
+                start()
+            }
+        }
+    }
+}
+
+@MainActor
+public protocol AuthorizedSpeechProviderTransport {
+    /// This contract must be implemented by a trusted transport. Calling the
+    /// permit and delaying actual dispatch after it returns is not sufficient.
+    /// Cancellation must call permit.cancellation.cancel() synchronously.
+    func send(_ request: URLRequest, permit: SpeechDispatchPermit) async throws -> (Data, Int)
+}
+
+extension URLSessionSpeechTransport: AuthorizedSpeechProviderTransport {
+    @MainActor public func send(_ request: URLRequest, permit: SpeechDispatchPermit) async throws -> (Data, Int) {
+        guard request.httpMethod == "POST", let url = request.url,
+              let body = request.httpBody, body.count <= 4_000_000 else { throw SpeechProviderError.invalidConfiguration }
+        _ = try SpeechHTTPSDestination.authority(url)
+        let delegate = SpeechBoundedDataDelegate()
+        let requestSession = URLSession(configuration: session.configuration, delegate: delegate, delegateQueue: nil)
+        let task = requestSession.dataTask(with: request)
+        defer { requestSession.invalidateAndCancel() }
+        do {
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    delegate.install(continuation)
+                    do {
+                        try Task.checkCancellation()
+                        try permit.dispatch { task.resume() }
+                    } catch {
+                        delegate.resolve(.failure(error))
+                        task.cancel()
+                    }
+                }
+            } onCancel: { permit.cancellation.cancel(); task.cancel() }
+        } catch is CancellationError { throw CancellationError() }
+        catch let error as SpeechProviderError { throw error }
+        catch {
+            if Task.isCancelled { throw CancellationError() }
+            throw SpeechProviderError.transport
+        }
+    }
+}
+
+/// A fresh delegate per request limits response bytes while streaming and
+/// never reads error bodies. Cancellation/early failure may race installation.
+private final class SpeechBoundedDataDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<(Data, Int), Error>?
+    private var outcome: Result<(Data, Int), Error>?
+    private var status: Int?
+    private var data = Data()
+
+    func install(_ continuation: CheckedContinuation<(Data, Int), Error>) {
+        lock.lock()
+        if let outcome { lock.unlock(); continuation.resume(with: outcome); return }
+        self.continuation = continuation
+        lock.unlock()
+    }
+    func resolve(_ result: Result<(Data, Int), Error>) {
+        lock.lock()
+        guard outcome == nil else { lock.unlock(); return }
+        outcome = result
+        let waiting = continuation
+        continuation = nil
+        lock.unlock()
+        waiting?.resume(with: result)
+    }
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        guard let response = response as? HTTPURLResponse else {
+            resolve(.failure(SpeechProviderError.invalidResponse)); completionHandler(.cancel); return
+        }
+        guard (200..<300).contains(response.statusCode) else {
+            resolve(.success((Data(), response.statusCode))); completionHandler(.cancel); return
+        }
+        lock.lock(); status = response.statusCode; lock.unlock()
+        completionHandler(.allow)
+    }
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+        lock.lock()
+        let tooLarge = chunk.count > 1_048_576 - data.count
+        if !tooLarge { data.append(chunk) }
+        lock.unlock()
+        if tooLarge { resolve(.failure(SpeechProviderError.responseTooLarge)); dataTask.cancel() }
+    }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error { resolve(.failure(error)); return }
+        lock.lock(); let result = status.map { (data, $0) }; lock.unlock()
+        if let result { resolve(.success(result)) }
+        else { resolve(.failure(SpeechProviderError.invalidResponse)) }
+    }
+}

@@ -60,3 +60,6 @@ transport's actual iOS TLS, redirect, cancellation and timeout behavior, real
 microphone permissions, audio conversion, UI and real provider compatibility
 remain unverified on this host. Simulator/device tests and controlled service
 tests are needed before enabling the feature.
+
+A later isolated fix addresses a pre-dispatch settings race in this seam;
+see `PROVIDER_SPEECH_DISPATCH_FENCE.md` for its ordering and limits.

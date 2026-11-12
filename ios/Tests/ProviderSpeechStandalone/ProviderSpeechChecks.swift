@@ -14,24 +14,68 @@ private actor DelayedTransport: SpeechProviderTransport {
     func release() { waiting?.resume(returning: (Data("{\"text\":\"late\"}".utf8), 200)); waiting = nil }
 }
 
+private final class SpeechURLCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func increment() { lock.lock(); count += 1; lock.unlock() }
+    func read() -> Int { lock.lock(); defer { lock.unlock() }; return count }
+}
+
 private final class SpeechURLProtocol: URLProtocol {
+    static let started = SpeechURLCounter()
     // Intercept every destination, including any accidental redirect target.
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+        Self.started.increment()
         guard let url = request.url else { return }
         let redirect = url.path.contains("redirect")
         let status = redirect ? 302 : 200
         let headers = redirect ? ["Location": "https://elsewhere.invalid/"] : ["Content-Type": "application/json"]
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        if !redirect { client?.urlProtocol(self, didLoad: Data("{\"text\":\"mock session\"}".utf8)) }
+        if !redirect {
+            let payload = url.path.contains("large") ? Data(repeating: 1, count: 1_048_577) : Data("{\"text\":\"mock session\"}".utf8)
+            client?.urlProtocol(self, didLoad: payload)
+        }
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
 }
 
 @main struct ProviderSpeechChecks {
+    @MainActor static func authorizedTransportChecks(session: URLSession, request: URLRequest) async throws -> Int {
+        var checks = 0, dispatches = 0
+        func check(_ condition: Bool) { precondition(condition); checks += 1 }
+        let transport = URLSessionSpeechTransport(session: session)
+        let permit = SpeechDispatchPermit { start in dispatches += 1; try start() }
+        let (data, status) = try await transport.send(request, permit: permit)
+        check(status == 200 && !data.isEmpty && dispatches == 1)
+        do { _ = try await transport.send(request, permit: permit); fatalError("permit reused") }
+        catch SpeechProviderError.invalidConfiguration { check(true) }
+        let canceled = SpeechDispatchPermit { _ in fatalError("cancelled dispatch executed") }
+        canceled.cancellation.cancel()
+        let beforeCancel = SpeechURLProtocol.started.read()
+        do { _ = try await transport.send(request, permit: canceled); fatalError("cancelled permit dispatched") }
+        catch is CancellationError { check(true) }
+        check(SpeechURLProtocol.started.read() == beforeCancel)
+        let denied = SpeechDispatchPermit { _ in throw SpeechProviderError.invalidConfiguration }
+        let beforeDenied = SpeechURLProtocol.started.read()
+        do { _ = try await transport.send(request, permit: denied); fatalError("denied request dispatched") }
+        catch SpeechProviderError.invalidConfiguration { check(true) }
+        check(SpeechURLProtocol.started.read() == beforeDenied)
+        var large = request
+        large.url = URL(string: "https://example.invalid/large")!
+        do {
+            _ = try await transport.send(large, permit: SpeechDispatchPermit { try $0() })
+            fatalError("oversized response accepted")
+        } catch SpeechProviderError.responseTooLarge { check(true) }
+        var redirect = request
+        redirect.url = URL(string: "https://example.invalid/redirect")!
+        let (_, redirectStatus) = try await transport.send(redirect, permit: SpeechDispatchPermit { try $0() })
+        check(redirectStatus == 302)
+        return checks
+    }
     static func main() async throws {
         var count = 0
         func check(_ ok: Bool, _ message: String) {
@@ -193,6 +237,7 @@ private final class SpeechURLProtocol: URLProtocol {
         }
         let sessionTranscript = try await networkClient.transcribe(endpoint: open, selection: selection, apiKey: "test-secret", wav: wav)
         check(sessionTranscript == "mock session", "URLSession transport through intercepting URLProtocol")
+        count += try await authorizedTransportChecks(session: localSession, request: multipart)
         let redirect = try SpeechProviderEndpoint.reviewNew(providerID: "provider-1", kind: .openAICompatible, rawBaseURL: "https://example.invalid/redirect")
         do {
             _ = try await networkClient.transcribe(endpoint: redirect, selection: selection, apiKey: "test-secret", wav: wav)

@@ -100,6 +100,14 @@ struct KeychainModelCredentials: ModelCredentialStoring {
 final class ModelSettingsRepository {
     static let configurationKey = "model.configuration.v1"
     private static let revisionKey = "model.configuration.revision.v1"
+    // Shared across repository instances in this process. Dispatch of a
+    // speech request and every repository mutation use the same boundary.
+    private static let dispatchLock = NSRecursiveLock()
+
+    static func withSpeechDispatchLock<T>(_ body: () throws -> T) rethrows -> T {
+        dispatchLock.lock(); defer { dispatchLock.unlock() }
+        return try body()
+    }
     private let defaults: UserDefaults
     private let credentials: any ModelCredentialStoring
 
@@ -168,6 +176,10 @@ final class ModelSettingsRepository {
     var revision: String { defaults.string(forKey: Self.revisionKey) ?? "legacy" }
 
     func save(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
+        try Self.withSpeechDispatchLock { try saveLocked(baseURL: baseURL, model: model, newKey: newKey) }
+    }
+
+    private func saveLocked(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
         let configuration = try Self.validate(baseURL: baseURL, model: model)
         let previous = try load()
         let newKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -199,9 +211,13 @@ final class ModelSettingsRepository {
     }
 
     func remove() throws {
-        try credentials.removeAll()
-        defaults.set(UUID().uuidString, forKey: Self.revisionKey)
-        defaults.removeObject(forKey: Self.configurationKey)
+        try Self.withSpeechDispatchLock {
+            // Even a failing Keychain operation may have partially mutated
+            // credentials. Invalidate staged uploads before attempting it.
+            defaults.set(UUID().uuidString, forKey: Self.revisionKey)
+            try credentials.removeAll()
+            defaults.removeObject(forKey: Self.configurationKey)
+        }
     }
 
     private static func sameOrigin(_ lhs: URL, _ rhs: URL) -> Bool {
