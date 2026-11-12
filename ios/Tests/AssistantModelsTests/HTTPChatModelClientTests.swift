@@ -20,6 +20,11 @@ final class HTTPChatModelClientTests: XCTestCase {
         XCTAssertGreaterThan(checks, 0)
     }
 
+    func testBoundedStreamingProducerLifecycle() async throws {
+        let checks = try await ModelClientChecks.boundedStreamLifecycle()
+        XCTAssertGreaterThan(checks, 0)
+    }
+
     func testTotalDeadlineAndCancellation() async throws {
         let checks = try await ModelClientChecks.deadlinesAndCancellation()
         XCTAssertGreaterThan(checks, 0)

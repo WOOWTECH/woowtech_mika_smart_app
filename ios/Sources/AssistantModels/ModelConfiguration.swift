@@ -52,6 +52,14 @@ public protocol ChatModelClient: Sendable {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String
 }
 
+/// `onDispatch` may run only after this exact request has begun dispatching.
+/// If it never runs, returning or throwing must mean no producer can start it
+/// later. No automatic retries or detached future requests are allowed.
+public protocol ReferenceDispatchBoundChatModelClient: ChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String
+}
+
 /// Optional text-delta capability. Finishing normally certifies a complete reply;
 /// truncation, cancellation and provider errors must finish by throwing.
 /// Structured tool flows use this only when separately opted in and keep their
@@ -64,6 +72,15 @@ public protocol StreamingChatModelClient: ChatModelClient {
 /// host must parse the complete command before acting and may preview only a
 /// recognized, decoded finish.answer field. Plain-only fixtures stay on complete.
 public protocol StructuredStreamingChatModelClient: StreamingChatModelClient {}
+
+/// A stream producer must call `onProducerFinished` only after it can no
+/// longer start or continue this request, including after consumer cancellation.
+/// `onDispatch` has the same meaning as for the complete-only capability.
+public protocol ReferenceDispatchBoundStreamingChatModelClient: StreamingChatModelClient, ReferenceDispatchBoundChatModelClient {
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error>
+}
 
 /// A structured provider error explicitly identifying `stream` as unsupported.
 /// Kept separate from HTTPChatModelError so the host can permit one bounded,

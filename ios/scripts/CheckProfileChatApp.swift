@@ -71,6 +71,80 @@ private actor ScriptedModel: ChatModelClient {
         return text
     }
 }
+extension ScriptedModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch() // Synthetic in-process request, never a real transport.
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+
+/// Separate gates model the producer before and after its dispatch event.
+/// Waiting deliberately ignores cancellation so tests can observe lease ownership.
+private actor BoundedCompleteProbe: ReferenceDispatchBoundChatModelClient {
+    let before = ModelGate(), after = ModelGate()
+    let failBeforeDispatch: Bool
+    private(set) var entered = 0, dispatched = 0, finished = 0
+    private(set) var lastMessages: [ModelMessage] = []
+    init(failBeforeDispatch: Bool = false) { self.failBeforeDispatch = failBeforeDispatch }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await complete(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {})
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        entered += 1; lastMessages = messages
+        defer { finished += 1 }
+        await before.wait()
+        try Task.checkCancellation()
+        if failBeforeDispatch { throw URLError(.cannotConnectToHost) }
+        dispatched += 1; onDispatch()
+        await after.wait()
+        return #"{"action":"finish","answer":"synthetic"}"#
+    }
+}
+
+private final class BoundedStreamProbe: StructuredStreamingChatModelClient, ReferenceDispatchBoundStreamingChatModelClient, @unchecked Sendable {
+    let before = ModelGate(), after = ModelGate()
+    let failBeforeDispatch: Bool
+    private let lock = NSLock()
+    private var counters = (entered: 0, dispatched: 0, finished: 0)
+    init(failBeforeDispatch: Bool = false) { self.failBeforeDispatch = failBeforeDispatch }
+    var state: (entered: Int, dispatched: Int, finished: Int) { lock.lock(); defer { lock.unlock() }; return counters }
+    private func record(_ change: (inout (entered: Int, dispatched: Int, finished: Int)) -> Void) {
+        lock.lock(); defer { lock.unlock() }; change(&counters)
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        throw CheckFailure(check: "stream probe must not downgrade")
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        throw CheckFailure(check: "stream probe must not downgrade")
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                onDispatch: @escaping @Sendable () -> Void,
+                onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let producer = Task {
+                self.record { $0.entered += 1 }
+                await self.before.wait()
+                do {
+                    try Task.checkCancellation()
+                    if self.failBeforeDispatch { throw URLError(.cannotConnectToHost) }
+                    onDispatch(); self.record { $0.dispatched += 1 }
+                    await self.after.wait()
+                    continuation.yield(#"{"action":"finish","answer":"synthetic"}"#)
+                    onProducerFinished(); self.record { $0.finished += 1 }; continuation.finish()
+                } catch {
+                    onProducerFinished(); self.record { $0.finished += 1 }; continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in producer.cancel() }
+        }
+    }
+}
 
 private struct SyntheticMCPEndpoint: MCPEndpointStoring {
     func load() throws -> URL? { URL(string: "https://mcp-learning.example.invalid/fixture") }
@@ -82,15 +156,21 @@ private struct SyntheticMCPEndpoint: MCPEndpointStoring {
 /// transport is synthetic. It cannot edit learning data or approve proposals.
 private actor LearningMCPServer: MCPDiscovering {
     private(set) var calls: [JSONValue] = []
+    private(set) var reads: [String] = []
     private let resultText: String
-    init(resultText: String = "Actual synthetic server result") { self.resultText = resultText }
+    private let resourcesEnabled: Bool
+    init(resultText: String = "Actual synthetic server result", resourcesEnabled: Bool = false) {
+        self.resultText = resultText; self.resourcesEnabled = resourcesEnabled
+    }
     func initialize() async throws -> MCPServerInfo {
-        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools"])
+        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: resourcesEnabled ? ["tools", "resources"] : ["tools"])
     }
     func listTools() async throws -> [MCPTool] {
         [MCPTool(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))]
     }
-    func listResources() async throws -> [MCPResource] { [] }
+    func listResources() async throws -> [MCPResource] {
+        resourcesEnabled ? [MCPResource(uri: "fixture://synthetic", name: "synthetic")] : []
+    }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         try Task.checkCancellation()
         guard name == "synthetic_read" else { throw MCPError.invalidRequest }
@@ -98,7 +178,36 @@ private actor LearningMCPServer: MCPDiscovering {
         return .object(["isError": .bool(false), "content": .array([
             .object(["type": .string("text"), "text": .string(resultText)])])])
     }
-    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue {
+        try Task.checkCancellation()
+        guard resourcesEnabled && uri == "fixture://synthetic" else { throw MCPError.invalidRequest }
+        reads.append(uri)
+        return .object(["contents": .array([.object(["uri": .string(uri), "text": .string(resultText)])])])
+    }
+    func cancel() async {}
+}
+
+/// Holds the actual async executor open even after cancellation. A returned
+/// method has no detached producer, matching the MCPDiscovering contract.
+private actor GatedMCPServer: MCPDiscovering {
+    let gate = ModelGate()
+    let fail: Bool
+    private(set) var entered = 0, sent = 0, finished = 0
+    init(fail: Bool = false) { self.fail = fail }
+    func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools", "resources"]) }
+    func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [.init(uri: "fixture://synthetic", name: "synthetic")] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { try await execute(resource: false) }
+    func readResource(uri: String) async throws -> JSONValue { try await execute(resource: true) }
+    private func execute(resource: Bool) async throws -> JSONValue {
+        entered += 1
+        defer { finished += 1 }
+        await gate.wait()
+        try Task.checkCancellation()
+        if fail { throw MCPError.invalidResponse }
+        sent += 1
+        return resource ? .object(["contents": .array([])]) : .object(["isError": .bool(false), "content": .array([])])
+    }
     func cancel() async {}
 }
 
@@ -110,6 +219,13 @@ private actor RecordingUIModel: ChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         requests.append(messages)
         return try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+extension RecordingUIModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
 #endif
@@ -191,6 +307,327 @@ private enum CheckProfileChatApp {
         try check(session.canSend, "Synthetic settings load through real initializer")
         session.send()
         return try task(session)
+    }
+    @MainActor static func sameStoreMCPRevisionFences() async throws {
+        for mcp in [false, true] {
+            for change in ["delete", "replace", "add", "memory", "skills"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed profile for same-store race")
+                let model = ScriptedModel([.init(finished)]), session = env.session(model)
+                let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+                defer { connection?.disconnect() }
+                let running = try connection.map { try startMCP(session, connection: $0, draft: "synthetic question") }
+                    ?? start(session, draft: "synthetic question")
+                switch change {
+                case "delete": try check(env.store.deleteProfileReference(segment: "Private synthetic preference"), "delete same-store profile")
+                case "replace": try check(env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed"), "replace same-store profile")
+                case "add": try check(env.store.mutateProfile { try $0.add(text: "Another synthetic record") }, "add same-store profile")
+                case "memory": try check(env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }, "change same-store memory")
+                default: try check(env.store.mutateSkills { _ in }, "change same-store skill generation")
+                }
+                await running.value
+                let requests = await model.requests
+                try check(requests.isEmpty && session.entries.isEmpty && session.draft == "synthetic question", "same-store change fences initial model call: \(mcp) \(change)")
+                try check(session.chatError != nil, "same-store change reported")
+            }
+        }
+        for change in ["delete", "replace", "add", "memory", "cancel"] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed approval profile")
+            let server = LearningMCPServer(), connection = try await connectedMCP(server)
+            defer { connection.disconnect() }
+            let secondRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{"round":2}}"#
+            let model = ScriptedModel([.init(remoteRead), .init(secondRead), .init(finished)])
+            let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
+            try await until("first remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+            guard let first = session.pendingMCPApproval else { throw CheckFailure(check: "first approval missing") }
+            session.resolveMCPApproval(id: first.id, approved: true)
+            try await until("second remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+            guard let second = session.pendingMCPApproval, second.id != first.id else { throw CheckFailure(check: "second approval missing") }
+            let before = await model.requests
+            try check(before.count == 2 && before.allSatisfy { $0.contains { $0.content.contains("Private synthetic preference") } }, "two prior requests predate modification")
+            switch change {
+            case "delete": try check(env.store.deleteProfileReference(segment: "Private synthetic preference"), "delete during remote approval")
+            case "replace": try check(env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed"), "replace during remote approval")
+            case "add": try check(env.store.mutateProfile { try $0.add(text: "Another synthetic record") }, "add during remote approval")
+            case "memory": try check(env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }, "memory change during remote approval")
+            default: session.cancel()
+            }
+            session.resolveMCPApproval(id: second.id, approved: true)
+            await running.value
+            let after = await model.requests, calls = await server.calls
+            try check(after.count == 2 && calls.count == 1, "no stale model continuation or second tool dispatch after \(change)")
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "interrupted multi-round turn retains draft")
+        }
+        for mcp in [false, true] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed reentrant edit")
+            let model = ScriptedModel([.init(proposal), .init(finished)]), session = env.session(model)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            var removed = false
+            let subscription = session.$profileReceipt.compactMap { $0 }.sink { _ in
+                removed = env.store.deleteProfileReference(segment: "Private synthetic preference")
+            }
+            defer { subscription.cancel() }
+            let running = try connection.map { try startMCP(session, connection: $0) } ?? start(session)
+            let pending = try await review(session)
+            session.resolveProfileReview(id: pending.id, approved: true)
+            await running.value
+            let requests = await model.requests
+            try check(removed && requests.count == 1 && session.profileReceipt?.applied == true,
+                      "reentrant deletion cannot be absorbed by approved-addition rebind")
+            try check(env.reopen().profile.snapshot().entries.map(\.text) == [text]
+                      && session.chatError?.contains("已儲存") == true && session.draft == utterance,
+                      "reentrant deletion and approved addition remain durable with receipt and draft")
+        }
+    }
+    @MainActor static func mcpExecutorDispatchFences() async throws {
+        let resourceCommand = #"{"action":"read_resource","uri":"fixture://synthetic"}"#
+        // Reproduce the independent review at the precise .executing event,
+        // for both operations and both same-store and peer-store writes.
+        for resource in [false, true] {
+            for change in ["same", "peer", "cancel"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed post-event profile")
+                let peer = env.reopen(), server = LearningMCPServer(resourcesEnabled: true)
+                let connection = try await connectedMCP(server, includeResource: true)
+                defer { connection.disconnect() }
+                let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
+                let session = env.session(model)
+                var changed = false
+                let subscription = session.$mcpActivity.sink { message in
+                    guard !changed, message?.contains("MCP 嘗試呼叫 1 次") == true else { return }
+                    // Set the latch before cancel(), whose publications can reenter.
+                    changed = true
+                    if change == "same" { changed = env.store.deleteProfileReference(segment: "Private synthetic preference") }
+                    else if change == "peer" { changed = peer.updatePreferences { $0.useMemory = false } }
+                    else { session.cancel() }
+                }
+                defer { subscription.cancel() }
+                let running = try startMCP(session, connection: connection, draft: "synthetic question")
+                try await until("post-event approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "post-event approval missing") }
+                session.resolveMCPApproval(id: approval.id, approved: true)
+                await running.value
+                let calls = await server.calls, reads = await server.reads, requests = await model.requests
+                try check(changed && calls.isEmpty && reads.isEmpty && requests.count == 1,
+                          "post-event \(change) prevents \(resource ? "resource" : "tool") dispatch")
+                try check(session.draft == "synthetic question" && session.entries.isEmpty,
+                          "post-event interruption retains draft without inventing result")
+                if change == "same" { try check(env.reopen().profile.snapshot().entries.isEmpty, "same-store deletion remains durable") }
+                if change == "peer" { try check(!env.reopen().memory.preferences.useMemory, "peer disable remains durable") }
+            }
+        }
+        // A producer may suspend before actual dispatch and ignore cancellation.
+        // Both instances remain unable to write until that producer returns.
+        for resource in [false, true] {
+            for mode in ["success", "failure", "cancel"] {
+                let env = try Environment(); defer { try? env.close() }
+                try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed in-flight fence")
+                let peer = env.reopen(), server = GatedMCPServer(fail: mode == "failure")
+                let connection = try await connectedMCP(server, includeResource: true)
+                defer { connection.disconnect() }
+                let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
+                let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
+                try await until("gated approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
+                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "gated approval missing") }
+                session.resolveMCPApproval(id: approval.id, approved: true)
+                try await until("executor entered") { await server.entered == 1 }
+                if mode == "cancel" { session.cancel() }
+                try check(!env.store.deleteProfileReference(segment: "Private synthetic preference"), "same-store write is busy during executor")
+                try check(!peer.updatePreferences { $0.useMemory = false }, "peer write is busy during executor")
+                try check(env.reopen().available == false, "another real store sees busy until producer finishes")
+                let sentBefore = await server.sent
+                try check(sentBefore == 0, "producer has not sent while gate remains closed")
+                await server.gate.release()
+                await running.value
+                try await until("executor returned") { await server.finished == 1 }
+                let sent = await server.sent, requests = await model.requests
+                try check(sent == (mode == "success" ? 1 : 0), "\(mode) executor dispatch count")
+                try await until("executor lease release") { peer.updatePreferences { $0.useMemory = false } }
+                try check(!peer.memory.preferences.useMemory, "peer can write after actual producer returns")
+                try check(env.reopen().profile.snapshot().entries.map(\.text) == ["Private synthetic preference"],
+                          "busy write did not remove the saved profile")
+                if mode == "success" {
+                    try check(requests.count == 2 && session.entries.count == 2, "unchanged context completes normally")
+                } else {
+                    try check(requests.count == 1 && session.entries.isEmpty && session.draft == "synthetic question",
+                              "\(mode) emits no invented result and retains draft")
+                }
+            }
+        }
+    }
+    @MainActor static func chatContextDispatchFences() async throws {
+        // The exact race from independent review, now asserting that the
+        // asynchronous model is never entered after the peer's write.
+        for mcp in [false, true] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed private context")
+            let peer = env.reopen(), model = ScriptedModel([.init(finished)]), session = env.session(model)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let running = try connection.map { try startMCP(session, connection:$0, draft:"synthetic question") }
+                ?? start(session, draft:"synthetic question")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer turns memory off before dispatch")
+            await running.value
+            let count = await model.requests.count
+            try check(count == 0 && session.entries.isEmpty && session.draft == "synthetic question", "stale ordinary or MCP context never reaches model")
+            try check(session.chatError?.contains("重新讀取") == true, "stale request reports conflict")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "publication fixture saves profile")
+            let peer=env.reopen(), session=env.session(ScriptedModel([.init(finished)]))
+            var peerSaveAfterPublication = false
+            let observation = session.$isSubmitting.dropFirst().sink { submitting in
+                if !submitting { peerSaveAfterPublication = peer.updatePreferences { $0.useMemory = false } }
+            }
+            let running=try start(session,draft:"synthetic question"); await running.value
+            withExtendedLifetime(observation) {}
+            try check(peerSaveAfterPublication && session.entries.count == 2,
+                      "reply is published and lease released before completion observers")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "pre-stream race saves profile")
+            let peer=env.reopen(), probe=BoundedStreamProbe(), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer disables before stream producer starts")
+            await running.value
+            try check(probe.state.entered == 0 && session.entries.isEmpty, "stale stream producer is never started")
+        }
+        // Both structured and plain streaming own the lock until the real
+        // producer ends, even when the consumer is cancelled first.
+        for (plain, cancel) in [(false, true), (true, true), (false, false), (true, false)] {
+            let env = try Environment(); defer { try? env.close() }
+            if plain {
+                try check(env.store.updatePreferences { $0.useMemory = false }, "plain fixture disables memory")
+                let skill = """
+                ---
+                name: reference-guide
+                description: reference guide
+                ---
+                ## Entry
+                Reference page.
+                ## Steps
+                Read reference.
+                ## Pitfalls
+                Missing evidence.
+                ## Success criteria
+                Grounded answer.
+                ## When to stop
+                Ask the user.
+                """
+                try check(env.store.mutateSkills { state in
+                    let draft = try state.importMarkdown(skill, availableToolNames: [])
+                    _ = try state.approveDraft(id:draft.id, availableToolNames: [])
+                }, "plain fixture saves personal skill")
+                try check(env.store.contextMessages(for:"reference guide").contains { $0.content.contains("reference-guide") },
+                          "plain fixture includes a personal reference")
+            } else {
+                try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "stream fixture saves profile")
+            }
+            let peer=env.reopen(), probe=BoundedStreamProbe(failBeforeDispatch:!cancel), session=env.session(probe)
+            let running=try start(session,draft:"reference guide")
+            try await until("stream producer entered") { probe.state.entered == 1 }
+            try check(!peer.updatePreferences { $0.autoRemember.toggle() }, "peer write is busy before stream dispatch")
+            if cancel { session.cancel() }
+            try check(!peer.updatePreferences { $0.autoRemember.toggle() }, "consumer cancellation does not release live producer lease")
+            await probe.before.release()
+            try await until("cancelled stream producer finished") { probe.state.finished == 1 }
+            await running.value
+            try check(probe.state.dispatched == 0 && session.entries.isEmpty, "cancelled or failed stream never dispatches or publishes")
+            try check(peer.updatePreferences { $0.autoRemember.toggle() }, "producer finish releases stream lease")
+        }
+        // A model response arriving after a peer's post-dispatch change cannot
+        // be published, even though already dispatched bytes cannot be recalled.
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "late response fixture saves profile")
+            let peer=env.reopen(), probe=BoundedStreamProbe(), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try await until("late stream entered") { probe.state.entered == 1 }
+            await probe.before.release()
+            try await until("late stream dispatched") { probe.state.dispatched == 1 }
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer change allowed after dispatch")
+            await probe.after.release(); await running.value
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "late stale stream result is not published")
+        }
+        for fail in [false, true] {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "complete fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(failBeforeDispatch:fail), session=env.session(probe)
+            let running=try start(session,draft:"synthetic question")
+            try await until("complete producer entered") { await probe.entered == 1 }
+            try check(!peer.updatePreferences { $0.useMemory = false }, "peer write is busy before complete dispatch")
+            if !fail { session.cancel() }
+            try check(!peer.updatePreferences { $0.useMemory = false }, "lease held until complete producer returns")
+            await probe.before.release(); await probe.after.release(); await running.value
+            let sent=await probe.dispatched, done=await probe.finished
+            try check(sent == 0 && done == 1 && session.entries.isEmpty, "cancel or failure never dispatches and preserves chat")
+            try check(peer.updatePreferences { $0.useMemory = false }, "failed or cancelled producer releases lease")
+        }
+        for mcp in [false, true] {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "late complete fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
+            let connection = mcp ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let running = try connection.map { try startMCP(session,connection:$0,draft:"synthetic question") }
+                ?? start(session,draft:"synthetic question")
+            try await until("late complete entered") { await probe.entered == 1 }
+            await probe.before.release()
+            try await until("late complete dispatched") { await probe.dispatched == 1 }
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer change allowed after complete dispatch")
+            await probe.after.release(); await running.value
+            try check(session.entries.isEmpty && session.draft == "synthetic question", "late ordinary or MCP reply is not published")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "MCP producer fixture saves profile")
+            let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
+            let connection=try await connectedMCP(LearningMCPServer()); defer { connection.disconnect() }
+            let running=try startMCP(session,connection:connection,draft:"synthetic question")
+            try await until("MCP producer entered") { await probe.entered == 1 }
+            session.cancelMCP(); await running.value
+            try check(!peer.updatePreferences { $0.useMemory = false }, "MCP runner cancellation cannot release a live producer lease")
+            await probe.before.release(); await probe.after.release()
+            try await until("cancelled MCP producer finished") { await probe.finished == 1 }
+            let sent=await probe.dispatched
+            try check(sent == 0 && session.entries.isEmpty, "cancelled MCP producer sends nothing")
+            try check(peer.updatePreferences { $0.useMemory = false }, "MCP producer finish releases lease")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable synthetic extraction")
+            try check(env.store.mutateMemory { _ = try $0.add(kind:.preference, content:"Prefer jasmine tea") }, "seed related personal memory")
+            let peer=env.reopen(), probe=BoundedCompleteProbe()
+            env.store.rememberAfterReply(utterance:utterance, conversationID:"synthetic", expectedGeneration:env.store.generation,
+                client:probe, configuration:.init(baseURL:URL(string:"https://example.invalid/v1")!,model:"synthetic"), apiKey:"synthetic")
+            try check(peer.updatePreferences { $0.useMemory = false }, "peer disables before extraction producer starts")
+            try await until("stale extraction finishes") { !env.store.isLearning }
+            let entered=await probe.entered
+            try check(entered == 0, "stale related memory never reaches extraction model")
+        }
+        do {
+            let env=try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable extraction control")
+            try check(env.store.mutateMemory { _ = try $0.add(kind:.preference, content:"Prefer jasmine tea") }, "seed extraction control memory")
+            let probe=BoundedCompleteProbe()
+            env.store.rememberAfterReply(utterance:utterance, conversationID:"synthetic", expectedGeneration:env.store.generation,
+                client:probe, configuration:.init(baseURL:URL(string:"https://example.invalid/v1")!,model:"synthetic"), apiKey:"synthetic")
+            try await until("control extraction reaches producer") { await probe.entered == 1 }
+            let sent = await probe.lastMessages
+            let related = sent.compactMap { message -> [[String:Any]]? in
+                guard let data = message.content.data(using:.utf8),
+                      let object = try? JSONSerialization.jsonObject(with:data) as? [String:Any] else { return nil }
+                return object["related"] as? [[String:Any]]
+            }.flatMap { $0 }
+            try check(related.contains { ($0["content"] as? String) == "Prefer jasmine tea" }, "control extraction carries related memory")
+            env.store.cancelLearning(); await probe.before.release(); await probe.after.release()
+            try await until("control extraction producer finishes") { await probe.finished == 1 }
+        }
     }
     @MainActor static func review(_ session: ChatSession) async throws -> UserProfileToolReview {
         try await until("Pending actual profile review") { session.pendingProfileReview != nil || !session.isSubmitting }
@@ -370,7 +807,7 @@ private enum CheckProfileChatApp {
             session.resolveProfileReview(id: pending.id, approved: true)
             await running.value
             try check(publications == 0 && session.profileReceipt == nil, failure + " cannot publish receipt")
-            try check(env.store.profile == original && env.store.error != nil, failure + " leaves original published state")
+            try check(env.store.profile == original && (env.store.error != nil || session.chatError != nil), failure + " leaves original published state")
             try check(session.chatError != nil && session.entries.isEmpty && session.draft == utterance, failure + " surfaces failure without false answer")
             if failure == "filesystem" { try env.restoreWrite() } else { env.keys.failReads = false }
             try check((try env.bytes()) == bytes && env.reopen().profile == original, failure + " preserves original ciphertext and relaunch state")
@@ -557,12 +994,13 @@ private enum CheckProfileChatApp {
         return value
     }
 
-    @MainActor static func connectedMCP(_ server: LearningMCPServer) async throws -> MCPSession {
+    @MainActor static func connectedMCP(_ server: any MCPDiscovering, includeResource: Bool = false) async throws -> MCPSession {
         let connection = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in server })
         connection.connect()
         try await until("Actual synthetic MCP discovery") { !connection.isBusy }
         try check(connection.phase == .connected, "Real MCPSession completes discovery")
         connection.selectTool("synthetic_read", enabled: true)
+        if includeResource { connection.selectResource("fixture://synthetic", enabled: true) }
         try check(connection.canUseInConversation && connection.tools.map(\.name) == ["synthetic_read"],
                   "Local tools are not fabricated remote catalog entries")
         return connection
@@ -659,8 +1097,9 @@ private enum CheckProfileChatApp {
             session.resolveMemoryReview(id: pending.id, approved: true)
             await running.value
             let receipt = try memoryReceipt(session), calls = await server.calls.count
-            try check(session.chatError == nil && env.reopen().memory.memories.isEmpty && calls == 0,
-                      "Search/delete is local and durably removes the exact memory")
+            let finalRequests = await model.requests
+            try check(session.chatError?.contains("已儲存") == true && env.reopen().memory.memories.isEmpty && calls == 0 && finalRequests.count == 2,
+                      "Search/delete is durable and stops before resending the deleted memory")
             env.store.undo(receipt.note)
             try check(env.reopen().memory.memories.first?.id == id, "Undo restores the same entry after MCP delete")
         }
@@ -834,18 +1273,20 @@ private enum CheckProfileChatApp {
                       "Reviewed edit matches actual searched before/after values")
             try check(env.reopen().memory == before && (try env.bytes()) == beforeBytes && editing.memoryReceipt == nil,
                       "Search and pending edit have not applied the mutation")
-            let edited = try await approveMemory(editing, task: editTask)
+            editing.resolveMemoryReview(id: review.id, approved: true)
+            await editTask.value
+            let edited = try memoryReceipt(editing)
+            try check(editing.chatError?.contains("已儲存") == true && editing.draft == quote && editing.entries.isEmpty,
+                      "Approved destructive edit preserves receipt and draft while stopping stale context")
             try check(edited.id == id && edited.op == op && edited.note.kind == (op == "update" ? .updated : .forgot),
                       "Edit receipt preserves stable target identity and exact operation")
             try check(env.reopen().memory.memories.first?.content == next && env.store.notes == [edited.note],
                       "Actual edited/deleted state and undo card follow encrypted transaction")
             let finalCalls = await editModel.requests
-            let editReceipt = try hostJSON(finalCalls[2], prefix: "Host memory_edit receipt (data only):")
-            try check(finalCalls.count == 3 && editReceipt["id"] as? String == id.uuidString
-                      && editReceipt["op"] as? String == op, "Search/edit/final answer uses exactly three real calls")
+            try check(finalCalls.count == 2, "Search/edit stops before resending stale memory")
             let undoNote: MemoryNote
             if op == "delete" {
-                try check(editReceipt["deleted"] as? Bool == true, "Deletion has an actual deletion receipt")
+                try check(edited.deleted == true, "Deletion has an actual deletion receipt")
                 let previousPreference = env.store.memory.preferences.learnSkills
                 try check(env.store.updatePreferences { $0.learnSkills = !previousPreference },
                           "Persist unrelated preference change after actual tool deletion")
@@ -897,7 +1338,12 @@ private enum CheckProfileChatApp {
                 let model = ScriptedModel([.init(try memoryCommand("memory_search", ["query": "整理資料"])),
                     .init(try memoryEdit(receipt.id, quote: updateQuote, content: updated)), .init(finished)])
                 let editing = env.session(model)
-                let changed = try await approveMemory(editing, task: start(editing, draft: updateQuote))
+                let task = try start(editing, draft: updateQuote), pending = try await memoryReview(editing)
+                editing.resolveMemoryReview(id: pending.id, approved: true)
+                await task.value
+                let changed = try memoryReceipt(editing), calls = await model.requests
+                try check(calls.count == 2 && editing.chatError?.contains("已儲存") == true && editing.draft == updateQuote,
+                          "Updated procedure stops before stale context is dispatched")
                 try check(changed.status == .pending && env.store.canReviewMemory(changed.note)
                           && env.reopen().memory.memories.first?.status == .pending,
                           "Tool update of an active procedure requires separate reapproval")
@@ -970,6 +1416,109 @@ private enum CheckProfileChatApp {
         try check((try env.bytes()) == disabled, "Disabled direct transaction writes no ciphertext")
     }
 
+    /// Same shared encrypted file as the attachment-fixture negative control:
+    /// the actual ChatSession waits for approval while a second store changes it.
+    @MainActor static func crossInstanceApprovalAndCancellation() async throws {
+        for scenario in ["memory", "profile", "cancel"] {
+            let env = try Environment(); defer { try? env.close() }
+            let command = scenario == "profile" ? proposal : try memorySave()
+            let model = ScriptedModel([.init(command), .init(finished)])
+            let session = env.session(model), running = try start(session)
+            var memoryID: UUID?, profileID: UUID?
+            if scenario == "profile" { profileID = try await review(session).id }
+            else { memoryID = try await memoryReview(session).id }
+            let other = env.reopen()
+            try check(other.updatePreferences { $0.useMemory = false }, "second store disables memory")
+            let current = other.memory, ciphertext = try env.bytes(), keyIDs = Set(env.keys.values.keys)
+            if scenario == "cancel" { session.cancel() }
+            if let memoryID { session.resolveMemoryReview(id: memoryID, approved: true) }
+            if let profileID { session.resolveProfileReview(id: profileID, approved: true) }
+            await running.value
+            let disk = env.reopen()
+            try check(!disk.memory.preferences.useMemory && disk.memory == current && disk.memory.memories.isEmpty,
+                      scenario + " retains newer master switch and no stale memory")
+            try check(disk.profile.entries.isEmpty && (try env.bytes()) == ciphertext && Set(env.keys.values.keys) == keyIDs,
+                      scenario + " leaves newer ciphertext, profile and keys unchanged")
+            try check(session.memoryReceipt == nil && session.profileReceipt == nil && session.draft == utterance,
+                      scenario + " creates no receipt and retains draft")
+            let requests = await model.requests.count
+            try check(requests == 1, scenario + " never retries or emits a fabricated receipt")
+            if scenario != "cancel" {
+                try check(session.chatError?.contains("資料已變更") == true, "conflict tells user to reload and re-confirm")
+            }
+        }
+        let env = try Environment(); defer { try? env.close() }
+        let stale = env.reopen()
+        try check(env.store.mutateProfile { try $0.add(text: "Prefer quiet hotels") }, "newer profile persisted")
+        let current = try env.bytes(), keys = Set(env.keys.values.keys)
+        try check(!stale.updatePreferences { $0.useMemory = false }, "stale preferences cannot overwrite profile")
+        try check(!stale.mutateWeb { _, _ in }, "stale website writer cannot overwrite profile")
+        try check(!stale.clearAll(), "stale clear cannot remove newer data or rotate key")
+        try check((try env.bytes()) == current && Set(env.keys.values.keys) == keys &&
+                  env.reopen().profile.snapshot().entries.first?.text == "Prefer quiet hotels",
+                  "all stale writes preserve exact ciphertext, keys and newer profile")
+        try check(stale.error?.contains("重新讀取") == true, "stale clear reports conflict")
+        stale.reload()
+        try check(stale.updatePreferences { $0.useMemory = false }, "explicit reload permits fresh action")
+        try check(!env.reopen().memory.preferences.useMemory && env.reopen().profile.snapshot().entries.first?.text == "Prefer quiet hotels",
+                  "fresh action preserves sibling profile")
+
+        let contextEnv = try Environment(); defer { try? contextEnv.close() }
+        try check(contextEnv.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed profile")
+        let contextOther = contextEnv.reopen()
+        try check(contextOther.updatePreferences { $0.useMemory = false }, "other store disables profile context")
+        let contextModel = ScriptedModel([.init("fresh synthetic answer")]), contextSession = contextEnv.session(contextModel)
+        contextSession.draft = "synthetic question"; contextSession.send()
+        let contextRequests = await contextModel.requests.count
+        try check(contextRequests == 0 && !contextSession.isSubmitting && contextSession.draft == "synthetic question" && !contextEnv.store.available,
+                  "detected stale context stops send and preserves draft")
+        try check(contextSession.chatError?.contains("重新讀取") == true, "chat reports stale context conflict")
+        try check(contextEnv.store.error?.contains("重新讀取") == true, "stale context requests reload")
+
+        let damagedEnv = try Environment(); defer { try? damagedEnv.close() }
+        try Data("synthetic corrupt ciphertext".utf8).write(to: damagedEnv.file, options: .atomic)
+        damagedEnv.store.reload()
+        try check(!damagedEnv.store.available, "corrupt vault fails closed")
+        let corruptPeer = damagedEnv.reopen()
+        try check(damagedEnv.store.clearAll(), "explicit recovery clear rotates corrupt vault")
+        let recovered = try damagedEnv.bytes(), recoveredKeys = Set(damagedEnv.keys.values.keys)
+        try check(!corruptPeer.clearAll(), "stale recovery confirmation cannot clear newer vault")
+        try check((try damagedEnv.bytes()) == recovered && Set(damagedEnv.keys.values.keys) == recoveredKeys,
+                  "stale recovery preserves newer ciphertext and keys")
+
+        let emptyRoot = FileManager.default.temporaryDirectory.appendingPathComponent("woow-learning-empty-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: emptyRoot) }
+        let emptyFile = emptyRoot.appendingPathComponent("learning.vault"), emptyKeys = SyntheticKeys()
+        func emptyStore() -> LearningStore { LearningStore(vault: EncryptedLearningFile(url: emptyFile, keys: emptyKeys)) }
+        let first = emptyStore(), second = emptyStore()
+        try check(first.available && second.available, "both instances initially see an absent vault")
+        try check(first.updatePreferences { $0.useMemory = false }, "first instance creates encrypted vault")
+        let created = try Data(contentsOf: emptyFile), createdKeys = Set(emptyKeys.values.keys)
+        try check(!second.mutateProfile { try $0.add(text: "Stale synthetic write") }, "second instance cannot overwrite newly created vault")
+        try check((try Data(contentsOf: emptyFile)) == created && Set(emptyKeys.values.keys) == createdKeys,
+                  "absent-to-present conflict preserves exact bytes and keys")
+
+        let busyEnv = try Environment(); defer { try? busyEnv.close() }
+        let run = MemoryToolRun(state: busyEnv.store.memory, utterances: [utterance])
+        let pending = try run.prepare(toolName: "memory_save", argumentsJSON:
+            #"{"kind":"preference","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}"#)
+        let busyBytes = try busyEnv.bytes(), busyKeys = Set(busyEnv.keys.values.keys)
+        let locker = EncryptedLearningFile(url: busyEnv.file, keys: busyEnv.keys)
+        try locker.withExclusiveAccess {
+            do {
+                _ = try busyEnv.store.commitMemoryTool(pending, expectedGeneration: busyEnv.store.generation,
+                                                       conversationID: "synthetic")
+                throw CheckFailure(check: "held lock must not block or allow commit")
+            } catch LearningFileError.busy { assertions += 1 }
+            try check(busyEnv.store.error?.contains("正在其他位置") == true, "busy status is actionable")
+            try check((try busyEnv.bytes()) == busyBytes && Set(busyEnv.keys.values.keys) == busyKeys,
+                      "busy lock leaves ciphertext and keys unchanged")
+        }
+        _ = try busyEnv.store.commitMemoryTool(pending, expectedGeneration: busyEnv.store.generation,
+                                               conversationID: "synthetic")
+        try check(busyEnv.reopen().memory.memories.count == 1, "review can be committed after unchanged lock is released")
+    }
+
     @MainActor static func memorySearchGrounding() async throws {
         for scenario in ["noSearch", "guessedID", "emptySearch", "negatedEdit", "foreignQuote"] {
             let env = try Environment(); defer { try? env.close() }
@@ -1030,7 +1579,7 @@ private enum CheckProfileChatApp {
                       failure + " never publishes a receipt for a failed memory write")
             try check(env.store.memory == before && env.reopen().memory == before && (try env.bytes()) == bytes && env.store.notes == notes,
                       failure + " preserves ciphertext, published memory and any earlier undo card")
-            try check(session.chatError?.contains("學習資料無法儲存") == true && session.chatError?.contains("後續模型回覆未完成") == false,
+            try check((session.chatError?.contains("學習資料無法儲存") == true || session.chatError?.contains("重新讀取") == true) && session.chatError?.contains("後續模型回覆未完成") == false,
                       failure + " reports actual storage failure, not a network error or a committed new write")
             try check(session.entries.map(\.id) == oldEntries && session.draft == prompt && session.pendingMemoryReview == nil,
                       failure + " retains draft/history and cleans up review")
@@ -1189,14 +1738,17 @@ private enum CheckProfileChatApp {
             if approved {
                 let receipt = try memoryReceipt(session)
                 if operation == .add { savedID = receipt.id }
-                try check(receipt.id == savedID && env.store.notes == [receipt.note]
-                          && session.entries.last?.content == "記憶工具已完成。" && session.chatError == nil && session.draft.isEmpty,
-                          "Actual fixture final answer follows one real durable receipt and undo card")
-                let tool = operation == .add ? "memory_save" : "memory_edit"
-                let result = try hostJSON(requests.last!, prefix: "Host " + tool + " receipt (data only):")
-                try check(result["id"] as? String == savedID?.uuidString
-                          && requests.count - callOffset == (operation == .add ? 2 : 3),
-                          "Actual fixture continuation uses the committed ID with bounded search/write/final calls")
+                try check(receipt.id == savedID && env.store.notes == [receipt.note], "Actual fixture retains durable receipt and undo card")
+                if operation == .add {
+                    let result = try hostJSON(requests.last!, prefix: "Host memory_save receipt (data only):")
+                    try check(session.entries.last?.content == "記憶工具已完成。" && session.chatError == nil && session.draft.isEmpty
+                              && result["id"] as? String == savedID?.uuidString && requests.count - callOffset == 2,
+                              "Additive fixture continues with the committed ID")
+                } else {
+                    try check(session.chatError?.contains("已儲存") == true && session.draft == prompt
+                              && requests.count - callOffset == 2,
+                              "Destructive fixture retains draft and stops before stale continuation")
+                }
                 if operation == .update {
                     try check(env.reopen().memory.memories.first?.keywords == ["coffee"],
                               "Actual update fixture persists its grounded replacement keywords")
@@ -1265,8 +1817,13 @@ private enum CheckProfileChatApp {
             await running.value
             try check(env.reopen().profile.snapshot().entries.map(\.text) == expected, "Actual fixture operation survives encrypted reopen")
             if approved {
-                try check(session.profileReceipt?.applied == true && session.entries.last?.content == "個人檔案工具已完成。",
-                          "Fixture resumes only after actual approved transaction")
+                if operation == .add {
+                    try check(session.profileReceipt?.applied == true && session.entries.last?.content == "個人檔案工具已完成。",
+                              "Additive fixture resumes after approved transaction")
+                } else {
+                    try check(session.profileReceipt?.applied == true && session.chatError?.contains("已儲存") == true && session.draft == prompt,
+                              "Destructive fixture retains receipt and stops stale continuation")
+                }
             } else {
                 try check((try env.bytes()) == bytes && session.chatError?.contains("拒絕") == true,
                           "Fixture refusal preserves data and is not confused by previous receipt")
@@ -1282,6 +1839,21 @@ private enum CheckProfileChatApp {
     #if PROFILE_CHAT_APP_STANDALONE
     @MainActor static func main() async {
         do {
+            if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
+                try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
+                try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
+                try await group("chatContextDispatchFences", chatContextDispatchFences)
+                let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
+                    "groups": groups, "native_ui_executed": false, "real_encrypted_files": true], options: [.sortedKeys])
+                print(String(decoding: data, as: UTF8.self)); return
+            }
+            if ProcessInfo.processInfo.environment["WOOW_CROSS_INSTANCE_ONLY"] == "1" {
+                try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+                let data = try JSONSerialization.data(withJSONObject: ["passed": assertions, "failed": 0,
+                    "groups": groups, "native_ui_executed": false, "real_encrypted_files": true], options: [.sortedKeys])
+                print(String(decoding: data, as: UTF8.self))
+                return
+            }
             try await group("encryptedTransaction", transactionChecks)
             try await group("approvalAndDurableReceipt", approveAndReceipt)
             try await group("refusalCancellationAndCommitFences", deniedOrCancelled)
@@ -1294,6 +1866,10 @@ private enum CheckProfileChatApp {
             try await group("memorySaveSearchEditUndo", memorySaveSearchEditUndo)
             try await group("memoryProcedureReview", memoryProcedureReview)
             try await group("memoryRefusalAndFences", memoryRefusalAndFences)
+            try await group("crossInstanceApprovalAndCancellation", crossInstanceApprovalAndCancellation)
+            try await group("mcpExecutorDispatchFences", mcpExecutorDispatchFences)
+            try await group("sameStoreMCPRevisionFences", sameStoreMCPRevisionFences)
+            try await group("chatContextDispatchFences", chatContextDispatchFences)
             try await group("memorySearchGrounding", memorySearchGrounding)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
@@ -1324,6 +1900,10 @@ private enum CheckProfileChatApp {
 
 #if !PROFILE_CHAT_APP_STANDALONE
 final class ProfileChatAppIntegrationTests: XCTestCase {
+    @MainActor func testChatContextDispatchFences() async throws { try await CheckProfileChatApp.chatContextDispatchFences() }
+    @MainActor func testCrossInstanceApprovalAndCancellation() async throws {
+        try await CheckProfileChatApp.crossInstanceApprovalAndCancellation()
+    }
     @MainActor func testEncryptedTransactionRevisionGenerationAndMasterSwitch() async throws {
         try await CheckProfileChatApp.transactionChecks()
     }
@@ -1353,6 +1933,12 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMemorySaveSearchEditAndDurableUndo() async throws {
         try await CheckProfileChatApp.memorySaveSearchEditUndo()
+    }
+    @MainActor func testSameStoreMCPRevisionFences() async throws {
+        try await CheckProfileChatApp.sameStoreMCPRevisionFences()
+    }
+    @MainActor func testMCPExecutorDispatchFences() async throws {
+        try await CheckProfileChatApp.mcpExecutorDispatchFences()
     }
     @MainActor func testMemoryProcedureApprovalRejectionAndReapproval() async throws {
         try await CheckProfileChatApp.memoryProcedureReview()

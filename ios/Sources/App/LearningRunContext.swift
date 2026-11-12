@@ -1,6 +1,7 @@
 import AssistantBrowser
 import AssistantMemory
 import AssistantModels
+import AssistantPersistence
 import AssistantSkills
 import Foundation
 
@@ -21,6 +22,17 @@ import Foundation
     }
     func check() throws {
         guard !revoked, !Task.isCancelled, let store, store.available else { throw RunReferenceError.revoked }
+        let lease = try Self.lease(from: store) { self.revoke() }
+        lease.release()
+    }
+    func acquireRequestLease() throws -> EncryptedLearningFile.ExclusiveLease {
+        guard !revoked, !Task.isCancelled, let store, store.available else { throw RunReferenceError.revoked }
+        return try Self.lease(from: store) { self.revoke() }
+    }
+    static func lease(from store: LearningStore, onStale: () -> Void = {}) throws -> EncryptedLearningFile.ExclusiveLease {
+        do { return try store.acquireCurrentReferenceLease() }
+        catch LearningFileError.busy { throw RunReferenceError.busy }
+        catch { onStale(); throw RunReferenceError.revoked }
     }
     func revoke() {
         guard !revoked else { return }
@@ -34,6 +46,153 @@ import Foundation
     func revokeDeletedProfileIDs(_ removed: Set<String>) {
         if !profileLineageIDs.isDisjoint(with: removed) { revoke() }
     }
+}
+
+/// The producer owns the lease until actual dispatch begins or it finishes.
+/// An already dispatched request cannot be recalled by later revocation.
+struct ReferenceFencedModelClient: ChatModelClient {
+    private let client: any ReferenceDispatchBoundChatModelClient
+    private let snapshot: LearningRunSnapshot
+
+    @MainActor init(client: any ChatModelClient, snapshot: LearningRunSnapshot) throws {
+        guard let bounded = client as? any ReferenceDispatchBoundChatModelClient else {
+            throw RunReferenceError.unsupportedClient
+        }
+        self.client = bounded; self.snapshot = snapshot
+    }
+
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try Task.checkCancellation()
+        let lease = try await MainActor.run { try snapshot.acquireRequestLease() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        let value = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey,
+                                              onDispatch: { lease.release() })
+        try Task.checkCancellation()
+        return value
+    }
+}
+
+/// Bind every dispatch to the exact profile and memory captured for the turn.
+/// The store's current disk revision alone cannot detect its own later writes.
+@MainActor final class ChatContextFence {
+    private weak var store: LearningStore?
+    private let generation: UUID
+    private var profileRevision: UUID
+    private var memoryRevision: UUID
+    private let skills: SkillsState
+    init(store: LearningStore, generation: UUID) {
+        self.store = store; self.generation = generation
+        profileRevision = store.profile.revision; memoryRevision = store.memory.revision
+        skills = store.skills
+    }
+    func acquire() throws -> EncryptedLearningFile.ExclusiveLease {
+        guard !Task.isCancelled else { throw CancellationError() }
+        guard let store, store.available, store.generation == generation,
+              store.profile.revision == profileRevision, store.memory.revision == memoryRevision,
+              store.skills == skills else {
+            throw LearningFileError.conflict
+        }
+        return try store.acquireCurrentReferenceLease()
+    }
+    func check() throws { let lease = try acquire(); lease.release() }
+
+    // Only a reviewed, strictly additive local tool commit can extend the
+    // frozen turn. Never refresh after an edit/delete: prior messages and tool
+    // search results may still contain the old value. Validate the full old
+    // records as synchronous observers can reenter during store publication.
+    func acceptProfileAddition(before: UserProfileState, receiptID: UUID?) throws {
+        guard let store, store.available, store.generation == generation,
+              before.revision == profileRevision, store.memory.revision == memoryRevision, store.skills == skills,
+              let receiptID, store.profile.entries.count == before.entries.count + 1,
+              Array(store.profile.entries.dropLast()) == before.entries,
+              store.profile.entries.last?.id == receiptID else { throw LearningFileError.conflict }
+        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
+        profileRevision = store.profile.revision
+    }
+
+    func acceptMemoryAddition(before: MemoryState, receiptID: UUID) throws {
+        guard let store, store.available, store.generation == generation,
+              before.revision == memoryRevision, store.profile.revision == profileRevision, store.skills == skills,
+              store.memory.preferences == before.preferences,
+              store.memory.memories.count == before.memories.count + 1,
+              Array(store.memory.memories.dropLast()) == before.memories,
+              store.memory.memories.last?.id == receiptID else { throw LearningFileError.conflict }
+        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
+        memoryRevision = store.memory.revision
+    }
+}
+
+/// A client must explicitly bind cancellation to its real producer. Merely
+/// stopping an AsyncThrowingStream consumer does not prove the producer stopped.
+struct ChatContextFencedClient: ChatModelClient {
+    let client: any ReferenceDispatchBoundChatModelClient
+    let fence: ChatContextFence
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        let lease = try await MainActor.run { try fence.acquire() }
+        defer { lease.release() }
+        try Task.checkCancellation()
+        let result = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey,
+                                               onDispatch: { lease.release() })
+        lease.release() // A returned producer cannot later start this request.
+        try await MainActor.run { try fence.check() }
+        return result
+    }
+}
+
+struct ChatContextFencedStreamClient: StreamingChatModelClient {
+    let client: any ReferenceDispatchBoundStreamingChatModelClient
+    let fence: ChatContextFence
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await ChatContextFencedClient(client: client, fence: fence).complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
+            let worker = Task {
+                do {
+                    let lease = try await MainActor.run { try fence.acquire() }
+                    do { try Task.checkCancellation() }
+                    catch { lease.release(); throw error }
+                    // From here the actual producer owns the lease. Cancellation
+                    // of this worker must not release it before producer finish.
+                    let stream = client.stream(messages: messages, configuration: configuration, apiKey: apiKey,
+                                               onDispatch: { lease.release() }, onProducerFinished: { lease.release() })
+                    for try await delta in stream {
+                        try await MainActor.run { try fence.check() }
+                        switch continuation.yield(delta) {
+                        case .enqueued: break
+                        case .dropped: throw HTTPChatModelError.consumerTooSlow
+                        case .terminated: throw CancellationError()
+                        @unknown default: throw HTTPChatModelError.consumerTooSlow
+                        }
+                    }
+                    try await MainActor.run { try fence.check() }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { @Sendable _ in worker.cancel() }
+        }
+    }
+}
+
+/// Preserve structured-stream capability only when the underlying client has it.
+struct ChatContextFencedStructuredClient: StructuredStreamingChatModelClient {
+    let base: ChatContextFencedStreamClient
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await base.complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
+        base.stream(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+
+@MainActor func fencedChatClient(_ client: any ChatModelClient, fence: ChatContextFence) throws -> any ChatModelClient {
+    guard let bounded = client as? any ReferenceDispatchBoundChatModelClient else { throw RunReferenceError.unsupportedClient }
+    guard let stream = client as? any ReferenceDispatchBoundStreamingChatModelClient else {
+        return ChatContextFencedClient(client: bounded, fence: fence)
+    }
+    let wrapped = ChatContextFencedStreamClient(client: stream, fence: fence)
+    return client is any StructuredStreamingChatModelClient ? ChatContextFencedStructuredClient(base: wrapped) : wrapped
 }
 
 @MainActor final class WeakLearningRunSnapshot {
@@ -55,6 +214,8 @@ extension LearningStore {
     func captureRunReferences(goal: String, capabilities: Set<String>, websiteURLs: [URL]) throws -> LearningRunSnapshot {
         guard available else { throw RunReferenceError.revoked }
         guard websiteURLs.count <= 3 else { throw RunReferenceError.invalidEntry }
+        let lease = try LearningRunSnapshot.lease(from: self)
+        defer { lease.release() }
         var buckets: [[RunReferenceEntry]] = []
         let profileEntries = memory.preferences.useMemory ? profile.snapshot().entries.map {
             RunReferenceEntry(kind: .profile, id: $0.id.uuidString, text: $0.text)

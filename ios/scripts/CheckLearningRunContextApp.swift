@@ -46,6 +46,32 @@ private actor ReferenceGate {
     func wait() async { await withCheckedContinuation { if open { $0.resume() } else { waiter = $0 } } }
     func release() { open = true; let w = waiter; waiter = nil; w?.resume() }
 }
+private actor ReferenceDispatchProbe: ReferenceDispatchBoundChatModelClient {
+    let beforeDispatch: ReferenceGate
+    let afterDispatch: ReferenceGate
+    private(set) var entered = false
+    private(set) var dispatched = 0
+    init(beforeDispatch: ReferenceGate, afterDispatch: ReferenceGate) {
+        self.beforeDispatch = beforeDispatch; self.afterDispatch = afterDispatch
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await complete(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {})
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        entered = true
+        await beforeDispatch.wait() // Deliberately ignores cancellation while waiting.
+        try Task.checkCancellation()
+        dispatched += 1; onDispatch()
+        await afterDispatch.wait()
+        return "synthetic"
+    }
+}
+private actor UnboundedReferenceClient: ChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        return "synthetic"
+    }
+}
 private actor ReferenceBrowser: WebResearchExecuting {
     private(set) var opens = 0, reads = 0
     func inspect() async throws -> WebObservation { reads += 1; return .init(url:URL(string:"https://reference.example/article")!,title:"Synthetic observation",text:"OBSERVED",links:[.init(id:1,title:"next",url:URL(string:"https://reference.example/next")!)]) }
@@ -99,6 +125,75 @@ private actor ReferenceBrowser: WebResearchExecuting {
     }
     private static func capture(_ f:Fixture) throws -> LearningRunSnapshot {
         try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames)
+    }
+
+    static func crossInstanceReferencesAndDispatchFence() async throws {
+        group="crossInstanceReferencesAndDispatchFence"
+        do {
+            let f = try fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
+            let old = try capture(f)
+            let before = ReferenceGate(), after = ReferenceGate()
+            let producer = ReferenceDispatchProbe(beforeDispatch:before,afterDispatch:after)
+            let beforePeerChange = try ReferenceFencedModelClient(client:producer,snapshot:try capture(f))
+            do { _ = try ReferenceFencedModelClient(client:UnboundedReferenceClient(),snapshot:old)
+                 throw Failure(label:"unbounded client accepted") }
+            catch RunReferenceError.unsupportedClient { try expect(true,"unbounded producer rejected") }
+            let peer = LearningStore(vault:.init(url:f.url,keys:f.keys))
+            try expect(peer.updatePreferences { $0.useMemory = false }, "peer persists master off")
+            let bytes = try Data(contentsOf:f.url)
+            do { _ = try capture(f); throw Failure(label:"stale new capture was accepted") }
+            catch RunReferenceError.revoked { try expect(true,"stale new capture fails") }
+            do { _ = try await beforePeerChange.complete(messages:[.init(role:"user",content:"synthetic")],configuration:configuration,apiKey:"synthetic")
+                 throw Failure(label:"stale request was accepted") }
+            catch RunReferenceError.revoked { try expect(true,"peer change before request blocks dispatch") }
+            let entered = await producer.entered
+            try expect(!entered,"stale request never entered producer")
+            do { try old.check(); throw Failure(label:"stale existing snapshot was accepted") }
+            catch RunReferenceError.revoked { try expect(old.revoked,"stale existing snapshot is revoked") }
+            try expect(try Data(contentsOf:f.url) == bytes,"reference conflict never changes ciphertext")
+        }
+        do {
+            let f = try fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
+            let snap = try capture(f), locker = EncryptedLearningFile(url:f.url,keys:f.keys)
+            try locker.withExclusiveAccess {
+                do { try snap.check(); throw Failure(label:"busy snapshot accepted") }
+                catch RunReferenceError.busy { try expect(!snap.revoked,"busy fails closed without false revocation") }
+                do { _ = try capture(f); throw Failure(label:"busy capture accepted") }
+                catch RunReferenceError.busy { try expect(true,"busy capture fails closed") }
+            }
+            try snap.check()
+        }
+        for cancel in [false, true] {
+            let f = try fixture(); defer { try? FileManager.default.removeItem(at:f.root) }
+            let snap = try capture(f), peer = LearningStore(vault:.init(url:f.url,keys:f.keys))
+            let before = ReferenceGate(), after = ReferenceGate(), raw = ReferenceDispatchProbe(beforeDispatch:before,afterDispatch:after)
+            let fenced = try ReferenceFencedModelClient(client:raw,snapshot:snap)
+            let work = Task { try await fenced.complete(messages:[.init(role:"user",content:"synthetic")],configuration:configuration,apiKey:"synthetic") }
+            let deadline=ContinuousClock.now.advanced(by:.seconds(5))
+            while !(await raw.entered), ContinuousClock.now < deadline { try await Task.sleep(nanoseconds:1_000_000) }
+            let entered = await raw.entered
+            try expect(entered,"producer reached pre-dispatch gate")
+            try expect(!peer.updatePreferences { $0.useMemory = false } && peer.error?.contains("正在其他位置") == true,
+                       "peer cannot change snapshot before dispatch")
+            if cancel { work.cancel() }
+            await before.release()
+            if !cancel {
+                while await raw.dispatched == 0, ContinuousClock.now < deadline { try await Task.sleep(nanoseconds:1_000_000) }
+                let dispatched = await raw.dispatched
+                try expect(dispatched == 1,"one synthetic dispatch happened")
+                try expect(peer.updatePreferences { $0.useMemory = false },"dispatch releases lease for later user change")
+            }
+            await after.release()
+            do { _ = try await work.value; try expect(!cancel,"only noncancelled request may finish") }
+            catch is CancellationError { try expect(cancel,"cancelled producer finishes without dispatch") }
+            if cancel {
+                let dispatched = await raw.dispatched
+                try expect(dispatched == 0,"cancel before dispatch sends nothing")
+                try expect(peer.updatePreferences { $0.useMemory = false },"producer return releases retained lease")
+            }
+            do { try snap.check(); throw Failure(label:"peer change accepted after request") }
+            catch RunReferenceError.revoked { try expect(true,"peer change revokes snapshot after dispatch or cancellation") }
+        }
     }
     static func captureAndNoWrites() throws {
         group="captureAndNoWrites";let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
@@ -434,6 +529,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
             try await LearningRunAppChecks.actualBrowserSessionReferences(onlyCancelledLink:true)
             print(String(decoding:try JSONSerialization.data(withJSONObject:LearningRunAppChecks.cancellationProbe,options:.sortedKeys),as:UTF8.self));return
         }
+        try await LearningRunAppChecks.crossInstanceReferencesAndDispatchFence()
         try LearningRunAppChecks.captureAndNoWrites()
         try LearningRunAppChecks.editsAndUnrelatedGeneration()
         try LearningRunAppChecks.deletionAndMasterRevocation()
@@ -450,6 +546,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
 }
 #else
 final class LearningRunAppIntegrationTests: XCTestCase {
+    @MainActor func testCrossInstanceReferencesAndDispatchFence() async throws {try await LearningRunAppChecks.crossInstanceReferencesAndDispatchFence()}
     @MainActor func testCaptureAndNoWrites() throws {try LearningRunAppChecks.captureAndNoWrites()}
     @MainActor func testEditsAndUnrelatedGeneration() throws {try LearningRunAppChecks.editsAndUnrelatedGeneration()}
     @MainActor func testDeletionAndMasterRevocation() throws {try LearningRunAppChecks.deletionAndMasterRevocation()}
@@ -462,4 +559,15 @@ final class LearningRunAppIntegrationTests: XCTestCase {
     @MainActor func testActualBrowserSessionReferences() async throws {try await LearningRunAppChecks.actualBrowserSessionReferences()}
 }
 #endif
+#endif
+
+#if LEARNING_RUN_APP_STANDALONE || canImport(WoowAssistant)
+extension ReferenceModel: ReferenceDispatchBoundChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        // Synthetic clients only: this point is the controlled dispatch event.
+        onDispatch()
+        return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
 #endif
