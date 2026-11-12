@@ -20,6 +20,10 @@ xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
   -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testChatContextDispatchFences \
   -only-testing:AssistantSkillsTests/ProfileChatAppIntegrationTests/testMCPExecutorDispatchFences \
   -only-testing:AssistantSkillsTests/DocumentQueryTests/testBoundedPatternSearch \
+  -only-testing:AssistantSkillsTests/DocumentQueryTests/testModelLineOffsetsAndWhitespace \
+  -only-testing:AssistantSkillsTests/DocumentQueryTests/testModelWorkerCancellation \
+  -only-testing:AssistantSkillsTests/DocumentQueryTests/testApprovedPDFModelPatternRoundtrip \
+  -only-testing:AssistantSkillsTests/DocumentQueryAppIntegrationTests/testPatternSearchWithMemoryReferences \
   -only-testing:WoowAssistantUITests/MCPConversationUITests/testMemorySwitchReportsBusyAndRetriesAfterActualMCPLease \
   -only-testing:WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchUsesApprovedExtractionAndClearsEditedResults \
   -only-testing:WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchCanIgnoreEnglishCaseAfterApproval \
@@ -31,7 +35,7 @@ build ran them. The busy UI case holds the real lease through a synthetic MCP
 executor, verifies the failure alert and unchanged on switch, releases the
 executor, retries, and checks persistence after relaunch. The PDF cases verify
 separate approvals, case sensitivity, pattern validation and stale result
-clearing on a synthetic PDF. The core case also covers bounds and cancellation.
+clearing on a synthetic PDF. The core cases also cover bounded model pattern search, match offsets, cancellation and an authorized snapshot. The App integration case covers the model pattern command with captured memory and revocation using a synthetic client; it is not an arbitrary workspace.
 
 ## Full simulator coverage and manual checks
 

@@ -4670,9 +4670,9 @@
       "key": "localPDFSearch.patternBudget",
       "parameters": [],
       "translations": {
-        "zh-Hant": "搜尋已達運算上限而停止；請縮小頁數或簡化條件。沒有顯示不完整結果。",
-        "zh-Hans": "搜索已达运算上限而停止；请缩小页数或简化条件。没有显示不完整结果。",
-        "en": "Search reached its work limit. Select fewer pages or simplify the pattern; partial results are not shown."
+        "zh-Hant": "搜尋已達上限而停止。若單頁過長，請改用字面搜尋；否則可縮小頁數或簡化條件。沒有顯示不完整結果。",
+        "zh-Hans": "搜索已达上限而停止。若单页过长，请改用字面搜索；否则可缩小页数或简化条件。没有显示不完整结果。",
+        "en": "Search reached a limit. For an oversized single page, use literal search; otherwise select fewer pages or simplify the pattern. Partial results are not shown."
       }
     },
     {

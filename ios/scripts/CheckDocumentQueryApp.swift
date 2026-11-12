@@ -52,15 +52,16 @@ private actor DocumentCheckModel: ChatModelClient {
     let requestGate: DocumentCheckGate?
     let answer: String
     let citationOverride: String?
+    let patternSearch: Bool
     private var gated = false
     private(set) var requests: [[ModelMessage]] = []
     private(set) var finishedResponses = 0
     private(set) var waitingForFinish = false
     private(set) var waitingForRequest = false
     init(first: First = .normal, finishGate: DocumentCheckGate? = nil, requestGate: DocumentCheckGate? = nil,
-         answer: String = "Synthetic answer 73", citationOverride: String? = nil) {
+         answer: String = "Synthetic answer 73", citationOverride: String? = nil, patternSearch: Bool = false) {
         self.first = first; self.finishGate = finishGate; self.requestGate = requestGate
-        self.answer = answer; self.citationOverride = citationOverride
+        self.answer = answer; self.citationOverride = citationOverride; self.patternSearch = patternSearch
     }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         requests.append(messages)
@@ -77,11 +78,20 @@ private actor DocumentCheckModel: ChatModelClient {
         }
         let actions = messages.filter { $0.role == "assistant" }
         if actions.isEmpty {
+            if patternSearch {
+                return #"{"action":"search_files","pattern":"JASMINE_DOCUMENT_VALUE_\\d{2}","path":"/workspace","glob":"**/*.txt"}"#
+            }
             return #"{"action":"search_files","query":"JASMINE_DOCUMENT_VALUE_73","limit":10}"#
         }
         guard let last = messages.last?.content, let newline = last.firstIndex(of: "\n"),
               let payload = try JSONSerialization.jsonObject(with: Data(last[last.index(after: newline)...].utf8)) as? [String: Any]
         else { throw DocumentAppCheckFailure(label: "Actual tool result required") }
+        if patternSearch, let matches = payload["matches"] as? [[String: Any]], let match = matches.first,
+           let index = match["pageIndex"] as? Int, let offset = match["matchOffset"] as? Int,
+           match["matchLength"] as? Int == "JASMINE_DOCUMENT_VALUE_73".utf8.count,
+           match["file"] as? String == "/workspace/approved-document.txt" {
+            return try Self.json(["action": "read_file", "pageIndex": index, "offset": offset, "limit": 8192])
+        }
         if let hits = payload["hits"] as? [[String: Any]], let hit = hits.first,
            let index = hit["pageIndex"] as? Int {
             return try Self.json(["action": "read_file", "pageIndex": index, "offset": 0, "limit": 8192])
@@ -481,6 +491,44 @@ private enum DocumentQueryAppChecks {
                   && !refreshed.contains("PRIVATE_DOCUMENT_PROFILE"), "Next explicit run captures replacements")
     }
 
+    @MainActor static func patternSearchWithMemoryReferences() async throws {
+        for revoke in [false, true] {
+            let gate = DocumentCheckGate()
+            let model = DocumentCheckModel(finishGate: revoke ? gate : nil, patternSearch: true)
+            let env = try DocumentCheckEnvironment(model); defer { env.close() }
+            let memory = try seedReferences(env)
+            let session = try await prepare(env), hash = session.source.sha256
+            let original = try start(session, env)
+            if revoke {
+                try await until { await model.waitingForFinish }
+                try check(session.audit.searches == 1 && session.audit.reads == 1 && session.result == nil,
+                          "Pattern search and explicit read finish before held model answer")
+                try check(env.learning.mutateMemory { _ = try $0.delete(id: memory) }, "Delete captured memory after pattern search")
+                await original.value
+                try check(!session.running && session.destination == nil && session.result == nil && session.deliveryID == nil,
+                          "Revocation stops pattern query before held response")
+                await gate.release()
+                await original.value
+                try check(session.result == nil && session.audit.results == 0 && session.audit.citations == 0,
+                          "Late pattern answer cannot publish")
+            } else {
+                await original.value
+                try check(session.audit.searches == 1 && session.audit.reads == 1 && session.audit.citations == 1,
+                          "Pattern result requires the actual App read and citation")
+                try check(session.result?.citations.first?.quote == "JASMINE_DOCUMENT_VALUE_73" &&
+                          session.result?.citations.first?.pageNumber == 2 && session.result?.source.sha256 == hash,
+                          "Pattern answer binds actual approved PDF and original page")
+            }
+            let requests = await model.requests
+            try check(requests.count == 3 && requests.allSatisfy { savedReference($0)?.content.contains("PRIVATE_DOCUMENT_MEMORY") == true },
+                      "Every dispatched model call uses frozen captured memory")
+            let resultMessage = requests[1].last?.content ?? ""
+            try check(resultMessage.contains("\"matchOffset\"") && resultMessage.contains("/workspace/approved-document.txt") &&
+                      resultMessage.contains("JASMINE_DOCUMENT_VALUE_73"), "Real model request contains virtual snapshot line match")
+            try check(session.source.sha256 == hash, "Search and revocation retain approved snapshot")
+        }
+    }
+
     @MainActor static func referenceRevocationStopsActualTask() async throws {
         for stage in ["request", "finish"] {
             for mutation in ["memory", "profile", "replacementDelete", "skill", "master", "reload"] {
@@ -535,6 +583,7 @@ private enum DocumentQueryAppChecks {
                 ("correctionAuditAndQuestionReset", correctionAuditAndQuestionReset),
                 ("referenceCaptureAndSwitches", referenceCaptureAndSwitches),
                 ("referenceEditsStayFrozen", referenceEditsStayFrozen),
+                ("patternSearchWithMemoryReferences", patternSearchWithMemoryReferences),
                 ("referenceRevocationStopsActualTask", referenceRevocationStopsActualTask)]
             for (name, body) in cases {
                 let before = assertions
@@ -563,6 +612,7 @@ final class DocumentQueryAppIntegrationTests: XCTestCase {
     @MainActor func testCorrectionAuditAndQuestionReset() async throws { try await DocumentQueryAppChecks.correctionAuditAndQuestionReset() }
     @MainActor func testReferenceCaptureAndSwitches() async throws { try await DocumentQueryAppChecks.referenceCaptureAndSwitches() }
     @MainActor func testReferenceEditsStayFrozen() async throws { try await DocumentQueryAppChecks.referenceEditsStayFrozen() }
+    @MainActor func testPatternSearchWithMemoryReferences() async throws { try await DocumentQueryAppChecks.patternSearchWithMemoryReferences() }
     @MainActor func testReferenceRevocationStopsActualTask() async throws { try await DocumentQueryAppChecks.referenceRevocationStopsActualTask() }
 }
 #endif

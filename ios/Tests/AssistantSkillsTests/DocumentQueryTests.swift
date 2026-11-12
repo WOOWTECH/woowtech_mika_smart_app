@@ -410,6 +410,223 @@ import XCTest
         else { throw Failure(message: "real controller did not finish") }
     }
 
+    static func modelLineSearch() async throws {
+        let snapshot = try source(["臺🙂 foo foo\r\nbar\n", "foo\rfoo"], pageCount: 2, numbers: [2, 2])
+        let found = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "foo")
+        try expect(found.matches.map(\.line) == [1, 4, 5], "one match per line, synthetic page separator and CRLF")
+        try expect(found.matches.map(\.pageIndex) == [1, 2, 2] && found.matches.map(\.pageNumber) == [2, 2, 2], "repeated original page identities")
+        try expect(found.matches.map(\.text) == ["臺🙂 foo foo", "foo", "foo"] && found.matches.last?.offset == 4, "original lines and UTF-8 page offset")
+        let nullable = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "x*")
+        try expect(nullable.matches.map(\.line) == [1, 2, 3, 4, 5], "empty matches include blank line")
+        let clipped = try DocumentPatternSearch.searchLines(source: try source([String(repeating: "🙂", count: 100)]), pattern: ".")
+        try expect(clipped.matches[0].text.utf8.count == 300 && clipped.matches[0].textTruncated && clipped.matches[0].text == String(repeating: "🙂", count: 75), "UTF-8 clipping remains valid")
+        let capped = try DocumentPatternSearch.searchLines(source: try source([String(repeating: "a\n", count: 21)]), pattern: "a")
+        try expect(capped.matches.count == 20 && capped.truncated, "line limit signals truncation")
+        do { _ = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "(foo|bar)"); throw Failure(message: "unsupported regex accepted") }
+        catch let e as DocumentPatternError { try expect(e == .unsupportedPattern, "unsupported regex rejected") }
+        do { _ = try DocumentPatternSearch.searchLines(source: try source([String(repeating: "a", count: 262_145)]), pattern: "a"); throw Failure(message: "page limit") }
+        catch let e as DocumentPatternError { try expect(e == .budgetExceeded, "oversized page fails without partial result") }
+        do { _ = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "a", deadline: .now); throw Failure(message: "expired deadline") }
+        catch let e as DocumentQueryError { try expect(e == .timedOut, "whole-run deadline checked in search") }
+        let long = try source([String(repeating: "a", count: 250_000)])
+        let gate = PatternCheckpointGate(target: 5)
+        let task = Task.detached { try DocumentPatternSearch.searchLines(source: long, pattern: "a*a*z", checkpoint: { gate.checkpoint() }) }
+        guard await Task.detached(operation: { waitForPatternStart(gate.started) }).value else {
+            task.cancel(); gate.resume.signal(); throw Failure(message: "line search checkpoint")
+        }
+        task.cancel(); gate.resume.signal()
+        do { _ = try await task.value; throw Failure(message: "cancelled line search returned") }
+        catch is CancellationError { try expect(true, "running line search cancelled") }
+
+        let runtime = try DocumentQueryRuntime(source: snapshot, question: "q")
+        let client = DocumentScriptClient { call, messages in
+            if call == 1 { return #"{"action":"search_files","pattern":"foo","path":"/workspace","glob":"**/*.txt"}"# }
+            if call == 2 {
+                let result = try toolResult(messages), matches = result["matches"] as? [[String: Any]]
+                try expect(matches?.count == 3 && matches?.first?["file"] as? String == "/workspace/approved-document.txt", "model receives line results from virtual file")
+                try expect(result["sourceSHA256"] as? String == snapshot.sha256, "result bound to approved snapshot")
+                return #"{"action":"read_file","pageIndex":2,"offset":0,"limit":20}"#
+            }
+            return try finish(messages, quote: "foo")
+        }
+        guard case .completed(let result) = try await run(runtime, client) else { throw Failure(message: "line-search roundtrip") }
+        try expect(result.citations.count == 1 && result.reads.count == 1, "line snippets require a separately verified read")
+        for (command, expected) in [
+            (#"{"action":"search_files","pattern":"foo","path":"/workspace/../private"}"#, "outside_approved_snapshot"),
+            (#"{"action":"search_files","pattern":"foo","path":"/etc/passwd"}"#, "outside_approved_snapshot"),
+            (#"{"action":"search_files","pattern":"foo","glob":"[ab]*"}"#, "unsupported_glob"),
+            (#"{"action":"search_files","pattern":"(foo|bar)"}"#, "unsupported_pattern"),
+            (#"{"action":"search_files","pattern":"(foo|bar)","glob":"*.pdf"}"#, "unsupported_pattern")
+        ] {
+            let candidate = try DocumentQueryRuntime(source: snapshot, question: "q")
+            let script = DocumentScriptClient { call, messages in
+                if call == 1 { return command }
+                let output = try toolResult(messages)
+                try expect(output["error"] as? String == expected && output["matches"] == nil, "structured rejection without misleading no-match")
+                return refusal
+            }
+            _ = try await run(candidate, script)
+            try expect(candidate.reads.isEmpty && candidate.formatCorrections == 0, "rejected search does not read or use format correction")
+        }
+        let excluded = try DocumentQueryRuntime(source: snapshot, question: "q")
+        let excludedClient = DocumentScriptClient { call, messages in
+            if call == 1 { return #"{"action":"search_files","pattern":"foo","glob":"*.pdf"}"# }
+            let output = try toolResult(messages)
+            try expect((output["matches"] as? [[String: Any]])?.isEmpty == true && output["error"] == nil, "valid nonmatching glob excludes virtual file")
+            return refusal
+        }
+        _ = try await run(excluded, excludedClient)
+        let cancelled = try DocumentQueryRuntime(source: snapshot, question: "q")
+        let cancelClient = DocumentScriptClient([#"{"action":"search_files","pattern":"foo"}"#, refusal])
+        try await rejectsAsync(.cancelled) { _ = try await run(cancelled, cancelClient, event: { if case .searched = $0 { cancelled.cancel() } }) }
+        try expect(cancelClient.requests.count == 1, "cancel before search result transmission")
+    }
+
+    static func modelLineOffsetsAndWhitespace() async throws {
+        let text = "臺🙂" + String(repeating: "a", count: 140_000) + "龍🙂 tail"
+        let snapshot = try source([text, text], pageCount: 2, numbers: [2, 2])
+        let expectedOffset = "臺🙂".utf8.count + 140_000
+        let expectedLength = "龍🙂".utf8.count
+        let result = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "龍.")
+        try expect(result.matches.count == 2 && result.matches.map(\.pageIndex) == [1, 2] &&
+                   result.matches.map(\.pageNumber) == [2, 2], "long-line match retains repeated original page identity")
+        try expect(result.matches.allSatisfy { $0.offset == 0 && $0.matchOffset == expectedOffset &&
+                   $0.matchLength == expectedLength && $0.textTruncated && !$0.text.contains("龍") }, "actual UTF-8 match range survives clipped line prefix")
+        let nullable = try DocumentPatternSearch.searchLines(source: snapshot, pattern: "x*")
+        try expect(nullable.matches.allSatisfy { $0.matchOffset == 0 && $0.matchLength == 0 }, "nullable match range is explicitly empty")
+        for whitespace in [" ", "\t", "\u{000B}", "\u{000C}"] {
+            let value = try source(["A" + whitespace + "B"])
+            let lines = try DocumentPatternSearch.searchLines(source: value, pattern: #"A\sB"#)
+            let offline = try DocumentPatternSearch.search(source: value, pattern: #"A\sB"#)
+            try expect(lines.matches.count == 1 && lines.matches[0].matchLength == 3 && offline.hits.count == 1,
+                       "ASCII space, tab, VT and FF match in both callers")
+        }
+        for separator in ["\r", "\n", "\r\n"] {
+            let value = try source(["A" + separator + "B"])
+            try expect(try DocumentPatternSearch.searchLines(source: value, pattern: #"A\sB"#).matches.isEmpty,
+                       "regex cannot cross CR, LF, or CRLF line boundaries")
+            let individual = try DocumentPatternSearch.searchLines(source: value, pattern: #"\s"#)
+            try expect(individual.matches.isEmpty, "line separators are not searched as whitespace")
+        }
+        for nonASCII in ["\u{00A0}", "\u{0085}", "\u{2028}"] {
+            let value = try source(["A" + nonASCII + "B"])
+            try expect(try DocumentPatternSearch.searchLines(source: value, pattern: #"A\sB"#).matches.isEmpty,
+                       "default ASCII whitespace does not imply Unicode whitespace")
+        }
+        let runtime = try DocumentQueryRuntime(source: snapshot, question: "q")
+        let client = DocumentScriptClient { call, messages in
+            if call == 1 { return #"{"action":"search_files","pattern":"龍.","path":"/workspace","glob":"*.txt"}"# }
+            if call == 2 {
+                let output = try toolResult(messages)
+                guard let matches = output["matches"] as? [[String: Any]], matches.count == 2 else {
+                    throw Failure(message: "model long-line matches")
+                }
+                try expect(matches.allSatisfy { $0["offset"] as? Int == 0 && $0["matchOffset"] as? Int == expectedOffset &&
+                    $0["matchLength"] as? Int == expectedLength && $0["textTruncated"] as? Bool == true }, "model gets exact byte location outside prefix")
+                return try json(["action": "read_file", "pageIndex": 2, "offset": expectedOffset, "limit": expectedLength])
+            }
+            return try finish(messages, quote: "龍🙂", offset: expectedOffset)
+        }
+        guard case .completed(let answer) = try await run(runtime, client) else { throw Failure(message: "long-line citation") }
+        try expect(answer.reads.count == 1 && answer.reads[0].offset == expectedOffset && answer.reads[0].text == "龍🙂" &&
+                   answer.citations.count == 1 && answer.citations[0].pageIndex == 2 && answer.citations[0].quote == "龍🙂",
+                   "actual read and citation use reported long-line UTF-8 range")
+    }
+
+    static func modelWorkerCancellation() async throws {
+        let snapshot = try source([String(repeating: "a", count: 20_000) + "z"])
+        for cancelParent in [false, true] {
+            let gate = PatternCheckpointGate(target: 5)
+            let runtime = try DocumentQueryRuntime(source: snapshot, question: "q", patternRunner: { source, pattern, deadline in
+                try DocumentPatternSearch.searchLines(source: source, pattern: pattern, deadline: deadline,
+                                                       checkpoint: { gate.checkpoint() })
+            })
+            let client = DocumentScriptClient([#"{"action":"search_files","pattern":"a*z"}"#, refusal])
+            var searchEvents = 0
+            let task = Task { try await run(runtime, client, event: { if case .searched = $0 { searchEvents += 1 } }) }
+            let started = await Task.detached { waitForPatternStart(gate.started) }.value
+            guard started else {
+                task.cancel(); gate.resume.signal(); throw Failure(message: "runtime worker did not reach search checkpoint")
+            }
+            if cancelParent { task.cancel() } else { runtime.cancel() }
+            gate.resume.signal()
+            try await rejectsAsync(.cancelled) { _ = try await task.value }
+            try expect(client.requests.count == 1 && searchEvents == 0 && runtime.reads.isEmpty,
+                       "cancellation during detached search publishes no event, result or read")
+        }
+    }
+
+    /// Real coordinated read, both execution approvals and PDFKit extraction;
+    /// only the model transport is scripted. Runs in XCTest and the CLT harness.
+    static func approvedPDFModelPatternRoundtrip() async throws {
+        let bytes = try pdf()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("document-pattern-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("synthetic.pdf")
+        try bytes.write(to: url, options: .withoutOverwriting)
+        let extraction = try SkillExecutionRuntime(selectedFile: .init(userSelectedURL: url),
+                                                    options: .init(pages: "2,1,2,3"), catalog: catalog())
+        try expect(extraction.plan.steps.count == 2 && !extraction.plan.grantsAuthorization, "plan alone grants neither approval")
+        let readGrant = try await extraction.authorize(stepID: extraction.plan.steps[0].id)
+        guard case .selectedFileRead(let size, let hash) = try await extraction.execute(readGrant) else {
+            throw Failure(message: "approved PDF read")
+        }
+        try expect(size == bytes.count && hash == digest(bytes), "approved coordinated read of synthetic PDF")
+        let extractGrant = try await extraction.authorize(stepID: extraction.plan.steps[1].id)
+        guard case .pdf(let pdfResult) = try await extraction.execute(extractGrant) else {
+            throw Failure(message: "approved PDFKit extraction")
+        }
+        let snapshot = try DocumentTextSnapshot(result: pdfResult, filename: "synthetic.pdf", catalog: catalog())
+        try expect(snapshot.engine == "Apple PDFKit" && snapshot.pages.map(\.pageNumber) == [2, 1, 2, 3], "actual repeated-page snapshot")
+        try FileManager.default.removeItem(at: url)
+        let runtime = try DocumentQueryRuntime(source: snapshot, question: "What is the BETA budget?")
+        var searches = 0, reads = 0
+        let client = DocumentScriptClient { call, messages in
+            switch call {
+            case 1:
+                try expect(!messages.contains { $0.content.contains("BETA budget is 17.") }, "initial request omits extracted page text")
+                return #"{"action":"search_files","pattern":"BETA budget is \\d{2}","path":"/workspace","glob":"**/*.txt"}"#
+            case 2:
+                let output = try toolResult(messages)
+                guard let matches = output["matches"] as? [[String: Any]], matches.count == 2 else {
+                    throw Failure(message: "two actual PDF matching lines")
+                }
+                try expect(matches.compactMap { $0["pageIndex"] as? Int } == [1, 3], "search retains repeated selection identities")
+                try expect(matches.allSatisfy { ($0["pageNumber"] as? Int) == 2 && ($0["offset"] as? Int) == 0 &&
+                    ($0["matchOffset"] as? Int) == 0 && ($0["matchLength"] as? Int) == "BETA budget is 17".utf8.count }, "original page, line and actual match offsets")
+                try expect(matches.allSatisfy { ($0["file"] as? String) == "/workspace/approved-document.txt" && ($0["text"] as? String) == "BETA budget is 17." }, "virtual single file and exact PDFKit lines")
+                try expect((matches[0]["line"] as? Int) == 1 && (matches[1]["line"] as? Int ?? 0) > 1, "one-based ordered virtual lines")
+                try expect(output["sourceSHA256"] as? String == snapshot.sha256 && output["truncated"] as? Bool == false, "result identifies approved snapshot")
+                try expect(runtime.reads.isEmpty, "search does not create read receipt")
+                return #"{"action":"search_files","pattern":"BETA","path":"/workspace/../private","glob":"*.txt"}"#
+            case 3:
+                let output = try toolResult(messages)
+                try expect(output["error"] as? String == "outside_approved_snapshot" && output["matches"] == nil, "traversal is rejected, not a no-match")
+                try expect(!(messages.last?.content.contains("BETA budget is 17.") ?? true) && runtime.reads.isEmpty, "rejected path returns no extracted text or read")
+                return #"{"action":"search_files","pattern":"BETA","path":"/workspace/approved-document.txt","glob":"*.pdf"}"#
+            case 4:
+                let output = try toolResult(messages)
+                try expect((output["matches"] as? [[String: Any]])?.isEmpty == true && output["truncated"] as? Bool == false, "nonmatching glob excludes virtual file")
+                try expect(runtime.reads.isEmpty, "excluded virtual file creates no read")
+                return #"{"action":"read_file","pageIndex":3,"offset":0,"limit":8192}"#
+            case 5:
+                let output = try toolResult(messages)
+                try expect(output["pageIndex"] as? Int == 3 && output["pageNumber"] as? Int == 2, "actual explicit read targets searched occurrence")
+                return try finish(messages, quote: "BETA budget is 17.")
+            default: throw Failure(message: "unexpected model request")
+            }
+        }
+        guard case .completed(let result) = try await run(runtime, client, event: { event in
+            if case .searched = event { searches += 1 }
+            if case .read = event { reads += 1 }
+        }) else { throw Failure(message: "verified PDF pattern roundtrip") }
+        try expect(client.requests.count == 5 && result.modelCalls == 5 && searches == 2 && reads == 1, "tool and model call counts")
+        try expect(result.reads.count == 1 && result.citations.count == 1 && result.citations[0].pageIndex == 3 &&
+                   result.citations[0].pageNumber == 2 && result.citations[0].quote == "BETA budget is 17.", "citation is from actual page read")
+        try expect(result.source.sha256 == snapshot.sha256, "completed answer retains approved snapshot identity")
+    }
+
     static func actualModelRoundtrip() async throws {
         let source = try nativeSource(), runtime = try DocumentQueryRuntime(source: source, question: "原第 1 頁的預算？")
         var searchEvents = 0, readEvents = 0
@@ -747,6 +964,10 @@ private actor DocumentDelayClient: ChatModelClient {
             ("sourceBoundaries", { try DocumentQueryChecks.sourceBoundaries() }),
             ("utf8AndLedger", { try DocumentQueryChecks.utf8AndLedger() }),
             ("boundedPatternSearch", { try await DocumentQueryChecks.boundedPatternSearch() }),
+            ("modelLineSearch", { try await DocumentQueryChecks.modelLineSearch() }),
+            ("modelLineOffsetsAndWhitespace", { try await DocumentQueryChecks.modelLineOffsetsAndWhitespace() }),
+            ("modelWorkerCancellation", { try await DocumentQueryChecks.modelWorkerCancellation() }),
+            ("approvedPDFModelPatternRoundtrip", { try await DocumentQueryChecks.approvedPDFModelPatternRoundtrip() }),
             ("actualModelRoundtrip", { try await DocumentQueryChecks.actualModelRoundtrip() }),
             ("hostileCommands", { try await DocumentQueryChecks.hostileCommands() }),
             ("citationRejections", { try await DocumentQueryChecks.citationRejections() }),
@@ -768,6 +989,10 @@ final class DocumentQueryTests: XCTestCase {
     @MainActor func testSourceBoundaries() throws { try DocumentQueryChecks.sourceBoundaries() }
     @MainActor func testUTF8AndLedger() throws { try DocumentQueryChecks.utf8AndLedger() }
     @MainActor func testBoundedPatternSearch() async throws { try await DocumentQueryChecks.boundedPatternSearch() }
+    @MainActor func testModelLineSearch() async throws { try await DocumentQueryChecks.modelLineSearch() }
+    @MainActor func testModelLineOffsetsAndWhitespace() async throws { try await DocumentQueryChecks.modelLineOffsetsAndWhitespace() }
+    @MainActor func testModelWorkerCancellation() async throws { try await DocumentQueryChecks.modelWorkerCancellation() }
+    @MainActor func testApprovedPDFModelPatternRoundtrip() async throws { try await DocumentQueryChecks.approvedPDFModelPatternRoundtrip() }
     @MainActor func testActualModelRoundtrip() async throws { try await DocumentQueryChecks.actualModelRoundtrip() }
     @MainActor func testHostileCommands() async throws { try await DocumentQueryChecks.hostileCommands() }
     @MainActor func testCitationRejections() async throws { try await DocumentQueryChecks.citationRejections() }

@@ -23,7 +23,7 @@ PRIVATE_FIELDS = ("WOOW_MODEL_TEST_BASE_URL", "WOOW_MODEL_TEST_MODEL", "WOOW_MOD
 GROUPS = {"consentAndExport", "changedAccessBeforeStart", "lateSettingsAndKeyChanges",
           "cancellationAndQuestionChanges", "failureRefusalAndExplicitRetry",
           "correctionAuditAndQuestionReset", "referenceCaptureAndSwitches",
-          "referenceEditsStayFrozen", "referenceRevocationStopsActualTask"}
+          "referenceEditsStayFrozen", "referenceRevocationStopsActualTask", "patternSearchWithMemoryReferences"}
 LOCAL_HARNESS = "scripts/CheckDocumentQueryApp.swift"
 LIVE_HARNESS = "scripts/LiveDocumentQueryAppSmoke.swift"
 RESOURCE = "Sources/AssistantSkills/Resources/MikaBundledSkills.json"
