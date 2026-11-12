@@ -84,7 +84,11 @@ import Foundation
             try check(await state.approveLocally(ticket: fifth.id, current: binding) == nil, "disable invalidates")
             guard let old = await state.stage(t, binding: binding), let replacement = await state.stage(try task("new"), binding: binding) else { throw Failure(name: "replace") }
             try check(await state.approveLocally(ticket: old.id, current: binding) == nil, "old ticket rejected")
-            try check(await state.approveLocally(ticket: replacement.id, current: binding) == nil, "stale attempt clears replacement")
+            try check(await state.approveLocally(ticket: replacement.id, current: binding) != nil, "stale attempt preserves replacement")
+            guard let stale = await state.stage(t, binding: binding), let staleGrant = await state.approveLocally(ticket: stale.id, current: binding),
+                  let currentTicket = await state.stage(t, binding: binding), let currentGrant = await state.approveLocally(ticket: currentTicket.id, current: binding) else { throw Failure(name: "grant replacement") }
+            try check(await state.consume(grant: staleGrant, current: binding) == nil, "stale grant rejected")
+            try check(await state.consume(grant: currentGrant, current: binding) == t, "stale grant preserves current")
             guard let race = await state.stage(t, binding: binding), let raceGrant = await state.approveLocally(ticket: race.id, current: binding) else { throw Failure(name: "race setup") }
             let results = await withTaskGroup(of: MCPInboundModelTask?.self, returning: [MCPInboundModelTask?].self) { group in
                 for _ in 0..<8 { group.addTask { await state.consume(grant: raceGrant, current: binding) } }

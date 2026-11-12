@@ -59,7 +59,9 @@ private final class FakeClock: @unchecked Sendable {
             let binding = MCPInboundReviewBinding(connection: connection, destinationRevision: UUID(), contextRevision: UUID())
             let different = MCPInboundReviewBinding(connection: connection, destinationRevision: UUID(), contextRevision: binding.contextRevision)
             let first = try task("write a summary")
-            try await rejects(.unsupported) { _ = try await gate.stage(task: try task("missing id", id: nil), binding: binding, peer: local, headers: good) }
+            guard case .review = try await gate.stage(task: try task("missing id", id: nil), binding: binding, peer: local, headers: good) else { throw Failure(label: "missing id review") }
+            await gate.discardReview()
+            try check(true, "missing id accepted with review")
             try await rejects(.unsupported) { _ = try await gate.stage(task: try task("old chat", conversation: "mcp-01234567-89ab-cdef-0123-456789abcdef"), binding: binding, peer: local, headers: good) }
             guard case .review(let review) = try await gate.stage(task: first, binding: binding, peer: local, headers: good) else { throw Failure(label: "review") }
             try check(review.task == first && review.binding == binding, "review exact snapshot")

@@ -90,7 +90,7 @@ public actor MCPInboundAccessTasks {
         var pendingSteers: [MCPInboundInput] = []
     }
     private struct AnswerReceipt { let questionID: UUID; let text: String }
-    private struct Pending { let review: MCPInboundReview }
+    private struct Pending { let review: MCPInboundReview; let taskID: UUID }
     private let clock: @Sendable () -> UInt64
     private let sleep: @Sendable (UInt64) async throws -> Void
     private var waiters = 0
@@ -148,37 +148,41 @@ public actor MCPInboundAccessTasks {
         guard try currentConnection(connection)?.peer == peer else { throw MCPInboundAccessError.invalidConnection }
     }
 
-    /// One review at a time; task IDs are mandatory to prevent accidental
-    /// same-session retries. This is not durable replay protection.
+    /// One review at a time. Without a client request_id, each accepted start
+    /// receives a new server ID and retries cannot be distinguished.
     public func stage(task: MCPInboundModelTask, binding: MCPInboundReviewBinding,
                       peer: MCPInboundPeer, headers: [MCPInboundHeader]) throws -> MCPInboundStageResult {
         try check(connection: binding.connection, peer: peer, headers: headers)
-        guard task.conversation == nil, let taskID = task.requestID else { throw MCPInboundAccessError.unsupported }
+        guard task.conversation == nil else { throw MCPInboundAccessError.unsupported }
         guard !task.goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               task.goal.utf16.count <= 4000 else { throw MCPInboundAccessError.unsupported }
-        if let record = records[taskID] {
+        if let taskID = task.requestID, let record = records[taskID] {
             guard record.connection == binding.connection, record.binding == binding, record.task == task else { throw MCPInboundAccessError.conflict }
             return .existing(statusValue(taskID, record))
         }
         if let pending {
-            guard pending.review.binding == binding, pending.review.task == task else { throw MCPInboundAccessError.busy }
+            guard task.requestID != nil, pending.review.binding == binding, pending.review.task == task else { throw MCPInboundAccessError.busy }
             return .review(pending.review)
         }
         guard records.count < 50 else { throw MCPInboundAccessError.capacity }
+        var taskID = task.requestID ?? UUID()
+        while records[taskID] != nil && task.requestID == nil { taskID = UUID() }
         let review = MCPInboundReview(id: UUID(), binding: binding, task: task)
-        pending = Pending(review: review)
+        pending = Pending(review: review, taskID: taskID)
         return .review(review)
     }
     /// Only a local review action may call this. It queues an inert record; no
     /// operation or model request is started. No remote input is approval.
     public func approveLocally(reviewID: UUID, current: MCPInboundReviewBinding) throws -> MCPInboundTaskStatus {
-        guard enabled, active, let pending, pending.review.id == reviewID,
-              pending.review.binding == current,
+        // A callback for an older review has no authority over a newer one.
+        guard let pending, pending.review.id == reviewID else { throw MCPInboundAccessError.invalidReview }
+        guard enabled, active, pending.review.binding == current,
               let connection = try currentConnection(current.connection),
               !(failures[connection.peer].map { $0.lockedUntil > lastTime } ?? false),
-              let id = pending.review.task.requestID, records[id] == nil else {
+              records[pending.taskID] == nil else {
             self.pending = nil; throw MCPInboundAccessError.invalidReview
         }
+        let id = pending.taskID
         records[id] = Record(connection: current.connection, binding: current, task: pending.review.task, phase: .queued)
         order.append(id); self.pending = nil
         return .init(taskID: id, phase: .queued)
@@ -251,24 +255,30 @@ public actor MCPInboundAccessTasks {
         guard record.phase == .waitingForLocalApproval else { throw MCPInboundAccessError.conflict }
         record.phase = .running; records[lease.taskID] = record
     }
-    /// Request/question IDs are mandatory so a retry cannot answer another question.
-    @discardableResult public func answer(taskID: UUID, questionID: UUID, requestID: UUID, text: String,
+    /// Optional IDs can bind a question and deduplicate retries. Without them,
+    /// each request targets the question open when the actor processes it.
+    @discardableResult public func answer(taskID: UUID, questionID: UUID? = nil, requestID: UUID? = nil, text: String,
                                          connection: UUID, peer: MCPInboundPeer, headers: [MCPInboundHeader]) throws -> UUID {
         try check(connection: connection, peer: peer, headers: headers)
         guard var record = records[taskID], record.connection == connection else { throw MCPInboundAccessError.missing }
         let clean = try checkedText(text, maximum: 2000)
-        guard record.steers[requestID] == nil else { throw MCPInboundAccessError.conflict }
-        if let receipt = record.answers[requestID] {
-            guard receipt.questionID == questionID, receipt.text == clean else { throw MCPInboundAccessError.conflict }
-            return requestID
+        if let requestID {
+            guard record.steers[requestID] == nil else { throw MCPInboundAccessError.conflict }
+            if let receipt = record.answers[requestID] {
+                guard (questionID == nil || receipt.questionID == questionID), receipt.text == clean else { throw MCPInboundAccessError.conflict }
+                return requestID
+            }
         }
-        guard record.phase == .waitingForAnswer, record.question?.id == questionID,
+        guard record.phase == .waitingForAnswer, let current = record.question,
+              questionID == nil || current.id == questionID,
               record.pendingAnswer == nil else { throw MCPInboundAccessError.conflict }
         guard record.answers.count < 64 else { throw MCPInboundAccessError.capacity }
-        record.answers[requestID] = AnswerReceipt(questionID: questionID, text: clean)
-        record.pendingAnswer = MCPInboundInput(requestID: requestID, text: clean)
+        var operationID = requestID ?? UUID()
+        while requestID == nil && (record.answers[operationID] != nil || record.steers[operationID] != nil) { operationID = UUID() }
+        record.answers[operationID] = AnswerReceipt(questionID: current.id, text: clean)
+        record.pendingAnswer = MCPInboundInput(requestID: operationID, text: clean)
         record.question = nil; record.phase = .running; records[taskID] = record
-        return requestID
+        return operationID
     }
     public func hostTakeAnswer(lease: MCPInboundHostLease) throws -> MCPInboundInput? {
         var record = try hostRecord(lease)
@@ -276,21 +286,27 @@ public actor MCPInboundAccessTasks {
         let result = record.pendingAnswer; record.pendingAnswer = nil; records[lease.taskID] = record
         return result
     }
-    @discardableResult public func steer(taskID: UUID, requestID: UUID, text: String,
+    /// With no request_id, each accepted instruction gets a new message ID,
+    /// matching Android's non-idempotent submission semantics.
+    @discardableResult public func steer(taskID: UUID, requestID: UUID? = nil, text: String,
                                         connection: UUID, peer: MCPInboundPeer, headers: [MCPInboundHeader]) throws -> UUID {
         try check(connection: connection, peer: peer, headers: headers)
         guard var record = records[taskID], record.connection == connection else { throw MCPInboundAccessError.missing }
         let clean = try checkedText(text, maximum: 4000)
-        guard record.answers[requestID] == nil else { throw MCPInboundAccessError.conflict }
-        if let previous = record.steers[requestID] {
-            guard previous == clean else { throw MCPInboundAccessError.conflict }
-            return requestID
+        if let requestID {
+            guard record.answers[requestID] == nil else { throw MCPInboundAccessError.conflict }
+            if let previous = record.steers[requestID] {
+                guard previous == clean else { throw MCPInboundAccessError.conflict }
+                return requestID
+            }
         }
         guard record.phase == .running else { throw MCPInboundAccessError.conflict }
         guard record.steers.count < 64, record.pendingSteers.count < 16 else { throw MCPInboundAccessError.capacity }
-        record.steers[requestID] = clean
-        record.pendingSteers.append(MCPInboundInput(requestID: requestID, text: clean)); records[taskID] = record
-        return requestID
+        var operationID = requestID ?? UUID()
+        while requestID == nil && (record.steers[operationID] != nil || record.answers[operationID] != nil) { operationID = UUID() }
+        record.steers[operationID] = clean
+        record.pendingSteers.append(MCPInboundInput(requestID: operationID, text: clean)); records[taskID] = record
+        return operationID
     }
     public func hostTakeSteer(lease: MCPInboundHostLease) throws -> MCPInboundInput? {
         var record = try hostRecord(lease)
@@ -351,6 +367,12 @@ public actor MCPInboundAccessTasks {
         let now = clock()
         guard now >= lastTime else { revoke(); throw MCPInboundAccessError.clockFailure }
         lastTime = now
+        // Expire all peers, not only the handle referenced by this request:
+        // stale sessions must not retain a review, task slots or connection slots.
+        let expired = connections.compactMap { id, connection in
+            now - connection.created >= 300_000 ? id : nil
+        }
+        for id in expired { connectionDidClose(id) }
         return now
     }
     private func currentConnection(_ id: UUID) throws -> Connection? {
