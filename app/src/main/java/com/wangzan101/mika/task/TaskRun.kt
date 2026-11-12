@@ -187,6 +187,13 @@ class TaskRun(
      */
     private fun mcpEndpoints(): List<com.wangzan101.mika.core.cap.mcp.McpConnection> = buildList {
         mcpConnections?.let { addAll(it.connections) }
+        if (mcpConnections?.connections?.isNotEmpty() == true) {
+            add(com.wangzan101.mika.core.cap.mcp.McpConnection(
+                endpoint = com.wangzan101.mika.mcp.ConversationMcpResultReader(SandboxDirs(service), conversationId),
+                previewChars = 25_000,
+                trust = com.wangzan101.mika.core.cap.mcp.McpTrust.TrustAnnotations,
+            ))
+        }
     }
     /** 自己的一份;显示中时同步写到服务对外的那份。[show] 时整份抄过去。 */
     /** App 给的模型来源、评测钩子、屏幕画面的开关。 */
