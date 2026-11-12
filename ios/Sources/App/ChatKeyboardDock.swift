@@ -12,6 +12,16 @@ enum ChatKeyboardReserve {
             && visible.maxX >= window.maxX - 1 && visible.maxY >= window.maxY - 1
     }
 
+    /// Real docked keyboards, with their toolbar and prediction bar, stay well
+    /// under this share of the window. A stale occlusion once reported ~890 of
+    /// 1080 pt on an iPad; anything taller than this is ignored.
+    static let maximumShare: CGFloat = 0.7
+
+    static func isPlausible(_ keyboard: CGRect, in window: CGRect) -> Bool {
+        guard isDocked(keyboard, in: window) else { return false }
+        return keyboard.intersection(window).height <= window.height * maximumShare
+    }
+
     /// Space to keep clear below a view whose bottom edge is `viewBottom`.
     static func height(viewBottom: CGFloat, keyboardTop: CGFloat) -> CGFloat {
         guard viewBottom.isFinite, keyboardTop.isFinite else { return 0 }
@@ -26,6 +36,7 @@ enum ChatKeyboardReserve {
 }
 
 #if os(iOS)
+import SwiftUI
 import UIKit
 
 /// Chat opts out of SwiftUI's automatic keyboard safe area. On a physical
@@ -33,12 +44,14 @@ import UIKit
 /// show/hide, view rebuilds and app relaunches: chat got ~100 pt, the
 /// transcript (and its setup hint) collapsed to zero and the composer sat
 /// under the navigation bar. Only this app's own keyboard, docked across the
-/// bottom edge, reserves space here, and ChatView applies it only while the
-/// draft is being edited.
+/// bottom edge and of plausible height, reserves space here, whichever field
+/// owns it, like SwiftUI's own avoidance.
 @MainActor
 final class ChatKeyboardDock: NSObject, ObservableObject {
     /// The docked local keyboard in window coordinates, or nil.
     @Published private(set) var frameInWindow: CGRect?
+    /// The keyboard's own animation length, so the composer moves with it.
+    @Published private(set) var animationDuration = 0.25
 
     override init() {
         super.init()
@@ -64,13 +77,17 @@ final class ChatKeyboardDock: NSObject, ObservableObject {
         // Another app's keyboard (multitasking, out-of-process pickers) never
         // moves this composer.
         let local = (notification.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? NSNumber)?.boolValue ?? true
+        if let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue,
+           duration > 0, duration < 2, duration != animationDuration {
+            animationDuration = duration
+        }
         var docked: CGRect?
         if !hiding, local,
            let end = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
            let window = Self.window(for: notification.object as? UIScreen) {
             // Keyboard frames are in screen coordinates; a window may be smaller.
             let frame = window.convert(end, from: window.screen.coordinateSpace)
-            if ChatKeyboardReserve.isDocked(frame, in: window.bounds) { docked = frame }
+            if ChatKeyboardReserve.isPlausible(frame, in: window.bounds) { docked = frame }
         }
         if frameInWindow != docked { frameInWindow = docked }
     }
@@ -80,6 +97,41 @@ final class ChatKeyboardDock: NSObject, ObservableObject {
             .filter { screen == nil || $0.screen === screen }
         return scenes.first(where: { $0.activationState == .foregroundActive })?.keyWindow
             ?? scenes.first?.keyWindow
+    }
+}
+
+/// Applied to the whole chat column: ignore SwiftUI's keyboard safe area and
+/// pad the bottom for this app's own docked keyboard, moving with it (its own
+/// animation duration). A surface that replaces the keyboard, such as the
+/// attachment panel, drops the space at once.
+struct ChatKeyboardReserveModifier: ViewModifier {
+    @ObservedObject var dock: ChatKeyboardDock
+    let replaced: Bool
+    @State private var frame = CGRect.zero
+
+    private var reserve: CGFloat { replaced ? 0 : dock.reserve(below: frame) }
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.bottom, reserve)
+            .animation(.easeOut(duration: dock.animationDuration), value: reserve)
+            .background {
+                // The column's own frame does not depend on the padding above.
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { frame = proxy.frame(in: .global) }
+                        .onChange(of: proxy.frame(in: .global)) { _, value in frame = value }
+                }
+            }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+    }
+}
+
+extension View {
+    /// See ChatKeyboardReserveModifier. `replaced`: another bottom surface,
+    /// such as the attachment panel, is taking the keyboard's place.
+    func chatKeyboardReserve(_ dock: ChatKeyboardDock, replaced: Bool = false) -> some View {
+        modifier(ChatKeyboardReserveModifier(dock: dock, replaced: replaced))
     }
 }
 #endif
