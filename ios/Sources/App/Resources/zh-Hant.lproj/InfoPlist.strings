@@ -1,2 +1,4 @@
 "NSMicrophoneUsageDescription" = "渥屋助理會在你使用語音輸入或允許網站使用麥克風時使用麥克風。";
 "NSSpeechRecognitionUsageDescription" = "渥屋助理使用裝置上的語音辨識，將你主動說出的內容加入聊天草稿。";
+"NSCameraUsageDescription" = "渥屋助理會在你於聊天中拍照附加，或允許網站使用相機時使用相機。";
+"NSPhotoLibraryUsageDescription" = "渥屋助理會在聊天的附件面板列出最近的照片，讓你直接選取要附加的照片。";

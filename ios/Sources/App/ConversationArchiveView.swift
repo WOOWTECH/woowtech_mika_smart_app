@@ -25,19 +25,20 @@ import SwiftUI
                         Text(verbatim: localizer.text(.archiveEmpty)).accessibilityIdentifier("archive.empty")
                     }
                     ForEach(store.conversations) { record in
+                        let title = ChatAttachmentLines.title(of: record, localizer: localizer)
                         NavigationLink {
                             ConversationArchiveDetail(store: store, session: session, id: record.id) {
                                 if RecentConversationAccess.open(record, in: session) { dismiss() }
                             }
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(record.title).lineLimit(2)
+                                Text(title).lineLimit(2)
                                 Text("\(record.turns.count) 輪 · \(record.updatedAt.formatted(date: .abbreviated, time: .shortened))")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         .accessibilityIdentifier("archive.row." + record.id.uuidString)
-                        .accessibilityLabel(record.title)
+                        .accessibilityLabel(title)
                     }
                 }
             }
@@ -112,9 +113,6 @@ import SwiftUI
                                 Text("助理").font(.caption.bold())
                                 Text(turn.assistantText).textSelection(.enabled)
                                     .accessibilityIdentifier("archive.turn.\(index).assistant")
-                                if let pdf = turn.pdf {
-                                    ArchivedPDFEvidenceView(evidence: pdf, identifier: "archive.turn.\(index).pdf")
-                                }
                             }
                             if let error = store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
                         }

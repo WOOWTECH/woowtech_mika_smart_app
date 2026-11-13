@@ -494,6 +494,36 @@ enum AppText: Equatable {
     case voiceChoiceNotice
     case voiceChoiceDisabledHint
     case voiceChoiceSaveFailed
+    case chatAttachAdd
+    case chatAttachClose
+    case chatAttachCamera
+    case chatAttachAlbum
+    case chatAttachFiles
+    case chatAttachRecent
+    case chatAttachRecentLimited
+    case chatAttachAllPhotos
+    case chatAttachChangeScope
+    case chatAttachNoPhotos
+    case chatAttachAllowPhotos
+    case chatAttachPhotosNeeded
+    case chatAttachPhotosHint
+    case chatAttachAdding
+    case chatAttachGotIt
+    case chatAttachGone
+    case chatAttachNoCamera
+    case chatAttachPhoto
+    case chatAttachPhotoCount(count: Int)
+    case chatAttachFileAndMore(name: String, count: Int)
+    case chatAttachPhotosAndFiles
+    case chatAttachSelected
+    case chatAttachRemove(name: String)
+    case chatAttachFull(limit: Int)
+    case chatAttachOverLimit(limit: Int, count: Int)
+    case chatAttachRefused(names: String)
+    case settingsSeesImages
+    case settingsSeesImagesUnconfirmed
+    case settingsSeesImagesUser
+    case chatAttachImagesNotSeen(count: Int)
 
     var key: String {
         switch self {
@@ -988,6 +1018,36 @@ enum AppText: Equatable {
         case .voiceChoiceNotice: return "voice.choice.notice"
         case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
         case .voiceChoiceSaveFailed: return "voice.choice.saveFailed"
+        case .chatAttachAdd: return "chat.attach.add"
+        case .chatAttachClose: return "chat.attach.close"
+        case .chatAttachCamera: return "chat.attach.camera"
+        case .chatAttachAlbum: return "chat.attach.album"
+        case .chatAttachFiles: return "chat.attach.files"
+        case .chatAttachRecent: return "chat.attach.recent"
+        case .chatAttachRecentLimited: return "chat.attach.recentLimited"
+        case .chatAttachAllPhotos: return "chat.attach.allPhotos"
+        case .chatAttachChangeScope: return "chat.attach.changeScope"
+        case .chatAttachNoPhotos: return "chat.attach.noPhotos"
+        case .chatAttachAllowPhotos: return "chat.attach.allowPhotos"
+        case .chatAttachPhotosNeeded: return "chat.attach.photosNeeded"
+        case .chatAttachPhotosHint: return "chat.attach.photosHint"
+        case .chatAttachAdding: return "chat.attach.adding"
+        case .chatAttachGotIt: return "chat.attach.gotIt"
+        case .chatAttachGone: return "chat.attach.gone"
+        case .chatAttachNoCamera: return "chat.attach.noCamera"
+        case .chatAttachPhoto: return "chat.attach.photo"
+        case .chatAttachPhotoCount: return "chat.attach.photoCount"
+        case .chatAttachFileAndMore: return "chat.attach.fileAndMore"
+        case .chatAttachPhotosAndFiles: return "chat.attach.photosAndFiles"
+        case .chatAttachSelected: return "chat.attach.selected"
+        case .chatAttachRemove: return "chat.attach.remove"
+        case .chatAttachFull: return "chat.attach.full"
+        case .chatAttachOverLimit: return "chat.attach.overLimit"
+        case .chatAttachRefused: return "chat.attach.refused"
+        case .settingsSeesImages: return "settings.seesImages"
+        case .settingsSeesImagesUnconfirmed: return "settings.seesImages.unconfirmed"
+        case .settingsSeesImagesUser: return "settings.seesImages.user"
+        case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
         }
     }
 
@@ -1016,6 +1076,13 @@ enum AppText: Equatable {
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
         case .localPDFSearchHit(let page, let index): return [Int64(page), Int64(index)]
+        case .chatAttachPhotoCount(let count): return [Int64(count)]
+        case .chatAttachFileAndMore(let name, let count): return [name, Int64(count)]
+        case .chatAttachRemove(let name): return [name]
+        case .chatAttachFull(let limit): return [Int64(limit)]
+        case .chatAttachOverLimit(let limit, let count): return [Int64(limit), Int64(count)]
+        case .chatAttachRefused(let names): return [names]
+        case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         default: return []
         }
     }
@@ -1514,6 +1581,36 @@ enum AppText: Equatable {
         case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
         case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
         case .voiceChoiceSaveFailed: return "無法儲存語音設定，請再試一次。"
+        case .chatAttachAdd: return "新增附件"
+        case .chatAttachClose: return "收起附件面板"
+        case .chatAttachCamera: return "相機"
+        case .chatAttachAlbum: return "相簿"
+        case .chatAttachFiles: return "檔案"
+        case .chatAttachRecent: return "最近的照片"
+        case .chatAttachRecentLimited: return "你允許渥屋助理存取的照片"
+        case .chatAttachAllPhotos: return "全部照片"
+        case .chatAttachChangeScope: return "更改範圍"
+        case .chatAttachNoPhotos: return "還沒有照片"
+        case .chatAttachAllowPhotos: return "允許存取照片"
+        case .chatAttachPhotosNeeded: return "在這裡直接選照片,需要允許渥屋助理存取照片"
+        case .chatAttachPhotosHint: return "不允許也可以點上面的「相簿」,用系統的照片選擇器"
+        case .chatAttachAdding: return "正在新增附件…"
+        case .chatAttachGotIt: return "知道了"
+        case .chatAttachGone: return "這個附件已經不在了"
+        case .chatAttachNoCamera: return "沒有能拍照的相機"
+        case .chatAttachPhoto: return "照片"
+        case .chatAttachPhotoCount: return "%lld 張照片"
+        case .chatAttachFileAndMore: return "%1$@ 等 %2$lld 個檔案"
+        case .chatAttachPhotosAndFiles: return "照片和檔案"
+        case .chatAttachSelected: return "已選取"
+        case .chatAttachRemove: return "去掉%1$@"
+        case .chatAttachFull: return "一次最多 %1$lld 個附件"
+        case .chatAttachOverLimit: return "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上"
+        case .chatAttachRefused: return "沒能新增:%1$@(單個檔案不超過 200 MB)"
+        case .settingsSeesImages: return "能看圖"
+        case .settingsSeesImagesUnconfirmed: return "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。"
+        case .settingsSeesImagesUser: return "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。"
+        case .chatAttachImagesNotSeen: return "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         }
     }
 }

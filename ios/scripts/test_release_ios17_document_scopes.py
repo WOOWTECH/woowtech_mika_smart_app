@@ -20,8 +20,8 @@ class DocumentFocusedScopesTests(unittest.TestCase):
         self.assertTrue(read.isdisjoint(output))
         self.assertTrue(chat.isdisjoint(read | output))
         self.assertEqual(read | output | chat, expected)
-        self.assertEqual(len(chat), 4)
-        self.assertIn("WoowAssistantUITests/ChatPDFAttachmentUITests/testNewConversationReviewsUnsentNativePDFAndKeepsTextDraft", chat)
+        self.assertEqual(len(chat), 3)
+        self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone", chat)
         self.assertEqual(len(read), 9)
         self.assertIn("WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchCanIgnoreEnglishCaseAfterApproval", read)
         self.assertIn("WoowAssistantUITests/SkillExecutionUITests/testOfflineLimitedPatternSearchUsesApprovedPDF", read)
@@ -29,7 +29,7 @@ class DocumentFocusedScopesTests(unittest.TestCase):
         self.assertEqual(len(output), 10)
         self.assertEqual(catalog["document_focused_scopes"], groups)
         self.assertEqual(ios17.UI_SHARDS["ui-documents"],
-                         ["SkillExecutionUITests", "SkillWorkerSettingsUITests", "SkillPDFAssemblyMultiFileUITests", "ChatPDFAttachmentUITests"])
+                         ["SkillExecutionUITests", "SkillWorkerSettingsUITests", "SkillPDFAssemblyMultiFileUITests", "ChatAttachmentUITests"])
         for scope, methods in groups.items():
             self.assertNotIn(scope, ios17.UI_SHARDS)
             self.assertEqual(ios17.selected_ui_tests(catalog, scope), methods)

@@ -40,24 +40,73 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
     public let userText: String
     public let assistantText: String
     public let pdf: ArchivedPDFAnswer?
+    /// Names and locations of the files the user attached, never their bytes.
+    public let attachments: [ArchivedAttachment]
 
     public init(userID: UUID = UUID(), assistantID: UUID = UUID(), userText: String, assistantText: String,
-                pdf: ArchivedPDFAnswer? = nil) throws {
+                pdf: ArchivedPDFAnswer? = nil, attachments: [ArchivedAttachment] = []) throws {
         guard userID != assistantID,
               [userText, assistantText].allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                  && $0.utf8.count <= ConversationArchive.maximumMessageBytes })
+                  && $0.utf8.count <= ConversationArchive.maximumMessageBytes }),
+              attachments.count <= ArchivedAttachment.maximumPerTurn,
+              Set(attachments.map(\.id)).count == attachments.count
         else { throw ConversationArchiveError.invalidData }
         self.userID = userID; self.assistantID = assistantID
         self.userText = userText; self.assistantText = assistantText
         self.pdf = pdf
+        self.attachments = attachments
     }
 
-    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf }
+    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf, attachments }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(userID: c.decode(UUID.self, forKey: .userID), assistantID: c.decode(UUID.self, forKey: .assistantID),
                       userText: c.decode(String.self, forKey: .userText), assistantText: c.decode(String.self, forKey: .assistantText),
-                      pdf: c.decodeIfPresent(ArchivedPDFAnswer.self, forKey: .pdf))
+                      pdf: c.decodeIfPresent(ArchivedPDFAnswer.self, forKey: .pdf),
+                      attachments: c.decodeIfPresent([ArchivedAttachment].self, forKey: .attachments) ?? [])
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(userID, forKey: .userID); try c.encode(assistantID, forKey: .assistantID)
+        try c.encode(userText, forKey: .userText); try c.encode(assistantText, forKey: .assistantText)
+        try c.encodeIfPresent(pdf, forKey: .pdf)
+        // Rows without attachments keep exactly their previous encoding.
+        if !attachments.isEmpty { try c.encode(attachments, forKey: .attachments) }
+    }
+}
+
+/// Display metadata for one attachment. The file lives in the app's own
+/// attachment folder, outside the encrypted archive and outside backups.
+public struct ArchivedAttachment: Codable, Equatable, Sendable {
+    public static let maximumPerTurn = 9
+    public let id: UUID
+    public let isPhoto: Bool
+    public let name: String
+    public let byteCount: Int64
+    /// Relative to the attachment folder: "<conversation>/<id>/<name>".
+    public let relativePath: String
+    public let contentType: String?
+
+    public init(id: UUID, isPhoto: Bool, name: String, byteCount: Int64, relativePath: String, contentType: String?) throws {
+        let parts = relativePath.split(separator: "/", omittingEmptySubsequences: false)
+        guard !name.isEmpty, name.utf8.count <= 512, !name.contains("/"),
+              (0...(200 * 1024 * 1024)).contains(byteCount),
+              relativePath.utf8.count <= 1024, parts.count == 3, parts[1] == Substring(id.uuidString),
+              parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }),
+              (contentType?.utf8.count ?? 0) <= 256
+        else { throw ConversationArchiveError.invalidData }
+        self.id = id; self.isPhoto = isPhoto; self.name = name; self.byteCount = byteCount
+        self.relativePath = relativePath; self.contentType = contentType
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, isPhoto, name, byteCount, relativePath, contentType }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(id: c.decode(UUID.self, forKey: .id), isPhoto: c.decode(Bool.self, forKey: .isPhoto),
+                      name: c.decode(String.self, forKey: .name), byteCount: c.decode(Int64.self, forKey: .byteCount),
+                      relativePath: c.decode(String.self, forKey: .relativePath),
+                      contentType: c.decodeIfPresent(String.self, forKey: .contentType))
     }
 }
 

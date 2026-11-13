@@ -351,7 +351,11 @@ actor UITestChatModelClient: ChatModelClient {
             failedOnce = true
             throw URLError(.cannotConnectToHost)
         }
-        return "測試回覆：\(prompt)"
+        // Attachment fixtures report what actually reached the model request.
+        let attached = messages.last(where: { !$0.attachments.isEmpty })?.attachments ?? []
+        let summary = attached.isEmpty ? ""
+            : "｜收到附件 \(attached.count) 個（圖片 \(attached.filter(\.isImage).count)）"
+        return "測試回覆：\(prompt)" + summary
     }
 }
 #endif

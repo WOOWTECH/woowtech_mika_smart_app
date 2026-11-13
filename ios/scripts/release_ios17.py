@@ -53,7 +53,7 @@ UI_SHARDS = {
     "ui-profile": ["UserProfileUITests", "UserProfileToolUITests"],
     "ui-memory-tools": ["MemoryToolUITests"],
     "ui-skills": ["SkillCatalogUITests", "SkillAuthoringUITests", "TranscriptUITests"],
-    "ui-documents": ["SkillExecutionUITests", "SkillWorkerSettingsUITests", "SkillPDFAssemblyMultiFileUITests", "ChatPDFAttachmentUITests"],
+    "ui-documents": ["SkillExecutionUITests", "SkillWorkerSettingsUITests", "SkillPDFAssemblyMultiFileUITests", "ChatAttachmentUITests"],
     "ui-pdf-capability": ["SkillPDFCapabilityUITests"],
     "ui-download-pdf": ["BrowserDownloadedPDFUITests"],
     "ui-mcp": ["MCPConversationUITests", "MCPLearningUITests"],
@@ -88,10 +88,9 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/SkillWorkerSettingsUITests/testDedicatedWorkerSettingsPersistWithoutSelectingOrReadingAFile",
     ],
     "documents-chat": [
-        "WoowAssistantUITests/ChatPDFAttachmentUITests/testNativePDFApprovalsCitationsArchiveRelaunchOpenAndDelete",
-        "WoowAssistantUITests/ChatPDFAttachmentUITests/testReadApprovalThenRemoveNeverExtractsOrSubmitsAndRetainsDraft",
-        "WoowAssistantUITests/ChatPDFAttachmentUITests/testCancelActualQueryKeepsQuestionAndSourceWithoutCompletedArchive",
-        "WoowAssistantUITests/ChatPDFAttachmentUITests/testNewConversationReviewsUnsentNativePDFAndKeepsTextDraft",
+        "WoowAssistantUITests/ChatAttachmentUITests/testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard",
+        "WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
+        "WoowAssistantUITests/ChatAttachmentUITests/testPhotoReachesModelOnlyAfterSeesImagesIsOn",
     ],
 }
 
