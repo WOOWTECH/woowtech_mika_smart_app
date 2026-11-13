@@ -12,10 +12,8 @@ struct BrowserView: View {
     @ObservedObject var workspace: BrowserWorkspace
     @State private var showResearch = false
     @State private var showInteractions = false
-    @State private var showLibrary = false
     @State private var showSearchSettings = false
     @State private var showMore = false
-    @State private var librarySection = 0
     @State private var startQuery = ""
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
@@ -24,8 +22,8 @@ struct BrowserView: View {
     private var isStartPage: Bool { browser.loadedURL == nil && browser.address.isEmpty || showInvalidStartInput }
     @State private var showInvalidStartInput = false
     private var pageCovered: Bool {
-        isStartPage || showResearch || showInteractions || showLibrary
-            || showSearchSettings || showMore || browser.pageDialog != nil
+        isStartPage || showResearch || showInteractions
+            || showSearchSettings || showMore || workspace.presentsSignIns || browser.pageDialog != nil
     }
     private var pageFindHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
@@ -152,9 +150,6 @@ struct BrowserView: View {
                     .disabled(browser.current == nil || browser.isRunning || workspace.isClearingWebsiteData)
                     .accessibilityIdentifier("browser.interactions")
                 Spacer(minLength: 0)
-                Button { openLibrary(section: 0) } label: { Image(systemName: "square.on.square") }
-                    .accessibilityLabel(localizer.text(.browserChromeLibrary))
-                    .accessibilityIdentifier("browser.library")
             }
             .font(.subheadline)
             .padding(.horizontal, 20)
@@ -170,8 +165,7 @@ struct BrowserView: View {
                         onSubmit: submitStartQuery,
                         onOpen: { url in
                             showInvalidStartInput = false; startQuery = ""; workspace.open(url)
-                        },
-                        onManageBookmarks: { openLibrary(section: 1) })
+                        })
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -188,19 +182,10 @@ struct BrowserView: View {
         .sheet(isPresented: $showInteractions, onDismiss: { browser.cancelInteraction() }) {
             BrowserInteractionView(browser: browser, chat: chat)
         }
-        .sheet(isPresented: $showLibrary) {
-            BrowserLibraryView(workspace: workspace, initialSection: librarySection)
-        }
+        .sheet(isPresented: $workspace.presentsSignIns) { WebsiteSignInsView(workspace: workspace) }
         .sheet(isPresented: $showSearchSettings) { BrowserSearchSettingsView(workspace: workspace) }
         .sheet(isPresented: $showMore) { moreSheet }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { addressFocused = false; browser.webView.endEditing(true); browser.presentPageFind() } label: {
-                    Image(systemName: "doc.text.magnifyingglass")
-                }
-                .accessibilityLabel(localizer.text(.browserChromeFind)).accessibilityIdentifier("browser.find")
-                .disabled(!browser.canFindInPage || !pageFindHostVisible)
-            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Text(localizer.text(workspace.library.userSiteModes.mode(for: browser.loadedURL?.host) == .desktop
@@ -364,10 +349,6 @@ struct BrowserView: View {
     private func closePage() {
         addressFocused = false; browser.webView.endEditing(true)
         if workspace.closeCurrentPage() { startQuery = ""; showInvalidStartInput = false }
-    }
-    private func openLibrary(section: Int) {
-        addressFocused = false; browser.webView.endEditing(true)
-        librarySection = section; showLibrary = true
     }
     private func submitStartQuery() {
         let input = startQuery.trimmingCharacters(in: .whitespacesAndNewlines)

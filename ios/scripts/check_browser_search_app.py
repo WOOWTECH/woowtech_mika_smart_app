@@ -60,7 +60,7 @@ def main():
         apps = [copy("Sources/App/" + name + ".swift") for name in APP_SOURCES]
         checks = [copy("Tests/AssistantDomainTests/" + name + ".swift") for name in ["BrowserSearchChecks", "BrowserUserSiteModesChecks"]]
         harnesses = [copy("scripts/" + name + ".swift") for name in ["CheckBrowserSearchApp", "CheckBrowserSiteModesApp"]]
-        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/BrowserLibraryView.swift", "Sources/App/BrowserSearchSettingsView.swift",
+        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/BrowserSearchSettingsView.swift",
                   "Tests/AssistantDomainTests/BrowserSearchTests.swift", "Tests/AssistantBrowserIntegrationTests/BrowserSearchIntegrationTests.swift",
                   "Tests/AssistantBrowserIntegrationTests/BrowserWorkspaceIntegrationTests.swift",
                   "Tests/WoowAssistantUITests/BrowserSearchUITests.swift"]]

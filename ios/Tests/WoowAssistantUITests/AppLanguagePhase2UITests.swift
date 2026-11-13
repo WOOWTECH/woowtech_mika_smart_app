@@ -71,7 +71,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
 
-    func testEnglishBrowserLibraryAndSearchKeepUnsentChatDraft() {
+    func testEnglishBrowserSearchKeepsUnsentChatDraft() {
         launchAndEnterDraft()
         chooseEnglishInSettings()
 
@@ -89,17 +89,9 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(add.label, "Add and use")
         tapChrome(app.buttons["browser.searchEngine.close"])
 
-        tapChrome(app.buttons["browser.library"])
-        XCTAssertTrue(app.navigationBars["Browsing data"].waitForExistence(timeout: 10))
-        let bookmarks = app.segmentedControls["browser.library.sections"].buttons["Bookmarks"]
-        tapChrome(bookmarks)
-        exactText("browser.bookmarks.empty", "No bookmarks yet")
-        let addBookmark = app.buttons["browser.bookmarks.add"]
-        XCTAssertTrue(addBookmark.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.frame.contains(addBookmark.frame) && !addBookmark.frame.isEmpty)
-        XCTAssertEqual(addBookmark.label, "Bookmark current page")
-        XCTAssertFalse(addBookmark.isEnabled, "No page has been opened or approved for bookmarking.")
-        tapChrome(app.buttons["browser.library.close"])
+        let start = app.descendants(matching: .any)["browser.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["browser.start.history.empty"].label, "No browsing history yet")
 
         tapRoot("chat")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)

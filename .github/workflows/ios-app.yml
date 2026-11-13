@@ -442,7 +442,7 @@ jobs:
               test "${#test_filters[@]}" -gt 0
               ;;
             login)
-              test_filters=(-only-testing:WoowAssistantUITests/BrowserLoginUITests/testNativeFormLoginSharesCookieAcrossTabsAndRelaunchThenLogout)
+              test_filters=(-only-testing:WoowAssistantUITests/BrowserLoginUITests/testNativeFormLoginSharesCookieAcrossPagesAndRelaunchThenLogout)
               ;;
             profile-tool)
               test_filters=(-only-testing:WoowAssistantUITests/UserProfileToolUITests)

@@ -15,8 +15,10 @@ func emptyMemoryMessage(for query: String, pending: Bool) -> MemoryDataKey {
 enum MemoryDataKey: String, CaseIterable {
     case title, tabMemory, tabSkills, tabPending, tabPendingCount
     case selected, unselected, search, unavailable, reload, dismissNotice
-    case profile, routeTitle, websiteKnowledgeCount, routeCount, websitesAndRoutes
-    case routesHelp, webLogins, webLoginsHelp, storedData
+    case profile, routeTitle, routeCount, webLogins, storedData
+    case signInsNone, signInsNoneDetail, signInsManage, signInsVisited, signInsSignOutSite, signInsSignedOut
+    case signInsAllTitle, signInsAllQuestion, signInsAllBody, signInsAll, signInsAllDone, signInsNote
+    case routesSaved, routesClearAll, routesClearTitle, routesClearBody, clear
     case clearAll, clearSubtitle, clearDetails
     case emptyMemory, memoryNotFound, addMemory, emptyPending, pendingNotFound
     case pendingProcedure, pendingSkills, pendingSearchHint
@@ -55,13 +57,32 @@ enum MemoryDataKey: String, CaseIterable {
         case .dismissNotice: return ("關閉提示", "Dismiss")
         case .profile: return ("個人檔案", "Profile")
         case .routeTitle: return ("記住的操作路線", "Saved routes")
-        case .websiteKnowledgeCount: return ("網站知識 %lld 篇", "%lld website notes")
         case .routeCount: return ("%lld 條", "%lld routes")
-        case .websitesAndRoutes: return ("網站知識與路線（%lld／%lld）", "Website notes and routes (%lld/%lld)")
-        case .routesHelp: return ("網頁路線以實際讀取與完成判定建立；目前只支援公開網站的導覽與核對。", "Web routes are saved after actual reading and outcome review. Only navigation and verification on public sites are supported.")
         case .webLogins: return ("網站登入", "Website sign-ins")
-        case .webLoginsHelp: return ("網站登入資料由 WebKit 儲存，可在瀏覽器的網站頁面查看與清除。", "WebKit stores website login data. View or clear it from the browser's Websites page.")
         case .storedData: return ("儲存的資料", "Saved data")
+        // Play's WebSitesSection (web_*) and RoutesScreen (routes_*), with the app name.
+        case .signInsNone: return ("還沒有造訪過的網站", "No sites visited yet")
+        case .signInsNoneDetail: return ("渥屋助理在網頁上辦過事、或你在這裡登入過之後會列在這裡",
+                                         "Sites appear here after woowtech agent works on them or you sign in here")
+        case .signInsManage: return ("管理", "Manage")
+        case .signInsVisited: return ("渥屋助理造訪過這個網站。", "woowtech agent has visited this site.")
+        case .signInsSignOutSite: return ("登出這個網站", "Sign out of this site")
+        case .signInsSignedOut: return ("已登出 %@。個別網站的登入可能仍在，如需徹底清除請用「全部登出」。",
+                                        "Signed out of %@. Some sign-ins may remain; use “Sign out of all” to clear everything.")
+        case .signInsAllTitle: return ("全部登出並清除網頁資料", "Sign out of all and clear web data")
+        case .signInsAllQuestion: return ("全部登出並清除網頁資料？", "Sign out of all and clear web data?")
+        case .signInsAllBody: return ("會登出內建瀏覽器裡的所有網站，並清除它們存在渥屋助理裡的網頁資料。之後渥屋助理用網頁辦事時要重新登入。",
+                                      "Signs out of every site in the built-in browser and clears their web data stored in woowtech agent. woowtech agent will need to sign in again when it uses those sites.")
+        case .signInsAll: return ("全部登出", "Sign out of all")
+        case .signInsAllDone: return ("已全部登出並清除網頁資料。", "Signed out of all and cleared web data.")
+        case .signInsNote: return ("網站的登入資料只存在這臺裝置上渥屋助理的私有空間，沒有另行加密，和系統瀏覽器的保護程度相同。",
+                                   "Website sign-in data is stored only in woowtech agent’s private storage on this device, without extra encryption — the same protection as the system browser.")
+        case .routesSaved: return ("已記住的操作路線", "Saved routes")
+        case .routesClearAll: return ("全部清除", "Clear all")
+        case .routesClearTitle: return ("清除全部已記住的操作路線？", "Clear all saved routes?")
+        case .routesClearBody: return ("清除後，做過的事下次會重新一步步來做，不影響別的設定。",
+                                       "After clearing, woowtech agent works things out step by step again next time. Other settings aren’t affected.")
+        case .clear: return ("清除", "Clear")
         case .clearAll: return ("全部清除", "Clear all")
         case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "Delete all memory and learned skills")
         case .clearDetails: return ("需要兩次確認，並包含個人檔案。模型設定、模型金鑰與 MCP 端點不會被清除。", "Requires two confirmations and includes your profile. Model settings, keys, and MCP endpoints are kept.")

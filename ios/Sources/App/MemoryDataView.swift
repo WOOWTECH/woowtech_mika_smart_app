@@ -10,6 +10,9 @@ struct MemoryDataView: View {
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
+    /// Play's Saved data › Website sign-ins. The list is shown over the browser,
+    /// where WebKit can list its website records.
+    let onOpenSignIns: () -> Void
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
     @State private var sheet: LearningSheet?
@@ -85,8 +88,6 @@ struct MemoryDataView: View {
                     SkillTextView(title: title, markdown: markdown)
                 case .clear:
                     LearningClearView(store: store)
-                case .websites:
-                    WebsiteDataView(store: store, browser: browser, modelAccess: modelAccess, onOpenBrowser: onOpenBrowser)
                 }
             }
         }
@@ -207,45 +208,20 @@ struct MemoryDataView: View {
             }
             preferencesSection
             Section {
+                // Play's Saved data: website sign-ins, then saved routes.
                 card {
                     VStack(spacing: 0) {
-                        Button { onOpenBrowser() } label: {
+                        Button { onOpenSignIns() } label: {
                             dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
-                        Text(copy.text(.webLoginsHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.browserPending")
                         cardDivider
-                        Button { sheet = .websites } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                                    .font(.body)
-                                    .frame(width: 38, height: 38)
-                                    .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
-                                    .accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(copy.text(.routeTitle))
-                                    Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
-                                        .font(.caption).foregroundStyle(palette.ink3)
-                                }
-                                Spacer(minLength: 0)
-                                Text(copy.text(.routeCount, Int64(store.routes.routes.count)))
-                                    .foregroundStyle(palette.ink3)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(palette.ink3)
-                                    .accessibilityHidden(true)
-                            }
-                            .foregroundStyle(palette.ink)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        NavigationLink { SavedRoutesView(store: store) } label: {
+                            dataRow(copy.text(.routeTitle), systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                                    value: copy.text(.routeCount, Int64(store.routes.routes.count)))
                         }
-                            .accessibilityLabel(copy.text(.websitesAndRoutes,
-                                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
-                            .accessibilityIdentifier("memory.websites")
-                        Text(copy.text(.routesHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.routesPending")
+                        .disabled(!store.available)
+                        .accessibilityIdentifier("memory.routes")
                     }
                 }
                 // Android's saved data lists website sign-ins, then routes; the
@@ -664,7 +640,7 @@ struct MemoryDataView: View {
             .accessibilityHidden(true)
     }
 
-    private func dataRow(_ title: String, systemImage: String) -> some View {
+    private func dataRow(_ title: String, systemImage: String, value: String? = nil) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
                 .font(.body)
@@ -673,6 +649,7 @@ struct MemoryDataView: View {
                 .accessibilityHidden(true)
             Text(title).font(.body)
             Spacer(minLength: 0)
+            if let value { Text(value).foregroundStyle(palette.ink3) }
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.ink3)
@@ -763,7 +740,7 @@ private enum LearningSegment: String, CaseIterable, Identifiable {
 }
 
 private enum LearningSheet: Identifiable {
-    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear, websites
+    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear
     var id: String {
         switch self {
         case .memory(let item): return "memory-" + (item?.id.uuidString ?? "new")
@@ -771,7 +748,6 @@ private enum LearningSheet: Identifiable {
         case .editSkill(let draft): return "edit-" + draft.id.uuidString
         case .fullText: return "fulltext"
         case .clear: return "clear"
-        case .websites: return "websites"
         }
     }
 }

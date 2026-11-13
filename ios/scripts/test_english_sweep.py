@@ -16,8 +16,8 @@ CJK = re.compile('[㐀-鿿＀-￯　-〿]')
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 SWEPT = [
-    'UserProfileView', 'UserProfileToolReviewView', 'WebsiteDataView', 'ConversationArchiveView',
-    'MemoryToolReviewView', 'BrowserLibraryView', 'BrowserSearchSettingsView',
+    'UserProfileView', 'UserProfileToolReviewView', 'ConversationArchiveView',
+    'MemoryToolReviewView', 'BrowserSearchSettingsView', 'SavedDataViews',
 ]
 
 # (file, literal) -> why it stays Chinese.

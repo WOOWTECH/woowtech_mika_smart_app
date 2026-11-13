@@ -464,21 +464,12 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                        expectedGeneration: UUID) -> Bool {
         guard available, generation == expectedGeneration else { return false }
         do {
-            var nextSkills = skills, nextWebsites = websites, nextRoutes = routes
+            var nextSkills = skills, nextRoutes = routes
+            let nextWebsites = websites
             _ = try nextSkills.apply(assessment, availableToolNames: BrowserSession.toolNames)
             if memory.preferences.learnSkills, assessment.judgment.outcome == .done {
                 let task = try WebTaskEvidence(outcome: .succeeded, confirmed: true, summary: "已由獨立成果判定核對網站研究回答。")
-                if let citation = assessment.judgment.citations.first,
-                   let index = Int(citation.actionID.replacingOccurrences(of: "action-", with: "")),
-                   actions.indices.contains(index), actions[index].tool != "browser_find",
-                   actions[index].observation.text.contains(citation.quote) {
-                    let page = actions[index].observation
-                    let snapshot = PageSnapshot(url: page.url, title: page.title, visibleText: page.text, capturedAt: page.capturedAt)
-                    if let evidence = try? WebsiteLessonEvidence(snapshot: snapshot, quote: citation.quote),
-                       !nextWebsites.lessons.contains(where: { $0.evidence.sourceURL == evidence.sourceURL && $0.text == citation.quote }) {
-                        _ = try nextWebsites.propose(text: citation.quote, evidence: evidence, task: task)
-                    }
-                }
+                // Like the Play build, no website notes are proposed; only routes are kept.
                 // A one-page answer is not a reusable multi-step route.
                 if actions.filter({ $0.tool == "browser_open_link" }).count >= 2 {
                     let steps = try actions.filter { $0.tool != "browser_find" }.map { action -> WebRouteStep in

@@ -24,6 +24,8 @@ final class BrowserWorkspace: ObservableObject {
     @Published private(set) var available = false
     @Published private(set) var websiteRecords: [WKWebsiteDataRecord] = []
     @Published private(set) var isClearingWebsiteData = false
+    /// Memory › Saved data › Website sign-ins shows its list over the browser.
+    @Published var presentsSignIns = false
     private var sessions: [UUID: BrowserSession] = [:]
     private var websiteRecordRevision = UUID()
     private var vault: EncryptedLearningFile?

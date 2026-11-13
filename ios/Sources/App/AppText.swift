@@ -44,31 +44,6 @@ enum AppText: Equatable {
     case profileToolDecline
     case profileToolApprove
     case commonDone
-    case websiteSaveSection
-    case websiteNotePlaceholder
-    case websiteSaveNote
-    case websiteSaveHelp
-    case websiteOpenFirst
-    case websiteNotesSection
-    case websiteSearch
-    case websiteEmpty
-    case websiteSource(value: String)
-    case websiteApproved
-    case websitePending
-    case websiteApprove
-    case websiteRoutesSection
-    case websiteRoutesEmpty
-    case websiteRouteSummary(count: Int, host: String)
-    case websiteRouteDisabled
-    case websiteReplay
-    case websiteRevisionsSection
-    case websiteRestore
-    case websiteTitle
-    case websiteReplayTitle
-    case websiteReplayConfirm
-    case websiteReplayMessage(host: String, count: Int)
-    case websiteEditorSource(value: String)
-    case websiteEditorTitle
     case archiveRowSummary(count: Int, date: String)
     case archiveModel(value: String)
     case archiveDestinationMismatch
@@ -233,7 +208,6 @@ enum AppText: Equatable {
     case commonCancel
     case commonSave
     case commonClose
-    case commonClear
     case commonName
     case commonSelected
     case commonUnselected
@@ -307,28 +281,12 @@ enum AppText: Equatable {
     case browserClearRemaining
     case browserModeReloading
     case browserModeDeferred
-    case browserLibrary
-    case browserTabs
     case browserBookmarks
-    case browserHistory
-    case browserSites
     case browserClearing
-    case browserRenameBookmark
     case browserClearHistoryQuestion
     case browserClearHistory
-    case browserClearSiteQuestion
-    case browserClearSite
-    case browserNewTab
-    case browserNoPage
-    case browserBookmarkCurrent
-    case browserNoBookmarks
-    case browserRename
-    case browserClearAllHistory
     case browserNoHistory
-    case browserSitesHelp
-    case browserNoSites
     case commonDeleteName(name: String)
-    case commonCloseName(name: String)
     case browserHistorySearch(query: String)
     case notificationTitle
     case notificationLocal
@@ -743,31 +701,6 @@ enum AppText: Equatable {
         case .profileToolDecline: return "profileTool.decline"
         case .profileToolApprove: return "profileTool.approve"
         case .commonDone: return "common.done"
-        case .websiteSaveSection: return "website.saveSection"
-        case .websiteNotePlaceholder: return "website.notePlaceholder"
-        case .websiteSaveNote: return "website.saveNote"
-        case .websiteSaveHelp: return "website.saveHelp"
-        case .websiteOpenFirst: return "website.openFirst"
-        case .websiteNotesSection: return "website.notesSection"
-        case .websiteSearch: return "website.search"
-        case .websiteEmpty: return "website.empty"
-        case .websiteSource: return "website.source"
-        case .websiteApproved: return "website.approved"
-        case .websitePending: return "website.pending"
-        case .websiteApprove: return "website.approve"
-        case .websiteRoutesSection: return "website.routesSection"
-        case .websiteRoutesEmpty: return "website.routesEmpty"
-        case .websiteRouteSummary: return "website.routeSummary"
-        case .websiteRouteDisabled: return "website.routeDisabled"
-        case .websiteReplay: return "website.replay"
-        case .websiteRevisionsSection: return "website.revisionsSection"
-        case .websiteRestore: return "website.restore"
-        case .websiteTitle: return "website.title"
-        case .websiteReplayTitle: return "website.replayTitle"
-        case .websiteReplayConfirm: return "website.replayConfirm"
-        case .websiteReplayMessage: return "website.replayMessage"
-        case .websiteEditorSource: return "website.editorSource"
-        case .websiteEditorTitle: return "website.editorTitle"
         case .archiveRowSummary: return "archive.rowSummary"
         case .archiveModel: return "archive.model"
         case .archiveDestinationMismatch: return "archive.destinationMismatch"
@@ -932,7 +865,6 @@ enum AppText: Equatable {
         case .commonCancel: return "common.cancel"
         case .commonSave: return "common.save"
         case .commonClose: return "common.close"
-        case .commonClear: return "common.clear"
         case .commonName: return "common.name"
         case .commonSelected: return "common.selected"
         case .commonUnselected: return "common.unselected"
@@ -1006,28 +938,12 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "browser.clear.remaining"
         case .browserModeReloading: return "browser.mode.reloading"
         case .browserModeDeferred: return "browser.mode.deferred"
-        case .browserLibrary: return "browser.library"
-        case .browserTabs: return "browser.tabs"
         case .browserBookmarks: return "browser.bookmarks"
-        case .browserHistory: return "browser.history"
-        case .browserSites: return "browser.sites"
         case .browserClearing: return "browser.clearing"
-        case .browserRenameBookmark: return "browser.rename.bookmark"
         case .browserClearHistoryQuestion: return "browser.clear.history.question"
         case .browserClearHistory: return "browser.clear.history"
-        case .browserClearSiteQuestion: return "browser.clear.site.question"
-        case .browserClearSite: return "browser.clear.site"
-        case .browserNewTab: return "browser.new.tab"
-        case .browserNoPage: return "browser.no.page"
-        case .browserBookmarkCurrent: return "browser.bookmark.current"
-        case .browserNoBookmarks: return "browser.no.bookmarks"
-        case .browserRename: return "browser.rename"
-        case .browserClearAllHistory: return "browser.clear.all.history"
         case .browserNoHistory: return "browser.no.history"
-        case .browserSitesHelp: return "browser.sites.help"
-        case .browserNoSites: return "browser.no.sites"
         case .commonDeleteName: return "common.delete.name"
-        case .commonCloseName: return "common.close.name"
         case .browserHistorySearch: return "browser.history.search"
         case .notificationTitle: return "notification.title"
         case .notificationLocal: return "notification.local"
@@ -1407,10 +1323,6 @@ enum AppText: Equatable {
         case .profileHistoryCount(let count): return [Int64(count)]
         case .profileHistoryItem(let value): return [value]
         case .profileEditorCount(let count): return [Int64(count)]
-        case .websiteSource(let value): return [value]
-        case .websiteRouteSummary(let count, let host): return [Int64(count), host]
-        case .websiteReplayMessage(let host, let count): return [host, Int64(count)]
-        case .websiteEditorSource(let value): return [value]
         case .archiveRowSummary(let count, let date): return [Int64(count), date]
         case .archiveModel(let value): return [value]
         case .learningRemembered(let value): return [value]
@@ -1422,7 +1334,6 @@ enum AppText: Equatable {
         case .mcpToolCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
-        case .commonCloseName(let name): return [name]
         case .browserHistorySearch(let query): return [query]
         case .browserStartRemoveBookmark(let name): return [name]
         case .browserChromeSearchEngine(let name): return [name]
@@ -1511,31 +1422,6 @@ enum AppText: Equatable {
         case .profileToolDecline: return "拒絕並停止"
         case .profileToolApprove: return "核准並儲存"
         case .commonDone: return "完成"
-        case .websiteSaveSection: return "儲存目前網站的知識"
-        case .websiteNotePlaceholder: return "記下此網站的操作方式或注意事項"
-        case .websiteSaveNote: return "儲存這條知識"
-        case .websiteSaveHelp: return "會一併保留本頁的一小段原文作為來源。網站內容不會自動變成你的個人記憶。"
-        case .websiteOpenFirst: return "先在瀏覽器開啟網頁，才能建立有來源的知識。"
-        case .websiteNotesSection: return "網站知識"
-        case .websiteSearch: return "搜尋網站知識"
-        case .websiteEmpty: return "尚無網站知識"
-        case .websiteSource: return "來源：%1$@"
-        case .websiteApproved: return "已核准"
-        case .websitePending: return "待確認"
-        case .websiteApprove: return "核准"
-        case .websiteRoutesSection: return "網頁路線"
-        case .websiteRoutesEmpty: return "尚無已確認路線"
-        case .websiteRouteSummary: return "%1$lld 步 · %2$@"
-        case .websiteRouteDisabled: return "已停用：同一步驟連續兩次不符"
-        case .websiteReplay: return "重走路線"
-        case .websiteRevisionsSection: return "知識修訂"
-        case .websiteRestore: return "還原這個版本"
-        case .websiteTitle: return "網站知識與路線"
-        case .websiteReplayTitle: return "重走已儲存的網頁路線？"
-        case .websiteReplayConfirm: return "開啟並逐步核對"
-        case .websiteReplayMessage: return "將開啟 %1$@ 的 %2$lld 個已記錄步驟。只讀取網頁；內容不符便停止，不會提交表單。"
-        case .websiteEditorSource: return "來源原文：%1$@"
-        case .websiteEditorTitle: return "編輯網站知識"
         case .archiveRowSummary: return "%1$lld 輪 · %2$@"
         case .archiveModel: return "保存時的模型：%1$@"
         case .archiveDestinationMismatch: return "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。"
@@ -1700,7 +1586,6 @@ enum AppText: Equatable {
         case .commonCancel: return "取消"
         case .commonSave: return "儲存"
         case .commonClose: return "關閉"
-        case .commonClear: return "清除"
         case .commonName: return "名稱"
         case .commonSelected: return "已選取"
         case .commonUnselected: return "未選取"
@@ -1774,28 +1659,12 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "部分網站資料仍保留，請重新確認。"
         case .browserModeReloading: return "網站偏好已儲存，正在重新整理此頁以套用。"
         case .browserModeDeferred: return "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。"
-        case .browserLibrary: return "瀏覽資料"
-        case .browserTabs: return "分頁"
         case .browserBookmarks: return "書籤"
-        case .browserHistory: return "歷史"
-        case .browserSites: return "網站"
         case .browserClearing: return "正在清除網站資料…"
-        case .browserRenameBookmark: return "修改書籤名稱"
         case .browserClearHistoryQuestion: return "清除瀏覽歷史？書籤與網站登入資料會保留。"
         case .browserClearHistory: return "清除歷史"
-        case .browserClearSiteQuestion: return "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。"
-        case .browserClearSite: return "清除網站資料"
-        case .browserNewTab: return "新增分頁"
-        case .browserNoPage: return "尚未開啟網頁"
-        case .browserBookmarkCurrent: return "加入目前頁面書籤"
-        case .browserNoBookmarks: return "尚無書籤"
-        case .browserRename: return "改名"
-        case .browserClearAllHistory: return "清除所有歷史"
         case .browserNoHistory: return "尚無瀏覽歷史"
-        case .browserSitesHelp: return "網站資料由 WebKit 儲存，包括 Cookie 與網站儲存空間；出現在清單不代表目前已登入。"
-        case .browserNoSites: return "尚無網站資料"
         case .commonDeleteName: return "刪除 %1$@"
-        case .commonCloseName: return "關閉 %1$@"
         case .browserHistorySearch: return "搜尋：%1$@"
         case .notificationTitle: return "任務通知"
         case .notificationLocal: return "本機任務通知"

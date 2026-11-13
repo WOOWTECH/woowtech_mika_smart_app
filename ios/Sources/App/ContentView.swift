@@ -238,6 +238,12 @@ struct ContentView: View {
                            browserReturnSection = .memory
                            selection = .browser
                            if resetNavigation { notificationNavigationID = UUID() }
+                       },
+                       onOpenSignIns: {
+                           browserReturnSection = .memory
+                           selection = .browser
+                           if resetNavigation { notificationNavigationID = UUID() }
+                           browserWorkspace.presentsSignIns = true
                        })
     }
 

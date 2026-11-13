@@ -83,8 +83,10 @@ final class WoowAssistantUITests: XCTestCase {
         for _ in 0..<6 where !websiteLink.isHittable { app.swipeUp() }
         XCTAssertTrue(websiteLink.isHittable)
         websiteLink.tap()
+        XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
+        attachScreenshot("09-sign-ins-from-memory", in: app)
+        app.buttons["signIns.close"].tap()
         XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
-        attachScreenshot("09-browser-from-memory", in: app)
         XCTAssertEqual(app.buttons["section.back"].label, "返回記憶")
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
@@ -94,14 +96,9 @@ final class WoowAssistantUITests: XCTestCase {
 
         openSection("browser", in: app)
         XCTAssertTrue(app.textFields["browser.address"].waitForExistence(timeout: 10))
-        let library = app.buttons["browser.library"]
-        XCTAssertTrue(library.isHittable)
-        library.tap()
-        XCTAssertTrue(app.buttons["browser.library.close"].waitForExistence(timeout: 10))
-        attachScreenshot("11-browser-library", in: app)
-        app.buttons["browser.library.close"].tap()
-        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
-        attachScreenshot("12-browser-return-from-library", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.library"].exists, "Like the Play build, favorites and recent pages are on the start page.")
+        attachScreenshot("11-browser-start-page", in: app)
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
 

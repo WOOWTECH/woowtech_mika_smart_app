@@ -396,259 +396,6 @@
       }
     },
     {
-      "case": "websiteSaveSection",
-      "key": "website.saveSection",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "儲存目前網站的知識",
-        "en": "Save a note about this website"
-      }
-    },
-    {
-      "case": "websiteNotePlaceholder",
-      "key": "website.notePlaceholder",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "記下此網站的操作方式或注意事項",
-        "en": "How this site works, or what to watch for"
-      }
-    },
-    {
-      "case": "websiteSaveNote",
-      "key": "website.saveNote",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "儲存這條知識",
-        "en": "Save this note"
-      }
-    },
-    {
-      "case": "websiteSaveHelp",
-      "key": "website.saveHelp",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "會一併保留本頁的一小段原文作為來源。網站內容不會自動變成你的個人記憶。",
-        "en": "A short excerpt of this page is kept as the source. Website content never becomes your personal memory on its own."
-      }
-    },
-    {
-      "case": "websiteOpenFirst",
-      "key": "website.openFirst",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "先在瀏覽器開啟網頁，才能建立有來源的知識。",
-        "en": "Open a page in the browser first, so the note has a source."
-      }
-    },
-    {
-      "case": "websiteNotesSection",
-      "key": "website.notesSection",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "網站知識",
-        "en": "Website notes"
-      }
-    },
-    {
-      "case": "websiteSearch",
-      "key": "website.search",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "搜尋網站知識",
-        "en": "Search website notes"
-      }
-    },
-    {
-      "case": "websiteEmpty",
-      "key": "website.empty",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚無網站知識",
-        "en": "No website notes yet"
-      }
-    },
-    {
-      "case": "websiteSource",
-      "key": "website.source",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "來源：%1$@",
-        "en": "Source: %1$@"
-      }
-    },
-    {
-      "case": "websiteApproved",
-      "key": "website.approved",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已核准",
-        "en": "Approved"
-      }
-    },
-    {
-      "case": "websitePending",
-      "key": "website.pending",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "待確認",
-        "en": "To review"
-      }
-    },
-    {
-      "case": "websiteApprove",
-      "key": "website.approve",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "核准",
-        "en": "Approve"
-      }
-    },
-    {
-      "case": "websiteRoutesSection",
-      "key": "website.routesSection",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "網頁路線",
-        "en": "Web routes"
-      }
-    },
-    {
-      "case": "websiteRoutesEmpty",
-      "key": "website.routesEmpty",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚無已確認路線",
-        "en": "No confirmed routes yet"
-      }
-    },
-    {
-      "case": "websiteRouteSummary",
-      "key": "website.routeSummary",
-      "parameters": [
-        {
-          "name": "count",
-          "type": "Int"
-        },
-        {
-          "name": "host",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "%1$lld 步 · %2$@",
-        "en": "Steps: %1$lld · %2$@"
-      }
-    },
-    {
-      "case": "websiteRouteDisabled",
-      "key": "website.routeDisabled",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已停用：同一步驟連續兩次不符",
-        "en": "Turned off: the same step didn’t match twice in a row"
-      }
-    },
-    {
-      "case": "websiteReplay",
-      "key": "website.replay",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "重走路線",
-        "en": "Replay route"
-      }
-    },
-    {
-      "case": "websiteRevisionsSection",
-      "key": "website.revisionsSection",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "知識修訂",
-        "en": "Note revisions"
-      }
-    },
-    {
-      "case": "websiteRestore",
-      "key": "website.restore",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "還原這個版本",
-        "en": "Restore this version"
-      }
-    },
-    {
-      "case": "websiteTitle",
-      "key": "website.title",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "網站知識與路線",
-        "en": "Website notes and routes"
-      }
-    },
-    {
-      "case": "websiteReplayTitle",
-      "key": "website.replayTitle",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "重走已儲存的網頁路線？",
-        "en": "Replay the saved web route?"
-      }
-    },
-    {
-      "case": "websiteReplayConfirm",
-      "key": "website.replayConfirm",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "開啟並逐步核對",
-        "en": "Open and check each step"
-      }
-    },
-    {
-      "case": "websiteReplayMessage",
-      "key": "website.replayMessage",
-      "parameters": [
-        {
-          "name": "host",
-          "type": "String"
-        },
-        {
-          "name": "count",
-          "type": "Int"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "將開啟 %1$@ 的 %2$lld 個已記錄步驟。只讀取網頁；內容不符便停止，不會提交表單。",
-        "en": "Opens %1$@ and follows %2$lld recorded steps. It only reads pages, stops when something doesn’t match, and never submits forms."
-      }
-    },
-    {
-      "case": "websiteEditorSource",
-      "key": "website.editorSource",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "來源原文：%1$@",
-        "en": "Source text: %1$@"
-      }
-    },
-    {
-      "case": "websiteEditorTitle",
-      "key": "website.editorTitle",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "編輯網站知識",
-        "en": "Edit website note"
-      }
-    },
-    {
       "case": "archiveRowSummary",
       "key": "archive.rowSummary",
       "parameters": [
@@ -2159,15 +1906,6 @@
       }
     },
     {
-      "case": "commonClear",
-      "key": "common.clear",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "清除",
-        "en": "Clear"
-      }
-    },
-    {
       "case": "commonName",
       "key": "common.name",
       "parameters": [],
@@ -2857,24 +2595,6 @@
       }
     },
     {
-      "case": "browserLibrary",
-      "key": "browser.library",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "瀏覽資料",
-        "en": "Browsing data"
-      }
-    },
-    {
-      "case": "browserTabs",
-      "key": "browser.tabs",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "分頁",
-        "en": "Tabs"
-      }
-    },
-    {
       "case": "browserBookmarks",
       "key": "browser.bookmarks",
       "parameters": [],
@@ -2884,39 +2604,12 @@
       }
     },
     {
-      "case": "browserHistory",
-      "key": "browser.history",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "歷史",
-        "en": "History"
-      }
-    },
-    {
-      "case": "browserSites",
-      "key": "browser.sites",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "網站",
-        "en": "Sites"
-      }
-    },
-    {
       "case": "browserClearing",
       "key": "browser.clearing",
       "parameters": [],
       "translations": {
         "zh-Hant": "正在清除網站資料…",
         "en": "Clearing site data…"
-      }
-    },
-    {
-      "case": "browserRenameBookmark",
-      "key": "browser.rename.bookmark",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "修改書籤名稱",
-        "en": "Rename bookmark"
       }
     },
     {
@@ -2938,102 +2631,12 @@
       }
     },
     {
-      "case": "browserClearSiteQuestion",
-      "key": "browser.clear.site.question",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。",
-        "en": "Clear this site’s data? You may need to sign in again. All tabs and downloads will stop."
-      }
-    },
-    {
-      "case": "browserClearSite",
-      "key": "browser.clear.site",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "清除網站資料",
-        "en": "Clear site data"
-      }
-    },
-    {
-      "case": "browserNewTab",
-      "key": "browser.new.tab",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "新增分頁",
-        "en": "New tab"
-      }
-    },
-    {
-      "case": "browserNoPage",
-      "key": "browser.no.page",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚未開啟網頁",
-        "en": "No page opened yet"
-      }
-    },
-    {
-      "case": "browserBookmarkCurrent",
-      "key": "browser.bookmark.current",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "加入目前頁面書籤",
-        "en": "Bookmark current page"
-      }
-    },
-    {
-      "case": "browserNoBookmarks",
-      "key": "browser.no.bookmarks",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚無書籤",
-        "en": "No bookmarks yet"
-      }
-    },
-    {
-      "case": "browserRename",
-      "key": "browser.rename",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "改名",
-        "en": "Rename"
-      }
-    },
-    {
-      "case": "browserClearAllHistory",
-      "key": "browser.clear.all.history",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "清除所有歷史",
-        "en": "Clear all history"
-      }
-    },
-    {
       "case": "browserNoHistory",
       "key": "browser.no.history",
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無瀏覽歷史",
         "en": "No browsing history yet"
-      }
-    },
-    {
-      "case": "browserSitesHelp",
-      "key": "browser.sites.help",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "網站資料由 WebKit 儲存，包括 Cookie 與網站儲存空間；出現在清單不代表目前已登入。",
-        "en": "WebKit stores site data, including cookies and site storage. Being listed does not mean you are currently signed in."
-      }
-    },
-    {
-      "case": "browserNoSites",
-      "key": "browser.no.sites",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚無網站資料",
-        "en": "No site data yet"
       }
     },
     {
@@ -3048,20 +2651,6 @@
       "translations": {
         "zh-Hant": "刪除 %1$@",
         "en": "Delete %1$@"
-      }
-    },
-    {
-      "case": "commonCloseName",
-      "key": "common.close.name",
-      "parameters": [
-        {
-          "name": "name",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "關閉 %1$@",
-        "en": "Close %1$@"
       }
     },
     {

@@ -11,7 +11,6 @@ struct BrowserStartPageView: View {
     let query: String
     let onSubmit: () -> Void
     let onOpen: (URL) -> Void
-    let onManageBookmarks: () -> Void
     @State private var editing = false
     @State private var confirmClearHistory = false
     @State private var showAddHint = false
@@ -59,7 +58,6 @@ struct BrowserStartPageView: View {
                 .accessibilityIdentifier("browser.start.history.confirmClear")
         }
         .alert(localizer.text(.browserStartAddBookmark), isPresented: $showAddHint) {
-            Button(localizer.text(.browserStartViewBookmarks)) { onManageBookmarks() }
             Button(localizer.text(.browserStartOK), role: .cancel) {}
         } message: {
             Text(localizer.text(.browserStartAddBookmarkHelp))

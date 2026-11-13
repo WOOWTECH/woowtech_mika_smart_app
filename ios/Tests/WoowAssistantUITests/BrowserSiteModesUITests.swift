@@ -89,12 +89,9 @@ final class BrowserSiteModesUITests: XCTestCase {
         } else {
             let navigation = app.navigationBars.firstMatch
             let center = CGPoint(x: control.frame.midX, y: control.frame.midY)
-            let otherControls = ["browser.find"]
-                .map { navigation.descendants(matching: .any).matching(identifier: $0).firstMatch }
             XCTAssertTrue(control.isHittable && navigation.exists && navigation.frame.contains(control.frame)
                 && navigation.frame.contains(center) && app.frame.contains(center)
-                && !app.keyboards.firstMatch.exists
-                && otherControls.allSatisfy { !$0.exists || !$0.frame.contains(center) },
+                && !app.keyboards.firstMatch.exists,
                 "The native Menu hit point must be fully inside the unobscured navigation bar")
             control.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
