@@ -10,6 +10,9 @@ struct ModelAccess {
     let client: any ChatModelClient
     let configuration: ModelConfiguration
     let key: String
+    /// Provider, model and Keychain item. Running work compares this, never
+    /// the key, to notice that the settings changed under it.
+    let identity: ModelAccessIdentity
 }
 
 struct ChatEntry: Identifiable {
@@ -357,10 +360,14 @@ final class ChatSession: ObservableObject {
         return matchesArchivedTranscript(source)
     }
 
+    /// A conversation belongs to a provider and model, not to a key, so a new
+    /// key for the same provider keeps it going. The archive's
+    /// credentialAccount field holds the provider id; the provider imported
+    /// from the v1 setting has that setting's account as its id.
     var archiveDestination: ConversationDestination? {
-        guard let savedSettings, let account = UUID(uuidString: savedSettings.credentialAccount) else { return nil }
+        guard let savedSettings, let target = savedSettings.accessIdentity?.target else { return nil }
         return try? ConversationDestination(baseURL: savedSettings.baseURL.absoluteString,
-            model: savedSettings.model, credentialAccount: account)
+            model: target.model, credentialAccount: target.providerID)
     }
 
     func canOpenConversation(_ record: ArchivedConversation) -> Bool {
@@ -547,9 +554,11 @@ final class ChatSession: ObservableObject {
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
     func modelAccess() throws -> ModelAccess {
-        guard let savedSettings, hasStoredKey else { throw HTTPChatModelError.invalidConfiguration }
+        guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
+            throw HTTPChatModelError.invalidConfiguration
+        }
         return ModelAccess(client: client, configuration: savedSettings.configuration,
-                           key: try repository.key(for: savedSettings))
+                           key: try repository.key(for: savedSettings), identity: identity)
     }
 
     // Keep the state typed so language changes re-render the current status.
@@ -573,9 +582,10 @@ final class ChatSession: ObservableObject {
         settingsNotice = nil
         do {
             let result = try repository.save(baseURL: baseURLDraft, model: modelDraft, newKey: keyDraft)
+            // Only another provider or model starts over; a new key for the
+            // same provider keeps the conversation and its draft going.
             let changed = savedSettings?.baseURL != result.record.baseURL
-                || savedSettings?.model != result.record.model
-                || savedSettings?.credentialAccount != result.record.credentialAccount
+                || savedSettings?.accessIdentity?.target != result.record.accessIdentity?.target
             savedSettings = result.record
             hasStoredKey = true
             baseURLDraft = result.record.baseURL.absoluteString

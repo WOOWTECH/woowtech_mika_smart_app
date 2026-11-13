@@ -119,6 +119,9 @@ private actor ReplayReferenceModel: ChatModelClient {
         let keys = ReplayReferenceKeys()
         var configuration = ReplayReferenceAppChecks.configuration
         var key = "synthetic-not-a-key"
+        let provider = UUID()
+        /// A new key is a new Keychain item, as when the App saves one.
+        var account = UUID()
         init() throws {
             root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-replay-reference-" + UUID().uuidString)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -161,7 +164,10 @@ private actor ReplayReferenceModel: ChatModelClient {
             }, "persist actual observed route and approved site knowledge")
             return store.routes.routes[0]
         }
-        func access(_ model: ReplayReferenceModel) -> ModelAccess { .init(client: model, configuration: configuration, key: key) }
+        func access(_ model: ReplayReferenceModel) -> ModelAccess {
+            .init(client: model, configuration: configuration, key: key,
+                  identity: .init(target: .init(providerID: provider, model: configuration.model), credentialAccount: account))
+        }
         func close() { try? FileManager.default.removeItem(at: root) }
     }
     private static func waitForRequest(_ model: ReplayReferenceModel, count: Int = 1) async throws {
@@ -296,7 +302,7 @@ private actor ReplayReferenceModel: ChatModelClient {
                 case "masterOffAtStart": try expect(!sent[1].content.contains("PRIVATE_REPLAY_PROFILE") && !sent[1].content.contains("PRIVATE_REPLAY_MEMORY") && sent[1].content.contains("replay-observe"), "master gates profile/memory while reviewed skill stays independent")
                 case "routeDelete": try expect(env.store.mutateWeb { _, routes in try routes.delete(id: route.id) }, "delete actual confirmed route")
                 case "modelChanged": env.configuration = .init(baseURL: configuration.baseURL, model: "changed")
-                case "keyChanged": env.key = "changed-synthetic-key"
+                case "keyChanged": env.key = "changed-synthetic-key"; env.account = UUID()
                 default: env.configuration = .init(baseURL: configuration.baseURL, model: configuration.model, maxOutputTokens: 2048)
                 }
                 let bytes = try Data(contentsOf: env.vaultURL)

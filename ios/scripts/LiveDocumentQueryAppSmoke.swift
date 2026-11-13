@@ -76,7 +76,8 @@ private actor DocumentActualModel: ChatModelClient {
         guard let base = env["WOOW_MODEL_TEST_BASE_URL"], let url = URL(string: base), url.scheme == "https",
               let model = env["WOOW_MODEL_TEST_MODEL"], !model.isEmpty,
               let key = env["WOOW_MODEL_TEST_API_KEY"], !key.isEmpty else { throw DocumentLiveCheck.missingConfiguration }
-        let access = ModelAccess(client: client, configuration: .init(baseURL: url, model: model, maxOutputTokens: 2048), key: key)
+        let access = ModelAccess(client: client, configuration: .init(baseURL: url, model: model, maxOutputTokens: 2048), key: key,
+                                 identity: .init(target: .init(providerID: UUID(), model: model), credentialAccount: UUID()))
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-document-live-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: root) }

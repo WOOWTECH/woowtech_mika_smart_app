@@ -3584,9 +3584,9 @@
       "key": "settings.model.changeExplanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "更換服務、模型或金鑰會開始新的對話，草稿保留。移除設定會清除本次對話及此 App 的模型金鑰。",
-        "zh-Hans": "更换服务、模型或密钥会开始新对话，草稿保留。移除设置会清除本次对话和此 App 的模型密钥。",
-        "en": "Changing the service, model or key starts a new conversation and keeps the draft. Removing settings clears this conversation and this app’s model key."
+        "zh-Hant": "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。",
+        "zh-Hans": "更换服务或模型会开始新对话，草稿保留；只换密钥会继续当前对话。移除设置会清除本次对话和此 App 的模型密钥。",
+        "en": "Changing the service or model starts a new conversation and keeps the draft; changing only the key continues the current one. Removing settings clears this conversation and this app’s model key."
       }
     },
     {
