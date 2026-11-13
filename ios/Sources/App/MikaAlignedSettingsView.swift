@@ -515,31 +515,30 @@ private struct MikaModelSettingsDetailView: View {
     }
 
     private func connectionCopy(_ key: ConnectionCopy) -> String {
-        let values: (String, String, String)
+        let values: (String, String)
         switch key {
-        case .test: values = ("測試連線", "测试连接", "Test connection")
-        case .cancel: values = ("取消測試", "取消测试", "Cancel test")
-        case .explanation: values = ("請先儲存修改。測試會向已儲存的服務傳送固定短句，可能產生費用；不傳送對話。僅測試文字回覆。", "请先保存修改。测试会向已保存的服务发送固定短句，可能产生费用；不发送对话。仅测试文字回复。", "Save changes first. The test sends a fixed short prompt to the saved service and may incur charges. No conversation is sent. Tests text replies only.")
-        case .untested: values = ("尚未測試連線。", "尚未测试连接。", "Connection not tested.")
-        case .testing: values = ("正在測試連線…", "正在测试连接…", "Testing connection…")
-        case .passed: values = ("文字回覆測試通過；未驗證工具或其他能力。", "文字回复测试通过；未验证工具或其他能力。", "Text reply test passed; tools and other capabilities were not tested.")
-        case .cleanupNotice: values = ("舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。", "旧密钥清理失败，可用移除功能清除此 App 的模型密钥。", "The old key could not be removed. Use Remove to clear this app's model keys.")
-        case .credentials: values = ("無法讀取已儲存的金鑰，請檢查設定。", "无法读取已保存的密钥，请检查设置。", "Could not read the saved key. Check settings.")
-        case .configuration: values = ("設定無效，請檢查網址與模型。", "设置无效，请检查网址与模型。", "Invalid settings. Check the address and model.")
-        case .authentication: values = ("服務拒絕授權，請檢查金鑰與權限。", "服务拒绝授权，请检查密钥与权限。", "Authorization was rejected. Check the key and permissions.")
-        case .notFound: values = ("找不到介面或模型，請檢查網址與模型名稱。", "找不到接口或模型，请检查网址与模型名称。", "Endpoint or model not found. Check the address and model.")
-        case .rateLimited: values = ("服務限制請求，請稍後再試。", "服务限制请求，请稍后再试。", "The service is rate limited. Try again later.")
-        case .server: values = ("服務端發生錯誤，請稍後再試。", "服务端发生错误，请稍后再试。", "The service reported an error. Try again later.")
-        case .rejected: values = ("服務拒絕測試請求，請檢查介面與模型設定。", "服务拒绝测试请求，请检查接口与模型设置。", "The service rejected the test. Check the endpoint and model.")
-        case .response: values = ("服務未回傳完整文字回覆。", "服务未返回完整文字回复。", "The service did not return a complete text reply.")
-        case .redirect: values = ("服務要求轉址；為保護金鑰，測試已停止。", "服务要求重定向；为保护密钥，测试已停止。", "The service requested a redirect; the test stopped to protect the key.")
-        case .timeout: values = ("測試逾時，請檢查連線後再試。", "测试超时，请检查连接后再试。", "The test timed out. Check the connection and try again.")
-        case .network: values = ("無法完成連線，請檢查網路與服務網址。", "无法完成连接，请检查网络与服务网址。", "Could not complete the connection. Check the network and service address.")
+        case .test: values = ("測試連線", "Test connection")
+        case .cancel: values = ("取消測試", "Cancel test")
+        case .explanation: values = ("請先儲存修改。測試會向已儲存的服務傳送固定短句，可能產生費用；不傳送對話。僅測試文字回覆。", "Save changes first. The test sends a fixed short prompt to the saved service and may incur charges. No conversation is sent. Tests text replies only.")
+        case .untested: values = ("尚未測試連線。", "Connection not tested.")
+        case .testing: values = ("正在測試連線…", "Testing connection…")
+        case .passed: values = ("文字回覆測試通過；未驗證工具或其他能力。", "Text reply test passed; tools and other capabilities were not tested.")
+        case .cleanupNotice: values = ("舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。", "The old key could not be removed. Use Remove to clear this app's model keys.")
+        case .credentials: values = ("無法讀取已儲存的金鑰，請檢查設定。", "Could not read the saved key. Check settings.")
+        case .configuration: values = ("設定無效，請檢查網址與模型。", "Invalid settings. Check the address and model.")
+        case .authentication: values = ("服務拒絕授權，請檢查金鑰與權限。", "Authorization was rejected. Check the key and permissions.")
+        case .notFound: values = ("找不到介面或模型，請檢查網址與模型名稱。", "Endpoint or model not found. Check the address and model.")
+        case .rateLimited: values = ("服務限制請求，請稍後再試。", "The service is rate limited. Try again later.")
+        case .server: values = ("服務端發生錯誤，請稍後再試。", "The service reported an error. Try again later.")
+        case .rejected: values = ("服務拒絕測試請求，請檢查介面與模型設定。", "The service rejected the test. Check the endpoint and model.")
+        case .response: values = ("服務未回傳完整文字回覆。", "The service did not return a complete text reply.")
+        case .redirect: values = ("服務要求轉址；為保護金鑰，測試已停止。", "The service requested a redirect; the test stopped to protect the key.")
+        case .timeout: values = ("測試逾時，請檢查連線後再試。", "The test timed out. Check the connection and try again.")
+        case .network: values = ("無法完成連線，請檢查網路與服務網址。", "Could not complete the connection. Check the network and service address.")
         }
         switch languages.resolved {
         case .traditionalChinese: return values.0
-        case .simplifiedChinese: return values.1
-        case .english: return values.2
+        case .english: return values.1
         }
     }
 }

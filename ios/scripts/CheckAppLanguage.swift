@@ -25,8 +25,10 @@ import AssistantSkills
             try check(AppLanguage.system.resolve(preferredLanguages: preferences) == expected,
                       "system language matching: \(preferences)")
         }
-        for (choice, expected) in [(AppLanguage.traditionalChinese, AppDisplayLanguage.traditionalChinese),
-                                   (.simplifiedChinese, .simplifiedChinese), (.english, .english)] {
+        try check(AppLanguage.allCases == [.system, .traditionalChinese, .english] && AppLanguage.settingsChoices == AppLanguage.allCases
+                  && AppDisplayLanguage.allCases == [.english, .traditionalChinese] && AppLanguage(rawValue: "zh-Hans") == nil,
+                  "only Play's choices and interfaces exist; 简体中文 is not a choice")
+        for (choice, expected) in [(AppLanguage.traditionalChinese, AppDisplayLanguage.traditionalChinese), (.english, .english)] {
             for preferences in [[], ["ja-JP"], ["zh-HK"], ["zh-Hans-CN"], ["en-GB"]] {
                 try check(choice.resolve(preferredLanguages: preferences) == expected, "explicit selection ignores system language")
             }

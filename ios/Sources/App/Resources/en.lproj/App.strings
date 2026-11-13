@@ -3,9 +3,7 @@
 "language.system" = "Follow system";
 "language.system.detail" = "Follows your device language: Traditional Chinese for Simplified Chinese, English for other languages without a translation";
 "language.traditional" = "繁體中文";
-"language.simplified" = "简体中文";
 "language.english" = "English";
-"language.partialNotice" = "Settings, main navigation and new chat controls have translations in all three languages. Other pages may still appear in Traditional Chinese.";
 "language.saveFailed" = "Could not verify the saved language. Please select it again.";
 "shell.brandTitle" = "woowtech agent";
 "shell.menu" = "Menu";

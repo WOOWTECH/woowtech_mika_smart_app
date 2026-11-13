@@ -11,7 +11,9 @@ import plistlib
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-LANGUAGES = ('zh-Hant', 'zh-Hans', 'en')
+# As in the Play build (ui.languages=en,zh-Hant). Simplified Chinese was removed
+# on 2026-11-13; a Simplified Chinese system shows the zh-Hant tables.
+LANGUAGES = ('zh-Hant', 'en')
 
 
 def validate(catalog):
@@ -102,6 +104,12 @@ def outputs(catalog):
     return result
 
 
+def stale_tables(root=ROOT):
+    """App tables left in a language folder the catalog no longer lists."""
+    return sorted(str(path.relative_to(root)) for path in (root / 'Sources/App/Resources').glob('*.lproj/App.*')
+                  if path.parent.stem not in LANGUAGES)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write', action='store_true')
@@ -113,6 +121,9 @@ def main():
             path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(data)
         elif not path.exists() or path.read_bytes() != data:
             raise SystemExit('resource/API parity failed: ' + relative)
+    stale = stale_tables()
+    if stale:
+        raise SystemExit('resource/API parity failed: stale ' + ', '.join(stale))
     print(json.dumps({'keys': len(catalog['entries']), 'languages': len(LANGUAGES), 'resource_parity': True}))
 
 if __name__ == '__main__': main()

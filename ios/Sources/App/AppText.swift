@@ -7,9 +7,7 @@ enum AppText: Equatable {
     case languageSystem
     case languageSystemDetail
     case languageTraditional
-    case languageSimplified
     case languageEnglish
-    case languagePartialNotice
     case languageSaveFailed
     case shellBrandTitle
     case shellMenu
@@ -514,9 +512,7 @@ enum AppText: Equatable {
         case .languageSystem: return "language.system"
         case .languageSystemDetail: return "language.system.detail"
         case .languageTraditional: return "language.traditional"
-        case .languageSimplified: return "language.simplified"
         case .languageEnglish: return "language.english"
-        case .languagePartialNotice: return "language.partialNotice"
         case .languageSaveFailed: return "language.saveFailed"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
@@ -1060,9 +1056,7 @@ enum AppText: Equatable {
         case .languageSystem: return "跟隨系統"
         case .languageSystemDetail: return "跟著裝置語言；簡體中文改用繁體中文，其他沒有譯文的語言用英文"
         case .languageTraditional: return "繁體中文"
-        case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
-        case .languagePartialNotice: return "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"

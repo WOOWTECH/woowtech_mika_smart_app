@@ -2,7 +2,7 @@ import copy
 import json
 from pathlib import Path
 import unittest
-from generate_app_text import validate, outputs
+from generate_app_text import validate, outputs, stale_tables
 
 class AppTextResourceTests(unittest.TestCase):
     def setUp(self):
@@ -37,9 +37,14 @@ class AppTextResourceTests(unittest.TestCase):
     def test_fallback_cannot_silently_change(self):
         self.reject(lambda c: c.update(fallback='en'))
 
+    def test_simplified_chinese_stays_removed(self):
+        # Owner, 2026-11-13: English and Traditional Chinese only, as in the Play build.
+        self.reject(lambda c: c.update(languages=['zh-Hant', 'zh-Hans', 'en']))
+        self.assertEqual(stale_tables(), [])
+
     def test_store_example_copy_matches_audited_420b1d26(self):
-        # 420b1d26 woowtech flavor provides Hant and English; Simplified
-        # is an iOS translation, not an Android store resource.
+        # 420b1d26 woowtech flavor provides Hant and English, the two
+        # languages iOS ships too since Simplified was removed (2026-11-13).
         expected = {
             'shellReplyExample': ('幫我寫一則友善的訊息回覆', 'Help me write a friendly reply to this message.'),
             'shellDocumentExample': ('幫我摘要附上的文件，列出重點', 'Summarize the document I attach and list its key points.'),
