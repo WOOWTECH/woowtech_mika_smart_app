@@ -46,7 +46,7 @@ import AssistantDomain
                 Text(localizer.text(AppLocalizer.notificationNotice(notice))).accessibilityIdentifier("notifications.notice")
             }
         }
-        .navigationTitle(localizer.text(.notificationTitle))
+        .navigationTitle(localizer.text(.settingsNotificationsTitle))
         .task { await store.service.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.service.refresh() } }

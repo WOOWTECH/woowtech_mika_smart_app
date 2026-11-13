@@ -224,7 +224,7 @@
       "translations": {
         "zh-Hant": "記憶與資料",
         "zh-Hans": "记忆与数据",
-        "en": "Memory & Data"
+        "en": "Memory & data"
       }
     },
     {
@@ -3852,9 +3852,9 @@
       "key": "settings.home.model.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "主模型與連線設定",
-        "zh-Hans": "主模型与连接设置",
-        "en": "Main model and connection"
+        "zh-Hant": "模型與服務商",
+        "zh-Hans": "模型与服务商",
+        "en": "Model & provider"
       }
     },
     {
@@ -3868,13 +3868,23 @@
       }
     },
     {
-      "case": "settingsHomeAppearanceDetail",
-      "key": "settings.home.appearance.detail",
+      "case": "settingsHomeLanguageAppearance",
+      "key": "settings.home.languageAppearance",
       "parameters": [],
       "translations": {
-        "zh-Hant": "介面語言、外觀與模型外觀權限",
-        "zh-Hans": "界面语言、外观与模型外观权限",
-        "en": "Language, appearance and model appearance permission"
+        "zh-Hant": "語言與外觀",
+        "zh-Hans": "语言与外观",
+        "en": "Language & appearance"
+      }
+    },
+    {
+      "case": "settingsNotificationsTitle",
+      "key": "settings.notifications.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知",
+        "zh-Hans": "通知",
+        "en": "Notifications"
       }
     },
     {
@@ -3883,8 +3893,8 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "什麼時候彈出、去系統裡改",
-        "zh-Hans": "何时弹出、前往系统设置修改",
-        "en": "When alerts appear and where to change system settings"
+        "zh-Hans": "什么时候弹出、去系统里改",
+        "en": "When they pop up, change in system settings"
       }
     },
     {
@@ -3902,9 +3912,9 @@
       "key": "settings.home.memory.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "管理記憶、技能與已儲存的網站資料",
-        "zh-Hans": "管理记忆、技能与已保存的网站数据",
-        "en": "Manage memories, skills and saved website data"
+        "zh-Hant": "記憶、技能與網站登入",
+        "zh-Hans": "记忆、技能与网站登录",
+        "en": "Memories, skills, and website sign-ins"
       }
     },
     {
@@ -3914,7 +3924,7 @@
       "translations": {
         "zh-Hant": "進階與其他",
         "zh-Hans": "高级与其他",
-        "en": "Advanced and other"
+        "en": "Advanced & other"
       }
     },
     {
@@ -3922,9 +3932,9 @@
       "key": "settings.advanced.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 伺服器與連接",
-        "zh-Hans": "MCP 服务器与连接",
-        "en": "MCP servers and connections"
+        "zh-Hant": "MCP 伺服器",
+        "zh-Hans": "MCP 服务器",
+        "en": "MCP servers"
       }
     },
     {
@@ -3934,17 +3944,7 @@
       "translations": {
         "zh-Hant": "網路與連接",
         "zh-Hans": "网络与连接",
-        "en": "Network and connections"
-      }
-    },
-    {
-      "case": "settingsHomeMCPDetail",
-      "key": "settings.home.mcp.detail",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "連接 MCP 伺服器並管理可用工具",
-        "zh-Hans": "连接 MCP 服务器并管理可用工具",
-        "en": "Connect an MCP server and manage available tools"
+        "en": "Network & connections"
       }
     },
     {

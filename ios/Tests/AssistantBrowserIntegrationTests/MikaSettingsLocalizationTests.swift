@@ -4,15 +4,15 @@ import XCTest
 @MainActor final class MikaSettingsLocalizationTests: XCTestCase {
     func testSettingsMemoryAndMCPEntriesHaveCompleteTranslations() {
         let samples: [(AppDisplayLanguage, [String])] = [
-            (.traditionalChinese, ["我的資料", "記憶與資料", "管理記憶、技能與已儲存的網站資料",
-                                   "網路與連接", "MCP 伺服器", "連接 MCP 伺服器並管理可用工具"]),
-            (.simplifiedChinese, ["我的数据", "记忆与数据", "管理记忆、技能与已保存的网站数据",
-                                  "网络与连接", "MCP 服务器", "连接 MCP 服务器并管理可用工具"]),
-            (.english, ["My data", "Memory & Data", "Manage memories, skills and saved website data",
-                        "Network and connections", "MCP servers", "Connect an MCP server and manage available tools"])
+            (.traditionalChinese, ["我的資料", "記憶與資料", "記憶、技能與網站登入",
+                                   "網路與連接", "MCP 伺服器", "通知"]),
+            (.simplifiedChinese, ["我的数据", "记忆与数据", "记忆、技能与网站登录",
+                                  "网络与连接", "MCP 服务器", "通知"]),
+            (.english, ["My data", "Memory & data", "Memories, skills, and website sign-ins",
+                        "Network & connections", "MCP servers", "Notifications"])
         ]
         let keys: [AppText] = [.settingsHomeMyData, .shellMemoryTitle, .settingsHomeMemoryDetail,
-                               .settingsHomeConnections, .shellMCPServers, .settingsHomeMCPDetail]
+                               .settingsHomeConnections, .shellMCPServers, .settingsNotificationsTitle]
         for (language, expected) in samples {
             let localizer = AppLocalizer(language: language)
             for (key, text) in zip(keys, expected) {

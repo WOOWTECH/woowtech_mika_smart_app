@@ -49,7 +49,7 @@ final class WoowAssistantUITests: XCTestCase {
         attachScreenshot("03-settings-return-from-model", in: app)
         for (linkID, title, detailID, name) in [
             ("settings.appearance", "語言與外觀", "selfConfiguration.permission", "04-settings-appearance"),
-            ("settings.notifications", "任務通知", "notifications.enabled", "05-settings-notifications")
+            ("settings.notifications", "通知", "notifications.enabled", "05-settings-notifications")
         ] {
             let link = app.buttons[linkID]
             XCTAssertTrue(link.isHittable)
@@ -140,7 +140,7 @@ final class WoowAssistantUITests: XCTestCase {
 
         for (linkID, title, detailID) in [
             ("settings.appearance", "語言與外觀", "selfConfiguration.permission"),
-            ("settings.notifications", "任務通知", "notifications.enabled")
+            ("settings.notifications", "通知", "notifications.enabled")
         ] {
             let link = app.buttons[linkID]
             revealSettings(link, in: app)

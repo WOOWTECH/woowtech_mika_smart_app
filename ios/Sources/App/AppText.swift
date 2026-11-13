@@ -376,14 +376,14 @@ enum AppText: Equatable {
     case settingsHomeModel
     case settingsHomeModelDetail
     case settingsHomeModelOpenHint
-    case settingsHomeAppearanceDetail
+    case settingsHomeLanguageAppearance
+    case settingsNotificationsTitle
     case settingsHomeNotificationDetail
     case settingsHomeMyData
     case settingsHomeMemoryDetail
     case settingsAdvancedTitle
     case settingsAdvancedDetail
     case settingsHomeConnections
-    case settingsHomeMCPDetail
     case settingsModelNotSet
     case settingsModelConfigured
     case settingsModelUnconfigured
@@ -933,14 +933,14 @@ enum AppText: Equatable {
         case .settingsHomeModel: return "settings.home.model"
         case .settingsHomeModelDetail: return "settings.home.model.detail"
         case .settingsHomeModelOpenHint: return "settings.home.model.openHint"
-        case .settingsHomeAppearanceDetail: return "settings.home.appearance.detail"
+        case .settingsHomeLanguageAppearance: return "settings.home.languageAppearance"
+        case .settingsNotificationsTitle: return "settings.notifications.title"
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
         case .settingsHomeMyData: return "settings.home.myData"
         case .settingsHomeMemoryDetail: return "settings.home.memory.detail"
         case .settingsAdvancedTitle: return "settings.advanced.title"
         case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
-        case .settingsHomeMCPDetail: return "settings.home.mcp.detail"
         case .settingsModelNotSet: return "settings.model.notSet"
         case .settingsModelConfigured: return "settings.model.configured"
         case .settingsModelUnconfigured: return "settings.model.unconfigured"
@@ -1531,16 +1531,16 @@ enum AppText: Equatable {
         case .languageAppearanceTitle: return "語言與外觀"
         case .settingsHomeBasic: return "常用"
         case .settingsHomeModel: return "模型"
-        case .settingsHomeModelDetail: return "主模型與連線設定"
+        case .settingsHomeModelDetail: return "模型與服務商"
         case .settingsHomeModelOpenHint: return "開啟模型設定頁"
-        case .settingsHomeAppearanceDetail: return "介面語言、外觀與模型外觀權限"
+        case .settingsHomeLanguageAppearance: return "語言與外觀"
+        case .settingsNotificationsTitle: return "通知"
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
         case .settingsHomeMyData: return "我的資料"
-        case .settingsHomeMemoryDetail: return "管理記憶、技能與已儲存的網站資料"
+        case .settingsHomeMemoryDetail: return "記憶、技能與網站登入"
         case .settingsAdvancedTitle: return "進階與其他"
-        case .settingsAdvancedDetail: return "MCP 伺服器與連接"
+        case .settingsAdvancedDetail: return "MCP 伺服器"
         case .settingsHomeConnections: return "網路與連接"
-        case .settingsHomeMCPDetail: return "連接 MCP 伺服器並管理可用工具"
         case .settingsModelNotSet: return "未設定"
         case .settingsModelConfigured: return "模型已設定"
         case .settingsModelUnconfigured: return "尚未設定模型"

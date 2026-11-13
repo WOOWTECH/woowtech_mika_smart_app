@@ -58,8 +58,8 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                             SelfConfigurationView(store: preferences, modelAccess: session.modelAccess,
                                                   languages: languages)
                         } label: {
-                            MikaSettingsRow(icon: .globe, title: localizer.text(.languageAppearanceTitle),
-                                            subtitle: localizer.text(.settingsHomeAppearanceDetail),
+                            // Android settings_language_appearance has no subtitle.
+                            MikaSettingsRow(icon: .globe, title: localizer.text(.settingsHomeLanguageAppearance),
                                             value: localizer.languageName(languages.language))
                         }
                         .buttonStyle(.plain)
@@ -68,7 +68,7 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                         NavigationLink {
                             TaskNotificationSettingsView(store: notifications)
                         } label: {
-                            MikaSettingsRow(icon: .bell, title: localizer.text(.notificationTitle),
+                            MikaSettingsRow(icon: .bell, title: localizer.text(.settingsNotificationsTitle),
                                             subtitle: localizer.text(.settingsHomeNotificationDetail))
                         }
                         .buttonStyle(.plain)
@@ -142,8 +142,8 @@ private struct MikaAdvancedSettingsView<MCPDestination: View>: View {
                             .navigationTitle(localizer.text(.shellMCPServers))
                             .navigationBarTitleDisplayMode(.inline)
                     } label: {
-                        MikaSettingsRow(icon: .link, title: localizer.text(.shellMCPServers),
-                                        subtitle: localizer.text(.settingsHomeMCPDetail))
+                        // Android mcp_servers_title has no subtitle.
+                        MikaSettingsRow(icon: .link, title: localizer.text(.shellMCPServers))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("settings.mcpJump")

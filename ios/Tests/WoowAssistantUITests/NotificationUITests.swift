@@ -97,7 +97,7 @@ final class NotificationUITests: XCTestCase {
         try wait("Opening the notification must reveal the root conversation.", seconds: 10) {
             self.app.state == .runningForeground
                 && self.app.staticTexts["chat.status"].exists
-                && !self.app.navigationBars["任務通知"].exists
+                && !self.app.navigationBars["通知"].exists
                 && self.app.buttons["chat.menu"].exists
                 && !self.app.descendants(matching: .any)["drawer.panel"].exists
         }

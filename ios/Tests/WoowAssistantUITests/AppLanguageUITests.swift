@@ -173,7 +173,7 @@ final class AppLanguageUITests: XCTestCase {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "設定", "進階與其他", "MCP 伺服器"),
             ("(zh-Hans)", "设置", "高级与其他", "MCP 服务器"),
-            ("(en)", "Settings", "Advanced and other", "MCP servers")
+            ("(en)", "Settings", "Advanced & other", "MCP servers")
         ]
         for (systemLanguages, settingsTitle, advancedTitle, mcpTitle) in cases {
             app.terminate()
