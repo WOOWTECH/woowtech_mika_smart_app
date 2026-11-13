@@ -1,0 +1,180 @@
+name: Live HA MCP on iOS Simulator
+
+on:
+  workflow_call:
+    inputs:
+      ios_version:
+        type: string
+        default: '18.5'
+      ui_scope:
+        type: string
+        default: all
+      ios17_prelaunch:
+        type: boolean
+        default: false
+    secrets:
+      WOOW_HA_MCP_TEST_URL:
+        required: true
+      WOOW_MODEL_TEST_BASE_URL:
+        required: true
+      WOOW_MODEL_TEST_MODEL:
+        required: true
+      WOOW_MODEL_TEST_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      ios_version:
+        description: Exact simulator runtime (ARM, Xcode 16.4; no fallback)
+        type: choice
+        options: ['18.5', '17.0.1']
+        default: '18.5'
+      ui_scope:
+        description: Real HA App UI scope; native protocol probes always run
+        type: choice
+        options: [all, memory-learning]
+        default: all
+      ios17_prelaunch:
+        description: Experimental 17.0.1 XCTest daemon prelaunch (one attempt; no readiness claim)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: live-ha-mcp-${{ inputs.ui_scope || 'all' }}-${{ inputs.ios_version || '18.5' }}-${{ inputs.ios17_prelaunch && 'prelaunch' || 'standard' }}
+  cancel-in-progress: false
+
+jobs:
+  live-native-mcp:
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
+    runs-on: macos-15
+    timeout-minutes: 70
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Verify exact-runtime preparation and cleanup
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_prepare_live_simulator.py' -v
+          python3 -m unittest discover -s scripts -p 'test_release_ios17_readiness.py' -v
+          python3 -m unittest discover -s scripts -p 'test_prelaunch_live_test_daemon.py' -v
+          python3 -m unittest discover -s scripts -p 'test_verify_live_ui.py' -v
+      - name: Prepare dedicated exact-runtime simulator
+        env:
+          WOOW_REQUESTED_RUNTIME: ${{ inputs.ios_version || '18.5' }}
+        run: python3 scripts/prepare_live_simulator.py --os "$WOOW_REQUESTED_RUNTIME" --output build/live-simulator
+      - name: Build native simulator MCP acceptance
+        run: |
+          mkdir -p build/live
+          sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          sim_arch="$(uname -m)"
+          sim_target="$sim_arch-apple-ios17.0-simulator"
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" \
+            -emit-library -static -emit-module -module-name AssistantModels \
+            Sources/AssistantModels/*.swift \
+            -emit-module-path build/live/AssistantModels.swiftmodule \
+            -o build/live/libAssistantModels.a
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -I build/live \
+            -emit-library -static -emit-module -module-name AssistantMCP \
+            Sources/AssistantMCP/*.swift \
+            -emit-module-path build/live/AssistantMCP.swiftmodule \
+            -o build/live/libAssistantMCP.a
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantMCP -lAssistantModels scripts/LiveMCPSmoke.swift \
+            -o build/live/LiveMCPSmoke
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantModels scripts/LiveModelSmoke.swift \
+            -o build/live/LiveModelSmoke
+      - name: Read-only HA acceptance inside iOS Simulator
+        timeout-minutes: 8
+        env:
+          SIMCTL_CHILD_WOOW_HA_MCP_TEST_URL: ${{ secrets.WOOW_HA_MCP_TEST_URL }}
+        run: |
+          test -n "$SIMCTL_CHILD_WOOW_HA_MCP_TEST_URL" || { echo 'Missing private MCP test configuration'; exit 1; }
+          xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveMCPSmoke"
+      - name: Verify model service before model-dependent HA UI
+        id: model_transport_probe
+        timeout-minutes: 4
+        env:
+          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: |
+          test -n "$SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY" || { echo 'Missing model test secret'; exit 1; }
+          xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveModelSmoke"
+      - name: Build App for live MCP UI tests
+        id: app-build
+        run: |
+          tool_dir="$(mktemp -d "$RUNNER_TEMP/woow-xcodegen.XXXXXX")"
+          curl --fail --location --retry 3 --max-time 120 \
+            https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.artifactbundle.zip \
+            --output "$tool_dir/xcodegen.artifactbundle.zip"
+          (cd "$tool_dir" && echo 'cfa4e1ee82fc4c95bf7bd8f7db1fda6bd073605c76a8d5cbce50c54a81867eb2  xcodegen.artifactbundle.zip' | shasum -a 256 --check)
+          unzip -q "$tool_dir/xcodegen.artifactbundle.zip" -d "$tool_dir"
+          "$tool_dir/xcodegen.artifactbundle/xcodegen-2.44.1-macosx/bin/xcodegen" generate
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -destination "platform=iOS Simulator,id=$WOOW_LIVE_SIMULATOR" \
+            -derivedDataPath build/LiveDerivedData build-for-testing CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES
+          codesign --verify --strict build/LiveDerivedData/Build/Products/Debug-iphonesimulator/WoowAssistant.app
+          codesign -d --entitlements :- build/LiveDerivedData/Build/Products/Debug-iphonesimulator/WoowAssistant.app
+          if [ "$WOOW_LIVE_RUNTIME" = iOS-18-5 ]; then
+            xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py \
+              --runtime "$WOOW_LIVE_RUNTIME" --products build/LiveDerivedData/Build/Products/Debug-iphonesimulator
+          fi
+      - name: Prelaunch exact iOS 17 XCTest daemon (experimental)
+        if: ${{ inputs.ios17_prelaunch }}
+        timeout-minutes: 3
+        run: python3 scripts/prelaunch_live_test_daemon.py --output build/live-simulator
+      # Keep discovery and conversation in one XCTest invocation. An earlier
+      # exact-iOS-17 run hit an install/uninstall launch denial between runs.
+      # This removes that handoff; it does not assert installer readiness.
+      - name: Real MCP discovery and model-approved HA tools in App
+        timeout-minutes: 20
+        env:
+          WOOW_HA_MCP_TEST_URL: ${{ secrets.WOOW_HA_MCP_TEST_URL }}
+          WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: |
+          test_runs=(build/LiveDerivedData/Build/Products/*.xctestrun)
+          [ "${#test_runs[@]}" -eq 1 ] || { echo 'Expected one generated test runner'; exit 1; }
+          python3 scripts/prepare_live_xctestrun.py "${test_runs[0]}" --service model
+          python3 scripts/prepare_live_xctestrun.py "${test_runs[0]}" --service mcp
+          selectors=(WoowAssistantUITests/LiveMCPUITests WoowAssistantUITests/LiveMCPConversationUITests)
+          if [ '${{ inputs.ui_scope }}' = memory-learning ]; then
+            selectors=(WoowAssistantUITests/LiveMCPConversationUITests/testRealModelUsesRemoteToolThenReviewedLocalMemoryAndUndo)
+          fi
+          ui_filters=()
+          verification_filters=()
+          for selector in "${selectors[@]}"; do
+            ui_filters+=("-only-testing:$selector")
+            verification_filters+=(--selector "$selector")
+          done
+          test_exit=0
+          xcodebuild -xctestrun "${test_runs[0]}" \
+            -destination "platform=iOS Simulator,id=$WOOW_LIVE_SIMULATOR" \
+            -resultBundlePath build/LiveMCPUI.xcresult \
+            "${ui_filters[@]}" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300 test-without-building || test_exit=$?
+          python3 scripts/verify_live_ui.py --result build/LiveMCPUI.xcresult \
+            "${verification_filters[@]}"
+          exit "$test_exit"
+      - name: Clear private runner configuration
+        if: always()
+        run: |
+          for test_run in build/LiveDerivedData/Build/Products/*.xctestrun; do
+            [ ! -f "$test_run" ] || python3 scripts/prepare_live_xctestrun.py "$test_run" --service mcp --clear
+            [ ! -f "$test_run" ] || python3 scripts/prepare_live_xctestrun.py "$test_run" --service model --clear
+          done
+      - name: Delete only this run's simulator
+        if: always()
+        run: python3 scripts/prepare_live_simulator.py --cleanup --output build/live-simulator
+      # Never publish live endpoints, server response bodies or process environments.

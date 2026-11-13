@@ -1,0 +1,54 @@
+{
+  "source": "Existing Craft Anything graph; restricted non-signing summary",
+  "operation": "android_app_graph_build",
+  "evidence_id": "ev_0dada2fb45e1ddf11e2d2d9e5b0ce10c3edec4039efd1127f99248821fab1375",
+  "confidence": "inferred",
+  "coverage": {
+    "status": "unknown"
+  },
+  "engine": "builtin",
+  "engine_version": "0.6.0",
+  "graph_sha256": "be3c9dbbd01ec9f18659227830b8fea363fd3a6b0f7e47e6580275bd9a96e90a",
+  "apk_filename": "woowtech-agent-v0.1.37-woow.7-arm64.apk",
+  "apk_sha256": "39f36725c7bac06f91d318cdabdb4c91b90e25af1ce13d413a6f579e2c3b1ea4",
+  "apk_hash_matches_graph_subject": true,
+  "manifest_decoded": false,
+  "dex_members": [
+    "classes.dex",
+    "classes2.dex",
+    "classes3.dex",
+    "classes4.dex"
+  ],
+  "native_abis": [
+    "arm64-v8a"
+  ],
+  "runtime_hints": [
+    {
+      "runtime": "kotlin",
+      "evidence": [
+        "kotlin/annotation/annotation.kotlin_builtins",
+        "kotlin/collections/collections.kotlin_builtins",
+        "kotlin/concurrent/atomics/atomics.kotlin_builtins",
+        "kotlin/coroutines/coroutines.kotlin_builtins",
+        "kotlin/internal/internal.kotlin_builtins",
+        "kotlin/kotlin.kotlin_builtins",
+        "kotlin/ranges/ranges.kotlin_builtins",
+        "kotlin/reflect/reflect.kotlin_builtins"
+      ],
+      "confidence": "inferred"
+    },
+    {
+      "runtime": "webview-content",
+      "evidence": [
+        "assets/selfcheck/page-ar.html",
+        "assets/selfcheck/page.html"
+      ],
+      "confidence": "inferred"
+    }
+  ],
+  "limitations": [
+    "AndroidManifest.xml is binary XML; components, permissions and the package name are not decoded by this projection.",
+    "Graph contains no browser feature or call relationships; APK was not executed in this audit.",
+    "Separate APK and Android source versions must not be treated as the same build."
+  ]
+}

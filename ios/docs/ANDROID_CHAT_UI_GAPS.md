@@ -1,0 +1,19 @@
+# 渥屋助理 Android → iOS 主畫面／聊天外殼來源對照
+
+此記錄描述初次介面候選整合時的來源審查，非裝置畫面驗收。候選後來已納入本倉庫；其中列出的待完成項目仍須依後續提交及實測重新核對。
+
+- Android 公開來源：`WOOWTECH/woowtech_mika_smart_app` commit `de5be358c4e24b7eed46a95e46edf35a86881bff`，woowtech flavor；已核對 `app/src/woowtech/resources/brand.properties`，不能以 Mika fallback 的預設藍色或文字當作渥屋品牌值。
+- iOS 對照基準：`woow-assistant-ios` commit `508496891422c3a5bdb2661bea8c28d8919757d7`，`Sources/App/ContentView.swift`。下表「原 iOS」指此 commit；隔離候選同一基準，尚未經原生 Xcode 編譯或畫面驗證。
+- 方法：直接閱讀 Compose／SwiftUI 來源及品牌資源。倉庫未提供該版主畫面截圖，本報告的尺寸是來源指定 dp/sp 與 SwiftUI point，不宣稱兩平台實際像素相同。
+
+| 畫面層級 | Android 渥屋版直接來源 | 原 iOS 與落差 | 本隔離候選／仍待完成 |
+| --- | --- | --- | --- |
+| 根導覽 | `ui/MainActivity.kt:470-515` 以 `ChatWithDrawer` 包聊天；`ui/Navigation.kt:11-81` 以 Chat 為根、其餘 push/back，抽屜返回有 reopen 語意。`ui/ChatDrawer.kt:571-620` 以 `ModalNavigationDrawer` 左側展開。 | `ContentView.swift:22-45,76-130` 以五個常駐底欄 section 直接替換頁面，沒有抽屜或子頁返回語意。 | **已移除五項常駐底欄**。聊天頂欄開左抽屜；非聊天頁頂欄返回聊天，原有 session/store 由根持有。browser/tools/memory/settings 與新對話、歷史皆可由抽屜或原有入口進入；通知導頁仍重設根 NavigationStack。仍未實作 Android 的返回後自動重開抽屜或邊緣滑入手勢。 |
+| 抽屜內容 | `ui/ChatDrawer.kt:200-325,471-473`：最大寬 304dp、右側上下角 24dp；頂部 36dp 品牌圖與 17sp 標題、12sp 狀態；快捷列 46dp，底部設定；中段列出進行中／置頂／最近對話，禁切換時停用。 | 原 iOS 只在聊天內有歷史對話 sheet，且另有底欄；沒有側欄層級。 | 候選抽屜寬至多 304pt、右側 24pt 角、46pt 列；保留新對話、歷史、記憶與技能、MCP 伺服器、瀏覽器、設定，另有對話返回列以保留 `navigation.chat`。歷史仍用既有 archive sheet。未搬 Android 的逐筆對話清單、pin/rename/刪除、logo；Android 的手機操作、背景螢幕、排程／電腦控制入口按選定功能範圍排除。 |
+| 頂欄 | `ui/ChatScreen.kt:329-345`＋`ui/components/Controls.kt:224-293`：56dp 高、左右 40dp 選單／新對話，17sp 半粗置中品牌名，工作狀態為 12sp 副標。 | 原 iOS `navigationTitle("對話")`，新對話在底部文字列，模型狀態在內文。 | 候選改成品牌標題、40pt 選單／新對話並保留 `chat.newConversation` ID；模型狀態仍留在內文（保留 `chat.status` 可見測試點），尚未把工作狀態搬成頂欄副標。 |
+| 空對話 | `ui/ChatScreen.kt:478-524`＋`ui/ChatCopy.kt:12-37`：上方留 52dp、28sp/35sp 粗體時段問候、15sp/21sp 副句；28dp 後是 16dp 圓角卡、56dp 起的可點示例列，點後只預填。woowtech `strings_woowtech.xml` 的 104 職缺是網頁例，其他多數是手機 App／裝置操作。 | 原 iOS 只顯模型設定提示，沒有問候與示例。 | 候選用 Android 五個時段的三語問候、問句和唯一屬於保留網頁能力的 104 範例；點按只改草稿、不自動送出。未覆蓋 Android 六個示例，因其餘涉及排除能力。 |
+| 對話訊息 | `ui/ChatScreen.kt:583-694,1384-1388`＋`ui/theme/Tokens.kt:57-73`：使用者靠右、至多可用寬 80%，品牌藍底白字、20dp 圓角／右下 6dp 尾角、15.5sp/22.5sp；回覆左側極淡灰底、15.5sp/26sp。 | 原 iOS `ContentView.swift:265-297` 是左對齊角色標籤＋原文字，無雙邊氣泡。 | 候選把使用者與助理文字分到右／左氣泡、採來源顏色與近似字級；保留 `chat.message.*`、`chat.partial*`、PDF 證據 ID。尾角、Android Markdown 渲染與長按訊息功能不在此次 patch，iOS 文字仍可原生選取。 |
+| 輸入區 | `ui/ChatScreen.kt:1253-1351`＋`ui/components/Surfaces.kt:143-180`：下方左右 12dp、上 10／下 6dp，至少 52dp 的浮動玻璃膠囊；加號 40dp、最多 5 行文字、40dp 藍色圓形上箭頭，執行中停止按鈕可見。 | 原 iOS `ContentView.swift:323-346` 是獨立 rounded TextField＋一排文字按鈕。 | 候選合為 52pt 膠囊、加號 PDF／草稿／停止／傳送，保留 `chat.pdf.open`、`chat.draft`、`chat.send`、`chat.cancel`、`chat.dismissKeyboard`。仍為單行 `TextField`、無 Android 的背景模糊與語音／手機附件。 |
+| 顏色／字體 | `ui/theme/Colors.kt:59-121`＋woowtech `brand.properties`：淺底 `#F7F7F8`、深底 `#0E0E10`；表面 `#FFFFFF/#1A1A1D`；主字 `#1C1C1E/#F2F2F4`；次字 `#5F6068/#A4A5AD`；品牌 accent **`#4069FB/#6183FC`**；回答淡灰 alpha `9/255` 黑／`13/255` 白。`ui/theme/Tokens.kt:10-55`：Title 17sp 半粗、Body 15.5sp/22sp、Hint 12sp/17sp。 | 原 iOS 使用 SwiftUI 預設背景、accent、`.headline/.caption/.body`，無品牌 token。 | 候選在根與聊天外殼套來源色值、iOS system 字型尺寸近似 Compose 指定數值；Android Compose 預設字體與 iOS SF 的實際字面尺寸不同，尚需真機／模擬器視覺驗收。其他設定、瀏覽器、資料子頁未全面換膚。 |
+
+候選產品碼修改 `ContentView.swift` 與 `Localization/AppText.json` 的 `shell.*` 專屬鍵，再由既有產生器更新 `AppText.swift`、三語 `App.strings`。英文品牌名 `woowtech agent`、品牌色與 104 範例取自 Android woowtech flavor；簡中為 iOS 額外語言。舊鍵相對順序不變，`language.partialNotice` 文字更新以反映新增翻譯範圍。原有 `ChatSession`、`MCPSession`、`BrowserWorkspace`、通知路由、核准 sheet、PDF、對話封存保持根持有。五個 `navigation.*` ID 保存在真實抽屜列，`chat.menu`、`drawer.close`、`section.back` 為新 ID；原有 `chat.*` ID 保留。抽屜開啟時背景從無障礙樹隱藏，有可焦點關閉鍵；面板內容按安全區域 inset 留白，iPad 抽屜至多 304pt、聊天內容至多 720pt。相關 UI 測試已遷移至頂欄／抽屜路徑，保留路由、通知、鍵盤與內容斷言；Android 調整為真正 push/back 的回退細節尚未全面等同。此主機無 Xcode，SwiftUI 只有語法 parse、沒有原生 UI／VoiceOver／iPad 畫面驗證，需由 CI 補驗。

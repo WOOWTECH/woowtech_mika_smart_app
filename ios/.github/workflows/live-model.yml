@@ -1,0 +1,216 @@
+name: Live model on iOS Simulator
+
+# No push/PR trigger: every run consumes the owner's model quota.
+on:
+  workflow_call:
+    inputs:
+      ios_version:
+        type: string
+        default: '18.5'
+      ui_scope:
+        type: string
+        default: all
+    secrets:
+      WOOW_MODEL_TEST_BASE_URL:
+        required: true
+      WOOW_MODEL_TEST_MODEL:
+        required: true
+      WOOW_MODEL_TEST_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      ios_version:
+        description: Exact simulator runtime (ARM, Xcode 16.4; no fallback)
+        type: choice
+        options: ['18.5', '17.0.1']
+        default: '18.5'
+      ui_scope:
+        description: Live App UI coverage (source discovery uses public search without model probes)
+        type: choice
+        options: [all, browser, browser-learning, browser-interaction, multi-source, source-discovery, user-profile, profile-tool, memory-tools, skill-authoring, self-configuration, browser-transcript, transcript-files, transcript-formats, document-query]
+        default: all
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  # A single global group can retain only one pending run, even with cancellation
+  # disabled. Independent acceptance scopes must not evict each other in queue.
+  group: live-model-${{ inputs.ui_scope || 'all' }}-${{ inputs.ios_version || '18.5' }}
+  cancel-in-progress: false
+
+jobs:
+  live-native-model:
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
+    runs-on: macos-15
+    timeout-minutes: 70
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Verify exact-runtime preparation and cleanup
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_prepare_live_simulator.py' -v
+          python3 -m unittest discover -s scripts -p 'test_verify_live_ui.py' -v
+      - name: Prepare dedicated exact-runtime simulator
+        env:
+          WOOW_REQUESTED_RUNTIME: ${{ inputs.ios_version || '18.5' }}
+        run: python3 scripts/prepare_live_simulator.py --os "$WOOW_REQUESTED_RUNTIME" --output build/live-simulator
+      - name: Build native simulator transport test
+        id: native-build
+        run: |
+          mkdir -p build/live
+          sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          sim_arch="$(uname -m)"
+          sim_target="$sim_arch-apple-ios17.0-simulator"
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" \
+            -emit-library -static -emit-module -module-name AssistantModels \
+            Sources/AssistantModels/*.swift \
+            -emit-module-path build/live/AssistantModels.swiftmodule \
+            -o build/live/libAssistantModels.a
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantModels scripts/LiveModelSmoke.swift \
+            -o build/live/LiveModelSmoke
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -I build/live \
+            -emit-library -static -emit-module -module-name AssistantMemory \
+            Sources/AssistantMemory/*.swift -emit-module-path build/live/AssistantMemory.swiftmodule \
+            -o build/live/libAssistantMemory.a
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -I build/live \
+            -emit-library -static -emit-module -module-name AssistantSkills \
+            Sources/AssistantSkills/*.swift -emit-module-path build/live/AssistantSkills.swiftmodule \
+            -o build/live/libAssistantSkills.a
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantModels -lAssistantMemory -lAssistantSkills \
+            scripts/LiveLearningSmoke.swift -o build/live/LiveLearningSmoke
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantModels -lAssistantSkills \
+            scripts/LiveSkillLearningSmoke.swift -o build/live/LiveSkillLearningSmoke
+          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
+            -I build/live -L build/live -lAssistantModels -lAssistantSkills \
+            scripts/LiveTranscriptSmoke.swift -o build/live/LiveTranscriptSmoke
+      - name: Prepare App UI test build
+        id: app-build
+        if: inputs.ui_scope != 'transcript-formats'
+        run: |
+          tool_dir="$(mktemp -d "$RUNNER_TEMP/woow-xcodegen.XXXXXX")"
+          curl --fail --location --retry 3 --max-time 120 \
+            https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.artifactbundle.zip \
+            --output "$tool_dir/xcodegen.artifactbundle.zip"
+          (cd "$tool_dir" && echo 'cfa4e1ee82fc4c95bf7bd8f7db1fda6bd073605c76a8d5cbce50c54a81867eb2  xcodegen.artifactbundle.zip' | shasum -a 256 --check)
+          unzip -q "$tool_dir/xcodegen.artifactbundle.zip" -d "$tool_dir"
+          "$tool_dir/xcodegen.artifactbundle/xcodegen-2.44.1-macosx/bin/xcodegen" generate
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -destination "platform=iOS Simulator,id=$WOOW_LIVE_SIMULATOR" \
+            -derivedDataPath build/LiveDerivedData build-for-testing CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES
+          codesign --verify --strict build/LiveDerivedData/Build/Products/Debug-iphonesimulator/WoowAssistant.app
+          codesign -d --entitlements :- build/LiveDerivedData/Build/Products/Debug-iphonesimulator/WoowAssistant.app
+          if [ "$WOOW_LIVE_RUNTIME" = iOS-18-5 ]; then
+            xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py \
+              --runtime "$WOOW_LIVE_RUNTIME" --products build/LiveDerivedData/Build/Products/Debug-iphonesimulator
+          fi
+      - name: Make two bounded live requests inside iOS Simulator
+        id: transport_probe
+        if: inputs.ui_scope != 'source-discovery'
+        timeout-minutes: 4
+        env:
+          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: |
+          test -n "$SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY" || { echo 'Missing model test secret'; exit 1; }
+          xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveModelSmoke"
+      - name: Real memory and approved skill behavior inside iOS Simulator
+        if: inputs.ui_scope != 'source-discovery'
+        timeout-minutes: 6
+        env:
+          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveLearningSmoke"
+      - name: Real outcome judge and pending skill generation
+        if: inputs.ui_scope != 'source-discovery'
+        timeout-minutes: 6
+        env:
+          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveSkillLearningSmoke"
+      - name: Real model completes all five transcript formats over fixed text
+        if: ${{ !cancelled() && steps.native-build.outcome == 'success' && steps.transport_probe.outcome == 'success' && contains(fromJSON('["all","transcript-formats","transcript-files","browser-transcript"]'), inputs.ui_scope || 'all') }}
+        timeout-minutes: 12
+        env:
+          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: |
+          xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveTranscriptSmoke" \
+            "$PWD/Sources/AssistantSkills/Resources/MikaBundledSkills.json"
+      - name: Real model App UI tests
+        if: ${{ !cancelled() && steps.app-build.outcome == 'success' && (steps.transport_probe.outcome == 'success' || inputs.ui_scope == 'source-discovery') }}
+        # Live UI methods include settings, reviewed profile tools and research flows;
+        # focused scopes keep their previous 20-minute bound and case limits.
+        timeout-minutes: ${{ (inputs.ui_scope || 'all') == 'all' && 40 || 20 }}
+        env:
+          WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+          WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+          WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+        run: |
+          test_runs=(build/LiveDerivedData/Build/Products/*.xctestrun)
+          [ "${#test_runs[@]}" -eq 1 ] || { echo 'Expected one generated test runner'; exit 1; }
+          python3 scripts/prepare_live_xctestrun.py "${test_runs[0]}"
+          ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests -only-testing:WoowAssistantUITests/LiveTranscriptUITests -only-testing:WoowAssistantUITests/LiveDocumentQueryUITests -only-testing:WoowAssistantUITests/LiveSourceDiscoveryUITests)
+          if [ '${{ inputs.ui_scope }}' = 'browser' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealWebKitResearchUsesPublicWebsiteAndJudgesOutcome)
+          elif [ '${{ inputs.ui_scope }}' = 'browser-learning' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealMultiPageResearchLearnsPendingSkillAndApprovalSurvivesRelaunch)
+          elif [ '${{ inputs.ui_scope }}' = 'browser-interaction' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProposesObservedDOMLinkAndApprovedClickNavigates)
+          elif [ '${{ inputs.ui_scope }}' = 'multi-source' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealWebKitMultiSourceResearchCitesBothApprovedRoots)
+          elif [ '${{ inputs.ui_scope }}' = 'user-profile' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelRecallsManualProfileAfterRelaunchAndMasterSwitchDisablesIt)
+          elif [ '${{ inputs.ui_scope }}' = 'profile-tool' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProfileEditRequiresReviewAndPersistsAfterRelaunch)
+          elif [ '${{ inputs.ui_scope }}' = 'memory-tools' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelSavesOrdinaryMemoryAndUndoSurvivesRelaunch)
+          elif [ '${{ inputs.ui_scope }}' = 'skill-authoring' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelReadsOriginalSkillAndReviewedSaveSurvivesRelaunch)
+          elif [ '${{ inputs.ui_scope }}' = 'self-configuration' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelListsAndChangesAppearanceAndRelaunchPreservesIt)
+          elif [ '${{ inputs.ui_scope }}' = 'browser-transcript' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelTranscribesApprovedPublicWebTextWithVerifiedQuotes)
+          elif [ '${{ inputs.ui_scope }}' = 'transcript-files' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveTranscriptUITests)
+          elif [ '${{ inputs.ui_scope }}' = 'document-query' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveDocumentQueryUITests)
+          elif [ '${{ inputs.ui_scope }}' = 'source-discovery' ]; then
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveSourceDiscoveryUITests)
+          fi
+          test_exit=0
+          xcodebuild -xctestrun "${test_runs[0]}" \
+            -destination "platform=iOS Simulator,id=$WOOW_LIVE_SIMULATOR" \
+            -resultBundlePath build/LiveModelUI.xcresult \
+            "${ui_filters[@]}" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300 test-without-building || test_exit=$?
+          verify_args=()
+          for filter in "${ui_filters[@]}"; do
+            verify_args+=(--selector "${filter#-only-testing:}")
+          done
+          python3 scripts/verify_live_ui.py --result build/LiveModelUI.xcresult "${verify_args[@]}"
+          exit "$test_exit"
+      - name: Clear private runner configuration
+        if: always()
+        run: |
+          for test_run in build/LiveDerivedData/Build/Products/*.xctestrun; do
+            [ ! -f "$test_run" ] || python3 scripts/prepare_live_xctestrun.py "$test_run" --clear
+          done
+      - name: Delete only this run's simulator
+        if: always()
+        run: python3 scripts/prepare_live_simulator.py --cleanup --output build/live-simulator
+      # Deliberately no artifact upload: live process environments contain secrets.

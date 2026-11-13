@@ -1,0 +1,687 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      live_ios_version:
+        description: Exact iOS runtime for manually requested live service tests
+        type: choice
+        options: ['18.5', '17.0.1']
+        default: '18.5'
+      current_only:
+        description: Run only the current iOS 26.2 regression variant
+        type: boolean
+        default: false
+      compact_only:
+        description: Run only iPhone SE on iOS 18.5 when current_only is false
+        type: boolean
+        default: false
+      large_only:
+        description: Run only iPhone 16 Pro Max on iOS 18.5 when current/compact are false
+        type: boolean
+        default: false
+      fresh_simulator:
+        description: Manual runs only; create a disposable peer of the selected installed simulator
+        type: boolean
+        default: false
+      test_scope:
+        description: Focused validation without cancelling the full regression matrix
+        type: choice
+        options: [all, live-model, live-mcp, interaction, parity, workspace, login, files, file-picker, picker-direct, picker-coordinated, picker-uikit, picker-uikit-copy, picker-user-copy, pdf-assembly, pdf-assembly-uikit, pdf-assembly-copy, pdf-assembly-multi, pdf-pair-coordinated, profile-tool, memory-tools, documents-chat, pdf-export, authoring, skill-settings, transcript, memory-ui, memory-rollback, learning, browser, core, native, startup, ui-startup, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-profile, ui-memory-tools, ui-skills, ui-documents, ui-pdf-capability, ui-download-pdf, ui-mcp]
+        default: all
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  # PR revisions retain their own evidence while the next revision is built.
+  group: ios-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.sha || github.ref }}-${{ inputs.test_scope || 'all' }}-${{ inputs.current_only && 'current' || inputs.compact_only && 'compact' || inputs.large_only && 'large' || 'matrix' }}-${{ github.event_name != 'workflow_dispatch' && 'fresh' || inputs.fresh_simulator && 'fresh' || 'existing' }}-${{ startsWith(inputs.test_scope || '', 'live-') && inputs.live_ios_version || 'standard' }}
+  cancel-in-progress: true
+
+jobs:
+  full-regression-plan:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      build_matrix: ${{ steps.plan.outputs.build_matrix }}
+    env:
+      WOOW_CURRENT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.current_only && 'true' || 'false' }}
+      WOOW_COMPACT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.compact_only && 'true' || 'false' }}
+      WOOW_LARGE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.large_only && 'true' || 'false' }}
+      WOOW_EXISTING_SIMULATOR: ${{ github.event_name == 'workflow_dispatch' && !inputs.fresh_simulator && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Check generated workflows and exact UI ownership
+        run: |
+          python3 scripts/sync_monorepo_workflows.py --check
+          plan_options=()
+          if [ "$WOOW_CURRENT_ONLY" = true ]; then plan_options+=(--current-only); fi
+          if [ "$WOOW_COMPACT_ONLY" = true ]; then plan_options+=(--compact-only); fi
+          if [ "$WOOW_LARGE_ONLY" = true ]; then plan_options+=(--large-only); fi
+          if [ "$WOOW_EXISTING_SIMULATOR" = true ]; then plan_options+=(--existing-simulator); fi
+          python3 scripts/ci_full_regression.py plan --output build/full-plan.json \
+            --github-output "$GITHUB_OUTPUT" "${plan_options[@]}"
+        id: plan
+      - name: Preserve the exact source-bound plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-plan-${{ github.run_id }}
+          path: build/full-plan.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
+  full-regression-preflight:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all' }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Run portable core and script gates once
+        run: |
+          mkdir -p build
+          swift test 2>&1 | tee build/core-tests.log
+          python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
+          python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
+          python3 scripts/generate_app_text.py
+          python3 scripts/check_ui_test_language.py
+          swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
+          build/CheckMemoryDataLocalization
+          python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
+          swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
+          build/MCPSettingsChecks
+          bash scripts/CheckSkillWorkerSettings.sh
+      - name: Test original PDF script through the Swift HTTP client once
+        timeout-minutes: 8
+        run: |
+          bash scripts/skill-worker/check_swift.sh 2>&1 | tee build/skill-execution-native.log
+          python3 -m venv "$RUNNER_TEMP/woow-skill-worker-venv"
+          "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
+          test -x "${TMPDIR:-/tmp}/woow-skill-execution-checks"
+          SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
+            PYTHONDONTWRITEBYTECODE=1 "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" \
+            -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v 2>&1 | tee build/skill-worker-tests.log
+      - name: Preserve preflight evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-preflight-${{ github.run_id }}
+          path: build/*.log
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-build:
+    needs: full-regression-plan
+    if: ${{ needs.full-regression-plan.result == 'success' }}
+    runs-on: macos-15
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.full-regression-plan.outputs.build_matrix) }}
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: Build one portable simulator test bundle per Xcode
+        timeout-minutes: 45
+        run: |
+          mkdir -p build/full-products
+          xcodebuild -version
+          xcodegen generate
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData -testProductsPath build/WoowAssistant.xctestproducts \
+            build-for-testing CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES \
+            2>&1 | tee build/full-products/build-for-testing.log
+      - name: Verify built Files configuration and package with source checksum
+        run: |
+          products_dir="$(python3 scripts/ci_full_regression.py product-directory --bundle build/WoowAssistant.xctestproducts)"
+          python3 - "$products_dir/WoowAssistant.app/Info.plist" <<'PY'
+          import plistlib, sys
+          from pathlib import Path
+          info = plistlib.loads(Path(sys.argv[1]).read_bytes())
+          assert info.get('UIFileSharingEnabled') is True
+          assert info.get('LSSupportsOpeningDocumentsInPlace') is True
+          PY
+          ditto -c -k --keepParent build/WoowAssistant.xctestproducts build/full-products/WoowAssistant.xctestproducts.zip
+          git rev-parse HEAD > build/full-products/source-commit.txt
+          xcodebuild -version > build/full-products/xcode-version.txt
+          (cd build/full-products && shasum -a 256 WoowAssistant.xctestproducts.zip source-commit.txt xcode-version.txt > SHA256SUMS.txt)
+      - name: Preserve portable test products
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-products-${{ matrix.xcode }}-${{ github.run_id }}
+          path: build/full-products/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+          retention-days: 14
+      - name: Preserve build failure log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-build-failure-${{ matrix.xcode }}-${{ github.run_id }}
+          path: build/full-products/build-for-testing.log
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-test:
+    needs: [full-regression-plan, full-regression-build]
+    if: ${{ needs.full-regression-plan.result == 'success' && needs.full-regression-build.result == 'success' }}
+    runs-on: macos-15
+    timeout-minutes: 95
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix: ${{ fromJSON(needs.full-regression-plan.outputs.matrix) }}
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      WOOW_SIM_RUNTIME: ${{ matrix.runtime }}
+      WOOW_SIM_DEVICE: ${{ matrix.device }}
+      WOOW_FRESH_SIMULATOR: ${{ matrix.fresh_simulator && 'true' || 'false' }}
+      WOOW_FULL_ROW: ${{ toJSON(matrix) }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Download exactly the matching portable Xcode build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-full-products-${{ matrix.xcode }}-${{ github.run_id }}
+          path: build/full-products
+      - name: Verify checksum, source, and exact owned methods
+        run: |
+          (cd build/full-products && shasum -a 256 --check SHA256SUMS.txt)
+          test "$(cat build/full-products/source-commit.txt)" = "$(git rev-parse HEAD)"
+          case "$(head -1 build/full-products/xcode-version.txt)" in
+            "Xcode ${{ matrix.xcode }}") ;;
+            *) echo 'Portable build Xcode mismatch' >&2; exit 1 ;;
+          esac
+          ditto -x -k build/full-products/WoowAssistant.xctestproducts.zip build
+          python3 scripts/ci_full_regression.py materialize --row "$WOOW_FULL_ROW" --output build/full/${{ matrix.id }}
+      - name: Select or create and boot the cohort simulator
+        timeout-minutes: 10
+        run: |
+          simulator_options=()
+          if [ "$WOOW_FRESH_SIMULATOR" = true ]; then simulator_options+=(--fresh); fi
+          device_id="$(python3 scripts/prepare_test_simulator.py prepare --runtime "$WOOW_SIM_RUNTIME" --device "$WOOW_SIM_DEVICE" --state build/test-simulator.json "${simulator_options[@]}")"
+          printf '%s\n' "$device_id" > build/test-simulator-id.txt
+          xcrun simctl bootstatus "$device_id" -b 2>&1 | tee build/simulator-boot.log
+          products_dir="$(python3 scripts/ci_full_regression.py product-directory --bundle build/WoowAssistant.xctestproducts)"
+          xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py --runtime "$WOOW_SIM_RUNTIME" --products "$products_dir"
+      - name: Execute each exact shard once and verify native completion
+        timeout-minutes: 72
+        run: |
+          python3 scripts/ci_full_regression.py execute \
+            --row build/full/${{ matrix.id }}/full-row.json \
+            --products build/WoowAssistant.xctestproducts \
+            --simulator-id "$(cat build/test-simulator-id.txt)" \
+            --output build/full/${{ matrix.id }}
+      - name: Collect bounded fixture diagnostics
+        if: always()
+        run: |
+          if [ -f build/test-simulator-id.txt ]; then
+            python3 scripts/copy_browser_site_clear_diagnostics.py "$(cat build/test-simulator-id.txt)" build/browser-site-clear.json
+            if [ -d build/full/${{ matrix.id }}/ui-documents/diagnostics ]; then
+              python3 scripts/copy_skill_fixture_diagnostics.py "$(cat build/test-simulator-id.txt)" \
+                build/full/${{ matrix.id }}/ui-documents/diagnostics build/skill-pdf-fixture-evidence.json
+            fi
+          fi
+      - name: Clean up only an owned disposable simulator
+        if: always()
+        timeout-minutes: 4
+        run: python3 scripts/prepare_test_simulator.py cleanup --state build/test-simulator.json
+      - name: Preserve complete shard results and bounded diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-evidence-${{ matrix.id }}-${{ github.run_id }}
+          path: |
+            build/full/${{ matrix.id }}/
+            build/test-simulator.json
+            build/simulator-boot.log
+            build/browser-site-clear.json
+            build/skill-pdf-fixture-evidence.json
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: true
+          retention-days: 14
+      - name: Preserve tiny completion receipts for the aggregate gate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-receipt-${{ matrix.id }}-${{ github.run_id }}
+          path: build/full/${{ matrix.id }}/*/full-receipt.json
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  full-regression-gate:
+    needs: [full-regression-plan, full-regression-preflight, full-regression-build, full-regression-test]
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.test_scope == 'all') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Download the original plan
+        if: needs.full-regression-plan.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-full-plan-${{ github.run_id }}
+          path: build/full-plan
+      - name: Download tiny method receipts without downloading xcresults
+        if: needs.full-regression-plan.result == 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: ios-full-receipt-*-${{ github.run_id }}
+          path: build/full-receipts
+          merge-multiple: false
+      - name: Verify exact selected-device coverage and upstream jobs
+        env:
+          PLAN_RESULT: ${{ needs.full-regression-plan.result }}
+          PREFLIGHT_RESULT: ${{ needs.full-regression-preflight.result }}
+          BUILD_RESULT: ${{ needs.full-regression-build.result }}
+          TEST_RESULT: ${{ needs.full-regression-test.result }}
+        run: |
+          if [ -f build/full-plan/full-plan.json ]; then
+            aggregate_options=()
+            if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then aggregate_options+=(--require-full); fi
+            python3 scripts/ci_full_regression.py aggregate --plan build/full-plan/full-plan.json \
+              --receipts build/full-receipts --output build/full-aggregate.json \
+              "${aggregate_options[@]}" || true
+          fi
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          statuses = {key: os.environ[key] for key in ('PLAN_RESULT', 'PREFLIGHT_RESULT', 'BUILD_RESULT', 'TEST_RESULT')}
+          path = Path('build/full-aggregate.json')
+          report = json.loads(path.read_text()) if path.is_file() else {'verified': False}
+          print(json.dumps({'jobs': statuses, 'coverage': report}, sort_keys=True))
+          if any(value != 'success' for value in statuses.values()) or report.get('verified') is not True:
+              raise SystemExit('Selected non-Live regression is incomplete or failed')
+          PY
+      - name: Preserve the final coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-full-gate-${{ github.run_id }}
+          path: build/full-aggregate.json
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14
+
+  build-and-test:
+    # Preserve the existing focused manual scopes. Normal PR/push and manual
+    # `all` use the source-bound portable-build matrix above.
+    needs: unsigned-device-for-local-signing
+    if: ${{ always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.test_scope != 'all' && !contains(fromJSON('["live-model","live-mcp"]'), inputs.test_scope) }}
+    runs-on: macos-15
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ github.event_name == 'workflow_dispatch' && inputs.current_only && fromJSON('[{"label":"ios26-current","xcode":"26.2","runtime":"iOS-26-2","device":"iPhone 17"}]') || github.event_name == 'workflow_dispatch' && inputs.compact_only && fromJSON('[{"label":"ios18-compact","xcode":"16.4","runtime":"iOS-18-5","device":"iPhone SE (3rd generation)"}]') || github.event_name == 'workflow_dispatch' && inputs.large_only && fromJSON('[{"label":"ios18-large","xcode":"16.4","runtime":"iOS-18-5","device":"iPhone 16 Pro Max"}]') || fromJSON('[{"label":"ios18-compact","xcode":"16.4","runtime":"iOS-18-5","device":"iPhone SE (3rd generation)"},{"label":"ios18-large","xcode":"16.4","runtime":"iOS-18-5","device":"iPhone 16 Pro Max"},{"label":"ios26-current","xcode":"26.2","runtime":"iOS-26-2","device":"iPhone 17"}]') }}
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      WOOW_SIM_RUNTIME: ${{ matrix.runtime }}
+      WOOW_SIM_DEVICE: ${{ matrix.device }}
+      WOOW_FRESH_SIMULATOR: ${{ inputs.fresh_simulator && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Check monorepo iOS workflows
+        run: python3 scripts/sync_monorepo_workflows.py --check
+      - name: Show toolchain
+        run: |
+          mkdir -p build
+          xcodebuild -version
+          swift --version
+      - name: Test portable core
+        run: |
+          swift test 2>&1 | tee build/core-tests.log
+          python3 scripts/check_model_attachments.py 2>&1 | tee build/model-attachments.log
+          python3 scripts/check_model_connection.py 2>&1 | tee build/model-connection.log
+          python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
+      - name: Test original PDF script through the Swift HTTP client
+        if: github.event_name != 'workflow_dispatch' || inputs.test_scope == 'files' || inputs.test_scope == 'all'
+        timeout-minutes: 6
+        run: |
+          bash scripts/skill-worker/check_swift.sh 2>&1 | tee build/skill-execution-native.log
+          python3 -m venv "$RUNNER_TEMP/woow-skill-worker-venv"
+          "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
+          test -x "${TMPDIR:-/tmp}/woow-skill-execution-checks"
+          SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
+            PYTHONDONTWRITEBYTECODE=1 "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" \
+            -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v 2>&1 | tee build/skill-worker-tests.log
+      - name: Test simulator selection
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
+      - name: Check interface language resources and explicit UI launch languages
+        run: |
+          python3 scripts/generate_app_text.py
+          python3 scripts/check_ui_test_language.py
+          swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
+          build/CheckMemoryDataLocalization
+      - name: Test synthetic PDF fixture evidence guards
+        if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","files","file-picker"]'), inputs.test_scope)
+        run: python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
+      - name: Test App MCP credential isolation
+        run: |
+          swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
+          build/MCPSettingsChecks
+      - name: Test dedicated script-service settings and credential isolation
+        run: bash scripts/CheckSkillWorkerSettings.sh
+      - name: Install XcodeGen
+        run: |
+          tool_dir="$(mktemp -d "$RUNNER_TEMP/woow-xcodegen.XXXXXX")"
+          curl --fail --location --retry 3 --max-time 120 \
+            https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.artifactbundle.zip \
+            --output "$tool_dir/xcodegen.artifactbundle.zip"
+          (cd "$tool_dir" && echo 'cfa4e1ee82fc4c95bf7bd8f7db1fda6bd073605c76a8d5cbce50c54a81867eb2  xcodegen.artifactbundle.zip' | shasum -a 256 --check)
+          unzip -q "$tool_dir/xcodegen.artifactbundle.zip" -d "$tool_dir"
+          echo "$tool_dir/xcodegen.artifactbundle/xcodegen-2.44.1-macosx/bin" >> "$GITHUB_PATH"
+      - name: Generate project
+        run: xcodegen generate
+      - name: Show destinations
+        run: xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant -showdestinations
+      - name: Build
+        run: |
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData build CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES \
+            2>&1 | tee build/ios-build.log
+      - name: Verify built native Files configuration
+        run: |
+          python3 - <<'PY'
+          import json, plistlib
+          from pathlib import Path
+          app = Path('build/DerivedData/Build/Products/Debug-iphonesimulator/WoowAssistant.app')
+          info = plistlib.loads((app / 'Info.plist').read_bytes())
+          flags = {key: info.get(key) for key in ('UIFileSharingEnabled', 'LSSupportsOpeningDocumentsInPlace')}
+          Path('build/app-configuration.json').write_text(json.dumps(flags, indent=2) + '\n')
+          assert all(value is True for value in flags.values()), 'Built App must expose its Documents folder through native Files'
+          PY
+      - name: Test
+        # The previous 22-case full UI matrix took 31m34s for this step.
+        # Eleven additional UI cases and hosted DOM integration need their own
+        # time plus xcresult export. Login declares 420 seconds for the complete
+        # login/tab/relaunch/logout flow; other cases retain their own limits.
+        # Single-method picker experiments need bounded bootstrap feedback.
+        # Other scopes retain their previous limit; this does not retry a case.
+        timeout-minutes: ${{ contains(fromJSON('["picker-direct","picker-coordinated","picker-uikit","picker-uikit-copy","picker-user-copy","pdf-assembly","pdf-assembly-uikit","pdf-assembly-copy","pdf-assembly-multi","pdf-pair-coordinated","documents-chat","ui-notifications"]'), inputs.test_scope) && 20 || 55 }}
+        run: |
+          simulator_options=()
+          if [ "$WOOW_FRESH_SIMULATOR" = true ]; then simulator_options+=(--fresh); fi
+          device_id="$(python3 scripts/prepare_test_simulator.py prepare --runtime "$WOOW_SIM_RUNTIME" --device "$WOOW_SIM_DEVICE" --state build/test-simulator.json "${simulator_options[@]}")"
+          printf '%s\n' "$device_id" > build/test-simulator-id.txt
+          echo "Testing $WOOW_SIM_DEVICE on $WOOW_SIM_RUNTIME"
+          xcrun simctl bootstatus "$device_id" -b 2>&1 | tee build/simulator-boot.log
+          xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py \
+            --runtime "$WOOW_SIM_RUNTIME" --products build/DerivedData/Build/Products/Debug-iphonesimulator
+          test_filters=()
+          maximum_case_seconds=300
+          case '${{ inputs.test_scope }}' in
+            workspace|login|ui-workspace|all|'') maximum_case_seconds=420 ;;
+          esac
+          case '${{ inputs.test_scope }}' in
+            ui-*|native|documents-chat)
+              python3 - '${{ inputs.test_scope }}' > build/ui-shard-filters.txt <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          from release_ios17 import TEST_SCOPES, UI_SHARDS, DOCUMENT_SCOPES, ui_inventory
+          scope = sys.argv[1]
+          if scope != 'native' and scope not in UI_SHARDS and scope not in DOCUMENT_SCOPES:
+              raise SystemExit('Unknown validation scope')
+          ui_inventory(Path.cwd())  # Every non-Live UI method must have one owner.
+          for selector in TEST_SCOPES['core' if scope == 'native' else scope]:
+              print('-only-testing:' + selector)
+          PY
+              while IFS= read -r selector; do test_filters+=("$selector"); done < build/ui-shard-filters.txt
+              test "${#test_filters[@]}" -gt 0
+              ;;
+            login)
+              test_filters=(-only-testing:WoowAssistantUITests/BrowserLoginUITests/testNativeFormLoginSharesCookieAcrossTabsAndRelaunchThenLogout)
+              ;;
+            file-picker)
+              test_filters=(-only-testing:AssistantSkillsTests/SkillExecutionTests -only-testing:WoowAssistantUITests/BrowserUploadUITests -only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeFilesPDFNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            picker-direct)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeFilesPDFNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            picker-coordinated)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testCoordinatedFixtureCreationNativePDFNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            picker-uikit)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenInPlaceCoordinatedPDFNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            picker-uikit-copy)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitImportCopyCoordinatedPDFNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            picker-user-copy)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText)
+              ;;
+            pdf-assembly)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativePDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
+              ;;
+            pdf-assembly-uikit)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenPDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
+              ;;
+            pdf-assembly-copy)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
+              ;;
+            pdf-assembly-multi)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testUserChosenCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages)
+              ;;
+            pdf-pair-coordinated)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testDirectoryCoordinatedFixtureCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages)
+              ;;
+            profile-tool)
+              test_filters=(-only-testing:WoowAssistantUITests/UserProfileToolUITests)
+              ;;
+            memory-tools)
+              test_filters=(-only-testing:WoowAssistantUITests/MemoryToolUITests)
+              ;;
+            pdf-export)
+              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeExportSavesTextToChosenLocalFolder -only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeExportCancellationPreservesResultAndAllowsRetry)
+              ;;
+            authoring)
+              test_filters=(-only-testing:AssistantSkillsTests/SkillAuthoringBridgeTests -only-testing:WoowAssistantUITests/SkillAuthoringUITests)
+              ;;
+            transcript)
+              test_filters=(-only-testing:AssistantSkillsTests/TranscriptRuntimeTests -only-testing:AssistantSkillsTests/TranscriptCommandRecoveryTests -only-testing:AssistantSkillsTests/TranscriptReferenceTests -only-testing:AssistantSkillsTests/TranscriptReferenceAppIntegrationTests -only-testing:AssistantBrowserIntegrationTests/BrowserSessionNavigationTests -only-testing:WoowAssistantUITests/TranscriptUITests)
+              ;;
+            skill-settings)
+              test_filters=(-only-testing:AssistantSkillsTests/SelfConfigurationTests -only-testing:WoowAssistantUITests/SelfConfigurationUITests -only-testing:WoowAssistantUITests/SkillWorkerSettingsUITests)
+              ;;
+            files)
+              test_filters=(-only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests/BrowserDownloadTests -only-testing:AssistantDomainTests/BrowserNavigationIntentTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserUploadUITests -only-testing:WoowAssistantUITests/SkillExecutionUITests)
+              ;;
+            workspace)
+              test_filters=(-only-testing:AssistantDomainTests/BrowserLibraryTests -only-testing:AssistantDomainTests/BrowserNavigationIntentTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserWorkspaceUITests -only-testing:WoowAssistantUITests/BrowserLoginUITests -only-testing:WoowAssistantUITests/BrowserSiteModesUITests -only-testing:WoowAssistantUITests/BrowserSearchUITests -only-testing:WoowAssistantUITests/BrowserExternalOpenUITests)
+              ;;
+            memory-rollback)
+              test_filters=(-only-testing:WoowAssistantUITests/MemoryUITests/testSkillUpdateRejectionAndRollback)
+              ;;
+            memory-ui)
+              test_filters=(-only-testing:WoowAssistantUITests/MemoryUITests)
+              ;;
+            interaction)
+              test_filters=(-only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserInteractionUITests)
+              ;;
+            parity)
+              test_filters=(-only-testing:AssistantMCPTests -only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/MCPConversationUITests -only-testing:WoowAssistantUITests/BrowserInteractionUITests -only-testing:WoowAssistantUITests/BrowserLearningUITests -only-testing:WoowAssistantUITests/SkillCatalogUITests -only-testing:WoowAssistantUITests/SkillAuthoringUITests -only-testing:WoowAssistantUITests/MemoryUITests -only-testing:WoowAssistantUITests/MemoryRaceUITests)
+              ;;
+            startup)
+              test_filters=(-only-testing:WoowAssistantUITests/WoowAssistantUITests/testEverySectionIsReachableAndPhoneControlIsExcluded)
+              ;;
+            browser)
+              test_filters=(-only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests/WebsiteLearningTests -only-testing:AssistantDomainTests/WebResearchRunnerTests -only-testing:WoowAssistantUITests/BrowserLearningUITests)
+              ;;
+            learning)
+              test_filters=(-only-testing:AssistantMemoryTests -only-testing:AssistantSkillsTests -only-testing:AssistantPersistenceTests -only-testing:AssistantDomainTests/WebsiteLearningTests -only-testing:AssistantDomainTests/WebResearchRunnerTests -only-testing:WoowAssistantUITests/MemoryUITests -only-testing:WoowAssistantUITests/MemoryRaceUITests -only-testing:WoowAssistantUITests/BrowserLearningUITests)
+              ;;
+            core)
+              test_filters=(-only-testing:AssistantMemoryTests -only-testing:AssistantSkillsTests -only-testing:AssistantPersistenceTests)
+              ;;
+          esac
+          xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant \
+            -destination "platform=iOS Simulator,id=$device_id" \
+            -derivedDataPath build/DerivedData -resultBundlePath build/Tests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance "$maximum_case_seconds" "${test_filters[@]}" test CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES \
+            2>&1 | tee build/ios-tests.log
+      - name: Export simulator evidence
+        if: always()
+        run: |
+          if [ -f build/test-simulator-id.txt ]; then
+            python3 scripts/copy_browser_site_clear_diagnostics.py "$(cat build/test-simulator-id.txt)" build/browser-site-clear.json
+          fi
+          if [ -d build/Tests.xcresult ]; then
+            xcrun xcresulttool get test-results summary --path build/Tests.xcresult > build/test-summary.json
+            xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots
+            xcrun xcresulttool export diagnostics --path build/Tests.xcresult --output-path build/diagnostics
+          fi
+      - name: Verify every selected shard case completed without skips
+        if: always() && github.event_name == 'workflow_dispatch' && (startsWith(inputs.test_scope, 'ui-') || contains(fromJSON('["native","picker-user-copy","pdf-assembly","pdf-assembly-uikit","pdf-assembly-copy","pdf-assembly-multi","pdf-pair-coordinated","profile-tool","memory-tools","documents-chat"]'), inputs.test_scope))
+        env:
+          VALIDATION_SCOPE: ${{ inputs.test_scope }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from release_ios17 import ui_inventory, selected_ui_tests, test_completion
+          scope = os.environ['VALIDATION_SCOPE']
+          catalog = ui_inventory(Path.cwd())
+          expected = selected_ui_tests(catalog, 'core' if scope == 'native' else scope)
+          summary = json.loads(Path('build/test-summary.json').read_text())
+          completion = test_completion(summary, Path('build/ios-tests.log'), expected, scope != 'native')
+          Path('build/ui-shard-completion.json').write_text(json.dumps(completion, indent=2) + '\n')
+          print(json.dumps(completion, sort_keys=True))
+          if not completion['verified']:
+              raise SystemExit('Selected tests did not all complete successfully without skips')
+          PY
+      - name: Collect synthetic PDF fixture evidence
+        if: always()
+        run: |
+          if [ -f build/test-simulator-id.txt ]; then
+            python3 scripts/copy_skill_fixture_diagnostics.py "$(cat build/test-simulator-id.txt)" build/diagnostics build/skill-pdf-fixture-evidence.json
+          else
+            mkdir -p build
+            python3 -c 'import json; from pathlib import Path; Path("build/skill-pdf-fixture-evidence.json").write_text(json.dumps({"version": 1, "observation": "unavailable", "reason": "no-simulator-id"}) + "\n")'
+          fi
+      - name: Delete only the owned disposable simulator
+        if: always()
+        timeout-minutes: 4
+        run: python3 scripts/prepare_test_simulator.py cleanup --state build/test-simulator.json
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-test-evidence-${{ matrix.label }}-${{ github.run_id }}
+          path: |
+            build/*.log
+            build/*.xcresult
+            build/test-summary.json
+            build/test-simulator.json
+            build/ui-shard-completion.json
+            build/app-configuration.json
+            build/browser-site-clear.json
+            build/skill-pdf-fixture-evidence.json
+            build/screenshots/
+            build/diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+
+  live-model-acceptance:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'live-model' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
+    uses: ./.github/workflows/ios-live-model.yml
+    with:
+      ios_version: ${{ inputs.live_ios_version || '18.5' }}
+    secrets:
+      WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+      WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+      WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+
+  live-mcp-acceptance:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'live-mcp' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ios/integrate-woow-assistant') }}
+    uses: ./.github/workflows/ios-live-mcp.yml
+    with:
+      ios_version: ${{ inputs.live_ios_version || '18.5' }}
+    secrets:
+      WOOW_HA_MCP_TEST_URL: ${{ secrets.WOOW_HA_MCP_TEST_URL }}
+      WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
+      WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
+      WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
+
+  unsigned-device-for-local-signing:
+    # A PR build contains no signing credentials. The resulting App is not
+    # installable until the device owner signs it with a compatible profile.
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15-intel
+    timeout-minutes: 50
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: bash scripts/release_install_xcodegen.sh
+      - name: Build and verify unsigned iPhoneOS App
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: python3 scripts/release_ios.py build --build-number "$BUILD_NUMBER" --output build/unsigned-device
+      - name: Preserve unsigned build diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-device-diagnostics-${{ github.run_id }}
+          path: build/unsigned-device/device-build.log
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Package unsigned App and checksum
+        run: |
+          mkdir -p build/unsigned-delivery
+          ditto -c -k --keepParent build/unsigned-device/DerivedData/Build/Products/Release-iphoneos/WoowAssistant.app build/unsigned-delivery/WoowAssistant-unsigned.zip
+          cp build/unsigned-device/report.json build/unsigned-delivery/report.json
+          git rev-parse HEAD > build/unsigned-delivery/source-commit.txt
+          (cd build/unsigned-delivery && shasum -a 256 WoowAssistant-unsigned.zip report.json source-commit.txt > SHA256SUMS.txt)
+      - name: Preserve unsigned device build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-device-app-${{ github.run_id }}
+          path: |
+            build/unsigned-delivery/WoowAssistant-unsigned.zip
+            build/unsigned-delivery/SHA256SUMS.txt
+            build/unsigned-delivery/report.json
+            build/unsigned-delivery/source-commit.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3

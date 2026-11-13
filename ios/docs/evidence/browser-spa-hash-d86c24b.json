@@ -1,0 +1,82 @@
+{
+  "base_commit": "d86c24b36e8e1249fda3a99e94ea168128980000",
+  "baseline": {
+    "failed_stage": "Debug-webkit-run",
+    "observed_failure": "Actual anchor changed WKWebView.url to #/docs/42, while BrowserSession.loadedURL remained /spa; external handoff was unavailable.",
+    "report_sha256": "85f3d94b482203b63f15c0c225e842307bd2190015371a0a2f93c27fc6cf3b7b",
+    "run_log_sha256": "bdba5c4d6dbfacf67a497dbc24247ca74e178e4ef45fa3c48ae7eafbc66c4e5e",
+    "status": "FAIL"
+  },
+  "corrected": {
+    "checks": [
+      {
+        "exit_code": 0,
+        "name": "AssistantModels-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "AssistantMemory-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "AssistantPersistence-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "AssistantMCP-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "AssistantSkills-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "AssistantBrowser-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "Debug-iOS-syntax-only"
+      },
+      {
+        "exit_code": 0,
+        "name": "Debug-app-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "Debug-webkit-run"
+      },
+      {
+        "exit_code": 0,
+        "name": "Release-iOS-syntax-only"
+      },
+      {
+        "exit_code": 0,
+        "name": "Release-app-build"
+      },
+      {
+        "exit_code": 0,
+        "name": "Release-webkit-run"
+      }
+    ],
+    "debug_run_log_sha256": "c885c0a10b42d1886f67779cca1bfb4021aee04b6dfa56cf083a1d8ab223751c",
+    "debug_spa_assertions": 12,
+    "existing_search_assertions_each_configuration": 172,
+    "existing_site_mode_assertions_each_configuration": 118,
+    "release_run_log_sha256": "c885c0a10b42d1886f67779cca1bfb4021aee04b6dfa56cf083a1d8ab223751c",
+    "release_spa_assertions": 12,
+    "report_sha256": "9ca76bafdee80b424e035594d42f54b04c747f773387cd9fb0d555eec60007e2",
+    "sources_still_current": true,
+    "status": "PASS"
+  },
+  "scope": {
+    "actual_engine": "macOS WKWebView with local simulated HTTPS HTML",
+    "external_network_or_personal_keychain": false,
+    "ios_syntax_only": true,
+    "ios_typechecked": false,
+    "native_ios_xctest_executed": false,
+    "real_device_used": false,
+    "route_trigger": "click() on a real in-page anchor in the loaded WebKit document",
+    "safety": "Known-sensitive fragment is rejected for external handoff; fragment routes remain manual-only, outside model research",
+    "selected_tab": "live BrowserSession URL and address follow route; encrypted tab/history URLs intentionally remain fragment-insensitive"
+  }
+}

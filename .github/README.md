@@ -13,6 +13,8 @@
 
 > **下載**：到 [Releases](https://github.com/WOOWTECH/woowtech_mika_smart_app/releases/latest) 下載最新版，一般手機選檔名結尾是 `-arm64.apk` 的那個。只提供 APK，不上架 Google Play（原因見下方「安裝須知」）。
 
+> **iOS 開發中**：獨立 App 的原始碼、支援範圍與驗證狀態見 [ios/README.md](../ios/README.md)。
+
 ## 它能做什麼
 
 - **替你操作 App**：在另一塊背景螢幕上開 App、點按、輸入、捲動，你照常用手機；想看時點開小畫面。
