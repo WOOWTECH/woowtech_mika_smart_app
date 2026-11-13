@@ -211,7 +211,6 @@
 "browser.clear.history.question" = "清除瀏覽歷史？書籤與網站登入資料會保留。";
 "browser.clear.history" = "清除歷史";
 "browser.clear.site.question" = "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。";
-"browser.clear.site.target" = "將清除「%1$@」的本機網站資料；不保證網站伺服器端登出。";
 "browser.clear.site" = "清除網站資料";
 "browser.new.tab" = "新增分頁";
 "browser.no.page" = "尚未開啟網頁";

@@ -246,8 +246,8 @@ struct BrowserView: View {
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
         }
-        .onAppear { workspace.browserDidAppear(); browser.setPageFindHostVisible(pageFindHostVisible) }
-        .onDisappear { workspace.browserDidDisappear(); browser.setPageFindHostVisible(false) }
+        .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
+        .onDisappear { browser.setPageFindHostVisible(false) }
         .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
             showResearch = false; showInteractions = false; showTranscript = false

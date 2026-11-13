@@ -62,9 +62,6 @@ struct BrowserLibraryView: View {
                     .accessibilityIdentifier("browser.sites.confirmClear")
                 Button(localizer.text(.commonCancel), role: .cancel) { deleteSite = nil }
                     .accessibilityIdentifier("browser.sites.cancelClear")
-            } message: { record in
-                Text(localizer.text(.browserClearSiteTarget(name: record.displayName)))
-                    .accessibilityIdentifier("browser.sites.confirmTarget")
             }
             .onChange(of: section) { _, selected in if selected == 3 { requestSiteRecords() } }
             .onChange(of: workspace.isClearingWebsiteData) { _, clearing in

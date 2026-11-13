@@ -27,7 +27,6 @@ final class BrowserWorkspace: ObservableObject {
     @Published private(set) var isClearingWebsiteData = false
     private var sessions: [UUID: BrowserSession] = [:]
     private var websiteRecordRevision = UUID()
-    private var activateAfterWebsiteClear = false
     private var vault: EncryptedLearningFile?
     let websiteDataStore: WKWebsiteDataStore
     let downloads: BrowserDownloadManager
@@ -151,29 +150,6 @@ final class BrowserWorkspace: ObservableObject {
         return update { $0.removeSearchEngine(id) }
     }
 
-    /// Browser appearance is a user navigation; defer it while clearing rather
-    /// than restoring an obsolete session or loading in the background.
-    func browserDidAppear() {
-        if isClearingWebsiteData { activateAfterWebsiteClear = true; return }
-        activateAfterWebsiteClear = false
-        activateSelected()
-    }
-
-    func browserDidDisappear() { activateAfterWebsiteClear = false }
-
-    private func finishDeferredBrowserActivation(success: Bool) {
-        let shouldActivate = activateAfterWebsiteClear && success
-        activateAfterWebsiteClear = false
-        if shouldActivate { activateSelected() }
-    }
-
-    #if DEBUG
-    // Hosted tests hold the real removal after page quiescence, and substitute
-    // local HTML for the final navigation. Never enabled by production flags.
-    var websiteRemovalTestGate: (@MainActor () async -> Void)?
-    var restoredNavigationTestHook: (@MainActor (BrowserSession) -> Void)?
-    #endif
-
     func activateSelected() {
         #if DEBUG
         if !downloadPDFFixtureStarted, let fixture = BrowserDownloadedPDFFixture.enabled {
@@ -207,27 +183,13 @@ final class BrowserWorkspace: ObservableObject {
                     let url = try await fixture.start()
                     guard let self else { return }
                     while self.isClearingWebsiteData { try await Task.sleep(nanoseconds: 50_000_000) }
-                    // Only the strictly isolated login UI fixture may seed a
-                    // second fixed site for target-selection tests.
-                    if ProcessInfo.processInfo.arguments.filter({ $0 == "-UITestBrowserLoginSecondSite" }).count == 1,
-                       let cookie = HTTPCookie(properties: [.domain: "other-site.example.org", .path: "/",
-                           .name: "woow_second_site_fixture", .value: "fixture-only", .secure: "TRUE",
-                           .expires: Date().addingTimeInterval(3600)]) {
-                        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                            self.websiteDataStore.httpCookieStore.setCookie(cookie) { continuation.resume() }
-                        }
-                    }
                     self.open(url)
                 } catch { self?.errorText = .browserLoginFixtureError }
             }
             return
         }
         #endif
-        guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.hasPendingManualNavigation,
-              !selected.address.isEmpty, selected.manualLoadDiagnostics == nil else { return }
-        #if DEBUG
-        if let restoredNavigationTestHook { restoredNavigationTestHook(selected); return }
-        #endif
+        guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.address.isEmpty, selected.manualLoadDiagnostics == nil else { return }
         selected.openAddress()
     }
     @discardableResult private func update(_ change: (inout BrowserLibraryState) throws -> Void) -> Bool {
@@ -386,15 +348,11 @@ final class BrowserWorkspace: ObservableObject {
                 self.isClearingWebsiteData = false
                 self.sessions.removeAll()
                 self.selected = self.makeSession(id: self.library.selectedID)
-                self.finishDeferredBrowserActivation(success: false)
                 #if DEBUG
                 trace("sessionsReplaced", ["ready": 0])
                 #endif
                 return
             }
-            #if DEBUG
-            if let gate = self.websiteRemovalTestGate { await gate() }
-            #endif
             // Re-enumerate after every page has stopped. The selected record
             // may have acquired new data types since the confirmation dialog.
             // Delete the actual refreshed types, avoiding work in unrelated
@@ -426,7 +384,6 @@ final class BrowserWorkspace: ObservableObject {
                         self.isClearingWebsiteData = false
                         self.sessions.removeAll()
                         self.selected = self.makeSession(id: self.library.selectedID)
-                        self.finishDeferredBrowserActivation(success: selected.isEmpty)
                         #if DEBUG
                         trace("sessionsReplaced", ["ready": selected.isEmpty ? 1 : 0])
                         #endif

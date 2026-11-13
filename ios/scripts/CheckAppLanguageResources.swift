@@ -31,15 +31,6 @@ import AssistantSkills
             return Bundle(url: url)!
         }
         let bundle = try makeBundle("complete", languages: ["zh-Hant", "zh-Hans", "en"])
-        for (language, expectedTarget) in [
-            (AppDisplayLanguage.traditionalChinese, "將清除「site %@」的本機網站資料；不保證網站伺服器端登出。"),
-            (.simplifiedChinese, "将清除“site %@”的本地网站数据；不保证网站服务器端退出登录。"),
-            (.english, "Clear local website data for “site %@”. This does not guarantee sign-out on the website server.")
-        ] {
-            let rendered = AppLocalizer(language: language, bundle: bundle).resolve(.browserClearSiteTarget(name: "site %@"))
-            try check(!rendered.usedFallback && rendered.language == language && rendered.text == expectedTarget,
-                      "site confirmation identifies exact target in every language")
-        }
         let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "外觀與模型權限", "個步驟"), (.simplifiedChinese, "外观与模型权限", "个步骤"), (.english, "Appearance and model permissions", "steps")]
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
