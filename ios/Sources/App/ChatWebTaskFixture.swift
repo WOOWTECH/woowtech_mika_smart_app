@@ -183,11 +183,13 @@ final class ChatWebTaskFixture: @unchecked Sendable {
 /// example, read from the actual observations, so the native App path (entry,
 /// task tab, runner, card, transcript) runs without a model provider.
 enum ChatWebTaskUITestModel {
-    enum Script: String { case jobs, shop, news, stop, order }
+    enum Script: String { case jobs, shop, news, stop, order, login, ask }
 
     static func script(for prompt: String) -> Script? {
         if prompt == "[fixture:web-stop]" { return .stop }
         if prompt == "[fixture:web-order]" { return .order }
+        if prompt == "[fixture:web-login]" { return .login }
+        if prompt == "[fixture:web-ask]" { return .ask }
         if prompt.contains("104") { return .jobs }
         if prompt.lowercased().contains("momo") { return .shop }
         if prompt.contains("AI") && (prompt.contains("新聞") || prompt.lowercased().contains("news")) { return .news }
@@ -199,7 +201,8 @@ enum ChatWebTaskUITestModel {
         guard let script = script(for: prompt), let origin = ChatWebTaskFixture.shared?.originURL?.absoluteString else { return nil }
         let path: String
         switch script {
-        case .jobs, .stop: path = "/jobs/search?keyword=iOS"
+        case .jobs, .stop, .ask: path = "/jobs/search?keyword=iOS"
+        case .login: path = "/account/login"
         case .shop: path = "/shop/search?keyword=%E8%80%B3%E6%A9%9F"
         case .news: path = "/news"
         case .order: path = "/shop/cart"
@@ -240,6 +243,18 @@ enum ChatWebTaskUITestModel {
         case (.order, _):
             return command(["action": "finish", "sources": [1],
                             "answer": latest.contains("訂單成立") ? "WEB_TASK_ORDER_DONE：訂單成立，請自己付款 NT$ 1,290。" : "WEB_TASK_ORDER_NOT_DONE"])
+        case (.login, 1):
+            return command(["action": "hand_to_user", "reason": "login", "message": "請在這個頁面登入測試帳號。"])
+        case (.login, 2): return command(["action": "web_read_page"])
+        case (.login, _):
+            let handedBack = messages.contains { $0.role == "user" && $0.content.contains("\"result\":\"handed_back\"") }
+            return command(["action": "finish", "answer": handedBack ? "WEB_TASK_LOGIN_DONE：你已交還網頁。" : "WEB_TASK_LOGIN_OTHER"])
+        case (.ask, 1):
+            return command(["action": "ask_user", "prompt": "要找哪個城市的職缺？", "options": ["台北", "台中"]])
+        case (.ask, _):
+            let answer = (try? JSONSerialization.jsonObject(with: Data(latest.components(separatedBy: "\n").dropFirst().joined(separator: "\n").utf8))
+                          as? [String: Any])?["answer"] as? String ?? "沒有回答"
+            return command(["action": "finish", "answer": "WEB_TASK_ASK_DONE：" + answer])
         case (.stop, _):
             // Long enough for the test to press 停止; cancellation ends it.
             try await Task.sleep(nanoseconds: 120_000_000_000)

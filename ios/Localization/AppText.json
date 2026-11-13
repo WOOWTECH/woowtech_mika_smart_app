@@ -6510,6 +6510,243 @@
         "zh-Hant": "允許這一次",
         "en": "Allow this once"
       }
+    },
+    {
+      "case": "chatWebHandoverTitle",
+      "key": "chat.web.handover.title",
+      "parameters": [
+        {
+          "name": "reason",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "需要你處理：%1$@",
+        "en": "Needs you: %1$@"
+      }
+    },
+    {
+      "case": "chatWebReasonLogin",
+      "key": "chat.web.reason.login",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入",
+        "en": "Sign-in"
+      }
+    },
+    {
+      "case": "chatWebReasonCaptcha",
+      "key": "chat.web.reason.captcha",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "驗證碼",
+        "en": "CAPTCHA"
+      }
+    },
+    {
+      "case": "chatWebReasonAccessBlocked",
+      "key": "chat.web.reason.accessBlocked",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "風控驗證",
+        "en": "Security check"
+      }
+    },
+    {
+      "case": "chatWebReasonPayment",
+      "key": "chat.web.reason.payment",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "付款",
+        "en": "Payment"
+      }
+    },
+    {
+      "case": "chatWebReasonDecision",
+      "key": "chat.web.reason.decision",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你決定",
+        "en": "Your call"
+      }
+    },
+    {
+      "case": "chatWebReasonOther",
+      "key": "chat.web.reason.other",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "其他",
+        "en": "Something else"
+      }
+    },
+    {
+      "case": "chatWebSkip",
+      "key": "chat.web.skip",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "跳過",
+        "en": "Skip"
+      }
+    },
+    {
+      "case": "chatWebTakeOver",
+      "key": "chat.web.takeOver",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "我來處理",
+        "en": "I’ll handle it"
+      }
+    },
+    {
+      "case": "chatWebCancelTask",
+      "key": "chat.web.cancelTask",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消任務",
+        "en": "Cancel task"
+      }
+    },
+    {
+      "case": "chatWebWaitingOnYou",
+      "key": "chat.web.waitingOnYou",
+      "parameters": [
+        {
+          "name": "reason",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "渥屋助理在等你：%1$@",
+        "en": "woowtech agent is waiting for you: %1$@"
+      }
+    },
+    {
+      "case": "chatWebHandBack",
+      "key": "chat.web.handBack",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "處理好了",
+        "en": "Done"
+      }
+    },
+    {
+      "case": "chatWebFinishedMyself",
+      "key": "chat.web.finishedMyself",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "我自己做完了",
+        "en": "I did it myself"
+      }
+    },
+    {
+      "case": "chatWebUserHasPage",
+      "key": "chat.web.userHasPage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁在你手上；處理好後按「處理好了」。",
+        "en": "You have the page. Tap Done when you’re finished."
+      }
+    },
+    {
+      "case": "chatWebPaymentItem",
+      "key": "chat.web.payment.item",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "商品：%1$@",
+        "en": "Item: %1$@"
+      }
+    },
+    {
+      "case": "chatWebPaymentAmount",
+      "key": "chat.web.payment.amount",
+      "parameters": [
+        {
+          "name": "amount",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "金額：%1$@",
+        "en": "Amount: %1$@"
+      }
+    },
+    {
+      "case": "chatWebPaymentAddress",
+      "key": "chat.web.payment.address",
+      "parameters": [
+        {
+          "name": "address",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "地址：%1$@",
+        "en": "Address: %1$@"
+      }
+    },
+    {
+      "case": "chatWebQuestionTitle",
+      "key": "chat.web.question.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你回答",
+        "en": "Needs your answer"
+      }
+    },
+    {
+      "case": "chatWebAnswerPlaceholder",
+      "key": "chat.web.answer.placeholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入回答",
+        "en": "Type an answer"
+      }
+    },
+    {
+      "case": "chatWebAnswerSend",
+      "key": "chat.web.answer.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "送出回答",
+        "en": "Send answer"
+      }
+    },
+    {
+      "case": "chatWebActivitySummarizing",
+      "key": "chat.web.activity.summarizing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在整理已做的事…",
+        "en": "Wrapping up what was done…"
+      }
+    },
+    {
+      "case": "chatWebStepHandover",
+      "key": "chat.web.step.handover",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "請你接手 · %1$@",
+        "en": "Ask you to take over · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepAsk",
+      "key": "chat.web.step.ask",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "問你一個問題",
+        "en": "Ask you a question"
+      }
     }
   ]
 }

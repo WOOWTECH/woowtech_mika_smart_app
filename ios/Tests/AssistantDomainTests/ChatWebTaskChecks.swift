@@ -19,6 +19,7 @@ import AssistantModels
         try await runner(check)
         try spending(check)
         try await actions(check)
+        try await handovers(check)
         return count
     }
 
@@ -117,6 +118,17 @@ import AssistantModels
         try check(parsed(#"{"action":"request_confirmation","kind":"order","target":"立即購買","amount":"NT$ 990"}"#)
                   == .requestConfirmation(kind: .order, target: "立即購買", content: nil, amount: "NT$ 990"), "request confirmation")
         try check(parsed(#"{"action":"request_confirmation","kind":"buy","target":"x"}"#) == nil, "unknown kind refused")
+        try check(parsed(#"{"action":"hand_to_user","reason":"login","message":"請登入"}"#)
+                  == .handToUser(ChatWebHandover(reason: .login, message: "請登入")), "hand to user")
+        try check(parsed(#"{"action":"hand_to_user","reason":"payment","message":"請付款","item":"耳機","amount":"NT$ 990","address":"台北市"}"#)
+                  == .handToUser(ChatWebHandover(reason: .payment, message: "請付款", item: "耳機", amount: "NT$ 990", address: "台北市")),
+                  "payment hand-over with details")
+        try check(parsed(#"{"action":"hand_to_user","reason":"pay","message":"x"}"#) == nil, "unknown reason refused")
+        try check(parsed(#"{"action":"ask_user","prompt":"哪個城市？","options":["台北","台中"]}"#)
+                  == .askUser(prompt: "哪個城市？", options: ["台北", "台中"]), "ask with options")
+        try check(parsed(#"{"action":"ask_user","prompt":"幾個？"}"#) == .askUser(prompt: "幾個？", options: []), "free answer")
+        try check(parsed(#"{"action":"ask_user","prompt":"x","options":["only"]}"#) == nil, "one option refused")
+        try check(parsed(#"{"action":"ask_user","prompt":"x","options":["a","a"]}"#) == nil, "repeated options refused")
         try check(parsed("```json\n{\"action\":\"web_back\"}\n```") == .back, "one surrounding fence tolerated")
         try check(parsed(#"Sure! {"action":"web_back"}"#) == nil, "prose around the command refused")
         try check(parsed(#"[{"action":"web_back"}]"#) == nil, "arrays refused")
@@ -162,6 +174,7 @@ import AssistantModels
                                   ChatWebCapturedLink(title: "重複", url: jobA), ChatWebCapturedLink(title: "郵件", url: URL(string: "mailto:a@b.c")!)]),
             jobA: .init(title: "iOS 工程師 A", text: String(repeating: "工作內容 ", count: 60) + "薪資：月薪 60,000 元" + String(repeating: " 說明", count: 60), links: []),
             jobB: .init(title: "iOS 工程師 B", text: String(repeating: "工作內容 ", count: 60) + "ＳＷＩＦＴ 經驗", links: []),
+            URL(string: "https://www.104.com.tw/login")!: .init(title: "登入", text: "帳號 密碼", links: []),
         ])
     }
 
@@ -227,7 +240,7 @@ import AssistantModels
         do {
             let model = ScriptedModel([
                 #"{"action":"web_navigate","url":"http://example.com/"}"#,
-                #"{"action":"web_navigate","url":"https://example.com/login"}"#,
+                #"{"action":"web_navigate","url":"https://www.104.com.tw/login"}"#,
                 #"{"action":"web_open_link","linkID":40}"#,
                 #"{"action":"web_navigate","url":"https://www.104.com.tw/account/logout"}"#,
                 #"{"action":"end_not_done","reason":"需要你先登入。"}"#])
@@ -236,12 +249,13 @@ import AssistantModels
             let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
             let requests = await model.requests
             try check(requests[1].last?.content.contains("blocked_url:invalid_url") == true, "plain HTTP reported")
-            try check(requests[2].last?.content.contains("needs_sign_in") == true, "sign-in page reported")
+            try check(requests[2].last?.content.contains("\"ok\":true") == true && requests[2].last?.content.contains("/login") == true,
+                      "a sign-in page opens, for the user to sign in on")
             try check(requests[3].last?.content.contains("unknown_link") == true, "unknown link reported")
             try check(requests[4].last?.content.contains("blocked_url:account_action") == true, "log out reported")
             try check(result.status == .notDone && result.reason == "需要你先登入。" && result.sources.map(\.id) == [1],
                       "the model's own reason, with what was read")
-            try check(result.steps.filter { !$0.succeeded }.count == 4, "failed steps recorded")
+            try check(result.steps.filter { !$0.succeeded }.count == 3, "failed steps recorded")
         }
         // Guard rules: the same read again and again, or failure after failure.
         do {
@@ -517,6 +531,67 @@ import AssistantModels
         }
     }
 
+    // MARK: Hand-over, questions and the stop summary (1c)
+
+    static func handovers(_ check: Check) async throws {
+        let entry = #"{"action":"web_read_page","url":"https://www.104.com.tw/jobs/search/?keyword=iOS"}"#
+        func run(_ replies: [String], handOver: ((ChatWebHandover) async -> ChatWebHandover.Outcome)? = nil,
+                 ask: ((String, [String]) async -> String?)? = nil) async throws -> (ChatWebTaskResult, [[ModelMessage]]) {
+            let model = ScriptedModel(replies)
+            let task = ChatWebTaskRunner(client: model, executor: tab(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            task.handOver = handOver; task.ask = ask
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            return (result, await model.requests)
+        }
+        let login = #"{"action":"hand_to_user","reason":"login","message":"請登入"}"#
+        var asked: [ChatWebHandover] = []
+        let (handed, sent) = try await run([login, #"{"action":"finish","answer":"ok"}"#], handOver: { asked.append($0); return .handedBack })
+        try check(asked == [ChatWebHandover(reason: .login, message: "請登入")] && handed.status == .succeeded, "the page was handed over")
+        try check(sent[1].last?.content.contains("\"result\":\"handed_back\"") == true
+                  && sent[1].last?.content.contains("check what changed") == true, "handing back says to check the page")
+        try check(handed.steps.last?.kind == .handover, "hand-over recorded")
+        let (_, finishedSent) = try await run([login, #"{"action":"finish","answer":"ok"}"#], handOver: { _ in .finishedByUser })
+        try check(finishedSent[1].last?.content.contains("Do not operate the page any more") == true, "finished by the user")
+        let (_, skippedSent) = try await run([login, #"{"action":"finish","answer":"ok"}"#], handOver: { _ in .skipped })
+        try check(skippedSent[1].last?.content.contains("\"result\":\"skipped\"") == true, "skipped")
+        let (unanswered, noHostSent) = try await run([login, #"{"action":"end_not_done","reason":"x"}"#])
+        try check(noHostSent[1].last?.content.contains("no_answer") == true && unanswered.steps.last?.succeeded == false, "no host means no answer")
+
+        let question = #"{"action":"ask_user","prompt":"哪個城市？","options":["台北","台中"]}"#
+        var questions: [(String, [String])] = []
+        let (_, answered) = try await run([question, #"{"action":"finish","answer":"ok"}"#], ask: { questions.append(($0, $1)); return "台中" })
+        try check(questions.count == 1 && questions[0].0 == "哪個城市？" && questions[0].1 == ["台北", "台中"], "the question reached the user")
+        let reply = answered[1].last?.content ?? ""
+        try check(reply.contains("\"answer\":\"台中\"") && !reply.contains("<untrusted>"), "the answer is the user's, not page data")
+        let (_, silent) = try await run([question, #"{"action":"finish","answer":"ok"}"#])
+        try check(silent[1].last?.content.contains("\"answer\":null") == true, "no answer reported")
+
+        // 停止 then one short summary from the model, or none when it is late.
+        let web = tab()
+        let summaryModel = ScriptedModel([#"{"action":"finish","answer":"x"}"#])
+        let summarizer = ChatWebTaskRunner(client: summaryModel, executor: web, configuration: config, apiKey: "dummy",
+                                           settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+        let stopped = ChatWebTaskResult(status: .stopped, answer: nil, reason: nil, stop: nil, error: nil, sources: [],
+                                        pagesRead: [ChatWebSource(id: 1, title: "iOS 工作", url: search, site: "104.com.tw")],
+                                        steps: [ChatWebStep(id: 1, kind: .read, site: "104.com.tw", title: "iOS 工作", url: search, succeeded: true)],
+                                        modelCalls: 1)
+        let summary = await summarizer.stopSummary(for: stopped, conversation: conversation)
+        let summaryRequest = await summaryModel.requests
+        try check(summary == #"{"action":"finish","answer":"x"}"# && summaryRequest[0][0].content.hasPrefix("The user stopped a web task.")
+                  && summaryRequest[0][1].content.contains("iOS 工作"), "the stop summary uses steps and pages only")
+        try check(summaryRequest[0][0].content.hasSuffix("\n\n" + AISafetyRules.prompt), "the stop summary carries the safety rules")
+        let late = ChatWebTaskRunner(client: SlowModel(), executor: web, configuration: config, apiKey: "dummy",
+                                     settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+        let none = await late.stopSummary(for: stopped, conversation: conversation, timeout: 0.05)
+        try check(none == nil, "a late summary is left out")
+        var finished = stopped
+        finished = ChatWebTaskResult(status: .succeeded, answer: "a", reason: nil, stop: nil, error: nil, sources: [],
+                                     pagesRead: finished.pagesRead, steps: finished.steps, modelCalls: 1)
+        let notStopped = await summarizer.stopSummary(for: finished, conversation: conversation)
+        try check(notStopped == nil, "only stopped tasks are summarized")
+    }
+
     static func waitUntil(_ name: String, _ condition: () -> Bool) async throws {
         for _ in 0..<2_000 {
             if condition() { return }
@@ -533,6 +608,13 @@ import AssistantModels
     }
     static func find(_ needle: String, in text: String) -> Int {
         ChatWebTaskRunner.matches(of: needle, in: text).total
+    }
+}
+
+actor SlowModel: ChatModelClient {
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        try await Task.sleep(nanoseconds: 5_000_000_000)
+        return "late"
     }
 }
 

@@ -46,6 +46,19 @@ to 合計、總計、實付、應付…):
 A form may load with POST only right after an action that passed this rule;
 an action is never repeated after a failure.
 
+## Hand-over, questions and stopping (1c, like the Play build)
+- Sign-in pages now open; the model uses `hand_to_user` (login, captcha,
+  access_blocked, payment with item/amount/address, decision, other). The card
+  shows 需要你處理：… with 我來處理, 跳過 and 取消任務; 我來處理 gives the same
+  page to the user full size (渥屋助理在等你：…, 處理好了, 我自己做完了), when
+  the tab also lets the user's own forms load. 15 minutes without an answer
+  counts as no answer. The model reads the page again after a hand-back.
+- `ask_user` shows 需要你回答 with 2–8 choices or a free answer; the answer
+  goes back as the user's words, not page data.
+- After 停止 the model writes two to four sentences about what was done
+  (正在整理已做的事…, at most 12 s, from step names, titles and addresses
+  only); the round reads 已停止。, that account and the pages read.
+
 ## Rules
 - Addresses: `ChatWebTaskPolicy` — public HTTPS with query strings, across
   sites; no credentials, private networks or local names; logout, delete,

@@ -24,6 +24,8 @@ import AssistantBrowser
     private var requestedURL: URL?
     /// A form the task just sent may load with POST for a few seconds.
     private var submissionAllowedUntil: Date?
+    /// While the user has the page (我來處理), their own forms may load too.
+    var userControlled = false
     private var navigationStarted = false
     /// The last message a page tried to show in a dialog; dialogs close at once.
     private(set) var lastDialog: String?
@@ -325,12 +327,12 @@ import AssistantBrowser
         if scheme == "about" { decisionHandler(.allow); return }
         if navigationAction.shouldPerformDownload { stop(.navigationFailed("download")); decisionHandler(.cancel); return }
         let method = (navigationAction.request.httpMethod ?? "GET").uppercased()
-        guard method == "GET" || (method == "POST" && (submissionAllowedUntil.map { Date() < $0 } ?? false)) else {
+        guard method == "GET" || (method == "POST" && (userControlled || (submissionAllowedUntil.map { Date() < $0 } ?? false))) else {
             stop(.navigationFailed("not_get")); decisionHandler(.cancel); return
         }
         switch ChatWebTaskPolicy.evaluate(url, fixtureOrigin: fixtureOrigin) {
-        case .allow: decisionHandler(.allow)
-        case .signIn: stop(.signInRequired); decisionHandler(.cancel)
+        // Sign-in pages open: the task hands them to the user, who signs in there.
+        case .allow, .signIn: decisionHandler(.allow)
         case .block(let reason): stop(.blocked(reason)); decisionHandler(.cancel)
         }
     }
@@ -376,9 +378,11 @@ import AssistantBrowser
     /// A pop-up opens in the task tab itself, under the same rules.
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url, case .allow = ChatWebTaskPolicy.evaluate(url, fixtureOrigin: fixtureOrigin),
-           (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET" {
-            webView.load(navigationAction.request)
+        if let url = navigationAction.request.url, (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET" {
+            switch ChatWebTaskPolicy.evaluate(url, fixtureOrigin: fixtureOrigin) {
+            case .allow, .signIn: webView.load(navigationAction.request)
+            case .block: break
+            }
         }
         return nil
     }

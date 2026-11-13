@@ -35,8 +35,9 @@ COVERED = {
     'Sources/AssistantBrowser/WebResearchRunner.swift': ['let system = AISafetyRules.appended(to: """'],
     'Sources/App/BrowserSession.swift': ['let system = AISafetyRules.appended(to: """'],
     'Sources/AssistantBrowser/BrowserInteractionPlanner.swift': ['private static let instructions = AISafetyRules.appended(to: """'],
-    # Web tasks started from chat: every step of the task.
-    'Sources/AssistantBrowser/ChatWebTaskRunner.swift': ['return AISafetyRules.appended(to: """'],
+    # Web tasks started from chat: every step of the task, and the account after 停止.
+    'Sources/AssistantBrowser/ChatWebTaskRunner.swift': ['return AISafetyRules.appended(to: """',
+                                                        'ModelMessage(role: "system", content: AISafetyRules.appended(to: """'],
     # Background requests whose text the user sees: memories and skill drafts.
     'Sources/AssistantMemory/MemoryExtractor.swift': ['private static let instructions = AISafetyRules.appended(to: """'],
     'Sources/AssistantSkills/SkillLearningService.swift': ['private static let draftInstructions = AISafetyRules.appended(to: """'],

@@ -54,8 +54,12 @@ import AssistantPersistence
         try check(!page.hasPasswordField && !page.hasCaptcha, "ordinary page signals")
         do { _ = try await tab.load(url("/go-logout")); throw Failure(name: "redirect to log out was followed") }
         catch let error as ChatWebExecutionError { try check(error == .blocked(.accountAction), "redirect to log out stopped") }
-        do { _ = try await tab.load(url("/account/login")); throw Failure(name: "sign-in page opened") }
-        catch let error as ChatWebExecutionError { try check(error == .signInRequired, "sign-in page left to the user") }
+        // Sign-in pages open (1c): the task hands them to the user.
+        let signIn = try await tab.load(url("/account/login"))
+        try check(signIn.url.path == "/account/login", "sign-in page opens")
+        let signInPage = try await tab.capture()
+        try check(signInPage.hasPasswordField && ChatWebTaskRunner.pageVerdict(signInPage, httpStatus: 200) == "needs_sign_in",
+                  "sign-in page judged needs_sign_in")
         do { _ = try await tab.load(URL(string: "https://192.168.0.1/")!); throw Failure(name: "private address opened") }
         catch let error as ChatWebExecutionError { try check(error == .blocked(.notPublic), "private address refused") }
         do { _ = try await tab.load(url("/download")); throw Failure(name: "download started") }
@@ -188,7 +192,7 @@ import AssistantPersistence
         await stopping.value
         mount.close()
         let stopped = session.entries.last?.content ?? ""
-        try check(stopped.hasPrefix("已停止。") && stopped.contains("已讀的頁面"),
+        try check(stopped.hasPrefix("已停止。\n\nFIXTURE_STOP_SUMMARY") && stopped.contains("已讀的頁面"),
                   "stopped round written with pages read: " + String(stopped.prefix(160)) + " | " + (session.chatError ?? "-"))
         try check(session.entries.count == 4 && !session.isSubmitting, "stop ends the request")
 
@@ -223,6 +227,35 @@ import AssistantPersistence
         mount.close()
         try check(session.entries.last?.content.hasPrefix("WEB_TASK_ORDER_DONE") == true, "the allowed order went through")
         try check(fixture.requestedPaths.filter { $0 == "POST /shop/ordered" }.count == 1, "the order was sent once")
+
+        // Hand-over (1c): 我來處理 gives the page to the user; 處理好了 hands it back.
+        try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
+        let login = try start(session, "[fixture:web-login]")
+        try await waitUntil("login task starts") { session.webTask != nil }
+        mount = Mount(session.webTask!.tab.webView)
+        try await waitUntil("the page is handed over", seconds: 30) { session.webTask?.pendingHandover != nil }
+        try check(session.webTask?.pendingHandover?.reason == .login && session.webTask?.tab.currentURL?.path == "/account/login",
+                  "the sign-in page is open for the user")
+        session.webTask?.takeOver()
+        try check(session.webTask?.isUserControlled == true && session.webTask?.tab.userControlled == true
+                  && session.webTask?.isExpanded == true, "the user has the page, full size")
+        session.webTask?.endHandover(.handedBack)
+        try check(session.webTask?.tab.userControlled == false, "handing back ends the user's control")
+        await login.value
+        mount.close()
+        try check(session.entries.last?.content.hasPrefix("WEB_TASK_LOGIN_DONE") == true, "the task went on after the hand-back")
+
+        // A question (1c): the user's choice goes back to the task.
+        try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
+        let asking = try start(session, "[fixture:web-ask]")
+        try await waitUntil("ask task starts") { session.webTask != nil }
+        mount = Mount(session.webTask!.tab.webView)
+        try await waitUntil("the question is shown", seconds: 30) { session.webTask?.pendingQuestion != nil }
+        try check(session.webTask?.pendingQuestion?.options == ["台北", "台中"], "the choices are shown")
+        session.webTask?.answer("台中")
+        await asking.value
+        mount.close()
+        try check(session.entries.last?.content.hasPrefix("WEB_TASK_ASK_DONE：台中\n\n來源") == true, "the answer reached the task")
 
         // Memory off: the plain reply can start a task too.
         try check(e.learning.updatePreferences { $0.useMemory = false }, "memory off")

@@ -29,6 +29,18 @@ struct ChatWebTaskText {
         case .pacing(let site): return localizer.text(.chatWebActivityPacing(site: site))
         case .acting(let site): return localizer.text(.chatWebActivityActing(site: site))
         case .waitingForYou: return localizer.text(.chatWebActivityWaitingForYou)
+        case .summarizing: return localizer.text(.chatWebActivitySummarizing)
+        }
+    }
+
+    func reason(_ reason: ChatWebHandover.Reason) -> String {
+        switch reason {
+        case .login: return localizer.text(.chatWebReasonLogin)
+        case .captcha: return localizer.text(.chatWebReasonCaptcha)
+        case .accessBlocked: return localizer.text(.chatWebReasonAccessBlocked)
+        case .payment: return localizer.text(.chatWebReasonPayment)
+        case .decision: return localizer.text(.chatWebReasonDecision)
+        case .other: return localizer.text(.chatWebReasonOther)
         }
     }
 
@@ -47,10 +59,12 @@ struct ChatWebTaskText {
         case .type: label = localizer.text(.chatWebStepType(site: site))
         case .select: label = localizer.text(.chatWebStepSelect(site: site))
         case .confirm: label = localizer.text(.chatWebStepConfirm(site: site))
+        case .handover: label = localizer.text(.chatWebStepHandover(site: site))
+        case .ask: label = localizer.text(.chatWebStepAsk)
         }
         var text = label
         if step.outward { text += " · " + localizer.text(.chatWebStepOutward) }
-        if !step.title.isEmpty && [.tap, .type, .select, .confirm].contains(step.kind) { text += "「" + step.title + "」" }
+        if !step.title.isEmpty && [.tap, .type, .select, .confirm, .handover, .ask].contains(step.kind) { text += "「" + step.title + "」" }
         return step.succeeded ? text : text + " · " + localizer.text(.chatWebStepFailed)
     }
 
@@ -79,9 +93,13 @@ struct ChatWebTaskCard: View {
     let colors: ChatWebTaskColors
     let onStop: () -> Void
     @State private var showsProcess = false
+    @State private var answerDraft = ""
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var text: ChatWebTaskText { ChatWebTaskText(localizer: localizer) }
+    private var waitsForUser: Bool {
+        task.pendingConsent != nil || task.pendingHandover != nil || task.pendingQuestion != nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -94,6 +112,8 @@ struct ChatWebTaskCard: View {
                     .lineLimit(2)
             }
             if let request = task.pendingConsent { consent(request) }
+            if let handover = task.pendingHandover { handoverBox(handover) }
+            if let question = task.pendingQuestion { questionBox(question.prompt, question.options) }
             Text(verbatim: localizer.text(.chatWebForegroundNote))
                 .font(.caption2).foregroundStyle(colors.secondaryInk)
             buttons
@@ -101,8 +121,8 @@ struct ChatWebTaskCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(colors.fill, in: RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(task.phase == .paused || task.pendingConsent != nil ? Color.orange : colors.accent.opacity(0.5),
-                                                           lineWidth: task.pendingConsent != nil ? 2 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(task.phase == .paused || waitsForUser ? Color.orange : colors.accent.opacity(0.5),
+                                                           lineWidth: waitsForUser ? 2 : 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.web.card")
         .sheet(isPresented: $showsProcess) {
@@ -151,6 +171,78 @@ struct ChatWebTaskCard: View {
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.web.consent")
+    }
+
+    /// Android's takeover card: 需要你處理：… with 跳過, 我來處理 and 取消任務;
+    /// once the user has the page, 處理好了 and 我自己做完了.
+    private func handoverBox(_ handover: ChatWebHandover) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: localizer.text(.chatWebHandoverTitle(reason: text.reason(handover.reason))))
+                .font(.subheadline.weight(.semibold)).foregroundStyle(colors.ink)
+                .accessibilityIdentifier("chat.web.handover.title")
+            Text(verbatim: handover.message).font(.callout).foregroundStyle(colors.ink)
+            ForEach(Array([handover.item.map { localizer.text(.chatWebPaymentItem(item: $0)) },
+                           handover.amount.map { localizer.text(.chatWebPaymentAmount(amount: $0)) },
+                           handover.address.map { localizer.text(.chatWebPaymentAddress(address: $0)) }].compactMap { $0 }.enumerated()),
+                    id: \.offset) { _, line in
+                Text(verbatim: line).font(.caption).foregroundStyle(colors.secondaryInk)
+            }
+            if task.isUserControlled {
+                Text(verbatim: localizer.text(.chatWebUserHasPage)).font(.caption).foregroundStyle(colors.secondaryInk)
+                HStack(spacing: 12) {
+                    Button(localizer.text(.chatWebHandBack)) { task.endHandover(.handedBack) }
+                        .buttonStyle(.borderedProminent).accessibilityIdentifier("chat.web.handBack")
+                    Button(localizer.text(.chatWebFinishedMyself)) { task.endHandover(.finishedByUser) }
+                        .buttonStyle(.bordered).accessibilityIdentifier("chat.web.finishedMyself")
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { handoverButtons }
+                    VStack(alignment: .leading, spacing: 8) { handoverButtons }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.web.handover")
+    }
+
+    @ViewBuilder private var handoverButtons: some View {
+        Button(localizer.text(.chatWebTakeOver)) { task.takeOver() }
+            .buttonStyle(.borderedProminent).accessibilityIdentifier("chat.web.takeOver")
+        Button(localizer.text(.chatWebSkip)) { task.endHandover(.skipped) }
+            .buttonStyle(.bordered).accessibilityIdentifier("chat.web.skip")
+        Button(localizer.text(.chatWebCancelTask), role: .destructive, action: onStop)
+            .accessibilityIdentifier("chat.web.cancelTask")
+    }
+
+    /// Android's 需要你回答: a choice or the user's own words.
+    private func questionBox(_ prompt: String, _ options: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: localizer.text(.chatWebQuestionTitle)).font(.subheadline.weight(.semibold)).foregroundStyle(colors.ink)
+            Text(verbatim: prompt).font(.callout).foregroundStyle(colors.ink)
+                .accessibilityIdentifier("chat.web.question.prompt")
+            ForEach(Array(options.enumerated()), id: \.offset) { index, option in
+                Button(option) { task.answer(option) }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("chat.web.question.option.\(index)")
+            }
+            HStack {
+                TextField(localizer.text(.chatWebAnswerPlaceholder), text: $answerDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("chat.web.question.answer")
+                Button(localizer.text(.chatWebAnswerSend)) { let answer = answerDraft; answerDraft = ""; task.answer(answer) }
+                    .disabled(answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("chat.web.question.send")
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.web.question")
     }
 
     private var buttons: some View {
@@ -244,17 +336,18 @@ struct ChatWebTaskPreview: View {
                         .overlay {
                             if !expanded {
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(task.phase == .paused || task.pendingConsent != nil ? Color.orange : Color.green, lineWidth: 2)
+                                    .stroke(task.phase == .paused || task.pendingConsent != nil || task.pendingHandover != nil
+                                            || task.pendingQuestion != nil ? Color.orange : Color.green, lineWidth: 2)
                             }
                         }
-                        .allowsHitTesting(false)
+                        .allowsHitTesting(expanded && task.isUserControlled)
                         .overlay {
                             if visible && !expanded {
                                 Color.clear.contentShape(Rectangle())
                                     .onTapGesture { task.isExpanded = true }
                             }
                         }
-                        .accessibilityHidden(true)
+                        .accessibilityHidden(!(expanded && task.isUserControlled))
                 }
                 .padding(.trailing, expanded ? 0 : 12)
                 .padding(.bottom, expanded ? 0 : 96)
@@ -266,20 +359,39 @@ struct ChatWebTaskPreview: View {
         .allowsHitTesting(isOnScreen && ((task.showsPreview ?? ChatWebTaskText.automaticPreview(dynamicTypeSize)) || task.isExpanded))
     }
 
-    private var expandedBar: some View {
-        HStack {
-            Text(verbatim: ChatWebTaskText(localizer: localizer).activity(task.activity, phase: task.phase))
-                .font(.callout).lineLimit(1)
-            Spacer()
-            if task.isRunning {
-                Button(localizer.text(.chatWebStop), role: .destructive, action: onStop)
-                    .accessibilityIdentifier("chat.web.expanded.stop")
+    @ViewBuilder private var expandedBar: some View {
+        if let handover = task.pendingHandover, task.isUserControlled {
+            // Android WebTakeoverPage: the same page, the user's to use.
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: localizer.text(.chatWebWaitingOnYou(reason: ChatWebTaskText(localizer: localizer).reason(handover.reason))))
+                    .font(.callout.weight(.semibold))
+                    .accessibilityIdentifier("chat.web.waitingOnYou")
+                HStack(spacing: 12) {
+                    Button(localizer.text(.chatWebHandBack)) { task.endHandover(.handedBack) }
+                        .buttonStyle(.borderedProminent).accessibilityIdentifier("chat.web.expanded.handBack")
+                    Button(localizer.text(.chatWebFinishedMyself)) { task.endHandover(.finishedByUser) }
+                        .buttonStyle(.bordered).accessibilityIdentifier("chat.web.expanded.finishedMyself")
+                    Spacer()
+                    Button(localizer.text(.chatWebCancelTask), role: .destructive, action: onStop)
+                        .accessibilityIdentifier("chat.web.expanded.cancelTask")
+                }
             }
-            Button(localizer.text(.chatWebShrink)) { task.isExpanded = false }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("chat.web.shrink")
+            .padding(.horizontal, 16).padding(.vertical, 8)
+        } else {
+            HStack {
+                Text(verbatim: ChatWebTaskText(localizer: localizer).activity(task.activity, phase: task.phase))
+                    .font(.callout).lineLimit(1)
+                Spacer()
+                if task.isRunning {
+                    Button(localizer.text(.chatWebStop), role: .destructive, action: onStop)
+                        .accessibilityIdentifier("chat.web.expanded.stop")
+                }
+                Button(localizer.text(.chatWebShrink)) { task.isExpanded = false }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("chat.web.shrink")
+            }
+            .padding(.horizontal, 16).padding(.vertical, 8)
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
     }
 }
 

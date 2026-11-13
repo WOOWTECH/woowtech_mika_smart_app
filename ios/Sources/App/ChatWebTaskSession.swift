@@ -34,6 +34,14 @@ struct ChatWebTaskEnvironment {
     @Published var isExpanded = false
     /// A step that spends money waiting for 允許這一次 or 拒絕 (Android's card).
     @Published private(set) var pendingConsent: ChatWebConsentGate.Request?
+    /// The page handed to the user (需要你處理), and whether they have it now.
+    @Published private(set) var pendingHandover: ChatWebHandover?
+    @Published private(set) var isUserControlled = false
+    /// A question waiting for the user's answer (需要你回答).
+    @Published private(set) var pendingQuestion: (prompt: String, options: [String])?
+    private var handoverContinuation: CheckedContinuation<ChatWebHandover.Outcome, Never>?
+    private var questionContinuation: CheckedContinuation<String?, Never>?
+    private var waitToken: UUID?
     private var consentContinuation: CheckedContinuation<Bool, Never>?
     private var consentToken: UUID?
     private let runner: ChatWebTaskRunner
@@ -57,6 +65,66 @@ struct ChatWebTaskEnvironment {
         runner.onSteps = { [weak self] in self?.steps = $0 }
         runner.onActivity = { [weak self] in self?.activity = $0 }
         runner.confirm = { [weak self] request in await self?.askConsent(request) ?? false }
+        runner.handOver = { [weak self] request in await self?.waitForHandover(request) ?? .noAnswer }
+        runner.ask = { [weak self] prompt, options in await self?.waitForAnswer(prompt, options) ?? nil }
+    }
+
+    /// Like Android: the page waits 15 minutes for the user (Takeover.kt).
+    private func waitForHandover(_ request: ChatWebHandover) async -> ChatWebHandover.Outcome {
+        let token = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                handoverContinuation?.resume(returning: .noAnswer)
+                handoverContinuation = continuation; waitToken = token; pendingHandover = request
+                expire(token) { $0.endHandover(.noAnswer) }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in if self?.waitToken == token { self?.endHandover(.noAnswer) } }
+        }
+    }
+
+    private func waitForAnswer(_ prompt: String, _ options: [String]) async -> String? {
+        let token = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                questionContinuation?.resume(returning: nil)
+                questionContinuation = continuation; waitToken = token; pendingQuestion = (prompt, options)
+                expire(token) { $0.answer(nil) }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in if self?.waitToken == token { self?.answer(nil) } }
+        }
+    }
+
+    private func expire(_ token: UUID, _ end: @escaping @MainActor (ChatWebTaskSession) -> Void) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 900 * 1_000_000_000)
+            guard let self, self.waitToken == token else { return }
+            end(self)
+        }
+    }
+
+    /// 我來處理: the page becomes the user's, full size, until they hand it back.
+    func takeOver() {
+        guard pendingHandover != nil else { return }
+        isUserControlled = true; tab.userControlled = true
+        showsPreview = true; isExpanded = true
+    }
+
+    /// 處理好了, 我自己做完了 or 跳過.
+    func endHandover(_ outcome: ChatWebHandover.Outcome) {
+        let continuation = handoverContinuation
+        handoverContinuation = nil; waitToken = nil; pendingHandover = nil
+        isUserControlled = false; tab.userControlled = false
+        if outcome != .noAnswer { isExpanded = false }
+        continuation?.resume(returning: outcome)
+    }
+
+    func answer(_ text: String?) {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let continuation = questionContinuation
+        questionContinuation = nil; waitToken = nil; pendingQuestion = nil
+        continuation?.resume(returning: trimmed?.isEmpty == false ? trimmed : nil)
     }
 
     /// Like Android: only the card can allow; no answer in 15 minutes, a stop
@@ -96,7 +164,11 @@ struct ChatWebTaskEnvironment {
             await runner.run(conversation: conversation, entry: entry, entryRaw: entryRaw)
         }
         work = task
-        let result = await task.value
+        var result = await task.value
+        if result.status == .stopped {
+            activity = .summarizing
+            result.stopSummary = await runner.stopSummary(for: result, conversation: conversation)
+        }
         finish()
         return result
     }
@@ -165,7 +237,8 @@ enum ChatWebTaskTranscript {
             return "**" + localizer.text(.chatWebNotDone) + "**\n\n" + reason
                 + list(localizer.text(.chatWebPagesReadHeading), result.pagesRead)
         case .stopped:
-            return localizer.text(.chatWebStopped) + list(localizer.text(.chatWebPagesReadHeading), result.pagesRead)
+            let summary = result.stopSummary.map { "\n\n" + $0 } ?? ""
+            return localizer.text(.chatWebStopped) + summary + list(localizer.text(.chatWebPagesReadHeading), result.pagesRead)
         }
     }
 

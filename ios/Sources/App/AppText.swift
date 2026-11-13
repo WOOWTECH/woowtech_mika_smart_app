@@ -674,6 +674,29 @@ enum AppText: Equatable {
     case chatWebAskNote
     case chatWebAskRefuse
     case chatWebAskAllowOnce
+    case chatWebHandoverTitle(reason: String)
+    case chatWebReasonLogin
+    case chatWebReasonCaptcha
+    case chatWebReasonAccessBlocked
+    case chatWebReasonPayment
+    case chatWebReasonDecision
+    case chatWebReasonOther
+    case chatWebSkip
+    case chatWebTakeOver
+    case chatWebCancelTask
+    case chatWebWaitingOnYou(reason: String)
+    case chatWebHandBack
+    case chatWebFinishedMyself
+    case chatWebUserHasPage
+    case chatWebPaymentItem(item: String)
+    case chatWebPaymentAmount(amount: String)
+    case chatWebPaymentAddress(address: String)
+    case chatWebQuestionTitle
+    case chatWebAnswerPlaceholder
+    case chatWebAnswerSend
+    case chatWebActivitySummarizing
+    case chatWebStepHandover(site: String)
+    case chatWebStepAsk
 
     var key: String {
         switch self {
@@ -1348,6 +1371,29 @@ enum AppText: Equatable {
         case .chatWebAskNote: return "chat.web.ask.note"
         case .chatWebAskRefuse: return "chat.web.ask.refuse"
         case .chatWebAskAllowOnce: return "chat.web.ask.allowOnce"
+        case .chatWebHandoverTitle: return "chat.web.handover.title"
+        case .chatWebReasonLogin: return "chat.web.reason.login"
+        case .chatWebReasonCaptcha: return "chat.web.reason.captcha"
+        case .chatWebReasonAccessBlocked: return "chat.web.reason.accessBlocked"
+        case .chatWebReasonPayment: return "chat.web.reason.payment"
+        case .chatWebReasonDecision: return "chat.web.reason.decision"
+        case .chatWebReasonOther: return "chat.web.reason.other"
+        case .chatWebSkip: return "chat.web.skip"
+        case .chatWebTakeOver: return "chat.web.takeOver"
+        case .chatWebCancelTask: return "chat.web.cancelTask"
+        case .chatWebWaitingOnYou: return "chat.web.waitingOnYou"
+        case .chatWebHandBack: return "chat.web.handBack"
+        case .chatWebFinishedMyself: return "chat.web.finishedMyself"
+        case .chatWebUserHasPage: return "chat.web.userHasPage"
+        case .chatWebPaymentItem: return "chat.web.payment.item"
+        case .chatWebPaymentAmount: return "chat.web.payment.amount"
+        case .chatWebPaymentAddress: return "chat.web.payment.address"
+        case .chatWebQuestionTitle: return "chat.web.question.title"
+        case .chatWebAnswerPlaceholder: return "chat.web.answer.placeholder"
+        case .chatWebAnswerSend: return "chat.web.answer.send"
+        case .chatWebActivitySummarizing: return "chat.web.activity.summarizing"
+        case .chatWebStepHandover: return "chat.web.step.handover"
+        case .chatWebStepAsk: return "chat.web.step.ask"
         }
     }
 
@@ -1431,6 +1477,12 @@ enum AppText: Equatable {
         case .chatWebStepConfirm(let site): return [site]
         case .chatWebAskTitle(let target): return [target]
         case .chatWebAskTitleAmount(let target, let amount): return [target, amount]
+        case .chatWebHandoverTitle(let reason): return [reason]
+        case .chatWebWaitingOnYou(let reason): return [reason]
+        case .chatWebPaymentItem(let item): return [item]
+        case .chatWebPaymentAmount(let amount): return [amount]
+        case .chatWebPaymentAddress(let address): return [address]
+        case .chatWebStepHandover(let site): return [site]
         default: return []
         }
     }
@@ -2109,6 +2161,29 @@ enum AppText: Equatable {
         case .chatWebAskNote: return "花錢的操作每次都要你同意。"
         case .chatWebAskRefuse: return "拒絕"
         case .chatWebAskAllowOnce: return "允許這一次"
+        case .chatWebHandoverTitle: return "需要你處理：%1$@"
+        case .chatWebReasonLogin: return "登入"
+        case .chatWebReasonCaptcha: return "驗證碼"
+        case .chatWebReasonAccessBlocked: return "風控驗證"
+        case .chatWebReasonPayment: return "付款"
+        case .chatWebReasonDecision: return "需要你決定"
+        case .chatWebReasonOther: return "其他"
+        case .chatWebSkip: return "跳過"
+        case .chatWebTakeOver: return "我來處理"
+        case .chatWebCancelTask: return "取消任務"
+        case .chatWebWaitingOnYou: return "渥屋助理在等你：%1$@"
+        case .chatWebHandBack: return "處理好了"
+        case .chatWebFinishedMyself: return "我自己做完了"
+        case .chatWebUserHasPage: return "網頁在你手上；處理好後按「處理好了」。"
+        case .chatWebPaymentItem: return "商品：%1$@"
+        case .chatWebPaymentAmount: return "金額：%1$@"
+        case .chatWebPaymentAddress: return "地址：%1$@"
+        case .chatWebQuestionTitle: return "需要你回答"
+        case .chatWebAnswerPlaceholder: return "輸入回答"
+        case .chatWebAnswerSend: return "送出回答"
+        case .chatWebActivitySummarizing: return "正在整理已做的事…"
+        case .chatWebStepHandover: return "請你接手 · %1$@"
+        case .chatWebStepAsk: return "問你一個問題"
         }
     }
 }

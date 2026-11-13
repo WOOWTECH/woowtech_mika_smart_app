@@ -214,6 +214,7 @@ actor UITestChatModelClient: ChatModelClient {
         if instructions.hasPrefix("You are carrying out the user's request in the app's built-in browser.") {
             return try await ChatWebTaskUITestModel.next(messages: messages)
         }
+        if instructions.hasPrefix("The user stopped a web task.") { return "FIXTURE_STOP_SUMMARY：讀了 1 頁，沒有送出任何東西。" }
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true
                 || messages.last?.content.hasPrefix("Host memory_edit receipt") == true {

@@ -29,6 +29,10 @@ public enum ChatWebCommand: Equatable, Sendable {
     case select(ref: String, snapshot: String, option: String)
     /// Asks the user before a step that spends money (Android request_confirmation).
     case requestConfirmation(kind: ChatWebSpending.Action, target: String, content: String?, amount: String?)
+    /// The user's hands are needed on this page (Android hand_to_user).
+    case handToUser(ChatWebHandover)
+    /// A question with 2–8 choices, or free text (Android ask_user).
+    case askUser(prompt: String, options: [String])
 
     public static let defaultReadCharacters = 12_000
     public static let maximumReadCharacters = 30_000
@@ -39,7 +43,7 @@ public enum ChatWebCommand: Equatable, Sendable {
     /// Every command a web task offers, for skills that name the tools they use.
     public static let toolNames: Set<String> = ["web_navigate", "web_read_page", "web_open_link", "web_find", "web_scroll",
                                                 "web_back", "web_wait_for", "end_not_done", "web_observe", "web_tap",
-                                                "web_type_text", "web_select", "request_confirmation"]
+                                                "web_type_text", "web_select", "request_confirmation", "hand_to_user", "ask_user"]
 
     public var action: String {
         switch self {
@@ -57,6 +61,8 @@ public enum ChatWebCommand: Equatable, Sendable {
         case .typeText: return "web_type_text"
         case .select: return "web_select"
         case .requestConfirmation: return "request_confirmation"
+        case .handToUser: return "hand_to_user"
+        case .askUser: return "ask_user"
         }
     }
 
@@ -157,6 +163,20 @@ public enum ChatWebCommand: Equatable, Sendable {
             return .requestConfirmation(kind: kind, target: try checked(envelope.target, max: 200),
                                         content: try envelope.content.map { try checked($0, max: 2_000) },
                                         amount: try envelope.amount.map { try checked($0, max: 60) })
+        case "hand_to_user":
+            try only(["reason", "message", "item", "amount", "address"], requiring: ["reason", "message"])
+            guard let reason = ChatWebHandover.Reason(rawValue: envelope.reason ?? "") else { throw ChatWebCommandError.invalidCommand }
+            return .handToUser(ChatWebHandover(reason: reason, message: try checked(envelope.message, max: 500),
+                                               item: try envelope.item.map { try checked($0, max: 200) },
+                                               amount: try envelope.amount.map { try checked($0, max: 60) },
+                                               address: try envelope.address.map { try checked($0, max: 300) }))
+        case "ask_user":
+            try only(["prompt", "options"], requiring: ["prompt"])
+            let options = try (envelope.options ?? []).map { try checked($0, max: 120) }
+            guard options.isEmpty || (2...8).contains(options.count), Set(options).count == options.count else {
+                throw ChatWebCommandError.invalidCommand
+            }
+            return .askUser(prompt: try checked(envelope.prompt, max: 500), options: options)
         default:
             throw ChatWebCommandError.invalidCommand
         }
@@ -196,6 +216,34 @@ public enum ChatWebCommand: Equatable, Sendable {
         let target: String?
         let content: String?
         let amount: String?
+        let message: String?
+        let item: String?
+        let address: String?
+        let prompt: String?
+        let options: [String]?
+    }
+}
+
+/// What the user is asked to do on the task's page (Android hand_to_user).
+public struct ChatWebHandover: Equatable, Sendable {
+    public enum Reason: String, Equatable, Sendable { case login, captcha, accessBlocked = "access_blocked", payment, decision, other }
+    public enum Outcome: String, Equatable, Sendable {
+        /// 處理好了: the task goes on and checks the page first.
+        case handedBack = "handed_back"
+        /// 我自己做完了: the task only reads the result.
+        case finishedByUser = "user_finished"
+        /// 跳過
+        case skipped
+        /// Nobody answered in 15 minutes.
+        case noAnswer = "no_answer"
+    }
+    public let reason: Reason
+    public let message: String
+    public let item: String?
+    public let amount: String?
+    public let address: String?
+    public init(reason: Reason, message: String, item: String? = nil, amount: String? = nil, address: String? = nil) {
+        self.reason = reason; self.message = message; self.item = item; self.amount = amount; self.address = address
     }
 }
 
@@ -330,7 +378,7 @@ public struct ChatWebActResult: Equatable, Sendable {
 
 /// One line in the task card and in 「檢視過程」. No page text is kept.
 public struct ChatWebStep: Identifiable, Equatable, Sendable {
-    public enum Kind: String, Equatable, Sendable { case open, read, find, scroll, back, wait, observe, tap, type, select, confirm }
+    public enum Kind: String, Equatable, Sendable { case open, read, find, scroll, back, wait, observe, tap, type, select, confirm, handover, ask }
     public let id: Int
     public let kind: Kind
     public let site: String
@@ -370,8 +418,10 @@ public enum ChatWebActivity: Equatable, Sendable {
     /// Like a person who finishes a page before turning it (Android PagePacing).
     case pacing(site: String)
     case acting(site: String)
-    /// A step that spends money waits for 允許這一次 or 拒絕.
+    /// A step that spends money, a hand-over or a question waits for the user.
     case waitingForYou
+    /// After 停止: the model writes what was done (Android StopSummary).
+    case summarizing
 }
 
 /// Used on the main actor; `error` is the immutable model error of a failed task.
@@ -393,6 +443,15 @@ public struct ChatWebTaskResult: @unchecked Sendable {
     public let pagesRead: [ChatWebSource]
     public let steps: [ChatWebStep]
     public let modelCalls: Int
+    /// After 停止, the model's short account of what was done, if it came in time.
+    public var stopSummary: String?
+
+    public init(status: Status, answer: String?, reason: String?, stop: Stop?, error: Error?, sources: [ChatWebSource],
+                pagesRead: [ChatWebSource], steps: [ChatWebStep], modelCalls: Int, stopSummary: String? = nil) {
+        self.status = status; self.answer = answer; self.reason = reason; self.stop = stop; self.error = error
+        self.sources = sources; self.pagesRead = pagesRead; self.steps = steps; self.modelCalls = modelCalls
+        self.stopSummary = stopSummary
+    }
 }
 
 /// Pages the model can read in one go and the links it can open by number.

@@ -62,6 +62,7 @@ final class ChatWebTaskUITests: XCTestCase {
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 30))
         XCTAssertTrue(answer.label.hasPrefix("已停止。"), answer.label)
+        XCTAssertTrue(answer.label.contains("FIXTURE_STOP_SUMMARY"), "The model's short account follows 已停止。")
         XCTAssertTrue(answer.label.contains("已讀的頁面"))
         XCTAssertTrue(app.buttons["chat.send"].exists)
     }
@@ -94,6 +95,39 @@ final class ChatWebTaskUITests: XCTestCase {
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 60))
         XCTAssertTrue(answer.label.contains("WEB_TASK_ORDER_REFUSED"), answer.label)
+    }
+
+    /// 我來處理 gives the page to the user with 渥屋助理在等你：登入; 處理好了
+    /// hands it back and the task goes on.
+    func testSignInIsHandedToTheUserAndBack() {
+        launch()
+        typeDraft("[fixture:web-login]")
+        tapSend()
+        let takeOver = app.buttons["chat.web.takeOver"]
+        XCTAssertTrue(takeOver.waitForExistence(timeout: 60))
+        XCTAssertTrue(app.staticTexts["chat.web.handover.title"].firstMatch.label.contains("登入"))
+        takeOver.tap()
+        let waiting = app.staticTexts["chat.web.waitingOnYou"].firstMatch
+        XCTAssertTrue(waiting.waitForExistence(timeout: 10))
+        XCTAssertEqual(waiting.label, "渥屋助理在等你：登入")
+        app.buttons["chat.web.expanded.handBack"].tap()
+        let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 60))
+        XCTAssertTrue(answer.label.contains("WEB_TASK_LOGIN_DONE"), answer.label)
+    }
+
+    /// 需要你回答: a choice goes back to the task.
+    func testQuestionChoiceReachesTheTask() {
+        launch()
+        typeDraft("[fixture:web-ask]")
+        tapSend()
+        let option = app.buttons["chat.web.question.option.1"]
+        XCTAssertTrue(option.waitForExistence(timeout: 60))
+        XCTAssertEqual(app.staticTexts["chat.web.question.prompt"].firstMatch.label, "要找哪個城市的職缺？")
+        option.tap()
+        let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 60))
+        XCTAssertTrue(answer.label.hasPrefix("WEB_TASK_ASK_DONE：台中"), answer.label)
     }
 
     private func launch() {
