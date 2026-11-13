@@ -53,7 +53,7 @@ UI_SHARDS = {
     "ui-profile": ["UserProfileUITests", "UserProfileToolUITests"],
     "ui-memory-tools": ["MemoryToolUITests"],
     "ui-skills": ["SkillCatalogUITests", "SkillAuthoringUITests", "TranscriptUITests"],
-    "ui-documents": ["SkillExecutionUITests", "SkillWorkerSettingsUITests", "SkillPDFAssemblyMultiFileUITests", "ChatAttachmentUITests"],
+    "ui-documents": ["SkillExecutionUITests", "SkillPDFAssemblyMultiFileUITests", "ChatAttachmentUITests"],
     "ui-pdf-capability": ["SkillPDFCapabilityUITests"],
     "ui-download-pdf": ["BrowserDownloadedPDFUITests"],
     "ui-mcp": ["MCPConversationUITests", "MCPLearningUITests"],
@@ -85,7 +85,6 @@ DOCUMENT_SCOPES = {
         "WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyAssemblyReviewsReversedPagesAndExportCancellationPreservesResult",
         "WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testUserChosenCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages",
         "WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testDirectoryCoordinatedFixtureCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages",
-        "WoowAssistantUITests/SkillWorkerSettingsUITests/testDedicatedWorkerSettingsPersistWithoutSelectingOrReadingAFile",
     ],
     "documents-chat": [
         "WoowAssistantUITests/ChatAttachmentUITests/testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard",

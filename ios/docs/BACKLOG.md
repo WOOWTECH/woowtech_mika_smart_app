@@ -33,9 +33,9 @@
 - [ ] OAuth PKCE, explicit session reinitialization UI and other required transport modes.
 - [ ] Authorized real-device HA control tests (target and allowed actions pending).
 - [x] Complete pinned Mika bundled-source catalog with hashes/licenses and separately reviewed iOS text adaptations.
-- [x] Capability dependency inventory, per-step PDF grants, native PDFKit and pinned original PDF-worker protocol/tests.
+- [x] Capability dependency inventory, per-step PDF grants and native PDFKit. The pinned original PDF-worker protocol, its 腳本服務 settings and tests were removed on 2026-11-13 to match the Play build.
 - [x] Manual skill-authoring bridge with original-request/read-version/review binding and atomic encrypted persistence; native UI acceptance tracked per revision.
-- [x] Build and execute the pinned original PDF worker in actual isolated GitHub Ubuntu containers; verify effective restrictions and exact results. No endpoint deployed.
+- [x] Build and execute the pinned original PDF worker in actual isolated GitHub Ubuntu containers; verify effective restrictions and exact results. No endpoint deployed. The container and its workflow were removed on 2026-11-13 with the worker.
 - [x] Model-autonomous skill search/read and reviewed-save integration; real-model App flow passed at `6d480d8` (VERIFICATION).
 - [x] Configurable App appearance, chosen by the user in Settings › 語言與外觀. The model list/set flow and its permission were removed on 2026-11-13 to match the Play build.
 - [x] Original content-transcribe guidance over approved text/subtitle files and browser text snapshots; core HTTP checks pass, native/live acceptance pending by revision.

@@ -63,13 +63,9 @@ public struct DocumentTextSnapshot: Sendable, Identifiable {
               !filename.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
               result.pageCount > 0, validDocumentDigest(result.inputSHA256),
               let entry = catalog.entry(id: "documents"),
-              let script = entry.assets.first(where: { $0.path.hasSuffix("/scripts/extract_pdf.py") }) else {
+              // PDFKit is the only PDF path; the original script never runs.
+              result.engine == "Apple PDFKit", result.originalScriptSHA256 == nil else {
             throw DocumentQueryError.invalidSource
-        }
-        switch (result.engine, result.originalScriptSHA256) {
-        case ("Apple PDFKit", nil): break
-        case ("Mika extract_pdf.py / pypdf", let actual?) where actual == script.sha256: break
-        default: throw DocumentQueryError.invalidSource
         }
         guard !result.pages.isEmpty else { throw DocumentQueryError.emptySource }
         guard result.pages.count <= SkillExecutionLimits.pages else { throw DocumentQueryError.sourceTooLarge }

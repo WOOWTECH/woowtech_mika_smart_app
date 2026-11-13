@@ -15,9 +15,5 @@ final class BrowserDownloadedPDFIntegrationTests: XCTestCase {
         let count = try await BrowserDownloadedPDFAppChecks.deletionAndHeldRead()
         XCTAssertGreaterThan(count, 6)
     }
-    @MainActor func testExplicitWorkerApprovalAndLateReplyRevocation() async throws {
-        let count = try await BrowserDownloadedPDFAppChecks.lateWorkerAndDisclosure()
-        XCTAssertGreaterThan(count, 6)
-    }
 }
 #endif

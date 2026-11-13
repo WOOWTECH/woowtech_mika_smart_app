@@ -26,8 +26,8 @@ final class SkillCatalogUITests: XCTestCase {
         tap("catalog.entry.documents", scroll: true)
         revealLearningElement(app.staticTexts["catalog.requirement.python"], in: app)
         let pythonRequirement = app.staticTexts["catalog.requirement.python"].label
-        XCTAssertTrue(pythonRequirement.contains("原始 PDF 腳本需另行設定服務"), pythonRequirement)
-        XCTAssertTrue(pythonRequirement.contains("本機不執行 Python"), pythonRequirement)
+        XCTAssertTrue(pythonRequirement.contains("原始 PDF 腳本不執行"), pythonRequirement)
+        XCTAssertTrue(pythonRequirement.contains("裝置上的 PDFKit"), pythonRequirement)
         let readiness = app.staticTexts["catalog.readiness"].label
         XCTAssertTrue(readiness.contains("可選取 PDF 擷取文字"), readiness)
         XCTAssertTrue(readiness.contains("未完整支援"), readiness)

@@ -36,9 +36,8 @@ for path in (ROOT/'Sources/App/Resources').rglob('*'):
 owned=['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','AppModelSettingsText']
 foundation=[capture(ROOT/'Sources/App'/f'{name}.swift') for name in owned]
 apps=[capture(ROOT/'Sources/App'/f'{name}.swift') for name in APP_SOURCES if name not in owned]
-apps += [capture(ROOT/'Sources/App/SkillWorkerSettings.swift')]
 model_settings=capture(ROOT/'Sources/App/ModelSettings.swift')
-views=[capture(ROOT/'Sources/App/MikaLanguageAppearanceView.swift'),capture(ROOT/'Sources/App/AppLanguageEnvironment.swift'),capture(ROOT/'Sources/App/SkillWorkerSettingsView.swift')]
+views=[capture(ROOT/'Sources/App/MikaLanguageAppearanceView.swift'),capture(ROOT/'Sources/App/AppLanguageEnvironment.swift')]
 harness=[capture(ROOT/'scripts'/name) for name in ['CheckAppLanguage.swift','CheckAppLanguageResources.swift']]
 for name,deps in MODULES:
     paths=[capture(p) for p in sorted((ROOT/'Sources'/name).glob('*.swift'))]

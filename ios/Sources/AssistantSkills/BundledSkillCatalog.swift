@@ -23,7 +23,7 @@ public enum SkillCatalogRequirement: String, Codable, Sendable, CaseIterable {
         case .androidControl: return "Android／其他 App 操作：不在 iOS 範圍"
         case .legacyWebTools: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
         case .workspaceFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"
-        case .python: return "原始 PDF 腳本需另行設定服務；本機不執行 Python"
+        case .python: return "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理"
         case .shell: return "Shell／桌面命令執行：未提供"
         case .fileExport: return "原版檔案產生與分享工具：未提供"
         case .crossOriginResearch: return "原版跨網站自動研究：未提供"

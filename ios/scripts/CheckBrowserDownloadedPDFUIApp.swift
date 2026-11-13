@@ -90,7 +90,7 @@ import AppKit
         let selection = try BrowserDownloadedPDFSelection(manager: workspace.downloads, userSelectedID: item.id)
         let model = SkillExecutionViewModel(downloadedPDF: selection); defer { model.clear() }
         try c.check(model.downloadUIAudit?.reads == 0 && model.uiTestFixture == nil && model.uiTestAudit == nil, "download audit is not picker audit")
-        model.prepareDownload(pages: "", password: "", metadataOnly: false, worker: nil)
+        model.prepareDownload(pages: "", password: "", metadataOnly: false)
         guard let plan = model.plan else { throw Failure(check: "actual downloaded plan") }
         try c.check(model.result == nil && model.downloadUIAudit?.reads == 0, "plan grants no read")
         model.execute(stepID: plan.steps[0].id)
@@ -127,8 +127,7 @@ import AppKit
                 let groups: [String: Int] = ["actualBrowserFixture": try await fixtureFlow(),
                     "realDownloadAndApprovals": try await BrowserDownloadedPDFAppChecks.realDownloadAndApprovals(),
                     "invalidSourcesAndLimits": try await BrowserDownloadedPDFAppChecks.invalidSourcesAndLimits(),
-                    "deletionAndHeldRead": try await BrowserDownloadedPDFAppChecks.deletionAndHeldRead(),
-                    "lateWorkerAndDisclosure": try await BrowserDownloadedPDFAppChecks.lateWorkerAndDisclosure()]
+                    "deletionAndHeldRead": try await BrowserDownloadedPDFAppChecks.deletionAndHeldRead()]
                 print(String(decoding: try JSONSerialization.data(withJSONObject: ["groups": groups,"passed":groups.values.reduce(0,+),"failed":0,"native_ui":false,"external_or_model_requests":0],options:.sortedKeys),as:UTF8.self));exit(0)
             } catch { print("FAIL " + ((error as? Failure)?.check ?? (error as? BrowserDownloadedPDFAppChecks.Failure)?.check ?? "fixture flow"));exit(1) }
         }

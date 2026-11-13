@@ -97,7 +97,7 @@ Local core: `python3 scripts/check_pdf_assembly.py` executes 284 assertions, inc
 
 ## Integration contract
 
-The App presents `SkillExecutionView(modelAccess:modelChanges:worker:)` from both the Skills page and the `documents` catalog detail inside the existing NavigationStack. This view owns its file importer, options, review, per-step authorization, cancellation and text results. Extraction defaults to native PDFKit and does not require a model, MCP connection or API key; only the separate optional query uses model access. An optional configured worker shows an explicit worker toggle and conforms to `SkillExecutionPDFWorker`. Do not label all six skills executable on account of this entry point.
+The App presents `SkillExecutionView(learning:modelAccess:modelChanges:)` from both the Skills page and the `documents` catalog detail inside the existing NavigationStack. This view owns its file importer, options, review, per-step authorization, cancellation and text results. Extraction always uses native PDFKit and does not require a model, MCP connection or API key; only the separate optional query uses model access. The optional original-script worker and its 腳本服務 settings were removed on 2026-11-13 to match the Play build. Do not label the bundled skills executable on account of this entry point.
 
 The callable core lives in `Sources/AssistantSkills/SkillExecution*.swift`:
 
@@ -119,11 +119,11 @@ let result = try await runtime.execute(approval)
 // await runtime.cancel() invalidates remaining grants and drops the snapshot.
 ```
 
-`SkillExecutionRuntime` has two separately approved steps: read one selected file into an immutable bounded snapshot; then extract locally OR upload that snapshot to the configured original-script worker. It never silently falls back from native to remote. Each grant is opaque, in-memory, bound to the exact runtime/plan/step, expires after 120 seconds, and is consumed before attempting an effect. Failed attempts require a new grant. Changed inputs require a new runtime. Cancellation discards late results; it cannot recall data already sent to a worker. The host must also cancel its executing `Task` to terminate its network wait; the supplied view does both.
+`SkillExecutionRuntime` has two separately approved steps: read one selected file into an immutable bounded snapshot; then extract it on the device with PDFKit. Nothing is uploaded. Each grant is opaque, in-memory, bound to the exact runtime/plan/step, expires after 120 seconds, and is consumed before attempting an effect. Failed attempts require a new grant. Changed inputs require a new runtime. Cancellation discards late results; the supplied view also cancels its executing `Task`.
 
 Plans and grants have no public deserialization path. Plan fingerprints cover selection identity, filename, options (password presence only), destination, capability availability, disclosures, step IDs, source paths/revision/hashes. Runtime IDs prevent a grant from one plan being replayed in another. `authorize` is a **trusted UI/orchestrator boundary**, not a model tool. Do not expose it or `SkillExecutionSelectedFile(userSelectedURL:)` to model-supplied URLs or text. Import approval, active/trial status, reference prose and original instructions do not grant execution permission.
 
-`SkillExecutionDependencies.reports(catalog:)` returns all five reviewed dependency reports with source hashes. `hostIntegrationRequired` identifies an existing lower-level path, not a registered or executable runtime operation. Availability for PDF worker execution means an adapter is configured, not that a health probe or deployment has succeeded.
+`SkillExecutionDependencies.reports(catalog:)` returns all five reviewed dependency reports with source hashes. `hostIntegrationRequired` identifies an existing lower-level path, not a registered or executable runtime operation.
 
 ## Pinned original evidence
 
@@ -141,23 +141,23 @@ Repository: <https://github.com/wangzan101/Mika>, revision `0c172724f3f0c96f7345
 | `messaging/SKILL.md` | `030ef07f6708cea769889a039ee7fcaf8ec3d036032692b83006dc84d99886c9` |
 | `skill-authoring/SKILL.md` | `2ca1e847565726ec25b55908e3ecd00d1750664638f8c327d699234ecea37a42` |
 
-The existing catalog verifies its whole resource and individual document hashes. Execution builds provenance from that verified catalog. `scripts/skill-worker/vendor/` contains byte-identical original script/manifest plus upstream LICENSE and NOTICE. Worker startup verifies the script and manifest hashes; it never downloads executable source at runtime.
+The existing catalog verifies its whole resource and individual document hashes. Execution builds provenance from that verified catalog. The original script and manifest stay in that catalog as inert text; nothing runs them.
 
 | Original skill / actual dependency | Existing iOS mapping and this increment's boundary |
 | --- | --- |
 | configure-mika: `settings_list`, `settings_set` | Not bundled and not mapped (owner decision 2026-11-13, matching the Play build). No model tool can list or change App settings; the appearance is chosen only in Settings › 語言與外觀. |
 | content-transcribe: `web_read_page`, `read_file` in `/workspace/inbox/`, format reference | The separate TranscriptRuntime now consumes an explicitly approved native UTF-8 file or rendered-text webpage snapshot, with bounded chunked reads, five output formats and exact source citations. The complete original format reference is retained. Actual-model formatting and native picker acceptance are recorded per revision, including preserved failures, in CONTENT_TRANSCRIBE.md and VERIFICATION.md. No speech-to-text upstream or here. |
 | documents: `web_navigate`, `web_downloads`, `/workspace/inbox`, `/workspace/downloads` | Existing browser navigation/download work is separate. This runtime accepts only a selected PDF, never a workspace path or directory enumeration. A browser-download owner may offer its file through an explicit user selection flow. |
-| documents: `run_bundled_script`, `source=skills/documents`, `scripts/extract_pdf.py` | Native PDFKit actual text/selected pages/metadata/unlock path; separately opt-in original Python worker. Native results identify PDFKit and never carry a claim of having run Python. |
+| documents: `run_bundled_script`, `source=skills/documents`, `scripts/extract_pdf.py` | Native PDFKit actual text/selected pages/metadata/unlock path, the only PDF path: the opt-in original Python worker was removed on 2026-11-13 to match the Play build. Results identify PDFKit and never carry a claim of having run Python. |
 | documents: `--out`, `read_file`, `search_files`, `share_file` | Query runner reads/searches only one completed approved PDF text snapshot, with actual-read citations and original page numbers. Native fileExporter delivers extracted text or the completed answer to a user-selected destination. The complete real-model query, citation and export-cancellation UI case passed 1/1 on iOS 18.5 at `ae381fc`; exact iOS 17 acceptance is separate. No arbitrary workspace, automatic external send or model-selected destination. |
 | documents: `run_command` + pypdf split/merge/extract pages | Native PDFKit adapter supports reviewed static-page extraction/reordering/merging and explicit output export. Arbitrary shell/Python is not available locally; this is not generic pypdf execution. OCR is absent upstream and here. |
 | info-research: `web_navigate` search pages, `web_read_page`, Android app search, independent sources and dates | Same-origin research, search-engine source discovery with manual selection, and separately approved 2–3-root multi-source research are implemented. Actual observations and exact citations are checked; selecting search results does not start research. Model-autonomous query reformulation and blanket publisher-independence claims remain unavailable. Native-App search is outside the agreed scope. Latest native/live acceptance is revision-specific. |
 | messaging: open account/thread, inspect recipient/body, send and verify | Existing `MCPSession.conversationConnection()` and `MCPConversationRunner` support discovery/selected tools/per-call approval. No messaging tool/account is assumed; this runtime does not register a send capability. Original prose saying not to ask again cannot grant authorization. |
 | skill-authoring: `skill_search`, `skill_read`, `ask_user`, `skill_save(markdown, quote, version)` | Manual and model-driven App flows use `SkillAuthoringBridge` plus `SkillToolSession` for actual search/read/clarification/prepare, followed by full user review and an atomic encrypted commit through LearningStore. Existing reads, exact request text, current generation and capabilities are checked before storing a trial skill. The model cannot approve or commit its own proposal. Real-model acceptance at `6d480d8` passed 1/1; this approval grants no tool-execution permission. |
 
-The only original executable asset among the six skills is `extract_pdf.py`. Its manifest is exactly `[{"file":"scripts/extract_pdf.py","runnable":true,"needs":["apk:py3-pypdf"]}]` (whitespace omitted here). It imports Python stdlib `argparse`, `json`, `logging`, `os`, `sys`, and dynamically imports `pypdf.PdfReader` and `pypdf.errors.PdfReadError`. Upstream does **not** pin a Python or pypdf version. The local worker validation environment pins `pypdf==6.21.4`; Python <3.11 additionally needs `typing_extensions==4.16.0`, both wheel hashes locked in requirements. Optional AES crypto and newer PDF filter/font extras are not installed; PDFs requiring them can fail. This is an explicit worker environment choice, not original runtime parity. [pypdf package requirements](https://pypi.org/project/pypdf/6.21.4/)
+The only original executable asset among the six skills is `extract_pdf.py`. Its manifest is exactly `[{"file":"scripts/extract_pdf.py","runnable":true,"needs":["apk:py3-pypdf"]}]` (whitespace omitted here). It imports Python stdlib `argparse`, `json`, `logging`, `os`, `sys`, and dynamically imports `pypdf.PdfReader` and `pypdf.errors.PdfReadError`. Upstream does **not** pin a Python or pypdf version. iOS does not run it; PDFKit replaces it.
 
-Original arguments: input path, `--pages` (1-based ranges preserving order/duplicates), `--metadata`, `--out`, `--password`. Original exit 2 means failure; exit 3 means all selected pages have no extractable text. The wrapper accepts only bytes plus pages/metadata/password; it invokes the original in a subprocess, passing a fixed `input.pdf` filename. It runs original metadata first, then each requested page separately, preserving original output while preventing page-marker text inside a PDF from spoofing page boundaries. Empty-page exit 3 becomes an explicit empty-pages result. Original `--out` is not exposed over the protocol; there is no arbitrary filesystem write option.
+Original arguments: input path, `--pages` (1-based ranges preserving order/duplicates), `--metadata`, `--out`, `--password`. Original exit 2 means failure; exit 3 means all selected pages have no extractable text. The native path keeps the same page selection rules and reports empty pages explicitly; there is no arbitrary filesystem write option.
 
 ## Native PDF behavior
 
@@ -167,27 +167,16 @@ Maximum file size is 10 MiB, maximum selected page count 200, text/metadata outp
 
 Apple behavior consulted: [fileImporter security-scoped access](https://developer.apple.com/documentation/swiftui/view/fileimporter(ispresented:allowedcontenttypes:oncompletion:)), [balanced URL access](https://developer.apple.com/documentation/foundation/url/startaccessingsecurityscopedresource()), [PDFDocument from Data](https://developer.apple.com/documentation/pdfkit/pdfdocument/init(data:)), [PDFPage text](https://developer.apple.com/documentation/pdfkit/pdfpage/string), [password unlock](https://developer.apple.com/documentation/pdfkit/pdfdocument/unlock(withpassword:)), and [PDF write options for encrypted test fixtures](https://developer.apple.com/documentation/pdfkit/pdfdocumentwriteoption).
 
-## Optional worker protocol and deployment boundary
+## Removed: original-script worker
 
-`worker.py` accepts one JSON object on stdin and emits one JSON response. `--listen-loopback 0` runs the development HTTP harness on an OS-selected port, only at `127.0.0.1`; POST path is `/v1/extract-pdf`. It rejects browser `Origin` requests, unexpected Host names, arbitrary paths/arguments, oversized requests, changed source hashes, invalid input hash and unknown fields. This loopback HTTP server is a test tool, **not** a production internet service.
-
-Request keys are `version:1`, `requestID`, `operation:"extract_pdf"`, pinned `revision`, `scriptSHA256`, `inputSHA256`, `pdfBase64`, `metadataOnly:Bool`, optional `pages`, optional `password`. Response echoes the bounded protocol IDs/hashes and contains `pageCount`, `pages:[{number,text}]`, `metadata:[String:String]`, `emptyPages`, or a fixed `error` category. PDF errors/stderr, passwords and local paths are not returned. Worker source/output hashes are integrity checks for the reviewed protocol, not cryptographic attestation of an untrusted remote operator.
-
-`SkillExecutionHTTPWorker(endpoint:authorizationBearer:)` accepts HTTPS with no embedded credentials/query/fragment. Its only HTTP exception is explicitly enabled loopback testing. It uses ephemeral URLSession, no shared cookies/cache/credentials, denies redirects, enforces response size and timeout, and checks request ID/revision/script/input hashes and exact page sequence. Its optional bearer is bounded and rejected if it contains whitespace, control characters or non-ASCII text; it is never included in the plan destination. The runtime also validates custom worker results.
-
-The PDF screen's script-service toolbar opens a dedicated endpoint/Keychain configuration. It stores only a credential identifier in separate defaults and never inherits the chat model key. Changing host/port requires a new credential. Saving settings makes no request. Native PDFKit remains the default on each new PDF screen; choosing the remote service still requires separate read/upload approvals for the selected snapshot. No default endpoint or deployed service is supplied. Local validation covers real defaults persistence and rejection (44 checks), and all 12 original-worker tests including an authenticated Swift request, absent/wrong bearer rejection and a server-observed zero redirect-target count. These loopback tests do not establish production TLS, gateway isolation or deployed connectivity. Native UI acceptance is tracked separately.
-
-Local host mode launches a fresh `python -I` process with a private temporary directory, fixed original source, sanitized environment, no shell, CPU/file limits, timeout and cleanup. Linux also applies an address-space limit. **A host subprocess is not an OS filesystem/network sandbox.** The Dockerfile pins the official Python 3.12.16 slim image by verified index and linux/amd64 manifest digests. Docker is unavailable on the local Mac, but the actual image was built and exercised on GitHub Ubuntu in [run 42770104969](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42770104969), source `2d67d87`. All 16 containers, 12 unchanged-worker-entrypoint requests and ten acceptance groups passed. The retained report checks effective non-root identity, zero capabilities, no-new-privileges, read-only root, 64 MiB writable tmpfs, loopback-only networking with external connection refusal, and cgroup limits of 768 MiB / zero swap / one CPU / 32 PIDs. Exact PDF results, encrypted input, invalid requests and source-tamper rejection passed; container source hashes match committed bytes. This is isolated-job acceptance, not a deployed remote service. For an isolated per-job stdin worker, an operator can review/build and run:
-
-```sh
-docker build -t woow-skill-pdf-worker scripts/skill-worker
-docker run --rm -i --network none --read-only --cap-drop ALL \
-  --security-opt no-new-privileges --pids-limit 32 --memory 768m --cpus 1 \
-  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
-  woow-skill-pdf-worker < request.json
-```
-
-The acceptance workflow runs this isolation policy with additional explicit no-swap and namespace checks; the standalone recipe is not executed by iOS and is not a deployed service. Before remote use, missing infrastructure is: an operator-controlled container/job host, a TLS/authenticated gateway that forwards only this bounded protocol to per-job isolated stdin workers, request/concurrency limits, secret management, retention/cleanup policy and connectivity/ATS validation. The container should keep egress disabled and mount no user/credential directories. No remote endpoint exists from this work; local HTTP does not prove production isolation, TLS/auth or availability.
+Owner decision (2026-11-13): iOS-only features go, to match the Play build. The
+optional original-script worker is gone: the 腳本服務 settings and their entry on
+the PDF screen, the Swift HTTP client, the runtime's upload step, the worker
+container (`scripts/skill-worker`) and its CI workflow. PDFKit on the device is the
+only PDF path. Settings saved by older builds (defaults suite
+`io.woowtech.assistant.skillworker.v1` and its Keychain item) are no longer read;
+clearing that Keychain item is handled separately. Earlier worker evidence stays
+in [VERIFICATION.md](VERIFICATION.md).
 
 ## Repeatable validation
 
@@ -206,16 +195,11 @@ revision-specific failures are retained in [VERIFICATION.md](VERIFICATION.md).
 On macOS CLT Swift 5.8, use the exact same assertions as the new XCTest file via its standalone mode:
 
 ```sh
-bash scripts/skill-worker/check_swift.sh
-python3 -m venv /tmp/woow-skill-worker-venv
-/tmp/woow-skill-worker-venv/bin/python -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
-SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
-  PYTHONDONTWRITEBYTECODE=1 /tmp/woow-skill-worker-venv/bin/python \
-  -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v
+bash scripts/check_skill_execution.sh
 ```
 
-The Swift checker covers real PDFKit text/metadata/page ranges/order/duplicates, empty text, actual encrypted PDF generation/unlock, malformed/oversized files, scope selection boundary, immutable byte snapshots, grant forgery/replay/wrong-plan/expiry, unavailable worker, per-step upload gating and cancellation races. The Python suite exercises actual pinned source in isolated processes, real stdio/HTTP, text/metadata/ranges/empty-page behavior, password handling, schema/source/hash failures, fixed args/paths, and Swift URLSession to real original script. The Swift HTTP test also rejects invalid provenance, wrong page order, redirects and oversized responses. The Python Swift-integration case deliberately skips unless `SKILL_EXECUTION_TEST_BINARY` is set; a skipped run must not be reported as full integration evidence.
+The Swift checker covers real PDFKit text/metadata/page ranges/order/duplicates, empty text, actual encrypted PDF generation/unlock, malformed/oversized files, scope selection boundary, immutable byte snapshots, grant forgery/replay/wrong-plan/expiry and cancellation.
 
-Local evidence: Swift core typecheck and standalone PDFKit tests passed; Python tests including actual Swift-to-worker path passed with no skips. `swift build --target AssistantSkills` was attempted and failed before compilation because this CLT installation lacks Xcode SDK `PlatformPath`. Full SwiftPM/XCTest/iOS compilation and file-provider UI behavior require the parent's authorized Xcode CI. SwiftUI file syntax parsing is not an iOS build. The integrated parent workflow now exercises the actual native Files picker; results must be read from that run, not attributed to earlier CI runs.
+Local evidence: Swift core typecheck and standalone PDFKit tests passed. `swift build --target AssistantSkills` was attempted and failed before compilation because this CLT installation lacks Xcode SDK `PlatformPath`. Full SwiftPM/XCTest/iOS compilation and file-provider UI behavior require the parent's authorized Xcode CI. SwiftUI file syntax parsing is not an iOS build. The integrated parent workflow now exercises the actual native Files picker; results must be read from that run, not attributed to earlier CI runs.
 
 The completed native result can be exported as bounded UTF-8 plain text through the system destination picker. Its immutable FileDocument is separate from the execution runtime; cancellation keeps the extraction result, and a late callback cannot update a replaced plan. Export serialization is tested with actual file write/readback; native picker save/cancel acceptance is recorded per simulator run.
