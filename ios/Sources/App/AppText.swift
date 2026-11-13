@@ -114,6 +114,7 @@ enum AppText: Equatable {
     case mcpApprovalTitle
     case mcpDecline
     case mcpApprove
+    case mcpReadResource
     case mcpToolError
     case mcpToolResult
     case mcpResultsTitle
@@ -620,6 +621,7 @@ enum AppText: Equatable {
         case .mcpApprovalTitle: return "mcp.approval.title"
         case .mcpDecline: return "mcp.decline"
         case .mcpApprove: return "mcp.approve"
+        case .mcpReadResource: return "mcp.read.resource"
         case .mcpToolError: return "mcp.tool.error"
         case .mcpToolResult: return "mcp.tool.result"
         case .mcpResultsTitle: return "mcp.results.title"
@@ -1165,6 +1167,7 @@ enum AppText: Equatable {
         case .mcpApprovalTitle: return "核准 MCP 呼叫"
         case .mcpDecline: return "拒絕並停止"
         case .mcpApprove: return "核准這一次"
+        case .mcpReadResource: return "讀取 MCP 資源"
         case .mcpToolError: return "工具回報錯誤"
         case .mcpToolResult: return "已收到工具結果"
         case .mcpResultsTitle: return "本次 MCP 工具結果"

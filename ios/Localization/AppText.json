@@ -1123,6 +1123,16 @@
       }
     },
     {
+      "case": "mcpReadResource",
+      "key": "mcp.read.resource",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "讀取 MCP 資源",
+        "zh-Hans": "读取 MCP 资源",
+        "en": "Read MCP resource"
+      }
+    },
+    {
       "case": "mcpToolError",
       "key": "mcp.tool.error",
       "parameters": [],

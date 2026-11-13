@@ -60,13 +60,16 @@ actor UITestMCPFixture: MCPDiscovering {
         holdLease = UITestMCPLeaseControl.enabled(arguments: arguments)
     }
     func initialize() async throws -> MCPServerInfo {
-        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools"])
+        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools", "resources"])
     }
     func listTools() async throws -> [MCPTool] {
         [MCPTool(name: "fixture_echo", inputSchema: .object([
             "type": .string("object"), "properties": .object(["text": .object(["type": .string("string")])]),
             "required": .array([.string("text")]), "additionalProperties": .bool(false)
         ]))]
+    }
+    func listResources() async throws -> [MCPResource] {
+        [MCPResource(uri: "fixture://guide", name: "Fixture guide", mimeType: "text/plain")]
     }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         try Task.checkCancellation()
@@ -81,7 +84,13 @@ actor UITestMCPFixture: MCPDiscovering {
                 "text": .string("FIXTURE_CALL_\(count): \(text)")])])
         ])
     }
-    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue {
+        guard uri == "fixture://guide" else { throw MCPError.invalidRequest }
+        try Task.checkCancellation()
+        return .object(["contents": .array([.object([
+            "uri": .string(uri), "mimeType": .string("text/plain"), "text": .string("FIXTURE_RESOURCE_OK")
+        ])])])
+    }
     func cancel() async {}
 }
 #endif

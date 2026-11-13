@@ -114,6 +114,20 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["chat.mcpActivity"].label.contains("1"))
     }
 
+    /// Like the Play build, discovered resources are offered without a picker;
+    /// each read still needs its own approval.
+    func testDiscoveredResourceRequiresApprovalAndResultIsReviewable() {
+        send("[fixture:mcp-resource]")
+        XCTAssertTrue(app.staticTexts["mcp.approval.name"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["mcp.approval.name"].label, "讀取 MCP 資源")
+        XCTAssertTrue(app.staticTexts["mcp.approval.arguments"].label.contains("fixture://guide"))
+        app.buttons["mcp.approval.approve"].tap()
+        assertAnswer("FIXTURE_RESOURCE_OK")
+        app.buttons["chat.mcpResults"].tap()
+        XCTAssertTrue(app.staticTexts["mcp.result.0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["mcp.result.0"].label.contains("FIXTURE_RESOURCE_OK"))
+    }
+
     func testRefusalPreservesDraftAndMakesNoServerCall() {
         let prompt = "[fixture:mcp] hello"
         send(prompt)

@@ -93,6 +93,7 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         let gate = DispatchSemaphore(value: 0)
         defer { gate.signal() }
         let toolName = "原始工具_mcpTitle_%@"
+        let resourceName = "Original resource / 未選取"
         let scenario = MCPProtocolFixture.Scenario { _, body, _ in
             if body["method"] == .string("initialize") {
                 guard gate.wait(timeout: .now() + 5) == .success else { throw Failure(check: "bounded MCP gate") }
@@ -103,6 +104,9 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
             if body["method"] == .string("notifications/initialized") { return .init(status: 202) }
             if body["method"] == .string("tools/list") {
                 return try .result(.object(["tools": .array([.object(["name": .string(toolName), "inputSchema": .object(["type": .string("object")])])])]), request: body)
+            }
+            if body["method"] == .string("resources/list") {
+                return try .result(.object(["resources": .array([.object(["name": .string(resourceName), "uri": .string("synthetic://selected")])])]), request: body)
             }
             throw Failure(check: "unexpected MCP execution")
         }
@@ -122,18 +126,19 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         gate.signal()
         try await wait { !session.isBusy }
         try check(session.phase == .connected && session.noticeText == .mcpDiscoveryNotice, "real MCP discovery completes")
-        try check(session.tools.first?.name == toolName, "catalog names stay verbatim")
+        try check(session.tools.first?.name == toolName && session.resources.first?.name == resourceName, "catalog names stay verbatim")
         session.selectTool(toolName, enabled: true)
         let connection = try session.conversationConnection()
+        // Like the Play build, the listed resource is offered without a picker.
+        try check(connection.2.map(\.uri) == ["synthetic://selected"], "discovered resource offered read-only")
         let selected = session.selectedToolNames
         let beforeInvalidations = invalidations
         try check(language.setFromUser(.simplifiedChinese), "language changes with existing tool selection")
         let after = try session.conversationConnection()
-        try check((connection.0 as AnyObject) === (after.0 as AnyObject) && session.selectedToolNames == selected,
-                  "same client and tool selection remain")
-        try check(invalidations == beforeInvalidations && scenario.records.count == 3, "no extra network requests or permission invalidation")
-        // The server declares resources too; like the Play build, they are not listed.
-        try check(scenario.records.map { $0.1["method"] } == [.string("initialize"), .string("notifications/initialized"), .string("tools/list")], "only handshake and the tool catalog, no tool calls or resource reads")
+        try check((connection.0 as AnyObject) === (after.0 as AnyObject) && session.selectedToolNames == selected
+                  && after.2.map(\.uri) == ["synthetic://selected"], "same client, tool selection and offered resource remain")
+        try check(invalidations == beforeInvalidations && scenario.records.count == 4, "no extra network requests or permission invalidation")
+        try check(scenario.records.map { $0.1["method"] } == [.string("initialize"), .string("notifications/initialized"), .string("tools/list"), .string("resources/list")], "only handshake and catalogs, no tools or resource reads")
         session.disconnect()
         try check(session.phase == .disconnected && !session.canUseInConversation && session.selectedToolNames.isEmpty,
                   "explicit disconnect still revokes all selections")
@@ -142,7 +147,7 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         let failed = MCPSession(repository: repository)
         try check(failed.phase == .failed && failed.errorText == .mcpKeychainStatus(code: "-25308"), "actual store failure maps to a closed message")
         try check(!english.text(failed.errorText!).contains(endpoint.absoluteString), "endpoint excluded from localized error")
-        print("{\"passed\":\(count),\"failed\":0,\"actual_mcp_urlsession_requests\":3,\"external_network_requests\":0,\"system_notification_center_access\":false,\"actual_UN_content\":true,\"native_ios_ui\":false}")
+        print("{\"passed\":\(count),\"failed\":0,\"actual_mcp_urlsession_requests\":4,\"external_network_requests\":0,\"system_notification_center_access\":false,\"actual_UN_content\":true,\"native_ios_ui\":false}")
     }
     @MainActor static func wait(_ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
