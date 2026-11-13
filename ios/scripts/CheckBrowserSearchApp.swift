@@ -47,8 +47,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         defer { try? FileManager.default.removeItem(at: root) }
         let keys = BrowserSearchKeys()
         let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: keys)
-        let workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault,
-            downloadDirectory: root.appendingPathComponent("Downloads"))
+        let workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault)
         let host = try BrowserSiteModesAppChecks.Host()
         defer { workspace.cancelAllWork(); host.close() }
         let browser = workspace.selected
@@ -185,7 +184,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         defer { languageDefaults.removePersistentDomain(forName: languageSuite) }
         let language = AppLanguageStore(defaults: languageDefaults, preferredLanguages: { ["zh-TW"] })
         let store = WKWebsiteDataStore.nonPersistent()
-        let workspace = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("Downloads"))
+        let workspace = BrowserWorkspace(dataStore: store, vault: vault())
         let browser = workspace.selected, probe = BrowserSiteModesAppChecks.Probe(workspace.selected)
         let host = try BrowserSiteModesAppChecks.Host()
         defer { workspace.cancelAllWork(); host.close() }
@@ -258,7 +257,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let ciphertext = try Data(contentsOf: file)
         try check(!String(decoding: ciphertext, as: UTF8.self).contains("Fixture Search")
                   && !String(decoding: ciphertext, as: UTF8.self).contains("research.example.invalid"), "engine template and search history encrypted")
-        let reopened = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("Downloads"))
+        let reopened = BrowserWorkspace(dataStore: store, vault: vault())
         defer { reopened.cancelAllWork() }
         try check(reopened.available && reopened.library == workspace.library, "encrypted restart preserves library and selected custom engine")
         try check(reopened.selected.manualSearchSettings().selected == engine && reopened.selected.address == url.absoluteString,
@@ -272,7 +271,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
                   "invalid template leaves workspace intact")
         workspace.newTab()
         try check(workspace.selected.manualSearchSettings().selected == engine, "new tabs use saved engine")
-        try check(workspace.library.tabs.count == 2 && workspace.downloads.items.isEmpty, "tabs/download state preserved")
+        try check(workspace.library.tabs.count == 2, "tabs preserved")
         try check(workspace.removeSearchEngine(engine.id), "delete selected custom")
         try check(workspace.library.searchSettings.selectedID == "google" && workspace.library.history.first?.url == url
                   && workspace.library.bookmarks.first?.url == url, "delete falls back without rewriting saved result URLs")
@@ -286,7 +285,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let legacyFile = EncryptedLearningFile(url: root.appendingPathComponent("legacy.vault"), keys: keys)
         _ = try legacyFile.load(LegacyJSON.self)
         try legacyFile.save(JSONDecoder().decode(LegacyJSON.self, from: legacyData))
-        let migrated = BrowserWorkspace(dataStore: .nonPersistent(), vault: legacyFile, downloadDirectory: root.appendingPathComponent("LegacyDownloads"))
+        let migrated = BrowserWorkspace(dataStore: .nonPersistent(), vault: legacyFile)
         defer { migrated.cancelAllWork() }
         try check(migrated.available && migrated.library.searchSettings.selectedID == "google", "actual encrypted legacy defaults Google")
         try check(migrated.library.tabs == beforeFailure.tabs && migrated.library.bookmarks == beforeFailure.bookmarks
@@ -294,7 +293,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
                   "encrypted migration preserves existing browser records")
         try check(migrated.selectSearchEngine("duckduckgo"), "migrated encrypted store can save new field")
         var damaged = try Data(contentsOf: file); damaged[damaged.count - 1] ^= 1; try damaged.write(to: file)
-        let corrupt = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault(), downloadDirectory: root.appendingPathComponent("CorruptDownloads"))
+        let corrupt = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault())
         try check(!corrupt.available && !corrupt.selectSearchEngine("google") && (try Data(contentsOf: file)) == damaged,
                   "corrupt vault unavailable and not overwritten")
         return ["assertions": count, "actual_webkit": true, "external_network_or_personal_keychain": false,

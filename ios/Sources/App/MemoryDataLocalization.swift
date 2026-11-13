@@ -24,7 +24,7 @@ enum MemoryDataKey: String, CaseIterable {
     case accept, reject, edit, unpin, pin, delete
     case kindAbout, kindPreferences, kindProcedures
     case emptySkills, skillsScope, mineSkills, importSkill, importHint, importSafety
-    case getSkills, catalog, pdfRead, agentWrite, transcript, builtInHelp, builtInTools
+    case getSkills
     case draftImported, draftPending, draftUpdate, changedLines
     case acceptTrial, editDraft, fullText, viewFullText, skillSuspended, skillTrial, skillEnabled
     case enableReference, share, restorePrevious
@@ -93,12 +93,6 @@ enum MemoryDataKey: String, CaseIterable {
         case .importHint: return ("貼上別人分享的技能全文", "Paste a shared skill's full text")
         case .importSafety: return ("貼上 SKILL.md；匯入後先進入待確認，不會立即啟用。", "Paste SKILL.md. Imported skills wait for review and are not enabled immediately.")
         case .getSkills: return ("取得技能", "Get skills")
-        case .catalog: return ("內建技能目錄（6）", "Built-in skill catalog (6)")
-        case .pdfRead: return ("選取 PDF 並擷取文字", "Select a PDF and extract text")
-        case .agentWrite: return ("請模型協助編寫技能", "Ask the model to draft a skill")
-        case .transcript: return ("整理文字稿與字幕", "Organize transcripts and subtitles")
-        case .builtInHelp: return ("閱讀完整原文與授權，或選取文件執行處理；每個執行步驟仍需核准。", "Read the full source and license, or select a document to process. Each execution step still needs approval.")
-        case .builtInTools: return ("內建工具", "Built-in tools")
         case .draftImported: return ("由你匯入 · 尚未核准", "Imported by you · awaiting approval")
         case .draftPending: return ("待你核准", "Awaiting your approval")
         case .draftUpdate: return ("更新草稿；核准前仍保留目前版本。", "Update draft. The current version stays in use until approval.")

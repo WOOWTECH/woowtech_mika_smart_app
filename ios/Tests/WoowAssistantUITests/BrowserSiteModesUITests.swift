@@ -89,7 +89,7 @@ final class BrowserSiteModesUITests: XCTestCase {
         } else {
             let navigation = app.navigationBars.firstMatch
             let center = CGPoint(x: control.frame.midX, y: control.frame.midY)
-            let otherControls = ["browser.find", "browser.multiResearch", "browser.transcript"]
+            let otherControls = ["browser.find"]
                 .map { navigation.descendants(matching: .any).matching(identifier: $0).firstMatch }
             XCTAssertTrue(control.isHittable && navigation.exists && navigation.frame.contains(control.frame)
                 && navigation.frame.contains(center) && app.frame.contains(center)

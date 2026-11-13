@@ -174,8 +174,8 @@ private actor ReplayLiveModel: ChatModelClient {
         guard messages.count == 4, messages[1] == reference.message, messages[1].role == "user",
               messages[2].role == "user", messages[2].content == goal,
               messages.filter({ $0.role == "system" }).count == 1,
-              messages.reduce(0, { $0 + $1.content.count }) <= MultiSourceResearchRunner.maximumContextCharacters,
-              try JSONEncoder().encode(messages).count <= MultiSourceResearchRunner.maximumContextUTF8Bytes,
+              messages.reduce(0, { $0 + $1.content.count }) <= BrowserSession.maximumReplayContextCharacters,
+              try JSONEncoder().encode(messages).count <= BrowserSession.maximumReplayContextUTF8Bytes,
               let observations = try? JSONDecoder().decode([WebObservation].self, from: Data(messages[3].content.utf8)),
               observations.count == 2 else { return false }
         return zip(observations, LiveReplayReferencesAppSmoke.roots).allSatisfy {

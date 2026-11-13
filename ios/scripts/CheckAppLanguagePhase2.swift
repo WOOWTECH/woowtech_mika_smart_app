@@ -48,20 +48,6 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
             try check(traditional.text(message) == error.errorDescription, "legacy MCP error matches Traditional Chinese exactly")
             try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "MCP typed error has both translations")
         }
-        for requirement in SkillCatalogRequirement.allCases {
-            let message = AppLocalizer.skillRequirement(requirement)
-            try check(traditional.text(message) == requirement.title, "catalog capability semantics unchanged")
-            try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "catalog requirements translated")
-        }
-        let catalogBytes = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
-        let catalog = try BundledSkillCatalog.load(data: catalogBytes)
-        for entry in catalog.entries {
-            let message = AppLocalizer.skillReadiness(id: entry.id)
-            try check(traditional.text(message) == entry.readiness, "catalog readiness semantics unchanged")
-            try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "catalog readiness translated")
-            try check(entry.original.executable == false && !entry.originalExecutionSupported, "display language grants no execution authority")
-        }
-        try check(try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])) == catalogBytes, "pinned original archive unchanged")
         for kind in [TaskNotificationKind.completed, .approval, .test] {
             let payload = TaskNotificationPayload(kind: kind, destination: .chat)
             let scope = UUID().uuidString

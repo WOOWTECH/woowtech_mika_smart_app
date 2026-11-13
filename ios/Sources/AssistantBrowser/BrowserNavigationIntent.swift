@@ -32,10 +32,7 @@ public struct BrowserNavigationIntent {
         manualURLs.insert(url)
     }
     private static func allowsManual(_ url: URL) -> Bool {
-        #if DEBUG && canImport(Network)
-        if BrowserDownloadedPDFFixture.enabled?.allowsNavigation(url) == true { return true }
-        #endif
-        return BrowserManualNavigationPolicy.allows(url)
+        BrowserManualNavigationPolicy.allows(url)
     }
     public mutating func invalidate() {
         generation = UUID(); manualURLs = []; pendingDownload = nil

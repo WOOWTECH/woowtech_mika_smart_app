@@ -77,7 +77,6 @@ class VoiceInputStandaloneTests(unittest.TestCase):
                 constructors.add(path.relative_to(ROOT).as_posix())
         self.assertEqual(constructors, {
             "Sources/App/BrowserSession.swift",
-            "Sources/AssistantBrowser/ResearchSourceDiscoveryWebKit.swift",
         }, "Review the audio admission inventory when a new direct constructor appears")
 
     def test_revocation_type_rejects_synchronous_nonisolated_call(self):

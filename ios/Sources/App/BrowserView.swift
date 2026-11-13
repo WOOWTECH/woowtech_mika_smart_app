@@ -13,8 +13,6 @@ struct BrowserView: View {
     @State private var showResearch = false
     @State private var showInteractions = false
     @State private var showLibrary = false
-    @State private var showTranscript = false
-    @State private var showMultiResearch = false
     @State private var showSearchSettings = false
     @State private var showMore = false
     @State private var librarySection = 0
@@ -26,7 +24,7 @@ struct BrowserView: View {
     private var isStartPage: Bool { browser.loadedURL == nil && browser.address.isEmpty || showInvalidStartInput }
     @State private var showInvalidStartInput = false
     private var pageCovered: Bool {
-        isStartPage || showResearch || showInteractions || showLibrary || showTranscript || showMultiResearch
+        isStartPage || showResearch || showInteractions || showLibrary
             || showSearchSettings || showMore || browser.pageDialog != nil
     }
     private var pageFindHostVisible: Bool {
@@ -191,14 +189,8 @@ struct BrowserView: View {
             BrowserInteractionView(browser: browser, chat: chat)
         }
         .sheet(isPresented: $showLibrary) {
-            BrowserLibraryView(workspace: workspace, initialSection: librarySection, pdfDestination: { selection in
-                AnyView(SkillExecutionView(learning: chat.learning, modelAccess: chat.modelAccess,
-                    modelChanges: chat.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-                    downloadedPDF: selection))
-            })
+            BrowserLibraryView(workspace: workspace, initialSection: librarySection)
         }
-        .sheet(isPresented: $showTranscript) { TranscriptBrowserView(browser: browser, chat: chat) }
-        .sheet(isPresented: $showMultiResearch) { MultiSourceResearchView(chat: chat) }
         .sheet(isPresented: $showSearchSettings) { BrowserSearchSettingsView(workspace: workspace) }
         .sheet(isPresented: $showMore) { moreSheet }
         .toolbar {
@@ -228,20 +220,6 @@ struct BrowserView: View {
                 .accessibilityIdentifier("browser.siteMode")
                 .disabled(!workspace.available || workspace.isClearingWebsiteData || browser.manualSiteModeHost == nil)
             }
-            ToolbarItem(placement: .primaryAction) {
-                Button { addressFocused = false; browser.webView.endEditing(true); showMultiResearch = true } label: {
-                    Image(systemName: "globe")
-                }
-                .accessibilityLabel(localizer.text(.browserChromeMultiResearch)).accessibilityIdentifier("browser.multiResearch")
-                .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { addressFocused = false; browser.webView.endEditing(true); showTranscript = true } label: {
-                    Image(systemName: "doc.text")
-                }
-                .accessibilityLabel(localizer.text(.browserChromeTranscript)).accessibilityIdentifier("browser.transcript")
-                .disabled(browser.current == nil || browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-            }
         }
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
@@ -250,8 +228,8 @@ struct BrowserView: View {
         .onDisappear { browser.setPageFindHostVisible(false) }
         .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
-            showResearch = false; showInteractions = false; showTranscript = false
-            showMultiResearch = false; showMore = false; showInvalidStartInput = false; startQuery = ""
+            showResearch = false; showInteractions = false
+            showMore = false; showInvalidStartInput = false; startQuery = ""
             browser.setPageFindHostVisible(pageFindHostVisible)
         }
         .onChange(of: browser.interactionProposal?.id) { _, value in

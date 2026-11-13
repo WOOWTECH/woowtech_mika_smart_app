@@ -41,8 +41,7 @@ private final class PageFindKeys: LearningKeyStore {
         init() throws {
             root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-page-find-" + UUID().uuidString)
             let vault = EncryptedLearningFile(url: root.appendingPathComponent("library.vault"), keys: PageFindKeys())
-            workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault,
-                                         downloadDirectory: root.appendingPathComponent("Downloads"))
+            workspace = BrowserWorkspace(dataStore: .nonPersistent(), vault: vault)
             host = try BrowserSiteModesAppChecks.Host()
             browser = workspace.selected
             probe = BrowserSiteModesAppChecks.Probe(browser)

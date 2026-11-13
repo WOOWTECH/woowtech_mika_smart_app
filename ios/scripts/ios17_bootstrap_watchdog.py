@@ -27,11 +27,9 @@ POLL_SECONDS = 0.2
 FIXTURE_CLASSES = frozenset({
     "WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests", "AppLanguageUITests", "AppLanguagePhase2UITests", "ConversationArchiveUITests", "ChatAttachmentUITests", "BrowserWorkspaceUITests",
     "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests", "BrowserInteractionUITests", "BrowserUploadUITests",
-    "BrowserLearningUITests", "MultiSourceResearchUITests", "MemoryUITests",
+    "BrowserLearningUITests", "MemoryUITests",
     "MemoryRaceUITests", "UserProfileUITests", "UserProfileToolUITests",
-    "MemoryToolUITests", "SkillCatalogUITests", "SkillAuthoringUITests",
-    "TranscriptUITests", "SkillExecutionUITests", "SkillPDFAssemblyMultiFileUITests",
-    "BrowserDownloadedPDFUITests", "SkillPDFCapabilityUITests",
+    "MemoryToolUITests",
     "MCPConversationUITests", "MCPLearningUITests", "NotificationUITests", "NotificationApprovalUITests",
 })
 

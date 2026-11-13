@@ -87,8 +87,6 @@ struct MemoryDataView: View {
                     LearningClearView(store: store)
                 case .websites:
                     WebsiteDataView(store: store, browser: browser, modelAccess: modelAccess, onOpenBrowser: onOpenBrowser)
-                case .catalog:
-                    SkillCatalogView(store: store, modelAccess: modelAccess, modelChanges: modelChanges)
                 }
             }
         }
@@ -204,7 +202,6 @@ struct MemoryDataView: View {
                 case .memories: memorySections
                 case .skills:
                     skillsSections
-                    builtInSkillsSection
                 case .pending: pendingSections
                 }
             }
@@ -454,55 +451,6 @@ struct MemoryDataView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
         } header: { sectionTitle(copy.text(.getSkills)) }
-    }
-
-    private var builtInSkillsSection: some View {
-        Section {
-            card {
-                Button { sheet = .catalog } label: {
-                    Text(copy.text(.catalog))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.catalog.open")
-            }
-            // Each destination needs its own List row. Multiple NavigationLinks
-            // inside one row share its tap routing on iOS 18 and can open the
-            // last destination even when the PDF link itself was tapped.
-            card {
-                NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: {
-                    Text(copy.text(.pdfRead))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.documents.execute")
-            }
-            card {
-                NavigationLink {
-                    SkillAgentView(store: store, modelAccess: modelAccess)
-                } label: {
-                    Text(copy.text(.agentWrite))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .disabled(!store.available)
-                    .accessibilityIdentifier("skills.agent.open")
-            }
-            card {
-                NavigationLink {
-                    TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
-                } label: {
-                    Text(copy.text(.transcript))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.transcript.open")
-            }
-            Text(copy.text(.builtInHelp))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        } header: { sectionTitle(copy.text(.builtInTools)) }
     }
 
     private func draftRow(_ draft: SkillDraft) -> some View {
@@ -815,7 +763,7 @@ private enum LearningSegment: String, CaseIterable, Identifiable {
 }
 
 private enum LearningSheet: Identifiable {
-    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear, websites, catalog
+    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear, websites
     var id: String {
         switch self {
         case .memory(let item): return "memory-" + (item?.id.uuidString ?? "new")
@@ -824,7 +772,6 @@ private enum LearningSheet: Identifiable {
         case .fullText: return "fulltext"
         case .clear: return "clear"
         case .websites: return "websites"
-        case .catalog: return "catalog"
         }
     }
 }

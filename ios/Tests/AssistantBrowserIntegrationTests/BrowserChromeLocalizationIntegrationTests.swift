@@ -17,7 +17,7 @@ import XCTest
             .browserChromeExplanation, .browserChromeFind, .browserChromeCurrentDesktop,
             .browserChromeCurrentMobile, .browserChromeMobileWebsite, .browserChromeDesktopWebsite,
             .browserChromeSiteModeHelp, .browserChromeSiteMode, .browserChromeDesktop,
-            .browserChromeMobile, .browserChromeMultiResearch, .browserChromeTranscript,
+            .browserChromeMobile,
             .browserChromeBack, .browserChromeForward, .browserChromeHome, .browserChromeShare,
             .browserChromeShareUnavailable, .browserChromeMore, .browserChromeWebsite,
             .browserChromeCopyLink, .browserChromeOpenOutside,

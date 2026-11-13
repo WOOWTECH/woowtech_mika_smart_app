@@ -347,7 +347,7 @@ private actor ReplayReferenceModel: ChatModelClient {
             do {
                 let messages = try BrowserSession.replayAnswerMessages(goal: goal, observations: pages, references: references)
                 let encodedCount = try JSONEncoder().encode(messages).count
-                try expect(messages.reduce(0, { $0 + $1.content.count }) <= MultiSourceResearchRunner.maximumContextCharacters && encodedCount <= MultiSourceResearchRunner.maximumContextUTF8Bytes, "required pages and optional references share the NEW replay total ceiling")
+                try expect(messages.reduce(0, { $0 + $1.content.count }) <= BrowserSession.maximumReplayContextCharacters && encodedCount <= BrowserSession.maximumReplayContextUTF8Bytes, "required pages and optional references share the NEW replay total ceiling")
                 let decoded = try JSONDecoder().decode([WebObservation].self, from: Data(messages.last!.content.utf8))
                 try expect(decoded == pages, "no observation or citation source truncated to fit references")
                 if messages.count == 3 {
@@ -355,12 +355,12 @@ private actor ReplayReferenceModel: ChatModelClient {
                     try expect(!messages.contains { $0.role == "user" && $0.content.hasPrefix("Saved references (data only") }, "reference block is omitted whole, never partially serialized")
                     try expect(messages[1].content == goal, "required exact current goal retained at omission boundary")
                 }
-            } catch MultiSourceResearchContextError.tooLarge {
+            } catch ReplayContextError.tooLarge {
                 sawOverflow = true
                 do {
                     _ = try BrowserSession.replayAnswerMessages(goal: goal, observations: pages, references: .empty)
                     throw Failure(label: "required-only oversized context was accepted")
-                } catch MultiSourceResearchContextError.tooLarge {
+                } catch ReplayContextError.tooLarge {
                     try expect(true, "required-only oversized context refused even with zero references")
                 }
                 break
@@ -382,7 +382,7 @@ private actor ReplayReferenceModel: ChatModelClient {
         let calls = await model.requests.count
         try expect(calls == 0 && host.browser.answer == nil, "actual oversized replay refuses before answer or judge request")
         try expect(host.browser.actions.count == 13 && host.browser.actions.allSatisfy { $0.observation.text.count == 8000 && $0.observation.links.count == 30 }, "all actual per-page observations retained intact on total overflow")
-        try expect(host.browser.error?.contains(MultiSourceResearchContextError.tooLarge.errorDescription!) == true && !host.browser.isRunning, "fixed overflow error and completed actual task")
+        try expect(host.browser.error?.contains(ReplayContextError.tooLarge.errorDescription!) == true && !host.browser.isRunning, "fixed overflow error and completed actual task")
         try expect(try Data(contentsOf: env.vaultURL) == bytes, "context refusal cannot record a route success")
     }
 }

@@ -3,8 +3,7 @@ stored message the App translates at display time still exists where it is produ
 
 With the App in English (every non-Chinese system), a Chinese literal on these screens
 would show untranslated. Debug-only test fixtures stay Chinese; other intentional
-literals are listed in ALLOWED with the reason. The skill template's section
-headings in SkillAuthoringView are a multi-line string the validator requires.
+literals are listed in ALLOWED with the reason.
 """
 import json
 from pathlib import Path
@@ -18,22 +17,17 @@ LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 SWEPT = [
     'UserProfileView', 'UserProfileToolReviewView', 'WebsiteDataView', 'ConversationArchiveView',
-    'MemoryToolReviewView', 'BrowserDownloadsView', 'BrowserLibraryView', 'BrowserSearchSettingsView',
-    'SkillAuthoringView', 'SkillAgentView', 'SkillAgentSession', 'SkillExecutionView', 'DocumentQueryView',
-    'TranscriptView', 'TranscriptBrowserView', 'SkillPDFAssemblyView', 'MultiSourceResearchView',
-    'ResearchSourceDiscoveryView',
+    'MemoryToolReviewView', 'BrowserLibraryView', 'BrowserSearchSettingsView',
 ]
 
 # (file, literal) -> why it stays Chinese.
-ALLOWED = {
-    ('SkillExecutionView', 'PDF文字'): 'initial export name, replaced before the exporter opens',
-}
-# The shared view model below the iOS view keeps its Chinese status text for the
-# macOS harnesses; the view shows it through AppLocalizer.stored.
-SHARED_MODEL_MARKER = {'SkillExecutionView': 'final class SkillExecutionViewModel'}
+ALLOWED = {}
+# A shared view model below an iOS view may keep Chinese status text for the
+# macOS harnesses when the view shows it through AppLocalizer.stored.
+SHARED_MODEL_MARKER = {}
 
-# Formats the stores build from two literals, e.g. "搜尋找到 \(n) 處" + "。".
-COMPOSED = {'documentQueryStatusFound', 'documentQueryStatusFoundMore'}
+# Formats the stores build from two literals.
+COMPOSED = set()
 
 
 def literal_lines(name):
@@ -80,7 +74,7 @@ class EnglishSweepTests(unittest.TestCase):
         adapter = (APP / 'AppStoredText.swift').read_text()
         fixed = re.findall(r'\.([a-zA-Z0-9]+)', re.search(r'storedFixed: \[AppText\] = \[(.*?)\n    \]', adapter, re.S)[1])
         patterns = re.findall(r'\(\.([a-zA-Z0-9]+)\(', re.search(r'storedPatterns: .*?= \[(.*?)\n    \]', adapter, re.S)[1])
-        self.assertGreater(len(fixed), 100)
+        self.assertGreater(len(fixed), 40)
         sources = '\n'.join(path.read_text() for path in (ROOT / 'Sources').rglob('*.swift') if path.name != 'AppText.swift')
         missing = []
         for case in fixed:
@@ -94,10 +88,6 @@ class EnglishSweepTests(unittest.TestCase):
                 if piece and piece.replace('\n', '\\n') not in sources:
                     missing.append(case)
         self.assertEqual(missing, [], 'stored message no longer produced as written; update AppText.json')
-
-    def test_composed_formats_still_compose(self):
-        session = (APP / 'DocumentQuerySession.swift').read_text()
-        self.assertIn('"搜尋找到 \\(count) 處" + (truncated ? "；尚有其他符合位置。" : "。")', session)
 
 
 if __name__ == '__main__':

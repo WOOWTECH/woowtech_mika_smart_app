@@ -71,7 +71,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
 
-    func testEnglishBrowserLibrarySearchAndSkillCatalogKeepUnsentChatDraft() {
+    func testEnglishBrowserLibraryAndSearchKeepUnsentChatDraft() {
         launchAndEnterDraft()
         chooseEnglishInSettings()
 
@@ -100,24 +100,6 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(addBookmark.label, "Bookmark current page")
         XCTAssertFalse(addBookmark.isEnabled, "No page has been opened or approved for bookmarking.")
         tapChrome(app.buttons["browser.library.close"])
-
-        tapRoot("memory")
-        tapChrome(app.buttons["memory.segment.skills"])
-        tapContent(app.buttons["skills.catalog.open"])
-        exactVisibleText("catalog.status", "Built-in skill catalog")
-        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 5")
-        exactText("catalog.scope", "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity.")
-        let search = app.textFields["catalog.search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.frame.contains(search.frame))
-        XCTAssertTrue(search.isEnabled && search.isHittable)
-        search.tap()
-        prepareLatinKeyboard()
-        search.typeText("ZQX987\n")
-        XCTAssertEqual(search.value as? String, "ZQX987")
-        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 0")
-        exactText("catalog.empty", "No matching skills.")
-        tapChrome(app.buttons["catalog.close"])
 
         tapRoot("chat")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)

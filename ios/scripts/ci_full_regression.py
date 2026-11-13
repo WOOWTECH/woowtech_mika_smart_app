@@ -21,24 +21,21 @@ IPHONES = (
 )
 IPAD = {"label": "ios26-ipad", "xcode": "26.2", "runtime": "iOS-26-2", "device": "iPad (A16)"}
 IPAD_ONLY = "WoowAssistantUITests/WoowAssistantUITests/testRealIPadReadOnlyNavigationAudit"
-# A full run needs two portable Xcode builds and 32 test-only jobs. A selected
-# manual iPhone needs one build and eight jobs. Every shard keeps its own result.
+# A full run needs two portable Xcode builds and 28 test-only jobs. A selected
+# manual iPhone needs one build and seven jobs. Every shard keeps its own result.
 COHORTS = (
-    ("ui-startup", "ui-pdf-capability"),
-    ("ui-documents", "ui-download-pdf"),
+    ("ui-startup",),
+    ("ui-documents", "ui-memory-tools"),
     ("ui-workspace", "ui-browser"),
     ("ui-learning", "ui-language", "ui-notifications", "core"),
     ("ui-memory", "ui-profile"),
-    ("ui-memory-tools", "ui-skills"),
     ("ui-mcp", "ui-archive"),
     ("ui-chat",),
 )
 SLICE_SECONDS = 30 * 60
 COHORT_SECONDS = 55 * 60
-# The document shard has 20 native Files/approval/export methods. On the
-# compact simulator its 15th method was still running at the former 30-minute
-# boundary. Keep every selector and the no-retry rule; give this shard enough
-# time to finish, and reserve a separate window for its download-PDF sibling.
+# The document shard once held 20 native PDF methods and needed this longer
+# window; it now holds the chat attachment cases and keeps the window.
 DOCUMENTS_SLICE_SECONDS = 55 * 60
 DOCUMENTS_COHORT_SECONDS = 65 * 60
 # The startup class (iOS 26.2 finished 20 of its 22 methods in about 26
@@ -69,10 +66,10 @@ def make_plan(root, *, current_only=False, compact_only=False, large_only=False,
     selection = selection_from_flags(current_only, compact_only, large_only)
     iphones = SELECTIONS[selection]
     catalog = ui_inventory(root)
-    if len(UI_SHARDS) != 16 or set(catalog["shards"]) != set(UI_SHARDS):
-        raise ValueError("The 16 owned UI shards changed; review the CI partition")
+    if len(UI_SHARDS) != 13 or set(catalog["shards"]) != set(UI_SHARDS):
+        raise ValueError("The 13 owned UI shards changed; review the CI partition")
     cohort_scopes = [scope for group in COHORTS for scope in group]
-    if len(cohort_scopes) != 17 or set(cohort_scopes) != set(UI_SHARDS) | {"core"}:
+    if len(cohort_scopes) != 14 or set(cohort_scopes) != set(UI_SHARDS) | {"core"}:
         raise ValueError("Every UI shard and core must have exactly one cohort owner")
     if IPAD_ONLY not in catalog["shards"]["ui-startup"]["tests"]:
         raise ValueError("The iPad-only method must be owned by ui-startup")

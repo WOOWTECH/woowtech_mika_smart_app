@@ -48,44 +48,18 @@ UI_SHARDS = {
     "ui-archive": ["ConversationArchiveUITests"],
     "ui-workspace": ["BrowserWorkspaceUITests", "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests"],
     "ui-browser": ["BrowserInteractionUITests", "BrowserUploadUITests"],
-    "ui-learning": ["BrowserLearningUITests", "MultiSourceResearchUITests"],
+    "ui-learning": ["BrowserLearningUITests"],
     "ui-memory": ["MemoryUITests", "MemoryRaceUITests"],
     "ui-profile": ["UserProfileUITests", "UserProfileToolUITests"],
     "ui-memory-tools": ["MemoryToolUITests"],
-    "ui-skills": ["SkillCatalogUITests", "SkillAuthoringUITests", "TranscriptUITests"],
-    "ui-documents": ["SkillExecutionUITests", "SkillPDFAssemblyMultiFileUITests", "ChatAttachmentUITests"],
-    "ui-pdf-capability": ["SkillPDFCapabilityUITests"],
-    "ui-download-pdf": ["BrowserDownloadedPDFUITests"],
+    "ui-documents": ["ChatAttachmentUITests"],
     "ui-mcp": ["MCPConversationUITests", "MCPLearningUITests"],
 }
-LIVE_UI_CLASSES = {"LiveMCPUITests", "LiveMCPConversationUITests", "LiveModelUITests", "LiveTranscriptUITests",
-                   "LiveDocumentQueryUITests", "LiveSourceDiscoveryUITests"}
+LIVE_UI_CLASSES = {"LiveMCPUITests", "LiveMCPConversationUITests", "LiveModelUITests"}
 
-# Focused selections within ui-documents, not additional partition owners.
-# Their exact union is checked against discovered Swift methods at preflight.
+# Focused selection within ui-documents (the chat attachment cases), not an
+# additional partition owner. Its methods are checked against the Swift source.
 DOCUMENT_SCOPES = {
-    "documents-read": [
-        "WoowAssistantUITests/SkillExecutionUITests/testNativeFilesPDFNeedsBothApprovalsAndReturnsActualText",
-        "WoowAssistantUITests/SkillExecutionUITests/testCoordinatedFixtureCreationNativePDFNeedsBothApprovalsAndReturnsActualText",
-        "WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenInPlaceCoordinatedPDFNeedsBothApprovalsAndReturnsActualText",
-        "WoowAssistantUITests/SkillExecutionUITests/testUIKitImportCopyCoordinatedPDFNeedsBothApprovalsAndReturnsActualText",
-        "WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText",
-        "WoowAssistantUITests/SkillExecutionUITests/testNativePickerCancellationDoesNotReadOrExtract",
-        "WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchUsesApprovedExtractionAndClearsEditedResults",
-        "WoowAssistantUITests/SkillExecutionUITests/testOfflineSearchCanIgnoreEnglishCaseAfterApproval",
-        "WoowAssistantUITests/SkillExecutionUITests/testOfflineLimitedPatternSearchUsesApprovedPDF",
-    ],
-    "documents-output": [
-        "WoowAssistantUITests/SkillExecutionUITests/testRefusingFirstStepDoesNotReadOrExtract",
-        "WoowAssistantUITests/SkillExecutionUITests/testRefusingSecondStepKeepsExtractionUnauthorized",
-        "WoowAssistantUITests/SkillExecutionUITests/testNativeExportCancellationPreservesResultAndAllowsRetry",
-        "WoowAssistantUITests/SkillExecutionUITests/testNativeExportSavesTextToChosenLocalFolder",
-        "WoowAssistantUITests/SkillExecutionUITests/testNativePDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult",
-        "WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenPDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult",
-        "WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyAssemblyReviewsReversedPagesAndExportCancellationPreservesResult",
-        "WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testUserChosenCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages",
-        "WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testDirectoryCoordinatedFixtureCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages",
-    ],
     "documents-chat": [
         "WoowAssistantUITests/ChatAttachmentUITests/testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard",
         "WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
@@ -97,16 +71,9 @@ TEST_SCOPES = {
     "all": [],
     "core": ["AssistantDomainTests", "AssistantModelsTests", "AssistantMCPTests", "AssistantMemoryTests", "AssistantSkillsTests", "AssistantPersistenceTests", "AssistantBrowserIntegrationTests"],
     "workspace": ["AssistantDomainTests/BrowserLibraryTests", "AssistantDomainTests/BrowserPolicyTests", "AssistantDomainTests/BrowserManualLANAccessTests", "AssistantDomainTests/BrowserNavigationIntentTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/BrowserWorkspaceUITests", "WoowAssistantUITests/BrowserLoginUITests", "WoowAssistantUITests/BrowserSiteModesUITests", "WoowAssistantUITests/BrowserSearchUITests", "WoowAssistantUITests/BrowserExternalOpenUITests"],
-    "files": ["AssistantSkillsTests", "AssistantDomainTests/BrowserDownloadTests", "AssistantDomainTests/BrowserNavigationIntentTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/BrowserUploadUITests", "WoowAssistantUITests/SkillExecutionUITests"],
-    "parity": ["AssistantMCPTests", "AssistantSkillsTests", "AssistantDomainTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/MCPConversationUITests", "WoowAssistantUITests/BrowserInteractionUITests", "WoowAssistantUITests/BrowserLearningUITests", "WoowAssistantUITests/SkillCatalogUITests", "WoowAssistantUITests/MemoryUITests", "WoowAssistantUITests/MemoryRaceUITests"],
+    "parity": ["AssistantMCPTests", "AssistantSkillsTests", "AssistantDomainTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/MCPConversationUITests", "WoowAssistantUITests/BrowserInteractionUITests", "WoowAssistantUITests/BrowserLearningUITests", "WoowAssistantUITests/MemoryUITests", "WoowAssistantUITests/MemoryRaceUITests"],
     "startup": ["WoowAssistantUITests/WoowAssistantUITests"],
     "startup-smoke": ["WoowAssistantUITests/WoowAssistantUITests/testEverySectionIsReachableAndPhoneControlIsExcluded"],
-    "picker-user-copy": ["WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText"],
-    "pdf-assembly": ["WoowAssistantUITests/SkillExecutionUITests/testNativePDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult"],
-    "pdf-assembly-uikit": ["WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenPDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult"],
-    "pdf-assembly-copy": ["WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyAssemblyReviewsReversedPagesAndExportCancellationPreservesResult"],
-    "pdf-assembly-multi": ["WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testUserChosenCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages"],
-    "pdf-pair-coordinated": ["WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testDirectoryCoordinatedFixtureCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages"],
     "profile-tool": ["WoowAssistantUITests/UserProfileToolUITests"],
     "memory-tools": ["WoowAssistantUITests/MemoryToolUITests"],
     **DOCUMENT_SCOPES,
@@ -167,7 +134,7 @@ def ui_inventory(root, shards=None):
 
 def validate_document_scopes(catalog, scopes=None):
     """Require exact disjoint method coverage; equal counts are insufficient."""
-    names = ("documents-read", "documents-output", "documents-chat")
+    names = ("documents-chat",)
     scopes = {name: TEST_SCOPES[name] for name in names} if scopes is None else scopes
     expected = catalog["shards"]["ui-documents"]["tests"]
     if set(scopes) != set(names) or not expected or len(expected) != len(set(expected)):
@@ -529,9 +496,9 @@ def execute(output, requested, download, test_scope="all", expected_host_arch=No
         raise ReleaseError("未知的 iOS 17 測試範圍。")
     if expected_host_arch not in (None, "arm64", "x86_64"):
         raise ReleaseError("未知的主機架構。")
-    if build_before_boot and (test_scope not in ({"startup-smoke", "pdf-assembly", "pdf-assembly-copy", "pdf-assembly-multi", "pdf-pair-coordinated", "documents-read", "documents-output", "documents-chat"} | UI_SHARDS.keys())
+    if build_before_boot and (test_scope not in ({"startup-smoke", "documents-chat"} | UI_SHARDS.keys())
                               or not sample_bootstrap or not prelaunch_daemon):
-        raise ReleaseError("預編譯啟動比較只允許明確預啟動及取樣的 hosted 非 Live UI 分片或既有 smoke／PDF 文件分組；未執行測試。")
+        raise ReleaseError("預編譯啟動比較只允許明確預啟動及取樣的 hosted 非 Live UI 分片或既有 smoke／聊天附件分組；未執行測試。")
     if bounded_test_diagnostics and not sample_bootstrap:
         raise ReleaseError("限制失敗後系統診斷只允許已啟用 bootstrap 取樣的 hosted 非 Live fixture 比較。")
     if sample_bootstrap:
@@ -773,7 +740,7 @@ def main():
     parser.add_argument("--bounded-test-diagnostics", action="store_true",
                         help="Experimental suppression of verbose failure system logs; requires hosted fixture sampling (default off)")
     parser.add_argument("--build-before-boot", action="store_true",
-                        help="Experimental prebuild; sampled hosted non-Live ui-* shards or existing smoke/PDF document groups only (default off)")
+                        help="Experimental prebuild; sampled hosted non-Live ui-* shards or the existing smoke/chat attachment groups only (default off)")
     parser.add_argument("--check-ui-inventory", action="store_true",
                         help="Validate and print the UI class partition without invoking Xcode")
     parser.add_argument("--output", type=Path, default=Path("build/ios17"))
