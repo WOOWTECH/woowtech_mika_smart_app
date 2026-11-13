@@ -84,8 +84,9 @@ must distinguish real models over synthetic traces from actual browser execution
 
 The historical text-adaptation table below describes the catalog's first stage.
 Later native integrations include reviewed model skill authoring (actual-model UI
-passed), dedicated authenticated PDF worker configuration, and approved
-text/subtitle/browser snapshot transcription. Appearance `settings_list`/`settings_set`
+passed) and approved text/subtitle/browser snapshot transcription. A dedicated
+authenticated PDF worker configuration existed too; it was removed on 2026-11-13
+to match the Play build. Appearance `settings_list`/`settings_set`
 was integrated too and removed on 2026-11-13 with the `configure-mika` entry, to
 match the Play build.
 The latter integrations still require their revision-specific native and live
@@ -99,10 +100,10 @@ The archived six-skill catalog remains complete as source, while execution remai
 partial. The documents entry now opens the native Files picker, reviews a plan,
 requires separate read/extract approvals, and produces actual PDFKit text, selected
 pages and metadata. Cancellation/refusal must not dispatch a later step. The
-original pinned extract_pdf.py also has a bounded worker protocol and real local
-Swift-to-HTTP-to-Python tests, and actual isolated Docker acceptance on GitHub Ubuntu (`2d67d87`, run
-42770104969), but no deployed authenticated remote service. The container result
-does not establish iOS-to-production connectivity or complete original-tool parity. See SKILL_RUNTIME.md for every original dependency
+original pinned extract_pdf.py had a bounded worker protocol with real local
+Swift-to-HTTP-to-Python tests and isolated Docker acceptance on GitHub Ubuntu (`2d67d87`, run
+42770104969), but never a deployed service; that worker was removed on 2026-11-13 to match
+the Play build, so PDFKit is the only PDF path. See SKILL_RUNTIME.md for every original dependency
 and its current availability; the historical text-adaptation table below describes
 that earlier path, not the new PDF execution capability.
 

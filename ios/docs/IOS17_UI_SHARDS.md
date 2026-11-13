@@ -15,12 +15,12 @@
 | `ui-profile` | `UserProfileUITests`、`UserProfileToolUITests` | 9 |
 | `ui-memory-tools` | `MemoryToolUITests` | 6 |
 | `ui-skills` | `SkillCatalogUITests`、`SkillAuthoringUITests`、`TranscriptUITests` | 10 |
-| `ui-documents` | `SkillExecutionUITests`、`SkillWorkerSettingsUITests`、`SkillPDFAssemblyMultiFileUITests`、`ChatPDFAttachmentUITests` | 19 |
+| `ui-documents` | `SkillExecutionUITests`、`SkillPDFAssemblyMultiFileUITests`、`ChatPDFAttachmentUITests` | 19 |
 | `ui-pdf-capability` | `SkillPDFCapabilityUITests` | 1 |
 | `ui-download-pdf` | `BrowserDownloadedPDFUITests` | 1 |
 | `ui-mcp` | `MCPConversationUITests`、`MCPLearningUITests` | 8 |
 
-截至 `8ab93d5`，合計 32 個類別、107 個非 Live methods；另有 22 個 Live methods 明確分開。這是來源清單，不是已執行或全面通過的數目；實際數量以 `--check-ui-inventory` 當次輸出為準。`ui-notifications` 使用真實系統權限與原生通知橫幅，模型仍為固定測資；宜用此次作業專用的新模擬器，不能以 App 偏好重設冒充系統權限重設。
+截至 `8ab93d5`，合計 32 個類別、107 個非 Live methods；另有 22 個 Live methods 明確分開。2026-11-13 照 Play 版移除腳本服務後，`SkillWorkerSettingsUITests`（1 個 method，原屬 `ui-documents`）已刪除；表中數目仍是 `8ab93d5` 的。這是來源清單，不是已執行或全面通過的數目；實際數量以 `--check-ui-inventory` 當次輸出為準。`ui-notifications` 使用真實系統權限與原生通知橫幅，模型仍為固定測資；宜用此次作業專用的新模擬器，不能以 App 偏好重設冒充系統權限重設。
 
 分片以約 10–20 分鐘測試工作量為規劃目標，尚未完成這批分片的原生時間量測；下載 runtime、啟動 simulator 與建置另計。新 `ui-*` scopes 的 build＋test 上限是 30 分鐘，其他 scope 保留原有 80 分鐘上限。每案例 240 秒預設、300 秒最大值保留；含 workspace 的新分片沿用既有 workspace 的 420 秒最大值。沒有以增加逾時或重跑失敗案例達成通過。
 

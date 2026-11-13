@@ -14,7 +14,6 @@ NAMES = {
     "release-ios.yml": "ios-release.yml",
     "live-model.yml": "ios-live-model.yml",
     "live-mcp.yml": "ios-live-mcp.yml",
-    "skill-worker-container.yml": "ios-skill-worker-container.yml",
     "android-ui-reference.yml": "ios-android-ui-reference.yml",
 }
 HEADER = "# Generated from ios/.github/workflows; run ios/scripts/sync_monorepo_workflows.py.\n"

@@ -50,15 +50,12 @@ private struct DocumentQueryPresentation: Identifiable {
 }
 
 /// Parent integration: present from the documents skill with current model access.
-/// A configured worker is optional; no endpoint or background upload is created.
+/// Extraction always runs on the device with PDFKit; nothing is uploaded.
 @MainActor struct SkillExecutionView: View {
     @Environment(\.appLocalizer) private var localizer
     private let learning: LearningStore
     private let modelAccess: () throws -> ModelAccess
     private let modelChanges: AnyPublisher<Void, Never>
-    private let suppliedWorker: (any SkillExecutionPDFWorker)?
-    @StateObject private var workerSettings = SkillWorkerPreferences()
-    private var worker: (any SkillExecutionPDFWorker)? { suppliedWorker ?? workerSettings.worker }
     @StateObject private var model = SkillExecutionViewModel()
     @State private var choosingFile = false
     @State private var importChoice: PDFImportChoice = .original
@@ -69,7 +66,6 @@ private struct DocumentQueryPresentation: Identifiable {
     @State private var pages = ""
     @State private var password = ""
     @State private var metadataOnly = false
-    @State private var useWorker = false
     @State private var exportingText = false
     @State private var exportDocument: SkillExecutionTextDocument?
     @State private var exportPlanID: UUID?
@@ -97,9 +93,9 @@ private struct DocumentQueryPresentation: Identifiable {
     }
 
     init(learning: LearningStore, modelAccess: @escaping () throws -> ModelAccess, modelChanges: AnyPublisher<Void, Never>,
-         worker: (any SkillExecutionPDFWorker)? = nil, downloadedPDF: BrowserDownloadedPDFSelection? = nil) {
+         downloadedPDF: BrowserDownloadedPDFSelection? = nil) {
         _model = StateObject(wrappedValue: SkillExecutionViewModel(downloadedPDF: downloadedPDF))
-        self.learning = learning; self.modelAccess = modelAccess; self.modelChanges = modelChanges; self.suppliedWorker = worker
+        self.learning = learning; self.modelAccess = modelAccess; self.modelChanges = modelChanges
     }
 
     var body: some View {
@@ -114,14 +110,12 @@ private struct DocumentQueryPresentation: Identifiable {
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                     SecureField("PDF 密碼（需要時填寫）", text: $password)
                     Toggle("只讀取文件資訊", isOn: $metadataOnly)
-                    if worker != nil { Toggle("使用已設定的原版腳本服務", isOn: $useWorker) }
                     if let download = model.downloadedPDF {
                         Text(verbatim: download.filename).accessibilityIdentifier("downloadPDF.filename")
                         Text("來源：此 App 的已完成下載。下載成功尚未授權讀取或擷取。")
                             .font(.caption).accessibilityIdentifier("downloadPDF.source")
                         Button("建立下載 PDF 計畫") {
-                            model.prepareDownload(pages: pages, password: password, metadataOnly: metadataOnly,
-                                                  worker: useWorker ? worker : nil)
+                            model.prepareDownload(pages: pages, password: password, metadataOnly: metadataOnly)
                             password = ""
                         }.disabled(!model.downloadAvailable).accessibilityIdentifier("downloadPDF.prepare")
                     } else {
@@ -259,17 +253,11 @@ private struct DocumentQueryPresentation: Identifiable {
                 DocumentQueryView(source: presentation.source, learning: learning, modelAccess: modelAccess, modelChanges: modelChanges)
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink { SkillWorkerSettingsView(settings: workerSettings) } label: { Text("腳本服務") }
-                    .accessibilityIdentifier("skillExecution.workerSettings")
-            }
-        }
         .onChange(of: model.downloadAvailable) { _, available in
             if model.downloadedPDF != nil && !available { resetExport(); documentQuery = nil; localSearch = nil; localSearchPreparationFailed = false }
         }
         .onChange(of: model.plan?.id) { _, _ in localSearch = nil; localSearchPreparationFailed = false }
-        .onAppear { workerSettings.reload(); if model.downloadedPDF == nil { model.seedUITestIfRequested() } }
+        .onAppear { if model.downloadedPDF == nil { model.seedUITestIfRequested() } }
         .onDisappear {
             resetExport()
             localSearch = nil
@@ -321,7 +309,7 @@ private struct DocumentQueryPresentation: Identifiable {
                 model.status = "未能取得選取的 PDF，請重新選取一個檔案。"
                 return
             }
-            model.prepare(url: url, pages: pages, password: password, metadataOnly: metadataOnly, worker: useWorker ? worker : nil)
+            model.prepare(url: url, pages: pages, password: password, metadataOnly: metadataOnly)
             password = ""
         case .failure: model.status = "未能選取檔案，請重試。"
         }
@@ -382,12 +370,12 @@ final class SkillExecutionViewModel: ObservableObject {
         }
     }
 
-    func prepareDownload(pages: String, password: String, metadataOnly: Bool, worker: (any SkillExecutionPDFWorker)?) {
+    func prepareDownload(pages: String, password: String, metadataOnly: Bool) {
         clear()
         do {
             guard let downloadedPDF else { throw SkillExecutionError.invalidSelection }
             try prepare(selection: downloadedPDF.selectedFile(), pages: pages, password: password,
-                        metadataOnly: metadataOnly, worker: worker)
+                        metadataOnly: metadataOnly)
         } catch { status = (error as? LocalizedError)?.errorDescription ?? "無法建立執行計畫。" }
     }
 
@@ -452,12 +440,12 @@ final class SkillExecutionViewModel: ObservableObject {
     }
     #endif
 
-    func prepare(url: URL, pages: String, password: String, metadataOnly: Bool, worker: (any SkillExecutionPDFWorker)?) {
+    func prepare(url: URL, pages: String, password: String, metadataOnly: Bool) {
         clear()
         do {
             guard downloadedPDF == nil else { throw SkillExecutionError.invalidSelection }
             try prepare(selection: SkillExecutionSelectedFile(userSelectedURL: url), pages: pages, password: password,
-                        metadataOnly: metadataOnly, worker: worker)
+                        metadataOnly: metadataOnly)
             #if DEBUG
             uiTestAudit?.selections += 1
             #endif
@@ -465,10 +453,10 @@ final class SkillExecutionViewModel: ObservableObject {
     }
 
     private func prepare(selection: SkillExecutionSelectedFile, pages: String, password: String,
-                         metadataOnly: Bool, worker: (any SkillExecutionPDFWorker)?) throws {
+                         metadataOnly: Bool) throws {
         let options = try SkillExecutionPDFOptions(pages: pages, metadataOnly: metadataOnly, password: password.isEmpty ? nil : password)
         let execution = try SkillExecutionRuntime(selectedFile: selection, options: options,
-            backend: worker == nil ? .native : .originalWorker, worker: worker, catalog: BundledSkillCatalog.bundled())
+            catalog: BundledSkillCatalog.bundled())
         runtime = execution; plan = execution.plan; nextStepID = execution.plan.steps.first?.id
     }
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 execution_binary="${TMPDIR:-/tmp}/woow-skill-execution-checks"
 execution_sources=()
 for execution_source in Sources/AssistantSkills/*.swift; do
@@ -8,4 +8,4 @@ for execution_source in Sources/AssistantSkills/*.swift; do
 done
 swiftc -D SKILL_EXECUTION_SMOKE -parse-as-library "${execution_sources[@]}" \
   Tests/AssistantSkillsTests/SkillExecutionTests.swift -o "$execution_binary"
-"$execution_binary" Sources/AssistantSkills/Resources/MikaBundledSkills.json "$@"
+"$execution_binary" Sources/AssistantSkills/Resources/MikaBundledSkills.json

@@ -14,7 +14,7 @@ import time
 
 MODULES = [("AssistantModels", []), ("AssistantSkills", ["AssistantModels"]),
            ("AssistantBrowser", ["AssistantModels", "AssistantSkills"])]
-GROUPS = {"realDownloadAndApprovals", "invalidSourcesAndLimits", "deletionAndHeldRead", "lateWorkerAndDisclosure"}
+GROUPS = {"realDownloadAndApprovals", "invalidSourcesAndLimits", "deletionAndHeldRead"}
 
 
 def main():

@@ -15,8 +15,8 @@ a file but could not explicitly hand it to the existing reviewed PDF flow.
 `BrowserDownloadsView`. A completed `.pdf` row has **處理 PDF**. The user opens
 that entry, reviews **建立下載 PDF 計畫**, then separately approves the existing
 read and extraction steps. Merely downloading, opening the screen, or building
-a plan neither reads PDF bytes nor grants execution. Native PDFKit remains the
-default; the optional worker still requires its disclosed upload approval.
+a plan neither reads PDF bytes nor grants execution. Extraction uses native
+PDFKit only; the optional worker was removed on 2026-11-13 to match the Play build.
 
 `BrowserDownloadedPDFSelection(manager:userSelectedID:)` binds the original
 completed record, manager-owned URL, volume/inode, length and timestamps. It
@@ -33,9 +33,9 @@ trusted UI boundaries; neither is a model-callable arbitrary-path capability.
 
 Existing limits remain 10 MiB input, 200 selected pages, 2 MiB text output and
 120-second one-use approval grants. Clearing/revoking immediately clears App
-state and cancels the task. Synchronous file coordination/PDFKit and an
-uncooperative worker are **not forcibly terminated**: held tests release and
-join the real old caller, then assert no late publication or extra worker call.
+state and cancels the task. Synchronous file coordination/PDFKit is **not
+forcibly terminated**: held tests release and join the real old caller, then
+assert no late publication.
 No background execution or notification scope is added. Revocation also
 dismisses a download's query sheet and clears its pending export presentation;
 the query's existing onDisappear cancellation applies. Already exported copies
@@ -82,10 +82,10 @@ selection → first approval/read → second approval/PDFKit. It also covers
 same-name independent UUIDs, restored downloads without grants, wrong order,
 repeated taps, wrong type, oversize, invalid PDF, 201 selected pages, symlink,
 same-size replacement, deletion before/between approvals, held coordinated
-read cancellation/new-plan fencing, and late worker revocation.
+read cancellation/new-plan fencing.
 
-`scripts/skill-worker/check_swift.sh` retains the original expiry/replay,
-coordinated-read, native extraction and upload-gating assertions and adds exact
+`scripts/check_skill_execution.sh` retains the original expiry/replay,
+coordinated-read and native extraction assertions and adds exact
 dependency-scope checks. `scripts/check_document_query_app.py` verifies the
 existing query/export caller and compiles its live harness **without running
 model requests**. Debug/Release iOS parse checks are syntax only; native hosted

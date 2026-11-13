@@ -51,23 +51,6 @@ enum AppText: Equatable {
     case appearanceAlwaysLight
     case appearanceAlwaysDark
     case keyboardDone
-    case workerTitle
-    case workerSection
-    case workerExplanation
-    case workerEndpoint
-    case workerToken
-    case workerSave
-    case workerRemove
-    case workerLocal
-    case workerConfigured
-    case workerPrivacy
-    case workerLoadFailed
-    case workerCredentialsFailed
-    case workerSavedCleanupFailed
-    case workerSaved
-    case workerInvalid
-    case workerRemoved
-    case workerRemoveFailed
     case modelSettingsInvalidURL
     case modelSettingsMissingModel
     case modelSettingsMissingKey
@@ -574,23 +557,6 @@ enum AppText: Equatable {
         case .appearanceAlwaysLight: return "appearance.alwaysLight"
         case .appearanceAlwaysDark: return "appearance.alwaysDark"
         case .keyboardDone: return "keyboard.done"
-        case .workerTitle: return "worker.title"
-        case .workerSection: return "worker.section"
-        case .workerExplanation: return "worker.explanation"
-        case .workerEndpoint: return "worker.endpoint"
-        case .workerToken: return "worker.token"
-        case .workerSave: return "worker.save"
-        case .workerRemove: return "worker.remove"
-        case .workerLocal: return "worker.local"
-        case .workerConfigured: return "worker.configured"
-        case .workerPrivacy: return "worker.privacy"
-        case .workerLoadFailed: return "worker.loadFailed"
-        case .workerCredentialsFailed: return "worker.credentialsFailed"
-        case .workerSavedCleanupFailed: return "worker.savedCleanupFailed"
-        case .workerSaved: return "worker.saved"
-        case .workerInvalid: return "worker.invalid"
-        case .workerRemoved: return "worker.removed"
-        case .workerRemoveFailed: return "worker.removeFailed"
         case .modelSettingsInvalidURL: return "modelSettings.invalidURL"
         case .modelSettingsMissingModel: return "modelSettings.missingModel"
         case .modelSettingsMissingKey: return "modelSettings.missingKey"
@@ -1136,23 +1102,6 @@ enum AppText: Equatable {
         case .appearanceAlwaysLight: return "一直淺色"
         case .appearanceAlwaysDark: return "一直深色"
         case .keyboardDone: return "完成輸入"
-        case .workerTitle: return "腳本服務設定"
-        case .workerSection: return "原版 PDF 腳本服務"
-        case .workerExplanation: return "填入你部署的 Mika PDF 擷取服務完整 HTTPS 網址與專用存取金鑰。設定不會上傳文件。"
-        case .workerEndpoint: return "https://服務主機/v1/extract-pdf"
-        case .workerToken: return "Bearer 存取金鑰；同一服務可留空沿用"
-        case .workerSave: return "儲存服務設定"
-        case .workerRemove: return "移除服務設定與金鑰"
-        case .workerLocal: return "目前使用裝置上的 PDFKit。"
-        case .workerConfigured: return "服務已設定；每次仍須選擇使用服務，並核准讀檔與上傳。"
-        case .workerPrivacy: return "文件、選頁與 PDF 密碼會在你核准上傳後傳給這個服務。存取金鑰獨立儲存在裝置 Keychain；不會沿用模型的 API Key。"
-        case .workerLoadFailed: return "腳本服務設定無法讀取，原資料保留。"
-        case .workerCredentialsFailed: return "腳本服務設定或金鑰無法讀取，請重新設定或解鎖後再試。"
-        case .workerSavedCleanupFailed: return "設定已儲存，舊金鑰未能移除；請稍後重試移除設定。"
-        case .workerSaved: return "設定已儲存；尚未連線或上傳文件。"
-        case .workerInvalid: return "服務網址或金鑰無效，設定未變更。"
-        case .workerRemoved: return "已移除腳本服務設定與金鑰。"
-        case .workerRemoveFailed: return "無法移除腳本服務設定與金鑰，請解鎖後重試。"
         case .modelSettingsInvalidURL: return "請輸入完整的 HTTPS Base URL，不可包含帳密、查詢參數或片段。"
         case .modelSettingsMissingModel: return "請填寫服務供應商提供的模型名稱。"
         case .modelSettingsMissingKey: return "請輸入 API Key。已有儲存的金鑰時，同一服務可留空沿用。"
@@ -1344,7 +1293,7 @@ enum AppText: Equatable {
         case .catalogReqAndroid: return "Android／其他 App 操作：不在 iOS 範圍"
         case .catalogReqWeb: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
         case .catalogReqFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"
-        case .catalogReqPython: return "原始 PDF 腳本需另行設定服務；本機不執行 Python"
+        case .catalogReqPython: return "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理"
         case .catalogReqShell: return "Shell／桌面命令執行：未提供"
         case .catalogReqExport: return "原版檔案產生與分享工具：未提供"
         case .catalogReqResearch: return "原版跨網站自動研究：未提供"

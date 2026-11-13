@@ -45,7 +45,8 @@ enum SkillExecutionChecks {
         try expect(reports.allSatisfy { !$0.originalParity && !$0.dependencies.isEmpty }, "no false parity")
         try expect(reports.flatMap(\.provenance).count == 8, "five instructions and three supporting assets")
         let documents = reports.first { $0.skillID == "documents" }!
-        try expect(documents.provenance.contains { $0.sha256 == SkillExecutionHTTPWorker.scriptSHA256 }, "exact original script hash")
+        try expect(documents.provenance.contains { $0.sha256 == "41c2e2b51cd23173e0891084d0cd93d54e300e5fd571876740de36ac5968817c" },
+                   "exact original script hash")
         try expect(documents.provenance.allSatisfy { $0.revision == BundledSkillCatalog.pinnedCommit }, "pinned provenance")
         let query = documents.dependencies.first { $0.original == "read_file / search_files" }
         try expect(query?.status == .implementedInRuntime && query?.mapping == SkillExecutionDependencies.pdfQueryScope,
@@ -54,6 +55,8 @@ enum SkillExecutionChecks {
                    SkillExecutionDependencies.pdfQueryScope.contains("不開放任意路徑、workspace"), "no arbitrary workspace claim")
         try expect(documents.dependencies.first { $0.original == "run_command + pypdf / OCR" }?.status == .excluded,
                    "query availability does not enable shell")
+        try expect(documents.dependencies.first { $0.original.hasPrefix("scripts/manifest.json") }?.status == .excluded,
+                   "no Python or script service for the original script")
         try expect(documents.dependencies.first { $0.original == "--out / share_file" }?.status == .hostIntegrationRequired,
                    "user export is not a generic skill share tool")
 
@@ -164,11 +167,8 @@ enum SkillExecutionChecks {
         clock.advance()
         try await rejects(.expiredApproval) { _ = try await expiring.execute(expired) }
         try await rejects(.approvalRequired) { _ = try await expiring.execute(expired) }
-        let unsupported = try SkillExecutionRuntime(selectedFile: selected, options: .init(), backend: .originalWorker, catalog: catalog)
-        try expect(!unsupported.plan.steps[1].availability.available, "no fake remote endpoint")
-        try data.write(to: url)
-        _ = try await unsupported.execute(unsupported.authorize(stepID: unsupported.plan.steps[0].id))
-        try await rejects(.unavailable) { _ = try await unsupported.authorize(stepID: unsupported.plan.steps[1].id) }
+        try expect(plan.steps[1].capability == .nativePDFText && plan.steps[1].disclosure.contains("不會上傳"),
+                   "extraction is on the device; nothing is uploaded")
         await other.cancel()
         try await rejects(.cancelled) { _ = try await other.authorize(stepID: other.plan.steps[0].id) }
         try await rejects(.invalidSelection) { _ = try SkillExecutionSelectedFile(userSelectedURL: URL(string: "https://example.com/a.pdf")!) }
@@ -190,85 +190,6 @@ enum SkillExecutionChecks {
         let directory = folder.appendingPathComponent("directory.pdf")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         try await rejects(.invalidSelection) { _ = try SkillExecutionPDF.read(.init(userSelectedURL: directory)) }
-    }
-
-    static func cancellation(_ catalog: BundledSkillCatalog) async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
-        try pdf().write(to: url); defer { try? FileManager.default.removeItem(at: url) }
-        let worker = GateWorker()
-        let runtime = try SkillExecutionRuntime(selectedFile: .init(userSelectedURL: url), options: .init(),
-            backend: .originalWorker, worker: worker, catalog: catalog)
-        _ = try await runtime.execute(runtime.authorize(stepID: runtime.plan.steps[0].id))
-        let calls = await worker.calls; try expect(calls == 0, "read approval does not upload")
-        let grant = try await runtime.authorize(stepID: runtime.plan.steps[1].id)
-        let task = Task { try await runtime.execute(grant) }
-        await worker.waitForStart()
-        try await rejects(.busy) { _ = try await runtime.execute(grant) }
-        await runtime.cancel(); await worker.release()
-        try await rejects(.cancelled) { _ = try await task.value }
-        let returned = await worker.responses
-        try expect(returned == 1, "the adapter actually returned a late response; cancellation must discard it")
-        let next = await runtime.nextStep(); try expect(next == nil, "no late result after cancellation")
-
-        // Positive control: the same adapter response must pass runtime validation
-        // without cancellation. Also force release-before-registration rather than
-        // relying on a particular actor scheduler to exercise that gate ordering.
-        let early = GateWorker()
-        await early.release()
-        let accepting = try SkillExecutionRuntime(selectedFile: .init(userSelectedURL: url), options: .init(),
-            backend: .originalWorker, worker: early, catalog: catalog)
-        _ = try await accepting.execute(accepting.authorize(stepID: accepting.plan.steps[0].id))
-        let approved = try await accepting.authorize(stepID: accepting.plan.steps[1].id)
-        guard case .pdf(let accepted) = try await accepting.execute(approved) else {
-            throw Failure(message: "uncancelled adapter response must be accepted")
-        }
-        await early.waitForStart()
-        try expect(accepted.pages.map(\.number) == [1, 2, 3] && accepted.emptyPages == [2],
-                   "late-result fixture is valid, so an invalid response cannot mask cancellation")
-    }
-
-    static func remote(_ catalog: BundledSkillCatalog, endpoint: URL) async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
-        try pdf().write(to: url); defer { try? FileManager.default.removeItem(at: url) }
-        let worker = try SkillExecutionHTTPWorker(endpoint: endpoint, allowLoopbackForTesting: true)
-        let runtime = try SkillExecutionRuntime(selectedFile: .init(userSelectedURL: url), options: .init(pages: "3,2,1"),
-            backend: .originalWorker, worker: worker, catalog: catalog)
-        _ = try await runtime.execute(runtime.authorize(stepID: runtime.plan.steps[0].id))
-        let approval = try await runtime.authorize(stepID: runtime.plan.steps[1].id)
-        guard case .pdf(let result) = try await runtime.execute(approval) else { throw Failure(message: "worker result missing") }
-        try expect(result.pages.map(\.number) == [3,2,1] && result.pages[0].text == "Beta evidence", "real HTTP original script output")
-        try expect(result.emptyPages == [2] && result.originalScriptSHA256 == SkillExecutionHTTPWorker.scriptSHA256, "worker provenance and empty pages")
-        try await rejects(.unavailable) { _ = try SkillExecutionHTTPWorker(endpoint: URL(string: "http://example.com/worker")!) }
-        try await rejects(.unavailable) { _ = try SkillExecutionHTTPWorker(endpoint: URL(string: "https://example.com/worker?key=fixture")!) }
-    }
-
-    static func remoteValidation(endpoint: URL) async throws {
-        for (path, error) in [("invalid-hash", SkillExecutionError.invalidWorkerResponse),
-                              ("invalid-pages", .invalidWorkerResponse), ("redirect", .workerFailed),
-                              ("oversized", .workerFailed)] {
-            let url = endpoint.deletingLastPathComponent().appendingPathComponent(path)
-            let worker = try SkillExecutionHTTPWorker(endpoint: url, allowLoopbackForTesting: true)
-            try await rejects(error) { _ = try await worker.extract(data: pdf(), options: .init()) }
-        }
-        let authenticatedURL = endpoint.deletingLastPathComponent().appendingPathComponent("authenticated")
-        let token = "synthetic-pdf-worker-bearer"
-        let authenticated = try SkillExecutionHTTPWorker(endpoint: authenticatedURL,
-            authorizationBearer: token, allowLoopbackForTesting: true)
-        let result = try await authenticated.extract(data: pdf(), options: .init(pages: "1"))
-        try expect(result.pages.map(\.text) == ["Alpha evidence"], "authenticated request executes actual original script")
-        try expect(!authenticated.destination.contains(token), "plan destination never contains the bearer")
-        for invalid in [nil, "wrong-synthetic-token"] {
-            let denied = try SkillExecutionHTTPWorker(endpoint: authenticatedURL,
-                authorizationBearer: invalid, allowLoopbackForTesting: true)
-            try await rejects(.workerFailed) { _ = try await denied.extract(data: pdf(), options: .init()) }
-        }
-        for invalid in ["", "has space", "line\r\nbreak", "非ASCII", String(repeating: "a", count: 4097)] {
-            try await rejects(.unavailable) { _ = try SkillExecutionHTTPWorker(endpoint: authenticatedURL,
-                authorizationBearer: invalid, allowLoopbackForTesting: true) }
-        }
-        let redirect = try SkillExecutionHTTPWorker(endpoint: endpoint.deletingLastPathComponent().appendingPathComponent("redirect"),
-            authorizationBearer: token, allowLoopbackForTesting: true)
-        try await rejects(.workerFailed) { _ = try await redirect.extract(data: pdf(), options: .init()) }
     }
 
     /// A real Foundation file presenter with unsaved synthetic content. The
@@ -300,39 +221,6 @@ enum SkillExecutionChecks {
         var now: Date { lock.lock(); defer { lock.unlock() }; return value }
         func advance() { lock.lock(); defer { lock.unlock() }; value = value.addingTimeInterval(121) }
     }
-    actor GateWorker: SkillExecutionPDFWorker {
-        nonisolated let destination = "test adapter; no network"
-        var calls = 0
-        var responses = 0
-        private var released = false
-        private var started: CheckedContinuation<Void, Never>?
-        private var pending: CheckedContinuation<Void, Never>?
-        func waitForStart() async {
-            await withCheckedContinuation { continuation in
-                if calls > 0 { continuation.resume() } else { started = continuation }
-            }
-        }
-        func release() { released = true; pending?.resume(); pending = nil }
-        func extract(data: Data, options: SkillExecutionPDFOptions) async throws -> SkillExecutionPDFResult {
-            await withCheckedContinuation { continuation in
-                calls += 1
-                if released { continuation.resume() } else { pending = continuation }
-                started?.resume(); started = nil
-            }
-            // This adapter tests delayed remote responses, not local extraction.
-            // Both iOS 18 timeout spindumps reached PDFDocument.init here after
-            // release, waiting on SpringBoard. Keep PDFKit in nativePDF(), the
-            // coordinated-read checks and native UI tests; keep real Python in
-            // the HTTP integration tests. Do not start it after this fake gate.
-            let texts = ["Alpha evidence", "", "Beta evidence"]
-            let numbers = options.metadataOnly ? [] : try SkillExecutionPageRange.parse(options.pages, pageCount: 3)
-            let pages = numbers.map { SkillExecutionPDFPage(number: $0, text: texts[$0 - 1]) }
-            responses += 1
-            return SkillExecutionPDFResult(pageCount: 3, pages: pages, metadata: ["pages": "3"],
-                emptyPages: pages.filter { $0.text.isEmpty }.map(\.number), inputSHA256: skillExecutionDigest(data),
-                engine: "GateWorker test fixture", originalScriptSHA256: SkillExecutionHTTPWorker.scriptSHA256)
-        }
-    }
 }
 
 #if SKILL_EXECUTION_SMOKE
@@ -346,15 +234,6 @@ struct SkillExecutionStandalone {
         try await SkillExecutionChecks.nativePDF(); print("PASS actual PDFKit text, metadata, pages, encryption and invalid inputs")
         try await SkillExecutionChecks.coordinatedRead(); print("PASS real file presenter save, refusal and post-coordination byte limit")
         try await SkillExecutionChecks.authorization(catalog); print("PASS per-step approval, replay, expiry, selection and byte snapshot")
-        try await SkillExecutionChecks.cancellation(catalog); print("PASS upload gating, concurrency and cancellation")
-        if args.count >= 3 {
-            try await SkillExecutionChecks.remote(catalog, endpoint: URL(string: args[2])!)
-            print("PASS Swift HTTP -> pinned original Python script integration")
-        }
-        if args.count == 4 && args[3] == "--test-protocol-rejections" {
-            try await SkillExecutionChecks.remoteValidation(endpoint: URL(string: args[2])!)
-            print("PASS real HTTP redirect, provenance, page and size rejection")
-        }
     }
 }
 #else
@@ -363,7 +242,6 @@ final class SkillExecutionTests: XCTestCase {
     func testRealPDFKitExtraction() async throws { try await SkillExecutionChecks.nativePDF() }
     func testCoordinatedSelectedFileRead() async throws { try await SkillExecutionChecks.coordinatedRead() }
     func testSelectedFileAndSingleUseAuthorization() async throws { try await SkillExecutionChecks.authorization(BundledSkillCatalog.bundled()) }
-    func testCancellationAndUploadGating() async throws { try await SkillExecutionChecks.cancellation(BundledSkillCatalog.bundled()) }
 }
 #endif
 #endif

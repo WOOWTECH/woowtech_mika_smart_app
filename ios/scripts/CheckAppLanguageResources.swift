@@ -97,7 +97,6 @@ import AssistantSkills
         try check(AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的对话（2）",
                   "archive count is formatted with the selected language")
         let en = AppLocalizer(language: .english, bundle: bundle)
-        let hans = AppLocalizer(language: .simplifiedChinese, bundle: bundle)
         let hant = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "language.appearance.title")
         let fallback = AppLocalizer(language: .english, bundle: partial).resolve(.languageAppearanceTitle)
@@ -119,8 +118,6 @@ import AssistantSkills
             try check(en.text(message) != error.errorDescription && !en.resolve(message).usedFallback, "shared known setting errors have packaged English translations")
         }
         try check(en.text(.modelSettingsKeychainStatus(code: "-25293")).contains("-25293"), "system code is not locale-grouped")
-        let workerNotice = AppText.workerSaved
-        try check(en.text(workerNotice) == "Settings saved. No connection or document upload has been made." && hans.text(workerNotice) == "设置已保存；尚未连接或上传文件。", "stored worker notice re-renders across languages without connecting")
         let uuid = UUID().uuidString
         let suite = try AppLanguagePreferences.suiteName(arguments: ["-UITestMode", "-UITestNamespace", uuid], debug: true)
         try check(suite.hasSuffix(".test." + uuid), "fixture preferences are isolated")
