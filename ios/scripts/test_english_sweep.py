@@ -16,7 +16,7 @@ CJK = re.compile('[㐀-鿿＀-￯　-〿]')
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 SWEPT = [
-    'UserProfileView', 'UserProfileToolReviewView', 'ConversationArchiveView',
+    'UserProfileView', 'UserProfileToolReviewView',
     'MemoryToolReviewView', 'BrowserSearchSettingsView', 'SavedDataViews',
 ]
 

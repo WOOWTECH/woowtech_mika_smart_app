@@ -396,119 +396,6 @@
       }
     },
     {
-      "case": "archiveRowSummary",
-      "key": "archive.rowSummary",
-      "parameters": [
-        {
-          "name": "count",
-          "type": "Int"
-        },
-        {
-          "name": "date",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "%1$lld 輪 · %2$@",
-        "en": "Exchanges: %1$lld · %2$@"
-      }
-    },
-    {
-      "case": "archiveModel",
-      "key": "archive.model",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "保存時的模型：%1$@",
-        "en": "Model when saved: %1$@"
-      }
-    },
-    {
-      "case": "archiveDestinationMismatch",
-      "key": "archive.destinationMismatch",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。",
-        "en": "The model service, model or key differs from your current settings. You can read this conversation, but it won’t be carried into the current service."
-      }
-    },
-    {
-      "case": "archiveYou",
-      "key": "archive.you",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "你",
-        "en": "You"
-      }
-    },
-    {
-      "case": "archiveAssistant",
-      "key": "archive.assistant",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "助理",
-        "en": "Assistant"
-      }
-    },
-    {
-      "case": "archiveDelete",
-      "key": "archive.delete",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "刪除對話",
-        "en": "Delete conversation"
-      }
-    },
-    {
-      "case": "archiveOpen",
-      "key": "archive.open",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "開啟此對話",
-        "en": "Open this conversation"
-      }
-    },
-    {
-      "case": "archiveDeleted",
-      "key": "archive.deleted",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "此對話已刪除",
-        "en": "This conversation was deleted"
-      }
-    },
-    {
-      "case": "archiveDetailTitle",
-      "key": "archive.detailTitle",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "保存的問答",
-        "en": "Saved conversation"
-      }
-    },
-    {
-      "case": "archiveDeleteTitle",
-      "key": "archive.deleteTitle",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "刪除此對話？",
-        "en": "Delete this conversation?"
-      }
-    },
-    {
-      "case": "archiveDeleteMessage",
-      "key": "archive.deleteMessage",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。",
-        "en": "This removes the saved exchanges, the text taken from attachments and the quotations. Confirmed memories and your profile are kept."
-      }
-    },
-    {
       "case": "memoryToolIntro",
       "key": "memoryTool.intro",
       "parameters": [],
@@ -1493,15 +1380,6 @@
       "translations": {
         "zh-Hant": "關閉選單",
         "en": "Close menu"
-      }
-    },
-    {
-      "case": "shellChatHistory",
-      "key": "shell.chatHistory",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "歷史對話",
-        "en": "Chat history"
       }
     },
     {
@@ -5152,47 +5030,6 @@
       }
     },
     {
-      "case": "archiveBoundary",
-      "key": "archive.boundary",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。",
-        "en": "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything."
-      }
-    },
-    {
-      "case": "archiveSavedCount",
-      "key": "archive.savedCount",
-      "parameters": [
-        {
-          "name": "count",
-          "type": "Int"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "已保存的對話（%1$lld）",
-        "en": "Saved conversations (%1$lld)"
-      }
-    },
-    {
-      "case": "archiveEmpty",
-      "key": "archive.empty",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚無保存的對話",
-        "en": "No saved conversations yet."
-      }
-    },
-    {
-      "case": "archiveClose",
-      "key": "archive.close",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "關閉",
-        "en": "Close"
-      }
-    },
-    {
       "case": "localPDFSearchOpen",
       "key": "localPDFSearch.open",
       "parameters": [],
@@ -6229,6 +6066,29 @@
       "translations": {
         "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
         "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "drawerDeleteTitle",
+      "key": "drawer.delete.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除這個對話？",
+        "en": "Delete this chat?"
+      }
+    },
+    {
+      "case": "drawerDeleteBody",
+      "key": "drawer.delete.body",
+      "parameters": [
+        {
+          "name": "title",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "「%1$@」和裡面的檔案都會刪掉。",
+        "en": "“%1$@” and the files in it will be deleted."
       }
     }
   ]

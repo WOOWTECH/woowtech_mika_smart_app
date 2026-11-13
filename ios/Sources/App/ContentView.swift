@@ -9,7 +9,6 @@ struct ContentView: View {
     @State private var selection: AppSection = .chat
     @State private var browserReturnSection: AppSection = .chat
     @State private var showsDrawer = false
-    @State private var showsArchive = false
     @State private var showsNewConversationConfirmation = false
     @State private var pendingNewConversationProtection: NewConversationProtection?
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
@@ -30,9 +29,6 @@ struct ContentView: View {
     var body: some View {
         shell
         .animation(.easeOut(duration: 0.22), value: showsDrawer)
-        .sheet(isPresented: $showsArchive) {
-            if let store = session.archive { ConversationArchiveView(store: store, session: session) }
-        }
         .alert(localizer.text(.newConversationConfirmTitle), isPresented: $showsNewConversationConfirmation) {
             Button(localizer.text(.newConversationDiscard), role: .destructive) {
                 let approved = pendingNewConversationProtection
@@ -109,14 +105,12 @@ struct ContentView: View {
                           status: localizer.text(session.chatStatusMessage),
                           session: session,
                           canStartNew: !session.isSubmitting,
-                          canOpenArchive: session.archive != nil && !session.isSubmitting,
                           palette: palette,
                           localizer: localizer,
                           topInset: geometry.safeAreaInsets.top,
                           bottomInset: geometry.safeAreaInsets.bottom,
                           onClose: closeDrawer,
                           onNew: requestNewConversation,
-                          onArchive: { showsDrawer = false; showsArchive = true },
                           onOpenRecent: { record in
                               if RecentConversationAccess.isCurrent(record, in: session) {
                                   closeDrawer()
@@ -328,14 +322,12 @@ private struct MikaNavigationDrawer: View {
     let status: String
     @ObservedObject var session: ChatSession
     let canStartNew: Bool
-    let canOpenArchive: Bool
     let palette: MikaVisualPalette
     let localizer: AppLocalizer
     let topInset: CGFloat
     let bottomInset: CGFloat
     let onClose: () -> Void
     let onNew: () -> Void
-    let onArchive: () -> Void
     let onOpenRecent: (ArchivedConversation) -> Void
     let onSelect: (AppSection) -> Void
     @AccessibilityFocusState private var closeHasVoiceOverFocus: Bool
@@ -360,8 +352,6 @@ private struct MikaNavigationDrawer: View {
             ScrollView {
                 VStack(spacing: 0) {
                     row(localizer.text(.shellNewConversation), symbol: "square.and.pencil", id: "drawer.newConversation", enabled: canStartNew, action: onNew)
-                    row(localizer.text(.shellChatHistory), symbol: "clock.arrow.circlepath", id: "drawer.archive", enabled: canOpenArchive, action: onArchive)
-                    row(localizer.text(.shellChat), symbol: "message", id: "navigation.chat") { onSelect(.chat) }
                     row(localizer.text(.shellMemoryAndSkills), symbol: "heart", id: "navigation.memory") { onSelect(.memory) }
                     row(localizer.text(.shellMCPServers), symbol: "link", id: "navigation.tools") { onSelect(.tools) }
                     row(localizer.text(.shellBrowser), symbol: "globe", id: "navigation.browser") { onSelect(.browser) }

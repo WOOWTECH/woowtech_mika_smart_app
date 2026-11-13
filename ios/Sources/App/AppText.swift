@@ -44,17 +44,6 @@ enum AppText: Equatable {
     case profileToolDecline
     case profileToolApprove
     case commonDone
-    case archiveRowSummary(count: Int, date: String)
-    case archiveModel(value: String)
-    case archiveDestinationMismatch
-    case archiveYou
-    case archiveAssistant
-    case archiveDelete
-    case archiveOpen
-    case archiveDeleted
-    case archiveDetailTitle
-    case archiveDeleteTitle
-    case archiveDeleteMessage
     case memoryToolIntro
     case memoryToolAdd
     case memoryToolUpdate
@@ -163,7 +152,6 @@ enum AppText: Equatable {
     case shellBackToMemory
     case shellNewConversation
     case shellCloseMenu
-    case shellChatHistory
     case shellChat
     case shellMemoryAndSkills
     case shellMCPServers
@@ -548,10 +536,6 @@ enum AppText: Equatable {
     case chatSendBlockedDismiss
     case chatSendBlockedOpenSettings
     case chatFixtureNotice
-    case archiveBoundary
-    case archiveSavedCount(count: Int)
-    case archiveEmpty
-    case archiveClose
     case localPDFSearchOpen
     case localPDFSearchTitle
     case localPDFSearchNotice
@@ -657,6 +641,8 @@ enum AppText: Equatable {
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
+    case drawerDeleteTitle
+    case drawerDeleteBody(title: String)
 
     var key: String {
         switch self {
@@ -701,17 +687,6 @@ enum AppText: Equatable {
         case .profileToolDecline: return "profileTool.decline"
         case .profileToolApprove: return "profileTool.approve"
         case .commonDone: return "common.done"
-        case .archiveRowSummary: return "archive.rowSummary"
-        case .archiveModel: return "archive.model"
-        case .archiveDestinationMismatch: return "archive.destinationMismatch"
-        case .archiveYou: return "archive.you"
-        case .archiveAssistant: return "archive.assistant"
-        case .archiveDelete: return "archive.delete"
-        case .archiveOpen: return "archive.open"
-        case .archiveDeleted: return "archive.deleted"
-        case .archiveDetailTitle: return "archive.detailTitle"
-        case .archiveDeleteTitle: return "archive.deleteTitle"
-        case .archiveDeleteMessage: return "archive.deleteMessage"
         case .memoryToolIntro: return "memoryTool.intro"
         case .memoryToolAdd: return "memoryTool.add"
         case .memoryToolUpdate: return "memoryTool.update"
@@ -820,7 +795,6 @@ enum AppText: Equatable {
         case .shellBackToMemory: return "shell.backToMemory"
         case .shellNewConversation: return "shell.newConversation"
         case .shellCloseMenu: return "shell.closeMenu"
-        case .shellChatHistory: return "shell.chatHistory"
         case .shellChat: return "shell.chat"
         case .shellMemoryAndSkills: return "shell.memoryAndSkills"
         case .shellMCPServers: return "shell.mcpServers"
@@ -1205,10 +1179,6 @@ enum AppText: Equatable {
         case .chatSendBlockedDismiss: return "chat.sendBlocked.dismiss"
         case .chatSendBlockedOpenSettings: return "chat.sendBlocked.openSettings"
         case .chatFixtureNotice: return "chat.fixtureNotice"
-        case .archiveBoundary: return "archive.boundary"
-        case .archiveSavedCount: return "archive.savedCount"
-        case .archiveEmpty: return "archive.empty"
-        case .archiveClose: return "archive.close"
         case .localPDFSearchOpen: return "localPDFSearch.open"
         case .localPDFSearchTitle: return "localPDFSearch.title"
         case .localPDFSearchNotice: return "localPDFSearch.notice"
@@ -1314,6 +1284,8 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
+        case .drawerDeleteTitle: return "drawer.delete.title"
+        case .drawerDeleteBody: return "drawer.delete.body"
         }
     }
 
@@ -1323,8 +1295,6 @@ enum AppText: Equatable {
         case .profileHistoryCount(let count): return [Int64(count)]
         case .profileHistoryItem(let value): return [value]
         case .profileEditorCount(let count): return [Int64(count)]
-        case .archiveRowSummary(let count, let date): return [Int64(count), date]
-        case .archiveModel(let value): return [value]
         case .learningRemembered(let value): return [value]
         case .learningUpdated(let value): return [value]
         case .learningPendingProcedure(let value): return [value]
@@ -1359,7 +1329,6 @@ enum AppText: Equatable {
         case .chatConsentDeclined(let provider): return [provider]
         case .settingsStatusReadyMain(let model, let provider): return [model, provider]
         case .drawerRecentTurns(let count): return [Int64(count)]
-        case .archiveSavedCount(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
         case .localPDFSearchHit(let page, let index): return [Int64(page), Int64(index)]
@@ -1374,6 +1343,7 @@ enum AppText: Equatable {
         case .chatQuotingYou(let text): return [text]
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
+        case .drawerDeleteBody(let title): return [title]
         default: return []
         }
     }
@@ -1422,17 +1392,6 @@ enum AppText: Equatable {
         case .profileToolDecline: return "拒絕並停止"
         case .profileToolApprove: return "核准並儲存"
         case .commonDone: return "完成"
-        case .archiveRowSummary: return "%1$lld 輪 · %2$@"
-        case .archiveModel: return "保存時的模型：%1$@"
-        case .archiveDestinationMismatch: return "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。"
-        case .archiveYou: return "你"
-        case .archiveAssistant: return "助理"
-        case .archiveDelete: return "刪除對話"
-        case .archiveOpen: return "開啟此對話"
-        case .archiveDeleted: return "此對話已刪除"
-        case .archiveDetailTitle: return "保存的問答"
-        case .archiveDeleteTitle: return "刪除此對話？"
-        case .archiveDeleteMessage: return "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。"
         case .memoryToolIntro: return "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。"
         case .memoryToolAdd: return "新增"
         case .memoryToolUpdate: return "修改"
@@ -1541,7 +1500,6 @@ enum AppText: Equatable {
         case .shellBackToMemory: return "返回記憶"
         case .shellNewConversation: return "新對話"
         case .shellCloseMenu: return "關閉選單"
-        case .shellChatHistory: return "歷史對話"
         case .shellChat: return "對話"
         case .shellMemoryAndSkills: return "記憶與技能"
         case .shellMCPServers: return "MCP 伺服器"
@@ -1926,10 +1884,6 @@ enum AppText: Equatable {
         case .chatSendBlockedDismiss: return "知道了"
         case .chatSendBlockedOpenSettings: return "去設定"
         case .chatFixtureNotice: return "UI 測試模式：固定回覆，不會呼叫網路。"
-        case .archiveBoundary: return "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。"
-        case .archiveSavedCount: return "已保存的對話（%1$lld）"
-        case .archiveEmpty: return "尚無保存的對話"
-        case .archiveClose: return "關閉"
         case .localPDFSearchOpen: return "離線搜尋擷取文字"
         case .localPDFSearchTitle: return "離線搜尋已擷取文字"
         case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。"
@@ -2035,6 +1989,8 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
+        case .drawerDeleteTitle: return "刪除這個對話？"
+        case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
         }
     }
 }

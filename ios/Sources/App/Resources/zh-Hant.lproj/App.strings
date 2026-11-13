@@ -40,17 +40,6 @@
 "profileTool.decline" = "拒絕並停止";
 "profileTool.approve" = "核准並儲存";
 "common.done" = "完成";
-"archive.rowSummary" = "%1$lld 輪 · %2$@";
-"archive.model" = "保存時的模型：%1$@";
-"archive.destinationMismatch" = "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。";
-"archive.you" = "你";
-"archive.assistant" = "助理";
-"archive.delete" = "刪除對話";
-"archive.open" = "開啟此對話";
-"archive.deleted" = "此對話已刪除";
-"archive.detailTitle" = "保存的問答";
-"archive.deleteTitle" = "刪除此對話？";
-"archive.deleteMessage" = "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。";
 "memoryTool.intro" = "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。";
 "memoryTool.add" = "新增";
 "memoryTool.update" = "修改";
@@ -159,7 +148,6 @@
 "shell.backToMemory" = "返回記憶";
 "shell.newConversation" = "新對話";
 "shell.closeMenu" = "關閉選單";
-"shell.chatHistory" = "歷史對話";
 "shell.chat" = "對話";
 "shell.memoryAndSkills" = "記憶與技能";
 "shell.mcpServers" = "MCP 伺服器";
@@ -540,10 +528,6 @@
 "chat.sendBlocked.dismiss" = "知道了";
 "chat.sendBlocked.openSettings" = "去設定";
 "chat.fixtureNotice" = "UI 測試模式：固定回覆，不會呼叫網路。";
-"archive.boundary" = "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。";
-"archive.savedCount" = "已保存的對話（%1$lld）";
-"archive.empty" = "尚無保存的對話";
-"archive.close" = "關閉";
 "localPDFSearch.open" = "離線搜尋擷取文字";
 "localPDFSearch.title" = "離線搜尋已擷取文字";
 "localPDFSearch.notice" = "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。";
@@ -647,3 +631,5 @@
 "chat.modelFailed.unreadable" = "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。";
 "chat.modelFailed.server" = "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。";
 "chat.modelFailed.status" = "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。";
+"drawer.delete.title" = "刪除這個對話？";
+"drawer.delete.body" = "「%1$@」和裡面的檔案都會刪掉。";

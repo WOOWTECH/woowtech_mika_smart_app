@@ -54,7 +54,7 @@ import AssistantSkills
         let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
             .chatStatusMCPWorking, .chatStatusWaiting,
             .chatStatusConfigured, .chatStatusUnconfigured, .chatModelSetupHint,
-            .chatFixtureNotice, .archiveBoundary, .archiveSavedCount(count: 2), .archiveEmpty, .archiveClose]
+            .chatFixtureNotice, .drawerDeleteTitle, .drawerDeleteBody(title: "A")]
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language, bundle: bundle)
             for message in chatMessages {
@@ -97,8 +97,8 @@ import AssistantSkills
         }
         try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
                   "in-flight status uses the current language")
-        try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的對話（2）",
-                  "archive count is formatted with the selected language")
+        try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.drawerDeleteBody(title: "A")) == "「A」和裡面的檔案都會刪掉。",
+                  "the drawer's delete prompt is formatted with the selected language")
         let en = AppLocalizer(language: .english, bundle: bundle)
         let hant = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "language.appearance.title")

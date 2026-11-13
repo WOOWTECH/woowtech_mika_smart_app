@@ -40,17 +40,6 @@
 "profileTool.decline" = "Decline and stop";
 "profileTool.approve" = "Approve and save";
 "common.done" = "Done";
-"archive.rowSummary" = "Exchanges: %1$lld · %2$@";
-"archive.model" = "Model when saved: %1$@";
-"archive.destinationMismatch" = "The model service, model or key differs from your current settings. You can read this conversation, but it won’t be carried into the current service.";
-"archive.you" = "You";
-"archive.assistant" = "Assistant";
-"archive.delete" = "Delete conversation";
-"archive.open" = "Open this conversation";
-"archive.deleted" = "This conversation was deleted";
-"archive.detailTitle" = "Saved conversation";
-"archive.deleteTitle" = "Delete this conversation?";
-"archive.deleteMessage" = "This removes the saved exchanges, the text taken from attachments and the quotations. Confirmed memories and your profile are kept.";
 "memoryTool.intro" = "Check this memory change. Once you approve, it’s saved and you get an Undo button.";
 "memoryTool.add" = "Add";
 "memoryTool.update" = "Change";
@@ -159,7 +148,6 @@
 "shell.backToMemory" = "Back to memory";
 "shell.newConversation" = "New chat";
 "shell.closeMenu" = "Close menu";
-"shell.chatHistory" = "Chat history";
 "shell.chat" = "Chat";
 "shell.memoryAndSkills" = "Memory and skills";
 "shell.mcpServers" = "MCP servers";
@@ -540,10 +528,6 @@
 "chat.sendBlocked.dismiss" = "Got it";
 "chat.sendBlocked.openSettings" = "Open Settings";
 "chat.fixtureNotice" = "UI test mode: fixed replies; no network calls.";
-"archive.boundary" = "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything.";
-"archive.savedCount" = "Saved conversations (%1$lld)";
-"archive.empty" = "No saved conversations yet.";
-"archive.close" = "Close";
 "localPDFSearch.open" = "Search extracted text offline";
 "localPDFSearch.title" = "Search extracted text offline";
 "localPDFSearch.notice" = "Searches only the pages selected and approved for this extraction. No OCR or data transmission.";
@@ -647,3 +631,5 @@
 "chat.modelFailed.unreadable" = "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved.";
 "chat.modelFailed.server" = "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved.";
 "chat.modelFailed.status" = "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved.";
+"drawer.delete.title" = "Delete this chat?";
+"drawer.delete.body" = "“%1$@” and the files in it will be deleted.";
