@@ -70,11 +70,7 @@ final class ChatAttachmentUITests: XCTestCase {
         let sees = app.switches["settings.seesImages"].firstMatch
         revealLearningElement(sees, in: app); ready(sees)
         XCTAssertEqual(sees.value as? String, "0")
-        // Tap the switch itself, as the other settings tests do; the row's middle is its label.
-        let native = sees.switches.firstMatch
-        (native.exists ? native : sees).tap()
-        let on = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: sees)
-        XCTAssertEqual(XCTWaiter.wait(for: [on], timeout: 5), .completed)
+        turnOn(sees)
         returnFromModelSettings(in: app)
         navigate("chat")
 
@@ -105,6 +101,19 @@ final class ChatAttachmentUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10), title)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@",
                                                         "drawer.recent.row.", "附件:")).firstMatch.exists)
+    }
+    /// Taps the switch itself, as the other settings tests do; the row's middle is its label.
+    /// A tap that lands while the reveal scroll settles can be lost, so a switch still off gets one more.
+    private func turnOn(_ toggle: XCUIElement) {
+        let on = NSPredicate(format: "value == %@", "1")
+        for _ in 0..<2 where !on.evaluate(with: toggle) {
+            let native = toggle.switches.firstMatch
+            let target = native.waitForExistence(timeout: 2) ? native : toggle
+            ready(target); target.tap()
+            _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: on, object: toggle)], timeout: 4)
+        }
+        XCTAssertEqual(toggle.value as? String, "1")
+        XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
     }
     private func addFixtureAttachments() {
         tap("uitest.attach.fixture")
