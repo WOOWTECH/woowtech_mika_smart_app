@@ -62,7 +62,12 @@ extension AppText {
 
     /// The shared modules' own error descriptions, which the stores pass through as text.
     private static func moduleMessage(_ text: String) -> AppText? {
+        if let error = skillAuthoringErrors.first(where: { $0.errorDescription == text }) { return skillAuthoringError(error) }
+        if let error = skillToolErrors.first(where: { $0.errorDescription == text }) { return skillToolError(error) }
         if let error = skillExecutionErrors.first(where: { $0.errorDescription == text }) { return skillExecutionError(error) }
+        if let error = documentQueryErrors.first(where: { $0.errorDescription == text }) { return documentQueryError(error) }
+        if let error = transcriptErrors.first(where: { $0.errorDescription == text }) { return transcriptError(error) }
+        if let error = pdfAssemblyErrors.first(where: { $0.errorDescription == text }) { return pdfAssemblyError(error) }
         let catalog: [SkillCatalogError] = [.unavailable, .invalidCatalog, .notFound, .alreadyAdded]
         if let error = catalog.first(where: { $0.errorDescription == text }) { return AppLocalizer.skillCatalogError(error) }
         return downloadMessage(text)
@@ -80,6 +85,24 @@ extension AppText {
         .learningSkillSensitive, .learningSkillChanged, .learningSkillDraftPending, .learningSkillBuiltinName,
         .learningSkillMissingSection, .learningSkillTooLong, .learningSkillCapacity, .learningSkillInvalid,
         .learningSaveFailed, .archiveDeleteNotSaved, .archiveReadFailed,
+        .skillAgentErrorChanged, .skillAgentErrorIncomplete, .skillAgentErrorNoModel, .skillAgentErrorCredentials,
+        .skillExecutionStatusNoSnapshot, .skillExecutionStatusNoSelection, .skillExecutionStatusPickFailed,
+        .skillExecutionStatusDownloadGone, .skillExecutionStatusNoPlan, .skillExecutionStatusExtracted,
+        .skillExecutionStatusIncomplete,
+        .documentQueryStatusStart, .documentQueryStatusEdited, .documentQueryErrorNoModel, .documentQueryErrorConfirmFirst,
+        .documentQueryStatusSearching, .documentQueryStatusFormatRetry, .documentQueryStatusVerified,
+        .documentQueryStatusUnfinished, .documentQueryStatusStopped, .documentQueryStatusModelChanged,
+        .documentQueryStatusModelChangedKept, .documentQueryErrorReferencesRevoked, .documentQueryStatusStoppedLate,
+        .documentQueryErrorReferencesUnavailable, .documentQueryErrorChanged, .documentQueryErrorFailed,
+        .documentQueryStatusIncomplete,
+        .transcriptStatusStart, .transcriptStatusReview, .transcriptStatusReading, .transcriptStatusRead,
+        .transcriptStatusFormatRetry, .transcriptStatusFormatStopped,
+        .transcriptStatusVerified, .transcriptStatusRefused, .transcriptStatusModelChangedKept,
+        .transcriptStatusApprovedSource, .transcriptErrorSelectionFailed, .transcriptErrorReferencesRevoked,
+        .transcriptStatusStoppedLate, .transcriptStatusIncomplete, .transcriptErrorFailed,
+        .pdfAssemblyStatusOneFile, .pdfAssemblyStatusAdded, .pdfAssemblyStatusConfirmEach, .pdfAssemblyStatusPickFailed,
+        .pdfAssemblyStatusReadAll, .pdfAssemblyStatusReadSome, .pdfAssemblyStatusCheckOrder, .pdfAssemblyStatusProduced,
+        .pdfAssemblyStatusIncomplete,
         // Default titles the browser library gives tabs it has no page title for.
         .browserTabNew, .browserTabSignIn, .browserTabPage,
     ]
@@ -88,5 +111,19 @@ extension AppText {
         (.learningRemembered(value: ""), { .learningRemembered(value: $0.text(1)) }),
         (.learningUpdated(value: ""), { .learningUpdated(value: $0.text(1)) }),
         (.learningPendingProcedure(value: ""), { .learningPendingProcedure(value: $0.text(1)) }),
+        (.skillExecutionStatusRead(count: 0), { $0.count(1).map { .skillExecutionStatusRead(count: $0) } }),
+        (.documentQueryDestination(host: "", model: ""), { .documentQueryDestination(host: $0.text(1), model: $0.text(2)) }),
+        (.documentQueryStatusRound(count: 0), { $0.count(1).map { .documentQueryStatusRound(count: $0) } }),
+        (.documentQueryStatusFoundMore(count: 0), { $0.count(1).map { .documentQueryStatusFoundMore(count: $0) } }),
+        (.documentQueryStatusFound(count: 0), { $0.count(1).map { .documentQueryStatusFound(count: $0) } }),
+        (.transcriptStatusRound(count: 0), { $0.count(1).map { .transcriptStatusRound(count: $0) } }),
+        (.transcriptStatusCovered(covered: 0, total: 0), { values in
+            guard let covered = values.count(1), let total = values.count(2) else { return nil }
+            return .transcriptStatusCovered(covered: covered, total: total)
+        }),
+        (.documentQueryStatusRead(page: 0, bytes: 0), { values in
+            guard let page = values.count(1), let bytes = values.count(2) else { return nil }
+            return .documentQueryStatusRead(page: page, bytes: bytes)
+        }),
     ]
 }

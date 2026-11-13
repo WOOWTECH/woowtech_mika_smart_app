@@ -70,7 +70,7 @@ private struct DocumentQueryPresentation: Identifiable {
     @State private var exportDocument: SkillExecutionTextDocument?
     @State private var exportPlanID: UUID?
     @State private var exportFilename = "PDF文字"
-    @State private var exportStatus: String?
+    @State private var exportStatus: AppText?
     #if DEBUG
     @State private var pickerObservation = "尚未觀察選檔器"
     #endif
@@ -100,26 +100,26 @@ private struct DocumentQueryPresentation: Identifiable {
 
     var body: some View {
         Form {
-            Section("PDF 文字擷取") {
-                Text("選取檔案後檢視每一步，再分別核准。預設使用裝置上的 PDFKit。")
+            Section(localizer.text(.skillExecutionSection)) {
+                Text(localizer.text(.skillExecutionIntro))
                     .accessibilityIdentifier("skillExecution.intro")
-                Text(verbatim: SkillExecutionDependencies.pdfQueryScope)
+                Text(verbatim: localizer.text(.skillExecutionPdfQueryScope))
                     .font(.caption).accessibilityIdentifier("skillExecution.pdfQuery.scope")
                 if model.plan == nil {
-                    TextField("頁碼，例如 1,3-5；留空代表全部", text: $pages)
+                    TextField(localizer.text(.skillExecutionPagesPlaceholder), text: $pages)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("PDF 密碼（需要時填寫）", text: $password)
-                    Toggle("只讀取文件資訊", isOn: $metadataOnly)
+                    SecureField(localizer.text(.skillExecutionPasswordPlaceholder), text: $password)
+                    Toggle(localizer.text(.skillExecutionMetadataOnly), isOn: $metadataOnly)
                     if let download = model.downloadedPDF {
                         Text(verbatim: download.filename).accessibilityIdentifier("downloadPDF.filename")
-                        Text("來源：此 App 的已完成下載。下載成功尚未授權讀取或擷取。")
+                        Text(localizer.text(.skillExecutionDownloadSource))
                             .font(.caption).accessibilityIdentifier("downloadPDF.source")
-                        Button("建立下載 PDF 計畫") {
+                        Button(localizer.text(.skillExecutionPrepareDownload)) {
                             model.prepareDownload(pages: pages, password: password, metadataOnly: metadataOnly)
                             password = ""
                         }.disabled(!model.downloadAvailable).accessibilityIdentifier("downloadPDF.prepare")
                     } else {
-                        Button("選取 PDF") { presentPicker(.original) }
+                        Button(localizer.text(.skillExecutionSelectPDF)) { presentPicker(.original) }
                             .accessibilityIdentifier("skillExecutionSelectPDF")
                     }
                     if model.downloadedPDF == nil {
@@ -127,17 +127,17 @@ private struct DocumentQueryPresentation: Identifiable {
                             importCopyExpanded.toggle()
                         } label: {
                             HStack {
-                                Text("改用匯入副本")
+                                Text(localizer.text(.skillExecutionImportCopyToggle))
                                 Spacer()
                                 Image(systemName: importCopyExpanded ? "chevron.down" : "chevron.right")
                             }
                         }
                         .accessibilityIdentifier("skillExecution.importCopy.options")
-                        .accessibilityValue(importCopyExpanded ? "已展開" : "已收合")
+                        .accessibilityValue(localizer.text(importCopyExpanded ? .commonExpanded : .commonCollapsed))
                         if importCopyExpanded {
-                            Text("選檔後，系統會先建立暫存副本並占用儲存空間，不會更動原檔。App 讀取與後續擷取仍需分別核准。App 最多讀取 10 MiB；系統複製的大小不受此上限限制。")
+                            Text(localizer.text(.skillExecutionImportCopyNotice))
                                 .accessibilityIdentifier("skillExecution.importCopy.notice")
-                            Button("選取 PDF 並匯入副本") { presentPicker(.importCopy) }
+                            Button(localizer.text(.skillExecutionImportCopyButton)) { presentPicker(.importCopy) }
                                 .accessibilityIdentifier("skillExecutionImportPDFCopy")
                         }
                     }
@@ -163,42 +163,43 @@ private struct DocumentQueryPresentation: Identifiable {
                 #endif
             }
             if let plan = model.plan {
-                Section("本次計畫") {
+                Section(localizer.text(.skillExecutionPlanSection)) {
                     Text(plan.filename).accessibilityIdentifier("skillExecution.filename")
-                    Text(plan.metadataOnly ? "只讀取文件資訊" : "頁碼：\(plan.pages ?? "全部（最多 200 頁）")")
+                    Text(plan.metadataOnly ? localizer.text(.skillExecutionMetadataOnly)
+                         : localizer.text(.skillExecutionPages(value: plan.pages ?? localizer.text(.skillExecutionAllPages))))
                     ForEach(plan.steps) { step in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(step.title).font(.headline)
-                            Text(step.disclosure)
-                            Text(model.completedStepIDs.contains(step.id) ? "已完成" :
-                                (step.availability.available ? "能力已連接；此步驟仍需核准" : "能力尚未連接"))
+                            Text(stepTitle(step)).font(.headline)
+                            Text(stepDisclosure(step))
+                            Text(localizer.text(model.completedStepIDs.contains(step.id) ? .skillExecutionStepDone :
+                                (step.availability.available ? .skillExecutionStepNeedsApproval : .skillExecutionStepUnavailable)))
                                 .font(.caption)
                             if model.nextStepID == step.id {
-                                Button(model.running ? "執行中…" : "核准並執行此步驟") { model.execute(stepID: step.id) }
+                                Button(localizer.text(model.running ? .skillExecutionRunning : .skillExecutionApproveStep)) { model.execute(stepID: step.id) }
                                     .disabled(model.running || !step.availability.available)
                                     .accessibilityIdentifier("skillExecutionApproveStep")
-                                    .accessibilityValue(step.title)
+                                    .accessibilityValue(stepTitle(step))
                             }
                         }
                     }
-                    DisclosureGroup("原版來源與雜湊") {
-                        Text("計畫指紋：\(plan.fingerprint)").font(.caption).textSelection(.enabled)
+                    DisclosureGroup(localizer.text(.skillExecutionSources)) {
+                        Text(localizer.text(.skillExecutionFingerprint(value: plan.fingerprint))).font(.caption).textSelection(.enabled)
                             .accessibilityIdentifier("skillExecution.fingerprint")
                         ForEach(plan.steps.first?.provenance ?? [], id: \.path) { source in
-                            Text("\(source.path)\n\(source.revision)\nSHA-256：\(source.sha256)").font(.caption).textSelection(.enabled)
+                            Text(localizer.text(.skillExecutionSourceRow(path: source.path, revision: source.revision, sha: source.sha256))).font(.caption).textSelection(.enabled)
                         }
-                        Text("這是經過限定的 iOS 能力實作，並非完整執行原版技能。")
+                        Text(localizer.text(.skillExecutionScopedNote))
                     }
                     .accessibilityIdentifier("skillExecution.sources")
-                    Button("清除本次計畫", role: .destructive) { resetExport(); model.clear(); password = "" }
+                    Button(localizer.text(.skillExecutionClearPlan), role: .destructive) { resetExport(); model.clear(); password = "" }
                         .accessibilityIdentifier("skillExecutionClearPlan")
                 }
             }
             if let result = model.result {
-                Section("擷取結果") {
-                    Text("共 \(result.pageCount) 頁；引擎：\(result.engine)")
+                Section(localizer.text(.skillExecutionResultSection)) {
+                    Text(localizer.text(.skillExecutionResultSummary(count: result.pageCount, engine: result.engine)))
                         .accessibilityIdentifier("skillExecution.result.summary")
-                    Text(result.notice)
+                    Text(resultNotice(result))
                     if !result.text.isEmpty {
                         Text(result.text).textSelection(.enabled).accessibilityIdentifier("skillExecution.result.text")
                         if result.pages.contains(where: { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
@@ -209,27 +210,27 @@ private struct DocumentQueryPresentation: Identifiable {
                                 Text(verbatim: localizer.text(.localPDFSearchSourceFailed))
                                     .accessibilityIdentifier("skillExecution.localSearch.sourceError")
                             }
-                            Button("查詢這份 PDF") { beginQuery(result) }
+                            Button(localizer.text(.skillExecutionQueryPDF)) { beginQuery(result) }
                                 .disabled(model.running || exportingText)
                                 .accessibilityIdentifier("skillExecution.query")
                         }
-                        Button("匯出文字檔") { beginExport(result) }
+                        Button(localizer.text(.skillExecutionExportText)) { beginExport(result) }
                             .disabled(exportingText)
                             .accessibilityIdentifier("skillExecutionExportText")
                     }
                     if let exportStatus {
-                        Text(exportStatus).accessibilityIdentifier("skillExecution.export.status")
+                        Text(localizer.text(exportStatus)).accessibilityIdentifier("skillExecution.export.status")
                     }
                     ForEach(result.metadata.keys.sorted(), id: \.self) { key in
-                        Text("\(key)：\(result.metadata[key] ?? "")").textSelection(.enabled)
+                        Text(localizer.text(.skillExecutionMetadataRow(key: key, value: result.metadata[key] ?? ""))).textSelection(.enabled)
                     }
                 }
             }
             DocumentLocalSearchSection(search: $localSearch, localizer: localizer)
-            if let status = model.status { Section { Text(status).accessibilityIdentifier("skillExecutionStatus") } }
+            if let status = model.status { Section { Text(localizer.stored(status)).accessibilityIdentifier("skillExecutionStatus") } }
         }
         .accessibilityIdentifier("skillExecution.form")
-        .navigationTitle("執行 PDF 技能")
+        .navigationTitle(localizer.text(.skillExecutionTitle))
         .modifier(PDFImportPresentation(isPresented: $choosingFile, choice: importChoice, experiment: pickerExperiment,
                                        onCompletion: receivePDFSelection, onCancellation: {
             #if DEBUG
@@ -244,10 +245,10 @@ private struct DocumentQueryPresentation: Identifiable {
                       contentTypes: [.utf8PlainText], defaultFilename: exportFilename,
                       onCompletion: { outcome in
             switch outcome {
-            case .success: finishExport("文字已儲存至所選位置。")
-            case .failure: finishExport("文字未能儲存，請重新選擇位置再試一次。")
+            case .success: finishExport(.skillExecutionExportSaved)
+            case .failure: finishExport(.skillExecutionExportFailed)
             }
-        }, onCancellation: { finishExport("已取消匯出，擷取結果仍保留。") })
+        }, onCancellation: { finishExport(.skillExecutionExportCancelled) })
         .sheet(item: $documentQuery) { presentation in
             NavigationStack {
                 DocumentQueryView(source: presentation.source, learning: learning, modelAccess: modelAccess, modelChanges: modelChanges)
@@ -285,7 +286,7 @@ private struct DocumentQueryPresentation: Identifiable {
         do {
             let source = try DocumentTextSnapshot(result: result, filename: plan.filename, catalog: .bundled())
             documentQuery = DocumentQueryPresentation(source: source)
-        } catch { model.status = "這次擷取結果無法建立查詢快照，請確認已擷取可讀取的文字。" }
+        } catch { model.status = AppText.skillExecutionStatusNoSnapshot.traditionalFallback }
     }
 
     private func presentPicker(_ choice: PDFImportChoice) {
@@ -306,12 +307,12 @@ private struct DocumentQueryPresentation: Identifiable {
         switch outcome {
         case .success(let urls):
             guard let url = urls.first, urls.count == 1 else {
-                model.status = "未能取得選取的 PDF，請重新選取一個檔案。"
+                model.status = AppText.skillExecutionStatusNoSelection.traditionalFallback
                 return
             }
             model.prepare(url: url, pages: pages, password: password, metadataOnly: metadataOnly)
             password = ""
-        case .failure: model.status = "未能選取檔案，請重試。"
+        case .failure: model.status = AppText.skillExecutionStatusPickFailed.traditionalFallback
         }
     }
 
@@ -320,13 +321,36 @@ private struct DocumentQueryPresentation: Identifiable {
         do {
             exportDocument = try SkillExecutionTextDocument(text: result.text)
             exportPlanID = plan.id
-            exportFilename = URL(fileURLWithPath: plan.filename).deletingPathExtension().lastPathComponent + "-文字"
+            exportFilename = localizer.text(.skillExecutionExportName(value: URL(fileURLWithPath: plan.filename).deletingPathExtension().lastPathComponent))
             exportStatus = nil
             exportingText = true
-        } catch { exportStatus = "文字結果過大，請縮小頁碼範圍後再匯出。" }
+        } catch { exportStatus = .skillExecutionExportTooLarge }
     }
 
-    private func finishExport(_ message: String) {
+    private func stepTitle(_ step: SkillExecutionStep) -> String {
+        switch step.capability {
+        case .selectedPDFRead: return localizer.text(.skillExecutionStepReadTitle)
+        case .nativePDFText: return localizer.text(.skillExecutionStepExtractTitle)
+        }
+    }
+
+    private func stepDisclosure(_ step: SkillExecutionStep) -> String {
+        switch step.capability {
+        case .selectedPDFRead: return localizer.text(.skillExecutionStepReadDisclosure)
+        case .nativePDFText: return localizer.text(.skillExecutionStepExtractDisclosure)
+        }
+    }
+
+    /// SkillExecutionPDFResult.notice in the App language.
+    private func resultNotice(_ result: SkillExecutionPDFResult) -> String {
+        if result.needsOCR { return localizer.text(.skillExecutionNoticeOCR) }
+        if !result.emptyPages.isEmpty {
+            return localizer.text(.skillExecutionNoticeEmptyPages(value: result.emptyPages.map(String.init).joined(separator: ", ")))
+        }
+        return localizer.text(.skillExecutionNoticeCheck)
+    }
+
+    private func finishExport(_ message: AppText) {
         // A late dialog callback must not affect a cleared or replaced plan.
         if let exportPlanID, model.plan?.id == exportPlanID { exportStatus = message }
         exportDocument = nil; exportPlanID = nil

@@ -8,7 +8,12 @@ extension AppText {
     static func known(_ error: Error) -> AppText? {
         if let error = error as? BrowserDownloadError { return downloadError(error) }
         if let error = error as? SkillExecutionError { return skillExecutionError(error) }
+        if let error = error as? SkillAuthoringError { return skillAuthoringError(error) }
         if let error = error as? SkillCatalogError { return AppLocalizer.skillCatalogError(error) }
+        if let error = error as? SkillToolError { return skillToolError(error) }
+        if let error = error as? DocumentQueryError { return documentQueryError(error) }
+        if let error = error as? TranscriptError { return transcriptError(error) }
+        if let error = error as? SkillPDFAssemblyError { return pdfAssemblyError(error) }
         return nil
     }
 }

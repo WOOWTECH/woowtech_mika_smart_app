@@ -194,6 +194,353 @@ enum AppText: Equatable {
     case browserTabNew
     case browserTabSignIn
     case browserTabPage
+    case commonDoneTyping
+    case skillStatusPending
+    case skillStatusTrial
+    case skillStatusActive
+    case skillStatusSuspended
+    case authoringTitle
+    case authoringClearFullText
+    case authoringRequestSection
+    case authoringIntro
+    case authoringRequestLabel
+    case authoringScope
+    case authoringLookupSection
+    case authoringSearchPlaceholder
+    case authoringSearch
+    case authoringLookupHelp
+    case authoringBundledReadOnly
+    case authoringHasDraft
+    case authoringNoMatches
+    case authoringFullTextSection
+    case authoringReadHelp
+    case authoringSourceVersion
+    case authoringNewSection
+    case authoringEditSection
+    case authoringEditorHelp
+    case authoringMarkdownLabel
+    case authoringEditorRule
+    case authoringWillReplace
+    case authoringWillAdd
+    case authoringReviewState
+    case authoringOriginalHash(value: String)
+    case authoringDraftHash(value: String)
+    case authoringReplacedHash(value: String)
+    case authoringSavedSection
+    case authoringSavedUpdated
+    case authoringSavedAdded
+    case authoringSavedHelp
+    case authoringBegin
+    case authoringNew
+    case authoringEditRead
+    case authoringBackToLookup
+    case authoringPrepare
+    case authoringApprove
+    case authoringRevise
+    case skillAuthoringErrorInvalidRequest
+    case skillAuthoringErrorRequestMismatch
+    case skillAuthoringErrorUnavailable
+    case skillAuthoringErrorCancelled
+    case skillAuthoringErrorNotFound
+    case skillAuthoringErrorReadRequired
+    case skillAuthoringErrorStaleRead
+    case skillAuthoringErrorDisabledNameConflict
+    case skillAuthoringErrorDraftConflict
+    case skillAuthoringErrorReviewChanged
+    case skillAuthoringErrorApprovalRequired
+    case skillAuthoringErrorExpiredApproval
+    case skillAuthoringErrorStorageChanged
+    case skillAuthoringErrorCapabilitiesChanged
+    case skillAuthoringErrorPersistenceFailed
+    case skillAuthoringErrorResourceLimit
+    case skillAgentActivityStart
+    case skillAgentActivityCancelled
+    case skillAgentActivityStopped
+    case skillAgentActivityRound(count: Int)
+    case skillAgentActivityReview
+    case skillAgentActivityQuestion
+    case skillAgentActivityFinished
+    case skillAgentActivityFailed
+    case skillAgentErrorChanged
+    case skillAgentErrorIncomplete
+    case skillAgentErrorNoModel
+    case skillAgentErrorCredentials
+    case skillAgentToolSearch
+    case skillAgentToolRead
+    case skillAgentToolSave
+    case skillAgentToolOther
+    case skillAgentStepDone(tool: String)
+    case skillAgentStepFailed(tool: String)
+    case skillAgentSavedSection
+    case skillAgentSavedNote
+    case skillAgentVersion(value: String)
+    case skillAgentReviewUpdate
+    case skillAgentReviewNew
+    case skillAgentReviewNote
+    case skillAgentOriginalHash(value: String)
+    case skillAgentDraftHash(value: String)
+    case skillAgentReplacedHash(value: String)
+    case skillAgentMoreSection
+    case skillAgentStartSection
+    case skillAgentIntro
+    case skillAgentRequestLabel
+    case skillAgentHelp
+    case skillAgentToolLog
+    case skillAgentTitle
+    case skillAgentStop
+    case skillAgentDiscard
+    case skillAgentSendMore
+    case skillAgentStart
+    case skillToolErrorInvalidLimits
+    case skillToolErrorInvalidCommand
+    case skillToolErrorInvalidState
+    case skillToolErrorSourceReadRequired
+    case skillToolErrorSearchRequired
+    case skillToolErrorUnknownReference
+    case skillToolErrorStaleVersion
+    case skillToolErrorUnsupportedFile
+    case skillToolErrorBudgetExceeded
+    case skillToolErrorTimedOut
+    case skillToolErrorModelFailed
+    case skillToolErrorModelRejected
+    case skillToolErrorModelInvalidResponse
+    case skillToolErrorCancelled
+    case skillToolErrorTooManyFailures
+    case skillExecutionSection
+    case skillExecutionIntro
+    case skillExecutionPdfQueryScope
+    case skillExecutionPagesPlaceholder
+    case skillExecutionPasswordPlaceholder
+    case skillExecutionMetadataOnly
+    case skillExecutionDownloadSource
+    case skillExecutionPrepareDownload
+    case skillExecutionSelectPDF
+    case skillExecutionImportCopyToggle
+    case skillExecutionImportCopyNotice
+    case skillExecutionImportCopyButton
+    case skillExecutionPlanSection
+    case skillExecutionPages(value: String)
+    case skillExecutionAllPages
+    case skillExecutionStepReadTitle
+    case skillExecutionStepReadDisclosure
+    case skillExecutionStepExtractTitle
+    case skillExecutionStepExtractDisclosure
+    case skillExecutionStepDone
+    case skillExecutionStepNeedsApproval
+    case skillExecutionStepUnavailable
+    case skillExecutionRunning
+    case skillExecutionApproveStep
+    case skillExecutionSources
+    case skillExecutionFingerprint(value: String)
+    case skillExecutionSourceRow(path: String, revision: String, sha: String)
+    case skillExecutionScopedNote
+    case skillExecutionClearPlan
+    case skillExecutionResultSection
+    case skillExecutionResultSummary(count: Int, engine: String)
+    case skillExecutionNoticeOCR
+    case skillExecutionNoticeEmptyPages(value: String)
+    case skillExecutionNoticeCheck
+    case skillExecutionQueryPDF
+    case skillExecutionExportText
+    case skillExecutionMetadataRow(key: String, value: String)
+    case skillExecutionTitle
+    case skillExecutionExportName(value: String)
+    case skillExecutionExportTooLarge
+    case skillExecutionExportSaved
+    case skillExecutionExportFailed
+    case skillExecutionExportCancelled
+    case skillExecutionStatusNoSnapshot
+    case skillExecutionStatusNoSelection
+    case skillExecutionStatusPickFailed
+    case skillExecutionStatusDownloadGone
+    case skillExecutionStatusNoPlan
+    case skillExecutionStatusRead(count: Int)
+    case skillExecutionStatusExtracted
+    case skillExecutionStatusIncomplete
+    case documentQuerySourceSection
+    case documentQuerySourceSummary(pages: Int, bytes: Int)
+    case documentQuerySourceNote
+    case documentQuerySourceInfo
+    case documentQueryPdfHash(value: String)
+    case documentQuerySnapshotHash(value: String)
+    case documentQueryQuestionSection
+    case documentQueryConfirmDestination
+    case documentQueryDestination(host: String, model: String)
+    case documentQueryDisclosure
+    case documentQueryStart
+    case documentQueryProgress
+    case documentQueryAnswerSection
+    case documentQueryCitationNote
+    case documentQueryCitationPage(page: Int, index: Int)
+    case documentQueryExport
+    case documentQueryTitle
+    case documentQueryStop
+    case documentQueryExportName
+    case documentQueryExportSaved
+    case documentQueryExportFailed
+    case documentQueryExportCancelled
+    case documentQueryExportUnavailable
+    case documentQueryStatusStart
+    case documentQueryStatusEdited
+    case documentQueryErrorNoModel
+    case documentQueryErrorConfirmFirst
+    case documentQueryStatusSearching
+    case documentQueryStatusRound(count: Int)
+    case documentQueryStatusFoundMore(count: Int)
+    case documentQueryStatusFound(count: Int)
+    case documentQueryStatusRead(page: Int, bytes: Int)
+    case documentQueryStatusFormatRetry
+    case documentQueryStatusVerified
+    case documentQueryStatusUnfinished
+    case documentQueryStatusStopped
+    case documentQueryStatusModelChanged
+    case documentQueryStatusModelChangedKept
+    case documentQueryErrorReferencesRevoked
+    case documentQueryStatusStoppedLate
+    case documentQueryErrorReferencesUnavailable
+    case documentQueryErrorChanged
+    case documentQueryErrorFailed
+    case documentQueryStatusIncomplete
+    case documentQueryErrorInvalidSource
+    case documentQueryErrorEmptySource
+    case documentQueryErrorSourceTooLarge
+    case documentQueryErrorInvalidQuestion
+    case documentQueryErrorInvalidLimits
+    case documentQueryErrorInvalidRange
+    case documentQueryErrorInvalidSearch
+    case documentQueryErrorInvalidEvidence
+    case documentQueryErrorInvalidCommand
+    case documentQueryErrorBudgetExceeded
+    case documentQueryErrorOutputTooLarge
+    case documentQueryErrorCancelled
+    case documentQueryErrorTimedOut
+    case documentQueryErrorContextChanged
+    case documentQueryErrorModelFailed
+    case transcriptStatusStart
+    case transcriptStatusReview
+    case transcriptStatusReading
+    case transcriptStatusRead
+    case transcriptStatusRound(count: Int)
+    case transcriptStatusCovered(covered: Int, total: Int)
+    case transcriptStatusFormatRetry
+    case transcriptStatusFormatStopped
+    case transcriptStatusVerified
+    case transcriptStatusRefused
+    case transcriptStatusModelChangedKept
+    case transcriptStatusApprovedSource
+    case transcriptErrorSelectionFailed
+    case transcriptErrorReferencesRevoked
+    case transcriptStatusStoppedLate
+    case transcriptStatusIncomplete
+    case transcriptErrorFailed
+    case transcriptErrorInvalidSelection
+    case transcriptErrorUnsupportedType
+    case transcriptErrorTooLarge
+    case transcriptErrorInvalidEncoding
+    case transcriptErrorEmptySource
+    case transcriptErrorApprovalRequired
+    case transcriptErrorCancelled
+    case transcriptErrorReadTimedOut
+    case transcriptErrorInvalidCommand
+    case transcriptErrorInvalidRange
+    case transcriptErrorIncompleteCoverage
+    case transcriptErrorInvalidEvidence
+    case transcriptErrorBudgetExceeded
+    case transcriptErrorModelFailed
+    case transcriptErrorTimedOut
+    case transcriptErrorContextChanged
+    case transcriptFormatSummary
+    case transcriptFormatChapters
+    case transcriptFormatQuotations
+    case transcriptFormatTranscript
+    case transcriptFormatArticle
+    case transcriptScope
+    case transcriptReviewSection
+    case transcriptReviewNote
+    case transcriptApproveRead
+    case transcriptRefuseRead
+    case transcriptSnapshotSection
+    case transcriptSnapshotSize(count: Int)
+    case transcriptHideSource
+    case transcriptShowSource
+    case transcriptSHA(value: String)
+    case transcriptSendSection
+    case transcriptFormatPicker
+    case transcriptReferenceNotice
+    case transcriptStart
+    case transcriptRefusalSection
+    case transcriptResultSection
+    case transcriptResultNote
+    case transcriptEvidence(offset: Int)
+    case transcriptEvidenceTimed(offset: Int, time: String)
+    case transcriptStop
+    case transcriptBrowserSection
+    case transcriptBrowserIntro
+    case transcriptBrowserLimits
+    case transcriptBrowserReading
+    case transcriptBrowserCapture
+    case transcriptBrowserCheckSection
+    case transcriptBrowserSize(bytes: Int, date: String)
+    case transcriptBrowserOmitted(count: Int)
+    case transcriptBrowserFullText
+    case transcriptBrowserApprove
+    case transcriptBrowserSnapshotFailed
+    case transcriptBrowserTitle
+    case transcriptBrowserCaptureFailed
+    case pdfAssemblySection
+    case pdfAssemblyIntro
+    case pdfAssemblySupport
+    case pdfAssemblySelect
+    case pdfAssemblyImportCopyNotice
+    case pdfAssemblyImportCopy
+    case pdfAssemblySourcesSection
+    case pdfAssemblySource(number: Int, name: String)
+    case pdfAssemblyReceipt(pages: Int, bytes: Int)
+    case pdfAssemblySourceDisclosure
+    case pdfAssemblyApproveRead
+    case pdfAssemblyAddNotice
+    case pdfAssemblyAdd
+    case pdfAssemblyAddCopy
+    case pdfAssemblySourcesNote
+    case pdfAssemblyOrderSection
+    case pdfAssemblyOrderHelp
+    case pdfAssemblyOrderPlaceholder
+    case pdfAssemblyPrepare
+    case pdfAssemblyPlanSection
+    case pdfAssemblyPlanCount(count: Int)
+    case pdfAssemblyPlanPage(index: Int, source: Int, page: Int)
+    case pdfAssemblyPlanNote
+    case pdfAssemblyAssemble
+    case pdfAssemblyResultSection
+    case pdfAssemblyResult(pages: Int, bytes: Int)
+    case pdfAssemblyResultNotice
+    case pdfAssemblySave
+    case pdfAssemblySaveNote
+    case pdfAssemblyProcessing
+    case pdfAssemblyCancelAndClear
+    case pdfAssemblyClear
+    case pdfAssemblyTitle
+    case pdfAssemblyDefaultName
+    case pdfAssemblySuggestedName(value: String)
+    case pdfAssemblySaved
+    case pdfAssemblySaveFailed
+    case pdfAssemblySaveCancelled
+    case pdfAssemblyExportUnavailable
+    case pdfAssemblyStatusOneFile
+    case pdfAssemblyStatusAdded
+    case pdfAssemblyStatusConfirmEach
+    case pdfAssemblyStatusPickFailed
+    case pdfAssemblyStatusReadAll
+    case pdfAssemblyStatusReadSome
+    case pdfAssemblyStatusCheckOrder
+    case pdfAssemblyStatusProduced
+    case pdfAssemblyStatusIncomplete
+    case pdfAssemblyErrorInvalidSources
+    case pdfAssemblyErrorProtectedPDF
+    case pdfAssemblyErrorUnsupportedDocument
+    case pdfAssemblyErrorSerialization
+    case pdfAssemblyErrorVerification
+    case pdfAssemblyErrorOutputTooLarge
     case shellBrandTitle
     case shellMenu
     case shellBackToChat
@@ -964,6 +1311,353 @@ enum AppText: Equatable {
         case .browserTabNew: return "browserTab.new"
         case .browserTabSignIn: return "browserTab.signIn"
         case .browserTabPage: return "browserTab.page"
+        case .commonDoneTyping: return "common.doneTyping"
+        case .skillStatusPending: return "skillStatus.pending"
+        case .skillStatusTrial: return "skillStatus.trial"
+        case .skillStatusActive: return "skillStatus.active"
+        case .skillStatusSuspended: return "skillStatus.suspended"
+        case .authoringTitle: return "authoring.title"
+        case .authoringClearFullText: return "authoring.clearFullText"
+        case .authoringRequestSection: return "authoring.requestSection"
+        case .authoringIntro: return "authoring.intro"
+        case .authoringRequestLabel: return "authoring.requestLabel"
+        case .authoringScope: return "authoring.scope"
+        case .authoringLookupSection: return "authoring.lookupSection"
+        case .authoringSearchPlaceholder: return "authoring.searchPlaceholder"
+        case .authoringSearch: return "authoring.search"
+        case .authoringLookupHelp: return "authoring.lookupHelp"
+        case .authoringBundledReadOnly: return "authoring.bundledReadOnly"
+        case .authoringHasDraft: return "authoring.hasDraft"
+        case .authoringNoMatches: return "authoring.noMatches"
+        case .authoringFullTextSection: return "authoring.fullTextSection"
+        case .authoringReadHelp: return "authoring.readHelp"
+        case .authoringSourceVersion: return "authoring.sourceVersion"
+        case .authoringNewSection: return "authoring.newSection"
+        case .authoringEditSection: return "authoring.editSection"
+        case .authoringEditorHelp: return "authoring.editorHelp"
+        case .authoringMarkdownLabel: return "authoring.markdownLabel"
+        case .authoringEditorRule: return "authoring.editorRule"
+        case .authoringWillReplace: return "authoring.willReplace"
+        case .authoringWillAdd: return "authoring.willAdd"
+        case .authoringReviewState: return "authoring.reviewState"
+        case .authoringOriginalHash: return "authoring.originalHash"
+        case .authoringDraftHash: return "authoring.draftHash"
+        case .authoringReplacedHash: return "authoring.replacedHash"
+        case .authoringSavedSection: return "authoring.savedSection"
+        case .authoringSavedUpdated: return "authoring.savedUpdated"
+        case .authoringSavedAdded: return "authoring.savedAdded"
+        case .authoringSavedHelp: return "authoring.savedHelp"
+        case .authoringBegin: return "authoring.begin"
+        case .authoringNew: return "authoring.new"
+        case .authoringEditRead: return "authoring.editRead"
+        case .authoringBackToLookup: return "authoring.backToLookup"
+        case .authoringPrepare: return "authoring.prepare"
+        case .authoringApprove: return "authoring.approve"
+        case .authoringRevise: return "authoring.revise"
+        case .skillAuthoringErrorInvalidRequest: return "skillAuthoring.error.invalidRequest"
+        case .skillAuthoringErrorRequestMismatch: return "skillAuthoring.error.requestMismatch"
+        case .skillAuthoringErrorUnavailable: return "skillAuthoring.error.unavailable"
+        case .skillAuthoringErrorCancelled: return "skillAuthoring.error.cancelled"
+        case .skillAuthoringErrorNotFound: return "skillAuthoring.error.notFound"
+        case .skillAuthoringErrorReadRequired: return "skillAuthoring.error.readRequired"
+        case .skillAuthoringErrorStaleRead: return "skillAuthoring.error.staleRead"
+        case .skillAuthoringErrorDisabledNameConflict: return "skillAuthoring.error.disabledNameConflict"
+        case .skillAuthoringErrorDraftConflict: return "skillAuthoring.error.draftConflict"
+        case .skillAuthoringErrorReviewChanged: return "skillAuthoring.error.reviewChanged"
+        case .skillAuthoringErrorApprovalRequired: return "skillAuthoring.error.approvalRequired"
+        case .skillAuthoringErrorExpiredApproval: return "skillAuthoring.error.expiredApproval"
+        case .skillAuthoringErrorStorageChanged: return "skillAuthoring.error.storageChanged"
+        case .skillAuthoringErrorCapabilitiesChanged: return "skillAuthoring.error.capabilitiesChanged"
+        case .skillAuthoringErrorPersistenceFailed: return "skillAuthoring.error.persistenceFailed"
+        case .skillAuthoringErrorResourceLimit: return "skillAuthoring.error.resourceLimit"
+        case .skillAgentActivityStart: return "skillAgent.activity.start"
+        case .skillAgentActivityCancelled: return "skillAgent.activity.cancelled"
+        case .skillAgentActivityStopped: return "skillAgent.activity.stopped"
+        case .skillAgentActivityRound: return "skillAgent.activity.round"
+        case .skillAgentActivityReview: return "skillAgent.activity.review"
+        case .skillAgentActivityQuestion: return "skillAgent.activity.question"
+        case .skillAgentActivityFinished: return "skillAgent.activity.finished"
+        case .skillAgentActivityFailed: return "skillAgent.activity.failed"
+        case .skillAgentErrorChanged: return "skillAgent.error.changed"
+        case .skillAgentErrorIncomplete: return "skillAgent.error.incomplete"
+        case .skillAgentErrorNoModel: return "skillAgent.error.noModel"
+        case .skillAgentErrorCredentials: return "skillAgent.error.credentials"
+        case .skillAgentToolSearch: return "skillAgent.tool.search"
+        case .skillAgentToolRead: return "skillAgent.tool.read"
+        case .skillAgentToolSave: return "skillAgent.tool.save"
+        case .skillAgentToolOther: return "skillAgent.tool.other"
+        case .skillAgentStepDone: return "skillAgent.step.done"
+        case .skillAgentStepFailed: return "skillAgent.step.failed"
+        case .skillAgentSavedSection: return "skillAgent.savedSection"
+        case .skillAgentSavedNote: return "skillAgent.savedNote"
+        case .skillAgentVersion: return "skillAgent.version"
+        case .skillAgentReviewUpdate: return "skillAgent.reviewUpdate"
+        case .skillAgentReviewNew: return "skillAgent.reviewNew"
+        case .skillAgentReviewNote: return "skillAgent.reviewNote"
+        case .skillAgentOriginalHash: return "skillAgent.originalHash"
+        case .skillAgentDraftHash: return "skillAgent.draftHash"
+        case .skillAgentReplacedHash: return "skillAgent.replacedHash"
+        case .skillAgentMoreSection: return "skillAgent.moreSection"
+        case .skillAgentStartSection: return "skillAgent.startSection"
+        case .skillAgentIntro: return "skillAgent.intro"
+        case .skillAgentRequestLabel: return "skillAgent.requestLabel"
+        case .skillAgentHelp: return "skillAgent.help"
+        case .skillAgentToolLog: return "skillAgent.toolLog"
+        case .skillAgentTitle: return "skillAgent.title"
+        case .skillAgentStop: return "skillAgent.stop"
+        case .skillAgentDiscard: return "skillAgent.discard"
+        case .skillAgentSendMore: return "skillAgent.sendMore"
+        case .skillAgentStart: return "skillAgent.start"
+        case .skillToolErrorInvalidLimits: return "skillTool.error.invalidLimits"
+        case .skillToolErrorInvalidCommand: return "skillTool.error.invalidCommand"
+        case .skillToolErrorInvalidState: return "skillTool.error.invalidState"
+        case .skillToolErrorSourceReadRequired: return "skillTool.error.sourceReadRequired"
+        case .skillToolErrorSearchRequired: return "skillTool.error.searchRequired"
+        case .skillToolErrorUnknownReference: return "skillTool.error.unknownReference"
+        case .skillToolErrorStaleVersion: return "skillTool.error.staleVersion"
+        case .skillToolErrorUnsupportedFile: return "skillTool.error.unsupportedFile"
+        case .skillToolErrorBudgetExceeded: return "skillTool.error.budgetExceeded"
+        case .skillToolErrorTimedOut: return "skillTool.error.timedOut"
+        case .skillToolErrorModelFailed: return "skillTool.error.modelFailed"
+        case .skillToolErrorModelRejected: return "skillTool.error.modelRejected"
+        case .skillToolErrorModelInvalidResponse: return "skillTool.error.modelInvalidResponse"
+        case .skillToolErrorCancelled: return "skillTool.error.cancelled"
+        case .skillToolErrorTooManyFailures: return "skillTool.error.tooManyFailures"
+        case .skillExecutionSection: return "skillExecution.section"
+        case .skillExecutionIntro: return "skillExecution.intro"
+        case .skillExecutionPdfQueryScope: return "skillExecution.pdfQueryScope"
+        case .skillExecutionPagesPlaceholder: return "skillExecution.pagesPlaceholder"
+        case .skillExecutionPasswordPlaceholder: return "skillExecution.passwordPlaceholder"
+        case .skillExecutionMetadataOnly: return "skillExecution.metadataOnly"
+        case .skillExecutionDownloadSource: return "skillExecution.downloadSource"
+        case .skillExecutionPrepareDownload: return "skillExecution.prepareDownload"
+        case .skillExecutionSelectPDF: return "skillExecution.selectPDF"
+        case .skillExecutionImportCopyToggle: return "skillExecution.importCopyToggle"
+        case .skillExecutionImportCopyNotice: return "skillExecution.importCopyNotice"
+        case .skillExecutionImportCopyButton: return "skillExecution.importCopyButton"
+        case .skillExecutionPlanSection: return "skillExecution.planSection"
+        case .skillExecutionPages: return "skillExecution.pages"
+        case .skillExecutionAllPages: return "skillExecution.allPages"
+        case .skillExecutionStepReadTitle: return "skillExecution.step.readTitle"
+        case .skillExecutionStepReadDisclosure: return "skillExecution.step.readDisclosure"
+        case .skillExecutionStepExtractTitle: return "skillExecution.step.extractTitle"
+        case .skillExecutionStepExtractDisclosure: return "skillExecution.step.extractDisclosure"
+        case .skillExecutionStepDone: return "skillExecution.stepDone"
+        case .skillExecutionStepNeedsApproval: return "skillExecution.stepNeedsApproval"
+        case .skillExecutionStepUnavailable: return "skillExecution.stepUnavailable"
+        case .skillExecutionRunning: return "skillExecution.running"
+        case .skillExecutionApproveStep: return "skillExecution.approveStep"
+        case .skillExecutionSources: return "skillExecution.sources"
+        case .skillExecutionFingerprint: return "skillExecution.fingerprint"
+        case .skillExecutionSourceRow: return "skillExecution.sourceRow"
+        case .skillExecutionScopedNote: return "skillExecution.scopedNote"
+        case .skillExecutionClearPlan: return "skillExecution.clearPlan"
+        case .skillExecutionResultSection: return "skillExecution.resultSection"
+        case .skillExecutionResultSummary: return "skillExecution.resultSummary"
+        case .skillExecutionNoticeOCR: return "skillExecution.notice.ocr"
+        case .skillExecutionNoticeEmptyPages: return "skillExecution.notice.emptyPages"
+        case .skillExecutionNoticeCheck: return "skillExecution.notice.check"
+        case .skillExecutionQueryPDF: return "skillExecution.queryPDF"
+        case .skillExecutionExportText: return "skillExecution.exportText"
+        case .skillExecutionMetadataRow: return "skillExecution.metadataRow"
+        case .skillExecutionTitle: return "skillExecution.title"
+        case .skillExecutionExportName: return "skillExecution.exportName"
+        case .skillExecutionExportTooLarge: return "skillExecution.exportTooLarge"
+        case .skillExecutionExportSaved: return "skillExecution.exportSaved"
+        case .skillExecutionExportFailed: return "skillExecution.exportFailed"
+        case .skillExecutionExportCancelled: return "skillExecution.exportCancelled"
+        case .skillExecutionStatusNoSnapshot: return "skillExecution.status.noSnapshot"
+        case .skillExecutionStatusNoSelection: return "skillExecution.status.noSelection"
+        case .skillExecutionStatusPickFailed: return "skillExecution.status.pickFailed"
+        case .skillExecutionStatusDownloadGone: return "skillExecution.status.downloadGone"
+        case .skillExecutionStatusNoPlan: return "skillExecution.status.noPlan"
+        case .skillExecutionStatusRead: return "skillExecution.status.read"
+        case .skillExecutionStatusExtracted: return "skillExecution.status.extracted"
+        case .skillExecutionStatusIncomplete: return "skillExecution.status.incomplete"
+        case .documentQuerySourceSection: return "documentQuery.sourceSection"
+        case .documentQuerySourceSummary: return "documentQuery.sourceSummary"
+        case .documentQuerySourceNote: return "documentQuery.sourceNote"
+        case .documentQuerySourceInfo: return "documentQuery.sourceInfo"
+        case .documentQueryPdfHash: return "documentQuery.pdfHash"
+        case .documentQuerySnapshotHash: return "documentQuery.snapshotHash"
+        case .documentQueryQuestionSection: return "documentQuery.questionSection"
+        case .documentQueryConfirmDestination: return "documentQuery.confirmDestination"
+        case .documentQueryDestination: return "documentQuery.destination"
+        case .documentQueryDisclosure: return "documentQuery.disclosure"
+        case .documentQueryStart: return "documentQuery.start"
+        case .documentQueryProgress: return "documentQuery.progress"
+        case .documentQueryAnswerSection: return "documentQuery.answerSection"
+        case .documentQueryCitationNote: return "documentQuery.citationNote"
+        case .documentQueryCitationPage: return "documentQuery.citationPage"
+        case .documentQueryExport: return "documentQuery.export"
+        case .documentQueryTitle: return "documentQuery.title"
+        case .documentQueryStop: return "documentQuery.stop"
+        case .documentQueryExportName: return "documentQuery.exportName"
+        case .documentQueryExportSaved: return "documentQuery.exportSaved"
+        case .documentQueryExportFailed: return "documentQuery.exportFailed"
+        case .documentQueryExportCancelled: return "documentQuery.exportCancelled"
+        case .documentQueryExportUnavailable: return "documentQuery.exportUnavailable"
+        case .documentQueryStatusStart: return "documentQuery.status.start"
+        case .documentQueryStatusEdited: return "documentQuery.status.edited"
+        case .documentQueryErrorNoModel: return "documentQuery.error.noModel"
+        case .documentQueryErrorConfirmFirst: return "documentQuery.error.confirmFirst"
+        case .documentQueryStatusSearching: return "documentQuery.status.searching"
+        case .documentQueryStatusRound: return "documentQuery.status.round"
+        case .documentQueryStatusFoundMore: return "documentQuery.status.foundMore"
+        case .documentQueryStatusFound: return "documentQuery.status.found"
+        case .documentQueryStatusRead: return "documentQuery.status.read"
+        case .documentQueryStatusFormatRetry: return "documentQuery.status.formatRetry"
+        case .documentQueryStatusVerified: return "documentQuery.status.verified"
+        case .documentQueryStatusUnfinished: return "documentQuery.status.unfinished"
+        case .documentQueryStatusStopped: return "documentQuery.status.stopped"
+        case .documentQueryStatusModelChanged: return "documentQuery.status.modelChanged"
+        case .documentQueryStatusModelChangedKept: return "documentQuery.status.modelChangedKept"
+        case .documentQueryErrorReferencesRevoked: return "documentQuery.error.referencesRevoked"
+        case .documentQueryStatusStoppedLate: return "documentQuery.status.stoppedLate"
+        case .documentQueryErrorReferencesUnavailable: return "documentQuery.error.referencesUnavailable"
+        case .documentQueryErrorChanged: return "documentQuery.error.changed"
+        case .documentQueryErrorFailed: return "documentQuery.error.failed"
+        case .documentQueryStatusIncomplete: return "documentQuery.status.incomplete"
+        case .documentQueryErrorInvalidSource: return "documentQuery.error.invalidSource"
+        case .documentQueryErrorEmptySource: return "documentQuery.error.emptySource"
+        case .documentQueryErrorSourceTooLarge: return "documentQuery.error.sourceTooLarge"
+        case .documentQueryErrorInvalidQuestion: return "documentQuery.error.invalidQuestion"
+        case .documentQueryErrorInvalidLimits: return "documentQuery.error.invalidLimits"
+        case .documentQueryErrorInvalidRange: return "documentQuery.error.invalidRange"
+        case .documentQueryErrorInvalidSearch: return "documentQuery.error.invalidSearch"
+        case .documentQueryErrorInvalidEvidence: return "documentQuery.error.invalidEvidence"
+        case .documentQueryErrorInvalidCommand: return "documentQuery.error.invalidCommand"
+        case .documentQueryErrorBudgetExceeded: return "documentQuery.error.budgetExceeded"
+        case .documentQueryErrorOutputTooLarge: return "documentQuery.error.outputTooLarge"
+        case .documentQueryErrorCancelled: return "documentQuery.error.cancelled"
+        case .documentQueryErrorTimedOut: return "documentQuery.error.timedOut"
+        case .documentQueryErrorContextChanged: return "documentQuery.error.contextChanged"
+        case .documentQueryErrorModelFailed: return "documentQuery.error.modelFailed"
+        case .transcriptStatusStart: return "transcript.status.start"
+        case .transcriptStatusReview: return "transcript.status.review"
+        case .transcriptStatusReading: return "transcript.status.reading"
+        case .transcriptStatusRead: return "transcript.status.read"
+        case .transcriptStatusRound: return "transcript.status.round"
+        case .transcriptStatusCovered: return "transcript.status.covered"
+        case .transcriptStatusFormatRetry: return "transcript.status.formatRetry"
+        case .transcriptStatusFormatStopped: return "transcript.status.formatStopped"
+        case .transcriptStatusVerified: return "transcript.status.verified"
+        case .transcriptStatusRefused: return "transcript.status.refused"
+        case .transcriptStatusModelChangedKept: return "transcript.status.modelChangedKept"
+        case .transcriptStatusApprovedSource: return "transcript.status.approvedSource"
+        case .transcriptErrorSelectionFailed: return "transcript.error.selectionFailed"
+        case .transcriptErrorReferencesRevoked: return "transcript.error.referencesRevoked"
+        case .transcriptStatusStoppedLate: return "transcript.status.stoppedLate"
+        case .transcriptStatusIncomplete: return "transcript.status.incomplete"
+        case .transcriptErrorFailed: return "transcript.error.failed"
+        case .transcriptErrorInvalidSelection: return "transcript.error.invalidSelection"
+        case .transcriptErrorUnsupportedType: return "transcript.error.unsupportedType"
+        case .transcriptErrorTooLarge: return "transcript.error.tooLarge"
+        case .transcriptErrorInvalidEncoding: return "transcript.error.invalidEncoding"
+        case .transcriptErrorEmptySource: return "transcript.error.emptySource"
+        case .transcriptErrorApprovalRequired: return "transcript.error.approvalRequired"
+        case .transcriptErrorCancelled: return "transcript.error.cancelled"
+        case .transcriptErrorReadTimedOut: return "transcript.error.readTimedOut"
+        case .transcriptErrorInvalidCommand: return "transcript.error.invalidCommand"
+        case .transcriptErrorInvalidRange: return "transcript.error.invalidRange"
+        case .transcriptErrorIncompleteCoverage: return "transcript.error.incompleteCoverage"
+        case .transcriptErrorInvalidEvidence: return "transcript.error.invalidEvidence"
+        case .transcriptErrorBudgetExceeded: return "transcript.error.budgetExceeded"
+        case .transcriptErrorModelFailed: return "transcript.error.modelFailed"
+        case .transcriptErrorTimedOut: return "transcript.error.timedOut"
+        case .transcriptErrorContextChanged: return "transcript.error.contextChanged"
+        case .transcriptFormatSummary: return "transcript.format.summary"
+        case .transcriptFormatChapters: return "transcript.format.chapters"
+        case .transcriptFormatQuotations: return "transcript.format.quotations"
+        case .transcriptFormatTranscript: return "transcript.format.transcript"
+        case .transcriptFormatArticle: return "transcript.format.article"
+        case .transcriptScope: return "transcript.scope"
+        case .transcriptReviewSection: return "transcript.reviewSection"
+        case .transcriptReviewNote: return "transcript.reviewNote"
+        case .transcriptApproveRead: return "transcript.approveRead"
+        case .transcriptRefuseRead: return "transcript.refuseRead"
+        case .transcriptSnapshotSection: return "transcript.snapshotSection"
+        case .transcriptSnapshotSize: return "transcript.snapshotSize"
+        case .transcriptHideSource: return "transcript.hideSource"
+        case .transcriptShowSource: return "transcript.showSource"
+        case .transcriptSHA: return "transcript.sha"
+        case .transcriptSendSection: return "transcript.sendSection"
+        case .transcriptFormatPicker: return "transcript.formatPicker"
+        case .transcriptReferenceNotice: return "transcript.referenceNotice"
+        case .transcriptStart: return "transcript.start"
+        case .transcriptRefusalSection: return "transcript.refusalSection"
+        case .transcriptResultSection: return "transcript.resultSection"
+        case .transcriptResultNote: return "transcript.resultNote"
+        case .transcriptEvidence: return "transcript.evidence"
+        case .transcriptEvidenceTimed: return "transcript.evidenceTimed"
+        case .transcriptStop: return "transcript.stop"
+        case .transcriptBrowserSection: return "transcriptBrowser.section"
+        case .transcriptBrowserIntro: return "transcriptBrowser.intro"
+        case .transcriptBrowserLimits: return "transcriptBrowser.limits"
+        case .transcriptBrowserReading: return "transcriptBrowser.reading"
+        case .transcriptBrowserCapture: return "transcriptBrowser.capture"
+        case .transcriptBrowserCheckSection: return "transcriptBrowser.checkSection"
+        case .transcriptBrowserSize: return "transcriptBrowser.size"
+        case .transcriptBrowserOmitted: return "transcriptBrowser.omitted"
+        case .transcriptBrowserFullText: return "transcriptBrowser.fullText"
+        case .transcriptBrowserApprove: return "transcriptBrowser.approve"
+        case .transcriptBrowserSnapshotFailed: return "transcriptBrowser.snapshotFailed"
+        case .transcriptBrowserTitle: return "transcriptBrowser.title"
+        case .transcriptBrowserCaptureFailed: return "transcriptBrowser.captureFailed"
+        case .pdfAssemblySection: return "pdfAssembly.section"
+        case .pdfAssemblyIntro: return "pdfAssembly.intro"
+        case .pdfAssemblySupport: return "pdfAssembly.support"
+        case .pdfAssemblySelect: return "pdfAssembly.select"
+        case .pdfAssemblyImportCopyNotice: return "pdfAssembly.importCopyNotice"
+        case .pdfAssemblyImportCopy: return "pdfAssembly.importCopy"
+        case .pdfAssemblySourcesSection: return "pdfAssembly.sourcesSection"
+        case .pdfAssemblySource: return "pdfAssembly.source"
+        case .pdfAssemblyReceipt: return "pdfAssembly.receipt"
+        case .pdfAssemblySourceDisclosure: return "pdfAssembly.sourceDisclosure"
+        case .pdfAssemblyApproveRead: return "pdfAssembly.approveRead"
+        case .pdfAssemblyAddNotice: return "pdfAssembly.addNotice"
+        case .pdfAssemblyAdd: return "pdfAssembly.add"
+        case .pdfAssemblyAddCopy: return "pdfAssembly.addCopy"
+        case .pdfAssemblySourcesNote: return "pdfAssembly.sourcesNote"
+        case .pdfAssemblyOrderSection: return "pdfAssembly.orderSection"
+        case .pdfAssemblyOrderHelp: return "pdfAssembly.orderHelp"
+        case .pdfAssemblyOrderPlaceholder: return "pdfAssembly.orderPlaceholder"
+        case .pdfAssemblyPrepare: return "pdfAssembly.prepare"
+        case .pdfAssemblyPlanSection: return "pdfAssembly.planSection"
+        case .pdfAssemblyPlanCount: return "pdfAssembly.planCount"
+        case .pdfAssemblyPlanPage: return "pdfAssembly.planPage"
+        case .pdfAssemblyPlanNote: return "pdfAssembly.planNote"
+        case .pdfAssemblyAssemble: return "pdfAssembly.assemble"
+        case .pdfAssemblyResultSection: return "pdfAssembly.resultSection"
+        case .pdfAssemblyResult: return "pdfAssembly.result"
+        case .pdfAssemblyResultNotice: return "pdfAssembly.resultNotice"
+        case .pdfAssemblySave: return "pdfAssembly.save"
+        case .pdfAssemblySaveNote: return "pdfAssembly.saveNote"
+        case .pdfAssemblyProcessing: return "pdfAssembly.processing"
+        case .pdfAssemblyCancelAndClear: return "pdfAssembly.cancelAndClear"
+        case .pdfAssemblyClear: return "pdfAssembly.clear"
+        case .pdfAssemblyTitle: return "pdfAssembly.title"
+        case .pdfAssemblyDefaultName: return "pdfAssembly.defaultName"
+        case .pdfAssemblySuggestedName: return "pdfAssembly.suggestedName"
+        case .pdfAssemblySaved: return "pdfAssembly.saved"
+        case .pdfAssemblySaveFailed: return "pdfAssembly.saveFailed"
+        case .pdfAssemblySaveCancelled: return "pdfAssembly.saveCancelled"
+        case .pdfAssemblyExportUnavailable: return "pdfAssembly.exportUnavailable"
+        case .pdfAssemblyStatusOneFile: return "pdfAssembly.status.oneFile"
+        case .pdfAssemblyStatusAdded: return "pdfAssembly.status.added"
+        case .pdfAssemblyStatusConfirmEach: return "pdfAssembly.status.confirmEach"
+        case .pdfAssemblyStatusPickFailed: return "pdfAssembly.status.pickFailed"
+        case .pdfAssemblyStatusReadAll: return "pdfAssembly.status.readAll"
+        case .pdfAssemblyStatusReadSome: return "pdfAssembly.status.readSome"
+        case .pdfAssemblyStatusCheckOrder: return "pdfAssembly.status.checkOrder"
+        case .pdfAssemblyStatusProduced: return "pdfAssembly.status.produced"
+        case .pdfAssemblyStatusIncomplete: return "pdfAssembly.status.incomplete"
+        case .pdfAssemblyErrorInvalidSources: return "pdfAssembly.error.invalidSources"
+        case .pdfAssemblyErrorProtectedPDF: return "pdfAssembly.error.protectedPDF"
+        case .pdfAssemblyErrorUnsupportedDocument: return "pdfAssembly.error.unsupportedDocument"
+        case .pdfAssemblyErrorSerialization: return "pdfAssembly.error.serialization"
+        case .pdfAssemblyErrorVerification: return "pdfAssembly.error.verification"
+        case .pdfAssemblyErrorOutputTooLarge: return "pdfAssembly.error.outputTooLarge"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
         case .shellBackToChat: return "shell.backToChat"
@@ -1561,6 +2255,47 @@ enum AppText: Equatable {
         case .learningRemembered(let value): return [value]
         case .learningUpdated(let value): return [value]
         case .learningPendingProcedure(let value): return [value]
+        case .authoringOriginalHash(let value): return [value]
+        case .authoringDraftHash(let value): return [value]
+        case .authoringReplacedHash(let value): return [value]
+        case .skillAgentActivityRound(let count): return [Int64(count)]
+        case .skillAgentStepDone(let tool): return [tool]
+        case .skillAgentStepFailed(let tool): return [tool]
+        case .skillAgentVersion(let value): return [value]
+        case .skillAgentOriginalHash(let value): return [value]
+        case .skillAgentDraftHash(let value): return [value]
+        case .skillAgentReplacedHash(let value): return [value]
+        case .skillExecutionPages(let value): return [value]
+        case .skillExecutionFingerprint(let value): return [value]
+        case .skillExecutionSourceRow(let path, let revision, let sha): return [path, revision, sha]
+        case .skillExecutionResultSummary(let count, let engine): return [Int64(count), engine]
+        case .skillExecutionNoticeEmptyPages(let value): return [value]
+        case .skillExecutionMetadataRow(let key, let value): return [key, value]
+        case .skillExecutionExportName(let value): return [value]
+        case .skillExecutionStatusRead(let count): return [Int64(count)]
+        case .documentQuerySourceSummary(let pages, let bytes): return [Int64(pages), Int64(bytes)]
+        case .documentQueryPdfHash(let value): return [value]
+        case .documentQuerySnapshotHash(let value): return [value]
+        case .documentQueryDestination(let host, let model): return [host, model]
+        case .documentQueryCitationPage(let page, let index): return [Int64(page), Int64(index)]
+        case .documentQueryStatusRound(let count): return [Int64(count)]
+        case .documentQueryStatusFoundMore(let count): return [Int64(count)]
+        case .documentQueryStatusFound(let count): return [Int64(count)]
+        case .documentQueryStatusRead(let page, let bytes): return [Int64(page), Int64(bytes)]
+        case .transcriptStatusRound(let count): return [Int64(count)]
+        case .transcriptStatusCovered(let covered, let total): return [Int64(covered), Int64(total)]
+        case .transcriptSnapshotSize(let count): return [Int64(count)]
+        case .transcriptSHA(let value): return [value]
+        case .transcriptEvidence(let offset): return [Int64(offset)]
+        case .transcriptEvidenceTimed(let offset, let time): return [Int64(offset), time]
+        case .transcriptBrowserSize(let bytes, let date): return [Int64(bytes), date]
+        case .transcriptBrowserOmitted(let count): return [Int64(count)]
+        case .pdfAssemblySource(let number, let name): return [Int64(number), name]
+        case .pdfAssemblyReceipt(let pages, let bytes): return [Int64(pages), Int64(bytes)]
+        case .pdfAssemblyPlanCount(let count): return [Int64(count)]
+        case .pdfAssemblyPlanPage(let index, let source, let page): return [Int64(index), Int64(source), Int64(page)]
+        case .pdfAssemblyResult(let pages, let bytes): return [Int64(pages), Int64(bytes)]
+        case .pdfAssemblySuggestedName(let value): return [value]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
@@ -1808,6 +2543,353 @@ enum AppText: Equatable {
         case .browserTabNew: return "新分頁"
         case .browserTabSignIn: return "網站登入頁面"
         case .browserTabPage: return "網頁"
+        case .commonDoneTyping: return "完成輸入"
+        case .skillStatusPending: return "待確認"
+        case .skillStatusTrial: return "個人技能 · 試用中"
+        case .skillStatusActive: return "個人技能 · 已驗證"
+        case .skillStatusSuspended: return "個人技能 · 已停用"
+        case .authoringTitle: return "編寫個人技能"
+        case .authoringClearFullText: return "清空全文"
+        case .authoringRequestSection: return "這次要建立或修改什麼做法？"
+        case .authoringIntro: return "請寫下你的要求。接著可查閱原始或個人技能、編寫全文，再核對內容並核准儲存。"
+        case .authoringRequestLabel: return "本次要求"
+        case .authoringScope: return "這是手動編寫流程；不會呼叫模型或連線。儲存後先試用，工具操作仍須各自核准。"
+        case .authoringLookupSection: return "查閱技能"
+        case .authoringSearchPlaceholder: return "搜尋名稱或做法"
+        case .authoringSearch: return "查詢"
+        case .authoringLookupHelp: return "找到相近的個人技能時，先讀全文再修改；停用的技能仍會列出供查閱。"
+        case .authoringBundledReadOnly: return "原始技能 · 唯讀"
+        case .authoringHasDraft: return "已有待確認草稿"
+        case .authoringNoMatches: return "找不到符合的技能。"
+        case .authoringFullTextSection: return "技能全文"
+        case .authoringReadHelp: return "內容供你查閱，讀取不會啟用技能或執行工具。"
+        case .authoringSourceVersion: return "來源與版本"
+        case .authoringNewSection: return "新技能全文"
+        case .authoringEditSection: return "修改個人技能"
+        case .authoringEditorHelp: return "名稱使用小寫英文字母、數字與連字號。填寫描述與五個段落，全文上限 4,000 字。"
+        case .authoringMarkdownLabel: return "技能 Markdown 全文"
+        case .authoringEditorRule: return "請勿放入密碼或金鑰。使用反引號標示的工具須為本版本提供的能力。"
+        case .authoringWillReplace: return "將取代同名個人技能"
+        case .authoringWillAdd: return "將新增個人技能"
+        case .authoringReviewState: return "尚未儲存。請核對完整內容；核准後會儲存為「試用中」，不會執行其中步驟。"
+        case .authoringOriginalHash: return "原文 SHA-256: %1$@"
+        case .authoringDraftHash: return "草稿 SHA-256: %1$@"
+        case .authoringReplacedHash: return "原版本 SHA-256: %1$@"
+        case .authoringSavedSection: return "已儲存"
+        case .authoringSavedUpdated: return "已更新個人技能 · 試用中"
+        case .authoringSavedAdded: return "已新增個人技能 · 試用中"
+        case .authoringSavedHelp: return "可到「記憶與資料 › 技能」查看、停用或管理。尚未驗證這份做法的實際成果。"
+        case .authoringBegin: return "開始查閱與編寫"
+        case .authoringNew: return "撰寫新技能"
+        case .authoringEditRead: return "以這份個人技能修改"
+        case .authoringBackToLookup: return "返回查詢"
+        case .authoringPrepare: return "檢視完整草稿"
+        case .authoringApprove: return "核准並儲存這份全文"
+        case .authoringRevise: return "返回修改"
+        case .skillAuthoringErrorInvalidRequest: return "請提供本次要建立或修改技能的原始要求。"
+        case .skillAuthoringErrorRequestMismatch: return "引用的要求與本次使用者原話不一致，未儲存。"
+        case .skillAuthoringErrorUnavailable: return "技能儲存目前無法使用。"
+        case .skillAuthoringErrorCancelled: return "已取消本次技能寫作，未執行儲存。"
+        case .skillAuthoringErrorNotFound: return "找不到指定技能，請重新查詢。"
+        case .skillAuthoringErrorReadRequired: return "同名技能已存在；請先讀取全文與目前版本。"
+        case .skillAuthoringErrorStaleRead: return "技能在讀取後已變更，請重新讀取再修改。"
+        case .skillAuthoringErrorDisabledNameConflict: return "同名技能目前停用，請先到技能清單處理；本次不會重新啟用它。"
+        case .skillAuthoringErrorDraftConflict: return "同名技能已有待確認草稿，請先處理該草稿。"
+        case .skillAuthoringErrorReviewChanged: return "草稿已變更，請重新檢視並核准完整內容。"
+        case .skillAuthoringErrorApprovalRequired: return "需要核准本次完整草稿；先前的核准不能重複使用。"
+        case .skillAuthoringErrorExpiredApproval: return "本次核准已逾時，請重新檢視草稿。"
+        case .skillAuthoringErrorStorageChanged: return "技能資料已更新，請重新檢視本次修改。"
+        case .skillAuthoringErrorCapabilitiesChanged: return "可用工具已變更，請重新檢視草稿後再核准。"
+        case .skillAuthoringErrorPersistenceFailed: return "技能未能儲存；既有資料保留，請重新檢視後再試。"
+        case .skillAuthoringErrorResourceLimit: return "本次查閱已達上限，請重新開始技能寫作。"
+        case .skillAgentActivityStart: return "輸入要建立或修改的做法。"
+        case .skillAgentActivityCancelled: return "已取消，尚未儲存。"
+        case .skillAgentActivityStopped: return "本次協作已停止，尚未儲存。"
+        case .skillAgentActivityRound: return "正在請模型協作（第 %1$lld 回合）…"
+        case .skillAgentActivityReview: return "草稿待你核對，尚未儲存。"
+        case .skillAgentActivityQuestion: return "等待你補充要求。"
+        case .skillAgentActivityFinished: return "模型已結束，本次尚未儲存。"
+        case .skillAgentActivityFailed: return "技能協作未完成，尚未儲存。"
+        case .skillAgentErrorChanged: return "模型設定或技能資料已變更，本次協作已停止；請重新開始。"
+        case .skillAgentErrorIncomplete: return "技能協作未完成。"
+        case .skillAgentErrorNoModel: return "請先在模型設定儲存服務網址、模型名稱與 API Key。"
+        case .skillAgentErrorCredentials: return "無法取得已設定模型的憑證，尚未開始協作。請解鎖裝置並檢查模型設定。"
+        case .skillAgentToolSearch: return "查詢技能"
+        case .skillAgentToolRead: return "讀取技能全文"
+        case .skillAgentToolSave: return "準備待審草稿"
+        case .skillAgentToolOther: return "技能工具"
+        case .skillAgentStepDone: return "%1$@：完成"
+        case .skillAgentStepFailed: return "%1$@：未通過檢查"
+        case .skillAgentSavedSection: return "已儲存至個人技能"
+        case .skillAgentSavedNote: return "試用中；尚未驗證這份做法的實際成果。工具操作仍須各自核准。"
+        case .skillAgentVersion: return "版本：%1$@"
+        case .skillAgentReviewUpdate: return "核對更新全文"
+        case .skillAgentReviewNew: return "核對新技能全文"
+        case .skillAgentReviewNote: return "核准後才會儲存為「試用中」。這一步不會執行技能。"
+        case .skillAgentOriginalHash: return "原文 SHA-256：%1$@"
+        case .skillAgentDraftHash: return "草稿 SHA-256：%1$@"
+        case .skillAgentReplacedHash: return "原版本 SHA-256：%1$@"
+        case .skillAgentMoreSection: return "補充要求"
+        case .skillAgentStartSection: return "請模型協作編寫技能"
+        case .skillAgentIntro: return "說明要建立、匯入或修改的做法。要求及本次查閱的技能內容會傳給已設定的模型；請勿填入密碼或金鑰。"
+        case .skillAgentRequestLabel: return "技能協作要求"
+        case .skillAgentHelp: return "模型會查詢、讀取並準備完整草稿，由你核准後儲存。內建原文的腳本與其他 App 操作不會因此啟用。"
+        case .skillAgentToolLog: return "本次工具紀錄"
+        case .skillAgentTitle: return "模型協作編寫技能"
+        case .skillAgentStop: return "停止協作"
+        case .skillAgentDiscard: return "捨棄草稿"
+        case .skillAgentSendMore: return "送出補充"
+        case .skillAgentStart: return "開始模型協作"
+        case .skillToolErrorInvalidLimits: return "技能協作的執行上限設定無效。"
+        case .skillToolErrorInvalidCommand: return "模型回傳的技能工具格式不符，尚未儲存。"
+        case .skillToolErrorInvalidState: return "本次技能協作狀態已變更，請重新開始。"
+        case .skillToolErrorSourceReadRequired: return "請先讀取本版本的技能編寫原文。"
+        case .skillToolErrorSearchRequired: return "請先查詢是否已有相同用途的技能。"
+        case .skillToolErrorUnknownReference: return "只能讀取本次技能目錄或查詢結果列出的技能。"
+        case .skillToolErrorStaleVersion: return "更新版本與本次讀取的技能不符，尚未儲存。"
+        case .skillToolErrorUnsupportedFile: return "只能讀取這份內建技能列出的原始附件。"
+        case .skillToolErrorBudgetExceeded: return "本次技能協作已達回合或資料上限，尚未儲存。"
+        case .skillToolErrorTimedOut: return "模型等待已達本次時間上限，尚未儲存。"
+        case .skillToolErrorModelFailed: return "無法連線至設定的模型，尚未儲存。"
+        case .skillToolErrorModelRejected: return "設定的模型服務拒絕要求，尚未儲存。"
+        case .skillToolErrorModelInvalidResponse: return "模型回覆不完整或格式無效，尚未儲存。"
+        case .skillToolErrorCancelled: return "已取消技能協作，尚未儲存。"
+        case .skillToolErrorTooManyFailures: return "技能草稿連續未通過檢查，尚未儲存；請調整要求後重新開始。"
+        case .skillExecutionSection: return "PDF 文字擷取"
+        case .skillExecutionIntro: return "選取檔案後檢視每一步，再分別核准。預設使用裝置上的 PDFKit。"
+        case .skillExecutionPdfQueryScope: return "僅在獨立 PDF 查詢流程，確認模型目的服務後，讀取或逐字搜尋本次已擷取 PDF 的文字快照；引文需對應實際讀取。不開放任意路徑、workspace 或無上限讀取。"
+        case .skillExecutionPagesPlaceholder: return "頁碼，例如 1,3-5；留空代表全部"
+        case .skillExecutionPasswordPlaceholder: return "PDF 密碼（需要時填寫）"
+        case .skillExecutionMetadataOnly: return "只讀取文件資訊"
+        case .skillExecutionDownloadSource: return "來源：此 App 的已完成下載。下載成功尚未授權讀取或擷取。"
+        case .skillExecutionPrepareDownload: return "建立下載 PDF 計畫"
+        case .skillExecutionSelectPDF: return "選取 PDF"
+        case .skillExecutionImportCopyToggle: return "改用匯入副本"
+        case .skillExecutionImportCopyNotice: return "選檔後，系統會先建立暫存副本並占用儲存空間，不會更動原檔。App 讀取與後續擷取仍需分別核准。App 最多讀取 10 MiB；系統複製的大小不受此上限限制。"
+        case .skillExecutionImportCopyButton: return "選取 PDF 並匯入副本"
+        case .skillExecutionPlanSection: return "本次計畫"
+        case .skillExecutionPages: return "頁碼：%1$@"
+        case .skillExecutionAllPages: return "全部（最多 200 頁）"
+        case .skillExecutionStepReadTitle: return "讀取選取的 PDF"
+        case .skillExecutionStepReadDisclosure: return "只讀取本次選取的檔案，最多 10 MiB；不會掃描資料夾。"
+        case .skillExecutionStepExtractTitle: return "在裝置上擷取 PDF"
+        case .skillExecutionStepExtractDisclosure: return "在裝置上以 PDFKit 擷取文字；不會上傳。"
+        case .skillExecutionStepDone: return "已完成"
+        case .skillExecutionStepNeedsApproval: return "能力已連接；此步驟仍需核准"
+        case .skillExecutionStepUnavailable: return "能力尚未連接"
+        case .skillExecutionRunning: return "執行中…"
+        case .skillExecutionApproveStep: return "核准並執行此步驟"
+        case .skillExecutionSources: return "原版來源與雜湊"
+        case .skillExecutionFingerprint: return "計畫指紋：%1$@"
+        case .skillExecutionSourceRow: return "%1$@\n%2$@\nSHA-256：%3$@"
+        case .skillExecutionScopedNote: return "這是經過限定的 iOS 能力實作，並非完整執行原版技能。"
+        case .skillExecutionClearPlan: return "清除本次計畫"
+        case .skillExecutionResultSection: return "擷取結果"
+        case .skillExecutionResultSummary: return "共 %1$lld 頁；引擎：%2$@"
+        case .skillExecutionNoticeOCR: return "選取頁面沒有可擷取的文字，可能需要 OCR；此能力不提供 OCR。"
+        case .skillExecutionNoticeEmptyPages: return "部分頁面沒有文字：%1$@。"
+        case .skillExecutionNoticeCheck: return "請對照原頁核對表格、多欄文字與引用；此結果未保證版面順序。"
+        case .skillExecutionQueryPDF: return "查詢這份 PDF"
+        case .skillExecutionExportText: return "匯出文字檔"
+        case .skillExecutionMetadataRow: return "%1$@：%2$@"
+        case .skillExecutionTitle: return "執行 PDF 技能"
+        case .skillExecutionExportName: return "%1$@-文字"
+        case .skillExecutionExportTooLarge: return "文字結果過大，請縮小頁碼範圍後再匯出。"
+        case .skillExecutionExportSaved: return "文字已儲存至所選位置。"
+        case .skillExecutionExportFailed: return "文字未能儲存，請重新選擇位置再試一次。"
+        case .skillExecutionExportCancelled: return "已取消匯出，擷取結果仍保留。"
+        case .skillExecutionStatusNoSnapshot: return "這次擷取結果無法建立查詢快照，請確認已擷取可讀取的文字。"
+        case .skillExecutionStatusNoSelection: return "未能取得選取的 PDF，請重新選取一個檔案。"
+        case .skillExecutionStatusPickFailed: return "未能選取檔案，請重試。"
+        case .skillExecutionStatusDownloadGone: return "下載檔案已刪除或變更，本次計畫已取消。請重新選取。"
+        case .skillExecutionStatusNoPlan: return "無法建立執行計畫。"
+        case .skillExecutionStatusRead: return "已讀取 %1$lld 位元組。請核准下一個步驟。"
+        case .skillExecutionStatusExtracted: return "擷取完成。"
+        case .skillExecutionStatusIncomplete: return "執行未完成。"
+        case .documentQuerySourceSection: return "本次已擷取的 PDF"
+        case .documentQuerySourceSummary: return "選取 %1$lld 頁 · %2$lld 位元組文字"
+        case .documentQuerySourceNote: return "文件引文只來自這次擷取的文字；原 PDF 不會重新讀取。"
+        case .documentQuerySourceInfo: return "來源資訊"
+        case .documentQueryPdfHash: return "PDF SHA-256：%1$@"
+        case .documentQuerySnapshotHash: return "擷取快照 SHA-256：%1$@"
+        case .documentQueryQuestionSection: return "想查詢什麼"
+        case .documentQueryConfirmDestination: return "確認目前設定的目的服務"
+        case .documentQueryDestination: return "%1$@\n模型：%2$@"
+        case .documentQueryDisclosure: return "開始後，問題、檔名、讀取片段與已啟用的個人檔案、相關記憶及適用技能會傳給上述服務。保存資料只作背景，不是文件證據或操作授權。回答不會自動儲存。"
+        case .documentQueryStart: return "傳送問題並查詢這份 PDF"
+        case .documentQueryProgress: return "查詢中"
+        case .documentQueryAnswerSection: return "回答"
+        case .documentQueryCitationNote: return "引文已核對本次實際讀過的範圍；這不表示全文已讀，或回答中的解讀均正確。"
+        case .documentQueryCitationPage: return "原 PDF 第 %1$lld 頁 · 選取序號 %2$lld"
+        case .documentQueryExport: return "匯出回答與引文"
+        case .documentQueryTitle: return "查詢 PDF"
+        case .documentQueryStop: return "停止查詢"
+        case .documentQueryExportName: return "PDF-查詢回答"
+        case .documentQueryExportSaved: return "回答與引文已儲存至所選位置。"
+        case .documentQueryExportFailed: return "回答未能儲存，請重新選擇位置再試一次。"
+        case .documentQueryExportCancelled: return "已取消匯出，回答與引文仍保留。"
+        case .documentQueryExportUnavailable: return "回答無法建立文字檔，原回答仍保留。"
+        case .documentQueryStatusStart: return "請輸入問題，並確認要傳送至哪個模型服務。"
+        case .documentQueryStatusEdited: return "問題已更新，尚未傳送給模型。"
+        case .documentQueryErrorNoModel: return "無法取得已設定的模型服務，請先儲存模型設定。"
+        case .documentQueryErrorConfirmFirst: return "請先確認目前設定的模型目的服務。"
+        case .documentQueryStatusSearching: return "正在依問題搜尋與分段讀取已核准的 PDF 文字…"
+        case .documentQueryStatusRound: return "正在請模型查詢（第 %1$lld 回合）…"
+        case .documentQueryStatusFoundMore: return "搜尋找到 %1$lld 處；尚有其他符合位置。"
+        case .documentQueryStatusFound: return "搜尋找到 %1$lld 處。"
+        case .documentQueryStatusRead: return "已讀取原 PDF 第 %1$lld 頁的 %2$lld 位元組文字。"
+        case .documentQueryStatusFormatRetry: return "模型指令格式無效，正在要求一次格式修正。"
+        case .documentQueryStatusVerified: return "回答引用已與實際讀取的原文逐字核對，請再核對解讀是否正確。"
+        case .documentQueryStatusUnfinished: return "模型未完成這個問題；已擷取的 PDF 文字仍保留。"
+        case .documentQueryStatusStopped: return "已停止查詢，問題與已擷取的文字仍保留。"
+        case .documentQueryStatusModelChanged: return "模型設定已變更；請重新確認目的服務後再查詢。"
+        case .documentQueryStatusModelChangedKept: return "模型設定已變更；已完成的回答仍保留，再次查詢前請重新確認目的服務。"
+        case .documentQueryErrorReferencesRevoked: return "本次參考資料已撤銷；請確認目前設定與目的服務後重新查詢。"
+        case .documentQueryStatusStoppedLate: return "查詢已停止，問題與已擷取的 PDF 文字仍保留；晚到回覆不會更新結果。"
+        case .documentQueryErrorReferencesUnavailable: return "無法使用本次參考資料；請確認記憶與資料設定後重新查詢。"
+        case .documentQueryErrorChanged: return "模型設定或本次查詢已變更，請重新確認後再開始。"
+        case .documentQueryErrorFailed: return "無法完成本次 PDF 查詢，未產生可驗證的回答。"
+        case .documentQueryStatusIncomplete: return "本次查詢未完成，問題與已擷取的文字仍保留。"
+        case .documentQueryErrorInvalidSource: return "PDF 擷取結果無法驗證，請重新完成擷取。"
+        case .documentQueryErrorEmptySource: return "這份擷取結果沒有可查詢的文字；不提供 OCR。"
+        case .documentQueryErrorSourceTooLarge: return "擷取文字超過 2 MiB，請縮小選取頁碼。"
+        case .documentQueryErrorInvalidQuestion: return "請輸入查詢問題，長度不得超過 4 KiB。"
+        case .documentQueryErrorInvalidLimits: return "文件查詢的執行限制無效。"
+        case .documentQueryErrorInvalidRange: return "模型要求的頁面或 UTF-8 讀取範圍無效。"
+        case .documentQueryErrorInvalidSearch: return "搜尋詞或搜尋結果數量超過限制。"
+        case .documentQueryErrorInvalidEvidence: return "回答引文無法在本次實際讀取範圍逐字核對。"
+        case .documentQueryErrorInvalidCommand: return "模型未提供有效的單一步驟文件指令。"
+        case .documentQueryErrorBudgetExceeded: return "文件查詢已達回合或內容上限，尚未完成。"
+        case .documentQueryErrorOutputTooLarge: return "文件查詢的回應超過資料上限。"
+        case .documentQueryErrorCancelled: return "已取消文件查詢，沒有傳送新的讀取內容。"
+        case .documentQueryErrorTimedOut: return "文件查詢已超過執行時間，尚未完成。"
+        case .documentQueryErrorContextChanged: return "來源或模型設定已變更，請重新確認目的服務。"
+        case .documentQueryErrorModelFailed: return "模型服務未完成文件查詢，沒有自動重試。"
+        case .transcriptStatusStart: return "請選取文字稿或字幕檔。"
+        case .transcriptStatusReview: return "請核對檔名與讀取範圍，尚未讀取內容。"
+        case .transcriptStatusReading: return "正在讀取核准的文字檔，尚未傳送模型…"
+        case .transcriptStatusRead: return "已讀取文字快照。請核對目的服務，再明確開始模型整理。"
+        case .transcriptStatusRound: return "正在請模型整理（第 %1$lld 回合）…"
+        case .transcriptStatusCovered: return "模型已讀取 %1$lld／%2$lld 位元組。"
+        case .transcriptStatusFormatRetry: return "模型指令格式無效；正在要求一次格式修正，尚未執行該動作。"
+        case .transcriptStatusFormatStopped: return "模型指令格式仍無效，本次整理已停止。"
+        case .transcriptStatusVerified: return "全文讀取與原文證據逐字核對已完成；請再核對整理內容。"
+        case .transcriptStatusRefused: return "模型未完成整理，沒有新增記憶或技能。"
+        case .transcriptStatusModelChangedKept: return "模型設定已變更；已交付的整理與原文仍保留，再次整理前請重新確認目的服務。"
+        case .transcriptStatusApprovedSource: return "已接收你核准的文字快照。請確認目的服務，再明確開始模型整理。"
+        case .transcriptErrorSelectionFailed: return "選檔未完成，尚未讀取新的內容。"
+        case .transcriptErrorReferencesRevoked: return "本次參考資料已撤銷；請確認目前設定與目的服務後重新整理。"
+        case .transcriptStatusStoppedLate: return "整理已停止，已核准的原文仍保留；晚到回覆不會更新結果。"
+        case .transcriptStatusIncomplete: return "本次文字整理未完成。"
+        case .transcriptErrorFailed: return "無法完成本次整理，沒有新增記憶或技能。"
+        case .transcriptErrorInvalidSelection: return "無法讀取所選檔案，或檔案不是一般檔案；不接受符號連結。"
+        case .transcriptErrorUnsupportedType: return "請選取 UTF-8 的 txt、srt、vtt 或 md 文字檔。"
+        case .transcriptErrorTooLarge: return "文字檔超過 64 KiB 上限，請先分成較小的檔案。"
+        case .transcriptErrorInvalidEncoding: return "檔案不是有效的 UTF-8 文字，或含有不支援的控制字元。"
+        case .transcriptErrorEmptySource: return "所選檔案沒有可整理的文字。"
+        case .transcriptErrorApprovalRequired: return "請先核對所選檔案並核准本次讀取。"
+        case .transcriptErrorCancelled: return "已停止本次整理，沒有新增記憶或技能。"
+        case .transcriptErrorReadTimedOut: return "檔案提供者未在讀取期限內完成，尚未傳送給模型。"
+        case .transcriptErrorInvalidCommand: return "模型回傳的工具格式無效，整理未完成。"
+        case .transcriptErrorInvalidRange: return "模型要求的讀取範圍無效；只能依序重疊讀取核准的文字快照。"
+        case .transcriptErrorIncompleteCoverage: return "模型尚未讀完全部文字，不能標示整理完成。"
+        case .transcriptErrorInvalidEvidence: return "模型的引文或時間無法在已讀原文中逐字核對，整理未完成。"
+        case .transcriptErrorBudgetExceeded: return "本次整理已達回合或資料上限，尚未完成。"
+        case .transcriptErrorModelFailed: return "設定的模型服務未完成要求，請檢查模型設定或連線。"
+        case .transcriptErrorTimedOut: return "本次模型等待已達時間上限，尚未完成。"
+        case .transcriptErrorContextChanged: return "模型設定已變更，本次整理已停止；請重新確認目的服務。"
+        case .transcriptFormatSummary: return "摘要"
+        case .transcriptFormatChapters: return "章節整理"
+        case .transcriptFormatQuotations: return "逐字引文"
+        case .transcriptFormatTranscript: return "全文整理"
+        case .transcriptFormatArticle: return "改寫成文章"
+        case .transcriptScope: return "僅整理使用者選取的文字或字幕；不會聽取音訊或觀看影片。"
+        case .transcriptReviewSection: return "核對本次讀取"
+        case .transcriptReviewNote: return "核准後只讀取此檔案，最多 64 KiB、等待最多 30 秒。這一步不會傳送給模型。"
+        case .transcriptApproveRead: return "核准讀取這份文字檔"
+        case .transcriptRefuseRead: return "拒絕讀取"
+        case .transcriptSnapshotSection: return "已核准的文字快照"
+        case .transcriptSnapshotSize: return "%1$lld 位元組 · UTF-8"
+        case .transcriptHideSource: return "收合原文"
+        case .transcriptShowSource: return "查看原文"
+        case .transcriptSHA: return "SHA-256：%1$@"
+        case .transcriptSendSection: return "傳送前確認"
+        case .transcriptFormatPicker: return "整理形式"
+        case .transcriptReferenceNotice: return "開始後，檔名、原文，以及依目前開關選取的個人檔案、記憶與已啟用技能參考會傳至上述服務。參考資料不會成為原文證據；產出不會自動寫入記憶或技能。"
+        case .transcriptStart: return "將這份文字傳給模型並整理"
+        case .transcriptRefusalSection: return "模型回覆：未完成"
+        case .transcriptResultSection: return "整理結果"
+        case .transcriptResultNote: return "僅依文字來源整理。全部位元組已讀取，下列原文證據已逐字核對；這不代表字幕與影音相符，或所有論點皆已正確摘要。"
+        case .transcriptEvidence: return "原文引文 · 位元組 %1$lld"
+        case .transcriptEvidenceTimed: return "原文引文 · 位元組 %1$lld · %2$@"
+        case .transcriptStop: return "停止整理"
+        case .transcriptBrowserSection: return "讀取此頁文字"
+        case .transcriptBrowserIntro: return "建立目前網頁可讀取的文字快照，排除表單輸入與隱藏內容。最多 64 KiB，超過時會停止；這一步不會傳送給模型。"
+        case .transcriptBrowserLimits: return "文字快照不包含圖片、影音或內嵌頁面的內容。請核對擷取結果；模型只能整理這份快照，不能據此宣稱已讀完整個網站。"
+        case .transcriptBrowserReading: return "正在讀取…"
+        case .transcriptBrowserCapture: return "讀取目前頁面文字"
+        case .transcriptBrowserCheckSection: return "核對來源快照"
+        case .transcriptBrowserSize: return "%1$lld 位元組 · 擷取於 %2$@"
+        case .transcriptBrowserOmitted: return "此頁有 %1$lld 個內嵌或封裝區域未完整擷取；下方只包含可讀取的文字。"
+        case .transcriptBrowserFullText: return "查看讀取的全文"
+        case .transcriptBrowserApprove: return "核准使用這份文字，前往確認模型服務"
+        case .transcriptBrowserSnapshotFailed: return "此頁文字無法建立有效快照，尚未傳送給模型。"
+        case .transcriptBrowserTitle: return "整理此頁文字"
+        case .transcriptBrowserCaptureFailed: return "無法建立目前網頁的文字快照；頁面可能尚未載入、已變更，或不符合此功能的網址限制。"
+        case .pdfAssemblySection: return "擷取頁面、重排與合併"
+        case .pdfAssemblyIntro: return "逐份選取或加入 PDF，最多三份，再依指定順序產生新文件。每個檔案最多 10 MiB，合計最多 200 頁；輸出最多 20 MiB。處理過程不改動原檔，也不會上傳。"
+        case .pdfAssemblySupport: return "目前支援一般靜態 PDF；不支援加密、表單、註記、附件、書籤、標記結構、圖層與互動文件，也不會辨識掃描文字。"
+        case .pdfAssemblySelect: return "選取 PDF 文件"
+        case .pdfAssemblyImportCopyNotice: return "匯入副本時，系統會在你選檔時建立副本；App 仍會先請你核准讀取，再另行核准產生新 PDF。"
+        case .pdfAssemblyImportCopy: return "匯入 PDF 副本"
+        case .pdfAssemblySourcesSection: return "來源文件"
+        case .pdfAssemblySource: return "來源 %1$lld：%2$@"
+        case .pdfAssemblyReceipt: return "已讀取 %1$lld 頁，%2$lld 位元組"
+        case .pdfAssemblySourceDisclosure: return "只讀取這個選取的 PDF，最多 10 MiB；不會掃描資料夾或上傳。"
+        case .pdfAssemblyApproveRead: return "核准讀取此文件"
+        case .pdfAssemblyAddNotice: return "加入文件會保留已選來源，但清除本次讀取核准、頁序及尚未儲存的結果；請重新核准各文件。取消選檔則保留原狀。"
+        case .pdfAssemblyAdd: return "加入 PDF 文件"
+        case .pdfAssemblyAddCopy: return "加入 PDF 副本"
+        case .pdfAssemblySourcesNote: return "最多三份來源。匯入副本時，系統會在你選檔時建立副本，仍需另行核准讀取。"
+        case .pdfAssemblyOrderSection: return "新文件頁序"
+        case .pdfAssemblyOrderHelp: return "格式為「來源編號:頁碼」。例如 1:3,1:1-2,2:1，表示來源 1 的第 3、1、2 頁，再接來源 2 的第 1 頁；頁面可以重複。"
+        case .pdfAssemblyOrderPlaceholder: return "例如 1:3,1:1-2,2:1"
+        case .pdfAssemblyPrepare: return "檢視頁序"
+        case .pdfAssemblyPlanSection: return "核對新文件"
+        case .pdfAssemblyPlanCount: return "共 %1$lld 頁"
+        case .pdfAssemblyPlanPage: return "第 %1$lld 頁 ← 來源 %2$lld 第 %3$lld 頁"
+        case .pdfAssemblyPlanNote: return "將依以上頁序產生新的 PDF。請在儲存前再次核對內容。"
+        case .pdfAssemblyAssemble: return "核准並產生新 PDF"
+        case .pdfAssemblyResultSection: return "新 PDF"
+        case .pdfAssemblyResult: return "已產生 %1$lld 頁，%2$lld 位元組"
+        case .pdfAssemblyResultNotice: return "請對照原頁核對結果。已驗證頁數、旋轉、尺寸及各頁框的相對位置；PDFKit 可能正規化頁框原點與文件編碼，不保證位元相同或保留文件層級中繼資料。"
+        case .pdfAssemblySave: return "儲存 PDF"
+        case .pdfAssemblySaveNote: return "請選擇新檔名及儲存位置；若選擇取代既有檔案，系統會請你確認。"
+        case .pdfAssemblyProcessing: return "正在處理文件…"
+        case .pdfAssemblyCancelAndClear: return "取消處理並清除本次選取"
+        case .pdfAssemblyClear: return "清除本次選取"
+        case .pdfAssemblyTitle: return "PDF 頁面處理"
+        case .pdfAssemblyDefaultName: return "組裝文件.pdf"
+        case .pdfAssemblySuggestedName: return "組裝文件-%1$@.pdf"
+        case .pdfAssemblySaved: return "PDF 已儲存至所選位置。"
+        case .pdfAssemblySaveFailed: return "未能儲存 PDF，結果仍保留；請重新選擇位置。"
+        case .pdfAssemblySaveCancelled: return "已取消儲存，新 PDF 仍保留。"
+        case .pdfAssemblyExportUnavailable: return "無法準備輸出文件，請重新處理來源文件。"
+        case .pdfAssemblyStatusOneFile: return "每次請只選取一份 PDF，再使用「加入 PDF」加入其他來源。"
+        case .pdfAssemblyStatusAdded: return "已加入文件；請重新核准各來源的讀取，再核對新頁序。"
+        case .pdfAssemblyStatusConfirmEach: return "請逐一確認要讀取的文件。"
+        case .pdfAssemblyStatusPickFailed: return "未能取得選取的 PDF，請重新選取。"
+        case .pdfAssemblyStatusReadAll: return "文件已讀取；請指定新 PDF 的頁面順序。"
+        case .pdfAssemblyStatusReadSome: return "文件已讀取；請確認其餘文件。"
+        case .pdfAssemblyStatusCheckOrder: return "請核對下列頁序，再產生新的 PDF。"
+        case .pdfAssemblyStatusProduced: return "新 PDF 已產生，尚未儲存至檔案。"
+        case .pdfAssemblyStatusIncomplete: return "文件處理未完成，原檔未修改。"
+        case .pdfAssemblyErrorInvalidSources: return "請選取一至三個不同的 PDF，再逐一核准讀取。"
+        case .pdfAssemblyErrorProtectedPDF: return "這個 PDF 有加密或複製／組裝限制；此功能不會移除保護。"
+        case .pdfAssemblyErrorUnsupportedDocument: return "此版本不處理含表單、註記、附件、書籤、標記結構、圖層或互動功能的頁面／文件。"
+        case .pdfAssemblyErrorSerialization: return "無法產生新的 PDF；原檔未修改。"
+        case .pdfAssemblyErrorVerification: return "新 PDF 的頁數、旋轉或尺寸驗證失敗，未交付結果。"
+        case .pdfAssemblyErrorOutputTooLarge: return "新 PDF 超過 20 MiB，請減少頁數或來源檔案。"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
         case .shellBackToChat: return "返回對話"
