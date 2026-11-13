@@ -49,7 +49,7 @@ try {
   assert.doesNotMatch(privacy, /OWNER_KEY|REPORT_ADMIN_KEY/);
   assert.doesNotMatch(privacy, /渥屋助理|woowtech agent|designsmart|io\.woowtech/, 'no 渥屋助理 identity on the Apporo page');
   if (live) assert.doesNotMatch(privacy, /&lt;EFFECTIVE_DATE&gt;/, 'effective date set before going live');
-  for (const text of ['Apporo Assistant Privacy Policy', 'Apporo Assistant 隱私權政策', 'APPORO UNION INC.', 'WOOW TECH CO., LTD.',
+  for (const text of ['Apporo Assistant Privacy Policy', 'Apporo Assistant 隱私權政策', 'Effective November 13, 2026', '生效日期：2026 年 11 月 13 日', 'APPORO UNION INC.', 'WOOW TECH CO., LTD.',
     '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>'])
     assert.ok(privacy.includes(text), 'privacy policy covers: ' + text);
   assert.doesNotMatch(privacy, /Play edition|商店版|Google Play 版/, 'one app name, no edition wording');

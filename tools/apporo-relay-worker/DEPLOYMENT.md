@@ -16,7 +16,7 @@ The Apporo .8 signed candidate was installed over .7 on a physical Android 15 ph
 
 The Play package `com.apporo.assistant.play` uses this Worker only for its privacy page and AI response reports; it has no account, pairing or remote phone connection here. The code is ported unchanged from `woowtech-assistant-relay`, where it has been live since 2026-11-12:
 
-- `/privacy/play` (GET and HEAD) and `/privacy/play.css`: the Play privacy policy in `src/privacy-play.ts`. Set its effective date on the day it goes live; `RELAY_LIVE=1 node test/smoke.mjs` refuses the placeholder.
+- `/privacy/play` (GET and HEAD) and `/privacy/play.css`: the Play privacy policy in `src/privacy-play.ts`, effective 2026-11-13.
 - `/api/v1/ai-reports` and `/admin/ai-reports`: the `REPORTS` Durable Object (`ReportInbox`, migration `v3`), 30-day retention with hourly cleanup, 60 reports per source IP per hour. See [ai-reports.md](docs/ai-reports.md). Optional secret `REPORT_ADMIN_KEY` (32+ characters) is a review-only key; `scripts/review-ai-reports.py` reads it from `~/.apporo-report-admin/secret`.
 - `[assets]` serves `public/` before the Worker; the Play foreground-service demo video goes in `public/play/`.
 
