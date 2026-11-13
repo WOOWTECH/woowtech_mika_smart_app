@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.R
 import com.wangzan101.mika.settings.McpServerConfig
 import com.wangzan101.mika.settings.McpServerStore
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import com.wangzan101.mika.ui.components.GroupCard
 import com.wangzan101.mika.ui.components.GroupLabel
 import com.wangzan101.mika.ui.components.ListRow
@@ -127,7 +128,7 @@ private fun McpServerDialog(
     var allowLocal by remember { mutableStateOf(initial?.allowLocalHttp == true) }
     var trustAnnotations by remember { mutableStateOf(initial?.trust == "trust-annotations") }
     var oauth by remember { mutableStateOf(initial?.auth == "oauth") }
-    var transport by remember { mutableStateOf(initial?.transport ?: "streamable-http") }
+    var transport by remember { mutableStateOf(initial?.transport?.takeIf { it != "stdio" || PlayTransportPolicy.allowsStdioMcp } ?: "streamable-http") }
     var command by remember { mutableStateOf(initial?.command.orEmpty()) }
     var allowlist by remember { mutableStateOf(initial?.allowedTools?.joinToString(", ").orEmpty()) }
     val feedback = remember { McpEditorFeedback() }
@@ -138,12 +139,12 @@ private fun McpServerDialog(
     val context = LocalContext.current
     val signInLabel = stringResource(R.string.mcp_servers_sign_in)
     val signInOk = stringResource(R.string.mcp_servers_sign_in_ok)
-    val transportIds = listOf("streamable-http", "http-sse", "stdio")
+    val transportIds = listOf("streamable-http", "http-sse", "stdio").filter { it != "stdio" || PlayTransportPolicy.allowsStdioMcp }
     val transportLabels = listOf(
         stringResource(R.string.mcp_servers_transport_http),
         stringResource(R.string.mcp_servers_transport_sse),
         stringResource(R.string.mcp_servers_transport_stdio),
-    )
+    ).take(transportIds.size)
 
     fun config() = McpServerConfig(
         id = savedId ?: initial?.id ?: java.util.UUID.randomUUID().toString(),

@@ -151,6 +151,7 @@ class McpServerStore(
     fun validate(config: McpServerConfig): String? {
         if (config.name.isBlank()) return "name is required"
         if (config.transport == "stdio") {
+            if (!PlayTransportPolicy.allowsStdioMcp) return "stdio MCP servers are not available on this build"
             if (config.command.isBlank()) return "command is required"
             if (config.command.length > 4000) return "command is too long"
             if (config.command.any { it == '\n' || it == '\u0000' }) return "command must be one line"

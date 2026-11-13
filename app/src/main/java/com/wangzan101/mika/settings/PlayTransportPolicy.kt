@@ -7,6 +7,9 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 internal object PlayTransportPolicy {
     val enabled: Boolean get() = BuildConfig.FLAVOR == "woowtech"
 
+    /** The Play package ships no Linux sandbox, so it has no local (stdio) MCP servers. */
+    val allowsStdioMcp: Boolean get() = !enabled
+
     fun permits(url: String): Boolean {
         if (!enabled) return true
         val parsed = url.toHttpUrlOrNull() ?: return false
