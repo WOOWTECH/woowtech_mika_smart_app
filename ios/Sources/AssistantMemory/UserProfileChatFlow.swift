@@ -12,6 +12,20 @@ public enum UserProfileChatStep: Equatable, Sendable {
     case proposedEdit(argumentsJSON: String)
     case memorySearch(argumentsJSON: String)
     case proposedMemoryChange(toolName: String, argumentsJSON: String)
+    /// The model asked for a skill tool (Play's skill_search, skill_read or
+    /// skill_save); the host runs the skill tools step after its own exact
+    /// command validation. No profile or memory change goes with it.
+    case skillEntry(json: String)
+}
+
+/// Lets an ordinary chat use the Play build's skill tools. The host supplies
+/// the wording and its exact command validator.
+public struct UserProfileChatSkillEntry: Sendable {
+    public let instructions: String
+    public let accepts: @Sendable (String) -> Bool
+    public init(instructions: String, accepts: @escaping @Sendable (String) -> Bool) {
+        self.instructions = instructions; self.accepts = accepts
+    }
 }
 
 /// Ordinary chat with one explicitly reviewed profile operation. This is a
@@ -29,8 +43,10 @@ public enum UserProfileChatStep: Equatable, Sendable {
     private var reviewTool: String?
     public private(set) var modelCalls = 0
     public private(set) var didCommit = false
+    private let skillEntry: UserProfileChatSkillEntry?
 
-    public init(messages: [ModelMessage], timeout: Duration = .seconds(90)) throws {
+    public init(messages: [ModelMessage], timeout: Duration = .seconds(90),
+                skillEntry: UserProfileChatSkillEntry? = nil) throws {
         guard timeout > .zero, timeout <= .seconds(90),
               !messages.isEmpty, messages.count <= 32,
               messages.allSatisfy({ ["system", "user", "assistant"].contains($0.role) }),
@@ -39,7 +55,9 @@ public enum UserProfileChatStep: Equatable, Sendable {
               messages.reduce(0, { $0 + $1.content.utf8.count }) <= 64 * 1024 else {
             throw UserProfileChatError.invalidInput
         }
-        self.messages = [ModelMessage(role: "system", content: Self.instructions)] + messages
+        self.skillEntry = skillEntry
+        let instructions = skillEntry.map { Self.instructions + "\n" + $0.instructions } ?? Self.instructions
+        self.messages = [ModelMessage(role: "system", content: instructions)] + messages
         deadline = .now.advanced(by: timeout)
     }
 
@@ -89,7 +107,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
                 try validateState?()
                 guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
-                do { step = try Self.parse(raw) }
+                do { step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil) }
                 catch let error as UserProfileChatError where error == .invalidCommand {
                     if preview?.current != nil { onAnswerPreview?(nil) }
                     guard !corrected, modelCalls < 3 else { throw error }
@@ -107,7 +125,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
                     }
                 }
                 switch step {
-                case .answer:
+                case .answer, .skillEntry:
                     phase = .ended
                 case .proposedEdit, .proposedMemoryChange:
                     guard allowsEdit, modelCalls < 3 else { throw UserProfileChatError.callLimit }
@@ -193,13 +211,16 @@ public enum UserProfileChatStep: Equatable, Sendable {
         }
     }
 
-    private static func parse(_ text: String) throws -> UserProfileChatStep {
+    private static func parse(_ text: String, skillEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
         guard let rawFields = try? RawCommandEnvelope.fields(in: text) else {
             throw UserProfileChatError.invalidCommand
         }
         guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
               let action = object["action"] as? String else { throw UserProfileChatError.invalidCommand }
         switch action {
+        case "skill_search", "skill_read", "skill_save":
+            guard let skillEntry, skillEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
+            return .skillEntry(json: text)
         case "finish":
             guard Set(object.keys) == ["action", "answer"], let answer = object["answer"] as? String,
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
