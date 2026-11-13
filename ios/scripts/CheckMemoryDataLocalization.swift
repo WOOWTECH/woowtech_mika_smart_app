@@ -18,8 +18,8 @@ enum CheckMemoryDataLocalization {
         precondition(keys.allSatisfy { key in
             !english.text(key).unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
         })
-        precondition(traditional.text(.emptyMemory) == "尚未儲存記憶。")
-        precondition(traditional.text(.emptyPending) == "沒有待確認的內容。")
+        precondition(traditional.text(.emptyMemory) == "還沒有記住的事")
+        precondition(traditional.text(.emptyPending) == "沒有等你確認的東西")
         precondition(traditional.text(.skillTrial) == "試用中 · 尚未驗證")
         precondition(traditional.text(.selected) == "已選取")
         precondition(traditional.text(.fullText) == "看全文")
@@ -29,7 +29,7 @@ enum CheckMemoryDataLocalization {
         precondition(traditional.text(.confirmClear) == "確認全部清除")
         precondition(traditional.text(.websitesAndRoutes, Int64(2), Int64(1)) == "網站知識與路線（2／1）")
         precondition(simplified.text(.tabPendingCount, Int64(4)) == "待确认 4")
-        precondition(english.text(.tabPendingCount, Int64(4)) == "Pending 4")
+        precondition(english.text(.tabPendingCount, Int64(4)) == "To review 4")
         precondition(english.text(.websitesAndRoutes, Int64(2), Int64(1)) == "Website notes and routes (2/1)")
         precondition(english.text(.conversationSource, "Nov 11") == "From your conversation · Nov 11")
         precondition(english.text(.memoryEditorAddTitle) == "Add memory")

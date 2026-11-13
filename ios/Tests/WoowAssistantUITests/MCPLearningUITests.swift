@@ -242,8 +242,9 @@ final class MCPLearningUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["memory.unavailable"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
         selectSegment("memories")
-        let query = app.textFields["memory.search"].firstMatch.value as? String ?? ""
-        XCTAssertTrue(query.isEmpty || query == "搜尋記憶或關鍵字",
+        let searchField = app.textFields["memory.search"].firstMatch
+        let query = searchField.exists ? searchField.value as? String ?? "" : ""
+        XCTAssertTrue(query.isEmpty || query == "搜尋",
                       "Data absence requires an unfiltered list.")
     }
 
@@ -266,12 +267,12 @@ final class MCPLearningUITests: XCTestCase {
     }
 
     private func assertEmptyMemories() {
-        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "尚未儲存記憶。")
+        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "還沒有記住的事")
         XCTAssertFalse(memoryItems.firstMatch.exists)
     }
 
     private func assertEmptyPending() {
-        assertReadable(app.staticTexts["memory.pending.empty"].firstMatch, equals: "沒有待確認的內容。")
+        assertReadable(app.staticTexts["memory.pending.empty"].firstMatch, equals: "沒有等你確認的東西")
         XCTAssertFalse(memoryItems.firstMatch.exists)
     }
 

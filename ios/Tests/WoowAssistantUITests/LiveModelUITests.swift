@@ -666,7 +666,7 @@ final class LiveModelUITests: XCTestCase {
         func assertEmpty(in application: XCUIApplication) {
             let empty = application.staticTexts["memory.empty"].firstMatch
             revealLearningElement(empty, in: application, visibility: .readableText)
-            XCTAssertTrue(empty.label == "尚未儲存記憶。")
+            XCTAssertTrue(empty.label == "還沒有記住的事")
             XCTAssertFalse(item(in: application).exists)
             XCTAssertFalse(application.staticTexts.matching(NSPredicate(
                 format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
@@ -744,10 +744,10 @@ final class LiveModelUITests: XCTestCase {
         selectLearningSegment("pending", in: app)
         let pendingEmpty = app.staticTexts["memory.pending.empty"].firstMatch
         revealLearningElement(pendingEmpty, in: app, visibility: .readableText)
-        XCTAssertTrue(pendingEmpty.label == "沒有待確認的內容。")
+        XCTAssertTrue(pendingEmpty.label == "沒有等你確認的東西")
         XCTAssertFalse(item(in: app).exists)
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
-        print("Live memory-tool phase=relaunch;itemAbsent=\(!item(in: app).exists);pendingEmpty=\(pendingEmpty.label == "沒有待確認的內容。")")
+        print("Live memory-tool phase=relaunch;itemAbsent=\(!item(in: app).exists);pendingEmpty=\(pendingEmpty.label == "沒有等你確認的東西")")
         // No raw replies, model configuration, screenshots or AX attachments.
     }
 
