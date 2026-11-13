@@ -75,10 +75,6 @@
 "skillAuthoring.error.capabilitiesChanged" = "The available tools changed. Review the draft again before approving.";
 "skillAuthoring.error.persistenceFailed" = "The skill couldn’t be saved. Existing data is kept; review it and try again.";
 "skillAuthoring.error.resourceLimit" = "You’ve reached this session’s lookup limit. Start writing the skill again.";
-"skillAgent.tool.search" = "Search skills";
-"skillAgent.tool.read" = "Read the full skill text";
-"skillAgent.tool.save" = "Prepare a draft for review";
-"skillAgent.tool.other" = "Skill tool";
 "skillTool.error.invalidLimits" = "The skill session’s limits aren’t valid.";
 "skillTool.error.invalidCommand" = "The model’s skill tool call wasn’t in the right format; nothing was saved.";
 "skillTool.error.invalidState" = "The skill session’s state changed. Start again.";

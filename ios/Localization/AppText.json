@@ -706,42 +706,6 @@
       }
     },
     {
-      "case": "skillAgentToolSearch",
-      "key": "skillAgent.tool.search",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "查詢技能",
-        "en": "Search skills"
-      }
-    },
-    {
-      "case": "skillAgentToolRead",
-      "key": "skillAgent.tool.read",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "讀取技能全文",
-        "en": "Read the full skill text"
-      }
-    },
-    {
-      "case": "skillAgentToolSave",
-      "key": "skillAgent.tool.save",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "準備待審草稿",
-        "en": "Prepare a draft for review"
-      }
-    },
-    {
-      "case": "skillAgentToolOther",
-      "key": "skillAgent.tool.other",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "技能工具",
-        "en": "Skill tool"
-      }
-    },
-    {
       "case": "skillToolErrorInvalidLimits",
       "key": "skillTool.error.invalidLimits",
       "parameters": [],

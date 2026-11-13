@@ -175,8 +175,7 @@ targets:
       - Tests/AssistantSkillsTests
       - scripts/CheckProfileChatApp.swift
     dependencies:
-      # Exercise PDFKit in the real UIKit host, as it runs in production.
-      # Unhosted iOS tests have stalled during PDFDocument initialization.
+      # CheckProfileChatApp exercises the App's own chat code in the App host.
       - target: WoowAssistant
       - target: AssistantSkills
       - target: AssistantModels

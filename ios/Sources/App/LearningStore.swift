@@ -517,11 +517,6 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         }
     }
 
-    @discardableResult
-    func importCatalogSkill(id: String, catalog: BundledSkillCatalog) -> Bool {
-        mutateSkills { _ = try catalog.stageAdaptation(id: id, into: &$0) }
-    }
-
     static func message(_ error: Error) -> String {
         if (error as? LearningFileError) == .busy {
             return "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。"

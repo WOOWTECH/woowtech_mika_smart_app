@@ -26,14 +26,4 @@ extension AppText {
         case .tooManyFailures: return .skillToolErrorTooManyFailures
         }
     }
-
-    /// One step in the skill agent's tool log.
-    static func skillAgentTool(_ name: String) -> AppText {
-        switch name {
-        case "skill_search": return .skillAgentToolSearch
-        case "skill_read": return .skillAgentToolRead
-        case "skill_save": return .skillAgentToolSave
-        default: return .skillAgentToolOther
-        }
-    }
 }

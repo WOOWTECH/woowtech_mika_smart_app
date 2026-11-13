@@ -79,10 +79,6 @@ enum AppText: Equatable {
     case skillAuthoringErrorCapabilitiesChanged
     case skillAuthoringErrorPersistenceFailed
     case skillAuthoringErrorResourceLimit
-    case skillAgentToolSearch
-    case skillAgentToolRead
-    case skillAgentToolSave
-    case skillAgentToolOther
     case skillToolErrorInvalidLimits
     case skillToolErrorInvalidCommand
     case skillToolErrorInvalidState
@@ -662,10 +658,6 @@ enum AppText: Equatable {
         case .skillAuthoringErrorCapabilitiesChanged: return "skillAuthoring.error.capabilitiesChanged"
         case .skillAuthoringErrorPersistenceFailed: return "skillAuthoring.error.persistenceFailed"
         case .skillAuthoringErrorResourceLimit: return "skillAuthoring.error.resourceLimit"
-        case .skillAgentToolSearch: return "skillAgent.tool.search"
-        case .skillAgentToolRead: return "skillAgent.tool.read"
-        case .skillAgentToolSave: return "skillAgent.tool.save"
-        case .skillAgentToolOther: return "skillAgent.tool.other"
         case .skillToolErrorInvalidLimits: return "skillTool.error.invalidLimits"
         case .skillToolErrorInvalidCommand: return "skillTool.error.invalidCommand"
         case .skillToolErrorInvalidState: return "skillTool.error.invalidState"
@@ -1303,10 +1295,6 @@ enum AppText: Equatable {
         case .skillAuthoringErrorCapabilitiesChanged: return "可用工具已變更，請重新檢視草稿後再核准。"
         case .skillAuthoringErrorPersistenceFailed: return "技能未能儲存；既有資料保留，請重新檢視後再試。"
         case .skillAuthoringErrorResourceLimit: return "本次查閱已達上限，請重新開始技能寫作。"
-        case .skillAgentToolSearch: return "查詢技能"
-        case .skillAgentToolRead: return "讀取技能全文"
-        case .skillAgentToolSave: return "準備待審草稿"
-        case .skillAgentToolOther: return "技能工具"
         case .skillToolErrorInvalidLimits: return "技能協作的執行上限設定無效。"
         case .skillToolErrorInvalidCommand: return "模型回傳的技能工具格式不符，尚未儲存。"
         case .skillToolErrorInvalidState: return "本次技能協作狀態已變更，請重新開始。"
