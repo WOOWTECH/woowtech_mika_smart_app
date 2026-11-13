@@ -541,6 +541,86 @@ enum AppText: Equatable {
     case pdfAssemblyErrorSerialization
     case pdfAssemblyErrorVerification
     case pdfAssemblyErrorOutputTooLarge
+    case multiResearchInputSection
+    case multiResearchGoalPlaceholder
+    case multiResearchDiscover
+    case multiResearchRoot1
+    case multiResearchRoot2
+    case multiResearchRoot3
+    case multiResearchDisclosure
+    case multiResearchStart
+    case multiResearchProgressSection
+    case multiResearchCancel
+    case multiResearchResultSection
+    case multiResearchPartial
+    case multiResearchCited
+    case multiResearchCitedCount(count: Int)
+    case multiResearchCitationNote
+    case multiResearchInference
+    case multiResearchSourceContent
+    case multiResearchReceiptsSection
+    case multiResearchTitle
+    case multiResearchReadAt(value: String)
+    case multiResearchPublished
+    case multiResearchStatusStart
+    case multiResearchStatusReading
+    case multiResearchStatusPartial
+    case multiResearchStatusOrganized
+    case multiResearchStatusIncomplete
+    case multiResearchStatusNotStarted
+    case multiResearchErrorNoModel
+    case multiResearchErrorCheckPlan
+    case multiResearchStatusReadPages(count: Int)
+    case multiResearchStatusSourceUnavailable
+    case multiResearchStatusCancelled
+    case multiResearchLimitStartUnread(host: String)
+    case multiResearchLimitLaterUnread(host: String)
+    case multiResearchLimitRepeatedAction
+    case multiResearchLimitRepeatedPage
+    case multiResearchLimitRounds
+    case multiResearchLimitOneSource
+    case multiResearchErrorContextTooLarge
+    case multiResearchErrorInvalidPlan
+    case multiResearchErrorInvalidCommand
+    case multiResearchErrorInvalidModelJSON
+    case multiResearchErrorInvalidCitation
+    case multiResearchErrorUnsafeObservation
+    case multiResearchErrorStaleObservation
+    case multiResearchErrorDeadline
+    case sourceDiscoveryProviderSection
+    case sourceDiscoveryProviderDuckDuckGo
+    case sourceDiscoveryProviderDuckDuckGoDisclosure
+    case sourceDiscoveryFindSection
+    case sourceDiscoveryQueryPlaceholder
+    case sourceDiscoverySearch
+    case sourceDiscoveryCancel
+    case sourceDiscoveryPickSection
+    case sourceDiscoveryPickNote
+    case sourceDiscoveryTruncated
+    case sourceDiscoverySelectedCount(count: Int)
+    case sourceDiscoveryApply
+    case sourceDiscoveryTitle
+    case sourceDiscoveryStatusIdle
+    case sourceDiscoveryStatusSearching
+    case sourceDiscoveryStatusFound(count: Int)
+    case sourceDiscoveryErrorFailed
+    case sourceDiscoveryStatusIncomplete
+    case sourceDiscoveryErrorPickSites
+    case sourceDiscoveryStatusCancelled
+    case sourceDiscoveryErrorInvalidQuery
+    case sourceDiscoveryErrorAlreadyUsed
+    case sourceDiscoveryErrorCancelled
+    case sourceDiscoveryErrorDeadline
+    case sourceDiscoveryErrorNotMounted
+    case sourceDiscoveryErrorPrivacyConfiguration
+    case sourceDiscoveryErrorNavigationRejected
+    case sourceDiscoveryErrorNavigationFailed
+    case sourceDiscoveryErrorResponseRejected
+    case sourceDiscoveryErrorPageTooLarge
+    case sourceDiscoveryErrorPageChanged
+    case sourceDiscoveryErrorUnavailable
+    case sourceDiscoveryErrorNoCandidates
+    case sourceDiscoveryErrorInvalidSelection
     case shellBrandTitle
     case shellMenu
     case shellBackToChat
@@ -1658,6 +1738,86 @@ enum AppText: Equatable {
         case .pdfAssemblyErrorSerialization: return "pdfAssembly.error.serialization"
         case .pdfAssemblyErrorVerification: return "pdfAssembly.error.verification"
         case .pdfAssemblyErrorOutputTooLarge: return "pdfAssembly.error.outputTooLarge"
+        case .multiResearchInputSection: return "multiResearch.inputSection"
+        case .multiResearchGoalPlaceholder: return "multiResearch.goalPlaceholder"
+        case .multiResearchDiscover: return "multiResearch.discover"
+        case .multiResearchRoot1: return "multiResearch.root1"
+        case .multiResearchRoot2: return "multiResearch.root2"
+        case .multiResearchRoot3: return "multiResearch.root3"
+        case .multiResearchDisclosure: return "multiResearch.disclosure"
+        case .multiResearchStart: return "multiResearch.start"
+        case .multiResearchProgressSection: return "multiResearch.progressSection"
+        case .multiResearchCancel: return "multiResearch.cancel"
+        case .multiResearchResultSection: return "multiResearch.resultSection"
+        case .multiResearchPartial: return "multiResearch.partial"
+        case .multiResearchCited: return "multiResearch.cited"
+        case .multiResearchCitedCount: return "multiResearch.citedCount"
+        case .multiResearchCitationNote: return "multiResearch.citationNote"
+        case .multiResearchInference: return "multiResearch.inference"
+        case .multiResearchSourceContent: return "multiResearch.sourceContent"
+        case .multiResearchReceiptsSection: return "multiResearch.receiptsSection"
+        case .multiResearchTitle: return "multiResearch.title"
+        case .multiResearchReadAt: return "multiResearch.readAt"
+        case .multiResearchPublished: return "multiResearch.published"
+        case .multiResearchStatusStart: return "multiResearch.status.start"
+        case .multiResearchStatusReading: return "multiResearch.status.reading"
+        case .multiResearchStatusPartial: return "multiResearch.status.partial"
+        case .multiResearchStatusOrganized: return "multiResearch.status.organized"
+        case .multiResearchStatusIncomplete: return "multiResearch.status.incomplete"
+        case .multiResearchStatusNotStarted: return "multiResearch.status.notStarted"
+        case .multiResearchErrorNoModel: return "multiResearch.error.noModel"
+        case .multiResearchErrorCheckPlan: return "multiResearch.error.checkPlan"
+        case .multiResearchStatusReadPages: return "multiResearch.status.readPages"
+        case .multiResearchStatusSourceUnavailable: return "multiResearch.status.sourceUnavailable"
+        case .multiResearchStatusCancelled: return "multiResearch.status.cancelled"
+        case .multiResearchLimitStartUnread: return "multiResearch.limit.startUnread"
+        case .multiResearchLimitLaterUnread: return "multiResearch.limit.laterUnread"
+        case .multiResearchLimitRepeatedAction: return "multiResearch.limit.repeatedAction"
+        case .multiResearchLimitRepeatedPage: return "multiResearch.limit.repeatedPage"
+        case .multiResearchLimitRounds: return "multiResearch.limit.rounds"
+        case .multiResearchLimitOneSource: return "multiResearch.limit.oneSource"
+        case .multiResearchErrorContextTooLarge: return "multiResearch.error.contextTooLarge"
+        case .multiResearchErrorInvalidPlan: return "multiResearch.error.invalidPlan"
+        case .multiResearchErrorInvalidCommand: return "multiResearch.error.invalidCommand"
+        case .multiResearchErrorInvalidModelJSON: return "multiResearch.error.invalidModelJSON"
+        case .multiResearchErrorInvalidCitation: return "multiResearch.error.invalidCitation"
+        case .multiResearchErrorUnsafeObservation: return "multiResearch.error.unsafeObservation"
+        case .multiResearchErrorStaleObservation: return "multiResearch.error.staleObservation"
+        case .multiResearchErrorDeadline: return "multiResearch.error.deadline"
+        case .sourceDiscoveryProviderSection: return "sourceDiscovery.providerSection"
+        case .sourceDiscoveryProviderDuckDuckGo: return "sourceDiscovery.provider.duckDuckGo"
+        case .sourceDiscoveryProviderDuckDuckGoDisclosure: return "sourceDiscovery.provider.duckDuckGoDisclosure"
+        case .sourceDiscoveryFindSection: return "sourceDiscovery.findSection"
+        case .sourceDiscoveryQueryPlaceholder: return "sourceDiscovery.queryPlaceholder"
+        case .sourceDiscoverySearch: return "sourceDiscovery.search"
+        case .sourceDiscoveryCancel: return "sourceDiscovery.cancel"
+        case .sourceDiscoveryPickSection: return "sourceDiscovery.pickSection"
+        case .sourceDiscoveryPickNote: return "sourceDiscovery.pickNote"
+        case .sourceDiscoveryTruncated: return "sourceDiscovery.truncated"
+        case .sourceDiscoverySelectedCount: return "sourceDiscovery.selectedCount"
+        case .sourceDiscoveryApply: return "sourceDiscovery.apply"
+        case .sourceDiscoveryTitle: return "sourceDiscovery.title"
+        case .sourceDiscoveryStatusIdle: return "sourceDiscovery.status.idle"
+        case .sourceDiscoveryStatusSearching: return "sourceDiscovery.status.searching"
+        case .sourceDiscoveryStatusFound: return "sourceDiscovery.status.found"
+        case .sourceDiscoveryErrorFailed: return "sourceDiscovery.error.failed"
+        case .sourceDiscoveryStatusIncomplete: return "sourceDiscovery.status.incomplete"
+        case .sourceDiscoveryErrorPickSites: return "sourceDiscovery.error.pickSites"
+        case .sourceDiscoveryStatusCancelled: return "sourceDiscovery.status.cancelled"
+        case .sourceDiscoveryErrorInvalidQuery: return "sourceDiscovery.error.invalidQuery"
+        case .sourceDiscoveryErrorAlreadyUsed: return "sourceDiscovery.error.alreadyUsed"
+        case .sourceDiscoveryErrorCancelled: return "sourceDiscovery.error.cancelled"
+        case .sourceDiscoveryErrorDeadline: return "sourceDiscovery.error.deadline"
+        case .sourceDiscoveryErrorNotMounted: return "sourceDiscovery.error.notMounted"
+        case .sourceDiscoveryErrorPrivacyConfiguration: return "sourceDiscovery.error.privacyConfiguration"
+        case .sourceDiscoveryErrorNavigationRejected: return "sourceDiscovery.error.navigationRejected"
+        case .sourceDiscoveryErrorNavigationFailed: return "sourceDiscovery.error.navigationFailed"
+        case .sourceDiscoveryErrorResponseRejected: return "sourceDiscovery.error.responseRejected"
+        case .sourceDiscoveryErrorPageTooLarge: return "sourceDiscovery.error.pageTooLarge"
+        case .sourceDiscoveryErrorPageChanged: return "sourceDiscovery.error.pageChanged"
+        case .sourceDiscoveryErrorUnavailable: return "sourceDiscovery.error.unavailable"
+        case .sourceDiscoveryErrorNoCandidates: return "sourceDiscovery.error.noCandidates"
+        case .sourceDiscoveryErrorInvalidSelection: return "sourceDiscovery.error.invalidSelection"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
         case .shellBackToChat: return "shell.backToChat"
@@ -2296,6 +2456,13 @@ enum AppText: Equatable {
         case .pdfAssemblyPlanPage(let index, let source, let page): return [Int64(index), Int64(source), Int64(page)]
         case .pdfAssemblyResult(let pages, let bytes): return [Int64(pages), Int64(bytes)]
         case .pdfAssemblySuggestedName(let value): return [value]
+        case .multiResearchCitedCount(let count): return [Int64(count)]
+        case .multiResearchReadAt(let value): return [value]
+        case .multiResearchStatusReadPages(let count): return [Int64(count)]
+        case .multiResearchLimitStartUnread(let host): return [host]
+        case .multiResearchLimitLaterUnread(let host): return [host]
+        case .sourceDiscoverySelectedCount(let count): return [Int64(count)]
+        case .sourceDiscoveryStatusFound(let count): return [Int64(count)]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
@@ -2890,6 +3057,86 @@ enum AppText: Equatable {
         case .pdfAssemblyErrorSerialization: return "無法產生新的 PDF；原檔未修改。"
         case .pdfAssemblyErrorVerification: return "新 PDF 的頁數、旋轉或尺寸驗證失敗，未交付結果。"
         case .pdfAssemblyErrorOutputTooLarge: return "新 PDF 超過 20 MiB，請減少頁數或來源檔案。"
+        case .multiResearchInputSection: return "問題與來源"
+        case .multiResearchGoalPlaceholder: return "想核對的問題、地區與時間範圍"
+        case .multiResearchDiscover: return "搜尋可用的研究來源"
+        case .multiResearchRoot1: return "來源一 HTTPS 網址"
+        case .multiResearchRoot2: return "來源二 HTTPS 網址"
+        case .multiResearchRoot3: return "來源三（選填）"
+        case .multiResearchDisclosure: return "確認後會讀取這些公開來源及同站連結，並將頁面摘錄傳給已設定的模型。研究使用獨立網站資料，不使用手動瀏覽的登入狀態。"
+        case .multiResearchStart: return "確認來源並開始研究"
+        case .multiResearchProgressSection: return "進度"
+        case .multiResearchCancel: return "取消研究"
+        case .multiResearchResultSection: return "研究結果"
+        case .multiResearchPartial: return "部分結果"
+        case .multiResearchCited: return "已整理來源引用"
+        case .multiResearchCitedCount: return "已引用 %1$lld 個網站"
+        case .multiResearchCitationNote: return "引文已對應實際讀取頁面；不代表來源互相獨立或結論已證實。網站知識與路線不會自動寫入。"
+        case .multiResearchInference: return "推論"
+        case .multiResearchSourceContent: return "來源內容"
+        case .multiResearchReceiptsSection: return "實際讀取紀錄"
+        case .multiResearchTitle: return "多網站研究"
+        case .multiResearchReadAt: return "讀取時間：%1$@"
+        case .multiResearchPublished: return "發布日期：未確認；請參考原文引句。"
+        case .multiResearchStatusStart: return "輸入問題與來源，確認後開始讀取。"
+        case .multiResearchStatusReading: return "正在讀取已確認的來源…"
+        case .multiResearchStatusPartial: return "已交付部分結果；仍有來源或證據不足。"
+        case .multiResearchStatusOrganized: return "已整理多來源引用；來源獨立性與內容仍需判讀。"
+        case .multiResearchStatusIncomplete: return "研究未完成；實際讀取紀錄保留。"
+        case .multiResearchStatusNotStarted: return "尚未開始研究。"
+        case .multiResearchErrorNoModel: return "請先在設定完成模型服務與金鑰設定。"
+        case .multiResearchErrorCheckPlan: return "請檢查研究問題與來源網址。"
+        case .multiResearchStatusReadPages: return "已讀取 %1$lld 個頁面，正在核對來源…"
+        case .multiResearchStatusSourceUnavailable: return "有來源暫時無法讀取，會標示資料不足。"
+        case .multiResearchStatusCancelled: return "已取消研究；已讀取紀錄保留，晚到回應不會更新結果。"
+        case .multiResearchLimitStartUnread: return "%1$@ 起始頁未能讀取；不能據此判斷該網站沒有相關資訊。"
+        case .multiResearchLimitLaterUnread: return "%1$@ 後續頁面未能讀取，保留先前摘錄。"
+        case .multiResearchLimitRepeatedAction: return "模型重複同一操作，已停止。尚未完成交叉核對。"
+        case .multiResearchLimitRepeatedPage: return "遇到重複頁面，已停止；尚未完成交叉核對。"
+        case .multiResearchLimitRounds: return "已達共同模型回合上限；尚未取得符合引用要求的回答。"
+        case .multiResearchLimitOneSource: return "回答只引用一個來源，尚未完成多來源核對。"
+        case .multiResearchErrorContextTooLarge: return "已讀內容超過本次模型輸入上限，請縮小研究範圍；實際讀取紀錄保留。"
+        case .multiResearchErrorInvalidPlan: return "請填寫研究問題與 2 至 3 個不同網站的公開 HTTPS 起始網址；不可包含帳密、查詢參數或登入路徑。"
+        case .multiResearchErrorInvalidCommand: return "模型回傳了不支援的研究指令；已停止，保留實際讀取紀錄。"
+        case .multiResearchErrorInvalidModelJSON: return "模型回傳的研究指令格式仍無法辨識，已停止研究。"
+        case .multiResearchErrorInvalidCitation: return "模型引用無法對應這次讀到的原文；未將該回答當成研究成果。"
+        case .multiResearchErrorUnsafeObservation: return "頁面離開已確認的來源範圍；已停止讀取。"
+        case .multiResearchErrorStaleObservation: return "模型使用了過期的頁面或連結編號；未執行該導覽。"
+        case .multiResearchErrorDeadline: return "多網站研究已達整體時間限制；已讀取紀錄保留。"
+        case .sourceDiscoveryProviderSection: return "搜尋服務"
+        case .sourceDiscoveryProviderDuckDuckGo: return "DuckDuckGo（HTML 搜尋）"
+        case .sourceDiscoveryProviderDuckDuckGoDisclosure: return "按下搜尋後，搜尋詞會傳送至 html.duckduckgo.com；不會傳送模型金鑰或既有網站登入狀態。搜尋摘要只用來尋找來源，尚未讀取候選網頁正文。"
+        case .sourceDiscoveryFindSection: return "尋找網站"
+        case .sourceDiscoveryQueryPlaceholder: return "搜尋詞"
+        case .sourceDiscoverySearch: return "搜尋公開網站"
+        case .sourceDiscoveryCancel: return "取消搜尋"
+        case .sourceDiscoveryPickSection: return "選取兩至三個不同網站"
+        case .sourceDiscoveryPickNote: return "選取順序就是研究來源順序。這些連結來自搜尋頁，尚未核對內容；套用後仍需確認來源才會開始研究。"
+        case .sourceDiscoveryTruncated: return "只顯示本次搜尋頁可處理的部分結果。"
+        case .sourceDiscoverySelectedCount: return "已選取 %1$lld 個網站"
+        case .sourceDiscoveryApply: return "套用並取代來源欄位"
+        case .sourceDiscoveryTitle: return "尋找研究來源"
+        case .sourceDiscoveryStatusIdle: return "尚未搜尋"
+        case .sourceDiscoveryStatusSearching: return "正在搜尋公開來源…"
+        case .sourceDiscoveryStatusFound: return "找到 %1$lld 個候選來源；尚未讀取網頁正文。"
+        case .sourceDiscoveryErrorFailed: return "搜尋未能完成，請稍後再試。"
+        case .sourceDiscoveryStatusIncomplete: return "這次搜尋未完成"
+        case .sourceDiscoveryErrorPickSites: return "請選取最多三個不同網站的來源。"
+        case .sourceDiscoveryStatusCancelled: return "搜尋已取消，搜尋詞仍保留。"
+        case .sourceDiscoveryErrorInvalidQuery: return "搜尋詞過長或含有無法處理的字元，請縮短後再試。"
+        case .sourceDiscoveryErrorAlreadyUsed: return "這次搜尋已結束，請重新建立搜尋。"
+        case .sourceDiscoveryErrorCancelled: return "搜尋已取消，晚到的頁面不會加入候選來源。"
+        case .sourceDiscoveryErrorDeadline: return "搜尋超過時間限制，未自動重試或改用其他服務。"
+        case .sourceDiscoveryErrorNotMounted: return "搜尋頁尚未顯示，請重新開啟來源探索。"
+        case .sourceDiscoveryErrorPrivacyConfiguration: return "無法建立獨立搜尋環境，尚未傳送搜尋詞。"
+        case .sourceDiscoveryErrorNavigationRejected: return "搜尋頁要求離開已確認的供應者或執行不支援的操作，已停止。"
+        case .sourceDiscoveryErrorNavigationFailed: return "搜尋頁未能載入，未產生候選來源。"
+        case .sourceDiscoveryErrorResponseRejected: return "搜尋服務未回傳可讀取的 HTML 頁面。"
+        case .sourceDiscoveryErrorPageTooLarge: return "搜尋頁超過可檢查的大小限制，未產生候選來源。"
+        case .sourceDiscoveryErrorPageChanged: return "擷取搜尋結果時頁面已變更，未採用候選來源。"
+        case .sourceDiscoveryErrorUnavailable: return "搜尋服務要求驗證、登入或未提供可辨識的結果；這次無法探索來源。"
+        case .sourceDiscoveryErrorNoCandidates: return "這次未找到符合現有研究網址政策的直接連結；不能據此判斷網路上沒有相關資料。"
+        case .sourceDiscoveryErrorInvalidSelection: return "請從本次結果選取最多三個不同網站的來源。"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
         case .shellBackToChat: return "返回對話"

@@ -5222,6 +5222,761 @@
       }
     },
     {
+      "case": "multiResearchInputSection",
+      "key": "multiResearch.inputSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "問題與來源",
+        "en": "Question and sources"
+      }
+    },
+    {
+      "case": "multiResearchGoalPlaceholder",
+      "key": "multiResearch.goalPlaceholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "想核對的問題、地區與時間範圍",
+        "en": "Question to check, with region and time range"
+      }
+    },
+    {
+      "case": "multiResearchDiscover",
+      "key": "multiResearch.discover",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋可用的研究來源",
+        "en": "Find research sources"
+      }
+    },
+    {
+      "case": "multiResearchRoot1",
+      "key": "multiResearch.root1",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源一 HTTPS 網址",
+        "en": "Source 1 HTTPS address"
+      }
+    },
+    {
+      "case": "multiResearchRoot2",
+      "key": "multiResearch.root2",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源二 HTTPS 網址",
+        "en": "Source 2 HTTPS address"
+      }
+    },
+    {
+      "case": "multiResearchRoot3",
+      "key": "multiResearch.root3",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源三（選填）",
+        "en": "Source 3 (optional)"
+      }
+    },
+    {
+      "case": "multiResearchDisclosure",
+      "key": "multiResearch.disclosure",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "確認後會讀取這些公開來源及同站連結，並將頁面摘錄傳給已設定的模型。研究使用獨立網站資料，不使用手動瀏覽的登入狀態。",
+        "en": "Once confirmed, these public sources and links on the same sites are read, and page excerpts are sent to the configured model. Research uses separate website data, not the sign-ins from your own browsing."
+      }
+    },
+    {
+      "case": "multiResearchStart",
+      "key": "multiResearch.start",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "確認來源並開始研究",
+        "en": "Confirm sources and start"
+      }
+    },
+    {
+      "case": "multiResearchProgressSection",
+      "key": "multiResearch.progressSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "進度",
+        "en": "Progress"
+      }
+    },
+    {
+      "case": "multiResearchCancel",
+      "key": "multiResearch.cancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消研究",
+        "en": "Cancel research"
+      }
+    },
+    {
+      "case": "multiResearchResultSection",
+      "key": "multiResearch.resultSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究結果",
+        "en": "Research result"
+      }
+    },
+    {
+      "case": "multiResearchPartial",
+      "key": "multiResearch.partial",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "部分結果",
+        "en": "Partial result"
+      }
+    },
+    {
+      "case": "multiResearchCited",
+      "key": "multiResearch.cited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已整理來源引用",
+        "en": "Citations organized"
+      }
+    },
+    {
+      "case": "multiResearchCitedCount",
+      "key": "multiResearch.citedCount",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已引用 %1$lld 個網站",
+        "en": "Sites cited: %1$lld"
+      }
+    },
+    {
+      "case": "multiResearchCitationNote",
+      "key": "multiResearch.citationNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "引文已對應實際讀取頁面；不代表來源互相獨立或結論已證實。網站知識與路線不會自動寫入。",
+        "en": "Quotations match pages that were actually read. That doesn’t mean the sources are independent or the conclusion is proven. Website notes and routes aren’t saved automatically."
+      }
+    },
+    {
+      "case": "multiResearchInference",
+      "key": "multiResearch.inference",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "推論",
+        "en": "Inference"
+      }
+    },
+    {
+      "case": "multiResearchSourceContent",
+      "key": "multiResearch.sourceContent",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源內容",
+        "en": "From the source"
+      }
+    },
+    {
+      "case": "multiResearchReceiptsSection",
+      "key": "multiResearch.receiptsSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "實際讀取紀錄",
+        "en": "Pages actually read"
+      }
+    },
+    {
+      "case": "multiResearchTitle",
+      "key": "multiResearch.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "多網站研究",
+        "en": "Multi-site research"
+      }
+    },
+    {
+      "case": "multiResearchReadAt",
+      "key": "multiResearch.readAt",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "讀取時間：%1$@",
+        "en": "Read at: %1$@"
+      }
+    },
+    {
+      "case": "multiResearchPublished",
+      "key": "multiResearch.published",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "發布日期：未確認；請參考原文引句。",
+        "en": "Publication date: not confirmed; see the quoted text."
+      }
+    },
+    {
+      "case": "multiResearchStatusStart",
+      "key": "multiResearch.status.start",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入問題與來源，確認後開始讀取。",
+        "en": "Enter a question and sources, then confirm to start reading."
+      }
+    },
+    {
+      "case": "multiResearchStatusReading",
+      "key": "multiResearch.status.reading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在讀取已確認的來源…",
+        "en": "Reading the confirmed sources…"
+      }
+    },
+    {
+      "case": "multiResearchStatusPartial",
+      "key": "multiResearch.status.partial",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已交付部分結果；仍有來源或證據不足。",
+        "en": "Delivered a partial result; some sources or evidence are missing."
+      }
+    },
+    {
+      "case": "multiResearchStatusOrganized",
+      "key": "multiResearch.status.organized",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已整理多來源引用；來源獨立性與內容仍需判讀。",
+        "en": "Organized citations from several sources; you still need to judge their independence and content."
+      }
+    },
+    {
+      "case": "multiResearchStatusIncomplete",
+      "key": "multiResearch.status.incomplete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究未完成；實際讀取紀錄保留。",
+        "en": "The research didn’t finish; the record of pages read is kept."
+      }
+    },
+    {
+      "case": "multiResearchStatusNotStarted",
+      "key": "multiResearch.status.notStarted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未開始研究。",
+        "en": "Research hasn’t started."
+      }
+    },
+    {
+      "case": "multiResearchErrorNoModel",
+      "key": "multiResearch.error.noModel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先在設定完成模型服務與金鑰設定。",
+        "en": "First set up the model service and key in Settings."
+      }
+    },
+    {
+      "case": "multiResearchErrorCheckPlan",
+      "key": "multiResearch.error.checkPlan",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請檢查研究問題與來源網址。",
+        "en": "Check the research question and source addresses."
+      }
+    },
+    {
+      "case": "multiResearchStatusReadPages",
+      "key": "multiResearch.status.readPages",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已讀取 %1$lld 個頁面，正在核對來源…",
+        "en": "Read %1$lld pages; checking sources…"
+      }
+    },
+    {
+      "case": "multiResearchStatusSourceUnavailable",
+      "key": "multiResearch.status.sourceUnavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "有來源暫時無法讀取，會標示資料不足。",
+        "en": "A source can’t be read right now; it will be marked as missing data."
+      }
+    },
+    {
+      "case": "multiResearchStatusCancelled",
+      "key": "multiResearch.status.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已取消研究；已讀取紀錄保留，晚到回應不會更新結果。",
+        "en": "Research cancelled. The record of pages read is kept, and a late reply won’t change the result."
+      }
+    },
+    {
+      "case": "multiResearchLimitStartUnread",
+      "key": "multiResearch.limit.startUnread",
+      "parameters": [
+        {
+          "name": "host",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ 起始頁未能讀取；不能據此判斷該網站沒有相關資訊。",
+        "en": "%1$@: the start page couldn’t be read, so this doesn’t show the site has nothing relevant."
+      }
+    },
+    {
+      "case": "multiResearchLimitLaterUnread",
+      "key": "multiResearch.limit.laterUnread",
+      "parameters": [
+        {
+          "name": "host",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ 後續頁面未能讀取，保留先前摘錄。",
+        "en": "%1$@: later pages couldn’t be read; earlier excerpts are kept."
+      }
+    },
+    {
+      "case": "multiResearchLimitRepeatedAction",
+      "key": "multiResearch.limit.repeatedAction",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型重複同一操作，已停止。尚未完成交叉核對。",
+        "en": "The model repeated the same action, so it stopped. Cross-checking isn’t finished."
+      }
+    },
+    {
+      "case": "multiResearchLimitRepeatedPage",
+      "key": "multiResearch.limit.repeatedPage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "遇到重複頁面，已停止；尚未完成交叉核對。",
+        "en": "It hit a repeated page and stopped. Cross-checking isn’t finished."
+      }
+    },
+    {
+      "case": "multiResearchLimitRounds",
+      "key": "multiResearch.limit.rounds",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已達共同模型回合上限；尚未取得符合引用要求的回答。",
+        "en": "Reached the shared model round limit without an answer that meets the citation rules."
+      }
+    },
+    {
+      "case": "multiResearchLimitOneSource",
+      "key": "multiResearch.limit.oneSource",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回答只引用一個來源，尚未完成多來源核對。",
+        "en": "The answer cites only one source, so the multi-source check isn’t finished."
+      }
+    },
+    {
+      "case": "multiResearchErrorContextTooLarge",
+      "key": "multiResearch.error.contextTooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已讀內容超過本次模型輸入上限，請縮小研究範圍；實際讀取紀錄保留。",
+        "en": "What was read is over this model’s input limit. Narrow the research; the record of pages read is kept."
+      }
+    },
+    {
+      "case": "multiResearchErrorInvalidPlan",
+      "key": "multiResearch.error.invalidPlan",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請填寫研究問題與 2 至 3 個不同網站的公開 HTTPS 起始網址；不可包含帳密、查詢參數或登入路徑。",
+        "en": "Enter a research question and public HTTPS start addresses on 2 to 3 different sites, without credentials, query parameters or sign-in paths."
+      }
+    },
+    {
+      "case": "multiResearchErrorInvalidCommand",
+      "key": "multiResearch.error.invalidCommand",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型回傳了不支援的研究指令；已停止，保留實際讀取紀錄。",
+        "en": "The model sent an unsupported research command, so it stopped. The record of pages read is kept."
+      }
+    },
+    {
+      "case": "multiResearchErrorInvalidModelJSON",
+      "key": "multiResearch.error.invalidModelJSON",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型回傳的研究指令格式仍無法辨識，已停止研究。",
+        "en": "The model’s research command still couldn’t be read, so the research stopped."
+      }
+    },
+    {
+      "case": "multiResearchErrorInvalidCitation",
+      "key": "multiResearch.error.invalidCitation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型引用無法對應這次讀到的原文；未將該回答當成研究成果。",
+        "en": "The model’s quotations don’t match the text read this time, so the answer wasn’t used as a result."
+      }
+    },
+    {
+      "case": "multiResearchErrorUnsafeObservation",
+      "key": "multiResearch.error.unsafeObservation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "頁面離開已確認的來源範圍；已停止讀取。",
+        "en": "A page left the confirmed sources, so reading stopped."
+      }
+    },
+    {
+      "case": "multiResearchErrorStaleObservation",
+      "key": "multiResearch.error.staleObservation",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型使用了過期的頁面或連結編號；未執行該導覽。",
+        "en": "The model used an out-of-date page or link number, so that step wasn’t taken."
+      }
+    },
+    {
+      "case": "multiResearchErrorDeadline",
+      "key": "multiResearch.error.deadline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "多網站研究已達整體時間限制；已讀取紀錄保留。",
+        "en": "Multi-site research reached its overall time limit; the record of pages read is kept."
+      }
+    },
+    {
+      "case": "sourceDiscoveryProviderSection",
+      "key": "sourceDiscovery.providerSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋服務",
+        "en": "Search service"
+      }
+    },
+    {
+      "case": "sourceDiscoveryProviderDuckDuckGo",
+      "key": "sourceDiscovery.provider.duckDuckGo",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "DuckDuckGo（HTML 搜尋）",
+        "en": "DuckDuckGo (HTML search)"
+      }
+    },
+    {
+      "case": "sourceDiscoveryProviderDuckDuckGoDisclosure",
+      "key": "sourceDiscovery.provider.duckDuckGoDisclosure",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按下搜尋後，搜尋詞會傳送至 html.duckduckgo.com；不會傳送模型金鑰或既有網站登入狀態。搜尋摘要只用來尋找來源，尚未讀取候選網頁正文。",
+        "en": "When you search, your search terms are sent to html.duckduckgo.com. Model keys and existing website sign-ins aren’t sent. Search snippets are only used to find sources; the candidate pages themselves aren’t read yet."
+      }
+    },
+    {
+      "case": "sourceDiscoveryFindSection",
+      "key": "sourceDiscovery.findSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尋找網站",
+        "en": "Find sites"
+      }
+    },
+    {
+      "case": "sourceDiscoveryQueryPlaceholder",
+      "key": "sourceDiscovery.queryPlaceholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋詞",
+        "en": "Search terms"
+      }
+    },
+    {
+      "case": "sourceDiscoverySearch",
+      "key": "sourceDiscovery.search",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋公開網站",
+        "en": "Search public sites"
+      }
+    },
+    {
+      "case": "sourceDiscoveryCancel",
+      "key": "sourceDiscovery.cancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消搜尋",
+        "en": "Cancel search"
+      }
+    },
+    {
+      "case": "sourceDiscoveryPickSection",
+      "key": "sourceDiscovery.pickSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選取兩至三個不同網站",
+        "en": "Choose two or three different sites"
+      }
+    },
+    {
+      "case": "sourceDiscoveryPickNote",
+      "key": "sourceDiscovery.pickNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選取順序就是研究來源順序。這些連結來自搜尋頁，尚未核對內容；套用後仍需確認來源才會開始研究。",
+        "en": "The order you choose is the order of the research sources. These links come from the search page and haven’t been checked; after applying them you still confirm the sources before research starts."
+      }
+    },
+    {
+      "case": "sourceDiscoveryTruncated",
+      "key": "sourceDiscovery.truncated",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只顯示本次搜尋頁可處理的部分結果。",
+        "en": "Only part of the results this search page could handle are shown."
+      }
+    },
+    {
+      "case": "sourceDiscoverySelectedCount",
+      "key": "sourceDiscovery.selectedCount",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已選取 %1$lld 個網站",
+        "en": "Sites chosen: %1$lld"
+      }
+    },
+    {
+      "case": "sourceDiscoveryApply",
+      "key": "sourceDiscovery.apply",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "套用並取代來源欄位",
+        "en": "Apply and replace the source fields"
+      }
+    },
+    {
+      "case": "sourceDiscoveryTitle",
+      "key": "sourceDiscovery.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尋找研究來源",
+        "en": "Find research sources"
+      }
+    },
+    {
+      "case": "sourceDiscoveryStatusIdle",
+      "key": "sourceDiscovery.status.idle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未搜尋",
+        "en": "Not searched yet"
+      }
+    },
+    {
+      "case": "sourceDiscoveryStatusSearching",
+      "key": "sourceDiscovery.status.searching",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在搜尋公開來源…",
+        "en": "Searching public sources…"
+      }
+    },
+    {
+      "case": "sourceDiscoveryStatusFound",
+      "key": "sourceDiscovery.status.found",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "找到 %1$lld 個候選來源；尚未讀取網頁正文。",
+        "en": "Found %1$lld candidate sources; the pages themselves aren’t read yet."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorFailed",
+      "key": "sourceDiscovery.error.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋未能完成，請稍後再試。",
+        "en": "The search didn’t finish. Try again later."
+      }
+    },
+    {
+      "case": "sourceDiscoveryStatusIncomplete",
+      "key": "sourceDiscovery.status.incomplete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這次搜尋未完成",
+        "en": "This search didn’t finish"
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorPickSites",
+      "key": "sourceDiscovery.error.pickSites",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請選取最多三個不同網站的來源。",
+        "en": "Choose sources from up to three different sites."
+      }
+    },
+    {
+      "case": "sourceDiscoveryStatusCancelled",
+      "key": "sourceDiscovery.status.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋已取消，搜尋詞仍保留。",
+        "en": "Search cancelled; your search terms are kept."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorInvalidQuery",
+      "key": "sourceDiscovery.error.invalidQuery",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋詞過長或含有無法處理的字元，請縮短後再試。",
+        "en": "The search terms are too long or have characters that can’t be handled. Shorten them and try again."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorAlreadyUsed",
+      "key": "sourceDiscovery.error.alreadyUsed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這次搜尋已結束，請重新建立搜尋。",
+        "en": "This search has ended. Start a new one."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorCancelled",
+      "key": "sourceDiscovery.error.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋已取消，晚到的頁面不會加入候選來源。",
+        "en": "Search cancelled; a page arriving late won’t be added to the candidates."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorDeadline",
+      "key": "sourceDiscovery.error.deadline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋超過時間限制，未自動重試或改用其他服務。",
+        "en": "The search ran out of time. It wasn’t retried or sent to another service."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorNotMounted",
+      "key": "sourceDiscovery.error.notMounted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋頁尚未顯示，請重新開啟來源探索。",
+        "en": "The search page isn’t showing yet. Open source search again."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorPrivacyConfiguration",
+      "key": "sourceDiscovery.error.privacyConfiguration",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法建立獨立搜尋環境，尚未傳送搜尋詞。",
+        "en": "Couldn’t set up a separate search environment; your search terms weren’t sent."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorNavigationRejected",
+      "key": "sourceDiscovery.error.navigationRejected",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋頁要求離開已確認的供應者或執行不支援的操作，已停止。",
+        "en": "The search page tried to leave the confirmed provider or do something unsupported, so it stopped."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorNavigationFailed",
+      "key": "sourceDiscovery.error.navigationFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋頁未能載入，未產生候選來源。",
+        "en": "The search page didn’t load; no candidates were found."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorResponseRejected",
+      "key": "sourceDiscovery.error.responseRejected",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋服務未回傳可讀取的 HTML 頁面。",
+        "en": "The search service didn’t return a readable HTML page."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorPageTooLarge",
+      "key": "sourceDiscovery.error.pageTooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋頁超過可檢查的大小限制，未產生候選來源。",
+        "en": "The search page is too large to check; no candidates were found."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorPageChanged",
+      "key": "sourceDiscovery.error.pageChanged",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "擷取搜尋結果時頁面已變更，未採用候選來源。",
+        "en": "The page changed while results were captured, so no candidates were used."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorUnavailable",
+      "key": "sourceDiscovery.error.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋服務要求驗證、登入或未提供可辨識的結果；這次無法探索來源。",
+        "en": "The search service asked for verification or sign-in, or gave no usable results, so sources can’t be found this time."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorNoCandidates",
+      "key": "sourceDiscovery.error.noCandidates",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這次未找到符合現有研究網址政策的直接連結；不能據此判斷網路上沒有相關資料。",
+        "en": "No direct links meeting the research address rules were found this time; that doesn’t mean there’s nothing relevant online."
+      }
+    },
+    {
+      "case": "sourceDiscoveryErrorInvalidSelection",
+      "key": "sourceDiscovery.error.invalidSelection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請從本次結果選取最多三個不同網站的來源。",
+        "en": "Choose sources from up to three different sites in these results."
+      }
+    },
+    {
       "case": "shellBrandTitle",
       "key": "shell.brandTitle",
       "parameters": [],

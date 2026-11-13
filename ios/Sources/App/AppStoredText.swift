@@ -68,6 +68,9 @@ extension AppText {
         if let error = documentQueryErrors.first(where: { $0.errorDescription == text }) { return documentQueryError(error) }
         if let error = transcriptErrors.first(where: { $0.errorDescription == text }) { return transcriptError(error) }
         if let error = pdfAssemblyErrors.first(where: { $0.errorDescription == text }) { return pdfAssemblyError(error) }
+        if let error = multiSourceErrors.first(where: { $0.errorDescription == text }) { return multiSourceError(error) }
+        if text == MultiSourceResearchContextError.tooLarge.errorDescription { return .multiResearchErrorContextTooLarge }
+        if let error = sourceDiscoveryErrors.first(where: { $0.errorDescription == text }) { return sourceDiscoveryError(error) }
         let catalog: [SkillCatalogError] = [.unavailable, .invalidCatalog, .notFound, .alreadyAdded]
         if let error = catalog.first(where: { $0.errorDescription == text }) { return AppLocalizer.skillCatalogError(error) }
         return downloadMessage(text)
@@ -103,6 +106,13 @@ extension AppText {
         .pdfAssemblyStatusOneFile, .pdfAssemblyStatusAdded, .pdfAssemblyStatusConfirmEach, .pdfAssemblyStatusPickFailed,
         .pdfAssemblyStatusReadAll, .pdfAssemblyStatusReadSome, .pdfAssemblyStatusCheckOrder, .pdfAssemblyStatusProduced,
         .pdfAssemblyStatusIncomplete,
+        .multiResearchStatusStart, .multiResearchStatusReading, .multiResearchStatusPartial, .multiResearchStatusOrganized,
+        .multiResearchStatusIncomplete, .multiResearchStatusNotStarted, .multiResearchErrorNoModel,
+        .multiResearchErrorCheckPlan, .multiResearchStatusSourceUnavailable, .multiResearchStatusCancelled,
+        .multiResearchLimitRepeatedAction, .multiResearchLimitRepeatedPage, .multiResearchLimitRounds,
+        .multiResearchLimitOneSource,
+        .sourceDiscoveryStatusIdle, .sourceDiscoveryStatusSearching, .sourceDiscoveryErrorFailed, .sourceDiscoveryStatusIncomplete,
+        .sourceDiscoveryErrorPickSites, .sourceDiscoveryStatusCancelled,
         // Default titles the browser library gives tabs it has no page title for.
         .browserTabNew, .browserTabSignIn, .browserTabPage,
     ]
@@ -116,6 +126,10 @@ extension AppText {
         (.documentQueryStatusRound(count: 0), { $0.count(1).map { .documentQueryStatusRound(count: $0) } }),
         (.documentQueryStatusFoundMore(count: 0), { $0.count(1).map { .documentQueryStatusFoundMore(count: $0) } }),
         (.documentQueryStatusFound(count: 0), { $0.count(1).map { .documentQueryStatusFound(count: $0) } }),
+        (.sourceDiscoveryStatusFound(count: 0), { $0.count(1).map { .sourceDiscoveryStatusFound(count: $0) } }),
+        (.multiResearchStatusReadPages(count: 0), { $0.count(1).map { .multiResearchStatusReadPages(count: $0) } }),
+        (.multiResearchLimitStartUnread(host: ""), { .multiResearchLimitStartUnread(host: $0.text(1)) }),
+        (.multiResearchLimitLaterUnread(host: ""), { .multiResearchLimitLaterUnread(host: $0.text(1)) }),
         (.transcriptStatusRound(count: 0), { $0.count(1).map { .transcriptStatusRound(count: $0) } }),
         (.transcriptStatusCovered(covered: 0, total: 0), { values in
             guard let covered = values.count(1), let total = values.count(2) else { return nil }

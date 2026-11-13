@@ -14,6 +14,9 @@ extension AppText {
         if let error = error as? DocumentQueryError { return documentQueryError(error) }
         if let error = error as? TranscriptError { return transcriptError(error) }
         if let error = error as? SkillPDFAssemblyError { return pdfAssemblyError(error) }
+        if let error = error as? MultiSourceResearchError { return multiSourceError(error) }
+        if error is MultiSourceResearchContextError { return .multiResearchErrorContextTooLarge }
+        if let error = error as? ResearchSourceDiscoveryError { return sourceDiscoveryError(error) }
         return nil
     }
 }

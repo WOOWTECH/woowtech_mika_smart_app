@@ -13,41 +13,42 @@ import WebKit
     @State private var goal = ""
     @State private var discoveringSources = false
     @FocusState private var editing: Bool
+    @Environment(\.appLocalizer) private var localizer
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 Form {
-                    Section("問題與來源") {
-                        TextField("想核對的問題、地區與時間範圍", text: $goal, axis: .vertical)
+                    Section(localizer.text(.multiResearchInputSection)) {
+                        TextField(localizer.text(.multiResearchGoalPlaceholder), text: $goal, axis: .vertical)
                             .focused($editing).accessibilityIdentifier("multiResearch.goal")
-                        Button("搜尋可用的研究來源") { editing = false; discoveringSources = true }
+                        Button(localizer.text(.multiResearchDiscover)) { editing = false; discoveringSources = true }
                             .accessibilityIdentifier("multiResearch.discoverSources")
-                        rootField("來源一 HTTPS 網址", text: $root1, number: 1)
-                        rootField("來源二 HTTPS 網址", text: $root2, number: 2)
-                        rootField("來源三（選填）", text: $root3, number: 3)
-                        Text("確認後會讀取這些公開來源及同站連結，並將頁面摘錄傳給已設定的模型。研究使用獨立網站資料，不使用手動瀏覽的登入狀態。")
+                        rootField(localizer.text(.multiResearchRoot1), text: $root1, number: 1)
+                        rootField(localizer.text(.multiResearchRoot2), text: $root2, number: 2)
+                        rootField(localizer.text(.multiResearchRoot3), text: $root3, number: 3)
+                        Text(localizer.text(.multiResearchDisclosure))
                             .font(.caption)
-                        Button("確認來源並開始研究", action: start)
+                        Button(localizer.text(.multiResearchStart), action: start)
                             .disabled(session.running).accessibilityIdentifier("multiResearch.start")
                     }.disabled(session.running)
-                    Section("進度") {
-                        Text(session.status).accessibilityIdentifier("multiResearch.status")
+                    Section(localizer.text(.multiResearchProgressSection)) {
+                        Text(localizer.stored(session.status)).accessibilityIdentifier("multiResearch.status")
                             .accessibilityValue(testDiagnostic)
-                        if let error = session.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("multiResearch.error") }
+                        if let error = session.error { Text(localizer.stored(error)).foregroundStyle(.red).accessibilityIdentifier("multiResearch.error") }
                         if session.running {
-                            Button("取消研究") { session.cancel() }.accessibilityIdentifier("multiResearch.cancel")
+                            Button(localizer.text(.multiResearchCancel)) { session.cancel() }.accessibilityIdentifier("multiResearch.cancel")
                         }
                     }
                     if let result = session.result {
-                        Section("研究結果") {
-                            Text(result.partial ? "部分結果" : "已整理來源引用").accessibilityIdentifier("multiResearch.result")
-                            Text("已引用 \(result.citedSourceCount) 個網站").accessibilityIdentifier("multiResearch.citedSourceCount")
-                            Text("引文已對應實際讀取頁面；不代表來源互相獨立或結論已證實。網站知識與路線不會自動寫入。")
+                        Section(localizer.text(.multiResearchResultSection)) {
+                            Text(localizer.text(result.partial ? .multiResearchPartial : .multiResearchCited)).accessibilityIdentifier("multiResearch.result")
+                            Text(localizer.text(.multiResearchCitedCount(count: result.citedSourceCount))).accessibilityIdentifier("multiResearch.citedSourceCount")
+                            Text(localizer.text(.multiResearchCitationNote))
                                 .font(.caption)
                             ForEach(result.findings) { finding in
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text(finding.kind == .inference ? "推論" : "來源內容").font(.caption)
+                                    Text(localizer.text(finding.kind == .inference ? .multiResearchInference : .multiResearchSourceContent)).font(.caption)
                                     Text(verbatim: finding.text)
                                     ForEach(Array(finding.citations.enumerated()), id: \.offset) { _, citation in
                                         citationView(citation)
@@ -55,12 +56,12 @@ import WebKit
                                 }
                             }
                             ForEach(Array(result.limitations.enumerated()), id: \.offset) { _, limitation in
-                                Text(verbatim: limitation).font(.caption)
+                                Text(verbatim: localizer.stored(limitation)).font(.caption)
                             }
                         }
                     }
                     if !session.receipts.isEmpty {
-                        Section("實際讀取紀錄") {
+                        Section(localizer.text(.multiResearchReceiptsSection)) {
                             ForEach(session.receipts) { receipt in
                                 VStack(alignment: .leading) {
                                     Text(verbatim: receipt.observation.title).font(.caption)
@@ -82,14 +83,14 @@ import WebKit
                     }.frame(height: 100).allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
-            .navigationTitle("多網站研究")
+            .navigationTitle(localizer.text(.multiResearchTitle))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("關閉") { session.cancel(); dismiss() }.accessibilityIdentifier("multiResearch.close")
+                    Button(localizer.text(.commonClose)) { session.cancel(); dismiss() }.accessibilityIdentifier("multiResearch.close")
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") { editing = false }.accessibilityIdentifier("multiResearch.keyboardDone")
+                    Button(localizer.text(.commonDone)) { editing = false }.accessibilityIdentifier("multiResearch.keyboardDone")
                 }
             }
         }
@@ -134,9 +135,10 @@ import WebKit
             Link(destination: citation.receipt.observation.url) {
                 Text(verbatim: citation.receipt.observation.title + " — " + citation.receipt.observation.url.absoluteString)
             }
-            Text("讀取時間：" + citation.receipt.observation.capturedAt.formatted(date: .numeric, time: .standard))
+            Text(localizer.text(.multiResearchReadAt(value: citation.receipt.observation.capturedAt.formatted(
+                Date.FormatStyle(date: .numeric, time: .standard, locale: Locale(identifier: localizer.language.rawValue))))))
                 .font(.caption)
-            Text("發布日期：未確認；請參考原文引句。") .font(.caption)
+            Text(localizer.text(.multiResearchPublished)).font(.caption)
         }
     }
 }
