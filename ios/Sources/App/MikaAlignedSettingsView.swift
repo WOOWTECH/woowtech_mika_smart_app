@@ -75,8 +75,7 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                         .accessibilityIdentifier("settings.modelJump")
                         Divider().padding(.leading, 60)
                         NavigationLink {
-                            SelfConfigurationView(store: preferences, modelAccess: session.modelAccess,
-                                                  languages: languages)
+                            MikaLanguageAppearanceView(preferences: preferences, languages: languages)
                         } label: {
                             // Android settings_language_appearance has no subtitle.
                             MikaSettingsRow(icon: .globe, title: localizer.text(.settingsHomeLanguageAppearance),

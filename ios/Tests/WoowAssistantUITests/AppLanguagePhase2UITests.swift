@@ -146,12 +146,10 @@ final class AppLanguagePhase2UITests: XCTestCase {
     private func chooseEnglishInSettings() {
         tapRoot("settings")
         tapContent(app.buttons["settings.appearance"])
-        let language = app.buttons["settings.language"]
-        tapContent(language)
-        let english = app.buttons["English"].firstMatch
-        XCTAssertTrue(english.waitForExistence(timeout: 5) && english.isHittable)
-        english.tap()
-        exactText("settings.language.resolved", "Current interface: English")
+        let english = app.buttons["settings.language.en"]
+        tapContent(english)
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 5))
+        XCTAssertTrue(english.isSelected)
         let back = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isHittable)
         back.tap()

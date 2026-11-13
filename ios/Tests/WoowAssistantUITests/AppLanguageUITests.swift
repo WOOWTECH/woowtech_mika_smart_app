@@ -18,62 +18,46 @@ final class AppLanguageUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
     override func tearDownWithError() throws { app.terminate() }
 
-    func testExplicitEnglishPersistsAndPreservesAppearancePermissionAndDraft() {
+    func testExplicitEnglishPersistsAndKeepsTheAppearanceChoice() {
         launch(systemLanguages: "(zh-Hant)")
-        choose("selfConfiguration.appearance", option: "深色")
-        let permission = app.switches["selfConfiguration.permission"]
-        revealLearningElement(permission, in: app)
-        XCTAssertEqual(permission.value as? String, "0")
-        let native = permission.switches.firstMatch
-        (native.exists ? native : permission).tap()
-        let draft = app.textViews["selfConfiguration.request"]
-        revealLearningElement(draft, in: app); draft.tap(); draft.typeText("保留 Tea")
-        app.buttons["selfConfiguration.keyboard.done"].tap()
-        choose("settings.language", option: "English")
-        exactLabel("settings.language.resolved", "Current interface: English")
-        exactLabel("selfConfiguration.appliedAppearance", "Currently displayed: Dark")
-        revealLearningElement(permission, in: app)
-        XCTAssertEqual(permission.value as? String, "1")
-        revealLearningElement(draft, in: app)
-        XCTAssertEqual(draft.value as? String, "保留 Tea")
-        exactLabel("selfConfiguration.status", "No appearance change has been requested.")
+        choose("selfConfiguration.appearance.dark")
+        choose("settings.language.en")
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 5))
+        assertSelected("selfConfiguration.appearance.dark")
         app.terminate(); launch(systemLanguages: "(zh-Hant)")
-        exactLabel("settings.language.resolved", "Current interface: English")
-        exactLabel("selfConfiguration.appliedAppearance", "Currently displayed: Dark")
-        revealLearningElement(permission, in: app)
-        XCTAssertEqual(permission.value as? String, "1")
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 10))
+        assertSelected("settings.language.en")
+        assertSelected("selfConfiguration.appearance.dark")
     }
 
-    func testSimplifiedChineseAndSystemFollowActualPreferredLanguages() {
+    func testPlayLanguageChoicesAndSystemFollowActualPreferredLanguages() {
         launch(systemLanguages: "(en)")
-        exactLabel("selfConfiguration.status", "No appearance change has been requested.")
-        choose("settings.language", option: "简体中文")
-        exactLabel("settings.language.resolved", "当前界面：简体中文")
-        exactLabel("selfConfiguration.status", "尚未提出外观调整请求。")
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 10))
+        assertSelected("settings.language.system")
+        // As on Play: follow the system, 繁體中文 or English; 简体中文 is not offered.
+        let choices = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "settings.language."))
+        XCTAssertEqual(choices.count, 3)
+        XCTAssertFalse(app.buttons["settings.language.zh-Hans"].exists)
+        choose("settings.language.zh-Hant")
+        XCTAssertTrue(app.navigationBars["語言與外觀"].waitForExistence(timeout: 5))
+        app.terminate(); launch(systemLanguages: "(en)")
+        XCTAssertTrue(app.navigationBars["語言與外觀"].waitForExistence(timeout: 10))
+        assertSelected("settings.language.zh-Hant")
+        choose("settings.language.system")
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 5))
         let back = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isHittable)
         back.tap()
         navigateMikaSection("chat", in: app)
-        let menu = app.buttons["chat.menu"]
-        XCTAssertEqual(menu.label, "菜单")
-        menu.tap()
-        XCTAssertEqual(app.buttons["drawer.close"].label, "关闭菜单")
-        XCTAssertEqual(app.buttons["navigation.settings"].label, "设置")
-        app.buttons["drawer.close"].tap()
-        app.terminate(); launch(systemLanguages: "(zh-Hant)")
-        exactLabel("selfConfiguration.status", "尚未提出外观调整请求。")
-        choose("settings.language", option: "跟随系统")
-        exactLabel("settings.language.resolved", "目前介面：繁體中文")
-        exactLabel("selfConfiguration.status", "尚未提出外觀調整要求。")
+        XCTAssertEqual(app.buttons["chat.menu"].label, "Menu")
     }
 
     func testUnsupportedSystemLanguageUsesTraditionalChineseFallback() {
         launch(systemLanguages: "(fr-FR)")
-        exactLabel("selfConfiguration.status", "尚未提出外觀調整要求。")
-        exactLabel("settings.language.resolved", "目前介面：繁體中文")
-        let permission = app.switches["selfConfiguration.permission"]
-        revealLearningElement(permission, in: app)
-        XCTAssertEqual(permission.value as? String, "0")
+        XCTAssertTrue(app.navigationBars["語言與外觀"].waitForExistence(timeout: 10))
+        assertSelected("settings.language.system")
+        // The page has Play's two lists only: no model permission to change the appearance.
+        XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
         XCTAssertFalse(app.buttons["selfConfiguration.start"].exists)
     }
 
@@ -249,17 +233,17 @@ final class AppLanguageUITests: XCTestCase {
         revealLearningElement(appearance, in: app); appearance.tap()
     }
 
-    private func choose(_ identifier: String, option: String) {
-        let picker = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
-        revealLearningElement(picker, in: app); picker.tap()
-        let button = app.buttons[option].firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 5)); button.tap()
+    /// Tap one row of a single-choice list; the row reports itself selected.
+    private func choose(_ identifier: String) {
+        let row = app.buttons[identifier]
+        revealLearningElement(row, in: app); row.tap()
+        assertSelected(identifier)
     }
 
-    private func exactLabel(_ identifier: String, _ expected: String) {
-        let element = app.staticTexts[identifier]
-        revealLearningElement(element, in: app)
-        let match = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [match], timeout: 5), .completed)
+    private func assertSelected(_ identifier: String) {
+        let row = app.buttons[identifier]
+        revealLearningElement(row, in: app)
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: row)
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed, identifier)
     }
 }

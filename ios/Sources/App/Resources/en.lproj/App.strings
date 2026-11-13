@@ -1,6 +1,7 @@
 /* Generated from Localization/AppText.json; semantic keys only. */
-"language.title" = "Interface language";
+"language.title" = "Language";
 "language.system" = "Follow system";
+"language.system.detail" = "Uses your system language when woowtech agent has it, Traditional Chinese otherwise";
 "language.traditional" = "繁體中文";
 "language.simplified" = "简体中文";
 "language.english" = "English";
@@ -47,6 +48,10 @@
 "appearance.system" = "Follow system";
 "appearance.light" = "Light";
 "appearance.dark" = "Dark";
+"appearance.followSystem" = "Follow the system";
+"appearance.system.detail" = "Light or dark, whichever the device is in";
+"appearance.alwaysLight" = "Always light";
+"appearance.alwaysDark" = "Always dark";
 "appearance.appliedDark" = "Currently displayed: Dark";
 "appearance.appliedLight" = "Currently displayed: Light";
 "appearance.explanation" = "Changes take effect immediately. Follow system uses the device’s current appearance.";

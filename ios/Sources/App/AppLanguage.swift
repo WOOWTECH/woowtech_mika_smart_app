@@ -7,6 +7,10 @@ enum AppLanguage: String, CaseIterable, Codable {
     case simplifiedChinese = "zh-Hans"
     case english = "en"
 
+    /// The choices Settings offers, as in the Play edition (brand.properties
+    /// ui.languages=en,zh-Hant). 简体中文 is no longer offered.
+    static let settingsChoices: [AppLanguage] = [.system, .traditionalChinese, .english]
+
     func resolve(preferredLanguages: [String]) -> AppDisplayLanguage {
         switch self {
         case .traditionalChinese: return .traditionalChinese

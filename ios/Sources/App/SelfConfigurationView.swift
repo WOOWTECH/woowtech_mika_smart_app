@@ -6,6 +6,8 @@ import SwiftUI
 /// @StateObject var preferences = SelfConfigurationStore(defaults: isolatedDefaults)
 /// root.preferredColorScheme(preferences.preferredColorScheme)
 /// SelfConfigurationView(store: preferences, modelAccess: { try session.modelAccess() })
+/// Settings › 語言與外觀 is MikaLanguageAppearanceView, as on Play; only the
+/// bundled configure-mika skill still opens this page with the model request.
 @MainActor struct SelfConfigurationView: View {
     @ObservedObject var store: SelfConfigurationStore
     let modelAccess: () throws -> ModelAccess
@@ -31,7 +33,7 @@ import SwiftUI
                 Picker(localizer.text(.languageTitle), selection: Binding(get: { languages.language }, set: {
                     languageSaveFailed = !languages.setFromUser($0)
                 })) {
-                    ForEach(AppLanguage.allCases, id: \.self) { choice in
+                    ForEach(AppLanguage.settingsChoices, id: \.self) { choice in
                         Text(verbatim: localizer.languageName(choice)).tag(choice)
                     }
                 }.accessibilityIdentifier("settings.language")
@@ -114,7 +116,7 @@ import SwiftUI
                     .accessibilityIdentifier("selfConfiguration.keyboard.done")
             }
         }
-        .onChange(of: store.allowSelfConfiguration) { _ in session.cancel() }
+        .onChange(of: store.allowSelfConfiguration) { session.cancel() }
         .onDisappear { session.cancel(showNotice: false) }
     }
 }

@@ -12,9 +12,9 @@
       "key": "language.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "介面語言",
-        "zh-Hans": "界面语言",
-        "en": "Interface language"
+        "zh-Hant": "語言",
+        "zh-Hans": "语言",
+        "en": "Language"
       }
     },
     {
@@ -25,6 +25,16 @@
         "zh-Hant": "跟隨系統",
         "zh-Hans": "跟随系统",
         "en": "Follow system"
+      }
+    },
+    {
+      "case": "languageSystemDetail",
+      "key": "language.system.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "系統語言渥屋助理有譯文時用它,沒有時用繁體中文",
+        "zh-Hans": "系统语言渥屋助理有译文时用它,没有时用繁体中文",
+        "en": "Uses your system language when woowtech agent has it, Traditional Chinese otherwise"
       }
     },
     {
@@ -485,6 +495,46 @@
         "zh-Hant": "深色",
         "zh-Hans": "深色",
         "en": "Dark"
+      }
+    },
+    {
+      "case": "appearanceFollowSystem",
+      "key": "appearance.followSystem",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "跟隨系統",
+        "zh-Hans": "跟随系统",
+        "en": "Follow the system"
+      }
+    },
+    {
+      "case": "appearanceSystemDetail",
+      "key": "appearance.system.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "裝置是淺色就淺色，深色就深色",
+        "zh-Hans": "设备是浅色就浅色，深色就深色",
+        "en": "Light or dark, whichever the device is in"
+      }
+    },
+    {
+      "case": "appearanceAlwaysLight",
+      "key": "appearance.alwaysLight",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一直淺色",
+        "zh-Hans": "一直浅色",
+        "en": "Always light"
+      }
+    },
+    {
+      "case": "appearanceAlwaysDark",
+      "key": "appearance.alwaysDark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一直深色",
+        "zh-Hans": "一直深色",
+        "en": "Always dark"
       }
     },
     {

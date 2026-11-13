@@ -1,6 +1,7 @@
 /* Generated from Localization/AppText.json; semantic keys only. */
-"language.title" = "界面语言";
+"language.title" = "语言";
 "language.system" = "跟随系统";
+"language.system.detail" = "系统语言渥屋助理有译文时用它,没有时用繁体中文";
 "language.traditional" = "繁體中文";
 "language.simplified" = "简体中文";
 "language.english" = "English";
@@ -47,6 +48,10 @@
 "appearance.system" = "跟随系统";
 "appearance.light" = "浅色";
 "appearance.dark" = "深色";
+"appearance.followSystem" = "跟随系统";
+"appearance.system.detail" = "设备是浅色就浅色，深色就深色";
+"appearance.alwaysLight" = "一直浅色";
+"appearance.alwaysDark" = "一直深色";
 "appearance.appliedDark" = "当前显示：深色";
 "appearance.appliedLight" = "当前显示：浅色";
 "appearance.explanation" = "选择后立即生效；跟随系统会使用设备当前的外观。";

@@ -5,6 +5,7 @@ import Foundation
 enum AppText: Equatable {
     case languageTitle
     case languageSystem
+    case languageSystemDetail
     case languageTraditional
     case languageSimplified
     case languageEnglish
@@ -51,6 +52,10 @@ enum AppText: Equatable {
     case appearanceSystem
     case appearanceLight
     case appearanceDark
+    case appearanceFollowSystem
+    case appearanceSystemDetail
+    case appearanceAlwaysLight
+    case appearanceAlwaysDark
     case appearanceAppliedDark
     case appearanceAppliedLight
     case appearanceExplanation
@@ -578,6 +583,7 @@ enum AppText: Equatable {
         switch self {
         case .languageTitle: return "language.title"
         case .languageSystem: return "language.system"
+        case .languageSystemDetail: return "language.system.detail"
         case .languageTraditional: return "language.traditional"
         case .languageSimplified: return "language.simplified"
         case .languageEnglish: return "language.english"
@@ -624,6 +630,10 @@ enum AppText: Equatable {
         case .appearanceSystem: return "appearance.system"
         case .appearanceLight: return "appearance.light"
         case .appearanceDark: return "appearance.dark"
+        case .appearanceFollowSystem: return "appearance.followSystem"
+        case .appearanceSystemDetail: return "appearance.system.detail"
+        case .appearanceAlwaysLight: return "appearance.alwaysLight"
+        case .appearanceAlwaysDark: return "appearance.alwaysDark"
         case .appearanceAppliedDark: return "appearance.appliedDark"
         case .appearanceAppliedLight: return "appearance.appliedLight"
         case .appearanceExplanation: return "appearance.explanation"
@@ -1193,8 +1203,9 @@ enum AppText: Equatable {
     /// Emergency fallback also works if packaging omits a table.
     var traditionalFallback: String {
         switch self {
-        case .languageTitle: return "介面語言"
+        case .languageTitle: return "語言"
         case .languageSystem: return "跟隨系統"
+        case .languageSystemDetail: return "系統語言渥屋助理有譯文時用它,沒有時用繁體中文"
         case .languageTraditional: return "繁體中文"
         case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
@@ -1241,6 +1252,10 @@ enum AppText: Equatable {
         case .appearanceSystem: return "跟隨系統"
         case .appearanceLight: return "淺色"
         case .appearanceDark: return "深色"
+        case .appearanceFollowSystem: return "跟隨系統"
+        case .appearanceSystemDetail: return "裝置是淺色就淺色，深色就深色"
+        case .appearanceAlwaysLight: return "一直淺色"
+        case .appearanceAlwaysDark: return "一直深色"
         case .appearanceAppliedDark: return "目前顯示：深色"
         case .appearanceAppliedLight: return "目前顯示：淺色"
         case .appearanceExplanation: return "選擇後立即生效；跟隨系統會使用裝置目前的外觀。"

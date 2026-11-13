@@ -363,8 +363,7 @@ final class LiveModelUITests: XCTestCase {
 
     func testRealModelListsAndChangesAppearanceAndRelaunchPreservesIt() throws {
         var app = try launchLiveApp()
-        navigate(to: "settings", in: app)
-        tapLearningButton("settings.appearance", in: app)
+        openAppearanceRequest(in: app)
         let permission = app.switches["selfConfiguration.permission"]
         revealLearningElement(permission, in: app)
         XCTAssertEqual(permission.value as? String, "0", "The new permission must default to disabled.")
@@ -394,8 +393,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertEqual(appearance.label, "目前顯示：深色", "The root's actual SwiftUI color scheme must change.")
         app.terminate()
         app = try launchLiveApp()
-        navigate(to: "settings", in: app)
-        tapLearningButton("settings.appearance", in: app)
+        openAppearanceRequest(in: app)
         XCTAssertEqual(app.staticTexts["selfConfiguration.appliedAppearance"].label, "目前顯示：深色")
         let restoredPermission = app.switches["selfConfiguration.permission"]
         revealLearningElement(restoredPermission, in: app)
@@ -837,6 +835,16 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertFalse(frame.isEmpty)
         XCTAssertTrue(app.frame.contains(frame), "Native toolbar control must be inside the App window.")
         button.tap()
+    }
+
+    /// Settings › 語言與外觀 follows Play and has no model request; the bundled
+    /// configure-mika skill still opens the appearance request page.
+    private func openAppearanceRequest(in app: XCUIApplication) {
+        navigate(to: "memory", in: app)
+        selectLearningSegment("skills", in: app)
+        tapLearningButton("skills.catalog.open", in: app)
+        tapLearningButton("catalog.entry.configure-mika", in: app)
+        tapLearningButton("catalog.configure-mika.open", in: app)
     }
 
     private func tapLearningButton(_ identifier: String, in app: XCUIApplication) {
