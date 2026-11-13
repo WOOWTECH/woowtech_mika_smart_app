@@ -19,8 +19,12 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>用於在聊天中拍照附加，以及在你同意後讓目前開啟的網站使用相機。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>只有在你把模型服務或 MCP 伺服器設在區域網路上時，才會連到區域網路上的裝置。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用於聊天語音輸入，以及在你同意後讓目前開啟的網站使用麥克風。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>只有在你從附件或下載項目選「儲存影像」時，才會把照片存到你的相簿。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>在聊天的附件面板列出最近的照片，讓你直接選取要附加的照片。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

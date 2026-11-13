@@ -204,23 +204,77 @@ def verify_macho(output):
         raise ReleaseError("Mach-O 最低系統版本無法驗證或高於 iOS 17.0。")
 
 
-def verify_required_reasons(app):
-    # Audit the packaged file, not merely the repository resource. These are
-    # the two directly used categories: app settings and elapsed-time timers.
+# Apple's upload check (ITMS-91053) reads the symbols and Objective-C selectors
+# each binary references. These names put a binary in a category whose reason
+# must be declared: the app's manifest covers the whole bundle, and a framework
+# that uses one also carries its own manifest.
+REQUIRED_REASON_NAMES = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": ("_OBJC_CLASS_$_NSUserDefaults",),
+    "NSPrivacyAccessedAPICategoryFileTimestamp": (
+        "_stat", "_fstat", "_fstatat", "_lstat", "_getattrlist", "_getattrlistbulk", "_fgetattrlist",
+        "_getattrlistat", "_NSFileCreationDate", "_NSFileModificationDate",
+        "_NSURLContentModificationDateKey", "_NSURLCreationDateKey"),
+    "NSPrivacyAccessedAPICategorySystemBootTime": ("_mach_absolute_time", "systemUptime"),
+    "NSPrivacyAccessedAPICategoryDiskSpace": (
+        "_NSURLVolumeAvailableCapacityKey", "_NSURLVolumeAvailableCapacityForImportantUsageKey",
+        "_NSURLVolumeAvailableCapacityForOpportunisticUsageKey", "_NSURLVolumeTotalCapacityKey",
+        "_NSFileSystemFreeSize", "_NSFileSystemSize", "_statfs", "_statvfs", "_fstatfs", "_fstatvfs"),
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": ("activeInputModes",),
+}
+
+
+def required_reason_categories(binary):
+    """Categories a binary's string tables name, each name matched whole."""
     try:
-        privacy = plistlib.loads((app / "PrivacyInfo.xcprivacy").read_bytes())
+        data = binary.read_bytes()
+    except OSError:
+        return set()  # The architecture check right after reports a missing binary.
+    return {category for category, names in REQUIRED_REASON_NAMES.items()
+            if any(b"\0" + name.encode() + b"\0" in data for name in names)}
+
+
+def declared_reasons(manifest, owner):
+    try:
+        privacy = plistlib.loads(manifest.read_bytes())
     except (OSError, ValueError, plistlib.InvalidFileException):
-        raise ReleaseError("App 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
+        raise ReleaseError(owner + " 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
     entries = privacy.get("NSPrivacyAccessedAPITypes") if isinstance(privacy, dict) else None
     if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
-        raise ReleaseError("App 的 required-reason API 宣告格式不正確。")
+        raise ReleaseError(owner + " 的 required-reason API 宣告格式不正確。")
+    declared = {}
+    for entry in entries:
+        category, reasons = entry.get("NSPrivacyAccessedAPIType"), entry.get("NSPrivacyAccessedAPITypeReasons")
+        if (not isinstance(category, str) or category in declared or not isinstance(reasons, list) or not reasons
+                or any(not isinstance(value, str) or not value for value in reasons)):
+            raise ReleaseError(owner + " 缺少正確且唯一的 required-reason API 宣告：" + str(category))
+        declared[category] = reasons
+    return declared
+
+
+def verify_required_reasons(app, binaries=()):
+    # Audit the packaged files, not merely the repository resources.
+    declared = declared_reasons(app / "PrivacyInfo.xcprivacy", "App")
     for category, reason in [("NSPrivacyAccessedAPICategoryUserDefaults", "CA92.1"),
                              ("NSPrivacyAccessedAPICategorySystemBootTime", "35F9.1"),
-                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "3B52.1")]:
-        matches = [entry for entry in entries if entry.get("NSPrivacyAccessedAPIType") == category]
-        reasons = matches[0].get("NSPrivacyAccessedAPITypeReasons") if len(matches) == 1 else None
-        if not isinstance(reasons, list) or reason not in reasons or any(not isinstance(value, str) for value in reasons):
+                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "3B52.1"),
+                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "C617.1"),
+                             ("NSPrivacyAccessedAPICategoryDiskSpace", "E174.1")]:
+        if reason not in declared.get(category, []):
             raise ReleaseError("App 缺少正確且唯一的 required-reason API 宣告：" + category)
+    used = set()
+    for binary in binaries:
+        categories = required_reason_categories(binary)
+        used |= categories
+        if categories and binary.parent.suffix == ".framework":
+            own = declared_reasons(binary.parent / "PrivacyInfo.xcprivacy", binary.parent.name)
+            missing = sorted(categories - set(own))
+            if missing:
+                raise ReleaseError(binary.parent.name + " 用到需要宣告理由的 API，自己的 PrivacyInfo.xcprivacy 卻沒有宣告："
+                                   + ", ".join(missing))
+    missing = sorted(used - set(declared))
+    if missing:
+        raise ReleaseError("App 的 PrivacyInfo.xcprivacy 沒有宣告二進位檔實際用到的 API 類別：" + ", ".join(missing))
+    return sorted(used)
 
 
 def verify_app(app, signed=False, identity=None, expected_build_number=None):
@@ -235,18 +289,19 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
     # Even an empty ATS dictionary is unexpected in the Release configuration.
     if "NSAppTransportSecurity" in info:
         raise ReleaseError("Release App 的 Info.plist 不得含 NSAppTransportSecurity；請檢查 Debug 測試例外是否混入產物。")
-    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription"):
+    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSPhotoLibraryUsageDescription",
+                "NSSpeechRecognitionUsageDescription"):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ReleaseError("Release App 缺少媒體或語音辨識權限用途說明：" + key)
     if not all(info.get(key) is True for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace")):
         raise ReleaseError("Release App 缺少系統檔案選擇器所需的 Documents 共享設定。")
-    verify_required_reasons(app)
     binaries = [app / info["CFBundleExecutable"]]
     for framework in (app / "Frameworks").glob("*.framework"):
         data = plistlib.loads((framework / "Info.plist").read_bytes())
         binaries.append(framework / data["CFBundleExecutable"])
     binaries.extend((app / "Frameworks").glob("*.dylib"))
+    reason_categories = verify_required_reasons(app, binaries)
     for binary in binaries:
         arches = run(["xcrun", "lipo", "-archs", str(binary)], "檢查裝置架構").decode().split()
         if "arm64" not in arches or "x86_64" in arches:
@@ -276,7 +331,8 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
             "verified_binary_count": len(binaries), "signature_verified": signed,
             "ats_key_absent": True, "native_documents_enabled": True,
             "browser_media_purpose_strings_verified": True,
-            "required_reason_entries_verified": True}
+            "required_reason_entries_verified": True,
+            "required_reason_categories": reason_categories}
 
 
 @contextmanager

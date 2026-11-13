@@ -39,6 +39,9 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - Sources/AssistantBrowser
+      # Apple checks each embedded binary for APIs that need a declared reason.
+      - path: Configuration/PrivacyManifests/AssistantBrowser/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - target: AssistantModels
       - target: AssistantSkills
@@ -52,6 +55,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - Sources/AssistantModels
+      - path: Configuration/PrivacyManifests/AssistantModels/PrivacyInfo.xcprivacy
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.models
@@ -83,7 +88,10 @@ targets:
     type: framework
     platform: iOS
     deploymentTarget: "17.0"
-    sources: [Sources/AssistantSkills]
+    sources:
+      - Sources/AssistantSkills
+      - path: Configuration/PrivacyManifests/AssistantSkills/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - target: AssistantModels
     settings:

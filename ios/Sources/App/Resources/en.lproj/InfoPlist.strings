@@ -2,3 +2,5 @@
 "NSSpeechRecognitionUsageDescription" = "Woow Assistant uses on-device speech recognition to add your spoken words to the chat draft.";
 "NSCameraUsageDescription" = "Woow Assistant uses the camera when you take a photo to attach in chat, or when you allow a website to use it.";
 "NSPhotoLibraryUsageDescription" = "Woow Assistant shows your recent photos in the chat attachment panel so you can pick ones to attach.";
+"NSPhotoLibraryAddUsageDescription" = "Woow Assistant saves a photo to your library only when you choose Save Image on an attachment or a download.";
+"NSLocalNetworkUsageDescription" = "Woow Assistant connects to devices on your local network only when you set a model service or MCP server address there.";
