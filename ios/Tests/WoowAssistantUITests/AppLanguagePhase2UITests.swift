@@ -79,11 +79,11 @@ final class AppLanguagePhase2UITests: XCTestCase {
         let searchSettings = app.buttons["browser.searchEngine.open"]
         tapChrome(searchSettings, timeout: 30) // Isolated WebKit data removal may still be finishing.
         XCTAssertTrue(app.navigationBars["Search engines"].waitForExistence(timeout: 10))
-        let bing = app.buttons["browser.searchEngine.select.bing"]
-        revealLearningElement(bing, in: app)
-        XCTAssertEqual(bing.value as? String, "Selected")
-        tapContent(app.buttons["browser.searchEngine.select.google"])
-        XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "Selected")
+        let google = app.buttons["browser.searchEngine.select.google"]
+        revealLearningElement(google, in: app)
+        XCTAssertEqual(google.value as? String, "Selected")
+        tapContent(app.buttons["browser.searchEngine.select.bing"])
+        XCTAssertEqual(app.buttons["browser.searchEngine.select.bing"].value as? String, "Selected")
         let add = app.buttons["browser.searchEngine.add"]
         revealLearningElement(add, in: app)
         XCTAssertEqual(add.label, "Add and use")

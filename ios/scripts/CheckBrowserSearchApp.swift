@@ -190,7 +190,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let host = try BrowserSiteModesAppChecks.Host()
         defer { workspace.cancelAllWork(); host.close() }
         host.attach(browser); browser.webView.navigationDelegate = probe
-        try check(workspace.available && workspace.library.searchSettings.selectedID == "bing", "actual workspace defaults Bing")
+        try check(workspace.available && workspace.library.searchSettings.selectedID == "google", "actual workspace defaults Google")
         browser.address = " \n "; browser.openAddress()
         try check(browser.error == nil && probe.actions.isEmpty, "empty input is a no-op")
 
@@ -198,14 +198,14 @@ private final class BrowserSearchKeys: LearningKeyStore {
         // the outgoing request before network I/O. No search service is contacted.
         browser.address = "first query & #/+% 中文"
         browser.openAddress()
-        try await BrowserSiteModesAppChecks.wait("actual Bing navigation action", { probe.actions.count == 1 && !browser.webView.isLoading })
-        try check(probe.actions[0].host == "www.bing.com" && probe.actions[0].method == "GET" && probe.actions[0].policy == .allow,
+        try await BrowserSiteModesAppChecks.wait("actual Google navigation action", { probe.actions.count == 1 && !browser.webView.isLoading })
+        try check(probe.actions[0].host == "www.google.com" && probe.actions[0].method == "GET" && probe.actions[0].policy == .allow,
                   "actual App resolves words through default engine")
-        try check(workspace.selectSearchEngine("google"), "select built-in persists")
+        try check(workspace.selectSearchEngine("bing"), "select built-in persists")
         browser.address = "second query"
         browser.openAddress()
-        try await BrowserSiteModesAppChecks.wait("actual Google navigation action", { probe.actions.count == 2 && !browser.webView.isLoading })
-        try check(probe.actions[1].host == "www.google.com" && probe.actions[1].method == "GET", "selected engine wired to same session")
+        try await BrowserSiteModesAppChecks.wait("actual Bing navigation action", { probe.actions.count == 2 && !browser.webView.isLoading })
+        try check(probe.actions[1].host == "www.bing.com" && probe.actions[1].method == "GET", "selected engine wired to same session")
         let beforeInvalid = probe.actions.count
         for invalid in ["https://127.0.0.1/", "https://example.com:/", "http://example.com/", "javascript:alert(1)", "https://user:pass@example.com/",
                         "https:127.0.0.1", "http:localhost", "https:/private.invalid/path", "HTTPS:example.invalid",
@@ -274,11 +274,11 @@ private final class BrowserSearchKeys: LearningKeyStore {
         try check(workspace.selected.manualSearchSettings().selected == engine, "new tabs use saved engine")
         try check(workspace.library.tabs.count == 2 && workspace.downloads.items.isEmpty, "tabs/download state preserved")
         try check(workspace.removeSearchEngine(engine.id), "delete selected custom")
-        try check(workspace.library.searchSettings.selectedID == "bing" && workspace.library.history.first?.url == url
+        try check(workspace.library.searchSettings.selectedID == "google" && workspace.library.history.first?.url == url
                   && workspace.library.bookmarks.first?.url == url, "delete falls back without rewriting saved result URLs")
         workspace.clearHistory()
         try check(workspace.library.history.isEmpty && workspace.library.bookmarks.count == 1
-                  && workspace.library.searchSettings.selectedID == "bing", "history clear and engine state stay separate")
+                  && workspace.library.searchSettings.selectedID == "google", "history clear and engine state stay separate")
         // Load the actual pre-field encrypted schema, then save the additive field.
         var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(beforeFailure)) as! [String: Any]
         legacy.removeValue(forKey: "searchSettings")
@@ -288,7 +288,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         try legacyFile.save(JSONDecoder().decode(LegacyJSON.self, from: legacyData))
         let migrated = BrowserWorkspace(dataStore: .nonPersistent(), vault: legacyFile, downloadDirectory: root.appendingPathComponent("LegacyDownloads"))
         defer { migrated.cancelAllWork() }
-        try check(migrated.available && migrated.library.searchSettings.selectedID == "bing", "actual encrypted legacy defaults Bing")
+        try check(migrated.available && migrated.library.searchSettings.selectedID == "google", "actual encrypted legacy defaults Google")
         try check(migrated.library.tabs == beforeFailure.tabs && migrated.library.bookmarks == beforeFailure.bookmarks
                   && migrated.library.history == beforeFailure.history && migrated.library.userSiteModes == beforeFailure.userSiteModes,
                   "encrypted migration preserves existing browser records")

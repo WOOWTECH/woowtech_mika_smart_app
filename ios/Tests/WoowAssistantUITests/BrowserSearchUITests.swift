@@ -10,14 +10,14 @@ final class BrowserSearchUITests: XCTestCase {
         launch()
         let settings = app.buttons["browser.searchEngine.open"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
-        XCTAssertTrue(settings.label.contains("Bing"))
+        XCTAssertTrue(settings.label.contains("Google"))
         tap(settings)
-        XCTAssertTrue(app.buttons["browser.searchEngine.select.bing"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.buttons["browser.searchEngine.select.bing"].value as? String, "已選取")
+        XCTAssertTrue(app.buttons["browser.searchEngine.select.google"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "已選取")
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.searchEngine.remove.custom:")).firstMatch.exists,
                        "The fresh namespace must contain no previously saved custom engine")
-        tap(app.buttons["browser.searchEngine.select.google"], scroll: true)
-        XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "已選取")
+        tap(app.buttons["browser.searchEngine.select.bing"], scroll: true)
+        XCTAssertEqual(app.buttons["browser.searchEngine.select.bing"].value as? String, "已選取")
         let name = app.textFields["browser.searchEngine.name"]
         enter("Fixture Search", in: name, scroll: true)
         // Use the form's real Next action. With the name keyboard open, the
@@ -58,10 +58,10 @@ final class BrowserSearchUITests: XCTestCase {
         tap(settings)
         let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.searchEngine.remove.custom:")).firstMatch
         tap(remove, scroll: true)
-        revealLearningElement(app.buttons["browser.searchEngine.select.bing"], in: app)
-        XCTAssertEqual(app.buttons["browser.searchEngine.select.bing"].value as? String, "已選取")
+        revealLearningElement(app.buttons["browser.searchEngine.select.google"], in: app)
+        XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "已選取")
         tap(app.buttons["browser.searchEngine.close"])
-        XCTAssertTrue(settings.label.contains("Bing"))
+        XCTAssertTrue(settings.label.contains("Google"))
     }
 
     private func launch() {
