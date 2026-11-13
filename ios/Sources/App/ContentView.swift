@@ -751,38 +751,16 @@ private struct ChatView: View {
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
-        return LazyVStack(alignment: .leading, spacing: 16) {
-            // Android hides the welcome while the blocked card is up.
-            if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
-                ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+        let rows = transcriptRows(targets: targets)
+        return Group {
+            // An empty chat is a short, fixed list. In a LazyVStack it hung the main
+            // thread on iPhone SE (iOS 18.5 CI) when an example shrank the input bar
+            // while the list was scrolled to its end, so it is laid out eagerly.
+            if session.entries.isEmpty && session.replyPreview == nil {
+                VStack(alignment: .leading, spacing: 16) { rows }
+            } else {
+                LazyVStack(alignment: .leading, spacing: 16) { rows }
             }
-            if !session.hasStoredKey && session.shownSendBlocker == nil {
-                Text(verbatim: localizer.text(.chatModelSetupHint))
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("chat.explanation")
-            }
-            ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                messageRow(index: index, entry: entry, targets: targets)
-            }
-            if let preview = session.replyPreview {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("chat.partialStatus")
-                    Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
-                        .font(.system(size: 15.5)).lineSpacing(4)
-                        .foregroundStyle(palette.ink).textSelection(.enabled)
-                        .accessibilityIdentifier("chat.partialReply")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14).padding(.vertical, 12)
-                        .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .id(preview.id)
-            }
-            if session.shownSendBlocker != nil && blockedCardFitsTranscript {
-                sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
-            }
-            Color.clear.frame(height: 1).id("chat.transcript.tail")
         }
         .padding(.vertical, 4)
         .background {
@@ -794,6 +772,40 @@ private struct ChatView: View {
                         viewportHeight: viewportHeight))
             }
         }
+    }
+
+    @ViewBuilder private func transcriptRows(targets: ChatMessageActionTargets) -> some View {
+        // Android hides the welcome while the blocked card is up.
+        if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
+            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+        }
+        if !session.hasStoredKey && session.shownSendBlocker == nil {
+            Text(verbatim: localizer.text(.chatModelSetupHint))
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("chat.explanation")
+        }
+        ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+            messageRow(index: index, entry: entry, targets: targets)
+        }
+        if let preview = session.replyPreview {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("chat.partialStatus")
+                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
+                    .font(.system(size: 15.5)).lineSpacing(4)
+                    .foregroundStyle(palette.ink).textSelection(.enabled)
+                    .accessibilityIdentifier("chat.partialReply")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14).padding(.vertical, 12)
+                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .id(preview.id)
+        }
+        if session.shownSendBlocker != nil && blockedCardFitsTranscript {
+            sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
+        }
+        Color.clear.frame(height: 1).id("chat.transcript.tail")
     }
 
     private func transcriptScroll(proxy: ScrollViewProxy, viewportHeight: Double) -> some View {
