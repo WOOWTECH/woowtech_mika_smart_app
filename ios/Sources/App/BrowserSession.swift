@@ -338,7 +338,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                                 let current = try chat.modelAccess()
                                 guard current.configuration.baseURL == access.configuration.baseURL,
                                       current.configuration.model == access.configuration.model,
-                                      current.key == access.key else { throw RunReferenceError.revoked }
+                                      current.identity == access.identity else { throw RunReferenceError.revoked }
                             }
                         },
                         onAction: { [weak self] action in await self?.record(action, for: id) })
@@ -619,7 +619,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                     guard current.configuration.baseURL == access.configuration.baseURL,
                           current.configuration.model == access.configuration.model,
                           current.configuration.maxOutputTokens == access.configuration.maxOutputTokens,
-                          current.key == access.key else { throw RunReferenceError.revoked }
+                          current.identity == access.identity else { throw RunReferenceError.revoked }
                 }
                 do {
                     var observedSteps: [WebRouteStep] = []

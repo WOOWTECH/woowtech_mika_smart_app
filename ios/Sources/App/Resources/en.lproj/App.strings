@@ -343,7 +343,7 @@
 "settings.model.remove" = "Remove settings and key";
 "settings.model.privacy" = "Your key stays on this device. Enter it again if the service host or port changes.";
 "settings.model.saveExplanation" = "Saving does not test the connection. The app connects when you use the model.";
-"settings.model.changeExplanation" = "Changing the service, model or key starts a new conversation and keeps the draft. Removing settings clears this conversation and this app’s model key.";
+"settings.model.changeExplanation" = "Changing the service or model starts a new conversation and keeps the draft; changing only the key continues the current one. Removing settings clears this conversation and this app’s model key.";
 "settings.model.saved" = "Settings saved. The connection has not been tested.";
 "settings.model.savedCleanup" = "New settings saved; the connection has not been tested. The old key could not be removed. Use Remove to clear this app’s model keys.";
 "settings.model.removed" = "This app’s model settings and key were removed; your message draft remains.";

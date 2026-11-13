@@ -224,7 +224,8 @@ private struct PDFReferenceReport: Encodable {
               let key = env["WOOW_MODEL_TEST_API_KEY"], !key.isEmpty else {
             throw PDFReferenceFailure.missingConfiguration
         }
-        let access = ModelAccess(client: client, configuration: .init(baseURL: url, model: model, maxOutputTokens: 2048), key: key)
+        let access = ModelAccess(client: client, configuration: .init(baseURL: url, model: model, maxOutputTokens: 2048), key: key,
+                                 identity: .init(target: .init(providerID: UUID(), model: model), credentialAccount: UUID()))
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-pdf-reference-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
                                                 attributes: [.posixPermissions: 0o700])

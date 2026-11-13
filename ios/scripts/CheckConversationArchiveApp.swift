@@ -514,7 +514,7 @@ private actor ArchiveModel: ChatModelClient {
 
     static func destinationIsolation() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
-        let model = ArchiveModel(["First", "Other destination reply"]); let session = e.session(model)
+        let model = ArchiveModel(["First", "Other destination reply", "Reply with the new key"]); let session = e.session(model)
         try await send(session, "Original private history"); let record = e.archive.conversations[0]
         session.modelDraft = "other-model"; session.saveSettings()
         try a.check(session.entries.isEmpty && !session.canOpenConversation(record), "model change does not transfer context")
@@ -524,12 +524,55 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(requests.count == 2 && requests[1].count == 1 && requests[1][0].content == "New destination request", "no old transcript sent")
         session.modelDraft = "fixture"; session.saveSettings()
         try a.check(session.canOpenConversation(record), "exact original model identity reusable")
+        try a.check(session.openConversation(id: record.id), "original conversation reopens")
+        let reopened = session.entries.map(\.id)
         session.keyDraft = "replacement-not-a-key"; session.saveSettings()
-        try a.check(!session.canOpenConversation(record), "new credential account cannot continue old history")
+        try a.check(session.canOpenConversation(record) && session.isCurrentConversation(id: record.id)
+                    && session.entries.map(\.id) == reopened, "a new key for the same provider keeps the open conversation")
+        try await send(session, "Continue with the new key")
+        let continued = e.archive.conversations.first { $0.id == record.id }, sent = await model.requests
+        try a.check(continued?.turns.count == 2 && continued?.destination == record.destination && sent.count == 3
+                    && sent[2].contains { $0.content == "Original private history" },
+                    "the new key continues the same saved conversation with its history")
         session.baseURLDraft = "https://other.example.invalid/v1"; session.keyDraft = "other-not-a-key"; session.saveSettings()
         try a.check(!session.canOpenConversation(record) && e.archive.conversations.count == 2, "destination change preserves readable rows")
         session.removeSettings()
         try a.check(!session.canOpenConversation(record) && e.reopen().conversations.count == 2, "removing settings does not remove archive encryption keys")
+        return a.count
+    }
+
+    /// A conversation the v1 build saved still opens after the update: the
+    /// imported provider's id is the v1 setting's Keychain account. A new key
+    /// for that provider keeps it going.
+    static func legacyDestinationAfterImport() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let suite = "woow.archive.legacy." + UUID().uuidString
+        guard let defaults = UserDefaults(suiteName: suite) else { throw Failure(name: "legacy defaults") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let account = UUID(), credentials = ArchiveCredentials()
+        credentials.values[account.uuidString] = "legacy-not-a-key"
+        let v1 = SavedModelSettings(baseURL: URL(string: "https://legacy.example.invalid/v1")!, model: "legacy-model",
+                                    credentialAccount: account.uuidString)
+        defaults.set(try JSONEncoder().encode(v1), forKey: ModelSettingsRepository.configurationKey)
+        let saved = try ArchivedConversation(id: UUID(), destination: ConversationDestination(
+            baseURL: v1.baseURL.absoluteString, model: v1.model, credentialAccount: account), updatedAt: Date(),
+            turns: [ArchivedConversationTurn(userText: "Saved before the update", assistantText: "Saved reply")])
+        try e.archive.save(saved, expected: nil)
+        let model = ArchiveModel(["Reply after the update"])
+        let session = ChatSession(learning: e.learning, repository: ModelSettingsRepository(defaults: defaults, credentials: credentials),
+                                  client: model, archive: e.archive)
+        try a.check(session.savedSettings?.providerID == account && session.hasStoredKey, "v1 setting imported with its key")
+        try a.check(session.archiveDestination == saved.destination && session.canOpenConversation(saved),
+                    "a v1 conversation matches its imported provider")
+        session.keyDraft = "replacement-not-a-key"; session.saveSettings()
+        try a.check(session.savedSettings?.credentialAccount != account.uuidString && credentials.values[account.uuidString] == nil
+                    && session.canOpenConversation(saved), "a new key for the imported provider keeps the conversation")
+        try a.check(session.openConversation(id: saved.id), "it opens after the new key")
+        try await send(session, "Continue after the update")
+        let continued = e.archive.conversations.first { $0.id == saved.id }, requests = await model.requests
+        try a.check(continued?.turns.count == 2 && continued?.destination == saved.destination && requests.count == 1
+                    && requests[0].contains { $0.content == "Saved before the update" },
+                    "the next reply joins the same saved conversation, with its history")
         return a.count
     }
 
@@ -996,12 +1039,13 @@ private actor ArchiveModel: ChatModelClient {
                 ArchiveAppChecks.pinDuringReplyAndEncryptedRelaunch(),
                 ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.protectedArchiveDeletion(),
-                ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
+                ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.legacyDestinationAfterImport(),
+                ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay(),
                 ArchiveAppChecks.branchDurabilityAndFences(), ArchiveAppChecks.branchStalenessAndInFlight(),
                 ArchiveAppChecks.quotesInRealSession(), ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(),
                 ArchiveAppChecks.branchUsesLatestWholeArchive(), ArchiveAppChecks.messageMenuActions()]
-            print("{\"groups\":17,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":18,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -1025,6 +1069,9 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testProtectedArchiveDeletion() async throws { let n = try await ArchiveAppChecks.protectedArchiveDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testDestinationIsolation() async throws { let n = try await ArchiveAppChecks.destinationIsolation(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testLegacyDestinationAfterImport() async throws {
+        let n = try await ArchiveAppChecks.legacyDestinationAfterImport(); XCTAssertGreaterThan(n, 0)
+    }
     @MainActor func testFailuresAndRetry() async throws { let n = try await ArchiveAppChecks.failuresAndRetry(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testLateCompletionAndDeletion() async throws { let n = try await ArchiveAppChecks.lateCompletionAndDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testReviewDoesNotReplay() async throws { let n = try await ArchiveAppChecks.reviewDoesNotReplay(); XCTAssertGreaterThan(n, 0) }

@@ -1401,7 +1401,7 @@ enum AppText: Equatable {
         case .settingsModelRemove: return "移除設定與金鑰"
         case .settingsModelPrivacy: return "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。"
         case .settingsModelSaveExplanation: return "儲存不會測試連線；開始使用模型時才會連線。"
-        case .settingsModelChangeExplanation: return "更換服務、模型或金鑰會開始新的對話，草稿保留。移除設定會清除本次對話及此 App 的模型金鑰。"
+        case .settingsModelChangeExplanation: return "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。"
         case .settingsModelSaved: return "設定已儲存，尚未驗證連線。"
         case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
