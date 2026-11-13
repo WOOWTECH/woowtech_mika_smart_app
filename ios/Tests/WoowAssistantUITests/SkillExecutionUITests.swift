@@ -992,11 +992,11 @@ final class SkillExecutionUITests: XCTestCase {
     }
 
     private var nativeCancel: XCUIElement {
-        let labels = NSPredicate(format: "label IN %@", ["取消", "Cancel"])
-        let content = nativeFilesNavigation.buttons.matching(labels).firstMatch
-        if content.exists { return content }
-        // iPadOS 27 places the real Files dismissal in the sidebar navigation bar.
-        return app.navigationBars["DOCSidebarView"].buttons.matching(labels).firstMatch
+        // Resolved when waited on, not when read: Files may still be presenting.
+        // A fresh iOS 18.5 iPhone opens Files on 最近項目, whose navigation bar is
+        // not FullDocumentManagerViewControllerNavigationBar, and iPadOS 27 puts
+        // the dismissal in the DOCSidebarView bar; all of them are native bars.
+        app.navigationBars.buttons.matching(NSPredicate(format: "label IN %@", ["取消", "Cancel"])).firstMatch
     }
 
     private func chooseSyntheticPDF(picker: PickerArm = .swiftUI) {
