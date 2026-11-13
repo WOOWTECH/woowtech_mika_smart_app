@@ -12,6 +12,8 @@ extension AppLocalizer {
         case .invalidKey: return .modelSettingsInvalidKey
         case .unavailableKeychain: return .modelSettingsUnavailableKeychain
         case .keychainStatus(let status): return .modelSettingsKeychainStatus(code: String(status))
+        case .tooManyProviders: return .modelSettingsTooManyProviders
+        case .consentRequired: return .modelSettingsConsentRequired
         }
     }
 }

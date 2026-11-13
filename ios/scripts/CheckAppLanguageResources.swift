@@ -115,7 +115,8 @@ import AssistantSkills
         let missingSearch = AppLocalizer(language: .english, bundle: searchFallback).resolve(.localPDFSearchInvalid)
         try check(missingSearch.usedFallback && missingSearch.language == .traditionalChinese &&
                   missingSearch.text == searchTraditional.text(.localPDFSearchInvalid), "missing search error falls back to Traditional Chinese")
-        let modelErrors: [ModelSettingsError] = [.invalidURL, .missingModel, .missingKey, .changedOrigin, .invalidKey, .unavailableKeychain, .keychainStatus(-25293)]
+        let modelErrors: [ModelSettingsError] = [.invalidURL, .missingModel, .missingKey, .changedOrigin, .invalidKey, .unavailableKeychain,
+                                                 .keychainStatus(-25293), .tooManyProviders, .consentRequired]
         for error in modelErrors {
             let message = AppLocalizer.modelSettingsError(error)
             try check(hant.text(message) == error.errorDescription, "model settings code presentation preserves original Hant including ungrouped system code")
