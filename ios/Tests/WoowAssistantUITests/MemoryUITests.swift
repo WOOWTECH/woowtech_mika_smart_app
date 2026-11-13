@@ -9,7 +9,9 @@ final class MemoryUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 180
+        // iPhone SE on iOS 18.5 needs about 70 s just to configure the model, so the
+        // two-step clear case ran out of a 180 s allowance one relaunch from the end.
+        executionTimeAllowance = 240
     }
 
     override func tearDownWithError() throws {

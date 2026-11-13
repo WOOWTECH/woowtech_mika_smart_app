@@ -119,6 +119,9 @@ final class ConversationArchiveUITests: XCTestCase {
     }
 
     func testDrawerPinAndUnpinSurviveRelaunchWithoutChangingSavedTurns() {
+        // On iPhone SE (iOS 18.5) the first context-menu press waits 60 s for an
+        // "animations complete" notice that never arrives; ui-archive allows 300 s.
+        executionTimeAllowance = 300
         launch(); configure(); send("Older")
         tap("chat.newConversation"); send("Newer")
         tap("chat.menu")
