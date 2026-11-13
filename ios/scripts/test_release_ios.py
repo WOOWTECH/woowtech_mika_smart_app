@@ -25,7 +25,7 @@ DIGEST = hashlib.sha1(CERT).hexdigest().upper()
 PROFILE_ID = "12345678-1234-1234-1234-123456789ABC"
 MEDIA_PURPOSES = {"NSCameraUsageDescription": "User approved website camera access.",
                   "NSMicrophoneUsageDescription": "User approved website and chat microphone access.",
-                  "NSPhotoLibraryUsageDescription": "Recent photos in the chat attachment panel.",
+                  "NSPhotoLibraryAddUsageDescription": "Save Image from an attachment preview.",
                   "NSSpeechRecognitionUsageDescription": "On-device chat speech recognition."}
 EXPORT_COMPLIANCE = {"ITSAppUsesNonExemptEncryption": False}
 
@@ -279,7 +279,7 @@ class BuildTests(unittest.TestCase):
                     for ats in variants:
                         with self.subTest(signed=signed, fmt=fmt, ats=ats):
                             info = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
-                                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True,
+                                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
                                     "NSAppTransportSecurity": ats}
                             (app / "Info.plist").write_bytes(plistlib.dumps(info, fmt=fmt))
                             with patch.object(release, "run") as native_tool:
@@ -293,7 +293,6 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
                     "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
-                    "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True,
                     **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}
             for key in MEDIA_PURPOSES:
                 for value in (None, "", "  "):
@@ -315,7 +314,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
                     "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
-                    "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES}
+                    **MEDIA_PURPOSES}
             for value in (None, True, "NO", 0):
                 with self.subTest(value=value):
                     info = dict(base)
@@ -333,7 +332,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES, **EXPORT_COMPLIANCE},
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE},
                 fmt=plistlib.FMT_BINARY))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
@@ -356,7 +355,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"
@@ -372,7 +371,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"

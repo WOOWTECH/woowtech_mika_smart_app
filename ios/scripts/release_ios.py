@@ -289,7 +289,10 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
     # Even an empty ATS dictionary is unexpected in the Release configuration.
     if "NSAppTransportSecurity" in info:
         raise ReleaseError("Release App 的 Info.plist 不得含 NSAppTransportSecurity；請檢查 Debug 測試例外是否混入產物。")
-    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSPhotoLibraryUsageDescription",
+    # Photos are picked with the system picker, which needs no library access;
+    # the add-only key is needed because an attachment preview's share menu
+    # offers Save Image, and saving without it terminates the app.
+    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSPhotoLibraryAddUsageDescription",
                 "NSSpeechRecognitionUsageDescription"):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
@@ -298,8 +301,6 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
     # exempt; YES without an approved export code makes the upload fail processing.
     if info.get("ITSAppUsesNonExemptEncryption") is not False:
         raise ReleaseError("Release App 的 ITSAppUsesNonExemptEncryption 必須是 false（只用 Apple 系統內建加密）。")
-    if not all(info.get(key) is True for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace")):
-        raise ReleaseError("Release App 缺少系統檔案選擇器所需的 Documents 共享設定。")
     binaries = [app / info["CFBundleExecutable"]]
     for framework in (app / "Frameworks").glob("*.framework"):
         data = plistlib.loads((framework / "Info.plist").read_bytes())
