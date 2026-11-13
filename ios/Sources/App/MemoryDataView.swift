@@ -185,7 +185,7 @@ struct MemoryDataView: View {
             if let error = store.error {
                 Section {
                     card {
-                        Text(verbatim: error).foregroundStyle(palette.bad)
+                        Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(palette.bad)
                             .accessibilityIdentifier("memory.error")
                         Button(copy.text(.dismissNotice)) { store.dismissNotice() }
                     }
@@ -194,7 +194,7 @@ struct MemoryDataView: View {
             if let notice = store.notice {
                 Section {
                     card {
-                        Text(verbatim: notice).accessibilityIdentifier("memory.notice")
+                        Text(verbatim: AppLocalizer(language: copy.language).stored(notice)).accessibilityIdentifier("memory.notice")
                         Button(copy.text(.dismissNotice)) { store.dismissNotice() }
                     }
                 }
@@ -889,7 +889,7 @@ private struct MemoryEditor: View {
                 Text(copy.text(.memoryEditorProcedureHelp))
             }
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("memory.editor.error")
             }
         }
@@ -955,7 +955,7 @@ private struct SkillEditor: View {
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("skills.editor.markdown")
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("skills.editor.error")
             }
         }
@@ -1043,7 +1043,7 @@ private struct LearningClearView: View {
                     .accessibilityIdentifier("memory.clear.confirm")
                 }
                 if let error = store.error {
-                    Text(verbatim: error).foregroundStyle(.red)
+                    Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                         .accessibilityIdentifier("memory.clear.error")
                 }
             }

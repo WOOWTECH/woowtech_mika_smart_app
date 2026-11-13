@@ -9,6 +9,191 @@ enum AppText: Equatable {
     case languageTraditional
     case languageEnglish
     case languageSaveFailed
+    case commonEdit
+    case commonBack
+    case commonReload
+    case commonExpanded
+    case commonCollapsed
+    case commonClearText
+    case commonHideKeyboard
+    case profileScope
+    case profileCount(count: Int)
+    case profileMemoryOff
+    case profileUnavailable
+    case profileActiveSection
+    case profileEmpty
+    case profileAdd
+    case profileHistoryCount(count: Int)
+    case profileHistoryItem(value: String)
+    case profileHistoryNote
+    case profileTitle
+    case profileEditorSection
+    case profileEditorLabel
+    case profileEditorCount(count: Int)
+    case profileEditorRule
+    case profileEditorAddTitle
+    case profileEditorEditTitle
+    case profileToolAdd
+    case profileToolReplace
+    case profileToolIntro
+    case profileToolQuote
+    case profileToolBefore
+    case profileToolAfter
+    case profileToolDeleteNote
+    case profileToolTitle
+    case profileToolDecline
+    case profileToolApprove
+    case commonDone
+    case websiteSaveSection
+    case websiteNotePlaceholder
+    case websiteSaveNote
+    case websiteSaveHelp
+    case websiteOpenFirst
+    case websiteNotesSection
+    case websiteSearch
+    case websiteEmpty
+    case websiteSource(value: String)
+    case websiteApproved
+    case websitePending
+    case websiteApprove
+    case websiteRoutesSection
+    case websiteRoutesEmpty
+    case websiteRouteSummary(count: Int, host: String)
+    case websiteRouteDisabled
+    case websiteReplay
+    case websiteRevisionsSection
+    case websiteRestore
+    case websiteTitle
+    case websiteReplayTitle
+    case websiteReplayConfirm
+    case websiteReplayMessage(host: String, count: Int)
+    case websiteEditorSource(value: String)
+    case websiteEditorTitle
+    case archiveRowSummary(count: Int, date: String)
+    case archiveModel(value: String)
+    case archiveDestinationMismatch
+    case archiveYou
+    case archiveAssistant
+    case archiveDelete
+    case archiveOpen
+    case archiveDeleted
+    case archiveDetailTitle
+    case archiveDeleteTitle
+    case archiveDeleteMessage
+    case memoryToolIntro
+    case memoryToolAdd
+    case memoryToolUpdate
+    case memoryToolKindFact
+    case memoryToolKindPreference
+    case memoryToolKindProcedure
+    case memoryToolKindMemory
+    case memoryToolKeywords
+    case memoryToolNoKeywords
+    case memoryToolKeywordSeparator
+    case memoryToolPendingNotice
+    case memoryToolTitle
+    case memoryToolDecline
+    case commonApprove
+    case commonOK
+    case commonDismissNotice
+    case downloadEmptyTitle
+    case downloadEmptyHelp
+    case downloadSizeUnknownProgress
+    case downloadCancel
+    case downloadProcessPDF
+    case downloadProcessPDFHint
+    case downloadOpenOrShare
+    case downloadLimits(count: Int, active: Int, fileLimit: String, totalLimit: String)
+    case downloadStorage
+    case downloadTitle
+    case downloadDeleteTitle
+    case downloadDeleteConfirm
+    case downloadDeleteFailed
+    case downloadDeleteMessage(value: String)
+    case downloadActionFailed
+    case downloadOpenFailed
+    case downloadSizeUnknown(value: String)
+    case downloadStatusWaiting
+    case downloadStatusDownloading
+    case downloadStatusCancelling
+    case downloadStatusCompleted
+    case downloadStatusCancelled
+    case downloadStatusFailed
+    case downloadErrorUnavailable
+    case downloadErrorUnsafeURL
+    case downloadErrorResearchDisabled
+    case downloadErrorTooMany
+    case downloadErrorTooLarge
+    case downloadErrorInvalidFile
+    case downloadErrorInvalidMetadata
+    case downloadErrorConfirmationRequired
+    case downloadErrorStillRunning
+    case downloadErrorMissingFile
+    case downloadErrorNetwork
+    case downloadErrorRedirectLimit
+    case downloadCleanupFailed
+    case skillExecutionErrorUnavailable
+    case skillExecutionErrorInvalidSelection
+    case skillExecutionErrorFileTooLarge
+    case skillExecutionErrorInvalidPDF
+    case skillExecutionErrorPasswordRequired
+    case skillExecutionErrorInvalidPages
+    case skillExecutionErrorTooManyPages
+    case skillExecutionErrorOutputTooLarge
+    case skillExecutionErrorApprovalRequired
+    case skillExecutionErrorExpiredApproval
+    case skillExecutionErrorStalePlan
+    case skillExecutionErrorBusy
+    case skillExecutionErrorCancelled
+    case learningUnavailable
+    case learningProfileSaved
+    case learningProcedureApproved
+    case learningProcedureDeclined
+    case learningCleared
+    case learningClearedKeyPending
+    case learningForgot
+    case learningDeleted
+    case learningRemembered(value: String)
+    case learningUpdated(value: String)
+    case learningPendingProcedure(value: String)
+    case learningUseCountFailed
+    case learningTidyUnconfirmed
+    case learningTidyConflict
+    case learningTidyBusy
+    case learningTidyFailed
+    case learningWebNotSaved
+    case learningNotSaved
+    case learningSkillRecordFailed
+    case learningBusy
+    case learningConflict
+    case learningProfileInvalidSentence
+    case learningProfileDuplicate
+    case learningProfileFull
+    case learningProfileMatchNotUnique
+    case learningProfileInvalidState
+    case learningSkillNotSaved
+    case learningBuiltinNotImported
+    case learningMemorySensitive
+    case learningMemoryInvalid
+    case learningMemoryFull
+    case learningMemoryDuplicate
+    case learningMemoryStale
+    case learningMemoryFailed
+    case learningSkillUnknownTool
+    case learningSkillSensitive
+    case learningSkillChanged
+    case learningSkillDraftPending
+    case learningSkillBuiltinName
+    case learningSkillMissingSection
+    case learningSkillTooLong
+    case learningSkillCapacity
+    case learningSkillInvalid
+    case learningSaveFailed
+    case archiveDeleteNotSaved
+    case archiveReadFailed
+    case browserTabNew
+    case browserTabSignIn
+    case browserTabPage
     case shellBrandTitle
     case shellMenu
     case shellBackToChat
@@ -594,6 +779,191 @@ enum AppText: Equatable {
         case .languageTraditional: return "language.traditional"
         case .languageEnglish: return "language.english"
         case .languageSaveFailed: return "language.saveFailed"
+        case .commonEdit: return "common.edit"
+        case .commonBack: return "common.back"
+        case .commonReload: return "common.reload"
+        case .commonExpanded: return "common.expanded"
+        case .commonCollapsed: return "common.collapsed"
+        case .commonClearText: return "common.clearText"
+        case .commonHideKeyboard: return "common.hideKeyboard"
+        case .profileScope: return "profile.scope"
+        case .profileCount: return "profile.count"
+        case .profileMemoryOff: return "profile.memoryOff"
+        case .profileUnavailable: return "profile.unavailable"
+        case .profileActiveSection: return "profile.activeSection"
+        case .profileEmpty: return "profile.empty"
+        case .profileAdd: return "profile.add"
+        case .profileHistoryCount: return "profile.historyCount"
+        case .profileHistoryItem: return "profile.historyItem"
+        case .profileHistoryNote: return "profile.historyNote"
+        case .profileTitle: return "profile.title"
+        case .profileEditorSection: return "profile.editor.section"
+        case .profileEditorLabel: return "profile.editor.label"
+        case .profileEditorCount: return "profile.editor.count"
+        case .profileEditorRule: return "profile.editor.rule"
+        case .profileEditorAddTitle: return "profile.editor.addTitle"
+        case .profileEditorEditTitle: return "profile.editor.editTitle"
+        case .profileToolAdd: return "profileTool.add"
+        case .profileToolReplace: return "profileTool.replace"
+        case .profileToolIntro: return "profileTool.intro"
+        case .profileToolQuote: return "profileTool.quote"
+        case .profileToolBefore: return "profileTool.before"
+        case .profileToolAfter: return "profileTool.after"
+        case .profileToolDeleteNote: return "profileTool.deleteNote"
+        case .profileToolTitle: return "profileTool.title"
+        case .profileToolDecline: return "profileTool.decline"
+        case .profileToolApprove: return "profileTool.approve"
+        case .commonDone: return "common.done"
+        case .websiteSaveSection: return "website.saveSection"
+        case .websiteNotePlaceholder: return "website.notePlaceholder"
+        case .websiteSaveNote: return "website.saveNote"
+        case .websiteSaveHelp: return "website.saveHelp"
+        case .websiteOpenFirst: return "website.openFirst"
+        case .websiteNotesSection: return "website.notesSection"
+        case .websiteSearch: return "website.search"
+        case .websiteEmpty: return "website.empty"
+        case .websiteSource: return "website.source"
+        case .websiteApproved: return "website.approved"
+        case .websitePending: return "website.pending"
+        case .websiteApprove: return "website.approve"
+        case .websiteRoutesSection: return "website.routesSection"
+        case .websiteRoutesEmpty: return "website.routesEmpty"
+        case .websiteRouteSummary: return "website.routeSummary"
+        case .websiteRouteDisabled: return "website.routeDisabled"
+        case .websiteReplay: return "website.replay"
+        case .websiteRevisionsSection: return "website.revisionsSection"
+        case .websiteRestore: return "website.restore"
+        case .websiteTitle: return "website.title"
+        case .websiteReplayTitle: return "website.replayTitle"
+        case .websiteReplayConfirm: return "website.replayConfirm"
+        case .websiteReplayMessage: return "website.replayMessage"
+        case .websiteEditorSource: return "website.editorSource"
+        case .websiteEditorTitle: return "website.editorTitle"
+        case .archiveRowSummary: return "archive.rowSummary"
+        case .archiveModel: return "archive.model"
+        case .archiveDestinationMismatch: return "archive.destinationMismatch"
+        case .archiveYou: return "archive.you"
+        case .archiveAssistant: return "archive.assistant"
+        case .archiveDelete: return "archive.delete"
+        case .archiveOpen: return "archive.open"
+        case .archiveDeleted: return "archive.deleted"
+        case .archiveDetailTitle: return "archive.detailTitle"
+        case .archiveDeleteTitle: return "archive.deleteTitle"
+        case .archiveDeleteMessage: return "archive.deleteMessage"
+        case .memoryToolIntro: return "memoryTool.intro"
+        case .memoryToolAdd: return "memoryTool.add"
+        case .memoryToolUpdate: return "memoryTool.update"
+        case .memoryToolKindFact: return "memoryTool.kindFact"
+        case .memoryToolKindPreference: return "memoryTool.kindPreference"
+        case .memoryToolKindProcedure: return "memoryTool.kindProcedure"
+        case .memoryToolKindMemory: return "memoryTool.kindMemory"
+        case .memoryToolKeywords: return "memoryTool.keywords"
+        case .memoryToolNoKeywords: return "memoryTool.noKeywords"
+        case .memoryToolKeywordSeparator: return "memoryTool.keywordSeparator"
+        case .memoryToolPendingNotice: return "memoryTool.pendingNotice"
+        case .memoryToolTitle: return "memoryTool.title"
+        case .memoryToolDecline: return "memoryTool.decline"
+        case .commonApprove: return "common.approve"
+        case .commonOK: return "common.ok"
+        case .commonDismissNotice: return "common.dismissNotice"
+        case .downloadEmptyTitle: return "download.emptyTitle"
+        case .downloadEmptyHelp: return "download.emptyHelp"
+        case .downloadSizeUnknownProgress: return "download.sizeUnknownProgress"
+        case .downloadCancel: return "download.cancel"
+        case .downloadProcessPDF: return "download.processPDF"
+        case .downloadProcessPDFHint: return "download.processPDFHint"
+        case .downloadOpenOrShare: return "download.openOrShare"
+        case .downloadLimits: return "download.limits"
+        case .downloadStorage: return "download.storage"
+        case .downloadTitle: return "download.title"
+        case .downloadDeleteTitle: return "download.deleteTitle"
+        case .downloadDeleteConfirm: return "download.deleteConfirm"
+        case .downloadDeleteFailed: return "download.deleteFailed"
+        case .downloadDeleteMessage: return "download.deleteMessage"
+        case .downloadActionFailed: return "download.actionFailed"
+        case .downloadOpenFailed: return "download.openFailed"
+        case .downloadSizeUnknown: return "download.sizeUnknown"
+        case .downloadStatusWaiting: return "download.status.waiting"
+        case .downloadStatusDownloading: return "download.status.downloading"
+        case .downloadStatusCancelling: return "download.status.cancelling"
+        case .downloadStatusCompleted: return "download.status.completed"
+        case .downloadStatusCancelled: return "download.status.cancelled"
+        case .downloadStatusFailed: return "download.status.failed"
+        case .downloadErrorUnavailable: return "download.error.unavailable"
+        case .downloadErrorUnsafeURL: return "download.error.unsafeURL"
+        case .downloadErrorResearchDisabled: return "download.error.researchDisabled"
+        case .downloadErrorTooMany: return "download.error.tooMany"
+        case .downloadErrorTooLarge: return "download.error.tooLarge"
+        case .downloadErrorInvalidFile: return "download.error.invalidFile"
+        case .downloadErrorInvalidMetadata: return "download.error.invalidMetadata"
+        case .downloadErrorConfirmationRequired: return "download.error.confirmationRequired"
+        case .downloadErrorStillRunning: return "download.error.stillRunning"
+        case .downloadErrorMissingFile: return "download.error.missingFile"
+        case .downloadErrorNetwork: return "download.error.network"
+        case .downloadErrorRedirectLimit: return "download.error.redirectLimit"
+        case .downloadCleanupFailed: return "download.cleanupFailed"
+        case .skillExecutionErrorUnavailable: return "skillExecution.error.unavailable"
+        case .skillExecutionErrorInvalidSelection: return "skillExecution.error.invalidSelection"
+        case .skillExecutionErrorFileTooLarge: return "skillExecution.error.fileTooLarge"
+        case .skillExecutionErrorInvalidPDF: return "skillExecution.error.invalidPDF"
+        case .skillExecutionErrorPasswordRequired: return "skillExecution.error.passwordRequired"
+        case .skillExecutionErrorInvalidPages: return "skillExecution.error.invalidPages"
+        case .skillExecutionErrorTooManyPages: return "skillExecution.error.tooManyPages"
+        case .skillExecutionErrorOutputTooLarge: return "skillExecution.error.outputTooLarge"
+        case .skillExecutionErrorApprovalRequired: return "skillExecution.error.approvalRequired"
+        case .skillExecutionErrorExpiredApproval: return "skillExecution.error.expiredApproval"
+        case .skillExecutionErrorStalePlan: return "skillExecution.error.stalePlan"
+        case .skillExecutionErrorBusy: return "skillExecution.error.busy"
+        case .skillExecutionErrorCancelled: return "skillExecution.error.cancelled"
+        case .learningUnavailable: return "learning.unavailable"
+        case .learningProfileSaved: return "learning.profileSaved"
+        case .learningProcedureApproved: return "learning.procedureApproved"
+        case .learningProcedureDeclined: return "learning.procedureDeclined"
+        case .learningCleared: return "learning.cleared"
+        case .learningClearedKeyPending: return "learning.clearedKeyPending"
+        case .learningForgot: return "learning.forgot"
+        case .learningDeleted: return "learning.deleted"
+        case .learningRemembered: return "learning.remembered"
+        case .learningUpdated: return "learning.updated"
+        case .learningPendingProcedure: return "learning.pendingProcedure"
+        case .learningUseCountFailed: return "learning.useCountFailed"
+        case .learningTidyUnconfirmed: return "learning.tidyUnconfirmed"
+        case .learningTidyConflict: return "learning.tidyConflict"
+        case .learningTidyBusy: return "learning.tidyBusy"
+        case .learningTidyFailed: return "learning.tidyFailed"
+        case .learningWebNotSaved: return "learning.webNotSaved"
+        case .learningNotSaved: return "learning.notSaved"
+        case .learningSkillRecordFailed: return "learning.skillRecordFailed"
+        case .learningBusy: return "learning.busy"
+        case .learningConflict: return "learning.conflict"
+        case .learningProfileInvalidSentence: return "learning.profileInvalidSentence"
+        case .learningProfileDuplicate: return "learning.profileDuplicate"
+        case .learningProfileFull: return "learning.profileFull"
+        case .learningProfileMatchNotUnique: return "learning.profileMatchNotUnique"
+        case .learningProfileInvalidState: return "learning.profileInvalidState"
+        case .learningSkillNotSaved: return "learning.skillNotSaved"
+        case .learningBuiltinNotImported: return "learning.builtinNotImported"
+        case .learningMemorySensitive: return "learning.memorySensitive"
+        case .learningMemoryInvalid: return "learning.memoryInvalid"
+        case .learningMemoryFull: return "learning.memoryFull"
+        case .learningMemoryDuplicate: return "learning.memoryDuplicate"
+        case .learningMemoryStale: return "learning.memoryStale"
+        case .learningMemoryFailed: return "learning.memoryFailed"
+        case .learningSkillUnknownTool: return "learning.skillUnknownTool"
+        case .learningSkillSensitive: return "learning.skillSensitive"
+        case .learningSkillChanged: return "learning.skillChanged"
+        case .learningSkillDraftPending: return "learning.skillDraftPending"
+        case .learningSkillBuiltinName: return "learning.skillBuiltinName"
+        case .learningSkillMissingSection: return "learning.skillMissingSection"
+        case .learningSkillTooLong: return "learning.skillTooLong"
+        case .learningSkillCapacity: return "learning.skillCapacity"
+        case .learningSkillInvalid: return "learning.skillInvalid"
+        case .learningSaveFailed: return "learning.saveFailed"
+        case .archiveDeleteNotSaved: return "archive.deleteNotSaved"
+        case .archiveReadFailed: return "archive.readFailed"
+        case .browserTabNew: return "browserTab.new"
+        case .browserTabSignIn: return "browserTab.signIn"
+        case .browserTabPage: return "browserTab.page"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
         case .shellBackToChat: return "shell.backToChat"
@@ -1175,6 +1545,22 @@ enum AppText: Equatable {
 
     var arguments: [CVarArg] {
         switch self {
+        case .profileCount(let count): return [Int64(count)]
+        case .profileHistoryCount(let count): return [Int64(count)]
+        case .profileHistoryItem(let value): return [value]
+        case .profileEditorCount(let count): return [Int64(count)]
+        case .websiteSource(let value): return [value]
+        case .websiteRouteSummary(let count, let host): return [Int64(count), host]
+        case .websiteReplayMessage(let host, let count): return [host, Int64(count)]
+        case .websiteEditorSource(let value): return [value]
+        case .archiveRowSummary(let count, let date): return [Int64(count), date]
+        case .archiveModel(let value): return [value]
+        case .downloadLimits(let count, let active, let fileLimit, let totalLimit): return [Int64(count), Int64(active), fileLimit, totalLimit]
+        case .downloadDeleteMessage(let value): return [value]
+        case .downloadSizeUnknown(let value): return [value]
+        case .learningRemembered(let value): return [value]
+        case .learningUpdated(let value): return [value]
+        case .learningPendingProcedure(let value): return [value]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
@@ -1237,6 +1623,191 @@ enum AppText: Equatable {
         case .languageTraditional: return "繁體中文"
         case .languageEnglish: return "English"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
+        case .commonEdit: return "編輯"
+        case .commonBack: return "返回"
+        case .commonReload: return "重新讀取"
+        case .commonExpanded: return "已展開"
+        case .commonCollapsed: return "已收合"
+        case .commonClearText: return "清空"
+        case .commonHideKeyboard: return "收起鍵盤"
+        case .profileScope: return "個人檔案記錄你的背景與偏好，最多 20 條。修改會在下一次任務使用，當次要求優先。"
+        case .profileCount: return "現用 %1$lld／20 條"
+        case .profileMemoryOff: return "「使用記憶」已關閉；個人檔案仍會保留，但不會加入對話。"
+        case .profileUnavailable: return "資料目前無法讀取；原檔保留且不會被覆寫。"
+        case .profileActiveSection: return "現用個人檔案"
+        case .profileEmpty: return "尚未儲存個人檔案。"
+        case .profileAdd: return "新增個人檔案"
+        case .profileHistoryCount: return "已替換或刪除的紀錄（%1$lld）"
+        case .profileHistoryItem: return "已替換或刪除 · %1$@"
+        case .profileHistoryNote: return "歷史紀錄不會加入對話；清除所有記憶與 Skills 也會清除個人檔案及其歷史。"
+        case .profileTitle: return "個人檔案"
+        case .profileEditorSection: return "一句話描述背景或偏好"
+        case .profileEditorLabel: return "個人檔案內容"
+        case .profileEditorCount: return "%1$lld／160 字元；部分符號會占多個字元。"
+        case .profileEditorRule: return "請使用單句，不要包含換行、密碼、驗證碼或金鑰。"
+        case .profileEditorAddTitle: return "新增個人檔案"
+        case .profileEditorEditTitle: return "編輯個人檔案"
+        case .profileToolAdd: return "新增"
+        case .profileToolReplace: return "修改"
+        case .profileToolIntro: return "模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。"
+        case .profileToolQuote: return "你的原話"
+        case .profileToolBefore: return "目前內容"
+        case .profileToolAfter: return "儲存後內容"
+        case .profileToolDeleteNote: return "這條內容將不再用於後續對話；修改歷史會保留。"
+        case .profileToolTitle: return "核對個人檔案"
+        case .profileToolDecline: return "拒絕並停止"
+        case .profileToolApprove: return "核准並儲存"
+        case .commonDone: return "完成"
+        case .websiteSaveSection: return "儲存目前網站的知識"
+        case .websiteNotePlaceholder: return "記下此網站的操作方式或注意事項"
+        case .websiteSaveNote: return "儲存這條知識"
+        case .websiteSaveHelp: return "會一併保留本頁的一小段原文作為來源。網站內容不會自動變成你的個人記憶。"
+        case .websiteOpenFirst: return "先在瀏覽器開啟網頁，才能建立有來源的知識。"
+        case .websiteNotesSection: return "網站知識"
+        case .websiteSearch: return "搜尋網站知識"
+        case .websiteEmpty: return "尚無網站知識"
+        case .websiteSource: return "來源：%1$@"
+        case .websiteApproved: return "已核准"
+        case .websitePending: return "待確認"
+        case .websiteApprove: return "核准"
+        case .websiteRoutesSection: return "網頁路線"
+        case .websiteRoutesEmpty: return "尚無已確認路線"
+        case .websiteRouteSummary: return "%1$lld 步 · %2$@"
+        case .websiteRouteDisabled: return "已停用：同一步驟連續兩次不符"
+        case .websiteReplay: return "重走路線"
+        case .websiteRevisionsSection: return "知識修訂"
+        case .websiteRestore: return "還原這個版本"
+        case .websiteTitle: return "網站知識與路線"
+        case .websiteReplayTitle: return "重走已儲存的網頁路線？"
+        case .websiteReplayConfirm: return "開啟並逐步核對"
+        case .websiteReplayMessage: return "將開啟 %1$@ 的 %2$lld 個已記錄步驟。只讀取網頁；內容不符便停止，不會提交表單。"
+        case .websiteEditorSource: return "來源原文：%1$@"
+        case .websiteEditorTitle: return "編輯網站知識"
+        case .archiveRowSummary: return "%1$lld 輪 · %2$@"
+        case .archiveModel: return "保存時的模型：%1$@"
+        case .archiveDestinationMismatch: return "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。"
+        case .archiveYou: return "你"
+        case .archiveAssistant: return "助理"
+        case .archiveDelete: return "刪除對話"
+        case .archiveOpen: return "開啟此對話"
+        case .archiveDeleted: return "此對話已刪除"
+        case .archiveDetailTitle: return "保存的問答"
+        case .archiveDeleteTitle: return "刪除此對話？"
+        case .archiveDeleteMessage: return "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。"
+        case .memoryToolIntro: return "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。"
+        case .memoryToolAdd: return "新增"
+        case .memoryToolUpdate: return "修改"
+        case .memoryToolKindFact: return "事實"
+        case .memoryToolKindPreference: return "偏好"
+        case .memoryToolKindProcedure: return "操作偏好"
+        case .memoryToolKindMemory: return "記憶"
+        case .memoryToolKeywords: return "搜尋關鍵字"
+        case .memoryToolNoKeywords: return "無"
+        case .memoryToolKeywordSeparator: return "、"
+        case .memoryToolPendingNotice: return "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。"
+        case .memoryToolTitle: return "核對記憶修改"
+        case .memoryToolDecline: return "拒絕"
+        case .commonApprove: return "核准"
+        case .commonOK: return "好"
+        case .commonDismissNotice: return "關閉提示"
+        case .downloadEmptyTitle: return "尚無下載檔案"
+        case .downloadEmptyHelp: return "在瀏覽器手動下載後，可在這裡查看進度、分享或刪除檔案。"
+        case .downloadSizeUnknownProgress: return "檔案大小未知，下載中"
+        case .downloadCancel: return "取消下載"
+        case .downloadProcessPDF: return "處理 PDF"
+        case .downloadProcessPDFHint: return "開啟待審計畫，尚未讀取檔案"
+        case .downloadOpenOrShare: return "開啟或分享"
+        case .downloadLimits: return "最多保留 %1$lld 筆下載，同時下載 %2$lld 筆。單檔上限 %3$@，總量上限 %4$@。"
+        case .downloadStorage: return "檔案保存在此 App 中。請點選「開啟或分享」選擇其他 App，或儲存到「檔案」。下載中離開 App 可能中斷；不會自動開啟檔案。"
+        case .downloadTitle: return "下載項目"
+        case .downloadDeleteTitle: return "刪除下載項目？"
+        case .downloadDeleteConfirm: return "刪除檔案與紀錄"
+        case .downloadDeleteFailed: return "無法刪除，請稍後再試。"
+        case .downloadDeleteMessage: return "確定刪除「%1$@」？此 App 內的檔案會一併刪除，已分享的副本不受影響。"
+        case .downloadActionFailed: return "無法完成操作"
+        case .downloadOpenFailed: return "無法開啟下載檔案。"
+        case .downloadSizeUnknown: return "%1$@・大小未知"
+        case .downloadStatusWaiting: return "等待下載"
+        case .downloadStatusDownloading: return "下載中"
+        case .downloadStatusCancelling: return "正在取消"
+        case .downloadStatusCompleted: return "已完成"
+        case .downloadStatusCancelled: return "已取消"
+        case .downloadStatusFailed: return "下載失敗"
+        case .downloadErrorUnavailable: return "下載儲存空間目前無法使用。請稍後再試。"
+        case .downloadErrorUnsafeURL: return "無法下載此網址，或重新導向不符合下載規則。"
+        case .downloadErrorResearchDisabled: return "研究模式不會下載檔案；請回到瀏覽器手動下載。"
+        case .downloadErrorTooMany: return "下載數量已達上限，請先取消下載或刪除不需要的檔案。"
+        case .downloadErrorTooLarge: return "檔案或下載資料夾已超過容量上限。"
+        case .downloadErrorInvalidFile: return "下載檔案路徑或內容無法驗證。"
+        case .downloadErrorInvalidMetadata: return "下載紀錄無法讀取，已保留原有檔案。"
+        case .downloadErrorConfirmationRequired: return "請先確認是否刪除檔案。"
+        case .downloadErrorStillRunning: return "請先取消下載，再刪除紀錄。"
+        case .downloadErrorMissingFile: return "找不到已完成的下載檔案。"
+        case .downloadErrorNetwork: return "下載未完成，請檢查連線後重新從網頁下載。"
+        case .downloadErrorRedirectLimit: return "下載重新導向次數過多，已停止。"
+        case .downloadCleanupFailed: return "未能清除未完成檔案，將在下次啟動時重試。"
+        case .skillExecutionErrorUnavailable: return "這項執行能力尚未連接。"
+        case .skillExecutionErrorInvalidSelection: return "請重新選取可讀取的單一 PDF 檔案。"
+        case .skillExecutionErrorFileTooLarge: return "檔案超過 10 MiB，請先縮小檔案。"
+        case .skillExecutionErrorInvalidPDF: return "這個檔案不是可讀取的 PDF。"
+        case .skillExecutionErrorPasswordRequired: return "PDF 已鎖定，請提供正確密碼後重新建立計畫。"
+        case .skillExecutionErrorInvalidPages: return "頁碼格式或範圍不正確，請使用例如 1,3-5 的格式。"
+        case .skillExecutionErrorTooManyPages: return "一次最多處理 200 頁。"
+        case .skillExecutionErrorOutputTooLarge: return "文字結果超過 2 MiB，請縮小頁碼範圍。"
+        case .skillExecutionErrorApprovalRequired: return "此步驟尚未取得單次核准，或核准已使用。"
+        case .skillExecutionErrorExpiredApproval: return "核准已逾期，請重新檢視此步驟。"
+        case .skillExecutionErrorStalePlan: return "計畫已變更或結束，請重新建立計畫。"
+        case .skillExecutionErrorBusy: return "此計畫正在執行，請等候完成。"
+        case .skillExecutionErrorCancelled: return "執行已取消。"
+        case .learningUnavailable: return "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
+        case .learningProfileSaved: return "個人檔案已儲存，下一次對話任務開始時生效。"
+        case .learningProcedureApproved: return "已批准這條操作偏好，後續任務可以參考。"
+        case .learningProcedureDeclined: return "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。"
+        case .learningCleared: return "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。"
+        case .learningClearedKeyPending: return "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。"
+        case .learningForgot: return "已忘掉一條記憶"
+        case .learningDeleted: return "這條記憶已刪除"
+        case .learningRemembered: return "記住了：%1$@"
+        case .learningUpdated: return "更新了：%1$@"
+        case .learningPendingProcedure: return "待你確認做法：%1$@"
+        case .learningUseCountFailed: return "已讀取記憶，但使用次數未能儲存；原記憶保留。"
+        case .learningTidyUnconfirmed: return "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。"
+        case .learningTidyConflict: return "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"
+        case .learningTidyBusy: return "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。"
+        case .learningTidyFailed: return "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。"
+        case .learningWebNotSaved: return "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。"
+        case .learningNotSaved: return "學習資料未儲存；原有技能、網站知識與路線保留。"
+        case .learningSkillRecordFailed: return "任務已停止；技能結果紀錄未能儲存，既有資料保留。"
+        case .learningBusy: return "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。"
+        case .learningConflict: return "學習資料已在其他位置變更；本次未儲存，原有資料保留。請重新讀取並再次確認。"
+        case .learningProfileInvalidSentence: return "請輸入單句、1–160 字元的個人檔案；不可包含換行、密碼、驗證碼或金鑰等敏感資料。"
+        case .learningProfileDuplicate: return "這條個人檔案已經存在。"
+        case .learningProfileFull: return "個人檔案已達 20 條上限，請先整理。"
+        case .learningProfileMatchNotUnique: return "指定片段必須只出現在一條現用檔案中，而且只出現一次；請重新選擇。"
+        case .learningProfileInvalidState: return "個人檔案狀態無效；原資料保留，變更未套用。"
+        case .learningSkillNotSaved: return "技能未儲存。"
+        case .learningBuiltinNotImported: return "內建技能未匯入。"
+        case .learningMemorySensitive: return "密碼、驗證碼、金鑰與其他敏感資料不能存入記憶。"
+        case .learningMemoryInvalid: return "請輸入 1–200 字的記憶。"
+        case .learningMemoryFull: return "記憶已達 500 條上限，請先整理。"
+        case .learningMemoryDuplicate: return "這條記憶已經存在。"
+        case .learningMemoryStale: return "資料已有新變更，舊的整理結果未套用。"
+        case .learningMemoryFailed: return "記憶變更未完成，請檢查內容後重試。"
+        case .learningSkillUnknownTool: return "技能引用了此版本尚未提供的工具，未匯入或啟用。"
+        case .learningSkillSensitive: return "技能內含可能的敏感資料，未儲存。"
+        case .learningSkillChanged: return "原技能已被修改，請重新檢查更新內容。"
+        case .learningSkillDraftPending: return "同名技能已有待確認草稿，請先處理。"
+        case .learningSkillBuiltinName: return "這個名稱保留給內建技能，請使用不同的個人技能名稱。"
+        case .learningSkillMissingSection: return "技能須包含入口、步驟、容易出錯的地方、怎樣算辦成、什麼時候停下交給使用者五個段落。"
+        case .learningSkillTooLong: return "技能全文超過 4,000 字上限。"
+        case .learningSkillCapacity: return "技能或版本紀錄已達儲存上限；現有資料保留，這次變更未儲存。"
+        case .learningSkillInvalid: return "技能格式或狀態不符，未儲存；請檢查名稱、描述與全文。"
+        case .learningSaveFailed: return "無法儲存記憶資料，變更未套用。請解鎖裝置後重試。"
+        case .archiveDeleteNotSaved: return "刪除未儲存，原對話仍保留。請解鎖後重試。"
+        case .archiveReadFailed: return "無法讀取加密對話，原檔保留且不會被覆寫。請解鎖後重新讀取。"
+        case .browserTabNew: return "新分頁"
+        case .browserTabSignIn: return "網站登入頁面"
+        case .browserTabPage: return "網頁"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
         case .shellBackToChat: return "返回對話"

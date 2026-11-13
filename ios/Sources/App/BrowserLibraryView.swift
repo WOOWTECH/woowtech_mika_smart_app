@@ -36,7 +36,7 @@ struct BrowserLibraryView: View {
                 }
             }
             .navigationTitle(localizer.text(.browserLibrary))
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() }.accessibilityIdentifier("browser.library.close") } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.commonDone)) { dismiss() }.accessibilityIdentifier("browser.library.close") } }
             .toolbar { ToolbarItem(placement: .navigationBarLeading) { Button(localizer.text(.browserDownloads)) { showDownloads = true }.accessibilityIdentifier("browser.downloads.open") } }
             .sheet(isPresented: $showDownloads) { BrowserDownloadsView(manager: workspace.downloads, pdfDestination: pdfDestination) }
             .alert(localizer.text(.browserRenameBookmark), isPresented: $showRename) {
@@ -65,13 +65,13 @@ struct BrowserLibraryView: View {
                         workspace.selectTab(tab.id); dismiss()
                     } label: {
                         VStack(alignment: .leading) {
-                            Text(tab.title).lineLimit(2)
+                            Text(localizer.stored(tab.title)).lineLimit(2)
                             Text(tab.url?.host ?? localizer.text(.browserNoPage)).font(.caption)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.accessibilityIdentifier("browser.tabs.select.\(tab.id)")
                         .accessibilityValue(workspace.library.selectedID == tab.id ? localizer.text(.commonSelected) : localizer.text(.commonUnselected))
                     Button { workspace.closeTab(tab.id) } label: { Image(systemName: "xmark.circle") }
-                        .accessibilityLabel(localizer.text(.commonCloseName(name: tab.title))).accessibilityIdentifier("browser.tabs.close.\(tab.id)")
+                        .accessibilityLabel(localizer.text(.commonCloseName(name: localizer.stored(tab.title)))).accessibilityIdentifier("browser.tabs.close.\(tab.id)")
                 }.buttonStyle(.borderless)
             }
         }

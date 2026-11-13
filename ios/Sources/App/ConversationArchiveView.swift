@@ -16,8 +16,8 @@ import SwiftUI
                     Text(verbatim: localizer.text(.archiveBoundary))
                         .font(.footnote).accessibilityIdentifier("archive.boundary")
                     if let error = store.error {
-                        Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error")
-                        Button("重新讀取") { store.reload() }.accessibilityIdentifier("archive.reload")
+                        Text(localizer.stored(error)).foregroundStyle(.red).accessibilityIdentifier("archive.error")
+                        Button(localizer.text(.commonReload)) { store.reload() }.accessibilityIdentifier("archive.reload")
                     }
                 }
                 Section(localizer.text(.archiveSavedCount(count: store.conversations.count))) {
@@ -33,7 +33,9 @@ import SwiftUI
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(title).lineLimit(2)
-                                Text("\(record.turns.count) 輪 · \(record.updatedAt.formatted(date: .abbreviated, time: .shortened))")
+                                Text(localizer.text(.archiveRowSummary(count: record.turns.count, date: record.updatedAt.formatted(
+                                    Date.FormatStyle(date: .abbreviated, time: .shortened,
+                                                     locale: Locale(identifier: localizer.language.rawValue))))))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -95,10 +97,10 @@ import SwiftUI
                 VStack(spacing: 0) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("保存時的模型：\(record.destination.model)")
+                            Text(localizer.text(.archiveModel(value: record.destination.model)))
                             Text(record.destination.baseURL).font(.caption).textSelection(.enabled)
                             if !session.canOpenConversation(record) {
-                                Text("模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。")
+                                Text(localizer.text(.archiveDestinationMismatch))
                                     .accessibilityIdentifier("archive.destinationMismatch")
                             }
                             if let block = RecentConversationAccess.block(record, in: session),
@@ -107,19 +109,19 @@ import SwiftUI
                                     .accessibilityIdentifier("archive.switchBlocked")
                             }
                             ForEach(Array(record.turns.enumerated()), id: \.element.userID) { index, turn in
-                                Text("你").font(.caption.bold())
+                                Text(localizer.text(.archiveYou)).font(.caption.bold())
                                 Text(turn.userText).textSelection(.enabled)
                                     .accessibilityIdentifier("archive.turn.\(index).user")
-                                Text("助理").font(.caption.bold())
+                                Text(localizer.text(.archiveAssistant)).font(.caption.bold())
                                 Text(turn.assistantText).textSelection(.enabled)
                                     .accessibilityIdentifier("archive.turn.\(index).assistant")
                             }
-                            if let error = store.error { Text(error).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
+                            if let error = store.error { Text(localizer.stored(error)).foregroundStyle(.red).accessibilityIdentifier("archive.error") }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).padding()
                     }
                     HStack {
-                        Button("刪除對話", role: .destructive) {
+                        Button(localizer.text(.archiveDelete), role: .destructive) {
                             pendingDeleteApproval = ArchiveDeletionApproval.capture(id: id, in: session)
                             confirmsDelete = pendingDeleteApproval != nil
                         }
@@ -128,23 +130,23 @@ import SwiftUI
                                        session.pendingMemoryReview != nil))
                             .accessibilityIdentifier("archive.delete")
                         Spacer()
-                        Button("開啟此對話", action: open)
+                        Button(localizer.text(.archiveOpen), action: open)
                             .disabled(RecentConversationAccess.block(record, in: session) != nil)
                             .accessibilityIdentifier("archive.open")
                     }.padding().background(.bar)
                 }
-            } else { Text("此對話已刪除").accessibilityIdentifier("archive.deleted") }
+            } else { Text(localizer.text(.archiveDeleted)).accessibilityIdentifier("archive.deleted") }
         }
-        .navigationTitle("保存的問答")
-        .alert("刪除此對話？", isPresented: $confirmsDelete) {
-            Button("取消", role: .cancel) { pendingDeleteApproval = nil }
-            Button("刪除", role: .destructive) {
+        .navigationTitle(localizer.text(.archiveDetailTitle))
+        .alert(localizer.text(.archiveDeleteTitle), isPresented: $confirmsDelete) {
+            Button(localizer.text(.commonCancel), role: .cancel) { pendingDeleteApproval = nil }
+            Button(localizer.text(.commonDelete), role: .destructive) {
                 let approved = pendingDeleteApproval
                 pendingDeleteApproval = nil
                 if let approved, ArchiveDeletionAction.delete(approved: approved, in: session) { dismiss() }
             }.accessibilityIdentifier("archive.delete.confirm")
         } message: {
-            let original = "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。"
+            let original = localizer.text(.archiveDeleteMessage)
             let warnings = pendingDeleteApproval?.newConversation?.warningKeys.map { localizer.text($0) }.joined(separator: "\n")
             Text(original + (warnings.map { "\n" + $0 } ?? ""))
         }

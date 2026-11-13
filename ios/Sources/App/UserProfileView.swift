@@ -7,35 +7,36 @@ struct UserProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editor: ProfileEditorDestination?
     @State private var historyExpanded = false
+    @Environment(\.appLocalizer) private var localizer
 
     var body: some View {
         List {
             Section {
-                Text("個人檔案記錄你的背景與偏好，最多 20 條。修改會在下一次任務使用，當次要求優先。")
+                Text(localizer.text(.profileScope))
                     .accessibilityIdentifier("profile.scope")
-                Text("現用 \(store.profile.snapshot().entries.count)／20 條")
+                Text(localizer.text(.profileCount(count: store.profile.snapshot().entries.count)))
                     .accessibilityIdentifier("profile.count")
                 if !store.memory.preferences.useMemory {
-                    Text("「使用記憶」已關閉；個人檔案仍會保留，但不會加入對話。")
+                    Text(localizer.text(.profileMemoryOff))
                         .accessibilityIdentifier("profile.disabled")
                 }
             }
             if !store.available {
                 Section {
-                    Text("資料目前無法讀取；原檔保留且不會被覆寫。")
+                    Text(localizer.text(.profileUnavailable))
                         .accessibilityIdentifier("profile.unavailable")
-                    Button("重新讀取") { store.reload() }
+                    Button(localizer.text(.commonReload)) { store.reload() }
                         .accessibilityIdentifier("profile.reload")
                 }
             }
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: localizer.stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("profile.error")
             }
             if store.available {
-                Section("現用個人檔案") {
+                Section(localizer.text(.profileActiveSection)) {
                     if store.profile.snapshot().entries.isEmpty {
-                        Text("尚未儲存個人檔案。")
+                        Text(localizer.text(.profileEmpty))
                             .accessibilityIdentifier("profile.empty")
                     }
                     ForEach(store.profile.snapshot().entries) { entry in
@@ -43,10 +44,10 @@ struct UserProfileView: View {
                             Text(verbatim: entry.text)
                                 .accessibilityIdentifier("profile.item.\(entry.id.uuidString)")
                             HStack(spacing: 24) {
-                                Button("編輯") { store.dismissNotice(); editor = .init(entry: entry) }
+                                Button(localizer.text(.commonEdit)) { store.dismissNotice(); editor = .init(entry: entry) }
                                     .accessibilityIdentifier("profile.edit.\(entry.id.uuidString)")
-                                Button("刪除", role: .destructive) {
-                                    store.deleteProfileReference(segment: entry.text)
+                                Button(localizer.text(.commonDelete), role: .destructive) {
+                                    _ = store.deleteProfileReference(segment: entry.text)
                                 }
                                 .accessibilityIdentifier("profile.delete.\(entry.id.uuidString)")
                             }
@@ -54,11 +55,11 @@ struct UserProfileView: View {
                             .frame(minHeight: 44)
                         }
                     }
-                    Button("新增個人檔案") { store.dismissNotice(); editor = .init(entry: nil) }
+                    Button(localizer.text(.profileAdd)) { store.dismissNotice(); editor = .init(entry: nil) }
                         .accessibilityIdentifier("profile.add")
                 }
                 if let notice = store.notice {
-                    Text(verbatim: notice).accessibilityIdentifier("profile.notice")
+                    Text(verbatim: localizer.stored(notice)).accessibilityIdentifier("profile.notice")
                 }
                 let history = store.profile.entries.filter { $0.status == .superseded }
                 if !history.isEmpty {
@@ -70,35 +71,37 @@ struct UserProfileView: View {
                             historyExpanded.toggle()
                         } label: {
                             HStack {
-                                Text("已替換或刪除的紀錄（\(history.count)）")
+                                Text(localizer.text(.profileHistoryCount(count: history.count)))
                                 Spacer()
                                 Image(systemName: historyExpanded ? "chevron.down" : "chevron.right")
                             }
                         }
                         .accessibilityIdentifier("profile.history")
-                        .accessibilityValue(historyExpanded ? "已展開" : "已收合")
+                        .accessibilityValue(localizer.text(historyExpanded ? .commonExpanded : .commonCollapsed))
                         if historyExpanded {
                             ForEach(history.reversed()) { entry in
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(verbatim: entry.text)
                                         .accessibilityIdentifier("profile.history.item.\(entry.id.uuidString)")
-                                    Text("已替換或刪除 · \(entry.supersededAt!.formatted(date: .abbreviated, time: .shortened))")
+                                    Text(localizer.text(.profileHistoryItem(value: entry.supersededAt!.formatted(
+                                        Date.FormatStyle(date: .abbreviated, time: .shortened,
+                                                         locale: Locale(identifier: localizer.language.rawValue))))))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                         }
-                        Text("歷史紀錄不會加入對話；清除所有記憶與 Skills 也會清除個人檔案及其歷史。")
+                        Text(localizer.text(.profileHistoryNote))
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
         }
-        .navigationTitle("個人檔案")
+        .navigationTitle(localizer.text(.profileTitle))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("profile.list")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("返回") { dismiss() }.accessibilityIdentifier("profile.close")
+                Button(localizer.text(.commonBack)) { dismiss() }.accessibilityIdentifier("profile.close")
             }
         }
         .sheet(item: $editor) { destination in
@@ -120,6 +123,7 @@ private struct UserProfileEditor: View {
     @State private var text: String
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appLocalizer) private var localizer
 
     init(store: LearningStore, entry: UserProfileEntry?) {
         self.store = store; self.entry = entry
@@ -129,33 +133,33 @@ private struct UserProfileEditor: View {
 
     var body: some View {
         Form {
-            Section("一句話描述背景或偏好") {
+            Section(localizer.text(.profileEditorSection)) {
                 TextEditor(text: $text)
                     .frame(minHeight: 140)
                     .focused($focused)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .accessibilityLabel("個人檔案內容")
+                    .accessibilityLabel(localizer.text(.profileEditorLabel))
                     .accessibilityIdentifier("profile.editor.text")
-                Text("\(text.utf16.count)／160 字元；部分符號會占多個字元。")
+                Text(localizer.text(.profileEditorCount(count: text.utf16.count)))
                     .font(.caption).foregroundStyle(.secondary)
                     .accessibilityIdentifier("profile.editor.count")
-                Text("請使用單句，不要包含換行、密碼、驗證碼或金鑰。")
+                Text(localizer.text(.profileEditorRule))
                     .font(.footnote).foregroundStyle(.secondary)
             }
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: localizer.stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("profile.editor.error")
             }
         }
-        .navigationTitle(entry == nil ? "新增個人檔案" : "編輯個人檔案")
+        .navigationTitle(localizer.text(entry == nil ? .profileEditorAddTitle : .profileEditorEditTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.accessibilityIdentifier("profile.editor.cancel")
+                Button(localizer.text(.commonCancel)) { dismiss() }.accessibilityIdentifier("profile.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("儲存") {
+                Button(localizer.text(.commonSave)) {
                     let saved: Bool
                     if let entry {
                         saved = store.replaceProfileReference(segment: entry.text, replacement: text,
@@ -172,9 +176,9 @@ private struct UserProfileEditor: View {
                 .accessibilityIdentifier("profile.editor.save")
             }
             ToolbarItemGroup(placement: .keyboard) {
-                Button("清空") { text = "" }.accessibilityIdentifier("profile.editor.clear")
+                Button(localizer.text(.commonClearText)) { text = "" }.accessibilityIdentifier("profile.editor.clear")
                 Spacer()
-                Button("收起鍵盤") { focused = false }.accessibilityIdentifier("profile.editor.done")
+                Button(localizer.text(.commonHideKeyboard)) { focused = false }.accessibilityIdentifier("profile.editor.done")
             }
         }
     }

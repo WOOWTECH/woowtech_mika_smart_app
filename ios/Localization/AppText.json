@@ -61,6 +61,1775 @@
       }
     },
     {
+      "case": "commonEdit",
+      "key": "common.edit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "編輯",
+        "en": "Edit"
+      }
+    },
+    {
+      "case": "commonBack",
+      "key": "common.back",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "返回",
+        "en": "Back"
+      }
+    },
+    {
+      "case": "commonReload",
+      "key": "common.reload",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重新讀取",
+        "en": "Reload"
+      }
+    },
+    {
+      "case": "commonExpanded",
+      "key": "common.expanded",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已展開",
+        "en": "Expanded"
+      }
+    },
+    {
+      "case": "commonCollapsed",
+      "key": "common.collapsed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已收合",
+        "en": "Collapsed"
+      }
+    },
+    {
+      "case": "commonClearText",
+      "key": "common.clearText",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "清空",
+        "en": "Clear"
+      }
+    },
+    {
+      "case": "commonHideKeyboard",
+      "key": "common.hideKeyboard",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "收起鍵盤",
+        "en": "Hide keyboard"
+      }
+    },
+    {
+      "case": "profileScope",
+      "key": "profile.scope",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案記錄你的背景與偏好，最多 20 條。修改會在下一次任務使用，當次要求優先。",
+        "en": "Your profile keeps your background and preferences, up to 20 entries. Changes apply from your next task; what you ask in a task comes first."
+      }
+    },
+    {
+      "case": "profileCount",
+      "key": "profile.count",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "現用 %1$lld／20 條",
+        "en": "%1$lld of 20 in use"
+      }
+    },
+    {
+      "case": "profileMemoryOff",
+      "key": "profile.memoryOff",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "「使用記憶」已關閉；個人檔案仍會保留，但不會加入對話。",
+        "en": "“Use memory” is off. Your profile is kept but isn’t added to conversations."
+      }
+    },
+    {
+      "case": "profileUnavailable",
+      "key": "profile.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "資料目前無法讀取；原檔保留且不會被覆寫。",
+        "en": "The data can’t be read right now. The original file is kept and won’t be overwritten."
+      }
+    },
+    {
+      "case": "profileActiveSection",
+      "key": "profile.activeSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "現用個人檔案",
+        "en": "Active profile"
+      }
+    },
+    {
+      "case": "profileEmpty",
+      "key": "profile.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚未儲存個人檔案。",
+        "en": "No profile saved yet."
+      }
+    },
+    {
+      "case": "profileAdd",
+      "key": "profile.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增個人檔案",
+        "en": "Add to profile"
+      }
+    },
+    {
+      "case": "profileHistoryCount",
+      "key": "profile.historyCount",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已替換或刪除的紀錄（%1$lld）",
+        "en": "Replaced or deleted entries (%1$lld)"
+      }
+    },
+    {
+      "case": "profileHistoryItem",
+      "key": "profile.historyItem",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已替換或刪除 · %1$@",
+        "en": "Replaced or deleted · %1$@"
+      }
+    },
+    {
+      "case": "profileHistoryNote",
+      "key": "profile.historyNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "歷史紀錄不會加入對話；清除所有記憶與 Skills 也會清除個人檔案及其歷史。",
+        "en": "History isn’t added to conversations. Clearing all memories and skills also clears your profile and its history."
+      }
+    },
+    {
+      "case": "profileTitle",
+      "key": "profile.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案",
+        "en": "Profile"
+      }
+    },
+    {
+      "case": "profileEditorSection",
+      "key": "profile.editor.section",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一句話描述背景或偏好",
+        "en": "Describe your background or a preference in one sentence"
+      }
+    },
+    {
+      "case": "profileEditorLabel",
+      "key": "profile.editor.label",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案內容",
+        "en": "Profile entry"
+      }
+    },
+    {
+      "case": "profileEditorCount",
+      "key": "profile.editor.count",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$lld／160 字元；部分符號會占多個字元。",
+        "en": "%1$lld/160 characters; some symbols count as more than one."
+      }
+    },
+    {
+      "case": "profileEditorRule",
+      "key": "profile.editor.rule",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請使用單句，不要包含換行、密碼、驗證碼或金鑰。",
+        "en": "Use one sentence, with no line breaks, passwords, verification codes or keys."
+      }
+    },
+    {
+      "case": "profileEditorAddTitle",
+      "key": "profile.editor.addTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增個人檔案",
+        "en": "Add to profile"
+      }
+    },
+    {
+      "case": "profileEditorEditTitle",
+      "key": "profile.editor.editTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "編輯個人檔案",
+        "en": "Edit profile entry"
+      }
+    },
+    {
+      "case": "profileToolAdd",
+      "key": "profileTool.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "profileToolReplace",
+      "key": "profileTool.replace",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "修改",
+        "en": "Change"
+      }
+    },
+    {
+      "case": "profileToolIntro",
+      "key": "profileTool.intro",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。",
+        "en": "The model proposes this profile change. Check that it matches what you asked for this time. Once you approve, it’s saved and applies from your next conversation."
+      }
+    },
+    {
+      "case": "profileToolQuote",
+      "key": "profileTool.quote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你的原話",
+        "en": "Your words"
+      }
+    },
+    {
+      "case": "profileToolBefore",
+      "key": "profileTool.before",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前內容",
+        "en": "Current entry"
+      }
+    },
+    {
+      "case": "profileToolAfter",
+      "key": "profileTool.after",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存後內容",
+        "en": "Entry after saving"
+      }
+    },
+    {
+      "case": "profileToolDeleteNote",
+      "key": "profileTool.deleteNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條內容將不再用於後續對話；修改歷史會保留。",
+        "en": "This entry won’t be used in later conversations; its history is kept."
+      }
+    },
+    {
+      "case": "profileToolTitle",
+      "key": "profileTool.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核對個人檔案",
+        "en": "Review profile change"
+      }
+    },
+    {
+      "case": "profileToolDecline",
+      "key": "profileTool.decline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "拒絕並停止",
+        "en": "Decline and stop"
+      }
+    },
+    {
+      "case": "profileToolApprove",
+      "key": "profileTool.approve",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准並儲存",
+        "en": "Approve and save"
+      }
+    },
+    {
+      "case": "commonDone",
+      "key": "common.done",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "完成",
+        "en": "Done"
+      }
+    },
+    {
+      "case": "websiteSaveSection",
+      "key": "website.saveSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存目前網站的知識",
+        "en": "Save a note about this website"
+      }
+    },
+    {
+      "case": "websiteNotePlaceholder",
+      "key": "website.notePlaceholder",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記下此網站的操作方式或注意事項",
+        "en": "How this site works, or what to watch for"
+      }
+    },
+    {
+      "case": "websiteSaveNote",
+      "key": "website.saveNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存這條知識",
+        "en": "Save this note"
+      }
+    },
+    {
+      "case": "websiteSaveHelp",
+      "key": "website.saveHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會一併保留本頁的一小段原文作為來源。網站內容不會自動變成你的個人記憶。",
+        "en": "A short excerpt of this page is kept as the source. Website content never becomes your personal memory on its own."
+      }
+    },
+    {
+      "case": "websiteOpenFirst",
+      "key": "website.openFirst",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "先在瀏覽器開啟網頁，才能建立有來源的知識。",
+        "en": "Open a page in the browser first, so the note has a source."
+      }
+    },
+    {
+      "case": "websiteNotesSection",
+      "key": "website.notesSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站知識",
+        "en": "Website notes"
+      }
+    },
+    {
+      "case": "websiteSearch",
+      "key": "website.search",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋網站知識",
+        "en": "Search website notes"
+      }
+    },
+    {
+      "case": "websiteEmpty",
+      "key": "website.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚無網站知識",
+        "en": "No website notes yet"
+      }
+    },
+    {
+      "case": "websiteSource",
+      "key": "website.source",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "來源：%1$@",
+        "en": "Source: %1$@"
+      }
+    },
+    {
+      "case": "websiteApproved",
+      "key": "website.approved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已核准",
+        "en": "Approved"
+      }
+    },
+    {
+      "case": "websitePending",
+      "key": "website.pending",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "待確認",
+        "en": "To review"
+      }
+    },
+    {
+      "case": "websiteApprove",
+      "key": "website.approve",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准",
+        "en": "Approve"
+      }
+    },
+    {
+      "case": "websiteRoutesSection",
+      "key": "website.routesSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁路線",
+        "en": "Web routes"
+      }
+    },
+    {
+      "case": "websiteRoutesEmpty",
+      "key": "website.routesEmpty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚無已確認路線",
+        "en": "No confirmed routes yet"
+      }
+    },
+    {
+      "case": "websiteRouteSummary",
+      "key": "website.routeSummary",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        },
+        {
+          "name": "host",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$lld 步 · %2$@",
+        "en": "Steps: %1$lld · %2$@"
+      }
+    },
+    {
+      "case": "websiteRouteDisabled",
+      "key": "website.routeDisabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停用：同一步驟連續兩次不符",
+        "en": "Turned off: the same step didn’t match twice in a row"
+      }
+    },
+    {
+      "case": "websiteReplay",
+      "key": "website.replay",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重走路線",
+        "en": "Replay route"
+      }
+    },
+    {
+      "case": "websiteRevisionsSection",
+      "key": "website.revisionsSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "知識修訂",
+        "en": "Note revisions"
+      }
+    },
+    {
+      "case": "websiteRestore",
+      "key": "website.restore",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還原這個版本",
+        "en": "Restore this version"
+      }
+    },
+    {
+      "case": "websiteTitle",
+      "key": "website.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站知識與路線",
+        "en": "Website notes and routes"
+      }
+    },
+    {
+      "case": "websiteReplayTitle",
+      "key": "website.replayTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重走已儲存的網頁路線？",
+        "en": "Replay the saved web route?"
+      }
+    },
+    {
+      "case": "websiteReplayConfirm",
+      "key": "website.replayConfirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟並逐步核對",
+        "en": "Open and check each step"
+      }
+    },
+    {
+      "case": "websiteReplayMessage",
+      "key": "website.replayMessage",
+      "parameters": [
+        {
+          "name": "host",
+          "type": "String"
+        },
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "將開啟 %1$@ 的 %2$lld 個已記錄步驟。只讀取網頁；內容不符便停止，不會提交表單。",
+        "en": "Opens %1$@ and follows %2$lld recorded steps. It only reads pages, stops when something doesn’t match, and never submits forms."
+      }
+    },
+    {
+      "case": "websiteEditorSource",
+      "key": "website.editorSource",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "來源原文：%1$@",
+        "en": "Source text: %1$@"
+      }
+    },
+    {
+      "case": "websiteEditorTitle",
+      "key": "website.editorTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "編輯網站知識",
+        "en": "Edit website note"
+      }
+    },
+    {
+      "case": "archiveRowSummary",
+      "key": "archive.rowSummary",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        },
+        {
+          "name": "date",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$lld 輪 · %2$@",
+        "en": "Exchanges: %1$lld · %2$@"
+      }
+    },
+    {
+      "case": "archiveModel",
+      "key": "archive.model",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "保存時的模型：%1$@",
+        "en": "Model when saved: %1$@"
+      }
+    },
+    {
+      "case": "archiveDestinationMismatch",
+      "key": "archive.destinationMismatch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型服務、模型或金鑰身分與目前設定不同；僅供檢視，不會帶入目前服務。",
+        "en": "The model service, model or key differs from your current settings. You can read this conversation, but it won’t be carried into the current service."
+      }
+    },
+    {
+      "case": "archiveYou",
+      "key": "archive.you",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你",
+        "en": "You"
+      }
+    },
+    {
+      "case": "archiveAssistant",
+      "key": "archive.assistant",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "助理",
+        "en": "Assistant"
+      }
+    },
+    {
+      "case": "archiveDelete",
+      "key": "archive.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除對話",
+        "en": "Delete conversation"
+      }
+    },
+    {
+      "case": "archiveOpen",
+      "key": "archive.open",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟此對話",
+        "en": "Open this conversation"
+      }
+    },
+    {
+      "case": "archiveDeleted",
+      "key": "archive.deleted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此對話已刪除",
+        "en": "This conversation was deleted"
+      }
+    },
+    {
+      "case": "archiveDetailTitle",
+      "key": "archive.detailTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "保存的問答",
+        "en": "Saved conversation"
+      }
+    },
+    {
+      "case": "archiveDeleteTitle",
+      "key": "archive.deleteTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除此對話？",
+        "en": "Delete this conversation?"
+      }
+    },
+    {
+      "case": "archiveDeleteMessage",
+      "key": "archive.deleteMessage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會移除已保存的問答、附件擷取文字與引文；已確認的記憶與個人檔案保留。",
+        "en": "This removes the saved exchanges, the text taken from attachments and the quotations. Confirmed memories and your profile are kept."
+      }
+    },
+    {
+      "case": "memoryToolIntro",
+      "key": "memoryTool.intro",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。",
+        "en": "Check this memory change. Once you approve, it’s saved and you get an Undo button."
+      }
+    },
+    {
+      "case": "memoryToolAdd",
+      "key": "memoryTool.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "memoryToolUpdate",
+      "key": "memoryTool.update",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "修改",
+        "en": "Change"
+      }
+    },
+    {
+      "case": "memoryToolKindFact",
+      "key": "memoryTool.kindFact",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "事實",
+        "en": "Fact"
+      }
+    },
+    {
+      "case": "memoryToolKindPreference",
+      "key": "memoryTool.kindPreference",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "偏好",
+        "en": "Preference"
+      }
+    },
+    {
+      "case": "memoryToolKindProcedure",
+      "key": "memoryTool.kindProcedure",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "操作偏好",
+        "en": "Procedure"
+      }
+    },
+    {
+      "case": "memoryToolKindMemory",
+      "key": "memoryTool.kindMemory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶",
+        "en": "Memory"
+      }
+    },
+    {
+      "case": "memoryToolKeywords",
+      "key": "memoryTool.keywords",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "搜尋關鍵字",
+        "en": "Search keywords"
+      }
+    },
+    {
+      "case": "memoryToolNoKeywords",
+      "key": "memoryTool.noKeywords",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無",
+        "en": "None"
+      }
+    },
+    {
+      "case": "memoryToolKeywordSeparator",
+      "key": "memoryTool.keywordSeparator",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "、",
+        "en": ", "
+      }
+    },
+    {
+      "case": "memoryToolPendingNotice",
+      "key": "memoryTool.pendingNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。",
+        "en": "This procedure is listed for review first. Later tasks use it only after you approve it separately."
+      }
+    },
+    {
+      "case": "memoryToolTitle",
+      "key": "memoryTool.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核對記憶修改",
+        "en": "Review memory change"
+      }
+    },
+    {
+      "case": "memoryToolDecline",
+      "key": "memoryTool.decline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "拒絕",
+        "en": "Decline"
+      }
+    },
+    {
+      "case": "commonApprove",
+      "key": "common.approve",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准",
+        "en": "Approve"
+      }
+    },
+    {
+      "case": "commonOK",
+      "key": "common.ok",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "好",
+        "en": "OK"
+      }
+    },
+    {
+      "case": "commonDismissNotice",
+      "key": "common.dismissNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉提示",
+        "en": "Dismiss"
+      }
+    },
+    {
+      "case": "downloadEmptyTitle",
+      "key": "download.emptyTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "尚無下載檔案",
+        "en": "No downloads yet"
+      }
+    },
+    {
+      "case": "downloadEmptyHelp",
+      "key": "download.emptyHelp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在瀏覽器手動下載後，可在這裡查看進度、分享或刪除檔案。",
+        "en": "After you download a file in the browser, you can follow its progress, share it or delete it here."
+      }
+    },
+    {
+      "case": "downloadSizeUnknownProgress",
+      "key": "download.sizeUnknownProgress",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檔案大小未知，下載中",
+        "en": "Downloading; file size unknown"
+      }
+    },
+    {
+      "case": "downloadCancel",
+      "key": "download.cancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消下載",
+        "en": "Cancel download"
+      }
+    },
+    {
+      "case": "downloadProcessPDF",
+      "key": "download.processPDF",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "處理 PDF",
+        "en": "Process PDF"
+      }
+    },
+    {
+      "case": "downloadProcessPDFHint",
+      "key": "download.processPDFHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟待審計畫，尚未讀取檔案",
+        "en": "Opens a plan for you to review; the file isn’t read yet"
+      }
+    },
+    {
+      "case": "downloadOpenOrShare",
+      "key": "download.openOrShare",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟或分享",
+        "en": "Open or share"
+      }
+    },
+    {
+      "case": "downloadLimits",
+      "key": "download.limits",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        },
+        {
+          "name": "active",
+          "type": "Int"
+        },
+        {
+          "name": "fileLimit",
+          "type": "String"
+        },
+        {
+          "name": "totalLimit",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "最多保留 %1$lld 筆下載，同時下載 %2$lld 筆。單檔上限 %3$@，總量上限 %4$@。",
+        "en": "Keeps up to %1$lld downloads, %2$lld at a time. Up to %3$@ per file and %4$@ in total."
+      }
+    },
+    {
+      "case": "downloadStorage",
+      "key": "download.storage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檔案保存在此 App 中。請點選「開啟或分享」選擇其他 App，或儲存到「檔案」。下載中離開 App 可能中斷；不會自動開啟檔案。",
+        "en": "Files are kept in this app. Tap “Open or share” to pick another app or save to Files. Leaving the app during a download may interrupt it. Files never open on their own."
+      }
+    },
+    {
+      "case": "downloadTitle",
+      "key": "download.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載項目",
+        "en": "Downloads"
+      }
+    },
+    {
+      "case": "downloadDeleteTitle",
+      "key": "download.deleteTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除下載項目？",
+        "en": "Delete this download?"
+      }
+    },
+    {
+      "case": "downloadDeleteConfirm",
+      "key": "download.deleteConfirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除檔案與紀錄",
+        "en": "Delete file and record"
+      }
+    },
+    {
+      "case": "downloadDeleteFailed",
+      "key": "download.deleteFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法刪除，請稍後再試。",
+        "en": "Couldn’t delete. Try again later."
+      }
+    },
+    {
+      "case": "downloadDeleteMessage",
+      "key": "download.deleteMessage",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "確定刪除「%1$@」？此 App 內的檔案會一併刪除，已分享的副本不受影響。",
+        "en": "Delete “%1$@”? The file in this app is deleted too; copies you already shared aren’t affected."
+      }
+    },
+    {
+      "case": "downloadActionFailed",
+      "key": "download.actionFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法完成操作",
+        "en": "Couldn’t finish that"
+      }
+    },
+    {
+      "case": "downloadOpenFailed",
+      "key": "download.openFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法開啟下載檔案。",
+        "en": "Couldn’t open the downloaded file."
+      }
+    },
+    {
+      "case": "downloadSizeUnknown",
+      "key": "download.sizeUnknown",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@・大小未知",
+        "en": "%1$@ · size unknown"
+      }
+    },
+    {
+      "case": "downloadStatusWaiting",
+      "key": "download.status.waiting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等待下載",
+        "en": "Waiting"
+      }
+    },
+    {
+      "case": "downloadStatusDownloading",
+      "key": "download.status.downloading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載中",
+        "en": "Downloading"
+      }
+    },
+    {
+      "case": "downloadStatusCancelling",
+      "key": "download.status.cancelling",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在取消",
+        "en": "Cancelling"
+      }
+    },
+    {
+      "case": "downloadStatusCompleted",
+      "key": "download.status.completed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已完成",
+        "en": "Completed"
+      }
+    },
+    {
+      "case": "downloadStatusCancelled",
+      "key": "download.status.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已取消",
+        "en": "Cancelled"
+      }
+    },
+    {
+      "case": "downloadStatusFailed",
+      "key": "download.status.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載失敗",
+        "en": "Download failed"
+      }
+    },
+    {
+      "case": "downloadErrorUnavailable",
+      "key": "download.error.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載儲存空間目前無法使用。請稍後再試。",
+        "en": "Download storage isn’t available right now. Try again later."
+      }
+    },
+    {
+      "case": "downloadErrorUnsafeURL",
+      "key": "download.error.unsafeURL",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法下載此網址，或重新導向不符合下載規則。",
+        "en": "This address can’t be downloaded, or a redirect broke the download rules."
+      }
+    },
+    {
+      "case": "downloadErrorResearchDisabled",
+      "key": "download.error.researchDisabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究模式不會下載檔案；請回到瀏覽器手動下載。",
+        "en": "Research mode doesn’t download files. Go back to the browser and download it yourself."
+      }
+    },
+    {
+      "case": "downloadErrorTooMany",
+      "key": "download.error.tooMany",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載數量已達上限，請先取消下載或刪除不需要的檔案。",
+        "en": "You’ve reached the download limit. Cancel a download or delete files you don’t need."
+      }
+    },
+    {
+      "case": "downloadErrorTooLarge",
+      "key": "download.error.tooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檔案或下載資料夾已超過容量上限。",
+        "en": "The file or the downloads folder is over its size limit."
+      }
+    },
+    {
+      "case": "downloadErrorInvalidFile",
+      "key": "download.error.invalidFile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載檔案路徑或內容無法驗證。",
+        "en": "The downloaded file’s path or content couldn’t be verified."
+      }
+    },
+    {
+      "case": "downloadErrorInvalidMetadata",
+      "key": "download.error.invalidMetadata",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載紀錄無法讀取，已保留原有檔案。",
+        "en": "The download list couldn’t be read. The files were kept."
+      }
+    },
+    {
+      "case": "downloadErrorConfirmationRequired",
+      "key": "download.error.confirmationRequired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先確認是否刪除檔案。",
+        "en": "Confirm deleting the file first."
+      }
+    },
+    {
+      "case": "downloadErrorStillRunning",
+      "key": "download.error.stillRunning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請先取消下載，再刪除紀錄。",
+        "en": "Cancel the download before deleting its record."
+      }
+    },
+    {
+      "case": "downloadErrorMissingFile",
+      "key": "download.error.missingFile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "找不到已完成的下載檔案。",
+        "en": "The completed download can’t be found."
+      }
+    },
+    {
+      "case": "downloadErrorNetwork",
+      "key": "download.error.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載未完成，請檢查連線後重新從網頁下載。",
+        "en": "The download didn’t finish. Check your connection and download it again from the page."
+      }
+    },
+    {
+      "case": "downloadErrorRedirectLimit",
+      "key": "download.error.redirectLimit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下載重新導向次數過多，已停止。",
+        "en": "Too many redirects; the download stopped."
+      }
+    },
+    {
+      "case": "downloadCleanupFailed",
+      "key": "download.cleanupFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "未能清除未完成檔案，將在下次啟動時重試。",
+        "en": "Couldn’t clear unfinished files. It will try again next launch."
+      }
+    },
+    {
+      "case": "skillExecutionErrorUnavailable",
+      "key": "skillExecution.error.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這項執行能力尚未連接。",
+        "en": "This capability isn’t connected yet."
+      }
+    },
+    {
+      "case": "skillExecutionErrorInvalidSelection",
+      "key": "skillExecution.error.invalidSelection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請重新選取可讀取的單一 PDF 檔案。",
+        "en": "Select one readable PDF file again."
+      }
+    },
+    {
+      "case": "skillExecutionErrorFileTooLarge",
+      "key": "skillExecution.error.fileTooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檔案超過 10 MiB，請先縮小檔案。",
+        "en": "The file is over 10 MiB. Make it smaller first."
+      }
+    },
+    {
+      "case": "skillExecutionErrorInvalidPDF",
+      "key": "skillExecution.error.invalidPDF",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個檔案不是可讀取的 PDF。",
+        "en": "This file isn’t a readable PDF."
+      }
+    },
+    {
+      "case": "skillExecutionErrorPasswordRequired",
+      "key": "skillExecution.error.passwordRequired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "PDF 已鎖定，請提供正確密碼後重新建立計畫。",
+        "en": "The PDF is locked. Enter the correct password and create the plan again."
+      }
+    },
+    {
+      "case": "skillExecutionErrorInvalidPages",
+      "key": "skillExecution.error.invalidPages",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "頁碼格式或範圍不正確，請使用例如 1,3-5 的格式。",
+        "en": "The page numbers or range aren’t valid. Use a format like 1,3-5."
+      }
+    },
+    {
+      "case": "skillExecutionErrorTooManyPages",
+      "key": "skillExecution.error.tooManyPages",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一次最多處理 200 頁。",
+        "en": "Up to 200 pages at a time."
+      }
+    },
+    {
+      "case": "skillExecutionErrorOutputTooLarge",
+      "key": "skillExecution.error.outputTooLarge",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文字結果超過 2 MiB，請縮小頁碼範圍。",
+        "en": "The text result is over 2 MiB. Choose fewer pages."
+      }
+    },
+    {
+      "case": "skillExecutionErrorApprovalRequired",
+      "key": "skillExecution.error.approvalRequired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此步驟尚未取得單次核准，或核准已使用。",
+        "en": "This step isn’t approved yet, or its approval was already used."
+      }
+    },
+    {
+      "case": "skillExecutionErrorExpiredApproval",
+      "key": "skillExecution.error.expiredApproval",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核准已逾期，請重新檢視此步驟。",
+        "en": "The approval expired. Review this step again."
+      }
+    },
+    {
+      "case": "skillExecutionErrorStalePlan",
+      "key": "skillExecution.error.stalePlan",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "計畫已變更或結束，請重新建立計畫。",
+        "en": "The plan changed or ended. Create it again."
+      }
+    },
+    {
+      "case": "skillExecutionErrorBusy",
+      "key": "skillExecution.error.busy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此計畫正在執行，請等候完成。",
+        "en": "This plan is running. Wait for it to finish."
+      }
+    },
+    {
+      "case": "skillExecutionErrorCancelled",
+      "key": "skillExecution.error.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "執行已取消。",
+        "en": "Cancelled."
+      }
+    },
+    {
+      "case": "learningUnavailable",
+      "key": "learning.unavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。",
+        "en": "Memory data can’t be read right now. The original file is kept and won’t be overwritten. Unlock the device and try again."
+      }
+    },
+    {
+      "case": "learningProfileSaved",
+      "key": "learning.profileSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案已儲存，下一次對話任務開始時生效。",
+        "en": "Profile saved. It applies from your next conversation task."
+      }
+    },
+    {
+      "case": "learningProcedureApproved",
+      "key": "learning.procedureApproved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已批准這條操作偏好，後續任務可以參考。",
+        "en": "Procedure approved. Later tasks can use it."
+      }
+    },
+    {
+      "case": "learningProcedureDeclined",
+      "key": "learning.procedureDeclined",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。",
+        "en": "Procedure declined. If there’s an undo record, the earlier content is restored."
+      }
+    },
+    {
+      "case": "learningCleared",
+      "key": "learning.cleared",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。",
+        "en": "Cleared your profile, memories, skills, website notes and routes, and renewed the encryption key. Model and MCP settings are kept."
+      }
+    },
+    {
+      "case": "learningClearedKeyPending",
+      "key": "learning.clearedKeyPending",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。",
+        "en": "Data cleared and the encryption key renewed, but removing the old key didn’t finish. Unlock the device and clear again."
+      }
+    },
+    {
+      "case": "learningForgot",
+      "key": "learning.forgot",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已忘掉一條記憶",
+        "en": "Forgot a memory"
+      }
+    },
+    {
+      "case": "learningDeleted",
+      "key": "learning.deleted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條記憶已刪除",
+        "en": "This memory was deleted"
+      }
+    },
+    {
+      "case": "learningRemembered",
+      "key": "learning.remembered",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "記住了：%1$@",
+        "en": "Remembered: %1$@"
+      }
+    },
+    {
+      "case": "learningUpdated",
+      "key": "learning.updated",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "更新了：%1$@",
+        "en": "Updated: %1$@"
+      }
+    },
+    {
+      "case": "learningPendingProcedure",
+      "key": "learning.pendingProcedure",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "待你確認做法：%1$@",
+        "en": "Procedure to review: %1$@"
+      }
+    },
+    {
+      "case": "learningUseCountFailed",
+      "key": "learning.useCountFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已讀取記憶，但使用次數未能儲存；原記憶保留。",
+        "en": "Memory was read, but its use count couldn’t be saved. The memory is unchanged."
+      }
+    },
+    {
+      "case": "learningTidyUnconfirmed",
+      "key": "learning.tidyUnconfirmed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。",
+        "en": "Reply finished. The current model connection couldn’t confirm the memory tidy-up request, so memory wasn’t tidied this time."
+      }
+    },
+    {
+      "case": "learningTidyConflict",
+      "key": "learning.tidyConflict",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。",
+        "en": "Reply finished. Learning data changed elsewhere, so this memory tidy-up wasn’t saved. Reload and check."
+      }
+    },
+    {
+      "case": "learningTidyBusy",
+      "key": "learning.tidyBusy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。",
+        "en": "Reply finished. Learning data is being saved elsewhere, so this memory tidy-up wasn’t saved. Check again later."
+      }
+    },
+    {
+      "case": "learningTidyFailed",
+      "key": "learning.tidyFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。",
+        "en": "Reply finished. This memory tidy-up didn’t finish and existing data is unchanged. You can also add a memory yourself in Memory & Data."
+      }
+    },
+    {
+      "case": "learningWebNotSaved",
+      "key": "learning.webNotSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。",
+        "en": "Website data wasn’t saved. Check the content, source and version; existing data is kept."
+      }
+    },
+    {
+      "case": "learningNotSaved",
+      "key": "learning.notSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "學習資料未儲存；原有技能、網站知識與路線保留。",
+        "en": "Learning data wasn’t saved. Existing skills, website notes and routes are kept."
+      }
+    },
+    {
+      "case": "learningSkillRecordFailed",
+      "key": "learning.skillRecordFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務已停止；技能結果紀錄未能儲存，既有資料保留。",
+        "en": "The task stopped. The skill result record couldn’t be saved; existing data is kept."
+      }
+    },
+    {
+      "case": "learningBusy",
+      "key": "learning.busy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。",
+        "en": "Learning data is being saved elsewhere. Nothing was saved this time and existing data is kept. Try again later."
+      }
+    },
+    {
+      "case": "learningConflict",
+      "key": "learning.conflict",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "學習資料已在其他位置變更；本次未儲存，原有資料保留。請重新讀取並再次確認。",
+        "en": "Learning data changed elsewhere. Nothing was saved this time and existing data is kept. Reload and confirm again."
+      }
+    },
+    {
+      "case": "learningProfileInvalidSentence",
+      "key": "learning.profileInvalidSentence",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請輸入單句、1–160 字元的個人檔案；不可包含換行、密碼、驗證碼或金鑰等敏感資料。",
+        "en": "Enter one sentence of 1–160 characters, with no line breaks and no sensitive data such as passwords, verification codes or keys."
+      }
+    },
+    {
+      "case": "learningProfileDuplicate",
+      "key": "learning.profileDuplicate",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條個人檔案已經存在。",
+        "en": "This profile entry already exists."
+      }
+    },
+    {
+      "case": "learningProfileFull",
+      "key": "learning.profileFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案已達 20 條上限，請先整理。",
+        "en": "Your profile has reached 20 entries. Remove some first."
+      }
+    },
+    {
+      "case": "learningProfileMatchNotUnique",
+      "key": "learning.profileMatchNotUnique",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "指定片段必須只出現在一條現用檔案中，而且只出現一次；請重新選擇。",
+        "en": "The chosen text must appear exactly once, in a single active entry. Choose again."
+      }
+    },
+    {
+      "case": "learningProfileInvalidState",
+      "key": "learning.profileInvalidState",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "個人檔案狀態無效；原資料保留，變更未套用。",
+        "en": "The profile is in an invalid state. The original data is kept and the change wasn’t applied."
+      }
+    },
+    {
+      "case": "learningSkillNotSaved",
+      "key": "learning.skillNotSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能未儲存。",
+        "en": "The skill wasn’t saved."
+      }
+    },
+    {
+      "case": "learningBuiltinNotImported",
+      "key": "learning.builtinNotImported",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "內建技能未匯入。",
+        "en": "The built-in skill wasn’t imported."
+      }
+    },
+    {
+      "case": "learningMemorySensitive",
+      "key": "learning.memorySensitive",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "密碼、驗證碼、金鑰與其他敏感資料不能存入記憶。",
+        "en": "Passwords, verification codes, keys and other sensitive data can’t be saved to memory."
+      }
+    },
+    {
+      "case": "learningMemoryInvalid",
+      "key": "learning.memoryInvalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請輸入 1–200 字的記憶。",
+        "en": "A memory must be 1 to 200 characters."
+      }
+    },
+    {
+      "case": "learningMemoryFull",
+      "key": "learning.memoryFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶已達 500 條上限，請先整理。",
+        "en": "Memory is full at 500 entries. Delete a few first."
+      }
+    },
+    {
+      "case": "learningMemoryDuplicate",
+      "key": "learning.memoryDuplicate",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這條記憶已經存在。",
+        "en": "This memory already exists."
+      }
+    },
+    {
+      "case": "learningMemoryStale",
+      "key": "learning.memoryStale",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "資料已有新變更，舊的整理結果未套用。",
+        "en": "The data has changed since, so the earlier tidy-up wasn’t applied."
+      }
+    },
+    {
+      "case": "learningMemoryFailed",
+      "key": "learning.memoryFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶變更未完成，請檢查內容後重試。",
+        "en": "The memory change didn’t finish. Check the content and try again."
+      }
+    },
+    {
+      "case": "learningSkillUnknownTool",
+      "key": "learning.skillUnknownTool",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能引用了此版本尚未提供的工具，未匯入或啟用。",
+        "en": "The skill uses a tool this version doesn’t have, so it wasn’t imported or turned on."
+      }
+    },
+    {
+      "case": "learningSkillSensitive",
+      "key": "learning.skillSensitive",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能內含可能的敏感資料，未儲存。",
+        "en": "The skill may contain sensitive data, so it wasn’t saved."
+      }
+    },
+    {
+      "case": "learningSkillChanged",
+      "key": "learning.skillChanged",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "原技能已被修改，請重新檢查更新內容。",
+        "en": "The original skill has changed. Review the update again."
+      }
+    },
+    {
+      "case": "learningSkillDraftPending",
+      "key": "learning.skillDraftPending",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "同名技能已有待確認草稿，請先處理。",
+        "en": "A skill with this name already has a draft to review. Handle it first."
+      }
+    },
+    {
+      "case": "learningSkillBuiltinName",
+      "key": "learning.skillBuiltinName",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個名稱保留給內建技能，請使用不同的個人技能名稱。",
+        "en": "This name is reserved for a built-in skill. Give your skill a different name."
+      }
+    },
+    {
+      "case": "learningSkillMissingSection",
+      "key": "learning.skillMissingSection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能須包含入口、步驟、容易出錯的地方、怎樣算辦成、什麼時候停下交給使用者五個段落。",
+        "en": "A skill needs five sections: where to start, the steps, what tends to go wrong, what counts as done, and when to stop and hand over to the user."
+      }
+    },
+    {
+      "case": "learningSkillTooLong",
+      "key": "learning.skillTooLong",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能全文超過 4,000 字上限。",
+        "en": "The skill text is over the 4,000-character limit."
+      }
+    },
+    {
+      "case": "learningSkillCapacity",
+      "key": "learning.skillCapacity",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能或版本紀錄已達儲存上限；現有資料保留，這次變更未儲存。",
+        "en": "Skills or their version history reached the storage limit. Existing data is kept; this change wasn’t saved."
+      }
+    },
+    {
+      "case": "learningSkillInvalid",
+      "key": "learning.skillInvalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "技能格式或狀態不符，未儲存；請檢查名稱、描述與全文。",
+        "en": "The skill’s format or state isn’t valid, so it wasn’t saved. Check the name, description and full text."
+      }
+    },
+    {
+      "case": "learningSaveFailed",
+      "key": "learning.saveFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法儲存記憶資料，變更未套用。請解鎖裝置後重試。",
+        "en": "Couldn’t save memory data, so the change wasn’t applied. Unlock the device and try again."
+      }
+    },
+    {
+      "case": "archiveDeleteNotSaved",
+      "key": "archive.deleteNotSaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除未儲存，原對話仍保留。請解鎖後重試。",
+        "en": "The deletion wasn’t saved and the conversation is still there. Unlock the device and try again."
+      }
+    },
+    {
+      "case": "archiveReadFailed",
+      "key": "archive.readFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法讀取加密對話，原檔保留且不會被覆寫。請解鎖後重新讀取。",
+        "en": "Couldn’t read the encrypted conversations. The original file is kept and won’t be overwritten. Unlock the device and reload."
+      }
+    },
+    {
+      "case": "browserTabNew",
+      "key": "browserTab.new",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新分頁",
+        "en": "New tab"
+      }
+    },
+    {
+      "case": "browserTabSignIn",
+      "key": "browserTab.signIn",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網站登入頁面",
+        "en": "Website sign-in page"
+      }
+    },
+    {
+      "case": "browserTabPage",
+      "key": "browserTab.page",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁",
+        "en": "Web page"
+      }
+    },
+    {
       "case": "shellBrandTitle",
       "key": "shell.brandTitle",
       "parameters": [],
