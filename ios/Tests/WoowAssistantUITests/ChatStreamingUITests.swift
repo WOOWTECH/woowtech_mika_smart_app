@@ -5,7 +5,10 @@ import XCTest
 final class ChatStreamingUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
-    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
+    // ui-chat permits 300 s. On the iOS 26.2 runner each UI step costs 1–2 s and the
+    // shared model setup alone took about 170 s, leaving these streaming cases at
+    // 231–240 s; one setup-heavy case ran out before its first send.
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws { app.terminate() }
 
     /// Exercises the actual composer state with a cancellable fake transport.
