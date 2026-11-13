@@ -280,13 +280,8 @@ final class ConversationArchiveUITests: XCTestCase {
         launch(); configure(); send("Archive original")
         navigate("settings")
         openModelSettings(in: app)
-        let model = app.textFields["settings.model"].firstMatch
-        revealLearningElement(model, in: app); ready(model); model.tap(); prepareKeyboard()
-        XCTAssertEqual(model.value as? String, "fixture")
-        model.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
-        XCTAssertEqual(model.value as? String, "")
-        model.typeText("different"); XCTAssertEqual(model.value as? String, "different")
-        tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
+        // Another main model of the same provider, typed in the main-model picker.
+        chooseTypedMainModel("different", provider: "model.invalid", in: app)
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)
         navigate("chat"); openArchive()
@@ -435,6 +430,7 @@ final class ConversationArchiveUITests: XCTestCase {
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)

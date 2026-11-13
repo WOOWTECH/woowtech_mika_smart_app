@@ -15,6 +15,57 @@ struct ModelAccess {
     let identity: ModelAccessIdentity
 }
 
+/// What the AI-sharing consent (App Review 5.1.2(i)) names: the service and
+/// the host that would receive the user's content, and what asks for it.
+struct ModelConsentPrompt: Identifiable, Equatable {
+    enum Purpose: Equatable {
+        /// Saving the provider that becomes the first main model.
+        case save
+        /// Making another provider's model the main model.
+        case switchMain
+        /// The first send to a main model set up before the consent existed.
+        case send
+    }
+    let id = UUID()
+    let providerName: String
+    /// The host, with its port when it is not 443.
+    let host: String
+    let purpose: Purpose
+
+    init(name: String, baseURL: URL, purpose: Purpose) {
+        providerName = name
+        let parts = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        host = (parts?.host ?? baseURL.absoluteString) + (parts?.port.flatMap { $0 == 443 ? nil : ":\($0)" } ?? "")
+        self.purpose = purpose
+    }
+
+    init(provider: ModelProvider, purpose: Purpose) {
+        self.init(name: provider.name, baseURL: provider.baseURL, purpose: purpose)
+    }
+}
+
+/// Everything the App can send to the main model's provider, in the order the
+/// AI-sharing consent lists it. This is the one list: the privacy policy uses
+/// the same items and words (AppText consent.item.*).
+enum ModelSharedContent: String, CaseIterable {
+    case chat, attachments, images, profile, memory, skills, memoryOrganizing, web, researchJudgment, mcp
+
+    var text: AppText {
+        switch self {
+        case .chat: return .consentItemChat
+        case .attachments: return .consentItemAttachments
+        case .images: return .consentItemImages
+        case .profile: return .consentItemProfile
+        case .memory: return .consentItemMemory
+        case .skills: return .consentItemSkills
+        case .memoryOrganizing: return .consentItemMemoryOrganizing
+        case .web: return .consentItemWeb
+        case .researchJudgment: return .consentItemResearchJudgment
+        case .mcp: return .consentItemMCP
+        }
+    }
+}
+
 struct ChatEntry: Identifiable {
     let id: UUID
     let role: String
@@ -182,6 +233,16 @@ final class ChatSession: ObservableObject {
     @Published private(set) var shownSendBlocker: ChatSendBlocker?
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
+    /// The provider list, roles and consent behind Settings › 模型; empty
+    /// before the first provider.
+    @Published private(set) var providerDocument = ModelProvidersDocument()
+    /// Providers whose key item exists; nil when the Keychain could not list them.
+    @Published private(set) var keyedProviders: Set<UUID>?
+    /// What the last change in Settings › 模型 did, in the interface language.
+    @Published private(set) var providerNotice: AppText?
+    /// The consent asked before a send to a provider never agreed to.
+    @Published private(set) var pendingSendConsent: ModelConsentPrompt?
+    private var consentMCP: MCPSession?
     @Published var usesMCP = false
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
@@ -303,6 +364,25 @@ final class ChatSession: ObservableObject {
         // Keys no provider uses: an interrupted save, or the v1 setting that
         // could not be read. A locked Keychain waits for the next launch.
         _ = try? repository.sweepOrphanedCredentials()
+        reloadProviders()
+    }
+
+    /// Reads the provider list for Settings › 模型 again, and which providers
+    /// still have their key (a restored device has the list but no keys).
+    func reloadProviders() {
+        let document = (try? repository.document()) ?? nil
+        providerDocument = document ?? ModelProvidersDocument()
+        keyedProviders = document.flatMap { repository.providersWithKeys(in: $0) }
+    }
+
+    /// The main model's provider was never agreed to (App Review 5.1.2(i)):
+    /// a setting from before the consent existed. Nothing is sent to it until
+    /// the user agrees.
+    var mainNeedsConsent: Bool { savedSettings?.providerID != nil && providerDocument.mainNeedsConsent }
+
+    /// What the consent screen names for the main model's provider.
+    func consentPrompt(forProvider id: UUID, purpose: ModelConsentPrompt.Purpose) -> ModelConsentPrompt? {
+        providerDocument.provider(id: id).map { ModelConsentPrompt(provider: $0, purpose: purpose) }
     }
 
     var canSend: Bool {
@@ -325,6 +405,7 @@ final class ChatSession: ObservableObject {
     }
 
     /// Send when every guard passes; otherwise say why and keep the draft.
+    /// A main model whose provider was never agreed to asks first.
     func attemptSend(mcp: MCPSession? = nil) {
         guard canAttemptSend else { return }
         guard savedSettings != nil, hasStoredKey else { shownSendBlocker = .noModel; return }
@@ -333,7 +414,30 @@ final class ChatSession: ObservableObject {
             chatError = "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
             return
         }
+        if mainNeedsConsent, let provider = savedSettings?.providerID {
+            consentMCP = mcp
+            pendingSendConsent = consentPrompt(forProvider: provider, purpose: .send)
+            if pendingSendConsent != nil { return }
+        }
         send(mcp: mcp)
+    }
+
+    /// The answer to the consent asked before a send. Declining sends
+    /// nothing and keeps the draft; agreeing records it and sends.
+    func resolveSendConsent(agreed: Bool) {
+        guard let prompt = pendingSendConsent else { return }
+        let mcp = consentMCP
+        pendingSendConsent = nil; consentMCP = nil
+        guard agreed else {
+            let text = AppText.chatConsentDeclined(provider: prompt.providerName)
+            chatError = String(format: text.traditionalFallback, arguments: text.arguments)
+            chatErrorText = text
+            return
+        }
+        do { try repository.recordConsentForMain() }
+        catch { chatError = Self.settingsMessage(error); return }
+        reloadProviders()
+        attemptSend(mcp: mcp)
     }
 
     func dismissSendBlocker() { shownSendBlocker = nil }
@@ -547,14 +651,23 @@ final class ChatSession: ObservableObject {
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
     /// The main model for work outside the chat (browser research, documents,
-    /// transcripts, skills). Each call takes a fresh session header value: one run.
+    /// transcripts, skills). Refused until the user agreed to send content to
+    /// its provider. Each call takes a fresh session header value: one run.
     func modelAccess() throws -> ModelAccess {
         guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
             throw HTTPChatModelError.invalidConfiguration
         }
+        guard !mainNeedsConsent else { throw ModelSettingsError.consentRequired }
         return ModelAccess(client: client, configuration: savedSettings.configuration(conversation: nil),
                            key: try repository.key(for: savedSettings), identity: identity)
     }
+
+    /// The model client a connection test in Settings › 模型 uses: the UI
+    /// test fixture in UI test mode, otherwise HTTPS.
+    var connectionTestClient: any ChatModelClient { client }
+
+    /// A saved provider's key for a test call; empty for one saved without a key.
+    func providerKey(id: UUID) throws -> String { try repository.storedKey(forProvider: id) }
 
     // Keep the state typed so language changes re-render the current status.
     var chatStatusMessage: AppText {
@@ -567,6 +680,8 @@ final class ChatSession: ObservableObject {
 
     var chatStatus: String { chatStatusMessage.traditionalFallback }
 
+    /// The single form's save from the drafts (phase 1a), kept for the App
+    /// harnesses; Settings › 模型 calls addProvider and chooseMainModel.
     func saveSettings() {
         guard !isSubmitting else { return }
         guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return }
@@ -608,6 +723,7 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        reloadProviders()
     }
 
     func removeSettings() {
@@ -642,7 +758,170 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        reloadProviders()
     }
+
+    // MARK: Settings › 模型 (Android ModelSetupViewModel)
+
+    /// Saves the add-provider form: "測試並儲存" after its test passed
+    /// (`tested`) or "不測試，直接儲存". `consented`: the user agreed on the
+    /// consent screen just now; a save that makes the first main model needs
+    /// it. Returns whether the provider was saved.
+    @discardableResult
+    func addProvider(name: String, baseURL: String, sessionHeader: String?, keyRequired: Bool, key: String,
+                     model: String?, tested: Bool, consented: Bool) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let saved = try repository.addProvider(name: name, baseURL: baseURL, sessionHeader: sessionHeader,
+                                                   keyRequired: keyRequired, key: key, model: model, tested: tested,
+                                                   consentedAt: consented ? Date() : nil)
+            // Also when the main model's own provider was saved again with a new key.
+            if saved.becameMain || saved.main?.providerID == saved.providerID { adoptMain(saved.main) }
+            reloadProviders()
+            providerNotice = tested ? .modelSavedTested(name: saved.providerName)
+                                    : .modelSavedUntested(name: saved.providerName)
+            if saved.cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// Makes a model the main model: from the main-model picker or a model's
+    /// "用作" sheet. Another provider than the one agreed to needs `consented`.
+    @discardableResult
+    func chooseMainModel(providerID: UUID, model: String, typed: Bool, verified: Bool, consented: Bool) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let record = try repository.chooseMain(ModelRef(providerID: providerID, model: model), typed: typed,
+                                                   verified: verified, consentedAt: consented ? Date() : nil)
+            adoptMain(record)
+            reloadProviders()
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// A model of this provider answered "重新測試".
+    func markModelVerified(providerID: UUID, model: String) {
+        do { try repository.markVerified(providerID: providerID, model: model); settingsError = nil }
+        catch { settingsError = Self.settingsMessage(error) }
+        reloadProviders()
+    }
+
+    /// Android updateProviderKey. A new key for the main model's provider
+    /// keeps the conversation going: it belongs to the provider, not the key.
+    @discardableResult
+    func changeProviderKey(providerID: UUID, key: String) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let result = try repository.changeKey(providerID: providerID, newKey: key)
+            if result.main?.providerID == providerID { adoptMain(result.main) }
+            reloadProviders()
+            providerNotice = providerDocument.provider(id: providerID).map { .modelsKeyChanged(name: $0.name) }
+            if result.cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// Android removeProvider: the provider and only its key. A main model on
+    /// it is no longer chosen, as on Android.
+    @discardableResult
+    func deleteProvider(id: UUID) -> Bool {
+        let name = providerDocument.provider(id: id)?.name
+        guard beginProviderChange() else { return false }
+        do {
+            let cleanupFailed = try repository.removeProvider(id: id)
+            adoptMain(try repository.load())
+            reloadProviders()
+            providerNotice = name.map { .modelsDeleted(name: $0) }
+            if cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// The user's "能看圖" answer for one model. Like the old switch, it only
+    /// changes what later prompts send.
+    func setModelVision(providerID: UUID, model: String, sees: Bool?) {
+        guard !isSubmitting else { return }
+        do {
+            let main = try repository.setVision(sees, providerID: providerID, model: model)
+            if let main, main.providerID == savedSettings?.providerID, main.model == savedSettings?.model {
+                savedSettings = main
+            }
+            settingsError = nil
+        } catch {
+            settingsError = Self.settingsMessage(error)
+        }
+        reloadProviders()
+    }
+
+    /// The consent asked on the model page for a main model whose provider was
+    /// never agreed to: recorded on agreement, nothing changes otherwise.
+    func agreeToMainProvider() {
+        do { try repository.recordConsentForMain(); settingsError = nil }
+        catch { settingsError = Self.settingsMessage(error) }
+        reloadProviders()
+    }
+
+    func clearProviderNotice() { providerNotice = nil; settingsError = nil; settingsNotice = nil }
+
+    /// Like saving the old form: no change during a reply or with a quote
+    /// waiting, and running work and learning stop first.
+    private func beginProviderChange() -> Bool {
+        guard !isSubmitting else { return false }
+        guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return false }
+        learning.onUserChange?()
+        learning.cancelLearning()
+        settingsError = nil
+        settingsNotice = nil
+        providerNotice = nil
+        return true
+    }
+
+    /// The main model after a change in Settings › 模型. Only another
+    /// provider or model starts over; a new key for the same provider keeps
+    /// the conversation, its draft and its attachments.
+    private func adoptMain(_ record: SavedModelSettings?) {
+        let changed = savedSettings?.baseURL != record?.baseURL
+            || savedSettings?.accessIdentity?.target != record?.accessIdentity?.target
+        savedSettings = record
+        hasStoredKey = record.map { (try? repository.key(for: $0)) != nil } ?? false
+        baseURLDraft = record?.baseURL.absoluteString ?? ""
+        modelDraft = record?.model ?? ""
+        keyDraft = ""
+        if changed { startOverForNewModel() }
+        chatError = nil
+        chatNotice = nil
+        shownSendBlocker = nil
+    }
+
+    private func startOverForNewModel() {
+        entries = []
+        replyPreview = nil
+        pendingQuote = nil
+        quoteSource = nil
+        conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
+        profileReceipt = nil
+        profileReceiptRequestID = nil
+        memoryReceipt = nil
+        memoryReceiptRequestID = nil
+        discardPendingAttachments()
+        conversationID = UUID().uuidString
+        learning.resetConversationPresentation()
+    }
+
+    /// Mapped to AppText.modelsCleanupFailed for display.
+    nonisolated static let cleanupFailure = "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。"
 
     func send(mcp: MCPSession? = nil) {
         if pendingQuote != nil { archive?.reload() }

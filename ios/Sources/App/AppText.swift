@@ -324,26 +324,10 @@ enum AppText: Equatable {
     case settingsAdvancedDetail
     case settingsHomeConnections
     case settingsModelNotSet
-    case settingsModelKeyStored
-    case settingsModelKeyMissing
     case settingsModelRoles
     case settingsModelMain
     case settingsModelMainDetail
     case settingsModelProviders
-    case settingsModelConnection
-    case settingsModelConnectionDetail
-    case settingsModelBaseURL
-    case settingsModelClearURL
-    case settingsModelBaseURLPlaceholder
-    case settingsModelName
-    case settingsModelNamePlaceholder
-    case settingsModelAPIKey
-    case settingsModelAPIKeyPlaceholder
-    case settingsModelSave
-    case settingsModelRemove
-    case settingsModelPrivacy
-    case settingsModelSaveExplanation
-    case settingsModelChangeExplanation
     case settingsModelSaved
     case settingsModelSavedCleanup
     case settingsModelRemoved
@@ -923,26 +907,10 @@ enum AppText: Equatable {
         case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
         case .settingsModelNotSet: return "settings.model.notSet"
-        case .settingsModelKeyStored: return "settings.model.keyStored"
-        case .settingsModelKeyMissing: return "settings.model.keyMissing"
         case .settingsModelRoles: return "settings.model.roles"
         case .settingsModelMain: return "settings.model.main"
         case .settingsModelMainDetail: return "settings.model.main.detail"
         case .settingsModelProviders: return "settings.model.providers"
-        case .settingsModelConnection: return "settings.model.connection"
-        case .settingsModelConnectionDetail: return "settings.model.connection.detail"
-        case .settingsModelBaseURL: return "settings.model.baseURL"
-        case .settingsModelClearURL: return "settings.model.clearURL"
-        case .settingsModelBaseURLPlaceholder: return "settings.model.baseURL.placeholder"
-        case .settingsModelName: return "settings.model.name"
-        case .settingsModelNamePlaceholder: return "settings.model.name.placeholder"
-        case .settingsModelAPIKey: return "settings.model.apiKey"
-        case .settingsModelAPIKeyPlaceholder: return "settings.model.apiKey.placeholder"
-        case .settingsModelSave: return "settings.model.save"
-        case .settingsModelRemove: return "settings.model.remove"
-        case .settingsModelPrivacy: return "settings.model.privacy"
-        case .settingsModelSaveExplanation: return "settings.model.saveExplanation"
-        case .settingsModelChangeExplanation: return "settings.model.changeExplanation"
         case .settingsModelSaved: return "settings.model.saved"
         case .settingsModelSavedCleanup: return "settings.model.savedCleanup"
         case .settingsModelRemoved: return "settings.model.removed"
@@ -1580,26 +1548,10 @@ enum AppText: Equatable {
         case .settingsAdvancedDetail: return "MCP 伺服器"
         case .settingsHomeConnections: return "網路與連接"
         case .settingsModelNotSet: return "未設定"
-        case .settingsModelKeyStored: return "已儲存金鑰；留空可沿用同一服務的金鑰。"
-        case .settingsModelKeyMissing: return "尚未儲存金鑰。"
         case .settingsModelRoles: return "用途"
         case .settingsModelMain: return "主模型"
         case .settingsModelMainDetail: return "思考和辦事"
         case .settingsModelProviders: return "服務商"
-        case .settingsModelConnection: return "連線設定"
-        case .settingsModelConnectionDetail: return "HTTPS 介面網址、模型名稱與 API Key"
-        case .settingsModelBaseURL: return "介面網址（HTTPS）"
-        case .settingsModelClearURL: return "清除網址"
-        case .settingsModelBaseURLPlaceholder: return "https://api.example.com/v1"
-        case .settingsModelName: return "模型名稱"
-        case .settingsModelNamePlaceholder: return "供應商提供的模型名稱"
-        case .settingsModelAPIKey: return "API Key"
-        case .settingsModelAPIKeyPlaceholder: return "輸入金鑰；已儲存時可留空"
-        case .settingsModelSave: return "儲存設定"
-        case .settingsModelRemove: return "移除設定與金鑰"
-        case .settingsModelPrivacy: return "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。"
-        case .settingsModelSaveExplanation: return "儲存不會測試連線；開始使用模型時才會連線。"
-        case .settingsModelChangeExplanation: return "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。"
         case .settingsModelSaved: return "設定已儲存，尚未驗證連線。"
         case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"

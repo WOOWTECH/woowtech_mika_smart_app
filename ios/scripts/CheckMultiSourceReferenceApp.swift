@@ -89,6 +89,7 @@ private actor MultiReferenceModel: ChatModelClient {
             vaultURL=root.appendingPathComponent("learning.vault");defaults=UserDefaults(suiteName:suite)!
             repository=ModelSettingsRepository(defaults:defaults,credentials:MultiReferenceCredentials())
             _ = try repository.save(baseURL:"https://model.invalid/v1",model:"synthetic",newKey:"synthetic-not-a-key")
+            try repository.recordConsentForMain() // the user agreed to share content (App Review 5.1.2(i))
             store=LearningStore(vault:.init(url:vaultURL,keys:keys))
             try expect(store.available,"real encrypted vault")
             try expect(store.mutateMemory{_ = try $0.add(kind:.preference,content:"PRIVATE_MULTI_MEMORY")},"persist memory")

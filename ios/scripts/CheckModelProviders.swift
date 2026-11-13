@@ -110,6 +110,7 @@ private final class Environment {
             try mainModelChanges()
             try repositoryProviders()
             try consentOnSend()
+            try formInput()
             print("PASS model providers: \(count) checks; isolated defaults, temporary files and an in-memory Keychain")
         } catch {
             print("FAIL model providers after \(count) checks: \(error)")
@@ -371,6 +372,59 @@ private final class Environment {
                       && agreed?.consent == ModelConsentRecord(providerID: account, origin: "https://api.x.ai", consentedAt: at),
                       "agreeing before the first send records the imported provider")
         }
+    }
+
+    /// The add form's rules (Android AddForm), before anything is saved.
+    static func formInput() throws {
+        var form = ModelProviderFormInput()
+        try check(form.preset == "OpenRouter" && !form.isCustom && form.keyRequired && form.address?.absoluteString == "https://openrouter.ai/api/v1",
+                  "Android's first chip is chosen")
+        try check(!form.canSaveUntested && !form.canTest, "a preset needs a key")
+        form.key = " sk-or "; form.model = "vendor/a"
+        try check(form.canSaveUntested && form.canTest && form.providerName == "OpenRouter" && form.sessionHeader == nil
+                  && form.trimmedKey == "sk-or", "a key and a model: test and save")
+        let configuration = form.testConfiguration
+        try check(configuration?.requiresKey == true && configuration?.model == "vendor/a" && configuration?.sessionHeader == nil,
+                  "the test's request")
+        form.key = "two words"
+        try check(form.keyProblem == .modelSettingsInvalidKey && !form.canSaveUntested, "a key with a space is refused")
+        form = ModelProviderFormInput(preset: "OpenCode Go", key: "k")
+        form.model = "kimi"
+        try check(form.sessionHeader == "x-opencode-session" && form.testConfiguration?.sessionHeader?.name == "x-opencode-session",
+                  "OpenCode Go's test carries its session header")
+        form = ModelProviderFormInput(preset: "xAI")
+        try check(form.modelExample == .modelExampleGrok && ModelProviderFormInput().modelExample == .modelExampleCompat, "model examples")
+        form = ModelProviderFormInput(preset: nil)
+        try check(form.isCustom && !form.keyRequired && form.urlProblem == nil && form.address == nil && !form.canSaveUntested,
+                  "自訂 starts without an address and without a hint")
+        form.baseURL = "http://model.example.invalid/v1"
+        try check(form.urlProblem == .modelURLHTTPS && !form.canSaveUntested, "HTTP is refused with the HTTPS hint")
+        form.baseURL = "ftp://x"
+        try check(form.urlProblem == .modelURLHTTPS, "another scheme too")
+        form.baseURL = "https://me@model.example.invalid/v1"
+        try check(form.urlProblem == .modelSettingsInvalidURL && form.address == nil, "a user in the address")
+        form.baseURL = "https://model.example.invalid/v1?key=1"
+        try check(form.urlProblem == .modelSettingsInvalidURL, "a query in the address")
+        form.baseURL = " https://model.example.invalid/v1 "
+        try check(form.urlProblem == nil && form.canSaveUntested && !form.canTest && form.providerName == "model.example.invalid"
+                  && form.testConfiguration == nil, "a custom service: no key needed; testing needs a model; named by host")
+        form.model = "local"
+        try check(form.canTest && form.testConfiguration?.requiresKey == false, "a custom test without a key sends none")
+        form.key = "k"
+        try check(form.testConfiguration?.requiresKey == true, "with a key, the key is sent")
+        form.name = String(repeating: "名", count: 40)
+        try check(form.providerName.count == ModelProviderFormInput.maximumNameLength, "a custom name keeps 32 characters")
+        form.name = ""
+        form.baseURL = "https://opencode.ai/zen/go/v1"
+        try check(form.sessionHeader == "x-opencode-session" && form.providerName == "OpenCode Go"
+                  && form.suggestedPreset?.name == "OpenCode Go", "a preset's address typed by hand: its header, name and suggestion")
+        form.baseURL = "https://api.x.ai/other"
+        try check(form.suggestedPreset?.name == "xAI" && form.sessionHeader == nil && form.modelExample == .modelExampleGrok,
+                  "another path on a preset's host: suggestion only")
+        let draft = form.draft(tested: true)
+        try check(draft?.name == "api.x.ai" && draft?.keyRequired == false && draft?.hasNewKey == true && draft?.model == "local"
+                  && draft?.tested == true, "the draft the form saves")
+        try check(ModelProviderFormInput(preset: "Groq").draft(tested: false)?.hasNewKey == false, "no key typed: none to write")
     }
 
     static func sample() -> ModelProvidersDocument {

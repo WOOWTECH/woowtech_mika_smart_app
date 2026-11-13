@@ -411,6 +411,7 @@ final class ChatStreamingUITests: XCTestCase {
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
         tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)

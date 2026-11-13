@@ -1087,6 +1087,12 @@ private struct ChatView: View {
                     decline: { session.resolveMemoryReview(id: review.id, approved: false) })
                     .interactiveDismissDisabled()
             }
+            // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
+            .sheet(item: Binding(get: { session.pendingSendConsent }, set: { _ in })) { prompt in
+                ModelConsentSheet(prompt: prompt, localizer: localizer,
+                                  agree: { session.resolveSendConsent(agreed: true) },
+                                  decline: { session.resolveSendConsent(agreed: false) })
+            }
     }
 
     var body: some View {

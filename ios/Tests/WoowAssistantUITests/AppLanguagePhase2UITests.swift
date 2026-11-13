@@ -161,12 +161,13 @@ final class AppLanguagePhase2UITests: XCTestCase {
         tapContent(app.buttons["settings.modelJump"])
         let detail = app.navigationBars["Model"]
         XCTAssertTrue(detail.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 5))
+        // With no provider yet, the add form is open on Android's first chip.
+        XCTAssertTrue(app.secureTextFields["settings.apiKey"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["settings.appearance"].isHittable)
         tapChrome(detail.buttons.firstMatch)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["settings.modelJump"].isHittable)
-        XCTAssertFalse(app.textFields["settings.baseURL"].isHittable)
+        XCTAssertFalse(app.secureTextFields["settings.apiKey"].isHittable)
     }
 
     private func tapRoot(_ section: String) {

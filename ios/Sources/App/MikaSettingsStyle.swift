@@ -81,20 +81,22 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy
+    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy, mic, plus, trash
 }
 
 struct MikaSettingsIconTile: View {
     let icon: MikaSettingsIcon
+    /// Android TileTone: accent for 新增, bad for 刪除; nil is the plain ink tile.
+    var tint: Color? = nil
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        let colors = MikaSettingsPalette(scheme: scheme)
         MikaSettingsIconShape(icon: icon)
-            .stroke(MikaSettingsPalette(scheme: scheme).ink,
-                    style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
+            .stroke(tint ?? colors.ink, style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
             .frame(width: 18, height: 18)
             .frame(width: 30, height: 30)
-            .background(MikaSettingsPalette(scheme: scheme).tile, in: RoundedRectangle(cornerRadius: 9))
+            .background(tint.map { $0.opacity(0.12) } ?? colors.tile, in: RoundedRectangle(cornerRadius: 9))
             .accessibilityHidden(true)
     }
 }
@@ -344,6 +346,24 @@ struct MikaSettingsIconShape: Shape {
             path.addLine(to: CGPoint(x: 5, y: 6))
             path.addQuadCurve(to: CGPoint(x: 6, y: 5), control: CGPoint(x: 5, y: 5))
             path.addLine(to: CGPoint(x: 15, y: 5))
+        case .mic:
+            path.addRoundedRect(in: CGRect(x: 9, y: 3, width: 6, height: 11), cornerSize: CGSize(width: 3, height: 3))
+            path.move(to: CGPoint(x: 5.5, y: 11))
+            path.addArc(center: CGPoint(x: 12, y: 11), radius: 6.5,
+                        startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+            path.move(to: CGPoint(x: 12, y: 17.5)); path.addLine(to: CGPoint(x: 12, y: 21))
+            path.move(to: CGPoint(x: 8.5, y: 21)); path.addLine(to: CGPoint(x: 15.5, y: 21))
+        case .plus:
+            path.move(to: CGPoint(x: 12, y: 5)); path.addLine(to: CGPoint(x: 12, y: 19))
+            path.move(to: CGPoint(x: 5, y: 12)); path.addLine(to: CGPoint(x: 19, y: 12))
+        case .trash:
+            path.move(to: CGPoint(x: 4.5, y: 6.5)); path.addLine(to: CGPoint(x: 19.5, y: 6.5))
+            path.move(to: CGPoint(x: 9.5, y: 6.5))
+            for point in [(9.5, 4.5), (14.5, 4.5), (14.5, 6.5)] { path.addLine(to: CGPoint(x: point.0, y: point.1)) }
+            path.move(to: CGPoint(x: 6.5, y: 6.5))
+            for point in [(7.5, 20), (16.5, 20), (17.5, 6.5)] { path.addLine(to: CGPoint(x: point.0, y: point.1)) }
+            path.move(to: CGPoint(x: 10, y: 10)); path.addLine(to: CGPoint(x: 10, y: 16.5))
+            path.move(to: CGPoint(x: 14, y: 10)); path.addLine(to: CGPoint(x: 14, y: 16.5))
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))

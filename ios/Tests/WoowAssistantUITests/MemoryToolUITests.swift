@@ -295,6 +295,7 @@ final class MemoryToolUITests: XCTestCase {
         key.typeText("fixture-key")
         tap("settings.dismissKeyboard")
         tap("settings.save", scroll: true)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)

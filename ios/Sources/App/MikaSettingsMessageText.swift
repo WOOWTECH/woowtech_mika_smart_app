@@ -11,7 +11,9 @@ extension AppLocalizer {
             (.missingKey, .modelSettingsMissingKey),
             (.changedOrigin, .modelSettingsChangedOrigin),
             (.invalidKey, .modelSettingsInvalidKey),
-            (.unavailableKeychain, .modelSettingsUnavailableKeychain)
+            (.unavailableKeychain, .modelSettingsUnavailableKeychain),
+            (.tooManyProviders, .modelSettingsTooManyProviders),
+            (.consentRequired, .modelSettingsConsentRequired)
         ]
         if let known = errors.first(where: { $0.0.errorDescription == raw }) {
             return text(known.1)
@@ -28,7 +30,8 @@ extension AppLocalizer {
             "設定已儲存，尚未驗證連線。": .settingsModelSaved,
             "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。": .settingsModelSavedCleanup,
             "已移除此 App 的模型設定與金鑰；訊息草稿保留。": .settingsModelRemoved,
-            "無法讀取或儲存模型設定，請移除設定後重新填寫。": .settingsModelFallbackError
+            "無法讀取或儲存模型設定，請移除設定後重新填寫。": .settingsModelFallbackError,
+            ChatSession.cleanupFailure: .modelsCleanupFailed
         ]
         return notices[raw].map(text) ?? raw
     }

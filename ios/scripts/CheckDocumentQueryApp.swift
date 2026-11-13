@@ -129,6 +129,8 @@ private actor DocumentCheckModel: ChatModelClient {
         defaults = UserDefaults(suiteName: defaultsName)!
         repository = ModelSettingsRepository(defaults: defaults, credentials: DocumentCheckCredentials())
         _ = try repository.save(baseURL: "https://document-check.example.invalid/v1", model: "synthetic-document", newKey: "synthetic-not-a-key")
+        // The user agreed to share content with this provider (App Review 5.1.2(i)).
+        try repository.recordConsentForMain()
         learning = LearningStore(vault: EncryptedLearningFile(url: root.appendingPathComponent("learning.vault"), keys: DocumentCheckKeys()))
         guard learning.available, learning.updatePreferences({ $0.autoRemember = false }) else {
             throw DocumentAppCheckFailure(label: "Isolated real encrypted store")

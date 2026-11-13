@@ -436,6 +436,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
             defer{defaults.removePersistentDomain(forName:suite)}
             let repository=ModelSettingsRepository(defaults:defaults,credentials:RunReferenceCredentials())
             _ = try repository.save(baseURL:configuration.baseURL.absoluteString,model:configuration.model,newKey:"synthetic-not-a-key")
+            try repository.recordConsentForMain() // the user agreed to share content (App Review 5.1.2(i))
             let gate=ReferenceGate(), model=ReferenceModel(gate:gate)
             let chat=ChatSession(learning:f.store,repository:repository,client:model)
             let browser=BrowserSession(dataStore:.nonPersistent())

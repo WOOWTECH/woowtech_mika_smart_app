@@ -68,6 +68,8 @@ private actor TranscriptCheckModel: ChatModelClient {
         self.model = model; defaults = UserDefaults(suiteName: suite)!
         let repository = ModelSettingsRepository(defaults: defaults, credentials: TranscriptCheckCredentials())
         _ = try repository.save(baseURL: "https://transcript-check.example.invalid/v1", model: "synthetic-transcript", newKey: "synthetic-not-a-key")
+        // The user agreed to share content with this provider (App Review 5.1.2(i)).
+        try repository.recordConsentForMain()
         learning = LearningStore(vault: EncryptedLearningFile(url: root.appendingPathComponent("learning.vault"), keys: keys))
         guard learning.updatePreferences({ $0.useMemory = true; $0.autoRemember = false }) else {
             throw TranscriptAppFailure(label: "Actual encrypted fixture store")

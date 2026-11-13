@@ -294,6 +294,7 @@ final class MemoryUITests: XCTestCase {
         reveal(app.secureTextFields["settings.apiKey"].firstMatch)
         enter("fixture-only-not-a-real-key\n", into: app.secureTextFields["settings.apiKey"].firstMatch)
         tap("settings.save", scroll: true)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         returnFromModelSettings(in: app)
         openMemory()

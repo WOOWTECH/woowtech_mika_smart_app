@@ -246,9 +246,10 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research.close")
         navigateMikaSection("settings", in: app)
         openModelSettings(in: app)
-        tap("settings.remove", scroll: true)
-        waitForLabel(app.staticTexts["settings.keyStatus"], "尚未儲存金鑰。")
-        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
+        // Like the Play build, a provider is removed with its key from its own page.
+        deleteModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
+        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已刪除"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
         returnFromModelSettings(in: app)
 
@@ -313,6 +314,7 @@ final class BrowserLearningUITests: XCTestCase {
         reveal(key)
         enter("fixture-only-not-a-real-key\n", into: key)
         tap("settings.save", scroll: true)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
         returnFromModelSettings(in: app)

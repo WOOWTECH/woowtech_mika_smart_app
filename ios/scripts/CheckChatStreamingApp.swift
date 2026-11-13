@@ -139,6 +139,8 @@ private actor FixturePauseGate {
         defaults = UserDefaults(suiteName: suite)!
         repository = ModelSettingsRepository(defaults: defaults, credentials: StreamCredentials())
         _ = try repository.save(baseURL: baseURL.absoluteString, model: "fixture", newKey: "synthetic-not-a-key")
+        // The user agreed to share content with this provider (App Review 5.1.2(i)).
+        try repository.recordConsentForMain()
         learning = LearningStore(vault: EncryptedLearningFile(url: root.appendingPathComponent("learning.vault"), keys: learningKeys))
         guard learning.updatePreferences({ $0.useMemory = false; $0.autoRemember = true }) else { throw ChatStreamingChecks.Failure(name: "isolated learning creation") }
         archive = ConversationArchiveStore(vault: EncryptedLearningFile(url: root.appendingPathComponent("archive.vault"), keys: keys))
@@ -1150,6 +1152,48 @@ private actor StreamMCP: MCPDiscovering {
         return a.count
     }
 
+    /// App Review 5.1.2(i): a main model set up before the consent existed
+    /// asks before the first send. Declining keeps the draft and sends
+    /// nothing; agreeing records the consent and sends. Until then work
+    /// outside the chat cannot get the model either.
+    static func consentBeforeFirstSend() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let suite = "woow.stream.consent." + UUID().uuidString
+        guard let defaults = UserDefaults(suiteName: suite) else { throw Failure(name: "isolated consent defaults") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let repository = ModelSettingsRepository(defaults: defaults, credentials: StreamCredentials())
+        // The single form's save records no consent, like a setting from before it.
+        _ = try repository.save(baseURL: "https://consent.example.invalid/v1", model: "fixture", newKey: "synthetic-not-a-key")
+        let client = StreamClient()
+        let session = ChatSession(learning: e.learning, repository: repository, client: client, archive: e.archive)
+        try a.check(session.mainNeedsConsent && session.pendingSendConsent == nil, "a main model never agreed to")
+        let shared = ModelSharedContent.allCases.map(\.text.key)
+        try a.check(shared.count == 10 && Set(shared).count == 10 && shared.allSatisfy { $0.hasPrefix("consent.item.") }
+                    && shared.contains("consent.item.memoryOrganizing") && shared.contains("consent.item.researchJudgment"),
+                    "the consent's one list names each kind of content once")
+        var refused = false
+        do { _ = try session.modelAccess() } catch ModelSettingsError.consentRequired { refused = true }
+        try a.check(refused, "work outside the chat cannot get the model before the consent")
+        session.draft = "Hello after the update"
+        session.attemptSend()
+        try a.check(session.pendingSendConsent?.purpose == .send && session.pendingSendConsent?.host == "consent.example.invalid"
+                    && !session.isSubmitting && session.capturedArchiveRequest == nil && client.counts == (0, 0),
+                    "the first send asks first and starts nothing")
+        session.resolveSendConsent(agreed: false)
+        try a.check(session.pendingSendConsent == nil && session.chatErrorText == .chatConsentDeclined(provider: "consent.example.invalid")
+                    && session.draft == "Hello after the update" && !session.isSubmitting && client.counts == (0, 0)
+                    && (try repository.document())?.consent == nil, "declining sends nothing, keeps the draft and records nothing")
+        session.attemptSend()
+        try a.check(session.pendingSendConsent != nil && client.counts == (0, 0), "the next send asks again")
+        session.resolveSendConsent(agreed: true)
+        try a.check(session.pendingSendConsent == nil && !session.mainNeedsConsent && session.isSubmitting
+                    && (try repository.document())?.consent?.providerID == session.savedSettings?.providerID,
+                    "agreeing records the consent and sends")
+        session.cancel()
+        try a.check(try session.modelAccess().identity.target.model == "fixture", "afterwards other work gets the model")
+        return a.count
+    }
+
     /// Android parity: a typed draft is tappable before a model exists, and the
     /// tap shows 還不能開始任務 instead of doing nothing or starting a request.
     static func sendBlockerExplainsWithoutStarting() async throws -> Int {
@@ -1335,7 +1379,8 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting(),
-                ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback()]
+                ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback(),
+                ChatStreamingChecks.consentBeforeFirstSend()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
             #endif
@@ -1354,6 +1399,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testModelFailuresUsePlayWording() async throws { let n = try await ChatStreamingChecks.modelFailuresUsePlayWording(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testUsageOptionFallback() async throws { let n = try await ChatStreamingChecks.usageOptionFallback(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testSendBlockerExplainsWithoutStarting() async throws { let n = try await ChatStreamingChecks.sendBlockerExplainsWithoutStarting(); XCTAssertEqual(n, 7) }
+    @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }

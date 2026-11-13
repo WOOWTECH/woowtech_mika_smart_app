@@ -21,6 +21,7 @@ final class MemoryRaceUITests: XCTestCase {
         fill(app.secureTextFields["settings.apiKey"], "fixture-key-not-real\n")
         reveal(app.buttons["settings.save"], in: app)
         app.buttons["settings.save"].tap()
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         returnFromModelSettings(in: app)
         navigateMikaSection("chat", in: app)

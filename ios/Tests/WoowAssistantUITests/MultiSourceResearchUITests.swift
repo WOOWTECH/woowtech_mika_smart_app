@@ -23,6 +23,7 @@ final class MultiSourceResearchUITests: XCTestCase {
         enter("fixture-model", into: app.textFields["settings.model"])
         enter("fixture-only-not-a-real-key", into: app.secureTextFields["settings.apiKey"])
         tap("settings.save")
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         returnFromModelSettings(in: app)
         navigateMikaSection("browser", in: app)

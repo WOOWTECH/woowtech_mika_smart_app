@@ -101,6 +101,7 @@ final class ChatVoiceUITests: XCTestCase {
         tap("chat.menu")
         tap("navigation.settings")
         openModelSettings(in: app)
+        revealLearningElement(app.buttons["settings.voice.open"], in: app)
         tap("settings.voice.open")
         let voiceSettings = app.navigationBars["語音轉文字"]
         XCTAssertTrue(voiceSettings.waitForExistence(timeout: 10))
@@ -125,6 +126,7 @@ final class ChatVoiceUITests: XCTestCase {
         tap("chat.menu")
         tap("navigation.settings")
         openModelSettings(in: app)
+        revealLearningElement(app.buttons["settings.voice.open"], in: app)
         tap("settings.voice.open")
         XCTAssertTrue(voiceSettings.waitForExistence(timeout: 10))
         tap("settings.voice.system")

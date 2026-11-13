@@ -22,7 +22,8 @@ def main():
         binary = build / "checks"
         subprocess.run([*common, "-I", str(build), "-L", str(build), "-lAssistantModels",
                         "-Xlinker", "-rpath", "-Xlinker", str(build),
-                        str(root / "Sources/App/ModelSettings.swift"), str(root / "scripts/CheckModelProviders.swift"),
+                        str(root / "Sources/App/ModelSettings.swift"), str(root / "Sources/App/AppText.swift"),
+                        str(root / "Sources/App/ModelProviderForm.swift"), str(root / "scripts/CheckModelProviders.swift"),
                         "-o", str(binary)], cwd=root, check=True, timeout=240)
         subprocess.run([str(binary)], cwd=root, check=True, timeout=60)
 

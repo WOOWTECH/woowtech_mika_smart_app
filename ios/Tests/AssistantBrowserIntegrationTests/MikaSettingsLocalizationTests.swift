@@ -26,17 +26,17 @@ import XCTest
 
     func testPackagedSettingsCopyAndExistingStatusMessagesUseChosenLanguage() throws {
         let samples: [(AppDisplayLanguage, String, String, String, String)] = [
-            (.traditionalChinese, "設定", "常用", "主模型", "尚未儲存金鑰。"),
+            (.traditionalChinese, "設定", "常用", "主模型", "沒有填"),
             // A Simplified Chinese system shows the Traditional Chinese words.
-            (AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), "設定", "常用", "主模型", "尚未儲存金鑰。"),
-            (.english, "Settings", "Common", "Main model", "No key saved.")
+            (AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), "設定", "常用", "主模型", "沒有填"),
+            (.english, "Settings", "Common", "Main model", "Not entered")
         ]
         for (language, title, group, role, missingKey) in samples {
             let localizer = AppLocalizer(language: language)
             for (key, expected) in [(AppText.settingsHomeTitle, title),
                                     (.settingsHomeBasic, group),
                                     (.settingsModelMain, role),
-                                    (.settingsModelKeyMissing, missingKey)] {
+                                    (.modelsKeyNone, missingKey)] {
                 let resolved = localizer.resolve(key)
                 XCTAssertEqual(resolved.text, expected)
                 XCTAssertEqual(resolved.language, language)
@@ -50,7 +50,7 @@ import XCTest
                 XCTAssertEqual(localizer.modelSettingsDisplayMessage(raw), localizer.text(expected))
             }
             for error in [ModelSettingsError.invalidURL, .missingModel, .missingKey,
-                          .changedOrigin, .invalidKey, .unavailableKeychain] {
+                          .changedOrigin, .invalidKey, .unavailableKeychain, .tooManyProviders, .consentRequired] {
                 let raw = try XCTUnwrap(error.errorDescription)
                 XCTAssertEqual(localizer.modelSettingsDisplayMessage(raw),
                                localizer.text(AppLocalizer.modelSettingsError(error)))

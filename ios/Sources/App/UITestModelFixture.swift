@@ -31,7 +31,11 @@ enum UITestModelFixture {
             ? FailingWrites(base: keychain) : keychain
         let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials, providers: providers)
         if arguments.contains("-UITestMCPFixture") {
-            do { _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key") }
+            // A configured model the user already agreed to share content with.
+            do {
+                _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key")
+                try repository.recordConsentForMain()
+            }
             catch { preconditionFailure("Cannot configure isolated MCP conversation fixture") }
         }
         return repository
