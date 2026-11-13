@@ -1,5 +1,7 @@
 # 渥屋助理 Play 內部測試驗收表
 
+> **2026-11-13 已過時**：owner 11/13 決定商店版恢復全部「填 API Key」服務商與自訂網址（commit b3197afa），審查員改用 owner 提供的測試模型服務。本檔關於「只有三家官方 API、沒有自訂網址」與審查員存取的內容不再適用；實際送審輸入以送審資料夾的 STATUS.md 與 text/ 為準（不在 repo 內）。
+
 更新：2026-11-13。適用套件 `io.woowtech.assistant`。請在 Google Play 內部測試軌實際安裝後記錄結果；ADB Debug、bundletool 派生 APK 與舊版 POCO 測試只能當前置證據。測試憑證、完整私人 MCP 網址和使用者資料不得填入本檔。
 
 ## 開始前記錄
