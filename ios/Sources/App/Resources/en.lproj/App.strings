@@ -477,7 +477,6 @@
 "chat.branch.failed" = "Couldn’t create branch";
 "chat.branch.titleSuffix" = " · branch";
 "chat.branch.attachmentsReadd" = "Re-add the attachments you want to include";
-"chat.branch.composerInUse" = "The input bar isn’t empty. Send or clear the draft, quote or attachments first.";
 "chat.branch.origin" = "Branched from another chat";
 "chat.modelFailed.auth" = "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved.";
 "chat.modelFailed.quota" = "The model call failed: the account has run out of credit. Your draft is preserved.";

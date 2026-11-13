@@ -4559,15 +4559,6 @@
       }
     },
     {
-      "case": "chatBranchComposerInUse",
-      "key": "chat.branch.composerInUse",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。",
-        "en": "The input bar isn’t empty. Send or clear the draft, quote or attachments first."
-      }
-    },
-    {
       "case": "chatBranchOrigin",
       "key": "chat.branch.origin",
       "parameters": [],

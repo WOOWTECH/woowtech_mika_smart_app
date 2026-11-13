@@ -140,8 +140,6 @@ enum ChatBranchOutcome: Equatable {
     case needsReattach
     /// The first message asked again: a new conversation with its words back.
     case startedOver
-    /// The input bar holds a draft, quote or attachments that would be lost.
-    case composerInUse
     /// Busy, changed or unsaved conversation, or a failed save (沒能建立分支).
     case failed
 }
@@ -429,13 +427,12 @@ final class ChatSession: ObservableObject {
             questions: Set(record.turns.filter { !$0.userText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.userID)))
     }
 
-    /// Unlike Android, branching never discards what is waiting in the input bar.
-    private var composerIsEmpty: Bool { draft.isEmpty && pendingQuote == nil && pendingAttachments.isEmpty }
-
     /// 從這裡分支: the turns through this finished reply become a new
-    /// conversation, titled by `title` from the source, and it opens.
+    /// conversation, titled by `title` from the source, and it opens with an
+    /// empty input bar. Like Android (ChatScreen onBranch), whatever waited
+    /// there (draft, quote, attachments) is cleared without asking; a failed
+    /// branch leaves it as it was.
     func branch(fromReply replyID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
-        guard composerIsEmpty else { return .composerInUse }
         guard let record = savedConversationOnScreen, record.turns.contains(where: { $0.assistantID == replyID }) else {
             return .failed
         }
@@ -446,16 +443,19 @@ final class ChatSession: ObservableObject {
     }
 
     /// 從這裡重新問: a new conversation with the turns before this message of
-    /// yours, its words back in the input bar and nothing sent. The first
-    /// message has nothing before it, so that is a new, unsaved conversation.
+    /// yours and its words in the input bar in place of the draft, nothing
+    /// sent. Like Android (ChatScreen onBranchRetry), the waiting quote and
+    /// attachments are cleared. The first message has nothing before it, so
+    /// that is a new, unsaved conversation.
     func askAgain(from messageID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
-        guard composerIsEmpty else { return .composerInUse }
         guard let record = savedConversationOnScreen, canOpenConversation(record),
               let index = record.turns.firstIndex(where: { $0.userID == messageID }),
               let entry = entries.first(where: { $0.id == messageID }) else { return .failed }
         let words = ConversationQuote.parse(ChatAttachmentLines.displayText(entry.content, items: entry.attachments)).words
         let reattach = !entry.attachments.isEmpty || entry.pdf != nil
         if index == 0 {
+            // A new conversation keeps the draft; the quote must go first.
+            clearComposerQuote()
             newConversation()
             guard entries.isEmpty else { return .failed }
         } else {
@@ -469,11 +469,14 @@ final class ChatSession: ObservableObject {
         return reattach ? .needsReattach : index == 0 ? .startedOver : .created
     }
 
-    /// Drafts and attachments cannot be silently discarded by branching.
+    /// A reply still arriving or not yet saved blocks branching. The input bar
+    /// does not: like Android, a branch opens with it cleared.
     private var branchHasUnfinishedOrUnsavedWork: Bool {
         replyPreview != nil || pendingArchiveSave != nil || archiveNotice != nil
-            || !draft.isEmpty || pendingQuote != nil || !pendingAttachments.isEmpty
     }
+
+    /// The quote waiting above the input bar, dropped for a branch.
+    private func clearComposerQuote() { pendingQuote = nil; quoteSource = nil }
 
     func prepareBranch(source: ArchivedConversation, assistantID: UUID, title: String,
                        targetID: UUID = UUID(), at: Date = Date()) throws -> ConversationBranchPlan {
@@ -495,6 +498,9 @@ final class ChatSession: ObservableObject {
         }
         try archive.commitBranch(plan, isBusy: isSubmitting,
                                  hasUnfinishedOrUnsavedTurn: branchHasUnfinishedOrUnsavedWork)
+        // Saved: like Android, the branch opens with an empty input bar. The
+        // quote goes here; opening clears the draft and waiting attachments.
+        clearComposerQuote()
         // No suspension occurs between persistence and opening. If opening ever
         // becomes unavailable, the saved branch remains recoverable in archive.
         guard openConversation(id: plan.branch.id) else { throw ConversationArchiveError.unavailable }

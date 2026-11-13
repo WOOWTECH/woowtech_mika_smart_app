@@ -487,7 +487,6 @@ enum AppText: Equatable {
     case chatBranchFailed
     case chatBranchTitleSuffix
     case chatBranchAttachmentsReadd
-    case chatBranchComposerInUse
     case chatBranchOrigin
     case chatModelFailedAuth
     case chatModelFailedQuota
@@ -985,7 +984,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "chat.branch.failed"
         case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
-        case .chatBranchComposerInUse: return "chat.branch.composerInUse"
         case .chatBranchOrigin: return "chat.branch.origin"
         case .chatModelFailedAuth: return "chat.modelFailed.auth"
         case .chatModelFailedQuota: return "chat.modelFailed.quota"
@@ -1522,7 +1520,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "沒能建立分支"
         case .chatBranchTitleSuffix: return " · 分支"
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
-        case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
         case .chatBranchOrigin: return "從另一個對話分支"
         case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
         case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"

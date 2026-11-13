@@ -477,7 +477,6 @@
 "chat.branch.failed" = "沒能建立分支";
 "chat.branch.titleSuffix" = " · 分支";
 "chat.branch.attachmentsReadd" = "附件需要重新加入";
-"chat.branch.composerInUse" = "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。";
 "chat.branch.origin" = "從另一個對話分支";
 "chat.modelFailed.auth" = "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。";
 "chat.modelFailed.quota" = "呼叫模型失敗：額度已用完。草稿已保留。";
