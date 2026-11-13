@@ -32,9 +32,9 @@
       "key": "language.system.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "系統語言渥屋助理有譯文時用它,沒有時用繁體中文",
-        "zh-Hans": "系统语言渥屋助理有译文时用它,没有时用繁体中文",
-        "en": "Uses your system language when woowtech agent has it, Traditional Chinese otherwise"
+        "zh-Hant": "跟著裝置語言；簡體中文改用繁體中文，其他沒有譯文的語言用英文",
+        "zh-Hans": "跟着设备语言；简体中文改用繁体中文，其他没有译文的语言用英文",
+        "en": "Follows your device language: Traditional Chinese for Simplified Chinese, English for other languages without a translation"
       }
     },
     {
