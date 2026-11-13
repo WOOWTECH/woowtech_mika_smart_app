@@ -49,11 +49,6 @@ struct ContentView: View {
         }
         .tint(palette.accent)
         .background(palette.background)
-        #if DEBUG
-        .environment(\.notificationRouteObservation,
-                     MCPApprovalView.exposesFixtureIdentity(arguments: ProcessInfo.processInfo.arguments)
-                     ? "generation=\(notificationNavigationID.uuidString);destination=\(selection.rawValue)" : "")
-        #endif
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .taskNotifications(chat: session, store: notifications) { destination in
@@ -273,7 +268,7 @@ struct ContentView: View {
                     .accessibilityIdentifier("stream.fixture.notifications")
                     .accessibilityValue(String(notifications.streamingFixtureCompletedAddAttempts))
             }
-            if MCPApprovalView.exposesFixtureIdentity(arguments: ProcessInfo.processInfo.arguments) {
+            if Self.exposesNotificationRoute(arguments: ProcessInfo.processInfo.arguments) {
                 // Observe the existing route identity only. No test can mutate
                 // it or invoke the notification-open callback through this Text.
                 Text("通知導頁測試觀測")
@@ -284,6 +279,20 @@ struct ContentView: View {
         }
         #endif
     }
+
+    #if DEBUG
+    /// Only the isolated MCP fixture mode shows the notification test the root
+    /// route generation. Reuse the side-effect-free strict mode/UUID parser;
+    /// never create a store or request permission while rendering it.
+    static func exposesNotificationRoute(arguments: [String]) -> Bool {
+        guard arguments.filter({ $0 == "-UITestMode" }).count == 1,
+              arguments.filter({ $0 == "-UITestMCPFixture" }).count == 1,
+              !arguments.contains(where: { $0.hasPrefix("-Live") }),
+              let configuration = try? TaskNotificationStoreConfiguration.resolve(arguments: arguments)
+        else { return false }
+        return configuration.scope != "production"
+    }
+    #endif
 }
 
 /// WOOWTECH Android brand.properties and ui/theme/Colors.kt at de5be358.
@@ -750,15 +759,14 @@ private struct ChatView: View {
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
-        let rows = transcriptRows(targets: targets)
-        return Group {
-            // An empty chat is a short, fixed list. In a LazyVStack it hung the main
-            // thread on iPhone SE (iOS 18.5 CI) when an example shrank the input bar
-            // while the list was scrolled to its end, so it is laid out eagerly.
-            if session.entries.isEmpty && session.replyPreview == nil {
-                VStack(alignment: .leading, spacing: 16) { rows }
-            } else {
-                LazyVStack(alignment: .leading, spacing: 16) { rows }
+        return VStack(alignment: .leading, spacing: 16) {
+            // The welcome stays out of the lazy list: inside a LazyVStack it hung the
+            // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
+            // bar while the list was scrolled to its end. The messages keep one
+            // LazyVStack throughout, so the first message never swaps the list.
+            welcomeRows
+            LazyVStack(alignment: .leading, spacing: 16) {
+                messageRows(targets: targets)
             }
         }
         .padding(.vertical, 4)
@@ -773,7 +781,7 @@ private struct ChatView: View {
         }
     }
 
-    @ViewBuilder private func transcriptRows(targets: ChatMessageActionTargets) -> some View {
+    @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
         if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
@@ -783,6 +791,9 @@ private struct ChatView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("chat.explanation")
         }
+    }
+
+    @ViewBuilder private func messageRows(targets: ChatMessageActionTargets) -> some View {
         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
             messageRow(index: index, entry: entry, targets: targets)
         }
@@ -1062,12 +1073,6 @@ private struct ChatView: View {
                 // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
                 if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
             }
-            .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
-                MCPApprovalView(proposal: proposal,
-                                approve: { session.resolveMCPApproval(id: proposal.id, approved: true) },
-                                decline: { session.resolveMCPApproval(id: proposal.id, approved: false) })
-                    .interactiveDismissDisabled()
-            }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
@@ -1186,7 +1191,7 @@ private struct ChatEmptyState: View {
     // Store-flavor examples only fill the editable draft; they do not start a task.
     private var examples: [(text: AppText, icon: String, identifier: String)] {
         [(.shellReplyExample, "doc", "chat.emptyExample.reply"),
-         (.shellDocumentExample, "doc", "chat.emptyExample.document"),
+         (.shellNewsExample, "globe", "chat.emptyExample.news"),
          (.shellWebExample, "globe", "chat.emptyExample.web"),
          (.shellShoppingExample, "globe", "chat.emptyExample.shopping"),
          (.shellRememberExample, "doc", "chat.emptyExample.remember"),

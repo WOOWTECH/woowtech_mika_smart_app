@@ -65,7 +65,6 @@ struct ChatMessageMenuText {
         case .created: return localizer.text(.chatBranchDone)
         case .needsReattach: return localizer.text(.chatBranchAttachmentsReadd)
         case .startedOver: return nil
-        case .composerInUse: return localizer.text(.chatBranchComposerInUse)
         case .failed: return localizer.text(.chatBranchFailed)
         }
     }

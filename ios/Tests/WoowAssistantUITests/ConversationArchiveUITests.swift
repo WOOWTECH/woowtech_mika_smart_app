@@ -331,7 +331,8 @@ final class ConversationArchiveUITests: XCTestCase {
     }
 
     /// Android MessageMenu: quote a reply and send with it, then ask again from your
-    /// own message; its words wait unsent in the branch and can be sent there.
+    /// own message; its words replace a typed draft, a waiting quote goes, and
+    /// they wait unsent in the branch and can be sent there.
     func testMessageMenuQuotesAndAsksAgainLikeAndroid() {
         launch(); configure(); send("Menu first")
         openMessageMenu("chat.message.1.assistant")
@@ -347,12 +348,19 @@ final class ConversationArchiveUITests: XCTestCase {
         assertLabel(app.descendants(matching: .any)["chat.message.2.quote"].firstMatch, "引用渥屋助理:測試回覆：Menu first")
         XCTAssertFalse(app.staticTexts["chat.quote.text"].firstMatch.exists, "the quote went with the message")
 
+        // Like Android (onBranchRetry), nothing asks first: the typed draft is
+        // replaced and the waiting quote cleared.
+        compose("Draft to replace")
+        openMessageMenu("chat.message.3.assistant"); tap("chat.messageMenu.quote")
+        let waitingQuote = app.staticTexts["chat.quote.text"].firstMatch
+        XCTAssertTrue(waitingQuote.waitForExistence(timeout: 5))
         openMessageMenu("chat.message.2.user")
         XCTAssertTrue(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists)
         XCTAssertFalse(app.buttons["chat.messageMenu.branch"].firstMatch.exists, "your own message is not a branch point")
         tap("chat.messageMenu.askAgain")
         assertLabel(app.staticTexts["chat.toast"].firstMatch, "已建立分支")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, "Explain")
+        assertGone(waitingQuote)
         assertLabel(app.staticTexts["chat.message.0.user"].firstMatch, "Menu first")
         XCTAssertFalse(app.staticTexts["chat.message.2.user"].firstMatch.exists, "the branch ends before that message")
         tap("chat.send")
@@ -360,21 +368,20 @@ final class ConversationArchiveUITests: XCTestCase {
         assertBranchInSidebar("Menu first · 分支")
     }
 
-    /// Branching never discards what waits in the input bar (here a quote); once the
-    /// quote is removed, 從這裡分支 opens the branch. Copy and 選取文字 use plain text.
+    /// Like Android (onBranch), 從這裡分支 opens the branch with an empty input
+    /// bar: a typed draft and a waiting quote are cleared without asking. Copy
+    /// and 選取文字 use plain text.
     func testMessageMenuBranchesCopiesAndSelectsTextLikeAndroid() {
         launch(); configure(); send("Menu first")
+        compose("Unsent words")
         openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.quote")
         let quote = app.staticTexts["chat.quote.text"].firstMatch
         XCTAssertTrue(quote.waitForExistence(timeout: 5))
         openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.branch")
-        assertLabel(app.staticTexts["chat.toast"].firstMatch,
-                    "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。")
-        XCTAssertTrue(quote.exists, "the waiting quote is kept")
-        tap("chat.quote.remove")
-        assertGone(quote)
-        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.branch")
         assertLabel(app.staticTexts["chat.toast"].firstMatch, "已建立分支")
+        assertGone(quote)
+        let draft = chatDraftControl(in: app).value as? String ?? ""
+        XCTAssertTrue(["", "繼續說點什麼…"].contains(draft), "the branch opens with an empty input bar")
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "測試回覆：Menu first")
 
         openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.copy")

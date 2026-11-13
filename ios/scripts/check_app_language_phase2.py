@@ -26,7 +26,7 @@ run('resource-parity',['python3','scripts/generate_app_text.py'])
 run('resource-negative-tests',['python3','-m','unittest','discover','-s','scripts','-p','test_app_text_resources.py'])
 run('ui-launch-language-check',['python3','scripts/check_ui_test_language.py'])
 apps=[capture('Sources/App/'+n+'.swift') for n in dict.fromkeys(APPS+['AppSkillCatalogText'])]
-views=[capture('Sources/App/'+n+'.swift') for n in ['MCPToolsView','MCPApprovalView','BrowserView','BrowserLibraryView','BrowserSearchSettingsView','SkillCatalogView','TaskNotificationSettingsView']]
+views=[capture('Sources/App/'+n+'.swift') for n in ['MCPToolsView','MCPResultsView','BrowserView','BrowserLibraryView','BrowserSearchSettingsView','SkillCatalogView','TaskNotificationSettingsView']]
 foundation=[capture('Sources/App/'+n+'.swift') for n in ['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','AppModelSettingsText','ModelSettings']]
 foundation_harness=[capture('scripts/'+n+'.swift') for n in ['CheckAppLanguage','CheckAppLanguageResources']]
 fixtures=capture('Tests/AssistantMCPTests/MCPProtocolFixture.swift')

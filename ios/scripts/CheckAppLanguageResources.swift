@@ -52,7 +52,7 @@ import AssistantSkills
         // Every fixed status and the archive explanation must resolve from each
         // shipped bundle, including after the interface language changes.
         let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
-            .chatStatusMCPApproval, .chatStatusMCPWorking, .chatStatusWaiting,
+            .chatStatusMCPWorking, .chatStatusWaiting,
             .chatStatusConfigured, .chatStatusUnconfigured, .chatModelSetupHint,
             .chatFixtureNotice, .archiveBoundary, .archiveSavedCount(count: 2), .archiveEmpty, .archiveClose]
         for language in AppDisplayLanguage.allCases {

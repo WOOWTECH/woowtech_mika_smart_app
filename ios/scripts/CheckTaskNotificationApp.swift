@@ -101,7 +101,7 @@ enum CheckTaskNotificationApp {
             let cases: [(String, () async throws -> Void)] = [
                 ("nativeUNContentAndScope", nativeContent), ("factoryAndPreferences", preferences),
                 ("realChatSuccessFailureClear", realChat), ("realChatCancelGeneration", lateChat),
-                ("realMCPApprovalCompleteDecline", realMCP), ("realProfileMemoryApprovals", localApprovals)
+                ("realMCPCompletesWithoutApproval", realMCP), ("realProfileMemoryApprovals", localApprovals)
             ]
             for (name, body) in cases {
                 let before = Checks.assertions; try await body(); groups[name] = Checks.assertions - before
@@ -229,36 +229,29 @@ enum CheckTaskNotificationApp {
         rebound.invalidate()
     }
 
+    /// Like the Play build, an MCP call needs no approval, so it never posts an
+    /// approval prompt; the finished turn notifies like any other.
     @MainActor static func realMCP() async throws {
-        for approve in [true, false] {
-            let env = try NotificationEnvironment(); defer { try? env.close() }
-            let model = NotificationScriptedModel([
-                #"{"action":"call_tool","name":"synthetic_read","arguments":{"text":"SYNTHETIC_PRIVATE_MCP_ARGUMENT"}}"#, finish])
-            let chat = env.session(model)
-            let server = NotificationMCPServer()
-            let mcp = MCPSession(repository: NotificationMCPEndpoint(), clientFactory: { _ in server })
-            mcp.connect(); try await Checks.until { mcp.phase == .connected }; mcp.selectTool("synthetic_read", enabled: true)
-            chat.usesMCP = true
-            let center = TaskNotificationFakeCenter(); let service = await Checks.active(center)
-            let bridge = TaskNotificationChatBridge(session: chat, service: service)
-            defer { bridge.invalidate(); service.disable(); mcp.disconnect() }
-            chat.draft = "synthetic MCP request"; chat.send(mcp: mcp)
-            try await Checks.until { chat.pendingMCPApproval != nil }; await service.waitUntilIdle()
-            try Checks.expect(center.pending.values.first?.kind == .approval, "actual MCP pending approval notifies")
-            let calls = await server.calls
-            try Checks.expect(calls == 0, "notification does not approve MCP")
-            let approvalID = chat.pendingMCPApproval!.id
-            let id = center.pending.keys.first!
-            let destination = TaskNotificationPayload.destination(for: id)
-            try Checks.expect(destination == .chat && chat.pendingMCPApproval?.id == approvalID, "route extraction leaves approval pending")
-            chat.resolveMCPApproval(id: approvalID, approved: approve)
-            try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
-            let finalCalls = await server.calls
-            try Checks.expect(finalCalls == (approve ? 1 : 0), "only actual App approval executes MCP")
-            try Checks.expect(!center.pending.values.contains { $0.kind == .approval }, "actual MCP resolve revokes prompt")
-            try Checks.expect(center.pending.count == (approve ? 1 : 0), "actual MCP success/decline distinguished")
-            try privacy(center)
-        }
+        let env = try NotificationEnvironment(); defer { try? env.close() }
+        let model = NotificationScriptedModel([
+            #"{"action":"call_tool","name":"synthetic_read","arguments":{"text":"SYNTHETIC_PRIVATE_MCP_ARGUMENT"}}"#, finish])
+        let chat = env.session(model)
+        let server = NotificationMCPServer()
+        let mcp = MCPSession(repository: NotificationMCPEndpoint(), clientFactory: { _ in server })
+        mcp.connect(); try await Checks.until { mcp.phase == .connected }; mcp.selectTool("synthetic_read", enabled: true)
+        chat.usesMCP = true
+        let center = TaskNotificationFakeCenter(); let service = await Checks.active(center)
+        let bridge = TaskNotificationChatBridge(session: chat, service: service)
+        defer { bridge.invalidate(); service.disable(); mcp.disconnect() }
+        chat.draft = "synthetic MCP request"; chat.send(mcp: mcp)
+        try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
+        let calls = await server.calls
+        try Checks.expect(calls == 1 && chat.entries.count == 2 && chat.mcpSteps.count == 1, "actual MCP call runs once with no approval")
+        try Checks.expect(!center.additions.contains { $0.payload.kind == .approval }, "an MCP call never posts an approval prompt")
+        try Checks.expect(center.pending.count == 1 && center.pending.values.first?.kind == .completed, "the finished MCP turn notifies once")
+        let id = center.pending.keys.first!
+        try Checks.expect(TaskNotificationPayload.destination(for: id) == .chat, "the completion opens chat")
+        try privacy(center)
     }
 
     @MainActor static func localApprovals() async throws {
@@ -302,7 +295,7 @@ final class TaskNotificationAppTests: XCTestCase {
     @MainActor func testFactoryAndPreferences() async throws { try await CheckTaskNotificationApp.preferences() }
     @MainActor func testRealChatSuccessFailureClear() async throws { try await CheckTaskNotificationApp.realChat() }
     @MainActor func testRealChatCancelGeneration() async throws { try await CheckTaskNotificationApp.lateChat() }
-    @MainActor func testRealMCPApprovalCompleteDecline() async throws { try await CheckTaskNotificationApp.realMCP() }
+    @MainActor func testRealMCPCompletesWithoutApproval() async throws { try await CheckTaskNotificationApp.realMCP() }
     @MainActor func testRealProfileMemoryApprovals() async throws { try await CheckTaskNotificationApp.localApprovals() }
 }
 #endif

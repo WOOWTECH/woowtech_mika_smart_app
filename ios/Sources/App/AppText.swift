@@ -30,7 +30,7 @@ enum AppText: Equatable {
     case shellGreetingNight
     case shellWhatToDo
     case shellReplyExample
-    case shellDocumentExample
+    case shellNewsExample
     case shellShoppingExample
     case shellRememberExample
     case shellRecallExample
@@ -107,17 +107,11 @@ enum AppText: Equatable {
     case mcpKeychainUnavailable
     case mcpInvalidNamespace
     case mcpMissingLiveEndpoint
-    case mcpApprovalHelp
-    case mcpApprovalRisk
-    case mcpApprovalTitle
-    case mcpDecline
-    case mcpApprove
     case mcpReadResource
     case mcpToolError
     case mcpToolResult
     case mcpResultsTitle
     case mcpResultUnavailable
-    case mcpRouteObservation
     case mcpProtocol(version: String)
     case mcpKeychainStatus(code: String)
     case mcpToolCount(count: Int)
@@ -384,7 +378,6 @@ enum AppText: Equatable {
     case newConversationKeep
     case chatStatusProfileReview
     case chatStatusMemoryReview
-    case chatStatusMCPApproval
     case chatStatusMCPWorking
     case chatStatusWaiting
     case chatStatusConfigured
@@ -494,7 +487,6 @@ enum AppText: Equatable {
     case chatBranchFailed
     case chatBranchTitleSuffix
     case chatBranchAttachmentsReadd
-    case chatBranchComposerInUse
     case chatBranchOrigin
     case chatModelFailedAuth
     case chatModelFailedQuota
@@ -535,7 +527,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "shell.greetingNight"
         case .shellWhatToDo: return "shell.whatToDo"
         case .shellReplyExample: return "shell.replyExample"
-        case .shellDocumentExample: return "shell.documentExample"
+        case .shellNewsExample: return "shell.newsExample"
         case .shellShoppingExample: return "shell.shoppingExample"
         case .shellRememberExample: return "shell.rememberExample"
         case .shellRecallExample: return "shell.recallExample"
@@ -612,17 +604,11 @@ enum AppText: Equatable {
         case .mcpKeychainUnavailable: return "mcp.keychain.unavailable"
         case .mcpInvalidNamespace: return "mcp.invalid.namespace"
         case .mcpMissingLiveEndpoint: return "mcp.missing.live.endpoint"
-        case .mcpApprovalHelp: return "mcp.approval.help"
-        case .mcpApprovalRisk: return "mcp.approval.risk"
-        case .mcpApprovalTitle: return "mcp.approval.title"
-        case .mcpDecline: return "mcp.decline"
-        case .mcpApprove: return "mcp.approve"
         case .mcpReadResource: return "mcp.read.resource"
         case .mcpToolError: return "mcp.tool.error"
         case .mcpToolResult: return "mcp.tool.result"
         case .mcpResultsTitle: return "mcp.results.title"
         case .mcpResultUnavailable: return "mcp.result.unavailable"
-        case .mcpRouteObservation: return "mcp.route.observation"
         case .mcpProtocol: return "mcp.protocol"
         case .mcpKeychainStatus: return "mcp.keychain.status"
         case .mcpToolCount: return "mcpToolCount"
@@ -889,7 +875,6 @@ enum AppText: Equatable {
         case .newConversationKeep: return "newConversation.keep"
         case .chatStatusProfileReview: return "chat.status.profileReview"
         case .chatStatusMemoryReview: return "chat.status.memoryReview"
-        case .chatStatusMCPApproval: return "chat.status.mcpApproval"
         case .chatStatusMCPWorking: return "chat.status.mcpWorking"
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatStatusConfigured: return "chat.status.configured"
@@ -999,7 +984,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "chat.branch.failed"
         case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
-        case .chatBranchComposerInUse: return "chat.branch.composerInUse"
         case .chatBranchOrigin: return "chat.branch.origin"
         case .chatModelFailedAuth: return "chat.modelFailed.auth"
         case .chatModelFailedQuota: return "chat.modelFailed.quota"
@@ -1079,7 +1063,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "夜深了"
         case .shellWhatToDo: return "想讓渥屋助理做什麼？"
         case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
-        case .shellDocumentExample: return "幫我摘要附上的文件，列出重點"
+        case .shellNewsExample: return "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"
         case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
         case .shellRememberExample: return "記住我偏好使用繁體中文，回答簡短一點"
         case .shellRecallExample: return "你記得我有哪些偏好？"
@@ -1117,7 +1101,7 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 與 Skills"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。"
+        case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
         case .mcpNotStored: return "尚未儲存端點。"
@@ -1156,17 +1140,11 @@ enum AppText: Equatable {
         case .mcpKeychainUnavailable: return "無法存取 MCP Keychain，請解鎖裝置後再試。"
         case .mcpInvalidNamespace: return "UI 測試缺少有效的隔離命名空間；不會讀取正式設定。"
         case .mcpMissingLiveEndpoint: return "Live MCP UI 測試設定未完成，未取得私密端點。"
-        case .mcpApprovalHelp: return "模型請求執行以下工具。核准只適用於這一次的名稱與參數；結果會提供給已設定的模型。"
-        case .mcpApprovalRisk: return "工具可能修改外部資料。取消本機等待無法撤銷已送出的操作。"
-        case .mcpApprovalTitle: return "核准 MCP 呼叫"
-        case .mcpDecline: return "拒絕並停止"
-        case .mcpApprove: return "核准這一次"
         case .mcpReadResource: return "讀取 MCP 資源"
         case .mcpToolError: return "工具回報錯誤"
         case .mcpToolResult: return "已收到工具結果"
         case .mcpResultsTitle: return "本次 MCP 工具結果"
         case .mcpResultUnavailable: return "結果無法顯示"
-        case .mcpRouteObservation: return "通知導頁測試觀測"
         case .mcpProtocol: return "協定版本：%1$@"
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
         case .mcpToolCount: return "工具：%lld 個"
@@ -1242,7 +1220,7 @@ enum AppText: Equatable {
         case .notificationCompletedBody: return "開啟渥屋助理查看結果。"
         case .notificationApprovalBody: return "請開啟渥屋助理查看並決定；通知不會核准操作。"
         case .notificationTestBody: return "這是渥屋助理的測試通知。"
-        case .catalogTitle: return "Mika 內建技能目錄"
+        case .catalogTitle: return "內建技能目錄"
         case .catalogSearch: return "搜尋名稱、全文或支援檔案"
         case .catalogScope: return "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。"
         case .catalogCapabilities: return "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。"
@@ -1295,10 +1273,10 @@ enum AppText: Equatable {
         case .catalogReqExport: return "原版檔案產生與分享工具：未提供"
         case .catalogReqResearch: return "原版跨網站自動研究：未提供"
         case .catalogReqAccount: return "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權"
-        case .catalogReqSend: return "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准"
+        case .catalogReqSend: return "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准"
         case .catalogReqMutation: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
         case .catalogCount: return "共 %1$lld 項原始技能 · 符合 %2$lld 項"
-        case .catalogProvenance: return "Mika · 固定來源版本 %1$@"
+        case .catalogProvenance: return "內建技能 · 固定來源版本 %1$@"
         case .browserStartDone: return "完成"
         case .browserStartEdit: return "整理"
         case .browserStartRecent: return "最近開啟"
@@ -1323,7 +1301,7 @@ enum AppText: Equatable {
         case .browserChromeReturnManual: return "返回手動瀏覽"
         case .browserChromeResearch: return "研究"
         case .browserChromeResearchSite: return "研究此網站"
-        case .browserPageAskResearch: return "問 Mika 研究此網站"
+        case .browserPageAskResearch: return "問渥屋助理研究此網站"
         case .browserChromeInteract: return "操作"
         case .browserChromeLibrary: return "分頁、書籤與歷史"
         case .browserChromeExplanation: return "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。"
@@ -1433,7 +1411,6 @@ enum AppText: Equatable {
         case .newConversationKeep: return "返回目前對話"
         case .chatStatusProfileReview: return "等待你核對個人檔案修改…"
         case .chatStatusMemoryReview: return "等待你核對記憶修改…"
-        case .chatStatusMCPApproval: return "等待你核准 MCP 工具…"
         case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
         case .chatStatusWaiting: return "正在等待模型回覆…"
         case .chatStatusConfigured: return "模型已設定"
@@ -1543,7 +1520,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "沒能建立分支"
         case .chatBranchTitleSuffix: return " · 分支"
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
-        case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
         case .chatBranchOrigin: return "從另一個對話分支"
         case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
         case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"

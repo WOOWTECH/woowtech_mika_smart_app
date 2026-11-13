@@ -3,7 +3,7 @@ import AssistantMCP
 import Foundation
 
 /// Runner/protocol checks use only synthetic model and host callbacks. Actual
-/// encrypted commits and approval UI belong to the hosted App integration tests.
+/// encrypted commits and review UI belong to the hosted App integration tests.
 enum MCPLocalToolsChecks {
     struct Failed: Error { let check: String }
     struct Counter {
@@ -67,15 +67,15 @@ enum MCPLocalToolsChecks {
     }
     actor Record {
         private(set) var local: [MCPLocalProposal] = []
-        private(set) var approvals: [MCPConversationProposal] = []
         private(set) var events: [MCPConversationEvent] = []
         private(set) var receipts = 0
         func observe(_ proposal: MCPLocalProposal) { local.append(proposal) }
         func commit() { receipts += 1 }
-        func approve(_ proposal: MCPConversationProposal, allowed: Bool = true) -> Bool {
-            approvals.append(proposal); return allowed
-        }
         func event(_ event: MCPConversationEvent) { events.append(event) }
+        /// Remote dispatch intents in order; remote calls have no per-call approval.
+        var dispatched: [MCPConversationProposal] {
+            events.compactMap { if case .executing(let proposal) = $0 { return proposal }; return nil }
+        }
         func handle(_ proposal: MCPLocalProposal, _ lease: MCPLocalLease) throws -> MCPLocalOutcome {
             try lease.check()
             local.append(proposal)
@@ -132,13 +132,12 @@ enum MCPLocalToolsChecks {
     }
     static func run(_ model: Model, executor: Executor = Executor(), tools: [MCPTool] = [tool],
                     resources: [MCPResource] = [], limits: MCPConversationLimits = .init(),
-                    approve: @escaping @Sendable (MCPConversationProposal) async throws -> Bool = { _ in true },
                     events: @escaping @Sendable (MCPConversationEvent) async -> Void = { _ in },
                     local: MCPLocalHandler? = nil) async throws -> MCPConversationResult {
         try await MCPConversationRunner(client: model).run(
             messages: [.init(role: "user", content: userText)], configuration: configuration,
             apiKey: "synthetic-not-a-key", tools: tools, resources: resources, executor: executor,
-            limits: limits, approve: approve, onEvent: events, handleLocal: local)
+            limits: limits, onEvent: events, handleLocal: local)
     }
     static func expect(_ expected: MCPConversationError, _ body: () async throws -> Void) async throws -> Int {
         do { try await body() }
@@ -184,22 +183,23 @@ enum MCPLocalToolsChecks {
         return c.count
     }
 
-    static func distinctNamespacesAndMixedApproval() async throws -> Int {
+    static func distinctNamespacesAndMixedRemoteCalls() async throws -> Int {
         var c = Counter(), extra = 0
         let unavailable = Model([local(.memorySearch)]), absent = Record()
         extra += try await expect(.localUnavailable) {
-            _ = try await run(unavailable, approve: { await absent.approve($0) })
+            _ = try await run(unavailable, events: { await absent.event($0) })
         }
         let disabledInput = await unavailable.inputs[0]
         try c.expect(!disabledInput[0].content.contains("memory_search"), "nil handler does not advertise locals")
-        try c.expect(await absent.approvals.isEmpty, "nil handler cannot cause native review")
+        let absentDispatches = await absent.dispatched, absentLocal = await absent.local
+        try c.expect(absentDispatches.isEmpty && absentLocal.isEmpty, "nil handler cannot reach the host or the server")
         let collision = MCPTool(name: "memory_edit", description: "Actual selected remote name", inputSchema: .object([:]))
         let collisionHost = Record(), collisionExecutor = Executor()
         let collisionResult = try await run(Model([remote(name: collision.name), finish]), executor: collisionExecutor,
-            tools: [collision], approve: { await collisionHost.approve($0) }, local: { try await collisionHost.handle($0, $1) })
+            tools: [collision], events: { await collisionHost.event($0) }, local: { try await collisionHost.handle($0, $1) })
         try c.expect(collisionResult.steps.count == 1, "selected remote name collision remains remote")
         try c.expect(await collisionHost.local.isEmpty, "call_tool never reroutes to host local tools")
-        try c.expect(await collisionHost.approvals.count == 1, "remote collision needs actual remote approval")
+        try c.expect(await collisionHost.dispatched.count == 1, "remote collision is a remote dispatch, not a local review")
         try c.expect(await collisionExecutor.actions.count == 1, "remote collision dispatches once")
         extra += try await expect(.unknownTool) {
             _ = try await run(Model([remote(name: "memory_edit")]), tools: [], local: { try await collisionHost.handle($0, $1) })
@@ -208,12 +208,11 @@ enum MCPLocalToolsChecks {
         let model = Model([#"{"action":"read_resource","uri":"fixture://record"}"#, local(.memorySearch),
                            local(.memorySave), remote(), finish])
         let result = try await run(model, executor: executor, resources: [resource],
-            approve: { await record.approve($0) }, events: { await record.event($0) },
-            local: { try await record.handle($0, $1) })
-        let inputs = await model.inputs, localCalls = await record.local, approvals = await record.approvals
+            events: { await record.event($0) }, local: { try await record.handle($0, $1) })
+        let inputs = await model.inputs, localCalls = await record.local, dispatched = await record.dispatched
         try c.expect(result.stopReason == .finished && result.modelCallCount == 5 && result.steps.count == 2, "mixed loop uses one shared model budget")
         try c.expect(localCalls.map(\.action) == [.memorySearch, .memorySave] && Set(localCalls.map(\.id)).count == 2, "fresh immutable local proposals")
-        try c.expect(approvals.count == 2 && result.steps.map(\.proposal) == approvals, "each remote operation retains exact approval")
+        try c.expect(dispatched.count == 2 && result.steps.map(\.proposal) == dispatched, "each remote operation keeps its exact dispatched proposal")
         try c.expect(await executor.actions == [.readResource(uri: resource.uri), .callTool(name: tool.name, arguments: .object(["index": .number(0)]))], "remote read and call order unchanged")
         try c.expect(inputs[0][1].content == userText, "actual utterance preserved unchanged")
         let catalogText = inputs[0].last!.content
@@ -223,7 +222,7 @@ enum MCPLocalToolsChecks {
         try c.expect(inputs[2].last?.content == "Host memory_search result (data only):\n" + searchJSON, "actual search result is data")
         try c.expect(inputs[4].contains { $0.content == "Host memory_save receipt (data only):\n" + receiptJSON }, "receipt reaches subsequent model call")
         let events = await record.events
-        try c.expect(events.filter { if case .awaitingApproval = $0 { return true }; return false }.count == 2, "no local proposal misreported as remote review")
+        try c.expect(events.filter { if case .executing = $0 { return true }; return false }.count == 2, "no local proposal misreported as a remote dispatch")
         try c.expect(events.filter { if case .completed = $0 { return true }; return false }.count == 2, "local receipt never masquerades as remote completion")
         return c.count + extra
     }
@@ -322,11 +321,12 @@ enum MCPLocalToolsChecks {
             _ = try await run(disconnected, local: { try await saved.handle($0, $1) })
         }
         try c.expect(await saved.receipts == 1, "model disconnect cannot undo already published host receipt")
-        let deniedRemote = Record()
-        let laterDenied = try await run(Model([local(.profileEdit), remote(), finish]),
-            approve: { await deniedRemote.approve($0, allowed: false) }, local: { try await deniedRemote.handle($0, $1) })
-        try c.expect(laterDenied.stopReason == .approvalDenied && laterDenied.steps.isEmpty, "later remote rejection stays rejection")
-        try c.expect(await deniedRemote.receipts == 1, "remote refusal preserves prior local commit")
+        let laterHost = Record(), laterExecutor = Executor()
+        let later = try await run(Model([local(.profileEdit), remote(), finish]), executor: laterExecutor,
+            local: { try await laterHost.handle($0, $1) })
+        try c.expect(later.stopReason == .finished && later.steps.count == 1, "a later remote call runs after a local commit, with no remote review")
+        let laterReceipts = await laterHost.receipts, laterActions = await laterExecutor.actions
+        try c.expect(laterReceipts == 1 && laterActions.count == 1, "the local commit and the remote call each happen once")
         let correctedHost = Record(), correctedModel = Model([local(.memorySave), "plain invalid reply", finish])
         let corrected = try await run(correctedModel, local: { try await correctedHost.handle($0, $1) })
         try c.expect(corrected.stopReason == .finished && corrected.modelCallCount == 3, "one format correction remains shared")
@@ -406,7 +406,7 @@ enum MCPLocalToolsChecks {
 
     static let groups: [(String, () async throws -> Int)] = [
         ("rawEnvelopeAndTypedErrors", rawEnvelopeAndTypedErrors),
-        ("distinctNamespacesAndMixedApproval", distinctNamespacesAndMixedApproval),
+        ("distinctNamespacesAndMixedRemoteCalls", distinctNamespacesAndMixedRemoteCalls),
         ("localAndSharedBudgets", localAndSharedBudgets),
         ("outcomesErrorsAndOutputBounds", outcomesErrorsAndOutputBounds),
         ("denialAndPostcommitFailures", denialAndPostcommitFailures),
@@ -431,8 +431,8 @@ final class MCPLocalToolsTests: XCTestCase {
     func testRawEnvelopeAndTypedHostErrors() async throws {
         let count = try await MCPLocalToolsChecks.rawEnvelopeAndTypedErrors(); XCTAssertGreaterThan(count, 0)
     }
-    func testLocalNamespaceAndMixedRemoteApproval() async throws {
-        let count = try await MCPLocalToolsChecks.distinctNamespacesAndMixedApproval(); XCTAssertGreaterThan(count, 0)
+    func testLocalNamespaceAndMixedRemoteCalls() async throws {
+        let count = try await MCPLocalToolsChecks.distinctNamespacesAndMixedRemoteCalls(); XCTAssertGreaterThan(count, 0)
     }
     func testLocalAndSharedModelRemoteBudgets() async throws {
         let count = try await MCPLocalToolsChecks.localAndSharedBudgets(); XCTAssertGreaterThan(count, 0)

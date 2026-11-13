@@ -33,8 +33,7 @@ enum RecentConversationBlock: Equatable {
               session.archive?.state.conversations.contains(where: { $0.id == record.id }) == true
         else { return .unavailable }
         guard !session.isSubmitting else { return .activeTask }
-        guard session.pendingMCPApproval == nil,
-              session.pendingProfileReview == nil,
+        guard session.pendingProfileReview == nil,
               session.pendingMemoryReview == nil
         else { return .pendingApproval }
         // Waiting attachments, like a draft, are never discarded by opening another chat.

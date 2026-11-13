@@ -1,16 +1,19 @@
 import XCTest
 
-/// Synthetic model/MCP transport, actual App approval and OS notification UI.
+/// Synthetic model/MCP transport, actual App review and OS notification UI.
 /// No authorization reset, auto-approval, background escape or fabricated banner.
+/// Like the Play build, the MCP call needs no approval and posts no approval
+/// banner; the banner here belongs to the memory review that follows the call.
 final class NotificationApprovalUITests: XCTestCase {
     private let app = XCUIApplication()
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private let namespace = UUID().uuidString
     private let title = "有操作需要你核准"
     private let body = "請開啟渥屋助理查看並決定；通知不會核准操作。"
+    private let prompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
     private var stage = "launch"
-    private var beforeID: UUID?
-    private var afterID: UUID?
+    private var before: Review?
+    private var after: Review?
     private var navigationBefore: String?
     private var navigationAfter: String?
     private var capturedBanner: Banner?
@@ -22,8 +25,8 @@ final class NotificationApprovalUITests: XCTestCase {
 
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
-            attach("Failure stage and synthetic review IDs",
-                   "stage=\(stage);before=\(beforeID?.uuidString ?? "none");after=\(afterID?.uuidString ?? "none")")
+            attach("Failure stage and synthetic reviews",
+                   "stage=\(stage);before=\(before.map(String.init(describing:)) ?? "none");after=\(after.map(String.init(describing:)) ?? "none")")
             attach("Observed notification navigation generations",
                    "before=\(navigationBefore ?? "none")\nafter=\(navigationAfter ?? "none")")
             if let capturedBanner { attachBanner(capturedBanner) }
@@ -33,7 +36,7 @@ final class NotificationApprovalUITests: XCTestCase {
         app.terminate()
     }
 
-    func testActualApprovalBannerPreservesProposalUntilExplicitNativeApproval() throws {
+    func testMemoryReviewBannerAfterMCPCallPreservesReviewUntilExplicitNativeApproval() throws {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture"]
         app.launchEnvironment = [:]
@@ -56,9 +59,9 @@ final class NotificationApprovalUITests: XCTestCase {
         XCTAssertNil(banner())
         let draft = chatDraftControl(in: app)
         try tap(draft, scroll: false)
-        draft.typeText("[fixture:mcp] hello")
-        XCTAssertEqual(draft.value as? String, "[fixture:mcp] hello")
+        try type(prompt, into: draft)
         try tap(app.buttons["chat.dismissKeyboard"], scroll: false)
+        XCTAssertEqual(draft.value as? String, prompt)
         guard let initialNavigation = navigation() else {
             XCTFail("The fixture must expose the actual root notification navigation generation.")
             throw Failure.readiness
@@ -66,19 +69,21 @@ final class NotificationApprovalUITests: XCTestCase {
         navigationBefore = initialNavigation.raw
         XCTAssertEqual(initialNavigation.destination, "chat")
 
-        stage = "newApprovalAndSystemBanner"
+        stage = "mcpCallThenReviewAndSystemBanner"
         try tap(app.buttons["chat.send"], scroll: false)
         var original: Review?
         var shown: Banner?
-        // Read both snapshots promptly. Do not spend the short banner lifetime
-        // scrolling controls or collecting several independent element queries.
-        try wait("A new real review and actual system approval banner must coexist.", seconds: 15) {
+        // The fixture's MCP call runs first, with no approval card or banner;
+        // the memory review follows its result. Read both snapshots promptly.
+        // Do not spend the short banner lifetime scrolling controls or
+        // collecting several independent element queries.
+        try wait("A new real memory review and actual system approval banner must coexist.", seconds: 15) {
             if original == nil { original = self.review() }
             shown = self.banner()
             return original != nil && shown != nil
         }
         guard let original, let shown else { throw Failure.readiness }
-        beforeID = original.id
+        before = original
         capturedBanner = shown
         stage = "actualBannerTapAndRePresentation"
         // Tap the observed short-lived banner before screenshots, attachments
@@ -86,47 +91,39 @@ final class NotificationApprovalUITests: XCTestCase {
         springboard.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: shown.frame.midX, dy: shown.frame.midY)).tap()
         attachBanner(shown)
-        attach("Synthetic proposal before banner tap", original.id.uuidString)
-        XCTAssertEqual(original.name, "fixture_echo")
-        XCTAssertEqual(original.arguments, ["text": "hello"])
+        attach("Synthetic review before banner tap", String(describing: original))
+        XCTAssertEqual(original.quote, prompt)
+        XCTAssertEqual(original.content, "Prefer jasmine tea")
+        XCTAssertEqual(original.keywords, "jasmine、tea")
         XCTAssertFalse(original.hasAssistantResult)
-        XCTAssertEqual(original.navigation.id, initialNavigation.id)
-        for forbidden in ["fixture_echo", "[fixture:mcp]", "hello", original.id.uuidString] {
+        for forbidden in ["fixture_echo", "[fixture:", "hello", "jasmine", "FIXTURE_CALL"] {
             XCTAssertFalse(shown.labels.joined(separator: "\n").contains(forbidden))
         }
 
         // No Home, activate(), reconnect, resend, or replacement review. If the
         // OS makes the scene inactive, the existing cancellation policy wins.
         var represented: Review?
-        // A presented sheet can retain the environment value from its initial
-        // presentation. Verify the pending review here; verify the root-owned
-        // route generation after the sheet closes below.
-        try wait("The same pending UUID must remain available after the actual banner tap.", seconds: 10) {
+        // The review sheet covers the root, so the route generation is checked
+        // after the sheet closes below. Here the same review must stay open.
+        try wait("The same pending review must remain open after the actual banner tap.", seconds: 10) {
             represented = self.review()
-            self.navigationAfter = represented?.navigation.raw
-            return self.app.state == .runningForeground && represented?.id == original.id
-                && represented?.navigation.destination == "chat"
+            return self.app.state == .runningForeground && represented == original
         }
         guard let represented else { throw Failure.readiness }
-        afterID = represented.id
-        XCTAssertEqual(represented.id, original.id)
-        XCTAssertEqual(represented.name, "fixture_echo")
-        XCTAssertEqual(represented.arguments, ["text": "hello"])
-        XCTAssertFalse(represented.hasAssistantResult)
-        XCTAssertEqual(represented.navigation.destination, "chat")
-        XCTAssertTrue(app.buttons["mcp.approval.decline"].isHittable)
-        XCTAssertTrue(app.buttons["mcp.approval.approve"].isHittable)
-        capture("Same pending approval after actual banner tap", app)
-        attach("Synthetic proposal after banner tap", represented.id.uuidString)
+        after = represented
+        XCTAssertEqual(represented, original)
+        XCTAssertTrue(app.buttons["memoryTool.decline"].isHittable)
+        XCTAssertTrue(app.buttons["memoryTool.approve"].isHittable)
+        capture("Same pending review after actual banner tap", app)
+        attach("Synthetic review after banner tap", String(describing: represented))
 
         stage = "oneExplicitNativeApproval"
-        try tap(app.buttons["mcp.approval.approve"], scroll: false)
+        try tap(app.buttons["memoryTool.approve"], scroll: false)
         let answer = app.staticTexts["chat.message.1.assistant"]
         XCTAssertTrue(answer.waitForExistence(timeout: 15))
-        // The same in-process server connection counts every actual tool call.
-        // There was exactly one user approval and there must be one call total.
-        XCTAssertEqual(answer.label, "FIXTURE_CALL_1: hello")
-        XCTAssertFalse(app.buttons["mcp.approval.approve"].exists)
+        // One review approval; the MCP call before it needed none.
+        XCTAssertEqual(answer.label, "MCP 記憶流程已完成。")
+        XCTAssertFalse(app.buttons["memoryTool.approve"].exists)
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
         let audit = app.staticTexts["chat.mcpActivity"].value as? String ?? ""
         XCTAssertTrue(audit.components(separatedBy: ";").contains("attempts=1"))
@@ -137,7 +134,7 @@ final class NotificationApprovalUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["drawer.panel"].exists)
         stage = "retainedRootNavigationGeneration"
         // Only the root owns this generation. The notification-open callback
-        // must have changed it; explicit approval itself does not route.
+        // must have changed it; the review approval itself does not route.
         try wait("Root Chat must retain the actual notification-open generation.", seconds: 5) {
             guard let current = self.navigation() else { return false }
             self.navigationAfter = current.raw
@@ -147,7 +144,7 @@ final class NotificationApprovalUITests: XCTestCase {
                "before=\(navigationBefore ?? "none")\nafter=\(navigationAfter ?? "none")")
         try wait("The resolved approval banner must disappear.", seconds: 5) { self.banner() == nil }
         attach("Final fixed execution counters", audit)
-        print("NOTIFICATION_APPROVAL actualSystemBanner=1 defaultOpenObserved=1 destination=chat sameProposalUUID=1 explicitApprovals=1 calls=1 audibleSoundVerified=0")
+        print("NOTIFICATION_APPROVAL actualSystemBanner=1 defaultOpenObserved=1 destination=chat sameReview=1 explicitApprovals=1 mcpCallsWithoutApproval=1 audibleSoundVerified=0")
 
         stage = "disable"
         try openSettings()
@@ -191,12 +188,11 @@ final class NotificationApprovalUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["notifications.enabled"].waitForExistence(timeout: 10))
     }
 
-    private struct Review {
-        let id: UUID
-        let name: String
-        let arguments: [String: String]
+    private struct Review: Equatable {
+        let quote: String
+        let content: String
+        let keywords: String
         let hasAssistantResult: Bool
-        let navigation: Navigation
     }
 
     private struct Navigation { let id: UUID; let destination: String; let raw: String }
@@ -214,19 +210,17 @@ final class NotificationApprovalUITests: XCTestCase {
         return Navigation(id: id, destination: String(parts[1].dropFirst("destination=".count)), raw: raw)
     }
 
+    /// The memory review sheet as one snapshot: what it asks to save, with
+    /// both of its buttons present.
     private func review() -> Review? {
         guard let snapshot = try? app.snapshot(),
-              let name = node("mcp.approval.name", in: snapshot),
-              let raw = name.value as? String, let id = UUID(uuidString: raw),
-              let arguments = node("mcp.approval.arguments", in: snapshot),
-              let parsed = try? JSONSerialization.jsonObject(with: Data(arguments.label.utf8)) as? [String: String],
-              let route = node("mcp.approval.routeObservation", in: snapshot)?.value as? String,
-              let navigation = parseNavigation(route),
-              node("mcp.approval.approve", in: snapshot) != nil,
-              node("mcp.approval.decline", in: snapshot) != nil else { return nil }
-        return Review(id: id, name: name.label, arguments: parsed,
-                      hasAssistantResult: node("chat.message.1.assistant", in: snapshot) != nil,
-                      navigation: navigation)
+              let quote = node("memoryTool.quote", in: snapshot),
+              let content = node("memoryTool.after", in: snapshot),
+              let keywords = node("memoryTool.keywords", in: snapshot),
+              node("memoryTool.approve", in: snapshot) != nil,
+              node("memoryTool.decline", in: snapshot) != nil else { return nil }
+        return Review(quote: quote.label, content: content.label, keywords: keywords.label,
+                      hasAssistantResult: node("chat.message.1.assistant", in: snapshot) != nil)
     }
 
     private func node(_ identifier: String, in snapshot: XCUIElementSnapshot) -> XCUIElementSnapshot? {
@@ -271,6 +265,49 @@ final class NotificationApprovalUITests: XCTestCase {
             try tap(toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle, scroll: false)
         }
         try wait("Enable the exact selected fixture capability.", seconds: 5) { toggle.value as? String == "1" }
+    }
+
+    /// Exact native input in short chunks, on a Latin keyboard; never repair
+    /// or retry lost characters.
+    private func type(_ text: String, into field: XCUIElement) throws {
+        try prepareLatinKeyboard()
+        var entered = "", remaining = text[...]
+        while !remaining.isEmpty {
+            let chunk = String(remaining.prefix(entered.isEmpty ? 1 : 16))
+            field.typeText(chunk); entered += chunk; remaining = remaining.dropFirst(chunk.count)
+            guard field.value as? String == entered else {
+                XCTFail("\(stage): native input must match exactly"); throw Failure.readiness
+            }
+        }
+    }
+
+    /// As in MCPLearningUITests: the zh-Hant simulator may open a non-Latin
+    /// keyboard, and a fresh one may show its introduction first.
+    private func prepareLatinKeyboard() throws {
+        let keyboard = app.keyboards.firstMatch
+        try wait("The keyboard must open for the draft.", seconds: 5) { keyboard.exists }
+        try dismissKeyboardIntroductionIfPresented()
+        func latin() -> Bool {
+            keyboard.keys.matching(NSPredicate(format: "label IN %@", ["q", "Q"])).firstMatch.exists
+                && keyboard.keys.matching(NSPredicate(format: "label IN %@", ["a", "A"])).firstMatch.exists
+        }
+        if latin() { return }
+        // iOS names the globe key in the system language.
+        let globe = app.buttons.matching(NSPredicate(format: "label IN %@", ["Next keyboard", "下一個鍵盤"])).firstMatch
+        try wait("The native keyboard switch must be hittable.", seconds: 5) { globe.isHittable }
+        globe.press(forDuration: 1)
+        let english = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "English (US)")).firstMatch
+        try tap(english, scroll: false)
+        try dismissKeyboardIntroductionIfPresented()
+        try wait("A Latin keyboard is required for the exact fixture prompt.", seconds: 10) { latin() }
+    }
+
+    private func dismissKeyboardIntroductionIfPresented() throws {
+        let button = app.buttons["Continue"].firstMatch
+        guard button.waitForExistence(timeout: 3) else { return }
+        let explanation = app.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."].firstMatch
+        XCTAssertTrue(explanation.exists, "Only the known native keyboard introduction may be dismissed.")
+        try tap(button, scroll: false)
     }
 
     private func tap(_ element: XCUIElement, scroll: Bool = true) throws {

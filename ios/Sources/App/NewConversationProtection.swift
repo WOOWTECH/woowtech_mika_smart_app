@@ -32,7 +32,7 @@ import AssistantPersistence
     /// A nil approval starts only when there is nothing protected to discard.
     /// A non-nil approval must still describe the exact current attachment/result.
     static func canStart(in session: ChatSession, approved: NewConversationProtection?) -> Bool {
-        !session.isSubmitting && session.pendingMCPApproval == nil
+        !session.isSubmitting
             && session.pendingProfileReview == nil && session.pendingMemoryReview == nil
             && session.pendingQuote == nil
             && NewConversationProtection.current(in: session) == approved

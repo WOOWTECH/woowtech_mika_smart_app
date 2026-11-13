@@ -26,7 +26,7 @@
 "shell.greetingNight" = "夜深了";
 "shell.whatToDo" = "想讓渥屋助理做什麼？";
 "shell.replyExample" = "幫我寫一則友善的訊息回覆";
-"shell.documentExample" = "幫我摘要附上的文件，列出重點";
+"shell.newsExample" = "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點";
 "shell.shoppingExample" = "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點";
 "shell.rememberExample" = "記住我偏好使用繁體中文，回答簡短一點";
 "shell.recallExample" = "你記得我有哪些偏好？";
@@ -64,7 +64,7 @@
 "mcp.title" = "MCP 與 Skills";
 "mcp.connection.section" = "MCP 連線與目錄";
 "mcp.no.tools" = "伺服器未宣告工具能力";
-"mcp.explanation" = "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。";
+"mcp.explanation" = "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。";
 "mcp.isolation" = "UI 測試隔離模式：不會發送 MCP 網路請求。";
 "mcp.stored" = "端點已安全儲存；不顯示網址。";
 "mcp.not.stored" = "尚未儲存端點。";
@@ -103,17 +103,11 @@
 "mcp.keychain.unavailable" = "無法存取 MCP Keychain，請解鎖裝置後再試。";
 "mcp.invalid.namespace" = "UI 測試缺少有效的隔離命名空間；不會讀取正式設定。";
 "mcp.missing.live.endpoint" = "Live MCP UI 測試設定未完成，未取得私密端點。";
-"mcp.approval.help" = "模型請求執行以下工具。核准只適用於這一次的名稱與參數；結果會提供給已設定的模型。";
-"mcp.approval.risk" = "工具可能修改外部資料。取消本機等待無法撤銷已送出的操作。";
-"mcp.approval.title" = "核准 MCP 呼叫";
-"mcp.decline" = "拒絕並停止";
-"mcp.approve" = "核准這一次";
 "mcp.read.resource" = "讀取 MCP 資源";
 "mcp.tool.error" = "工具回報錯誤";
 "mcp.tool.result" = "已收到工具結果";
 "mcp.results.title" = "本次 MCP 工具結果";
 "mcp.result.unavailable" = "結果無法顯示";
-"mcp.route.observation" = "通知導頁測試觀測";
 "mcp.protocol" = "協定版本：%1$@";
 "mcp.keychain.status" = "MCP Keychain 存取失敗（系統代碼 %1$@）。";
 "search.title" = "搜尋引擎";
@@ -187,7 +181,7 @@
 "notification.completed.body" = "開啟渥屋助理查看結果。";
 "notification.approval.body" = "請開啟渥屋助理查看並決定；通知不會核准操作。";
 "notification.test.body" = "這是渥屋助理的測試通知。";
-"catalog.title" = "Mika 內建技能目錄";
+"catalog.title" = "內建技能目錄";
 "catalog.search" = "搜尋名稱、全文或支援檔案";
 "catalog.scope" = "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。";
 "catalog.capabilities" = "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。";
@@ -240,10 +234,10 @@
 "catalog.req.export" = "原版檔案產生與分享工具：未提供";
 "catalog.req.research" = "原版跨網站自動研究：未提供";
 "catalog.req.account" = "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權";
-"catalog.req.send" = "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准";
+"catalog.req.send" = "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准";
 "catalog.req.mutation" = "模型可查詢、讀取並提出技能草稿；儲存須由你核准";
 "catalog.count" = "共 %1$lld 項原始技能 · 符合 %2$lld 項";
-"catalog.provenance" = "Mika · 固定來源版本 %1$@";
+"catalog.provenance" = "內建技能 · 固定來源版本 %1$@";
 "browser.start.done" = "完成";
 "browser.start.edit" = "整理";
 "browser.start.recent" = "最近開啟";
@@ -268,7 +262,7 @@
 "browser.chrome.return.manual" = "返回手動瀏覽";
 "browser.chrome.research" = "研究";
 "browser.chrome.research.site" = "研究此網站";
-"browser.page.ask.research" = "問 Mika 研究此網站";
+"browser.page.ask.research" = "問渥屋助理研究此網站";
 "browser.chrome.interact" = "操作";
 "browser.chrome.library" = "分頁、書籤與歷史";
 "browser.chrome.explanation" = "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。";
@@ -376,7 +370,6 @@
 "newConversation.keep" = "返回目前對話";
 "chat.status.profileReview" = "等待你核對個人檔案修改…";
 "chat.status.memoryReview" = "等待你核對記憶修改…";
-"chat.status.mcpApproval" = "等待你核准 MCP 工具…";
 "chat.status.mcpWorking" = "正在使用 MCP 處理對話…";
 "chat.status.waiting" = "正在等待模型回覆…";
 "chat.status.configured" = "模型已設定";
@@ -484,7 +477,6 @@
 "chat.branch.failed" = "沒能建立分支";
 "chat.branch.titleSuffix" = " · 分支";
 "chat.branch.attachmentsReadd" = "附件需要重新加入";
-"chat.branch.composerInUse" = "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。";
 "chat.branch.origin" = "從另一個對話分支";
 "chat.modelFailed.auth" = "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。";
 "chat.modelFailed.quota" = "呼叫模型失敗：額度已用完。草稿已保留。";

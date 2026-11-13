@@ -167,11 +167,15 @@ struct ChatKeyboardReserveModifier: ViewModifier {
     }
 }
 
-/// Diagnostic readout for the physical iPad's bottom inset (launch argument
-/// -WoowLayoutProbe only): what SwiftUI and UIKit each report, so a wrong
-/// inset can be traced to its layer. It shows numbers only.
+/// Diagnostic readout for the physical iPad's bottom inset (Debug builds with
+/// the launch argument -WoowLayoutProbe only): what SwiftUI and UIKit each
+/// report, so a wrong inset can be traced to its layer. It shows numbers only.
 struct ChatLayoutProbe: View {
+    #if DEBUG
     static let isEnabled = ProcessInfo.processInfo.arguments.contains("-WoowLayoutProbe")
+    #else
+    static let isEnabled = false
+    #endif
     let reportedBottom: CGFloat
     let column: CGRect
     let keyboard: CGRect?

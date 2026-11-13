@@ -26,7 +26,7 @@
 "shell.greetingNight" = "Up late";
 "shell.whatToDo" = "What should woowtech agent do?";
 "shell.replyExample" = "Help me write a friendly reply to this message.";
-"shell.documentExample" = "Summarize the document I attach and list its key points.";
+"shell.newsExample" = "Find a recent AI news article in the built-in browser and summarize three key points.";
 "shell.shoppingExample" = "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.";
 "shell.rememberExample" = "Remember that I prefer concise answers in Traditional Chinese.";
 "shell.recallExample" = "What preferences have I told you to remember?";
@@ -64,7 +64,7 @@
 "mcp.title" = "MCP and Skills";
 "mcp.connection.section" = "MCP connection and catalog";
 "mcp.no.tools" = "The server did not declare tool support";
-"mcp.explanation" = "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. Each execution requires your approval of the tool name and complete arguments. Tool descriptions and results are sent to your configured model.";
+"mcp.explanation" = "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. The model runs selected tools without asking you each time, so select only tools you allow it to use. Tool descriptions and results are sent to your configured model.";
 "mcp.isolation" = "Isolated UI test mode: no MCP network requests.";
 "mcp.stored" = "Endpoint stored securely; its URL is hidden.";
 "mcp.not.stored" = "No endpoint saved.";
@@ -103,17 +103,11 @@
 "mcp.keychain.unavailable" = "MCP Keychain is unavailable. Unlock the device and try again.";
 "mcp.invalid.namespace" = "The UI test has no valid isolated namespace. Production settings will not be read.";
 "mcp.missing.live.endpoint" = "Live MCP UI test setup is incomplete; no private endpoint was obtained.";
-"mcp.approval.help" = "The model requests this tool. Approval applies only to this name and these arguments for this invocation. Results will be provided to your configured model.";
-"mcp.approval.risk" = "Tools may change external data. Cancelling local waiting cannot undo an operation already sent.";
-"mcp.approval.title" = "Approve MCP call";
-"mcp.decline" = "Decline and stop";
-"mcp.approve" = "Approve once";
 "mcp.read.resource" = "Read MCP resource";
 "mcp.tool.error" = "Tool reported an error";
 "mcp.tool.result" = "Tool result received";
 "mcp.results.title" = "MCP results for this conversation";
 "mcp.result.unavailable" = "Result cannot be displayed";
-"mcp.route.observation" = "Notification routing test observation";
 "mcp.protocol" = "Protocol version: %1$@";
 "mcp.keychain.status" = "MCP Keychain access failed (system code %1$@).";
 "search.title" = "Search engines";
@@ -187,7 +181,7 @@
 "notification.completed.body" = "Open Woow Assistant to view the result.";
 "notification.approval.body" = "Open Woow Assistant to review and decide. Notifications do not approve actions.";
 "notification.test.body" = "This is a test notification from Woow Assistant.";
-"catalog.title" = "Mika bundled skill catalog";
+"catalog.title" = "Built-in skill catalog";
 "catalog.search" = "Search names, full text or supporting files";
 "catalog.scope" = "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity.";
 "catalog.capabilities" = "The controlled browser and MCP chat have separate capability limits and approval flows. Importing a skill grants no tool permissions and dispatches no tools.";
@@ -240,10 +234,10 @@
 "catalog.req.export" = "The original file generation and sharing tools are not provided";
 "catalog.req.research" = "The original cross-site automated research is not provided";
 "catalog.req.account" = "Original cross-app account and inbox access is not provided; MCP capabilities depend on the server and authorization";
-"catalog.req.send" = "Original cross-app messaging is not provided; MCP tools need separate approval";
+"catalog.req.send" = "Original cross-app messaging is not provided; only MCP tools you select can run, with no per-call approval";
 "catalog.req.mutation" = "The model can search, read and draft skills; saving requires your approval";
 "catalog.count" = "Original skills: %1$lld · Matches: %2$lld";
-"catalog.provenance" = "Mika · Pinned source version %1$@";
+"catalog.provenance" = "Built-in skills · Pinned source version %1$@";
 "browser.start.done" = "Done";
 "browser.start.edit" = "Organize";
 "browser.start.recent" = "Recently opened";
@@ -268,7 +262,7 @@
 "browser.chrome.return.manual" = "Return to manual browsing";
 "browser.chrome.research" = "Research";
 "browser.chrome.research.site" = "Research this site";
-"browser.page.ask.research" = "Ask Mika to research this site";
+"browser.page.ask.research" = "Ask the assistant to research this site";
 "browser.chrome.interact" = "Interact";
 "browser.chrome.library" = "Tabs, bookmarks and history";
 "browser.chrome.explanation" = "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits.";
@@ -376,7 +370,6 @@
 "newConversation.keep" = "Keep current conversation";
 "chat.status.profileReview" = "Waiting for you to review profile changes…";
 "chat.status.memoryReview" = "Waiting for you to review memory changes…";
-"chat.status.mcpApproval" = "Waiting for you to approve the MCP tool…";
 "chat.status.mcpWorking" = "Working with MCP…";
 "chat.status.waiting" = "Waiting for the model…";
 "chat.status.configured" = "Model configured";
@@ -484,7 +477,6 @@
 "chat.branch.failed" = "Couldn’t create branch";
 "chat.branch.titleSuffix" = " · branch";
 "chat.branch.attachmentsReadd" = "Re-add the attachments you want to include";
-"chat.branch.composerInUse" = "The input bar isn’t empty. Send or clear the draft, quote or attachments first.";
 "chat.branch.origin" = "Branched from another chat";
 "chat.modelFailed.auth" = "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved.";
 "chat.modelFailed.quota" = "The model call failed: the account has run out of credit. Your draft is preserved.";

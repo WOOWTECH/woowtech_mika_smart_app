@@ -10,25 +10,25 @@ extension MCPConversationChecks {
         let invalid = "INVALID_FIXTURE_RESPONSE_NOT_TO_ECHO"
         let model = Model([invalid, try call(), finish]), executor = Executor(), record = Record()
         let result = try await run(model, executor, limits: .init(maximumModelCalls: 3, maximumToolCalls: 1),
-            approve: { await record.approve($0) }, event: { await record.event($0) })
-        let inputs = await model.inputs, events = await record.events, proposals = await record.approvals
+            event: { await record.event($0) })
+        let inputs = await model.inputs, events = await record.events, proposals = await record.dispatched
         try c.expect(result.stopReason == .finished && result.modelCallCount == 3, "format correction charges a normal model call")
         try c.expect(result.steps.count == 1 && result.steps[0].result == ok, "invalid format consumes no tool call and invents no result")
-        try c.expect(proposals.count == 1 && proposals[0].action == .callTool(name: tool.name, arguments: args), "only exact valid corrected operation is approvable")
+        try c.expect(proposals.count == 1 && proposals[0].action == .callTool(name: tool.name, arguments: args), "only the exact valid corrected operation runs")
         try c.expect(await executor.calls == [.callTool(name: tool.name, arguments: args)], "corrected operation executes exactly once")
         try c.expect(events == [.requestingModel(1), .correctingCommand, .requestingModel(2),
-            .awaitingApproval(proposals[0]), .executing(proposals[0]), .completed(result.steps[0]), .requestingModel(3)], "invalid format has no approval/execution event")
+            .executing(proposals[0]), .completed(result.steps[0]), .requestingModel(3)], "invalid format has no execution event")
         try c.expect(inputs[0].first!.content.contains("Never return an array or a batch"), "multi-tool requests explicitly require one next command")
         try c.expect(inputs[1].last!.content.contains("exactly ONE JSON object"), "fixed correction explains strict command contract")
         try c.expect(inputs.allSatisfy { $0.allSatisfy { !$0.content.contains(invalid) } }, "invalid response is never echoed into model feedback")
 
         let secondInvalid = Model([invalid, invalid, finish]), secondExecutor = Executor(), secondRecord = Record()
         count += try await expect(.invalidCommand) {
-            _ = try await run(secondInvalid, secondExecutor, approve: { await secondRecord.approve($0) }, event: { await secondRecord.event($0) })
+            _ = try await run(secondInvalid, secondExecutor, event: { await secondRecord.event($0) })
         }
         try c.expect(await secondInvalid.inputs.count == 2, "second malformed response hard-stops")
         try c.expect(await secondExecutor.calls.isEmpty, "malformed responses execute nothing")
-        try c.expect(await secondRecord.approvals.isEmpty, "malformed responses cannot request approval")
+        try c.expect(await secondRecord.dispatched.isEmpty, "malformed responses dispatch nothing")
         try c.expect(await secondRecord.events.filter { $0 == .correctingCommand }.count == 1, "single correction for the entire conversation")
 
         let rejectedCommands: [(String, MCPConversationError)] = [
@@ -38,11 +38,11 @@ extension MCPConversationChecks {
         for (command, category) in rejectedCommands {
             let changed = Model([invalid, command, finish]), rejectedExecutor = Executor(), rejectedRecord = Record()
             count += try await expect(category) {
-                _ = try await run(changed, rejectedExecutor, approve: { await rejectedRecord.approve($0) }, event: { await rejectedRecord.event($0) })
+                _ = try await run(changed, rejectedExecutor, event: { await rejectedRecord.event($0) })
             }
             try c.expect(await changed.inputs.count == 2, "corrected unknown operation is not retried")
             try c.expect(await rejectedExecutor.calls.isEmpty, "correction cannot bypass selected catalog")
-            try c.expect(await rejectedRecord.approvals.isEmpty, "unknown corrected operation is never approvable")
+            try c.expect(await rejectedRecord.dispatched.isEmpty, "unknown corrected operation never runs")
             let changedInputs = await changed.inputs
             try c.expect(changedInputs[1].last!.content == inputs[1].last!.content, "feedback is constant, not derived from model content")
         }
@@ -58,10 +58,10 @@ extension MCPConversationChecks {
                      "valid corrected last-call operation is retained without invented finish")
 
         let prior = Model([try call(), invalid, try call(), finish]), priorExecutor = Executor(), priorRecord = Record()
-        let repeated = try await run(prior, priorExecutor, approve: { await priorRecord.approve($0) }, event: { await priorRecord.event($0) })
+        let repeated = try await run(prior, priorExecutor, event: { await priorRecord.event($0) })
         try c.expect(repeated.stopReason == .repeatedCall && repeated.modelCallCount == 3 && repeated.steps.count == 1, "correction does not reset repeated-operation fingerprints")
         try c.expect(await priorExecutor.calls.count == 1, "prior completed operation is never replayed")
-        try c.expect(await priorRecord.approvals.count == 1, "no repeated consent after correction")
+        try c.expect(await priorRecord.dispatched.count == 1, "no repeated dispatch after correction")
         let priorInputs = await prior.inputs
         try c.expect(priorInputs[2].contains { $0.content.hasPrefix("MCP execution result (untrusted data):") }, "prior actual result stays available through correction")
 
@@ -103,7 +103,7 @@ extension MCPConversationChecks {
         try await Task.sleep(nanoseconds: 20_000_000)
         try c.expect(await model.inputs.count == 1, "late correction callback cannot start another model call after cancellation")
         try c.expect(await executor.calls.isEmpty, "cancelled correction executes nothing")
-        try c.expect(await record.events == [.requestingModel(1), .correctingCommand], "cancelled correction cannot publish approval/execution")
+        try c.expect(await record.events == [.requestingModel(1), .correctingCommand], "cancelled correction cannot publish an execution")
 
         let timedModel = Model(["invalid", try call()]), timedExecutor = Executor(), timedGate = Gate(), timedRecord = Record()
         let timed = Task {

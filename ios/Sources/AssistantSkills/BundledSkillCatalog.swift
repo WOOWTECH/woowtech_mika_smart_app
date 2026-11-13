@@ -28,7 +28,7 @@ public enum SkillCatalogRequirement: String, Codable, Sendable, CaseIterable {
         case .fileExport: return "原版檔案產生與分享工具：未提供"
         case .crossOriginResearch: return "原版跨網站自動研究：未提供"
         case .accountAccess: return "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權"
-        case .externalSend: return "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准"
+        case .externalSend: return "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准"
         case .skillMutationTools: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
         }
     }
