@@ -8,9 +8,10 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar"><div class="topbar-inner"><span class="brand">Mika</span><span>{{index .Copy "pageTitle"}}</span></div></header>
+  <header class="topbar"><div class="topbar-inner"><span class="brand">WOOWTECH</span><span>{{index .Copy "pageTitle"}}</span></div></header>
   <main>
     <div class="intro"><h1>{{index .Copy "heading"}}</h1><p>{{index .Copy "intro"}}</p></div>
+    <section class="card"><div class="text-row"><strong>{{index .Copy "gatewayLabel"}}</strong><p class="endpoint">{{.Gateway}}</p><p class="caption">{{index .Copy "gatewayHint"}}</p></div></section>
     {{if .Message}}<section class="notice {{if .Bad}}notice-bad{{else}}notice-ok{{end}}" role="{{if .Bad}}alert{{else}}status{{end}}"><strong>{{index .Copy .Message}}</strong></section>{{end}}
     {{if .Code}}<section class="card pairing-code" aria-labelledby="code-heading"><h2 id="code-heading">{{index .Copy "pairingCode"}}</h2><output><strong>{{.Code}}</strong></output><p class="caption">{{index .Copy "codeHint"}}</p></section>{{end}}
     <h2 class="group-label">{{if .Confirm}}{{index .Copy "confirmTitle"}}{{else}}{{index .Copy "pairingTitle"}}{{end}}</h2>
@@ -19,9 +20,17 @@
       <div class="form-copy"><p id="owner-hint" class="caption">{{index .Copy "ownerHint"}}</p>{{if .Confirm}}<p>{{index .Copy "confirmBody"}}</p>{{end}}</div>
       <div class="actions">
         {{if .Confirm}}<input type="hidden" name="action" value="revoke"><button class="button" type="submit" name="confirm" value="yes">{{index .Copy "confirm"}}</button><a class="button button-tonal" href="/">{{index .Copy "cancel"}}</a>
-        {{else}}<button class="button" type="submit" name="action" value="pair">{{index .Copy "createCode"}}</button><button id="revoke" class="button button-tonal" type="submit" name="action" value="revoke">{{index .Copy "unpair"}}</button><input id="confirm-value" type="hidden" name="confirm" value="">{{end}}
+        {{else}}<button class="button" type="submit" name="action" value="status">{{index .Copy "checkStatus"}}</button><button class="button" type="submit" name="action" value="pair">{{index .Copy "createCode"}}</button><button id="revoke" class="button button-tonal" type="submit" name="action" value="revoke">{{index .Copy "unpair"}}</button><input id="confirm-value" type="hidden" name="confirm" value="">{{end}}
       </div>
     </form>
+    <p class="footer-note">{{index .Copy "statusHint"}}</p>
+    <h2 class="group-label">{{index .Copy "stepsTitle"}}</h2>
+    <section class="card">
+      <div class="text-row"><strong>{{index .Copy "step1Title"}}</strong><p>{{index .Copy "step1Body"}}</p></div>
+      <div class="text-row"><strong>{{index .Copy "step2Title"}}</strong><p>{{index .Copy "step2Body"}}</p></div>
+      <div class="text-row"><strong>{{index .Copy "step3Title"}}</strong><p>{{index .Copy "step3Body"}}</p><p class="caption">{{index .Copy "mcpLabel"}}</p><p class="endpoint">{{.Gateway}}/mcp</p></div>
+    </section>
+    <section class="card"><div class="text-row"><strong>{{index .Copy "disconnectTitle"}}</strong><p>{{index .Copy "disconnectBody"}}</p></div><div class="text-row"><strong>{{index .Copy "unknownTitle"}}</strong><p>{{index .Copy "unknownBody"}}</p></div></section>
     <p class="footer-note">{{index .Copy "phoneHint"}}</p>
     <h2 class="group-label">{{index .Copy "aboutTitle"}}</h2>
     <section class="card"><div class="text-row"><strong>{{index .Copy "accessTitle"}}</strong><p class="caption">{{index .Copy "accessBody"}}</p></div><div class="text-row"><strong>{{index .Copy "privacyTitle"}}</strong><p class="caption">{{index .Copy "privacyBody"}}</p></div></section>

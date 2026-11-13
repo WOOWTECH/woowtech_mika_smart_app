@@ -37,6 +37,7 @@ type pageData struct {
 	Copy          map[string]string
 	Message, Code string
 	Bad, Confirm  bool
+	Gateway       string
 }
 
 func normalizeLanguage(tag string) string {
@@ -102,7 +103,7 @@ func pageLanguage(r *http.Request) string {
 }
 func (g *gateway) render(w http.ResponseWriter, r *http.Request, status int, message, code string, bad, confirm bool) {
 	lang := pageLanguage(r)
-	data := pageData{Lang: lang, Copy: translations[lang], Message: message, Code: code, Bad: bad, Confirm: confirm}
+	data := pageData{Lang: lang, Copy: translations[lang], Message: message, Code: code, Bad: bad, Confirm: confirm, Gateway: g.base}
 	data.Preference = "auto"
 	if c, err := r.Cookie("mika_language"); err == nil && translations[c.Value] != nil {
 		data.Preference = c.Value
@@ -189,6 +190,21 @@ func (g *gateway) admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch r.PostForm.Get("action") {
+	case "status":
+		g.mu.Lock()
+		state := "statusUnpaired"
+		if g.store.view().DeviceHash != "" {
+			state = "statusOffline"
+		}
+		if g.device != nil {
+			select {
+			case <-g.device.done:
+			default:
+				state = "statusOnline"
+			}
+		}
+		g.mu.Unlock()
+		g.render(w, r, 200, state, "", false, false)
 	case "pair":
 		g.mu.Lock()
 		if g.store.view().DeviceHash != "" {

@@ -1,5 +1,7 @@
 # Self-hosted remote CLI / MCP gateway
 
+Woowtech deployment and phone setup: [渥屋助理中繼網站操作指引](README.woowtech.md). This checkout uses Woowtech branding and adds owner-authenticated status checks; the Mika relay protocol is unchanged.
+
 Optional, single-owner and single-phone. Mika opens an outbound WebSocket connection; clients use HTTPS /mcp or /api/v1 on the gateway. No VPN app or router forwarding to the phone is needed. The gateway can read tasks and results; phone lock credentials stay on the phone.
 
 ## Deploy

@@ -2,3 +2,7 @@ data
 .env
 owner-key
 mika-relay
+
+.env.woowtech
+.private
+woowtech-relay

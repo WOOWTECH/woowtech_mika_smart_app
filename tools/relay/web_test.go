@@ -69,3 +69,53 @@ func TestWebLanguageCookieAndAdminSecretsAreNotReflected(t *testing.T) {
 		}
 	}
 }
+
+func TestOwnerStatusFollowsPairConnectDisconnectRevoke(t *testing.T) {
+	f := newFixture(t)
+	check := func(want string) {
+		t.Helper()
+		// Status must never be disclosed to unauthenticated page visitors.
+		_, _, public := f.request(t, "GET", "/", "", "", "")
+		if strings.Contains(string(public), translations["en"][want]) {
+			t.Fatal("private device status exposed on public page")
+		}
+		body := url.Values{"owner_key": {testOwner}, "action": {"status"}}
+		status, _, html := f.request(t, "POST", "/admin", "", body.Encode(), "application/x-www-form-urlencoded")
+		if status != 200 || !strings.Contains(string(html), translations["en"][want]) || strings.Contains(string(html), testOwner) {
+			t.Fatalf("incorrect status or reflected owner key: %s", want)
+		}
+	}
+	check("statusUnpaired")
+	f.pair(t)
+	check("statusOffline")
+	f.connect(t)
+	check("statusOnline")
+	f.g.disconnect()
+	check("statusOffline")
+	if err := f.g.clearDevice(""); err != nil {
+		t.Fatal(err)
+	}
+	// The same owner rate limit applies to status queries; use a new window.
+	f.g.mu.Lock()
+	f.g.limits = map[string]limitEntry{}
+	f.g.mu.Unlock()
+	check("statusUnpaired")
+}
+
+func TestStatusRejectsWrongOwnerAndCrossOrigin(t *testing.T) {
+	f := newFixture(t)
+	body := url.Values{"owner_key": {"wrong"}, "action": {"status"}}
+	status, _, _ := f.request(t, "POST", "/admin", "", body.Encode(), "application/x-www-form-urlencoded")
+	if status != 403 {
+		t.Fatal("status accepted an incorrect owner key")
+	}
+	body.Set("owner_key", testOwner)
+	req := httptest.NewRequest("POST", f.server.URL+"/admin", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "https://untrusted.example")
+	w := httptest.NewRecorder()
+	f.g.ServeHTTP(w, req)
+	if w.Code != 403 || strings.Contains(w.Body.String(), testOwner) {
+		t.Fatal("cross-origin status accepted or owner key reflected")
+	}
+}

@@ -2,3 +2,8 @@
 /mika-relay
 /.env
 /owner-key
+
+.env.woowtech
+woowtech-relay
+
+.private/
