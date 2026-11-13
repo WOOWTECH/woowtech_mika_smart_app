@@ -176,6 +176,8 @@ struct ChatWebTaskEnvironment {
     func stop() { work?.cancel() }
 
     var isRunning: Bool { phase != .finished }
+    /// 允許這一次, 我來處理 or 需要你回答 is waiting.
+    var waitsForUser: Bool { pendingConsent != nil || pendingHandover != nil || pendingQuestion != nil }
 
     /// .inactive (Control Center, a call banner, the app switcher) does not
     /// pause; .background pauses between steps until the app is active again.

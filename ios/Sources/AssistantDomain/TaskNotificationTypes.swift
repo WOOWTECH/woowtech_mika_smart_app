@@ -21,7 +21,13 @@ public struct TaskNotificationSettings: Equatable, Sendable {
 
 /// Coarse navigation only. There is intentionally no approval/action/run payload.
 public enum TaskNotificationDestination: String, Sendable { case chat, browser }
-public enum TaskNotificationKind: String, Sendable { case completed, approval, test }
+public enum TaskNotificationKind: String, Sendable {
+    case completed, approval, test
+    /// A web task from chat left in the background, where iOS does not run it.
+    case webPaused
+    /// A web task waits for the person (允許這一次, 我來處理 or 需要你回答).
+    case webNeedsYou
+}
 
 public struct TaskNotificationTicket: Hashable, Sendable {
     let id: UUID
@@ -46,6 +52,8 @@ public struct TaskNotificationPayload: Equatable, Sendable {
         case .completed: return "任務已完成"
         case .approval: return "有操作需要你核准"
         case .test: return "通知測試"
+        case .webPaused: return "網頁任務已暫停"
+        case .webNeedsYou: return "網頁任務需要你處理"
         }
     }
     public var body: String {
@@ -53,6 +61,8 @@ public struct TaskNotificationPayload: Equatable, Sendable {
         case .completed: return "開啟渥屋助理查看結果。"
         case .approval: return "請開啟渥屋助理查看並決定；通知不會核准操作。"
         case .test: return "這是渥屋助理的測試通知。"
+        case .webPaused: return "回到渥屋助理就會繼續。"
+        case .webNeedsYou: return "請開啟渥屋助理查看；通知不會核准操作。"
         }
     }
     public init(kind: TaskNotificationKind, destination: TaskNotificationDestination) {

@@ -13,7 +13,8 @@ import AssistantDomain
                 ("inFlightAddCancellation", TaskNotificationChecks.inFlightAddCancellation),
                 ("boundsRelaunchAndRevocation", TaskNotificationChecks.boundsRelaunchAndRevocation),
                 ("observerLifecycle", TaskNotificationChecks.observerLifecycle),
-                ("testButtonAndRoutes", TaskNotificationChecks.testButtonAndRoutes)
+                ("testButtonAndRoutes", TaskNotificationChecks.testButtonAndRoutes),
+                ("webTaskNotices", TaskNotificationChecks.webTaskNotices)
             ]
             for (name, body) in cases {
                 let before = TaskNotificationChecks.assertions

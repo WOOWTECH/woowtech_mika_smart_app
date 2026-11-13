@@ -118,7 +118,7 @@ enum CheckTaskNotificationApp {
 
     @MainActor static func nativeContent() async throws {
         let scope = UUID().uuidString
-        for kind in [TaskNotificationKind.completed, .approval, .test] {
+        for kind in [TaskNotificationKind.completed, .approval, .test, .webPaused, .webNeedsYou] {
             for sound in [false, true] {
                 let payload = TaskNotificationPayload(kind: kind, destination: .chat)
                 let request = TaskNotificationCenterAdapter.request(payload, sound: sound, scope: scope)

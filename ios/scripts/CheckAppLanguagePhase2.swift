@@ -48,7 +48,7 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
             try check(traditional.text(message) == error.errorDescription, "legacy MCP error matches Traditional Chinese exactly")
             try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "MCP typed error has both translations")
         }
-        for kind in [TaskNotificationKind.completed, .approval, .test] {
+        for kind in [TaskNotificationKind.completed, .approval, .test, .webPaused, .webNeedsYou] {
             let payload = TaskNotificationPayload(kind: kind, destination: .chat)
             let scope = UUID().uuidString
             let zh = TaskNotificationCenterAdapter.request(payload, sound: true, scope: scope, localizer: traditional)

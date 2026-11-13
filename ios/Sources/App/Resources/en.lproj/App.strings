@@ -687,3 +687,7 @@
 "chat.web.activity.summarizing" = "Wrapping up what was done…";
 "chat.web.step.handover" = "Ask you to take over · %1$@";
 "chat.web.step.ask" = "Ask you a question";
+"notification.webPaused.title" = "Web task paused";
+"notification.webPaused.body" = "It continues when you return to woowtech agent.";
+"notification.webNeedsYou.title" = "A web task needs you";
+"notification.webNeedsYou.body" = "Open woowtech agent to see it; a notification never approves anything.";

@@ -697,6 +697,10 @@ enum AppText: Equatable {
     case chatWebActivitySummarizing
     case chatWebStepHandover(site: String)
     case chatWebStepAsk
+    case notificationWebPausedTitle
+    case notificationWebPausedBody
+    case notificationWebNeedsYouTitle
+    case notificationWebNeedsYouBody
 
     var key: String {
         switch self {
@@ -1394,6 +1398,10 @@ enum AppText: Equatable {
         case .chatWebActivitySummarizing: return "chat.web.activity.summarizing"
         case .chatWebStepHandover: return "chat.web.step.handover"
         case .chatWebStepAsk: return "chat.web.step.ask"
+        case .notificationWebPausedTitle: return "notification.webPaused.title"
+        case .notificationWebPausedBody: return "notification.webPaused.body"
+        case .notificationWebNeedsYouTitle: return "notification.webNeedsYou.title"
+        case .notificationWebNeedsYouBody: return "notification.webNeedsYou.body"
         }
     }
 
@@ -2184,6 +2192,10 @@ enum AppText: Equatable {
         case .chatWebActivitySummarizing: return "正在整理已做的事…"
         case .chatWebStepHandover: return "請你接手 · %1$@"
         case .chatWebStepAsk: return "問你一個問題"
+        case .notificationWebPausedTitle: return "網頁任務已暫停"
+        case .notificationWebPausedBody: return "回到渥屋助理就會繼續。"
+        case .notificationWebNeedsYouTitle: return "網頁任務需要你處理"
+        case .notificationWebNeedsYouBody: return "請開啟渥屋助理查看；通知不會核准操作。"
         }
     }
 }

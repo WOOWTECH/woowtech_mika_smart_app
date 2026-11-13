@@ -687,3 +687,7 @@
 "chat.web.activity.summarizing" = "正在整理已做的事…";
 "chat.web.step.handover" = "請你接手 · %1$@";
 "chat.web.step.ask" = "問你一個問題";
+"notification.webPaused.title" = "網頁任務已暫停";
+"notification.webPaused.body" = "回到渥屋助理就會繼續。";
+"notification.webNeedsYou.title" = "網頁任務需要你處理";
+"notification.webNeedsYou.body" = "請開啟渥屋助理查看；通知不會核准操作。";

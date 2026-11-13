@@ -55,6 +55,11 @@ an action is never repeated after a failure.
   counts as no answer. The model reads the page again after a hand-back.
 - `ask_user` shows 需要你回答 with 2–8 choices or a free answer; the answer
   goes back as the user's words, not page data.
+- Notifications (only with 通知 on and allowed): when the app goes to the
+  background mid-task, one notice says 網頁任務已暫停／回到渥屋助理就會繼續。,
+  or 網頁任務需要你處理 when 允許這一次, 我來處理 or 需要你回答 is waiting.
+  It only opens the app (a notification never approves anything, like
+  Android), replaces an earlier notice and goes when the app is active.
 - After 停止 the model writes two to four sentences about what was done
   (正在整理已做的事…, at most 12 s, from step names, titles and addresses
   only); the round reads 已停止。, that account and the pages read.

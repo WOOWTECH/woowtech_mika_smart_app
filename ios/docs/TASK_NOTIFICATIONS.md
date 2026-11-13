@@ -5,6 +5,11 @@ ChatSession: ordinary chat and MCP completion. Since 2026-11-13 MCP calls need n
 approval, and since 2026-11-14 memory and profile tools need none either (like the
 Play build), so chat posts no approval notification and `NotificationApprovalUITests`
 is gone.
+Web tasks from chat (docs/CHAT_WEB_TASKS.md) add one notice when the app goes to
+the background mid-task, where iOS pauses them: 網頁任務已暫停, or 網頁任務需要你處理
+while the person's OK, hand-over or answer is waiting (`postNotice`, kinds
+`webPaused`/`webNeedsYou`). It only opens the app and is cleared when the app is
+active again (`clearNotices`).
 The bridge reads entry count, assistant entry ID/role and submitting state only. It neither reads nor retains message content or error
 bodies. Independent skill/browser runners are **not wired** by this increment.
 There is no push service, phone/App automation or additional background execution.

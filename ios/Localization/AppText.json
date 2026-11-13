@@ -6747,6 +6747,42 @@
         "zh-Hant": "問你一個問題",
         "en": "Ask you a question"
       }
+    },
+    {
+      "case": "notificationWebPausedTitle",
+      "key": "notification.webPaused.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁任務已暫停",
+        "en": "Web task paused"
+      }
+    },
+    {
+      "case": "notificationWebPausedBody",
+      "key": "notification.webPaused.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "回到渥屋助理就會繼續。",
+        "en": "It continues when you return to woowtech agent."
+      }
+    },
+    {
+      "case": "notificationWebNeedsYouTitle",
+      "key": "notification.webNeedsYou.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁任務需要你處理",
+        "en": "A web task needs you"
+      }
+    },
+    {
+      "case": "notificationWebNeedsYouBody",
+      "key": "notification.webNeedsYou.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請開啟渥屋助理查看；通知不會核准操作。",
+        "en": "Open woowtech agent to see it; a notification never approves anything."
+      }
     }
   ]
 }

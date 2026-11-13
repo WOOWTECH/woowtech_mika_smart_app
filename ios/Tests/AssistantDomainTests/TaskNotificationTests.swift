@@ -9,4 +9,5 @@ final class TaskNotificationTests: XCTestCase {
     @MainActor func testBoundsRelaunchAndRevocation() async throws { try await TaskNotificationChecks.boundsRelaunchAndRevocation() }
     @MainActor func testObserverLifecycle() async throws { try await TaskNotificationChecks.observerLifecycle() }
     @MainActor func testTestButtonAndRoutes() async throws { try await TaskNotificationChecks.testButtonAndRoutes() }
+    @MainActor func testWebTaskNotices() async throws { try await TaskNotificationChecks.webTaskNotices() }
 }
