@@ -416,6 +416,7 @@
 "consent.item.skills" = "用到的技能內容";
 "consent.item.memoryOrganizing" = "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶";
 "consent.item.mcp" = "MCP 工具和資源回傳的結果";
+"consent.privacyPolicy" = "渥屋助理隱私權政策";
 "consent.thirdParty" = "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。";
 "consent.declineSave" = "不同意的話，什麼都不會傳出去，這家服務商也不會儲存。";
 "consent.declineSwitch" = "不同意的話，什麼都不會傳出去，主模型維持不變。";

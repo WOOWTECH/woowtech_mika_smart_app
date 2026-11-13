@@ -840,6 +840,7 @@ final class WoowAssistantUITests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["consent.item." + item].exists, "Consent lists \(item)")
         }
         XCTAssertTrue(app.staticTexts["consent.decline.note"].label.contains("什麼都不會傳出去"))
+        XCTAssertTrue(app.descendants(matching: .any)["consent.privacyPolicy"].exists)
         answerModelConsent(agree: false, in: app)
         let notice = app.staticTexts["settings.notice"]
         XCTAssertTrue(notice.waitForExistence(timeout: 5))

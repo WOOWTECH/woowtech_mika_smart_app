@@ -948,8 +948,8 @@ private struct ModelUseAsSheet: View {
 // MARK: - The AI-sharing consent (App Review 5.1.2(i))
 
 /// Says which service and host receive what (the list the App Store
-/// compliance check asked for) and that declining sends nothing. Only the
-/// two buttons close it.
+/// compliance check asked for), that declining sends nothing, and links the
+/// privacy policy. Only the two buttons close it.
 @MainActor
 struct ModelConsentSheet: View {
     let prompt: ModelConsentPrompt
@@ -996,6 +996,10 @@ struct ModelConsentSheet: View {
                 if prompt.purpose != .send {
                     paragraph(localizer.text(.consentAgain), id: "consent.again")
                 }
+                Link(destination: MikaPrivacyPolicy.url) {
+                    Text(verbatim: localizer.text(.consentPrivacyPolicy)).font(.callout.weight(.medium))
+                }
+                .accessibilityIdentifier("consent.privacyPolicy")
             }
             .padding(20)
         }

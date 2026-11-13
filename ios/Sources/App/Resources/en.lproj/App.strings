@@ -416,6 +416,7 @@
 "consent.item.skills" = "The content of skills that are used";
 "consent.item.memoryOrganizing" = "With “Remember what I say automatically” on, the request after each reply that organizes your memories, with what you said and related memories";
 "consent.item.mcp" = "Results from MCP tools and resources";
+"consent.privacyPolicy" = "woowtech agent privacy policy";
 "consent.thirdParty" = "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; woowtech agent doesn’t send it anywhere else.";
 "consent.declineSave" = "If you don’t agree, nothing is sent and this provider isn’t saved.";
 "consent.declineSwitch" = "If you don’t agree, nothing is sent and the main model stays as it is.";

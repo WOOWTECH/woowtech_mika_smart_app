@@ -23,13 +23,20 @@ struct MikaAboutInfo: Equatable {
     }
 }
 
+/// The privacy policy that the AI-sharing consent and About › 隱私權政策 open.
+/// One constant, so the address can change; the page goes live once the owner
+/// has approved its text.
+enum MikaPrivacyPolicy {
+    static let url = URL(string: "https://assistant-relay.woowtech.io/privacy/ios")!
+}
+
 /// About-only copy stays separate from the generated shared AppText catalog.
 /// Wording follows the woowtech Play edition's AboutScreen at 465a17c9.
 enum MikaAboutKey: CaseIterable {
     case title, group, version, build, unavailable, installedVersion, tagline
     case feedback, feedbackDetail, feedbackSheetDetail, diagnosticsCopyTitle, diagnosticsCopyDetail
     case diagnostics, diagnosticsNote, diagnosticsCopy, diagnosticsCopied, diagnosticsShare, close
-    case dataNote, copyright
+    case dataNote, copyright, privacyPolicy, privacyPolicyDetail
 
     var translations: (hant: String, en: String) {
         switch self {
@@ -62,6 +69,9 @@ enum MikaAboutKey: CaseIterable {
                                 "What you send is processed by the AI provider you choose.")
         case .copyright: return ("© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）",
                                  "© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)")
+        // iOS: App Review asks for the policy inside the app as well.
+        case .privacyPolicy: return ("隱私權政策", "Privacy policy")
+        case .privacyPolicyDetail: return ("渥屋助理怎麼處理你的資料", "How woowtech agent handles your data")
         }
     }
 }

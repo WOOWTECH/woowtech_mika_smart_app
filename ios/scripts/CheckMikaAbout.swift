@@ -79,6 +79,11 @@ import Foundation
         let simplifiedSystem = MikaAboutCopy(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]))
         try check(simplifiedSystem.text(.title) == "關於渥屋助理" && simplifiedSystem.build("42") == "建置 42",
                   "A Simplified Chinese system shows the Traditional Chinese About page")
+        let policy = URLComponents(url: MikaPrivacyPolicy.url, resolvingAgainstBaseURL: false)
+        try check(policy?.scheme == "https" && policy?.host == "assistant-relay.woowtech.io" && policy?.path == "/privacy/ios"
+                  && policy?.query == nil && policy?.fragment == nil, "The privacy policy is one HTTPS address")
+        try check(MikaAboutCopy(language: .traditionalChinese).text(.privacyPolicy) == "隱私權政策"
+                  && MikaAboutCopy(language: .english).text(.privacyPolicy) == "Privacy policy", "Privacy policy row in both languages")
         print("MikaAbout: \(assertions) assertions passed")
     }
 

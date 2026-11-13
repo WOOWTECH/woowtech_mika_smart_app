@@ -9,6 +9,7 @@ import UIKit
     @ObservedObject var languages: AppLanguageStore
     let info: MikaAboutInfo
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @State private var showingFeedback = false
 
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
@@ -57,11 +58,21 @@ import UIKit
                 .padding(.top, 14)
                 .padding(.bottom, 18)
                 MikaSettingsCard {
-                    Button { showingFeedback = true } label: {
-                        MikaSettingsRow(icon: .bug, title: copy.text(.feedback), subtitle: copy.text(.feedbackDetail))
+                    VStack(spacing: 0) {
+                        Button { showingFeedback = true } label: {
+                            MikaSettingsRow(icon: .bug, title: copy.text(.feedback), subtitle: copy.text(.feedbackDetail))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.about.feedback")
+                        Divider().padding(.leading, 60)
+                        // The same policy the AI-sharing consent links to.
+                        Button { openURL(MikaPrivacyPolicy.url) } label: {
+                            MikaSettingsRow(icon: .shield, title: copy.text(.privacyPolicy),
+                                            subtitle: copy.text(.privacyPolicyDetail))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.about.privacyPolicy")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings.about.feedback")
                 }
                 HStack(alignment: .top, spacing: 10) {
                     MikaSettingsIconShape(icon: .shield)

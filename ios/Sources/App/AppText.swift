@@ -423,6 +423,7 @@ enum AppText: Equatable {
     case consentItemSkills
     case consentItemMemoryOrganizing
     case consentItemMCP
+    case consentPrivacyPolicy
     case consentThirdParty(provider: String)
     case consentDeclineSave
     case consentDeclineSwitch
@@ -1006,6 +1007,7 @@ enum AppText: Equatable {
         case .consentItemSkills: return "consent.item.skills"
         case .consentItemMemoryOrganizing: return "consent.item.memoryOrganizing"
         case .consentItemMCP: return "consent.item.mcp"
+        case .consentPrivacyPolicy: return "consent.privacyPolicy"
         case .consentThirdParty: return "consent.thirdParty"
         case .consentDeclineSave: return "consent.declineSave"
         case .consentDeclineSwitch: return "consent.declineSwitch"
@@ -1647,6 +1649,7 @@ enum AppText: Equatable {
         case .consentItemSkills: return "用到的技能內容"
         case .consentItemMemoryOrganizing: return "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶"
         case .consentItemMCP: return "MCP 工具和資源回傳的結果"
+        case .consentPrivacyPolicy: return "渥屋助理隱私權政策"
         case .consentThirdParty: return "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。"
         case .consentDeclineSave: return "不同意的話，什麼都不會傳出去，這家服務商也不會儲存。"
         case .consentDeclineSwitch: return "不同意的話，什麼都不會傳出去，主模型維持不變。"

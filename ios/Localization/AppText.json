@@ -3967,6 +3967,15 @@
       }
     },
     {
+      "case": "consentPrivacyPolicy",
+      "key": "consent.privacyPolicy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理隱私權政策",
+        "en": "woowtech agent privacy policy"
+      }
+    },
+    {
       "case": "consentThirdParty",
       "key": "consent.thirdParty",
       "parameters": [
