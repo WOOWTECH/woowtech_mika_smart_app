@@ -490,7 +490,6 @@ private struct ChatView: View {
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
-    @StateObject private var recentPhotos = ChatRecentPhotos()
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
@@ -561,9 +560,8 @@ private struct ChatView: View {
     /// Android's attach panel takes the keyboard's place under the input bar.
     @ViewBuilder private var attachPanel: some View {
         if showsAttachPanel {
-            ChatAttachPanel(photos: recentPhotos, selectedAssets: session.pendingAttachments.compactMap(\.sourceKey),
-                            colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
-                            onFiles: { attachPicker = .files }, onToggle: toggleRecentPhoto)
+            ChatAttachPanel(colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
+                            onFiles: { attachPicker = .files })
                 .frame(height: 320)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
@@ -659,15 +657,6 @@ private struct ChatView: View {
     private func openAlbum() {
         guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
         attachPicker = .album
-    }
-
-    /// A recent photo toggles in and out of the tray, numbered in tray order.
-    private func toggleRecentPhoto(_ asset: PHAsset) {
-        if let item = session.pendingAttachments.first(where: { $0.sourceKey == asset.localIdentifier }) {
-            session.removeAttachment(id: item.id); return
-        }
-        guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
-        Task { if let file = await recentPhotos.export(asset) { await session.addAttachments([file]) } }
     }
 
     private func openAttachment(_ item: ChatAttachmentItem) {
@@ -1063,12 +1052,6 @@ private struct ChatView: View {
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
-            .onChange(of: showsAttachPanel) { _, open in
-                guard open else { return }
-                recentPhotos.refresh()
-                // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
-                if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
-            }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
@@ -1123,8 +1106,6 @@ private struct ChatView: View {
             .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { voice.cancel(interrupted: true) }
-                // Photo access may have changed in Settings, as Android re-checks on return.
-                else if showsAttachPanel { recentPhotos.refresh() }
             }
             .task(id: voice.isActive) {
                 while voice.isActive && !Task.isCancelled {

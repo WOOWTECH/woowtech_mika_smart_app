@@ -5535,78 +5535,6 @@
       }
     },
     {
-      "case": "chatAttachRecent",
-      "key": "chat.attach.recent",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "最近的照片",
-        "en": "Recent photos"
-      }
-    },
-    {
-      "case": "chatAttachRecentLimited",
-      "key": "chat.attach.recentLimited",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "你允許渥屋助理存取的照片",
-        "en": "Photos you let Woow Assistant access"
-      }
-    },
-    {
-      "case": "chatAttachAllPhotos",
-      "key": "chat.attach.allPhotos",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "全部照片",
-        "en": "All photos"
-      }
-    },
-    {
-      "case": "chatAttachChangeScope",
-      "key": "chat.attach.changeScope",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "更改範圍",
-        "en": "Change selection"
-      }
-    },
-    {
-      "case": "chatAttachNoPhotos",
-      "key": "chat.attach.noPhotos",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "還沒有照片",
-        "en": "No photos yet"
-      }
-    },
-    {
-      "case": "chatAttachAllowPhotos",
-      "key": "chat.attach.allowPhotos",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "允許存取照片",
-        "en": "Allow photo access"
-      }
-    },
-    {
-      "case": "chatAttachPhotosNeeded",
-      "key": "chat.attach.photosNeeded",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "在這裡直接選照片,需要允許渥屋助理存取照片",
-        "en": "To pick photos here, allow Woow Assistant to access your photos"
-      }
-    },
-    {
-      "case": "chatAttachPhotosHint",
-      "key": "chat.attach.photosHint",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "不允許也可以點上面的「相簿」,用系統的照片選擇器",
-        "en": "Without access, tap Photos above to use the system photo picker"
-      }
-    },
-    {
       "case": "chatAttachAdding",
       "key": "chat.attach.adding",
       "parameters": [],
@@ -5696,15 +5624,6 @@
       "translations": {
         "zh-Hant": "照片和檔案",
         "en": "Photos and files"
-      }
-    },
-    {
-      "case": "chatAttachSelected",
-      "key": "chat.attach.selected",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已選取",
-        "en": "Selected"
       }
     },
     {

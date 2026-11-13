@@ -582,14 +582,6 @@
 "chat.attach.camera" = "相機";
 "chat.attach.album" = "相簿";
 "chat.attach.files" = "檔案";
-"chat.attach.recent" = "最近的照片";
-"chat.attach.recentLimited" = "你允許渥屋助理存取的照片";
-"chat.attach.allPhotos" = "全部照片";
-"chat.attach.changeScope" = "更改範圍";
-"chat.attach.noPhotos" = "還沒有照片";
-"chat.attach.allowPhotos" = "允許存取照片";
-"chat.attach.photosNeeded" = "在這裡直接選照片,需要允許渥屋助理存取照片";
-"chat.attach.photosHint" = "不允許也可以點上面的「相簿」,用系統的照片選擇器";
 "chat.attach.adding" = "正在新增附件…";
 "chat.attach.gotIt" = "知道了";
 "chat.attach.gone" = "這個附件已經不在了";
@@ -597,7 +589,6 @@
 "chat.attach.photo" = "照片";
 "chat.attach.fileAndMore" = "%1$@ 等 %2$lld 個檔案";
 "chat.attach.photosAndFiles" = "照片和檔案";
-"chat.attach.selected" = "已選取";
 "chat.attach.remove" = "去掉%1$@";
 "chat.attach.full" = "一次最多 %1$lld 個附件";
 "chat.attach.overLimit" = "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上";

@@ -590,14 +590,6 @@ enum AppText: Equatable {
     case chatAttachCamera
     case chatAttachAlbum
     case chatAttachFiles
-    case chatAttachRecent
-    case chatAttachRecentLimited
-    case chatAttachAllPhotos
-    case chatAttachChangeScope
-    case chatAttachNoPhotos
-    case chatAttachAllowPhotos
-    case chatAttachPhotosNeeded
-    case chatAttachPhotosHint
     case chatAttachAdding
     case chatAttachGotIt
     case chatAttachGone
@@ -606,7 +598,6 @@ enum AppText: Equatable {
     case chatAttachPhotoCount(count: Int)
     case chatAttachFileAndMore(name: String, count: Int)
     case chatAttachPhotosAndFiles
-    case chatAttachSelected
     case chatAttachRemove(name: String)
     case chatAttachFull(limit: Int)
     case chatAttachOverLimit(limit: Int, count: Int)
@@ -1233,14 +1224,6 @@ enum AppText: Equatable {
         case .chatAttachCamera: return "chat.attach.camera"
         case .chatAttachAlbum: return "chat.attach.album"
         case .chatAttachFiles: return "chat.attach.files"
-        case .chatAttachRecent: return "chat.attach.recent"
-        case .chatAttachRecentLimited: return "chat.attach.recentLimited"
-        case .chatAttachAllPhotos: return "chat.attach.allPhotos"
-        case .chatAttachChangeScope: return "chat.attach.changeScope"
-        case .chatAttachNoPhotos: return "chat.attach.noPhotos"
-        case .chatAttachAllowPhotos: return "chat.attach.allowPhotos"
-        case .chatAttachPhotosNeeded: return "chat.attach.photosNeeded"
-        case .chatAttachPhotosHint: return "chat.attach.photosHint"
         case .chatAttachAdding: return "chat.attach.adding"
         case .chatAttachGotIt: return "chat.attach.gotIt"
         case .chatAttachGone: return "chat.attach.gone"
@@ -1249,7 +1232,6 @@ enum AppText: Equatable {
         case .chatAttachPhotoCount: return "chat.attach.photoCount"
         case .chatAttachFileAndMore: return "chat.attach.fileAndMore"
         case .chatAttachPhotosAndFiles: return "chat.attach.photosAndFiles"
-        case .chatAttachSelected: return "chat.attach.selected"
         case .chatAttachRemove: return "chat.attach.remove"
         case .chatAttachFull: return "chat.attach.full"
         case .chatAttachOverLimit: return "chat.attach.overLimit"
@@ -1938,14 +1920,6 @@ enum AppText: Equatable {
         case .chatAttachCamera: return "相機"
         case .chatAttachAlbum: return "相簿"
         case .chatAttachFiles: return "檔案"
-        case .chatAttachRecent: return "最近的照片"
-        case .chatAttachRecentLimited: return "你允許渥屋助理存取的照片"
-        case .chatAttachAllPhotos: return "全部照片"
-        case .chatAttachChangeScope: return "更改範圍"
-        case .chatAttachNoPhotos: return "還沒有照片"
-        case .chatAttachAllowPhotos: return "允許存取照片"
-        case .chatAttachPhotosNeeded: return "在這裡直接選照片,需要允許渥屋助理存取照片"
-        case .chatAttachPhotosHint: return "不允許也可以點上面的「相簿」,用系統的照片選擇器"
         case .chatAttachAdding: return "正在新增附件…"
         case .chatAttachGotIt: return "知道了"
         case .chatAttachGone: return "這個附件已經不在了"
@@ -1954,7 +1928,6 @@ enum AppText: Equatable {
         case .chatAttachPhotoCount: return "%lld 張照片"
         case .chatAttachFileAndMore: return "%1$@ 等 %2$lld 個檔案"
         case .chatAttachPhotosAndFiles: return "照片和檔案"
-        case .chatAttachSelected: return "已選取"
         case .chatAttachRemove: return "去掉%1$@"
         case .chatAttachFull: return "一次最多 %1$lld 個附件"
         case .chatAttachOverLimit: return "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上"

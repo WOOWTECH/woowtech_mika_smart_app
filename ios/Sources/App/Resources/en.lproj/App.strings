@@ -582,14 +582,6 @@
 "chat.attach.camera" = "Camera";
 "chat.attach.album" = "Photos";
 "chat.attach.files" = "Files";
-"chat.attach.recent" = "Recent photos";
-"chat.attach.recentLimited" = "Photos you let Woow Assistant access";
-"chat.attach.allPhotos" = "All photos";
-"chat.attach.changeScope" = "Change selection";
-"chat.attach.noPhotos" = "No photos yet";
-"chat.attach.allowPhotos" = "Allow photo access";
-"chat.attach.photosNeeded" = "To pick photos here, allow Woow Assistant to access your photos";
-"chat.attach.photosHint" = "Without access, tap Photos above to use the system photo picker";
 "chat.attach.adding" = "Adding attachments…";
 "chat.attach.gotIt" = "Got it";
 "chat.attach.gone" = "This attachment is no longer available";
@@ -597,7 +589,6 @@
 "chat.attach.photo" = "Photo";
 "chat.attach.fileAndMore" = "%1$@ and others (%2$lld files)";
 "chat.attach.photosAndFiles" = "Photos and files";
-"chat.attach.selected" = "Selected";
 "chat.attach.remove" = "Remove %1$@";
 "chat.attach.full" = "Up to %1$lld attachments at a time";
 "chat.attach.overLimit" = "Up to %1$lld attachments at a time; %2$lld more were not added";
