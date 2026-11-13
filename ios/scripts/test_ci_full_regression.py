@@ -259,6 +259,19 @@ class FullRegressionPlanTests(unittest.TestCase):
             self.assertAlmostEqual(durations[0], ci.DOCUMENTS_SLICE_SECONDS, delta=1)
             self.assertAlmostEqual(durations[1], ci.SLICE_SECONDS, delta=1)
 
+    def test_archive_after_mcp_gets_the_long_window(self):
+        row = next(r for r in self.plan['rows'] if [sl['scope'] for sl in r['slices']] == ['ui-mcp', 'ui-archive'])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            def finish_once(command, log, seconds):
+                log.write_text('native test failed\n')
+                return 65
+            with mock.patch.object(ci, 'bounded_process', side_effect=finish_once) as process:
+                ci.execute(row, root / 'Products.xctestproducts', 'simulator-id', root)
+            durations = [call.args[2] for call in process.call_args_list]
+            self.assertAlmostEqual(durations[0], ci.SLICE_SECONDS, delta=1)
+            self.assertAlmostEqual(durations[1], ci.DOCUMENTS_SLICE_SECONDS, delta=1)
+
     def test_startup_and_chat_shards_get_the_long_window(self):
         for scope in ('ui-startup', 'ui-chat'):
             row = next(r for r in self.plan['rows'] if r['slices'][0]['scope'] == scope)

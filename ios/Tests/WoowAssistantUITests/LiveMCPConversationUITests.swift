@@ -190,12 +190,13 @@ final class LiveMCPConversationUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
             segment("memories")
             let search = app.textFields["memory.search"].firstMatch
-            XCTAssertTrue(search.waitForExistence(timeout: 5))
-            let value = search.value as? String ?? ""
-            XCTAssertTrue(value.isEmpty || value == "搜尋記憶或關鍵字", "Check absence in the unfiltered memory list.")
+            XCTAssertTrue(app.buttons["memory.search.toggle"].firstMatch.waitForExistence(timeout: 5))
+            // Search opens from the header; an open field must not be filtering.
+            let value = search.exists ? search.value as? String ?? "" : ""
+            XCTAssertTrue(value.isEmpty || value == "搜尋", "Check absence in the unfiltered memory list.")
         }
         func emptyMemories() {
-            readable("memory.empty", equals: "尚未儲存記憶。")
+            readable("memory.empty", equals: "還沒有記住的事")
             XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
         }
         func diagnosticCount(_ key: String, in raw: String) -> Int? {
@@ -327,12 +328,12 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
         openMemory(); emptyMemories()
-        let activeEmpty = app.staticTexts["memory.empty"].firstMatch.label == "尚未儲存記憶。"
+        let activeEmpty = app.staticTexts["memory.empty"].firstMatch.label == "還沒有記住的事"
         segment("pending")
-        readable("memory.pending.empty", equals: "沒有待確認的內容。")
+        readable("memory.pending.empty", equals: "沒有等你確認的東西")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
-        print("Live MCP memory phase=relaunch;activeEmpty=\(activeEmpty);pendingEmpty=\(app.staticTexts["memory.pending.empty"].label == "沒有待確認的內容。")")
+        print("Live MCP memory phase=relaunch;activeEmpty=\(activeEmpty);pendingEmpty=\(app.staticTexts["memory.pending.empty"].label == "沒有等你確認的東西")")
         // No screenshots, AX dumps, raw replies, tool results or private fields.
     }
 

@@ -215,8 +215,9 @@ final class MemoryToolUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["memory.unavailable"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)
         selectSegment("memories")
-        let searchValue = app.textFields["memory.search"].firstMatch.value as? String ?? ""
-        XCTAssertTrue(searchValue.isEmpty || searchValue == "搜尋記憶或關鍵字",
+        let searchField = app.textFields["memory.search"].firstMatch
+        let searchValue = searchField.exists ? searchField.value as? String ?? "" : ""
+        XCTAssertTrue(searchValue.isEmpty || searchValue == "搜尋",
                       "Absence must be checked in the unfiltered memory list.")
     }
 
@@ -259,12 +260,12 @@ final class MemoryToolUITests: XCTestCase {
     }
 
     private func assertEmptyMemories() {
-        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "尚未儲存記憶。")
+        assertReadable(app.staticTexts["memory.empty"].firstMatch, equals: "還沒有記住的事")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
     }
 
     private func assertEmptyPending() {
-        assertReadable(app.staticTexts["memory.pending.empty"].firstMatch, equals: "沒有待確認的內容。")
+        assertReadable(app.staticTexts["memory.pending.empty"].firstMatch, equals: "沒有等你確認的東西")
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
     }
 

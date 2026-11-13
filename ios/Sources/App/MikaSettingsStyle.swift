@@ -14,6 +14,41 @@ struct MikaSettingsPalette {
     var hint: Color { scheme == .dark ? Color(red: 108/255, green: 109/255, blue: 117/255) : Color(red: 154/255, green: 155/255, blue: 163/255) }
     var border: Color { scheme == .dark ? .white.opacity(0.06) : .black.opacity(0.05) }
     var tile: Color { scheme == .dark ? .white.opacity(0.08) : .black.opacity(0.045) }
+    // Status text: Android ok, warn and bad.
+    var ok: Color { scheme == .dark ? Color(red: 60/255, green: 207/255, blue: 122/255) : Color(red: 31/255, green: 157/255, blue: 85/255) }
+    var warn: Color { scheme == .dark ? Color(red: 255/255, green: 179/255, blue: 64/255) : Color(red: 184/255, green: 110/255, blue: 0) }
+    var bad: Color { scheme == .dark ? Color(red: 255/255, green: 105/255, blue: 97/255) : Color(red: 229/255, green: 72/255, blue: 61/255) }
+
+    /// Android fill: the tonal button background.
+    var fill: Color { scheme == .dark ? .white.opacity(15/255) : .black.opacity(10/255) }
+    /// Android hair (unchosen radio marks) and greySoft (neutral pills).
+    var hair: Color { scheme == .dark ? .white.opacity(20/255) : .black.opacity(18/255) }
+    var greySoft: Color { Color(red: 118/255, green: 118/255, blue: 128/255).opacity(scheme == .dark ? 56/255 : 31/255) }
+
+    func color(for tone: MikaSettingsTone) -> Color {
+        switch tone {
+        case .plain: return hint
+        case .ok: return ok
+        case .warn: return warn
+        case .bad: return bad
+        }
+    }
+
+    /// Android okSoft, warnSoft and badSoft: status icon tiles.
+    func softColor(for tone: MikaSettingsTone) -> Color {
+        let dark = scheme == .dark
+        switch tone {
+        case .plain: return tile
+        case .ok: return ok.opacity(dark ? 36/255 : 31/255)
+        case .warn: return Color(red: 1, green: 159/255, blue: 10/255).opacity(dark ? 41/255 : 31/255)
+        case .bad: return bad.opacity(dark ? 36/255 : 26/255)
+        }
+    }
+}
+
+/// Android ValueTone: a row value is plain, or coloured by its state.
+enum MikaSettingsTone {
+    case plain, ok, warn, bad
 }
 
 struct MikaSettingsGroupLabel: View {
@@ -46,7 +81,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link, info, wrench
+    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy
 }
 
 struct MikaSettingsIconTile: View {
@@ -80,13 +115,14 @@ struct MikaSettingsRow: View {
     let title: String
     let subtitle: String?
     let value: String?
+    let valueTone: MikaSettingsTone
     let accessory: Accessory
     @Environment(\.colorScheme) private var scheme
 
     init(icon: MikaSettingsIcon, title: String, subtitle: String? = nil,
-         value: String? = nil, accessory: Accessory = .chevron) {
+         value: String? = nil, valueTone: MikaSettingsTone = .plain, accessory: Accessory = .chevron) {
         self.icon = icon; self.title = title; self.subtitle = subtitle
-        self.value = value; self.accessory = accessory
+        self.value = value; self.valueTone = valueTone; self.accessory = accessory
     }
 
     var body: some View {
@@ -102,7 +138,7 @@ struct MikaSettingsRow: View {
             }
             Spacer(minLength: 4)
             if let value {
-                Text(verbatim: value).font(.subheadline).foregroundStyle(colors.hint)
+                Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: valueTone))
                     .lineLimit(1)
             }
             if let symbol = accessory.symbol {
@@ -113,6 +149,81 @@ struct MikaSettingsRow: View {
         .padding(.horizontal, 16)
         .frame(minHeight: 52)
         .contentShape(Rectangle())
+    }
+}
+
+/// Android RadioRow: a 22 point mark, filled with the brand tint when chosen,
+/// then the title, an optional caption and optional content below them.
+/// Dividers between rows start at 50 points.
+struct MikaSettingsRadioRow<Below: View>: View {
+    let title: String
+    let subtitle: String?
+    let selected: Bool
+    let action: () -> Void
+    let below: Below
+    @Environment(\.colorScheme) private var scheme
+
+    init(title: String, subtitle: String? = nil, selected: Bool, action: @escaping () -> Void,
+         @ViewBuilder below: () -> Below) {
+        self.title = title; self.subtitle = subtitle; self.selected = selected
+        self.action = action; self.below = below()
+    }
+
+    var body: some View {
+        let colors = MikaSettingsPalette(scheme: scheme)
+        Button(action: action) {
+            HStack(spacing: 12) {
+                ZStack {
+                    if selected {
+                        Circle().fill(.tint)
+                        Circle().fill(.white).frame(width: 10, height: 10)
+                    } else {
+                        Circle().strokeBorder(colors.hair, lineWidth: 1.6)
+                    }
+                }
+                .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: title).font(.body).foregroundStyle(colors.ink)
+                    if let subtitle {
+                        Text(verbatim: subtitle).font(.caption).foregroundStyle(colors.hint)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    below
+                }
+                .padding(.vertical, 9)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+extension MikaSettingsRadioRow where Below == EmptyView {
+    init(title: String, subtitle: String? = nil, selected: Bool, action: @escaping () -> Void) {
+        self.init(title: title, subtitle: subtitle, selected: selected, action: action) { EmptyView() }
+    }
+}
+
+/// Android StatusPill: a short state on a soft capsule; plain is neutral grey.
+struct MikaSettingsPill: View {
+    let text: String
+    let tone: MikaSettingsTone
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let colors = MikaSettingsPalette(scheme: scheme)
+        Text(verbatim: text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(tone == .plain ? colors.secondary : colors.color(for: tone))
+            .lineLimit(1)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(tone == .plain ? colors.greySoft : colors.softColor(for: tone), in: Capsule())
     }
 }
 
@@ -201,6 +312,38 @@ struct MikaSettingsIconShape: Shape {
             path.addEllipse(in: CGRect(x: 11.2, y: 7, width: 1.6, height: 1.6))
             path.move(to: CGPoint(x: 12, y: 11))
             path.addLine(to: CGPoint(x: 12, y: 17))
+        case .bug:
+            path.move(to: CGPoint(x: 8, y: 9))
+            path.addLine(to: CGPoint(x: 16, y: 9))
+            path.addLine(to: CGPoint(x: 16, y: 15))
+            path.addArc(center: CGPoint(x: 12, y: 15), radius: 4,
+                        startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
+            path.closeSubpath()
+            path.move(to: CGPoint(x: 9, y: 9))
+            path.addArc(center: CGPoint(x: 12, y: 9), radius: 3,
+                        startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+            let legs: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
+                (4, 13, 8, 13), (16, 13, 20, 13), (5, 8, 8, 10), (19, 8, 16, 10), (5, 19, 8, 17), (19, 19, 16, 17)]
+            for leg in legs {
+                path.move(to: CGPoint(x: leg.0, y: leg.1))
+                path.addLine(to: CGPoint(x: leg.2, y: leg.3))
+            }
+        case .shield:
+            path.move(to: CGPoint(x: 12, y: 3))
+            path.addLine(to: CGPoint(x: 19.5, y: 6))
+            path.addLine(to: CGPoint(x: 19.5, y: 11.5))
+            path.addCurve(to: CGPoint(x: 12, y: 21),
+                          control1: CGPoint(x: 19.5, y: 16.1), control2: CGPoint(x: 16.3, y: 19.9))
+            path.addCurve(to: CGPoint(x: 4.5, y: 11.5),
+                          control1: CGPoint(x: 7.7, y: 19.9), control2: CGPoint(x: 4.5, y: 16.1))
+            path.addLine(to: CGPoint(x: 4.5, y: 6))
+            path.closeSubpath()
+        case .copy:
+            path.addRoundedRect(in: CGRect(x: 8, y: 8, width: 11, height: 11), cornerSize: CGSize(width: 2, height: 2))
+            path.move(to: CGPoint(x: 5, y: 15))
+            path.addLine(to: CGPoint(x: 5, y: 6))
+            path.addQuadCurve(to: CGPoint(x: 6, y: 5), control: CGPoint(x: 5, y: 5))
+            path.addLine(to: CGPoint(x: 15, y: 5))
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))

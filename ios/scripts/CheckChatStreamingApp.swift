@@ -87,6 +87,15 @@ private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
         onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
+/// Fails every request with one model error, as HTTPChatModelClient would.
+private struct FailingClient: ReferenceDispatchBoundChatModelClient {
+    let error: HTTPChatModelError
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { throw error }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); throw error
+    }
+}
 #if DEBUG
 private actor FixturePauseRecorder {
     private var intervals: [UInt64] = []
@@ -1178,6 +1187,145 @@ private actor StreamMCP: MCPDiscovering {
         return a.count
     }
 
+    /// Android parity (ModelErrorCopy.failure): a plain request's model failure
+    /// says 呼叫模型失敗：<reason> from its HTTP status alone and keeps the draft;
+    /// failures it cannot name keep the generic message.
+    static func modelFailuresUsePlayWording() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let cases: [(HTTPChatModelError, AppText?)] = [
+            (.httpStatus(401), .chatModelFailedAuth), (.httpStatus(403), .chatModelFailedAuth),
+            (.httpStatus(402), .chatModelFailedQuota), (.httpStatus(404), .chatModelFailedNotFound),
+            (.httpStatus(429), .chatModelFailedRateLimited), (.httpStatus(503), .chatModelFailedServer(status: 503)),
+            (.httpStatus(400), .chatModelFailedStatus(status: 400)), (.transportFailure, .chatModelFailedNetwork),
+            (.incompleteResponse, .chatModelFailedStreamCut), (.invalidResponse, .chatModelFailedUnreadable),
+            (.timedOut, nil), (.redirectRejected, nil)]
+        for (error, expected) in cases {
+            let session = e.session(FailingClient(error: error))
+            session.draft = "Keep this draft"
+            session.send()
+            guard let task = session.capturedArchiveRequest else { throw Failure(name: "model failure request \(error)") }
+            await task.value
+            try a.check(session.chatErrorText == expected && session.chatError != nil && !session.isSubmitting
+                        && session.draft == "Keep this draft" && session.entries.isEmpty,
+                        "\(error) is named like Android, or keeps the generic message, and the draft stays")
+        }
+        try a.check(ChatModelFailure(HTTPChatModelError.httpStatus(429))?.traditionalText
+                        == "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
+                    && ChatModelFailure(HTTPChatModelError.httpStatus(500))?.traditionalText
+                        == "呼叫模型失敗：伺服器端出錯（HTTP 500）。請稍後再試。草稿已保留。",
+                    "chatError keeps the Play sentence in Traditional Chinese")
+        let session = e.session(FailingClient(error: .httpStatus(429)))
+        session.draft = "Keep this draft"; session.send()
+        if let task = session.capturedArchiveRequest { await task.value }
+        session.newConversation()
+        try a.check(session.chatError == nil && session.chatErrorText == nil, "clearing the error clears its localized form")
+        return a.count
+    }
+
+    /// An endpoint that streams but refuses stream_options: a plain request is
+    /// resent once without it before any text, later turns skip it, and the
+    /// profile flow falls back to one complete request. Never a third request.
+    static func usageOptionFallback() async throws -> Int {
+        var a = Assertions()
+        let canary = "PRIVATE_ERROR_CANARY"
+        let refusal = Data(#"{"error":{"code":"unsupported_parameter","param":"stream_options","message":"PRIVATE_ERROR_CANARY"}}"#.utf8)
+        let event = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Resent SSE\"},\"finish_reason\":null}]}\n\n"
+        let stop = "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+        func body(_ request: URLRequest?) throws -> [String: Any] {
+            guard let request, let value = try JSONSerialization.jsonObject(with: interceptedBody(request)) as? [String: Any] else {
+                throw Failure(name: "intercepted body is not a JSON object")
+            }
+            return value
+        }
+        func asksUsage(_ request: URLRequest?) throws -> Bool {
+            try (body(request)["stream_options"] as? [String: Bool]) == ["include_usage": true]
+        }
+        do {
+            let fixture = ModelProtocolFixture.Scenario(status: 400, chunks: [refusal],
+                followUp: .init(status: 200, mime: "text/event-stream", chunks: [Data((event + stop).utf8)]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            var displayed: [String] = []
+            let subscription = session.$replyPreview.sink { if let value = $0 { displayed.append(value.text) } }
+            defer { subscription.cancel() }
+            await (try start(session, "Usage option refused")).value
+            let requests = fixture.requestSnapshot
+            try a.check(requests.count == 2, "a refused usage option is resent exactly once")
+            let first = try body(requests[0]), second = try body(requests[1])
+            try a.check(try asksUsage(requests[0]) && second["stream_options"] == nil && second["stream"] as? Bool == true &&
+                        (first["messages"] as? [[String: String]]) == (second["messages"] as? [[String: String]]),
+                        "the resend leaves out only the usage option")
+            try a.check(session.entries.last?.content == "Resent SSE" && session.chatError == nil && displayed == ["Resent SSE"] &&
+                        e.reopen().conversations.count == 1, "the resent stream previews, completes and saves the turn")
+            try a.check(!String(decoding: try interceptedBody(requests[1]), as: UTF8.self).contains(canary),
+                        "the refusal body never enters the resend")
+            await (try start(session, "Next question")).value
+            try a.check(fixture.requestCount == 3 && (try body(fixture.lastRequest))["stream_options"] == nil &&
+                        session.entries.count == 4, "later turns on the same endpoint and model skip the option")
+        }
+        do {
+            let finish = #"{"action":"finish","answer":"Complete after a refused option"}"#
+            let completeBody = try JSONSerialization.data(withJSONObject: ["choices": [["message":
+                ["role": "assistant", "content": finish], "finish_reason": "stop"]]])
+            let fixture = ModelProtocolFixture.Scenario(status: 422, chunks: [refusal],
+                followUp: .init(status: 200, mime: "application/json", chunks: [completeBody]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            await (try start(session, "Profile flow with a refused option")).value
+            let requests = fixture.requestSnapshot
+            try a.check(requests.count == 2 && (try asksUsage(requests[0])) && (try body(requests[1]))["stream"] as? Bool == false &&
+                        (try body(requests[1]))["stream_options"] == nil, "the profile flow falls back to one complete request")
+            try a.check(session.entries.last?.content == "Complete after a refused option" && e.reopen().conversations.count == 1 &&
+                        e.learning.profile.snapshot().entries.isEmpty, "the fallback answer is still validated before it is saved")
+        }
+        do {
+            let fixture = ModelProtocolFixture.Scenario(status: 400, chunks: [refusal], holdAfterBody: true,
+                followUp: .init(status: 200, mime: "text/event-stream", chunks: [Data((event + stop).utf8)]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url); fixture.releaseHeldResponses() }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            let task = try start(session, "Cancel while the refusal is read")
+            try await wait("refusal body held") { fixture.requestCount == 1 && fixture.bodyDelivered }
+            session.cancel(); await task.value
+            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && session.draft == "Cancel while the refusal is read",
+                        "cancelling while the refusal is read never resends")
+        }
+        for (label, failure, emitFirst) in [("Refusal after text", HTTPStreamFallbackError.usageOptionUnsupported(400), true),
+                                            ("Stream refusal on a plain request", HTTPStreamFallbackError.explicitUnsupported(400), false)] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, label)
+            try await wait("\(label) stream") { client.counts.stream == 1 }
+            if emitFirst {
+                client.emit("partial"); try await wait("\(label) partial") { session.replyPreview?.text == "partial" }
+            }
+            client.finish(failure); await task.value
+            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty &&
+                        session.chatError != nil && session.draft == label,
+                        "only an untouched usage-option refusal is resent: \(label)")
+        }
+        for cancel in [false, true] {
+            let e = try StreamEnvironment(); defer { e.close() }
+            let client = StreamClient(), session = e.session(client)
+            let task = try start(session, "Refused twice")
+            try await wait("first refused stream") { client.counts.stream == 1 }
+            client.finish(HTTPStreamFallbackError.usageOptionUnsupported(400))
+            try await wait("the single resend") { client.counts.stream == 2 }
+            if cancel { session.cancel() } else { client.finish(HTTPStreamFallbackError.usageOptionUnsupported(400), at: 1) }
+            await task.value
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0 && session.entries.isEmpty &&
+                        session.draft == "Refused twice" && e.archive.conversations.isEmpty,
+                        cancel ? "cancelling the resend sends nothing more" : "a second refusal is not resent")
+        }
+        return a.count
+    }
+
 }
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
@@ -1188,7 +1336,8 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
-                ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting()]
+                ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting(),
+                ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
             #endif
@@ -1204,6 +1353,8 @@ final class ChatStreamingAppTests: XCTestCase {
     }
     #endif
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testModelFailuresUsePlayWording() async throws { let n = try await ChatStreamingChecks.modelFailuresUsePlayWording(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testUsageOptionFallback() async throws { let n = try await ChatStreamingChecks.usageOptionFallback(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testSendBlockerExplainsWithoutStarting() async throws { let n = try await ChatStreamingChecks.sendBlockerExplainsWithoutStarting(); XCTAssertEqual(n, 7) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }

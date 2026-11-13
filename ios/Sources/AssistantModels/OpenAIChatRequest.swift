@@ -2,11 +2,12 @@ import Foundation
 
 /// Shared by complete and stream. Pure text keeps the original string content
 /// shape and has no new limits. Attachment requests are independently bounded.
+/// Only a stream may ask for usage; otherwise the bytes are exactly as before.
 enum OpenAIChatRequest {
     static let maximumAttachmentRequestBytes = 8 * 1024 * 1024
 
     static func body(model: String, messages: [ModelMessage], stream: Bool,
-                     maxOutputTokens: Int, vision: ModelVisionCapability) throws -> Data {
+                     maxOutputTokens: Int, vision: ModelVisionCapability, includeUsage: Bool = false) throws -> Data {
         let attached = messages.filter { !$0.attachments.isEmpty }
         guard attached.count <= 1 else { throw ModelAttachmentError.multipleAttachments }
         if let message = attached.first {
@@ -36,7 +37,8 @@ enum OpenAIChatRequest {
             }
         }
         let data = try JSONEncoder().encode(Body(model: model, messages: messages.map(WireMessage.init),
-                                                  stream: stream, max_tokens: maxOutputTokens))
+                                                  stream: stream, max_tokens: maxOutputTokens,
+                                                  stream_options: stream && includeUsage ? StreamOptions(include_usage: true) : nil))
         if !attached.isEmpty && data.count > maximumAttachmentRequestBytes {
             throw ModelAttachmentError.requestTooLarge
         }
@@ -48,7 +50,10 @@ enum OpenAIChatRequest {
         let messages: [WireMessage]
         let stream: Bool
         let max_tokens: Int
+        /// Nil is not encoded at all.
+        let stream_options: StreamOptions?
     }
+    private struct StreamOptions: Encodable { let include_usage: Bool }
     private struct WireMessage: Encodable {
         let message: ModelMessage
         init(_ message: ModelMessage) { self.message = message }

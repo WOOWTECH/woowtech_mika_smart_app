@@ -66,7 +66,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertFalse(testNotification.isEnabled,
                        "Changing language must not enable local notifications.")
 
-        tapChrome(app.navigationBars["Task notifications"].buttons.firstMatch)
+        tapChrome(app.navigationBars["Notifications"].buttons.firstMatch)
         tapRoot("chat")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
@@ -79,11 +79,11 @@ final class AppLanguagePhase2UITests: XCTestCase {
         let searchSettings = app.buttons["browser.searchEngine.open"]
         tapChrome(searchSettings, timeout: 30) // Isolated WebKit data removal may still be finishing.
         XCTAssertTrue(app.navigationBars["Search engines"].waitForExistence(timeout: 10))
-        let bing = app.buttons["browser.searchEngine.select.bing"]
-        revealLearningElement(bing, in: app)
-        XCTAssertEqual(bing.value as? String, "Selected")
-        tapContent(app.buttons["browser.searchEngine.select.google"])
-        XCTAssertEqual(app.buttons["browser.searchEngine.select.google"].value as? String, "Selected")
+        let google = app.buttons["browser.searchEngine.select.google"]
+        revealLearningElement(google, in: app)
+        XCTAssertEqual(google.value as? String, "Selected")
+        tapContent(app.buttons["browser.searchEngine.select.bing"])
+        XCTAssertEqual(app.buttons["browser.searchEngine.select.bing"].value as? String, "Selected")
         let add = app.buttons["browser.searchEngine.add"]
         revealLearningElement(add, in: app)
         XCTAssertEqual(add.label, "Add and use")
@@ -146,12 +146,10 @@ final class AppLanguagePhase2UITests: XCTestCase {
     private func chooseEnglishInSettings() {
         tapRoot("settings")
         tapContent(app.buttons["settings.appearance"])
-        let language = app.buttons["settings.language"]
-        tapContent(language)
-        let english = app.buttons["English"].firstMatch
-        XCTAssertTrue(english.waitForExistence(timeout: 5) && english.isHittable)
-        english.tap()
-        exactText("settings.language.resolved", "Current interface: English")
+        let english = app.buttons["settings.language.en"]
+        tapContent(english)
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 5))
+        XCTAssertTrue(english.isSelected)
         let back = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5) && back.isHittable)
         back.tap()

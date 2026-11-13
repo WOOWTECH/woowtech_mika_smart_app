@@ -103,6 +103,9 @@ final class ChatVoiceUITests: XCTestCase {
         tap("settings.voice.open")
         let voiceSettings = app.navigationBars["語音轉文字"]
         XCTAssertTrue(voiceSettings.waitForExistence(timeout: 10))
+        // The Play edition's option names: 手機自帶 (here the device's) and 不用.
+        XCTAssertTrue(app.buttons["settings.voice.system"].label.hasPrefix("裝置自帶"))
+        XCTAssertTrue(app.buttons["settings.voice.off"].label.hasPrefix("不用"))
         tap("settings.voice.off")
         voiceSettings.buttons.firstMatch.tap()
         returnFromModelSettings(in: app)

@@ -20,6 +20,8 @@ struct MemoryDataView: View {
     @ObservedObject private var mcpLeaseFixture = UITestMCPLeaseControl.shared
     #endif
     @FocusState private var searchFocused: Bool
+    /// Like Android's MemoryScreen, the search field opens from the header.
+    @State private var searching = false
     @Environment(\.colorScheme) private var colorScheme
     #if os(iOS)
     @Environment(\.appLocalizer) private var appLocalizer
@@ -52,6 +54,20 @@ struct MemoryDataView: View {
                 Text(copy.text(.title))
                     .font(.headline)
                     .accessibilityIdentifier("memory.status")
+            }
+            if segment != .skills {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        searching.toggle()
+                        // Closing search drops the filter, as Android's search("") does.
+                        if !searching { query = ""; searchFocused = false }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel(copy.text(.search))
+                    .accessibilityValue(copy.text(searching ? .selected : .unselected))
+                    .accessibilityIdentifier("memory.search.toggle")
+                }
             }
         }
         .memoryNavigationBackground(palette.background)
@@ -126,7 +142,7 @@ struct MemoryDataView: View {
             }
             .padding(4)
             .background(palette.fill, in: RoundedRectangle(cornerRadius: 16))
-            if segment != .skills {
+            if segment != .skills && (searching || !query.isEmpty) {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(palette.ink3)
@@ -196,13 +212,13 @@ struct MemoryDataView: View {
             Section {
                 card {
                     VStack(spacing: 0) {
-                        NavigationLink {
-                            UserProfileView(store: store)
-                        } label: {
-                            dataRow(copy.text(.profile), systemImage: "person.crop.circle")
+                        Button { onOpenBrowser() } label: {
+                            dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
-                        .disabled(!store.available)
-                        .accessibilityIdentifier("memory.profile.open")
+                        .accessibilityIdentifier("memory.manageWebsites")
+                        Text(copy.text(.webLoginsHelp))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                            .accessibilityIdentifier("memory.browserPending")
                         cardDivider
                         Button { sheet = .websites } label: {
                             HStack(spacing: 14) {
@@ -233,15 +249,18 @@ struct MemoryDataView: View {
                         Text(copy.text(.routesHelp))
                             .font(.caption).foregroundStyle(palette.ink3)
                             .accessibilityIdentifier("memory.routesPending")
-                        cardDivider
-                        Button { onOpenBrowser() } label: {
-                            dataRow(copy.text(.webLogins), systemImage: "globe")
-                        }
-                        .accessibilityIdentifier("memory.manageWebsites")
-                        Text(copy.text(.webLoginsHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.browserPending")
                     }
+                }
+                // Android's saved data lists website sign-ins, then routes; the
+                // iOS profile has no Android row and follows in its own card.
+                card {
+                    NavigationLink {
+                        UserProfileView(store: store)
+                    } label: {
+                        dataRow(copy.text(.profile), systemImage: "person.crop.circle")
+                    }
+                    .disabled(!store.available)
+                    .accessibilityIdentifier("memory.profile.open")
                 }
             } header: { sectionTitle(copy.text(.storedData)) }
             Section {
@@ -282,7 +301,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .active)
         if items.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyMemory : .memoryNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: false)))
                     .font(.body)
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 150)
@@ -325,7 +344,7 @@ struct MemoryDataView: View {
         let items = matchingMemories(status: .pending)
         if items.isEmpty && store.skills.pending.isEmpty {
             Section {
-                Text(copy.text(query.isEmpty ? .emptyPending : .pendingNotFound))
+                Text(copy.text(emptyMemoryMessage(for: query, pending: true)))
                     .foregroundStyle(palette.ink3)
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .listRowBackground(Color.clear)
@@ -664,7 +683,7 @@ struct MemoryDataView: View {
     }
 
     private func matchingMemories(status: MemoryStatus) -> [MemoryItem] {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = normalizedMemorySearch(query)
         return store.memory.search(text, limit: 500, includePending: true)
             .filter { $0.status == status }
     }

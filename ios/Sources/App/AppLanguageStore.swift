@@ -13,7 +13,9 @@ import Foundation
     init(defaults: UserDefaults, preferredLanguages: @escaping () -> [String] = { Locale.preferredLanguages }) {
         self.defaults = defaults
         self.preferredLanguages = preferredLanguages
-        let choice = AppLanguage(rawValue: defaults.string(forKey: Self.preferenceKey) ?? "") ?? .system
+        let stored = AppLanguage(rawValue: defaults.string(forKey: Self.preferenceKey) ?? "") ?? .system
+        // Settings no longer offers 简体中文; an earlier choice follows the system.
+        let choice = stored == .simplifiedChinese ? .system : stored
         language = choice
         resolved = choice.resolve(preferredLanguages: preferredLanguages())
     }

@@ -42,6 +42,23 @@ enum CheckChatKeyboardReserve {
         let phone = CGRect(x: 0, y: 0, width: 375, height: 667)
         expect(ChatKeyboardReserve.isPlausible(CGRect(x: 0, y: 319, width: 375, height: 348), in: phone))
 
+        // The bottom container inset: home indicators pass, the ~900 pt the
+        // physical iPad reported without a keyboard does not.
+        expect(ChatKeyboardReserve.containerBottom(34) == 34)
+        expect(ChatKeyboardReserve.containerBottom(20) == 20)
+        expect(ChatKeyboardReserve.containerBottom(0) == 0)
+        expect(ChatKeyboardReserve.containerBottom(50) == 50)
+        expect(ChatKeyboardReserve.containerBottom(51) == 0)
+        expect(ChatKeyboardReserve.containerBottom(892) == 0)
+        expect(ChatKeyboardReserve.containerBottom(-4) == 0)
+        expect(ChatKeyboardReserve.containerBottom(.nan) == 0)
+        expect(ChatKeyboardReserve.containerBottom(.infinity) == 0)
+        // A docked keyboard covers the home indicator: the larger one, never both.
+        expect(ChatKeyboardReserve.bottomPadding(keyboard: 265, containerBottom: 0) == 265)
+        expect(ChatKeyboardReserve.bottomPadding(keyboard: 0, containerBottom: 34) == 34)
+        expect(ChatKeyboardReserve.bottomPadding(keyboard: 336, containerBottom: 34) == 336)
+        expect(ChatKeyboardReserve.bottomPadding(keyboard: .nan, containerBottom: 20) == 20)
+
         // Empty, null and non-finite input reserves nothing.
         expect(!ChatKeyboardReserve.isDocked(.zero, in: window))
         expect(!ChatKeyboardReserve.isDocked(.null, in: window))

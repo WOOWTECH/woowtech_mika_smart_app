@@ -94,6 +94,12 @@ final class UserProfileUITests: XCTestCase {
         let native = toggle.switches.firstMatch
         let control = native.exists ? native : toggle
         ready(control); control.tap()
+        // 06cdcb92 ends 儲存的資料 with the profile card, so on SE the switch is
+        // reached from below and sits at the top of the List. Saving it clears the
+        // 個人檔案已儲存 notice card above it: in 43364763538 the switch began to
+        // turn off, then the List moved and the row left the AX tree. Scroll back
+        // to it before reading its value; the tap is not repeated.
+        revealLearningElement(toggle, in: app)
         let off = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: toggle)
         XCTAssertEqual(XCTWaiter.wait(for: [off], timeout: 5), .completed)
         XCTAssertFalse(app.staticTexts["memory.error"].firstMatch.exists)

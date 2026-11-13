@@ -372,7 +372,7 @@ final class ChatStreamingUITests: XCTestCase {
         let enabled = app.staticTexts["notifications.enabled"].firstMatch
         revealLearningElement(enabled, in: app, visibility: .readableText)
         assertLabel(enabled, "已開啟")
-        let back = app.navigationBars["任務通知"].buttons.firstMatch; ready(back); back.tap()
+        let back = app.navigationBars["通知"].buttons.firstMatch; ready(back); back.tap()
         navigate("chat")
     }
     private func assertNotificationAttempts(_ expected: Int) {

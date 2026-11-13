@@ -12,9 +12,9 @@
       "key": "language.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "介面語言",
-        "zh-Hans": "界面语言",
-        "en": "Interface language"
+        "zh-Hant": "語言",
+        "zh-Hans": "语言",
+        "en": "Language"
       }
     },
     {
@@ -25,6 +25,16 @@
         "zh-Hant": "跟隨系統",
         "zh-Hans": "跟随系统",
         "en": "Follow system"
+      }
+    },
+    {
+      "case": "languageSystemDetail",
+      "key": "language.system.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "系統語言渥屋助理有譯文時用它,沒有時用繁體中文",
+        "zh-Hans": "系统语言渥屋助理有译文时用它,没有时用繁体中文",
+        "en": "Uses your system language when woowtech agent has it, Traditional Chinese otherwise"
       }
     },
     {
@@ -224,7 +234,7 @@
       "translations": {
         "zh-Hant": "記憶與資料",
         "zh-Hans": "记忆与数据",
-        "en": "Memory & Data"
+        "en": "Memory & data"
       }
     },
     {
@@ -485,6 +495,46 @@
         "zh-Hant": "深色",
         "zh-Hans": "深色",
         "en": "Dark"
+      }
+    },
+    {
+      "case": "appearanceFollowSystem",
+      "key": "appearance.followSystem",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "跟隨系統",
+        "zh-Hans": "跟随系统",
+        "en": "Follow the system"
+      }
+    },
+    {
+      "case": "appearanceSystemDetail",
+      "key": "appearance.system.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "裝置是淺色就淺色，深色就深色",
+        "zh-Hans": "设备是浅色就浅色，深色就深色",
+        "en": "Light or dark, whichever the device is in"
+      }
+    },
+    {
+      "case": "appearanceAlwaysLight",
+      "key": "appearance.alwaysLight",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一直淺色",
+        "zh-Hans": "一直浅色",
+        "en": "Always light"
+      }
+    },
+    {
+      "case": "appearanceAlwaysDark",
+      "key": "appearance.alwaysDark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一直深色",
+        "zh-Hans": "一直深色",
+        "en": "Always dark"
       }
     },
     {
@@ -3852,9 +3902,9 @@
       "key": "settings.home.model.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "主模型與連線設定",
-        "zh-Hans": "主模型与连接设置",
-        "en": "Main model and connection"
+        "zh-Hant": "模型與服務商",
+        "zh-Hans": "模型与服务商",
+        "en": "Model & provider"
       }
     },
     {
@@ -3868,13 +3918,23 @@
       }
     },
     {
-      "case": "settingsHomeAppearanceDetail",
-      "key": "settings.home.appearance.detail",
+      "case": "settingsHomeLanguageAppearance",
+      "key": "settings.home.languageAppearance",
       "parameters": [],
       "translations": {
-        "zh-Hant": "介面語言、外觀與模型外觀權限",
-        "zh-Hans": "界面语言、外观与模型外观权限",
-        "en": "Language, appearance and model appearance permission"
+        "zh-Hant": "語言與外觀",
+        "zh-Hans": "语言与外观",
+        "en": "Language & appearance"
+      }
+    },
+    {
+      "case": "settingsNotificationsTitle",
+      "key": "settings.notifications.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知",
+        "zh-Hans": "通知",
+        "en": "Notifications"
       }
     },
     {
@@ -3883,8 +3943,151 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "什麼時候彈出、去系統裡改",
-        "zh-Hans": "何时弹出、前往系统设置修改",
-        "en": "When alerts appear and where to change system settings"
+        "zh-Hans": "什么时候弹出、去系统里改",
+        "en": "When they pop up, change in system settings"
+      }
+    },
+    {
+      "case": "settingsNotificationsNormal",
+      "key": "settings.notifications.normal",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正常",
+        "zh-Hans": "正常",
+        "en": "Normal"
+      }
+    },
+    {
+      "case": "settingsNotificationsLowered",
+      "key": "settings.notifications.lowered",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "有 %lld 項不會彈出"
+        },
+        "zh-Hans": {
+          "other": "有 %lld 项不会弹出"
+        },
+        "en": {
+          "one": "%lld won’t pop up",
+          "other": "%lld won’t pop up"
+        }
+      }
+    },
+    {
+      "case": "settingsStatusReady",
+      "key": "settings.status.ready",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一切就緒",
+        "zh-Hans": "一切就绪",
+        "en": "All set"
+      }
+    },
+    {
+      "case": "settingsStatusReadyDetail",
+      "key": "settings.status.ready.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型已就緒 · 可使用對話與內建瀏覽器",
+        "zh-Hans": "模型已就绪 · 可使用对话与内置浏览器",
+        "en": "Model ready · Chat and browser available"
+      }
+    },
+    {
+      "case": "settingsStatusNoModel",
+      "key": "settings.status.noModel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有能用的模型",
+        "zh-Hans": "还没有能用的模型",
+        "en": "No usable model yet"
+      }
+    },
+    {
+      "case": "settingsStatusNoModelDetail",
+      "key": "settings.status.noModel.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增一個支援工具呼叫的模型",
+        "zh-Hans": "添加一个支持工具调用的模型",
+        "en": "Add a model that supports tool calling"
+      }
+    },
+    {
+      "case": "settingsStatusAdd",
+      "key": "settings.status.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "zh-Hans": "添加",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "settingsStatusNotificationsOff",
+      "key": "settings.status.notificationsOff",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知未允許",
+        "zh-Hans": "通知未允许",
+        "en": "Notifications not allowed"
+      }
+    },
+    {
+      "case": "settingsStatusNotificationsOffDetail",
+      "key": "settings.status.notificationsOff.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會看不到任務結果和「需要你」提醒",
+        "zh-Hans": "会看不到任务结果和「需要你」提醒",
+        "en": "You won’t see task results or “Needs you” alerts"
+      }
+    },
+    {
+      "case": "settingsStatusAllow",
+      "key": "settings.status.allow",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許",
+        "zh-Hans": "允许",
+        "en": "Allow"
+      }
+    },
+    {
+      "case": "settingsStatusAlertsLowered",
+      "key": "settings.status.alertsLowered",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "「需要你處理」的通知不會彈出",
+        "zh-Hans": "「需要你处理」的通知不会弹出",
+        "en": "“Needs you” notifications won’t pop up"
+      }
+    },
+    {
+      "case": "settingsStatusAlertsLoweredDetail",
+      "key": "settings.status.alertsLowered.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。",
+        "zh-Hans": "要你同意时，这类通知现在只安静地进通知中心，容易错过。「任务结果」的通知也一样。点「去打开」，打开「横幅」。",
+        "en": "When you need to approve, these notifications now land quietly in Notification Center and are easy to miss. The same goes for “Task results”. Tap “Turn on” and turn on “Banners”."
+      }
+    },
+    {
+      "case": "settingsStatusTurnOn",
+      "key": "settings.status.turnOn",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "去開啟",
+        "zh-Hans": "去打开",
+        "en": "Turn on"
       }
     },
     {
@@ -3902,9 +4105,9 @@
       "key": "settings.home.memory.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "管理記憶、技能與已儲存的網站資料",
-        "zh-Hans": "管理记忆、技能与已保存的网站数据",
-        "en": "Manage memories, skills and saved website data"
+        "zh-Hant": "記憶、技能與網站登入",
+        "zh-Hans": "记忆、技能与网站登录",
+        "en": "Memories, skills, and website sign-ins"
       }
     },
     {
@@ -3914,7 +4117,7 @@
       "translations": {
         "zh-Hant": "進階與其他",
         "zh-Hans": "高级与其他",
-        "en": "Advanced and other"
+        "en": "Advanced & other"
       }
     },
     {
@@ -3922,9 +4125,9 @@
       "key": "settings.advanced.detail",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 伺服器與連接",
-        "zh-Hans": "MCP 服务器与连接",
-        "en": "MCP servers and connections"
+        "zh-Hant": "MCP 伺服器",
+        "zh-Hans": "MCP 服务器",
+        "en": "MCP servers"
       }
     },
     {
@@ -3934,17 +4137,7 @@
       "translations": {
         "zh-Hant": "網路與連接",
         "zh-Hans": "网络与连接",
-        "en": "Network and connections"
-      }
-    },
-    {
-      "case": "settingsHomeMCPDetail",
-      "key": "settings.home.mcp.detail",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "連接 MCP 伺服器並管理可用工具",
-        "zh-Hans": "连接 MCP 服务器并管理可用工具",
-        "en": "Connect an MCP server and manage available tools"
+        "en": "Network & connections"
       }
     },
     {
@@ -3955,26 +4148,6 @@
         "zh-Hant": "未設定",
         "zh-Hans": "未设置",
         "en": "Not set"
-      }
-    },
-    {
-      "case": "settingsModelConfigured",
-      "key": "settings.model.configured",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "模型已設定",
-        "zh-Hans": "模型已设置",
-        "en": "Model configured"
-      }
-    },
-    {
-      "case": "settingsModelUnconfigured",
-      "key": "settings.model.unconfigured",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚未設定模型",
-        "zh-Hans": "尚未设置模型",
-        "en": "No model configured"
       }
     },
     {
@@ -5075,13 +5248,63 @@
       }
     },
     {
+      "case": "voiceChoiceHint",
+      "key": "voice.choice.hint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可使用裝置自帶識別。",
+        "zh-Hans": "可使用设备自带识别。",
+        "en": "Choose the device’s built-in recognition."
+      }
+    },
+    {
       "case": "voiceChoiceSystem",
       "key": "voice.choice.system",
       "parameters": [],
       "translations": {
-        "zh-Hant": "裝置上語音辨識",
-        "zh-Hans": "设备上语音识别",
-        "en": "On-device speech recognition"
+        "zh-Hant": "裝置自帶",
+        "zh-Hans": "设备自带",
+        "en": "Built into the device"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemNote",
+      "key": "voice.choice.system.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "邊說邊出字；離線辨識需支援目前語言並具備語言包",
+        "zh-Hans": "边说边出字；离线识别需支持当前语言并具备语言包",
+        "en": "Shows words as you speak; offline recognition requires a supported language pack"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemNone",
+      "key": "voice.choice.system.none",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這臺裝置沒有可用的語音辨識",
+        "zh-Hans": "这台设备没有可用的语音识别",
+        "en": "This device has no usable speech recognition"
+      }
+    },
+    {
+      "case": "voiceChoiceAvailable",
+      "key": "voice.choice.available",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可用",
+        "zh-Hans": "可用",
+        "en": "Available"
+      }
+    },
+    {
+      "case": "voiceChoiceMissing",
+      "key": "voice.choice.missing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有",
+        "zh-Hans": "没有",
+        "en": "None"
       }
     },
     {
@@ -5089,9 +5312,19 @@
       "key": "voice.choice.off",
       "parameters": [],
       "translations": {
-        "zh-Hant": "不用語音輸入",
-        "zh-Hans": "不使用语音输入",
-        "en": "Turn off voice input"
+        "zh-Hant": "不用",
+        "zh-Hans": "不用",
+        "en": "None"
+      }
+    },
+    {
+      "case": "voiceChoiceOffNote",
+      "key": "voice.choice.off.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入框不能按住說話",
+        "zh-Hans": "输入框不能按住说话",
+        "en": "The text box can’t be held to talk"
       }
     },
     {
@@ -5112,16 +5345,6 @@
         "zh-Hant": "選擇裝置辨識或關閉",
         "zh-Hans": "选择设备识别或关闭",
         "en": "Choose on-device recognition or turn it off"
-      }
-    },
-    {
-      "case": "voiceChoiceNotice",
-      "key": "voice.choice.notice",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。",
-        "zh-Hans": "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。",
-        "en": "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported."
       }
     },
     {
@@ -5691,6 +5914,106 @@
         "zh-Hant": "從另一個對話分支",
         "zh-Hans": "从另一个对话分支",
         "en": "Branched from another chat"
+      }
+    },
+    {
+      "case": "chatModelFailedAuth",
+      "key": "chat.modelFailed.auth",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：API Key 无效或没有权限。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedQuota",
+      "key": "chat.modelFailed.quota",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：額度已用完。草稿已保留。",
+        "zh-Hans": "调用模型失败：额度已用完。草稿已保留。",
+        "en": "The model call failed: the account has run out of credit. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedRateLimited",
+      "key": "chat.modelFailed.rateLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：请求太频繁，请稍后再试。草稿已保留。",
+        "en": "The model call failed: too many requests; try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedNotFound",
+      "key": "chat.modelFailed.notFound",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务商那里没有这个模型。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedNetwork",
+      "key": "chat.modelFailed.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：网络连接失败。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedStreamCut",
+      "key": "chat.modelFailed.streamCut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：回复还没传完，连接就中断了。请稍后再试。草稿已保留。",
+        "en": "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedUnreadable",
+      "key": "chat.modelFailed.unreadable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。",
+        "zh-Hans": "调用模型失败：看不懂返回的内容，请确认接口地址和接口类型是否相符。草稿已保留。",
+        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedServer",
+      "key": "chat.modelFailed.server",
+      "parameters": [
+        {
+          "name": "status",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请稍后再试。草稿已保留。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedStatus",
+      "key": "chat.modelFailed.status",
+      "parameters": [
+        {
+          "name": "status",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
       }
     }
   ]

@@ -88,11 +88,15 @@ public protocol ReferenceDispatchBoundStreamingChatModelClient: StreamingChatMod
                 onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error>
 }
 
-/// A structured provider error explicitly identifying `stream` as unsupported.
-/// Kept separate from HTTPChatModelError so the host can permit one bounded,
-/// content-free complete fallback without guessing from a status code.
+/// A structured provider error explicitly identifying `stream` as unsupported,
+/// or a short error naming `stream_options`. Kept separate from
+/// HTTPChatModelError so the host can permit one bounded, content-free
+/// fallback without guessing from a status code. The client never resends.
 public enum HTTPStreamFallbackError: Error, LocalizedError, Sendable, Equatable {
     case explicitUnsupported(Int)
+    /// The endpoint streams but refused the usage option. The client already
+    /// leaves it out for this endpoint and model, so one resend can succeed.
+    case usageOptionUnsupported(Int)
 
     public var errorDescription: String? { "The model endpoint rejected the initial streaming request." }
 }

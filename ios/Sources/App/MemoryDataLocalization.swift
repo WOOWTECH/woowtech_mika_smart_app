@@ -1,5 +1,15 @@
 import Foundation
 
+/// Use the same query for filtering and choosing the empty-state message.
+func normalizedMemorySearch(_ query: String) -> String {
+    query.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func emptyMemoryMessage(for query: String, pending: Bool) -> MemoryDataKey {
+    if normalizedMemorySearch(query).isEmpty { return pending ? .emptyPending : .emptyMemory }
+    return pending ? .pendingNotFound : .memoryNotFound
+}
+
 // Closed, memory-specific display keys. Keep this table separate from the
 // generated shared AppText catalog so independent UI work does not reorder it.
 enum MemoryDataKey: String, CaseIterable {
@@ -35,41 +45,41 @@ enum MemoryDataKey: String, CaseIterable {
         case .title: return ("記憶與資料", "记忆与数据", "Memory & Data")
         case .tabMemory: return ("記憶", "记忆", "Memory")
         case .tabSkills: return ("技能", "技能", "Skills")
-        case .tabPending: return ("待確認", "待确认", "Pending")
-        case .tabPendingCount: return ("待確認 %lld", "待确认 %lld", "Pending %lld")
+        case .tabPending: return ("待確認", "待确认", "To review")
+        case .tabPendingCount: return ("待確認 %lld", "待确认 %lld", "To review %lld")
         case .selected: return ("已選取", "已选择", "Selected")
         case .unselected: return ("未選取", "未选择", "Not selected")
-        case .search: return ("搜尋記憶或關鍵字", "搜索记忆或关键词", "Search memories or keywords")
+        case .search: return ("搜尋", "搜索", "Search")
         case .unavailable: return ("記憶資料目前無法讀取；不會以空白資料覆寫原檔。", "目前无法读取记忆数据；不会用空白数据覆盖原文件。", "Memory data is unavailable. The original file will not be overwritten with empty data.")
         case .reload: return ("重新讀取", "重新读取", "Reload")
         case .dismissNotice: return ("關閉提示", "关闭提示", "Dismiss")
         case .profile: return ("個人檔案", "个人档案", "Profile")
-        case .routeTitle: return ("記住的操作路線", "记住的操作路线", "Saved web routes")
+        case .routeTitle: return ("記住的操作路線", "记住的操作路线", "Saved routes")
         case .websiteKnowledgeCount: return ("網站知識 %lld 篇", "网站知识 %lld 条", "%lld website notes")
         case .routeCount: return ("%lld 條", "%lld 条", "%lld routes")
         case .websitesAndRoutes: return ("網站知識與路線（%lld／%lld）", "网站知识与路线（%lld／%lld）", "Website notes and routes (%lld/%lld)")
         case .routesHelp: return ("網頁路線以實際讀取與完成判定建立；目前只支援公開網站的導覽與核對。", "网页路线根据实际读取和完成判定建立；目前仅支持公开网站的导航与核对。", "Web routes are saved after actual reading and outcome review. Only navigation and verification on public sites are supported.")
-        case .webLogins: return ("網站登入", "网站登录", "Website logins")
+        case .webLogins: return ("網站登入", "网站登录", "Website sign-ins")
         case .webLoginsHelp: return ("網站登入資料由 WebKit 儲存，可在瀏覽器的網站頁面查看與清除。", "网站登录数据由 WebKit 保存，可在浏览器的网站页面查看和清除。", "WebKit stores website login data. View or clear it from the browser's Websites page.")
         case .storedData: return ("儲存的資料", "保存的数据", "Saved data")
         case .clearAll: return ("全部清除", "全部清除", "Clear all")
-        case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "删除所有记忆和学到的技能", "Delete all memories and learned skills")
+        case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "删除所有记忆和学到的技能", "Delete all memory and learned skills")
         case .clearDetails: return ("需要兩次確認，並包含個人檔案。模型設定、模型金鑰與 MCP 端點不會被清除。", "需要确认两次，且会清除个人档案。模型设置、模型密钥和 MCP 端点不会被清除。", "Requires two confirmations and includes your profile. Model settings, keys, and MCP endpoints are kept.")
-        case .emptyMemory: return ("尚未儲存記憶。", "还没有保存的记忆。", "No saved memories yet.")
-        case .memoryNotFound: return ("找不到符合的記憶。", "没有找到匹配的记忆。", "No matching memories.")
-        case .addMemory: return ("手寫一條", "手写一条", "Write a memory")
-        case .emptyPending: return ("沒有待確認的內容。", "没有待确认的内容。", "Nothing pending review.")
-        case .pendingNotFound: return ("找不到符合的待確認記憶。", "没有找到匹配的待确认记忆。", "No matching memories pending review.")
-        case .pendingProcedure: return ("待確認的做法", "待确认的做法", "Procedures to review")
+        case .emptyMemory: return ("還沒有記住的事", "还没有记住的事", "Nothing remembered yet")
+        case .memoryNotFound: return ("沒有找到", "没有找到", "Nothing found")
+        case .addMemory: return ("手寫一條", "手写一条", "Write one yourself")
+        case .emptyPending: return ("沒有等你確認的東西", "没有等你确认的东西", "Nothing to review")
+        case .pendingNotFound: return ("沒有找到", "没有找到", "Nothing found")
+        case .pendingProcedure: return ("等你批准的記憶", "等你批准的记忆", "Memory waiting for your OK")
         case .pendingSkills: return ("新技能草稿，收下後先試用", "新技能草稿，接受后先试用", "New skill drafts · trial after approval")
         case .pendingSearchHint: return ("搜尋僅篩選記憶；技能草稿會全部列出。", "搜索仅筛选记忆；技能草稿会全部列出。", "Search filters memories only; all skill drafts remain listed.")
         case .manualSource: return ("你手動填寫的", "你手动填写的", "Written by you")
         case .conversationSource: return ("來自你的對話 · %@", "来自你的对话 · %@", "From your conversation · %@")
         case .pinned: return ("已置頂", "已置顶", "Pinned")
-        case .originalContent: return ("原內容：%@", "原内容：%@", "Previous: %@")
-        case .accept: return ("收下", "接受", "Accept")
-        case .reject: return ("不要", "不要", "Decline")
-        case .edit: return ("編輯", "编辑", "Edit")
+        case .originalContent: return ("原來:%@", "原来:%@", "Was: %@")
+        case .accept: return ("好", "好", "OK")
+        case .reject: return ("不要", "不要", "No thanks")
+        case .edit: return ("改一改", "改一改", "Edit")
         case .unpin: return ("取消置頂", "取消置顶", "Unpin")
         case .pin: return ("置頂", "置顶", "Pin")
         case .delete: return ("刪除", "删除", "Delete")

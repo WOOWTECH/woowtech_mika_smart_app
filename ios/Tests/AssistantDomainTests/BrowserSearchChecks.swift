@@ -12,7 +12,7 @@ enum BrowserSearchChecks {
             do { try action() } catch { count += 1; return }; throw Failure(check: name)
         }
         var settings = BrowserSearchSettings()
-        try check(settings.selected.id == "bing" && settings.custom.isEmpty, "default Bing")
+        try check(settings.selected.id == "google" && settings.custom.isEmpty, "default Google")
         try check(settings.all.map(\.id) == ["bing", "google", "duckduckgo", "baidu"], "Mika built-in order")
         for engine in settings.all {
             let url = try engine.searchURL(query: "  中文 a+b & c/#?%= 😀  ")
@@ -23,7 +23,7 @@ enum BrowserSearchChecks {
         for (input, wanted) in [("plain words", "plain words"), ("中文", "中文"), ("one", "one"), ("me@example.com", "me@example.com"), ("  %2520 + & #  ", "%2520 + & #"),
                                 ("site:example", "site:example"), ("site:example.com tea", "site:example.com tea")] {
             let url = BrowserAddressInput.resolve(input, settings: settings)
-            try check(url.flatMap(settings.match)?.query == wanted && url?.host == "www.bing.com", "manual text/email query")
+            try check(url.flatMap(settings.match)?.query == wanted && url?.host == "www.google.com", "manual text/email query")
         }
         for (input, wanted) in [("example.com", "https://example.com"), ("example.com:443/path?q=one", "https://example.com:443/path?q=one"),
                                 ("8.8.8.8/path", "https://8.8.8.8/path"), ("[2606:4700::1111]/", "https://[2606:4700::1111]/"),
@@ -41,7 +41,7 @@ enum BrowserSearchChecks {
                         "https://127.0.0.1", "https://[fe80::1]", "https://user@example.com", "words\u{0000}here", String(repeating: "x", count: 8193)] {
             try check(BrowserAddressInput.resolve(blocked, settings: settings) == nil, "URL rejection never searches: " + String(blocked.prefix(80)))
         }
-        let bing = settings.selected
+        let bing = settings.all.first { $0.id == "bing" }!
         try check(bing.query(in: URL(string: "https://www.bing.com/search?q=a+b%2520&extra=1#part")!) == "a b%20", "plus and percent decode once")
         try check(bing.query(in: URL(string: "https://www.bing.com/search?q=%E4%B8%AD%E6%96%87")!) == "中文", "external UTF-8 query restored")
         for wrong in ["https://www.bing.com.evil.invalid/search?q=a", "https://evil.invalid/?next=https://www.bing.com/search?q=a", "https://www.bing.com/search?other=1&q=a", "https://www.bing.com/search?q=", "https://www.bing.com/search?q=%FF"] {
@@ -87,7 +87,7 @@ enum BrowserSearchChecks {
         settings.remove("bing")
         try check(settings == copy, "builtins cannot be removed")
         settings.remove(custom.id)
-        try check(settings.selectedID == "bing" && settings.custom.isEmpty, "remove selected custom falls back to Bing")
+        try check(settings.selectedID == "google" && settings.custom.isEmpty, "remove selected custom falls back to Google")
         for i in 0..<BrowserSearchSettings.maximumCustomEngines {
             try settings.add(BrowserSearchEngine(name: "Engine \(i)", template: "https://example.com/?q=%s"))
         }
@@ -109,7 +109,7 @@ enum BrowserSearchChecks {
         legacy.removeValue(forKey: "searchSettings")
         let old = try JSONDecoder().decode(BrowserLibraryState.self, from: JSONSerialization.data(withJSONObject: legacy))
         try old.validate()
-        try check(old.searchSettings == BrowserSearchSettings(), "absent additive field defaults Bing")
+        try check(old.searchSettings == BrowserSearchSettings(), "absent additive field defaults Google")
         try check(old.tabs == library.tabs && old.bookmarks == library.bookmarks && old.history == library.history
                   && old.userSiteModes == library.userSiteModes && old.selectedID == library.selectedID, "legacy migration preserves prior browser state")
         let malformedFields: [Any] = [NSNull(), "bing", ["selectedID": "missing", "custom": [Any]()] as [String: Any],

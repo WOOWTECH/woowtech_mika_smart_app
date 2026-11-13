@@ -363,8 +363,7 @@ final class LiveModelUITests: XCTestCase {
 
     func testRealModelListsAndChangesAppearanceAndRelaunchPreservesIt() throws {
         var app = try launchLiveApp()
-        navigate(to: "settings", in: app)
-        tapLearningButton("settings.appearance", in: app)
+        openAppearanceRequest(in: app)
         let permission = app.switches["selfConfiguration.permission"]
         revealLearningElement(permission, in: app)
         XCTAssertEqual(permission.value as? String, "0", "The new permission must default to disabled.")
@@ -394,8 +393,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertEqual(appearance.label, "目前顯示：深色", "The root's actual SwiftUI color scheme must change.")
         app.terminate()
         app = try launchLiveApp()
-        navigate(to: "settings", in: app)
-        tapLearningButton("settings.appearance", in: app)
+        openAppearanceRequest(in: app)
         XCTAssertEqual(app.staticTexts["selfConfiguration.appliedAppearance"].label, "目前顯示：深色")
         let restoredPermission = app.switches["selfConfiguration.permission"]
         revealLearningElement(restoredPermission, in: app)
@@ -666,7 +664,7 @@ final class LiveModelUITests: XCTestCase {
         func assertEmpty(in application: XCUIApplication) {
             let empty = application.staticTexts["memory.empty"].firstMatch
             revealLearningElement(empty, in: application, visibility: .readableText)
-            XCTAssertTrue(empty.label == "尚未儲存記憶。")
+            XCTAssertTrue(empty.label == "還沒有記住的事")
             XCTAssertFalse(item(in: application).exists)
             XCTAssertFalse(application.staticTexts.matching(NSPredicate(
                 format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
@@ -744,10 +742,10 @@ final class LiveModelUITests: XCTestCase {
         selectLearningSegment("pending", in: app)
         let pendingEmpty = app.staticTexts["memory.pending.empty"].firstMatch
         revealLearningElement(pendingEmpty, in: app, visibility: .readableText)
-        XCTAssertTrue(pendingEmpty.label == "沒有待確認的內容。")
+        XCTAssertTrue(pendingEmpty.label == "沒有等你確認的東西")
         XCTAssertFalse(item(in: app).exists)
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
-        print("Live memory-tool phase=relaunch;itemAbsent=\(!item(in: app).exists);pendingEmpty=\(pendingEmpty.label == "沒有待確認的內容。")")
+        print("Live memory-tool phase=relaunch;itemAbsent=\(!item(in: app).exists);pendingEmpty=\(pendingEmpty.label == "沒有等你確認的東西")")
         // No raw replies, model configuration, screenshots or AX attachments.
     }
 
@@ -837,6 +835,16 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertFalse(frame.isEmpty)
         XCTAssertTrue(app.frame.contains(frame), "Native toolbar control must be inside the App window.")
         button.tap()
+    }
+
+    /// Settings › 語言與外觀 follows Play and has no model request; the bundled
+    /// configure-mika skill still opens the appearance request page.
+    private func openAppearanceRequest(in app: XCUIApplication) {
+        navigate(to: "memory", in: app)
+        selectLearningSegment("skills", in: app)
+        tapLearningButton("skills.catalog.open", in: app)
+        tapLearningButton("catalog.entry.configure-mika", in: app)
+        tapLearningButton("catalog.configure-mika.open", in: app)
     }
 
     private func tapLearningButton(_ identifier: String, in app: XCUIApplication) {

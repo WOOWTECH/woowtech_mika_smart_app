@@ -469,6 +469,7 @@ private struct ChatView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var voice = ChatVoiceViewModel()
     #if DEBUG
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
@@ -544,7 +545,7 @@ private struct ChatView: View {
             if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
             else { isEditingDraft = false; showsAttachPanel = true }
         } label: {
-            Image(systemName: "plus").frame(width: 40, height: 40)
+            Image(systemName: "plus").dynamicTypeSize(...Self.fixedControlTypeSize).frame(width: 40, height: 40)
                 .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
                 .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
         }
@@ -750,38 +751,15 @@ private struct ChatView: View {
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
-        return LazyVStack(alignment: .leading, spacing: 16) {
-            // Android hides the welcome while the blocked card is up.
-            if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
-                ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+        return VStack(alignment: .leading, spacing: 16) {
+            // The welcome stays out of the lazy list: inside a LazyVStack it hung the
+            // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
+            // bar while the list was scrolled to its end. The messages keep one
+            // LazyVStack throughout, so the first message never swaps the list.
+            welcomeRows
+            LazyVStack(alignment: .leading, spacing: 16) {
+                messageRows(targets: targets)
             }
-            if !session.hasStoredKey && session.shownSendBlocker == nil {
-                Text(verbatim: localizer.text(.chatModelSetupHint))
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("chat.explanation")
-            }
-            ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                messageRow(index: index, entry: entry, targets: targets)
-            }
-            if let preview = session.replyPreview {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("chat.partialStatus")
-                    Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
-                        .font(.system(size: 15.5)).lineSpacing(4)
-                        .foregroundStyle(palette.ink).textSelection(.enabled)
-                        .accessibilityIdentifier("chat.partialReply")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14).padding(.vertical, 12)
-                        .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .id(preview.id)
-            }
-            if session.shownSendBlocker != nil && blockedCardFitsTranscript {
-                sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
-            }
-            Color.clear.frame(height: 1).id("chat.transcript.tail")
         }
         .padding(.vertical, 4)
         .background {
@@ -793,6 +771,43 @@ private struct ChatView: View {
                         viewportHeight: viewportHeight))
             }
         }
+    }
+
+    @ViewBuilder private var welcomeRows: some View {
+        // Android hides the welcome while the blocked card is up.
+        if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
+            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+        }
+        if !session.hasStoredKey && session.shownSendBlocker == nil {
+            Text(verbatim: localizer.text(.chatModelSetupHint))
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("chat.explanation")
+        }
+    }
+
+    @ViewBuilder private func messageRows(targets: ChatMessageActionTargets) -> some View {
+        ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+            messageRow(index: index, entry: entry, targets: targets)
+        }
+        if let preview = session.replyPreview {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("chat.partialStatus")
+                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
+                    .font(.system(size: 15.5)).lineSpacing(4)
+                    .foregroundStyle(palette.ink).textSelection(.enabled)
+                    .accessibilityIdentifier("chat.partialReply")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14).padding(.vertical, 12)
+                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .id(preview.id)
+        }
+        if session.shownSendBlocker != nil && blockedCardFitsTranscript {
+            sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
+        }
+        Color.clear.frame(height: 1).id("chat.transcript.tail")
     }
 
     private func transcriptScroll(proxy: ScrollViewProxy, viewportHeight: Double) -> some View {
@@ -883,7 +898,7 @@ private struct ChatView: View {
     /// Errors, notices, voice status and the send-blocked card above the composer.
     @ViewBuilder private var chatStatus: some View {
         if let error = session.chatError {
-            Text(error)
+            Text(session.chatErrorText.map { localizer.text($0) } ?? error)
                 .font(.callout)
                 .foregroundStyle(.red)
                 .accessibilityIdentifier("chat.error")
@@ -946,13 +961,24 @@ private struct ChatView: View {
         }
     }
 
+    /// The input bar's buttons keep 40 pt slots at every text size, like Play's
+    /// fixed 40 dp IconButtons; their glyphs stop growing at the largest
+    /// standard size so they stay inside the slots.
+    private static let fixedControlTypeSize = DynamicTypeSize.xxxLarge
+
+    /// Five lines, then the draft scrolls (Play's maxLines = 5). At the largest
+    /// accessibility size five lines would make the input bar about 350 pt tall,
+    /// over half of an iPhone SE screen and nearly all the room above its
+    /// keyboard, so at accessibility sizes the draft scrolls after three.
+    private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
+
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: $session.draft, axis: .vertical)
-                .lineLimit(1...5)
+                .lineLimit(draftLineLimit)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($isEditingDraft)
@@ -971,7 +997,7 @@ private struct ChatView: View {
                 .frame(width: 40, height: 40)
             if session.isSubmitting {
                 Button { session.cancel() } label: {
-                    Image(systemName: "stop.fill").frame(width: 40, height: 40)
+                    Image(systemName: "stop.fill").dynamicTypeSize(...Self.fixedControlTypeSize).frame(width: 40, height: 40)
                 }
                 .accessibilityLabel(localizer.text(.shellStop))
                 .accessibilityIdentifier("chat.cancel")

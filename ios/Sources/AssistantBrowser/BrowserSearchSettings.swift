@@ -124,11 +124,17 @@ public struct BrowserSearchEngine: Codable, Equatable, Sendable, Identifiable {
 
 public struct BrowserSearchSettings: Codable, Equatable, Sendable {
     public static let maximumCustomEngines = 20
-    public private(set) var selectedID = "bing"
+    /// Like the Android store build, a new browser searches with Google; the
+    /// other built-in engines stay available.
+    public static let defaultEngineID = "google"
+    public private(set) var selectedID = Self.defaultEngineID
     public private(set) var custom: [BrowserSearchEngine] = []
     public init() {}
     public var all: [BrowserSearchEngine] { BrowserSearchEngine.builtins + custom }
-    public var selected: BrowserSearchEngine { all.first { $0.id == selectedID } ?? BrowserSearchEngine.builtins[0] }
+    public var selected: BrowserSearchEngine {
+        all.first { $0.id == selectedID }
+            ?? BrowserSearchEngine.builtins.first { $0.id == Self.defaultEngineID } ?? BrowserSearchEngine.builtins[0]
+    }
 
     public func validate() throws {
         guard custom.count <= Self.maximumCustomEngines, Set(custom.map(\.id)).count == custom.count,
@@ -148,7 +154,7 @@ public struct BrowserSearchSettings: Codable, Equatable, Sendable {
     public mutating func remove(_ id: String) {
         guard custom.contains(where: { $0.id == id }) else { return }
         custom.removeAll { $0.id == id }
-        if selectedID == id { selectedID = "bing" }
+        if selectedID == id { selectedID = Self.defaultEngineID }
     }
     public func match(_ url: URL) -> BrowserSearchMatch? {
         guard (try? validate()) != nil else { return nil }

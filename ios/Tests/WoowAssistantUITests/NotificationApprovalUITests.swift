@@ -41,7 +41,7 @@ final class NotificationApprovalUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
         stage = "permission"
         try enableNotifications()
-        try tap(app.navigationBars["任務通知"].buttons.firstMatch, scroll: false)
+        try tap(app.navigationBars["通知"].buttons.firstMatch, scroll: false)
 
         stage = "fixtureConnection"
         navigateMikaSection("tools", in: app)

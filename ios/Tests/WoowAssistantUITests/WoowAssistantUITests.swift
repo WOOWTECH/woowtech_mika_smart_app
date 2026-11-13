@@ -48,8 +48,8 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
         attachScreenshot("03-settings-return-from-model", in: app)
         for (linkID, title, detailID, name) in [
-            ("settings.appearance", "語言與外觀", "selfConfiguration.permission", "04-settings-appearance"),
-            ("settings.notifications", "任務通知", "notifications.enabled", "05-settings-notifications")
+            ("settings.appearance", "語言與外觀", "selfConfiguration.appearance.system", "04-settings-appearance"),
+            ("settings.notifications", "通知", "notifications.enabled", "05-settings-notifications")
         ] {
             let link = app.buttons[linkID]
             XCTAssertTrue(link.isHittable)
@@ -138,10 +138,12 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("settings", in: app)
         openModelSettings(in: app)
         returnFromModelSettings(in: app)
+        // Task notifications start off, so the row shows Android's 已關閉.
+        XCTAssertTrue(app.buttons["settings.notifications"].label.contains("已關閉"))
 
         for (linkID, title, detailID) in [
-            ("settings.appearance", "語言與外觀", "selfConfiguration.permission"),
-            ("settings.notifications", "任務通知", "notifications.enabled")
+            ("settings.appearance", "語言與外觀", "selfConfiguration.appearance.system"),
+            ("settings.notifications", "通知", "notifications.enabled")
         ] {
             let link = app.buttons[linkID]
             revealSettings(link, in: app)
@@ -160,6 +162,20 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["section.back"].isHittable)
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
+    }
+
+    func testSettingsStatusCardAddsTheMissingModel() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        XCTAssertEqual(app.staticTexts["settings.status"].label, "還沒有能用的模型")
+        XCTAssertEqual(app.staticTexts["settings.status.detail"].label, "新增一個支援工具呼叫的模型")
+        let fix = app.buttons["settings.status.fix"]
+        XCTAssertEqual(fix.label, "新增")
+        waitUntilHittable(fix)
+        fix.tap()
+        XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10))
+        returnFromModelSettings(in: app)
     }
 
     func testDrawerAboutOpensAndReturnsToChat() {
@@ -194,24 +210,27 @@ final class WoowAssistantUITests: XCTestCase {
         let bar = app.navigationBars["關於渥屋助理"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
-        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "你的私人助理，替你把事辦成")
+        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "在同一個地方對話、瀏覽網頁，並記住有用的資訊")
         let version = app.staticTexts["settings.about.version"]
         let build = app.staticTexts["settings.about.build"]
         XCTAssertTrue(version.exists && build.exists)
-        XCTAssertFalse(version.label.isEmpty)
-        XCTAssertFalse(build.label.isEmpty)
         XCTAssertNotEqual(version.label, "版本資訊不可用")
-        XCTAssertNotEqual(build.label, "版本資訊不可用")
         XCTAssertFalse(version.label.contains("$("))
         XCTAssertFalse(build.label.contains("$("))
-        XCTAssertEqual(homeVersion, version.label,
+        XCTAssertEqual("版本 " + (homeVersion ?? ""), version.label,
                        "Home and detail show the same installed version")
-        for (id, expectedLabel) in [("repository", "開源專案"), ("guide", "專案說明"),
-                                    ("feedback", "回報問題"), ("license", "開源授權")] {
-            let resource = app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch
-            XCTAssertTrue(resource.waitForExistence(timeout: 10), "Missing About resource: \(id)")
-            XCTAssertEqual(resource.label, expectedLabel)
+        XCTAssertTrue(build.label.hasPrefix("· 建置 ") && build.label.count > "· 建置 ".count)
+        // The Play edition has no GitHub entries; feedback is diagnostics by email.
+        let feedback = app.buttons["settings.about.feedback"]
+        XCTAssertTrue(feedback.waitForExistence(timeout: 10))
+        XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("woowtech@designsmart.com.tw"))
+        for id in ["repository", "guide", "license"] {
+            XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
+                           "GitHub entry still shown: \(id)")
         }
+        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
+        XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
+                       "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
 
         XCTAssertFalse(app.buttons["section.back"].isHittable)
         let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
@@ -227,9 +246,15 @@ final class WoowAssistantUITests: XCTestCase {
         let link = app.buttons["settings.about"]
         revealSettings(link, in: app)
         link.tap()
+        let feedback = app.buttons["settings.about.feedback"]
+        for _ in 0..<5 where !feedback.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(feedback.isHittable)
+        feedback.tap()
+        let explanation = app.staticTexts["settings.about.feedback.detail"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 10))
+        XCTAssertEqual(explanation.label, "複製診斷資訊後，寄到 woowtech@designsmart.com.tw")
         let entry = app.buttons["settings.about.diagnostics"]
-        for _ in 0..<5 where !entry.isHittable { app.scrollViews.firstMatch.swipeUp() }
-        XCTAssertTrue(entry.isHittable)
+        waitUntilHittable(entry)
         entry.tap()
         let report = app.staticTexts["settings.about.diagnostics.report"]
         XCTAssertTrue(report.waitForExistence(timeout: 10))
@@ -388,8 +413,15 @@ final class WoowAssistantUITests: XCTestCase {
             if index == 0 {
                 XCTAssertGreaterThan(button.frame.height, regularHeight * 1.25, "The accessibility size must actually enlarge the row")
             }
-            // Audit the real visible screen, with no issue filtering.
-            try app.performAccessibilityAudit(for: [.textClipped])
+            // Audit the real visible screen. A row taller than the visible transcript
+            // (an iPhone SE at the largest size, with the input bar and the UI-test
+            // banner) is cut by the scroll view, not truncated: the reader scrolls to
+            // the rest. Text inside a fully visible element must never be clipped.
+            let visibleTranscript = transcript.frame.intersection(app.frame)
+            try app.performAccessibilityAudit(for: [.textClipped]) { issue in
+                guard let frame = issue.element?.frame, !frame.isEmpty else { return false }
+                return !visibleTranscript.contains(frame)
+            }
             try revealExampleEdge(button, bottom: true, transcript: transcript, draft: draft, microphone: microphone, app: app)
             let visible = button.frame.intersection(transcript.frame).intersection(app.frame)
             XCTAssertGreaterThanOrEqual(visible.height, 44, "An exposed part of the button must be tappable")
@@ -532,6 +564,13 @@ final class WoowAssistantUITests: XCTestCase {
         save(in: app)
         assertSaved(in: app)
         returnFromModelSettings(in: app)
+        // Like Android, the Model row names the provider (here its host), not the model ID.
+        let modelRow = app.buttons["settings.modelJump"]
+        XCTAssertTrue(modelRow.label.contains("model.example.invalid"))
+        XCTAssertFalse(modelRow.label.contains("ui-test-model"))
+        // With a model, the status card moves on to the next problem: notifications are off.
+        XCTAssertEqual(app.staticTexts["settings.status"].label, "通知未允許")
+        XCTAssertEqual(app.buttons["settings.status.fix"].label, "允許")
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)
@@ -1020,8 +1059,12 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     private func waitUntilHittable(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        // The expectation first checks about 1 s after the wait starts. In CI run
+        // 43364763538 (16 Pro Max) a burst of simulator widget extensions made each
+        // AX query take 2-4 s, and the on-screen base URL field's first check was
+        // still running when 5 s ran out. Use this file's usual 10 s budget.
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed, file: file, line: line)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, file: file, line: line)
     }
 
     private func assertDraft(_ expected: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {

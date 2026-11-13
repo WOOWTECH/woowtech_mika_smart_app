@@ -70,9 +70,12 @@ public final class ModelConnectionCheck {
             defer { fixtureSettled?() }
             #endif
             do {
-                let reply = try await client.complete(
-                    messages: [ModelMessage(role: "user", content: "This is a connection test. Reply briefly.")],
-                    configuration: probe, apiKey: apiKey)
+                // Not usage: Android does not meter its test call either.
+                let reply = try await ModelUsageScope.$metered.withValue(false) {
+                    try await client.complete(
+                        messages: [ModelMessage(role: "user", content: "This is a connection test. Reply briefly.")],
+                        configuration: probe, apiKey: apiKey)
+                }
                 try Task.checkCancellation()
                 let result: State = reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? .failed(.response) : .passed

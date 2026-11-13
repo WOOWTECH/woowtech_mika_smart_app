@@ -5,6 +5,7 @@ import Foundation
 enum AppText: Equatable {
     case languageTitle
     case languageSystem
+    case languageSystemDetail
     case languageTraditional
     case languageSimplified
     case languageEnglish
@@ -51,6 +52,10 @@ enum AppText: Equatable {
     case appearanceSystem
     case appearanceLight
     case appearanceDark
+    case appearanceFollowSystem
+    case appearanceSystemDetail
+    case appearanceAlwaysLight
+    case appearanceAlwaysDark
     case appearanceAppliedDark
     case appearanceAppliedLight
     case appearanceExplanation
@@ -376,17 +381,28 @@ enum AppText: Equatable {
     case settingsHomeModel
     case settingsHomeModelDetail
     case settingsHomeModelOpenHint
-    case settingsHomeAppearanceDetail
+    case settingsHomeLanguageAppearance
+    case settingsNotificationsTitle
     case settingsHomeNotificationDetail
+    case settingsNotificationsNormal
+    case settingsNotificationsLowered(count: Int)
+    case settingsStatusReady
+    case settingsStatusReadyDetail
+    case settingsStatusNoModel
+    case settingsStatusNoModelDetail
+    case settingsStatusAdd
+    case settingsStatusNotificationsOff
+    case settingsStatusNotificationsOffDetail
+    case settingsStatusAllow
+    case settingsStatusAlertsLowered
+    case settingsStatusAlertsLoweredDetail
+    case settingsStatusTurnOn
     case settingsHomeMyData
     case settingsHomeMemoryDetail
     case settingsAdvancedTitle
     case settingsAdvancedDetail
     case settingsHomeConnections
-    case settingsHomeMCPDetail
     case settingsModelNotSet
-    case settingsModelConfigured
-    case settingsModelUnconfigured
     case settingsModelKeyStored
     case settingsModelKeyMissing
     case settingsModelRoles
@@ -493,11 +509,16 @@ enum AppText: Equatable {
     case voiceInterrupted
     case voiceAccessibilityCancel
     case voiceChoiceTitle
+    case voiceChoiceHint
     case voiceChoiceSystem
+    case voiceChoiceSystemNote
+    case voiceChoiceSystemNone
+    case voiceChoiceAvailable
+    case voiceChoiceMissing
     case voiceChoiceOff
+    case voiceChoiceOffNote
     case voiceChoiceUnknown
     case voiceChoiceRowDetail
-    case voiceChoiceNotice
     case voiceChoiceDisabledHint
     case voiceChoiceSaveFailed
     case chatAttachAdd
@@ -548,11 +569,21 @@ enum AppText: Equatable {
     case chatBranchAttachmentsReadd
     case chatBranchComposerInUse
     case chatBranchOrigin
+    case chatModelFailedAuth
+    case chatModelFailedQuota
+    case chatModelFailedRateLimited
+    case chatModelFailedNotFound
+    case chatModelFailedNetwork
+    case chatModelFailedStreamCut
+    case chatModelFailedUnreadable
+    case chatModelFailedServer(status: Int)
+    case chatModelFailedStatus(status: Int)
 
     var key: String {
         switch self {
         case .languageTitle: return "language.title"
         case .languageSystem: return "language.system"
+        case .languageSystemDetail: return "language.system.detail"
         case .languageTraditional: return "language.traditional"
         case .languageSimplified: return "language.simplified"
         case .languageEnglish: return "language.english"
@@ -599,6 +630,10 @@ enum AppText: Equatable {
         case .appearanceSystem: return "appearance.system"
         case .appearanceLight: return "appearance.light"
         case .appearanceDark: return "appearance.dark"
+        case .appearanceFollowSystem: return "appearance.followSystem"
+        case .appearanceSystemDetail: return "appearance.system.detail"
+        case .appearanceAlwaysLight: return "appearance.alwaysLight"
+        case .appearanceAlwaysDark: return "appearance.alwaysDark"
         case .appearanceAppliedDark: return "appearance.appliedDark"
         case .appearanceAppliedLight: return "appearance.appliedLight"
         case .appearanceExplanation: return "appearance.explanation"
@@ -924,17 +959,28 @@ enum AppText: Equatable {
         case .settingsHomeModel: return "settings.home.model"
         case .settingsHomeModelDetail: return "settings.home.model.detail"
         case .settingsHomeModelOpenHint: return "settings.home.model.openHint"
-        case .settingsHomeAppearanceDetail: return "settings.home.appearance.detail"
+        case .settingsHomeLanguageAppearance: return "settings.home.languageAppearance"
+        case .settingsNotificationsTitle: return "settings.notifications.title"
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
+        case .settingsNotificationsNormal: return "settings.notifications.normal"
+        case .settingsNotificationsLowered: return "settings.notifications.lowered"
+        case .settingsStatusReady: return "settings.status.ready"
+        case .settingsStatusReadyDetail: return "settings.status.ready.detail"
+        case .settingsStatusNoModel: return "settings.status.noModel"
+        case .settingsStatusNoModelDetail: return "settings.status.noModel.detail"
+        case .settingsStatusAdd: return "settings.status.add"
+        case .settingsStatusNotificationsOff: return "settings.status.notificationsOff"
+        case .settingsStatusNotificationsOffDetail: return "settings.status.notificationsOff.detail"
+        case .settingsStatusAllow: return "settings.status.allow"
+        case .settingsStatusAlertsLowered: return "settings.status.alertsLowered"
+        case .settingsStatusAlertsLoweredDetail: return "settings.status.alertsLowered.detail"
+        case .settingsStatusTurnOn: return "settings.status.turnOn"
         case .settingsHomeMyData: return "settings.home.myData"
         case .settingsHomeMemoryDetail: return "settings.home.memory.detail"
         case .settingsAdvancedTitle: return "settings.advanced.title"
         case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
-        case .settingsHomeMCPDetail: return "settings.home.mcp.detail"
         case .settingsModelNotSet: return "settings.model.notSet"
-        case .settingsModelConfigured: return "settings.model.configured"
-        case .settingsModelUnconfigured: return "settings.model.unconfigured"
         case .settingsModelKeyStored: return "settings.model.keyStored"
         case .settingsModelKeyMissing: return "settings.model.keyMissing"
         case .settingsModelRoles: return "settings.model.roles"
@@ -1041,11 +1087,16 @@ enum AppText: Equatable {
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
         case .voiceChoiceTitle: return "voice.choice.title"
+        case .voiceChoiceHint: return "voice.choice.hint"
         case .voiceChoiceSystem: return "voice.choice.system"
+        case .voiceChoiceSystemNote: return "voice.choice.system.note"
+        case .voiceChoiceSystemNone: return "voice.choice.system.none"
+        case .voiceChoiceAvailable: return "voice.choice.available"
+        case .voiceChoiceMissing: return "voice.choice.missing"
         case .voiceChoiceOff: return "voice.choice.off"
+        case .voiceChoiceOffNote: return "voice.choice.off.note"
         case .voiceChoiceUnknown: return "voice.choice.unknown"
         case .voiceChoiceRowDetail: return "voice.choice.rowDetail"
-        case .voiceChoiceNotice: return "voice.choice.notice"
         case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
         case .voiceChoiceSaveFailed: return "voice.choice.saveFailed"
         case .chatAttachAdd: return "chat.attach.add"
@@ -1096,6 +1147,15 @@ enum AppText: Equatable {
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
         case .chatBranchComposerInUse: return "chat.branch.composerInUse"
         case .chatBranchOrigin: return "chat.branch.origin"
+        case .chatModelFailedAuth: return "chat.modelFailed.auth"
+        case .chatModelFailedQuota: return "chat.modelFailed.quota"
+        case .chatModelFailedRateLimited: return "chat.modelFailed.rateLimited"
+        case .chatModelFailedNotFound: return "chat.modelFailed.notFound"
+        case .chatModelFailedNetwork: return "chat.modelFailed.network"
+        case .chatModelFailedStreamCut: return "chat.modelFailed.streamCut"
+        case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
+        case .chatModelFailedServer: return "chat.modelFailed.server"
+        case .chatModelFailedStatus: return "chat.modelFailed.status"
         }
     }
 
@@ -1119,6 +1179,7 @@ enum AppText: Equatable {
         case .browserStartRemoveBookmark(let name): return [name]
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
+        case .settingsNotificationsLowered(let count): return [Int64(count)]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .archiveSavedCount(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
@@ -1133,6 +1194,8 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
+        case .chatModelFailedServer(let status): return [Int64(status)]
+        case .chatModelFailedStatus(let status): return [Int64(status)]
         default: return []
         }
     }
@@ -1140,8 +1203,9 @@ enum AppText: Equatable {
     /// Emergency fallback also works if packaging omits a table.
     var traditionalFallback: String {
         switch self {
-        case .languageTitle: return "介面語言"
+        case .languageTitle: return "語言"
         case .languageSystem: return "跟隨系統"
+        case .languageSystemDetail: return "系統語言渥屋助理有譯文時用它,沒有時用繁體中文"
         case .languageTraditional: return "繁體中文"
         case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
@@ -1188,6 +1252,10 @@ enum AppText: Equatable {
         case .appearanceSystem: return "跟隨系統"
         case .appearanceLight: return "淺色"
         case .appearanceDark: return "深色"
+        case .appearanceFollowSystem: return "跟隨系統"
+        case .appearanceSystemDetail: return "裝置是淺色就淺色，深色就深色"
+        case .appearanceAlwaysLight: return "一直淺色"
+        case .appearanceAlwaysDark: return "一直深色"
         case .appearanceAppliedDark: return "目前顯示：深色"
         case .appearanceAppliedLight: return "目前顯示：淺色"
         case .appearanceExplanation: return "選擇後立即生效；跟隨系統會使用裝置目前的外觀。"
@@ -1511,19 +1579,30 @@ enum AppText: Equatable {
         case .languageAppearanceTitle: return "語言與外觀"
         case .settingsHomeBasic: return "常用"
         case .settingsHomeModel: return "模型"
-        case .settingsHomeModelDetail: return "主模型與連線設定"
+        case .settingsHomeModelDetail: return "模型與服務商"
         case .settingsHomeModelOpenHint: return "開啟模型設定頁"
-        case .settingsHomeAppearanceDetail: return "介面語言、外觀與模型外觀權限"
+        case .settingsHomeLanguageAppearance: return "語言與外觀"
+        case .settingsNotificationsTitle: return "通知"
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
+        case .settingsNotificationsNormal: return "正常"
+        case .settingsNotificationsLowered: return "有 %lld 項不會彈出"
+        case .settingsStatusReady: return "一切就緒"
+        case .settingsStatusReadyDetail: return "模型已就緒 · 可使用對話與內建瀏覽器"
+        case .settingsStatusNoModel: return "還沒有能用的模型"
+        case .settingsStatusNoModelDetail: return "新增一個支援工具呼叫的模型"
+        case .settingsStatusAdd: return "新增"
+        case .settingsStatusNotificationsOff: return "通知未允許"
+        case .settingsStatusNotificationsOffDetail: return "會看不到任務結果和「需要你」提醒"
+        case .settingsStatusAllow: return "允許"
+        case .settingsStatusAlertsLowered: return "「需要你處理」的通知不會彈出"
+        case .settingsStatusAlertsLoweredDetail: return "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。"
+        case .settingsStatusTurnOn: return "去開啟"
         case .settingsHomeMyData: return "我的資料"
-        case .settingsHomeMemoryDetail: return "管理記憶、技能與已儲存的網站資料"
+        case .settingsHomeMemoryDetail: return "記憶、技能與網站登入"
         case .settingsAdvancedTitle: return "進階與其他"
-        case .settingsAdvancedDetail: return "MCP 伺服器與連接"
+        case .settingsAdvancedDetail: return "MCP 伺服器"
         case .settingsHomeConnections: return "網路與連接"
-        case .settingsHomeMCPDetail: return "連接 MCP 伺服器並管理可用工具"
         case .settingsModelNotSet: return "未設定"
-        case .settingsModelConfigured: return "模型已設定"
-        case .settingsModelUnconfigured: return "尚未設定模型"
         case .settingsModelKeyStored: return "已儲存金鑰；留空可沿用同一服務的金鑰。"
         case .settingsModelKeyMissing: return "尚未儲存金鑰。"
         case .settingsModelRoles: return "用途"
@@ -1630,11 +1709,16 @@ enum AppText: Equatable {
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
         case .voiceChoiceTitle: return "語音轉文字"
-        case .voiceChoiceSystem: return "裝置上語音辨識"
-        case .voiceChoiceOff: return "不用語音輸入"
+        case .voiceChoiceHint: return "可使用裝置自帶識別。"
+        case .voiceChoiceSystem: return "裝置自帶"
+        case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
+        case .voiceChoiceSystemNone: return "這臺裝置沒有可用的語音辨識"
+        case .voiceChoiceAvailable: return "可用"
+        case .voiceChoiceMissing: return "沒有"
+        case .voiceChoiceOff: return "不用"
+        case .voiceChoiceOffNote: return "輸入框不能按住說話"
         case .voiceChoiceUnknown: return "目前選項不可用"
         case .voiceChoiceRowDetail: return "選擇裝置辨識或關閉"
-        case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
         case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
         case .voiceChoiceSaveFailed: return "無法儲存語音設定，請再試一次。"
         case .chatAttachAdd: return "新增附件"
@@ -1685,6 +1769,15 @@ enum AppText: Equatable {
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
         case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
         case .chatBranchOrigin: return "從另一個對話分支"
+        case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"
+        case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
+        case .chatModelFailedNotFound: return "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedNetwork: return "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。"
+        case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。"
+        case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。"
+        case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
         }
     }
 }
