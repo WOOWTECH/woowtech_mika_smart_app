@@ -27,7 +27,7 @@ class AISafetyAndReportsTests(unittest.TestCase):
     def test_rules_and_reports(self):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('PASS AI safety rules: Play 964d7bec text, 10 request sites', result.stdout)
+        self.assertIn('PASS AI safety rules: Play 964d7bec text, 11 request sites', result.stdout)
         self.assertIn('PASS AI response reports (Debug):', result.stdout)
         self.assertIn('PASS AI response reports (Release):', result.stdout)
 

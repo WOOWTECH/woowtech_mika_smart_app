@@ -16,8 +16,8 @@ them in English whatever the interface language.
 - Play sends its identity prompt and the rules on every agent run and child run. Each request here sends
   them after its own instructions, in one system message: ordinary chat (after the skill tools offer when
   there is one, alone when there is none), the skill tools step, the memory and profile chat flow, MCP
-  chat, website research, route replay answers, browser action proposals, memory extraction, skill drafts
-  and model-written skills.
+  chat, website research, route replay answers, browser action proposals, every step of a web task
+  started from chat, memory extraction, skill drafts and model-written skills.
 - The skill learning outcome judge does not get them: it answers an internal yes/no, never shown. Nor does
   the fixed connection test in model settings, whose reply only tells whether the service answered.
 - Play sends no rules with its memory extractor and skill drafter; here both get them because their text
