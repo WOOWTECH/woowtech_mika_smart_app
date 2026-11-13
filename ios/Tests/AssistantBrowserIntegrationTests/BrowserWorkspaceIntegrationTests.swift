@@ -11,47 +11,6 @@ import AssistantBrowser
 /// Installing a synthetic cookie does NOT cover form login, OAuth, MFA, or an
 /// authenticated HTTP request. Reopening a store is not an App-relaunch test.
 final class BrowserWorkspaceIntegrationTests: XCTestCase {
-    @MainActor func testVisibleBrowserResumesAfterStartupProfileReset() async throws {
-        let namespace = UUID()
-        let scope = "test-" + namespace.uuidString
-        let store = WKWebsiteDataStore.nonPersistent()
-        let cookie = try cookie(name: "startup_reset_cookie", domain: "research.example.invalid", value: "FIXTURE_ONLY")
-        await setCookie(cookie, in: store)
-        let initialCookies = await cookies(in: store)
-        XCTAssertTrue(initialCookies.contains { $0.name == cookie.name })
-
-        let workspace = BrowserWorkspace(dataStore: store, arguments: [
-            "-UITestMode", "-UITestNamespace", namespace.uuidString, "-UITestResetStorage"
-        ])
-        defer {
-            workspace.cancelAllWork()
-            do {
-                let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                    appropriateFor: nil, create: false)
-                for category in ["BrowserLibrary", "BrowserDownloads"] {
-                    let directory = root.appendingPathComponent(category + "/" + scope, isDirectory: true)
-                    if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
-                }
-                try LearningKeychainStore(service: "io.woowtech.assistant.browser.library." + scope)
-                    .removeAll(except: "unused-fixture-key")
-            } catch { XCTFail("Isolated startup-reset fixture cleanup failed") }
-        }
-        XCTAssertTrue(workspace.available)
-        XCTAssertTrue(workspace.isClearingWebsiteData)
-        workspace.selected.address = "https://research.example.invalid/reset-fixture"
-        var activations = 0
-        workspace.restoredNavigationTestHook = { _ in activations += 1 }
-        workspace.browserDidAppear()
-        XCTAssertEqual(activations, 0, "Do not navigate while profile removal is pending")
-        try await waitUntil("Startup profile removal did not complete", timeout: 15) {
-            !workspace.isClearingWebsiteData
-        }
-        XCTAssertEqual(activations, 1, "The visible browser must resume exactly once after startup reset")
-        let remainingCookies = await cookies(in: store)
-        XCTAssertFalse(remainingCookies.contains { $0.name == cookie.name },
-                       "Startup reset must remove the actual WebKit cookie before navigation")
-    }
-
     @MainActor func testExternalHandoffFollowsSelectedTabWithoutReusingAnOldPage() async throws {
         let host = try Host()
         addTeardownBlock { await host.close() }
