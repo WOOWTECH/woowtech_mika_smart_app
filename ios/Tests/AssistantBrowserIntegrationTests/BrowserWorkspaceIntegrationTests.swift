@@ -805,7 +805,6 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         }
 
         func close() async {
-            weak var observedStore = storedStore
             // A failed 15s assertion can leave the production removal Task in
             // its second per-tab 10s discard. Do not remove its delegate or
             // profile while that Task still owns the sessions/store. This is
@@ -817,11 +816,6 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
                 }
                 XCTAssertFalse(workspace?.isClearingWebsiteData == true, "Website removal remained active during fixture cleanup")
             }
-            // The deferred-restore fixture's hook captures `workspace` so it
-            // can call browserDidAppear on re-entry. Break that test-only cycle
-            // before releasing WebViews and removing the isolated WebKit store.
-            workspace?.restoredNavigationTestHook = nil
-            workspace?.websiteRemovalTestGate = nil
             workspace?.cancelAllWork()
             for session in sessions {
                 session.cancel()
@@ -842,14 +836,9 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
             }
             storedStore = nil
             // Release the profile and all views before asking WebKit to remove
-            // its NetworkProcess-backed profile. Wait only for the observable
-            // store release; never retry a failed profile removal.
+            // its NetworkProcess-backed profile; do not retry or extend waits.
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                 DispatchQueue.main.async { continuation.resume() }
-            }
-            let releaseDeadline = ProcessInfo.processInfo.systemUptime + 2
-            while observedStore != nil && ProcessInfo.processInfo.systemUptime < releaseDeadline {
-                try? await Task.sleep(nanoseconds: 20_000_000)
             }
             // Only this test's random profile IDs and encrypted-vault key service.
             for identifier in [storeID, namespace] {
