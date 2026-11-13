@@ -100,7 +100,8 @@ extra["apporoBrandRes"] = apporoBrandRes
 // apporoplay (Apporo's Google Play edition): Apporo's names, but its own output dir, and the keys skipped are the
 // ones hand-written in src/apporoplay/res (its resources replace src/apporo/res rather than adding to them).
 val apporoplayBrandRes = file(".gradle/apporoplay-brand-res")
-generateBrandStrings("apporoplay", apporoProps, apporoplayBrandRes)
+val apporoplayProps = Properties().apply { file("src/apporoplay/resources/brand.properties").reader(Charsets.UTF_8).use { load(it) } }
+generateBrandStrings("apporoplay", apporoplayProps, apporoplayBrandRes)
 extra["apporoplayBrandRes"] = apporoplayBrandRes
 
 // ---- handed to app/build.gradle.kts ------------------------------------------------------------------------
