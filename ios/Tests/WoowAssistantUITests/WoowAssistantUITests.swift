@@ -163,6 +163,20 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
     }
 
+    func testSettingsStatusCardAddsTheMissingModel() {
+        let app = launchApp()
+        openSection("settings", in: app)
+        XCTAssertEqual(app.staticTexts["settings.status"].label, "還沒有能用的模型")
+        XCTAssertEqual(app.staticTexts["settings.status.detail"].label, "新增一個支援工具呼叫的模型")
+        let fix = app.buttons["settings.status.fix"]
+        XCTAssertEqual(fix.label, "新增")
+        waitUntilHittable(fix)
+        fix.tap()
+        XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10))
+        returnFromModelSettings(in: app)
+    }
+
     func testDrawerAboutOpensAndReturnsToChat() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)
@@ -537,6 +551,9 @@ final class WoowAssistantUITests: XCTestCase {
         let modelRow = app.buttons["settings.modelJump"]
         XCTAssertTrue(modelRow.label.contains("model.example.invalid"))
         XCTAssertFalse(modelRow.label.contains("ui-test-model"))
+        // With a model, the status card moves on to the next problem: notifications are off.
+        XCTAssertEqual(app.staticTexts["settings.status"].label, "通知未允許")
+        XCTAssertEqual(app.buttons["settings.status.fix"].label, "允許")
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)

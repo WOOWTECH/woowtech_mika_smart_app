@@ -3931,6 +3931,116 @@
       }
     },
     {
+      "case": "settingsStatusReady",
+      "key": "settings.status.ready",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一切就緒",
+        "zh-Hans": "一切就绪",
+        "en": "All set"
+      }
+    },
+    {
+      "case": "settingsStatusReadyDetail",
+      "key": "settings.status.ready.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型已就緒 · 可使用對話與內建瀏覽器",
+        "zh-Hans": "模型已就绪 · 可使用对话与内置浏览器",
+        "en": "Model ready · Chat and browser available"
+      }
+    },
+    {
+      "case": "settingsStatusNoModel",
+      "key": "settings.status.noModel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有能用的模型",
+        "zh-Hans": "还没有能用的模型",
+        "en": "No usable model yet"
+      }
+    },
+    {
+      "case": "settingsStatusNoModelDetail",
+      "key": "settings.status.noModel.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增一個支援工具呼叫的模型",
+        "zh-Hans": "添加一个支持工具调用的模型",
+        "en": "Add a model that supports tool calling"
+      }
+    },
+    {
+      "case": "settingsStatusAdd",
+      "key": "settings.status.add",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增",
+        "zh-Hans": "添加",
+        "en": "Add"
+      }
+    },
+    {
+      "case": "settingsStatusNotificationsOff",
+      "key": "settings.status.notificationsOff",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知未允許",
+        "zh-Hans": "通知未允许",
+        "en": "Notifications not allowed"
+      }
+    },
+    {
+      "case": "settingsStatusNotificationsOffDetail",
+      "key": "settings.status.notificationsOff.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會看不到任務結果和「需要你」提醒",
+        "zh-Hans": "会看不到任务结果和「需要你」提醒",
+        "en": "You won’t see task results or “Needs you” alerts"
+      }
+    },
+    {
+      "case": "settingsStatusAllow",
+      "key": "settings.status.allow",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許",
+        "zh-Hans": "允许",
+        "en": "Allow"
+      }
+    },
+    {
+      "case": "settingsStatusAlertsLowered",
+      "key": "settings.status.alertsLowered",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "「需要你處理」的通知不會彈出",
+        "zh-Hans": "「需要你处理」的通知不会弹出",
+        "en": "“Needs you” notifications won’t pop up"
+      }
+    },
+    {
+      "case": "settingsStatusAlertsLoweredDetail",
+      "key": "settings.status.alertsLowered.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。",
+        "zh-Hans": "要你同意时，这类通知现在只安静地进通知中心，容易错过。「任务结果」的通知也一样。点「去打开」，打开「横幅」。",
+        "en": "When you need to approve, these notifications now land quietly in Notification Center and are easy to miss. The same goes for “Task results”. Tap “Turn on” and turn on “Banners”."
+      }
+    },
+    {
+      "case": "settingsStatusTurnOn",
+      "key": "settings.status.turnOn",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "去開啟",
+        "zh-Hans": "去打开",
+        "en": "Turn on"
+      }
+    },
+    {
       "case": "settingsHomeMyData",
       "key": "settings.home.myData",
       "parameters": [],
@@ -3988,26 +4098,6 @@
         "zh-Hant": "未設定",
         "zh-Hans": "未设置",
         "en": "Not set"
-      }
-    },
-    {
-      "case": "settingsModelConfigured",
-      "key": "settings.model.configured",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "模型已設定",
-        "zh-Hans": "模型已设置",
-        "en": "Model configured"
-      }
-    },
-    {
-      "case": "settingsModelUnconfigured",
-      "key": "settings.model.unconfigured",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "尚未設定模型",
-        "zh-Hans": "尚未设置模型",
-        "en": "No model configured"
       }
     },
     {

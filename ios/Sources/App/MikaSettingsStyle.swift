@@ -19,12 +19,26 @@ struct MikaSettingsPalette {
     var warn: Color { scheme == .dark ? Color(red: 255/255, green: 179/255, blue: 64/255) : Color(red: 184/255, green: 110/255, blue: 0) }
     var bad: Color { scheme == .dark ? Color(red: 255/255, green: 105/255, blue: 97/255) : Color(red: 229/255, green: 72/255, blue: 61/255) }
 
+    /// Android fill: the tonal button background.
+    var fill: Color { scheme == .dark ? .white.opacity(15/255) : .black.opacity(10/255) }
+
     func color(for tone: MikaSettingsTone) -> Color {
         switch tone {
         case .plain: return hint
         case .ok: return ok
         case .warn: return warn
         case .bad: return bad
+        }
+    }
+
+    /// Android okSoft, warnSoft and badSoft: status icon tiles.
+    func softColor(for tone: MikaSettingsTone) -> Color {
+        let dark = scheme == .dark
+        switch tone {
+        case .plain: return tile
+        case .ok: return ok.opacity(dark ? 36/255 : 31/255)
+        case .warn: return Color(red: 1, green: 159/255, blue: 10/255).opacity(dark ? 41/255 : 31/255)
+        case .bad: return bad.opacity(dark ? 36/255 : 26/255)
         }
     }
 }

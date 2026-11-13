@@ -30,3 +30,18 @@ enum MikaNotificationSummary: Equatable {
         }
     }
 }
+
+/// Android Prerequisites.check for what iOS has. No usable model blocks
+/// tasks; notifications that are off or will not pop up only warn.
+enum MikaSettingsProblem: Equatable {
+    case noModel, notificationsOff, alertsLowered
+
+    static func first(hasModel: Bool, notifications: MikaNotificationSummary?) -> MikaSettingsProblem? {
+        if !hasModel { return .noModel }
+        switch notifications {
+        case .off?: return .notificationsOff
+        case .lowered?: return .alertsLowered
+        case .normal?, nil: return nil
+        }
+    }
+}

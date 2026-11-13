@@ -381,14 +381,23 @@ enum AppText: Equatable {
     case settingsHomeNotificationDetail
     case settingsNotificationsNormal
     case settingsNotificationsLowered(count: Int)
+    case settingsStatusReady
+    case settingsStatusReadyDetail
+    case settingsStatusNoModel
+    case settingsStatusNoModelDetail
+    case settingsStatusAdd
+    case settingsStatusNotificationsOff
+    case settingsStatusNotificationsOffDetail
+    case settingsStatusAllow
+    case settingsStatusAlertsLowered
+    case settingsStatusAlertsLoweredDetail
+    case settingsStatusTurnOn
     case settingsHomeMyData
     case settingsHomeMemoryDetail
     case settingsAdvancedTitle
     case settingsAdvancedDetail
     case settingsHomeConnections
     case settingsModelNotSet
-    case settingsModelConfigured
-    case settingsModelUnconfigured
     case settingsModelKeyStored
     case settingsModelKeyMissing
     case settingsModelRoles
@@ -940,14 +949,23 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
         case .settingsNotificationsNormal: return "settings.notifications.normal"
         case .settingsNotificationsLowered: return "settings.notifications.lowered"
+        case .settingsStatusReady: return "settings.status.ready"
+        case .settingsStatusReadyDetail: return "settings.status.ready.detail"
+        case .settingsStatusNoModel: return "settings.status.noModel"
+        case .settingsStatusNoModelDetail: return "settings.status.noModel.detail"
+        case .settingsStatusAdd: return "settings.status.add"
+        case .settingsStatusNotificationsOff: return "settings.status.notificationsOff"
+        case .settingsStatusNotificationsOffDetail: return "settings.status.notificationsOff.detail"
+        case .settingsStatusAllow: return "settings.status.allow"
+        case .settingsStatusAlertsLowered: return "settings.status.alertsLowered"
+        case .settingsStatusAlertsLoweredDetail: return "settings.status.alertsLowered.detail"
+        case .settingsStatusTurnOn: return "settings.status.turnOn"
         case .settingsHomeMyData: return "settings.home.myData"
         case .settingsHomeMemoryDetail: return "settings.home.memory.detail"
         case .settingsAdvancedTitle: return "settings.advanced.title"
         case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
         case .settingsModelNotSet: return "settings.model.notSet"
-        case .settingsModelConfigured: return "settings.model.configured"
-        case .settingsModelUnconfigured: return "settings.model.unconfigured"
         case .settingsModelKeyStored: return "settings.model.keyStored"
         case .settingsModelKeyMissing: return "settings.model.keyMissing"
         case .settingsModelRoles: return "settings.model.roles"
@@ -1543,14 +1561,23 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
         case .settingsNotificationsNormal: return "正常"
         case .settingsNotificationsLowered: return "有 %lld 項不會彈出"
+        case .settingsStatusReady: return "一切就緒"
+        case .settingsStatusReadyDetail: return "模型已就緒 · 可使用對話與內建瀏覽器"
+        case .settingsStatusNoModel: return "還沒有能用的模型"
+        case .settingsStatusNoModelDetail: return "新增一個支援工具呼叫的模型"
+        case .settingsStatusAdd: return "新增"
+        case .settingsStatusNotificationsOff: return "通知未允許"
+        case .settingsStatusNotificationsOffDetail: return "會看不到任務結果和「需要你」提醒"
+        case .settingsStatusAllow: return "允許"
+        case .settingsStatusAlertsLowered: return "「需要你處理」的通知不會彈出"
+        case .settingsStatusAlertsLoweredDetail: return "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。"
+        case .settingsStatusTurnOn: return "去開啟"
         case .settingsHomeMyData: return "我的資料"
         case .settingsHomeMemoryDetail: return "記憶、技能與網站登入"
         case .settingsAdvancedTitle: return "進階與其他"
         case .settingsAdvancedDetail: return "MCP 伺服器"
         case .settingsHomeConnections: return "網路與連接"
         case .settingsModelNotSet: return "未設定"
-        case .settingsModelConfigured: return "模型已設定"
-        case .settingsModelUnconfigured: return "尚未設定模型"
         case .settingsModelKeyStored: return "已儲存金鑰；留空可沿用同一服務的金鑰。"
         case .settingsModelKeyMissing: return "尚未儲存金鑰。"
         case .settingsModelRoles: return "用途"
