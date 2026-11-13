@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.SolidColor
@@ -33,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -144,12 +146,16 @@ fun ListRow(
 
 enum class ValueTone { Plain, Ok, Warn, Bad, Link }
 
-/** 行尾的值。 */
+/**
+ * 行尾的值。WOOWTECH fork: capped at 45% of the screen width with an ellipsis, so a long value (for example a
+ * custom model service's host name) can no longer squeeze the row's title and subtitle to nothing.
+ */
 @Composable
 fun RowValue(text: String, tone: ValueTone = ValueTone.Plain) {
     val c = MikaTheme.colors
+    val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.45f).dp
     Text(
-        text, style = MikaType.Value,
+        text, Modifier.widthIn(max = maxWidth), style = MikaType.Value,
         fontWeight = if (tone == ValueTone.Link) FontWeight.Medium else FontWeight.Normal,
         color = when (tone) {
             ValueTone.Plain -> c.ink3
@@ -159,6 +165,7 @@ fun RowValue(text: String, tone: ValueTone = ValueTone.Plain) {
             ValueTone.Link -> c.accent
         },
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
