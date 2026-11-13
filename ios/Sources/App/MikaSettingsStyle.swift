@@ -78,7 +78,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link, info, wrench
+    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy
 }
 
 struct MikaSettingsIconTile: View {
@@ -234,6 +234,38 @@ struct MikaSettingsIconShape: Shape {
             path.addEllipse(in: CGRect(x: 11.2, y: 7, width: 1.6, height: 1.6))
             path.move(to: CGPoint(x: 12, y: 11))
             path.addLine(to: CGPoint(x: 12, y: 17))
+        case .bug:
+            path.move(to: CGPoint(x: 8, y: 9))
+            path.addLine(to: CGPoint(x: 16, y: 9))
+            path.addLine(to: CGPoint(x: 16, y: 15))
+            path.addArc(center: CGPoint(x: 12, y: 15), radius: 4,
+                        startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
+            path.closeSubpath()
+            path.move(to: CGPoint(x: 9, y: 9))
+            path.addArc(center: CGPoint(x: 12, y: 9), radius: 3,
+                        startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+            let legs: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
+                (4, 13, 8, 13), (16, 13, 20, 13), (5, 8, 8, 10), (19, 8, 16, 10), (5, 19, 8, 17), (19, 19, 16, 17)]
+            for leg in legs {
+                path.move(to: CGPoint(x: leg.0, y: leg.1))
+                path.addLine(to: CGPoint(x: leg.2, y: leg.3))
+            }
+        case .shield:
+            path.move(to: CGPoint(x: 12, y: 3))
+            path.addLine(to: CGPoint(x: 19.5, y: 6))
+            path.addLine(to: CGPoint(x: 19.5, y: 11.5))
+            path.addCurve(to: CGPoint(x: 12, y: 21),
+                          control1: CGPoint(x: 19.5, y: 16.1), control2: CGPoint(x: 16.3, y: 19.9))
+            path.addCurve(to: CGPoint(x: 4.5, y: 11.5),
+                          control1: CGPoint(x: 7.7, y: 19.9), control2: CGPoint(x: 4.5, y: 16.1))
+            path.addLine(to: CGPoint(x: 4.5, y: 6))
+            path.closeSubpath()
+        case .copy:
+            path.addRoundedRect(in: CGRect(x: 8, y: 8, width: 11, height: 11), cornerSize: CGSize(width: 2, height: 2))
+            path.move(to: CGPoint(x: 5, y: 15))
+            path.addLine(to: CGPoint(x: 5, y: 6))
+            path.addQuadCurve(to: CGPoint(x: 6, y: 5), control: CGPoint(x: 5, y: 5))
+            path.addLine(to: CGPoint(x: 15, y: 5))
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))

@@ -209,24 +209,27 @@ final class WoowAssistantUITests: XCTestCase {
         let bar = app.navigationBars["關於渥屋助理"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
-        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "你的私人助理，替你把事辦成")
+        XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "在同一個地方對話、瀏覽網頁，並記住有用的資訊")
         let version = app.staticTexts["settings.about.version"]
         let build = app.staticTexts["settings.about.build"]
         XCTAssertTrue(version.exists && build.exists)
-        XCTAssertFalse(version.label.isEmpty)
-        XCTAssertFalse(build.label.isEmpty)
         XCTAssertNotEqual(version.label, "版本資訊不可用")
-        XCTAssertNotEqual(build.label, "版本資訊不可用")
         XCTAssertFalse(version.label.contains("$("))
         XCTAssertFalse(build.label.contains("$("))
-        XCTAssertEqual(homeVersion, version.label,
+        XCTAssertEqual("版本 " + (homeVersion ?? ""), version.label,
                        "Home and detail show the same installed version")
-        for (id, expectedLabel) in [("repository", "開源專案"), ("guide", "專案說明"),
-                                    ("feedback", "回報問題"), ("license", "開源授權")] {
-            let resource = app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch
-            XCTAssertTrue(resource.waitForExistence(timeout: 10), "Missing About resource: \(id)")
-            XCTAssertEqual(resource.label, expectedLabel)
+        XCTAssertTrue(build.label.hasPrefix("· 建置 ") && build.label.count > "· 建置 ".count)
+        // The Play edition has no GitHub entries; feedback is diagnostics by email.
+        let feedback = app.buttons["settings.about.feedback"]
+        XCTAssertTrue(feedback.waitForExistence(timeout: 10))
+        XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("woowtech@designsmart.com.tw"))
+        for id in ["repository", "guide", "license"] {
+            XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
+                           "GitHub entry still shown: \(id)")
         }
+        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
+        XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
+                       "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
 
         XCTAssertFalse(app.buttons["section.back"].isHittable)
         let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
@@ -242,9 +245,15 @@ final class WoowAssistantUITests: XCTestCase {
         let link = app.buttons["settings.about"]
         revealSettings(link, in: app)
         link.tap()
+        let feedback = app.buttons["settings.about.feedback"]
+        for _ in 0..<5 where !feedback.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(feedback.isHittable)
+        feedback.tap()
+        let explanation = app.staticTexts["settings.about.feedback.detail"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 10))
+        XCTAssertEqual(explanation.label, "複製診斷資訊後，寄到 woowtech@designsmart.com.tw")
         let entry = app.buttons["settings.about.diagnostics"]
-        for _ in 0..<5 where !entry.isHittable { app.scrollViews.firstMatch.swipeUp() }
-        XCTAssertTrue(entry.isHittable)
+        waitUntilHittable(entry)
         entry.tap()
         let report = app.staticTexts["settings.about.diagnostics.report"]
         XCTAssertTrue(report.waitForExistence(timeout: 10))

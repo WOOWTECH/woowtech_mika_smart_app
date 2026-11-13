@@ -56,15 +56,24 @@ import Foundation
             .simplifiedChinese: "关于渥屋助理",
             .english: "About woowtech agent"
         ]
+        // woowtech Play edition about_tagline, about_version and about_build.
         let taglines: [AppDisplayLanguage: String] = [
-            .traditionalChinese: "你的私人助理，替你把事辦成",
-            .simplifiedChinese: "你的私人助理，替你把事办成",
-            .english: "Your personal assistant, getting things done for you"
+            .traditionalChinese: "在同一個地方對話、瀏覽網頁，並記住有用的資訊",
+            .simplifiedChinese: "在同一个地方对话、浏览网页，并记住有用的信息",
+            .english: "Chat, browse, and keep useful information in one place"
+        ]
+        let versionLines: [AppDisplayLanguage: (String, String)] = [
+            .traditionalChinese: ("版本 0.1.0", "建置 42"),
+            .simplifiedChinese: ("版本 0.1.0", "构建 42"),
+            .english: ("Version 0.1.0", "Build 42")
         ]
         for language in AppDisplayLanguage.allCases {
             let copy = MikaAboutCopy(language: language)
             try check(copy.text(.title) == expected[language], "About title follows interface language")
             try check(copy.text(.tagline) == taglines[language], "About tagline follows interface language")
+            try check(copy.version("0.1.0") == versionLines[language]?.0, "Version line follows Android about_version")
+            try check(copy.build("42") == versionLines[language]?.1, "Build line follows Android about_build")
+            try check(copy.text(.feedbackSheetDetail).contains("woowtech@designsmart.com.tw"), "Feedback names the support address")
             for key in MikaAboutKey.allCases {
                 try check(!copy.text(key).isEmpty, "About copy has no empty language entry")
             }

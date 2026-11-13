@@ -24,10 +24,12 @@ struct MikaAboutInfo: Equatable {
 }
 
 /// About-only copy stays separate from the generated shared AppText catalog.
+/// Wording follows the woowtech Play edition's AboutScreen at 465a17c9.
 enum MikaAboutKey: CaseIterable {
     case title, group, version, build, unavailable, installedVersion, tagline
-    case resources, repository, guide, feedback, license
+    case feedback, feedbackDetail, feedbackSheetDetail, diagnosticsCopyTitle, diagnosticsCopyDetail
     case diagnostics, diagnosticsNote, diagnosticsCopy, diagnosticsCopied, diagnosticsShare, close
+    case dataNote, copyright
 
     var translations: (hant: String, hans: String, en: String) {
         switch self {
@@ -37,19 +39,30 @@ enum MikaAboutKey: CaseIterable {
         case .build: return ("建置", "构建", "Build")
         case .unavailable: return ("版本資訊不可用", "版本信息不可用", "Version unavailable")
         case .installedVersion: return ("此裝置目前安裝的 App 版本", "此设备当前安装的 App 版本", "App version installed on this device")
-        // Android About's product description, adapted for both iPhone and iPad.
-        case .tagline: return ("你的私人助理，替你把事辦成", "你的私人助理，替你把事办成", "Your personal assistant, getting things done for you")
-        case .resources: return ("資源與支援", "资源与支持", "Resources and support")
-        case .repository: return ("開源專案", "开源项目", "Source repository")
-        case .guide: return ("專案說明", "项目说明", "Project guide")
-        case .feedback: return ("回報問題", "反馈问题", "Report an issue")
-        case .license: return ("開源授權", "开源许可", "Open-source license")
-        case .diagnostics: return ("診斷資訊", "诊断信息", "Diagnostic information")
-        case .diagnosticsNote: return ("請先檢視資訊，再自行複製或分享。", "请先查看信息，再自行复制或分享。", "Review this information before copying or sharing it.")
+        case .tagline: return ("在同一個地方對話、瀏覽網頁，並記住有用的資訊", "在同一个地方对话、浏览网页，并记住有用的信息",
+                               "Chat, browse, and keep useful information in one place")
+        case .feedback: return ("回報問題", "反馈问题", "Send feedback")
+        case .feedbackDetail: return ("複製診斷資訊 · woowtech@designsmart.com.tw", "复制诊断信息 · woowtech@designsmart.com.tw",
+                                      "Copy diagnostics · woowtech@designsmart.com.tw")
+        case .feedbackSheetDetail: return ("複製診斷資訊後，寄到 woowtech@designsmart.com.tw", "复制诊断信息后，寄到 woowtech@designsmart.com.tw",
+                                           "Copy diagnostics, then email them to woowtech@designsmart.com.tw.")
+        case .diagnosticsCopyTitle: return ("複製診斷資訊", "复制诊断信息", "Copy diagnostics")
+        // Play lists 版本、機型和設定狀態; the iOS report has version details only.
+        case .diagnosticsCopyDetail: return ("版本資訊，寄信時附上", "版本信息，寄信时附上", "Version details, to include in your email")
+        case .diagnostics: return ("診斷資訊", "诊断信息", "Diagnostics")
+        case .diagnosticsNote: return ("不包含 API Key、聊天內容和螢幕內容", "不包含 API Key、聊天内容和屏幕内容",
+                                       "Contains no API keys, chat content or screen content")
         case .diagnosticsCopy: return ("複製", "复制", "Copy")
         case .diagnosticsCopied: return ("已複製", "已复制", "Copied")
         case .diagnosticsShare: return ("分享", "分享", "Share")
         case .close: return ("完成", "完成", "Done")
+        // Play's about_data_note without its sentence on reporting AI replies,
+        // which iOS cannot do yet.
+        case .dataNote: return ("你送出的內容由你選擇的 AI 服務商處理。", "你发送的内容由你选择的 AI 服务商处理。",
+                                "What you send is processed by the AI provider you choose.")
+        case .copyright: return ("© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）",
+                                 "© 2026 WOOW TECH CO., LTD. · 基于 wangzan101/Mika（Apache-2.0）",
+                                 "© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)")
         }
     }
 }
@@ -68,13 +81,6 @@ struct MikaAboutDiagnostics {
     }
 }
 
-enum MikaAboutLinks {
-    static let repository = URL(string: "https://github.com/WOOWTECH/woowtech_mika_smart_app")!
-    static let guide = URL(string: "https://github.com/WOOWTECH/woowtech_mika_smart_app/blob/main/README.md")!
-    static let feedback = URL(string: "https://github.com/WOOWTECH/woowtech_mika_smart_app/issues")!
-    static let license = URL(string: "https://github.com/WOOWTECH/woowtech_mika_smart_app/blob/main/LICENSE")!
-}
-
 struct MikaAboutCopy {
     let language: AppDisplayLanguage
 
@@ -86,4 +92,8 @@ struct MikaAboutCopy {
         case .english: return choices.en
         }
     }
+
+    /// Android about_version and about_build: 版本 %1$s, 建置 %1$s.
+    func version(_ value: String) -> String { text(.version) + " " + value }
+    func build(_ value: String) -> String { text(.build) + " " + value }
 }

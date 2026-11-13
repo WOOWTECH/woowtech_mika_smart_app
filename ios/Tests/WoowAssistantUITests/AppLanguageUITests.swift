@@ -143,9 +143,9 @@ final class AppLanguageUITests: XCTestCase {
 
     func testAboutHeroAndDiagnosticsInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
-            ("(zh-Hant)", "關於渥屋助理", "你的私人助理，替你把事辦成", "診斷資訊"),
-            ("(zh-Hans)", "关于渥屋助理", "你的私人助理，替你把事办成", "诊断信息"),
-            ("(en)", "About woowtech agent", "Your personal assistant, getting things done for you", "Diagnostic information")
+            ("(zh-Hant)", "關於渥屋助理", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
+            ("(zh-Hans)", "关于渥屋助理", "在同一个地方对话、浏览网页，并记住有用的信息", "诊断信息"),
+            ("(en)", "About woowtech agent", "Chat, browse, and keep useful information in one place", "Diagnostics")
         ]
         for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
             app.terminate()
@@ -161,9 +161,13 @@ final class AppLanguageUITests: XCTestCase {
             XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, tagline)
             XCTAssertTrue(app.staticTexts["settings.about.version"].exists)
             XCTAssertTrue(app.staticTexts["settings.about.build"].exists)
+            let feedback = app.buttons["settings.about.feedback"]
+            revealLearningElement(feedback, in: app)
+            XCTAssertTrue(feedback.isHittable); feedback.tap()
             let diagnostics = app.buttons["settings.about.diagnostics"]
-            revealLearningElement(diagnostics, in: app)
-            XCTAssertTrue(diagnostics.isHittable); diagnostics.tap()
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"),
+                                                  object: diagnostics)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed); diagnostics.tap()
             XCTAssertTrue(app.navigationBars[diagnosticsTitle].waitForExistence(timeout: 10))
             XCTAssertTrue(app.staticTexts["settings.about.diagnostics.report"].exists)
         }
