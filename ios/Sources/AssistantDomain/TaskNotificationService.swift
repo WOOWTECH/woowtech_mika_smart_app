@@ -112,7 +112,8 @@ import Foundation
         order.removeAll { records[$0] == nil }; scheduleWork(); armExpiry()
     }
 
-    /// Explicit troubleshooting button only. A successful add is not a delivery/sound receipt.
+    /// UI-test button only (Debug builds); like Play, the product has no test
+    /// button. A successful add is not a delivery/sound receipt.
     @discardableResult public func sendTestFromUserGesture() async -> Bool {
         guard enabled else { return false }
         let intent = authorizationIntent
