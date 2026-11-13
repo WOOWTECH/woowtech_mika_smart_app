@@ -9,10 +9,13 @@ voice input” discards the capture. An interruption or system permission
 dialog may end a gesture; press again after returning to the app.
 
 The speech locale is the device's current locale, independently of the App's
-display-language setting. The App's UI messages support Traditional Chinese,
-Simplified Chinese and English; the OS chooses its own localized permission
-prompt. The Debug and Release plists include both privacy keys; localized
-InfoPlist.strings provide their translations. Recognition is not uploaded to a
+display-language setting. The App's UI messages support Traditional Chinese
+and English; a Simplified Chinese system shows Traditional Chinese. The OS
+chooses its own localized permission prompt. The Debug and Release plists
+include both privacy keys; localized InfoPlist.strings provide their
+translations, and zh-Hans.lproj carries the Traditional Chinese prompts so a
+Simplified Chinese system gets those, not English (it also keeps that system's
+current locale, and so its speech locale, Chinese). Recognition is not uploaded to a
 provider by this implementation. If on-device recognition is unavailable, the
 keyboard remains available. A provider transcription path, its explicit privacy
 disclosure, consent, transport and tests are separate future work; unavailability
@@ -64,7 +67,8 @@ timeout. Parsing an iOS target is syntax checking only, not an SDK build or a UI
 
 1. Generate the project with the repository's XcodeGen workflow and compile
    Debug and Release with the iOS 17 SDK. Confirm that the app bundle contains
-   all three localized InfoPlist.strings and both usage keys.
+   the en, zh-Hant and zh-Hans (Traditional text) InfoPlist.strings and both
+   usage keys.
 2. With a simulator where supported, run existing ChatStreamingUITests,
    ConversationArchiveUITests and the chat draft tests. Check typed multiline
    editing, keyboard dismissal, scroll-follow and text selection with the mic
