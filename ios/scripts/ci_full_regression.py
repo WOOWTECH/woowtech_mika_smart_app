@@ -41,6 +41,11 @@ COHORT_SECONDS = 55 * 60
 # time to finish, and reserve a separate window for its download-PDF sibling.
 DOCUMENTS_SLICE_SECONDS = 55 * 60
 DOCUMENTS_COHORT_SECONDS = 65 * 60
+# The startup class (iOS 26.2 finished 20 of its 22 methods in about 26
+# minutes) and the chat classes also ran past the 30-minute boundary on the
+# large and current simulators and left no result at all. They get the
+# document shard's window; every method keeps its own 240/300 s allowance.
+LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat")
 SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
               "compact": IPHONES[:1], "large": IPHONES[1:2]}
 
@@ -229,8 +234,8 @@ def bounded_process(command, log_path, seconds):
 
 def execute(row, products, simulator_id, output):
     output.mkdir(parents=True, exist_ok=True)
-    has_documents = any(sl["scope"] == "ui-documents" for sl in row["slices"])
-    deadline = time.monotonic() + (DOCUMENTS_COHORT_SECONDS if has_documents else COHORT_SECONDS)
+    has_long = any(sl["scope"] in LONG_SLICE_SCOPES for sl in row["slices"])
+    deadline = time.monotonic() + (DOCUMENTS_COHORT_SECONDS if has_long else COHORT_SECONDS)
     receipts = []
     for sl in row["slices"]:
         scope = sl["scope"]
@@ -242,7 +247,7 @@ def execute(row, products, simulator_id, output):
         remaining = deadline - time.monotonic()
         exit_code = None
         if remaining > 0:
-            slice_seconds = DOCUMENTS_SLICE_SECONDS if scope == "ui-documents" else SLICE_SECONDS
+            slice_seconds = DOCUMENTS_SLICE_SECONDS if scope in LONG_SLICE_SCOPES else SLICE_SECONDS
             exit_code = bounded_process(test_command(products, simulator_id, result, sl), log,
                                         min(slice_seconds, remaining))
             if result.is_dir():
