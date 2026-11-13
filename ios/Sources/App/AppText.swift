@@ -348,6 +348,108 @@ enum AppText: Equatable {
     case settingsModelSavedCleanup
     case settingsModelRemoved
     case settingsModelFallbackError
+    case roleSpeechWhat
+    case modelsMainAddFirst
+    case modelsMainPick
+    case modelsAddProvider
+    case modelsKeyNote
+    case modelsConnected
+    case modelsUsedBy(roles: String)
+    case modelsUnverified
+    case modelsConsentNeeded(provider: String)
+    case modelsConsentReview
+    case modelsLegacyUnreadable
+    case signinKeyGroup
+    case presetCustom
+    case modelBaseURL
+    case modelProviderName
+    case modelProviderNameHint
+    case modelAPIKey
+    case modelKeyHint
+    case modelKeyOptional
+    case commonShow
+    case commonHide
+    case modelManualName
+    case modelExampleCompat
+    case modelExampleGrok
+    case modelURLHTTPS
+    case modelPresetMatch(name: String)
+    case modelUsePreset(name: String)
+    case modelTestSave
+    case modelTesting
+    case modelFailed(reason: String)
+    case modelReasonCredentials
+    case modelReasonConfiguration
+    case modelErrorAuth
+    case modelReasonNotFound
+    case modelErrorRateLimited
+    case modelReasonServer
+    case modelReasonRefused
+    case modelReasonUnreadable
+    case modelReasonRedirect
+    case modelReasonTimeout
+    case modelErrorNetwork
+    case modelSaveUntested
+    case modelSaveUntestedTitle
+    case modelSaveUntestedBody
+    case modelSaveUntestedConfirm
+    case modelSavedUntested(name: String)
+    case modelSavedTested(name: String)
+    case modelTestNote
+    case modelNotSavedDeclined(name: String)
+    case roleMainHint
+    case modelsUse
+    case modelsRoleEmpty
+    case capTyped
+    case modelsInUse
+    case modelsPickNote
+    case modelsConnection
+    case modelsStatus
+    case modelKind
+    case modelsOpenAICompat
+    case modelsURL
+    case modelsKeySaved
+    case modelsKeyNone
+    case modelsChange
+    case modelsChangeKey
+    case modelsNewKeyHint
+    case modelsModels
+    case modelsModelsNote
+    case modelsUntestedNote
+    case modelsRetest
+    case modelsRetestPassed(model: String)
+    case modelsDelete
+    case modelsDeleteTitle(name: String)
+    case modelsDeleteBody
+    case modelsDeleteUsed(roles: String)
+    case modelsDeleteUnused
+    case modelsDeleted(name: String)
+    case modelsUseAs(name: String)
+    case modelsKeyChanged(name: String)
+    case modelsCleanupFailed
+    case consentTitle(provider: String)
+    case consentLead(provider: String, host: String)
+    case consentItemChat
+    case consentItemAttachments
+    case consentItemImages
+    case consentItemProfile
+    case consentItemWeb
+    case consentItemResearchJudgment
+    case consentItemMemory
+    case consentItemSkills
+    case consentItemMemoryOrganizing
+    case consentItemMCP
+    case consentThirdParty(provider: String)
+    case consentDeclineSave
+    case consentDeclineSwitch
+    case consentDeclineSend
+    case consentAgain
+    case consentAgree
+    case consentDecline
+    case chatConsentDeclined(provider: String)
+    case settingsStatusReadyMain(model: String, provider: String)
+    case modelSettingsTooManyProviders
+    case modelSettingsConsentRequired
     case settingsHomeTitle
     case drawerRecentTitle
     case drawerRecentBoundary
@@ -845,6 +947,108 @@ enum AppText: Equatable {
         case .settingsModelSavedCleanup: return "settings.model.savedCleanup"
         case .settingsModelRemoved: return "settings.model.removed"
         case .settingsModelFallbackError: return "settings.model.fallbackError"
+        case .roleSpeechWhat: return "role.speech.what"
+        case .modelsMainAddFirst: return "models.mainAddFirst"
+        case .modelsMainPick: return "models.mainPick"
+        case .modelsAddProvider: return "models.addProvider"
+        case .modelsKeyNote: return "models.keyNote"
+        case .modelsConnected: return "models.connected"
+        case .modelsUsedBy: return "models.usedBy"
+        case .modelsUnverified: return "models.unverified"
+        case .modelsConsentNeeded: return "models.consentNeeded"
+        case .modelsConsentReview: return "models.consentReview"
+        case .modelsLegacyUnreadable: return "models.legacyUnreadable"
+        case .signinKeyGroup: return "signin.keyGroup"
+        case .presetCustom: return "preset.custom"
+        case .modelBaseURL: return "model.baseURL"
+        case .modelProviderName: return "model.providerName"
+        case .modelProviderNameHint: return "model.providerNameHint"
+        case .modelAPIKey: return "model.apiKey"
+        case .modelKeyHint: return "model.keyHint"
+        case .modelKeyOptional: return "model.keyOptional"
+        case .commonShow: return "common.show"
+        case .commonHide: return "common.hide"
+        case .modelManualName: return "model.manualName"
+        case .modelExampleCompat: return "model.exampleCompat"
+        case .modelExampleGrok: return "model.exampleGrok"
+        case .modelURLHTTPS: return "model.urlHTTPS"
+        case .modelPresetMatch: return "model.presetMatch"
+        case .modelUsePreset: return "model.usePreset"
+        case .modelTestSave: return "model.testSave"
+        case .modelTesting: return "model.testing"
+        case .modelFailed: return "model.failed"
+        case .modelReasonCredentials: return "model.reason.credentials"
+        case .modelReasonConfiguration: return "model.reason.configuration"
+        case .modelErrorAuth: return "model.error.auth"
+        case .modelReasonNotFound: return "model.reason.notFound"
+        case .modelErrorRateLimited: return "model.error.rateLimited"
+        case .modelReasonServer: return "model.reason.server"
+        case .modelReasonRefused: return "model.reason.refused"
+        case .modelReasonUnreadable: return "model.reason.unreadable"
+        case .modelReasonRedirect: return "model.reason.redirect"
+        case .modelReasonTimeout: return "model.reason.timeout"
+        case .modelErrorNetwork: return "model.error.network"
+        case .modelSaveUntested: return "model.saveUntested"
+        case .modelSaveUntestedTitle: return "model.saveUntestedTitle"
+        case .modelSaveUntestedBody: return "model.saveUntestedBody"
+        case .modelSaveUntestedConfirm: return "model.saveUntestedConfirm"
+        case .modelSavedUntested: return "model.savedUntested"
+        case .modelSavedTested: return "model.savedTested"
+        case .modelTestNote: return "model.testNote"
+        case .modelNotSavedDeclined: return "model.notSavedDeclined"
+        case .roleMainHint: return "role.mainHint"
+        case .modelsUse: return "models.use"
+        case .modelsRoleEmpty: return "models.roleEmpty"
+        case .capTyped: return "cap.typed"
+        case .modelsInUse: return "models.inUse"
+        case .modelsPickNote: return "models.pickNote"
+        case .modelsConnection: return "models.connection"
+        case .modelsStatus: return "models.status"
+        case .modelKind: return "model.kind"
+        case .modelsOpenAICompat: return "models.openaiCompat"
+        case .modelsURL: return "models.url"
+        case .modelsKeySaved: return "models.keySaved"
+        case .modelsKeyNone: return "models.keyNone"
+        case .modelsChange: return "models.change"
+        case .modelsChangeKey: return "models.changeKey"
+        case .modelsNewKeyHint: return "models.newKeyHint"
+        case .modelsModels: return "models.models"
+        case .modelsModelsNote: return "models.modelsNote"
+        case .modelsUntestedNote: return "models.untestedNote"
+        case .modelsRetest: return "models.retest"
+        case .modelsRetestPassed: return "models.retestPassed"
+        case .modelsDelete: return "models.delete"
+        case .modelsDeleteTitle: return "models.deleteTitle"
+        case .modelsDeleteBody: return "models.deleteBody"
+        case .modelsDeleteUsed: return "models.deleteUsed"
+        case .modelsDeleteUnused: return "models.deleteUnused"
+        case .modelsDeleted: return "models.deleted"
+        case .modelsUseAs: return "models.useAs"
+        case .modelsKeyChanged: return "models.keyChanged"
+        case .modelsCleanupFailed: return "models.cleanupFailed"
+        case .consentTitle: return "consent.title"
+        case .consentLead: return "consent.lead"
+        case .consentItemChat: return "consent.item.chat"
+        case .consentItemAttachments: return "consent.item.attachments"
+        case .consentItemImages: return "consent.item.images"
+        case .consentItemProfile: return "consent.item.profile"
+        case .consentItemWeb: return "consent.item.web"
+        case .consentItemResearchJudgment: return "consent.item.researchJudgment"
+        case .consentItemMemory: return "consent.item.memory"
+        case .consentItemSkills: return "consent.item.skills"
+        case .consentItemMemoryOrganizing: return "consent.item.memoryOrganizing"
+        case .consentItemMCP: return "consent.item.mcp"
+        case .consentThirdParty: return "consent.thirdParty"
+        case .consentDeclineSave: return "consent.declineSave"
+        case .consentDeclineSwitch: return "consent.declineSwitch"
+        case .consentDeclineSend: return "consent.declineSend"
+        case .consentAgain: return "consent.again"
+        case .consentAgree: return "consent.agree"
+        case .consentDecline: return "consent.decline"
+        case .chatConsentDeclined: return "chat.consentDeclined"
+        case .settingsStatusReadyMain: return "settings.status.readyMain"
+        case .modelSettingsTooManyProviders: return "modelSettings.tooManyProviders"
+        case .modelSettingsConsentRequired: return "modelSettings.consentRequired"
         case .settingsHomeTitle: return "settings.home.title"
         case .drawerRecentTitle: return "drawer.recent.title"
         case .drawerRecentBoundary: return "drawer.recent.boundary"
@@ -1013,6 +1217,25 @@ enum AppText: Equatable {
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .settingsNotificationsLowered(let count): return [Int64(count)]
+        case .modelsUsedBy(let roles): return [roles]
+        case .modelsConsentNeeded(let provider): return [provider]
+        case .modelPresetMatch(let name): return [name]
+        case .modelUsePreset(let name): return [name]
+        case .modelFailed(let reason): return [reason]
+        case .modelSavedUntested(let name): return [name]
+        case .modelSavedTested(let name): return [name]
+        case .modelNotSavedDeclined(let name): return [name]
+        case .modelsRetestPassed(let model): return [model]
+        case .modelsDeleteTitle(let name): return [name]
+        case .modelsDeleteUsed(let roles): return [roles]
+        case .modelsDeleted(let name): return [name]
+        case .modelsUseAs(let name): return [name]
+        case .modelsKeyChanged(let name): return [name]
+        case .consentTitle(let provider): return [provider]
+        case .consentLead(let provider, let host): return [provider, host]
+        case .consentThirdParty(let provider): return [provider]
+        case .chatConsentDeclined(let provider): return [provider]
+        case .settingsStatusReadyMain(let model, let provider): return [model, provider]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .archiveSavedCount(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
@@ -1381,6 +1604,108 @@ enum AppText: Equatable {
         case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
         case .settingsModelFallbackError: return "無法讀取或儲存模型設定，請移除設定後重新填寫。"
+        case .roleSpeechWhat: return "按住說話時用"
+        case .modelsMainAddFirst: return "先新增一個服務商"
+        case .modelsMainPick: return "點這裡選一個"
+        case .modelsAddProvider: return "新增服務商"
+        case .modelsKeyNote: return "API Key 只儲存在這台裝置上，加密存放。"
+        case .modelsConnected: return "已連線"
+        case .modelsUsedBy: return "%1$@在用"
+        case .modelsUnverified: return "沒測試通過，任務可能會失敗"
+        case .modelsConsentNeeded: return "還沒有同意把內容傳給 %1$@；送出訊息前會先問你。"
+        case .modelsConsentReview: return "檢視並同意"
+        case .modelsLegacyUnreadable: return "之前的模型設定讀不出來，沒有搬過來；請重新新增服務商。"
+        case .signinKeyGroup: return "填 API Key"
+        case .presetCustom: return "自訂"
+        case .modelBaseURL: return "介面網址"
+        case .modelProviderName: return "名稱"
+        case .modelProviderNameHint: return "可不填，預設用網址的主機名"
+        case .modelAPIKey: return "API Key"
+        case .modelKeyHint: return "貼上服務商給的 Key"
+        case .modelKeyOptional: return "不需要 Key 的服務可不填"
+        case .commonShow: return "顯示"
+        case .commonHide: return "隱藏"
+        case .modelManualName: return "模型名"
+        case .modelExampleCompat: return "例如 mistral-large-latest"
+        case .modelExampleGrok: return "例如 grok-4"
+        case .modelURLHTTPS: return "介面網址要以 https:// 開頭；渥屋助理只用加密連線送出 Key 和對話。"
+        case .modelPresetMatch: return "這是「%1$@」的官方網址，用它的預設更省事：網址和介面型別都已填好。"
+        case .modelUsePreset: return "改用「%1$@」預設"
+        case .modelTestSave: return "測試並儲存"
+        case .modelTesting: return "正在測試…"
+        case .modelFailed: return "連線失敗：%1$@"
+        case .modelReasonCredentials: return "讀不到已儲存的 Key"
+        case .modelReasonConfiguration: return "網址、模型名或 Key 的格式不對"
+        case .modelErrorAuth: return "API Key 無效或沒有權限"
+        case .modelReasonNotFound: return "找不到這個網址或模型"
+        case .modelErrorRateLimited: return "請求太頻繁，請稍後再試"
+        case .modelReasonServer: return "伺服器端出錯"
+        case .modelReasonRefused: return "服務商拒絕了這個請求"
+        case .modelReasonUnreadable: return "看不懂回傳的內容，請確認介面網址"
+        case .modelReasonRedirect: return "服務要求轉址；為了保護 Key 已停止"
+        case .modelReasonTimeout: return "20 秒內沒有回應"
+        case .modelErrorNetwork: return "網路連線失敗"
+        case .modelSaveUntested: return "不測試，直接儲存"
+        case .modelSaveUntestedTitle: return "不測試就儲存？"
+        case .modelSaveUntestedBody: return "渥屋助理會按你填的位址、Key 和模型名存下這家服務商，不試呼叫。沒測過的這一家可能連不通。存下之後可以在服務商頁「重新測試」。"
+        case .modelSaveUntestedConfirm: return "仍然儲存"
+        case .modelSavedUntested: return "已存下 %1$@，沒有測試過，任務可能會失敗。可以在服務商頁「重新測試」。"
+        case .modelSavedTested: return "已存下 %1$@，測試通過。"
+        case .modelTestNote: return "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。"
+        case .modelNotSavedDeclined: return "沒有儲存：要用 %1$@，需要先同意把內容傳給它。"
+        case .roleMainHint: return "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。"
+        case .modelsUse: return "使用"
+        case .modelsRoleEmpty: return "還沒有可選的模型。先新增一個服務商。"
+        case .capTyped: return "手填"
+        case .modelsInUse: return "正在用這個"
+        case .modelsPickNote: return "這一版還不會向服務商要模型列表。在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。"
+        case .modelsConnection: return "連線"
+        case .modelsStatus: return "狀態"
+        case .modelKind: return "介面"
+        case .modelsOpenAICompat: return "OpenAI 相容"
+        case .modelsURL: return "網址"
+        case .modelsKeySaved: return "已儲存"
+        case .modelsKeyNone: return "沒有填"
+        case .modelsChange: return "更換"
+        case .modelsChangeKey: return "更換 API Key"
+        case .modelsNewKeyHint: return "貼上新的 Key"
+        case .modelsModels: return "模型"
+        case .modelsModelsNote: return "點一個模型，可以把它用作主模型，或設定它能不能看圖。"
+        case .modelsUntestedNote: return "這家是跳過測試存下的，還不知道能不能用。點「重新測試」用它的模型試呼叫一次。"
+        case .modelsRetest: return "重新測試"
+        case .modelsRetestPassed: return "測試通過：%1$@ 有回覆。"
+        case .modelsDelete: return "刪除這個服務商"
+        case .modelsDeleteTitle: return "刪除「%1$@」？"
+        case .modelsDeleteBody: return "這家的 API Key 會一起刪掉。"
+        case .modelsDeleteUsed: return "%1$@正在用它，刪除後要重新選。"
+        case .modelsDeleteUnused: return "它沒在給任何用途幹活。"
+        case .modelsDeleted: return "已刪除「%1$@」和它的 API Key。"
+        case .modelsUseAs: return "%1$@ · 用作"
+        case .modelsKeyChanged: return "已更換「%1$@」的 API Key。"
+        case .modelsCleanupFailed: return "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。"
+        case .consentTitle: return "要把內容傳給 %1$@ 嗎？"
+        case .consentLead: return "%1$@（%2$@）會收到下面這些內容，好讓它的模型回覆你："
+        case .consentItemChat: return "你在對話裡輸入的文字"
+        case .consentItemAttachments: return "附件在這台裝置上讀出的文字（每個檔案最多 32 KB，一則訊息合計最多 64 KB）"
+        case .consentItemImages: return "打開「能看圖」時，你附上的圖片"
+        case .consentItemProfile: return "跟對話一起送出的個人檔案"
+        case .consentItemWeb: return "研究網站或執行任務時讀到的網頁文字"
+        case .consentItemResearchJudgment: return "研究網站時，請模型判斷結果的請求"
+        case .consentItemMemory: return "加進對話的記憶搜尋結果"
+        case .consentItemSkills: return "用到的技能內容"
+        case .consentItemMemoryOrganizing: return "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶"
+        case .consentItemMCP: return "MCP 工具和資源回傳的結果"
+        case .consentThirdParty: return "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。"
+        case .consentDeclineSave: return "不同意的話，什麼都不會傳出去，這家服務商也不會儲存。"
+        case .consentDeclineSwitch: return "不同意的話，什麼都不會傳出去，主模型維持不變。"
+        case .consentDeclineSend: return "不同意的話，什麼都不會傳出去：這則訊息不會送出，草稿會保留。"
+        case .consentAgain: return "之後改用別家服務商的模型時，會再問你一次。"
+        case .consentAgree: return "同意並繼續"
+        case .consentDecline: return "不同意"
+        case .chatConsentDeclined: return "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。"
+        case .settingsStatusReadyMain: return "主模型：%1$@ · %2$@"
+        case .modelSettingsTooManyProviders: return "服務商已達上限，請先刪除不用的服務商。"
+        case .modelSettingsConsentRequired: return "還沒有同意把內容傳給這家服務商，設定未變更。"
         case .settingsHomeTitle: return "設定"
         case .drawerRecentTitle: return "近期對話"
         case .drawerRecentBoundary: return "僅顯示此裝置已加密保存的完整問答。"
@@ -1465,7 +1790,7 @@ enum AppText: Equatable {
         case .voiceChoiceHint: return "可使用裝置自帶識別。"
         case .voiceChoiceSystem: return "裝置自帶"
         case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
-        case .voiceChoiceSystemNone: return "這臺裝置沒有可用的語音辨識"
+        case .voiceChoiceSystemNone: return "這台裝置沒有可用的語音辨識"
         case .voiceChoiceAvailable: return "可用"
         case .voiceChoiceMissing: return "沒有"
         case .voiceChoiceOff: return "不用"

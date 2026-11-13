@@ -3033,7 +3033,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "思考和辦事",
-        "en": "Reasoning and tasks"
+        "en": "Thinking and doing"
       }
     },
     {
@@ -3042,7 +3042,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "服務商",
-        "en": "Provider"
+        "en": "Providers"
       }
     },
     {
@@ -3205,6 +3205,1027 @@
       "translations": {
         "zh-Hant": "無法讀取或儲存模型設定，請移除設定後重新填寫。",
         "en": "Could not read or save model settings. Remove the settings and enter them again."
+      }
+    },
+    {
+      "case": "roleSpeechWhat",
+      "key": "role.speech.what",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "按住說話時用",
+        "en": "Used while you hold to talk"
+      }
+    },
+    {
+      "case": "modelsMainAddFirst",
+      "key": "models.mainAddFirst",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "先新增一個服務商",
+        "en": "Add a provider first"
+      }
+    },
+    {
+      "case": "modelsMainPick",
+      "key": "models.mainPick",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "點這裡選一個",
+        "en": "Tap to choose one"
+      }
+    },
+    {
+      "case": "modelsAddProvider",
+      "key": "models.addProvider",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增服務商",
+        "en": "Add provider"
+      }
+    },
+    {
+      "case": "modelsKeyNote",
+      "key": "models.keyNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "API Key 只儲存在這台裝置上，加密存放。",
+        "en": "API keys are stored only on this device, encrypted."
+      }
+    },
+    {
+      "case": "modelsConnected",
+      "key": "models.connected",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已連線",
+        "en": "Connected"
+      }
+    },
+    {
+      "case": "modelsUsedBy",
+      "key": "models.usedBy",
+      "parameters": [
+        {
+          "name": "roles",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@在用",
+        "en": "used as %1$@"
+      }
+    },
+    {
+      "case": "modelsUnverified",
+      "key": "models.unverified",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒測試通過，任務可能會失敗",
+        "en": "Not tested; tasks may fail"
+      }
+    },
+    {
+      "case": "modelsConsentNeeded",
+      "key": "models.consentNeeded",
+      "parameters": [
+        {
+          "name": "provider",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "還沒有同意把內容傳給 %1$@；送出訊息前會先問你。",
+        "en": "You haven’t agreed to send your content to %1$@ yet; you’ll be asked before anything is sent."
+      }
+    },
+    {
+      "case": "modelsConsentReview",
+      "key": "models.consentReview",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢視並同意",
+        "en": "Review and agree"
+      }
+    },
+    {
+      "case": "modelsLegacyUnreadable",
+      "key": "models.legacyUnreadable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "之前的模型設定讀不出來，沒有搬過來；請重新新增服務商。",
+        "en": "Your earlier model setting couldn’t be read and wasn’t carried over. Add a provider again."
+      }
+    },
+    {
+      "case": "signinKeyGroup",
+      "key": "signin.keyGroup",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "填 API Key",
+        "en": "Enter an API key"
+      }
+    },
+    {
+      "case": "presetCustom",
+      "key": "preset.custom",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "自訂",
+        "en": "Custom"
+      }
+    },
+    {
+      "case": "modelBaseURL",
+      "key": "model.baseURL",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "介面網址",
+        "en": "Base URL"
+      }
+    },
+    {
+      "case": "modelProviderName",
+      "key": "model.providerName",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "名稱",
+        "en": "Name"
+      }
+    },
+    {
+      "case": "modelProviderNameHint",
+      "key": "model.providerNameHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可不填，預設用網址的主機名",
+        "en": "Optional, defaults to the host"
+      }
+    },
+    {
+      "case": "modelAPIKey",
+      "key": "model.apiKey",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "API Key",
+        "en": "API Key"
+      }
+    },
+    {
+      "case": "modelKeyHint",
+      "key": "model.keyHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "貼上服務商給的 Key",
+        "en": "Paste the key from your provider"
+      }
+    },
+    {
+      "case": "modelKeyOptional",
+      "key": "model.keyOptional",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不需要 Key 的服務可不填",
+        "en": "Optional if the service needs no key"
+      }
+    },
+    {
+      "case": "commonShow",
+      "key": "common.show",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "顯示",
+        "en": "Show"
+      }
+    },
+    {
+      "case": "commonHide",
+      "key": "common.hide",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "隱藏",
+        "en": "Hide"
+      }
+    },
+    {
+      "case": "modelManualName",
+      "key": "model.manualName",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型名",
+        "en": "Model name"
+      }
+    },
+    {
+      "case": "modelExampleCompat",
+      "key": "model.exampleCompat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "例如 mistral-large-latest",
+        "en": "e.g. mistral-large-latest"
+      }
+    },
+    {
+      "case": "modelExampleGrok",
+      "key": "model.exampleGrok",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "例如 grok-4",
+        "en": "e.g. grok-4"
+      }
+    },
+    {
+      "case": "modelURLHTTPS",
+      "key": "model.urlHTTPS",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "介面網址要以 https:// 開頭；渥屋助理只用加密連線送出 Key 和對話。",
+        "en": "The base URL must start with https://; woowtech agent sends keys and chats only over encrypted connections."
+      }
+    },
+    {
+      "case": "modelPresetMatch",
+      "key": "model.presetMatch",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "這是「%1$@」的官方網址，用它的預設更省事：網址和介面型別都已填好。",
+        "en": "This is %1$@’s official address. Its preset fills in the address and interface type for you."
+      }
+    },
+    {
+      "case": "modelUsePreset",
+      "key": "model.usePreset",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "改用「%1$@」預設",
+        "en": "Use the %1$@ preset"
+      }
+    },
+    {
+      "case": "modelTestSave",
+      "key": "model.testSave",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "測試並儲存",
+        "en": "Test and save"
+      }
+    },
+    {
+      "case": "modelTesting",
+      "key": "model.testing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在測試…",
+        "en": "Testing…"
+      }
+    },
+    {
+      "case": "modelFailed",
+      "key": "model.failed",
+      "parameters": [
+        {
+          "name": "reason",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "連線失敗：%1$@",
+        "en": "Connection failed: %1$@"
+      }
+    },
+    {
+      "case": "modelReasonCredentials",
+      "key": "model.reason.credentials",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "讀不到已儲存的 Key",
+        "en": "the saved key couldn’t be read"
+      }
+    },
+    {
+      "case": "modelReasonConfiguration",
+      "key": "model.reason.configuration",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網址、模型名或 Key 的格式不對",
+        "en": "the address, model name or key isn’t valid"
+      }
+    },
+    {
+      "case": "modelErrorAuth",
+      "key": "model.error.auth",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "API Key 無效或沒有權限",
+        "en": "the API key is invalid or has no access"
+      }
+    },
+    {
+      "case": "modelReasonNotFound",
+      "key": "model.reason.notFound",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "找不到這個網址或模型",
+        "en": "the address or model wasn’t found"
+      }
+    },
+    {
+      "case": "modelErrorRateLimited",
+      "key": "model.error.rateLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請求太頻繁，請稍後再試",
+        "en": "too many requests; try again later"
+      }
+    },
+    {
+      "case": "modelReasonServer",
+      "key": "model.reason.server",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "伺服器端出錯",
+        "en": "the server returned an error"
+      }
+    },
+    {
+      "case": "modelReasonRefused",
+      "key": "model.reason.refused",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "服務商拒絕了這個請求",
+        "en": "the provider refused the request"
+      }
+    },
+    {
+      "case": "modelReasonUnreadable",
+      "key": "model.reason.unreadable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看不懂回傳的內容，請確認介面網址",
+        "en": "its reply couldn’t be read; check the base URL"
+      }
+    },
+    {
+      "case": "modelReasonRedirect",
+      "key": "model.reason.redirect",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "服務要求轉址；為了保護 Key 已停止",
+        "en": "the service asked to redirect, so the test stopped to protect the key"
+      }
+    },
+    {
+      "case": "modelReasonTimeout",
+      "key": "model.reason.timeout",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "20 秒內沒有回應",
+        "en": "no reply within 20 seconds"
+      }
+    },
+    {
+      "case": "modelErrorNetwork",
+      "key": "model.error.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網路連線失敗",
+        "en": "couldn’t connect to the model service"
+      }
+    },
+    {
+      "case": "modelSaveUntested",
+      "key": "model.saveUntested",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不測試，直接儲存",
+        "en": "Don’t test, save anyway"
+      }
+    },
+    {
+      "case": "modelSaveUntestedTitle",
+      "key": "model.saveUntestedTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不測試就儲存？",
+        "en": "Save without testing?"
+      }
+    },
+    {
+      "case": "modelSaveUntestedBody",
+      "key": "model.saveUntestedBody",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理會按你填的位址、Key 和模型名存下這家服務商，不試呼叫。沒測過的這一家可能連不通。存下之後可以在服務商頁「重新測試」。",
+        "en": "woowtech agent will save this provider with the address, key and model name you entered, without a test call. An untested provider may not connect. You can test it later from the provider’s page."
+      }
+    },
+    {
+      "case": "modelSaveUntestedConfirm",
+      "key": "model.saveUntestedConfirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "仍然儲存",
+        "en": "Save anyway"
+      }
+    },
+    {
+      "case": "modelSavedUntested",
+      "key": "model.savedUntested",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已存下 %1$@，沒有測試過，任務可能會失敗。可以在服務商頁「重新測試」。",
+        "en": "%1$@ was saved without a test, so tasks may fail. You can test it from the provider’s page."
+      }
+    },
+    {
+      "case": "modelSavedTested",
+      "key": "model.savedTested",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已存下 %1$@，測試通過。",
+        "en": "%1$@ was saved; the test passed."
+      }
+    },
+    {
+      "case": "modelTestNote",
+      "key": "model.testNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。",
+        "en": "“Test and save” sends one fixed test message to the model you entered and saves only if it replies. Your chats aren’t sent, though the provider may charge a little."
+      }
+    },
+    {
+      "case": "modelNotSavedDeclined",
+      "key": "model.notSavedDeclined",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "沒有儲存：要用 %1$@，需要先同意把內容傳給它。",
+        "en": "Not saved: to use %1$@, you need to agree to send your content to it first."
+      }
+    },
+    {
+      "case": "roleMainHint",
+      "key": "role.mainHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。",
+        "en": "Does all the thinking and acting. Pick a model with tool calling so tasks go reliably."
+      }
+    },
+    {
+      "case": "modelsUse",
+      "key": "models.use",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "使用",
+        "en": "Use"
+      }
+    },
+    {
+      "case": "modelsRoleEmpty",
+      "key": "models.roleEmpty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有可選的模型。先新增一個服務商。",
+        "en": "No models to choose from yet. Add a provider first."
+      }
+    },
+    {
+      "case": "capTyped",
+      "key": "cap.typed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "手填",
+        "en": "Typed in"
+      }
+    },
+    {
+      "case": "modelsInUse",
+      "key": "models.inUse",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在用這個",
+        "en": "In use"
+      }
+    },
+    {
+      "case": "modelsPickNote",
+      "key": "models.pickNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這一版還不會向服務商要模型列表。在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。",
+        "en": "This version doesn’t ask providers for their model lists yet. Under a provider, enter a model name from its docs; “Use” makes one test call first and switches only if it works."
+      }
+    },
+    {
+      "case": "modelsConnection",
+      "key": "models.connection",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連線",
+        "en": "Connection"
+      }
+    },
+    {
+      "case": "modelsStatus",
+      "key": "models.status",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "狀態",
+        "en": "Status"
+      }
+    },
+    {
+      "case": "modelKind",
+      "key": "model.kind",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "介面",
+        "en": "API type"
+      }
+    },
+    {
+      "case": "modelsOpenAICompat",
+      "key": "models.openaiCompat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "OpenAI 相容",
+        "en": "OpenAI-compatible"
+      }
+    },
+    {
+      "case": "modelsURL",
+      "key": "models.url",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網址",
+        "en": "URL"
+      }
+    },
+    {
+      "case": "modelsKeySaved",
+      "key": "models.keySaved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已儲存",
+        "en": "Saved"
+      }
+    },
+    {
+      "case": "modelsKeyNone",
+      "key": "models.keyNone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有填",
+        "en": "Not entered"
+      }
+    },
+    {
+      "case": "modelsChange",
+      "key": "models.change",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "更換",
+        "en": "Change"
+      }
+    },
+    {
+      "case": "modelsChangeKey",
+      "key": "models.changeKey",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "更換 API Key",
+        "en": "Change API key"
+      }
+    },
+    {
+      "case": "modelsNewKeyHint",
+      "key": "models.newKeyHint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "貼上新的 Key",
+        "en": "Paste the new key"
+      }
+    },
+    {
+      "case": "modelsModels",
+      "key": "models.models",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型",
+        "en": "Models"
+      }
+    },
+    {
+      "case": "modelsModelsNote",
+      "key": "models.modelsNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "點一個模型，可以把它用作主模型，或設定它能不能看圖。",
+        "en": "Tap a model to use it as the main model or say whether it can see images."
+      }
+    },
+    {
+      "case": "modelsUntestedNote",
+      "key": "models.untestedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這家是跳過測試存下的，還不知道能不能用。點「重新測試」用它的模型試呼叫一次。",
+        "en": "This provider was saved without a test, so nothing is known about whether it works. Tap “Test again” to make one test call with its model."
+      }
+    },
+    {
+      "case": "modelsRetest",
+      "key": "models.retest",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重新測試",
+        "en": "Test again"
+      }
+    },
+    {
+      "case": "modelsRetestPassed",
+      "key": "models.retestPassed",
+      "parameters": [
+        {
+          "name": "model",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "測試通過：%1$@ 有回覆。",
+        "en": "Test passed: %1$@ replied."
+      }
+    },
+    {
+      "case": "modelsDelete",
+      "key": "models.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除這個服務商",
+        "en": "Delete this provider"
+      }
+    },
+    {
+      "case": "modelsDeleteTitle",
+      "key": "models.deleteTitle",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "刪除「%1$@」？",
+        "en": "Delete “%1$@”?"
+      }
+    },
+    {
+      "case": "modelsDeleteBody",
+      "key": "models.deleteBody",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這家的 API Key 會一起刪掉。",
+        "en": "Its API key will be deleted too."
+      }
+    },
+    {
+      "case": "modelsDeleteUsed",
+      "key": "models.deleteUsed",
+      "parameters": [
+        {
+          "name": "roles",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@正在用它，刪除後要重新選。",
+        "en": "%1$@ uses it; you’ll need to choose again after deleting."
+      }
+    },
+    {
+      "case": "modelsDeleteUnused",
+      "key": "models.deleteUnused",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "它沒在給任何用途幹活。",
+        "en": "It isn’t used for any role."
+      }
+    },
+    {
+      "case": "modelsDeleted",
+      "key": "models.deleted",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已刪除「%1$@」和它的 API Key。",
+        "en": "Deleted “%1$@” and its API key."
+      }
+    },
+    {
+      "case": "modelsUseAs",
+      "key": "models.useAs",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ · 用作",
+        "en": "%1$@ · Use as"
+      }
+    },
+    {
+      "case": "modelsKeyChanged",
+      "key": "models.keyChanged",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已更換「%1$@」的 API Key。",
+        "en": "Changed the API key for “%1$@”."
+      }
+    },
+    {
+      "case": "modelsCleanupFailed",
+      "key": "models.cleanupFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。",
+        "en": "Saved, but the old API key couldn’t be deleted; the app tries again the next time it opens."
+      }
+    },
+    {
+      "case": "consentTitle",
+      "key": "consent.title",
+      "parameters": [
+        {
+          "name": "provider",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "要把內容傳給 %1$@ 嗎？",
+        "en": "Send your content to %1$@?"
+      }
+    },
+    {
+      "case": "consentLead",
+      "key": "consent.lead",
+      "parameters": [
+        {
+          "name": "provider",
+          "type": "String"
+        },
+        {
+          "name": "host",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@（%2$@）會收到下面這些內容，好讓它的模型回覆你：",
+        "en": "%1$@ (%2$@) will receive the following so its model can reply:"
+      }
+    },
+    {
+      "case": "consentItemChat",
+      "key": "consent.item.chat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你在對話裡輸入的文字",
+        "en": "What you type in conversations"
+      }
+    },
+    {
+      "case": "consentItemAttachments",
+      "key": "consent.item.attachments",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "附件在這台裝置上讀出的文字（每個檔案最多 32 KB，一則訊息合計最多 64 KB）",
+        "en": "Text read from your attachments on this device (up to 32 KB per file and 64 KB per message)"
+      }
+    },
+    {
+      "case": "consentItemImages",
+      "key": "consent.item.images",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "打開「能看圖」時，你附上的圖片",
+        "en": "Photos you attach, when “Can see images” is on"
+      }
+    },
+    {
+      "case": "consentItemProfile",
+      "key": "consent.item.profile",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "跟對話一起送出的個人檔案",
+        "en": "Your profile, sent along with conversations"
+      }
+    },
+    {
+      "case": "consentItemWeb",
+      "key": "consent.item.web",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究網站或執行任務時讀到的網頁文字",
+        "en": "Text of web pages read during research and tasks"
+      }
+    },
+    {
+      "case": "consentItemResearchJudgment",
+      "key": "consent.item.researchJudgment",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "研究網站時，請模型判斷結果的請求",
+        "en": "Requests during research that ask the model to judge the results"
+      }
+    },
+    {
+      "case": "consentItemMemory",
+      "key": "consent.item.memory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "加進對話的記憶搜尋結果",
+        "en": "Memory search results added to the conversation"
+      }
+    },
+    {
+      "case": "consentItemSkills",
+      "key": "consent.item.skills",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用到的技能內容",
+        "en": "The content of skills that are used"
+      }
+    },
+    {
+      "case": "consentItemMemoryOrganizing",
+      "key": "consent.item.memoryOrganizing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶",
+        "en": "With “Remember what I say automatically” on, the request after each reply that organizes your memories, with what you said and related memories"
+      }
+    },
+    {
+      "case": "consentItemMCP",
+      "key": "consent.item.mcp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 工具和資源回傳的結果",
+        "en": "Results from MCP tools and resources"
+      }
+    },
+    {
+      "case": "consentThirdParty",
+      "key": "consent.thirdParty",
+      "parameters": [
+        {
+          "name": "provider",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。",
+        "en": "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; woowtech agent doesn’t send it anywhere else."
+      }
+    },
+    {
+      "case": "consentDeclineSave",
+      "key": "consent.declineSave",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不同意的話，什麼都不會傳出去，這家服務商也不會儲存。",
+        "en": "If you don’t agree, nothing is sent and this provider isn’t saved."
+      }
+    },
+    {
+      "case": "consentDeclineSwitch",
+      "key": "consent.declineSwitch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不同意的話，什麼都不會傳出去，主模型維持不變。",
+        "en": "If you don’t agree, nothing is sent and the main model stays as it is."
+      }
+    },
+    {
+      "case": "consentDeclineSend",
+      "key": "consent.declineSend",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不同意的話，什麼都不會傳出去：這則訊息不會送出，草稿會保留。",
+        "en": "If you don’t agree, nothing is sent: this message stays unsent and your draft is kept."
+      }
+    },
+    {
+      "case": "consentAgain",
+      "key": "consent.again",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "之後改用別家服務商的模型時，會再問你一次。",
+        "en": "You’ll be asked again before a model from another provider is used."
+      }
+    },
+    {
+      "case": "consentAgree",
+      "key": "consent.agree",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "同意並繼續",
+        "en": "Agree and continue"
+      }
+    },
+    {
+      "case": "consentDecline",
+      "key": "consent.decline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不同意",
+        "en": "Don’t agree"
+      }
+    },
+    {
+      "case": "chatConsentDeclined",
+      "key": "chat.consentDeclined",
+      "parameters": [
+        {
+          "name": "provider",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。",
+        "en": "Not sent: you didn’t agree to send your content to %1$@. Your draft is kept."
+      }
+    },
+    {
+      "case": "settingsStatusReadyMain",
+      "key": "settings.status.readyMain",
+      "parameters": [
+        {
+          "name": "model",
+          "type": "String"
+        },
+        {
+          "name": "provider",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "主模型：%1$@ · %2$@",
+        "en": "Main model: %1$@ · %2$@"
+      }
+    },
+    {
+      "case": "modelSettingsTooManyProviders",
+      "key": "modelSettings.tooManyProviders",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "服務商已達上限，請先刪除不用的服務商。",
+        "en": "You’ve reached the provider limit. Delete one you don’t use first."
+      }
+    },
+    {
+      "case": "modelSettingsConsentRequired",
+      "key": "modelSettings.consentRequired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有同意把內容傳給這家服務商，設定未變更。",
+        "en": "You haven’t agreed to send your content to this provider; nothing was changed."
       }
     },
     {
@@ -4003,7 +5024,7 @@
       "key": "voice.choice.system.none",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這臺裝置沒有可用的語音辨識",
+        "zh-Hant": "這台裝置沒有可用的語音辨識",
         "en": "This device has no usable speech recognition"
       }
     },
@@ -4363,7 +5384,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "能看圖",
-        "en": "Sees images"
+        "en": "Can see images"
       }
     },
     {
