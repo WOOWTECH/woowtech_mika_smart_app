@@ -26,7 +26,7 @@
 "shell.greetingNight" = "夜深了";
 "shell.whatToDo" = "想讓渥屋助理做什麼？";
 "shell.replyExample" = "幫我寫一則友善的訊息回覆";
-"shell.documentExample" = "幫我摘要附上的文件，列出重點";
+"shell.newsExample" = "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點";
 "shell.shoppingExample" = "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點";
 "shell.rememberExample" = "記住我偏好使用繁體中文，回答簡短一點";
 "shell.recallExample" = "你記得我有哪些偏好？";

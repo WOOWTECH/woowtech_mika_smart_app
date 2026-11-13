@@ -1188,7 +1188,7 @@ private struct ChatEmptyState: View {
     // Store-flavor examples only fill the editable draft; they do not start a task.
     private var examples: [(text: AppText, icon: String, identifier: String)] {
         [(.shellReplyExample, "doc", "chat.emptyExample.reply"),
-         (.shellDocumentExample, "doc", "chat.emptyExample.document"),
+         (.shellNewsExample, "globe", "chat.emptyExample.news"),
          (.shellWebExample, "globe", "chat.emptyExample.web"),
          (.shellShoppingExample, "globe", "chat.emptyExample.shopping"),
          (.shellRememberExample, "doc", "chat.emptyExample.remember"),

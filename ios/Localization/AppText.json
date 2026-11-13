@@ -250,12 +250,12 @@
       }
     },
     {
-      "case": "shellDocumentExample",
-      "key": "shell.documentExample",
+      "case": "shellNewsExample",
+      "key": "shell.newsExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "幫我摘要附上的文件，列出重點",
-        "en": "Summarize the document I attach and list its key points."
+        "zh-Hant": "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點",
+        "en": "Find a recent AI news article in the built-in browser and summarize three key points."
       }
     },
     {

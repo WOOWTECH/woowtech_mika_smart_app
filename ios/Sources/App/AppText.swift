@@ -30,7 +30,7 @@ enum AppText: Equatable {
     case shellGreetingNight
     case shellWhatToDo
     case shellReplyExample
-    case shellDocumentExample
+    case shellNewsExample
     case shellShoppingExample
     case shellRememberExample
     case shellRecallExample
@@ -535,7 +535,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "shell.greetingNight"
         case .shellWhatToDo: return "shell.whatToDo"
         case .shellReplyExample: return "shell.replyExample"
-        case .shellDocumentExample: return "shell.documentExample"
+        case .shellNewsExample: return "shell.newsExample"
         case .shellShoppingExample: return "shell.shoppingExample"
         case .shellRememberExample: return "shell.rememberExample"
         case .shellRecallExample: return "shell.recallExample"
@@ -1079,7 +1079,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "夜深了"
         case .shellWhatToDo: return "想讓渥屋助理做什麼？"
         case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
-        case .shellDocumentExample: return "幫我摘要附上的文件，列出重點"
+        case .shellNewsExample: return "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"
         case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
         case .shellRememberExample: return "記住我偏好使用繁體中文，回答簡短一點"
         case .shellRecallExample: return "你記得我有哪些偏好？"

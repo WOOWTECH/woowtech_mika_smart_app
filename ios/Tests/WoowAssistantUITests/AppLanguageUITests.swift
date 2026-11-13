@@ -106,12 +106,12 @@ final class AppLanguageUITests: XCTestCase {
     /// Offline fixture: every example replaces the draft but never sends it.
     func testStoreExamplesFillDraftInEveryLanguageWithoutSending() {
         let cases: [(String, [String])] = [
-            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "幫我摘要附上的文件，列出重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
             // A Simplified Chinese system shows the Traditional Chinese examples.
-            ("(zh-Hans)", ["幫我寫一則友善的訊息回覆", "幫我摘要附上的文件，列出重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
-            ("(en)", ["Help me write a friendly reply to this message.", "Summarize the document I attach and list its key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
+            ("(zh-Hans)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            ("(en)", ["Help me write a friendly reply to this message.", "Find a recent AI news article in the built-in browser and summarize three key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
         ]
-        let identifiers = ["reply", "document", "web", "shopping", "remember", "recall"]
+        let identifiers = ["reply", "news", "web", "shopping", "remember", "recall"]
         for (systemLanguages, expected) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",

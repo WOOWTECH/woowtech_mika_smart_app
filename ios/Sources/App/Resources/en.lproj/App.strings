@@ -26,7 +26,7 @@
 "shell.greetingNight" = "Up late";
 "shell.whatToDo" = "What should woowtech agent do?";
 "shell.replyExample" = "Help me write a friendly reply to this message.";
-"shell.documentExample" = "Summarize the document I attach and list its key points.";
+"shell.newsExample" = "Find a recent AI news article in the built-in browser and summarize three key points.";
 "shell.shoppingExample" = "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.";
 "shell.rememberExample" = "Remember that I prefer concise answers in Traditional Chinese.";
 "shell.recallExample" = "What preferences have I told you to remember?";
