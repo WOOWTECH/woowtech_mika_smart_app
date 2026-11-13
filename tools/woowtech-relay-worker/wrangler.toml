@@ -8,6 +8,10 @@ routes = [
   { pattern = "assistant-relay.woowtech.io", custom_domain = true }
 ]
 
+# Static files served before the Worker (only exact file paths): the Play foreground-service demo video.
+[assets]
+directory = "./public"
+
 [[rules]]
 type = "Text"
 globs = ["**/*.py", "**/*.txt", "**/*.md"]
