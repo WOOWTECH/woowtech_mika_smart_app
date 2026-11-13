@@ -125,6 +125,9 @@ function html(message = "", code = "", bad = false): string {
   return `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6183FC"><title>渥屋助理遠端中繼</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head><body><header><div><span class="brand">woowtech</span><span>遠端中繼</span></div></header><main><section class="hero"><p class="eyebrow">The Smart Space Solution</p><h1>連接你的渥屋助理</h1><p>沿用 Mika 的遠端流程，透過 WoowTech 自有中繼安全地連接手機。</p></section>${notice}${pairing}<section class="card endpoint"><h2>手機要填的閘道位址</h2><code>${ORIGIN}</code><p>渥屋助理 → 設定 → 連接電腦 → 遠端。配對後仍須另外開啟遠端存取。</p></section><section class="card"><h2>管理手機配對</h2><form id="admin" action="/admin" method="post"><label for="owner">管理金鑰</label><input id="owner" name="owner_key" type="password" required autocomplete="current-password"><p>管理金鑰只用來產生配對碼與撤銷裝置，不是手機存取權杖。</p><div class="actions"><button name="action" value="status">查詢手機狀態</button><button name="action" value="pair">產生配對碼</button><button class="secondary" id="revoke" name="action" value="revoke">解除手機配對</button><input id="confirm" type="hidden" name="confirm" value=""></div></form></section><section class="grid"><article class="card"><h2>電腦端</h2><p>MCP 端點是 <code>${ORIGIN}/mcp</code>。Authorization 使用手機提供的存取權杖，不能填配對碼或管理金鑰。</p></article><article class="card"><h2>斷線處理</h2><p>網路中斷會重連；手機關閉遠端存取則停止重連。收到 delivery_unknown 時先查任務，避免重複執行修改操作。</p></article></section><section class="card privacy"><h2>資料與隱私</h2><p>HTTPS/WSS 在這個中繼終止，中繼技術上可讀取轉送的標頭、任務與結果；它不是電腦到手機的端對端加密。離線請求不排隊，重新連線不自動重送。</p></section><footer>單一管理者 · 單一手機 · WoowTech 自有中繼</footer></main></body></html>`;
 }
 
+// Top of the signed-out homepage: the Google Play package only sends AI response reports here.
+const PLAY_NOTE = `<section class="play-note"><p>Google Play 上的渥屋助理（io.woowtech.assistant）沒有自己的帳號，也不使用本站的登入或遠端手機連線；它只用這個服務傳送 AI 回覆檢舉。隱私權政策：<a href="/privacy/play">/privacy/play</a></p><p lang="en">The Google Play app woowtech agent (io.woowtech.assistant) has no accounts of its own and does not use this site's sign-in or remote phone connection; it only uses this service to send AI response reports. Privacy policy: <a href="/privacy/play">/privacy/play</a></p></section>`;
+
 function accountPage(message='',code='',tenant=''):string {
  const page=html(message,code);
  const login='<section class="card"><h2>你的手機，你的專屬連線</h2><p>使用既有 WoowTech 帳號登入，建立自己的手機配對與電腦連線。</p><a class="button" href="/auth/start">使用 WoowTech 帳號登入</a></section>';
@@ -132,11 +135,13 @@ function accountPage(message='',code='',tenant=''):string {
  const cliHelp=`<section class="card"><h2>使用命令列</h2><p>原版 Mika CLI 不接受帳號專屬路徑，請使用本站相容版本（Python 3.10 以上）。</p><a href="/downloads/woow-relay-cli.py">下載渥屋中繼 CLI</a><code>python3 woow-relay-cli.py --url ${SITE}/r/${tenant} --token-file /你的私人權杖檔 doctor</code><p>衍生自 Apache-2.0 授權的 Mika CLI。</p></section>`;
  return page.replace(/<section class="card"><h2>管理手機配對<\/h2>.*?<\/section>/s,tenant?controls+cliHelp:login)
   .replace(/<section class="grid">.*?<\/section>/s,'')
-  .replace('單一管理者 · 單一手機 · WoowTech 自有中繼','個人帳號 · 獨立手機配對 · WoowTech 自有中繼');
+  .replace('單一管理者 · 單一手機 · WoowTech 自有中繼','個人帳號 · 獨立手機配對 · WoowTech 自有中繼')
+  .replace('<main>',tenant?'<main>':'<main>'+PLAY_NOTE);
 }
 
 const STYLE = `:root{--ww-blue:#6183FC;--ww-blue-700:#3F63E8;--ww-blue-050:#EEF2FF;--ww-white:#fff;--ww-gray:#EFF1F5;--ww-deep-gray:#646262;--ww-black:#212121;--space-2:8px;--space-4:16px;--space-6:24px;--space-8:32px;--radius-sm:12px;--radius:20px;--radius-lg:28px;--radius-pill:999px;--shadow:0 10px 28px rgba(33,33,33,.08);--font-title:Poppins,"Noto Sans TC",sans-serif;--font-body:Outfit,"Noto Sans TC",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--ww-gray);color:var(--ww-black);font:400 16px/1.6 var(--font-body)}header{background:rgba(255,255,255,.92);border-bottom:1px solid rgba(33,33,33,.07)}header>div,main{width:min(100% - 32px,880px);margin:auto}header>div{min-height:64px;display:flex;align-items:center;gap:16px;font:600 17px var(--font-title)}.brand{color:var(--ww-blue)}main{padding:48px 0}.hero{margin-bottom:32px}.eyebrow{color:var(--ww-blue);font-weight:600}.hero h1{font:600 clamp(32px,7vw,52px)/1.08 var(--font-title);letter-spacing:-.02em;margin:8px 0 16px}.hero p,.card p{color:var(--ww-deep-gray)}.card{background:var(--ww-white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin:16px 0}.card h2{font:600 20px/1.2 var(--font-title);letter-spacing:-.02em;margin:0 0 12px}.endpoint{border-left:4px solid var(--ww-blue)}code,output{display:block;overflow-wrap:anywhere;background:var(--ww-blue-050);border-radius:var(--radius-sm);padding:12px;color:#304fc1;font:600 14px/1.5 ui-monospace,monospace}output{font-size:24px;letter-spacing:.05em}label{display:block;font-weight:600;margin-bottom:8px}input{width:100%;min-height:48px;border:1px solid #cfd3dc;border-radius:var(--radius-pill);padding:10px 16px;font:inherit}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}button{min-height:48px;border:0;border-radius:var(--radius-pill);padding:10px 20px;background:var(--ww-blue);color:white;font:600 15px var(--font-body);cursor:pointer;transition:220ms cubic-bezier(.4,0,.2,1)}button:hover{background:var(--ww-blue-700)}button:active{transform:scale(.97)}button.secondary{background:var(--ww-blue-050);color:#304fc1}:focus-visible{outline:3px solid #212121;outline-offset:3px}.notice{border-radius:var(--radius);padding:16px 20px;font-weight:600}.notice.ok{background:#e9f8ef;color:#176d3a}.notice.bad{background:#fff0ee;color:#a72b23}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid .card{margin:0}.privacy{border-top:4px solid #7BDBE0}footer{text-align:center;color:var(--ww-deep-gray);padding:32px 0}@media(max-width:600px){main{padding:32px 0}.grid{grid-template-columns:1fr}.actions button{width:100%}}`;
 const LINK_STYLE = `.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:10px 20px;background:var(--ww-blue-050);color:#304fc1;border-radius:var(--radius-pill);text-decoration:none;font-weight:600}.button:hover{background:#e1e8ff}.button:active{transform:scale(.97)}`;
+const PLAY_NOTE_STYLE = `.play-note{background:var(--ww-white);border-left:4px solid var(--ww-blue);border-radius:var(--radius-sm);padding:12px 16px;margin:0 0 24px;color:var(--ww-deep-gray)}.play-note p{margin:0}.play-note p+p{margin-top:8px}.play-note a{color:#304fc1;overflow-wrap:anywhere}`;
 const SCRIPT = `"use strict";const f=document.querySelector("#admin"),r=document.querySelector("#revoke"),c=document.querySelector("#confirm");f?.addEventListener("submit",e=>{if(e.submitter===r&&c.value!=="yes"&&!confirm("解除這台手機的配對？遠端連線會中斷。")){e.preventDefault()}else if(e.submitter===r){c.value="yes"}});`;
 
 export default {
@@ -144,8 +149,9 @@ export default {
     const url = new URL(request.url);
     if (url.host !== new URL(ORIGIN).host) return security(failure(400, "invalid_host"));
     if (!env.OWNER_KEY || env.OWNER_KEY.length < 32) return security(failure(503, "not_configured"));
-    if (url.pathname === '/privacy/play' && request.method === 'GET')
-      return security(new Response(privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+    // HEAD too: link checkers probe the Play listing's privacy URL without downloading it.
+    if (url.pathname === '/privacy/play' && (request.method === 'GET' || request.method === 'HEAD'))
+      return security(new Response(request.method === 'HEAD' ? null : privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
     if (url.pathname === '/privacy/play.css' && request.method === 'GET')
       return security(new Response(privacyPlayCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
     if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
@@ -217,7 +223,7 @@ export default {
     forwarded.headers.delete('x-relay-tenant');
     if(tenant)forwarded.headers.set('x-relay-tenant',tenant);
     forwarded.headers.set("x-relay-owner-hash", await digest(env.OWNER_KEY));
-    const response = url.pathname === "/style.css" ? new Response(STYLE+LINK_STYLE, { headers: { "content-type": "text/css; charset=utf-8" } }) : url.pathname === "/app.js" ? new Response(SCRIPT, { headers: { "content-type": "text/javascript; charset=utf-8" } }) : await stub.fetch(forwarded);
+    const response = url.pathname === "/style.css" ? new Response(STYLE+LINK_STYLE+PLAY_NOTE_STYLE, { headers: { "content-type": "text/css; charset=utf-8" } }) : url.pathname === "/app.js" ? new Response(SCRIPT, { headers: { "content-type": "text/javascript; charset=utf-8" } }) : await stub.fetch(forwarded);
     return security(response);
   }
 } satisfies ExportedHandler<Env>;

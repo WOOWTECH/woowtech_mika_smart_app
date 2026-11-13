@@ -36,6 +36,7 @@ try {
   assert.equal(response.status, 200);
   let page = await response.text();
   assert.match(page, /渥屋助理遠端中繼/);
+  assert.match(page, /<main><section class="play-note">.*io\.woowtech\.assistant.*href="\/privacy\/play"/s, 'homepage says what the Play app uses');
   assert.doesNotMatch(page, /OWNER_KEY|local-test-owner/);
   assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
   response = await fetch(origin + '/privacy/play', { headers: { host: 'assistant-relay.woowtech.io' } });
@@ -46,6 +47,14 @@ try {
   assert.match(privacy, /woowtech@designsmart\.com\.tw/);
   assert.match(privacy, /30 days/);
   assert.doesNotMatch(privacy, /OWNER_KEY|REPORT_ADMIN_KEY/);
+  for (const text of ['渥屋助理（woowtech agent）隱私權政策', 'woowtech agent (渥屋助理) Privacy Policy', 'WOOW TECH CO., LTD.',
+    '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>'])
+    assert.ok(privacy.includes(text), 'privacy policy covers: ' + text);
+  assert.doesNotMatch(privacy, /Play edition|商店版|Google Play 版|WoowTech Assistant/, 'one app name, no edition wording');
+  response = await fetch(origin + '/privacy/play', { method: 'HEAD', headers: { host: 'assistant-relay.woowtech.io' } });
+  assert.equal(response.status, 200, 'privacy policy answers HEAD for link checkers');
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.equal(await response.text(), '');
 
   const reportId = '123e4567-e89b-42d3-a456-426614174000';
   const reportBody = { id: reportId, reason: 'incorrect', note: 'test note', response: 'test response', created_at_ms: Date.now() };
@@ -74,6 +83,16 @@ try {
   assert.equal(response.status, 200);
   response = await fetch(origin + '/admin/ai-reports', { headers: { host: 'assistant-relay.woowtech.io', authorization: 'Bearer ' + owner } });
   assert.equal((await response.json()).reports.length, 0);
+  if (!live) {
+    // Reviewers can share one exit IP: 60 reports per source IP per hour are accepted, the 61st is not.
+    const burst = { ...reportHeaders, 'cf-connecting-ip': '192.0.2.43' };
+    for (let i = 0; i <= 60; i++) {
+      const id = '223e4567-e89b-42d3-a456-' + String(426614174000 + i);
+      response = await fetch(origin + '/api/v1/ai-reports', { method: 'POST', headers: burst, body: JSON.stringify({ ...reportBody, id }) });
+      await response.arrayBuffer();
+      assert.equal(response.status, i < 60 ? 201 : 429, `report ${i + 1} from one source IP`);
+    }
+  }
 
   response = await form("status", "wrong");
   assert.equal(response.status, 403);
@@ -138,7 +157,7 @@ try {
   assert.equal(response.status, 204);
   response = await fetch(origin + "/device", { headers: { host: "assistant-relay.woowtech.io", authorization: `Bearer ${paired.deviceToken}` } });
   assert.equal(response.status, 401);
-  console.log("PASS: page security, owner auth, concurrent single-use pairing, offline/online state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
+  console.log("PASS: page security, Play privacy policy (GET/HEAD), report intake/deletion/per-IP limit, owner auth, concurrent single-use pairing, offline/online state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
 } finally {
   child?.kill("SIGTERM");
   if (child) await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 3000))]);

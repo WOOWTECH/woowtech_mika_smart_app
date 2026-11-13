@@ -2,7 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { purgeExpiredReports, REPORT_RETENTION_MS } from './report-retention';
 
 const RATE_MS = 60 * 60 * 1000;
-const MAX_PER_IP = 5;
+// Store reviewers and office networks can share one exit IP; this only bounds abuse per hour.
+const MAX_PER_IP = 60;
 const encoder = new TextEncoder();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REASONS = new Set(['incorrect', 'unsafe', 'offensive', 'privacy', 'other']);
