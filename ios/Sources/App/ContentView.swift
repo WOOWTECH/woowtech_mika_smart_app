@@ -54,7 +54,6 @@ struct ContentView: View {
                      MCPApprovalView.exposesFixtureIdentity(arguments: ProcessInfo.processInfo.arguments)
                      ? "generation=\(notificationNavigationID.uuidString);destination=\(selection.rawValue)" : "")
         #endif
-        .environmentObject(preferences)
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .taskNotifications(chat: session, store: notifications) { destination in

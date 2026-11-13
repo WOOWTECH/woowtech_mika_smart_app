@@ -23,7 +23,7 @@ class AppTextResourceTests(unittest.TestCase):
         self.reject(lambda c: c['entries'].append(copy.deepcopy(c['entries'][0])))
 
     def test_parameter_removal_type_and_unknown_format_rejected(self):
-        e = next(i for i,x in enumerate(self.catalog['entries']) if x['case'] == 'configurationChanged')
+        e = next(i for i,x in enumerate(self.catalog['entries']) if x['case'] == 'chatQuotingYou')
         for bad in ['No parameter', '%1$lld', '%1$@ %n', '%1$@ %1$@', '%2$@']:
             self.reject(lambda c: c['entries'][e]['translations'].update(en=bad))
 

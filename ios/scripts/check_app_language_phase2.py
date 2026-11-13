@@ -27,9 +27,8 @@ run('resource-negative-tests',['python3','-m','unittest','discover','-s','script
 run('ui-launch-language-check',['python3','scripts/check_ui_test_language.py'])
 apps=[capture('Sources/App/'+n+'.swift') for n in dict.fromkeys(APPS+['AppSkillCatalogText'])]
 views=[capture('Sources/App/'+n+'.swift') for n in ['MCPToolsView','MCPApprovalView','BrowserView','BrowserLibraryView','BrowserSearchSettingsView','SkillCatalogView','TaskNotificationSettingsView']]
-foundation=[capture('Sources/App/'+n+'.swift') for n in ['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','SelfConfigurationText','AppModelSettingsText','ModelSettings']]
-foundation_harness=[capture('scripts/'+n+'.swift') for n in ['CheckAppLanguage','CheckAppLanguageResources','CheckAppLanguageHTTP']]
-foundation_fixture=capture('Tests/AssistantSkillsTests/SelfConfigurationFixtures.swift')
+foundation=[capture('Sources/App/'+n+'.swift') for n in ['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','AppModelSettingsText','ModelSettings']]
+foundation_harness=[capture('scripts/'+n+'.swift') for n in ['CheckAppLanguage','CheckAppLanguageResources']]
 fixtures=capture('Tests/AssistantMCPTests/MCPProtocolFixture.swift')
 harness=capture('scripts/CheckAppLanguagePhase2.swift')
 catalog=capture('Sources/AssistantSkills/Resources/MikaBundledSkills.json')
@@ -40,7 +39,7 @@ for name,deps in MODULES:
  run(name+'-build',['swiftc','-swift-version','5','-parse-as-library','-enable-testing','-emit-module','-emit-library','-module-name',name,'-I',str(OUT),'-L',str(OUT),*paths,*['-l'+d for d in deps],'-emit-module-path',str(OUT/(name+'.swiftmodule')),'-o',str(OUT/('lib'+name+'.dylib'))])
 for config,flags in [('Debug',['-DDEBUG']),('Release',[])]:
  foundation_binary=OUT/('foundation-'+config)
- run(config+'-foundation-build',['swiftc','-swift-version','5','-warnings-as-errors','-parse-as-library','-I',str(OUT),'-L',str(OUT),'-lAssistantSkills','-lAssistantModels','-Xlinker','-rpath','-Xlinker',str(OUT),*flags,*foundation,foundation_fixture,*foundation_harness,'-o',str(foundation_binary)])
+ run(config+'-foundation-build',['swiftc','-swift-version','5','-warnings-as-errors','-parse-as-library','-I',str(OUT),'-L',str(OUT),'-lAssistantSkills','-lAssistantModels','-Xlinker','-rpath','-Xlinker',str(OUT),*flags,*foundation,*foundation_harness,'-o',str(foundation_binary)])
  run(config+'-foundation-run',[str(foundation_binary),str(OUT/'source/Sources/App/Resources')],45)
  binary=OUT/config
  run(config+'-build',['swiftc','-swift-version','5','-parse-as-library','-I',str(OUT),'-L',str(OUT),*['-l'+m for m,_ in MODULES],'-Xlinker','-rpath','-Xlinker',str(OUT),*flags,*apps,fixtures,harness,'-o',str(binary)])

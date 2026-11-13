@@ -28,7 +28,7 @@ on:
       ui_scope:
         description: Live App UI coverage (source discovery uses public search without model probes)
         type: choice
-        options: [all, browser, browser-learning, browser-interaction, multi-source, source-discovery, user-profile, profile-tool, memory-tools, skill-authoring, self-configuration, browser-transcript, transcript-files, transcript-formats, document-query]
+        options: [all, browser, browser-learning, browser-interaction, multi-source, source-discovery, user-profile, profile-tool, memory-tools, skill-authoring, browser-transcript, transcript-files, transcript-formats, document-query]
         default: all
 
 permissions:
@@ -155,7 +155,7 @@ jobs:
             "$PWD/Sources/AssistantSkills/Resources/MikaBundledSkills.json"
       - name: Real model App UI tests
         if: ${{ !cancelled() && steps.app-build.outcome == 'success' && (steps.transport_probe.outcome == 'success' || inputs.ui_scope == 'source-discovery') }}
-        # Live UI methods include settings, reviewed profile tools and research flows;
+        # Live UI methods include reviewed profile tools and research flows;
         # focused scopes keep their previous 20-minute bound and case limits.
         timeout-minutes: ${{ (inputs.ui_scope || 'all') == 'all' && 40 || 20 }}
         env:
@@ -183,8 +183,6 @@ jobs:
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelSavesOrdinaryMemoryAndUndoSurvivesRelaunch)
           elif [ '${{ inputs.ui_scope }}' = 'skill-authoring' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelReadsOriginalSkillAndReviewedSaveSurvivesRelaunch)
-          elif [ '${{ inputs.ui_scope }}' = 'self-configuration' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelListsAndChangesAppearanceAndRelaunchPreservesIt)
           elif [ '${{ inputs.ui_scope }}' = 'browser-transcript' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelTranscribesApprovedPublicWebTextWithVerifiedQuotes)
           elif [ '${{ inputs.ui_scope }}' = 'transcript-files' ]; then

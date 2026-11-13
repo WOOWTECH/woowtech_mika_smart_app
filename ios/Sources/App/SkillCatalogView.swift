@@ -133,7 +133,6 @@ struct SkillCatalogView: View {
 
     private func iconName(for id: String) -> String {
         switch id {
-        case "configure-mika": return "slider.horizontal.3"
         case "content-transcribe": return "text.bubble"
         case "documents": return "doc.text"
         case "info-research": return "globe"
@@ -173,7 +172,6 @@ struct SkillCatalogView: View {
 private struct SkillCatalogDetail: View {
     @Environment(\.appLocalizer) private var localizer
     @ObservedObject var store: LearningStore
-    @EnvironmentObject private var preferences: SelfConfigurationStore
     let catalog: BundledSkillCatalog
     let entry: SkillCatalogEntry
     let modelAccess: () throws -> ModelAccess
@@ -192,15 +190,6 @@ private struct SkillCatalogDetail: View {
                         Text(localizer.text(.catalogTranscriptOpen))
                     }.accessibilityIdentifier("catalog.content-transcribe.open")
                     Text(localizer.text(.catalogTranscriptHelp))
-                        .font(.caption)
-                }
-            }
-            if entry.id == "configure-mika" {
-                Section(localizer.text(.catalogAppearanceSection)) {
-                    NavigationLink { SelfConfigurationView(store: preferences, modelAccess: modelAccess) } label: {
-                        Text(localizer.text(.catalogAppearanceOpen))
-                    }.accessibilityIdentifier("catalog.configure-mika.open")
-                    Text(localizer.text(.catalogAppearanceHelp))
                         .font(.caption)
                 }
             }

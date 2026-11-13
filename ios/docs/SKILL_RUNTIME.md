@@ -123,11 +123,11 @@ let result = try await runtime.execute(approval)
 
 Plans and grants have no public deserialization path. Plan fingerprints cover selection identity, filename, options (password presence only), destination, capability availability, disclosures, step IDs, source paths/revision/hashes. Runtime IDs prevent a grant from one plan being replayed in another. `authorize` is a **trusted UI/orchestrator boundary**, not a model tool. Do not expose it or `SkillExecutionSelectedFile(userSelectedURL:)` to model-supplied URLs or text. Import approval, active/trial status, reference prose and original instructions do not grant execution permission.
 
-`SkillExecutionDependencies.reports(catalog:)` returns all six reviewed dependency reports with source hashes. `hostIntegrationRequired` identifies an existing lower-level path, not a registered or executable runtime operation. Availability for PDF worker execution means an adapter is configured, not that a health probe or deployment has succeeded.
+`SkillExecutionDependencies.reports(catalog:)` returns all five reviewed dependency reports with source hashes. `hostIntegrationRequired` identifies an existing lower-level path, not a registered or executable runtime operation. Availability for PDF worker execution means an adapter is configured, not that a health probe or deployment has succeeded.
 
 ## Pinned original evidence
 
-Repository: <https://github.com/wangzan101/Mika>, revision `0c172724f3f0c96f7345262588072f6e95db1138`, inspected locally at `/tmp/woow-mika-memory-reference`. All six instructions and all three supporting assets were read. Paths below are relative to `core/src/main/resources/skills/`.
+Repository: <https://github.com/wangzan101/Mika>, revision `0c172724f3f0c96f7345262588072f6e95db1138`, inspected locally at `/tmp/woow-mika-memory-reference`. All six instructions and all three supporting assets were read. Paths below are relative to `core/src/main/resources/skills/`. Since 2026-11-13 the iOS catalog bundles five of them: `configure-mika` is left out to match the Play build, where the model cannot change settings.
 
 | Source | SHA-256 |
 | --- | --- |
@@ -145,7 +145,7 @@ The existing catalog verifies its whole resource and individual document hashes.
 
 | Original skill / actual dependency | Existing iOS mapping and this increment's boundary |
 | --- | --- |
-| configure-mika: `settings_list`, `settings_set` | Explicitly permitted `settings_list`/`settings_set` for appearance are wired to the native runtime and persistent App setting. Other original settings remain unmapped. Model/key/login, data deletion, environment networking/proxy remain excluded. See revision-specific actual-model acceptance in VERIFICATION.md. |
+| configure-mika: `settings_list`, `settings_set` | Not bundled and not mapped (owner decision 2026-11-13, matching the Play build). No model tool can list or change App settings; the appearance is chosen only in Settings › 語言與外觀. |
 | content-transcribe: `web_read_page`, `read_file` in `/workspace/inbox/`, format reference | The separate TranscriptRuntime now consumes an explicitly approved native UTF-8 file or rendered-text webpage snapshot, with bounded chunked reads, five output formats and exact source citations. The complete original format reference is retained. Actual-model formatting and native picker acceptance are recorded per revision, including preserved failures, in CONTENT_TRANSCRIBE.md and VERIFICATION.md. No speech-to-text upstream or here. |
 | documents: `web_navigate`, `web_downloads`, `/workspace/inbox`, `/workspace/downloads` | Existing browser navigation/download work is separate. This runtime accepts only a selected PDF, never a workspace path or directory enumeration. A browser-download owner may offer its file through an explicit user selection flow. |
 | documents: `run_bundled_script`, `source=skills/documents`, `scripts/extract_pdf.py` | Native PDFKit actual text/selected pages/metadata/unlock path; separately opt-in original Python worker. Native results identify PDFKit and never carry a claim of having run Python. |
