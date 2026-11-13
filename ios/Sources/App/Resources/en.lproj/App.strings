@@ -187,7 +187,7 @@
 "notification.completed.body" = "Open Woow Assistant to view the result.";
 "notification.approval.body" = "Open Woow Assistant to review and decide. Notifications do not approve actions.";
 "notification.test.body" = "This is a test notification from Woow Assistant.";
-"catalog.title" = "Mika bundled skill catalog";
+"catalog.title" = "Built-in skill catalog";
 "catalog.search" = "Search names, full text or supporting files";
 "catalog.scope" = "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity.";
 "catalog.capabilities" = "The controlled browser and MCP chat have separate capability limits and approval flows. Importing a skill grants no tool permissions and dispatches no tools.";
@@ -243,7 +243,7 @@
 "catalog.req.send" = "Original cross-app messaging is not provided; MCP tools need separate approval";
 "catalog.req.mutation" = "The model can search, read and draft skills; saving requires your approval";
 "catalog.count" = "Original skills: %1$lld · Matches: %2$lld";
-"catalog.provenance" = "Mika · Pinned source version %1$@";
+"catalog.provenance" = "Built-in skills · Pinned source version %1$@";
 "browser.start.done" = "Done";
 "browser.start.edit" = "Organize";
 "browser.start.recent" = "Recently opened";
@@ -268,7 +268,7 @@
 "browser.chrome.return.manual" = "Return to manual browsing";
 "browser.chrome.research" = "Research";
 "browser.chrome.research.site" = "Research this site";
-"browser.page.ask.research" = "Ask Mika to research this site";
+"browser.page.ask.research" = "Ask the assistant to research this site";
 "browser.chrome.interact" = "Interact";
 "browser.chrome.library" = "Tabs, bookmarks and history";
 "browser.chrome.explanation" = "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits.";

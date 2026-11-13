@@ -1773,8 +1773,8 @@
       "key": "catalog.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Mika 內建技能目錄",
-        "en": "Mika bundled skill catalog"
+        "zh-Hant": "內建技能目錄",
+        "en": "Built-in skill catalog"
       }
     },
     {
@@ -2291,8 +2291,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "Mika · 固定來源版本 %1$@",
-        "en": "Mika · Pinned source version %1$@"
+        "zh-Hant": "內建技能 · 固定來源版本 %1$@",
+        "en": "Built-in skills · Pinned source version %1$@"
       }
     },
     {
@@ -2535,8 +2535,8 @@
       "key": "browser.page.ask.research",
       "parameters": [],
       "translations": {
-        "zh-Hant": "問 Mika 研究此網站",
-        "en": "Ask Mika to research this site"
+        "zh-Hant": "問渥屋助理研究此網站",
+        "en": "Ask the assistant to research this site"
       }
     },
     {

@@ -93,7 +93,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .importHint: return ("貼上別人分享的技能全文", "Paste a shared skill's full text")
         case .importSafety: return ("貼上 SKILL.md；匯入後先進入待確認，不會立即啟用。", "Paste SKILL.md. Imported skills wait for review and are not enabled immediately.")
         case .getSkills: return ("取得技能", "Get skills")
-        case .catalog: return ("Mika 內建技能目錄（6）", "Mika built-in skill catalog (6)")
+        case .catalog: return ("內建技能目錄（6）", "Built-in skill catalog (6)")
         case .pdfRead: return ("選取 PDF 並擷取文字", "Select a PDF and extract text")
         case .agentWrite: return ("請模型協助編寫技能", "Ask the model to draft a skill")
         case .transcript: return ("整理文字稿與字幕", "Organize transcripts and subtitles")

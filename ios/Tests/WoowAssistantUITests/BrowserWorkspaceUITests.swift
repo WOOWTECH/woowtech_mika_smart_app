@@ -63,7 +63,7 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertFalse(entry.exists, "A start page has no inspected website to ask about.")
         open("workspace-one")
         XCTAssertTrue(entry.waitForExistence(timeout: 75))
-        XCTAssertEqual(entry.label, "問 Mika 研究此網站")
+        XCTAssertEqual(entry.label, "問渥屋助理研究此網站")
         XCTAssertEqual(entry.value as? String, "research.example.invalid")
         XCTAssertTrue(dom("Workspace first").exists)
         let address = app.textFields["browser.address"]

@@ -187,7 +187,7 @@
 "notification.completed.body" = "開啟渥屋助理查看結果。";
 "notification.approval.body" = "請開啟渥屋助理查看並決定；通知不會核准操作。";
 "notification.test.body" = "這是渥屋助理的測試通知。";
-"catalog.title" = "Mika 內建技能目錄";
+"catalog.title" = "內建技能目錄";
 "catalog.search" = "搜尋名稱、全文或支援檔案";
 "catalog.scope" = "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。";
 "catalog.capabilities" = "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。";
@@ -243,7 +243,7 @@
 "catalog.req.send" = "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准";
 "catalog.req.mutation" = "模型可查詢、讀取並提出技能草稿；儲存須由你核准";
 "catalog.count" = "共 %1$lld 項原始技能 · 符合 %2$lld 項";
-"catalog.provenance" = "Mika · 固定來源版本 %1$@";
+"catalog.provenance" = "內建技能 · 固定來源版本 %1$@";
 "browser.start.done" = "完成";
 "browser.start.edit" = "整理";
 "browser.start.recent" = "最近開啟";
@@ -268,7 +268,7 @@
 "browser.chrome.return.manual" = "返回手動瀏覽";
 "browser.chrome.research" = "研究";
 "browser.chrome.research.site" = "研究此網站";
-"browser.page.ask.research" = "問 Mika 研究此網站";
+"browser.page.ask.research" = "問渥屋助理研究此網站";
 "browser.chrome.interact" = "操作";
 "browser.chrome.library" = "分頁、書籤與歷史";
 "browser.chrome.explanation" = "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。";
