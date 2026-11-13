@@ -537,3 +537,12 @@
 "chat.branch.attachmentsReadd" = "附件需要重新加入";
 "chat.branch.composerInUse" = "输入框还有内容；请先发送或清除草稿、引用或附件，再从这里分支或重新问。";
 "chat.branch.origin" = "从另一个对话分支";
+"chat.modelFailed.auth" = "调用模型失败：API Key 无效或没有权限。请到设置 › 模型检查。草稿已保留。";
+"chat.modelFailed.quota" = "调用模型失败：额度已用完。草稿已保留。";
+"chat.modelFailed.rateLimited" = "调用模型失败：请求太频繁，请稍后再试。草稿已保留。";
+"chat.modelFailed.notFound" = "调用模型失败：服务商那里没有这个模型。请到设置 › 模型检查。草稿已保留。";
+"chat.modelFailed.network" = "调用模型失败：网络连接失败。请到设置 › 模型检查。草稿已保留。";
+"chat.modelFailed.streamCut" = "调用模型失败：回复还没传完，连接就中断了。请稍后再试。草稿已保留。";
+"chat.modelFailed.unreadable" = "调用模型失败：看不懂返回的内容，请确认接口地址和接口类型是否相符。草稿已保留。";
+"chat.modelFailed.server" = "调用模型失败：服务器端出错（HTTP %1$lld）。请稍后再试。草稿已保留。";
+"chat.modelFailed.status" = "调用模型失败：服务器端出错（HTTP %1$lld）。请到设置 › 模型检查。草稿已保留。";

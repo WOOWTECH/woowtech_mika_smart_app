@@ -87,6 +87,15 @@ private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
         onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
 }
+/// Fails every request with one model error, as HTTPChatModelClient would.
+private struct FailingClient: ReferenceDispatchBoundChatModelClient {
+    let error: HTTPChatModelError
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { throw error }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); throw error
+    }
+}
 #if DEBUG
 private actor FixturePauseRecorder {
     private var intervals: [UInt64] = []
@@ -1178,6 +1187,41 @@ private actor StreamMCP: MCPDiscovering {
         return a.count
     }
 
+    /// Android parity (ModelErrorCopy.failure): a plain request's model failure
+    /// says 呼叫模型失敗：<reason> from its HTTP status alone and keeps the draft;
+    /// failures it cannot name keep the generic message.
+    static func modelFailuresUsePlayWording() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let cases: [(HTTPChatModelError, AppText?)] = [
+            (.httpStatus(401), .chatModelFailedAuth), (.httpStatus(403), .chatModelFailedAuth),
+            (.httpStatus(402), .chatModelFailedQuota), (.httpStatus(404), .chatModelFailedNotFound),
+            (.httpStatus(429), .chatModelFailedRateLimited), (.httpStatus(503), .chatModelFailedServer(status: 503)),
+            (.httpStatus(400), .chatModelFailedStatus(status: 400)), (.transportFailure, .chatModelFailedNetwork),
+            (.incompleteResponse, .chatModelFailedStreamCut), (.invalidResponse, .chatModelFailedUnreadable),
+            (.timedOut, nil), (.redirectRejected, nil)]
+        for (error, expected) in cases {
+            let session = e.session(FailingClient(error: error))
+            session.draft = "Keep this draft"
+            session.send()
+            guard let task = session.capturedArchiveRequest else { throw Failure(name: "model failure request \(error)") }
+            await task.value
+            try a.check(session.chatErrorText == expected && session.chatError != nil && !session.isSubmitting
+                        && session.draft == "Keep this draft" && session.entries.isEmpty,
+                        "\(error) is named like Android, or keeps the generic message, and the draft stays")
+        }
+        try a.check(ChatModelFailure(HTTPChatModelError.httpStatus(429))?.traditionalText
+                        == "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
+                    && ChatModelFailure(HTTPChatModelError.httpStatus(500))?.traditionalText
+                        == "呼叫模型失敗：伺服器端出錯（HTTP 500）。請稍後再試。草稿已保留。",
+                    "chatError keeps the Play sentence in Traditional Chinese")
+        let session = e.session(FailingClient(error: .httpStatus(429)))
+        session.draft = "Keep this draft"; session.send()
+        if let task = session.capturedArchiveRequest { await task.value }
+        session.newConversation()
+        try a.check(session.chatError == nil && session.chatErrorText == nil, "clearing the error clears its localized form")
+        return a.count
+    }
+
 }
 #if CHAT_STREAM_APP_STANDALONE
 @main enum ChatStreamingMain {
@@ -1188,7 +1232,8 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
-                ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting()]
+                ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting(),
+                ChatStreamingChecks.modelFailuresUsePlayWording()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
             #endif
@@ -1204,6 +1249,7 @@ final class ChatStreamingAppTests: XCTestCase {
     }
     #endif
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testModelFailuresUsePlayWording() async throws { let n = try await ChatStreamingChecks.modelFailuresUsePlayWording(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testSendBlockerExplainsWithoutStarting() async throws { let n = try await ChatStreamingChecks.sendBlockerExplainsWithoutStarting(); XCTAssertEqual(n, 7) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }

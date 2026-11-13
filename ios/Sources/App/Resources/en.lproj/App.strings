@@ -537,3 +537,12 @@
 "chat.branch.attachmentsReadd" = "Re-add the attachments you want to include";
 "chat.branch.composerInUse" = "The input bar isn’t empty. Send or clear the draft, quote or attachments first.";
 "chat.branch.origin" = "Branched from another chat";
+"chat.modelFailed.auth" = "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved.";
+"chat.modelFailed.quota" = "The model call failed: the account has run out of credit. Your draft is preserved.";
+"chat.modelFailed.rateLimited" = "The model call failed: too many requests; try again later. Your draft is preserved.";
+"chat.modelFailed.notFound" = "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved.";
+"chat.modelFailed.network" = "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved.";
+"chat.modelFailed.streamCut" = "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved.";
+"chat.modelFailed.unreadable" = "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved.";
+"chat.modelFailed.server" = "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved.";
+"chat.modelFailed.status" = "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved.";

@@ -5692,6 +5692,106 @@
         "zh-Hans": "从另一个对话分支",
         "en": "Branched from another chat"
       }
+    },
+    {
+      "case": "chatModelFailedAuth",
+      "key": "chat.modelFailed.auth",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：API Key 无效或没有权限。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedQuota",
+      "key": "chat.modelFailed.quota",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：額度已用完。草稿已保留。",
+        "zh-Hans": "调用模型失败：额度已用完。草稿已保留。",
+        "en": "The model call failed: the account has run out of credit. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedRateLimited",
+      "key": "chat.modelFailed.rateLimited",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：请求太频繁，请稍后再试。草稿已保留。",
+        "en": "The model call failed: too many requests; try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedNotFound",
+      "key": "chat.modelFailed.notFound",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务商那里没有这个模型。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedNetwork",
+      "key": "chat.modelFailed.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：网络连接失败。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedStreamCut",
+      "key": "chat.modelFailed.streamCut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：回复还没传完，连接就中断了。请稍后再试。草稿已保留。",
+        "en": "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedUnreadable",
+      "key": "chat.modelFailed.unreadable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。",
+        "zh-Hans": "调用模型失败：看不懂返回的内容，请确认接口地址和接口类型是否相符。草稿已保留。",
+        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedServer",
+      "key": "chat.modelFailed.server",
+      "parameters": [
+        {
+          "name": "status",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请稍后再试。草稿已保留。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved."
+      }
+    },
+    {
+      "case": "chatModelFailedStatus",
+      "key": "chat.modelFailed.status",
+      "parameters": [
+        {
+          "name": "status",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
+        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请到设置 › 模型检查。草稿已保留。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
+      }
     }
   ]
 }

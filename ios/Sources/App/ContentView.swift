@@ -883,7 +883,7 @@ private struct ChatView: View {
     /// Errors, notices, voice status and the send-blocked card above the composer.
     @ViewBuilder private var chatStatus: some View {
         if let error = session.chatError {
-            Text(error)
+            Text(session.chatErrorText.map { localizer.text($0) } ?? error)
                 .font(.callout)
                 .foregroundStyle(.red)
                 .accessibilityIdentifier("chat.error")

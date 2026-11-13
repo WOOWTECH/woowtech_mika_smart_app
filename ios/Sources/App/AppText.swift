@@ -548,6 +548,15 @@ enum AppText: Equatable {
     case chatBranchAttachmentsReadd
     case chatBranchComposerInUse
     case chatBranchOrigin
+    case chatModelFailedAuth
+    case chatModelFailedQuota
+    case chatModelFailedRateLimited
+    case chatModelFailedNotFound
+    case chatModelFailedNetwork
+    case chatModelFailedStreamCut
+    case chatModelFailedUnreadable
+    case chatModelFailedServer(status: Int)
+    case chatModelFailedStatus(status: Int)
 
     var key: String {
         switch self {
@@ -1096,6 +1105,15 @@ enum AppText: Equatable {
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
         case .chatBranchComposerInUse: return "chat.branch.composerInUse"
         case .chatBranchOrigin: return "chat.branch.origin"
+        case .chatModelFailedAuth: return "chat.modelFailed.auth"
+        case .chatModelFailedQuota: return "chat.modelFailed.quota"
+        case .chatModelFailedRateLimited: return "chat.modelFailed.rateLimited"
+        case .chatModelFailedNotFound: return "chat.modelFailed.notFound"
+        case .chatModelFailedNetwork: return "chat.modelFailed.network"
+        case .chatModelFailedStreamCut: return "chat.modelFailed.streamCut"
+        case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
+        case .chatModelFailedServer: return "chat.modelFailed.server"
+        case .chatModelFailedStatus: return "chat.modelFailed.status"
         }
     }
 
@@ -1133,6 +1151,8 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
+        case .chatModelFailedServer(let status): return [Int64(status)]
+        case .chatModelFailedStatus(let status): return [Int64(status)]
         default: return []
         }
     }
@@ -1685,6 +1705,15 @@ enum AppText: Equatable {
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
         case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
         case .chatBranchOrigin: return "從另一個對話分支"
+        case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"
+        case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
+        case .chatModelFailedNotFound: return "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedNetwork: return "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。"
+        case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。"
+        case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。"
+        case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
         }
     }
 }

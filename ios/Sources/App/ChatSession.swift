@@ -97,6 +97,48 @@ struct ChatMessageActionTargets: Equatable {
     let questions: Set<UUID>
 }
 
+/// A plain chat request's model failure, worded like the Android store
+/// build's ModelErrorCopy.failure (呼叫模型失敗：…). Provider error bodies are
+/// never shown, so the reason comes from the HTTP status alone; failures it
+/// cannot name keep the generic message.
+enum ChatModelFailure: Equatable {
+    case auth, quota, rateLimited, notFound, network, streamCut, unreadable
+    case server(Int), status(Int)
+
+    init?(_ error: Error) {
+        guard let error = error as? HTTPChatModelError else { return nil }
+        switch error {
+        case .httpStatus(401), .httpStatus(403): self = .auth
+        case .httpStatus(402): self = .quota
+        case .httpStatus(404): self = .notFound
+        case .httpStatus(429): self = .rateLimited
+        case .httpStatus(let status) where (500...599).contains(status): self = .server(status)
+        case .httpStatus(let status) where (400...499).contains(status): self = .status(status)
+        case .transportFailure: self = .network
+        case .incompleteResponse: self = .streamCut
+        case .invalidResponse: self = .unreadable
+        default: return nil
+        }
+    }
+
+    var text: AppText {
+        switch self {
+        case .auth: return .chatModelFailedAuth
+        case .quota: return .chatModelFailedQuota
+        case .rateLimited: return .chatModelFailedRateLimited
+        case .notFound: return .chatModelFailedNotFound
+        case .network: return .chatModelFailedNetwork
+        case .streamCut: return .chatModelFailedStreamCut
+        case .unreadable: return .chatModelFailedUnreadable
+        case .server(let status): return .chatModelFailedServer(status: status)
+        case .status(let status): return .chatModelFailedStatus(status: status)
+        }
+    }
+
+    /// The Traditional Chinese sentence, for chatError and its existing readers.
+    var traditionalText: String { String(format: text.traditionalFallback, arguments: text.arguments) }
+}
+
 /// What 從這裡分支 or 從這裡重新問 did; the chat view says it in a toast
 /// like the Android store build.
 enum ChatBranchOutcome: Equatable {
@@ -140,7 +182,11 @@ final class ChatSession: ObservableObject {
     @Published private(set) var savedSettings: SavedModelSettings?
     @Published private(set) var hasStoredKey = false
     @Published private(set) var isSubmitting = false
-    @Published private(set) var chatError: String?
+    @Published private(set) var chatError: String? {
+        didSet { chatErrorText = nil }
+    }
+    /// chatError in the interface language, when it is a named model failure.
+    @Published private(set) var chatErrorText: AppText?
     @Published private(set) var chatNotice: String?
     /// Shown after a send attempt that lacks a prerequisite; closed content only.
     @Published private(set) var shownSendBlocker: ChatSendBlocker?
@@ -778,8 +824,12 @@ final class ChatSession: ObservableObject {
                         ? "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。" : nil)
                     ?? (mcpConnection == nil ? "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
                         : "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
+                // A plain request names its model failure like Android (ModelErrorCopy).
+                let modelFailure = fenceFailure == nil && mcpConnection == nil ? ChatModelFailure(error) : nil
                 if self.memoryReceiptRequestID == id {
                     self.finish(id: id, error: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。")
+                } else if let modelFailure, self.profileReceiptRequestID != id {
+                    self.finish(id: id, error: modelFailure.traditionalText, text: modelFailure.text)
                 } else {
                     self.finish(id: id, error: self.profileReceiptRequestID != id ? message
                         : "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。")
@@ -1270,7 +1320,7 @@ final class ChatSession: ObservableObject {
         shownSendBlocker = nil
     }
 
-    private func finish(id: UUID, error: String? = nil) {
+    private func finish(id: UUID, error: String? = nil, text: AppText? = nil) {
         guard requestID == id else { return }
         if error != nil { stopPreview(id: id, phase: .failed) }
         if let pending = pendingMCPApproval { resolveMCPApproval(id: pending.id, approved: false) }
@@ -1283,6 +1333,7 @@ final class ChatSession: ObservableObject {
         deadline?.cancel()
         deadline = nil
         chatError = error
+        chatErrorText = text
     }
 
     private static func liveRepository() -> ModelSettingsRepository {
