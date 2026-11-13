@@ -1051,8 +1051,12 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     private func waitUntilHittable(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        // The expectation first checks about 1 s after the wait starts. In CI run
+        // 43364763538 (16 Pro Max) a burst of simulator widget extensions made each
+        // AX query take 2-4 s, and the on-screen base URL field's first check was
+        // still running when 5 s ran out. Use this file's usual 10 s budget.
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed, file: file, line: line)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, file: file, line: line)
     }
 
     private func assertDraft(_ expected: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
