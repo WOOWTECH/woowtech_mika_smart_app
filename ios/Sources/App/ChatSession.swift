@@ -546,11 +546,13 @@ final class ChatSession: ObservableObject {
 
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
+    /// The main model for work outside the chat (browser research, documents,
+    /// transcripts, skills). Each call takes a fresh session header value: one run.
     func modelAccess() throws -> ModelAccess {
         guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
             throw HTTPChatModelError.invalidConfiguration
         }
-        return ModelAccess(client: client, configuration: savedSettings.configuration,
+        return ModelAccess(client: client, configuration: savedSettings.configuration(conversation: nil),
                            key: try repository.key(for: savedSettings), identity: identity)
     }
 
@@ -702,7 +704,8 @@ final class ChatSession: ObservableObject {
         let profileState = learning.profile
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
-        let configuration = savedSettings.configuration
+        // The provider's session header (OpenCode Go) carries this conversation's value.
+        let configuration = savedSettings.configuration(conversation: conversationID)
         let contextFence: ChatContextFence?
         let modelClient: any ChatModelClient
         if learning.available && (!context.isEmpty || useLearningTools) {

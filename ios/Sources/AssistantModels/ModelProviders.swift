@@ -65,7 +65,7 @@ public struct ModelProvider: Codable, Equatable, Identifiable, Sendable {
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               name.count <= 256, name.utf8.count <= 1024,
               !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains),
-              sessionHeader.map(ModelProviderAddress.isHeaderName) ?? true,
+              sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0, value: "-") }) ?? true,
               (models?.count ?? 0) <= ModelProvidersDocument.maximumListedModels,
               models?.allSatisfy({ ModelProviderAddress.isModelName($0.id) && ($0.contextTokens ?? 1) > 0 }) ?? true,
               [verifiedModels.count, typedModels.count, visionOverrides.count]
@@ -539,14 +539,6 @@ public enum ModelProviderAddress {
         while path.hasSuffix("/") { path.removeLast() }
         let port = parts.port.map { scheme == "https" && $0 == 443 ? "" : ":\($0)" } ?? ""
         return scheme + "://" + host + port + path
-    }
-
-    /// An HTTP token (RFC 9110), so a header name cannot inject another header.
-    static func isHeaderName(_ name: String) -> Bool {
-        let extra = Set("!#$%&'*+-.^_`|~".utf8)
-        return (1...64).contains(name.utf8.count) && name.utf8.allSatisfy { byte in
-            (48...57).contains(byte) || (65...90).contains(byte) || (97...122).contains(byte) || extra.contains(byte)
-        }
     }
 
     /// As the form saves it: trimmed, one line, bounded like a conversation's model.

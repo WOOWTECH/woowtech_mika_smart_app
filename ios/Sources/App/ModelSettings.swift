@@ -13,14 +13,30 @@ struct SavedModelSettings: Codable {
     /// The provider of the main model. Nil in a single record: the script
     /// service's, and the v1 setting before its import.
     var providerID: UUID? = nil
+    /// The header the main model's provider requires on every request
+    /// (OpenCode Go: x-opencode-session); nil sends none.
+    var sessionHeader: String? = nil
 
     // Exactly the v1 record's keys; the provider never enters that record.
     private enum CodingKeys: String, CodingKey { case baseURL, model, credentialAccount, seesImages }
 
-    var configuration: ModelConfiguration {
-        ModelConfiguration(baseURL: baseURL, model: model,
-                           vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown)
+    /// A provider saved without a key (only a custom OpenAI-compatible one)
+    /// sends none; every other record needs its Keychain item.
+    var requiresKey: Bool { providerID == nil || !credentialAccount.isEmpty }
+
+    /// The request settings for one conversation, whose id gives the
+    /// provider's session header its value; nil (work outside a conversation)
+    /// takes a fresh value.
+    func configuration(conversation: String?) -> ModelConfiguration {
+        let header = sessionHeader.flatMap { name in
+            conversation.map { ModelSessionHeader.conversation($0, name: name) } ?? ModelSessionHeader.fresh(name: name)
+        }
+        return ModelConfiguration(baseURL: baseURL, model: model,
+                                  vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown,
+                                  requiresKey: requiresKey, sessionHeader: header)
     }
+
+    var configuration: ModelConfiguration { configuration(conversation: nil) }
 
     /// Provider, model and Keychain item, compared instead of the key. A
     /// record without a provider counts its account as one, as the import does.
@@ -282,6 +298,8 @@ final class ModelSettingsRepository {
     }
 
     func key(for record: SavedModelSettings) throws -> String {
+        // A provider saved without a key sends none.
+        if !record.requiresKey { return "" }
         guard UUID(uuidString: record.credentialAccount) != nil,
               let key = try credentials.read(account: record.credentialAccount), !key.isEmpty else {
             throw ModelSettingsError.missingKey
@@ -418,7 +436,8 @@ final class ModelSettingsRepository {
         }
         return SavedModelSettings(baseURL: provider.baseURL, model: main.model,
                                   credentialAccount: provider.credentialAccount?.uuidString ?? "",
-                                  seesImages: provider.visionOverrides[main.model], providerID: provider.id)
+                                  seesImages: provider.visionOverrides[main.model], providerID: provider.id,
+                                  sessionHeader: provider.sessionHeader)
     }
 
     /// Advances the revision, then replaces the document. A key written for
