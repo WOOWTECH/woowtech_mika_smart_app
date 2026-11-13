@@ -5409,6 +5409,377 @@
       }
     },
     {
+      "case": "chatReportAction",
+      "key": "chat.report.action",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢舉 AI 回覆",
+        "en": "Report AI response"
+      }
+    },
+    {
+      "case": "chatReportTitle",
+      "key": "chat.report.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢舉這則回覆",
+        "en": "Report this response"
+      }
+    },
+    {
+      "case": "chatReportDeliveryNotice",
+      "key": "chat.report.deliveryNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。",
+        "en": "Your report will be sent to the developer. It remains pending on this device until the server confirms receipt."
+      }
+    },
+    {
+      "case": "chatReportReference",
+      "key": "chat.report.reference",
+      "parameters": [
+        {
+          "name": "reference",
+          "type": "String"
+        },
+        {
+          "name": "message",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "回覆編號：%1$@ / %2$@",
+        "en": "Response reference: %1$@ / %2$@"
+      }
+    },
+    {
+      "case": "chatReportOffensive",
+      "key": "chat.report.offensive",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "冒犯性內容",
+        "en": "Offensive content"
+      }
+    },
+    {
+      "case": "chatReportUnsafe",
+      "key": "chat.report.unsafe",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "不安全內容",
+        "en": "Unsafe content"
+      }
+    },
+    {
+      "case": "chatReportOther",
+      "key": "chat.report.other",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "其他問題",
+        "en": "Other concern"
+      }
+    },
+    {
+      "case": "chatReportNote",
+      "key": "chat.report.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "補充說明（選填）",
+        "en": "Add details (optional)"
+      }
+    },
+    {
+      "case": "chatReportSubmit",
+      "key": "chat.report.submit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "送出檢舉",
+        "en": "Submit report"
+      }
+    },
+    {
+      "case": "chatReportSaveFailed",
+      "key": "chat.report.saveFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法儲存檢舉，請重試。",
+        "en": "Couldn’t save the report. Try again."
+      }
+    },
+    {
+      "case": "chatReportLoading",
+      "key": "chat.report.loading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在查詢先前的檢舉…",
+        "en": "Checking for an existing report…"
+      }
+    },
+    {
+      "case": "chatReportLoadFailed",
+      "key": "chat.report.loadFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法讀取已儲存的檢舉，請重試。",
+        "en": "Couldn’t check the saved report. Try again."
+      }
+    },
+    {
+      "case": "chatReportAmbiguous",
+      "key": "chat.report.ambiguous",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法確認先前的檢舉是否屬於這則回覆。新建檢舉可能與已收到的檢舉重複，舊紀錄會保留。是否繼續？",
+        "en": "An older report cannot be linked to this response with certainty. Creating a new report may duplicate one already received. Older reports will be kept. Continue?"
+      }
+    },
+    {
+      "case": "chatReportUnidentified",
+      "key": "chat.report.unidentified",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "有一份舊檢舉無法讀取，也無法確認屬於哪則回覆。繼續可能重複傳送開發者已收到的檢舉。要繼續處理這則回覆嗎？",
+        "en": "An older report cannot be read or linked to a response. Continuing could send a report the developer has already received. Continue with this response?"
+      }
+    },
+    {
+      "case": "chatReportContinueRisk",
+      "key": "chat.report.continueRisk",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "了解風險並繼續",
+        "en": "Continue despite risk"
+      }
+    },
+    {
+      "case": "chatReportContinueNotice",
+      "key": "chat.report.continueNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你已選擇繼續。無法讀取的紀錄存在期間，其他檢舉不會自動傳送。",
+        "en": "You chose to continue. While an unreadable record remains, other reports will not be sent automatically."
+      }
+    },
+    {
+      "case": "chatReportNewWarning",
+      "key": "chat.report.newWarning",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "舊檢舉尚未確認送達，也可能已經收到。新檢舉會使用新編號和目前時間，可能重複；舊紀錄會保留。是否繼續？",
+        "en": "The old report was not confirmed and may already have been received. A new report uses a new reference and date and could be a duplicate. The old report will be kept. Continue?"
+      }
+    },
+    {
+      "case": "chatReportCreateNew",
+      "key": "chat.report.createNew",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新建檢舉",
+        "en": "Create a new report"
+      }
+    },
+    {
+      "case": "chatReportManualNotice",
+      "key": "chat.report.manualNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這份新檢舉只會在你按下送出或重試時傳送，可能相關的舊檢舉不會自動重送。",
+        "en": "This new report is sent only when you submit or retry it here. Possibly related older reports will not be resent automatically."
+      }
+    },
+    {
+      "case": "chatReportHistory",
+      "key": "chat.report.history",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "查看本機新建的檢舉",
+        "en": "View locally created reports"
+      }
+    },
+    {
+      "case": "chatReportHistoryNotice",
+      "key": "chat.report.historyNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "以下檢舉來自本對話，可能屬於其他回覆。請選取前核對回覆內容與編號。",
+        "en": "These reports are from this conversation and may concern other responses. Check the response and reference before selecting one."
+      }
+    },
+    {
+      "case": "chatReportHistoryEmpty",
+      "key": "chat.report.historyEmpty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有本機新建的檢舉。",
+        "en": "No locally created reports."
+      }
+    },
+    {
+      "case": "chatReportSelectedManual",
+      "key": "chat.report.selectedManual",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已選取本機檢舉；下方顯示當時的回覆。",
+        "en": "Selected local report; its original response is shown below."
+      }
+    },
+    {
+      "case": "chatReportReviewExisting",
+      "key": "chat.report.reviewExisting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已有內容不同的新檢舉，請在重試前先核對下方內容。",
+        "en": "A new report already exists with different details. Review it below before retrying."
+      }
+    },
+    {
+      "case": "chatReportBack",
+      "key": "chat.report.back",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "返回",
+        "en": "Back"
+      }
+    },
+    {
+      "case": "chatReportPending",
+      "key": "chat.report.pending",
+      "parameters": [
+        {
+          "name": "reference",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "等待傳送。編號：%1$@",
+        "en": "Pending delivery. Reference: %1$@"
+      }
+    },
+    {
+      "case": "chatReportAcknowledged",
+      "key": "chat.report.acknowledged",
+      "parameters": [
+        {
+          "name": "reference",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "開發者已收到。編號：%1$@",
+        "en": "Received by the developer. Reference: %1$@"
+      }
+    },
+    {
+      "case": "chatReportNeedsRetry",
+      "key": "chat.report.needsRetry",
+      "parameters": [
+        {
+          "name": "reference",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "尚未確認送達。編號：%1$@",
+        "en": "Delivery has not been confirmed. Reference: %1$@"
+      }
+    },
+    {
+      "case": "chatReportExpired",
+      "key": "chat.report.expired",
+      "parameters": [
+        {
+          "name": "reference",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "尚未確認送達。伺服器只接受建立時間在七天內的檢舉，請檢查裝置日期與時間。編號：%1$@",
+        "en": "Delivery has not been confirmed. The server accepts reports dated within seven days. Check your device’s date and time. Reference: %1$@"
+      }
+    },
+    {
+      "case": "chatReportRetry",
+      "key": "chat.report.retry",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重新傳送",
+        "en": "Retry delivery"
+      }
+    },
+    {
+      "case": "chatReportCancel",
+      "key": "chat.report.cancel",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "取消",
+        "en": "Cancel"
+      }
+    },
+    {
+      "case": "chatReportClose",
+      "key": "chat.report.close",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "關閉",
+        "en": "Close"
+      }
+    },
+    {
+      "case": "chatReportDelete",
+      "key": "chat.report.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除檢舉",
+        "en": "Delete report"
+      }
+    },
+    {
+      "case": "chatReportDeleteTitle",
+      "key": "chat.report.deleteTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除這份檢舉？",
+        "en": "Delete this report?"
+      }
+    },
+    {
+      "case": "chatReportDeleteConfirm",
+      "key": "chat.report.deleteConfirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已送達的檢舉會從開發者伺服器和本機刪除；未傳送的檢舉會從本機刪除。如果無法確認送達，檢舉會保留。",
+        "en": "A received report will be deleted from the developer’s server and this device. An unsent report will be removed from this device. If delivery cannot be verified, the report will be kept."
+      }
+    },
+    {
+      "case": "chatReportDeleted",
+      "key": "chat.report.deleted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢舉已刪除。",
+        "en": "Report deleted."
+      }
+    },
+    {
+      "case": "chatReportDeleteFailed",
+      "key": "chat.report.deleteFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法確認刪除，檢舉已保留。請稍後重試。",
+        "en": "Deletion could not be confirmed. The report was kept; try again later."
+      }
+    },
+    {
+      "case": "chatReportDeleteUnverified",
+      "key": "chat.report.deleteUnverified",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。",
+        "en": "This report may have reached the developer, but it has no valid deletion receipt. It was kept. Contact the developer using the privacy policy and include the report reference."
+      }
+    },
+    {
       "case": "chatModelFailedAuth",
       "key": "chat.modelFailed.auth",
       "parameters": [],

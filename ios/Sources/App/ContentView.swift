@@ -485,6 +485,7 @@ private struct ChatView: View {
     @State private var showsCamera = false
     @State private var attachmentPreview: ChatAttachmentPreviewTarget?
     @State private var selectingText: ChatSelectTextTarget?
+    @State private var reportTarget: AIResponseReportTarget?
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
@@ -628,6 +629,10 @@ private struct ChatView: View {
             }
         case .selectText:
             selectingText = ChatSelectTextTarget(text: session.plainText(of: entry))
+        case .report:
+            reportTarget = AIResponseReportTarget(
+                reference: AIResponseReference(conversationID: session.conversationID, messageKey: entry.id.uuidString),
+                response: session.plainText(of: entry))
         case .branch:
             if let toast = menuText.toast(for: session.branch(fromReply: entry.id, title: branchTitle)) { showToast(toast) }
         case .askAgain:
@@ -1057,6 +1062,7 @@ private struct ChatView: View {
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
+            .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
             // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
             .sheet(item: Binding(get: { session.pendingSendConsent }, set: { _ in })) { prompt in
                 ModelConsentSheet(prompt: prompt, localizer: localizer,
@@ -1092,6 +1098,8 @@ private struct ChatView: View {
                 withAnimation(.easeOut(duration: 0.2)) { messageToast = nil }
             }
             .onAppear { voice.attach(session: session) }
+            // Like Android's chat screen: reports waiting on this device are sent while the chat is shown.
+            .task { await AIResponseReportService.shared.deliverDueWhileVisible() }
             .onDisappear { voice.cancel() }
             .onChange(of: session.conversationID) { _, _ in voice.cancel() }
             .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }

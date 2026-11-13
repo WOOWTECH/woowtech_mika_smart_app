@@ -571,6 +571,44 @@ enum AppText: Equatable {
     case chatBranchTitleSuffix
     case chatBranchAttachmentsReadd
     case chatBranchOrigin
+    case chatReportAction
+    case chatReportTitle
+    case chatReportDeliveryNotice
+    case chatReportReference(reference: String, message: String)
+    case chatReportOffensive
+    case chatReportUnsafe
+    case chatReportOther
+    case chatReportNote
+    case chatReportSubmit
+    case chatReportSaveFailed
+    case chatReportLoading
+    case chatReportLoadFailed
+    case chatReportAmbiguous
+    case chatReportUnidentified
+    case chatReportContinueRisk
+    case chatReportContinueNotice
+    case chatReportNewWarning
+    case chatReportCreateNew
+    case chatReportManualNotice
+    case chatReportHistory
+    case chatReportHistoryNotice
+    case chatReportHistoryEmpty
+    case chatReportSelectedManual
+    case chatReportReviewExisting
+    case chatReportBack
+    case chatReportPending(reference: String)
+    case chatReportAcknowledged(reference: String)
+    case chatReportNeedsRetry(reference: String)
+    case chatReportExpired(reference: String)
+    case chatReportRetry
+    case chatReportCancel
+    case chatReportClose
+    case chatReportDelete
+    case chatReportDeleteTitle
+    case chatReportDeleteConfirm
+    case chatReportDeleted
+    case chatReportDeleteFailed
+    case chatReportDeleteUnverified
     case chatModelFailedAuth
     case chatModelFailedQuota
     case chatModelFailedRateLimited
@@ -1153,6 +1191,44 @@ enum AppText: Equatable {
         case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
         case .chatBranchOrigin: return "chat.branch.origin"
+        case .chatReportAction: return "chat.report.action"
+        case .chatReportTitle: return "chat.report.title"
+        case .chatReportDeliveryNotice: return "chat.report.deliveryNotice"
+        case .chatReportReference: return "chat.report.reference"
+        case .chatReportOffensive: return "chat.report.offensive"
+        case .chatReportUnsafe: return "chat.report.unsafe"
+        case .chatReportOther: return "chat.report.other"
+        case .chatReportNote: return "chat.report.note"
+        case .chatReportSubmit: return "chat.report.submit"
+        case .chatReportSaveFailed: return "chat.report.saveFailed"
+        case .chatReportLoading: return "chat.report.loading"
+        case .chatReportLoadFailed: return "chat.report.loadFailed"
+        case .chatReportAmbiguous: return "chat.report.ambiguous"
+        case .chatReportUnidentified: return "chat.report.unidentified"
+        case .chatReportContinueRisk: return "chat.report.continueRisk"
+        case .chatReportContinueNotice: return "chat.report.continueNotice"
+        case .chatReportNewWarning: return "chat.report.newWarning"
+        case .chatReportCreateNew: return "chat.report.createNew"
+        case .chatReportManualNotice: return "chat.report.manualNotice"
+        case .chatReportHistory: return "chat.report.history"
+        case .chatReportHistoryNotice: return "chat.report.historyNotice"
+        case .chatReportHistoryEmpty: return "chat.report.historyEmpty"
+        case .chatReportSelectedManual: return "chat.report.selectedManual"
+        case .chatReportReviewExisting: return "chat.report.reviewExisting"
+        case .chatReportBack: return "chat.report.back"
+        case .chatReportPending: return "chat.report.pending"
+        case .chatReportAcknowledged: return "chat.report.acknowledged"
+        case .chatReportNeedsRetry: return "chat.report.needsRetry"
+        case .chatReportExpired: return "chat.report.expired"
+        case .chatReportRetry: return "chat.report.retry"
+        case .chatReportCancel: return "chat.report.cancel"
+        case .chatReportClose: return "chat.report.close"
+        case .chatReportDelete: return "chat.report.delete"
+        case .chatReportDeleteTitle: return "chat.report.deleteTitle"
+        case .chatReportDeleteConfirm: return "chat.report.deleteConfirm"
+        case .chatReportDeleted: return "chat.report.deleted"
+        case .chatReportDeleteFailed: return "chat.report.deleteFailed"
+        case .chatReportDeleteUnverified: return "chat.report.deleteUnverified"
         case .chatModelFailedAuth: return "chat.modelFailed.auth"
         case .chatModelFailedQuota: return "chat.modelFailed.quota"
         case .chatModelFailedRateLimited: return "chat.modelFailed.rateLimited"
@@ -1215,6 +1291,11 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
+        case .chatReportReference(let reference, let message): return [reference, message]
+        case .chatReportPending(let reference): return [reference]
+        case .chatReportAcknowledged(let reference): return [reference]
+        case .chatReportNeedsRetry(let reference): return [reference]
+        case .chatReportExpired(let reference): return [reference]
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
         case .drawerDeleteBody(let title): return [title]
@@ -1793,6 +1874,44 @@ enum AppText: Equatable {
         case .chatBranchTitleSuffix: return " · 分支"
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
         case .chatBranchOrigin: return "從另一個對話分支"
+        case .chatReportAction: return "檢舉 AI 回覆"
+        case .chatReportTitle: return "檢舉這則回覆"
+        case .chatReportDeliveryNotice: return "檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。"
+        case .chatReportReference: return "回覆編號：%1$@ / %2$@"
+        case .chatReportOffensive: return "冒犯性內容"
+        case .chatReportUnsafe: return "不安全內容"
+        case .chatReportOther: return "其他問題"
+        case .chatReportNote: return "補充說明（選填）"
+        case .chatReportSubmit: return "送出檢舉"
+        case .chatReportSaveFailed: return "無法儲存檢舉，請重試。"
+        case .chatReportLoading: return "正在查詢先前的檢舉…"
+        case .chatReportLoadFailed: return "無法讀取已儲存的檢舉，請重試。"
+        case .chatReportAmbiguous: return "無法確認先前的檢舉是否屬於這則回覆。新建檢舉可能與已收到的檢舉重複，舊紀錄會保留。是否繼續？"
+        case .chatReportUnidentified: return "有一份舊檢舉無法讀取，也無法確認屬於哪則回覆。繼續可能重複傳送開發者已收到的檢舉。要繼續處理這則回覆嗎？"
+        case .chatReportContinueRisk: return "了解風險並繼續"
+        case .chatReportContinueNotice: return "你已選擇繼續。無法讀取的紀錄存在期間，其他檢舉不會自動傳送。"
+        case .chatReportNewWarning: return "舊檢舉尚未確認送達，也可能已經收到。新檢舉會使用新編號和目前時間，可能重複；舊紀錄會保留。是否繼續？"
+        case .chatReportCreateNew: return "新建檢舉"
+        case .chatReportManualNotice: return "這份新檢舉只會在你按下送出或重試時傳送，可能相關的舊檢舉不會自動重送。"
+        case .chatReportHistory: return "查看本機新建的檢舉"
+        case .chatReportHistoryNotice: return "以下檢舉來自本對話，可能屬於其他回覆。請選取前核對回覆內容與編號。"
+        case .chatReportHistoryEmpty: return "沒有本機新建的檢舉。"
+        case .chatReportSelectedManual: return "已選取本機檢舉；下方顯示當時的回覆。"
+        case .chatReportReviewExisting: return "已有內容不同的新檢舉，請在重試前先核對下方內容。"
+        case .chatReportBack: return "返回"
+        case .chatReportPending: return "等待傳送。編號：%1$@"
+        case .chatReportAcknowledged: return "開發者已收到。編號：%1$@"
+        case .chatReportNeedsRetry: return "尚未確認送達。編號：%1$@"
+        case .chatReportExpired: return "尚未確認送達。伺服器只接受建立時間在七天內的檢舉，請檢查裝置日期與時間。編號：%1$@"
+        case .chatReportRetry: return "重新傳送"
+        case .chatReportCancel: return "取消"
+        case .chatReportClose: return "關閉"
+        case .chatReportDelete: return "刪除檢舉"
+        case .chatReportDeleteTitle: return "刪除這份檢舉？"
+        case .chatReportDeleteConfirm: return "已送達的檢舉會從開發者伺服器和本機刪除；未傳送的檢舉會從本機刪除。如果無法確認送達，檢舉會保留。"
+        case .chatReportDeleted: return "檢舉已刪除。"
+        case .chatReportDeleteFailed: return "無法確認刪除，檢舉已保留。請稍後重試。"
+        case .chatReportDeleteUnverified: return "這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。"
         case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
         case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"
         case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"

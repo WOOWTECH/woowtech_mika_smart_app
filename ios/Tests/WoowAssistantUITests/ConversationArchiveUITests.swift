@@ -299,7 +299,7 @@ final class ConversationArchiveUITests: XCTestCase {
     func testMessageMenuQuotesAndAsksAgainLikeAndroid() {
         launch(); configure(); send("Menu first")
         openMessageMenu("chat.message.1.assistant")
-        for id in ["copy", "quote", "selectText", "branch"] {
+        for id in ["copy", "quote", "selectText", "report", "branch"] {
             XCTAssertTrue(app.buttons["chat.messageMenu." + id].firstMatch.exists, id)
         }
         XCTAssertFalse(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists, "a reply is not asked again")
@@ -320,6 +320,7 @@ final class ConversationArchiveUITests: XCTestCase {
         openMessageMenu("chat.message.2.user")
         XCTAssertTrue(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists)
         XCTAssertFalse(app.buttons["chat.messageMenu.branch"].firstMatch.exists, "your own message is not a branch point")
+        XCTAssertFalse(app.buttons["chat.messageMenu.report"].firstMatch.exists, "only AI replies are reported")
         tap("chat.messageMenu.askAgain")
         assertLabel(app.staticTexts["chat.toast"].firstMatch, "已建立分支")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, "Explain")
@@ -356,6 +357,36 @@ final class ConversationArchiveUITests: XCTestCase {
         tap("chat.selectText.done")
         assertGone(body)
         assertBranchInSidebar("Menu first · 分支")
+    }
+
+    /// Play's 檢舉 AI 回覆 (964d7bec): the sheet sends the reply's report (to the
+    /// UI test relay, never the real one), shows it received, and deletes it.
+    func testMessageMenuReportsAReplyLikePlay() {
+        launch(); configure(); send("Report me")
+        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.report")
+        assertLabel(app.staticTexts["chat.report.notice"].firstMatch, "檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。")
+        XCTAssertTrue(app.staticTexts["chat.report.reference"].firstMatch.label.hasPrefix("回覆編號："))
+        assertLabel(app.staticTexts["chat.report.response"].firstMatch, "測試回覆：Report me")
+        XCTAssertTrue(app.buttons["chat.report.reason.offensive"].firstMatch.isSelected, "冒犯性內容 is chosen first, as on Play")
+        tap("chat.report.reason.unsafe")
+        XCTAssertTrue(app.buttons["chat.report.reason.unsafe"].firstMatch.isSelected)
+        XCTAssertFalse(app.buttons["chat.report.reason.offensive"].firstMatch.isSelected)
+        assertLabel(app.buttons["chat.report.confirm"].firstMatch, "送出檢舉")
+        tap("chat.report.confirm")
+        let status = app.staticTexts["chat.report.status"].firstMatch
+        let received = NSPredicate(format: "exists == true AND label BEGINSWITH %@", "開發者已收到。編號：")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: received, object: status)], timeout: 15), .completed)
+        assertLabel(app.buttons["chat.report.dismiss"].firstMatch, "關閉")
+        tap("chat.report.delete")
+        let confirm = app.alerts.buttons["刪除檢舉"].firstMatch
+        ready(confirm); confirm.tap()
+        assertLabel(app.staticTexts["chat.report.deleted"].firstMatch, "檢舉已刪除。")
+        assertGone(status)
+        tap("chat.report.dismiss")
+        assertGone(app.staticTexts["chat.report.notice"].firstMatch)
+        openMessageMenu("chat.message.0.user")
+        XCTAssertFalse(app.buttons["chat.messageMenu.report"].firstMatch.exists, "only AI replies are reported")
+        tap("chat.messageMenu.copy")
     }
 
     private func openMessageMenu(_ identifier: String) {
