@@ -47,7 +47,7 @@ UI_SHARDS = {
     "ui-notifications": ["NotificationUITests"],
     "ui-archive": ["ConversationArchiveUITests"],
     "ui-workspace": ["BrowserWorkspaceUITests", "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests"],
-    "ui-browser": ["BrowserInteractionUITests", "BrowserUploadUITests"],
+    "ui-browser": ["BrowserInteractionUITests", "BrowserUploadUITests", "ChatWebTaskUITests"],
     "ui-learning": ["BrowserLearningUITests"],
     "ui-memory": ["MemoryUITests", "MemoryRaceUITests"],
     "ui-memory-tools": ["MemoryToolUITests"],
