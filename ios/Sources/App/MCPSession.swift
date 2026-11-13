@@ -29,7 +29,7 @@ final class MCPSession: ObservableObject {
     @Published private(set) var toolNames: [String] = []
     @Published private(set) var tools: [MCPTool] = []
     /// Offered to the model read-only, without a picker, like the Play build's
-    /// resource_read tool: at most 30, each read still needs its own approval.
+    /// resource_read tool: at most 30, read without a per-call approval.
     @Published private(set) var resources: [MCPResource] = []
     @Published private(set) var selectedToolNames: Set<String> = []
     @Published var toolSearch = ""

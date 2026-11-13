@@ -267,7 +267,7 @@ import XCTest
         try expect(center.addCalls == 1, "repeated snapshot suppressed")
         observer.entriesChanged(.init(entryCount: 0, lastAssistantID: nil)); await service.waitUntilIdle()
         try expect(center.pending.isEmpty, "new conversation/model removal clears")
-        for source in [TaskNotificationApprovalSource.mcp, .profile, .memory] {
+        for source in [TaskNotificationApprovalSource.profile, .memory] {
             observer.submittingChanged(true); let id = UUID()
             observer.approvalChanged(id, source: source); await service.waitUntilIdle()
             try expect(center.pending.values.first?.kind == .approval, "each actual approval source supported")

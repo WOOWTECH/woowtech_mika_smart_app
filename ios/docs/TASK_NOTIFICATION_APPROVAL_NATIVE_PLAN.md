@@ -1,5 +1,11 @@
 # Native Chat approval notification case plan
 
+Superseded on 2026-11-13: like the Play build, MCP calls no longer ask for
+approval, `MCPApprovalView.swift` is gone and its results list lives in
+`MCPResultsView.swift`. `NotificationApprovalUITests` now drives the memory review
+that follows an MCP call (`[fixture:mcp-memory] …`) and checks the same review
+before and after the banner tap. The plan below is the record of the earlier case.
+
 Status: dedicated case and observation hook drafted; native compilation and
 execution pending. The case has a 300-second execution allowance. Written after the
 native App Build step passed in [run 42890969758](https://github.com/WOOWTECH/woow-assistant-ios/actions/runs/42890969758),

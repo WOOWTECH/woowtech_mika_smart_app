@@ -2,12 +2,12 @@
 import XCTest
 
 final class MCPConversationRunnerTests: XCTestCase {
-    func testSelectedCatalogAndExactApprovedExecution() async throws {
-        let count = try await MCPConversationChecks.approvedExecutionAndCatalog()
+    func testSelectedCatalogRunsWithoutPerCallApproval() async throws {
+        let count = try await MCPConversationChecks.executionWithoutApprovalAndCatalog()
         XCTAssertGreaterThan(count, 0)
     }
-    func testDenialAndChangedArgumentsNeverBorrowConsent() async throws {
-        let count = try await MCPConversationChecks.refusalAndChangedArguments()
+    func testSelectionIsTheLimitAndChangedArgumentsRunOnce() async throws {
+        let count = try await MCPConversationChecks.selectionLimitsAndChangedArguments()
         XCTAssertGreaterThan(count, 0)
     }
     func testStrictCommandsUnknownToolsAndSelectedResources() async throws {
@@ -26,7 +26,7 @@ final class MCPConversationRunnerTests: XCTestCase {
         let count = try await MCPConversationChecks.modelFailureClassification()
         XCTAssertGreaterThan(count, 0)
     }
-    func testSingleBoundedCommandCorrectionPreservesSelectionApprovalAndResults() async throws {
+    func testSingleBoundedCommandCorrectionPreservesSelectionAndResults() async throws {
         let count = try await MCPConversationChecks.commandCorrection()
         XCTAssertGreaterThan(count, 0)
     }
@@ -34,7 +34,7 @@ final class MCPConversationRunnerTests: XCTestCase {
         let count = try await MCPConversationChecks.correctionCancellationAndDeadline()
         XCTAssertGreaterThan(count, 0)
     }
-    func testCancellationAndDeadlineFenceLateApprovalAndResults() async throws {
+    func testCancellationAndDeadlineFenceLateCallbacksAndResults() async throws {
         let count = try await MCPConversationChecks.cancellationAndDeadline()
         XCTAssertGreaterThan(count, 0)
     }

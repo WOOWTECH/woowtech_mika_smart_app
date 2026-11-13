@@ -175,8 +175,8 @@ private actor ArchiveModel: ChatModelClient {
         let restoreRequests = await never.requests
         try a.check(restoreRequests.isEmpty && client.operations == baseline && service.trackedCount == 0, "restore zero model/extraction/notification calls")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes, "restore zero learning writes")
-        try a.check(restored.pendingMCPApproval == nil && restored.pendingProfileReview == nil && restored.pendingMemoryReview == nil,
-                    "no restored approvals")
+        try a.check(restored.pendingProfileReview == nil && restored.pendingMemoryReview == nil,
+                    "no restored reviews")
         try a.check(restored.mcpSteps.isEmpty && restored.profileReceipt == nil && restored.memoryReceipt == nil && !restored.usesMCP,
                     "no tool receipts or capability restored")
         try a.check(restored.entries.map(\.id) == session.entries.map(\.id) && restored.draft.isEmpty && !restored.isSubmitting, "restore is display only")
@@ -230,8 +230,8 @@ private actor ArchiveModel: ChatModelClient {
 
         try a.check(RecentConversationAccess.open(first, in: session), "explicit safe shortcut opens stored row")
         try a.check(session.entries.map(\.id) == [first.turns[0].userID, first.turns[0].assistantID]
-                    && session.pendingMCPApproval == nil && session.pendingProfileReview == nil
-                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no approvals")
+                    && session.pendingProfileReview == nil
+                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no reviews")
         let modelRequests = await model.requests
         try a.check(modelRequests.count == 2, "shortcut made no new model call")
         session.modelDraft = "other-model"; session.saveSettings()
@@ -653,7 +653,7 @@ private actor ArchiveModel: ChatModelClient {
             bridge.invalidate()
             try a.check(session.entries.map(\.id) == entries && e.archive.state == state && !session.isSubmitting,
                         "joined late response cannot overwrite after " + mode)
-            try a.check(session.pendingMCPApproval == nil && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "no pending actions survive " + mode)
+            try a.check(session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "no pending actions survive " + mode)
         }
         try a.check(e.reopen().conversations.isEmpty, "deleted conversation stays absent after relaunch")
         try a.rejects("old expected row cannot resurrect") { try e.archive.save(row, expected: row) }

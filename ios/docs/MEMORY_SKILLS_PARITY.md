@@ -153,7 +153,8 @@ permits catalog reading but disables import.
 Approved, enabled adaptations use the existing bounded personal-skill retrieval
 path; pending and suspended skills remain excluded. This is guidance as user-context,
 not an additional permission or automatic tool dispatch. The iOS app's constrained
-DOM actions and MCP conversation tools have separate capability/approval boundaries.
+DOM actions and MCP conversation tools have separate capability boundaries (MCP calls
+run without a per-call approval since 2026-11-13, like the Play build).
 An MCP server may expose additional capabilities, but catalog import neither grants
 access to them nor establishes equivalence with Mika's original tools. Desktop,
 shell, Python and Android/native-App requirements are explicitly marked unsupported

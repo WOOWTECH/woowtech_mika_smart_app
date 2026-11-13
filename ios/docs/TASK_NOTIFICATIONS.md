@@ -1,7 +1,10 @@
 # Local task notifications
 
 This increment implements default-off local notifications for the actual root
-ChatSession: ordinary chat, MCP completion/approval, and profile/memory reviews.
+ChatSession: ordinary chat and MCP completion, and profile/memory reviews. Since
+2026-11-13 MCP calls need no approval (like the Play build), so they never post an
+approval notification; the native approval case now uses the memory review that
+follows an MCP call.
 The bridge reads entry count, assistant entry ID/role, submitting state and review
 IDs only. It neither reads nor retains message content, review arguments or error
 bodies. Independent skill/browser runners are **not wired** by this increment.
@@ -41,8 +44,9 @@ The current success contract is a new assistant entry appended during a new
 submitting interval. `finish` alone is not success: it also handles cancellation
 and errors. The host already rejects late request generations before appending.
 An empty/reduced transcript clears notifications, including newConversation,
-successful removeSettings and changed model settings. All three review IDs are
-watched; nil/resolved removes both pending and delivered approval notifications.
+successful removeSettings and changed model settings. Both review IDs (profile and
+memory) are watched; nil/resolved removes both pending and delivered approval
+notifications.
 
 Existing scene cancellation policy stays in place. The modifier additionally
 invalidates notification approval records when not active and refreshes system

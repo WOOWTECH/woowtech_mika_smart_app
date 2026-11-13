@@ -39,9 +39,8 @@ final class MCPConversationUITests: XCTestCase {
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
+        // No approval card: the selected tool runs and holds at once.
         send("[fixture:mcp] hello")
-        assertApproval()
-        app.buttons["mcp.approval.approve"].tap()
         navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["fixture.mcp.lease.holding"].waitForExistence(timeout: 10),
                       "The synthetic executor must enter its held call")
@@ -103,55 +102,75 @@ final class MCPConversationUITests: XCTestCase {
         app.terminate()
     }
 
-    func testModelSelectedToolRequiresExactApprovalAndReturnsResult() {
+    /// Like the Play build, a selected tool runs with no approval card: the
+    /// answer arrives with no tap, and the results list shows the call.
+    func testSelectedToolRunsWithoutApprovalAndReturnsResult() {
         send("[fixture:mcp] hello")
-        assertApproval()
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        app.buttons["mcp.approval.approve"].tap()
         assertAnswer("FIXTURE_CALL_1: hello")
         let draft = chatDraftControl(in: app).value as? String ?? ""
-        XCTAssertTrue(draft.isEmpty || draft == "輸入訊息")
-        XCTAssertTrue(app.staticTexts["chat.mcpActivity"].label.contains("1"))
+        XCTAssertTrue(["", "輸入訊息", "繼續說點什麼…"].contains(draft), "the sent draft is cleared")
+        assertAudit(attempts: 1, results: 1)
+        app.buttons["chat.mcpResults"].tap()
+        let result = app.staticTexts["mcp.result.0"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: hello"))
+        XCTAssertFalse(app.staticTexts["mcp.result.1"].exists)
     }
 
-    /// Like the Play build, discovered resources are offered without a picker;
-    /// each read still needs its own approval.
-    func testDiscoveredResourceRequiresApprovalAndResultIsReviewable() {
+    /// Like the Play build, discovered resources are offered without a picker
+    /// and read with no approval card.
+    func testDiscoveredResourceIsReadWithoutApprovalAndResultIsReviewable() {
         send("[fixture:mcp-resource]")
-        XCTAssertTrue(app.staticTexts["mcp.approval.name"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.staticTexts["mcp.approval.name"].label, "讀取 MCP 資源")
-        XCTAssertTrue(app.staticTexts["mcp.approval.arguments"].label.contains("fixture://guide"))
-        app.buttons["mcp.approval.approve"].tap()
         assertAnswer("FIXTURE_RESOURCE_OK")
+        assertAudit(attempts: 1, results: 1)
         app.buttons["chat.mcpResults"].tap()
         XCTAssertTrue(app.staticTexts["mcp.result.0"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["mcp.result.0"].label.contains("FIXTURE_RESOURCE_OK"))
     }
 
-    func testRefusalPreservesDraftAndMakesNoServerCall() {
+    /// The tool selection is the limit: a tool that is not selected never runs.
+    func testUnselectedToolNeverRunsAndDraftIsKept() {
+        navigateMikaSection("tools", in: app)
+        let enabled = app.switches["mcp.enable.fixture_echo"]
+        revealLearningElement(enabled, in: app)
+        setSwitch(enabled, on: false)
+        navigateMikaSection("chat", in: app)
+        // The offered resource keeps MCP on for this chat; the model still asks for fixture_echo.
+        XCTAssertEqual(app.switches["chat.useMCP"].value as? String, "1")
         let prompt = "[fixture:mcp] hello"
         send(prompt)
-        assertApproval()
-        app.buttons["mcp.approval.decline"].tap()
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["chat.error"].label.contains("拒絕"))
+        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
         XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        XCTAssertFalse(app.buttons["chat.mcpResults"].exists)
+        navigateMikaSection("tools", in: app)
+        revealLearningElement(enabled, in: app)
+        setSwitch(enabled, on: true)
+        navigateMikaSection("chat", in: app)
         app.buttons["chat.send"].tap()
-        assertApproval()
-        app.buttons["mcp.approval.approve"].tap()
-        // Same actor connection: count 1 proves the denied call never executed.
+        // Same actor connection: count 1 proves the unselected call never ran.
         assertAnswer("FIXTURE_CALL_1: hello")
     }
 
-    func testBackgroundRevokesPendingApprovalAndRetainsDraft() {
+    /// Leaving the app cancels a tool call that is still running (held by the
+    /// fixture), keeps the draft and disconnects MCP.
+    func testBackgroundCancelsRunningToolAndRetainsDraft() {
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+            "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
+            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+        app.launchEnvironment = [:]
+        app.launch()
+        connectFixture()
         let prompt = "[fixture:mcp] hello"
         send(prompt)
-        assertApproval()
+        let dispatched = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "MCP 嘗試呼叫 1 次"),
+                                                   object: app.staticTexts["chat.mcpActivity"])
+        XCTAssertEqual(XCTWaiter.wait(for: [dispatched], timeout: 10), .completed, "The call must be running with no approval card")
         XCUIDevice.shared.press(.home)
         app.activate()
         XCTAssertTrue(app.buttons["chat.send"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["mcp.approval.approve"].exists)
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
         XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
         app.buttons["chat.send"].tap()
@@ -163,10 +182,6 @@ final class MCPConversationUITests: XCTestCase {
 
     func testToolErrorPreservesDraftAndActualErrorResult() {
         send("[fixture:mcp-error]")
-        XCTAssertTrue(app.staticTexts["mcp.approval.name"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.staticTexts["mcp.approval.name"].label, "fixture_echo")
-        XCTAssertTrue(app.staticTexts["mcp.approval.arguments"].label.contains("error"))
-        app.buttons["mcp.approval.approve"].tap()
         XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["chat.error"].label.contains("工具回報錯誤"))
         XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:mcp-error]")
@@ -186,15 +201,12 @@ final class MCPConversationUITests: XCTestCase {
         app.buttons["chat.dismissKeyboard"].tap()
         app.buttons["chat.send"].tap()
     }
-    private func assertApproval() {
-        let name = app.staticTexts["mcp.approval.name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 10))
-        XCTAssertEqual(name.label, "fixture_echo")
-        let text = app.staticTexts["mcp.approval.arguments"].label
-        let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: String]
-        XCTAssertEqual(object, ["text": "hello"])
-        XCTAssertTrue(app.buttons["mcp.approval.approve"].isHittable)
-        XCTAssertTrue(app.buttons["mcp.approval.decline"].isHittable)
+    /// The fixed run counters behind the activity line: one call, one result.
+    private func assertAudit(attempts: Int, results: Int) {
+        let fields = (app.staticTexts["chat.mcpActivity"].value as? String ?? "").components(separatedBy: ";")
+        XCTAssertTrue(fields.contains("attempts=\(attempts)"))
+        XCTAssertTrue(fields.contains("results=\(results)"))
+        XCTAssertTrue(fields.contains("failure=none"))
     }
     private func assertAnswer(_ text: String) {
         let answer = app.staticTexts["chat.message.1.assistant"]

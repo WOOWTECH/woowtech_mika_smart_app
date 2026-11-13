@@ -9,7 +9,8 @@ public struct TaskNotificationChatSnapshot: Equatable, Sendable {
     }
 }
 
-public enum TaskNotificationApprovalSource: Hashable { case mcp, profile, memory }
+/// Reviews that wait for the person. MCP calls run without one, like the Play build.
+public enum TaskNotificationApprovalSource: Hashable { case profile, memory }
 
 /// Observes ChatSession's actual publication order: submitting -> optional approvals ->
 /// appended assistant -> submitting false. Failure/cancel never append an assistant.

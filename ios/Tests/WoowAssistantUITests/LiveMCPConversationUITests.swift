@@ -1,7 +1,9 @@
 import XCTest
 
-/// Real model + real HA server through the App. Only audited read-only calls are
-/// approved. No live screenshots, trees, response bodies or xcresult uploads.
+/// Real model + real HA server through the App. Only audited read-only tools are
+/// selected; like the Play build, a selected tool runs with no per-call approval,
+/// so the selection is what keeps every call read-only. No live screenshots,
+/// trees, response bodies or xcresult uploads.
 final class LiveMCPConversationUITests: XCTestCase {
     private let namespace = UUID().uuidString
     private var app = XCUIApplication()
@@ -72,37 +74,17 @@ final class LiveMCPConversationUITests: XCTestCase {
 
     func testRealModelChoosesTwoReadOnlyToolsAndUsesTheirResults() throws {
         send("Call ha_eval_template once with only {\"template\":\"{{7*6}}\"}, and ha_list_floors_areas once with {}. After both successful tool results, reply exactly MCP_OK_42 only if the template result is 42. Use actual tool results.")
-        var approved = Set<String>()
-        for _ in 0..<2 {
-            let nameElement = app.staticTexts["mcp.approval.name"]
-            let next = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                nameElement.exists || self.app.staticTexts["chat.error"].exists
-                    || self.app.staticTexts["chat.message.1.assistant"].exists
-            }, object: nil)
-            let waitResult = XCTWaiter.wait(for: [next], timeout: 95)
-            let activity = app.staticTexts["chat.mcpActivity"]
-            // App-owned fixed categories/counters only; never log proposals,
-            // model replies, tool results or the full accessibility tree.
-            print("Live MCP transition: \(activity.value as? String ?? "unavailable"); proposal=\(nameElement.exists); error=\(app.staticTexts["chat.error"].exists); answer=\(app.staticTexts["chat.message.1.assistant"].exists)")
-            XCTAssertEqual(waitResult, .completed)
-            XCTAssertTrue(nameElement.exists, "The model did not produce the next approval proposal; see fixed diagnostics.")
-            let name = nameElement.label
-            XCTAssertTrue(["ha_eval_template", "ha_list_floors_areas"].contains(name), "Unapproved tool proposal.")
-            XCTAssertTrue(approved.insert(name).inserted, "The model repeated a call instead of selecting the other tool.")
-            let data = Data(app.staticTexts["mcp.approval.arguments"].label.utf8)
-            let arguments = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-            if name == "ha_eval_template" {
-                XCTAssertTrue(Set(arguments.keys) == ["template"], "Unexpected template arguments; no call was approved.")
-                XCTAssertTrue(arguments["template"] as? String == "{{7*6}}", "Only the literal arithmetic template is authorized.")
-            } else {
-                XCTAssertTrue(arguments.isEmpty, "Only unfiltered floor/area listing is authorized.")
-            }
-            app.buttons["mcp.approval.approve"].tap()
-            let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: nameElement)
-            XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed)
-        }
+        // No approval card: both selected tools run as the model asks.
         let answer = app.staticTexts["chat.message.1.assistant"]
-        XCTAssertTrue(answer.waitForExistence(timeout: 95), "No final answer after actual tools returned.")
+        let done = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            answer.exists || self.app.staticTexts["chat.error"].exists
+        }, object: nil)
+        let waitResult = XCTWaiter.wait(for: [done], timeout: 185)
+        // App-owned fixed categories/counters only; never log calls, model
+        // replies, tool results or the full accessibility tree.
+        print("Live MCP transition: \(app.staticTexts["chat.mcpActivity"].value as? String ?? "unavailable"); error=\(app.staticTexts["chat.error"].exists); answer=\(answer.exists)")
+        XCTAssertEqual(waitResult, .completed)
+        XCTAssertTrue(answer.exists, "No final answer after actual tools returned; see fixed diagnostics.")
         XCTAssertTrue(answer.label.trimmingCharacters(in: .whitespacesAndNewlines) == "MCP_OK_42", "Final answer did not use the literal arithmetic result.")
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
         let diagnostics = app.staticTexts["chat.mcpActivity"].value as? String ?? "unavailable"
@@ -112,32 +94,12 @@ final class LiveMCPConversationUITests: XCTestCase {
                       "Exactly two actual results and zero tool errors must be reported.")
     }
 
-    func testRealModelToolRefusalKeepsDraft() {
-        let prompt = "Use ha_eval_template with only template={{7*6}} to calculate the result. Propose the tool call and wait for my approval."
-        send(prompt)
-        let next = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            self.app.staticTexts["mcp.approval.name"].exists || self.app.staticTexts["chat.error"].exists
-                || self.app.staticTexts["chat.message.1.assistant"].exists
-        }, object: nil)
-        let waitResult = XCTWaiter.wait(for: [next], timeout: 95)
-        let diagnostics = app.staticTexts["chat.mcpActivity"].value as? String ?? "unavailable"
-        print("Live MCP refusal proposal: \(diagnostics); proposal=\(app.staticTexts["mcp.approval.name"].exists); error=\(app.staticTexts["chat.error"].exists)")
-        XCTAssertEqual(waitResult, .completed)
-        XCTAssertTrue(app.staticTexts["mcp.approval.name"].exists, "No real approval proposal; fixed diagnostics identify the terminal phase.")
-        XCTAssertTrue(app.staticTexts["mcp.approval.name"].label == "ha_eval_template")
-        app.buttons["mcp.approval.decline"].tap()
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["chat.error"].label.contains("拒絕"))
-        XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt, "Declining a real proposal must preserve its draft.")
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-    }
-
     func testRealModelUsesRemoteToolThenReviewedLocalMemoryAndUndo() throws {
         let sentence = "Prefer jasmine tea"
         // Same instruction as the successful actual MCP/App harness. Native UI
-        // must deliver the prompt and approve each proposal; no seeded draft.
-        let prompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review both the remote call and the local write separately. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
-        let remoteName = app.staticTexts["mcp.approval.name"].firstMatch
+        // must deliver the prompt and approve the memory review; no seeded
+        // draft. The selected remote tool runs with no approval card.
+        let prompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review the local write. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
         let memoryReview = app.staticTexts["memoryTool.operation"].firstMatch
         let profileReview = app.staticTexts["profileTool.operation"].firstMatch
         let error = app.staticTexts["chat.error"].firstMatch
@@ -210,12 +172,12 @@ final class LiveMCPConversationUITests: XCTestCase {
             let raw = activity.exists ? (activity.value as? String ?? "") : ""
             // A sheet may hide the underlying activity label. -1 means not
             // observed, never zero. Do not print the raw diagnostic or labels.
-            print("Live MCP memory phase=\(phase);modelCalls=\(diagnosticCount("modelCalls", in: raw) ?? -1);corrections=\(diagnosticCount("formatCorrections", in: raw) ?? -1);attempts=\(diagnosticCount("attempts", in: raw) ?? -1);results=\(diagnosticCount("results", in: raw) ?? -1);toolErrors=\(diagnosticCount("toolErrors", in: raw) ?? -1);remoteReview=\(remoteName.exists);memoryReview=\(memoryReview.exists);profileReview=\(profileReview.exists);error=\(error.exists);answer=\(answer.exists)")
+            print("Live MCP memory phase=\(phase);modelCalls=\(diagnosticCount("modelCalls", in: raw) ?? -1);corrections=\(diagnosticCount("formatCorrections", in: raw) ?? -1);attempts=\(diagnosticCount("attempts", in: raw) ?? -1);results=\(diagnosticCount("results", in: raw) ?? -1);toolErrors=\(diagnosticCount("toolErrors", in: raw) ?? -1);memoryReview=\(memoryReview.exists);profileReview=\(profileReview.exists);error=\(error.exists);answer=\(answer.exists)")
             return raw
         }
         func nextStage(_ phase: String) {
             let pending = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                remoteName.exists || memoryReview.exists || profileReview.exists || error.exists || answer.exists
+                memoryReview.exists || profileReview.exists || error.exists || answer.exists
             }, object: nil)
             let result = XCTWaiter.wait(for: [pending], timeout: 95)
             _ = fixedPhase(phase)
@@ -240,29 +202,8 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
         send(prompt)
 
-        nextStage("remote_proposal")
-        guard remoteName.exists, remoteName.label == "ha_eval_template",
-              !memoryReview.exists, !profileReview.exists, !error.exists, !answer.exists else {
-            XCTFail("The first native review must be the selected arithmetic tool; no action was approved.")
-            return
-        }
-        readable("mcp.approval.name", equals: "ha_eval_template")
-        let argumentsLabel = app.staticTexts["mcp.approval.arguments"].firstMatch
-        revealLearningElement(argumentsLabel, in: app, visibility: .readableText)
-        let argumentsData = Data(argumentsLabel.label.utf8)
-        guard argumentsData.count <= 4096,
-              let object = try? JSONSerialization.jsonObject(with: argumentsData),
-              let arguments = object as? [String: Any], Set(arguments.keys) == ["template"],
-              arguments["template"] as? String == "{{7*6}}" else {
-            XCTFail("Only the exact arithmetic template arguments may be approved.")
-            return
-        }
-        tap("mcp.approval.approve")
-        let remoteClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: remoteName)
-        XCTAssertEqual(XCTWaiter.wait(for: [remoteClosed], timeout: 5), .completed)
-
         nextStage("memory_review")
-        guard memoryReview.exists, !remoteName.exists, !profileReview.exists, !error.exists, !answer.exists else {
+        guard memoryReview.exists, !profileReview.exists, !error.exists, !answer.exists else {
             XCTFail("An actual local memory_save review must follow the single remote call.")
             return
         }
@@ -280,7 +221,6 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [reviewClosed], timeout: 5), .completed)
 
         nextStage("completion")
-        XCTAssertFalse(remoteName.exists)
         XCTAssertFalse(memoryReview.exists)
         XCTAssertFalse(profileReview.exists)
         XCTAssertFalse(error.exists, "A committed receipt does not replace the required model finish.")

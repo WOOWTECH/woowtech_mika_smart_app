@@ -601,8 +601,8 @@
       "key": "mcp.explanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。",
-        "en": "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. Each execution requires your approval of the tool name and complete arguments. Tool descriptions and results are sent to your configured model."
+        "zh-Hant": "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。",
+        "en": "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. The model runs selected tools without asking you each time, so select only tools you allow it to use. Tool descriptions and results are sent to your configured model."
       }
     },
     {
@@ -948,51 +948,6 @@
       }
     },
     {
-      "case": "mcpApprovalHelp",
-      "key": "mcp.approval.help",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "模型請求執行以下工具。核准只適用於這一次的名稱與參數；結果會提供給已設定的模型。",
-        "en": "The model requests this tool. Approval applies only to this name and these arguments for this invocation. Results will be provided to your configured model."
-      }
-    },
-    {
-      "case": "mcpApprovalRisk",
-      "key": "mcp.approval.risk",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "工具可能修改外部資料。取消本機等待無法撤銷已送出的操作。",
-        "en": "Tools may change external data. Cancelling local waiting cannot undo an operation already sent."
-      }
-    },
-    {
-      "case": "mcpApprovalTitle",
-      "key": "mcp.approval.title",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "核准 MCP 呼叫",
-        "en": "Approve MCP call"
-      }
-    },
-    {
-      "case": "mcpDecline",
-      "key": "mcp.decline",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "拒絕並停止",
-        "en": "Decline and stop"
-      }
-    },
-    {
-      "case": "mcpApprove",
-      "key": "mcp.approve",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "核准這一次",
-        "en": "Approve once"
-      }
-    },
-    {
       "case": "mcpReadResource",
       "key": "mcp.read.resource",
       "parameters": [],
@@ -1035,15 +990,6 @@
       "translations": {
         "zh-Hant": "結果無法顯示",
         "en": "Result cannot be displayed"
-      }
-    },
-    {
-      "case": "mcpRouteObservation",
-      "key": "mcp.route.observation",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "通知導頁測試觀測",
-        "en": "Notification routing test observation"
       }
     },
     {
@@ -2250,8 +2196,8 @@
       "key": "catalog.req.send",
       "parameters": [],
       "translations": {
-        "zh-Hant": "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准",
-        "en": "Original cross-app messaging is not provided; MCP tools need separate approval"
+        "zh-Hant": "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准",
+        "en": "Original cross-app messaging is not provided; only MCP tools you select can run, with no per-call approval"
       }
     },
     {
@@ -3540,15 +3486,6 @@
       "translations": {
         "zh-Hant": "等待你核對記憶修改…",
         "en": "Waiting for you to review memory changes…"
-      }
-    },
-    {
-      "case": "chatStatusMCPApproval",
-      "key": "chat.status.mcpApproval",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "等待你核准 MCP 工具…",
-        "en": "Waiting for you to approve the MCP tool…"
       }
     },
     {

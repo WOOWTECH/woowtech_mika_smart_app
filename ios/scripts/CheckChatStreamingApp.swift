@@ -380,7 +380,7 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(!client.emit("Late after restore"), "late stream cannot enter restored conversation")
         client.finish()
         try a.check(try Data(contentsOf: e.archiveFile) == savedBytes, "restore never saves partial or replay")
-        try a.check(client.counts.complete == 0 && client.counts.stream == 1 && session.pendingProfileReview == nil && session.pendingMemoryReview == nil && session.pendingMCPApproval == nil, "restore creates no calls or approvals")
+        try a.check(client.counts.complete == 0 && client.counts.stream == 1 && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "restore creates no calls or reviews")
         return a.count
     }
     static func structuredFlowsRemainReviewed() async throws -> Int {
@@ -403,7 +403,8 @@ private actor StreamMCP: MCPDiscovering {
             try a.check((session.entries.count == 2) == approve && (e.archive.conversations.count == 1) == approve, "only approved final answer is complete")
             try a.check(session.replyPreview == nil && client.counts.stream == 0 && client.counts.complete == (approve ? 2 : 1), "structured flow uses unchanged bounded complete requests")
         }
-        for approve in [false, true] {
+        do {
+            // Like the Play build, the selected tool runs with no approval card.
             let e = try StreamEnvironment(); defer { e.close() }
             let server = StreamMCP(); let connection = MCPSession(repository: StreamEndpoint(), clientFactory: { _ in server })
             connection.connect(); try await wait("actual MCP discovery") { !connection.isBusy }
@@ -412,15 +413,12 @@ private actor StreamMCP: MCPDiscovering {
             let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
             let session = e.session(client); session.usesMCP = true
             let task = try start(session, "Read selected tool", mcp: connection)
-            try await wait("actual MCP approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-            guard let approval = session.pendingMCPApproval else { throw Failure(name: "missing actual MCP approval") }
-            try a.check(session.chatStatusMessage == .chatStatusMCPApproval, "MCP approval takes precedence in status")
-            let before = await server.calls
-            try a.check(before == 0 && session.replyPreview == nil && session.entries.isEmpty && client.counts.stream == 0, "MCP JSON hidden until explicit approval and execution")
-            session.resolveMCPApproval(id: approval.id, approved: approve); await task.value
+            try a.check(session.chatStatusMessage == .chatStatusMCPWorking && session.replyPreview == nil && session.entries.isEmpty,
+                        "a running MCP turn shows the working status; its JSON is never shown")
+            await task.value
             let after = await server.calls
-            try a.check(after == (approve ? 1 : 0), "MCP refusal and one approved effect retained")
-            try a.check((session.entries.count == 2) == approve && session.replyPreview == nil && client.counts.stream == 0, "MCP finish validator still precedes delivered answer")
+            try a.check(after == 1 && session.mcpSteps.count == 1 && session.chatError == nil, "the selected tool ran once with no approval")
+            try a.check(session.entries.count == 2 && session.replyPreview == nil && client.counts.stream == 0, "MCP finish validator still precedes delivered answer")
         }
         return a.count
     }

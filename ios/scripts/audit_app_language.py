@@ -36,7 +36,7 @@ def inventory():
             elif path.name in {'SelfConfigurationView.swift','SkillWorkerSettingsView.swift'}:
                 review='migrated_settings_view' if 'typed_localized_render' in kinds else 'settings_manual_reviewed'
                 if 'Text(verbatim: question)' in line:review='excluded_model_clarification_verbatim'
-            elif path.name in {'MCPToolsView.swift','MCPApprovalView.swift','BrowserSearchSettingsView.swift','BrowserLibraryView.swift','SkillCatalogView.swift','TaskNotificationSettingsView.swift'}:
+            elif path.name in {'MCPToolsView.swift','MCPResultsView.swift','BrowserSearchSettingsView.swift','BrowserLibraryView.swift','SkillCatalogView.swift','TaskNotificationSettingsView.swift'}:
                 review='phase2_typed_render' if 'typed_localized_render' in kinds else 'phase2_dynamic_or_data_field_review_required'
             elif path.name=='SelfConfigurationSession.swift' and 'let reference =' in line:review='excluded_model_protocol_reference'
             sites.append({'file':relative,'line':number,'line_sha256':hashlib.sha256(line.encode()).hexdigest(),'kinds':kinds,'review':review})
