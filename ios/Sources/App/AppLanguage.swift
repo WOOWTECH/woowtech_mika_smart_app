@@ -17,21 +17,29 @@ enum AppLanguage: String, CaseIterable, Codable {
         case .simplifiedChinese: return .simplifiedChinese
         case .english: return .english
         case .system:
-            let compatible = preferredLanguages.filter {
-                let code = Locale(identifier: $0).language.languageCode?.identifier
-                return code == "en" || code == "zh"
-            }
-            guard !compatible.isEmpty else { return .traditionalChinese }
-            let supported = AppDisplayLanguage.allCases.map(\.rawValue)
-            let selected = Bundle.preferredLocalizations(from: supported, forPreferences: compatible).first
-            return selected.flatMap(AppDisplayLanguage.init(rawValue:)) ?? .traditionalChinese
+            // The first system language the app has an interface for decides;
+            // with none of them, English.
+            return preferredLanguages.lazy.compactMap(AppDisplayLanguage.init(systemLanguage:)).first ?? .english
         }
     }
 }
 
 enum AppDisplayLanguage: String, CaseIterable {
-    // Preserve the existing Traditional Chinese interface when none match.
     case english = "en"
     case traditionalChinese = "zh-Hant"
     case simplifiedChinese = "zh-Hans"
+
+    /// The interface for one system language, by the owner's rule of 2026-11-13
+    /// (簡中用繁中跟其他語言用英文). English shows English. Chinese shows Traditional
+    /// Chinese in either script: Traditional (zh-Hant, zh-TW, zh-HK, zh-MO) has a
+    /// translation, and Simplified (zh-Hans, zh-CN, zh-SG, a bare zh) uses it too, so
+    /// the script never has to be guessed. Cantonese (yue) counts as Chinese, as iOS
+    /// gives it the app's zh-Hant resources. Any other language has no translation.
+    init?(systemLanguage identifier: String) {
+        switch Locale.Language(identifier: identifier).languageCode?.identifier {
+        case "en": self = .english
+        case "zh", "yue": self = .traditionalChinese
+        default: return nil
+        }
+    }
 }

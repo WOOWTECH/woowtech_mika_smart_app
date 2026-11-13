@@ -67,8 +67,9 @@ final class ChatVoiceUITests: XCTestCase {
     }
 
     func testLocalizedVoiceOverEntryAndActivation() {
+        // A Simplified Chinese system shows Traditional Chinese.
         let cases = [("(zh-Hant)", "語音輸入", "取消語音輸入"),
-                     ("(zh-Hans)", "语音输入", "取消语音输入"),
+                     ("(zh-Hans)", "語音輸入", "取消語音輸入"),
                      ("(en)", "Voice input", "Cancel voice input")]
         for (language, label, cancelLabel) in cases {
             launch(systemLanguages: language)

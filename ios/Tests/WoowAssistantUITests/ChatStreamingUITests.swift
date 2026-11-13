@@ -14,8 +14,9 @@ final class ChatStreamingUITests: XCTestCase {
     func testComposerIdleAndBusyControlsInThreeLanguages() {
         executionTimeAllowance = 600
         launch(); configure(); disableMemory()
+        // A Simplified Chinese system shows Traditional Chinese.
         let cases = [("(zh-Hant)", "輸入訊息", "語音輸入"),
-                     ("(zh-Hans)", "输入消息", "语音输入"),
+                     ("(zh-Hans)", "輸入訊息", "語音輸入"),
                      ("(en)", "Type a message", "Voice input")]
         for (systemLanguages, placeholder, voiceLabel) in cases {
             launchLocalizedStreamingFixture(app, systemLanguages: systemLanguages, namespace: namespace)

@@ -1058,7 +1058,7 @@ enum AppText: Equatable {
         switch self {
         case .languageTitle: return "語言"
         case .languageSystem: return "跟隨系統"
-        case .languageSystemDetail: return "系統語言渥屋助理有譯文時用它,沒有時用繁體中文"
+        case .languageSystemDetail: return "跟著裝置語言；簡體中文改用繁體中文，其他沒有譯文的語言用英文"
         case .languageTraditional: return "繁體中文"
         case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"

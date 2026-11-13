@@ -1,7 +1,7 @@
 /* Generated from Localization/AppText.json; semantic keys only. */
 "language.title" = "Language";
 "language.system" = "Follow system";
-"language.system.detail" = "Uses your system language when woowtech agent has it, Traditional Chinese otherwise";
+"language.system.detail" = "Follows your device language: Traditional Chinese for Simplified Chinese, English for other languages without a translation";
 "language.traditional" = "繁體中文";
 "language.simplified" = "简体中文";
 "language.english" = "English";
