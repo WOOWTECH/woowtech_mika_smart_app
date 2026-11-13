@@ -74,6 +74,12 @@ private struct ContextFencedMCPExecutor: MCPConversationExecuting {
     }
 }
 
+/// Why a typed message cannot start yet. Mirrors the Android store build's
+/// chat card ("還不能開始任務／還缺:…") so a tap on send is never silent.
+enum ChatSendBlocker: Equatable {
+    case noModel
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -99,6 +105,8 @@ final class ChatSession: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var chatError: String?
     @Published private(set) var chatNotice: String?
+    /// Shown after a send attempt that lacks a prerequisite; closed content only.
+    @Published private(set) var shownSendBlocker: ChatSendBlocker?
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
     @Published var usesMCP = false
@@ -230,6 +238,34 @@ final class ChatSession: ObservableObject {
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && (pdfAttachment == nil || (pdfAttachment?.isReady == true && !usesMCP))
     }
+
+    /// Whether the send key accepts a tap. Like the Android store build, a
+    /// non-empty draft is enough, attachment or not; `attemptSend` explains
+    /// whatever is still missing.
+    var canAttemptSend: Bool {
+        !isSubmitting && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Send when every guard passes; otherwise say why and keep the draft.
+    func attemptSend(mcp: MCPSession? = nil) {
+        guard canAttemptSend else { return }
+        guard savedSettings != nil, hasStoredKey else { shownSendBlocker = .noModel; return }
+        shownSendBlocker = nil
+        guard conversationDestination == nil || conversationDestination == archiveDestination else {
+            chatError = "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
+            return
+        }
+        if let pdfAttachment {
+            guard !usesMCP else { chatError = "PDF 查詢不使用 MCP；請先關閉 MCP 選項，草稿已保留。"; return }
+            guard pdfAttachment.isReady else {
+                chatError = "PDF 尚未完成確認；請先在 PDF 附件中完成讀取、擷取與傳送確認，草稿已保留。"
+                return
+            }
+        }
+        send(mcp: mcp)
+    }
+
+    func dismissSendBlocker() { shownSendBlocker = nil }
 
     private var quoteSourceIsCurrent: Bool {
         guard pendingQuote != nil else { return quoteSource == nil }
@@ -405,6 +441,7 @@ final class ChatSession: ObservableObject {
             }
             chatError = nil
             chatNotice = nil
+            shownSendBlocker = nil
             settingsNotice = result.cleanupFailed
                 ? "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
                 : "設定已儲存，尚未驗證連線。"
@@ -1162,6 +1199,7 @@ final class ChatSession: ObservableObject {
         memoryReceipt = nil
         memoryReceiptRequestID = nil
         chatError = nil; chatNotice = "已開啟新對話；已確認的記憶與技能保留。"
+        shownSendBlocker = nil
     }
 
     private func finish(id: UUID, error: String? = nil) {

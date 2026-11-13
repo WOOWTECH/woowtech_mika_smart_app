@@ -27,7 +27,14 @@ final class ChatPDFAttachmentUITests: XCTestCase {
         let extracted = app.staticTexts["chat.pdf.extracted"].firstMatch
         revealLearningElement(extracted, in: app, visibility: .readableText)
         XCTAssertTrue(extracted.label.hasPrefix("已擷取 2 頁，"))
-        tap("chat.pdf.done"); XCTAssertFalse(app.buttons["chat.send"].firstMatch.isEnabled)
+        tap("chat.pdf.done")
+        // Like an Android attachment, a PDF never disables send. Before the
+        // destination is confirmed a tap explains what is missing, sends nothing.
+        XCTAssertTrue(app.buttons["chat.send"].firstMatch.isEnabled)
+        tap("chat.send"); requests(0)
+        let pending = app.staticTexts["chat.error"].firstMatch
+        XCTAssertTrue(pending.waitForExistence(timeout: 5))
+        XCTAssertTrue(pending.label.hasPrefix("PDF 尚未完成確認"))
         XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:chat-pdf]")
         tap("chat.pdf.open")
         let notice = app.staticTexts["chat.pdf.transmissionNotice"].firstMatch

@@ -48,8 +48,11 @@ private final class Credentials: ModelCredentialStoring {
                   "invalid save must not alter credentials")
         }
         for raw in ["https://site.invalid:/v1", "https://site.invalid:999999999999999999999999/v1"] {
-            // Simulate the exact legacy URLComponents normalization before the fix.
-            guard let legacy = URLComponents(string: raw)?.url else { fatalError("fixture no longer reproduces Foundation behavior") }
+            // Before the fix, older Foundation (e.g. macOS 13) normalized both raw forms to
+            // this URL and that is what legacy records hold. Current Foundation keeps the raw
+            // authority, so building the record with URLComponents here would no longer
+            // reproduce a legacy record (and validation now correctly rejects that form).
+            let legacy = URL(string: "https://site.invalid/v1")!
             let saved = SavedModelSettings(baseURL: legacy, model: "fixture", credentialAccount: first.record.credentialAccount)
             defaults.set(try JSONEncoder().encode(saved), forKey: ModelSettingsRepository.configurationKey)
             guard let loaded = try repository.load() else { fatalError("legacy record rejected") }

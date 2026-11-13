@@ -22,13 +22,13 @@ class FullRegressionPlanTests(unittest.TestCase):
         cls.catalog = ui_inventory(ROOT)
         cls.plan = ci.make_plan(ROOT)
 
-    def test_exact_three_devices_15_shards_core_and_ipad(self):
+    def test_exact_three_devices_16_shards_core_and_ipad(self):
         ci.verify_plan(self.plan, self.catalog)
         rows = self.plan['rows']
-        self.assertEqual((len(rows), sum(len(r['slices']) for r in rows)), (28, 64))
+        self.assertEqual((len(rows), sum(len(r['slices']) for r in rows)), (32, 68))
         all_methods = {x for shard in self.catalog['shards'].values() for x in shard['tests']}
         self.assertEqual((len(self.catalog['shards']), len(all_methods)),
-                         (15, self.catalog['non_live_test_count']))
+                         (16, self.catalog['non_live_test_count']))
         for device in ci.IPHONES:
             slices = [s for r in rows if r['label'] == device['label'] for s in r['slices']]
             self.assertEqual({s['scope'] for s in slices}, set(self.catalog['shards']) | {'core'})
@@ -85,9 +85,9 @@ class FullRegressionPlanTests(unittest.TestCase):
                 self.assertEqual(plan['selection'], selection)
                 self.assertIs(plan['fresh_simulator'], False)
                 self.assertEqual(plan['iphone_labels'], [device['label'] for device in devices])
-                self.assertEqual(len(plan['rows']), 28 if selection == 'all' else 7)
+                self.assertEqual(len(plan['rows']), 32 if selection == 'all' else 8)
                 self.assertEqual(sum(len(row['slices']) for row in plan['rows']),
-                                 64 if selection == 'all' else 16)
+                                 68 if selection == 'all' else 17)
                 self.assertEqual({row['xcode'] for row in plan['rows']},
                                  {device['xcode'] for device in devices})
                 self.assertEqual(any(row['label'] == ci.IPAD['label'] for row in plan['rows']),
@@ -99,7 +99,7 @@ class FullRegressionPlanTests(unittest.TestCase):
         ci.require_full(self.plan)
         manual_all = ci.make_plan(ROOT, fresh_simulator=False)
         ci.verify_plan(manual_all, self.catalog)
-        self.assertEqual(len(manual_all['rows']), 28)
+        self.assertEqual(len(manual_all['rows']), 32)
         with self.assertRaises(ValueError):
             ci.require_full(manual_all)
         selected = ci.make_plan(ROOT, current_only=True)
@@ -114,12 +114,12 @@ class FullRegressionPlanTests(unittest.TestCase):
 
     def test_cli_emits_only_required_xcode_build_and_test_matrices(self):
         for flags, selection, builds, jobs in (
-                ([], 'all', ['16.4', '26.2'], 28),
-                (['--current-only'], 'current', ['26.2'], 7),
-                (['--compact-only'], 'compact', ['16.4'], 7),
-                (['--large-only'], 'large', ['16.4'], 7),
+                ([], 'all', ['16.4', '26.2'], 32),
+                (['--current-only'], 'current', ['26.2'], 8),
+                (['--compact-only'], 'compact', ['16.4'], 8),
+                (['--large-only'], 'large', ['16.4'], 8),
                 (['--current-only', '--compact-only', '--large-only', '--existing-simulator'],
-                 'current', ['26.2'], 7)):
+                 'current', ['26.2'], 8)):
             with self.subTest(flags=flags), tempfile.TemporaryDirectory() as folder:
                 output = Path(folder) / 'plan.json'; gh = Path(folder) / 'github-output.txt'
                 subprocess.run([sys.executable, str(Path(ci.__file__)), 'plan',
@@ -210,7 +210,7 @@ class FullRegressionPlanTests(unittest.TestCase):
             (root / 'two/full-receipt.json').write_text(json.dumps(receipt))
             self.assertFalse(ci.aggregate(plan, root)['verified'])
 
-    def test_full_aggregate_requires_64_matching_receipts(self):
+    def test_full_aggregate_requires_68_matching_receipts(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             for row in self.plan['rows']:
@@ -223,7 +223,7 @@ class FullRegressionPlanTests(unittest.TestCase):
                         'exit_code': 0, 'verified': True}))
             report = ci.aggregate(self.plan, root)
             self.assertEqual((report['verified'], report['planned_slices'], report['received_slices']),
-                             (True, 64, 64))
+                             (True, 68, 68))
             (root / self.plan['rows'][0]['id'] / 'ui-startup/full-receipt.json').unlink()
             self.assertFalse(ci.aggregate(self.plan, root)['verified'])
 

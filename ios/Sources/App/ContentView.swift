@@ -207,7 +207,12 @@ struct ContentView: View {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer)
+                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer,
+                             openSettings: {
+                                 browserReturnSection = .chat
+                                 selection = .settings
+                                 showsDrawer = false
+                             })
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
                 case .settings:
@@ -458,6 +463,7 @@ private struct ChatView: View {
     @ObservedObject var mcp: MCPSession
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
+    let openSettings: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -466,6 +472,7 @@ private struct ChatView: View {
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
     #endif
     @FocusState private var isEditingDraft: Bool
+    @StateObject private var keyboardDock = ChatKeyboardDock()
     @State private var showsMCPResults = false
     @State private var showsPDF = false
     @State private var scrollFollow = ChatScrollFollowPolicy()
@@ -631,6 +638,7 @@ private struct ChatView: View {
                 }
                 .coordinateSpace(name: "chat.transcript.viewport")
                 .accessibilityIdentifier("chat.transcript")
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 // A simultaneous drag observes scrolling without taking the
                 // long-press/text-selection gesture away from selectable Text.
                 .simultaneousGesture(DragGesture(minimumDistance: 5)
@@ -741,6 +749,15 @@ private struct ChatView: View {
                     }
                 }
             }
+            if session.shownSendBlocker != nil {
+                ChatSendBlockedCard(palette: palette, localizer: localizer,
+                                    dismiss: { session.dismissSendBlocker() },
+                                    openSettings: {
+                                        session.dismissSendBlocker()
+                                        isEditingDraft = false
+                                        openSettings()
+                                    })
+            }
             HStack(alignment: .bottom, spacing: 4) {
                 Button {
                     voice.cancel(); isEditingDraft = false; showsPDF = true
@@ -779,7 +796,7 @@ private struct ChatView: View {
                 Button {
                     voice.cancel()
                     isEditingDraft = false
-                    session.send(mcp: session.usesMCP ? mcp : nil)
+                    session.attemptSend(mcp: session.usesMCP ? mcp : nil)
                     if session.isSubmitting {
                         // Only an accepted send restores follow. The observer
                         // also covers sends launched from the PDF sheet.
@@ -790,11 +807,11 @@ private struct ChatView: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(session.canSend ? Color.white : palette.secondaryInk)
+                        .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                         .frame(width: 40, height: 40)
-                        .background(session.canSend ? palette.accent : palette.assistant, in: Circle())
+                        .background(session.canAttemptSend ? palette.accent : palette.assistant, in: Circle())
                 }
-                .disabled(!session.canSend)
+                .disabled(!session.canAttemptSend)
                 .accessibilityLabel(localizer.text(.shellSend))
                 .accessibilityIdentifier("chat.send")
             }
@@ -806,6 +823,8 @@ private struct ChatView: View {
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
+        // This app's own docked keyboard lifts the composer (see ChatKeyboardDock).
+        .chatKeyboardReserve(keyboardDock)
         .sheet(isPresented: $showsPDF) { ChatPDFAttachmentView(session: session) }
         .sheet(item: Binding(get: { session.pendingMCPApproval }, set: { _ in })) { proposal in
             MCPApprovalView(proposal: proposal,
@@ -836,6 +855,12 @@ private struct ChatView: View {
         .onChange(of: showsDrawer) { _, visible in
             if visible { voice.cancel(); isEditingDraft = false }
         }
+        .onChange(of: session.shownSendBlocker) { _, blocker in
+            // VoiceOver users hear why the tap did not send.
+            guard blocker != nil else { return }
+            UIAccessibility.post(notification: .announcement,
+                                 argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
+        }
         .onAppear { voice.attach(session: session) }
         .onDisappear { voice.cancel() }
         .onChange(of: session.conversationID) { _, _ in voice.cancel() }
@@ -848,6 +873,51 @@ private struct ChatView: View {
                 voice.tick()
             }
         }
+    }
+}
+
+/// The Android store build's chat NeedCard for a send that cannot start:
+/// a warning dot, title, what is missing, then 知道了 and 去設定. Kept above
+/// the composer, outside the transcript, so it stays visible however the
+/// transcript is sized.
+@MainActor
+private struct ChatSendBlockedCard: View {
+    let palette: MikaVisualPalette
+    let localizer: AppLocalizer
+    let dismiss: () -> Void
+    let openSettings: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Circle().fill(Color.orange).frame(width: 8, height: 8).accessibilityHidden(true)
+                Text(verbatim: localizer.text(.chatSendBlockedTitle))
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.ink)
+            }
+            Text(verbatim: localizer.text(.chatSendBlockedNoModel))
+                .font(.system(size: 14)).foregroundStyle(palette.secondaryInk)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            HStack(spacing: 8) {
+                Button(action: dismiss) {
+                    Text(verbatim: localizer.text(.chatSendBlockedDismiss)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("chat.sendBlocked.dismiss")
+                Button(action: openSettings) {
+                    Text(verbatim: localizer.text(.chatSendBlockedOpenSettings)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accent)
+                .accessibilityIdentifier("chat.sendBlocked.openSettings")
+            }
+            .padding(.top, 14)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.sendBlocked")
     }
 }
 
