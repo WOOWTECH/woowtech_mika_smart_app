@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Exercise the model provider document offline: pure values, no network."""
+"""Exercise the provider document, the v1 import and Keychain order offline.
+
+The actual ModelSettingsRepository runs with isolated defaults suites, a
+temporary folder and an in-memory Keychain; nothing reaches a network.
+"""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -18,8 +22,8 @@ def main():
         binary = build / "checks"
         subprocess.run([*common, "-I", str(build), "-L", str(build), "-lAssistantModels",
                         "-Xlinker", "-rpath", "-Xlinker", str(build),
-                        str(root / "scripts/CheckModelProviders.swift"), "-o", str(binary)],
-                       cwd=root, check=True, timeout=240)
+                        str(root / "Sources/App/ModelSettings.swift"), str(root / "scripts/CheckModelProviders.swift"),
+                        "-o", str(binary)], cwd=root, check=True, timeout=240)
         subprocess.run([str(binary)], cwd=root, check=True, timeout=60)
 
 

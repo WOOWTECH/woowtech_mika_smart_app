@@ -17,7 +17,8 @@ enum LiveModelUITestSupport {
         guard let defaults = UserDefaults(suiteName: service) else {
             preconditionFailure("Cannot create isolated live UI test defaults")
         }
-        return ModelSettingsRepository(defaults: defaults, credentials: KeychainModelCredentials(service: service))
+        return ModelSettingsRepository(defaults: defaults, credentials: KeychainModelCredentials(service: service),
+                                       providers: ModelProvidersFile.live(scope: "liveuitest-" + namespace.uuidString))
     }
 
     static func bootstrap(_ repository: ModelSettingsRepository, environment: [String: String]) throws {
