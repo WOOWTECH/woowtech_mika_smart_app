@@ -60,10 +60,12 @@ extension ModelProvidersDocument {
             && address != nil && ModelProviderAddress.normalized($0.baseURL) == address }
     }
 
-    /// Saving `draft` makes its model the main model only while none is
-    /// chosen, as Android's testAndSave.
+    /// Saving `draft` makes its model the main model only after it passed
+    /// the test and while none is chosen, as Android's testAndSave. An
+    /// untested save (saveWithoutTest) never does: the model is chosen in the
+    /// picker, which tests it first.
     public func additionBecomesMain(_ draft: ModelProviderDraft) -> Bool {
-        roles.main == nil && draft.model != nil
+        roles.main == nil && draft.model != nil && draft.tested
     }
 
     /// The AI-sharing consent (App Review 5.1.2(i)) this save needs first; nil
@@ -92,9 +94,10 @@ extension ModelProvidersDocument {
 
     /// Android ProviderStore.connect: the same provider is updated (a typed
     /// key replaces its key, a blank one keeps it); otherwise a new provider is
-    /// added. The typed model is remembered as typed, and as verified when it
-    /// answered the test; it becomes the main model only while none is
-    /// chosen, and then only with the user's consent (`consentedAt`).
+    /// added. The typed model is remembered as typed (Android markTyped), and
+    /// as verified when it answered the test; a tested model becomes the main
+    /// model only while none is chosen, and then only with the user's consent
+    /// (`consentedAt`).
     public func addingProvider(_ draft: ModelProviderDraft, consentedAt: Date?,
                                newProviderID: UUID = UUID(), newAccount: UUID = UUID()) throws -> ModelProviderAddition {
         if let model = draft.model, !ModelProviderAddress.isModelName(model) { throw ModelProvidersError.invalidDocument }

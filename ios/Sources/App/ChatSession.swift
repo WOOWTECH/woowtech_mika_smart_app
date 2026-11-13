@@ -242,6 +242,9 @@ final class ChatSession: ObservableObject {
     @Published private(set) var providerNotice: AppText?
     /// The consent asked before a send to a provider never agreed to.
     @Published private(set) var pendingSendConsent: ModelConsentPrompt?
+    /// Android pickToProbe: the provider just saved without a test while no
+    /// main model is chosen; Settings › 模型 offers 選主模型 for it.
+    @Published private(set) var pickMainProvider: UUID?
     private var consentMCP: MCPSession?
     @Published var usesMCP = false
     @Published private(set) var mcpActivity: String?
@@ -657,6 +660,9 @@ final class ChatSession: ObservableObject {
         guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
             throw HTTPChatModelError.invalidConfiguration
         }
+        // Owner decision 2026-11-13: until the consent is given (a setting from
+        // before it), work outside the chat keeps its own "model unavailable"
+        // errors. A later consent prompt for these features would hook in here.
         guard !mainNeedsConsent else { throw ModelSettingsError.consentRequired }
         return ModelAccess(client: client, configuration: savedSettings.configuration(conversation: nil),
                            key: try repository.key(for: savedSettings), identity: identity)
@@ -780,6 +786,9 @@ final class ChatSession: ObservableObject {
             reloadProviders()
             providerNotice = tested ? .modelSavedTested(name: saved.providerName)
                                     : .modelSavedUntested(name: saved.providerName)
+            // Android saveWithoutTest: with no main model yet, choose one from this
+            // provider; the picker tests it before it becomes the main model.
+            pickMainProvider = !tested && providerDocument.roles.main == nil ? saved.providerID : nil
             if saved.cleanupFailed { settingsError = Self.cleanupFailure }
             return true
         } catch {
@@ -873,7 +882,7 @@ final class ChatSession: ObservableObject {
         reloadProviders()
     }
 
-    func clearProviderNotice() { providerNotice = nil; settingsError = nil; settingsNotice = nil }
+    func clearProviderNotice() { providerNotice = nil; settingsError = nil; settingsNotice = nil; pickMainProvider = nil }
 
     /// Like saving the old form: no change during a reply or with a quote
     /// waiting, and running work and learning stop first.
@@ -885,6 +894,7 @@ final class ChatSession: ObservableObject {
         settingsError = nil
         settingsNotice = nil
         providerNotice = nil
+        pickMainProvider = nil
         return true
     }
 

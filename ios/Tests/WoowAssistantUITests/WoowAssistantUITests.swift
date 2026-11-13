@@ -571,9 +571,12 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertFalse(problem.exists)
         self.save(in: app)
         confirmModelSave(in: app)
-        assertSaved(in: app)
+        assertSaved(in: app, tested: false)
+        // As on the Play build, an untested save chooses no main model: 選主模型
+        // tests the typed model first, then asks for the consent.
         XCTAssertTrue(app.buttons["models.provider.model.example.invalid"].exists)
-        XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
+        chooseMainAfterUntestedSave("ui-test-model", in: app)
         returnFromModelSettings(in: app)
         // Like Android, the Model row names the provider (here its host), not the model ID.
         let modelRow = app.buttons["settings.modelJump"]
@@ -619,7 +622,7 @@ final class WoowAssistantUITests: XCTestCase {
         custom.tap()
         fillForm(in: app, baseURL: "https://other.example.invalid/v1", model: "other-model", key: nil)
         save(in: app)
-        confirmModelSave(in: app, consent: false)
+        confirmModelSave(in: app)
         let notice = app.staticTexts["settings.notice"]
         XCTAssertTrue(notice.waitForExistence(timeout: 5))
         XCTAssertTrue(notice.label.contains("other.example.invalid"))
@@ -759,7 +762,7 @@ final class WoowAssistantUITests: XCTestCase {
         // Saved without a test, then added again and the form cancelled while
         // its test is pending: the late pass neither saves nor marks it tested.
         fillForm(in: app)
-        save(in: app); confirmModelSave(in: app); assertSaved(in: app)
+        save(in: app); confirmModelSave(in: app); assertSaved(in: app, tested: false)
         let add = app.buttons["models.addProvider"]
         revealSettings(add, in: app)
         add.tap()
@@ -786,7 +789,16 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(status.waitForExistence(timeout: 10))
         XCTAssertTrue(status.label.contains("測試通過"))
         XCTAssertFalse(app.staticTexts["provider.untested"].exists)
+        // The tested model becomes the main model from its 用作 sheet, after the consent.
+        let model = app.buttons["provider.model.ui-test-model"]
+        revealSettings(model, in: app)
+        model.tap()
+        let useAsMain = app.buttons["useAs.main"]
+        XCTAssertTrue(useAsMain.waitForExistence(timeout: 10))
+        useAsMain.tap()
+        agreeToModelConsent(in: app)
         returnFromModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
         returnFromModelSettings(in: app); openSection("chat", in: app)
         send("Saved after cancellation", in: app)
         assertReply("測試回覆：Saved after cancellation", in: app)
@@ -827,10 +839,7 @@ final class WoowAssistantUITests: XCTestCase {
     func testConsentNamesTheHostAndDecliningSavesNothing() {
         let app = launchApp()
         fillConfiguration(in: app)
-        save(in: app)
-        let alert = app.alerts.firstMatch
-        XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        alert.buttons["仍然儲存"].tap()
+        tapTestAndSave(in: app)
         let title = app.staticTexts["consent.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         XCTAssertEqual(title.label, "要把內容傳給 model.example.invalid 嗎？")
@@ -847,9 +856,9 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(notice.label.contains("沒有儲存"))
         assertNothingSaved(in: app, "after declining")
         XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
-        // The form keeps what was typed; agreeing on the next save stores it.
-        save(in: app)
-        confirmModelSave(in: app)
+        // The form keeps what was typed; agreeing after the next test stores it.
+        tapTestAndSave(in: app)
+        agreeToModelConsent(in: app)
         assertSaved(in: app)
         XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
         returnFromModelSettings(in: app)
@@ -1024,11 +1033,20 @@ final class WoowAssistantUITests: XCTestCase {
         }
     }
 
+    /// A main model: 測試並儲存 passes on the fixture model, then the consent.
     private func configure(in app: XCUIApplication) {
         fillConfiguration(in: app)
-        save(in: app)
-        confirmModelSave(in: app)
+        tapTestAndSave(in: app)
+        agreeToModelConsent(in: app)
         assertSaved(in: app)
+    }
+
+    /// 測試並儲存; the consent screen follows when the save makes the first main model.
+    private func tapTestAndSave(in app: XCUIApplication) {
+        let test = app.buttons["setup.test"]
+        revealSettings(test, in: app)
+        XCTAssertTrue(test.isEnabled)
+        test.tap()
     }
 
     /// 測試並儲存 reads 正在測試… while its test runs.
@@ -1073,16 +1091,16 @@ final class WoowAssistantUITests: XCTestCase {
         release.tap()
     }
 
-    /// 不測試，直接儲存; confirmModelSave answers its question and the consent.
+    /// 不測試，直接儲存; confirmModelSave answers its question.
     private func save(in app: XCUIApplication) {
         let save = app.buttons["settings.save"]
         revealSettings(save, in: app)
         save.tap()
     }
 
-    private func assertSaved(in app: XCUIApplication) {
+    private func assertSaved(in app: XCUIApplication, tested: Bool = true) {
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("沒有測試過"))
+        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains(tested ? "測試通過" : "沒有測試過"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
     }
 

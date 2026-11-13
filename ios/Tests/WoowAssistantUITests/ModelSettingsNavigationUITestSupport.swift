@@ -45,23 +45,41 @@ func returnFromModelSettings(in app: XCUIApplication, file: StaticString = #file
     XCTAssertFalse(app.textFields["settings.baseURL"].isHittable, file: file, line: line)
 }
 
-/// After a tap on 不測試，直接儲存 (settings.save): confirm 仍然儲存, then, when
-/// the save makes the first main model, agree on the consent screen (App
-/// Review 5.1.2(i)). With `consent: false` the save must not ask.
-func confirmModelSave(in app: XCUIApplication, consent: Bool = true,
-                      file: StaticString = #filePath, line: UInt = #line) {
+/// After a tap on 不測試，直接儲存 (settings.save): confirm 仍然儲存. As on the
+/// Play build the provider is saved untested and its model is not made the
+/// main model, so no consent is asked (chooseMainAfterUntestedSave does that).
+/// Tests that need a main model at once use 測試並儲存 (setup.test) and
+/// agreeToModelConsent instead.
+func confirmModelSave(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
     let alert = app.alerts.firstMatch
     XCTAssertTrue(alert.waitForExistence(timeout: 10), file: file, line: line)
     XCTAssertEqual(alert.label, "不測試就儲存？", file: file, line: line)
     let save = alert.buttons["仍然儲存"]
     XCTAssertTrue(save.waitForExistence(timeout: 5), file: file, line: line)
     save.tap()
-    if consent {
-        agreeToModelConsent(in: app, file: file, line: line)
-    } else {
-        XCTAssertFalse(app.buttons["consent.agree"].waitForExistence(timeout: 2),
-                       "A provider that does not become the main model asks no consent.", file: file, line: line)
-    }
+    XCTAssertFalse(app.buttons["consent.agree"].waitForExistence(timeout: 2),
+                   "Saving without a test makes no main model, so it asks no consent.", file: file, line: line)
+}
+
+/// After 不測試，直接儲存 with no main model yet: 選主模型 (setup.pickMain) opens
+/// the picker; the chosen model is tested first, then the consent is asked
+/// (App Review 5.1.2(i)) and the model becomes the main model.
+func chooseMainAfterUntestedSave(_ model: String, in app: XCUIApplication,
+                                 file: StaticString = #filePath, line: UInt = #line) {
+    let pick = app.buttons["setup.pickMain"]
+    XCTAssertTrue(pick.waitForExistence(timeout: 10), file: file, line: line)
+    revealLearningElement(pick, in: app, file: file, line: line)
+    pick.tap()
+    XCTAssertTrue(app.navigationBars["主模型"].waitForExistence(timeout: 10), file: file, line: line)
+    let row = app.buttons["picker.model." + model]
+    XCTAssertTrue(row.waitForExistence(timeout: 10), file: file, line: line)
+    revealLearningElement(row, in: app, file: file, line: line)
+    row.tap()
+    agreeToModelConsent(in: app, file: file, line: line)
+    XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 15), file: file, line: line)
+    let main = app.buttons["models.role.main"]
+    let chosen = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", model), object: main)
+    XCTAssertEqual(XCTWaiter.wait(for: [chosen], timeout: 10), .completed, file: file, line: line)
 }
 
 /// The consent screen names the service and its host; 同意並繼續 records the

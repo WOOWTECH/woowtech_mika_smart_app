@@ -191,11 +191,18 @@ private final class Environment {
         var withoutMain = document
         withoutMain.roles.main = nil
         let untested = draft("Groq", "https://api.groq.com/openai/v1", model: "llama")
-        try check(withoutMain.consentRequirement(forAdding: untested) == .differentProvider, "a new main provider after another: asked again")
-        let viaUntested = try withoutMain.addingProvider(untested, consentedAt: at)
-        try check(viaUntested.becameMain && viaUntested.provider.savedUntested && viaUntested.document.consent?.providerID == viaUntested.provider.id,
-                  "iOS 1b: an untested save with a typed model becomes the first main model too, after consent")
-        try check(withoutMain.consentRequirement(forAdding: draft("OpenRouter", "https://openrouter.ai/api/v1", model: "x")) == nil,
+        let viaUntested = try withoutMain.addingProvider(untested, consentedAt: nil)
+        try check(withoutMain.consentRequirement(forAdding: untested) == nil && !viaUntested.becameMain
+                  && viaUntested.document.roles.main == nil && viaUntested.provider.typedModels == ["llama"]
+                  && viaUntested.provider.savedUntested && viaUntested.document.consent == withoutMain.consent,
+                  "Play's saveWithoutTest: saved untested with its typed model, never the main model, so no consent asked")
+        let tested = draft("Groq", "https://api.groq.com/openai/v1", model: "llama", tested: true)
+        try check(withoutMain.consentRequirement(forAdding: tested) == .differentProvider,
+                  "a tested save that becomes the first main model, after another provider: asked again")
+        let viaTested = try withoutMain.addingProvider(tested, consentedAt: at)
+        try check(viaTested.becameMain && viaTested.document.consent?.providerID == viaTested.provider.id,
+                  "after the consent the tested model is the main model")
+        try check(withoutMain.consentRequirement(forAdding: draft("OpenRouter", "https://openrouter.ai/api/v1", model: "x", tested: true)) == nil,
                   "the provider last agreed to needs no new consent")
         try check(withoutMain.consentRequirement(forAdding: draft("Groq", "https://api.groq.com/openai/v1", model: nil)) == nil,
                   "a provider saved without a model is never main, so no consent")

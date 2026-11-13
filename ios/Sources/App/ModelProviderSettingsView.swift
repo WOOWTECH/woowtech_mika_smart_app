@@ -285,6 +285,17 @@ struct MikaModelSettingsDetailView: View {
                 .padding(.horizontal, 16).padding(.top, 10)
                 .accessibilityIdentifier("settings.notice")
         }
+        // Android setup-pick-main: a provider saved without a test while no main
+        // model is chosen; the picker tests the chosen model first.
+        if session.pickMainProvider != nil && session.providerDocument.roles.main == nil {
+            NavigationLink {
+                ModelMainPickerView(session: session, languages: languages, addProvider: { formOpen = true })
+            } label: {
+                Text(verbatim: localizer.text(.modelPickMain)).font(.footnote.weight(.medium))
+            }
+            .padding(.horizontal, 16).padding(.top, 6)
+            .accessibilityIdentifier("setup.pickMain")
+        }
         if let error = session.settingsError {
             Text(verbatim: localizer.modelSettingsDisplayMessage(error))
                 .font(.footnote).foregroundStyle(palette.bad)
@@ -572,7 +583,9 @@ struct ModelMainPickerView: View {
                         MikaSettingsRadioRow(title: model,
                                              subtitle: provider.typedModels.contains(model) ? localizer.text(.capTyped) : nil,
                                              selected: document.roles.main == ModelRef(providerID: provider.id, model: model)) {
-                            choose(ModelRef(providerID: provider.id, model: model), typed: false, verified: false)
+                            // Android probeBeforePick: a provider saved without a test is tried first.
+                            if provider.savedUntested { tryManual(provider, model: model) }
+                            else { choose(ModelRef(providerID: provider.id, model: model), typed: false, verified: false) }
                         }
                         .disabled(session.isSubmitting)
                         .accessibilityIdentifier("picker.model." + model)
@@ -584,6 +597,9 @@ struct ModelMainPickerView: View {
             if trial?.providerID == provider.id, case .failed(let failure) = tester.state {
                 footnote(localizer.text(.modelFailed(reason: localizer.text(failure.reason))), color: palette.bad)
                     .accessibilityIdentifier("picker.failed." + provider.name)
+            } else if trial?.providerID == provider.id, tester.state == .testing {
+                footnote(localizer.text(.modelTesting), color: palette.hint)
+                    .accessibilityIdentifier("picker.testing." + provider.name)
             }
         }
     }

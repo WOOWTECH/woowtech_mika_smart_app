@@ -21,7 +21,8 @@ for native UI gestures; normal product requests retain 20 seconds.
 - `testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult`: leaves the
   page while a test runs; saves the provider without a test, adds it again and
   cancels that form while its test runs, so it stays untested; then 重新測試
-  on the provider's page passes with the saved address, model and key.
+  on the provider's page passes with the saved address, model and key, and
+  用作 › 主模型 makes it the main model after the consent.
 - `testDelayedConnectionBackgroundCannotPublishOldResult`: backgrounds and
   foregrounds the simulator app, releases the stale result, then tests again
   and saves after the consent.

@@ -313,8 +313,8 @@ final class BrowserLearningUITests: XCTestCase {
         let key = app.secureTextFields["settings.apiKey"]
         reveal(key)
         enter("fixture-only-not-a-real-key\n", into: key)
-        tap("settings.save", scroll: true)
-        confirmModelSave(in: app)
+        tap("setup.test", scroll: true)
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
         returnFromModelSettings(in: app)

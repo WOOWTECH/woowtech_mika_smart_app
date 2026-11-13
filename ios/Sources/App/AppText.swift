@@ -379,6 +379,7 @@ enum AppText: Equatable {
     case modelSaveUntestedConfirm
     case modelSavedUntested(name: String)
     case modelSavedTested(name: String)
+    case modelPickMain
     case modelTestNote
     case modelNotSavedDeclined(name: String)
     case roleMainHint
@@ -963,6 +964,7 @@ enum AppText: Equatable {
         case .modelSaveUntestedConfirm: return "model.saveUntestedConfirm"
         case .modelSavedUntested: return "model.savedUntested"
         case .modelSavedTested: return "model.savedTested"
+        case .modelPickMain: return "model.pickMain"
         case .modelTestNote: return "model.testNote"
         case .modelNotSavedDeclined: return "model.notSavedDeclined"
         case .roleMainHint: return "role.mainHint"
@@ -1601,10 +1603,11 @@ enum AppText: Equatable {
         case .modelErrorNetwork: return "網路連線失敗"
         case .modelSaveUntested: return "不測試，直接儲存"
         case .modelSaveUntestedTitle: return "不測試就儲存？"
-        case .modelSaveUntestedBody: return "渥屋助理會按你填的位址、Key 和模型名存下這家服務商，不試呼叫。沒測過的這一家可能連不通。存下之後可以在服務商頁「重新測試」。"
+        case .modelSaveUntestedBody: return "渥屋助理會按你填的位址和 Key 存下這家服務商，不列模型、也不試呼叫。渥屋助理做事需要會呼叫工具的模型，沒測過的這一家可能連不通，也可能不會呼叫工具。存下之後可以在服務商頁「重新測試」。"
         case .modelSaveUntestedConfirm: return "仍然儲存"
-        case .modelSavedUntested: return "已存下 %1$@，沒有測試過，任務可能會失敗。可以在服務商頁「重新測試」。"
+        case .modelSavedUntested: return "已存下 %1$@，沒有測試過。它標著「沒測試過」；選一個模型時會先試呼叫，也可以在服務商頁「重新測試」。"
         case .modelSavedTested: return "已存下 %1$@，測試通過。"
+        case .modelPickMain: return "選主模型"
         case .modelTestNote: return "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。"
         case .modelNotSavedDeclined: return "沒有儲存：要用 %1$@，需要先同意把內容傳給它。"
         case .roleMainHint: return "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。"
@@ -1625,7 +1628,7 @@ enum AppText: Equatable {
         case .modelsNewKeyHint: return "貼上新的 Key"
         case .modelsModels: return "模型"
         case .modelsModelsNote: return "點一個模型，可以把它用作主模型，或設定它能不能看圖。"
-        case .modelsUntestedNote: return "這家是跳過測試存下的，還不知道能不能用。點「重新測試」用它的模型試呼叫一次。"
+        case .modelsUntestedNote: return "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。"
         case .modelsRetest: return "重新測試"
         case .modelsRetestPassed: return "測試通過：%1$@ 有回覆。"
         case .modelsDelete: return "刪除這個服務商"

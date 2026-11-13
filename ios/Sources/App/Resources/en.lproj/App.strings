@@ -349,7 +349,7 @@
 "model.manualName" = "Model name";
 "model.exampleCompat" = "e.g. mistral-large-latest";
 "model.exampleGrok" = "e.g. grok-4";
-"model.urlHTTPS" = "The base URL must start with https://; woowtech agent sends keys and chats only over encrypted connections.";
+"model.urlHTTPS" = "The base URL must start with https://; this app sends keys and chats only over encrypted connections.";
 "model.presetMatch" = "This is %1$@’s official address. Its preset fills in the address and interface type for you.";
 "model.usePreset" = "Use the %1$@ preset";
 "model.testSave" = "Test and save";
@@ -368,10 +368,11 @@
 "model.error.network" = "couldn’t connect to the model service";
 "model.saveUntested" = "Don’t test, save anyway";
 "model.saveUntestedTitle" = "Save without testing?";
-"model.saveUntestedBody" = "woowtech agent will save this provider with the address, key and model name you entered, without a test call. An untested provider may not connect. You can test it later from the provider’s page.";
+"model.saveUntestedBody" = "This app will save this provider with the address and key you entered, without listing models or making a test call. It needs a model that can call tools to get things done, and an untested one may not connect or may not call tools. You can test it later from the provider’s page.";
 "model.saveUntestedConfirm" = "Save anyway";
-"model.savedUntested" = "%1$@ was saved without a test, so tasks may fail. You can test it from the provider’s page.";
+"model.savedUntested" = "%1$@ was saved without a test. It’s marked as not tested; pick a model to check it, or test it again from the provider’s page.";
 "model.savedTested" = "%1$@ was saved; the test passed.";
+"model.pickMain" = "Choose main model";
 "model.testNote" = "“Test and save” sends one fixed test message to the model you entered and saves only if it replies. Your chats aren’t sent, though the provider may charge a little.";
 "model.notSavedDeclined" = "Not saved: to use %1$@, you need to agree to send your content to it first.";
 "role.mainHint" = "Does all the thinking and acting. Pick a model with tool calling so tasks go reliably.";
@@ -392,7 +393,7 @@
 "models.newKeyHint" = "Paste the new key";
 "models.models" = "Models";
 "models.modelsNote" = "Tap a model to use it as the main model or say whether it can see images.";
-"models.untestedNote" = "This provider was saved without a test, so nothing is known about whether it works. Tap “Test again” to make one test call with its model.";
+"models.untestedNote" = "This provider was saved without a test, so nothing is known about whether it works. Pick a model to test it, or tap “Test again”.";
 "models.retest" = "Test again";
 "models.retestPassed" = "Test passed: %1$@ replied.";
 "models.delete" = "Delete this provider";
@@ -416,8 +417,8 @@
 "consent.item.skills" = "The content of skills that are used";
 "consent.item.memoryOrganizing" = "With “Remember what I say automatically” on, the request after each reply that organizes your memories, with what you said and related memories";
 "consent.item.mcp" = "Results from MCP tools and resources";
-"consent.privacyPolicy" = "woowtech agent privacy policy";
-"consent.thirdParty" = "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; woowtech agent doesn’t send it anywhere else.";
+"consent.privacyPolicy" = "Privacy policy";
+"consent.thirdParty" = "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; this app doesn’t send it anywhere else.";
 "consent.declineSave" = "If you don’t agree, nothing is sent and this provider isn’t saved.";
 "consent.declineSwitch" = "If you don’t agree, nothing is sent and the main model stays as it is.";
 "consent.declineSend" = "If you don’t agree, nothing is sent: this message stays unsent and your draft is kept.";

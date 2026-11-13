@@ -3295,7 +3295,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "介面網址要以 https:// 開頭；渥屋助理只用加密連線送出 Key 和對話。",
-        "en": "The base URL must start with https://; woowtech agent sends keys and chats only over encrypted connections."
+        "en": "The base URL must start with https://; this app sends keys and chats only over encrypted connections."
       }
     },
     {
@@ -3480,8 +3480,8 @@
       "key": "model.saveUntestedBody",
       "parameters": [],
       "translations": {
-        "zh-Hant": "渥屋助理會按你填的位址、Key 和模型名存下這家服務商，不試呼叫。沒測過的這一家可能連不通。存下之後可以在服務商頁「重新測試」。",
-        "en": "woowtech agent will save this provider with the address, key and model name you entered, without a test call. An untested provider may not connect. You can test it later from the provider’s page."
+        "zh-Hant": "渥屋助理會按你填的位址和 Key 存下這家服務商，不列模型、也不試呼叫。渥屋助理做事需要會呼叫工具的模型，沒測過的這一家可能連不通，也可能不會呼叫工具。存下之後可以在服務商頁「重新測試」。",
+        "en": "This app will save this provider with the address and key you entered, without listing models or making a test call. It needs a model that can call tools to get things done, and an untested one may not connect or may not call tools. You can test it later from the provider’s page."
       }
     },
     {
@@ -3503,8 +3503,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "已存下 %1$@，沒有測試過，任務可能會失敗。可以在服務商頁「重新測試」。",
-        "en": "%1$@ was saved without a test, so tasks may fail. You can test it from the provider’s page."
+        "zh-Hant": "已存下 %1$@，沒有測試過。它標著「沒測試過」；選一個模型時會先試呼叫，也可以在服務商頁「重新測試」。",
+        "en": "%1$@ was saved without a test. It’s marked as not tested; pick a model to check it, or test it again from the provider’s page."
       }
     },
     {
@@ -3519,6 +3519,15 @@
       "translations": {
         "zh-Hant": "已存下 %1$@，測試通過。",
         "en": "%1$@ was saved; the test passed."
+      }
+    },
+    {
+      "case": "modelPickMain",
+      "key": "model.pickMain",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "選主模型",
+        "en": "Choose main model"
       }
     },
     {
@@ -3711,8 +3720,8 @@
       "key": "models.untestedNote",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這家是跳過測試存下的，還不知道能不能用。點「重新測試」用它的模型試呼叫一次。",
-        "en": "This provider was saved without a test, so nothing is known about whether it works. Tap “Test again” to make one test call with its model."
+        "zh-Hant": "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。",
+        "en": "This provider was saved without a test, so nothing is known about whether it works. Pick a model to test it, or tap “Test again”."
       }
     },
     {
@@ -3972,7 +3981,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "渥屋助理隱私權政策",
-        "en": "woowtech agent privacy policy"
+        "en": "Privacy policy"
       }
     },
     {
@@ -3986,7 +3995,7 @@
       ],
       "translations": {
         "zh-Hant": "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。",
-        "en": "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; woowtech agent doesn’t send it anywhere else."
+        "en": "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; this app doesn’t send it anywhere else."
       }
     },
     {

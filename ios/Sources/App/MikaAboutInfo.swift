@@ -71,7 +71,7 @@ enum MikaAboutKey: CaseIterable {
                                  "© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)")
         // iOS: App Review asks for the policy inside the app as well.
         case .privacyPolicy: return ("隱私權政策", "Privacy policy")
-        case .privacyPolicyDetail: return ("渥屋助理怎麼處理你的資料", "How woowtech agent handles your data")
+        case .privacyPolicyDetail: return ("渥屋助理怎麼處理你的資料", "How this app handles your data")
         }
     }
 }
