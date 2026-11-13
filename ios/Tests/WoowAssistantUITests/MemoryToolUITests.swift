@@ -344,7 +344,9 @@ final class MemoryToolUITests: XCTestCase {
                 && keyboard.keys.matching(NSPredicate(format: "label IN %@", ["a", "A"])).firstMatch.exists
         }
         if latin() { return }
-        let globe = app.buttons["Next keyboard"].firstMatch
+        // iOS 18.5 labels this native control 下一個鍵盤 on the Traditional Chinese
+        // simulator, like ChatStreamingUITests' keyboard switch.
+        let globe = app.buttons.matching(NSPredicate(format: "label IN %@", ["Next keyboard", "下一個鍵盤", "下一个键盘"])).firstMatch
         ready(globe); globe.press(forDuration: 1)
         let english = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "English (US)")).firstMatch
         ready(english); english.tap()
