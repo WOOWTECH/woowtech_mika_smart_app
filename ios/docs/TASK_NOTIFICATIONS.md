@@ -62,7 +62,8 @@ never request permission. Notification preferences default off even if iOS has
 previously granted system permission. App opt-out does not change OS permission.
 Denied status exposes the system notification-settings link. Unknown and future
 authorization values fail closed. Provisional/ephemeral are displayed honestly;
-the explicit test button requires full `authorized` status.
+the UI-test-only test button (Debug builds; the product has none, like Play)
+requires full `authorized` status.
 
 The settings fetch that belongs to an enable click returns its own observed
 authorization, even when a concurrent refresh supersedes its UI publication.
@@ -74,7 +75,7 @@ ordering so an old callback cannot overwrite newer state.
 | --- | --- | --- |
 | completed | 任務已完成 | 開啟渥屋助理查看結果。 |
 | approval | 有操作需要你核准 | 請開啟渥屋助理查看並決定；通知不會核准操作。 |
-| test | 通知測試 | 這是渥屋助理的測試通知。 |
+| test (UI tests only) | 通知測試 | 這是渥屋助理的測試通知。 |
 
 Identifiers contain only a version, storage scope, destination/kind enums and a
 new random UUID. The actual UN request has empty userInfo, attachments, category,
@@ -134,7 +135,7 @@ test configuration in Release. No fixture implicitly enables notifications.
 | notifications.disable | app opt-out Button |
 | notifications.systemSettings | UIApplication.openNotificationSettingsURLString |
 | notifications.refresh | read current settings, no prompt |
-| notifications.test | explicit fixed test notification, full authorization only |
+| notifications.test | UI tests only (Debug, `-UITestMode`): fixed test notification, full authorization only. Removed from the product on 2026-11-13 to match the Play build |
 | notifications.notice | fixed failure text, only when present |
 
 The status IDs and raw values belong to the actual Text values, not the surrounding

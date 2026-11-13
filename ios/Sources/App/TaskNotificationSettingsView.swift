@@ -22,10 +22,17 @@ import AssistantDomain
                         .disabled(store.service.requestingAuthorization)
                         .accessibilityIdentifier("notifications.enable")
                 }
-                Button(localizer.text(.notificationTest)) { Task { _ = await store.service.sendTestFromUserGesture() } }
-                    .disabled(!store.service.enabled || store.service.systemSettings.authorization != .authorized
-                              || store.service.requestingAuthorization)
-                    .accessibilityIdentifier("notifications.test")
+                #if DEBUG
+                // Play has no test button, so the product has none. UI tests
+                // still post the fixed test notification to check the actual
+                // system banner and what tapping it opens.
+                if ProcessInfo.processInfo.arguments.contains("-UITestMode") {
+                    Button(localizer.text(.notificationTest)) { Task { _ = await store.service.sendTestFromUserGesture() } }
+                        .disabled(!store.service.enabled || store.service.systemSettings.authorization != .authorized
+                                  || store.service.requestingAuthorization)
+                        .accessibilityIdentifier("notifications.test")
+                }
+                #endif
             }
             Section(localizer.text(.notificationSystemState)) {
                 statusRow(localizer.text(.notificationAuthorization), text: authorizationText,
