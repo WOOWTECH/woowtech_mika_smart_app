@@ -11,6 +11,11 @@ import Foundation
 // Prompts: [fixture:wait] waits cancellably; [fixture:error-once] fails once per launch.
 // Every other prompt returns "測試回覆：<prompt>". Keys entered by tests are dummy strings.
 enum UITestModelFixture {
+    /// Plain chat sends the identity line and safety rules first (AISafetyRules); the
+    /// fixtures below tell requests apart by what follows them.
+    static func withoutPlainChatRules(_ messages: [ModelMessage]) -> [ModelMessage] {
+        messages.first == AISafetyRules.message ? Array(messages.dropFirst()) : messages
+    }
     static func repository(arguments: [String]) -> ModelSettingsRepository {
         guard let flag = arguments.firstIndex(of: "-UITestNamespace"),
               arguments.indices.contains(flag + 1),
@@ -99,6 +104,7 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                 do {
                     try Task.checkCancellation()
                     onDispatch() // Controlled synthetic fixture dispatch.
+                    let messages = UITestModelFixture.withoutPlainChatRules(messages)
                     let prompt = messages.last?.content ?? ""
                     if messages.first?.role == "system",
                        messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true {
@@ -197,7 +203,7 @@ actor UITestChatModelClient: ChatModelClient {
     }
 
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
-        let messages = Self.withoutSkillOffer(input)
+        let messages = Self.withoutSkillOffer(UITestModelFixture.withoutPlainChatRules(input))
         let instructions = messages.first?.content ?? ""
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true

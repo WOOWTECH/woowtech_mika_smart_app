@@ -1289,6 +1289,12 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(try asksUsage(requests[0]) && second["stream_options"] == nil && second["stream"] as? Bool == true &&
                         (first["messages"] as? [[String: String]]) == (second["messages"] as? [[String: String]]),
                         "the resend leaves out only the usage option")
+            let sent = first["messages"] as? [[String: String]] ?? []
+            let lead = sent.first?["content"] ?? ""
+            try a.check(sent.count == 2 && sent[0]["role"] == "system" &&
+                        (lead == AISafetyRules.prompt || lead.hasSuffix("\n\n" + AISafetyRules.prompt)) &&
+                        sent[1] == ["role": "user", "content": "Usage option refused"],
+                        "plain chat sends one system message ending with the identity line and the Play safety rules")
             try a.check(session.entries.last?.content == "Resent SSE" && session.chatError == nil && displayed == ["Resent SSE"] &&
                         e.reopen().conversations.count == 1, "the resent stream previews, completes and saves the turn")
             try a.check(!String(decoding: try interceptedBody(requests[1]), as: UTF8.self).contains(canary),
@@ -1312,6 +1318,10 @@ private actor StreamMCP: MCPDiscovering {
             let requests = fixture.requestSnapshot
             try a.check(requests.count == 2 && (try asksUsage(requests[0])) && (try body(requests[1]))["stream"] as? Bool == false &&
                         (try body(requests[1]))["stream_options"] == nil, "the profile flow falls back to one complete request")
+            let instructions = ((try body(requests[0]))["messages"] as? [[String: String]])?.first
+            try a.check(instructions?["role"] == "system" && instructions?["content"]?.hasPrefix(UserProfileChatFlow.instructions) == true &&
+                        UserProfileChatFlow.instructions.hasSuffix("\n\n" + AISafetyRules.prompt),
+                        "the profile flow's instructions carry the identity line and the Play safety rules")
             try a.check(session.entries.last?.content == "Complete after a refused option" && e.reopen().conversations.count == 1 &&
                         e.learning.profile.snapshot().entries.isEmpty, "the fallback answer is still validated before it is saved")
         }

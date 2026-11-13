@@ -175,7 +175,7 @@ public enum ChatSkillPrompts {
                 save: @escaping Save, onStep: @escaping @MainActor (ChatSkillStep) -> Void) {
         self.catalog = catalog; self.utterances = utterances; self.limits = limits
         self.save = save; self.onStep = onStep
-        let system = ModelMessage(role: "system", content: ChatSkillPrompts.run(index: catalog().index()))
+        let system = ModelMessage(role: "system", content: AISafetyRules.appended(to: ChatSkillPrompts.run(index: catalog().index())))
         messages = [system] + conversation.filter { ["system", "user", "assistant"].contains($0.role) }
         deadline = .now.advanced(by: limits.time)
     }

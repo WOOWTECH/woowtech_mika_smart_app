@@ -45,11 +45,19 @@ private actor ArchiveModel: ChatModelClient {
     /// Plain-chat requests that led with the skill tools offer; it is recorded
     /// apart so the transcript checks below see only the conversation.
     private(set) var skillOffers = 0
+    /// Whether each request's leading system message ended with Play's identity
+    /// line and safety rules (AISafetyRules), as plain chat's does.
+    private(set) var safetyRules: [Bool] = []
     init(_ replies: [String], gate: ArchiveGate? = nil) { self.replies = replies; self.gate = gate }
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         var messages = input
         if messages.first?.role == "system", messages.first?.content.hasPrefix(ChatSkillPrompts.plainChatLead) == true {
+            safetyRules.append(messages.first?.content.hasSuffix("\n\n" + AISafetyRules.prompt) == true)
             messages.removeFirst(); skillOffers += 1
+        } else if messages.first == AISafetyRules.message {
+            safetyRules.append(true); messages.removeFirst()
+        } else {
+            safetyRules.append(false)
         }
         let index = requests.count; requests.append(messages)
         if let gate { await gate.wait() }
@@ -193,8 +201,9 @@ private actor ArchiveModel: ChatModelClient {
                     "learning key rotation cannot erase archive keys or ciphertext")
         _ = e.learning.updatePreferences { $0.useMemory = false; $0.autoRemember = false }
         try await send(session, "Second actual request")
-        let requests = await model.requests
+        let requests = await model.requests, safetyRules = await model.safetyRules
         try a.check(requests.count == 2 && requests[1].map(\.role) == ["user", "assistant", "user"], "existing window receives complete pairs")
+        try a.check(safetyRules == [true, true], "every plain chat request starts with the safety rules")
         try a.check(requests[1][0].content == first.turns[0].userText && e.archive.conversations[0].turns.count == 2, "continued complete transcript")
         // Plain chat leads with the skill tools offer, like Play's skills index.
         let skillOffers = await model.skillOffers

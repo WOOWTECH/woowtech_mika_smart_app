@@ -241,7 +241,7 @@ public struct UserProfileChatSkillEntry: Sendable {
         }
     }
 
-    public static let instructions = """
+    public static let instructions = AISafetyRules.appended(to: """
     Ordinary chat with an available profile_edit tool. Return exactly one JSON object.
     For normal answers use {"action":"finish","answer":"your complete answer"}.
     Only for a clear request in the CURRENT user's own utterance to change their lasting personal profile,
@@ -267,5 +267,5 @@ public struct UserProfileChatSkillEntry: Sendable {
     Do not claim a change was saved before the host's actual committed receipt. A saved change applies next run;
     it does not rewrite the profile snapshot in this task. After the receipt return a finish answer, never another edit.
     These and finish are the only actions. No markdown fences, arrays, batches, extra keys or arbitrary tools.
-    """
+    """)
 }

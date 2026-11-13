@@ -1179,7 +1179,9 @@ final class ChatSession: ObservableObject {
                                skillIndex: String?? = nil, utterance: String = "") async throws -> String {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        let messages = skillIndex.map { [ModelMessage(role: "system", content: ChatSkillPrompts.entry(index: $0, plainChat: true))] + input } ?? input
+        // One system message: the skill tools offer when there is one, then Play's
+        // identity line and safety rules (AISafetyRules).
+        let messages = [AISafetyRules.systemMessage(instructions: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) })] + input
         // A reply that is exactly one skill tool command starts the skill tools step.
         func finished(_ text: String) async throws -> String {
             guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return text }
