@@ -62,10 +62,6 @@ private actor BoundedMCP: MCPDiscovering {
         do { return try await client.listTools() }
         catch { failure = Self.category(error); throw error }
     }
-    func listResources() async throws -> [MCPResource] {
-        do { return try await client.listResources() }
-        catch { failure = Self.category(error); throw error }
-    }
     func armOnce() throws {
         guard !sealed, !permit, attempts == 0 else { throw Check.remoteFence }
         permit = true
@@ -265,9 +261,9 @@ private actor ActualModel: ChatModelClient {
             try await wait(until: min(overall, clock.now.advanced(by: .seconds(95)))) { !connection.isBusy }
             try require(connection.phase == .connected && connection.supportsTools, .discovery)
             connection.selectTool(allowedName, enabled: true)
-            try require(connection.selectedToolNames == [allowedName] && connection.selectedResourceURIs.isEmpty, .selection)
-            let (_, selected, resources) = try connection.conversationConnection()
-            try require(selected.count == 1 && selected.first?.name == allowedName && resources.isEmpty, .selection)
+            try require(connection.selectedToolNames == [allowedName], .selection)
+            let (_, selected) = try connection.conversationConnection()
+            try require(selected.count == 1 && selected.first?.name == allowedName, .selection)
             completed.append(phase)
 
             phase = "remote_then_memory"

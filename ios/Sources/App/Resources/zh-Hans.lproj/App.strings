@@ -83,7 +83,6 @@
 "mcp.title" = "MCP 与 Skills";
 "mcp.connection.section" = "MCP 连接与目录";
 "mcp.no.tools" = "服务器未声明工具能力";
-"mcp.no.resources" = "服务器未声明资源能力";
 "mcp.explanation" = "支持 HTTPS Streamable HTTP。连接后选取要提供给对话模型的工具，再到对话开启 MCP。每次执行前会显示工具名称与完整参数，等待你批准；工具说明及结果会发送给已配置的模型。";
 "mcp.isolation" = "UI 测试隔离模式：不会发送 MCP 网络请求。";
 "mcp.stored" = "端点已安全保存；不显示网址。";
@@ -100,10 +99,6 @@
 "mcp.disconnect" = "断开连接";
 "mcp.server.tools" = "服务器工具";
 "mcp.search.tools" = "搜索工具名称";
-"mcp.server.resources" = "服务器资源";
-"mcp.skills" = "Skills";
-"mcp.skills.location" = "请到“数据 → 技能”管理";
-"mcp.skills.help" = "可导入并审核文字技能，已启用且相关的内容会提供给对话模型。网站研究可生成待审核技能；MCP 工具依每次对话的批准执行。";
 "mcp.remove.question" = "移除此设备保存的 MCP 端点？";
 "mcp.remove" = "移除端点";
 "mcp.not.configured" = "尚未配置 MCP";
@@ -132,7 +127,6 @@
 "mcp.approval.title" = "批准 MCP 调用";
 "mcp.decline" = "拒绝并停止";
 "mcp.approve" = "批准这一次";
-"mcp.read.resource" = "读取 MCP 资源";
 "mcp.tool.error" = "工具报告错误";
 "mcp.tool.result" = "已收到工具结果";
 "mcp.results.title" = "本次 MCP 工具结果";

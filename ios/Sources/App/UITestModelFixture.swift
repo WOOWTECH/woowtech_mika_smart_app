@@ -285,12 +285,9 @@ actor UITestChatModelClient: ChatModelClient {
                 let raw = result.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
                 let payload = try JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any]
                 let body = payload?["result"] as? [String: Any]
-                let parts = (body?["content"] ?? body?["contents"]) as? [[String: Any]]
+                let parts = body?["content"] as? [[String: Any]]
                 let answer = parts?.first?["text"] as? String ?? "Missing fixture result"
                 return String(decoding: try JSONSerialization.data(withJSONObject: ["action": "finish", "answer": answer]), as: UTF8.self)
-            }
-            if messages.contains(where: { $0.content == "[fixture:mcp-resource]" }) {
-                return #"{"action":"read_resource","uri":"fixture://guide"}"#
             }
             if messages.contains(where: { $0.content == "[fixture:mcp-error]" }) {
                 return #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"error"}}"#

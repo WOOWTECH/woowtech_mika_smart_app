@@ -29,7 +29,7 @@
 - [x] HTTPS Streamable HTTP MCP client, explicit tool allowlist, bounded requests and discovery.
 - [x] Keychain-backed model keys and whole MCP endpoints; no plaintext credentials in preferences or logs.
 - [x] User-configurable MCP endpoint with discovery/cancel/disconnect UI.
-- [x] App-level tool/resource selection and bounded model-to-MCP orchestration with explicit per-call approval cards (simulator/live acceptance tracked in VERIFICATION).
+- [x] App-level tool selection and bounded model-to-MCP orchestration with explicit per-call approval cards (simulator/live acceptance tracked in VERIFICATION). Resource selection and the Skills pointer on the MCP page were removed on 2026-11-13 to match the Play build.
 - [ ] OAuth PKCE, explicit session reinitialization UI and other required transport modes.
 - [ ] Authorized real-device HA control tests (target and allowed actions pending).
 - [x] Complete pinned Mika bundled-source catalog with hashes/licenses and separately reviewed iOS text adaptations.

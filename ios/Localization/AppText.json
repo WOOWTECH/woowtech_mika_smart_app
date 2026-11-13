@@ -853,16 +853,6 @@
       }
     },
     {
-      "case": "mcpNoResources",
-      "key": "mcp.no.resources",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "伺服器未宣告資源能力",
-        "zh-Hans": "服务器未声明资源能力",
-        "en": "The server did not declare resource support"
-      }
-    },
-    {
       "case": "mcpExplanation",
       "key": "mcp.explanation",
       "parameters": [],
@@ -1020,46 +1010,6 @@
         "zh-Hant": "搜尋工具名稱",
         "zh-Hans": "搜索工具名称",
         "en": "Search tool names"
-      }
-    },
-    {
-      "case": "mcpServerResources",
-      "key": "mcp.server.resources",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "伺服器資源",
-        "zh-Hans": "服务器资源",
-        "en": "Server resources"
-      }
-    },
-    {
-      "case": "mcpSkills",
-      "key": "mcp.skills",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "Skills",
-        "zh-Hans": "Skills",
-        "en": "Skills"
-      }
-    },
-    {
-      "case": "mcpSkillsLocation",
-      "key": "mcp.skills.location",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "請到「資料 → 技能」管理",
-        "zh-Hans": "请到“数据 → 技能”管理",
-        "en": "Manage skills in Data → Skills"
-      }
-    },
-    {
-      "case": "mcpSkillsHelp",
-      "key": "mcp.skills.help",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "可匯入並審核文字技能，已啟用且相關的內容會提供給對話模型。網站研究可產生待審核技能；MCP 工具依每次對話的核准執行。",
-        "zh-Hans": "可导入并审核文字技能，已启用且相关的内容会提供给对话模型。网站研究可生成待审核技能；MCP 工具依每次对话的批准执行。",
-        "en": "Import and review text skills. Relevant enabled content is provided to the conversation model. Website research can prepare skills for review; MCP tools run with approval in each conversation."
       }
     },
     {
@@ -1343,16 +1293,6 @@
       }
     },
     {
-      "case": "mcpReadResource",
-      "key": "mcp.read.resource",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "讀取 MCP 資源",
-        "zh-Hans": "读取 MCP 资源",
-        "en": "Read MCP resource"
-      }
-    },
-    {
       "case": "mcpToolError",
       "key": "mcp.tool.error",
       "parameters": [],
@@ -1452,29 +1392,6 @@
         "en": {
           "one": "Tools: %lld",
           "other": "Tools: %lld"
-        }
-      }
-    },
-    {
-      "case": "mcpResourceCount",
-      "key": "mcpResourceCount",
-      "parameters": [
-        {
-          "name": "count",
-          "type": "Int"
-        }
-      ],
-      "plural": "count",
-      "translations": {
-        "zh-Hant": {
-          "other": "資源：%lld 個"
-        },
-        "zh-Hans": {
-          "other": "资源：%lld 个"
-        },
-        "en": {
-          "one": "Resources: %lld",
-          "other": "Resources: %lld"
         }
       }
     },

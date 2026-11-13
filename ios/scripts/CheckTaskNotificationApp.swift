@@ -56,7 +56,6 @@ private actor NotificationMCPServer: MCPDiscovering {
     private(set) var calls = 0
     func initialize() async throws -> MCPServerInfo { MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
     func listTools() async throws -> [MCPTool] { [MCPTool(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
-    func listResources() async throws -> [MCPResource] { [] }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         calls += 1
         return .object(["isError": .bool(false), "content": .array([.object(["type": .string("text"), "text": .string("SYNTHETIC_PRIVATE_TOOL_RESULT")])])])

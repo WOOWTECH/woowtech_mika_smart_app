@@ -44,20 +44,6 @@
 			<string>%lld 輪</string>
 		</dict>
 	</dict>
-	<key>mcpResourceCount</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%#@count@</string>
-		<key>count</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>lld</string>
-			<key>other</key>
-			<string>資源：%lld 個</string>
-		</dict>
-	</dict>
 	<key>mcpSelectedCount</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

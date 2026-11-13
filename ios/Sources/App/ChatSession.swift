@@ -646,7 +646,7 @@ final class ChatSession: ObservableObject {
             chatError = "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
             return
         }
-        let mcpConnection: ((any MCPDiscovering), [MCPTool], [MCPResource])?
+        let mcpConnection: ((any MCPDiscovering), [MCPTool])?
         if usesMCP {
             do {
                 guard let mcp else { throw MCPError.notInitialized }
@@ -741,11 +741,11 @@ final class ChatSession: ObservableObject {
                                                  attachments: prepared.attachments))
                 }
                 let reply: String
-                if let (connection, tools, resources) = mcpConnection {
+                if let (connection, tools) = mcpConnection {
                     reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id,
+                        key: key, client: client, connection: connection, tools: tools, requestID: id,
                         contextFence: contextFence) ?? ""
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
@@ -1176,7 +1176,7 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID,
+                                 connection: any MCPDiscovering, tools: [MCPTool], requestID: UUID,
                                  contextFence: ChatContextFence?) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
@@ -1192,14 +1192,15 @@ final class ChatSession: ObservableObject {
         else { executor = connection }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: executor,
+            tools: tools, executor: executor,
             approve: { [weak self] proposal in
                 let approved: Bool
                 switch proposal.action {
                 case .callTool(let name, let arguments):
                     approved = await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
-                case .readResource(let uri):
-                    approved = await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
+                case .readResource:
+                    // No resource is ever selected, so the runner cannot propose one; refuse regardless.
+                    approved = false
                 }
                 guard approved else { return false }
                 do { try await MainActor.run { try contextFence?.check() }; return true } catch { return false }

@@ -7,10 +7,11 @@ import Foundation
 // begin its request. The chat context lease follows the method's lifetime,
 // including cancellation. MCPClient awaits its worker and transport tasks;
 // injected implementations must preserve the same completion contract.
+// Like the Play build, only tools are listed: server resources and prompts are
+// neither discovered nor offered to the model.
 protocol MCPDiscovering: MCPConversationExecuting {
     func initialize() async throws -> MCPServerInfo
     func listTools() async throws -> [MCPTool]
-    func listResources() async throws -> [MCPResource]
     func cancel() async
 }
 
@@ -27,16 +28,12 @@ final class MCPSession: ObservableObject {
     @Published private(set) var phase: Phase = .notConfigured
     @Published private(set) var protocolVersion: String?
     @Published private(set) var toolNames: [String] = []
-    @Published private(set) var resourceNames: [String] = []
     @Published private(set) var tools: [MCPTool] = []
-    @Published private(set) var resources: [MCPResource] = []
     @Published private(set) var selectedToolNames: Set<String> = []
-    @Published private(set) var selectedResourceURIs: Set<String> = []
     @Published var toolSearch = ""
     /// Invalidates conversation snapshots before changing the endpoint or selection.
     var onConnectionChange: (() -> Void)?
     @Published private(set) var supportsTools = false
-    @Published private(set) var supportsResources = false
     @Published private(set) var errorText: AppText?
     var errorMessage: String? { errorText.map { AppLocalizer(language: .traditionalChinese).text($0) } }
     @Published private(set) var noticeText: AppText?
@@ -102,7 +99,7 @@ final class MCPSession: ObservableObject {
     deinit { request?.cancel(); deadline?.cancel() }
 
     var isBusy: Bool { phase == .connecting || phase == .discovering }
-    var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !selectedResourceURIs.isEmpty) }
+    var canUseInConversation: Bool { phase == .connected && !selectedToolNames.isEmpty }
 
     var visibleTools: [MCPTool] {
         let query = toolSearch.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,18 +116,9 @@ final class MCPSession: ObservableObject {
         else { selectedToolNames.remove(name) }
     }
 
-    func selectResource(_ uri: String, enabled: Bool) {
-        guard resources.contains(where: { $0.uri == uri }) else { return }
-        guard !enabled || selectedResourceURIs.count < 64 else { return }
-        onConnectionChange?()
-        if enabled { selectedResourceURIs.insert(uri) }
-        else { selectedResourceURIs.remove(uri) }
-    }
-
-    func conversationConnection() throws -> (any MCPDiscovering, [MCPTool], [MCPResource]) {
+    func conversationConnection() throws -> (any MCPDiscovering, [MCPTool]) {
         guard canUseInConversation, let client else { throw MCPError.notInitialized }
-        return (client, tools.filter { selectedToolNames.contains($0.name) },
-                resources.filter { selectedResourceURIs.contains($0.uri) })
+        return (client, tools.filter { selectedToolNames.contains($0.name) })
     }
     var canSave: Bool { repository != nil && !isBusy && !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     var canConnect: Bool {
@@ -213,25 +201,16 @@ final class MCPSession: ObservableObject {
                 // The native actor serializes operations, so do not issue these concurrently.
                 let tools = info.capabilities.contains("tools") ? try await connection.listTools() : []
                 try Task.checkCancellation()
-                let resources = info.capabilities.contains("resources") ? try await connection.listResources() : []
-                try Task.checkCancellation()
                 // The whole webhook endpoint is a credential, never model context.
                 let catalogData = try JSONEncoder().encode(tools)
-                let resourceData = try JSONEncoder().encode(resources)
                 guard let catalogText = String(data: catalogData, encoding: .utf8),
                       !catalogText.replacingOccurrences(of: "\\/", with: "/").contains(endpoint.absoluteString),
-                      let resourceText = String(data: resourceData, encoding: .utf8),
-                      !resourceText.replacingOccurrences(of: "\\/", with: "/").contains(endpoint.absoluteString),
-                      Set(tools.map(\.name)).count == tools.count,
-                      Set(resources.map(\.uri)).count == resources.count else { throw MCPError.invalidResponse }
+                      Set(tools.map(\.name)).count == tools.count else { throw MCPError.invalidResponse }
                 guard let self, self.requestID == id else { return }
                 self.protocolVersion = info.protocolVersion
                 self.supportsTools = info.capabilities.contains("tools")
-                self.supportsResources = info.capabilities.contains("resources")
                 self.toolNames = tools.map { Self.displayName($0.name, endpoint: endpoint) }
-                self.resourceNames = resources.map { Self.displayName($0.name, endpoint: endpoint) }
                 self.tools = tools
-                self.resources = resources
                 self.finish(id: id)
                 self.phase = .connected
                 self.noticeText = .mcpDiscoveryNotice
@@ -240,7 +219,7 @@ final class MCPSession: ObservableObject {
                 self.stopWork()
                 self.clearCatalog()
                 self.phase = .failed
-                // Never interpolate server errors, names, resource URIs, or endpoint URLs.
+                // Never interpolate server errors, names, or endpoint URLs.
                 self.errorText = .mcpConnectionError
             }
         }
@@ -294,14 +273,10 @@ final class MCPSession: ObservableObject {
     private func clearCatalog() {
         protocolVersion = nil
         toolNames = []
-        resourceNames = []
         tools = []
-        resources = []
         selectedToolNames = []
-        selectedResourceURIs = []
         toolSearch = ""
         supportsTools = false
-        supportsResources = false
     }
 
     private static func settingsMessage(_ error: Error) -> AppText {
