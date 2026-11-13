@@ -45,4 +45,17 @@ import XCTest
             XCTAssertFalse(FileManager.default.fileExists(atPath: simplifiedTables.appendingPathComponent(table).path), table)
         }
     }
+
+    /// iOS picks zh-Hans.lproj for a Simplified Chinese system's permission prompts;
+    /// the packaged app carries the Traditional Chinese prompts there and nothing else.
+    func testSimplifiedChineseSystemGetsTraditionalPermissionPrompts() throws {
+        let simplified = Bundle.main.bundleURL.appendingPathComponent("zh-Hans.lproj")
+        let names = try FileManager.default.contentsOfDirectory(atPath: simplified.path).filter { !$0.hasPrefix(".") }
+        XCTAssertEqual(names, ["InfoPlist.strings"])
+        let prompts = try XCTUnwrap(NSDictionary(contentsOf: simplified.appendingPathComponent("InfoPlist.strings")))
+        let traditional = try XCTUnwrap(NSDictionary(contentsOf: Bundle.main.bundleURL
+            .appendingPathComponent("zh-Hant.lproj/InfoPlist.strings")))
+        XCTAssertEqual(prompts, traditional)
+        XCTAssertEqual(prompts["NSMicrophoneUsageDescription"] as? String, "渥屋助理會在你使用語音輸入或允許網站使用麥克風時使用麥克風。")
+    }
 }
