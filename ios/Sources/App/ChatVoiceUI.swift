@@ -95,7 +95,6 @@ struct ChatVoicePressControl: UIViewRepresentable {
         let button = VoicePressButton(type: .system)
         button.setImage(UIImage(systemName: "mic.fill"), for: .normal)
         button.accessibilityIdentifier = "chat.voice"
-        button.accessibilityTraits = .button
         button.accessibilityToggle = { [weak coordinator = context.coordinator] in coordinator?.accessibilityToggle() }
         button.accessibilityCancel = { [weak coordinator = context.coordinator] in coordinator?.accessibilityCancel() }
         #if DEBUG
@@ -121,7 +120,11 @@ struct ChatVoicePressControl: UIViewRepresentable {
         button.accessibilityCustomActions = active
             ? [UIAccessibilityCustomAction(name: cancelLabel, target: button, selector: #selector(VoicePressButton.cancelVoice(_:)))]
             : nil
-        button.isEnabled = enabled && voicePreferences.choice.allowsDeviceRecognition
+        let accepts = enabled && voicePreferences.choice.allowsDeviceRecognition
+        button.isEnabled = accepts
+        // Traits set by the app replace UIKit's own, so a disabled microphone
+        // must say so itself; otherwise VoiceOver and UI tests see it as usable.
+        button.accessibilityTraits = accepts ? .button : [.button, .notEnabled]
         button.tintColor = active ? .systemRed : .label
     }
     static func dismantleUIView(_ button: VoicePressButton, coordinator: Coordinator) {
