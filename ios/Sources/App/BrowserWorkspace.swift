@@ -382,7 +382,16 @@ final class BrowserWorkspace: ObservableObject {
         let revision = UUID()
         websiteRecordRevision = revision
         isLoadingWebsiteRecords = true
+        #if DEBUG
+        // Value-free timing only: a fetch that never calls back leaves the
+        // list loading, so hosted runs must show whether WebKit answered.
+        let started = ProcessInfo.processInfo.systemUptime
+        browserWebsiteDiagnostic("BROWSER_WEBSITE_RECORDS phase=requested")
+        #endif
         websiteDataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { [weak self] records in
+            #if DEBUG
+            browserWebsiteDiagnostic("BROWSER_WEBSITE_RECORDS phase=received records=\(records.count) elapsedMs=\(Int((ProcessInfo.processInfo.systemUptime - started) * 1_000))")
+            #endif
             guard let self, self.websiteRecordRevision == revision, !self.isClearingWebsiteData else { return }
             self.websiteRecords = records.sorted { $0.displayName < $1.displayName }
             self.isLoadingWebsiteRecords = false

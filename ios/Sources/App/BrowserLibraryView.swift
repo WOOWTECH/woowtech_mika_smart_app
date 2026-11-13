@@ -58,6 +58,14 @@ struct BrowserLibraryView: View {
                     else { websites }
                 }
             }
+            .background {
+                if sitesOnly || section == 3 {
+                    WebsiteDataForegroundPage(dataStore: workspace.websiteDataStore)
+                        .frame(width: 1, height: 1)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
             .navigationTitle(localizer.text(sitesOnly ? .browserSites : .browserLibrary))
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.commonClose)) { dismiss() }.accessibilityIdentifier("browser.library.close") } }
             .toolbar {
@@ -191,5 +199,38 @@ struct BrowserLibraryView: View {
                 Text(page.url.absoluteString).font(.caption).lineLimit(2)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }.accessibilityIdentifier("browser.\(prefix).open.\(page.id)")
+    }
+}
+
+/// A blank page from the browser's own data store, kept in the window while
+/// the website-data list is shown. WebKit lists and deletes website data in
+/// its network process, and only a visible page gives that process a
+/// foreground activity. From Memory, or over the browser start page, there is
+/// no visible page. On iOS 18.5 CI (PR #33, SE and Pro Max) fetchDataRecords
+/// then woke the suspended network process with a background assertion only;
+/// it did not even log processDidResume while the tests waited (20 and 30 s),
+/// so the list spun forever. Each resume in those logs that followed a
+/// foreground activity ran within 0.1 s. This page loads no URL, sends no
+/// request and stores no website data.
+private struct WebsiteDataForegroundPage: UIViewRepresentable {
+    let dataStore: WKWebsiteDataStore
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = dataStore
+        let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: configuration)
+        view.isUserInteractionEnabled = false
+        view.isOpaque = false
+        view.backgroundColor = .clear
+        view.scrollView.backgroundColor = .clear
+        view.accessibilityElementsHidden = true
+        view.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
+        return view
+    }
+
+    func updateUIView(_ view: WKWebView, context: Context) {}
+
+    static func dismantleUIView(_ view: WKWebView, coordinator: ()) {
+        view.stopLoading()
     }
 }
