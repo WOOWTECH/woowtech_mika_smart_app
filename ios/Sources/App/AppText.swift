@@ -87,7 +87,6 @@ enum AppText: Equatable {
     case mcpTitle
     case mcpConnectionSection
     case mcpNoTools
-    case mcpNoResources
     case mcpExplanation
     case mcpIsolation
     case mcpStored
@@ -104,10 +103,6 @@ enum AppText: Equatable {
     case mcpDisconnect
     case mcpServerTools
     case mcpSearchTools
-    case mcpServerResources
-    case mcpSkills
-    case mcpSkillsLocation
-    case mcpSkillsHelp
     case mcpRemoveQuestion
     case mcpRemove
     case mcpNotConfigured
@@ -136,7 +131,6 @@ enum AppText: Equatable {
     case mcpApprovalTitle
     case mcpDecline
     case mcpApprove
-    case mcpReadResource
     case mcpToolError
     case mcpToolResult
     case mcpResultsTitle
@@ -145,7 +139,6 @@ enum AppText: Equatable {
     case mcpProtocol(version: String)
     case mcpKeychainStatus(code: String)
     case mcpToolCount(count: Int)
-    case mcpResourceCount(count: Int)
     case mcpSelectedCount(count: Int)
     case searchTitle
     case searchCustom
@@ -617,7 +610,6 @@ enum AppText: Equatable {
         case .mcpTitle: return "mcp.title"
         case .mcpConnectionSection: return "mcp.connection.section"
         case .mcpNoTools: return "mcp.no.tools"
-        case .mcpNoResources: return "mcp.no.resources"
         case .mcpExplanation: return "mcp.explanation"
         case .mcpIsolation: return "mcp.isolation"
         case .mcpStored: return "mcp.stored"
@@ -634,10 +626,6 @@ enum AppText: Equatable {
         case .mcpDisconnect: return "mcp.disconnect"
         case .mcpServerTools: return "mcp.server.tools"
         case .mcpSearchTools: return "mcp.search.tools"
-        case .mcpServerResources: return "mcp.server.resources"
-        case .mcpSkills: return "mcp.skills"
-        case .mcpSkillsLocation: return "mcp.skills.location"
-        case .mcpSkillsHelp: return "mcp.skills.help"
         case .mcpRemoveQuestion: return "mcp.remove.question"
         case .mcpRemove: return "mcp.remove"
         case .mcpNotConfigured: return "mcp.not.configured"
@@ -666,7 +654,6 @@ enum AppText: Equatable {
         case .mcpApprovalTitle: return "mcp.approval.title"
         case .mcpDecline: return "mcp.decline"
         case .mcpApprove: return "mcp.approve"
-        case .mcpReadResource: return "mcp.read.resource"
         case .mcpToolError: return "mcp.tool.error"
         case .mcpToolResult: return "mcp.tool.result"
         case .mcpResultsTitle: return "mcp.results.title"
@@ -675,7 +662,6 @@ enum AppText: Equatable {
         case .mcpProtocol: return "mcp.protocol"
         case .mcpKeychainStatus: return "mcp.keychain.status"
         case .mcpToolCount: return "mcpToolCount"
-        case .mcpResourceCount: return "mcpResourceCount"
         case .mcpSelectedCount: return "mcpSelectedCount"
         case .searchTitle: return "search.title"
         case .searchCustom: return "search.custom"
@@ -1069,7 +1055,6 @@ enum AppText: Equatable {
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
         case .mcpToolCount(let count): return [Int64(count)]
-        case .mcpResourceCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
         case .commonCloseName(let name): return [name]
@@ -1187,7 +1172,6 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 與 Skills"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpNoResources: return "伺服器未宣告資源能力"
         case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
@@ -1204,10 +1188,6 @@ enum AppText: Equatable {
         case .mcpDisconnect: return "中斷連線"
         case .mcpServerTools: return "伺服器工具"
         case .mcpSearchTools: return "搜尋工具名稱"
-        case .mcpServerResources: return "伺服器資源"
-        case .mcpSkills: return "Skills"
-        case .mcpSkillsLocation: return "請到「資料 → 技能」管理"
-        case .mcpSkillsHelp: return "可匯入並審核文字技能，已啟用且相關的內容會提供給對話模型。網站研究可產生待審核技能；MCP 工具依每次對話的核准執行。"
         case .mcpRemoveQuestion: return "移除此裝置儲存的 MCP 端點？"
         case .mcpRemove: return "移除端點"
         case .mcpNotConfigured: return "尚未設定 MCP"
@@ -1236,7 +1216,6 @@ enum AppText: Equatable {
         case .mcpApprovalTitle: return "核准 MCP 呼叫"
         case .mcpDecline: return "拒絕並停止"
         case .mcpApprove: return "核准這一次"
-        case .mcpReadResource: return "讀取 MCP 資源"
         case .mcpToolError: return "工具回報錯誤"
         case .mcpToolResult: return "已收到工具結果"
         case .mcpResultsTitle: return "本次 MCP 工具結果"
@@ -1245,7 +1224,6 @@ enum AppText: Equatable {
         case .mcpProtocol: return "協定版本：%1$@"
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
         case .mcpToolCount: return "工具：%lld 個"
-        case .mcpResourceCount: return "資源：%lld 個"
         case .mcpSelectedCount: return "已選取 %lld 個工具供對話使用"
         case .searchTitle: return "搜尋引擎"
         case .searchCustom: return "新增自訂引擎"

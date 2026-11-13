@@ -83,7 +83,6 @@
 "mcp.title" = "MCP and Skills";
 "mcp.connection.section" = "MCP connection and catalog";
 "mcp.no.tools" = "The server did not declare tool support";
-"mcp.no.resources" = "The server did not declare resource support";
 "mcp.explanation" = "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. Each execution requires your approval of the tool name and complete arguments. Tool descriptions and results are sent to your configured model.";
 "mcp.isolation" = "Isolated UI test mode: no MCP network requests.";
 "mcp.stored" = "Endpoint stored securely; its URL is hidden.";
@@ -100,10 +99,6 @@
 "mcp.disconnect" = "Disconnect";
 "mcp.server.tools" = "Server tools";
 "mcp.search.tools" = "Search tool names";
-"mcp.server.resources" = "Server resources";
-"mcp.skills" = "Skills";
-"mcp.skills.location" = "Manage skills in Data → Skills";
-"mcp.skills.help" = "Import and review text skills. Relevant enabled content is provided to the conversation model. Website research can prepare skills for review; MCP tools run with approval in each conversation.";
 "mcp.remove.question" = "Remove the MCP endpoint saved on this device?";
 "mcp.remove" = "Remove endpoint";
 "mcp.not.configured" = "MCP is not configured";
@@ -132,7 +127,6 @@
 "mcp.approval.title" = "Approve MCP call";
 "mcp.decline" = "Decline and stop";
 "mcp.approve" = "Approve once";
-"mcp.read.resource" = "Read MCP resource";
 "mcp.tool.error" = "Tool reported an error";
 "mcp.tool.result" = "Tool result received";
 "mcp.results.title" = "MCP results for this conversation";

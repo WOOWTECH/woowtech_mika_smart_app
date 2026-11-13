@@ -99,8 +99,6 @@ struct MCPToolsView: View {
                     if session.phase == .connected {
                         Text(session.supportsTools ? localizer.text(.mcpToolCount(count: session.toolNames.count)) : localizer.text(.mcpNoTools))
                             .accessibilityIdentifier("mcp.toolCount")
-                        Text(session.supportsResources ? localizer.text(.mcpResourceCount(count: session.resourceNames.count)) : localizer.text(.mcpNoResources))
-                            .accessibilityIdentifier("mcp.resourceCount")
                     }
                     if session.isBusy {
                         ProgressView(localizer.text(session.statusMessage))
@@ -159,32 +157,6 @@ struct MCPToolsView: View {
                             .accessibilityIdentifier("mcp.enable.\(tool.name)")
                         }
                     }
-                    Section(localizer.text(.mcpServerResources)) {
-                        ForEach(Array(session.resources.enumerated()), id: \.element.uri) { index, resource in
-                            Toggle(isOn: Binding(get: { session.selectedResourceURIs.contains(resource.uri) },
-                                                 set: { session.selectResource(resource.uri, enabled: $0) })) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(.primary)
-                                        .frame(width: 30, height: 30)
-                                        .background(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04),
-                                                    in: RoundedRectangle(cornerRadius: 9))
-                                        .accessibilityHidden(true)
-                                    Text(verbatim: resource.name).privacySensitive()
-                                }
-                            }
-                            .accessibilityIdentifier("mcp.resource.\(index)")
-                        }
-                    }
-                }
-
-                Section(localizer.text(.mcpSkills)) {
-                    Text(localizer.text(.mcpSkillsLocation))
-                        .accessibilityIdentifier("mcp.skillsStatus")
-                    Text(localizer.text(.mcpSkillsHelp))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
             .listStyle(.insetGrouped)

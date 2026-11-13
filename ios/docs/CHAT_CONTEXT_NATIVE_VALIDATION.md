@@ -16,8 +16,8 @@ UUID for each temporary vault and defaults suite, two actual `LearningStore`
 instances, and a controlled in-process model. It exercises ordinary/profile,
 MCP, stream cancellation, late replies, and extraction. It is a hosted App
 integration test, **not** a two-window UI test. The companion
-`testMCPExecutorDispatchFences` covers post-event stale data, tool and resource
-dispatch, cancellation, failure, and cooperative lease lifetime. Run native
+`testMCPExecutorDispatchFences` covers post-event stale data, tool dispatch,
+cancellation, failure, and cooperative lease lifetime. Run native
 tests on an authorized MacBook or GitHub macOS simulator runner, from `ios/`:
 
 ```sh

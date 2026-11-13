@@ -100,7 +100,6 @@ struct MCPResultsView: View {
             List(Array(steps.enumerated()), id: \.offset) { index, step in
                 VStack(alignment: .leading, spacing: 8) {
                     if case .callTool(let name, _) = step.proposal.action { Text(verbatim: name).font(.headline) }
-                    if case .readResource = step.proposal.action { Text(localizer.text(.mcpReadResource)).font(.headline) }
                     Text(step.isError ? localizer.text(.mcpToolError) : localizer.text(.mcpToolResult))
                     Text(verbatim: resultText(step.result))
                         .font(.system(.caption, design: .monospaced)).textSelection(.enabled)

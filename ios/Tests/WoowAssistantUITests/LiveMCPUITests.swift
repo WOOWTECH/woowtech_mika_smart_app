@@ -60,7 +60,6 @@ final class LiveMCPUITests: XCTestCase {
             revealLearningElement(app.staticTexts["mcp.toolCount"], in: app, visibility: .readableText)
             XCTAssertTrue(app.staticTexts["mcp.toolCount"].label.contains("個"))
             XCTAssertFalse(app.staticTexts["mcp.toolCount"].label.contains("：0 個"))
-            XCTAssertTrue(app.staticTexts["mcp.resourceCount"].exists)
             if attempt == 0 {
                 XCUIDevice.shared.press(.home)
                 app.activate()
@@ -79,7 +78,6 @@ final class LiveMCPUITests: XCTestCase {
             XCTAssertEqual(waitResult, .completed)
             XCTAssertEqual(app.staticTexts["mcp.status"].label, "已中斷本機連線")
             XCTAssertFalse(app.staticTexts["mcp.toolCount"].exists, "Disconnect must clear the actual discovered catalog.")
-            XCTAssertFalse(app.staticTexts["mcp.resourceCount"].exists)
         }
     }
 }
