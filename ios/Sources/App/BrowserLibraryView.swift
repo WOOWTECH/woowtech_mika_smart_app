@@ -20,9 +20,6 @@ struct BrowserLibraryView: View {
     @State private var showDownloads = false
     @State private var siteRecordsRequested = false
     @State private var deferredSiteRefresh = false
-    #if DEBUG
-    @State private var fixtureProtectedRequests = -1
-    #endif
     var body: some View {
         NavigationStack {
             VStack {
@@ -36,20 +33,6 @@ struct BrowserLibraryView: View {
                     ProgressView(localizer.text(.browserClearing))
                         .accessibilityIdentifier("browser.library.clearing")
                 }
-                #if DEBUG
-                if workspace.delayedClearUIFixtureEnabled {
-                    Text(workspace.delayedClearUIFixtureTimedOut ? "timed out" :
-                         workspace.delayedClearUIFixtureWaiting ? "waiting" :
-                         workspace.isClearingWebsiteData ? "clearing" : "complete")
-                        .accessibilityIdentifier("browser.fixture.clearState")
-                    Text("\(fixtureProtectedRequests)")
-                        .accessibilityIdentifier("browser.fixture.protectedCount")
-                    if workspace.delayedClearUIFixtureWaiting {
-                        Button("Release synthetic clear") { workspace.releaseDelayedClearUIFixture() }
-                            .accessibilityIdentifier("browser.fixture.releaseClear")
-                    }
-                }
-                #endif
                 List {
                     if sitesOnly { websites }
                     else if section == 0 { tabs }
@@ -92,15 +75,6 @@ struct BrowserLibraryView: View {
                 else { section = initialSection }
             }
         }
-        #if DEBUG
-        .task {
-            guard workspace.delayedClearUIFixtureEnabled, let fixture = BrowserLoginFixture.enabled else { return }
-            while !Task.isCancelled {
-                fixtureProtectedRequests = await fixture.protectedRequestCount()
-                do { try await Task.sleep(nanoseconds: 200_000_000) } catch { return }
-            }
-        }
-        #endif
     }
     private func requestSiteRecords() {
         siteRecordsRequested = true

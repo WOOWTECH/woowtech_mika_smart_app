@@ -182,15 +182,9 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         try await checkDeferredAppearance(.backgroundToSheetDuringClear)
     }
 
-    @MainActor func testLibraryOpenedDuringClearSuppressesRestoreUntilDismissed() async throws {
-        try await checkDeferredAppearance(.sheetOpenedDuringClear)
-        try await checkDeferredAppearance(.sheetOpenedThenBackground)
-    }
-
     private enum ClearScenario: Equatable {
         case appearance, leaves, backgroundCancellation, sheetAfterClear, sheetDuringClear, hiddenSheet, inactiveSheet
         case backgroundToSheetAfterClear, backgroundToSheetDuringClear
-        case sheetOpenedDuringClear, sheetOpenedThenBackground
     }
 
     @MainActor private func checkDeferredAppearance(_ scenario: ClearScenario) async throws {
@@ -224,8 +218,7 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         try await waitUntil("Removal did not reach the controlled gate", timeout: 30) { gate.entered }
         XCTAssertTrue(workspace.isClearingWebsiteData)
         switch scenario {
-        case .appearance, .leaves, .backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear,
-             .sheetOpenedDuringClear, .sheetOpenedThenBackground:
+        case .appearance, .leaves, .backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear:
             workspace.browserDidAppear()
         case .sheetDuringClear:
             workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
@@ -237,15 +230,12 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
             break
         }
         XCTAssertEqual(restoreCount, 0, "No navigation while data removal is pending")
-        if [.sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
-            workspace.browserLibraryWillPresent()
-        }
         if scenario == .leaves { workspace.browserDidDisappear() }
-        if [.backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+        if [.backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear].contains(scenario) {
             workspace.cancelAllWork()
             workspace.browserLibraryDidDismiss(isVisible: true, isActive: true) // Delayed stale callback.
         }
-        if [.backgroundToSheetAfterClear, .backgroundToSheetDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+        if [.backgroundToSheetAfterClear, .backgroundToSheetDuringClear].contains(scenario) {
             workspace.browserDidAppear(activate: false)
             XCTAssertEqual(restoreCount, 0, "Foregrounding under the sheet must not load a page")
         }
@@ -256,11 +246,10 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         try await waitUntil("Website data removal did not finish", timeout: 75) { !workspace.isClearingWebsiteData }
         XCTAssertNil(workspace.error)
         XCTAssertFalse(workspace.selected === original)
-        if [.leaves, .backgroundCancellation, .hiddenSheet, .inactiveSheet, .sheetAfterClear, .backgroundToSheetAfterClear,
-            .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+        if [.leaves, .backgroundCancellation, .hiddenSheet, .inactiveSheet, .sheetAfterClear, .backgroundToSheetAfterClear].contains(scenario) {
             XCTAssertEqual(restoreCount, 0, "Leaving, cancellation or a covered browser must not restore")
             XCTAssertNil(workspace.selected.loadedURL)
-            if [.sheetAfterClear, .backgroundToSheetAfterClear, .sheetOpenedDuringClear, .sheetOpenedThenBackground].contains(scenario) {
+            if [.sheetAfterClear, .backgroundToSheetAfterClear].contains(scenario) {
                 workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
             } else { workspace.browserDidAppear() }
         }

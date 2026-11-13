@@ -67,12 +67,6 @@ final class BrowserLoginFixture: @unchecked Sendable {
             return paths.contains { url.absoluteString == origin + $0 }
         }
     }
-    /// Count only actual protected HTTP requests; reading it sends no request.
-    func protectedRequestCount() async -> Int {
-        await withCheckedContinuation { continuation in
-            queue.async { [self] in continuation.resume(returning: protectedChecks) }
-        }
-    }
     func stop() { queue.async { [weak self] in self?.stopOnQueue(.stopped) } }
 
     deinit {

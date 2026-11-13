@@ -77,7 +77,7 @@ def main():
         apps = [copy("Sources/App/" + name + ".swift") for name in APP_SOURCES]
         checks = copy("Tests/AssistantDomainTests/BrowserUserSiteModesChecks.swift")
         harness = copy("scripts/CheckBrowserSiteModesApp.swift")
-        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/BrowserLibraryView.swift", "Sources/App/MemoryDataView.swift",
+        native = [copy(p) for p in ["Sources/App/BrowserView.swift", "Sources/App/MemoryDataView.swift",
                   "Sources/App/MemoryDataLocalization.swift", "Tests/AssistantDomainTests/BrowserUserSiteModesTests.swift",
                   "Tests/AssistantBrowserIntegrationTests/BrowserSiteModesIntegrationTests.swift",
                   "Tests/AssistantBrowserIntegrationTests/BrowserWorkspaceIntegrationTests.swift",
@@ -98,8 +98,6 @@ def main():
             run(config + "-webkit-run", [str(binary)], 180)
             if config == "Debug":
                 run("Debug-loopback-http-run", [str(binary), "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", str(uuid.uuid4())], 180)
-                run("Debug-loopback-delayed-ui-run", [str(binary), "-UITestMode", "-UITestBrowserLogin",
-                    "-UITestNamespace", str(uuid.uuid4()), "-UITestBrowserDelayedClear", "-UITestBrowserLoginSecondSite"], 180)
         report["sources_still_current"] = all(hashlib.sha256((repo / p).read_bytes()).hexdigest() == h
                                                for p, h in report["source_sha256"].items())
         report["status"] = "PASS" if report["sources_still_current"] else "SOURCES_CHANGED"

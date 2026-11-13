@@ -166,10 +166,6 @@ final class BrowserWorkspace: ObservableObject {
 
     func browserDidDisappear() { browserActivationAllowed = false; activateAfterWebsiteClear = false }
 
-    /// A sheet can cover BrowserView without a disappearance callback. Revoke
-    /// a deferred page load synchronously before the sheet is presented.
-    func browserLibraryWillPresent() { activateAfterWebsiteClear = false }
-
     /// A sheet can close without another BrowserView appearance callback.
     /// Only the still-visible foreground browser may restore its selected page.
     func browserLibraryDidDismiss(isVisible: Bool, isActive: Bool) {
@@ -188,40 +184,6 @@ final class BrowserWorkspace: ObservableObject {
     // local HTML for the final navigation. Never enabled by production flags.
     var websiteRemovalTestGate: (@MainActor () async -> Void)?
     var restoredNavigationTestHook: (@MainActor (BrowserSession) -> Void)?
-
-    // Opt-in only for the isolated synthetic login UI fixture. This bounded
-    // gate lets native tests hold real WebKit deletion while presenting the
-    // library and backgrounding the App; no production profile is involved.
-    var delayedClearUIFixtureEnabled: Bool {
-        BrowserLoginFixture.enabled != nil &&
-        ProcessInfo.processInfo.arguments.filter { $0 == "-UITestBrowserDelayedClear" }.count == 1
-    }
-    @Published private(set) var delayedClearUIFixtureWaiting = false
-    @Published private(set) var delayedClearUIFixtureTimedOut = false
-    private var delayedClearUIFixtureContinuation: CheckedContinuation<Void, Never>?
-    private var delayedClearUIFixtureTimeout: Task<Void, Never>?
-
-    private func awaitDelayedClearUIFixture() async {
-        guard delayedClearUIFixtureEnabled else { return }
-        await withCheckedContinuation { continuation in
-            delayedClearUIFixtureContinuation = continuation
-            delayedClearUIFixtureTimedOut = false
-            delayedClearUIFixtureWaiting = true
-            delayedClearUIFixtureTimeout = Task { [weak self] in
-                do { try await Task.sleep(nanoseconds: 120_000_000_000) } catch { return }
-                self?.releaseDelayedClearUIFixture(timedOut: true)
-            }
-        }
-    }
-
-    func releaseDelayedClearUIFixture(timedOut: Bool = false) {
-        guard let continuation = delayedClearUIFixtureContinuation else { return }
-        delayedClearUIFixtureContinuation = nil
-        delayedClearUIFixtureWaiting = false
-        delayedClearUIFixtureTimedOut = timedOut
-        delayedClearUIFixtureTimeout?.cancel(); delayedClearUIFixtureTimeout = nil
-        continuation.resume()
-    }
     #endif
 
     func activateSelected() {
@@ -386,15 +348,6 @@ final class BrowserWorkspace: ObservableObject {
     func removeWebsiteData(_ records: [WKWebsiteDataRecord]) {
         guard !isClearingWebsiteData, !records.isEmpty else { return }
         let selectedNames = Set(records.map(\.displayName))
-        #if DEBUG
-        // The production library deliberately excludes loopback URLs. Retain
-        // only the strictly isolated login fixture URL in RAM for UI tests.
-        let fixtureRestoreURL: URL? = {
-            guard let url = selected.loadedURL,
-                  BrowserLoginFixture.enabled?.allows(url) == true else { return nil }
-            return url
-        }()
-        #endif
         websiteRecordRevision = UUID() // Earlier enumeration cannot republish stale records.
         isLoadingWebsiteRecords = false
         errorText = nil
@@ -455,7 +408,6 @@ final class BrowserWorkspace: ObservableObject {
             }
             #if DEBUG
             if let gate = self.websiteRemovalTestGate { await gate() }
-            await self.awaitDelayedClearUIFixture()
             #endif
             // Re-enumerate after every page has stopped. The selected record
             // may have acquired new data types since the confirmation dialog.
@@ -488,9 +440,6 @@ final class BrowserWorkspace: ObservableObject {
                         self.isClearingWebsiteData = false
                         self.sessions.removeAll()
                         self.selected = self.makeSession(id: self.library.selectedID)
-                        #if DEBUG
-                        if let fixtureRestoreURL { self.selected.address = fixtureRestoreURL.absoluteString }
-                        #endif
                         self.finishDeferredBrowserActivation(success: selected.isEmpty)
                         #if DEBUG
                         trace("sessionsReplaced", ["ready": selected.isEmpty ? 1 : 0])

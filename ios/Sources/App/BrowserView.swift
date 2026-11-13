@@ -400,7 +400,6 @@ struct BrowserView: View {
     }
     private func openLibrary(section: Int) {
         addressFocused = false; browser.webView.endEditing(true)
-        workspace.browserLibraryWillPresent()
         librarySection = section; showLibrary = true
     }
     private func submitStartQuery() {
