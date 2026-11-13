@@ -533,6 +533,10 @@ final class WoowAssistantUITests: XCTestCase {
         save(in: app)
         assertSaved(in: app)
         returnFromModelSettings(in: app)
+        // Like Android, the Model row names the provider (here its host), not the model ID.
+        let modelRow = app.buttons["settings.modelJump"]
+        XCTAssertTrue(modelRow.label.contains("model.example.invalid"))
+        XCTAssertFalse(modelRow.label.contains("ui-test-model"))
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)

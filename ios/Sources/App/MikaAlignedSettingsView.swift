@@ -18,9 +18,10 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
     private var aboutCopy: MikaAboutCopy { MikaAboutCopy(language: languages.resolved) }
     private var aboutInfo: MikaAboutInfo { MikaAboutInfo(bundle: .main) }
-    private var configuredModelName: String {
-        session.hasStoredKey ? (session.savedSettings?.model ?? localizer.text(.settingsModelNotSet))
-                             : localizer.text(.settingsModelNotSet)
+    /// Android names the main model's provider here, never the model ID.
+    private var configuredProviderName: String {
+        guard session.hasStoredKey, let saved = session.savedSettings else { return localizer.text(.settingsModelNotSet) }
+        return ModelProviderName.name(for: saved.baseURL)
     }
     private var notificationSummary: MikaNotificationSummary? {
         MikaNotificationSummary(enabled: notifications.service.enabled,
@@ -61,7 +62,7 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                         } label: {
                             MikaSettingsRow(icon: .spark, title: localizer.text(.settingsHomeModel),
                                             subtitle: localizer.text(.settingsHomeModelDetail),
-                                            value: configuredModelName)
+                                            value: configuredProviderName)
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint(Text(verbatim: localizer.text(.settingsHomeModelOpenHint)))
