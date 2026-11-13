@@ -181,10 +181,17 @@ final class SkillCatalogUITests: XCTestCase {
     }
 
     private func back() {
-        let button = app.navigationBars.buttons.element(boundBy: 0)
-        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        // iOS 18.5 keeps the memory page's navigation bar, covered by the catalog
+        // sheet, in the accessibility tree, so the first navigation-bar button can be
+        // one the user cannot reach. Pop with the visible button of the sheet's stack.
+        var button: XCUIElement?
+        let deadline = Date().addingTimeInterval(5)
+        repeat {
+            button = app.navigationBars.buttons.allElementsBoundByIndex.first { $0.isHittable }
+            if button == nil { RunLoop.current.run(until: Date().addingTimeInterval(0.25)) }
+        } while button == nil && Date() < deadline
+        guard let button else { return XCTFail("No reachable navigation-bar button") }
         XCTAssertNotEqual(button.label, "關閉", "Must pop the document/detail, not dismiss the catalog")
-        XCTAssertTrue(button.isHittable)
         button.tap()
     }
 }
