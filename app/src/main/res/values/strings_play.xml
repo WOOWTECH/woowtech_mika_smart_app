@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Google Play editions only (BuildConfig.PLAY_EDITION): Settings › Privacy policy opens this page.
+         Each Play flavor sets its own address in its res (woowtech, apporoplay); other builds never show the entry. -->
+    <string name="play_privacy_policy_url" translatable="false"></string>
+</resources>

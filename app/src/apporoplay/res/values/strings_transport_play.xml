@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="model_self_hosted_note">127.0.0.1 is this phone. For a service on another device, use an HTTPS address.</string>
+    <string name="mcp_servers_help_text">Connect an external MCP server and choose which tools the assistant can use. Servers outside this phone require HTTPS. You can allow HTTP only for a server on this phone. Tokens stay on this phone.</string>
+</resources>

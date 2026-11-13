@@ -11,7 +11,7 @@
 //   point to docs-woowtech/<file>.md instead when that file exists (WOOWTECH's own guide, right package name).
 // - Release signing: WOOWTECH_SIGNING_PROPERTIES may point to a properties file outside the repo (storeFile,
 //   storePassword, keyAlias, keyPassword). Without it the woowtech release APK is unsigned (CI) and is signed
-//   afterwards with apksigner on the release machine.
+//   afterwards with apksigner on the release machine. APPORO_PLAY_SIGNING_PROPERTIES does the same for apporoplay.
 
 import java.io.File
 import java.util.Properties
@@ -97,10 +97,18 @@ val apporoBrandRes = file(".gradle/apporo-brand-res")
 val apporoProps = Properties().apply { file("src/apporo/resources/brand.properties").reader(Charsets.UTF_8).use { load(it) } }
 generateBrandStrings("apporo", apporoProps, apporoBrandRes)
 extra["apporoBrandRes"] = apporoBrandRes
+// apporoplay (Apporo's Google Play edition): Apporo's names, but its own output dir, and the keys skipped are the
+// ones hand-written in src/apporoplay/res (its resources replace src/apporo/res rather than adding to them).
+val apporoplayBrandRes = file(".gradle/apporoplay-brand-res")
+generateBrandStrings("apporoplay", apporoProps, apporoplayBrandRes)
+extra["apporoplayBrandRes"] = apporoplayBrandRes
 
 // ---- handed to app/build.gradle.kts ------------------------------------------------------------------------
 
 extra["woowtechRevision"] = woowtechRevision
 extra["woowtechBrandRes"] = woowtechBrandRes
 extra["woowtechSigning"] = System.getenv("WOOWTECH_SIGNING_PROPERTIES")?.let { file(it) }?.takeIf { it.isFile }
+    ?.let { f -> Properties().apply { f.reader(Charsets.UTF_8).use { load(it) } } }
+// apporoplay's Play upload key, same four properties; without it the apporoplay release is unsigned.
+extra["apporoplaySigning"] = System.getenv("APPORO_PLAY_SIGNING_PROPERTIES")?.let { file(it) }?.takeIf { it.isFile }
     ?.let { f -> Properties().apply { f.reader(Charsets.UTF_8).use { load(it) } } }

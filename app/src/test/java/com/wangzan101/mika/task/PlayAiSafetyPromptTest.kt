@@ -10,7 +10,7 @@ class PlayAiSafetyPromptTest {
     @Test fun playRunsIncludeSafetyRulesWithoutChangingOtherEditions() {
         val base = SystemPrompt.identity("io.woowtech.assistant")
         val actual = PlayAiSafetyPrompt.identity("io.woowtech.assistant")
-        if (BuildConfig.FLAVOR == "woowtech") {
+        if (BuildConfig.PLAY_EDITION) {
             assertTrue(actual.startsWith(base))
             assertTrue(actual.contains("non-consensual intimate content"))
             assertTrue(actual.contains("child tasks"))

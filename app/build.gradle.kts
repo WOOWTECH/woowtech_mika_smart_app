@@ -24,6 +24,8 @@ android {
         buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
         // 关于页版本号后的 Beta 标记;出正式版时改成 false
         buildConfigField("boolean", "BETA", "true")
+        // Google Play editions (woowtech, apporoplay) turn on the Play restrictions in shared code
+        buildConfigField("boolean", "PLAY_EDITION", "false")
     }
 
     // 沙箱程序只有 arm64 版本(jniLibs/arm64-v8a);APK 不限 ABI,别的设备照常安装、显示「此设备不支持沙箱」。
@@ -122,6 +124,8 @@ val apporoBrandRes = extra["apporoBrandRes"] as java.io.File
 val woowtechRevision = extra["woowtechRevision"] as Int
 val woowtechBrandRes = extra["woowtechBrandRes"] as java.io.File
 val woowtechSigning = extra["woowtechSigning"] as java.util.Properties?
+val apporoplayBrandRes = extra["apporoplayBrandRes"] as java.io.File
+val apporoplaySigning = extra["apporoplaySigning"] as java.util.Properties?
 android {
     // upstream:上游原样,单测与金样的基准;woowtech:发行用的渥屋助理
     flavorDimensions += "brand"
@@ -144,6 +148,7 @@ android {
             versionCode = 3
             versionName = "${defaultConfig.versionName}-play.3"
             buildConfigField("boolean", "BETA", "false")
+            buildConfigField("boolean", "PLAY_EDITION", "true")
             // 只出有正式文案的语言(和 brand.properties 的 ui.languages、res/xml/locales_config.xml 一致)。
             // zh-rTW 不是另一种界面语言:AndroidX、Material、Play 服务的繁体译文在 values-zh-rTW,只留 b+zh+Hant 会滤掉它们,
             // 读屏在繁体界面念英文(Close navigation menu)。香港、澳门的手机也用这份;zh-rHK 不收,Compose UI 那份是粤语口语(「閂」「揀咗」)。
@@ -151,9 +156,26 @@ android {
             // aapt2 留 zh-rTW 时会连带留下上游简体的 values-zh,所以 woowtech 变体另外传 --exclude-configs zh(文件末尾的 onVariants)。
             resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
+        // Google Play edition of the Apporo brand: the woowtech Play edition's features (no phone control, sandbox,
+        // OCR or exact alarms) with Apporo's name, look and brand.properties. Its own package, data and signature.
+        create("apporoplay") {
+            dimension = "brand"
+            applicationId = "com.apporo.assistant.play"
+            versionCode = 1
+            versionName = "${defaultConfig.versionName}-play.1"
+            buildConfigField("boolean", "BETA", "false")
+            buildConfigField("boolean", "PLAY_EDITION", "true")
+            // Same languages as woowtech (see the comment there), including --exclude-configs zh in onVariants.
+            resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
+        }
     }
     sourceSets.getByName("apporo").res.srcDir(apporoBrandRes)
     sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
+    // apporoplay: Kotlin and manifest from src/apporoplay; resources are the generated Apporo brand strings plus
+    // src/apporoplay/res (full Play-adapted copies of the Apporo brand resources; src/apporo/res is not added, its
+    // keys would be duplicates). Only Apporo's brand.properties is shared. No src/nonplay, no ML Kit.
+    sourceSets.getByName("apporoplay").res.srcDir(apporoplayBrandRes)
+    sourceSets.getByName("apporoplay").resources.srcDir("src/apporo/resources")
     sourceSets.getByName("upstream").java.srcDir("src/nonplay/java")
     sourceSets.getByName("apporo").java.srcDir("src/nonplay/java")
     for (name in listOf("upstream", "apporo")) {
@@ -168,6 +190,15 @@ android {
             keyPassword = woowtechSigning.getProperty("keyPassword")
         }
     }
+    // APPORO_PLAY_SIGNING_PROPERTIES (same four properties, see brand.gradle.kts); without it the release is unsigned
+    if (apporoplaySigning != null) {
+        productFlavors.getByName("apporoplay").signingConfig = signingConfigs.create("apporoplay") {
+            storeFile = file(apporoplaySigning.getProperty("storeFile"))
+            storePassword = apporoplaySigning.getProperty("storePassword")
+            keyAlias = apporoplaySigning.getProperty("keyAlias")
+            keyPassword = apporoplaySigning.getProperty("keyPassword")
+        }
+    }
 }
 // Screen OCR belongs to the direct-download editions. The Play edition has no phone control.
 dependencies {
@@ -179,8 +210,9 @@ dependencies {
 androidComponents {
     // 上游的单测、金样、仪器测试按 Mika 的品牌和包名写:只在 upstream 上跑
     beforeVariants { variant ->
-        if (variant.flavorName in setOf("woowtech", "apporo")) {
-            variant.enableUnitTest = variant.flavorName == "woowtech" &&
+        if (variant.flavorName in setOf("woowtech", "apporo", "apporoplay")) {
+            // Play editions: the Play policy tests run on request (-PplayTransportTests)
+            variant.enableUnitTest = variant.flavorName in setOf("woowtech", "apporoplay") &&
                 providers.gradleProperty("playTransportTests").isPresent
             // Explicit cloud acceptance only; ordinary branded release builds still omit test APKs.
             variant.androidTest.enable = variant.flavorName == "apporo" &&
@@ -190,7 +222,7 @@ androidComponents {
     // WOOWTECH fork: -c 里有 zh-rTW 时,aapt2 连它的上层 values-zh(上游的简体界面,没换品牌名)也留下,woowtech 变体排除它。
     // --exclude-configs zh 只去掉语言正好是 zh 的值(含 zh-night、zh-v26),b+zh+Hant、zh-rTW 不受影响
     onVariants { variant ->
-        if (variant.flavorName in setOf("woowtech", "apporo")) {
+        if (variant.flavorName in setOf("woowtech", "apporo", "apporoplay")) {
             variant.androidResources.aaptAdditionalParameters.addAll("--exclude-configs", "zh")
         }
     }

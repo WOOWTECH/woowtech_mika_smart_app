@@ -54,6 +54,7 @@
     <string name="relay_gateway_hint" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>
+    <string name="play_privacy_policy_url" translatable="false">https://assistant-relay.woowtech.io/privacy/play</string>
     <!-- The browser searches with brand.properties' search.url (Google), not upstream's Bing. -->
     <string name="browser_engine">Google</string>
     <string name="browser_engine_note">Search with Google</string>

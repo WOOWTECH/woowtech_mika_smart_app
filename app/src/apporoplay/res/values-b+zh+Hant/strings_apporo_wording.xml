@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play 版：上游繁中翻譯裡的錯字和大陸用語改成台灣說法，並換成商店版的功能文案
+  （沒有手機操作、跨 App 存取、無線偵錯自動恢復），和另一個 Google Play 版 flavor 的文案一致。
+  這裡的 key 蓋過 src/main/res/values-b+zh+Hant 的同名字串，app/brand.gradle.kts 產生品牌字串時也會跳過它們，
+  所以產品名直接寫「Apporo Assistant」。
+-->
+<resources>
+    <!-- strings_chat.xml -->
+    <string name="chat_greeting_morning">早安</string>
+    <string name="chat_greeting_noon">午安</string>
+    <string name="chat_greeting_afternoon">午安</string>
+    <string name="chat_greeting_evening">晚安</string>
+
+    <!-- strings_memory.xml、strings_settings.xml、strings_setup.xml、strings_usage.xml、strings_plans.xml -->
+    <string name="skills_get">取得技能</string>
+    <string name="settings_during_work">任務執行</string>
+    <string name="preset_custom">自訂</string>
+    <string name="usage_custom">自訂</string>
+    <string name="mcp_servers_transport_stdio">本機程式</string>
+    <string name="plans_footer">你可以為支援的對話、網頁及記憶任務建立計畫。此版本不會操作手機上的其他 App。</string>
+
+    <!-- strings_task.xml、strings_timeline.xml：商店版沒有跨 App 存取與手機操作 -->
+    <string name="task_app_blocked">此版本無法在內建瀏覽器之外讀取或操作「%1$s」。請在這裡分享內容，或改用內建瀏覽器。</string>
+    <string name="task_app_access_unavailable">此版本不支援跨 App 存取。對話、網頁和記憶任務仍可使用。</string>
+    <string name="err_app_unavailable">此版本不支援跨 App 存取</string>
+    <string name="task_no_phone_helper_usb">此版本不支援手機操作。你可以在對話裡提問，或改用內建瀏覽器。</string>
+
+    <!-- strings_phone.xml -->
+    <string name="phone_success_note">此版本不提供跨 App 手機操作；無須開啟 USB 或無線偵錯。</string>
+    <string name="phone_usage_note">此版本不提供跨 App 手機操作。對話、內建瀏覽器和記憶功能仍可使用。</string>
+    <string name="fail_usb_stopped_body">此版本不支援透過 USB 指令啟動手機操作。</string>
+    <string name="phone_usb_body">此版本不支援透過 USB 指令啟動手機操作。</string>
+    <string name="phone_usb_again_body">此版本不支援透過 USB 指令啟動手機操作。</string>
+    <string name="phone_success_note_usb">此版本不提供跨 App 手機操作；無須開啟 USB 偵錯。</string>
+    <string name="phone_usage_note_usb">此版本不提供跨 App 手機操作。對話、內建瀏覽器和記憶功能仍可使用。</string>
+    <string name="phone_root_start_sub">此版本不支援以 root 啟動手機操作。</string>
+
+    <!-- strings_models.xml、strings_web.xml、strings_settings.xml、strings_sandbox.xml：「退出登入」「全部退出」→「登出」 -->
+    <string name="chatgpt_signed_out">已登出</string>
+    <string name="chatgpt_sign_out">登出</string>
+    <string name="chatgpt_signed_out_note">這台手機上已登出。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。</string>
+    <string name="chatgpt_revoke_unconfirmed">這台手機上已登出，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與 Apporo Assistant 的連線。</string>
+    <string name="account_signed_out_note">這台手機上已登出。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。</string>
+    <string name="web_logout_all">全部登出</string>
+    <string name="web_logout_all_title">全部登出並清除網頁資料</string>
+    <string name="web_logout_all_q">全部登出並清除網頁資料？</string>
+    <string name="web_logout_all_body">會登出內建瀏覽器裡的所有網站，並清除它們存在 Apporo Assistant 裡的網頁資料。之後 Apporo Assistant 用網頁辦事時要重新登入。</string>
+    <string name="web_logged_out_all">已全部登出並清除網頁資料。</string>
+    <string name="web_logout_partial">個別網站的登入可能仍在，如需徹底清除請用「全部登出」。</string>
+    <string name="web_cleared">已清除 %1$s 的 Cookie 與網頁儲存，下次用要重新登入。個別資料可能仍在，如需徹底清除請用「全部登出」。</string>
+    <string name="web_sign_out_site">登出這個網站</string>
+    <string name="web_signed_out">已登出 %1$s。%2$s</string>
+    <string name="settings_pace_foot">執行節奏只影響此版本支援的任務；此版本不會操作其他 App。</string>
+    <string name="install_exit_code">結束代碼 %1$d</string>
+
+    <!-- strings_recovery.xml：商店版沒有手機操作的自動恢復 -->
+    <string name="rec_boot">此版本不支援自動恢復手機操作</string>
+    <string name="rec_boot_body">此版本不會開啟無線偵錯或自動操作其他 App。</string>
+    <string name="rec_auto_wireless_body">此版本不會自動開啟無線偵錯。</string>
+    <string name="rec_restarted_at">先前版本於 %1$s 記錄過自動重新啟動無障礙服務。</string>
+    <string name="rec_setting_unavailable">此版本不提供無線偵錯自動恢復功能。</string>
+    <string name="rec_needs_pairing">此版本不支援無線偵錯配對或 USB 手機操作。</string>
+</resources>

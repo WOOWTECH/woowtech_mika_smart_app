@@ -200,9 +200,9 @@ class WebStack private constructor(
             context: Context, taskId: String, widthPx: Int, heightPx: Int, densityDpi: Int,
             assetLoaders: List<WebViewAssetLoader> = emptyList(),
             workspace: Workspace? = null,
-            // WOOWTECH Play edition (woowtech flavor): no page outlives its task, so web_keep_open reports
+            // Play editions (BuildConfig.PLAY_EDITION): no page outlives its task, so web_keep_open reports
             // keep_open_unavailable and TaskService never stays in the foreground for a kept page.
-            keeper: PageKeeper? = if (BuildConfig.FLAVOR == "woowtech") null else WebOwner.of(context).pageKeeper,
+            keeper: PageKeeper? = if (BuildConfig.PLAY_EDITION) null else WebOwner.of(context).pageKeeper,
         ): WebStack {
             val host = WebHost(context, widthPx, heightPx, densityDpi)
             return try {

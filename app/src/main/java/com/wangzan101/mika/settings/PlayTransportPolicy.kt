@@ -5,7 +5,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** The Play package must not send model prompts, API keys, or MCP data over the LAN in cleartext. */
 internal object PlayTransportPolicy {
-    val enabled: Boolean get() = BuildConfig.FLAVOR == "woowtech"
+    val enabled: Boolean get() = BuildConfig.PLAY_EDITION
 
     /** The Play package ships no Linux sandbox, so it has no local (stdio) MCP servers. */
     val allowsStdioMcp: Boolean get() = !enabled

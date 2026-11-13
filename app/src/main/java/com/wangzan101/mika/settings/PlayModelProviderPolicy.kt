@@ -9,7 +9,7 @@ import com.wangzan101.mika.core.model.ModelEndpoint
  * phone, and account sign-in stays limited to ChatGPT (see AccountSignIn).
  */
 internal object PlayModelProviderPolicy {
-    val enabled: Boolean get() = BuildConfig.FLAVOR == "woowtech"
+    val enabled: Boolean get() = BuildConfig.PLAY_EDITION
 
     val presets: List<ProviderPreset> get() = ProviderPresets.all
 

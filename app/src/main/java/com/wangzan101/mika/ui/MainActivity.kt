@@ -386,9 +386,11 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 onOpenModels = { nav.push(Route.Models) },
                 autonomous = autonomous, onAutonomous = app.approvalControl::setAutonomous,
                 onOpenAbout = { nav.push(Route.About) },
-                onOpenPrivacyPolicy = if (BuildConfig.FLAVOR == "woowtech") ({
+                // Each Play edition's own policy page: play_privacy_policy_url in its flavor's res (empty in src/main)
+                onOpenPrivacyPolicy = if (BuildConfig.PLAY_EDITION) ({
                     try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://assistant-relay.woowtech.io/privacy/play")))
+                        val policy = context.getString(com.wangzan101.mika.R.string.play_privacy_policy_url)
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(policy)))
                     } catch (_: ActivityNotFoundException) {
                         Toast.makeText(context, com.wangzan101.mika.R.string.about_no_browser, Toast.LENGTH_SHORT).show()
                     }

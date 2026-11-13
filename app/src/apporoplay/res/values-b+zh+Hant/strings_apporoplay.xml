@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play 版（apporoplay flavor）：此版本沒有手機操作、無障礙服務、沙箱、跨 App OCR、
+  「連接電腦」和 GitHub 連結，所以這些字串和直裝版不同。key 和另一個 Google Play 版 flavor 覆蓋的字串相同，用 Apporo 的說法，
+  意見回饋寄 info@apporo.ai。手機操作、跨 App 存取和恢復的文案在 strings_apporo_wording.xml。
+-->
+<resources>
+    <!-- 關於：商店版沒有 GitHub 入口（AboutScreen），意見回饋用電子郵件。 -->
+    <string name="about_tagline">在同一個地方對話、瀏覽網頁，並記住有用的資訊</string>
+    <string name="about_data_note">你送出的內容（包括助理在內建瀏覽器讀取的網頁）由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給 Apporo 審查。請不要在對話中提供密碼或驗證碼。</string>
+    <string name="about_feedback_sub">複製診斷資訊 · info@apporo.ai</string>
+    <string name="about_feedback_sheet_sub">複製診斷資訊後，寄到 info@apporo.ai</string>
+    <string name="diagnostics_copy_sub">版本、機型和設定狀態，寄信時附上</string>
+
+    <!-- 對話：商店版的範例（ChatCopy.examples）只用到對話和內建瀏覽器。 -->
+    <string name="chat_empty_prompt">想請我幫什麼忙？</string>
+    <string name="chat_example_follow">幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。</string>
+    <string name="chat_example_group_summary">在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。</string>
+    <string name="chat_example_jobs">上網搜尋設施管理職缺，挑五個幫我比較。</string>
+    <string name="chat_example_multi_step">比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。</string>
+    <string name="chat_example_alarms">記住我偏好簡短、先講重點的回答。</string>
+    <string name="chat_example_ai_apps">你記得我有哪些偏好？</string>
+    <string name="drawer_phone_not_ready">對話、內建瀏覽器和記憶功能可使用</string>
+
+    <!-- 設定：沒有自主模式、計算環境、修復頁，也不在 App 內下載更新。 -->
+    <string name="settings_all_ready_detail">模型已就緒 · 可使用對話與內建瀏覽器</string>
+    <string name="settings_memory_sub">記憶、技能與網站登入</string>
+    <string name="settings_advanced_sub">網路代理與 MCP 伺服器</string>
+    <string name="settings_during_work_sub">螢幕常亮與步數上限</string>
+    <string name="net_proxy_row_sub">呼叫模型、帳號登入、MCP 伺服器和內建瀏覽器都走它</string>
+    <string name="net_proxy_hint">Apporo Assistant 自己的連線（呼叫模型、模型清單、帳號登入、MCP 伺服器）和內建瀏覽器都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連。可以帶「使用者:密碼@」，加密保存在這台手機上。留空表示直連。</string>
+    <string name="net_proxy_container_only">https:// 代理不用於 Apporo Assistant 的連線，會照舊直連；請改用 http:// 或 socks5://。</string>
+</resources>

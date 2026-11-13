@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant brand strings for the Google Play edition (apporoplay flavor), adapted from src/apporo/res.
+  This edition has no phone control, accessibility service, sandbox, cross-app OCR or "Connect a computer", so the
+  direct-download edition's phone, USB and relay pairing texts are not here; the Play-specific overrides are in
+  strings_apporoplay.xml. app/brand.gradle.kts skips every key hand-written in this folder.
+-->
+<resources>
+    <string name="app_name">Apporo Assistant</string>
+    <string name="welcome_title">Meet Apporo Assistant</string>
+    <string name="welcome_lead">Your spaces. Your work. Your next step.\nTurn a request into an action, with results you can check.</string>
+    <string name="welcome_note">Connect your AI model first: continue with ChatGPT or add your own API key.</string>
+    <!-- The Play welcome page lists chat, voice, web and memory (WelcomeCopy.FEATURES); these stay accurate anyway. -->
+    <string name="welcome_apps">Connect your services</string>
+    <string name="welcome_apps_body">Check connected spaces and workflows through the HTTPS MCP servers you add.</string>
+    <string name="welcome_web">Research with context</string>
+    <string name="welcome_web_body">Read sources in the built-in browser, compare options and bring the findings back to your task.</string>
+    <string name="welcome_files">Make information useful</string>
+    <string name="welcome_files_body">Summarize, organize and draft from what you share in chat.</string>
+    <string name="welcome_schedule">Keep track of tasks</string>
+    <string name="welcome_schedule_body">Tasks keep running in the background with a progress notification. Review the result or stop at any time.</string>
+    <string name="about_author">© 2026 APPORO UNION INC. · Based on wangzan101/Mika (Apache-2.0)</string>
+    <string name="about_repo_sub">%1$s · source code and build documentation</string>
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">Search with Google</string>
+    <string name="browser_typing_note">URLs open directly; anything else is searched with Google</string>
+    <!-- The AI response report inbox is on the relay (AiResponseReportDelivery uses relay_gateway_default). -->
+    <string name="relay_gateway_hint">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_gateway_default" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_portal_url" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="capsule_mode_always_detail">Keeps an Apporo Assistant icon on screen even with no tasks</string>
+</resources>
