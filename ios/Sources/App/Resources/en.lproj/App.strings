@@ -371,6 +371,7 @@
 "settings.home.languageAppearance" = "Language & appearance";
 "settings.notifications.title" = "Notifications";
 "settings.home.notification.detail" = "When they pop up, change in system settings";
+"settings.notifications.normal" = "Normal";
 "settings.home.myData" = "My data";
 "settings.home.memory.detail" = "Memories, skills, and website sign-ins";
 "settings.advanced.title" = "Advanced & other";

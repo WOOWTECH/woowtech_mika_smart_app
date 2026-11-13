@@ -137,6 +137,8 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("settings", in: app)
         openModelSettings(in: app)
         returnFromModelSettings(in: app)
+        // Task notifications start off, so the row shows Android's 已關閉.
+        XCTAssertTrue(app.buttons["settings.notifications"].label.contains("已關閉"))
 
         for (linkID, title, detailID) in [
             ("settings.appearance", "語言與外觀", "selfConfiguration.permission"),

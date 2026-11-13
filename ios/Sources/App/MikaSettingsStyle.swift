@@ -14,6 +14,24 @@ struct MikaSettingsPalette {
     var hint: Color { scheme == .dark ? Color(red: 108/255, green: 109/255, blue: 117/255) : Color(red: 154/255, green: 155/255, blue: 163/255) }
     var border: Color { scheme == .dark ? .white.opacity(0.06) : .black.opacity(0.05) }
     var tile: Color { scheme == .dark ? .white.opacity(0.08) : .black.opacity(0.045) }
+    // Status text: Android ok, warn and bad.
+    var ok: Color { scheme == .dark ? Color(red: 60/255, green: 207/255, blue: 122/255) : Color(red: 31/255, green: 157/255, blue: 85/255) }
+    var warn: Color { scheme == .dark ? Color(red: 255/255, green: 179/255, blue: 64/255) : Color(red: 184/255, green: 110/255, blue: 0) }
+    var bad: Color { scheme == .dark ? Color(red: 255/255, green: 105/255, blue: 97/255) : Color(red: 229/255, green: 72/255, blue: 61/255) }
+
+    func color(for tone: MikaSettingsTone) -> Color {
+        switch tone {
+        case .plain: return hint
+        case .ok: return ok
+        case .warn: return warn
+        case .bad: return bad
+        }
+    }
+}
+
+/// Android ValueTone: a row value is plain, or coloured by its state.
+enum MikaSettingsTone {
+    case plain, ok, warn, bad
 }
 
 struct MikaSettingsGroupLabel: View {
@@ -80,13 +98,14 @@ struct MikaSettingsRow: View {
     let title: String
     let subtitle: String?
     let value: String?
+    let valueTone: MikaSettingsTone
     let accessory: Accessory
     @Environment(\.colorScheme) private var scheme
 
     init(icon: MikaSettingsIcon, title: String, subtitle: String? = nil,
-         value: String? = nil, accessory: Accessory = .chevron) {
+         value: String? = nil, valueTone: MikaSettingsTone = .plain, accessory: Accessory = .chevron) {
         self.icon = icon; self.title = title; self.subtitle = subtitle
-        self.value = value; self.accessory = accessory
+        self.value = value; self.valueTone = valueTone; self.accessory = accessory
     }
 
     var body: some View {
@@ -102,7 +121,7 @@ struct MikaSettingsRow: View {
             }
             Spacer(minLength: 4)
             if let value {
-                Text(verbatim: value).font(.subheadline).foregroundStyle(colors.hint)
+                Text(verbatim: value).font(.subheadline).foregroundStyle(colors.color(for: valueTone))
                     .lineLimit(1)
             }
             if let symbol = accessory.symbol {

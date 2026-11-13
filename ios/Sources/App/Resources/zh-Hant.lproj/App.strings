@@ -371,6 +371,7 @@
 "settings.home.languageAppearance" = "語言與外觀";
 "settings.notifications.title" = "通知";
 "settings.home.notification.detail" = "什麼時候彈出、去系統裡改";
+"settings.notifications.normal" = "正常";
 "settings.home.myData" = "我的資料";
 "settings.home.memory.detail" = "記憶、技能與網站登入";
 "settings.advanced.title" = "進階與其他";

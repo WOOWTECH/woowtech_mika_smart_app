@@ -379,6 +379,8 @@ enum AppText: Equatable {
     case settingsHomeLanguageAppearance
     case settingsNotificationsTitle
     case settingsHomeNotificationDetail
+    case settingsNotificationsNormal
+    case settingsNotificationsLowered(count: Int)
     case settingsHomeMyData
     case settingsHomeMemoryDetail
     case settingsAdvancedTitle
@@ -936,6 +938,8 @@ enum AppText: Equatable {
         case .settingsHomeLanguageAppearance: return "settings.home.languageAppearance"
         case .settingsNotificationsTitle: return "settings.notifications.title"
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
+        case .settingsNotificationsNormal: return "settings.notifications.normal"
+        case .settingsNotificationsLowered: return "settings.notifications.lowered"
         case .settingsHomeMyData: return "settings.home.myData"
         case .settingsHomeMemoryDetail: return "settings.home.memory.detail"
         case .settingsAdvancedTitle: return "settings.advanced.title"
@@ -1137,6 +1141,7 @@ enum AppText: Equatable {
         case .browserStartRemoveBookmark(let name): return [name]
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
+        case .settingsNotificationsLowered(let count): return [Int64(count)]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .archiveSavedCount(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
@@ -1536,6 +1541,8 @@ enum AppText: Equatable {
         case .settingsHomeLanguageAppearance: return "語言與外觀"
         case .settingsNotificationsTitle: return "通知"
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
+        case .settingsNotificationsNormal: return "正常"
+        case .settingsNotificationsLowered: return "有 %lld 項不會彈出"
         case .settingsHomeMyData: return "我的資料"
         case .settingsHomeMemoryDetail: return "記憶、技能與網站登入"
         case .settingsAdvancedTitle: return "進階與其他"

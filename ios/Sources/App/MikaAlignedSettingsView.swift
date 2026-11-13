@@ -22,6 +22,19 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
         session.hasStoredKey ? (session.savedSettings?.model ?? localizer.text(.settingsModelNotSet))
                              : localizer.text(.settingsModelNotSet)
     }
+    private var notificationSummary: MikaNotificationSummary? {
+        MikaNotificationSummary(enabled: notifications.service.enabled,
+                                settings: notifications.service.systemSettings)
+    }
+    /// Android StatusCopy.notificationSummary tones: 正常 ok, lowered warn, 已關閉 bad.
+    private var notificationTone: MikaSettingsTone {
+        switch notificationSummary {
+        case .normal?: return .ok
+        case .lowered?: return .warn
+        case .off?: return .bad
+        case nil: return .plain
+        }
+    }
 
     init(session: ChatSession, preferences: SelfConfigurationStore,
          notifications: TaskNotificationStore, languages: AppLanguageStore,
@@ -69,7 +82,9 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
                             TaskNotificationSettingsView(store: notifications)
                         } label: {
                             MikaSettingsRow(icon: .bell, title: localizer.text(.settingsNotificationsTitle),
-                                            subtitle: localizer.text(.settingsHomeNotificationDetail))
+                                            subtitle: localizer.text(.settingsHomeNotificationDetail),
+                                            value: notificationSummary.map { localizer.text($0.text) },
+                                            valueTone: notificationTone)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("settings.notifications")
@@ -119,6 +134,8 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
         .background(palette.page)
         .navigationTitle(localizer.text(.settingsHomeTitle))
         .navigationBarTitleDisplayMode(.inline)
+        // Reads the system state only; never asks for permission.
+        .task { await notifications.service.refresh() }
     }
 }
 

@@ -371,6 +371,7 @@
 "settings.home.languageAppearance" = "语言与外观";
 "settings.notifications.title" = "通知";
 "settings.home.notification.detail" = "什么时候弹出、去系统里改";
+"settings.notifications.normal" = "正常";
 "settings.home.myData" = "我的数据";
 "settings.home.memory.detail" = "记忆、技能与网站登录";
 "settings.advanced.title" = "高级与其他";

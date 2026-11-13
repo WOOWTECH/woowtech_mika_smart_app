@@ -3898,6 +3898,39 @@
       }
     },
     {
+      "case": "settingsNotificationsNormal",
+      "key": "settings.notifications.normal",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正常",
+        "zh-Hans": "正常",
+        "en": "Normal"
+      }
+    },
+    {
+      "case": "settingsNotificationsLowered",
+      "key": "settings.notifications.lowered",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "有 %lld 項不會彈出"
+        },
+        "zh-Hans": {
+          "other": "有 %lld 项不会弹出"
+        },
+        "en": {
+          "one": "%lld won’t pop up",
+          "other": "%lld won’t pop up"
+        }
+      }
+    },
+    {
       "case": "settingsHomeMyData",
       "key": "settings.home.myData",
       "parameters": [],
