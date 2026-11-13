@@ -41,9 +41,9 @@ enum SkillExecutionChecks {
 
     static func provenance(_ catalog: BundledSkillCatalog) throws {
         let reports = SkillExecutionDependencies.reports(catalog: catalog)
-        try expect(reports.map(\.skillID) == BundledSkillCatalog.entryIDs, "all six source instructions reviewed")
+        try expect(reports.map(\.skillID) == BundledSkillCatalog.entryIDs, "all five source instructions reviewed")
         try expect(reports.allSatisfy { !$0.originalParity && !$0.dependencies.isEmpty }, "no false parity")
-        try expect(reports.flatMap(\.provenance).count == 9, "six instructions and three supporting assets")
+        try expect(reports.flatMap(\.provenance).count == 8, "five instructions and three supporting assets")
         let documents = reports.first { $0.skillID == "documents" }!
         try expect(documents.provenance.contains { $0.sha256 == SkillExecutionHTTPWorker.scriptSHA256 }, "exact original script hash")
         try expect(documents.provenance.allSatisfy { $0.revision == BundledSkillCatalog.pinnedCommit }, "pinned provenance")
@@ -342,7 +342,7 @@ struct SkillExecutionStandalone {
         let args = ProcessInfo.processInfo.arguments
         guard args.count >= 2 else { throw SkillExecutionChecks.Failure(message: "catalog resource path required") }
         let catalog = try BundledSkillCatalog.load(data: Data(contentsOf: URL(fileURLWithPath: args[1])))
-        try SkillExecutionChecks.provenance(catalog); print("PASS six-skill provenance and dependency mapping")
+        try SkillExecutionChecks.provenance(catalog); print("PASS five-skill provenance and dependency mapping")
         try await SkillExecutionChecks.nativePDF(); print("PASS actual PDFKit text, metadata, pages, encryption and invalid inputs")
         try await SkillExecutionChecks.coordinatedRead(); print("PASS real file presenter save, refusal and post-coordination byte limit")
         try await SkillExecutionChecks.authorization(catalog); print("PASS per-step approval, replay, expiry, selection and byte snapshot")

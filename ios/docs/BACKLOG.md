@@ -37,7 +37,7 @@
 - [x] Manual skill-authoring bridge with original-request/read-version/review binding and atomic encrypted persistence; native UI acceptance tracked per revision.
 - [x] Build and execute the pinned original PDF worker in actual isolated GitHub Ubuntu containers; verify effective restrictions and exact results. No endpoint deployed.
 - [x] Model-autonomous skill search/read and reviewed-save integration; real-model App flow passed at `6d480d8` (VERIFICATION).
-- [x] Configurable App appearance with model list/set and independent default-off permission; native/live acceptance pending by revision.
+- [x] Configurable App appearance, chosen by the user in Settings › 語言與外觀. The model list/set flow and its permission were removed on 2026-11-13 to match the Play build.
 - [x] Original content-transcribe guidance over approved text/subtitle files and browser text snapshots; core HTTP checks pass, native/live acceptance pending by revision.
 - [ ] Full original-skill tool registry and deployed authenticated remote compute environment.
 

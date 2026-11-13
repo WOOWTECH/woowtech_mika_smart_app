@@ -28,10 +28,12 @@ enum SkillCatalogFixtures {
     static func run(data: Data) throws -> Int {
         var checks = Checks()
         let catalog = try BundledSkillCatalog.load(data: data)
-        let expectedIDs = ["configure-mika", "content-transcribe", "documents", "info-research", "messaging", "skill-authoring"]
-        try checks.expect(catalog.entries.map(\.id) == expectedIDs, "all six pinned original skills and order")
+        // configure-mika is left out: like the Play build, the model cannot change settings.
+        let expectedIDs = ["content-transcribe", "documents", "info-research", "messaging", "skill-authoring"]
+        try checks.expect(catalog.entries.map(\.id) == expectedIDs, "five pinned original skills and order")
+        try checks.expect(catalog.entry(id: "configure-mika") == nil && catalog.search("settings_set").isEmpty, "no settings-changing skill")
         try checks.expect(BundledSkillCatalog.pinnedCommit == "0c172724f3f0c96f7345262588072f6e95db1138", "pinned source commit")
-        try checks.expect(catalog.search(" \n").count == 6, "empty search lists all")
+        try checks.expect(catalog.search(" \n").count == 5, "empty search lists all")
         try checks.expect(catalog.search("pypdf").map(\.id) == ["documents"], "supporting script full text searchable")
         try checks.expect(catalog.search("PyPdF").map(\.id) == ["documents"], "search case insensitive")
         try checks.expect(catalog.search("pypdf transcript").isEmpty, "all search terms required")
@@ -42,7 +44,6 @@ enum SkillCatalogFixtures {
         let hashes = [
             "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
             "NOTICE": "7d49ef5ff477ad1a79db8050c7242498a03874e9ac70e7c8f741baeea6a33f24",
-            prefix + "configure-mika/SKILL.md": "25560ad126c10263f0c341dd5d25d5e12fe4335a372abe7b8d08895725d97c4f",
             prefix + "content-transcribe/SKILL.md": "fa46715f63de39a274d877f4cc5ec347fb639d7a5bb9aeb8f8b0f81fcf352326",
             prefix + "content-transcribe/references/transcript-output-formats.md": "bbd7bb15518ecf353d1b26ed8c25a24ee471d0bc7a6dc510b8f8a6153d2dc9e8",
             prefix + "documents/SKILL.md": "f5cfa97a04bab6fcbfba4b654c9a59018dd339eea83b260ace47928e3abf230c",
@@ -53,7 +54,7 @@ enum SkillCatalogFixtures {
             prefix + "skill-authoring/SKILL.md": "2ca1e847565726ec25b55908e3ecd00d1750664638f8c327d699234ecea37a42"
         ]
         let originals = [catalog.license, catalog.notice] + catalog.entries.flatMap { [$0.original] + $0.assets }
-        try checks.expect(originals.count == hashes.count, "all eleven files retained")
+        try checks.expect(originals.count == hashes.count, "all ten files retained")
         for document in originals {
             let hash = SHA256.hash(data: Data(document.content.utf8)).map { String(format: "%02x", $0) }.joined()
             try checks.expect(hash == hashes[document.path], "exact pinned upstream file bytes: " + document.path)
@@ -67,7 +68,6 @@ enum SkillCatalogFixtures {
         try checks.expect(catalog.entries.flatMap(\.assets).count == 3, "three supporting resources")
 
         let required: [String: Set<SkillCatalogRequirement>] = [
-            "configure-mika": [.settingsAutomation, .androidControl],
             "content-transcribe": [.legacyWebTools, .workspaceFiles, .androidControl],
             "documents": [.python, .shell, .workspaceFiles, .fileExport],
             "info-research": [.legacyWebTools, .crossOriginResearch, .androidControl],
@@ -101,7 +101,7 @@ enum SkillCatalogFixtures {
             try checks.rejects(.alreadyAdded, "duplicate pending") { _ = try catalog.stageAdaptation(id: entry.id, into: &state) }
             try checks.expect(state == before, "duplicate rejection atomic")
         }
-        try checks.expect(state.pending.count == 6, "six drafts staged")
+        try checks.expect(state.pending.count == 5, "five drafts staged")
         let pendingReload = try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state))
         try checks.expect(pendingReload == state && pendingReload.installed.isEmpty, "pending survives encrypted snapshot Codable without enabling")
         for entry in catalog.entries {
@@ -123,7 +123,7 @@ enum SkillCatalogFixtures {
             try state.resume(name: skill.name)
             try checks.expect(state.installed.first { $0.name == skill.name }?.status == .trial, "resume does not fabricate verification")
         }
-        try checks.expect(state.pending.isEmpty && state.installed.count == 6, "explicitly approved six")
+        try checks.expect(state.pending.isEmpty && state.installed.count == 5, "explicitly approved five")
         try checks.expect(try JSONDecoder().decode(SkillsState.self, from: JSONEncoder().encode(state)) == state, "approved state roundtrip")
         let before = state
         try checks.rejects(.notFound, "unknown entry cannot mutate") { _ = try catalog.stageAdaptation(id: "missing", into: &state) }
@@ -171,7 +171,7 @@ final class SkillCatalogTests: XCTestCase {
     func testCompletePinnedArchiveAndApprovalLifecycle() throws {
         // Public loader exercises actual packaged Bundle.module, not a fixture copy.
         let catalog = try BundledSkillCatalog.bundled()
-        XCTAssertEqual(catalog.entries.count, 6)
+        XCTAssertEqual(catalog.entries.count, 5)
         XCTAssertGreaterThan(try SkillCatalogFixtures.run(data: BundledSkillCatalog.bundledData()), 200)
     }
 }

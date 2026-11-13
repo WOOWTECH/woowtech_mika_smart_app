@@ -17,8 +17,8 @@ public struct SkillExecutionDependencyReport: Sendable {
     public var originalParity: Bool { false }
 }
 
-/// Reviewed against all six SKILL.md files and all three supporting assets at
-/// 0c172724. These reports describe integration boundaries, never grant authority.
+/// Reviewed against the five bundled SKILL.md files and all three supporting
+/// assets at 0c172724. These reports describe integration boundaries, never grant authority.
 public enum SkillExecutionDependencies {
     public static let pdfQueryScope = "僅在獨立 PDF 查詢流程，確認模型目的服務後，讀取或逐字搜尋本次已擷取 PDF 的文字快照；引文需對應實際讀取。不開放任意路徑、workspace 或無上限讀取。"
     public static func reports(catalog: BundledSkillCatalog) -> [SkillExecutionDependencyReport] {
@@ -36,8 +36,6 @@ public enum SkillExecutionDependencies {
         let browser = row("web_navigate / web_read_page", .hostIntegrationRequired,
             "現有 BrowserSession.inspect/openLink 與 WebResearchRunner 可讀公開頁面、同來源連結；尚未接入此執行器，不能讀取其他 App。")
         switch id {
-        case "configure-mika": return [
-            row("settings_list / settings_set", .implementedInRuntime, "在外觀頁開啟模型權限後，可列出並修改本 App 的跟隨系統／淺色／深色；會讀回實際設定。模型、金鑰、登入、刪資料與容器網路不提供給此工具。")]
         case "content-transcribe": return [
             row("web_read_page", .implementedInRuntime, "瀏覽器可擷取使用者核准之目前頁面文字；64 KiB 上限，不截斷全文，不讀表單或隱藏文字，來源網址隨快照保留。"),
             row("read_file /workspace/inbox", .implementedInRuntime, "原生選檔後逐檔核准讀取 UTF-8 文字或字幕，再確認模型目的服務。模型分段重疊讀取記憶體快照；不開放任意檔案路徑。"),

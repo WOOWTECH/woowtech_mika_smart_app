@@ -33,24 +33,23 @@ run('resource-parity',['python3','scripts/generate_app_text.py'])
 run('resource-negative-tests',['python3','-m','unittest','discover','-s','scripts','-p','test_app_text_resources.py'])
 for path in (ROOT/'Sources/App/Resources').rglob('*'):
     if path.is_file(): capture(path)
-owned=['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','SelfConfigurationText','AppModelSettingsText']
+owned=['AppLanguage','AppLanguageStore','AppLanguagePreferences','AppText','AppLocalizer','AppModelSettingsText']
 foundation=[capture(ROOT/'Sources/App'/f'{name}.swift') for name in owned]
 apps=[capture(ROOT/'Sources/App'/f'{name}.swift') for name in APP_SOURCES if name not in owned]
-apps += [capture(ROOT/'Sources/App/SelfConfigurationSession.swift'), capture(ROOT/'Sources/App/SkillWorkerSettings.swift')]
+apps += [capture(ROOT/'Sources/App/SkillWorkerSettings.swift')]
 model_settings=capture(ROOT/'Sources/App/ModelSettings.swift')
-views=[capture(ROOT/'Sources/App/SelfConfigurationView.swift'),capture(ROOT/'Sources/App/AppLanguageEnvironment.swift'),capture(ROOT/'Sources/App/SkillWorkerSettingsView.swift')]
-fixtures=capture(ROOT/'Tests/AssistantSkillsTests/SelfConfigurationFixtures.swift')
-harness=[capture(ROOT/'scripts'/name) for name in ['CheckAppLanguage.swift','CheckAppLanguageResources.swift','CheckAppLanguageHTTP.swift']]
+views=[capture(ROOT/'Sources/App/MikaLanguageAppearanceView.swift'),capture(ROOT/'Sources/App/AppLanguageEnvironment.swift'),capture(ROOT/'Sources/App/SkillWorkerSettingsView.swift')]
+harness=[capture(ROOT/'scripts'/name) for name in ['CheckAppLanguage.swift','CheckAppLanguageResources.swift']]
 for name,deps in MODULES:
     paths=[capture(p) for p in sorted((ROOT/'Sources'/name).glob('*.swift'))]
     run(name+'-build',['swiftc','-swift-version','5','-parse-as-library','-enable-testing','-emit-module','-emit-library','-module-name',name,'-I',str(OUT),'-L',str(OUT),*paths,*['-l'+d for d in deps],'-emit-module-path',str(OUT/(name+'.swiftmodule')),'-o',str(OUT/('lib'+name+'.dylib'))])
 for config,flags in [('Debug',['-DDEBUG']),('Release',[])]:
     binary=OUT/('checks-'+config)
-    run(config+'-build',['swiftc','-swift-version','5','-warnings-as-errors','-parse-as-library','-I',str(OUT),'-L',str(OUT),'-lAssistantSkills','-lAssistantModels','-Xlinker','-rpath','-Xlinker',str(OUT),*flags,*foundation,model_settings,fixtures,*harness,'-o',str(binary)])
+    run(config+'-build',['swiftc','-swift-version','5','-warnings-as-errors','-parse-as-library','-I',str(OUT),'-L',str(OUT),'-lAssistantSkills','-lAssistantModels','-Xlinker','-rpath','-Xlinker',str(OUT),*flags,*foundation,model_settings,*harness,'-o',str(binary)])
     run(config+'-run',[str(binary),str(OUT/'source/Sources/App/Resources')],45)
     run(config+'-App-typecheck',['swiftc','-swift-version','5','-typecheck','-I',str(OUT),*flags,*apps,*foundation])
     run(config+'-iOS-syntax',['swiftc','-frontend','-parse','-target','arm64-apple-ios17.0',*flags,*views,*foundation,*apps])
-for name,source in [('wrong-parameter','let value: AppText = .configurationStepCount(count: "two")'),('unknown-key','let value: AppText = .arbitraryModelText')]:
+for name,source in [('wrong-parameter','let value: AppText = .drawerRecentTurns(count: "two")'),('unknown-key','let value: AppText = .arbitraryModelText')]:
     p=OUT/(name+'.swift');p.write_text(source+'\n')
     result=subprocess.run(['swiftc','-typecheck',str(OUT/'source/Sources/App/AppText.swift'),str(p)],capture_output=True,text=True,env=ENV)
     if result.returncode == 0: raise SystemExit('Expected compile-time rejection: '+name)

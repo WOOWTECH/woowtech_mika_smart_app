@@ -56,9 +56,6 @@ final class AppLanguageUITests: XCTestCase {
         launch(systemLanguages: "(fr-FR)")
         XCTAssertTrue(app.navigationBars["語言與外觀"].waitForExistence(timeout: 10))
         assertSelected("settings.language.system")
-        // The page has Play's two lists only: no model permission to change the appearance.
-        XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
-        XCTAssertFalse(app.buttons["selfConfiguration.start"].exists)
     }
 
     func testChatHeaderAndArchiveBoundaryInEverySupportedLanguage() {

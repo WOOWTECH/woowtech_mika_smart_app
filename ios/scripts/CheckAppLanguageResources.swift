@@ -31,21 +31,19 @@ import AssistantSkills
             return Bundle(url: url)!
         }
         let bundle = try makeBundle("complete", languages: ["zh-Hant", "zh-Hans", "en"])
-        let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "外觀與模型權限", "個步驟"), (.simplifiedChinese, "外观与模型权限", "个步骤"), (.english, "Appearance and model permissions", "steps")]
+        let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "語言與外觀", "輪"), (.simplifiedChinese, "语言与外观", "轮"), (.english, "Language and appearance", "exchanges")]
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
-            try check(l.resolve(.configurationTitle).text == title && !l.resolve(.configurationTitle).usedFallback, "actual localized bundle title")
+            try check(l.resolve(.languageAppearanceTitle).text == title && !l.resolve(.languageAppearanceTitle).usedFallback, "actual localized bundle title")
             for count in [0, 1, 2, 1001] {
-                let rendered = l.resolve(.configurationStepCount(count: count))
+                let rendered = l.resolve(.drawerRecentTurns(count: count))
                 let numeral = count == 1001 ? "1,001" : String(count)
-                let suffix = language == .english && count == 1 ? "step" : plural
+                let suffix = language == .english && count == 1 ? "exchange" : plural
                 try check(rendered.text == numeral + " " + suffix && !rendered.usedFallback, "native stringsdict plural and explicit locale")
             }
-            let external = "%1$@ %n %#@count@ configuration.title\n使用者原文 🧋"
-            let rendered = l.text(.configurationChanged(appearance: external))
+            let external = "%1$@ %n %#@count@ language.appearance.title\n使用者原文 🧋"
+            let rendered = l.text(.chatQuotingYou(text: external))
             try check(rendered.contains(external), "parameter is verbatim data, never recursive format/key/markup")
-            let state = SelfConfigurationMessage.changed(.dark)
-            try check(state.text(using: l).contains(l.appearanceName(.dark)), "stored dynamic status renders current localized argument")
         }
         // Every fixed status and the archive explanation must resolve from each
         // shipped bundle, including after the interface language changes.
@@ -98,26 +96,18 @@ import AssistantSkills
                   "in-flight status uses the current language")
         try check(AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的对话（2）",
                   "archive count is formatted with the selected language")
-        let state = SelfConfigurationMessage.running
         let en = AppLocalizer(language: .english, bundle: bundle)
         let hans = AppLocalizer(language: .simplifiedChinese, bundle: bundle)
-        try check(state.text(using: en) == "Checking and changing appearance…" && state.text(using: hans) == "正在查询并调整外观……", "same in-flight state re-renders without restarting it")
-        let errors: [SelfConfigurationError] = [.permissionRequired, .authorizationChanged, .cancelled, .invalidRequest, .invalidCommand, .listRequired, .unavailableSetting, .invalidValue, .alreadyUsed, .timedOut, .modelFailed, .persistenceFailed]
         let hant = AppLocalizer(language: .traditionalChinese, bundle: bundle)
-        for error in errors {
-            try check(hant.text(hant.configurationError(error)) == error.errorDescription, "existing Traditional Chinese error preserved exactly")
-            try check(en.text(en.configurationError(error)) != error.errorDescription && hans.text(hans.configurationError(error)) != error.errorDescription, "known error has explicit translations")
-        }
-        try check(en.configurationStep(.appliedAppearance(.light)) == "settings_set: Saved and read back “Light”", "typed readback event localization")
-        let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "configuration.title")
-        let fallback = AppLocalizer(language: .english, bundle: partial).resolve(.configurationTitle)
-        try check(fallback.text == "外觀與模型權限" && fallback.language == .traditionalChinese && fallback.usedFallback, "missing individual key falls back to Hant, not system English")
-        let missingLanguage = AppLocalizer(language: .simplifiedChinese, bundle: partial).resolve(.configurationStepCount(count: 2))
-        try check(missingLanguage.text == "2 個步驟" && missingLanguage.usedFallback, "missing language plural falls back to Hant")
+        let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "language.appearance.title")
+        let fallback = AppLocalizer(language: .english, bundle: partial).resolve(.languageAppearanceTitle)
+        try check(fallback.text == "語言與外觀" && fallback.language == .traditionalChinese && fallback.usedFallback, "missing individual key falls back to Hant, not system English")
+        let missingLanguage = AppLocalizer(language: .simplifiedChinese, bundle: partial).resolve(.drawerRecentTurns(count: 2))
+        try check(missingLanguage.text == "2 輪" && missingLanguage.usedFallback, "missing language plural falls back to Hant")
         let empty = try makeBundle("empty", languages: [])
         let emergency = AppLocalizer(language: .english, bundle: empty)
-        try check(emergency.text(.configurationTitle) == "外觀與模型權限" && emergency.resolve(.configurationTitle).usedFallback, "missing packaged resources preserve readable Hant")
-        try check(emergency.text(.configurationStepCount(count: 2)) == "2 個步驟", "missing packaged plural uses typed Hant fallback")
+        try check(emergency.text(.languageAppearanceTitle) == "語言與外觀" && emergency.resolve(.languageAppearanceTitle).usedFallback, "missing packaged resources preserve readable Hant")
+        try check(emergency.text(.drawerRecentTurns(count: 2)) == "2 輪", "missing packaged plural uses typed Hant fallback")
         let searchFallback = try makeBundle("searchPartial", languages: ["zh-Hant", "en"], omitKey: "localPDFSearch.invalid")
         let missingSearch = AppLocalizer(language: .english, bundle: searchFallback).resolve(.localPDFSearchInvalid)
         try check(missingSearch.usedFallback && missingSearch.language == .traditionalChinese &&

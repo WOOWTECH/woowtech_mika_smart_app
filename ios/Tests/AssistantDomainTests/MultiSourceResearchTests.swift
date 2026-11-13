@@ -328,7 +328,7 @@ private actor MultiSourceTestBrowser: MultiSourceResearchExecuting {
 }
 #endif
 
-// Same bounded loopback/HTTPS-test-adapter pattern as SelfConfigurationFixtures.
+// Bounded loopback server behind an HTTPS test adapter.
 // Only synthetic host/key requests are forwarded; this does not test TLS.
 private final class MultiSourceSocketFixture: @unchecked Sendable {
     enum Failure: Error { case unavailable, invalidRequest }

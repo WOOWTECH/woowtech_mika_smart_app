@@ -9,7 +9,6 @@ enum AppText: Equatable {
     case languageTraditional
     case languageSimplified
     case languageEnglish
-    case languageExplanation
     case languagePartialNotice
     case languageSaveFailed
     case shellBrandTitle
@@ -46,54 +45,12 @@ enum AppText: Equatable {
     case shellStop
     case shellReturnToLatest
     case shellSend
-    case configurationTitle
     case appearanceTitle
-    case appearanceCurrent
-    case appearanceSystem
-    case appearanceLight
-    case appearanceDark
     case appearanceFollowSystem
     case appearanceSystemDetail
     case appearanceAlwaysLight
     case appearanceAlwaysDark
-    case appearanceAppliedDark
-    case appearanceAppliedLight
-    case appearanceExplanation
-    case configurationPermissionTitle
-    case configurationPermission
-    case configurationPermissionExplanation
-    case configurationRequestTitle
-    case configurationRequestExplanation
-    case configurationRequestLabel
-    case configurationCancel
-    case configurationStart
-    case configurationResult
     case keyboardDone
-    case configurationIdle
-    case configurationRunning
-    case configurationClarification
-    case configurationUnchanged
-    case configurationStopped
-    case configurationNotStarted
-    case configurationCancelled
-    case configurationNeedsModel
-    case configurationStepList
-    case configurationErrorPermission
-    case configurationErrorAuthorization
-    case configurationErrorCancelled
-    case configurationErrorRequest
-    case configurationErrorCommand
-    case configurationErrorList
-    case configurationErrorSetting
-    case configurationErrorValue
-    case configurationErrorUsed
-    case configurationErrorTimeout
-    case configurationErrorModel
-    case configurationErrorPersistence
-    case languageResolved(name: String)
-    case configurationChanged(appearance: String)
-    case configurationStepSet(appearance: String)
-    case configurationStepCount(count: Int)
     case workerTitle
     case workerSection
     case workerExplanation
@@ -281,9 +238,6 @@ enum AppText: Equatable {
     case catalogTranscriptSection
     case catalogTranscriptOpen
     case catalogTranscriptHelp
-    case catalogAppearanceSection
-    case catalogAppearanceOpen
-    case catalogAppearanceHelp
     case catalogAuthorSection
     case catalogAuthorOpen
     case catalogAgentOpen
@@ -305,12 +259,10 @@ enum AppText: Equatable {
     case catalogOriginalRead
     case catalogAttribution
     case catalogTextSafety
-    case catalogReadyAppearance
     case catalogReadyAuthor
     case catalogReadyDocuments
     case catalogReadyTranscript
     case catalogReadyOther
-    case catalogReqSettings
     case catalogReqAndroid
     case catalogReqWeb
     case catalogReqFiles
@@ -587,7 +539,6 @@ enum AppText: Equatable {
         case .languageTraditional: return "language.traditional"
         case .languageSimplified: return "language.simplified"
         case .languageEnglish: return "language.english"
-        case .languageExplanation: return "language.explanation"
         case .languagePartialNotice: return "language.partialNotice"
         case .languageSaveFailed: return "language.saveFailed"
         case .shellBrandTitle: return "shell.brandTitle"
@@ -624,54 +575,12 @@ enum AppText: Equatable {
         case .shellStop: return "shell.stop"
         case .shellReturnToLatest: return "shell.returnToLatest"
         case .shellSend: return "shell.send"
-        case .configurationTitle: return "configuration.title"
         case .appearanceTitle: return "appearance.title"
-        case .appearanceCurrent: return "appearance.current"
-        case .appearanceSystem: return "appearance.system"
-        case .appearanceLight: return "appearance.light"
-        case .appearanceDark: return "appearance.dark"
         case .appearanceFollowSystem: return "appearance.followSystem"
         case .appearanceSystemDetail: return "appearance.system.detail"
         case .appearanceAlwaysLight: return "appearance.alwaysLight"
         case .appearanceAlwaysDark: return "appearance.alwaysDark"
-        case .appearanceAppliedDark: return "appearance.appliedDark"
-        case .appearanceAppliedLight: return "appearance.appliedLight"
-        case .appearanceExplanation: return "appearance.explanation"
-        case .configurationPermissionTitle: return "configuration.permissionTitle"
-        case .configurationPermission: return "configuration.permission"
-        case .configurationPermissionExplanation: return "configuration.permissionExplanation"
-        case .configurationRequestTitle: return "configuration.requestTitle"
-        case .configurationRequestExplanation: return "configuration.requestExplanation"
-        case .configurationRequestLabel: return "configuration.requestLabel"
-        case .configurationCancel: return "configuration.cancel"
-        case .configurationStart: return "configuration.start"
-        case .configurationResult: return "configuration.result"
         case .keyboardDone: return "keyboard.done"
-        case .configurationIdle: return "configuration.idle"
-        case .configurationRunning: return "configuration.running"
-        case .configurationClarification: return "configuration.clarification"
-        case .configurationUnchanged: return "configuration.unchanged"
-        case .configurationStopped: return "configuration.stopped"
-        case .configurationNotStarted: return "configuration.notStarted"
-        case .configurationCancelled: return "configuration.cancelled"
-        case .configurationNeedsModel: return "configuration.needsModel"
-        case .configurationStepList: return "configuration.stepList"
-        case .configurationErrorPermission: return "configuration.error.permission"
-        case .configurationErrorAuthorization: return "configuration.error.authorization"
-        case .configurationErrorCancelled: return "configuration.error.cancelled"
-        case .configurationErrorRequest: return "configuration.error.request"
-        case .configurationErrorCommand: return "configuration.error.command"
-        case .configurationErrorList: return "configuration.error.list"
-        case .configurationErrorSetting: return "configuration.error.setting"
-        case .configurationErrorValue: return "configuration.error.value"
-        case .configurationErrorUsed: return "configuration.error.used"
-        case .configurationErrorTimeout: return "configuration.error.timeout"
-        case .configurationErrorModel: return "configuration.error.model"
-        case .configurationErrorPersistence: return "configuration.error.persistence"
-        case .languageResolved: return "language.resolved"
-        case .configurationChanged: return "configuration.changed"
-        case .configurationStepSet: return "configuration.stepSet"
-        case .configurationStepCount: return "configuration.stepCount"
         case .workerTitle: return "worker.title"
         case .workerSection: return "worker.section"
         case .workerExplanation: return "worker.explanation"
@@ -859,9 +768,6 @@ enum AppText: Equatable {
         case .catalogTranscriptSection: return "catalog.transcript.section"
         case .catalogTranscriptOpen: return "catalog.transcript.open"
         case .catalogTranscriptHelp: return "catalog.transcript.help"
-        case .catalogAppearanceSection: return "catalog.appearance.section"
-        case .catalogAppearanceOpen: return "catalog.appearance.open"
-        case .catalogAppearanceHelp: return "catalog.appearance.help"
         case .catalogAuthorSection: return "catalog.author.section"
         case .catalogAuthorOpen: return "catalog.author.open"
         case .catalogAgentOpen: return "catalog.agent.open"
@@ -883,12 +789,10 @@ enum AppText: Equatable {
         case .catalogOriginalRead: return "catalog.original.read"
         case .catalogAttribution: return "catalog.attribution"
         case .catalogTextSafety: return "catalog.text.safety"
-        case .catalogReadyAppearance: return "catalog.ready.appearance"
         case .catalogReadyAuthor: return "catalog.ready.author"
         case .catalogReadyDocuments: return "catalog.ready.documents"
         case .catalogReadyTranscript: return "catalog.ready.transcript"
         case .catalogReadyOther: return "catalog.ready.other"
-        case .catalogReqSettings: return "catalog.req.settings"
         case .catalogReqAndroid: return "catalog.req.android"
         case .catalogReqWeb: return "catalog.req.web"
         case .catalogReqFiles: return "catalog.req.files"
@@ -1161,10 +1065,6 @@ enum AppText: Equatable {
 
     var arguments: [CVarArg] {
         switch self {
-        case .languageResolved(let name): return [name]
-        case .configurationChanged(let appearance): return [appearance]
-        case .configurationStepSet(let appearance): return [appearance]
-        case .configurationStepCount(let count): return [Int64(count)]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
@@ -1209,7 +1109,6 @@ enum AppText: Equatable {
         case .languageTraditional: return "繁體中文"
         case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
-        case .languageExplanation: return "依裝置的語言偏好選擇支援的介面語言；未支援時使用繁體中文。不翻譯你的內容、模型回覆或原始技能。"
         case .languagePartialNotice: return "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
         case .shellBrandTitle: return "渥屋助理"
@@ -1246,54 +1145,12 @@ enum AppText: Equatable {
         case .shellStop: return "取消"
         case .shellReturnToLatest: return "回到最新訊息"
         case .shellSend: return "傳送"
-        case .configurationTitle: return "外觀與模型權限"
         case .appearanceTitle: return "外觀"
-        case .appearanceCurrent: return "目前外觀"
-        case .appearanceSystem: return "跟隨系統"
-        case .appearanceLight: return "淺色"
-        case .appearanceDark: return "深色"
         case .appearanceFollowSystem: return "跟隨系統"
         case .appearanceSystemDetail: return "裝置是淺色就淺色，深色就深色"
         case .appearanceAlwaysLight: return "一直淺色"
         case .appearanceAlwaysDark: return "一直深色"
-        case .appearanceAppliedDark: return "目前顯示：深色"
-        case .appearanceAppliedLight: return "目前顯示：淺色"
-        case .appearanceExplanation: return "選擇後立即生效；跟隨系統會使用裝置目前的外觀。"
-        case .configurationPermissionTitle: return "模型權限"
-        case .configurationPermission: return "允許模型調整外觀"
-        case .configurationPermissionExplanation: return "預設關閉。開啟後，模型只可查詢及切換外觀；模型、金鑰、登入、刪除資料及網路設定均不提供給此工具。"
-        case .configurationRequestTitle: return "請模型調整外觀"
-        case .configurationRequestExplanation: return "要求會傳送至你已設定的模型。請勿填入密碼或金鑰。"
-        case .configurationRequestLabel: return "外觀調整要求"
-        case .configurationCancel: return "停止調整"
-        case .configurationStart: return "送出外觀要求"
-        case .configurationResult: return "結果"
         case .keyboardDone: return "完成輸入"
-        case .configurationIdle: return "尚未提出外觀調整要求。"
-        case .configurationRunning: return "正在查詢並調整外觀……"
-        case .configurationClarification: return "尚未變更外觀；請補充要求後重新送出。"
-        case .configurationUnchanged: return "這次沒有變更外觀。"
-        case .configurationStopped: return "這次外觀調整已停止。"
-        case .configurationNotStarted: return "尚未開始外觀調整。"
-        case .configurationCancelled: return "已停止；之後抵達的模型回應不會套用。"
-        case .configurationNeedsModel: return "請先在模型設定完成連線設定。"
-        case .configurationStepList: return "settings_list：已讀取外觀及三個可選值"
-        case .configurationErrorPermission: return "請先開啟「允許模型調整外觀」。"
-        case .configurationErrorAuthorization: return "設定或權限已變更，已停止這次操作；請重新提出要求。"
-        case .configurationErrorCancelled: return "已取消，之後抵達的模型回應不會套用。"
-        case .configurationErrorRequest: return "請輸入外觀調整要求，長度不得超過 2,000 個 UTF-8 位元組。"
-        case .configurationErrorCommand: return "模型未回傳有效的設定指令，未套用變更。"
-        case .configurationErrorList: return "模型必須先查詢可調整的設定，未套用變更。"
-        case .configurationErrorSetting: return "模型只能調整外觀，未套用其他設定。"
-        case .configurationErrorValue: return "外觀只接受跟隨系統、淺色或深色，未套用變更。"
-        case .configurationErrorUsed: return "這次設定操作已結束，請重新提出要求。"
-        case .configurationErrorTimeout: return "模型回應逾時，未套用變更。"
-        case .configurationErrorModel: return "模型連線或回應失敗，未套用變更。"
-        case .configurationErrorPersistence: return "無法讀回外觀設定，請檢查目前外觀。"
-        case .languageResolved: return "目前介面：%1$@"
-        case .configurationChanged: return "已讀回外觀：%1$@。已立即套用。"
-        case .configurationStepSet: return "settings_set：已寫入並讀回「%1$@」"
-        case .configurationStepCount: return "%lld 個步驟"
         case .workerTitle: return "腳本服務設定"
         case .workerSection: return "原版 PDF 腳本服務"
         case .workerExplanation: return "填入你部署的 Mika PDF 擷取服務完整 HTTPS 網址與專用存取金鑰。設定不會上傳文件。"
@@ -1481,9 +1338,6 @@ enum AppText: Equatable {
         case .catalogTranscriptSection: return "整理文字稿與字幕"
         case .catalogTranscriptOpen: return "選取文字稿或字幕檔"
         case .catalogTranscriptHelp: return "核准讀檔並確認目的服務後，由模型分段閱讀原文、整理內容與核對引文。"
-        case .catalogAppearanceSection: return "調整本 App 外觀"
-        case .catalogAppearanceOpen: return "外觀與模型調整權限"
-        case .catalogAppearanceHelp: return "可設定跟隨系統、淺色或深色；允許模型調整的開關預設關閉。"
         case .catalogAuthorSection: return "編寫個人技能"
         case .catalogAuthorOpen: return "查閱、編寫與審閱儲存"
         case .catalogAgentOpen: return "請模型協助編寫技能"
@@ -1505,12 +1359,10 @@ enum AppText: Equatable {
         case .catalogOriginalRead: return "閱讀原始 SKILL.md 全文"
         case .catalogAttribution: return "Copyright 2026 wangzan101 · Apache-2.0。原文及支援檔案逐位元組保留；iOS 改寫是另外的修改版本。完整 LICENSE 與 NOTICE 見目錄首頁。"
         case .catalogTextSafety: return "唯讀文字，不會執行工具、程式或開啟文內連結。"
-        case .catalogReadyAppearance: return "可調整本 App 外觀；原版能力未完整支援"
         case .catalogReadyAuthor: return "可請模型編寫並核准儲存；原版能力未完整支援"
         case .catalogReadyDocuments: return "可選取 PDF 擷取文字；原版能力未完整支援"
         case .catalogReadyTranscript: return "可整理核准的文字、字幕與網頁文字；原版能力未完整支援"
         case .catalogReadyOther: return "可匯入 iOS 文字改寫；原版能力未完整支援"
-        case .catalogReqSettings: return "可允許模型調整本 App 外觀；不提供模型、金鑰或手機操作設定"
         case .catalogReqAndroid: return "Android／其他 App 操作：不在 iOS 範圍"
         case .catalogReqWeb: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
         case .catalogReqFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"

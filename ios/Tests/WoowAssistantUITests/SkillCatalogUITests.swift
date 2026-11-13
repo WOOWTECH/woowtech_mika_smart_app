@@ -15,11 +15,11 @@ final class SkillCatalogUITests: XCTestCase {
     func testAllPinnedSkillsSearchFullOriginalAssetsAndLicense() {
         launch()
         openCatalog()
-        XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 6 項原始技能 · 符合 6 項")
+        XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 5 項原始技能 · 符合 5 項")
         XCTAssertTrue(app.staticTexts["catalog.scope"].label.contains("不會執行"))
-        for id in ["configure-mika", "content-transcribe", "documents", "info-research", "messaging", "skill-authoring"] {
+        for id in ["content-transcribe", "documents", "info-research", "messaging", "skill-authoring"] {
             search(id)
-            XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 6 項原始技能 · 符合 1 項")
+            XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 5 項原始技能 · 符合 1 項")
             XCTAssertTrue(app.buttons["catalog.entry.\(id)"].exists)
         }
         search("pypdf")
@@ -112,7 +112,7 @@ final class SkillCatalogUITests: XCTestCase {
         openCatalog()
         search("fixture-no-catalog-result")
         XCTAssertTrue(app.staticTexts["catalog.empty"].exists)
-        XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 6 項原始技能 · 符合 0 項")
+        XCTAssertEqual(app.staticTexts["catalog.count"].label, "共 5 項原始技能 · 符合 0 項")
         search("documents")
         tap("catalog.entry.documents", scroll: true)
         XCTAssertTrue(app.staticTexts["catalog.adaptation.scope"].label.contains("未實作 PDF"))

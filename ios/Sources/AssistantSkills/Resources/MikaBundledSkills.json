@@ -14,31 +14,6 @@
   },
   "entries": [
     {
-      "id": "configure-mika",
-      "title": "設定操作指引",
-      "summary": "說明渥屋助理的設定，由使用者手動確認與修改。",
-      "aliases": [
-        "設定",
-        "設置",
-        "配置",
-        "外觀",
-        "settings"
-      ],
-      "requirements": [
-        "settingsAutomation",
-        "androidControl"
-      ],
-      "adaptationScope": "僅提供設定說明；不提供 settings_list/settings_set，也不會代改模型、金鑰或刪除資料。",
-      "adaptationName": "ios-mika-configure-mika",
-      "adaptationMarkdown": "---\nname: ios-mika-configure-mika\ndisplay: 設定操作指引（iOS 文字版）\ndescription: 說明渥屋助理的設定，由使用者手動確認與修改。\naliases: [\"設定\",\"設置\",\"配置\",\"外觀\",\"settings\"]\norigin: Mika configure-mika @ 0c172724f3f0c96f7345262588072f6e95db1138; Apache-2.0\nadaptation: WOOW iOS text-only adaptation; changed from upstream; not execution parity\n---\n## 入口\n使用者明確要了解或調整渥屋助理設定時，先問清要改哪一項。\n## 步驟\n1. 只根據使用者提供的目前畫面或 App 已顯示的選項說明，不猜測未見的設定鍵。\n2. 指引使用者前往設定或記憶與資料，說明每個選項的影響。\n3. 模型服務、金鑰、登入及清除資料一律由使用者在原生介面自行處理。\n4. 改動後請使用者確認實際顯示的值；沒有讀回證據時只說明步驟，不說已設定成功。\n## 容易出錯的地方\n目前不提供設定自動修改工具；不要沿用 Android 的操作節奏、膠囊、代理或容器選單。不要索取密碼或金鑰。\n## 怎樣算辦成\n提供符合目前畫面的操作指引；只有使用者確認的設定值可描述為已變更。\n## 什麼時候停下交給使用者\n找不到對應設定、需要登入、金鑰、刪除或其他高影響操作時，交由使用者自行確認。\n## 來源與修改聲明\nMika，Copyright 2026 wangzan101，Apache-2.0。WOOW 將此版本改寫為 iOS 文字參考，移除原始自動化及未提供的工具；不是原功能完整對齊。原文、完整授權及 NOTICE 可於內建目錄閱讀。\n",
-      "original": {
-        "path": "core/src/main/resources/skills/configure-mika/SKILL.md",
-        "content": "---\nname: configure-mika\ndisplay: 改 Mika 自己的设置\ndescription: 用户让 Mika 改自己的设置时用它看和改;模型、Key 与删数据不在其中\naliases: [\"设置你自己\", \"改你的设置\", \"调快一点\", \"别静音\", \"换个外观\"]\nterms: [\"设置\", \"配置\", \"快一点\", \"慢一点\", \"静音\", \"外观\", \"深色\", \"浅色\", \"胶囊\"]\n---\n## 先看能改什么\n\n先调 `settings_list`。它会列出此刻能改的每一项:键、给人看的名字、现在的值,以及(如果能选的只有几个)全部可选值。\n\n**只用列表里给出的键和值**,不要自己猜一个词。用户说的和你看到的对不上时(比如用户说「别静音」,列表里叫「mute_apps」),按名字挑出那一项,把 `label` 念给用户听确认是这个。\n\n## 改之前先说一句\n\n用户明确说了要改什么,就用 `settings_set` 直接改,改完告诉用户现在的值。用户的话含糊时(「让它快一点」)先说清你打算改哪一项、改成什么,再改:\n\n> 我把操作节奏改成「快」了,下个任务开始生效。\n\n**不要改用户没提到的东西**。一次改几项时逐项说。\n\n## 改不了的东西\n\n- **模型、API Key、登录**:不在列表里。用户要这些时,告诉他去「设置 › 模型」,你说不了这一步。\n- **删数据**(清工作区、重置运行环境、删对话):也不在列表里,同样请他自己做。\n- **容器的联网与代理**:不在列表里。这两项会让数据离开手机,要用户自己去「设置 › 文件与计算环境」里开或填,你不要替他改。\n\n这几类是故意的:第一类等于让模型换掉自己的脑子、动用户的钱;第二类不可逆;联网那道线得用户自己划。\n\n## 生效时间\n\n大多数改动下一个任务开始生效;外观(深浅色)当场就换。改完顺带说一句,免得用户以为没生效。\n",
-        "sha256": "25560ad126c10263f0c341dd5d25d5e12fe4335a372abe7b8d08895725d97c4f"
-      },
-      "assets": []
-    },
-    {
       "id": "content-transcribe",
       "title": "整理文字稿與摘要",
       "summary": "將使用者提供的文字稿、字幕或可讀網頁文字整理成摘要、章節與引文。",

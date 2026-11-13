@@ -11,7 +11,6 @@ extension AppLocalizer {
     }
     static func skillReadiness(id: String) -> AppText {
         switch id {
-        case "configure-mika": return .catalogReadyAppearance
         case "skill-authoring": return .catalogReadyAuthor
         case "documents": return .catalogReadyDocuments
         case "content-transcribe": return .catalogReadyTranscript
@@ -20,7 +19,6 @@ extension AppLocalizer {
     }
     static func skillRequirement(_ requirement: SkillCatalogRequirement) -> AppText {
         switch requirement {
-        case .settingsAutomation: return .catalogReqSettings
         case .androidControl: return .catalogReqAndroid
         case .legacyWebTools: return .catalogReqWeb
         case .workspaceFiles: return .catalogReqFiles

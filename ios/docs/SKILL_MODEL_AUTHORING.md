@@ -3,7 +3,7 @@
 The App's Skills screen and the `skill-authoring` catalog entry now open an actual
 model-assisted authoring flow. It uses the configured model through the existing
 HTTP client. This is an increment toward the original tool environment, not a
-claim that all six bundled skills execute on iOS.
+claim that the bundled skills execute on iOS.
 
 The model can call `skill_read`, `skill_search` and `skill_save`, or ask the user
 for clarification. These are strict JSON commands dispatched to the local

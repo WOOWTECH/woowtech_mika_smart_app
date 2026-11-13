@@ -6,8 +6,8 @@ final class SelfConfigurationUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
     override func tearDownWithError() throws { app.terminate() }
 
-    /// Settings › 語言與外觀 is Play's single-choice list. The model permission
-    /// to change the appearance is not on this page.
+    /// Settings › 語言與外觀 is Play's single-choice list; only the user
+    /// changes the appearance.
     func testManualAppearanceChoicePersistsWithoutModelPermission() {
         launch()
         let rows = [("system", "跟隨系統"), ("light", "一直淺色"), ("dark", "一直深色")]
@@ -18,8 +18,6 @@ final class SelfConfigurationUITests: XCTestCase {
         }
         assertSelected("system")
         XCTAssertTrue(app.buttons["selfConfiguration.appearance.system"].label.contains("裝置是淺色就淺色，深色就深色"))
-        XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
-        XCTAssertFalse(app.textViews["selfConfiguration.request"].exists)
         // The scheme the page really renders with, not only the selected row.
         let applied = app.staticTexts["selfConfiguration.appliedScheme"]
         XCTAssertTrue(applied.waitForExistence(timeout: 5))
@@ -34,7 +32,6 @@ final class SelfConfigurationUITests: XCTestCase {
         app.terminate(); launch()
         assertSelected("dark")
         XCTAssertEqual(app.staticTexts["selfConfiguration.appliedScheme"].label, "dark", "dark survives relaunch")
-        XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
     }
 
     private func assertSelected(_ value: String) {
