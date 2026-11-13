@@ -13,7 +13,7 @@ enum BrowserSearchChecks {
         }
         var settings = BrowserSearchSettings()
         try check(settings.selected.id == "google" && settings.custom.isEmpty, "default Google")
-        try check(settings.all.map(\.id) == ["bing", "google", "duckduckgo", "baidu"], "Mika built-in order")
+        try check(settings.all.map(\.id) == ["bing", "google", "duckduckgo"], "built-in order without Baidu")
         for engine in settings.all {
             let url = try engine.searchURL(query: "  中文 a+b & c/#?%= 😀  ")
             try check(engine.query(in: url) == "中文 a+b & c/#?%= 😀", "UTF-8 single encoding round trip " + engine.id)
@@ -112,6 +112,12 @@ enum BrowserSearchChecks {
         try check(old.searchSettings == BrowserSearchSettings(), "absent additive field defaults Google")
         try check(old.tabs == library.tabs && old.bookmarks == library.bookmarks && old.history == library.history
                   && old.userSiteModes == library.userSiteModes && old.selectedID == library.selectedID, "legacy migration preserves prior browser state")
+        var savedBaidu = legacy; savedBaidu["searchSettings"] = ["selectedID": "baidu", "custom": [Any]()] as [String: Any]
+        let fallback = try JSONDecoder().decode(BrowserLibraryState.self, from: JSONSerialization.data(withJSONObject: savedBaidu))
+        try fallback.validate()
+        try check(fallback.searchSettings.selected.id == "google" && fallback.tabs == library.tabs
+                  && fallback.bookmarks == library.bookmarks && fallback.history == library.history,
+                  "a saved Baidu choice loads as Google and keeps the browser state")
         let malformedFields: [Any] = [NSNull(), "bing", ["selectedID": "missing", "custom": [Any]()] as [String: Any],
             ["selectedID": "bing", "custom": [["id": "bing", "name": "Fake", "template": "https://example.com/?q=%s"]]] as [String: Any]]
         for malformed in malformedFields {
