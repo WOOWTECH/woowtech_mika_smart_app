@@ -185,9 +185,10 @@ public enum UserProfileChatStep: Equatable, Sendable {
         guard ContinuousClock.now < deadline else { throw UserProfileChatError.expired }
     }
 
+    /// A refused usage option also falls back: complete never asks for usage.
     private static func allowsTransportFallback(_ error: HTTPStreamFallbackError) -> Bool {
         switch error {
-        case .explicitUnsupported(let status):
+        case .explicitUnsupported(let status), .usageOptionUnsupported(let status):
             return [400, 415, 422].contains(status)
         }
     }

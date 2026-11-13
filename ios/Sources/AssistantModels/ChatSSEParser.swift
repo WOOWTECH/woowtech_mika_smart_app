@@ -14,6 +14,8 @@ struct ChatSSEParser {
     private var receivedText = false
     private var stopped = false
     private(set) var done = false
+    /// The last usable report in any event; read only after finish() succeeds.
+    private(set) var usage: ModelTokenUsage?
 
     mutating func append(_ byte: UInt8) throws -> String? {
         totalBytes += 1
@@ -79,6 +81,7 @@ struct ChatSSEParser {
         let chunk: Chunk
         do { chunk = try JSONDecoder().decode(Chunk.self, from: Data(data.utf8)) }
         catch { throw HTTPChatModelError.invalidResponse }
+        if let reported = chunk.usage?.value { usage = reported }
         if chunk.choices.isEmpty {
             guard chunk.usage != nil else { throw HTTPChatModelError.invalidResponse }
             return nil
@@ -98,9 +101,8 @@ struct ChatSSEParser {
 
     private struct Chunk: Decodable {
         let choices: [Choice]
-        let usage: Usage?
+        let usage: OpenAIReportedUsage?
     }
-    private struct Usage: Decodable {}
     private struct Choice: Decodable {
         let index: Int
         let delta: Delta

@@ -930,18 +930,29 @@ final class ChatSession: ObservableObject {
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
         }
-        var text = "", bytes = 0
-        for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: key) {
-            try Task.checkCancellation()
-            guard requestID == id else { throw CancellationError() }
-            guard delta.utf8.count <= ChatReplyPreview.maximumUTF8Bytes - bytes else {
-                throw HTTPChatModelError.responseTooLarge
+        var text = "", bytes = 0, resent = false
+        while true {
+            do {
+                for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: key) {
+                    try Task.checkCancellation()
+                    guard requestID == id else { throw CancellationError() }
+                    guard delta.utf8.count <= ChatReplyPreview.maximumUTF8Bytes - bytes else {
+                        throw HTTPChatModelError.responseTooLarge
+                    }
+                    guard !delta.isEmpty else { continue }
+                    let publicationLease = try contextFence?.acquire()
+                    defer { publicationLease?.release() }
+                    bytes += delta.utf8.count; text += delta
+                    replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving)
+                }
+                break
+            } catch HTTPStreamFallbackError.usageOptionUnsupported where !resent && bytes == 0 {
+                // Only the usage option was refused, before any text. The client
+                // now leaves it out for this endpoint and model: resend once.
+                resent = true
+                try Task.checkCancellation()
+                guard requestID == id else { throw CancellationError() }
             }
-            guard !delta.isEmpty else { continue }
-            let publicationLease = try contextFence?.acquire()
-            defer { publicationLease?.release() }
-            bytes += delta.utf8.count; text += delta
-            replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving)
         }
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
