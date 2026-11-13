@@ -7,11 +7,10 @@ import Foundation
 // begin its request. The chat context lease follows the method's lifetime,
 // including cancellation. MCPClient awaits its worker and transport tasks;
 // injected implementations must preserve the same completion contract.
-// Like the Play build, only tools are listed: server resources and prompts are
-// neither discovered nor offered to the model.
 protocol MCPDiscovering: MCPConversationExecuting {
     func initialize() async throws -> MCPServerInfo
     func listTools() async throws -> [MCPTool]
+    func listResources() async throws -> [MCPResource]
     func cancel() async
 }
 
@@ -29,6 +28,9 @@ final class MCPSession: ObservableObject {
     @Published private(set) var protocolVersion: String?
     @Published private(set) var toolNames: [String] = []
     @Published private(set) var tools: [MCPTool] = []
+    /// Offered to the model read-only, without a picker, like the Play build's
+    /// resource_read tool: at most 30, each read still needs its own approval.
+    @Published private(set) var resources: [MCPResource] = []
     @Published private(set) var selectedToolNames: Set<String> = []
     @Published var toolSearch = ""
     /// Invalidates conversation snapshots before changing the endpoint or selection.
@@ -99,7 +101,9 @@ final class MCPSession: ObservableObject {
     deinit { request?.cancel(); deadline?.cancel() }
 
     var isBusy: Bool { phase == .connecting || phase == .discovering }
-    var canUseInConversation: Bool { phase == .connected && !selectedToolNames.isEmpty }
+    var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !resources.isEmpty) }
+    /// Android lists up to 30 resource URIs in its resource_read tool.
+    static let offeredResourceLimit = 30
 
     var visibleTools: [MCPTool] {
         let query = toolSearch.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -116,9 +120,9 @@ final class MCPSession: ObservableObject {
         else { selectedToolNames.remove(name) }
     }
 
-    func conversationConnection() throws -> (any MCPDiscovering, [MCPTool]) {
+    func conversationConnection() throws -> (any MCPDiscovering, [MCPTool], [MCPResource]) {
         guard canUseInConversation, let client else { throw MCPError.notInitialized }
-        return (client, tools.filter { selectedToolNames.contains($0.name) })
+        return (client, tools.filter { selectedToolNames.contains($0.name) }, resources)
     }
     var canSave: Bool { repository != nil && !isBusy && !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     var canConnect: Bool {
@@ -201,16 +205,25 @@ final class MCPSession: ObservableObject {
                 // The native actor serializes operations, so do not issue these concurrently.
                 let tools = info.capabilities.contains("tools") ? try await connection.listTools() : []
                 try Task.checkCancellation()
+                let resources = info.capabilities.contains("resources") ? try await connection.listResources() : []
+                try Task.checkCancellation()
                 // The whole webhook endpoint is a credential, never model context.
                 let catalogData = try JSONEncoder().encode(tools)
+                let resourceData = try JSONEncoder().encode(resources)
                 guard let catalogText = String(data: catalogData, encoding: .utf8),
                       !catalogText.replacingOccurrences(of: "\\/", with: "/").contains(endpoint.absoluteString),
-                      Set(tools.map(\.name)).count == tools.count else { throw MCPError.invalidResponse }
+                      let resourceText = String(data: resourceData, encoding: .utf8),
+                      !resourceText.replacingOccurrences(of: "\\/", with: "/").contains(endpoint.absoluteString),
+                      Set(tools.map(\.name)).count == tools.count,
+                      Set(resources.map(\.uri)).count == resources.count else { throw MCPError.invalidResponse }
                 guard let self, self.requestID == id else { return }
                 self.protocolVersion = info.protocolVersion
                 self.supportsTools = info.capabilities.contains("tools")
                 self.toolNames = tools.map { Self.displayName($0.name, endpoint: endpoint) }
                 self.tools = tools
+                // Skip entries the conversation runner would refuse, so one bad
+                // resource cannot stop every MCP conversation.
+                self.resources = Array(resources.filter(Self.offerable).prefix(Self.offeredResourceLimit))
                 self.finish(id: id)
                 self.phase = .connected
                 self.noticeText = .mcpDiscoveryNotice
@@ -219,7 +232,7 @@ final class MCPSession: ObservableObject {
                 self.stopWork()
                 self.clearCatalog()
                 self.phase = .failed
-                // Never interpolate server errors, names, or endpoint URLs.
+                // Never interpolate server errors, names, resource URIs, or endpoint URLs.
                 self.errorText = .mcpConnectionError
             }
         }
@@ -274,6 +287,7 @@ final class MCPSession: ObservableObject {
         protocolVersion = nil
         toolNames = []
         tools = []
+        resources = []
         selectedToolNames = []
         toolSearch = ""
         supportsTools = false
@@ -282,6 +296,13 @@ final class MCPSession: ObservableObject {
     private static func settingsMessage(_ error: Error) -> AppText {
         guard let error = error as? MCPSettingsError else { return .mcpSettingsError }
         return AppLocalizer.mcpSettingsError(error)
+    }
+
+    /// The same per-resource limits MCPConversationRunner checks.
+    private static func offerable(_ resource: MCPResource) -> Bool {
+        !resource.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && resource.name.utf8.count <= 256
+            && !resource.name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            && !resource.uri.isEmpty && resource.uri.utf8.count <= 4096 && (resource.mimeType?.utf8.count ?? 0) <= 256
     }
 
     private static func displayName(_ name: String, endpoint: URL) -> String {

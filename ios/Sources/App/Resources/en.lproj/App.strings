@@ -110,6 +110,7 @@
 "mcp.approval.title" = "Approve MCP call";
 "mcp.decline" = "Decline and stop";
 "mcp.approve" = "Approve once";
+"mcp.read.resource" = "Read MCP resource";
 "mcp.tool.error" = "Tool reported an error";
 "mcp.tool.result" = "Tool result received";
 "mcp.results.title" = "MCP results for this conversation";

@@ -110,6 +110,7 @@
 "mcp.approval.title" = "批准 MCP 调用";
 "mcp.decline" = "拒绝并停止";
 "mcp.approve" = "批准这一次";
+"mcp.read.resource" = "读取 MCP 资源";
 "mcp.tool.error" = "工具报告错误";
 "mcp.tool.result" = "已收到工具结果";
 "mcp.results.title" = "本次 MCP 工具结果";

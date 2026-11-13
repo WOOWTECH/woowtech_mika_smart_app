@@ -156,6 +156,7 @@ private actor StreamMCP: MCPDiscovering {
     private(set) var calls = 0
     func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
     func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [] }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         guard name == "synthetic_read" else { throw MCPError.invalidRequest }
         calls += 1
