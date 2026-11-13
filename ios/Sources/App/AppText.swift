@@ -504,11 +504,16 @@ enum AppText: Equatable {
     case voiceInterrupted
     case voiceAccessibilityCancel
     case voiceChoiceTitle
+    case voiceChoiceHint
     case voiceChoiceSystem
+    case voiceChoiceSystemNote
+    case voiceChoiceSystemNone
+    case voiceChoiceAvailable
+    case voiceChoiceMissing
     case voiceChoiceOff
+    case voiceChoiceOffNote
     case voiceChoiceUnknown
     case voiceChoiceRowDetail
-    case voiceChoiceNotice
     case voiceChoiceDisabledHint
     case voiceChoiceSaveFailed
     case chatAttachAdd
@@ -1072,11 +1077,16 @@ enum AppText: Equatable {
         case .voiceInterrupted: return "chat.voiceInterrupted"
         case .voiceAccessibilityCancel: return "chat.voiceAccessibilityCancel"
         case .voiceChoiceTitle: return "voice.choice.title"
+        case .voiceChoiceHint: return "voice.choice.hint"
         case .voiceChoiceSystem: return "voice.choice.system"
+        case .voiceChoiceSystemNote: return "voice.choice.system.note"
+        case .voiceChoiceSystemNone: return "voice.choice.system.none"
+        case .voiceChoiceAvailable: return "voice.choice.available"
+        case .voiceChoiceMissing: return "voice.choice.missing"
         case .voiceChoiceOff: return "voice.choice.off"
+        case .voiceChoiceOffNote: return "voice.choice.off.note"
         case .voiceChoiceUnknown: return "voice.choice.unknown"
         case .voiceChoiceRowDetail: return "voice.choice.rowDetail"
-        case .voiceChoiceNotice: return "voice.choice.notice"
         case .voiceChoiceDisabledHint: return "voice.choice.disabledHint"
         case .voiceChoiceSaveFailed: return "voice.choice.saveFailed"
         case .chatAttachAdd: return "chat.attach.add"
@@ -1684,11 +1694,16 @@ enum AppText: Equatable {
         case .voiceInterrupted: return "語音輸入已中斷；如果剛完成授權，請再次按住說話。"
         case .voiceAccessibilityCancel: return "取消語音輸入"
         case .voiceChoiceTitle: return "語音轉文字"
-        case .voiceChoiceSystem: return "裝置上語音辨識"
-        case .voiceChoiceOff: return "不用語音輸入"
+        case .voiceChoiceHint: return "可使用裝置自帶識別。"
+        case .voiceChoiceSystem: return "裝置自帶"
+        case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
+        case .voiceChoiceSystemNone: return "這臺裝置沒有可用的語音辨識"
+        case .voiceChoiceAvailable: return "可用"
+        case .voiceChoiceMissing: return "沒有"
+        case .voiceChoiceOff: return "不用"
+        case .voiceChoiceOffNote: return "輸入框不能按住說話"
         case .voiceChoiceUnknown: return "目前選項不可用"
         case .voiceChoiceRowDetail: return "選擇裝置辨識或關閉"
-        case .voiceChoiceNotice: return "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。"
         case .voiceChoiceDisabledHint: return "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。"
         case .voiceChoiceSaveFailed: return "無法儲存語音設定，請再試一次。"
         case .chatAttachAdd: return "新增附件"

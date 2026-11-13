@@ -21,6 +21,9 @@ struct MikaSettingsPalette {
 
     /// Android fill: the tonal button background.
     var fill: Color { scheme == .dark ? .white.opacity(15/255) : .black.opacity(10/255) }
+    /// Android hair (unchosen radio marks) and greySoft (neutral pills).
+    var hair: Color { scheme == .dark ? .white.opacity(20/255) : .black.opacity(18/255) }
+    var greySoft: Color { Color(red: 118/255, green: 118/255, blue: 128/255).opacity(scheme == .dark ? 56/255 : 31/255) }
 
     func color(for tone: MikaSettingsTone) -> Color {
         switch tone {
@@ -146,6 +149,81 @@ struct MikaSettingsRow: View {
         .padding(.horizontal, 16)
         .frame(minHeight: 52)
         .contentShape(Rectangle())
+    }
+}
+
+/// Android RadioRow: a 22 point mark, filled with the brand tint when chosen,
+/// then the title, an optional caption and optional content below them.
+/// Dividers between rows start at 50 points.
+struct MikaSettingsRadioRow<Below: View>: View {
+    let title: String
+    let subtitle: String?
+    let selected: Bool
+    let action: () -> Void
+    let below: Below
+    @Environment(\.colorScheme) private var scheme
+
+    init(title: String, subtitle: String? = nil, selected: Bool, action: @escaping () -> Void,
+         @ViewBuilder below: () -> Below) {
+        self.title = title; self.subtitle = subtitle; self.selected = selected
+        self.action = action; self.below = below()
+    }
+
+    var body: some View {
+        let colors = MikaSettingsPalette(scheme: scheme)
+        Button(action: action) {
+            HStack(spacing: 12) {
+                ZStack {
+                    if selected {
+                        Circle().fill(.tint)
+                        Circle().fill(.white).frame(width: 10, height: 10)
+                    } else {
+                        Circle().strokeBorder(colors.hair, lineWidth: 1.6)
+                    }
+                }
+                .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: title).font(.body).foregroundStyle(colors.ink)
+                    if let subtitle {
+                        Text(verbatim: subtitle).font(.caption).foregroundStyle(colors.hint)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    below
+                }
+                .padding(.vertical, 9)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+extension MikaSettingsRadioRow where Below == EmptyView {
+    init(title: String, subtitle: String? = nil, selected: Bool, action: @escaping () -> Void) {
+        self.init(title: title, subtitle: subtitle, selected: selected, action: action) { EmptyView() }
+    }
+}
+
+/// Android StatusPill: a short state on a soft capsule; plain is neutral grey.
+struct MikaSettingsPill: View {
+    let text: String
+    let tone: MikaSettingsTone
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let colors = MikaSettingsPalette(scheme: scheme)
+        Text(verbatim: text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(tone == .plain ? colors.secondary : colors.color(for: tone))
+            .lineLimit(1)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(tone == .plain ? colors.greySoft : colors.softColor(for: tone), in: Capsule())
     }
 }
 

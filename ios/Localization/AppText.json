@@ -5198,13 +5198,63 @@
       }
     },
     {
+      "case": "voiceChoiceHint",
+      "key": "voice.choice.hint",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可使用裝置自帶識別。",
+        "zh-Hans": "可使用设备自带识别。",
+        "en": "Choose the device’s built-in recognition."
+      }
+    },
+    {
       "case": "voiceChoiceSystem",
       "key": "voice.choice.system",
       "parameters": [],
       "translations": {
-        "zh-Hant": "裝置上語音辨識",
-        "zh-Hans": "设备上语音识别",
-        "en": "On-device speech recognition"
+        "zh-Hant": "裝置自帶",
+        "zh-Hans": "设备自带",
+        "en": "Built into the device"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemNote",
+      "key": "voice.choice.system.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "邊說邊出字；離線辨識需支援目前語言並具備語言包",
+        "zh-Hans": "边说边出字；离线识别需支持当前语言并具备语言包",
+        "en": "Shows words as you speak; offline recognition requires a supported language pack"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemNone",
+      "key": "voice.choice.system.none",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這臺裝置沒有可用的語音辨識",
+        "zh-Hans": "这台设备没有可用的语音识别",
+        "en": "This device has no usable speech recognition"
+      }
+    },
+    {
+      "case": "voiceChoiceAvailable",
+      "key": "voice.choice.available",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可用",
+        "zh-Hans": "可用",
+        "en": "Available"
+      }
+    },
+    {
+      "case": "voiceChoiceMissing",
+      "key": "voice.choice.missing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有",
+        "zh-Hans": "没有",
+        "en": "None"
       }
     },
     {
@@ -5212,9 +5262,19 @@
       "key": "voice.choice.off",
       "parameters": [],
       "translations": {
-        "zh-Hant": "不用語音輸入",
-        "zh-Hans": "不使用语音输入",
-        "en": "Turn off voice input"
+        "zh-Hant": "不用",
+        "zh-Hans": "不用",
+        "en": "None"
+      }
+    },
+    {
+      "case": "voiceChoiceOffNote",
+      "key": "voice.choice.off.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "輸入框不能按住說話",
+        "zh-Hans": "输入框不能按住说话",
+        "en": "The text box can’t be held to talk"
       }
     },
     {
@@ -5235,16 +5295,6 @@
         "zh-Hant": "選擇裝置辨識或關閉",
         "zh-Hans": "选择设备识别或关闭",
         "en": "Choose on-device recognition or turn it off"
-      }
-    },
-    {
-      "case": "voiceChoiceNotice",
-      "key": "voice.choice.notice",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "目前可使用裝置上語音辨識，或關閉語音輸入。服務商語音轉文字尚未支援。",
-        "zh-Hans": "目前可使用设备上语音识别，或关闭语音输入。服务商语音转文字尚未支持。",
-        "en": "Use on-device speech recognition or turn voice input off. Provider speech transcription is not yet supported."
       }
     },
     {
