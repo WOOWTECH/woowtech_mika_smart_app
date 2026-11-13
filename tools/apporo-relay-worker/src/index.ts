@@ -4,12 +4,17 @@ import { accountPage, html, STYLE, SCRIPT } from './page';
 import cliSource from '../downloads/apporo-relay-cli.py';
 import cliLicense from '../downloads/LICENSE.txt';
 import appIntegration from '../docs/app-integration.md';
+import { ReportInbox } from './reports';
+import { privacyPlayHtml, privacyPlayCss } from './privacy-play';
 export { AccountAuth };
+export { ReportInbox };
 
 export interface Env {
   RELAY: DurableObjectNamespace<RelayDurableObject>;
   OWNER_KEY: string;
+  REPORT_ADMIN_KEY?: string;
   AUTH: DurableObjectNamespace<AccountAuth>;
+  REPORTS: DurableObjectNamespace<ReportInbox>;
 }
 
 type RelayFrame = {
@@ -120,6 +125,37 @@ export default {
     const url = new URL(request.url);
     if (url.host !== new URL(ORIGIN).host) return security(failure(400, "invalid_host"));
     if (!env.OWNER_KEY || env.OWNER_KEY.length < 32) return security(failure(503, "not_configured"));
+    // HEAD too: link checkers probe the Play listing's privacy URL without downloading it.
+    if (url.pathname === '/privacy/play' && (request.method === 'GET' || request.method === 'HEAD'))
+      return security(new Response(request.method === 'HEAD' ? null : privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+    if (url.pathname === '/privacy/play.css' && request.method === 'GET')
+      return security(new Response(privacyPlayCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
+    if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
+      if (request.headers.has('origin')) return security(failure(403, 'browser_not_allowed', true));
+      const admin = url.pathname.startsWith('/admin/');
+      const deleting = request.method === 'DELETE';
+      if (admin ? !(request.method === 'GET' || deleting) : !(request.method === 'POST' && url.pathname === '/api/v1/ai-reports' || deleting))
+        return security(failure(405, 'method_not_allowed', true));
+      if (admin) {
+        const key = bearer(request);
+        const owner = await matches(key, await digest(env.OWNER_KEY));
+        const reportAdmin = env.REPORT_ADMIN_KEY && env.REPORT_ADMIN_KEY.length >= 32 &&
+          await matches(key, await digest(env.REPORT_ADMIN_KEY));
+        if (!owner && !reportAdmin) return security(failure(403, 'access_denied', true));
+      }
+      let body: ArrayBuffer | undefined;
+      if (request.method === 'POST') {
+        if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return security(failure(415, 'unsupported_media_type', true));
+        try { body = await boundedBody(request, 16 * 1024); } catch { return security(failure(413, 'body_too_large', true)); }
+      }
+      const path = deleting ? '/delete/' + url.pathname.split('/').at(-1) : admin ? '/review' + url.search : '/intake';
+      const headers = new Headers({ 'content-type': 'application/json' });
+      if (admin) headers.set('x-report-owner', 'yes');
+      else if (deleting) headers.set('x-report-receipt', bearer(request));
+      else headers.set('x-report-ip', client(request));
+      const inbox = env.REPORTS.getByName('ai-reports-v1');
+      return security(await inbox.fetch('https://internal' + path, { method: request.method, headers, body }));
+    }
     if(url.pathname==='/docs/app-integration.md'&&request.method==='GET')return security(new Response(appIntegration,{headers:{'content-type':'text/plain; charset=utf-8'}}));
     if(url.pathname==='/downloads/LICENSE.txt'&&request.method==='GET')return security(new Response(cliLicense,{headers:{'content-type':'text/plain; charset=utf-8'}}));
     if(url.pathname==='/downloads/apporo-relay-cli.py'&&request.method==='GET')return security(new Response(cliSource,{headers:{'content-type':'text/x-python; charset=utf-8','content-disposition':'attachment; filename="apporo-relay-cli.py"'}}));
