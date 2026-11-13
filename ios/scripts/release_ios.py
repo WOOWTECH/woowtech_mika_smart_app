@@ -294,6 +294,10 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ReleaseError("Release App 缺少媒體或語音辨識權限用途說明：" + key)
+    # Only Apple's own encryption (HTTPS, Keychain, CryptoKit) is used, which is
+    # exempt; YES without an approved export code makes the upload fail processing.
+    if info.get("ITSAppUsesNonExemptEncryption") is not False:
+        raise ReleaseError("Release App 的 ITSAppUsesNonExemptEncryption 必須是 false（只用 Apple 系統內建加密）。")
     if not all(info.get(key) is True for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace")):
         raise ReleaseError("Release App 缺少系統檔案選擇器所需的 Documents 共享設定。")
     binaries = [app / info["CFBundleExecutable"]]
@@ -331,6 +335,7 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
             "verified_binary_count": len(binaries), "signature_verified": signed,
             "ats_key_absent": True, "native_documents_enabled": True,
             "browser_media_purpose_strings_verified": True,
+            "export_compliance_exempt": True,
             "required_reason_entries_verified": True,
             "required_reason_categories": reason_categories}
 
