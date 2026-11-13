@@ -165,6 +165,20 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertGreaterThan(completed.frame.minY, readingOrigin - 160,
                              "Completion must not treat the first saved message as a new conversation and jump to the tail")
         XCTAssertFalse(partial.exists)
+    }
+
+    /// Split from the case above: on iPhone SE (iOS 18.5) the two together need
+    /// more than the 240 s allowance, mostly fixed fixture waits and typing.
+    func testSendAfterReadingEarlierTextFollowsTheNewAnswer() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-scroll]"); tap("chat.send")
+        let completed = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: completed, seconds: 100)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let tailOrigin = completed.frame.minY
+        for _ in 0..<3 where completed.frame.minY - tailOrigin <= 260 { transcript.swipeDown() }
+        XCTAssertGreaterThan(completed.frame.minY - tailOrigin, 260, "Native scrolling must reach earlier transcript text")
 
         // Editing the next prompt changes the keyboard/viewport; the explicit
         // send must nevertheless restore follow for the accepted new request.
