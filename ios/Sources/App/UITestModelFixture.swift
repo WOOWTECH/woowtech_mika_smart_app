@@ -4,7 +4,7 @@ import Foundation
 
 // DEBUG-only UI-test API. Release builds contain neither this client nor these switches.
 // -UITestMode: replace HTTPChatModelClient; never contact a model provider.
-// -UITestNamespace <UUID>: dedicated defaults suite AND Keychain service for this test.
+// -UITestNamespace <UUID>: dedicated defaults suite, Keychain service and providers file for this test.
 // -UITestResetStorage: clear only that test namespace at launch; omit to test relaunch.
 // -UITestKeychainWriteFailure: fail writes before changing the test Keychain/config.
 // Prompts: [fixture:wait] waits cancellably; [fixture:error-once] fails once per launch.
@@ -21,14 +21,15 @@ enum UITestModelFixture {
             preconditionFailure("Cannot create isolated UI test defaults")
         }
         let keychain = KeychainModelCredentials(service: name)
+        let providers = ModelProvidersFile.live(scope: "uitest-" + namespace.uuidString)
         if arguments.contains("-UITestResetStorage") {
-            do { try keychain.removeAll() }
-            catch { preconditionFailure("Cannot reset isolated UI test Keychain") }
+            do { try keychain.removeAll(); try providers.remove() }
+            catch { preconditionFailure("Cannot reset isolated UI test Keychain or providers") }
             defaults.removePersistentDomain(forName: name)
         }
         let credentials: any ModelCredentialStoring = arguments.contains("-UITestKeychainWriteFailure")
             ? FailingWrites(base: keychain) : keychain
-        let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials)
+        let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials, providers: providers)
         if arguments.contains("-UITestMCPFixture") {
             do { _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key") }
             catch { preconditionFailure("Cannot configure isolated MCP conversation fixture") }
@@ -42,6 +43,7 @@ enum UITestModelFixture {
         func insert(_ key: String, account: String) throws { throw ModelSettingsError.unavailableKeychain }
         func remove(account: String) throws { try base.remove(account: account) }
         func removeAll() throws { try base.removeAll() }
+        func allAccounts() throws -> Set<String>? { try base.allAccounts() }
     }
 }
 

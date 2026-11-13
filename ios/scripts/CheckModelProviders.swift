@@ -1,10 +1,79 @@
 import AssistantModels
 import Foundation
 
-/// The provider document: encoding, validation, the v1 import decision, the
-/// settings form's save plan, removal and the consent bookkeeping. Pure
-/// values only; no Keychain, file, defaults or network.
+/// The provider document, the one-time v1 import, the order of Keychain
+/// writes and the consent bookkeeping, through the actual
+/// ModelSettingsRepository. Isolated defaults suites, a temporary folder and
+/// an in-memory Keychain only: no network, no personal settings or Keychain.
 private struct Failure: Error, CustomStringConvertible { let description: String }
+
+/// Every Keychain write in order, and the main provider's account in the
+/// published document at that moment.
+private final class FakeKeychain: ModelCredentialStoring {
+    enum Call: Hashable { case insert(String), remove(String), removeAll }
+    var values: [String: String] = [:]
+    var calls: [Call] = []
+    var listable = true
+    var failRemoval = false
+    var published: () -> UUID? = { nil }
+    var seen: [(call: Call, published: UUID?)] = []
+    func read(account: String) throws -> String? { values[account] }
+    func insert(_ key: String, account: String) throws { note(.insert(account)); values[account] = key }
+    func remove(account: String) throws {
+        note(.remove(account))
+        if failRemoval { throw Failure(description: "fixture removal failure") }
+        values.removeValue(forKey: account)
+    }
+    func removeAll() throws { note(.removeAll); values = [:] }
+    func allAccounts() throws -> Set<String>? { listable ? Set(values.keys) : nil }
+    private func note(_ call: Call) { calls.append(call); seen.append((call, published())) }
+}
+
+/// A document store that can refuse reads (a locked device) or writes (a full disk).
+private final class FixtureStorage: ModelProvidersStoring {
+    var data: Data?
+    var failReads = false, failWrites = false
+    func read() throws -> Data? {
+        if failReads { throw Failure(description: "fixture protected file") }
+        return data
+    }
+    func write(_ data: Data) throws {
+        if failWrites { throw Failure(description: "fixture full disk") }
+        self.data = data
+    }
+    func remove() throws { data = nil }
+}
+
+private final class Environment {
+    let suite = "woow.model-providers.check." + UUID().uuidString
+    let defaults: UserDefaults
+    let root: URL
+    let file: ModelProvidersFile
+    let keychain = FakeKeychain()
+    init() throws {
+        guard let defaults = UserDefaults(suiteName: suite) else { throw Failure(description: "isolated defaults") }
+        self.defaults = defaults
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("woow-model-providers-" + UUID().uuidString)
+        file = ModelProvidersFile(url: root.appendingPathComponent("ModelProviders/check/providers.json"))
+        let file = self.file
+        keychain.published = { (try? file.read()).flatMap { try? ModelProvidersDocument.decoded(from: $0) }?.mainProvider?.credentialAccount }
+    }
+    func repository(_ storage: (any ModelProvidersStoring)? = nil) -> ModelSettingsRepository {
+        ModelSettingsRepository(defaults: defaults, credentials: keychain, providers: storage ?? file)
+    }
+    /// The single setting exactly as the v1 build stored it.
+    func writeV1(_ baseURL: String, model: String, account: UUID, key: String?, seesImages: Bool? = nil) throws {
+        var record = SavedModelSettings(baseURL: URL(string: baseURL)!, model: model, credentialAccount: account.uuidString)
+        record.seesImages = seesImages
+        defaults.set(try JSONEncoder().encode(record), forKey: ModelSettingsRepository.configurationKey)
+        if let key { keychain.values[account.uuidString] = key }
+    }
+    var revision: String? { defaults.string(forKey: "model.configuration.revision.v1") }
+    func close() {
+        defaults.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(at: root)
+    }
+}
 
 @main enum CheckModelProviders {
     static var count = 0
@@ -19,6 +88,12 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         throw Failure(description: label + " was accepted")
     }
 
+    fileprivate static func scenario(_ body: (Environment) throws -> Void) throws {
+        let environment = try Environment()
+        defer { environment.close() }
+        try body(environment)
+    }
+
     static func main() {
         do {
             try documentRoundTripAndValidation()
@@ -26,7 +101,12 @@ private struct Failure: Error, CustomStringConvertible { let description: String
             try mainChangePlan()
             try removalAndOrphans()
             try consentDecisions()
-            print("PASS model providers: \(count) checks; document logic only, no Keychain or files")
+            try migration()
+            try keychainOrder()
+            try removalAndSweep()
+            try identity()
+            try consent()
+            print("PASS model providers: \(count) checks; isolated defaults, temporary files and an in-memory Keychain")
         } catch {
             print("FAIL model providers after \(count) checks: \(error)")
             exit(1)
@@ -183,6 +263,248 @@ private struct Failure: Error, CustomStringConvertible { let description: String
                   "removing the main provider: no main model, its item to delete")
         try rejects("removing an unknown provider", { $0 as? ModelProvidersError == .unknownProvider }) {
             _ = try document.removeProvider(id: UUID())
+        }
+    }
+
+    static func migration() throws {
+        try scenario { env in
+            let repository = env.repository()
+            try check(try repository.load() == nil && (try env.file.read()) == nil && env.revision == nil
+                      && env.keychain.calls.isEmpty && !env.defaults.bool(forKey: ModelSettingsRepository.migratedKey),
+                      "no v1 setting: nothing imported or written")
+        }
+        try scenario { env in
+            let account = UUID()
+            try env.writeV1("https://site.invalid:000443/v1/", model: "fixture-model", account: account, key: "legacy-key", seesImages: true)
+            let v1 = env.defaults.data(forKey: ModelSettingsRepository.configurationKey)
+            let loaded = try env.repository().load()
+            try check(loaded?.providerID == account && loaded?.credentialAccount == account.uuidString, "valid v1: provider id equals the old account")
+            try check(loaded?.baseURL.absoluteString == "https://site.invalid:000443/v1/" && loaded?.model == "fixture-model",
+                      "valid v1: address kept byte for byte, so saved conversations match")
+            try check(loaded?.seesImages == true && loaded?.configuration.vision == .supported, "valid v1: vision answer carried")
+            try check(try loaded.map { try env.repository().key(for: $0) } == "legacy-key", "valid v1: same Keychain item")
+            try check(env.keychain.calls.isEmpty, "the import neither reads nor writes the Keychain")
+            try check(env.defaults.data(forKey: ModelSettingsRepository.configurationKey) == v1
+                      && env.defaults.bool(forKey: ModelSettingsRepository.migratedKey), "v1 record kept for one version, marked")
+            let bytes = try env.file.read(), revision = env.revision
+            try check(bytes != nil && revision != nil, "imported document published with a new revision")
+            let again = try env.repository().load()
+            try check(again?.providerID == account && (try env.file.read()) == bytes && env.revision == revision, "rerun is a no-op")
+            try check(try env.repository().document()?.legacySettings == .imported, "imported flag")
+        }
+        for (label, raw) in [("garbage", Data("{not json".utf8)),
+                             ("plain HTTP", try JSONEncoder().encode(SavedModelSettings(baseURL: URL(string: "http://site.invalid/v1")!,
+                                                                                        model: "m", credentialAccount: UUID().uuidString))),
+                             ("no account UUID", try JSONEncoder().encode(SavedModelSettings(baseURL: URL(string: "https://site.invalid/v1")!,
+                                                                                             model: "m", credentialAccount: "not-a-uuid")))] {
+            try scenario { env in
+                env.defaults.set(raw, forKey: ModelSettingsRepository.configurationKey)
+                let stray = UUID().uuidString; env.keychain.values[stray] = "old-key"
+                let repository = env.repository()
+                try check(try repository.load() == nil, "unreadable v1 (\(label)): no provider")
+                let document = try repository.document()
+                try check(document?.providers.isEmpty == true && document?.legacySettings == .unreadable, "unreadable v1 (\(label)): flagged for the UI")
+                try check(env.defaults.data(forKey: ModelSettingsRepository.configurationKey) == raw
+                          && env.defaults.bool(forKey: ModelSettingsRepository.migratedKey), "unreadable v1 (\(label)): record kept, marked")
+                try check(try repository.sweepOrphanedCredentials() == 1 && env.keychain.values.isEmpty,
+                          "unreadable v1 (\(label)): its old key is swept")
+            }
+        }
+        try scenario { env in
+            try env.writeV1("https://site.invalid/v1", model: "m", account: UUID(), key: "k")
+            env.defaults.set(true, forKey: ModelSettingsRepository.migratedKey)
+            try check(try env.repository().load() == nil && (try env.file.read()) == nil, "an imported v1 record is never imported again")
+        }
+        try scenario { env in
+            let account = UUID()
+            try env.writeV1("https://site.invalid/v1", model: "m", account: account, key: "k")
+            let locked = FixtureStorage(); locked.failReads = true
+            let repository = env.repository(locked)
+            try rejects("a document that cannot be read") { _ = try repository.load() }
+            try rejects("sweeping without a readable document") { _ = try repository.sweepOrphanedCredentials() }
+            try check(locked.data == nil && !env.defaults.bool(forKey: ModelSettingsRepository.migratedKey)
+                      && env.keychain.values[account.uuidString] == "k" && env.revision == nil,
+                      "locked: nothing imported, marked, swept or replaced")
+        }
+        try scenario { env in
+            let storage = ModelProvidersInDefaults(defaults: env.defaults)
+            try env.writeV1("https://openrouter.ai/api/v1", model: "m", account: UUID(), key: "k")
+            try check(try env.repository(storage).load()?.model == "m" && env.defaults.data(forKey: ModelSettingsRepository.providersKey) != nil,
+                      "a test suite's document lives in its own defaults")
+            let single = ModelSettingsRepository.singleRecord(defaults: env.defaults, credentials: env.keychain)
+            env.defaults.removeObject(forKey: ModelSettingsRepository.providersKey)
+            env.defaults.removeObject(forKey: ModelSettingsRepository.migratedKey)
+            _ = try single.save(baseURL: "https://worker.invalid/v1", model: "mika-extract-pdf-v1", newKey: "worker-token")
+            try check(try single.load()?.providerID == nil && env.defaults.data(forKey: ModelSettingsRepository.providersKey) == nil
+                      && !env.defaults.bool(forKey: ModelSettingsRepository.migratedKey), "the script service keeps one record")
+        }
+    }
+
+    static func keychainOrder() throws {
+        try scenario { env in
+            let repository = env.repository()
+            try rejects("a first save without a key", { ($0 as? ModelSettingsError).map { if case .missingKey = $0 { return true }; return false } ?? false }) {
+                _ = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "m", newKey: "")
+            }
+            let first = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "vendor/a", newKey: " first-key ")
+            let firstAccount = first.record.credentialAccount
+            try check(env.keychain.calls == [.insert(firstAccount)] && env.keychain.values == [firstAccount: "first-key"]
+                      && env.keychain.seen.first?.published == nil, "first save: the key is written before any document")
+            let provider = try repository.document()?.mainProvider
+            try check(provider?.name == "OpenRouter" && provider?.typedModels == ["vendor/a"] && provider?.savedUntested == true
+                      && provider?.id == first.record.providerID, "first save creates the main provider")
+            _ = try repository.setSeesImages(true)
+            env.keychain.calls = []; env.keychain.seen = []
+            let revision = env.revision
+            let replaced = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "vendor/a", newKey: "second-key")
+            let second = replaced.record.credentialAccount
+            try check(env.keychain.calls == [.insert(second), .remove(firstAccount)] && second != firstAccount,
+                      "replace: write the new item, then delete the old one")
+            try check(env.keychain.seen.map(\.published) == [UUID(uuidString: firstAccount), UUID(uuidString: second)],
+                      "replace: the document still names the old item while the new one is written, the new one when the old goes")
+            try check(replaced.record.providerID == first.record.providerID && replaced.record.seesImages == true
+                      && env.keychain.values == [second: "second-key"] && !replaced.cleanupFailed && env.revision != revision,
+                      "replace: same provider and vision answer, one key left, new revision")
+            env.keychain.calls = []
+            let model = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "vendor/b", newKey: "")
+            try check(env.keychain.calls.isEmpty && model.record.credentialAccount == second && model.record.seesImages == nil
+                      && model.record.providerID == first.record.providerID, "blank key, new model: same item, vision answer dropped")
+            try check(try repository.document()?.mainProvider?.typedModels == ["vendor/b"], "the form keeps one typed model")
+            let path = try repository.save(baseURL: "https://openrouter.ai/api/v2", model: "vendor/b", newKey: "")
+            let document = try repository.document()
+            try check(env.keychain.calls.isEmpty && path.record.credentialAccount == second && path.record.providerID != first.record.providerID
+                      && document?.providers.count == 1 && document?.mainProvider?.id == path.record.providerID,
+                      "blank key, new path at the same origin: a new provider takes the key and the old one's place")
+            let before = try env.file.read()
+            try rejects("a blank key for another host", { ($0 as? ModelSettingsError).map { if case .changedOrigin = $0 { return true }; return false } ?? false }) {
+                _ = try repository.save(baseURL: "https://router.requesty.ai/v1", model: "vendor/b", newKey: "")
+            }
+            try rejects("a key with a space", { ($0 as? ModelSettingsError).map { if case .invalidKey = $0 { return true }; return false } ?? false }) {
+                _ = try repository.save(baseURL: "https://router.requesty.ai/v1", model: "vendor/b", newKey: "two words")
+            }
+            try check(try env.file.read() == before && env.keychain.calls.isEmpty, "rejected saves change nothing")
+            env.keychain.values[second] = nil
+            try rejects("a blank key whose item is gone") { _ = try repository.save(baseURL: "https://openrouter.ai/api/v2", model: "c", newKey: "") }
+        }
+        try scenario { env in
+            let storage = FixtureStorage()
+            let repository = env.repository(storage)
+            let saved = try repository.save(baseURL: "https://api.x.ai/v1", model: "grok", newKey: "first")
+            storage.failWrites = true
+            env.keychain.calls = []
+            try rejects("a document that cannot be written") { _ = try repository.save(baseURL: "https://api.x.ai/v1", model: "grok", newKey: "next") }
+            guard case .insert(let taken)? = env.keychain.calls.first else { throw Failure(description: "no insert before the failed write") }
+            try check(env.keychain.calls == [.insert(taken), .remove(taken)] && env.keychain.values == [saved.record.credentialAccount: "first"],
+                      "failed write: the new item is taken back and the old key stays")
+            storage.failWrites = false
+            env.keychain.failRemoval = true
+            let next = try repository.save(baseURL: "https://api.x.ai/v1", model: "grok", newKey: "next")
+            try check(next.cleanupFailed && env.keychain.values.count == 2, "failed cleanup is reported and the old item remains")
+            env.keychain.failRemoval = false
+            try check(try repository.sweepOrphanedCredentials() == 1 && env.keychain.values == [next.record.credentialAccount: "next"],
+                      "the sweep removes what the cleanup could not")
+        }
+    }
+
+    static func removalAndSweep() throws {
+        try scenario { env in
+            let repository = env.repository()
+            let main = try repository.save(baseURL: "https://api.mistral.ai/v1", model: "mistral-large", newKey: "main-key")
+            // A second provider as phase 1b will add them; the form never does.
+            var document = try repository.document()!
+            let otherAccount = UUID(), other = ModelProvider(name: "Groq", baseURL: URL(string: "https://api.groq.com/openai/v1")!,
+                                                            credentialAccount: otherAccount, typedModels: ["llama"])
+            document.providers.append(other)
+            document.roles.vision = .model(ModelRef(providerID: other.id, model: "llama"))
+            try env.file.write(document.encoded())
+            env.keychain.values[otherAccount.uuidString] = "other-key"
+            env.keychain.calls = []
+            let revision = env.revision
+            try check(try !repository.removeProvider(id: other.id), "remove one provider")
+            let after = try repository.document()
+            try check(env.keychain.calls == [.remove(otherAccount.uuidString)] && env.keychain.values == [main.record.credentialAccount: "main-key"],
+                      "removing a provider deletes only its key")
+            try check(after?.roles.vision == .off && after?.roles.main?.providerID == main.record.providerID && env.revision != revision,
+                      "a role on the removed provider falls back; the main model stays")
+            try rejects("removing an unknown provider", { $0 as? ModelProvidersError == .unknownProvider }) { try repository.removeProvider(id: UUID()) }
+            let unused = UUID().uuidString
+            env.keychain.values[unused] = "stray"; env.keychain.values["not-a-uuid"] = "junk"
+            env.keychain.listable = false
+            try check(try repository.sweepOrphanedCredentials() == 0 && env.keychain.values.count == 3, "a Keychain that cannot list sweeps nothing")
+            env.keychain.listable = true
+            env.keychain.calls = []
+            try check(try repository.sweepOrphanedCredentials() == 2 && env.keychain.values == [main.record.credentialAccount: "main-key"]
+                      && Set(env.keychain.calls) == [.remove(unused), .remove("not-a-uuid")], "the sweep removes exactly the unused items")
+            try check(try repository.sweepOrphanedCredentials() == 0, "a second sweep finds nothing")
+            try check(try !repository.removeProvider(id: main.record.providerID!) && (try repository.load()) == nil
+                      && env.keychain.values.isEmpty, "removing the main provider leaves no main model")
+        }
+        try scenario { env in
+            let account = UUID()
+            try env.writeV1("https://site.invalid/v1", model: "m", account: account, key: "k")
+            let repository = env.repository()
+            try check(try repository.sweepOrphanedCredentials() == 0 && env.keychain.values[account.uuidString] == "k",
+                      "a sweep before any load imports first and keeps the imported key")
+            try repository.remove()
+            try check((try env.file.read()) == nil && env.keychain.values.isEmpty && env.keychain.calls.last == .removeAll
+                      && env.defaults.data(forKey: ModelSettingsRepository.configurationKey) == nil
+                      && !env.defaults.bool(forKey: ModelSettingsRepository.migratedKey) && (try repository.load()) == nil,
+                      "removing all settings clears the document, the keys and the v1 record")
+            try check((try ModelProvidersFile(url: env.root.appendingPathComponent("absent/providers.json")).read()) == nil,
+                      "a missing file reads as no document")
+            try ModelProvidersFile(url: env.root.appendingPathComponent("absent/providers.json")).remove()
+            try check(true, "removing a missing file succeeds")
+        }
+    }
+
+    static func identity() throws {
+        try scenario { env in
+            let account = UUID()
+            try env.writeV1("https://openrouter.ai/api/v1", model: "vendor/a", account: account, key: "k")
+            let legacy = SavedModelSettings(baseURL: URL(string: "https://openrouter.ai/api/v1")!, model: "vendor/a", credentialAccount: account.uuidString)
+            let repository = env.repository()
+            let imported = try repository.load()!
+            try check(legacy.accessIdentity == imported.accessIdentity && imported.accessIdentity?.target.providerID == account,
+                      "a v1 record and its import have the same identity")
+            let rekeyed = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "vendor/a", newKey: "new-key").record
+            try check(rekeyed.accessIdentity?.target == imported.accessIdentity?.target, "a new key keeps the provider and model")
+            try check(rekeyed.accessIdentity != imported.accessIdentity
+                      && rekeyed.accessIdentity?.credentialAccount == UUID(uuidString: rekeyed.credentialAccount),
+                      "a new key is a new Keychain item, so running work still stops")
+            let model = try repository.save(baseURL: "https://openrouter.ai/api/v1", model: "vendor/b", newKey: "").record
+            try check(model.accessIdentity?.target != rekeyed.accessIdentity?.target
+                      && model.accessIdentity?.target.providerID == account, "another model is another target at the same provider")
+            let moved = try repository.save(baseURL: "https://openrouter.ai/api/v2", model: "vendor/b", newKey: "").record
+            try check(moved.accessIdentity?.target.providerID != account && moved.accessIdentity?.target.model == "vendor/b",
+                      "another address is another provider")
+        }
+    }
+
+    static func consent() throws {
+        try scenario { env in
+            let repository = env.repository()
+            let openRouter = URL(string: "https://openrouter.ai/api/v1")!, groq = URL(string: "https://api.groq.com/openai/v1")!
+            try check(try repository.consentRequirement(forSaving: openRouter) == .firstTime, "nothing saved: first time")
+            let first = try repository.save(baseURL: openRouter.absoluteString, model: "vendor/a", newKey: "k").record
+            try check(try repository.consentRequirement(forSaving: openRouter) == .firstTime, "a save alone records no consent")
+            let consentedAt = Date(timeIntervalSince1970: 1_800_000_123.5)
+            try repository.recordConsent(forProvider: first.providerID!, at: consentedAt)
+            try check(try repository.document()?.consent == ModelConsentRecord(providerID: first.providerID!, origin: "https://openrouter.ai",
+                                                                              consentedAt: consentedAt), "consent stored with its provider and time")
+            try check(try repository.consentRequirement(forSaving: openRouter) == .alreadyGiven, "same provider: given")
+            try check(try repository.consentRequirement(forSaving: groq) == .differentProvider, "another address: a different provider")
+            _ = try repository.save(baseURL: openRouter.absoluteString, model: "vendor/b", newKey: "k2")
+            try check(try repository.consentRequirement(forSaving: openRouter) == .alreadyGiven, "a new key or model keeps the consent")
+            let switched = try repository.save(baseURL: groq.absoluteString, model: "llama", newKey: "g").record
+            try check(try repository.consentRequirement(forSaving: groq) == .differentProvider, "switched without consent: still owed")
+            try rejects("consent for a provider that does not exist", { $0 as? ModelProvidersError == .unknownProvider }) {
+                try repository.recordConsent(forProvider: first.providerID!)
+            }
+            try repository.recordConsent(forProvider: switched.providerID!)
+            try check(try repository.consentRequirement(forSaving: groq) == .alreadyGiven
+                      && (try repository.consentRequirement(forSaving: openRouter)) == .differentProvider, "consent follows the last provider")
+            try repository.remove()
+            try check(try repository.consentRequirement(forSaving: groq) == .firstTime, "removing all settings forgets the consent")
         }
     }
 

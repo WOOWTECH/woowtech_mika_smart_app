@@ -312,6 +312,9 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        // Keys no provider uses: an interrupted save, or the v1 setting that
+        // could not be read. A locked Keychain waits for the next launch.
+        _ = try? repository.sweepOrphanedCredentials()
     }
 
     var canSend: Bool {
@@ -1349,7 +1352,8 @@ final class ChatSession: ObservableObject {
     }
 
     private static func liveRepository() -> ModelSettingsRepository {
-        ModelSettingsRepository(defaults: .standard, credentials: KeychainModelCredentials(service: "io.woowtech.assistant.model-credentials.v1"))
+        ModelSettingsRepository(defaults: .standard, credentials: KeychainModelCredentials(service: "io.woowtech.assistant.model-credentials.v1"),
+                                providers: ModelProvidersFile.live())
     }
 
     private static func settingsMessage(_ error: Error) -> String {
