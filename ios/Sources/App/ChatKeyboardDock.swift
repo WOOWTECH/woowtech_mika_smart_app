@@ -28,6 +28,24 @@ enum ChatKeyboardReserve {
         return max(0, viewBottom - keyboardTop)
     }
 
+    /// A real bottom container inset is the home indicator: 34 pt on an iPhone,
+    /// 20 pt on an iPad, 0 with a Home button. On the physical iPad (9th
+    /// generation) the system reported about 900 pt here, and not as keyboard
+    /// space, so the transcript was 0 pt tall under the navigation bar. Anything
+    /// taller than this is not a home indicator and is ignored.
+    static let maximumContainerBottom: CGFloat = 50
+
+    static func containerBottom(_ reported: CGFloat) -> CGFloat {
+        guard reported.isFinite, reported > 0, reported <= maximumContainerBottom else { return 0 }
+        return reported
+    }
+
+    /// The column reaches the bottom edge; a docked keyboard covers the home
+    /// indicator, so the larger of the two is kept clear, never both.
+    static func bottomPadding(keyboard: CGFloat, containerBottom: CGFloat) -> CGFloat {
+        max(keyboard.isFinite ? keyboard : 0, containerBottom)
+    }
+
     private static func valid(_ rect: CGRect) -> Bool {
         !rect.isNull && !rect.isInfinite && !rect.isEmpty
             && rect.origin.x.isFinite && rect.origin.y.isFinite
@@ -100,20 +118,27 @@ final class ChatKeyboardDock: NSObject, ObservableObject {
     }
 }
 
-/// Applied to the whole chat column: ignore SwiftUI's keyboard safe area and
-/// pad the bottom for this app's own docked keyboard, moving with it (its own
-/// animation duration). A surface that replaces the keyboard, such as the
-/// attachment panel, drops the space at once.
+/// Applied to the whole chat column: ignore SwiftUI's keyboard and bottom
+/// container safe areas and pad the bottom itself, for this app's own docked
+/// keyboard (moving with it, at its own animation duration) or else a plausible
+/// home indicator (see ChatKeyboardReserve.containerBottom). A surface that
+/// replaces the keyboard, such as the attachment panel, drops the keyboard space at once.
 struct ChatKeyboardReserveModifier: ViewModifier {
     @ObservedObject var dock: ChatKeyboardDock
     let replaced: Bool
     @State private var frame = CGRect.zero
+    /// The bottom container inset as the system reports it, before the check.
+    @State private var reportedBottom: CGFloat = 0
 
     private var reserve: CGFloat { replaced ? 0 : dock.reserve(below: frame) }
+    private var bottomPadding: CGFloat {
+        ChatKeyboardReserve.bottomPadding(keyboard: reserve,
+                                          containerBottom: ChatKeyboardReserve.containerBottom(reportedBottom))
+    }
 
     func body(content: Content) -> some View {
         content
-            .padding(.bottom, reserve)
+            .padding(.bottom, bottomPadding)
             .animation(.easeOut(duration: dock.animationDuration), value: reserve)
             .background {
                 // The column's own frame does not depend on the padding above.
@@ -123,7 +148,78 @@ struct ChatKeyboardReserveModifier: ViewModifier {
                         .onChange(of: proxy.frame(in: .global)) { _, value in frame = value }
                 }
             }
+            .overlay(alignment: .topLeading) {
+                if ChatLayoutProbe.isEnabled {
+                    ChatLayoutProbe(reportedBottom: reportedBottom, column: frame,
+                                    keyboard: dock.frameInWindow, padding: bottomPadding)
+                }
+            }
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            .ignoresSafeArea(.container, edges: .bottom)
+            .background {
+                // Outside the ignored regions this reads the inset the system reports.
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { reportedBottom = proxy.safeAreaInsets.bottom }
+                        .onChange(of: proxy.safeAreaInsets.bottom) { _, value in reportedBottom = value }
+                }
+            }
+    }
+}
+
+/// Diagnostic readout for the physical iPad's bottom inset (launch argument
+/// -WoowLayoutProbe only): what SwiftUI and UIKit each report, so a wrong
+/// inset can be traced to its layer. It shows numbers only.
+struct ChatLayoutProbe: View {
+    static let isEnabled = ProcessInfo.processInfo.arguments.contains("-WoowLayoutProbe")
+    let reportedBottom: CGFloat
+    let column: CGRect
+    let keyboard: CGRect?
+    let padding: CGFloat
+    @State private var window = ""
+
+    var body: some View {
+        let text = "swiftUIBottom=\(Int(reportedBottom)) padding=\(Int(padding)) column=\(Self.rect(column)) "
+            + "dockKeyboard=\(keyboard.map(Self.rect) ?? "nil") \(window)"
+        Text(verbatim: text)
+            .font(.system(size: 10, design: .monospaced))
+            .padding(4)
+            .background(Color.yellow.opacity(0.85))
+            .background(ChatWindowInsetsReader { window = $0 }.frame(width: 1, height: 1))
+            .accessibilityIdentifier("layout.probe")
+            .allowsHitTesting(false)
+    }
+
+    static func rect(_ r: CGRect) -> String {
+        "(\(Int(r.minX)),\(Int(r.minY)),\(Int(r.width)),\(Int(r.height)))"
+    }
+}
+
+/// Reads the hosting window's UIKit insets and keyboard layout guide.
+private struct ChatWindowInsetsReader: UIViewRepresentable {
+    let report: (String) -> Void
+    func makeUIView(context: Context) -> ReaderView { ReaderView(report: report) }
+    func updateUIView(_ view: ReaderView, context: Context) { view.report = report; view.publish() }
+
+    final class ReaderView: UIView {
+        var report: (String) -> Void
+        private var last = ""
+        init(report: @escaping (String) -> Void) { self.report = report; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { nil }
+        override func layoutSubviews() { super.layoutSubviews(); publish() }
+        override func safeAreaInsetsDidChange() { super.safeAreaInsetsDidChange(); publish() }
+        func publish() {
+            guard let window else { return }
+            let root = window.rootViewController
+            func edges(_ i: UIEdgeInsets) -> String { "t\(Int(i.top))b\(Int(i.bottom))" }
+            let text = "window=\(edges(window.safeAreaInsets)) root=\(root.map { edges($0.view.safeAreaInsets) } ?? "nil") "
+                + "additional=\(root.map { edges($0.additionalSafeAreaInsets) } ?? "nil") "
+                + "kbGuide=\(ChatLayoutProbe.rect(window.keyboardLayoutGuide.layoutFrame)) "
+                + "bounds=\(ChatLayoutProbe.rect(window.bounds))"
+            guard text != last else { return }
+            last = text
+            DispatchQueue.main.async { [report] in report(text) }
+        }
     }
 }
 

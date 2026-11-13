@@ -18,7 +18,7 @@ class ChatKeyboardReserveTests(unittest.TestCase):
                             str(ROOT / 'scripts/CheckChatKeyboardReserve.swift'), '-o', str(binary)],
                            check=True, capture_output=True, timeout=300)
             result = subprocess.run([str(binary)], check=True, capture_output=True, text=True, timeout=30)
-            self.assertEqual(json.loads(result.stdout), {'assertions': 18})
+            self.assertEqual(json.loads(result.stdout), {'assertions': 31})
 
 
 if __name__ == '__main__':
