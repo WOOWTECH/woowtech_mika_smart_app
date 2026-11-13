@@ -751,15 +751,14 @@ private struct ChatView: View {
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
-        let rows = transcriptRows(targets: targets)
-        return Group {
-            // An empty chat is a short, fixed list. In a LazyVStack it hung the main
-            // thread on iPhone SE (iOS 18.5 CI) when an example shrank the input bar
-            // while the list was scrolled to its end, so it is laid out eagerly.
-            if session.entries.isEmpty && session.replyPreview == nil {
-                VStack(alignment: .leading, spacing: 16) { rows }
-            } else {
-                LazyVStack(alignment: .leading, spacing: 16) { rows }
+        return VStack(alignment: .leading, spacing: 16) {
+            // The welcome stays out of the lazy list: inside a LazyVStack it hung the
+            // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
+            // bar while the list was scrolled to its end. The messages keep one
+            // LazyVStack throughout, so the first message never swaps the list.
+            welcomeRows
+            LazyVStack(alignment: .leading, spacing: 16) {
+                messageRows(targets: targets)
             }
         }
         .padding(.vertical, 4)
@@ -774,7 +773,7 @@ private struct ChatView: View {
         }
     }
 
-    @ViewBuilder private func transcriptRows(targets: ChatMessageActionTargets) -> some View {
+    @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
         if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
@@ -784,6 +783,9 @@ private struct ChatView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("chat.explanation")
         }
+    }
+
+    @ViewBuilder private func messageRows(targets: ChatMessageActionTargets) -> some View {
         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
             messageRow(index: index, entry: entry, targets: targets)
         }
