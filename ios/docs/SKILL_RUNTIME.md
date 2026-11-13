@@ -70,8 +70,8 @@ without case; all other UTF-8 bytes remain exact, with no Unicode normalization.
 The search operates on extracted selected pages; it does not supply OCR or
 Android's arbitrary workspace/full-regex search. The snippets can contain
 document text and should be treated as sensitive on screen. Search controls,
-results and errors use the selected Traditional Chinese, Simplified Chinese or
-English interface language; extracted snippets remain verbatim. Other parts of
+results and errors use the selected Traditional Chinese or English interface
+language; extracted snippets remain verbatim. Other parts of
 the PDF skill screen are not yet fully localized. Native iOS UI acceptance is
 still required.
 
