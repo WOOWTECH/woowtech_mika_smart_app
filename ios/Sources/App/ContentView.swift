@@ -483,6 +483,8 @@ private struct ChatView: View {
     @State private var attachmentPreview: ChatAttachmentPreviewTarget?
     @State private var selectingText: ChatSelectTextTarget?
     @State private var messageToast: ChatToast?
+    /// The transcript's visible height; see blockedCardFitsTranscript.
+    @State private var transcriptViewportHeight: CGFloat = 0
     @StateObject private var recentPhotos = ChatRecentPhotos()
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
@@ -729,14 +731,31 @@ private struct ChatView: View {
         }
     }
 
+    /// Android's NeedCard for a send that cannot start: 知道了 closes it, 去設定 opens Settings.
+    private var sendBlockedCard: some View {
+        ChatSendBlockedCard(palette: palette, localizer: localizer,
+                            dismiss: { session.dismissSendBlocker() },
+                            openSettings: {
+                                session.dismissSendBlocker()
+                                isEditingDraft = false
+                                openSettings()
+                            })
+    }
+
+    /// Like Android, the card is the transcript's last item. On the physical iPad
+    /// the transcript once collapsed to almost nothing; a card that would not fit
+    /// shows above the input bar instead, so a blocked send is never silent.
+    private var blockedCardFitsTranscript: Bool { transcriptViewportHeight >= 200 }
+
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
         return LazyVStack(alignment: .leading, spacing: 16) {
-            if session.entries.isEmpty && session.replyPreview == nil {
+            // Android hides the welcome while the blocked card is up.
+            if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
                 ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
             }
-            if !session.hasStoredKey {
+            if !session.hasStoredKey && session.shownSendBlocker == nil {
                 Text(verbatim: localizer.text(.chatModelSetupHint))
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("chat.explanation")
@@ -758,6 +777,9 @@ private struct ChatView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id(preview.id)
+            }
+            if session.shownSendBlocker != nil && blockedCardFitsTranscript {
+                sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
             }
             Color.clear.frame(height: 1).id("chat.transcript.tail")
         }
@@ -835,6 +857,8 @@ private struct ChatView: View {
             ScrollViewReader { proxy in
                 transcriptScroll(proxy: proxy, viewportHeight: Double(viewport.size.height))
             }
+            .onAppear { transcriptViewportHeight = viewport.size.height }
+            .onChange(of: viewport.size.height) { _, height in transcriptViewportHeight = height }
         }
         .overlay(alignment: .top) {
             if let messageToast {
@@ -912,14 +936,8 @@ private struct ChatView: View {
                 }
             }
         }
-        if session.shownSendBlocker != nil {
-            ChatSendBlockedCard(palette: palette, localizer: localizer,
-                                dismiss: { session.dismissSendBlocker() },
-                                openSettings: {
-                                    session.dismissSendBlocker()
-                                    isEditingDraft = false
-                                    openSettings()
-                                })
+        if session.shownSendBlocker != nil && !blockedCardFitsTranscript {
+            sendBlockedCard
         }
     }
 
@@ -1052,6 +1070,8 @@ private struct ChatView: View {
             .onChange(of: session.shownSendBlocker) { _, blocker in
                 // VoiceOver users hear why the tap did not send.
                 guard blocker != nil else { return }
+                // Android scrolls to the card only while following the latest message.
+                if scrollFollow.followsTail { scrollToTailRequest += 1 }
                 UIAccessibility.post(notification: .announcement,
                                      argument: localizer.text(.chatSendBlockedTitle) + " " + localizer.text(.chatSendBlockedNoModel))
             }
@@ -1081,15 +1101,16 @@ private struct ChatView: View {
 }
 
 /// The Android store build's chat NeedCard for a send that cannot start:
-/// a warning dot, title, what is missing, then 知道了 and 去設定. Kept above
-/// the composer, outside the transcript, so it stays visible however the
-/// transcript is sized.
+/// a warning dot, title, what is missing, then 知道了 and 去設定, on the
+/// card surface (white, 0.5 pt edge, 16 pt corners, a faint shadow in light
+/// appearance only).
 @MainActor
 private struct ChatSendBlockedCard: View {
     let palette: MikaVisualPalette
     let localizer: AppLocalizer
     let dismiss: () -> Void
     let openSettings: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1119,7 +1140,9 @@ private struct ChatSendBlockedCard: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.hair, lineWidth: 0.5))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.06), radius: 6, y: 1)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.sendBlocked")
     }
