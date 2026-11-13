@@ -52,6 +52,15 @@ struct MikaLanguageAppearanceView: View {
                         .padding(.horizontal, 16).padding(.top, 8)
                         .accessibilityIdentifier("settings.language.error")
                 }
+                #if DEBUG
+                // UI tests only: the scheme this page really renders with. Play has no
+                // 目前顯示 line, and a selected row alone does not prove it applied.
+                if ProcessInfo.processInfo.arguments.contains("-UITestMode") {
+                    Text(verbatim: colorScheme == .dark ? "dark" : "light")
+                        .font(.caption2).foregroundStyle(.clear).frame(height: 1)
+                        .accessibilityIdentifier("selfConfiguration.appliedScheme")
+                }
+                #endif
             }
             .padding(.horizontal, 16).padding(.bottom, 20)
         }

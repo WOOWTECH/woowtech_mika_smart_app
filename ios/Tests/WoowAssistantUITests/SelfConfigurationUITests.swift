@@ -20,13 +20,20 @@ final class SelfConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["selfConfiguration.appearance.system"].label.contains("裝置是淺色就淺色，深色就深色"))
         XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
         XCTAssertFalse(app.textViews["selfConfiguration.request"].exists)
-        for value in ["dark", "light", "system", "dark"] {
+        // The scheme the page really renders with, not only the selected row.
+        let applied = app.staticTexts["selfConfiguration.appliedScheme"]
+        XCTAssertTrue(applied.waitForExistence(timeout: 5))
+        let systemScheme = applied.label
+        for (value, scheme) in [("dark", "dark"), ("light", "light"), ("system", systemScheme), ("dark", "dark")] {
             let row = app.buttons["selfConfiguration.appearance." + value]
             revealLearningElement(row, in: app); row.tap()
             assertSelected(value)
+            let rendered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", scheme), object: applied)
+            XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 5), .completed, value)
         }
         app.terminate(); launch()
         assertSelected("dark")
+        XCTAssertEqual(app.staticTexts["selfConfiguration.appliedScheme"].label, "dark", "dark survives relaunch")
         XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
     }
 
