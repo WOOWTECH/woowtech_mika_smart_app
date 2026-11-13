@@ -45,7 +45,9 @@ DOCUMENTS_COHORT_SECONDS = 65 * 60
 # minutes) and the chat classes also ran past the 30-minute boundary on the
 # large and current simulators and left no result at all. They get the
 # document shard's window; every method keeps its own 240/300 s allowance.
-LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat")
+# The archive class, with the two message-menu tests, timed out the same way
+# on iOS 26.2 in PR #33's run; it runs after ui-mcp in the longer cohort.
+LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat", "ui-archive")
 SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
               "compact": IPHONES[:1], "large": IPHONES[1:2]}
 
