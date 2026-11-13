@@ -10,7 +10,7 @@ import com.wangzan101.mika.core.model.ModelEndpoint
  * edition (see SignInKind.offered).
  */
 internal object PlayModelProviderPolicy {
-    val enabled: Boolean get() = BuildConfig.FLAVOR == "woowtech"
+    val enabled: Boolean get() = BuildConfig.PLAY_EDITION
 
     val presets: List<ProviderPreset> get() = ProviderPresets.all
 

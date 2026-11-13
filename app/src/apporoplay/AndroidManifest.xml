@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The apporoplay flavor (Apporo's Google Play edition): the woowtech Play manifest's removals, plus Apporo's browser
+     entry. Unlike src/apporo, no exact-alarm permissions: the Play editions have no alarm capability. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The Play edition never prepares the executable sandbox. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:node="remove" />
+
+    <application>
+        <service
+            android:name=".sandbox.SandboxService"
+            tools:node="remove" />
+        <!-- The Play edition has no phone control, so there is no Wireless debugging pairing-code notification. -->
+        <receiver
+            android:name=".setup.PairingCodeReceiver"
+            tools:node="remove" />
+        <!-- External links stop here; never forward their data, extras or URI grants. -->
+        <activity
+            android:name=".apporo.BrowserOpenActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:host="open" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

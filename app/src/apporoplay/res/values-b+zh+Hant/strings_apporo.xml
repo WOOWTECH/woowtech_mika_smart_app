@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apporo Assistant Google Play 版（apporoplay flavor）的品牌字串，改自 src/apporo/res。此版本沒有手機操作、無障礙服務、
+  沙箱、跨 App OCR 和「連接電腦」，所以不放直裝版的手機操作、USB 與中繼配對文案；商店版專用的覆蓋字串在
+  strings_apporoplay.xml 和 strings_apporo_wording.xml。
+-->
+<resources>
+    <string name="app_name">Apporo Assistant</string>
+    <string name="welcome_title">認識 Apporo Assistant</string>
+    <string name="welcome_lead">管理空間、協調工作、完成下一步。\n把需求化為行動，並核對實際結果。</string>
+    <string name="welcome_note">先連接 AI 模型：使用 ChatGPT 繼續，或加入自己的 API Key。</string>
+    <string name="welcome_apps">連接你的服務</string>
+    <string name="welcome_apps_body">透過你加入的 HTTPS MCP 伺服器，查看連接的空間與工作流程。</string>
+    <string name="welcome_web">查找有根據的資訊</string>
+    <string name="welcome_web_body">在內建瀏覽器閱讀來源、比較選項，整理與任務相關的資訊。</string>
+    <string name="welcome_files">整理可用的資訊</string>
+    <string name="welcome_files_body">摘要、整理你在對話中分享的內容，並協助草擬文件。</string>
+    <string name="welcome_schedule">掌握任務進度</string>
+    <string name="welcome_schedule_body">任務可在背景繼續執行並顯示進度通知，隨時查看結果或停止。</string>
+    <string name="about_author">© 2026 APPORO UNION INC. · 以 wangzan101/Mika（Apache-2.0）為基礎</string>
+    <string name="about_repo_sub">%1$s · 原始碼與建置文件</string>
+    <string name="browser_engine">Google</string>
+    <string name="browser_engine_note">使用 Google 搜尋</string>
+    <string name="browser_typing_note">網址直接開啟，其他文字使用 Google 搜尋</string>
+    <string name="relay_gateway_hint">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_gateway_default" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_portal_url" translatable="false">https://assistant-relay.apporo.ai/</string>
+    <string name="relay_portal_open">開啟中繼網站</string>
+</resources>
