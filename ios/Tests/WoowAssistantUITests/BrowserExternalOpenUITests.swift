@@ -44,9 +44,14 @@ final class BrowserExternalOpenUITests: XCTestCase {
                        "The real button must expose the exact checked hash-route destination")
 
         handoff.tap()
+        // iOS 26.2 can keep reporting the App as foreground after Safari has taken
+        // the screen (CI showed Safari with the 渥屋助理 breadcrumb and state 4), so a
+        // foreground Safari with the App still running also proves the handoff.
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         let leftForeground = XCTWaiter.wait(for: [XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in
                 self.app.state == .runningBackground || self.app.state == .runningBackgroundSuspended
+                    || (safari.state == .runningForeground && self.app.state != .notRunning)
             }, object: nil
         )], timeout: 20)
         let appStateAfterWait = app.state.rawValue
