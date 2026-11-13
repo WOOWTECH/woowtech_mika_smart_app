@@ -30,6 +30,7 @@ enum MemoryDataKey: String, CaseIterable {
     case draftImported, draftPending, draftUpdate, changedLines
     case acceptTrial, editDraft, fullText, viewFullText, skillSuspended, skillTrial, skillEnabled
     case enableReference, share, restorePrevious
+    case skillUserCreated
     case skillDeleteTitle, skillDeleteMessage, confirmSkillDelete
     case useMemory, useMemorySub, autoRemember, autoRememberSub
     case learnSkills, learnSkillsSub, preferenceScope, learningLimit, learningProgress, switches
@@ -127,6 +128,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .enableReference: return ("啟用文字參考", "Enable text reference")
         case .share: return ("分享", "Share")
         case .restorePrevious: return ("還原上一版", "Restore previous version")
+        case .skillUserCreated: return ("按你的要求寫下", "Written at your request")
         case .skillDeleteTitle: return ("刪除技能？", "Delete skill?")
         case .skillDeleteMessage: return ("將「%@」從我的技能移除，後續對話不再參考。", "Remove “%@” from My Skills? Future conversations will no longer refer to it.")
         case .confirmSkillDelete: return ("確認刪除", "Confirm deletion")

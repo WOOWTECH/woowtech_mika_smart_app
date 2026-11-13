@@ -489,8 +489,11 @@ struct MemoryDataView: View {
                         .accessibilityIdentifier("skills.item.\(skill.name)")
                     Text(verbatim: skill.document.description)
                         .foregroundStyle(palette.ink2)
-                    Text(copy.text(skill.status == .suspended ? .skillSuspended
-                                   : skill.status == .trial ? .skillTrial : .skillEnabled))
+                    // Like Play's skill row, a skill saved at the user's request in chat says so.
+                    Text(verbatim: ([skill.source == .user ? copy.text(.skillUserCreated) : nil,
+                                     copy.text(skill.status == .suspended ? .skillSuspended
+                                               : skill.status == .trial ? .skillTrial : .skillEnabled)]
+                                    as [String?]).compactMap { $0 }.joined(separator: " · "))
                         .font(.caption).foregroundStyle(palette.ink3)
                         .accessibilityIdentifier("skills.state.\(skill.name)")
                 }
@@ -882,7 +885,9 @@ private struct SkillEditor: View {
                 Button(copy.text(draft == nil ? .importAction : .approveAction)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
-                        else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames) }
+                        // Built-in skill names cannot be used, like Play's import.
+                        else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames,
+                                                             builtinNames: Set(BundledSkillCatalog.entryIDs)) }
                     }
                     if succeeded { onSaved(); dismiss() }
                 }
