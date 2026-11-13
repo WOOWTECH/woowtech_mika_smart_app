@@ -620,6 +620,47 @@ enum AppText: Equatable {
     case chatModelFailedStatus(status: Int)
     case drawerDeleteTitle
     case drawerDeleteBody(title: String)
+    case chatWebTitle
+    case chatWebWorkingOn(site: String)
+    case chatWebPaused
+    case chatWebActivityThinking
+    case chatWebActivityOpening(site: String)
+    case chatWebActivityReading(site: String)
+    case chatWebActivityFinding(site: String)
+    case chatWebActivityScrolling(site: String)
+    case chatWebActivityBack
+    case chatWebActivityWaiting(site: String)
+    case chatWebActivityPacing(site: String)
+    case chatWebElapsed(time: String)
+    case chatWebStepNumber(number: Int)
+    case chatWebStepOpen(site: String)
+    case chatWebStepRead(site: String)
+    case chatWebStepFind(site: String)
+    case chatWebStepScroll(site: String)
+    case chatWebStepBack(site: String)
+    case chatWebStepWait(site: String)
+    case chatWebStepFailed
+    case chatWebViewProcess
+    case chatWebStop
+    case chatWebShowScreen
+    case chatWebHideScreen
+    case chatWebShrink
+    case chatWebViewPage
+    case chatWebForegroundNote
+    case chatWebProcessTitle
+    case chatWebProcessDone
+    case chatWebProcessEmpty
+    case chatWebCardAccessibility(activity: String, step: Int, elapsed: String)
+    case chatWebSourcesHeading
+    case chatWebPagesReadHeading
+    case chatWebNotDone
+    case chatWebStopped
+    case chatWebStopRepeating
+    case chatWebStopFailures
+    case chatWebStopInvalidCommands
+    case chatWebStopModelFailed
+    case chatWebConsentTitle
+    case chatWebConsentBody
 
     var key: String {
         switch self {
@@ -1240,6 +1281,47 @@ enum AppText: Equatable {
         case .chatModelFailedStatus: return "chat.modelFailed.status"
         case .drawerDeleteTitle: return "drawer.delete.title"
         case .drawerDeleteBody: return "drawer.delete.body"
+        case .chatWebTitle: return "chat.web.title"
+        case .chatWebWorkingOn: return "chat.web.workingOn"
+        case .chatWebPaused: return "chat.web.paused"
+        case .chatWebActivityThinking: return "chat.web.activity.thinking"
+        case .chatWebActivityOpening: return "chat.web.activity.opening"
+        case .chatWebActivityReading: return "chat.web.activity.reading"
+        case .chatWebActivityFinding: return "chat.web.activity.finding"
+        case .chatWebActivityScrolling: return "chat.web.activity.scrolling"
+        case .chatWebActivityBack: return "chat.web.activity.back"
+        case .chatWebActivityWaiting: return "chat.web.activity.waiting"
+        case .chatWebActivityPacing: return "chat.web.activity.pacing"
+        case .chatWebElapsed: return "chat.web.elapsed"
+        case .chatWebStepNumber: return "chat.web.stepNumber"
+        case .chatWebStepOpen: return "chat.web.step.open"
+        case .chatWebStepRead: return "chat.web.step.read"
+        case .chatWebStepFind: return "chat.web.step.find"
+        case .chatWebStepScroll: return "chat.web.step.scroll"
+        case .chatWebStepBack: return "chat.web.step.back"
+        case .chatWebStepWait: return "chat.web.step.wait"
+        case .chatWebStepFailed: return "chat.web.step.failed"
+        case .chatWebViewProcess: return "chat.web.viewProcess"
+        case .chatWebStop: return "chat.web.stop"
+        case .chatWebShowScreen: return "chat.web.showScreen"
+        case .chatWebHideScreen: return "chat.web.hideScreen"
+        case .chatWebShrink: return "chat.web.shrink"
+        case .chatWebViewPage: return "chat.web.viewPage"
+        case .chatWebForegroundNote: return "chat.web.foregroundNote"
+        case .chatWebProcessTitle: return "chat.web.process.title"
+        case .chatWebProcessDone: return "chat.web.process.done"
+        case .chatWebProcessEmpty: return "chat.web.process.empty"
+        case .chatWebCardAccessibility: return "chat.web.card.accessibility"
+        case .chatWebSourcesHeading: return "chat.web.sourcesHeading"
+        case .chatWebPagesReadHeading: return "chat.web.pagesReadHeading"
+        case .chatWebNotDone: return "chat.web.notDone"
+        case .chatWebStopped: return "chat.web.stopped"
+        case .chatWebStopRepeating: return "chat.web.stop.repeating"
+        case .chatWebStopFailures: return "chat.web.stop.failures"
+        case .chatWebStopInvalidCommands: return "chat.web.stop.invalidCommands"
+        case .chatWebStopModelFailed: return "chat.web.stop.modelFailed"
+        case .chatWebConsentTitle: return "chat.web.consent.title"
+        case .chatWebConsentBody: return "chat.web.consent.body"
         }
     }
 
@@ -1299,6 +1381,22 @@ enum AppText: Equatable {
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
         case .drawerDeleteBody(let title): return [title]
+        case .chatWebWorkingOn(let site): return [site]
+        case .chatWebActivityOpening(let site): return [site]
+        case .chatWebActivityReading(let site): return [site]
+        case .chatWebActivityFinding(let site): return [site]
+        case .chatWebActivityScrolling(let site): return [site]
+        case .chatWebActivityWaiting(let site): return [site]
+        case .chatWebActivityPacing(let site): return [site]
+        case .chatWebElapsed(let time): return [time]
+        case .chatWebStepNumber(let number): return [Int64(number)]
+        case .chatWebStepOpen(let site): return [site]
+        case .chatWebStepRead(let site): return [site]
+        case .chatWebStepFind(let site): return [site]
+        case .chatWebStepScroll(let site): return [site]
+        case .chatWebStepBack(let site): return [site]
+        case .chatWebStepWait(let site): return [site]
+        case .chatWebCardAccessibility(let activity, let step, let elapsed): return [activity, Int64(step), elapsed]
         default: return []
         }
     }
@@ -1923,6 +2021,47 @@ enum AppText: Equatable {
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
         case .drawerDeleteTitle: return "刪除這個對話？"
         case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
+        case .chatWebTitle: return "網頁任務"
+        case .chatWebWorkingOn: return "正在操作%1$@"
+        case .chatWebPaused: return "已暫停：回到渥屋助理就會繼續"
+        case .chatWebActivityThinking: return "正在想下一步…"
+        case .chatWebActivityOpening: return "正在開啟 %1$@"
+        case .chatWebActivityReading: return "正在讀 %1$@"
+        case .chatWebActivityFinding: return "正在 %1$@ 找文字"
+        case .chatWebActivityScrolling: return "正在滾動 %1$@"
+        case .chatWebActivityBack: return "正在回上一頁"
+        case .chatWebActivityWaiting: return "正在等 %1$@ 變化"
+        case .chatWebActivityPacing: return "讀完這頁，稍等一下再開 %1$@ 的下一頁"
+        case .chatWebElapsed: return "已進行 %1$@"
+        case .chatWebStepNumber: return "第 %1$lld 步"
+        case .chatWebStepOpen: return "開啟網頁 · %1$@"
+        case .chatWebStepRead: return "讀網頁 · %1$@"
+        case .chatWebStepFind: return "找文字 · %1$@"
+        case .chatWebStepScroll: return "滾動 · %1$@"
+        case .chatWebStepBack: return "返回 · %1$@"
+        case .chatWebStepWait: return "等網頁變化 · %1$@"
+        case .chatWebStepFailed: return "沒成功"
+        case .chatWebViewProcess: return "檢視過程"
+        case .chatWebStop: return "停止"
+        case .chatWebShowScreen: return "顯示畫面"
+        case .chatWebHideScreen: return "隱藏畫面"
+        case .chatWebShrink: return "縮小"
+        case .chatWebViewPage: return "查看網頁"
+        case .chatWebForegroundNote: return "在 App 開著時進行。點小畫面可以放大看，離開 App 會暫停。"
+        case .chatWebProcessTitle: return "過程"
+        case .chatWebProcessDone: return "完成"
+        case .chatWebProcessEmpty: return "還沒有步驟。"
+        case .chatWebCardAccessibility: return "網頁任務：%1$@，第 %2$lld 步，已進行 %3$@"
+        case .chatWebSourcesHeading: return "來源"
+        case .chatWebPagesReadHeading: return "已讀的頁面"
+        case .chatWebNotDone: return "沒有完成"
+        case .chatWebStopped: return "已停止。"
+        case .chatWebStopRepeating: return "一直重複同樣的步驟，所以先停下來。"
+        case .chatWebStopFailures: return "連續好幾步都沒成功，所以先停下來。"
+        case .chatWebStopInvalidCommands: return "模型沒有給出可用的下一步，所以先停下來。"
+        case .chatWebStopModelFailed: return "呼叫模型失敗，網頁任務停在這裡。請檢查模型設定或網路後再試一次。"
+        case .chatWebConsentTitle: return "網頁任務"
+        case .chatWebConsentBody: return "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，並把網址、標題和網頁文字傳給你選的模型服務。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。"
         }
     }
 }

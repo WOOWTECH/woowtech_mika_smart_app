@@ -66,20 +66,16 @@ public struct ChatWebPagePacing: Sendable {
 public enum ChatWebTaskPrompts {
     /// Added to an ordinary chat's instructions so the model can start a web
     /// task (the Play build's folded web tool group: two entry tools first).
+    /// How the web task offer begins; synthetic UI fixtures recognize it.
+    public static let entryLead = "Web tasks:"
+
     public static func entryInstructions(searchTemplate: String) -> String {
         """
-        Web tasks: when the user's CURRENT message asks for current information from websites or for something to be done on a website, do not answer from memory. Start a web task in the app's built-in browser by returning exactly one JSON object and nothing else:
+        \(entryLead) when the user's CURRENT message asks for current information from websites or for something to be done on a website, do not answer from memory. Start a web task in the app's built-in browser by returning exactly one JSON object and nothing else:
         {"action":"web_read_page","url":"https://…"} opens a page and reads its text, or {"action":"web_navigate","url":"https://…"} opens a page. More web commands become available once the task starts.
         To search, open the search URL \(searchTemplate) with %s replaced by the URL-encoded words, or the site's own search or list page when you know it.
         A question about your abilities, an explanation, or a hypothetical plan does not need the web; answer it directly.
         """
-    }
-
-    /// The first system message of an ordinary chat without memory tools.
-    public static let plainEntryPrefix = "Ordinary chat. Answer in plain text or Markdown."
-
-    public static func plainInstructions(searchTemplate: String) -> String {
-        plainEntryPrefix + "\n" + entryInstructions(searchTemplate: searchTemplate)
     }
 
     /// The web task's own instructions, then Play's identity line and safety

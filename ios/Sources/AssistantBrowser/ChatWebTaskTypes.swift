@@ -30,6 +30,9 @@ public enum ChatWebCommand: Equatable, Sendable {
     public static let maximumWaitSeconds = 15
     /// The two commands that start a web task from an ordinary chat reply.
     public static let entryActions: Set<String> = ["web_navigate", "web_read_page"]
+    /// Every command a web task offers, for skills that name the tools they use.
+    public static let toolNames: Set<String> = ["web_navigate", "web_read_page", "web_open_link", "web_find", "web_scroll",
+                                                "web_back", "web_wait_for", "end_not_done"]
 
     public var action: String {
         switch self {

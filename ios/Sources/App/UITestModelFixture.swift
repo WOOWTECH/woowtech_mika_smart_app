@@ -1,4 +1,5 @@
 #if DEBUG
+import AssistantBrowser
 import AssistantModels
 import AssistantSkills
 import Foundation
@@ -36,7 +37,7 @@ enum UITestModelFixture {
         let credentials: any ModelCredentialStoring = arguments.contains("-UITestKeychainWriteFailure")
             ? FailingWrites(base: keychain) : keychain
         let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials, providers: providers)
-        if arguments.contains("-UITestMCPFixture") {
+        if arguments.contains("-UITestMCPFixture") || arguments.contains(ChatWebTaskFixture.flag) {
             // A configured model the user already agreed to share content with.
             do {
                 _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key")
@@ -194,17 +195,25 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
 actor UITestChatModelClient: ChatModelClient {
     private var failedOnce = false
 
-    /// Plain chat now offers the skill tools in a leading system message; the
-    /// closed fixtures answer as before and never start a skill tool.
+    /// Plain chat now offers the skill tools and the web task commands in a
+    /// leading system message; the closed fixtures answer as before and start
+    /// a skill tool never, a web task only for the web fixture prompts.
     static func withoutSkillOffer(_ messages: [ModelMessage]) -> [ModelMessage] {
         guard let first = messages.first, first.role == "system",
-              first.content.hasPrefix(ChatSkillPrompts.plainChatLead) else { return messages }
+              first.content.hasPrefix(ChatSkillPrompts.plainChatLead) || first.content.hasPrefix(ChatWebTaskPrompts.entryLead)
+        else { return messages }
         return Array(messages.dropFirst())
     }
 
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if input.first?.role == "system", input.first?.content.contains(ChatWebTaskPrompts.entryLead) == true,
+           !(input.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") ?? true),
+           let entry = ChatWebTaskUITestModel.entry(for: input.last?.content ?? "") { return entry }
         let messages = Self.withoutSkillOffer(UITestModelFixture.withoutPlainChatRules(input))
         let instructions = messages.first?.content ?? ""
+        if instructions.hasPrefix("You are carrying out the user's request in the app's built-in browser.") {
+            return try await ChatWebTaskUITestModel.next(messages: messages)
+        }
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true
                 || messages.last?.content.hasPrefix("Host memory_edit receipt") == true {
@@ -214,6 +223,7 @@ actor UITestChatModelClient: ChatModelClient {
                 return #"{"action":"finish","answer":"個人檔案工具已完成。"}"#
             }
             let prompt = messages.last?.content ?? ""
+            if instructions.contains("Web tasks:"), let entry = ChatWebTaskUITestModel.entry(for: prompt) { return entry }
             func memoryCommand(_ name: String, _ arguments: [String: Any]) throws -> String {
                 String(decoding: try JSONSerialization.data(withJSONObject:
                     ["action": name, "arguments": arguments]), as: UTF8.self)

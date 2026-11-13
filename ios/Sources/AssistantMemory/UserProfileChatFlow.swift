@@ -16,10 +16,14 @@ public enum UserProfileChatStep: Equatable, Sendable {
     /// skill_save); the host runs the skill tools step after its own exact
     /// command validation. No profile or memory change goes with it.
     case skillEntry(json: String)
+    /// The model asked to start a web task (web_read_page or web_navigate);
+    /// the host runs it after its own whole-command validation.
+    case webEntry(json: String)
 }
 
-/// Lets an ordinary chat use the Play build's skill tools. The host supplies
-/// the wording and its exact command validator.
+/// Lets an ordinary chat use the Play build's skill tools, or start a web
+/// task (one entry each). The host supplies the wording and its exact command
+/// validator.
 public struct UserProfileChatSkillEntry: Sendable {
     public let instructions: String
     public let accepts: @Sendable (String) -> Bool
@@ -44,9 +48,12 @@ public struct UserProfileChatSkillEntry: Sendable {
     public private(set) var modelCalls = 0
     public private(set) var didCommit = false
     private let skillEntry: UserProfileChatSkillEntry?
+    private let webEntry: UserProfileChatSkillEntry?
 
+    /// `webEntry` offers the web task commands (the Play build's folded web
+    /// tools) the same way as the skill tools: wording and exact validator.
     public init(messages: [ModelMessage], timeout: Duration = .seconds(90),
-                skillEntry: UserProfileChatSkillEntry? = nil) throws {
+                skillEntry: UserProfileChatSkillEntry? = nil, webEntry: UserProfileChatSkillEntry? = nil) throws {
         guard timeout > .zero, timeout <= .seconds(90),
               !messages.isEmpty, messages.count <= 32,
               messages.allSatisfy({ ["system", "user", "assistant"].contains($0.role) }),
@@ -56,7 +63,10 @@ public struct UserProfileChatSkillEntry: Sendable {
             throw UserProfileChatError.invalidInput
         }
         self.skillEntry = skillEntry
-        let instructions = skillEntry.map { Self.instructions + "\n" + $0.instructions } ?? Self.instructions
+        self.webEntry = webEntry
+        // One offer: the skill tools, then the web task commands, after the flow's own wording.
+        let offers = [skillEntry?.instructions, webEntry?.instructions].compactMap { $0 }
+        let instructions = ([Self.instructions] + offers).joined(separator: "\n")
         self.messages = [ModelMessage(role: "system", content: instructions)] + messages
         deadline = .now.advanced(by: timeout)
     }
@@ -107,7 +117,7 @@ public struct UserProfileChatSkillEntry: Sendable {
                 try validateState?()
                 guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
-                do { step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil) }
+                do { step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil, webEntry: allowsEdit ? webEntry : nil) }
                 catch let error as UserProfileChatError where error == .invalidCommand {
                     if preview?.current != nil { onAnswerPreview?(nil) }
                     guard !corrected, modelCalls < 3 else { throw error }
@@ -125,7 +135,7 @@ public struct UserProfileChatSkillEntry: Sendable {
                     }
                 }
                 switch step {
-                case .answer, .skillEntry:
+                case .answer, .skillEntry, .webEntry:
                     phase = .ended
                 case .proposedEdit, .proposedMemoryChange:
                     guard allowsEdit, modelCalls < 3 else { throw UserProfileChatError.callLimit }
@@ -211,7 +221,8 @@ public struct UserProfileChatSkillEntry: Sendable {
         }
     }
 
-    private static func parse(_ text: String, skillEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
+    private static func parse(_ text: String, skillEntry: UserProfileChatSkillEntry?,
+                              webEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
         guard let rawFields = try? RawCommandEnvelope.fields(in: text) else {
             throw UserProfileChatError.invalidCommand
         }
@@ -221,6 +232,9 @@ public struct UserProfileChatSkillEntry: Sendable {
         case "skill_search", "skill_read", "skill_save":
             guard let skillEntry, skillEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
             return .skillEntry(json: text)
+        case "web_navigate", "web_read_page":
+            guard let webEntry, webEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
+            return .webEntry(json: text)
         case "finish":
             guard Set(object.keys) == ["action", "answer"], let answer = object["answer"] as? String,
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

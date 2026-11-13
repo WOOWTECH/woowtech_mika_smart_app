@@ -22,9 +22,9 @@ REPORT_SOURCES = ['Sources/App/AIResponseReports.swift', 'Sources/App/AIResponse
 # separate, so each one appends the identity line and the rules to its own
 # instructions, or sends them alone when it has none.
 COVERED = {
-    # Ordinary chat: the skill tools offer when there is one, then the rules.
+    # Ordinary chat: the skill tools and web task offers when there are any, then the rules.
     'Sources/App/ChatSession.swift': [
-        'let messages = [AISafetyRules.systemMessage(instructions: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) })] + input'],
+        'let messages = [AISafetyRules.systemMessage(instructions: offer)] + input'],
     # The skill tools step of an ordinary chat.
     'Sources/AssistantSkills/ChatSkillTools.swift': [
         'let system = ModelMessage(role: "system", content: AISafetyRules.appended(to: ChatSkillPrompts.run(index: catalog().index())))'],

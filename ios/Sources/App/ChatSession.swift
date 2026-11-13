@@ -1,3 +1,4 @@
+import AssistantBrowser
 import AssistantModels
 import AssistantMCP
 import AssistantMemory
@@ -172,6 +173,20 @@ enum ChatBranchOutcome: Equatable {
     case failed
 }
 
+/// An ordinary chat reply, or the command that starts a web task.
+enum ChatPathReply {
+    case answer(String)
+    case web(ChatWebCommand, raw: String)
+
+    /// A plain reply is a web entry only when it is exactly that command.
+    static func plain(_ text: String, allowsWeb: Bool) -> ChatPathReply {
+        if allowsWeb, let command = try? ChatWebCommand.parseEntry(text) {
+            return .web(command, raw: ChatWebCommand.unfenced(text))
+        }
+        return .answer(text)
+    }
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -232,6 +247,13 @@ final class ChatSession: ObservableObject {
     @Published private(set) var profileReceipt: UserProfileToolReceipt?
     private var profileReceiptRequestID: UUID?
     @Published private(set) var memoryReceipt: MemoryToolReceipt?
+    /// The web task this request started, while it runs and three seconds after.
+    @Published private(set) var webTask: ChatWebTaskSession?
+    /// The browser's website data and search engine; set by the root view.
+    /// Without it (MCP conversations, hosted tests) chat offers no web tasks.
+    var webTaskEnvironment: (@MainActor () -> ChatWebTaskEnvironment?)?
+    /// The interface language for text a web task writes into the conversation.
+    var interfaceLanguage: @MainActor () -> AppDisplayLanguage = { .traditionalChinese }
     private var memoryReceiptRequestID: UUID?
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
@@ -969,6 +991,9 @@ final class ChatSession: ObservableObject {
         // Like Play, ordinary chat always offers the skill tools, whatever the
         // memory switches; MCP conversations keep their own runner.
         let skillIndex: String?? = mcpConnection == nil ? .some(chatSkillCatalog().index()) : nil
+        // Like Android every message may also become a web task; MCP
+        // conversations keep their own runner in this phase.
+        let webEnvironment = mcpConnection == nil ? webTaskEnvironment?() : nil
         // The provider's session header (OpenCode Go) carries this conversation's value.
         let configuration = savedSettings.configuration(conversation: conversationID)
         let id = UUID()
@@ -1003,18 +1028,35 @@ final class ChatSession: ObservableObject {
                                                  attachments: prepared.attachments))
                 }
                 let reply: String
+                var webResult: ChatWebTaskResult?
                 if let (connection, tools, resources) = mcpConnection {
                     reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
                         key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
-                } else if useLearningTools {
-                    reply = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
-                        state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
-                        key: key, client: client, requestID: id, skillIndex: skillIndex) ?? ""
                 } else {
-                    reply = try await self?.completePlain(messages: outgoing, configuration: configuration,
-                        key: key, client: client, requestID: id, skillIndex: skillIndex, utterance: utterance) ?? ""
+                    let path: ChatPathReply
+                    if useLearningTools {
+                        path = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
+                            state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
+                            key: key, client: client, requestID: id, skillIndex: skillIndex,
+                            web: webEnvironment.map(Self.webEntry)) ?? .answer("")
+                    } else {
+                        path = try await self?.completePlain(messages: outgoing, configuration: configuration,
+                            key: key, client: client, requestID: id, skillIndex: skillIndex, utterance: utterance,
+                            webOffer: webEnvironment.map { ChatWebTaskPrompts.entryInstructions(searchTemplate: $0.searchTemplate) })
+                            ?? .answer("")
+                    }
+                    switch path {
+                    case .answer(let text): reply = text
+                    case .web(let command, let raw):
+                        guard let self, let webEnvironment else { return }
+                        let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing, client: client,
+                                                           configuration: configuration, key: key,
+                                                           environment: webEnvironment, requestID: id)
+                        webResult = result
+                        reply = ChatWebTaskTranscript.text(for: result, localizer: AppLocalizer(language: self.interfaceLanguage()))
+                    }
                 }
                 try Task.checkCancellation()
                 guard let self, self.requestID == id else { return }
@@ -1055,6 +1097,9 @@ final class ChatSession: ObservableObject {
                 // Sent attachments now belong to the transcript; their files stay.
                 if self.pendingAttachments == attachmentsAtStart { self.pendingAttachments = [] }
                 self.finish(id: id)
+                // A round that read web pages is not organized into memory, like
+                // Android (RunLearning). finish(id:) already retired its tab.
+                if webResult != nil { return }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
                 self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
@@ -1176,24 +1221,27 @@ final class ChatSession: ObservableObject {
 
     private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
                                key: String, client: any ChatModelClient, requestID id: UUID,
-                               skillIndex: String?? = nil, utterance: String = "") async throws -> String {
+                               skillIndex: String?? = nil, utterance: String = "",
+                               webOffer: String? = nil) async throws -> ChatPathReply {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        // One system message: the skill tools offer when there is one, then Play's
-        // identity line and safety rules (AISafetyRules).
-        let messages = [AISafetyRules.systemMessage(instructions: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) })] + input
-        // A reply that is exactly one skill tool command starts the skill tools step.
-        func finished(_ text: String) async throws -> String {
-            guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return text }
-            return try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
-                                           configuration: configuration, key: key, client: client, requestID: id)
+        // One system message: the skill tools offer and the web task offer when
+        // there are any, then Play's identity line and safety rules (AISafetyRules).
+        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) }, web: webOffer)
+        let messages = [AISafetyRules.systemMessage(instructions: offer)] + input
+        // A reply that is exactly one skill tool command starts the skill tools
+        // step; one that is exactly a web entry command starts a web task.
+        func finished(_ text: String) async throws -> ChatPathReply {
+            guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
+            return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
+                                                   configuration: configuration, key: key, client: client, requestID: id))
         }
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await finished(try await client.complete(messages: messages, configuration: configuration, apiKey: key))
         }
-        // A reply opening with "{" or a code fence may be a skill command: it is
-        // shown only once it turns out to be an answer.
-        var holds: Bool? = skillIndex == nil ? false : nil
+        // A reply opening with "{" or a code fence may be a skill or web command:
+        // it is shown only once it turns out to be an answer.
+        var holds: Bool? = skillIndex == nil && webOffer == nil ? false : nil
         var text = "", bytes = 0, resent = false
         while true {
             do {
@@ -1254,6 +1302,10 @@ final class ChatSession: ObservableObject {
     }
 
     func cancel() {
+        // Like Android, a stopped web task still leaves its round in the
+        // conversation; the request finishes and writes it. Learning stays
+        // as it is: a new learning generation would refuse to publish the round.
+        if let webTask, webTask.isRunning { webTask.stop(); return }
         learning.cancelLearning()
         guard let id = requestID else { return }
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
@@ -1268,16 +1320,58 @@ final class ChatSession: ObservableObject {
         cancel()
     }
 
+    // MARK: Web tasks from chat
+
+    /// The plain chat's one offer: the skill tools first, then the web task commands.
+    static func plainChatOffer(skills: String?, web: String?) -> String? {
+        let offers = [skills, web].compactMap { $0 }
+        return offers.isEmpty ? nil : offers.joined(separator: "\n")
+    }
+
+    private static func webEntry(_ environment: ChatWebTaskEnvironment) -> UserProfileChatSkillEntry {
+        UserProfileChatSkillEntry(instructions: ChatWebTaskPrompts.entryInstructions(searchTemplate: environment.searchTemplate),
+                                  accepts: { (try? ChatWebCommand.parseEntry($0)) != nil })
+    }
+
+    /// Runs the web task a reply asked for. Like Android there is no overall
+    /// time limit, so the ordinary request deadline ends here.
+    private func runWebTask(entry: ChatWebCommand, raw: String, conversation: [ModelMessage], client: any ChatModelClient,
+                            configuration: ModelConfiguration, key: String, environment: ChatWebTaskEnvironment,
+                            requestID id: UUID) async -> ChatWebTaskResult {
+        deadline?.cancel(); deadline = nil
+        replyPreview = nil
+        let task = ChatWebTaskSession(client: client, configuration: configuration, apiKey: key, environment: environment)
+        webTask = task
+        return await task.run(conversation: conversation, entry: entry, entryRaw: raw)
+    }
+
+    /// The scene changed: a web task pauses in the background and goes on
+    /// when the app is active again; .inactive changes nothing.
+    func webTaskScenePhaseChanged(isActive: Bool, isBackground: Bool) {
+        webTask?.scenePhaseChanged(isActive: isActive, isBackground: isBackground)
+    }
+
+    /// Android leaves the finished task's small view up for three seconds.
+    private func retireWebTask() {
+        guard let task = webTask, !task.isRunning else { return }
+        Task { @MainActor [weak self, weak task] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, let task, self.webTask === task else { return }
+            self.webTask = nil
+            task.tab.close()
+        }
+    }
+
     private func completeWithProfile(messages: [ModelMessage], utterance: String,
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
                                      client: any ChatModelClient, requestID: UUID,
-                                     skillIndex: String?? = nil) async throws -> String {
+                                     skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil) async throws -> ChatPathReply {
         let skillEntry = skillIndex.map {
             UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false),
                                       accepts: { ChatSkillCommand.parseEntry($0) != nil })
         }
-        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry)
+        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         defer { flow.cancel() }
         while true {
@@ -1294,11 +1388,14 @@ final class ChatSession: ObservableObject {
             try Task.checkCancellation()
             guard self.requestID == requestID else { throw CancellationError() }
             switch step {
-            case .answer(let answer): return answer
+            case .answer(let answer): return .answer(answer)
             case .skillEntry(let json):
                 flow.cancel()
-                return try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
-                                               configuration: configuration, key: key, client: client, requestID: requestID)
+                return .answer(try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
+                                                       configuration: configuration, key: key, client: client, requestID: requestID))
+            case .webEntry(let json):
+                // The flow accepted it with this same validator.
+                return .web(try ChatWebCommand.parseEntry(json), raw: ChatWebCommand.unfenced(json))
             case .proposedEdit(let arguments):
                 guard learning.available, learning.memory.preferences.useMemory,
                       learning.generation == generation, learning.profile.revision == state.revision else {
@@ -1341,9 +1438,10 @@ final class ChatSession: ObservableObject {
     }
 
     /// Tool names a saved skill may mention: this chat's tools, like Play's run
-    /// tool list, plus the browser research tools existing iOS skills use.
+    /// tool list (the skill tools and the web task commands), plus the browser
+    /// research tools existing iOS skills use.
     static func chatSkillToolNames(memoryOn: Bool) -> Set<String> {
-        ChatSkillCommand.toolNames.union(BrowserSession.toolNames)
+        ChatSkillCommand.toolNames.union(BrowserSession.toolNames).union(ChatWebCommand.toolNames)
             .union(memoryOn ? ["memory_search", "memory_save", "memory_edit", "profile_edit"] : [])
     }
 
@@ -1507,6 +1605,7 @@ final class ChatSession: ObservableObject {
 
     private func finish(id: UUID, error: String? = nil, text: AppText? = nil) {
         guard requestID == id else { return }
+        retireWebTask()
         if error != nil { stopPreview(id: id, phase: .failed) }
         requestID = nil
         isSubmitting = false

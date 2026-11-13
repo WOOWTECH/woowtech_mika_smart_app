@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 import AssistantSkills
 import AssistantPersistence
+import AssistantBrowser
 
 @MainActor
 struct ContentView: View {
@@ -24,6 +25,10 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    private var webTaskColors: ChatWebTaskColors {
+        ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
+                          fill: palette.assistant, background: palette.background)
+    }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
 
     var body: some View {
@@ -64,8 +69,25 @@ struct ContentView: View {
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
             }
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
+            session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
+            session.webTaskEnvironment = { [weak browserWorkspace] in
+                guard let browserWorkspace else { return nil }
+                var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
+                                                         searchTemplate: browserWorkspace.library.searchSettings.selected.template)
+                #if DEBUG
+                if let fixture = ChatWebTaskFixture.shared {
+                    environment.fixtureOrigin = fixture.originURL
+                    environment.skipsPacing = true
+                }
+                #endif
+                return environment
+            }
+            #if DEBUG
+            Task { _ = try? await ChatWebTaskFixture.shared?.start() }
+            #endif
         }
         .onChange(of: scenePhase) { _, phase in
+            session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
             if phase != .active {
                 session.cancelMCP()
                 browserWorkspace.cancelAllWork()
@@ -91,6 +113,13 @@ struct ContentView: View {
           }
           .id(notificationNavigationID)
           .accessibilityHidden(showsDrawer)
+          if let task = session.webTask {
+              // The task tab stays in the window on every screen; it is seen
+              // only in the chat (Android's small view).
+              ChatWebTaskPreview(task: task, localizer: localizer, colors: webTaskColors,
+                                 isOnScreen: selection == .chat && !showsDrawer, onStop: { session.cancel() })
+                  .id(task.id)
+          }
           if showsDrawer {
               GeometryReader { geometry in
                   ZStack(alignment: .leading) {
@@ -494,6 +523,10 @@ private struct ChatView: View {
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    private var webTaskColors: ChatWebTaskColors {
+        ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
+                          fill: palette.assistant, background: palette.background)
+    }
     private var attachmentText: ChatAttachmentText { ChatAttachmentText(localizer: localizer) }
     private var menuText: ChatMessageMenuText { ChatMessageMenuText(localizer: localizer) }
     private var attachmentColors: ChatAttachmentColors {
@@ -776,7 +809,7 @@ private struct ChatView: View {
 
     @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
-        if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
+        if session.entries.isEmpty && session.replyPreview == nil && session.webTask == nil && session.shownSendBlocker == nil {
             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
         }
         if !session.hasStoredKey && session.shownSendBlocker == nil {
@@ -804,6 +837,10 @@ private struct ChatView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .id(preview.id)
+        }
+        if let task = session.webTask {
+            ChatWebTaskCard(task: task, localizer: localizer, colors: webTaskColors, onStop: { session.cancel() })
+                .id(task.id)
         }
         if session.shownSendBlocker != nil && blockedCardFitsTranscript {
             sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
@@ -834,7 +871,7 @@ private struct ChatView: View {
             // An empty conversation is a browsable list, not a transcript
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
-            let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil
+            let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
             if scrollFollow.observe(position, hasTranscript: hasTranscript) {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
@@ -843,7 +880,7 @@ private struct ChatView: View {
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
             scrollFollow.conversationChanged()
-            if !session.entries.isEmpty || session.replyPreview != nil {
+            if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
         }
@@ -857,7 +894,7 @@ private struct ChatView: View {
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil) {
+            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
                 Button {
                     cancelScrollSettle()
                     scrollFollow.userRequestedLatest()

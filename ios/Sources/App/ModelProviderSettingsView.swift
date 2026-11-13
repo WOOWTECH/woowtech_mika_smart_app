@@ -1007,6 +1007,17 @@ struct ModelConsentSheet: View {
                         .accessibilityIdentifier("consent.item." + item.rawValue)
                     }
                 }
+                // Web tasks from chat, after the ten items; the privacy policy has the same section.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: localizer.text(.chatWebConsentTitle))
+                        .font(.callout.weight(.semibold)).foregroundStyle(palette.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(verbatim: localizer.text(.chatWebConsentBody))
+                        .font(.callout).foregroundStyle(palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("consent.webTasks")
                 paragraph(localizer.text(.consentThirdParty(provider: prompt.providerName)), id: "consent.thirdParty")
                 paragraph(localizer.text(declineText), id: "consent.decline.note")
                 if prompt.purpose != .send {

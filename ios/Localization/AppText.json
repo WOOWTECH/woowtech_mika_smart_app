@@ -5892,6 +5892,463 @@
         "zh-Hant": "「%1$@」和裡面的檔案都會刪掉。",
         "en": "“%1$@” and the files in it will be deleted."
       }
+    },
+    {
+      "case": "chatWebTitle",
+      "key": "chat.web.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁任務",
+        "en": "Web task"
+      }
+    },
+    {
+      "case": "chatWebWorkingOn",
+      "key": "chat.web.workingOn",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在操作%1$@",
+        "en": "Working in %1$@"
+      }
+    },
+    {
+      "case": "chatWebPaused",
+      "key": "chat.web.paused",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已暫停：回到渥屋助理就會繼續",
+        "en": "Paused. It continues when you return to woowtech agent."
+      }
+    },
+    {
+      "case": "chatWebActivityThinking",
+      "key": "chat.web.activity.thinking",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在想下一步…",
+        "en": "Deciding the next step…"
+      }
+    },
+    {
+      "case": "chatWebActivityOpening",
+      "key": "chat.web.activity.opening",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在開啟 %1$@",
+        "en": "Opening %1$@"
+      }
+    },
+    {
+      "case": "chatWebActivityReading",
+      "key": "chat.web.activity.reading",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在讀 %1$@",
+        "en": "Reading %1$@"
+      }
+    },
+    {
+      "case": "chatWebActivityFinding",
+      "key": "chat.web.activity.finding",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在 %1$@ 找文字",
+        "en": "Finding text on %1$@"
+      }
+    },
+    {
+      "case": "chatWebActivityScrolling",
+      "key": "chat.web.activity.scrolling",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在滾動 %1$@",
+        "en": "Scrolling %1$@"
+      }
+    },
+    {
+      "case": "chatWebActivityBack",
+      "key": "chat.web.activity.back",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在回上一頁",
+        "en": "Going back"
+      }
+    },
+    {
+      "case": "chatWebActivityWaiting",
+      "key": "chat.web.activity.waiting",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在等 %1$@ 變化",
+        "en": "Waiting for %1$@ to change"
+      }
+    },
+    {
+      "case": "chatWebActivityPacing",
+      "key": "chat.web.activity.pacing",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "讀完這頁，稍等一下再開 %1$@ 的下一頁",
+        "en": "Pausing before the next page of %1$@"
+      }
+    },
+    {
+      "case": "chatWebElapsed",
+      "key": "chat.web.elapsed",
+      "parameters": [
+        {
+          "name": "time",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "已進行 %1$@",
+        "en": "%1$@ elapsed"
+      }
+    },
+    {
+      "case": "chatWebStepNumber",
+      "key": "chat.web.stepNumber",
+      "parameters": [
+        {
+          "name": "number",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "第 %1$lld 步",
+        "en": "Step %1$lld"
+      }
+    },
+    {
+      "case": "chatWebStepOpen",
+      "key": "chat.web.step.open",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "開啟網頁 · %1$@",
+        "en": "Open web page · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepRead",
+      "key": "chat.web.step.read",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "讀網頁 · %1$@",
+        "en": "Read web page · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepFind",
+      "key": "chat.web.step.find",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "找文字 · %1$@",
+        "en": "Find text · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepScroll",
+      "key": "chat.web.step.scroll",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "滾動 · %1$@",
+        "en": "Scroll · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepBack",
+      "key": "chat.web.step.back",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "返回 · %1$@",
+        "en": "Back · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepWait",
+      "key": "chat.web.step.wait",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "等網頁變化 · %1$@",
+        "en": "Wait for page change · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepFailed",
+      "key": "chat.web.step.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒成功",
+        "en": "Failed"
+      }
+    },
+    {
+      "case": "chatWebViewProcess",
+      "key": "chat.web.viewProcess",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢視過程",
+        "en": "See how it went"
+      }
+    },
+    {
+      "case": "chatWebStop",
+      "key": "chat.web.stop",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "停止",
+        "en": "Stop"
+      }
+    },
+    {
+      "case": "chatWebShowScreen",
+      "key": "chat.web.showScreen",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "顯示畫面",
+        "en": "Show screen"
+      }
+    },
+    {
+      "case": "chatWebHideScreen",
+      "key": "chat.web.hideScreen",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "隱藏畫面",
+        "en": "Hide screen"
+      }
+    },
+    {
+      "case": "chatWebShrink",
+      "key": "chat.web.shrink",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "縮小",
+        "en": "Make smaller"
+      }
+    },
+    {
+      "case": "chatWebViewPage",
+      "key": "chat.web.viewPage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "查看網頁",
+        "en": "View page"
+      }
+    },
+    {
+      "case": "chatWebForegroundNote",
+      "key": "chat.web.foregroundNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在 App 開著時進行。點小畫面可以放大看，離開 App 會暫停。",
+        "en": "Runs while the app is open. Tap the small view to enlarge it; leaving the app pauses it."
+      }
+    },
+    {
+      "case": "chatWebProcessTitle",
+      "key": "chat.web.process.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "過程",
+        "en": "How it went"
+      }
+    },
+    {
+      "case": "chatWebProcessDone",
+      "key": "chat.web.process.done",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "完成",
+        "en": "Done"
+      }
+    },
+    {
+      "case": "chatWebProcessEmpty",
+      "key": "chat.web.process.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有步驟。",
+        "en": "No steps yet."
+      }
+    },
+    {
+      "case": "chatWebCardAccessibility",
+      "key": "chat.web.card.accessibility",
+      "parameters": [
+        {
+          "name": "activity",
+          "type": "String"
+        },
+        {
+          "name": "step",
+          "type": "Int"
+        },
+        {
+          "name": "elapsed",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "網頁任務：%1$@，第 %2$lld 步，已進行 %3$@",
+        "en": "Web task: %1$@, step %2$lld, %3$@ elapsed"
+      }
+    },
+    {
+      "case": "chatWebSourcesHeading",
+      "key": "chat.web.sourcesHeading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源",
+        "en": "Sources"
+      }
+    },
+    {
+      "case": "chatWebPagesReadHeading",
+      "key": "chat.web.pagesReadHeading",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已讀的頁面",
+        "en": "Pages read"
+      }
+    },
+    {
+      "case": "chatWebNotDone",
+      "key": "chat.web.notDone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有完成",
+        "en": "Not finished"
+      }
+    },
+    {
+      "case": "chatWebStopped",
+      "key": "chat.web.stopped",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停止。",
+        "en": "Stopped."
+      }
+    },
+    {
+      "case": "chatWebStopRepeating",
+      "key": "chat.web.stop.repeating",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一直重複同樣的步驟，所以先停下來。",
+        "en": "It kept repeating the same step, so it stopped."
+      }
+    },
+    {
+      "case": "chatWebStopFailures",
+      "key": "chat.web.stop.failures",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連續好幾步都沒成功，所以先停下來。",
+        "en": "Several steps in a row failed, so it stopped."
+      }
+    },
+    {
+      "case": "chatWebStopInvalidCommands",
+      "key": "chat.web.stop.invalidCommands",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "模型沒有給出可用的下一步，所以先停下來。",
+        "en": "The model didn’t give a usable next step, so it stopped."
+      }
+    },
+    {
+      "case": "chatWebStopModelFailed",
+      "key": "chat.web.stop.modelFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗，網頁任務停在這裡。請檢查模型設定或網路後再試一次。",
+        "en": "The model call failed, so the web task stopped here. Check the model settings or the network and try again."
+      }
+    },
+    {
+      "case": "chatWebConsentTitle",
+      "key": "chat.web.consent.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網頁任務",
+        "en": "Web tasks"
+      }
+    },
+    {
+      "case": "chatWebConsentBody",
+      "key": "chat.web.consent.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，並把網址、標題和網頁文字傳給你選的模型服務。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。",
+        "en": "When you ask woowtech agent to use the web in a chat, it opens websites in the app’s built-in browser, reads them, and sends page addresses, titles and text to the model service you chose. The task tab shares website data with the built-in browser, so it may read sites you signed in to in the app. Screenshots, cookies, passwords and what you type into fields are not sent."
+      }
     }
   ]
 }
