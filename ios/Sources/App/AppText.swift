@@ -512,6 +512,9 @@ enum AppText: Equatable {
     case voiceSpeechRestricted
     case voiceUnavailable
     case voiceAudioError
+    case chatSkillFind
+    case chatSkillRead
+    case chatSkillSave
     case voiceRecognitionError
     case voiceTimeout
     case voiceSettings
@@ -1091,6 +1094,9 @@ enum AppText: Equatable {
         case .voiceSpeechRestricted: return "chat.voiceSpeechRestricted"
         case .voiceUnavailable: return "chat.voiceUnavailable"
         case .voiceAudioError: return "chat.voiceAudioError"
+        case .chatSkillFind: return "chat.skill.find"
+        case .chatSkillRead: return "chat.skill.read"
+        case .chatSkillSave: return "chat.skill.save"
         case .voiceRecognitionError: return "chat.voiceRecognitionError"
         case .voiceTimeout: return "chat.voiceTimeout"
         case .voiceSettings: return "chat.voiceSettings"
@@ -1728,6 +1734,9 @@ enum AppText: Equatable {
         case .voiceSpeechRestricted: return "此裝置的語音辨識受到限制，請檢查裝置限制。"
         case .voiceUnavailable: return "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。"
         case .voiceAudioError: return "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。"
+        case .chatSkillFind: return "查詢技能"
+        case .chatSkillRead: return "檢視技能"
+        case .chatSkillSave: return "儲存技能"
         case .voiceRecognitionError: return "辨識失敗，請再試一次。"
         case .voiceTimeout: return "語音辨識逾時，請再試一次。"
         case .voiceSettings: return "前往設定"

@@ -226,6 +226,8 @@ final class ChatSession: ObservableObject {
     @Published var usesMCP = false
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
+    /// The skill tool running in this request (Play's chat step labels).
+    @Published private(set) var skillStep: ChatSkillStep?
     @Published private(set) var mcpDiagnostics: String?
     @Published private(set) var profileReceipt: UserProfileToolReceipt?
     private var profileReceiptRequestID: UUID?
@@ -964,6 +966,9 @@ final class ChatSession: ObservableObject {
         let profileState = learning.profile
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
+        // Like Play, ordinary chat always offers the skill tools, whatever the
+        // memory switches; MCP conversations keep their own runner.
+        let skillIndex: String?? = mcpConnection == nil ? .some(chatSkillCatalog().index()) : nil
         // The provider's session header (OpenCode Go) carries this conversation's value.
         let configuration = savedSettings.configuration(conversation: conversationID)
         let id = UUID()
@@ -1006,10 +1011,10 @@ final class ChatSession: ObservableObject {
                 } else if useLearningTools {
                     reply = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
                         state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
-                        key: key, client: client, requestID: id) ?? ""
+                        key: key, client: client, requestID: id, skillIndex: skillIndex) ?? ""
                 } else {
                     reply = try await self?.completePlain(messages: outgoing, configuration: configuration,
-                        key: key, client: client, requestID: id) ?? ""
+                        key: key, client: client, requestID: id, skillIndex: skillIndex, utterance: utterance) ?? ""
                 }
                 try Task.checkCancellation()
                 guard let self, self.requestID == id else { return }
@@ -1169,13 +1174,24 @@ final class ChatSession: ObservableObject {
         catch { settingsError = Self.settingsMessage(error) }
     }
 
-    private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
-                               key: String, client: any ChatModelClient, requestID id: UUID) async throws -> String {
+    private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
+                               key: String, client: any ChatModelClient, requestID id: UUID,
+                               skillIndex: String?? = nil, utterance: String = "") async throws -> String {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        guard let streaming = client as? any StreamingChatModelClient else {
-            return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
+        let messages = skillIndex.map { [ModelMessage(role: "system", content: ChatSkillPrompts.entry(index: $0, plainChat: true))] + input } ?? input
+        // A reply that is exactly one skill tool command starts the skill tools step.
+        func finished(_ text: String) async throws -> String {
+            guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return text }
+            return try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
+                                           configuration: configuration, key: key, client: client, requestID: id)
         }
+        guard let streaming = client as? any StreamingChatModelClient else {
+            return try await finished(try await client.complete(messages: messages, configuration: configuration, apiKey: key))
+        }
+        // A reply opening with "{" or a code fence may be a skill command: it is
+        // shown only once it turns out to be an answer.
+        var holds: Bool? = skillIndex == nil ? false : nil
         var text = "", bytes = 0, resent = false
         while true {
             do {
@@ -1187,7 +1203,8 @@ final class ChatSession: ObservableObject {
                     }
                     guard !delta.isEmpty else { continue }
                     bytes += delta.utf8.count; text += delta
-                    replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving)
+                    if holds == nil, let first = text.first(where: { !$0.isWhitespace }) { holds = first == "{" || first == "`" }
+                    if holds == false { replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving) }
                 }
                 break
             } catch HTTPStreamFallbackError.usageOptionUnsupported where !resent && bytes == 0 {
@@ -1200,7 +1217,7 @@ final class ChatSession: ObservableObject {
         }
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        return text
+        return try await finished(text)
     }
 
     private func stopPreview(id: UUID, phase: ChatReplyPreview.Phase) {
@@ -1252,8 +1269,13 @@ final class ChatSession: ObservableObject {
     private func completeWithProfile(messages: [ModelMessage], utterance: String,
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
-                                     client: any ChatModelClient, requestID: UUID) async throws -> String {
-        let flow = try UserProfileChatFlow(messages: messages)
+                                     client: any ChatModelClient, requestID: UUID,
+                                     skillIndex: String?? = nil) async throws -> String {
+        let skillEntry = skillIndex.map {
+            UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false),
+                                      accepts: { ChatSkillCommand.parseEntry($0) != nil })
+        }
+        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         defer { flow.cancel() }
         while true {
@@ -1271,6 +1293,10 @@ final class ChatSession: ObservableObject {
             guard self.requestID == requestID else { throw CancellationError() }
             switch step {
             case .answer(let answer): return answer
+            case .skillEntry(let json):
+                flow.cancel()
+                return try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
+                                               configuration: configuration, key: key, client: client, requestID: requestID)
             case .proposedEdit(let arguments):
                 guard learning.available, learning.memory.preferences.useMemory,
                       learning.generation == generation, learning.profile.revision == state.revision else {
@@ -1301,6 +1327,50 @@ final class ChatSession: ObservableObject {
                 try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
             }
         }
+    }
+
+    // MARK: Skill tools in ordinary chat (Play's skill_search, skill_read, skill_save)
+
+    private static let bundledSkills: BundledSkillCatalog? = try? BundledSkillCatalog.bundled()
+
+    /// The bundled skills plus the user's personal skills in use, read fresh.
+    func chatSkillCatalog() -> ChatSkillCatalog {
+        ChatSkillCatalog(bundled: Self.bundledSkills, skills: learning.available ? learning.skills : SkillsState())
+    }
+
+    /// Tool names a saved skill may mention: this chat's tools, like Play's run
+    /// tool list, plus the browser research tools existing iOS skills use.
+    static func chatSkillToolNames(memoryOn: Bool) -> Set<String> {
+        ChatSkillCommand.toolNames.union(BrowserSession.toolNames)
+            .union(memoryOn ? ["memory_search", "memory_save", "memory_edit", "profile_edit"] : [])
+    }
+
+    private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
+                               configuration: ModelConfiguration, key: String, client: any ChatModelClient,
+                               requestID id: UUID) async throws -> String {
+        guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
+        // Like Play there is no fixed chat deadline once tools run; the step keeps
+        // its own call and time limits.
+        deadline?.cancel(); deadline = nil
+        replyPreview = nil
+        let toolNames = Self.chatSkillToolNames(memoryOn: memoryOn)
+        let run = ChatSkillToolRun(conversation: conversation,
+            catalog: { [weak self] in self?.chatSkillCatalog() ?? ChatSkillCatalog(bundled: nil, skills: SkillsState()) },
+            utterances: [utterance],
+            save: { [weak self] markdown, version in
+                guard let self, self.requestID == id else { throw CancellationError() }
+                // The model's own save, like Play's: it keeps this request going.
+                return try self.learning.commitChatSkillSave(markdown, version: version, availableToolNames: toolNames,
+                                                             builtinNames: self.chatSkillCatalog().builtinNames)
+            },
+            onStep: { [weak self] step in
+                guard let self, self.requestID == id else { return }
+                self.skillStep = step
+            })
+        return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
+                                 validateState: { [weak self] in
+            guard let self, self.requestID == id else { throw CancellationError() }
+        })
     }
 
     private func validateMemoryRun(_ run: MemoryToolRun, generation: UUID) throws {
@@ -1439,6 +1509,7 @@ final class ChatSession: ObservableObject {
         requestID = nil
         isSubmitting = false
         isMCPRun = false
+        skillStep = nil
         request = nil
         deadline?.cancel()
         deadline = nil

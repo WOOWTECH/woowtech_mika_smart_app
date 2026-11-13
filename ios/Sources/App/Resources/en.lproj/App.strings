@@ -504,6 +504,9 @@
 "chat.voiceSpeechRestricted" = "Speech recognition is restricted on this device. Check device restrictions.";
 "chat.voiceUnavailable" = "On-device speech recognition is unavailable. Use the keyboard; provider transcription is not yet supported.";
 "chat.voiceAudioError" = "Audio is unavailable or was interrupted. Check your microphone and audio route, then try again.";
+"chat.skill.find" = "Look up skills";
+"chat.skill.read" = "Read skill";
+"chat.skill.save" = "Save skill";
 "chat.voiceRecognitionError" = "Recognition failed. Please try again.";
 "chat.voiceTimeout" = "Speech recognition timed out. Please try again.";
 "chat.voiceSettings" = "Open Settings";

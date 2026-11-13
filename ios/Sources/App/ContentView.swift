@@ -708,6 +708,11 @@ private struct ChatView: View {
                 .accessibilityIdentifier("chat.mcpActivity")
                 .accessibilityValue(session.mcpDiagnostics ?? "")
         }
+        if let step = session.skillStep {
+            // Play's chat step line while a skill tool runs.
+            Text(localizer.text(step == .find ? .chatSkillFind : step == .read ? .chatSkillRead : .chatSkillSave))
+                .font(.caption).accessibilityIdentifier("chat.skillStep")
+        }
         if session.profileReceipt != nil {
             Text("本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。")
                 .font(.caption).accessibilityIdentifier("chat.profileReceipt")

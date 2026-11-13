@@ -3,6 +3,7 @@ import AssistantPersistence
 import AssistantMemory
 import AssistantModels
 import AssistantDomain
+import AssistantSkills
 import Foundation
 #if !CONVERSATION_ARCHIVE_APP_STANDALONE
 import XCTest
@@ -41,8 +42,15 @@ private actor ArchiveModel: ChatModelClient {
     let replies: [String]
     let gate: ArchiveGate?
     private(set) var requests: [[ModelMessage]] = []
+    /// Plain-chat requests that led with the skill tools offer; it is recorded
+    /// apart so the transcript checks below see only the conversation.
+    private(set) var skillOffers = 0
     init(_ replies: [String], gate: ArchiveGate? = nil) { self.replies = replies; self.gate = gate }
-    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+    func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        var messages = input
+        if messages.first?.role == "system", messages.first?.content.hasPrefix(ChatSkillPrompts.plainChatLead) == true {
+            messages.removeFirst(); skillOffers += 1
+        }
         let index = requests.count; requests.append(messages)
         if let gate { await gate.wait() }
         guard index < replies.count else { throw ArchiveAppChecks.Failure(name: "Unexpected model/extraction call") }
@@ -188,6 +196,9 @@ private actor ArchiveModel: ChatModelClient {
         let requests = await model.requests
         try a.check(requests.count == 2 && requests[1].map(\.role) == ["user", "assistant", "user"], "existing window receives complete pairs")
         try a.check(requests[1][0].content == first.turns[0].userText && e.archive.conversations[0].turns.count == 2, "continued complete transcript")
+        // Plain chat leads with the skill tools offer, like Play's skills index.
+        let skillOffers = await model.skillOffers
+        try a.check(skillOffers == 2, "plain chat offers the skill tools")
         session.newConversation(); try a.check(e.archive.conversations.count == 1 && session.entries.isEmpty, "new does not delete archive")
         return a.count
     }

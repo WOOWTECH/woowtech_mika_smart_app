@@ -938,7 +938,10 @@ private enum CheckProfileChatApp {
                   "Twenty turns produce twenty real client calls and twenty responses")
         try check(session.entries.count == 40 && session.entries.map { ModelMessage(role: $0.role, content: $0.content) } == expectedHistory,
                   "Windowing never removes or rewrites any of forty displayed history entries")
-        try check(requests.allSatisfy { $0.first == ModelMessage(role: "system", content: UserProfileChatFlow.instructions) },
+        // The flow's own instructions, then the skill tools offer (Play's skill tools in chat).
+        try check(requests.allSatisfy { $0.first?.role == "system"
+                      && $0.first?.content.hasPrefix(UserProfileChatFlow.instructions + "\n") == true
+                      && $0.first?.content.contains(#"{"action":"skill_search""#) == true },
                   "Every turn runs through actual profile flow with its separately prepended system message")
         let inputs = requests.map { Array($0.dropFirst()) }
         try check(inputs.allSatisfy { $0.count <= 32 && $0.reduce(0, { $0 + $1.content.utf8.count }) <= 64 * 1024 },

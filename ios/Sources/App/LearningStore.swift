@@ -226,6 +226,23 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         return receipt
     }
 
+    /// Play's skill_save from an ordinary chat: the model's own tool commit, so
+    /// like commitMemoryTool it neither cancels learning nor counts as a user
+    /// edit. Nothing is published before the encrypted file is written.
+    func commitChatSkillSave(_ markdown: String, version: String?, availableToolNames: Set<String>,
+                             builtinNames: Set<String>) throws -> SkillChatSaveReceipt {
+        guard available else { throw LearningFileError.notLoaded }
+        var next = skills
+        let receipt = try next.saveRequestedInChat(markdown, version: version, availableToolNames: availableToolNames,
+                                                   builtinNames: builtinNames)
+        do { try persist(memory: memory, skills: next) }
+        catch { self.error = Self.message(error); throw error }
+        checkSkillReferenceRemoval(next)
+        skills = next
+        error = nil; notice = nil
+        return receipt
+    }
+
     func canReviewMemory(_ note: MemoryNote) -> Bool {
         available && memory.memories.contains { $0.id == note.pendingID && $0.status == .pending }
     }

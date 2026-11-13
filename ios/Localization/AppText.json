@@ -4813,6 +4813,33 @@
       }
     },
     {
+      "case": "chatSkillFind",
+      "key": "chat.skill.find",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "查詢技能",
+        "en": "Look up skills"
+      }
+    },
+    {
+      "case": "chatSkillRead",
+      "key": "chat.skill.read",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "檢視技能",
+        "en": "Read skill"
+      }
+    },
+    {
+      "case": "chatSkillSave",
+      "key": "chat.skill.save",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存技能",
+        "en": "Save skill"
+      }
+    },
+    {
       "case": "voiceRecognitionError",
       "key": "chat.voiceRecognitionError",
       "parameters": [],

@@ -1,5 +1,6 @@
 #if DEBUG
 import AssistantModels
+import AssistantSkills
 import Foundation
 
 // DEBUG-only UI-test API. Release builds contain neither this client nor these switches.
@@ -88,10 +89,11 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
         stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
     }
-    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+    func stream(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                 onDispatch: @escaping @Sendable () -> Void,
                 onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream { continuation in
+        let messages = UITestChatModelClient.withoutSkillOffer(input)
+        return AsyncThrowingStream { continuation in
             let worker = Task {
                 defer { onProducerFinished() }
                 do {
@@ -186,7 +188,16 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
 actor UITestChatModelClient: ChatModelClient {
     private var failedOnce = false
 
-    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+    /// Plain chat now offers the skill tools in a leading system message; the
+    /// closed fixtures answer as before and never start a skill tool.
+    static func withoutSkillOffer(_ messages: [ModelMessage]) -> [ModelMessage] {
+        guard let first = messages.first, first.role == "system",
+              first.content.hasPrefix(ChatSkillPrompts.plainChatLead) else { return messages }
+        return Array(messages.dropFirst())
+    }
+
+    func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        let messages = Self.withoutSkillOffer(input)
         let instructions = messages.first?.content ?? ""
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true
