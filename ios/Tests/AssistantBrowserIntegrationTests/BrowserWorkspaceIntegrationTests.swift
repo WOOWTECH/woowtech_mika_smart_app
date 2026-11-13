@@ -205,11 +205,8 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
             }.sorted()
         }
         workspace.refreshWebsiteRecords()
-        XCTAssertTrue(workspace.isLoadingWebsiteRecords, "Do not report an empty site list before WebKit responds")
         do {
-            try await waitUntil("Website-record callback did not publish within 15 seconds") {
-                enumeration.records != nil && !workspace.isLoadingWebsiteRecords
-            }
+            try await waitUntil("Website-record callback did not publish within 15 seconds") { enumeration.records != nil }
             let returned = try XCTUnwrap(enumeration.records)
             guard returned.contains(where: {
                 $0.displayName.contains("example.invalid") && $0.dataTypes.contains(WKWebsiteDataTypeCookies)
@@ -268,9 +265,7 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
         _ = try await javascript("localStorage.setItem('workspace_late_record', 'FIXTURE_LATE'); 'written'", in: secondWebView)
         let publicationsBeforeClear = enumeration.publicationCount
         workspace.refreshWebsiteRecords() // Its callback must be invalidated by the clear below.
-        XCTAssertTrue(workspace.isLoadingWebsiteRecords)
         workspace.removeWebsiteData(records)
-        XCTAssertFalse(workspace.isLoadingWebsiteRecords, "A cancelled enumeration must not leave loading stuck")
         XCTAssertTrue(workspace.isClearingWebsiteData)
         // A refresh initiated while deleting must not race the final verified list.
         workspace.refreshWebsiteRecords()

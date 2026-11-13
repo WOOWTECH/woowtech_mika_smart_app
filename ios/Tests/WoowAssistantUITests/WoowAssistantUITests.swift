@@ -83,11 +83,12 @@ final class WoowAssistantUITests: XCTestCase {
         for _ in 0..<6 where !websiteLink.isHittable { app.swipeUp() }
         XCTAssertTrue(websiteLink.isHittable)
         websiteLink.tap()
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
-        attachScreenshot("09-website-data-from-memory", in: app)
-        app.buttons["browser.library.close"].tap()
+        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
+        attachScreenshot("09-browser-from-memory", in: app)
+        XCTAssertEqual(app.buttons["section.back"].label, "返回記憶")
+        app.buttons["section.back"].tap()
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        attachScreenshot("10-memory-return-from-website-data", in: app)
+        attachScreenshot("10-memory-return-from-browser", in: app)
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
 

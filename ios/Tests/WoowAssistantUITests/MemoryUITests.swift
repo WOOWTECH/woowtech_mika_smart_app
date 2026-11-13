@@ -62,7 +62,7 @@ final class MemoryUITests: XCTestCase {
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].firstMatch.exists)
         reveal(app.staticTexts["memory.browserPending"].firstMatch)
-        XCTAssertTrue(app.staticTexts["memory.browserPending"].firstMatch.label.contains("不一定已登入"))
+        XCTAssertTrue(app.staticTexts["memory.browserPending"].firstMatch.label.contains("瀏覽器的網站頁面"))
         select("memories")
         for name in ["useMemory", "autoRemember", "learnSkills"] {
             let toggle = app.switches["memory.toggle.\(name)"].firstMatch
@@ -85,35 +85,20 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(scope.exists)
     }
 
-    func testWebsiteDataFromMemoryReturnsHereAndDrawerRemainsReachable() {
+    func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
         launch()
         openMemory()
-        select("pending")
-        let link = app.buttons["memory.manageWebsites"].firstMatch
-        reveal(link)
-        XCTAssertEqual(link.label, "網站登入", "WebKit record count is not a count of signed-in sites")
-        link.tap()
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].label.contains("不代表目前已登入"))
-        XCTAssertTrue(app.staticTexts["browser.sites.empty"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.segmentedControls["browser.library.sections"].exists)
-        XCTAssertFalse(app.staticTexts["browser.status"].isHittable)
-        tap("browser.library.close")
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        XCTAssertEqual(app.buttons["memory.segment.pending"].value as? String, "已選取")
-
-        navigateMikaSection("settings", in: app)
-        let settingsMemory = app.buttons["settings.memoryJump"].firstMatch
-        revealLearningElement(settingsMemory, in: app); settingsMemory.tap()
-        let memoryBar = app.navigationBars["記憶與資料"]
-        XCTAssertTrue(memoryBar.waitForExistence(timeout: 10))
         tap("memory.manageWebsites", scroll: true)
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
-        tap("browser.library.close")
+        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
+        let back = app.buttons["section.back"]
+        XCTAssertEqual(back.label, "返回記憶")
+        back.tap()
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        let nativeBack = memoryBar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
-        XCTAssertTrue(nativeBack.isHittable); nativeBack.tap()
-        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["browser.status"].isHittable)
+
+        tap("memory.manageWebsites", scroll: true)
+        navigateMikaSection("settings", in: app)
+        XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 10))
         navigateMikaSection("browser", in: app)
         XCTAssertEqual(app.buttons["section.back"].label, "返回對話")
     }

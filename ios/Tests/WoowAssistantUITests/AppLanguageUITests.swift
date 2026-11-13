@@ -193,37 +193,6 @@ final class AppLanguageUITests: XCTestCase {
         }
     }
 
-    func testMemoryWebsiteDataNavigationInEverySupportedLanguage() {
-        let cases: [(String, String, String, String, String)] = [
-            ("(zh-Hant)", "網站登入", "不一定已登入", "不代表目前已登入", "關閉"),
-            ("(zh-Hans)", "网站登录", "不一定已登录", "不代表当前已登录", "关闭"),
-            ("(en)", "Website sign-ins", "not necessarily signed in", "does not mean you are currently signed in", "Close")
-        ]
-        for (systemLanguages, title, entryHelp, siteHelp, closeTitle) in cases {
-            app.terminate()
-            app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
-            app.launchEnvironment = [:]
-            app.launch()
-            navigateMikaSection("memory", in: app)
-            let entry = app.buttons["memory.manageWebsites"].firstMatch
-            revealLearningElement(entry, in: app)
-            XCTAssertEqual(entry.label, title)
-            let help = app.staticTexts["memory.browserPending"].firstMatch
-            revealLearningElement(help, in: app, visibility: .readableText)
-            XCTAssertTrue(help.label.contains(entryHelp))
-            revealLearningElement(entry, in: app); entry.tap()
-            let detail = app.staticTexts["browser.sites.help"].firstMatch
-            XCTAssertTrue(detail.waitForExistence(timeout: 10))
-            XCTAssertTrue(detail.label.contains(siteHelp))
-            let close = app.buttons["browser.library.close"].firstMatch
-            XCTAssertEqual(close.label, closeTitle)
-            XCTAssertTrue(app.staticTexts["browser.sites.empty"].waitForExistence(timeout: 20))
-            close.tap()
-            XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        }
-    }
-
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace]

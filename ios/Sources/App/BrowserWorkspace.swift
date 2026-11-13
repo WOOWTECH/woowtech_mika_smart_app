@@ -23,7 +23,6 @@ final class BrowserWorkspace: ObservableObject {
     var siteModeNotice: String? { siteModeNoticeText.map { AppLocalizer(language: .traditionalChinese).text($0) } }
     @Published private(set) var available = false
     @Published private(set) var websiteRecords: [WKWebsiteDataRecord] = []
-    @Published private(set) var isLoadingWebsiteRecords = false
     @Published private(set) var isClearingWebsiteData = false
     private var sessions: [UUID: BrowserSession] = [:]
     private var websiteRecordRevision = UUID()
@@ -286,18 +285,15 @@ final class BrowserWorkspace: ObservableObject {
         guard !isClearingWebsiteData else { return }
         let revision = UUID()
         websiteRecordRevision = revision
-        isLoadingWebsiteRecords = true
         websiteDataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { [weak self] records in
             guard let self, self.websiteRecordRevision == revision, !self.isClearingWebsiteData else { return }
             self.websiteRecords = records.sorted { $0.displayName < $1.displayName }
-            self.isLoadingWebsiteRecords = false
         }
     }
     func removeWebsiteData(_ records: [WKWebsiteDataRecord]) {
         guard !isClearingWebsiteData, !records.isEmpty else { return }
         let selectedNames = Set(records.map(\.displayName))
         websiteRecordRevision = UUID() // Earlier enumeration cannot republish stale records.
-        isLoadingWebsiteRecords = false
         errorText = nil
         #if DEBUG
         let started = ProcessInfo.processInfo.systemUptime

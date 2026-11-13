@@ -414,59 +414,6 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists)
     }
 
-    func testMemoryWebsiteManagementConfirmsClearAndReturnsToMemory() {
-        launch(reset: true)
-        loginByTyping()
-        let protectedURL = currentProtectedURL()
-        navigateMikaSection("memory", in: app)
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        let entry = app.buttons["memory.manageWebsites"]
-        revealLearningElement(entry, in: app)
-        XCTAssertEqual(entry.label, "網站登入", "Website-data records must not be presented as a login count.")
-        entry.tap()
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["browser.sites.help"].label.contains("不代表目前已登入"))
-        let clear = app.buttons["browser.sites.clear.127.0.0.1"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 30), "The real fixture's WebKit record must appear.")
-        tap(clear)
-        let cancel = app.buttons["browser.sites.cancelClear"].firstMatch
-        tap(cancel)
-        XCTAssertTrue(clear.waitForExistence(timeout: 10), "Cancel must leave the site record available.")
-        tap(app.buttons["browser.library.close"])
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        navigateMikaSection("browser", in: app)
-        openInNewTab(protectedURL)
-        XCTAssertTrue(text("LOGIN_PROTECTED_AUTHENTICATED").waitForExistence(timeout: 30),
-                      "The same server must still receive the cookie after cancellation.")
-        navigateMikaSection("memory", in: app)
-        revealLearningElement(entry, in: app); entry.tap()
-        XCTAssertTrue(clear.waitForExistence(timeout: 30))
-        tap(clear)
-        let confirmation = app.descendants(matching: .any).matching(NSPredicate(
-            format: "(elementType == %d OR elementType == %d) AND label == %@",
-            XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
-            "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。")).firstMatch
-        let confirm = confirmation.buttons.matching(NSPredicate(
-            format: "identifier == %@ AND label == %@", "browser.sites.confirmClear", "清除網站資料")).firstMatch
-        tap(confirm)
-        XCTAssertTrue(app.staticTexts["browser.sites.empty"].waitForExistence(timeout: 75),
-                      "Wait for actual removal and refreshed WebKit records.")
-        XCTAssertFalse(app.staticTexts["browser.library.error"].exists)
-        tap(app.buttons["browser.library.close"])
-        XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
-        navigateMikaSection("browser", in: app)
-        let statusURL = protectedURL.deletingLastPathComponent().appendingPathComponent("status")
-        openInNewTab(statusURL)
-        XCTAssertTrue(text("LOGIN_ANONYMOUS").waitForExistence(timeout: 30))
-        XCTAssertTrue(text("LOGIN_SERVER_LOGINS_1").exists, "The same live server must receive a request without its cookie.")
-        openInNewTab(protectedURL)
-        XCTAssertTrue(text("LOGIN_PROTECTED_DENIED").waitForExistence(timeout: 30))
-        launch(reset: false)
-        XCTAssertTrue(text("LOGIN_ANONYMOUS").waitForExistence(timeout: 30),
-                      "Deleted login data must remain absent after relaunch.")
-        XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists)
-    }
-
     private func launch(reset: Bool) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",

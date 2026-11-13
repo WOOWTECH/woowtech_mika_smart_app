@@ -238,8 +238,7 @@ struct ContentView: View {
     }
 
     private func memoryDataView(resetNavigation: Bool) -> some View {
-        MemoryDataView(store: session.learning, browser: browser, browserWorkspace: browserWorkspace,
-                       modelAccess: session.modelAccess,
+        MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
                        modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
                        onOpenBrowser: {
                            browserReturnSection = .memory

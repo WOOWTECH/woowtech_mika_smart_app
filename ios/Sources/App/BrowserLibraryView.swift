@@ -7,7 +7,6 @@ struct BrowserLibraryView: View {
     @Environment(\.appLocalizer) private var localizer
     @ObservedObject var workspace: BrowserWorkspace
     var initialSection = 0
-    var sitesOnly = false
     var pdfDestination: ((BrowserDownloadedPDFSelection) -> AnyView)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var section = 0
@@ -18,36 +17,27 @@ struct BrowserLibraryView: View {
     @State private var deleteSite: WKWebsiteDataRecord?
     @State private var confirmSite = false
     @State private var showDownloads = false
-    @State private var siteRecordsRequested = false
-    @State private var deferredSiteRefresh = false
     var body: some View {
         NavigationStack {
             VStack {
-                if !sitesOnly {
-                    Picker(localizer.text(.browserLibrary), selection: $section) {
-                        Text(localizer.text(.browserTabs)).tag(0); Text(localizer.text(.browserBookmarks)).tag(1); Text(localizer.text(.browserHistory)).tag(2); Text(localizer.text(.browserSites)).tag(3)
-                    }.pickerStyle(.segmented).padding(.horizontal).accessibilityIdentifier("browser.library.sections")
-                }
+                Picker(localizer.text(.browserLibrary), selection: $section) {
+                    Text(localizer.text(.browserTabs)).tag(0); Text(localizer.text(.browserBookmarks)).tag(1); Text(localizer.text(.browserHistory)).tag(2); Text(localizer.text(.browserSites)).tag(3)
+                }.pickerStyle(.segmented).padding(.horizontal).accessibilityIdentifier("browser.library.sections")
                 if let error = workspace.errorText { Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("browser.library.error") }
                 if workspace.isClearingWebsiteData {
                     ProgressView(localizer.text(.browserClearing))
                         .accessibilityIdentifier("browser.library.clearing")
                 }
                 List {
-                    if sitesOnly { websites }
-                    else if section == 0 { tabs }
+                    if section == 0 { tabs }
                     else if section == 1 { bookmarks }
                     else if section == 2 { history }
                     else { websites }
                 }
             }
-            .navigationTitle(localizer.text(sitesOnly ? .browserSites : .browserLibrary))
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.commonClose)) { dismiss() }.accessibilityIdentifier("browser.library.close") } }
-            .toolbar {
-                if !sitesOnly {
-                    ToolbarItem(placement: .navigationBarLeading) { Button(localizer.text(.browserDownloads)) { showDownloads = true }.accessibilityIdentifier("browser.downloads.open") }
-                }
-            }
+            .navigationTitle(localizer.text(.browserLibrary))
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() }.accessibilityIdentifier("browser.library.close") } }
+            .toolbar { ToolbarItem(placement: .navigationBarLeading) { Button(localizer.text(.browserDownloads)) { showDownloads = true }.accessibilityIdentifier("browser.downloads.open") } }
             .sheet(isPresented: $showDownloads) { BrowserDownloadsView(manager: workspace.downloads, pdfDestination: pdfDestination) }
             .alert(localizer.text(.browserRenameBookmark), isPresented: $showRename) {
                 TextField(localizer.text(.commonName), text: $renameTitle).accessibilityIdentifier("browser.bookmark.name")
@@ -60,24 +50,10 @@ struct BrowserLibraryView: View {
             .confirmationDialog(localizer.text(.browserClearSiteQuestion), isPresented: $confirmSite, titleVisibility: .visible, presenting: deleteSite) { record in
                 Button(localizer.text(.browserClearSite), role: .destructive) { workspace.removeWebsiteData([record]); deleteSite = nil }
                     .accessibilityIdentifier("browser.sites.confirmClear")
-                Button(localizer.text(.commonCancel), role: .cancel) { deleteSite = nil }
-                    .accessibilityIdentifier("browser.sites.cancelClear")
             }
-            .onChange(of: section) { _, selected in if selected == 3 { requestSiteRecords() } }
-            .onChange(of: workspace.isClearingWebsiteData) { _, clearing in
-                if !clearing && deferredSiteRefresh && (sitesOnly || section == 3) { requestSiteRecords() }
-            }
-            .onAppear {
-                if sitesOnly { requestSiteRecords() }
-                else { section = initialSection }
-            }
+            .onChange(of: section) { _, selected in if selected == 3 { workspace.refreshWebsiteRecords() } }
+            .onAppear { section = initialSection }
         }
-    }
-    private func requestSiteRecords() {
-        siteRecordsRequested = true
-        guard !workspace.isClearingWebsiteData else { deferredSiteRefresh = true; return }
-        deferredSiteRefresh = false
-        workspace.refreshWebsiteRecords()
     }
     private var tabs: some View {
         Group {
@@ -135,19 +111,13 @@ struct BrowserLibraryView: View {
         Group {
             Text(localizer.text(.browserSitesHelp))
                 .font(.caption)
-                .accessibilityIdentifier("browser.sites.help")
-            if !workspace.isClearingWebsiteData && (!siteRecordsRequested || deferredSiteRefresh || workspace.isLoadingWebsiteRecords) {
-                ProgressView().accessibilityLabel(localizer.text(.browserSites))
-                    .accessibilityIdentifier("browser.sites.loading")
-            } else if !workspace.isClearingWebsiteData {
-                if workspace.websiteRecords.isEmpty { Text(localizer.text(.browserNoSites)).accessibilityIdentifier("browser.sites.empty") }
-                ForEach(workspace.websiteRecords, id: \.displayName) { record in
-                    HStack {
-                        Text(record.displayName)
-                        Spacer()
-                        Button(localizer.text(.commonClear), role: .destructive) { deleteSite = record; confirmSite = true }
-                            .accessibilityIdentifier("browser.sites.clear.\(record.displayName)")
-                    }
+            if workspace.websiteRecords.isEmpty { Text(localizer.text(.browserNoSites)).accessibilityIdentifier("browser.sites.empty") }
+            ForEach(workspace.websiteRecords, id: \.displayName) { record in
+                HStack {
+                    Text(record.displayName)
+                    Spacer()
+                    Button(localizer.text(.commonClear), role: .destructive) { deleteSite = record; confirmSite = true }
+                        .disabled(workspace.isClearingWebsiteData).accessibilityIdentifier("browser.sites.clear.\(record.displayName)")
                 }
             }
         }
