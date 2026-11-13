@@ -91,6 +91,17 @@ struct ChatVoicePressControl: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+    /// The input bar gives the microphone a fixed 40 pt slot, like Play's 40 dp
+    /// IconButton. At the largest accessibility text size UIKit sized this button
+    /// 67 × 83 pt and SwiftUI let it spill out of the slot: over the end of the
+    /// draft, and below the bottom of an iPhone SE. Take exactly the offered size.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: VoicePressButton, context: Context) -> CGSize? {
+        func side(_ offered: CGFloat?) -> CGFloat {
+            guard let offered, offered.isFinite else { return 40 }
+            return offered
+        }
+        return CGSize(width: side(proposal.width), height: side(proposal.height))
+    }
     func makeUIView(context: Context) -> VoicePressButton {
         let button = VoicePressButton(type: .system)
         button.setImage(UIImage(systemName: "mic.fill"), for: .normal)

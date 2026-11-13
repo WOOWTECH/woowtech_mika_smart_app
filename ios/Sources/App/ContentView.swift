@@ -470,6 +470,7 @@ private struct ChatView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var voice = ChatVoiceViewModel()
     #if DEBUG
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
@@ -545,7 +546,7 @@ private struct ChatView: View {
             if showsAttachPanel { showsAttachPanel = false; isEditingDraft = true }
             else { isEditingDraft = false; showsAttachPanel = true }
         } label: {
-            Image(systemName: "plus").frame(width: 40, height: 40)
+            Image(systemName: "plus").dynamicTypeSize(...Self.fixedControlTypeSize).frame(width: 40, height: 40)
                 .rotationEffect(.degrees(showsAttachPanel ? 45 : 0))
                 .animation(.easeOut(duration: 0.2), value: showsAttachPanel)
         }
@@ -959,13 +960,24 @@ private struct ChatView: View {
         }
     }
 
+    /// The input bar's buttons keep 40 pt slots at every text size, like Play's
+    /// fixed 40 dp IconButtons; their glyphs stop growing at the largest
+    /// standard size so they stay inside the slots.
+    private static let fixedControlTypeSize = DynamicTypeSize.xxxLarge
+
+    /// Five lines, then the draft scrolls (Play's maxLines = 5). At the largest
+    /// accessibility size five lines would make the input bar about 350 pt tall,
+    /// over half of an iPhone SE screen and nearly all the room above its
+    /// keyboard, so at accessibility sizes the draft scrolls after three.
+    private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
+
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
                       text: $session.draft, axis: .vertical)
-                .lineLimit(1...5)
+                .lineLimit(draftLineLimit)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($isEditingDraft)
@@ -984,7 +996,7 @@ private struct ChatView: View {
                 .frame(width: 40, height: 40)
             if session.isSubmitting {
                 Button { session.cancel() } label: {
-                    Image(systemName: "stop.fill").frame(width: 40, height: 40)
+                    Image(systemName: "stop.fill").dynamicTypeSize(...Self.fixedControlTypeSize).frame(width: 40, height: 40)
                 }
                 .accessibilityLabel(localizer.text(.shellStop))
                 .accessibilityIdentifier("chat.cancel")
