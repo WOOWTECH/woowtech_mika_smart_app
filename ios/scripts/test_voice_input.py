@@ -23,12 +23,21 @@ class VoiceInputStandaloneTests(unittest.TestCase):
         self.assertIn("PASS ChatVoice composer semantics", result.stdout)
 
     def test_localized_permission_prompts_exist(self):
-        for language in ("en", "zh-Hans", "zh-Hant"):
-            path = ROOT / "Sources/App/Resources" / (language + ".lproj") / "InfoPlist.strings"
-            source = path.read_text()
+        resources = ROOT / "Sources/App/Resources"
+        for language in ("en", "zh-Hant"):
+            source = (resources / (language + ".lproj") / "InfoPlist.strings").read_text()
             with self.subTest(language=language):
                 self.assertIn('"NSMicrophoneUsageDescription"', source)
                 self.assertIn('"NSSpeechRecognitionUsageDescription"', source)
+        # No Simplified Chinese interface (2026-11-13): iOS still picks zh-Hans.lproj
+        # for a Simplified Chinese system, and it must hold the Traditional prompts and
+        # nothing else. Without it iOS would show English prompts and run the app, and
+        # Locale.current with it, in English.
+        simplified = resources / "zh-Hans.lproj"
+        self.assertEqual([p.name for p in simplified.iterdir() if not p.name.startswith(".")], ["InfoPlist.strings"])
+        header, end, body = (simplified / "InfoPlist.strings").read_text().partition("*/\n")
+        self.assertTrue(header.startswith("/*") and end, "zh-Hans.lproj/InfoPlist.strings explains itself")
+        self.assertEqual(body, (resources / "zh-Hant.lproj/InfoPlist.strings").read_text())
 
     def test_pure_state_machine_with_fake_driver(self):
         result = subprocess.run(["bash", str(ROOT / "scripts/check_voice_input.sh")],
