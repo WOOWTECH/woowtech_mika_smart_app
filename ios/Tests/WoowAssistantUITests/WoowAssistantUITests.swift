@@ -324,6 +324,121 @@ final class WoowAssistantUITests: XCTestCase {
         attachScreenshot("unconfigured-draft-retained", in: app)
     }
 
+    func testExamplesOnlyReplaceDraftWhenSyntheticModelIsConfigured() {
+        let app = launchApp()
+        configure(in: app)
+        returnFromModelSettings(in: app)
+        openSection("chat", in: app)
+        let cases = [
+            ("reply", "幫我寫一則友善的訊息回覆"),
+            ("document", "幫我摘要附上的文件，列出重點"),
+            ("web", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"),
+            ("shopping", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"),
+            ("remember", "記住我偏好使用繁體中文，回答簡短一點"),
+            ("recall", "你記得我有哪些偏好？")
+        ]
+        for (id, text) in cases {
+            let example = app.buttons["chat.emptyExample." + id]
+            revealLearningElement(example, in: app)
+            XCTAssertTrue(example.isHittable)
+            example.tap()
+            assertDraft(text, in: app)
+            XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+            XCTAssertFalse(app.staticTexts["chat.message.0.user"].exists)
+            XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        }
+    }
+
+    /// Exercises the real AX hierarchy at the largest SwiftUI Dynamic Type size.
+    /// This does not claim that the VoiceOver screen reader was enabled.
+    func testStoreExamplesRemainScrollableAndAccessibleAtLargestText() throws {
+        executionTimeAllowance = 600
+        let app = launchApp()
+        let first = app.buttons["chat.emptyExample.reply"]
+        revealLearningElement(first, in: app)
+        XCTAssertTrue(first.isHittable)
+        let regularHeight = first.frame.height
+        XCTAssertGreaterThan(regularHeight, 0)
+        app.terminate()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", UUID().uuidString,
+                               "-UITestResetStorage", "-UITestChatAccessibilitySize"]
+        app.launchEnvironment = [:]
+        app.launch()
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        XCTAssertTrue(transcript.waitForExistence(timeout: 15))
+        let draft = chatDraftControl(in: app)
+        let microphone = app.buttons["chat.voice"].firstMatch
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        XCTAssertTrue(microphone.waitForExistence(timeout: 10))
+        XCTAssertEqual(microphone.label, "語音輸入")
+        let cases = [
+            ("reply", "幫我寫一則友善的訊息回覆"),
+            ("document", "幫我摘要附上的文件，列出重點"),
+            ("web", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"),
+            ("shopping", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"),
+            ("remember", "記住我偏好使用繁體中文，回答簡短一點"),
+            ("recall", "你記得我有哪些偏好？")
+        ]
+        for (index, item) in cases.enumerated() {
+            let button = app.buttons["chat.emptyExample." + item.0].firstMatch
+            XCTAssertTrue(button.waitForExistence(timeout: 10), item.0)
+            XCTAssertEqual(button.label, item.1, "AX must expose the complete store text")
+            try revealExampleEdge(button, bottom: false, transcript: transcript, draft: draft, microphone: microphone, app: app)
+            if index == 0 {
+                XCTAssertGreaterThan(button.frame.height, regularHeight * 1.25, "The accessibility size must actually enlarge the row")
+            }
+            // Audit the real visible screen, with no issue filtering.
+            try app.performAccessibilityAudit(for: [.textClipped])
+            try revealExampleEdge(button, bottom: true, transcript: transcript, draft: draft, microphone: microphone, app: app)
+            let visible = button.frame.intersection(transcript.frame).intersection(app.frame)
+            XCTAssertGreaterThanOrEqual(visible.height, 44, "An exposed part of the button must be tappable")
+            XCTAssertGreaterThanOrEqual(visible.width, 44)
+            let point = button.coordinate(withNormalizedOffset: .zero).withOffset(
+                CGVector(dx: visible.midX - button.frame.minX, dy: visible.midY - button.frame.minY))
+            point.tap()
+            assertDraft(item.1, in: app)
+            XCTAssertFalse(app.descendants(matching: .any)["chat.message.0.user"].exists)
+            assertComposerUnobscured(transcript: transcript, draft: draft, microphone: microphone, app: app)
+        }
+        attachScreenshot("examples-accessibility-largest-text", in: app)
+    }
+
+    private func assertComposerUnobscured(transcript: XCUIElement, draft: XCUIElement,
+                                          microphone: XCUIElement, app: XCUIApplication,
+                                          file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(draft.isHittable, "Draft is available", file: file, line: line)
+        XCTAssertTrue(microphone.isHittable, "Voice control is available", file: file, line: line)
+        let view = app.frame
+        XCTAssertTrue(view.contains(draft.frame), "Draft stays on screen", file: file, line: line)
+        XCTAssertTrue(view.contains(microphone.frame), "Voice control stays on screen", file: file, line: line)
+        XCTAssertTrue(transcript.frame.intersection(draft.frame).isEmpty, "Examples must not cover draft", file: file, line: line)
+        XCTAssertTrue(transcript.frame.intersection(microphone.frame).isEmpty, "Examples must not cover voice", file: file, line: line)
+        XCTAssertTrue(draft.frame.intersection(microphone.frame).isEmpty, "Draft and voice must not overlap", file: file, line: line)
+    }
+
+    private func revealExampleEdge(_ button: XCUIElement, bottom: Bool, transcript: XCUIElement,
+                                   draft: XCUIElement, microphone: XCUIElement, app: XCUIApplication,
+                                   file: StaticString = #filePath, line: UInt = #line) throws {
+        for _ in 0..<70 {
+            assertComposerUnobscured(transcript: transcript, draft: draft, microphone: microphone, app: app, file: file, line: line)
+            let viewport = transcript.frame.intersection(app.frame).insetBy(dx: 4, dy: 8)
+            XCTAssertGreaterThan(viewport.height, 80, "There must be usable scrolling space", file: file, line: line)
+            let frame = button.frame
+            let edge = bottom ? frame.maxY - 8 : frame.minY + 8
+            if edge >= viewport.minY && edge <= viewport.maxY { return }
+            let desired = min(max(edge, viewport.minY + 12), viewport.maxY - 12)
+            let motion = min(viewport.height * 0.35, max(18, abs(edge - desired)))
+            let sign: CGFloat = edge > viewport.maxY ? -1 : 1
+            let origin = transcript.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: viewport.midX - transcript.frame.minX,
+                                                   dy: viewport.midY - transcript.frame.minY))
+            let end = start.withOffset(CGVector(dx: 0, dy: sign * motion))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        XCTFail("Could not scroll to the \(bottom ? "bottom" : "top") of \(button.identifier)", file: file, line: line)
+    }
+
     func testComposerGrowsThenScrollsAtFiveLinesAndAttachPanelKeepsDraft() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)

@@ -917,6 +917,74 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    static func messageMenuActions() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let model = ArchiveModel(["**First answer**", "Second answer", "Quoted answer"])
+        let session = e.session(model, assistantQuoteText: { $0.replacingOccurrences(of: "**", with: "") })
+        try a.check(session.messageActionTargets == .none, "a new conversation has nothing saved to quote or branch from")
+        try await send(session, "First question")
+        try await send(session, "Second question")
+        let source = e.archive.state.conversations[0]
+        let first = source.turns[0], second = source.turns[1]
+        let targets = session.messageActionTargets
+        try a.check(targets.saved == Set([first.userID, first.assistantID, second.userID, second.assistantID])
+                    && targets.replies == Set([first.assistantID, second.assistantID])
+                    && targets.questions == Set([first.userID, second.userID]),
+                    "saved messages can be quoted; replies branch; your own messages ask again")
+        try a.check(session.plainText(of: session.entries[1]) == "First answer"
+                    && session.plainText(of: session.entries[0]) == "First question",
+                    "copy text is the reply without Markdown, and your own words")
+
+        try a.check(session.selectQuote(messageID: first.assistantID, expectedContent: first.assistantText, in: source.id),
+                    "quote a saved reply")
+        try a.check(session.branch(fromReply: first.assistantID, title: { _ in "Unused" }) == .composerInUse
+                    && session.isCurrentConversation(id: source.id) && session.pendingQuote != nil,
+                    "branching never discards a waiting quote")
+        try await send(session, "Explain")
+        let quoted = session.entries[4]
+        try a.check(quoted.content == "> [Quoting your earlier reply]\n> First answer\n\nExplain"
+                    && session.plainText(of: quoted) == "Explain", "a quoting message copies as its own words")
+        let saved = e.archive.state.conversations[0]
+        let bytes = try Data(contentsOf: e.file)
+
+        session.draft = "Unsent"
+        try a.check(session.branch(fromReply: first.assistantID, title: { _ in "Unused" }) == .composerInUse
+                    && session.askAgain(from: second.userID, title: { _ in "Unused" }) == .composerInUse
+                    && session.draft == "Unsent" && session.isCurrentConversation(id: saved.id)
+                    && (try Data(contentsOf: e.file)) == bytes, "a draft is kept and nothing is saved")
+        session.draft = ""
+
+        var titledFrom: UUID?
+        try a.check(session.branch(fromReply: first.assistantID, title: { titledFrom = $0.id; return "First · 分支" }) == .created,
+                    "branch from a finished reply")
+        let branch = e.archive.state.conversations.first { $0.branchOrigin?.parentID == saved.id }
+        try a.check(titledFrom == saved.id && branch?.customTitle == "First · 分支" && branch?.branchOrigin?.parentTurn == 0
+                    && branch.map { session.isCurrentConversation(id: $0.id) } == true
+                    && session.entries.map(\.content) == ["First question", "**First answer**"]
+                    && session.chatNotice == nil && session.draft.isEmpty,
+                    "the branch keeps the turns through that reply and opens; the toast replaces the notice")
+
+        try a.check(session.openConversation(id: saved.id), "reopen the source")
+        try a.check(session.askAgain(from: quoted.id, title: { _ in "Again · 分支" }) == .created,
+                    "ask again from your third message")
+        let again = e.archive.state.conversations.first { $0.customTitle == "Again · 分支" }
+        let calls = await model.requests.count
+        try a.check(again?.turns.count == 2 && again?.branchOrigin?.parentTurn == 1
+                    && again.map { session.isCurrentConversation(id: $0.id) } == true
+                    && session.draft == "Explain" && session.pendingQuote == nil && session.entries.count == 4 && calls == 3,
+                    "the branch ends before that message; its words wait in the input bar, unsent")
+
+        session.draft = ""
+        try a.check(session.openConversation(id: saved.id), "reopen the source again")
+        let rows = e.archive.state.conversations.count
+        try a.check(session.askAgain(from: first.userID, title: { _ in "Unused" }) == .startedOver
+                    && session.entries.isEmpty && session.draft == "First question"
+                    && e.archive.state.conversations.count == rows && !session.isCurrentConversation(id: saved.id),
+                    "asking the first message again starts a new conversation with its words")
+        try a.check(e.reopen().state == e.archive.state, "branches survive an encrypted reload")
+        return a.count
+    }
+
 }
 
 #if CONVERSATION_ARCHIVE_APP_STANDALONE
@@ -932,8 +1000,8 @@ private actor ArchiveModel: ChatModelClient {
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay(),
                 ArchiveAppChecks.branchDurabilityAndFences(), ArchiveAppChecks.branchStalenessAndInFlight(),
                 ArchiveAppChecks.quotesInRealSession(), ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(),
-                ArchiveAppChecks.branchUsesLatestWholeArchive()]
-            print("{\"groups\":16,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+                ArchiveAppChecks.branchUsesLatestWholeArchive(), ArchiveAppChecks.messageMenuActions()]
+            print("{\"groups\":17,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -942,6 +1010,7 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testBranchDurabilityAndFences() async throws { let n = try await ArchiveAppChecks.branchDurabilityAndFences(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBranchStalenessAndInFlight() async throws { let n = try await ArchiveAppChecks.branchStalenessAndInFlight(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBranchUsesLatestWholeArchive() async throws { let n = try await ArchiveAppChecks.branchUsesLatestWholeArchive(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testMessageMenuActions() async throws { let n = try await ArchiveAppChecks.messageMenuActions(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testQuotesInRealSession() async throws { let n = try await ArchiveAppChecks.quotesInRealSession(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testAssistantQuoteCannotAuthorizeMemory() async throws { let n = try await ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testNamespaceGates() throws { XCTAssertGreaterThan(try ArchiveAppChecks.namespaceGates(), 0) }

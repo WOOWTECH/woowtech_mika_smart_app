@@ -330,6 +330,83 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
     }
 
+    /// Android MessageMenu: quote a reply and send with it, then ask again from your
+    /// own message; its words wait unsent in the branch and can be sent there.
+    func testMessageMenuQuotesAndAsksAgainLikeAndroid() {
+        launch(); configure(); send("Menu first")
+        openMessageMenu("chat.message.1.assistant")
+        for id in ["copy", "quote", "selectText", "branch"] {
+            XCTAssertTrue(app.buttons["chat.messageMenu." + id].firstMatch.exists, id)
+        }
+        XCTAssertFalse(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists, "a reply is not asked again")
+        tap("chat.messageMenu.quote")
+        assertLabel(app.staticTexts["chat.quote.text"].firstMatch, "引用渥屋助理:測試回覆：Menu first")
+        compose("Explain"); tap("chat.send")
+        XCTAssertTrue(app.staticTexts["chat.message.3.assistant"].firstMatch.waitForExistence(timeout: 15))
+        assertLabel(app.staticTexts["chat.message.2.user"].firstMatch, "Explain")
+        assertLabel(app.descendants(matching: .any)["chat.message.2.quote"].firstMatch, "引用渥屋助理:測試回覆：Menu first")
+        XCTAssertFalse(app.staticTexts["chat.quote.text"].firstMatch.exists, "the quote went with the message")
+
+        openMessageMenu("chat.message.2.user")
+        XCTAssertTrue(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists)
+        XCTAssertFalse(app.buttons["chat.messageMenu.branch"].firstMatch.exists, "your own message is not a branch point")
+        tap("chat.messageMenu.askAgain")
+        assertLabel(app.staticTexts["chat.toast"].firstMatch, "已建立分支")
+        XCTAssertEqual(chatDraftControl(in: app).value as? String, "Explain")
+        assertLabel(app.staticTexts["chat.message.0.user"].firstMatch, "Menu first")
+        XCTAssertFalse(app.staticTexts["chat.message.2.user"].firstMatch.exists, "the branch ends before that message")
+        tap("chat.send")
+        assertLabel(app.staticTexts["chat.message.3.assistant"].firstMatch, "測試回覆：Explain")
+        assertBranchInSidebar("Menu first · 分支")
+    }
+
+    /// Branching never discards what waits in the input bar (here a quote); once the
+    /// quote is removed, 從這裡分支 opens the branch. Copy and 選取文字 use plain text.
+    func testMessageMenuBranchesCopiesAndSelectsTextLikeAndroid() {
+        launch(); configure(); send("Menu first")
+        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.quote")
+        let quote = app.staticTexts["chat.quote.text"].firstMatch
+        XCTAssertTrue(quote.waitForExistence(timeout: 5))
+        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.branch")
+        assertLabel(app.staticTexts["chat.toast"].firstMatch,
+                    "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。")
+        XCTAssertTrue(quote.exists, "the waiting quote is kept")
+        tap("chat.quote.remove")
+        assertGone(quote)
+        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.branch")
+        assertLabel(app.staticTexts["chat.toast"].firstMatch, "已建立分支")
+        assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "測試回覆：Menu first")
+
+        openMessageMenu("chat.message.1.assistant"); tap("chat.messageMenu.copy")
+        assertLabel(app.staticTexts["chat.toast"].firstMatch, "已複製")
+        openMessageMenu("chat.message.0.user"); tap("chat.messageMenu.selectText")
+        let body = app.textViews["chat.selectText.body"].firstMatch
+        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        XCTAssertEqual(body.value as? String, "Menu first")
+        tap("chat.selectText.done")
+        assertGone(body)
+        assertBranchInSidebar("Menu first · 分支")
+    }
+
+    private func openMessageMenu(_ identifier: String) {
+        // Wait out the last toast, as a person would, before the next long press.
+        assertGone(app.staticTexts["chat.toast"].firstMatch)
+        let message = app.staticTexts[identifier].firstMatch
+        ready(message); message.press(forDuration: 1)
+        XCTAssertTrue(app.buttons["chat.messageMenu.copy"].firstMatch.waitForExistence(timeout: 5))
+    }
+    private func assertGone(_ element: XCUIElement) {
+        let gone = NSPredicate(format: "exists == false")
+        if !gone.evaluate(with: element) {
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: gone, object: element)], timeout: 5), .completed)
+        }
+    }
+    /// Android's sidebar marks a branch (從另一個對話分支); its title gets " · 分支".
+    private func assertBranchInSidebar(_ title: String) {
+        tap("chat.menu")
+        let row = revealRecentRow(title)
+        XCTAssertTrue((row.value as? String ?? "").contains("從另一個對話分支"))
+    }
     private func launch(reset: Bool = true, streaming: Bool = false) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",

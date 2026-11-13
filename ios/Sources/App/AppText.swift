@@ -31,10 +31,16 @@ enum AppText: Equatable {
     case shellGreetingEvening
     case shellGreetingNight
     case shellWhatToDo
+    case shellReplyExample
+    case shellDocumentExample
+    case shellShoppingExample
+    case shellRememberExample
+    case shellRecallExample
     case shellWebExample
     case shellAttachPDF
     case shellViewPDFAttachment
     case shellMessagePlaceholder
+    case shellMessageContinuationPlaceholder
     case shellMessageDraft
     case shellStop
     case shellReturnToLatest
@@ -524,6 +530,24 @@ enum AppText: Equatable {
     case settingsSeesImagesUnconfirmed
     case settingsSeesImagesUser
     case chatAttachImagesNotSeen(count: Int)
+    case chatMessageCopy
+    case chatMessageCopied
+    case chatMessageQuote
+    case chatMessageQuoteFailed
+    case chatQuoteRemove
+    case chatQuotingAssistant(text: String)
+    case chatQuotingYou(text: String)
+    case chatMessageSelectText
+    case chatMessageSelectHint
+    case chatMessageSelectDone
+    case chatBranch
+    case chatBranchRetry
+    case chatBranchDone
+    case chatBranchFailed
+    case chatBranchTitleSuffix
+    case chatBranchAttachmentsReadd
+    case chatBranchComposerInUse
+    case chatBranchOrigin
 
     var key: String {
         switch self {
@@ -555,10 +579,16 @@ enum AppText: Equatable {
         case .shellGreetingEvening: return "shell.greetingEvening"
         case .shellGreetingNight: return "shell.greetingNight"
         case .shellWhatToDo: return "shell.whatToDo"
+        case .shellReplyExample: return "shell.replyExample"
+        case .shellDocumentExample: return "shell.documentExample"
+        case .shellShoppingExample: return "shell.shoppingExample"
+        case .shellRememberExample: return "shell.rememberExample"
+        case .shellRecallExample: return "shell.recallExample"
         case .shellWebExample: return "shell.webExample"
         case .shellAttachPDF: return "shell.attachPDF"
         case .shellViewPDFAttachment: return "shell.viewPDFAttachment"
         case .shellMessagePlaceholder: return "shell.messagePlaceholder"
+        case .shellMessageContinuationPlaceholder: return "shell.messageContinuationPlaceholder"
         case .shellMessageDraft: return "shell.messageDraft"
         case .shellStop: return "shell.stop"
         case .shellReturnToLatest: return "shell.returnToLatest"
@@ -1048,6 +1078,24 @@ enum AppText: Equatable {
         case .settingsSeesImagesUnconfirmed: return "settings.seesImages.unconfirmed"
         case .settingsSeesImagesUser: return "settings.seesImages.user"
         case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
+        case .chatMessageCopy: return "chat.message.copy"
+        case .chatMessageCopied: return "chat.message.copied"
+        case .chatMessageQuote: return "chat.message.quote"
+        case .chatMessageQuoteFailed: return "chat.message.quoteFailed"
+        case .chatQuoteRemove: return "chat.quote.remove"
+        case .chatQuotingAssistant: return "chat.quote.assistant"
+        case .chatQuotingYou: return "chat.quote.you"
+        case .chatMessageSelectText: return "chat.message.selectText"
+        case .chatMessageSelectHint: return "chat.message.selectHint"
+        case .chatMessageSelectDone: return "chat.message.selectDone"
+        case .chatBranch: return "chat.branch"
+        case .chatBranchRetry: return "chat.branch.retry"
+        case .chatBranchDone: return "chat.branch.done"
+        case .chatBranchFailed: return "chat.branch.failed"
+        case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
+        case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
+        case .chatBranchComposerInUse: return "chat.branch.composerInUse"
+        case .chatBranchOrigin: return "chat.branch.origin"
         }
     }
 
@@ -1083,6 +1131,8 @@ enum AppText: Equatable {
         case .chatAttachOverLimit(let limit, let count): return [Int64(limit), Int64(count)]
         case .chatAttachRefused(let names): return [names]
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
+        case .chatQuotingAssistant(let text): return [text]
+        case .chatQuotingYou(let text): return [text]
         default: return []
         }
     }
@@ -1118,10 +1168,16 @@ enum AppText: Equatable {
         case .shellGreetingEvening: return "晚上好"
         case .shellGreetingNight: return "夜深了"
         case .shellWhatToDo: return "想讓渥屋助理做什麼？"
+        case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
+        case .shellDocumentExample: return "幫我摘要附上的文件，列出重點"
+        case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
+        case .shellRememberExample: return "記住我偏好使用繁體中文，回答簡短一點"
+        case .shellRecallExample: return "你記得我有哪些偏好？"
         case .shellWebExample: return "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"
         case .shellAttachPDF: return "附加 PDF"
         case .shellViewPDFAttachment: return "檢視 PDF 附件"
         case .shellMessagePlaceholder: return "輸入訊息"
+        case .shellMessageContinuationPlaceholder: return "繼續說點什麼…"
         case .shellMessageDraft: return "訊息草稿"
         case .shellStop: return "取消"
         case .shellReturnToLatest: return "回到最新訊息"
@@ -1611,6 +1667,24 @@ enum AppText: Equatable {
         case .settingsSeesImagesUnconfirmed: return "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。"
         case .settingsSeesImagesUser: return "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。"
         case .chatAttachImagesNotSeen: return "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+        case .chatMessageCopy: return "複製"
+        case .chatMessageCopied: return "已複製"
+        case .chatMessageQuote: return "引用"
+        case .chatMessageQuoteFailed: return "沒能引用這則訊息"
+        case .chatQuoteRemove: return "移除引用"
+        case .chatQuotingAssistant: return "引用渥屋助理:%1$@"
+        case .chatQuotingYou: return "引用你的話:%1$@"
+        case .chatMessageSelectText: return "選取文字"
+        case .chatMessageSelectHint: return "長按文字就能選取"
+        case .chatMessageSelectDone: return "完成"
+        case .chatBranch: return "從這裡分支"
+        case .chatBranchRetry: return "從這裡重新問"
+        case .chatBranchDone: return "已建立分支"
+        case .chatBranchFailed: return "沒能建立分支"
+        case .chatBranchTitleSuffix: return " · 分支"
+        case .chatBranchAttachmentsReadd: return "附件需要重新加入"
+        case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
+        case .chatBranchOrigin: return "從另一個對話分支"
         }
     }
 }

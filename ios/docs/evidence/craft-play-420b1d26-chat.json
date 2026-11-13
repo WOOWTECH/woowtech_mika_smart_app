@@ -1,0 +1,34 @@
+{
+  "source_commit": "420b1d26f99110635d6a2827ee9414541c7a6c35",
+  "ci_run": "https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/43183040946",
+  "artifact_kind": "arm64 release candidate APK, unsigned, not Play-distributed",
+  "artifact_sha256": "a53e5386811b8c3df3a8d70164c3c984188afe71329b5671d4595bd7432fc50c",
+  "tool": "Craft Anything CLI 0.6.0",
+  "package": "io.woowtech.assistant",
+  "version_name": "0.1.37-play.2",
+  "version_code": "2",
+  "min_sdk": "30",
+  "target_sdk": "36",
+  "inspection": "android-package-show; android-resources-read b+zh+Hant string entries offsets 0 and 1000",
+  "resource_entries": 1966,
+  "resource_total": 1966,
+  "chat_strings": {
+    "chat_empty_prompt": "想聊什麼，或需要幫忙查找什麼？",
+    "chat_example_follow": "幫我寫一則友善的訊息回覆",
+    "chat_example_group_summary": "幫我摘要附上的文件，列出重點",
+    "chat_example_jobs": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
+    "chat_example_multi_step": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
+    "chat_example_alarms": "記住我偏好使用繁體中文，回答簡短一點",
+    "chat_example_ai_apps": "你記得我有哪些偏好？",
+    "chat_placeholder_more": "繼續說點什麼…",
+    "chat_placeholder_busy": "補充或改要求…",
+    "chat_placeholder_answer": "回答渥屋助理的問題",
+    "voice_placeholder_idle": "按住說話，點一下打字",
+    "chat_report_unsafe": "不安全內容"
+  },
+  "limitations": [
+    "CI-built unsigned release candidate, not a signed or Google Play distributed package.",
+    "Static resource evidence does not establish runtime reachability, rendered layout, behavior, model responses, or parity.",
+    "Only selected chat strings are recorded; other resources may include unreachable Android-specific entries."
+  ]
+}
