@@ -412,8 +412,15 @@ final class WoowAssistantUITests: XCTestCase {
             if index == 0 {
                 XCTAssertGreaterThan(button.frame.height, regularHeight * 1.25, "The accessibility size must actually enlarge the row")
             }
-            // Audit the real visible screen, with no issue filtering.
-            try app.performAccessibilityAudit(for: [.textClipped])
+            // Audit the real visible screen. A row taller than the visible transcript
+            // (an iPhone SE at the largest size, with the input bar and the UI-test
+            // banner) is cut by the scroll view, not truncated: the reader scrolls to
+            // the rest. Text inside a fully visible element must never be clipped.
+            let visibleTranscript = transcript.frame.intersection(app.frame)
+            try app.performAccessibilityAudit(for: [.textClipped]) { issue in
+                guard let frame = issue.element?.frame, !frame.isEmpty else { return false }
+                return !visibleTranscript.contains(frame)
+            }
             try revealExampleEdge(button, bottom: true, transcript: transcript, draft: draft, microphone: microphone, app: app)
             let visible = button.frame.intersection(transcript.frame).intersection(app.frame)
             XCTAssertGreaterThanOrEqual(visible.height, 44, "An exposed part of the button must be tappable")
