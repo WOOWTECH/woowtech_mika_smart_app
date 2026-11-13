@@ -77,6 +77,28 @@ import AssistantPersistence
         let back = try await tab.goBack()
         try check(back?.url.path == "/shop/search", "back to the previous page")
         try check(tab.currentURL?.query == "keyword=earbuds", "back keeps the query")
+
+        // Controls (1b): typing with Enter sends a GET form; password fields are never listed.
+        _ = try await tab.load(url("/form/search"))
+        let form = try await tab.observe()
+        let field = form.controls.first { $0.kind == "text" }
+        try check(field?.label.contains("關鍵字") == true && form.controls.contains { $0.label == "搜尋" }, "controls listed with labels")
+        let typed = try await tab.act(.type(ref: field!.ref, text: "Swift", pressEnter: true), snapshot: form.snapshotID, allowsSubmission: true)
+        try check(typed.navigated && typed.load?.url.path == "/jobs/search" && typed.load?.url.query == "keyword=Swift", "Enter sends the form")
+        do { _ = try await tab.act(.tap(ref: field!.ref), snapshot: form.snapshotID, allowsSubmission: true); throw Failure(name: "stale snapshot used") }
+        catch let error as ChatWebExecutionError { try check(error == .actionRefused("stale_snapshot"), "one action per snapshot") }
+        _ = try await tab.load(url("/members/signon"))
+        try check(try await tab.observe().controls.allSatisfy { $0.kind != "text" || !$0.label.lowercased().contains("pw") }, "password field not listed")
+        // A form sent with POST loads only right after a task action.
+        _ = try await tab.load(url("/post-search"))
+        let post = try await tab.observe()
+        let query = post.controls.first { $0.label == "查詢" }!
+        do { _ = try await tab.act(.tap(ref: query.ref), snapshot: post.snapshotID, allowsSubmission: false); throw Failure(name: "POST without an action") }
+        catch let error as ChatWebExecutionError { try check(error == .navigationFailed("not_get"), "POST refused outside an action") }
+        _ = try await tab.load(url("/post-search"))
+        let again = try await tab.observe()
+        let sent = try await tab.act(.tap(ref: again.controls.first { $0.label == "查詢" }!.ref), snapshot: again.snapshotID, allowsSubmission: true)
+        try check(sent.navigated && sent.load?.url.path == "/applied", "POST allowed right after an action")
         tab.close()
     }
 
@@ -99,6 +121,30 @@ import AssistantPersistence
         let requests = await model.requests
         try check(requests[2].last?.content.contains("\"total\":") == true, "find ran on the real page")
         try check(requests.allSatisfy { $0[0].content.hasPrefix("You are carrying out") }, "every step uses the task instructions")
+
+        // Applying runs without asking; ordering waits for the user's OK; paying is left to the user.
+        let apply = #"{"action":"web_read_page","url":"\#(server.absoluteString)/apply/1"}"#
+        let applying = AppScriptedModel([#"{"action":"web_observe"}"#, "TAP:我要應徵", #"{"action":"web_read_page"}"#,
+                                         #"{"action":"web_navigate","url":"\#(server.absoluteString)/cart"}"#,
+                                         #"{"action":"web_observe"}"#, "TAP:送出訂單",
+                                         #"{"action":"request_confirmation","kind":"order","target":"送出訂單","amount":"NT$ 1,290"}"#,
+                                         #"{"action":"web_observe"}"#, "TAP:送出訂單", #"{"action":"web_read_page"}"#,
+                                         #"{"action":"web_observe"}"#, "TAP:確認付款",
+                                         #"{"action":"end_not_done","reason":"請你自己付款 NT$ 1,290。"}"#])
+        let acting = ChatWebTaskRunner(client: applying, executor: tab,
+                                       configuration: ModelConfiguration(baseURL: URL(string: "https://fixture.invalid/v1")!, model: "fixture"),
+                                       apiKey: "dummy", settings: .init(searchTemplate: "x", fixtureOrigin: server), sleep: { _ in })
+        var asked: [ChatWebConsentGate.Request] = []
+        acting.confirm = { asked.append($0); return true }
+        let ended = await acting.run(conversation: [ModelMessage(role: "user", content: "幫我應徵並下單")],
+                                     entry: try ChatWebCommand.parseEntry(apply), entryRaw: apply)
+        let sent = await applying.requests
+        try check(sent[3].last?.content.contains("已送出應徵") == true, "the application was sent without asking")
+        try check(sent[6].last?.content.contains("confirmation_required") == true, "ordering needs the user's OK")
+        try check(asked.count == 1 && asked[0].amount == "NT$ 1,290", "the user was asked with the amount")
+        try check(sent[10].last?.content.contains("訂單已成立") == true, "the allowed order went through")
+        try check(sent[12].last?.content.contains("payment_requires_user") == true, "paying is left to the user")
+        try check(ended.status == .notDone && ended.steps.filter(\.outward).count == 2, "both outward steps marked")
         tab.close()
     }
 
@@ -163,6 +209,21 @@ import AssistantPersistence
         mount.close()
         try check(session.entries.last?.content.hasPrefix("WEB_TASK_SHOP_DONE 8") == true, "resumed task read the grown list")
 
+        // Ordering waits for the card's 允許這一次; the order then goes through.
+        try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
+        let order = try start(session, "[fixture:web-order]")
+        try await waitUntil("order task starts") { session.webTask != nil }
+        mount = Mount(session.webTask!.tab.webView)
+        try await waitUntil("the user is asked", seconds: 30) { session.webTask?.pendingConsent != nil }
+        try check(session.webTask?.pendingConsent?.amount == "NT$ 1,290" && session.webTask?.activity == .waitingForYou,
+                  "the card asks with the amount")
+        try check(!fixture.requestedPaths.contains("POST /shop/ordered"), "nothing ordered before the OK")
+        session.webTask?.answerConsent(true)
+        await order.value
+        mount.close()
+        try check(session.entries.last?.content.hasPrefix("WEB_TASK_ORDER_DONE") == true, "the allowed order went through")
+        try check(fixture.requestedPaths.filter { $0 == "POST /shop/ordered" }.count == 1, "the order was sent once")
+
         // Memory off: the plain reply can start a task too.
         try check(e.learning.updatePreferences { $0.useMemory = false }, "memory off")
         try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
@@ -193,13 +254,26 @@ import AssistantPersistence
     }
 }
 
+/// Replies in order; "TAP:<label>" taps the control with that label from the
+/// latest web_observe result, as a model would.
 actor AppScriptedModel: ChatModelClient {
     private var replies: [String]
     private(set) var requests: [[ModelMessage]] = []
     init(_ replies: [String]) { self.replies = replies }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         requests.append(messages)
-        return replies.isEmpty ? #"{"action":"end_not_done","reason":"script ended"}"# : replies.removeFirst()
+        guard !replies.isEmpty else { return #"{"action":"end_not_done","reason":"script ended"}"# }
+        let reply = replies.removeFirst()
+        guard reply.hasPrefix("TAP:") else { return reply }
+        let label = String(reply.dropFirst(4))
+        for message in messages.reversed() where message.role == "user" && message.content.contains("\"snapshotId\"") {
+            guard let start = message.content.range(of: "<untrusted>\n"), let end = message.content.range(of: "\n</untrusted>"),
+                  let object = try? JSONSerialization.jsonObject(with: Data(message.content[start.upperBound..<end.lowerBound].utf8)) as? [String: Any],
+                  let snapshot = object["snapshotId"] as? String, let controls = object["controls"] as? [[String: Any]],
+                  let ref = controls.first(where: { ($0["label"] as? String) == label })?["ref"] as? String else { break }
+            return #"{"action":"web_tap","ref":"\#(ref)","snapshotId":"\#(snapshot)"}"#
+        }
+        return #"{"action":"end_not_done","reason":"no such control"}"#
     }
 }
 

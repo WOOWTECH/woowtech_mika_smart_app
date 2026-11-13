@@ -661,6 +661,19 @@ enum AppText: Equatable {
     case chatWebStopModelFailed
     case chatWebConsentTitle
     case chatWebConsentBody
+    case chatWebActivityActing(site: String)
+    case chatWebActivityWaitingForYou
+    case chatWebStepObserve(site: String)
+    case chatWebStepTap(site: String)
+    case chatWebStepType(site: String)
+    case chatWebStepSelect(site: String)
+    case chatWebStepConfirm(site: String)
+    case chatWebStepOutward
+    case chatWebAskTitle(target: String)
+    case chatWebAskTitleAmount(target: String, amount: String)
+    case chatWebAskNote
+    case chatWebAskRefuse
+    case chatWebAskAllowOnce
 
     var key: String {
         switch self {
@@ -1322,6 +1335,19 @@ enum AppText: Equatable {
         case .chatWebStopModelFailed: return "chat.web.stop.modelFailed"
         case .chatWebConsentTitle: return "chat.web.consent.title"
         case .chatWebConsentBody: return "chat.web.consent.body"
+        case .chatWebActivityActing: return "chat.web.activity.acting"
+        case .chatWebActivityWaitingForYou: return "chat.web.activity.waitingForYou"
+        case .chatWebStepObserve: return "chat.web.step.observe"
+        case .chatWebStepTap: return "chat.web.step.tap"
+        case .chatWebStepType: return "chat.web.step.type"
+        case .chatWebStepSelect: return "chat.web.step.select"
+        case .chatWebStepConfirm: return "chat.web.step.confirm"
+        case .chatWebStepOutward: return "chat.web.step.outward"
+        case .chatWebAskTitle: return "chat.web.ask.title"
+        case .chatWebAskTitleAmount: return "chat.web.ask.titleAmount"
+        case .chatWebAskNote: return "chat.web.ask.note"
+        case .chatWebAskRefuse: return "chat.web.ask.refuse"
+        case .chatWebAskAllowOnce: return "chat.web.ask.allowOnce"
         }
     }
 
@@ -1397,6 +1423,14 @@ enum AppText: Equatable {
         case .chatWebStepBack(let site): return [site]
         case .chatWebStepWait(let site): return [site]
         case .chatWebCardAccessibility(let activity, let step, let elapsed): return [activity, Int64(step), elapsed]
+        case .chatWebActivityActing(let site): return [site]
+        case .chatWebStepObserve(let site): return [site]
+        case .chatWebStepTap(let site): return [site]
+        case .chatWebStepType(let site): return [site]
+        case .chatWebStepSelect(let site): return [site]
+        case .chatWebStepConfirm(let site): return [site]
+        case .chatWebAskTitle(let target): return [target]
+        case .chatWebAskTitleAmount(let target, let amount): return [target, amount]
         default: return []
         }
     }
@@ -2061,7 +2095,20 @@ enum AppText: Equatable {
         case .chatWebStopInvalidCommands: return "模型沒有給出可用的下一步，所以先停下來。"
         case .chatWebStopModelFailed: return "呼叫模型失敗，網頁任務停在這裡。請檢查模型設定或網路後再試一次。"
         case .chatWebConsentTitle: return "網頁任務"
-        case .chatWebConsentBody: return "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，並把網址、標題和網頁文字傳給你選的模型服務。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。"
+        case .chatWebConsentBody: return "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，也可以替你點選、輸入和送出表單；網址、標題、網頁文字和按鈕、欄位的名稱會傳給你選的模型服務。花錢的步驟每次都要你同意，付款一律由你自己完成。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。"
+        case .chatWebActivityActing: return "正在 %1$@ 的網頁上操作"
+        case .chatWebActivityWaitingForYou: return "等你處理"
+        case .chatWebStepObserve: return "讀取介面元素 · %1$@"
+        case .chatWebStepTap: return "點選 · %1$@"
+        case .chatWebStepType: return "輸入文字 · %1$@"
+        case .chatWebStepSelect: return "選擇選項 · %1$@"
+        case .chatWebStepConfirm: return "請你同意 · %1$@"
+        case .chatWebStepOutward: return "對外動作"
+        case .chatWebAskTitle: return "要你同意：%1$@"
+        case .chatWebAskTitleAmount: return "要你同意：%1$@ %2$@"
+        case .chatWebAskNote: return "花錢的操作每次都要你同意。"
+        case .chatWebAskRefuse: return "拒絕"
+        case .chatWebAskAllowOnce: return "允許這一次"
         }
     }
 }

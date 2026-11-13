@@ -6,9 +6,10 @@ import AssistantBrowser
 /// and ends with the task. It shares the built-in browser's website data, so
 /// sites the user signed in to in the app stay signed in (owner decision,
 /// 2026-11-13). Every main-frame navigation, redirects included, follows
-/// ChatWebTaskPolicy and must be a GET; no downloads, pop-ups, camera,
-/// microphone or page dialogs. WebKit runs normally only while the view is in
-/// a window, so the chat keeps it in its small preview.
+/// ChatWebTaskPolicy and must be a GET, except a form the task itself just
+/// sent under the money rule; no downloads, pop-ups, camera, microphone or
+/// page dialogs. WebKit runs normally only while the view is in a window, so
+/// the chat keeps it in its small preview.
 @MainActor final class ChatWebTaskTab: NSObject, ChatWebTaskExecuting, WKNavigationDelegate, WKUIDelegate {
     let webView: WKWebView
     private let fixtureOrigin: URL?
@@ -21,6 +22,9 @@ import AssistantBrowser
     private var loadedOnce = false
     private var idleSince: Date?
     private var requestedURL: URL?
+    /// A form the task just sent may load with POST for a few seconds.
+    private var submissionAllowedUntil: Date?
+    private var navigationStarted = false
     /// The last message a page tried to show in a dialog; dialogs close at once.
     private(set) var lastDialog: String?
 
@@ -116,6 +120,91 @@ import AssistantBrowser
             try await Task.sleep(nanoseconds: 500_000_000)
         } while Date() < end
         return false
+    }
+
+    // MARK: Controls
+
+    func observe() async throws -> ChatWebControls {
+        try Task.checkCancellation()
+        if terminated { try await reloadAfterTermination() }
+        guard let url = currentURL else { throw ChatWebExecutionError.pageUnavailable }
+        await settle()
+        let raw = try await controls(mode: "snapshot", request: [:])
+        guard let data = raw.data(using: .utf8), data.count <= 512 * 1024,
+              let page = try? JSONDecoder().decode(Snapshot.self, from: data) else { throw ChatWebExecutionError.pageUnavailable }
+        return ChatWebControls(snapshotID: page.snapshotId, url: URL(string: page.url) ?? url,
+                               controls: page.controls.map {
+                                   ChatWebControl(ref: $0.ref, kind: $0.kind, label: $0.label, enabled: $0.enabled,
+                                                  checked: $0.checked, options: $0.options ?? [])
+                               }, truncated: page.truncated)
+    }
+
+    func act(_ action: ChatWebControlAction, snapshot: String, allowsSubmission: Bool) async throws -> ChatWebActResult {
+        try Task.checkCancellation()
+        var request: [String: Any] = ["snapshotId": snapshot]
+        switch action {
+        case .tap(let ref): request["ref"] = ref; request["kind"] = "tap"
+        case .type(let ref, let text, let enter): request["ref"] = ref; request["kind"] = "type"; request["text"] = text; request["pressEnter"] = enter
+        case .select(let ref, let option): request["ref"] = ref; request["kind"] = "select"; request["option"] = option
+        }
+        let before = webView.url
+        navigationStarted = false
+        submissionAllowedUntil = allowsSubmission ? Date().addingTimeInterval(10) : nil
+        defer { submissionAllowedUntil = nil }
+        state = .finished; committed = false; stoppedBy = nil; httpStatus = nil; idleSince = nil
+        let outcome = try await controls(mode: "perform", request: request)
+        guard outcome == "dispatched" else { throw ChatWebExecutionError.actionRefused(outcome) }
+        // Give the page a moment to start a navigation of its own.
+        for _ in 0..<15 where !navigationStarted && !webView.isLoading && stoppedBy == nil {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        // A navigation the rules refused (a form outside an action, a log-out
+        // path) never starts; say so instead of reporting nothing happened.
+        if let stoppedBy { throw stoppedBy }
+        if navigationStarted || webView.isLoading {
+            if case .finished = state { state = .loading }
+            let load = try await waitForPage(timeout: 25)
+            return ChatWebActResult(navigated: true, load: load)
+        }
+        try await Task.sleep(nanoseconds: 700_000_000)
+        guard webView.url != before, let url = currentURL else { return ChatWebActResult(navigated: false, load: nil) }
+        // A page that changes its address without loading (single-page sites).
+        return ChatWebActResult(navigated: true, load: ChatWebLoad(url: url, title: webView.title ?? "", httpStatus: httpStatus, settled: true))
+    }
+
+    /// The fixed controls script in the app's own script world; values reach
+    /// it only through WebKit's arguments.
+    private func controls(mode: String, request: [String: Any]) async throws -> String {
+        let pending = PendingEvaluation()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                pending.continuation = continuation
+                pending.deadline = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 10_000_000_000)
+                    pending.finish(.failure(ChatWebExecutionError.readTimedOut))
+                }
+                webView.callAsyncJavaScript(Self.controlsScript, arguments: ["mode": mode, "request": request],
+                                            in: nil, in: .defaultClient) { result in
+                    switch result {
+                    case .success(let value as String): pending.finish(.success(value))
+                    case .success, .failure: pending.finish(.failure(ChatWebExecutionError.pageUnavailable))
+                    }
+                }
+            }
+        } onCancel: {
+            Task { @MainActor in pending.finish(.failure(CancellationError())) }
+        }
+    }
+
+    private struct Snapshot: Decodable {
+        let snapshotId: String
+        let url: String
+        let truncated: Bool
+        let controls: [Control]
+        struct Control: Decodable {
+            let ref: String; let kind: String; let label: String; let enabled: Bool
+            let checked: Bool?; let options: [String]?
+        }
     }
 
     // MARK: Loading
@@ -235,7 +324,8 @@ import AssistantBrowser
         }
         if scheme == "about" { decisionHandler(.allow); return }
         if navigationAction.shouldPerformDownload { stop(.navigationFailed("download")); decisionHandler(.cancel); return }
-        guard (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET" else {
+        let method = (navigationAction.request.httpMethod ?? "GET").uppercased()
+        guard method == "GET" || (method == "POST" && (submissionAllowedUntil.map { Date() < $0 } ?? false)) else {
             stop(.navigationFailed("not_get")); decisionHandler(.cancel); return
         }
         switch ChatWebTaskPolicy.evaluate(url, fixtureOrigin: fixtureOrigin) {
@@ -254,6 +344,7 @@ import AssistantBrowser
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        navigationStarted = true
         if case .idle = state { return }
         state = .loading
     }
@@ -315,6 +406,88 @@ import AssistantBrowser
     #endif
 
     // MARK: Scripts
+
+    /// Visible links, buttons, text fields, toggles and choices with refs that
+    /// live only in this script world; passwords, one-time codes, card numbers
+    /// and sign-in names are never listed. One action per snapshot.
+    static let controlsScript = #"""
+    // mode: 'snapshot' | 'perform'; request: {snapshotId, ref, kind: 'tap'|'type'|'select', text, pressEnter, option}
+    if (!globalThis.__woowTask || globalThis.__woowTask.document !== document) {
+      globalThis.__woowTask = {document, ids: new WeakMap(), serial: 0, records: new Map(), snapshotId: null, url: null};
+    }
+    const state = globalThis.__woowTask;
+    const clip = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    const visible = e => {
+      if (!e.isConnected || e.closest('[hidden],[inert],[aria-hidden="true"]') || !e.getClientRects().length) return false;
+      for (let p = e; p; p = p.parentElement) {
+        const s = getComputedStyle(p);
+        if (s.display === 'none' || s.visibility === 'hidden' || s.visibility === 'collapse' || s.opacity === '0') return false;
+      }
+      return true;
+    };
+    const labelText = e => Array.from(e.labels || []).map(l => {
+      const copy = l.cloneNode(true); copy.querySelectorAll('input,select,textarea,button').forEach(n => n.remove()); return copy.textContent;
+    }).join(' ');
+    const label = e => clip(e.getAttribute('aria-label') || labelText(e) || e.getAttribute('placeholder') ||
+      (e.tagName === 'INPUT' ? (e.value && ['submit', 'button'].includes((e.type || '').toLowerCase()) ? e.value : e.getAttribute('name')) : e.innerText || e.textContent) ||
+      e.getAttribute('title') || e.tagName);
+    // Passwords, one-time codes, card numbers and sign-in names are the user's to type.
+    const sensitive = e => /password|passwd|secret|token|api.?key|credential|one.?time|otp|cc-|credit.?card|card.?number|cvv|cvc|username|login/i.test(
+      [e.type, e.name, e.id, e.autocomplete, e.getAttribute('aria-label'), e.getAttribute('placeholder'), labelText(e)].join(' '));
+    const describe = e => {
+      if (!visible(e) || sensitive(e)) return null;
+      const tag = e.tagName, type = (e.type || '').toLowerCase(), role = (e.getAttribute('role') || '').toLowerCase();
+      let kind = null;
+      if (tag === 'A' && e.hasAttribute('href') && !e.hasAttribute('download')) kind = 'link';
+      else if (tag === 'BUTTON' || (tag === 'INPUT' && ['submit', 'button', 'reset', 'image'].includes(type)) || role === 'button' || role === 'tab' || role === 'menuitem') kind = 'button';
+      else if (tag === 'INPUT' && ['checkbox', 'radio'].includes(type)) kind = 'toggle';
+      else if (tag === 'TEXTAREA' || (tag === 'INPUT' && ['', 'text', 'search', 'email', 'url', 'tel', 'number'].includes(type))) kind = 'text';
+      else if (tag === 'SELECT' && !e.multiple && e.options.length <= 100) kind = 'select';
+      if (!kind) return null;
+      return {kind, label: label(e), enabled: !e.matches(':disabled') && !e.readOnly && e.getAttribute('aria-disabled') !== 'true',
+        checked: kind === 'toggle' ? !!e.checked : undefined,
+        options: kind === 'select' ? Array.from(e.options).slice(0, 100).map(o => clip(o.label || o.text)) : undefined};
+    };
+    if (mode === 'snapshot') {
+      const controls = [], records = new Map(); let scanned = 0, truncated = false;
+      for (const e of document.querySelectorAll('a[href],button,input,textarea,select,[role=button],[role=tab],[role=menuitem]')) {
+        if (++scanned > 3000 || controls.length >= 200) { truncated = true; break; }
+        const d = describe(e); if (!d) continue;
+        if (!state.ids.has(e)) state.ids.set(e, 'e' + (++state.serial));
+        const ref = state.ids.get(e); controls.push({ref, ...d}); records.set(ref, e);
+      }
+      state.records = records; state.snapshotId = 's' + Date.now().toString(36); state.url = location.href;
+      return JSON.stringify({snapshotId: state.snapshotId, url: state.url, controls, truncated});
+    }
+    if (mode !== 'perform') return 'invalid_request';
+    if (state.snapshotId !== request.snapshotId || state.url !== location.href) return 'stale_snapshot';
+    const e = state.records.get(request.ref); if (!e) return 'unknown_ref';
+    const d = describe(e); if (!d || !d.enabled) return 'unavailable_control';
+    e.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'});
+    const r = e.getBoundingClientRect(), x = Math.max(0, Math.min(innerWidth - 1, r.x + r.width / 2)), y = Math.max(0, Math.min(innerHeight - 1, r.y + r.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    if (request.kind === 'tap' && (!hit || (hit !== e && !e.contains(hit) && !hit.contains(e)))) return 'covered';
+    state.snapshotId = null; // one action per snapshot, even if the site throws
+    if (request.kind === 'tap' && ['link', 'button', 'toggle'].includes(d.kind)) {
+      if (e.tagName === 'A' && e.target && e.target !== '_self') e.target = '_self';
+      e.click();
+    } else if (request.kind === 'type' && d.kind === 'text' && typeof request.text === 'string' && request.text.length <= 4096) {
+      e.focus();
+      const prototype = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(prototype, 'value').set.call(e, request.text);
+      e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true}));
+      if (request.pressEnter) {
+        for (const type of ['keydown', 'keypress', 'keyup']) e.dispatchEvent(new KeyboardEvent(type, {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true}));
+        if (e.form && e.tagName !== 'TEXTAREA') { if (typeof e.form.requestSubmit === 'function') e.form.requestSubmit(); else e.form.submit(); }
+      }
+    } else if (request.kind === 'select' && d.kind === 'select' && typeof request.option === 'string') {
+      const wanted = clip(request.option);
+      const index = Array.from(e.options).findIndex(o => !o.disabled && (clip(o.label || o.text) === wanted || o.value === request.option));
+      if (index < 0) return 'unknown_option';
+      e.selectedIndex = index; e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true}));
+    } else return 'invalid_request';
+    return 'dispatched';
+    """#
 
     private struct Capture: Decodable {
         let title: String

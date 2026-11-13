@@ -17,6 +17,8 @@ import AssistantModels
         try commands(check)
         try pacing(check)
         try await runner(check)
+        try spending(check)
+        try await actions(check)
         return count
     }
 
@@ -104,7 +106,17 @@ import AssistantModels
         try check(parsed(#"{"action":"finish","answer":"答案"}"#) == .finish(answer: "答案", sources: []), "finish without sources")
         try check(parsed(#"{"action":"finish","answer":"a","sources":[0]}"#) == nil, "page 0 refused")
         try check(parsed(#"{"action":"finish","answer":"a","answer":"b"}"#) == nil, "duplicate keys refused")
-        try check(parsed(#"{"action":"web_tap","ref":1}"#) == nil, "no clicking in this phase")
+        try check(parsed(#"{"action":"web_tap","ref":1}"#) == nil, "a ref is text")
+        try check(parsed(#"{"action":"web_tap","ref":"e1","snapshotId":"s1"}"#) == .tap(ref: "e1", snapshot: "s1"), "tap")
+        try check(parsed(#"{"action":"web_observe"}"#) == .observe, "observe")
+        try check(parsed(#"{"action":"web_type_text","ref":"e2","snapshotId":"s1","text":"iOS","pressEnter":true}"#)
+                  == .typeText(ref: "e2", snapshot: "s1", text: "iOS", pressEnter: true), "type with Enter")
+        try check(parsed(#"{"action":"web_type_text","ref":"e2","snapshotId":"s1","text":"a\u0000b"}"#) == nil, "control characters refused")
+        try check(parsed(#"{"action":"web_select","ref":"e3","snapshotId":"s1","option":"台北市"}"#)
+                  == .select(ref: "e3", snapshot: "s1", option: "台北市"), "select")
+        try check(parsed(#"{"action":"request_confirmation","kind":"order","target":"立即購買","amount":"NT$ 990"}"#)
+                  == .requestConfirmation(kind: .order, target: "立即購買", content: nil, amount: "NT$ 990"), "request confirmation")
+        try check(parsed(#"{"action":"request_confirmation","kind":"buy","target":"x"}"#) == nil, "unknown kind refused")
         try check(parsed("```json\n{\"action\":\"web_back\"}\n```") == .back, "one surrounding fence tolerated")
         try check(parsed(#"Sure! {"action":"web_back"}"#) == nil, "prose around the command refused")
         try check(parsed(#"[{"action":"web_back"}]"#) == nil, "arrays refused")
@@ -361,6 +373,150 @@ import AssistantModels
         try check(ChatWebTaskRunnerProbe.verdict(thin, 200) == "thin", "almost empty page")
     }
 
+    // MARK: Money rule (1b)
+
+    static func spending(_ check: Check) throws {
+        typealias S = ChatWebSpending
+        try check(S.action(of: "立即購買") == .order && S.action(of: "送出訂單") == .order && S.action(of: "前往結帳") == .order, "order words")
+        try check(S.action(of: "確認付款") == .pay && S.action(of: "付款") == .pay && S.action(of: "Pay now") == .pay, "pay words")
+        try check(S.action(of: "我要應徵") == .submit && S.action(of: "立即應徵") == .submit && S.action(of: "Apply now") == .submit,
+                  "applying counts as submitting (Taiwanese 應徵 too)")
+        try check(S.action(of: "刪除") == .delete && S.action(of: "Delete conversation") == .delete, "delete words")
+        try check(S.action(of: "發送") == .send && S.action(of: "Send message") == .send, "send words")
+        try check(S.action(of: "加入購物車") == nil && S.action(of: "Add to cart") == nil, "adding to the cart is not ordering")
+        try check(S.action(of: "付款紀錄") == nil && S.action(of: "待付款") == nil && S.action(of: "付款方式") == nil, "entrances and states are not actions")
+        try check(S.action(of: "搜尋") == nil && S.action(of: "下一頁") == nil, "ordinary controls")
+        try check(S.action(of: "確定") == .submit, "a generic OK counts as submitting")
+        try check(S.payableAmount(in: "商品 A\n合計：NT$ 1,290\n運費 0") == "NT$ 1,290", "total with NT$")
+        try check(S.payableAmount(in: "應付金額 1,290 元") == "1,290 元", "amount in 元")
+        try check(S.payableAmount(in: "售價 NT$ 990\n4.5 星") == nil, "a price is not an amount to pay")
+        try check(S.decide(label: "確認付款", pageText: "") == .payment, "paying is never done")
+        try check(S.decide(label: "立即購買", pageText: "合計 NT$ 990") == .needsConsent(.order, amount: "NT$ 990"), "ordering needs consent")
+        try check(S.decide(label: "送出", pageText: "留言內容") == .outward(.submit), "submitting without money runs")
+        try check(S.decide(label: "送出", pageText: "應付 NT$ 500") == .needsConsent(.submit, amount: "NT$ 500"), "submitting with an amount needs consent")
+        try check(S.decide(label: "發送", pageText: "應付 NT$ 500") == .outward(.send), "sending never spends")
+        try check(S.decide(label: "搜尋", pageText: "合計 NT$ 1") == .allow, "searching is not outward")
+
+        var gate = ChatWebConsentGate()
+        let order = ChatWebConsentGate.Request(action: .order, site: "shop.example", target: "立即購買", amount: "NT$ 990")
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 1) == .noConsent, "no consent yet")
+        gate.record(order, allowed: true, step: 1)
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$990", step: 2) == .allowed, "the next matching step")
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 3) == .noConsent, "used once")
+        gate.record(order, allowed: true, step: 4)
+        try check(gate.permit(.submit, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 5) == .allowed, "ordering covers submitting")
+        gate.record(order, allowed: true, step: 6)
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 10) == .mismatch, "expires after three steps")
+        gate.record(order, allowed: true, step: 11)
+        gate.noteOtherAction()
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 12) == .noConsent, "another action ends it")
+        gate.record(order, allowed: true, step: 13)
+        try check(gate.permit(.order, site: "other.example", target: "立即購買", pageAmount: "NT$ 990", step: 14) == .mismatch, "same site only")
+        gate.record(order, allowed: true, step: 15)
+        try check(gate.permit(.order, site: "shop.example", target: "立即購買", pageAmount: "NT$ 1,990", step: 16) == .mismatch, "same amount only")
+        gate.record(order, allowed: true, step: 17)
+        try check(gate.permit(.pay, site: "shop.example", target: "立即購買", pageAmount: "NT$ 990", step: 18) == .mismatch, "paying never")
+        gate.record(order, allowed: false, step: 19)
+        try check(gate.wasDeclined(.order, site: "shop.example") && gate.wasDeclined(.submit, site: "shop.example")
+                  && !gate.wasDeclined(.order, site: "other.example"), "a refusal holds for that site")
+
+        var outward = ChatWebOutwardPacing()
+        try check(outward.delay(site: "104.com.tw", jitter: { 0 }) == 0, "first outward action does not wait")
+        try check(outward.delay(site: "104.com.tw", jitter: { 0 }) == 8, "second waits 8–20 s")
+        try check(outward.delay(site: "104.com.tw", jitter: { 1 }) == 21, "later ones a little more")
+        for _ in 0..<40 { _ = outward.delay(site: "104.com.tw", jitter: { 1 }) }
+        try check(outward.delay(site: "104.com.tw", jitter: { 1 }) == 30, "at most 30 s")
+    }
+
+    static func actions(_ check: Check) async throws {
+        let entry = #"{"action":"web_read_page","url":"https://www.104.com.tw/jobs/search/?keyword=iOS"}"#
+        func web() -> FakeWebTab {
+            let tab = tab()
+            tab.controls[search] = [ChatWebControl(ref: "e1", kind: "text", label: "關鍵字"),
+                                    ChatWebControl(ref: "e2", kind: "button", label: "我要應徵"),
+                                    ChatWebControl(ref: "e3", kind: "button", label: "立即購買"),
+                                    ChatWebControl(ref: "e4", kind: "button", label: "確認付款"),
+                                    ChatWebControl(ref: "e5", kind: "button", label: "停用", enabled: false)]
+            return tab
+        }
+        // Applying runs without asking, like Android, paced and marked outward.
+        do {
+            let tab = web()
+            let model = ScriptedModel([#"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e2","snapshotId":"s1"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e2","snapshotId":"s2"}"#,
+                                       #"{"action":"web_tap","ref":"e2","snapshotId":"s2"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_type_text","ref":"e1","snapshotId":"s3","text":"Swift","pressEnter":true}"#,
+                                       #"{"action":"finish","answer":"done"}"#])
+            let sleeper = SleepLog()
+            let task = ChatWebTaskRunner(client: model, executor: tab, configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { await sleeper.add($0) }, jitter: { 0 })
+            var asked = 0
+            task.confirm = { _ in asked += 1; return true }
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let requests = await model.requests
+            try check(result.status == .succeeded && asked == 0, "outward actions are not asked about")
+            try check(tab.acted.count == 3 && tab.acted.allSatisfy(\.1), "an action that passed the money rule may send its form")
+            try check(result.steps.filter(\.outward).count == 2, "applications marked outward")
+            let slept = await sleeper.values
+            try check(slept == [8], "the second application on the site waits")
+            try check(requests[5].last?.content.contains("stale_snapshot") == true, "a snapshot is good for one action")
+        }
+        // Ordering needs 允許這一次 for that one step; paying is never done.
+        do {
+            let tab = web()
+            let model = ScriptedModel([#"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e3","snapshotId":"s1"}"#,
+                                       #"{"action":"request_confirmation","kind":"order","target":"立即購買","content":"耳機 1 副"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e3","snapshotId":"s2"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e3","snapshotId":"s3"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e4","snapshotId":"s4"}"#,
+                                       #"{"action":"request_confirmation","kind":"pay","target":"確認付款"}"#,
+                                       #"{"action":"web_tap","ref":"e5","snapshotId":"s4"}"#,
+                                       #"{"action":"end_not_done","reason":"請你自己付款。"}"#])
+            let task = ChatWebTaskRunner(client: model, executor: tab, configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            var asked: [ChatWebConsentGate.Request] = []
+            task.confirm = { asked.append($0); return true }
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let requests = await model.requests
+            try check(requests[2].last?.content.contains("confirmation_required") == true, "ordering without an OK is refused")
+            try check(asked.count == 1 && asked[0].action == .order && asked[0].site == "104.com.tw", "the user was asked once")
+            try check(requests[3].last?.content.contains("\"allowed\":true") == true, "the answer goes back to the model")
+            try check(tab.acted.count == 1, "only the allowed step ran")
+            try check(requests[7].last?.content.contains("confirmation_required") == true, "the OK was used by that step")
+            try check(requests[9].last?.content.contains("payment_requires_user") == true, "paying is left to the user")
+            try check(requests[10].last?.content.contains("payment_requires_user") == true && asked.count == 1, "no OK is asked for paying")
+            try check(requests[11].last?.content.contains("control_disabled") == true, "disabled controls are not used")
+            try check(result.status == .notDone && result.reason == "請你自己付款。", "the task ends with the user's part")
+        }
+        // A refusal holds: the user is not asked again for that site.
+        do {
+            let tab = web()
+            let model = ScriptedModel([#"{"action":"request_confirmation","kind":"order","target":"立即購買"}"#,
+                                       #"{"action":"web_observe"}"#, #"{"action":"web_tap","ref":"e3","snapshotId":"s1"}"#,
+                                       #"{"action":"request_confirmation","kind":"order","target":"立即購買"}"#,
+                                       #"{"action":"finish","answer":"沒有下單。"}"#])
+            let task = ChatWebTaskRunner(client: model, executor: tab, configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            var asked = 0
+            task.confirm = { _ in asked += 1; return false }
+            let result = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let requests = await model.requests
+            try check(requests[1].last?.content.contains("\"allowed\":false") == true, "refusal reported")
+            try check(requests[3].last?.content.contains("confirmation_refused") == true && tab.acted.isEmpty, "refused step never runs")
+            try check(asked == 1 && requests[4].last?.content.contains("refused this earlier") == true, "not asked again")
+            try check(result.steps.contains { $0.kind == .confirm && !$0.succeeded }, "refusal recorded")
+        }
+        // Without a host to ask, consent counts as refused.
+        do {
+            let model = ScriptedModel([#"{"action":"request_confirmation","kind":"submit","target":"送出"}"#, #"{"action":"finish","answer":"x"}"#])
+            let task = ChatWebTaskRunner(client: model, executor: web(), configuration: config, apiKey: "dummy",
+                                         settings: .init(searchTemplate: "x"), sleep: { _ in }, jitter: { 0 })
+            _ = await task.run(conversation: conversation, entry: try ChatWebCommand.parseEntry(entry), entryRaw: entry)
+            let sent = await model.requests
+            try check(sent[1].last?.content.contains("\"allowed\":false") == true, "no host means no")
+        }
+    }
+
     static func waitUntil(_ name: String, _ condition: () -> Bool) async throws {
         for _ in 0..<2_000 {
             if condition() { return }
@@ -413,6 +569,9 @@ actor ScriptedModel: ChatModelClient {
     private(set) var captures = 0
     private(set) var scrolls = 0
     var interruptions = 0
+    var controls: [URL: [ChatWebControl]] = [:]
+    private(set) var acted: [(ChatWebControlAction, Bool)] = []
+    private var snapshotSerial = 0
     var pauseOnCapture: ChatWebTaskPause?
     var holdLoadsAfter: Int?
     private(set) var isHolding = false
@@ -455,6 +614,17 @@ actor ScriptedModel: ChatModelClient {
         history.removeLast()
         let url = history.last!
         return ChatWebLoad(url: url, title: pages[url]?.title ?? "", httpStatus: 200, settled: true)
+    }
+
+    func observe() async throws -> ChatWebControls {
+        guard let url = currentURL else { throw ChatWebExecutionError.pageUnavailable }
+        snapshotSerial += 1
+        return ChatWebControls(snapshotID: "s\(snapshotSerial)", url: url, controls: controls[url] ?? [])
+    }
+
+    func act(_ action: ChatWebControlAction, snapshot: String, allowsSubmission: Bool) async throws -> ChatWebActResult {
+        acted.append((action, allowsSubmission))
+        return ChatWebActResult(navigated: false, load: nil)
     }
 
     func waitFor(_ condition: ChatWebWaitCondition, value: String, seconds: Int) async throws -> Bool {

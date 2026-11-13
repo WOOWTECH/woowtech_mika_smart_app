@@ -66,6 +66,36 @@ final class ChatWebTaskUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chat.send"].exists)
     }
 
+    /// Ordering waits on the card's 允許這一次 for that one step (Android's
+    /// confirmation card); the order then goes through and paying is left to the user.
+    func testOrderWaitsForAllowThisOnce() {
+        launch()
+        typeDraft("[fixture:web-order]")
+        tapSend()
+        let allow = app.buttons["chat.web.consent.allow"]
+        XCTAssertTrue(allow.waitForExistence(timeout: 60))
+        let title = app.staticTexts["chat.web.consent.title"].firstMatch
+        XCTAssertTrue(title.label.contains("送出訂單") && title.label.contains("NT$ 1,290"), title.label)
+        XCTAssertTrue(app.staticTexts["花錢的操作每次都要你同意。"].exists)
+        allow.tap()
+        let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 60))
+        XCTAssertTrue(answer.label.contains("WEB_TASK_ORDER_DONE"), answer.label)
+    }
+
+    /// 拒絕 keeps the order unsent.
+    func testRefusingTheOrderSendsNothing() {
+        launch()
+        typeDraft("[fixture:web-order]")
+        tapSend()
+        let refuse = app.buttons["chat.web.consent.refuse"]
+        XCTAssertTrue(refuse.waitForExistence(timeout: 60))
+        refuse.tap()
+        let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 60))
+        XCTAssertTrue(answer.label.contains("WEB_TASK_ORDER_REFUSED"), answer.label)
+    }
+
     private func launch() {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",

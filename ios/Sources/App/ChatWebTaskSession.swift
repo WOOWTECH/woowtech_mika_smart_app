@@ -32,6 +32,10 @@ struct ChatWebTaskEnvironment {
     /// screens and accessibility text sizes (Android hides it there too).
     @Published var showsPreview: Bool? = nil
     @Published var isExpanded = false
+    /// A step that spends money waiting for 允許這一次 or 拒絕 (Android's card).
+    @Published private(set) var pendingConsent: ChatWebConsentGate.Request?
+    private var consentContinuation: CheckedContinuation<Bool, Never>?
+    private var consentToken: UUID?
     private let runner: ChatWebTaskRunner
     private let pause = ChatWebTaskPause()
     private var work: Task<ChatWebTaskResult, Never>?
@@ -52,6 +56,37 @@ struct ChatWebTaskEnvironment {
                                    })
         runner.onSteps = { [weak self] in self?.steps = $0 }
         runner.onActivity = { [weak self] in self?.activity = $0 }
+        runner.confirm = { [weak self] request in await self?.askConsent(request) ?? false }
+    }
+
+    /// Like Android: only the card can allow; no answer in 15 minutes, a stop
+    /// or a cancelled task counts as a refusal.
+    private func askConsent(_ request: ChatWebConsentGate.Request) async -> Bool {
+        let token = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                consentContinuation?.resume(returning: false)
+                consentContinuation = continuation
+                consentToken = token
+                pendingConsent = request
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: 900 * 1_000_000_000)
+                    guard let self, self.consentToken == token else { return }
+                    self.answerConsent(false)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.consentToken == token else { return }
+                self.answerConsent(false)
+            }
+        }
+    }
+
+    func answerConsent(_ allowed: Bool) {
+        let continuation = consentContinuation
+        consentContinuation = nil; consentToken = nil; pendingConsent = nil
+        continuation?.resume(returning: allowed)
     }
 
     /// Runs to the end. Stopping ends only this task's own work, so the chat

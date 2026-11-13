@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BROWSER = ["BrowserPolicy", "ChatWebTaskPolicy", "ChatWebTaskTypes", "ChatWebTaskRunner"]
+BROWSER = ["BrowserPolicy", "ChatWebTaskPolicy", "ChatWebTaskTypes", "ChatWebTaskRunner", "ChatWebSpending"]
 
 
 def main():

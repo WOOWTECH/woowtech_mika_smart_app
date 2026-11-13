@@ -69,6 +69,28 @@ class Pages(BaseHTTPRequestHandler):
             return self.send(200, page("會員", "<p>請輸入密碼</p><input type='password' name='pw'>"), html)
         if parts.path == "/captcha":
             return self.send(200, page("驗證", "<p>請完成驗證</p><div class='g-recaptcha' style='width:300px;height:80px'></div>"), html)
+        if parts.path == "/form/search":
+            return self.send(200, page("搜尋表單", "<form action='/jobs/search'><label>關鍵字 <input name='keyword'></label>"
+                                                 "<button>搜尋</button></form>"), html)
+        if parts.path == "/apply/1":
+            return self.send(200, page("職缺 1", "<p>職缺說明</p><form method='post' action='/applied'>"
+                                                 "<button>我要應徵</button></form>"), html)
+        if parts.path == "/cart":
+            return self.send(200, page("購物車", "<p>耳機 1 副</p><p>合計：NT$ 1,290</p>"
+                                                "<form method='post' action='/ordered'><button>送出訂單</button></form>"
+                                                "<a href='/pay'>確認付款</a>"), html)
+        if parts.path == "/post-search":
+            return self.send(200, page("查詢", "<form method='post' action='/applied'><button>查詢</button></form>"), html)
+        return self.send(404, page("找不到", "<p>找不到頁面</p>"), html)
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        self.rfile.read(length)
+        html = [("Content-Type", "text/html; charset=utf-8")]
+        if self.path == "/applied":
+            return self.send(200, page("已送出", "<p>已送出應徵。</p>"), html)
+        if self.path == "/ordered":
+            return self.send(200, page("訂單成立", "<p>訂單已成立，請付款 NT$ 1,290。</p><a href='/pay'>確認付款</a>"), html)
         return self.send(404, page("找不到", "<p>找不到頁面</p>"), html)
 
 

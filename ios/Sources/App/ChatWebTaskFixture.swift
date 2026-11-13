@@ -82,6 +82,15 @@ final class ChatWebTaskFixture: @unchecked Sendable {
                 return
             }
             let head = String(decoding: received[..<end.lowerBound], as: UTF8.self)
+            // A form's body follows the head; answer once it has all arrived.
+            let length = head.split(separator: "\r\n").compactMap { line -> Int? in
+                let pair = line.split(separator: ":", maxSplits: 1)
+                guard pair.count == 2, pair[0].lowercased() == "content-length" else { return nil }
+                return Int(pair[1].trimmingCharacters(in: .whitespaces))
+            }.first ?? 0
+            if received.count - end.upperBound < min(length, 16 * 1024) && !done {
+                self.receive(connection, buffer: received); return
+            }
             let parts = head.split(separator: "\r\n").first?.split(separator: " ") ?? []
             let target = parts.count >= 2 ? String(parts[1]) : "/"
             self.requests.append((parts.first.map(String.init) ?? "?") + " " + target)
@@ -110,6 +119,9 @@ final class ChatWebTaskFixture: @unchecked Sendable {
             <body><nav><a href="/">網站首頁</a> <a href="/help">說明</a> <a href="/account/login">登入</a></nav>
             <main>\(body)</main><footer><a href="/about">關於我們</a></footer></body></html>
             """)
+        }
+        if method == "POST" && path == "/shop/ordered" {
+            return page("訂單成立", "<h1>訂單成立</h1><p>訂單已成立，請付款 NT$ 1,290。</p><a href=\"/shop/pay\">確認付款</a>")
         }
         guard method == "GET" else { return reply("405 Method Not Allowed", ["Allow: GET"], "") }
         switch path {
@@ -141,6 +153,11 @@ final class ChatWebTaskFixture: @unchecked Sendable {
             });
             </script>
             """)
+        case "/shop/cart":
+            return page("購物車 - 測試購物", """
+            <h1>購物車</h1><p>無線耳機 1 副</p><p>合計：NT$ 1,290</p>
+            <form method="post" action="/shop/ordered"><button>送出訂單</button></form>
+            """)
         case "/news":
             let items = (1...3).map { "<li><a href=\"/news/\($0)\">AI 新聞 \($0)：測試標題</a></li>" }.joined()
             return page("AI 新聞 - 測試新聞", "<h1>最近的 AI 新聞</h1><ul>\(items)</ul>")
@@ -166,10 +183,11 @@ final class ChatWebTaskFixture: @unchecked Sendable {
 /// example, read from the actual observations, so the native App path (entry,
 /// task tab, runner, card, transcript) runs without a model provider.
 enum ChatWebTaskUITestModel {
-    enum Script: String { case jobs, shop, news, stop }
+    enum Script: String { case jobs, shop, news, stop, order }
 
     static func script(for prompt: String) -> Script? {
         if prompt == "[fixture:web-stop]" { return .stop }
+        if prompt == "[fixture:web-order]" { return .order }
         if prompt.contains("104") { return .jobs }
         if prompt.lowercased().contains("momo") { return .shop }
         if prompt.contains("AI") && (prompt.contains("新聞") || prompt.lowercased().contains("news")) { return .news }
@@ -184,6 +202,7 @@ enum ChatWebTaskUITestModel {
         case .jobs, .stop: path = "/jobs/search?keyword=iOS"
         case .shop: path = "/shop/search?keyword=%E8%80%B3%E6%A9%9F"
         case .news: path = "/news"
+        case .order: path = "/shop/cart"
         }
         return command(["action": "web_read_page", "url": origin + path])
     }
@@ -209,11 +228,35 @@ enum ChatWebTaskUITestModel {
         case (.news, 1): return command(["action": "web_open_link", "linkID": 1])
         case (.news, _):
             return command(["action": "finish", "sources": [2], "answer": "WEB_TASK_NEWS_DONE：重點一、重點二、重點三。"])
+        case (.order, 1), (.order, 4): return command(["action": "web_observe"])
+        case (.order, 2): return tap("送出訂單", in: messages)
+        case (.order, 3):
+            return command(["action": "request_confirmation", "kind": "order", "target": "送出訂單", "amount": "NT$ 1,290"])
+        case (.order, 5):
+            if messages.contains(where: { $0.role == "user" && $0.content.contains("\"allowed\":false") }) {
+                return command(["action": "finish", "answer": "WEB_TASK_ORDER_REFUSED：沒有下單。"])
+            }
+            return tap("送出訂單", in: messages)
+        case (.order, _):
+            return command(["action": "finish", "sources": [1],
+                            "answer": latest.contains("訂單成立") ? "WEB_TASK_ORDER_DONE：訂單成立，請自己付款 NT$ 1,290。" : "WEB_TASK_ORDER_NOT_DONE"])
         case (.stop, _):
             // Long enough for the test to press 停止; cancellation ends it.
             try await Task.sleep(nanoseconds: 120_000_000_000)
             return command(["action": "end_not_done", "reason": "fixture: not stopped"])
         }
+    }
+
+    /// Taps the control with this label from the latest web_observe result.
+    private static func tap(_ label: String, in messages: [ModelMessage]) -> String {
+        for message in messages.reversed() where message.role == "user" && message.content.contains("\"snapshotId\"") {
+            guard let start = message.content.range(of: "<untrusted>\n"), let end = message.content.range(of: "\n</untrusted>"),
+                  let object = try? JSONSerialization.jsonObject(with: Data(message.content[start.upperBound..<end.lowerBound].utf8)) as? [String: Any],
+                  let snapshot = object["snapshotId"] as? String, let controls = object["controls"] as? [[String: Any]],
+                  let ref = controls.first(where: { ($0["label"] as? String) == label })?["ref"] as? String else { break }
+            return command(["action": "web_tap", "ref": ref, "snapshotId": snapshot])
+        }
+        return command(["action": "end_not_done", "reason": "fixture: no control " + label])
     }
 
     private static func command(_ fields: [String: Any]) -> String {

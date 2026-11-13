@@ -11,8 +11,7 @@ public enum ChatWebCommandError: Error, Equatable, Sendable { case invalidComman
 
 /// One step a model asks for in a web task started from chat. A structured
 /// text protocol, one JSON object per reply; names follow the Play build's web
-/// tools so prompts stay comparable. Read-only in this phase: no clicking,
-/// typing, scripts, downloads or uploads.
+/// tools so prompts stay comparable. No scripts, downloads or uploads.
 public enum ChatWebCommand: Equatable, Sendable {
     case navigate(url: String)
     case readPage(url: String?, offset: Int, maxChars: Int)
@@ -23,6 +22,13 @@ public enum ChatWebCommand: Equatable, Sendable {
     case waitFor(ChatWebWaitCondition, value: String, seconds: Int)
     case endNotDone(reason: String)
     case finish(answer: String, sources: [Int])
+    /// The page's controls with refs for web_tap, web_type_text and web_select.
+    case observe
+    case tap(ref: String, snapshot: String)
+    case typeText(ref: String, snapshot: String, text: String, pressEnter: Bool)
+    case select(ref: String, snapshot: String, option: String)
+    /// Asks the user before a step that spends money (Android request_confirmation).
+    case requestConfirmation(kind: ChatWebSpending.Action, target: String, content: String?, amount: String?)
 
     public static let defaultReadCharacters = 12_000
     public static let maximumReadCharacters = 30_000
@@ -32,7 +38,8 @@ public enum ChatWebCommand: Equatable, Sendable {
     public static let entryActions: Set<String> = ["web_navigate", "web_read_page"]
     /// Every command a web task offers, for skills that name the tools they use.
     public static let toolNames: Set<String> = ["web_navigate", "web_read_page", "web_open_link", "web_find", "web_scroll",
-                                                "web_back", "web_wait_for", "end_not_done"]
+                                                "web_back", "web_wait_for", "end_not_done", "web_observe", "web_tap",
+                                                "web_type_text", "web_select", "request_confirmation"]
 
     public var action: String {
         switch self {
@@ -45,6 +52,11 @@ public enum ChatWebCommand: Equatable, Sendable {
         case .waitFor: return "web_wait_for"
         case .endNotDone: return "end_not_done"
         case .finish: return "finish"
+        case .observe: return "web_observe"
+        case .tap: return "web_tap"
+        case .typeText: return "web_type_text"
+        case .select: return "web_select"
+        case .requestConfirmation: return "request_confirmation"
         }
     }
 
@@ -121,6 +133,30 @@ public enum ChatWebCommand: Equatable, Sendable {
             let sources = envelope.sources ?? []
             guard sources.count <= 20, sources.allSatisfy({ $0 > 0 }) else { throw ChatWebCommandError.invalidCommand }
             return .finish(answer: try checked(envelope.answer, max: maximumAnswerCharacters), sources: sources)
+        case "web_observe":
+            try only([])
+            return .observe
+        case "web_tap":
+            try only(["ref", "snapshotId"], requiring: ["ref", "snapshotId"])
+            return .tap(ref: try checked(envelope.ref, max: 20), snapshot: try checked(envelope.snapshotId, max: 40))
+        case "web_type_text":
+            try only(["ref", "snapshotId", "text", "pressEnter"], requiring: ["ref", "snapshotId", "text"])
+            guard let text = envelope.text, !text.isEmpty, text.utf16.count <= 4_096,
+                  !text.unicodeScalars.contains(where: { $0.value < 32 && $0 != "\n" && $0 != "\t" }) else {
+                throw ChatWebCommandError.invalidCommand
+            }
+            return .typeText(ref: try checked(envelope.ref, max: 20), snapshot: try checked(envelope.snapshotId, max: 40),
+                             text: text, pressEnter: envelope.pressEnter ?? false)
+        case "web_select":
+            try only(["ref", "snapshotId", "option"], requiring: ["ref", "snapshotId", "option"])
+            return .select(ref: try checked(envelope.ref, max: 20), snapshot: try checked(envelope.snapshotId, max: 40),
+                           option: try checked(envelope.option, max: 200))
+        case "request_confirmation":
+            try only(["kind", "target", "content", "amount"], requiring: ["kind", "target"])
+            guard let kind = ChatWebSpending.Action(rawValue: envelope.kind ?? "") else { throw ChatWebCommandError.invalidCommand }
+            return .requestConfirmation(kind: kind, target: try checked(envelope.target, max: 200),
+                                        content: try envelope.content.map { try checked($0, max: 2_000) },
+                                        amount: try envelope.amount.map { try checked($0, max: 60) })
         default:
             throw ChatWebCommandError.invalidCommand
         }
@@ -152,6 +188,14 @@ public enum ChatWebCommand: Equatable, Sendable {
         let reason: String?
         let answer: String?
         let sources: [Int]?
+        let ref: String?
+        let snapshotId: String?
+        let pressEnter: Bool?
+        let option: String?
+        let kind: String?
+        let target: String?
+        let content: String?
+        let amount: String?
     }
 }
 
@@ -208,6 +252,9 @@ public enum ChatWebExecutionError: Error, Equatable, Sendable {
     /// The web content process ended or the app left the foreground; the
     /// read-only step can be done again.
     case interrupted
+    /// The page refused a tap, typing or a choice (stale snapshot, covered
+    /// control, unknown option); nothing was done.
+    case actionRefused(String)
 
     public var code: String {
         switch self {
@@ -218,6 +265,7 @@ public enum ChatWebExecutionError: Error, Equatable, Sendable {
         case .pageUnavailable: return "page_unavailable"
         case .readTimedOut: return "read_timeout"
         case .interrupted: return "interrupted"
+        case .actionRefused(let reason): return reason
         }
     }
 }
@@ -234,20 +282,67 @@ public enum ChatWebExecutionError: Error, Equatable, Sendable {
     func goBack() async throws -> ChatWebLoad?
     /// True when the condition was met within the time.
     func waitFor(_ condition: ChatWebWaitCondition, value: String, seconds: Int) async throws -> Bool
+    /// Visible controls a task may use; never passwords, codes, card numbers
+    /// or sign-in names, and never field values.
+    func observe() async throws -> ChatWebControls
+    /// Does one action on a control from `snapshot` (one action per snapshot).
+    /// `allowsSubmission` lets the page send a form (POST) right after it.
+    /// An action is never done again after a failure: it may have reached the site.
+    func act(_ action: ChatWebControlAction, snapshot: String, allowsSubmission: Bool) async throws -> ChatWebActResult
+}
+
+public struct ChatWebControl: Equatable, Sendable {
+    public let ref: String
+    /// link, button, toggle, text or select.
+    public let kind: String
+    public let label: String
+    public let enabled: Bool
+    public let checked: Bool?
+    public let options: [String]
+    public init(ref: String, kind: String, label: String, enabled: Bool = true, checked: Bool? = nil, options: [String] = []) {
+        self.ref = ref; self.kind = kind; self.label = String(label.prefix(160)); self.enabled = enabled
+        self.checked = checked; self.options = Array(options.prefix(100))
+    }
+}
+
+public struct ChatWebControls: Equatable, Sendable {
+    public let snapshotID: String
+    public let url: URL
+    public let controls: [ChatWebControl]
+    public let truncated: Bool
+    public init(snapshotID: String, url: URL, controls: [ChatWebControl], truncated: Bool = false) {
+        self.snapshotID = snapshotID; self.url = url; self.controls = Array(controls.prefix(200)); self.truncated = truncated
+    }
+}
+
+public enum ChatWebControlAction: Equatable, Sendable {
+    case tap(ref: String)
+    case type(ref: String, text: String, pressEnter: Bool)
+    case select(ref: String, option: String)
+}
+
+public struct ChatWebActResult: Equatable, Sendable {
+    /// The page moved to another document.
+    public let navigated: Bool
+    public let load: ChatWebLoad?
+    public init(navigated: Bool, load: ChatWebLoad?) { self.navigated = navigated; self.load = load }
 }
 
 /// One line in the task card and in 「檢視過程」. No page text is kept.
 public struct ChatWebStep: Identifiable, Equatable, Sendable {
-    public enum Kind: String, Equatable, Sendable { case open, read, find, scroll, back, wait }
+    public enum Kind: String, Equatable, Sendable { case open, read, find, scroll, back, wait, observe, tap, type, select, confirm }
     public let id: Int
     public let kind: Kind
     public let site: String
     public let title: String
     public let url: URL?
     public let succeeded: Bool
-    public init(id: Int, kind: Kind, site: String, title: String, url: URL?, succeeded: Bool) {
+    /// Sending, submitting, applying or deleting: done without asking, like
+    /// Android, and marked so the user can see it in 檢視過程.
+    public let outward: Bool
+    public init(id: Int, kind: Kind, site: String, title: String, url: URL?, succeeded: Bool, outward: Bool = false) {
         self.id = id; self.kind = kind; self.site = site; self.title = String(title.prefix(120))
-        self.url = url; self.succeeded = succeeded
+        self.url = url; self.succeeded = succeeded; self.outward = outward
     }
 }
 
@@ -274,6 +369,9 @@ public enum ChatWebActivity: Equatable, Sendable {
     case waiting(site: String)
     /// Like a person who finishes a page before turning it (Android PagePacing).
     case pacing(site: String)
+    case acting(site: String)
+    /// A step that spends money waits for 允許這一次 or 拒絕.
+    case waitingForYou
 }
 
 /// Used on the main actor; `error` is the immutable model error of a failed task.

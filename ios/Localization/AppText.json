@@ -6346,8 +6346,169 @@
       "key": "chat.web.consent.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，並把網址、標題和網頁文字傳給你選的模型服務。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。",
-        "en": "When you ask woowtech agent to use the web in a chat, it opens websites in the app’s built-in browser, reads them, and sends page addresses, titles and text to the model service you chose. The task tab shares website data with the built-in browser, so it may read sites you signed in to in the app. Screenshots, cookies, passwords and what you type into fields are not sent."
+        "zh-Hant": "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，也可以替你點選、輸入和送出表單；網址、標題、網頁文字和按鈕、欄位的名稱會傳給你選的模型服務。花錢的步驟每次都要你同意，付款一律由你自己完成。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。",
+        "en": "When you ask woowtech agent to use the web in a chat, it opens websites in the app’s built-in browser, reads them, and can tap, type and send forms for you; page addresses, titles, text and the names of buttons and fields go to the model service you chose. Anything that spends money needs your OK every time, and you always pay yourself. The task tab shares website data with the built-in browser, so it may read sites you signed in to in the app. Screenshots, cookies, passwords and what you type into fields are not sent."
+      }
+    },
+    {
+      "case": "chatWebActivityActing",
+      "key": "chat.web.activity.acting",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "正在 %1$@ 的網頁上操作",
+        "en": "Working on the %1$@ page"
+      }
+    },
+    {
+      "case": "chatWebActivityWaitingForYou",
+      "key": "chat.web.activity.waitingForYou",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等你處理",
+        "en": "Waiting for you"
+      }
+    },
+    {
+      "case": "chatWebStepObserve",
+      "key": "chat.web.step.observe",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "讀取介面元素 · %1$@",
+        "en": "Read screen elements · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepTap",
+      "key": "chat.web.step.tap",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "點選 · %1$@",
+        "en": "Tap · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepType",
+      "key": "chat.web.step.type",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "輸入文字 · %1$@",
+        "en": "Type text · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepSelect",
+      "key": "chat.web.step.select",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "選擇選項 · %1$@",
+        "en": "Choose an option · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepConfirm",
+      "key": "chat.web.step.confirm",
+      "parameters": [
+        {
+          "name": "site",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "請你同意 · %1$@",
+        "en": "Ask for your OK · %1$@"
+      }
+    },
+    {
+      "case": "chatWebStepOutward",
+      "key": "chat.web.step.outward",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "對外動作",
+        "en": "Outward action"
+      }
+    },
+    {
+      "case": "chatWebAskTitle",
+      "key": "chat.web.ask.title",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "要你同意：%1$@",
+        "en": "Needs your OK: %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskTitleAmount",
+      "key": "chat.web.ask.titleAmount",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        },
+        {
+          "name": "amount",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "要你同意：%1$@ %2$@",
+        "en": "Needs your OK: %1$@ %2$@"
+      }
+    },
+    {
+      "case": "chatWebAskNote",
+      "key": "chat.web.ask.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "花錢的操作每次都要你同意。",
+        "en": "Anything that spends money needs your OK every time."
+      }
+    },
+    {
+      "case": "chatWebAskRefuse",
+      "key": "chat.web.ask.refuse",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "拒絕",
+        "en": "Refuse"
+      }
+    },
+    {
+      "case": "chatWebAskAllowOnce",
+      "key": "chat.web.ask.allowOnce",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許這一次",
+        "en": "Allow this once"
       }
     }
   ]

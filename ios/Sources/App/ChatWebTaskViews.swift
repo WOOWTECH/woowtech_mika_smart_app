@@ -27,6 +27,8 @@ struct ChatWebTaskText {
         case .goingBack: return localizer.text(.chatWebActivityBack)
         case .waiting(let site): return localizer.text(.chatWebActivityWaiting(site: site))
         case .pacing(let site): return localizer.text(.chatWebActivityPacing(site: site))
+        case .acting(let site): return localizer.text(.chatWebActivityActing(site: site))
+        case .waitingForYou: return localizer.text(.chatWebActivityWaitingForYou)
         }
     }
 
@@ -40,8 +42,16 @@ struct ChatWebTaskText {
         case .scroll: label = localizer.text(.chatWebStepScroll(site: site))
         case .back: label = localizer.text(.chatWebStepBack(site: site))
         case .wait: label = localizer.text(.chatWebStepWait(site: site))
+        case .observe: label = localizer.text(.chatWebStepObserve(site: site))
+        case .tap: label = localizer.text(.chatWebStepTap(site: site))
+        case .type: label = localizer.text(.chatWebStepType(site: site))
+        case .select: label = localizer.text(.chatWebStepSelect(site: site))
+        case .confirm: label = localizer.text(.chatWebStepConfirm(site: site))
         }
-        return step.succeeded ? label : label + " · " + localizer.text(.chatWebStepFailed)
+        var text = label
+        if step.outward { text += " · " + localizer.text(.chatWebStepOutward) }
+        if !step.title.isEmpty && [.tap, .type, .select, .confirm].contains(step.kind) { text += "「" + step.title + "」" }
+        return step.succeeded ? text : text + " · " + localizer.text(.chatWebStepFailed)
     }
 
     @MainActor func headline(_ task: ChatWebTaskSession) -> String {
@@ -83,6 +93,7 @@ struct ChatWebTaskCard: View {
                     .font(.caption).foregroundStyle(step.succeeded ? colors.secondaryInk : .red)
                     .lineLimit(2)
             }
+            if let request = task.pendingConsent { consent(request) }
             Text(verbatim: localizer.text(.chatWebForegroundNote))
                 .font(.caption2).foregroundStyle(colors.secondaryInk)
             buttons
@@ -90,7 +101,8 @@ struct ChatWebTaskCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(colors.fill, in: RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(task.phase == .paused ? Color.orange : colors.accent.opacity(0.5), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(task.phase == .paused || task.pendingConsent != nil ? Color.orange : colors.accent.opacity(0.5),
+                                                           lineWidth: task.pendingConsent != nil ? 2 : 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.web.card")
         .sheet(isPresented: $showsProcess) {
@@ -115,6 +127,30 @@ struct ChatWebTaskCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(localizer.text(.chatWebCardAccessibility(activity: activity, step: task.steps.count, elapsed: elapsed)))
         .accessibilityIdentifier("chat.web.status")
+    }
+
+    /// Android's 要你同意 card: allowing works only here, never from a notification.
+    private func consent(_ request: ChatWebConsentGate.Request) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: request.amount.map { localizer.text(.chatWebAskTitleAmount(target: request.target, amount: $0)) }
+                 ?? localizer.text(.chatWebAskTitle(target: request.target)))
+                .font(.subheadline.weight(.semibold)).foregroundStyle(colors.ink)
+                .accessibilityIdentifier("chat.web.consent.title")
+            Text(verbatim: localizer.text(.chatWebAskNote)).font(.caption).foregroundStyle(colors.secondaryInk)
+            HStack(spacing: 12) {
+                Button(localizer.text(.chatWebAskRefuse)) { task.answerConsent(false) }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("chat.web.consent.refuse")
+                Button(localizer.text(.chatWebAskAllowOnce)) { task.answerConsent(true) }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("chat.web.consent.allow")
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.web.consent")
     }
 
     private var buttons: some View {
@@ -208,7 +244,7 @@ struct ChatWebTaskPreview: View {
                         .overlay {
                             if !expanded {
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(task.phase == .paused ? Color.orange : Color.green, lineWidth: 2)
+                                    .stroke(task.phase == .paused || task.pendingConsent != nil ? Color.orange : Color.green, lineWidth: 2)
                             }
                         }
                         .allowsHitTesting(false)
