@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.R
 import com.wangzan101.mika.about.MikaLinks
 import com.wangzan101.mika.ui.components.GroupCard
@@ -52,6 +53,12 @@ import com.wangzan101.mika.ui.theme.MikaType
 
 /** 关于页上点开的底部面板。 */
 private enum class AboutSheet { Feedback, Diagnostics }
+
+/**
+ * WOOWTECH Play edition (woowtech flavor): no GitHub entries (source code, guide, GitHub issue). The repo documents
+ * the direct-download APK, which is not distributed through Google Play. The licenses page stays.
+ */
+private val SHOW_GITHUB = BuildConfig.FLAVOR != "woowtech"
 
 /**
  * 关于 Mika:顶上图标、名字、一句话介绍、版本(Beta 标记、构建编号);下面是
@@ -78,7 +85,7 @@ fun AboutScreen(
         GroupCard {
             ListRow(MikaIcons.Bug, AboutCopy.FEEDBACK, AboutCopy.FEEDBACK_SUB, first = true, onClick = { sheet = AboutSheet.Feedback }) { RowChevron() }
         }
-        GroupCard {
+        if (SHOW_GITHUB) GroupCard {
             ListRow(MikaIcons.Code, AboutCopy.REPO, AboutCopy.REPO_SUB, first = true, onClick = { onOpenUrl(MikaLinks.REPO) }) { ExternalMark() }
             ListRow(MikaIcons.Book, AboutCopy.GUIDE, AboutCopy.GUIDE_SUB, onClick = { onOpenUrl(MikaLinks.README) }) { ExternalMark() }
         }
@@ -110,7 +117,7 @@ fun AboutScreen(
     val close = { sheet = null }
     when (sheet) {
         AboutSheet.Feedback -> FeedbackSheet(
-            onGitHub = { close(); onOpenUrl(issueUrl) },
+            onGitHub = if (SHOW_GITHUB) ({ close(); onOpenUrl(issueUrl) }) else null,
             onDiagnostics = { sheet = AboutSheet.Diagnostics },
             onDismiss = close,
         )
@@ -179,12 +186,13 @@ private fun AboutSheetFrame(title: String, sub: String?, tag: String, onDismiss:
     }
 }
 
+/** WOOWTECH fork: without [onGitHub] (Play edition) the sheet only offers copying diagnostics. */
 @Composable
-private fun FeedbackSheet(onGitHub: () -> Unit, onDiagnostics: () -> Unit, onDismiss: () -> Unit) {
+private fun FeedbackSheet(onGitHub: (() -> Unit)?, onDiagnostics: () -> Unit, onDismiss: () -> Unit) {
     AboutSheetFrame(AboutCopy.FEEDBACK, AboutCopy.FEEDBACK_SHEET_SUB, "feedback-sheet", onDismiss) {
         Column(Modifier.padding(top = 6.dp)) {
-            FeedbackOption(MikaIcons.Code, AboutCopy.FEEDBACK_GITHUB, AboutCopy.FEEDBACK_GITHUB_SUB, first = true, onGitHub)
-            FeedbackOption(MikaIcons.Copy, AboutCopy.DIAGNOSTICS, AboutCopy.DIAGNOSTICS_SUB, first = false, onDiagnostics)
+            onGitHub?.let { FeedbackOption(MikaIcons.Code, AboutCopy.FEEDBACK_GITHUB, AboutCopy.FEEDBACK_GITHUB_SUB, first = true, it) }
+            FeedbackOption(MikaIcons.Copy, AboutCopy.DIAGNOSTICS, AboutCopy.DIAGNOSTICS_SUB, first = onGitHub == null, onDiagnostics)
         }
     }
 }

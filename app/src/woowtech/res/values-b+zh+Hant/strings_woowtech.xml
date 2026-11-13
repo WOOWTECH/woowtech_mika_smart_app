@@ -9,10 +9,14 @@
     <string name="about_tagline">在同一個地方對話、瀏覽網頁，並記住有用的資訊</string>
     <string name="about_guide_sub">上手指南與參與專案的方式</string>
     <string name="about_repo_sub">%1$s · 原始碼與專案資訊</string>
-    <string name="about_data_note">你分享的內容可能傳送給所選的模型服務商。使用連線功能時，也可能經過渥屋科技的服務。分享敏感資訊前，請先確認相關服務。</string>
+    <string name="about_data_note">你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。</string>
+    <!-- Play 版的關於頁沒有 GitHub 回報入口（AboutScreen）。 -->
+    <string name="about_feedback_sub">複製診斷資訊 · woowtech@designsmart.com.tw</string>
+    <string name="about_feedback_sheet_sub">複製診斷資訊後，寄到 woowtech@designsmart.com.tw</string>
+    <string name="diagnostics_copy_sub">版本、機型和設定狀態，寄信時附上</string>
     <string name="chat_empty_prompt">想聊什麼，或需要幫忙查找什麼？</string>
     <string name="chat_example_follow">幫我寫一則友善的訊息回覆</string>
-    <string name="chat_example_group_summary">幫我摘要附上的文件，列出重點</string>
+    <string name="chat_example_group_summary">在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點</string>
     <string name="chat_example_jobs">在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較</string>
     <string name="chat_example_multi_step">在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點</string>
     <string name="chat_example_alarms">記住我偏好使用繁體中文，回答簡短一點</string>
@@ -20,6 +24,12 @@
     <string name="drawer_phone_not_ready">對話、內建瀏覽器和記憶功能可使用</string>
     <string name="settings_all_ready_detail">模型已就緒 · 可使用對話與內建瀏覽器</string>
     <string name="settings_memory_sub">記憶、技能與網站登入</string>
+    <!-- Play 版沒有自主模式、計算環境、修復頁，也不在 App 內下載更新。 -->
+    <string name="settings_advanced_sub">網路代理與 MCP 伺服器</string>
+    <string name="settings_during_work_sub">螢幕常亮、步數上限與同時任務數</string>
+    <string name="net_proxy_row_sub">呼叫模型、帳號登入和內建瀏覽器都走它</string>
+    <string name="net_proxy_hint">渥屋助理自己的連線（呼叫模型、模型清單、帳號登入）和內建瀏覽器都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連。可以帶「使用者:密碼@」，加密保存在這台手機上。留空表示直連。</string>
+    <string name="net_proxy_container_only">https:// 代理不用於渥屋助理的連線，會照舊直連；請改用 http:// 或 socks5://。</string>
     <string name="relay_gateway_hint">https://assistant-relay.woowtech.io/</string>
     <string name="relay_gateway_default" translatable="false">https://assistant-relay.woowtech.io/</string>
     <string name="relay_portal_url" translatable="false">https://assistant-relay.woowtech.io/</string>

@@ -26,7 +26,7 @@ object ChatCopy {
 
     val examples get() = if (BuildConfig.FLAVOR == "woowtech") listOf(
         Example(ExampleKind.File, tr(R.string.chat_example_follow)),
-        Example(ExampleKind.File, tr(R.string.chat_example_group_summary)),
+        Example(ExampleKind.Web, tr(R.string.chat_example_group_summary)),
         Example(ExampleKind.Web, tr(R.string.chat_example_jobs)),
         Example(ExampleKind.Web, tr(R.string.chat_example_multi_step)),
         Example(ExampleKind.File, tr(R.string.chat_example_alarms)),

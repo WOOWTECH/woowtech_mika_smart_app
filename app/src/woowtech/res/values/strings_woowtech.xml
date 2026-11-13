@@ -10,10 +10,14 @@
     <string name="about_tagline">Chat, browse, and keep useful information in one place</string>
     <string name="about_guide_sub">Getting started and contributing to the project</string>
     <string name="about_repo_sub">%1$s · source code and project information</string>
-    <string name="about_data_note">Content you share may be sent to your chosen model provider. Connected features may also use WOOW TECH services. Review those services before sharing sensitive information.</string>
+    <string name="about_data_note">What you send is processed by the AI provider you choose. If you report an AI response, that response is sent to WOOW TECH for review.</string>
+    <!-- The Play edition has no GitHub feedback entry (AboutScreen). -->
+    <string name="about_feedback_sub">Copy diagnostics · woowtech@designsmart.com.tw</string>
+    <string name="about_feedback_sheet_sub">Copy diagnostics, then email them to woowtech@designsmart.com.tw.</string>
+    <string name="diagnostics_copy_sub">Version, device and setup state, to include in your email</string>
     <string name="chat_empty_prompt">What would you like help with?</string>
     <string name="chat_example_follow">Help me write a friendly reply to this message.</string>
-    <string name="chat_example_group_summary">Summarize the document I attach and list its key points.</string>
+    <string name="chat_example_group_summary">Find a recent AI news article in the built-in browser and summarize three key points.</string>
     <string name="chat_example_jobs">Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.</string>
     <string name="chat_example_multi_step">Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.</string>
     <string name="chat_example_alarms">Remember that I prefer concise answers in Traditional Chinese.</string>
@@ -21,6 +25,12 @@
     <string name="drawer_phone_not_ready">Chat, browser, and memory are available</string>
     <string name="settings_all_ready_detail">Model ready · Chat and browser available</string>
     <string name="settings_memory_sub">Memories, skills, and website sign-ins</string>
+    <!-- The Play edition has no autonomous mode, computing environment, repair page or in-app updates. -->
+    <string name="settings_advanced_sub">Network proxy &amp; MCP servers</string>
+    <string name="settings_during_work_sub">Keep screen on, step limit &amp; parallel tasks</string>
+    <string name="net_proxy_row_sub">For model requests, account sign-in and the in-app browser</string>
+    <string name="net_proxy_hint">Used for woowtech agent’s own connections (chat, model lists, account sign-in) and the in-app browser. Addresses on this phone or your local network (localhost, 192.168.x.x, 10.x.x.x, names ending in .local) always connect directly. It may include user:password@, stored encrypted on this phone. Leave empty for a direct connection.</string>
+    <string name="net_proxy_container_only">https:// proxies aren’t used for woowtech agent’s connections, which stay direct. Use http:// or socks5:// instead.</string>
     <string name="plans_footer">Create plans for supported chat, web, and memory tasks. This edition cannot operate other apps on your phone.</string>
     <string name="task_app_blocked">This edition cannot read or operate “%1$s” outside its own browser. Share the information here or use the built-in browser instead.</string>
     <string name="task_app_access_unavailable">Cross-app access is unavailable in this edition. Chat, browser, and memory tasks are still available.</string>

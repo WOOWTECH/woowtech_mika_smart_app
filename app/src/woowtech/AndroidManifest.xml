@@ -12,6 +12,10 @@
         <service
             android:name=".sandbox.SandboxService"
             tools:node="remove" />
+        <!-- The Play edition has no phone control, so there is no Wireless debugging pairing-code notification. -->
+        <receiver
+            android:name=".setup.PairingCodeReceiver"
+            tools:node="remove" />
         <!-- Browser input stops here; MainActivity must never receive its extras or URI grants. -->
         <activity
             android:name=".woowtech.BrowserOpenActivity"

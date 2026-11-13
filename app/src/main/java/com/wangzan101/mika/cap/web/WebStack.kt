@@ -6,6 +6,7 @@ import com.wangzan101.mika.core.cap.web.WebUrlPolicy
 import android.os.SystemClock
 import android.util.Log
 import androidx.webkit.WebViewAssetLoader
+import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.takeover.HandoverActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -199,7 +200,9 @@ class WebStack private constructor(
             context: Context, taskId: String, widthPx: Int, heightPx: Int, densityDpi: Int,
             assetLoaders: List<WebViewAssetLoader> = emptyList(),
             workspace: Workspace? = null,
-            keeper: PageKeeper? = WebOwner.of(context).pageKeeper,
+            // WOOWTECH Play edition (woowtech flavor): no page outlives its task, so web_keep_open reports
+            // keep_open_unavailable and TaskService never stays in the foreground for a kept page.
+            keeper: PageKeeper? = if (BuildConfig.FLAVOR == "woowtech") null else WebOwner.of(context).pageKeeper,
         ): WebStack {
             val host = WebHost(context, widthPx, heightPx, densityDpi)
             return try {
