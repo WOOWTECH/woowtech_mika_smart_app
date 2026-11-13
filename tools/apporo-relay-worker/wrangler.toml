@@ -7,6 +7,10 @@ routes = [
   { pattern = "assistant-relay.apporo.ai", custom_domain = true }
 ]
 
+# Static files served before the Worker (only exact file paths): the Play foreground-service demo video.
+[assets]
+directory = "./public"
+
 [[rules]]
 type = "Text"
 globs = ["**/*.py", "**/*.txt", "**/*.md"]
@@ -27,6 +31,14 @@ class_name = "AccountAuth"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["AccountAuth"]
+
+[[durable_objects.bindings]]
+name = "REPORTS"
+class_name = "ReportInbox"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ReportInbox"]
 
 [observability]
 enabled = false

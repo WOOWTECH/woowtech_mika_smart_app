@@ -13,6 +13,9 @@ class_name = "RelayDurableObject"
 [[durable_objects.bindings]]
 name = "AUTH"
 class_name = "AccountAuth"
+[[durable_objects.bindings]]
+name = "REPORTS"
+class_name = "ReportInbox"
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["RelayDurableObject", "AccountAuth"]
+new_sqlite_classes = ["RelayDurableObject", "AccountAuth", "ReportInbox"]

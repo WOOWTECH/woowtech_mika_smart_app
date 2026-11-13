@@ -4,7 +4,7 @@
   "scripts": {
     "types": "wrangler types",
     "check": "wrangler types && tsc --noEmit",
-    "test": "python3 -m unittest discover -s test -p 'test_cli_*.py' && node test/smoke.mjs",
+    "test": "python3 -m unittest discover -s test -p 'test_cli_*.py' && node test/smoke.mjs && node test/report-retention.mjs",
     "test:accounts": "node test/accounts.mjs",
     "test:provider": "node test/accounts.mjs --provider",
     "deploy": "wrangler deploy"
