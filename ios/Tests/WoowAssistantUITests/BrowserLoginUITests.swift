@@ -391,9 +391,6 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(empty.waitForExistence(timeout: max(0, removalDeadline - ProcessInfo.processInfo.systemUptime)),
                       "Wait for the post-deletion WebKit website-record refresh to show an empty list.")
         tap(app.buttons["browser.library.close"])
-        XCTAssertTrue(text("LOGIN_PROTECTED_DENIED").waitForExistence(timeout: 30),
-                      "Closing the library must restore the previously visible selected page, without opening a new tab.")
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, protectedURL.absoluteString)
         // The cleared store was empty in d938 SE, but its first post-clear
         // protected navigation stayed in the provisional loading state. Visit
         // the same live server's ordinary status document through a fresh

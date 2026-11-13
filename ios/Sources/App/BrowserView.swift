@@ -13,7 +13,6 @@ struct BrowserView: View {
     @State private var showResearch = false
     @State private var showInteractions = false
     @State private var showLibrary = false
-    @State private var browserVisible = false
     @State private var showTranscript = false
     @State private var showMultiResearch = false
     @State private var showSearchSettings = false
@@ -191,9 +190,7 @@ struct BrowserView: View {
         .sheet(isPresented: $showInteractions, onDismiss: { browser.cancelInteraction() }) {
             BrowserInteractionView(browser: browser, chat: chat)
         }
-        .sheet(isPresented: $showLibrary, onDismiss: {
-            workspace.browserLibraryDidDismiss(isVisible: browserVisible, isActive: scenePhase == .active)
-        }) {
+        .sheet(isPresented: $showLibrary) {
             BrowserLibraryView(workspace: workspace, initialSection: librarySection, pdfDestination: { selection in
                 AnyView(SkillExecutionView(learning: chat.learning, modelAccess: chat.modelAccess,
                     modelChanges: chat.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
@@ -249,16 +246,8 @@ struct BrowserView: View {
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
         }
-        .onAppear {
-            browserVisible = true
-            if scenePhase == .active { workspace.browserDidAppear(activate: !showLibrary) }
-            browser.setPageFindHostVisible(pageFindHostVisible)
-        }
-        .onDisappear { browserVisible = false; workspace.browserDidDisappear(); browser.setPageFindHostVisible(false) }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active && browserVisible { workspace.browserDidAppear(activate: !showLibrary) }
-            else if phase != .active { workspace.browserDidDisappear() }
-        }
+        .onAppear { workspace.browserDidAppear(); browser.setPageFindHostVisible(pageFindHostVisible) }
+        .onDisappear { workspace.browserDidDisappear(); browser.setPageFindHostVisible(false) }
         .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
             showResearch = false; showInteractions = false; showTranscript = false

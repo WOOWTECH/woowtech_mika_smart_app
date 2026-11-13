@@ -152,12 +152,7 @@ private final class SiteModeKeys: LearningKeyStore {
         func release() { continuation?.resume(); continuation = nil }
     }
 
-    enum ClearScenario: CaseIterable, Equatable {
-        case appearance, leaves, backgroundCancellation, sheetAfterClear, sheetDuringClear, hiddenSheet, inactiveSheet
-        case backgroundToSheetAfterClear, backgroundToSheetDuringClear
-    }
-
-    static func checkDeferredWebsiteClear(_ scenario: ClearScenario) async throws -> Int {
+    static func checkDeferredWebsiteClear(leavesBeforeCompletion: Bool) async throws -> Int {
         var checks = 0
         func expect(_ condition: @autoclosure () throws -> Bool, _ label: String) throws {
             guard try condition() else { throw Failure(check: label) }; checks += 1
@@ -176,8 +171,6 @@ private final class SiteModeKeys: LearningKeyStore {
             original.webView.loadHTMLString("<html><head><title>Before clear</title></head><body>LOCAL</body></html>", baseURL: url)
         }
         try await wait("deferred fixture initial load", { original.loadedURL == url && workspace.library.tabs.first?.url == url })
-        // The browser was already on screen before its library sheet opened.
-        workspace.browserDidAppear()
         let cookie = HTTPCookie(properties: [.domain: "research.example.invalid", .path: "/", .name: "woow_deferred_fixture", .value: "synthetic", .expires: Date().addingTimeInterval(3600)])!
         await store.httpCookieStore.setCookie(cookie)
         workspace.refreshWebsiteRecords()
@@ -197,43 +190,16 @@ private final class SiteModeKeys: LearningKeyStore {
         workspace.removeWebsiteData([record])
         try await wait("real clear reached gate", { gate.entered })
         try expect(workspace.isClearingWebsiteData, "clear is held")
-        switch scenario {
-        case .appearance, .leaves, .backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear:
-            workspace.browserDidAppear()
-        case .sheetDuringClear:
-            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
-        case .hiddenSheet:
-            workspace.browserLibraryDidDismiss(isVisible: false, isActive: true)
-        case .inactiveSheet:
-            workspace.browserLibraryDidDismiss(isVisible: true, isActive: false)
-        case .sheetAfterClear:
-            break
-        }
+        workspace.browserDidAppear()
         try expect(navigations == 0, "no navigation during removal")
-        if scenario == .leaves { workspace.browserDidDisappear() }
-        if [.backgroundCancellation, .backgroundToSheetAfterClear, .backgroundToSheetDuringClear].contains(scenario) {
-            workspace.cancelAllWork()
-            // A late sheet callback cannot undo a background cancellation.
-            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
-        }
-        if [.backgroundToSheetAfterClear, .backgroundToSheetDuringClear].contains(scenario) {
-            workspace.browserDidAppear(activate: false) // Foreground, but still covered by the library.
-            try expect(navigations == 0, "foreground sheet must not load behind itself")
-        }
-        if scenario == .backgroundToSheetDuringClear {
-            workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
-        }
+        if leavesBeforeCompletion { workspace.browserDidDisappear() }
         gate.release()
         try await wait("real clear completed", { !workspace.isClearingWebsiteData })
         try expect(workspace.errorText == nil, "clear succeeded")
         try expect(workspace.selected !== original, "selected session replaced")
-        if [.leaves, .backgroundCancellation, .hiddenSheet, .inactiveSheet, .sheetAfterClear, .backgroundToSheetAfterClear].contains(scenario) {
-            try expect(navigations == 0 && workspace.selected.loadedURL == nil, "no unauthorised restoration")
-            if [.sheetAfterClear, .backgroundToSheetAfterClear].contains(scenario) {
-                workspace.browserLibraryDidDismiss(isVisible: true, isActive: true)
-            } else {
-                workspace.browserDidAppear()
-            }
+        if leavesBeforeCompletion {
+            try expect(navigations == 0 && workspace.selected.loadedURL == nil, "no background restoration")
+            workspace.browserDidAppear()
         }
         try await wait("deferred actual WebKit restoration", {
             navigations == 1 && workspace.selected.loadedURL == url && workspace.selected.pageTitle == "Restored"
@@ -423,7 +389,8 @@ private final class SiteModeKeys: LearningKeyStore {
                   "legacy encrypted library migrates without metadata loss")
         try check(migrated.library.userSiteModes.desktopHosts.isEmpty, "legacy encrypted library starts mobile")
         #if DEBUG
-        for scenario in ClearScenario.allCases { count += try await checkDeferredWebsiteClear(scenario) }
+        count += try await checkDeferredWebsiteClear(leavesBeforeCompletion: false)
+        count += try await checkDeferredWebsiteClear(leavesBeforeCompletion: true)
         #endif
         // Corrupt ciphertext: fail closed and leave original bytes untouched.
         try Data("corrupt fixture".utf8).write(to: file)
