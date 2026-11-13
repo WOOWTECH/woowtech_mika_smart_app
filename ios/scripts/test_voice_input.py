@@ -67,7 +67,6 @@ class VoiceInputStandaloneTests(unittest.TestCase):
             if re.search(r"\bWKWebView\s*\(", path.read_text()):
                 constructors.add(path.relative_to(ROOT).as_posix())
         self.assertEqual(constructors, {
-            "Sources/App/BrowserLibraryView.swift",
             "Sources/App/BrowserSession.swift",
             "Sources/AssistantBrowser/ResearchSourceDiscoveryWebKit.swift",
         }, "Review the audio admission inventory when a new direct constructor appears")

@@ -5,7 +5,7 @@ import Foundation
 /// native evidence shows the object can no longer use audio. This enumeration
 /// does not itself instrument WebKit.
 enum VoiceAudioClientRoute: Hashable, CaseIterable {
-    case browserSession       // manual tabs, popups, multi-source research and the website-data list's blank page
+    case browserSession       // manual tabs, popups and multi-source research
     case sourceDiscovery      // ResearchSourceDiscoveryWebKit in AssistantBrowser
     case nativeAudio          // all current/future app-owned native audio clients
 }
