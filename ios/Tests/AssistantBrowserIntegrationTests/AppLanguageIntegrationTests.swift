@@ -5,9 +5,13 @@ import XCTest
 /// fallback cannot make this packaging acceptance pass.
 @MainActor final class AppLanguageIntegrationTests: XCTestCase {
     func testPackagedLanguageTablesAndNativePluralResolution() throws {
+        // A Simplified Chinese system has no table of its own (2026-11-13): it reads
+        // the Traditional Chinese one.
+        let simplifiedSystem = AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"])
+        XCTAssertEqual(simplifiedSystem, .traditionalChinese)
         let expected: [(AppDisplayLanguage, String, String, String)] = [
             (.traditionalChinese, "語言與外觀", "1 輪", "2 輪"),
-            (.simplifiedChinese, "语言与外观", "1 轮", "2 轮"),
+            (simplifiedSystem, "語言與外觀", "1 輪", "2 輪"),
             (.english, "Language and appearance", "1 exchange", "2 exchanges")
         ]
         for (language, title, singular, plural) in expected {
@@ -35,6 +39,10 @@ import XCTest
                 XCTAssertFalse(resolved.usedFallback)
                 XCTAssertFalse(resolved.text.isEmpty)
             }
+        }
+        let simplifiedTables = Bundle.main.bundleURL.appendingPathComponent("zh-Hans.lproj")
+        for table in ["App.strings", "App.stringsdict"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: simplifiedTables.appendingPathComponent(table).path), table)
         }
     }
 }

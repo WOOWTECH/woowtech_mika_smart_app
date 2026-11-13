@@ -1,20 +1,20 @@
 import Foundation
 
 /// Interface language only. Never changes prompts, user data or model output.
+/// 简体中文 ("zh-Hans") was a choice until 2026-11-13; it is no longer a case, so
+/// a stored one loads as .system like any unknown value (see AppLanguageStore).
 enum AppLanguage: String, CaseIterable, Codable {
     case system
     case traditionalChinese = "zh-Hant"
-    case simplifiedChinese = "zh-Hans"
     case english = "en"
 
     /// The choices Settings offers, as in the Play edition (brand.properties
-    /// ui.languages=en,zh-Hant). 简体中文 is no longer offered.
+    /// ui.languages=en,zh-Hant).
     static let settingsChoices: [AppLanguage] = [.system, .traditionalChinese, .english]
 
     func resolve(preferredLanguages: [String]) -> AppDisplayLanguage {
         switch self {
         case .traditionalChinese: return .traditionalChinese
-        case .simplifiedChinese: return .simplifiedChinese
         case .english: return .english
         case .system:
             // The first system language the app has an interface for decides;
@@ -24,10 +24,10 @@ enum AppLanguage: String, CaseIterable, Codable {
     }
 }
 
+/// The interface languages, as in the Play build: English and Traditional Chinese.
 enum AppDisplayLanguage: String, CaseIterable {
     case english = "en"
     case traditionalChinese = "zh-Hant"
-    case simplifiedChinese = "zh-Hans"
 
     /// The interface for one system language, by the owner's rule of 2026-11-13
     /// (簡中用繁中跟其他語言用英文). English shows English. Chinese shows Traditional

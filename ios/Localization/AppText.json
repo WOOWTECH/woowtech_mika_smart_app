@@ -3,7 +3,6 @@
   "fallback": "zh-Hant",
   "languages": [
     "zh-Hant",
-    "zh-Hans",
     "en"
   ],
   "entries": [
@@ -13,7 +12,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語言",
-        "zh-Hans": "语言",
         "en": "Language"
       }
     },
@@ -23,7 +21,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "跟隨系統",
-        "zh-Hans": "跟随系统",
         "en": "Follow system"
       }
     },
@@ -33,7 +30,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "跟著裝置語言；簡體中文改用繁體中文，其他沒有譯文的語言用英文",
-        "zh-Hans": "跟着设备语言；简体中文改用繁体中文，其他没有译文的语言用英文",
         "en": "Follows your device language: Traditional Chinese for Simplified Chinese, English for other languages without a translation"
       }
     },
@@ -43,18 +39,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "繁體中文",
-        "zh-Hans": "繁體中文",
         "en": "繁體中文"
-      }
-    },
-    {
-      "case": "languageSimplified",
-      "key": "language.simplified",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "简体中文",
-        "zh-Hans": "简体中文",
-        "en": "简体中文"
       }
     },
     {
@@ -63,18 +48,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "English",
-        "zh-Hans": "English",
         "en": "English"
-      }
-    },
-    {
-      "case": "languagePartialNotice",
-      "key": "language.partialNotice",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。",
-        "zh-Hans": "设置页、主导航与新增聊天控件已提供三语翻译；其他页面仍可能显示繁体中文。",
-        "en": "Settings, main navigation and new chat controls have translations in all three languages. Other pages may still appear in Traditional Chinese."
       }
     },
     {
@@ -83,7 +57,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法讀回語言設定，請重新選擇。",
-        "zh-Hans": "无法读回语言设置，请重新选择。",
         "en": "Could not verify the saved language. Please select it again."
       }
     },
@@ -93,7 +66,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "渥屋助理",
-        "zh-Hans": "渥屋助理",
         "en": "woowtech agent"
       }
     },
@@ -103,7 +75,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選單",
-        "zh-Hans": "菜单",
         "en": "Menu"
       }
     },
@@ -113,7 +84,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "返回對話",
-        "zh-Hans": "返回对话",
         "en": "Back to chat"
       }
     },
@@ -123,7 +93,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "返回記憶",
-        "zh-Hans": "返回记忆",
         "en": "Back to memory"
       }
     },
@@ -133,7 +102,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新對話",
-        "zh-Hans": "新对话",
         "en": "New chat"
       }
     },
@@ -143,7 +111,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "關閉選單",
-        "zh-Hans": "关闭菜单",
         "en": "Close menu"
       }
     },
@@ -153,7 +120,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "歷史對話",
-        "zh-Hans": "历史对话",
         "en": "Chat history"
       }
     },
@@ -163,7 +129,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "對話",
-        "zh-Hans": "对话",
         "en": "Chat"
       }
     },
@@ -173,7 +138,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "記憶與技能",
-        "zh-Hans": "记忆与技能",
         "en": "Memory and skills"
       }
     },
@@ -183,7 +147,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 伺服器",
-        "zh-Hans": "MCP 服务器",
         "en": "MCP servers"
       }
     },
@@ -193,7 +156,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "瀏覽器",
-        "zh-Hans": "浏览器",
         "en": "Browser"
       }
     },
@@ -203,7 +165,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "設定",
-        "zh-Hans": "设置",
         "en": "Settings"
       }
     },
@@ -213,7 +174,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Skills 與 MCP",
-        "zh-Hans": "Skills 与 MCP",
         "en": "Skills and MCP"
       }
     },
@@ -223,7 +183,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "記憶與資料",
-        "zh-Hans": "记忆与数据",
         "en": "Memory & data"
       }
     },
@@ -233,7 +192,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "早上好",
-        "zh-Hans": "早上好",
         "en": "Good morning"
       }
     },
@@ -243,7 +201,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "中午好",
-        "zh-Hans": "中午好",
         "en": "Good afternoon"
       }
     },
@@ -253,7 +210,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "下午好",
-        "zh-Hans": "下午好",
         "en": "Good afternoon"
       }
     },
@@ -263,7 +219,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "晚上好",
-        "zh-Hans": "晚上好",
         "en": "Good evening"
       }
     },
@@ -273,7 +228,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "夜深了",
-        "zh-Hans": "夜深了",
         "en": "Up late"
       }
     },
@@ -283,7 +237,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "想讓渥屋助理做什麼？",
-        "zh-Hans": "想让渥屋助理做什么？",
         "en": "What should woowtech agent do?"
       }
     },
@@ -293,7 +246,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "幫我寫一則友善的訊息回覆",
-        "zh-Hans": "帮我写一则友善的消息回复",
         "en": "Help me write a friendly reply to this message."
       }
     },
@@ -303,7 +255,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "幫我摘要附上的文件，列出重點",
-        "zh-Hans": "帮我摘要附上的文件，列出重点",
         "en": "Summarize the document I attach and list its key points."
       }
     },
@@ -313,7 +264,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
-        "zh-Hans": "在 momo 购物找 1,000 元以内、4.5 星以上的无线耳机，比较三款的优缺点",
         "en": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons."
       }
     },
@@ -323,7 +273,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "記住我偏好使用繁體中文，回答簡短一點",
-        "zh-Hans": "记住我偏好使用繁体中文，回答简短一点",
         "en": "Remember that I prefer concise answers in Traditional Chinese."
       }
     },
@@ -333,7 +282,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "你記得我有哪些偏好？",
-        "zh-Hans": "你记得我有哪些偏好？",
         "en": "What preferences have I told you to remember?"
       }
     },
@@ -343,7 +291,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
-        "zh-Hans": "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较",
         "en": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me."
       }
     },
@@ -353,7 +300,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "附加 PDF",
-        "zh-Hans": "附加 PDF",
         "en": "Attach PDF"
       }
     },
@@ -363,7 +309,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "檢視 PDF 附件",
-        "zh-Hans": "查看 PDF 附件",
         "en": "View PDF attachment"
       }
     },
@@ -373,7 +318,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "輸入訊息",
-        "zh-Hans": "输入消息",
         "en": "Type a message"
       }
     },
@@ -383,7 +327,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "繼續說點什麼…",
-        "zh-Hans": "继续说点什么…",
         "en": "Say something more…"
       }
     },
@@ -393,7 +336,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "訊息草稿",
-        "zh-Hans": "消息草稿",
         "en": "Message draft"
       }
     },
@@ -403,7 +345,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "取消",
-        "zh-Hans": "取消",
         "en": "Stop"
       }
     },
@@ -413,7 +354,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "回到最新訊息",
-        "zh-Hans": "回到最新消息",
         "en": "Jump to latest"
       }
     },
@@ -423,7 +363,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "傳送",
-        "zh-Hans": "发送",
         "en": "Send"
       }
     },
@@ -433,7 +372,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "外觀",
-        "zh-Hans": "外观",
         "en": "Appearance"
       }
     },
@@ -443,7 +381,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "跟隨系統",
-        "zh-Hans": "跟随系统",
         "en": "Follow the system"
       }
     },
@@ -453,7 +390,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "裝置是淺色就淺色，深色就深色",
-        "zh-Hans": "设备是浅色就浅色，深色就深色",
         "en": "Light or dark, whichever the device is in"
       }
     },
@@ -463,7 +399,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "一直淺色",
-        "zh-Hans": "一直浅色",
         "en": "Always light"
       }
     },
@@ -473,7 +408,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "一直深色",
-        "zh-Hans": "一直深色",
         "en": "Always dark"
       }
     },
@@ -483,7 +417,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "完成輸入",
-        "zh-Hans": "完成输入",
         "en": "Done"
       }
     },
@@ -493,7 +426,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請輸入完整的 HTTPS Base URL，不可包含帳密、查詢參數或片段。",
-        "zh-Hans": "请输入完整的 HTTPS Base URL，不可包含用户名密码、查询参数或片段。",
         "en": "Enter a full HTTPS base URL without credentials, query parameters or a fragment."
       }
     },
@@ -503,7 +435,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請填寫服務供應商提供的模型名稱。",
-        "zh-Hans": "请填写服务提供商提供的模型名称。",
         "en": "Enter the model name supplied by your service provider."
       }
     },
@@ -513,7 +444,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請輸入 API Key。已有儲存的金鑰時，同一服務可留空沿用。",
-        "zh-Hans": "请输入 API Key。已有保存的密钥时，同一服务可留空沿用。",
         "en": "Enter an API key. Leave it blank to reuse a saved key for the same service."
       }
     },
@@ -523,7 +453,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "服務主機或連接埠已變更，請重新輸入該服務的 API Key；不會自動沿用舊金鑰。",
-        "zh-Hans": "服务主机或端口已更改，请重新输入此服务的 API Key；不会自动沿用旧密钥。",
         "en": "The service host or port changed. Enter its API key again; the old key is not reused automatically."
       }
     },
@@ -533,7 +462,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "API Key 不可包含空白或控制字元。",
-        "zh-Hans": "API Key 不可包含空白或控制字符。",
         "en": "The API key must not contain whitespace or control characters."
       }
     },
@@ -543,7 +471,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法存取 Keychain，設定未變更。請解鎖裝置後再試。",
-        "zh-Hans": "无法访问 Keychain，设置未更改。请解锁设备后再试。",
         "en": "Keychain is unavailable. Settings were not changed. Unlock the device and retry."
       }
     },
@@ -558,7 +485,6 @@
       ],
       "translations": {
         "zh-Hant": "Keychain 存取失敗（系統代碼 %1$@），設定未變更。",
-        "zh-Hans": "Keychain 访问失败（系统代码 %1$@），设置未更改。",
         "en": "Keychain access failed (system code %1$@). Settings were not changed."
       }
     },
@@ -568,7 +494,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "刪除",
-        "zh-Hans": "删除",
         "en": "Delete"
       }
     },
@@ -578,7 +503,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "取消",
-        "zh-Hans": "取消",
         "en": "Cancel"
       }
     },
@@ -588,7 +512,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "儲存",
-        "zh-Hans": "保存",
         "en": "Save"
       }
     },
@@ -598,7 +521,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "關閉",
-        "zh-Hans": "关闭",
         "en": "Close"
       }
     },
@@ -608,7 +530,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除",
-        "zh-Hans": "清除",
         "en": "Clear"
       }
     },
@@ -618,7 +539,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "名稱",
-        "zh-Hans": "名称",
         "en": "Name"
       }
     },
@@ -628,7 +548,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已選取",
-        "zh-Hans": "已选取",
         "en": "Selected"
       }
     },
@@ -638,7 +557,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未選取",
-        "zh-Hans": "未选取",
         "en": "Not selected"
       }
     },
@@ -648,7 +566,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未取得",
-        "zh-Hans": "尚未获取",
         "en": "Not available yet"
       }
     },
@@ -658,7 +575,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 與 Skills",
-        "zh-Hans": "MCP 与 Skills",
         "en": "MCP and Skills"
       }
     },
@@ -668,7 +584,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 連線與目錄",
-        "zh-Hans": "MCP 连接与目录",
         "en": "MCP connection and catalog"
       }
     },
@@ -678,7 +593,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "伺服器未宣告工具能力",
-        "zh-Hans": "服务器未声明工具能力",
         "en": "The server did not declare tool support"
       }
     },
@@ -688,7 +602,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。",
-        "zh-Hans": "支持 HTTPS Streamable HTTP。连接后选取要提供给对话模型的工具，再到对话开启 MCP。每次执行前会显示工具名称与完整参数，等待你批准；工具说明及结果会发送给已配置的模型。",
         "en": "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. Each execution requires your approval of the tool name and complete arguments. Tool descriptions and results are sent to your configured model."
       }
     },
@@ -698,7 +611,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "UI 測試隔離模式：不會發送 MCP 網路請求。",
-        "zh-Hans": "UI 测试隔离模式：不会发送 MCP 网络请求。",
         "en": "Isolated UI test mode: no MCP network requests."
       }
     },
@@ -708,7 +620,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "端點已安全儲存；不顯示網址。",
-        "zh-Hans": "端点已安全保存；不显示网址。",
         "en": "Endpoint stored securely; its URL is hidden."
       }
     },
@@ -718,7 +629,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未儲存端點。",
-        "zh-Hans": "尚未保存端点。",
         "en": "No endpoint saved."
       }
     },
@@ -728,7 +638,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "完整 HTTPS MCP 端點",
-        "zh-Hans": "完整 HTTPS MCP 端点",
         "en": "Complete HTTPS MCP endpoint"
       }
     },
@@ -738,7 +647,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 私密端點",
-        "zh-Hans": "MCP 私密端点",
         "en": "Private MCP endpoint"
       }
     },
@@ -748,7 +656,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Webhook URL 等同憑證，完整網址僅儲存於此裝置解鎖時可讀取的 Keychain，不透過 iCloud 同步。輸入新端點後，請先儲存或清除草稿再連線。",
-        "zh-Hans": "Webhook URL 等同凭证，完整网址仅保存在此设备解锁时可读取的 Keychain，不通过 iCloud 同步。输入新端点后，请先保存或清除草稿再连接。",
         "en": "A webhook URL is a credential. The complete URL is stored only in this device’s Keychain, accessible while unlocked, without iCloud sync. Save or clear a new endpoint draft before connecting."
       }
     },
@@ -758,7 +665,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "儲存端點",
-        "zh-Hans": "保存端点",
         "en": "Save endpoint"
       }
     },
@@ -768,7 +674,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除輸入",
-        "zh-Hans": "清除输入",
         "en": "Clear input"
       }
     },
@@ -778,7 +683,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除已儲存端點",
-        "zh-Hans": "移除已保存端点",
         "en": "Remove saved endpoint"
       }
     },
@@ -788,7 +692,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "探索狀態",
-        "zh-Hans": "探索状态",
         "en": "Discovery status"
       }
     },
@@ -798,7 +701,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "取消等待",
-        "zh-Hans": "取消等待",
         "en": "Cancel waiting"
       }
     },
@@ -808,7 +710,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "連線並探索目錄",
-        "zh-Hans": "连接并探索目录",
         "en": "Connect and discover catalog"
       }
     },
@@ -818,7 +719,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "中斷連線",
-        "zh-Hans": "断开连接",
         "en": "Disconnect"
       }
     },
@@ -828,7 +728,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "伺服器工具",
-        "zh-Hans": "服务器工具",
         "en": "Server tools"
       }
     },
@@ -838,7 +737,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋工具名稱",
-        "zh-Hans": "搜索工具名称",
         "en": "Search tool names"
       }
     },
@@ -848,7 +746,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除此裝置儲存的 MCP 端點？",
-        "zh-Hans": "移除此设备保存的 MCP 端点？",
         "en": "Remove the MCP endpoint saved on this device?"
       }
     },
@@ -858,7 +755,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除端點",
-        "zh-Hans": "移除端点",
         "en": "Remove endpoint"
       }
     },
@@ -868,7 +764,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未設定 MCP",
-        "zh-Hans": "尚未配置 MCP",
         "en": "MCP is not configured"
       }
     },
@@ -878,7 +773,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "端點已儲存，尚未驗證連線",
-        "zh-Hans": "端点已保存，尚未验证连接",
         "en": "Endpoint saved; connection not verified"
       }
     },
@@ -888,7 +782,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在建立 MCP 工作階段…",
-        "zh-Hans": "正在建立 MCP 会话…",
         "en": "Establishing an MCP session…"
       }
     },
@@ -898,7 +791,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在擷取工具與資源目錄…",
-        "zh-Hans": "正在获取工具与资源目录…",
         "en": "Fetching tool and resource catalogs…"
       }
     },
@@ -908,7 +800,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已連線，目錄擷取完成",
-        "zh-Hans": "已连接，目录获取完成",
         "en": "Connected; catalogs retrieved"
       }
     },
@@ -918,7 +809,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已中斷本機連線",
-        "zh-Hans": "已断开本地连接",
         "en": "Local connection disconnected"
       }
     },
@@ -928,7 +818,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已取消等待",
-        "zh-Hans": "已取消等待",
         "en": "Waiting cancelled"
       }
     },
@@ -938,7 +827,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 設定或連線未完成",
-        "zh-Hans": "MCP 配置或连接未完成",
         "en": "MCP setup or connection did not complete"
       }
     },
@@ -948,7 +836,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "每次對話最多選取 64 個工具。",
-        "zh-Hans": "每次对话最多选取 64 个工具。",
         "en": "Select at most 64 tools per conversation."
       }
     },
@@ -958,7 +845,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "端點已存入此裝置的 Keychain；尚未送出連線請求。",
-        "zh-Hans": "端点已存入此设备的 Keychain；尚未发送连接请求。",
         "en": "Endpoint saved in this device’s Keychain; no connection request has been sent."
       }
     },
@@ -968,7 +854,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已移除此 App 的 MCP 端點。",
-        "zh-Hans": "已移除此 App 的 MCP 端点。",
         "en": "This app’s MCP endpoint was removed."
       }
     },
@@ -978,7 +863,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "僅完成握手與目錄探索，未執行工具或讀取資源內容；不代表服務持續在線。",
-        "zh-Hans": "仅完成握手与目录探索，未执行工具或读取资源内容；不代表服务持续在线。",
         "en": "Only the handshake and catalog discovery completed. No tool ran or resource content was read. This does not guarantee ongoing service availability."
       }
     },
@@ -988,7 +872,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 連線或目錄擷取失敗。請檢查端點、網路及伺服器的 Streamable HTTP 支援；不會自動重試。",
-        "zh-Hans": "MCP 连接或目录获取失败。请检查端点、网络及服务器的 Streamable HTTP 支持；不会自动重试。",
         "en": "MCP connection or catalog retrieval failed. Check the endpoint, network and server’s Streamable HTTP support. There is no automatic retry."
       }
     },
@@ -998,7 +881,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "探索超過 90 秒，已停止本機等待；伺服器可能已收到目錄請求。",
-        "zh-Hans": "探索超过 90 秒，已停止本地等待；服务器可能已收到目录请求。",
         "en": "Discovery exceeded 90 seconds. Local waiting stopped; the server may have received catalog requests."
       }
     },
@@ -1008,7 +890,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已取消本機等待；伺服器可能已收到目錄請求。",
-        "zh-Hans": "已取消本地等待；服务器可能已收到目录请求。",
         "en": "Local waiting cancelled; the server may have received catalog requests."
       }
     },
@@ -1018,7 +899,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已停止本機工作並清除目錄；端點設定保留。未要求伺服器撤銷憑證或刪除遠端工作階段。",
-        "zh-Hans": "已停止本地工作并清除目录；端点配置保留。未要求服务器撤销凭证或删除远程会话。",
         "en": "Local work stopped and catalogs cleared; the endpoint is retained. The server was not asked to revoke credentials or delete its session."
       }
     },
@@ -1028,7 +908,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 設定存取失敗；不會顯示端點或原始錯誤內容。",
-        "zh-Hans": "MCP 配置访问失败；不会显示端点或原始错误内容。",
         "en": "MCP settings could not be accessed. The endpoint and original error are hidden."
       }
     },
@@ -1038,7 +917,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請輸入完整 HTTPS MCP 端點，不可含帳密、片段或空白。查詢參數會與整個端點一起安全儲存。",
-        "zh-Hans": "请输入完整 HTTPS MCP 端点，不可含账号密码、片段或空白。查询参数会与整个端点一起安全保存。",
         "en": "Enter a complete HTTPS MCP endpoint without URL credentials, fragments or whitespace. Query parameters are stored securely with the endpoint."
       }
     },
@@ -1048,7 +926,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法存取 MCP Keychain，請解鎖裝置後再試。",
-        "zh-Hans": "无法访问 MCP Keychain，请解锁设备后再试。",
         "en": "MCP Keychain is unavailable. Unlock the device and try again."
       }
     },
@@ -1058,7 +935,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "UI 測試缺少有效的隔離命名空間；不會讀取正式設定。",
-        "zh-Hans": "UI 测试缺少有效的隔离命名空间；不会读取正式配置。",
         "en": "The UI test has no valid isolated namespace. Production settings will not be read."
       }
     },
@@ -1068,7 +944,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Live MCP UI 測試設定未完成，未取得私密端點。",
-        "zh-Hans": "Live MCP UI 测试配置未完成，未取得私密端点。",
         "en": "Live MCP UI test setup is incomplete; no private endpoint was obtained."
       }
     },
@@ -1078,7 +953,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型請求執行以下工具。核准只適用於這一次的名稱與參數；結果會提供給已設定的模型。",
-        "zh-Hans": "模型请求执行以下工具。批准只适用于这一次的名称与参数；结果会提供给已配置的模型。",
         "en": "The model requests this tool. Approval applies only to this name and these arguments for this invocation. Results will be provided to your configured model."
       }
     },
@@ -1088,7 +962,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "工具可能修改外部資料。取消本機等待無法撤銷已送出的操作。",
-        "zh-Hans": "工具可能修改外部数据。取消本地等待无法撤销已发送的操作。",
         "en": "Tools may change external data. Cancelling local waiting cannot undo an operation already sent."
       }
     },
@@ -1098,7 +971,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "核准 MCP 呼叫",
-        "zh-Hans": "批准 MCP 调用",
         "en": "Approve MCP call"
       }
     },
@@ -1108,7 +980,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "拒絕並停止",
-        "zh-Hans": "拒绝并停止",
         "en": "Decline and stop"
       }
     },
@@ -1118,7 +989,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "核准這一次",
-        "zh-Hans": "批准这一次",
         "en": "Approve once"
       }
     },
@@ -1128,7 +998,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "讀取 MCP 資源",
-        "zh-Hans": "读取 MCP 资源",
         "en": "Read MCP resource"
       }
     },
@@ -1138,7 +1007,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "工具回報錯誤",
-        "zh-Hans": "工具报告错误",
         "en": "Tool reported an error"
       }
     },
@@ -1148,7 +1016,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已收到工具結果",
-        "zh-Hans": "已收到工具结果",
         "en": "Tool result received"
       }
     },
@@ -1158,7 +1025,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "本次 MCP 工具結果",
-        "zh-Hans": "本次 MCP 工具结果",
         "en": "MCP results for this conversation"
       }
     },
@@ -1168,7 +1034,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "結果無法顯示",
-        "zh-Hans": "结果无法显示",
         "en": "Result cannot be displayed"
       }
     },
@@ -1178,7 +1043,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "通知導頁測試觀測",
-        "zh-Hans": "通知导航测试观测",
         "en": "Notification routing test observation"
       }
     },
@@ -1193,7 +1057,6 @@
       ],
       "translations": {
         "zh-Hant": "協定版本：%1$@",
-        "zh-Hans": "协议版本：%1$@",
         "en": "Protocol version: %1$@"
       }
     },
@@ -1208,7 +1071,6 @@
       ],
       "translations": {
         "zh-Hant": "MCP Keychain 存取失敗（系統代碼 %1$@）。",
-        "zh-Hans": "MCP Keychain 访问失败（系统代码 %1$@）。",
         "en": "MCP Keychain access failed (system code %1$@)."
       }
     },
@@ -1225,9 +1087,6 @@
       "translations": {
         "zh-Hant": {
           "other": "工具：%lld 個"
-        },
-        "zh-Hans": {
-          "other": "工具：%lld 个"
         },
         "en": {
           "one": "Tools: %lld",
@@ -1249,9 +1108,6 @@
         "zh-Hant": {
           "other": "已選取 %lld 個工具供對話使用"
         },
-        "zh-Hans": {
-          "other": "已选取 %lld 个工具供对话使用"
-        },
         "en": {
           "one": "%lld tool selected for chat",
           "other": "%lld tools selected for chat"
@@ -1264,7 +1120,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋引擎",
-        "zh-Hans": "搜索引擎",
         "en": "Search engines"
       }
     },
@@ -1274,7 +1129,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增自訂引擎",
-        "zh-Hans": "新增自定义引擎",
         "en": "Add a custom engine"
       }
     },
@@ -1284,7 +1138,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "https://example.com/search?q=%%s",
-        "zh-Hans": "https://example.com/search?q=%%s",
         "en": "https://example.com/search?q=%%s"
       }
     },
@@ -1294,7 +1147,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "以 %%s 代表搜尋文字，只接受公開 HTTPS；不接受網址帳密、登入參數或 #。最多 20 個。",
-        "zh-Hans": "以 %%s 代表搜索文字，只接受公开 HTTPS；不接受网址账号密码、登录参数或 #。最多 20 个。",
         "en": "Use %%s for search text. Only public HTTPS is accepted; no URL credentials, login parameters or #. Limit: 20 engines."
       }
     },
@@ -1304,7 +1156,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增並使用",
-        "zh-Hans": "新增并使用",
         "en": "Add and use"
       }
     },
@@ -1314,7 +1165,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "變更引擎會用於下一次手動搜尋；目前頁面不會重新載入。搜尋結果網址會沿用瀏覽歷史的儲存與清除設定。",
-        "zh-Hans": "变更引擎会用于下一次手动搜索；当前页面不会重新加载。搜索结果网址会沿用浏览历史的保存与清除设置。",
         "en": "Changes apply to your next manual search without reloading this page. Search result URLs follow your browsing history storage and clearing settings."
       }
     },
@@ -1324,7 +1174,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "瀏覽資料目前無法讀取，不會覆寫原有資料。",
-        "zh-Hans": "浏览数据目前无法读取，不会覆盖原有数据。",
         "en": "Browsing data cannot be read. Existing data will not be overwritten."
       }
     },
@@ -1334,7 +1183,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "最多儲存 20 個自訂搜尋引擎。",
-        "zh-Hans": "最多保存 20 个自定义搜索引擎。",
         "en": "You can save at most 20 custom search engines."
       }
     },
@@ -1344,7 +1192,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請填寫名稱與公開 HTTPS 模板；在路徑或查詢值中使用一個 %%s，不可含網址帳密、登入參數或 #。",
-        "zh-Hans": "请填写名称与公开 HTTPS 模板；在路径或查询值中使用一个 %%s，不可含网址账号密码、登录参数或 #。",
         "en": "Enter a name and a public HTTPS template with one %%s in its path or a query value. URL credentials, login parameters and # are not allowed."
       }
     },
@@ -1354,7 +1201,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "測試上傳頁面未能啟動。",
-        "zh-Hans": "测试上传页面未能启动。",
         "en": "The test upload page could not start."
       }
     },
@@ -1364,7 +1210,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "測試登入頁面未能啟動。",
-        "zh-Hans": "测试登录页面未能启动。",
         "en": "The test login page could not start."
       }
     },
@@ -1374,7 +1219,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "瀏覽資料目前無法儲存。",
-        "zh-Hans": "浏览数据目前无法保存。",
         "en": "Browsing data cannot currently be saved."
       }
     },
@@ -1384,7 +1228,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "最多開啟 20 個分頁，請先關閉不用的分頁。",
-        "zh-Hans": "最多打开 20 个标签页，请先关闭不用的标签页。",
         "en": "At most 20 tabs can be open. Close an unused tab first."
       }
     },
@@ -1394,7 +1237,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "瀏覽資料未變更，請解鎖裝置後重試。",
-        "zh-Hans": "浏览数据未变更，请解锁设备后重试。",
         "en": "Browsing data was not changed. Unlock the device and try again."
       }
     },
@@ -1404,7 +1246,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網頁尚未完全停止，網站資料未清除；請重試。",
-        "zh-Hans": "网页尚未完全停止，网站数据未清除；请重试。",
         "en": "Pages have not fully stopped. Site data was not cleared; please try again."
       }
     },
@@ -1414,7 +1255,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "部分網站資料仍保留，請重新確認。",
-        "zh-Hans": "部分网站数据仍保留，请重新确认。",
         "en": "Some site data remains. Please check again."
       }
     },
@@ -1424,7 +1264,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網站偏好已儲存，正在重新整理此頁以套用。",
-        "zh-Hans": "网站偏好已保存，正在刷新此页以应用。",
         "en": "Site preference saved; reloading this page to apply it."
       }
     },
@@ -1434,7 +1273,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。",
-        "zh-Hans": "网站偏好已保存；为避免重新提交表单或自动化操作，此页不会刷新，下次手动导航时应用。",
         "en": "Site preference saved. To avoid resubmitting forms or automated actions, this page will not reload. It will apply on your next manual navigation."
       }
     },
@@ -1444,7 +1282,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "瀏覽資料",
-        "zh-Hans": "浏览数据",
         "en": "Browsing data"
       }
     },
@@ -1454,7 +1291,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "分頁",
-        "zh-Hans": "标签页",
         "en": "Tabs"
       }
     },
@@ -1464,7 +1300,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "書籤",
-        "zh-Hans": "书签",
         "en": "Bookmarks"
       }
     },
@@ -1474,7 +1309,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "歷史",
-        "zh-Hans": "历史",
         "en": "History"
       }
     },
@@ -1484,7 +1318,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網站",
-        "zh-Hans": "网站",
         "en": "Sites"
       }
     },
@@ -1494,7 +1327,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在清除網站資料…",
-        "zh-Hans": "正在清除网站数据…",
         "en": "Clearing site data…"
       }
     },
@@ -1504,7 +1336,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "下載",
-        "zh-Hans": "下载",
         "en": "Downloads"
       }
     },
@@ -1514,7 +1345,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "修改書籤名稱",
-        "zh-Hans": "修改书签名称",
         "en": "Rename bookmark"
       }
     },
@@ -1524,7 +1354,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除瀏覽歷史？書籤與網站登入資料會保留。",
-        "zh-Hans": "清除浏览历史？书签与网站登录数据会保留。",
         "en": "Clear browsing history? Bookmarks and site sign-in data will be kept."
       }
     },
@@ -1534,7 +1363,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除歷史",
-        "zh-Hans": "清除历史",
         "en": "Clear history"
       }
     },
@@ -1544,7 +1372,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。",
-        "zh-Hans": "清除此网站的数据？可能需要重新登录，所有标签页与下载将停止。",
         "en": "Clear this site’s data? You may need to sign in again. All tabs and downloads will stop."
       }
     },
@@ -1554,7 +1381,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除網站資料",
-        "zh-Hans": "清除网站数据",
         "en": "Clear site data"
       }
     },
@@ -1564,7 +1390,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增分頁",
-        "zh-Hans": "新增标签页",
         "en": "New tab"
       }
     },
@@ -1574,7 +1399,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未開啟網頁",
-        "zh-Hans": "尚未打开网页",
         "en": "No page opened yet"
       }
     },
@@ -1584,7 +1408,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "加入目前頁面書籤",
-        "zh-Hans": "将当前页面加入书签",
         "en": "Bookmark current page"
       }
     },
@@ -1594,7 +1417,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無書籤",
-        "zh-Hans": "尚无书签",
         "en": "No bookmarks yet"
       }
     },
@@ -1604,7 +1426,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "改名",
-        "zh-Hans": "改名",
         "en": "Rename"
       }
     },
@@ -1614,7 +1435,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除所有歷史",
-        "zh-Hans": "清除所有历史",
         "en": "Clear all history"
       }
     },
@@ -1624,7 +1444,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無瀏覽歷史",
-        "zh-Hans": "尚无浏览历史",
         "en": "No browsing history yet"
       }
     },
@@ -1634,7 +1453,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網站資料由 WebKit 儲存，包括 Cookie 與網站儲存空間；出現在清單不代表目前已登入。",
-        "zh-Hans": "网站数据由 WebKit 保存，包括 Cookie 与网站存储空间；出现在列表不代表当前已登录。",
         "en": "WebKit stores site data, including cookies and site storage. Being listed does not mean you are currently signed in."
       }
     },
@@ -1644,7 +1462,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無網站資料",
-        "zh-Hans": "尚无网站数据",
         "en": "No site data yet"
       }
     },
@@ -1659,7 +1476,6 @@
       ],
       "translations": {
         "zh-Hant": "刪除 %1$@",
-        "zh-Hans": "删除 %1$@",
         "en": "Delete %1$@"
       }
     },
@@ -1674,7 +1490,6 @@
       ],
       "translations": {
         "zh-Hant": "關閉 %1$@",
-        "zh-Hans": "关闭 %1$@",
         "en": "Close %1$@"
       }
     },
@@ -1689,7 +1504,6 @@
       ],
       "translations": {
         "zh-Hant": "搜尋：%1$@",
-        "zh-Hans": "搜索：%1$@",
         "en": "Search: %1$@"
       }
     },
@@ -1699,7 +1513,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "任務通知",
-        "zh-Hans": "任务通知",
         "en": "Task notifications"
       }
     },
@@ -1709,7 +1522,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "本機任務通知",
-        "zh-Hans": "本地任务通知",
         "en": "Local task notifications"
       }
     },
@@ -1719,7 +1531,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已開啟",
-        "zh-Hans": "已开启",
         "en": "On"
       }
     },
@@ -1729,7 +1540,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已關閉",
-        "zh-Hans": "已关闭",
         "en": "Off"
       }
     },
@@ -1739,7 +1549,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "任務完成或需要核准時提醒你。通知只顯示固定提示；開啟後仍需在 App 內查看並決定。",
-        "zh-Hans": "任务完成或需要批准时提醒你。通知只显示固定提示；打开后仍需在 App 内查看并决定。",
         "en": "Get reminders when a task completes or needs approval. Notifications contain only fixed prompts. Open the app to review and decide."
       }
     },
@@ -1749,7 +1558,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "關閉任務通知",
-        "zh-Hans": "关闭任务通知",
         "en": "Turn off task notifications"
       }
     },
@@ -1759,7 +1567,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "啟用並請求通知權限",
-        "zh-Hans": "启用并请求通知权限",
         "en": "Enable and request notification permission"
       }
     },
@@ -1769,7 +1576,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "傳送測試通知",
-        "zh-Hans": "发送测试通知",
         "en": "Send test notification"
       }
     },
@@ -1779,7 +1585,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "系統設定狀態",
-        "zh-Hans": "系统设置状态",
         "en": "System settings status"
       }
     },
@@ -1789,7 +1594,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "系統授權",
-        "zh-Hans": "系统授权",
         "en": "System authorization"
       }
     },
@@ -1799,7 +1603,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "系統聲音",
-        "zh-Hans": "系统声音",
         "en": "System sound"
       }
     },
@@ -1809,7 +1612,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "系統提示",
-        "zh-Hans": "系统提示",
         "en": "System alerts"
       }
     },
@@ -1819,7 +1621,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新整理狀態",
-        "zh-Hans": "刷新状态",
         "en": "Refresh status"
       }
     },
@@ -1829,7 +1630,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟系統通知設定",
-        "zh-Hans": "打开系统通知设置",
         "en": "Open system notification settings"
       }
     },
@@ -1839,7 +1639,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "系統拒絕後，請到設定開啟通知。專注模式、通知摘要與靜音可能影響提示和聲音。",
-        "zh-Hans": "系统拒绝后，请到设置开启通知。专注模式、通知摘要与静音可能影响提示和声音。",
         "en": "If permission was denied, enable notifications in Settings. Focus, notification summaries and silent mode may affect alerts and sound."
       }
     },
@@ -1849,7 +1648,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未詢問",
-        "zh-Hans": "尚未询问",
         "en": "Not requested"
       }
     },
@@ -1859,7 +1657,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已拒絕",
-        "zh-Hans": "已拒绝",
         "en": "Denied"
       }
     },
@@ -1869,7 +1666,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已允許",
-        "zh-Hans": "已允许",
         "en": "Allowed"
       }
     },
@@ -1879,7 +1675,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "暫時允許（安靜通知）",
-        "zh-Hans": "暂时允许（安静通知）",
         "en": "Provisionally allowed (quiet notifications)"
       }
     },
@@ -1889,7 +1684,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "暫時允許（短期）",
-        "zh-Hans": "暂时允许（短期）",
         "en": "Temporarily allowed"
       }
     },
@@ -1899,7 +1693,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "不支援",
-        "zh-Hans": "不支持",
         "en": "Not supported"
       }
     },
@@ -1909,7 +1702,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法完成系統權限請求，請重新整理狀態後再試。",
-        "zh-Hans": "无法完成系统权限请求，请刷新状态后再试。",
         "en": "The system permission request did not complete. Refresh the status and try again."
       }
     },
@@ -1919,7 +1711,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這次通知未能送出，請直接在 App 查看任務。",
-        "zh-Hans": "这次通知未能发送，请直接在 App 查看任务。",
         "en": "This notification could not be sent. View the task in the app."
       }
     },
@@ -1929,7 +1720,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "任務已完成",
-        "zh-Hans": "任务已完成",
         "en": "Task completed"
       }
     },
@@ -1939,7 +1729,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "有操作需要你核准",
-        "zh-Hans": "有操作需要你批准",
         "en": "An action needs your approval"
       }
     },
@@ -1949,7 +1738,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "通知測試",
-        "zh-Hans": "通知测试",
         "en": "Notification test"
       }
     },
@@ -1959,7 +1747,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟渥屋助理查看結果。",
-        "zh-Hans": "打开渥屋助理查看结果。",
         "en": "Open Woow Assistant to view the result."
       }
     },
@@ -1969,7 +1756,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請開啟渥屋助理查看並決定；通知不會核准操作。",
-        "zh-Hans": "请打开渥屋助理查看并决定；通知不会批准操作。",
         "en": "Open Woow Assistant to review and decide. Notifications do not approve actions."
       }
     },
@@ -1979,7 +1765,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這是渥屋助理的測試通知。",
-        "zh-Hans": "这是渥屋助理的测试通知。",
         "en": "This is a test notification from Woow Assistant."
       }
     },
@@ -1989,7 +1774,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Mika 內建技能目錄",
-        "zh-Hans": "Mika 内置技能目录",
         "en": "Mika bundled skill catalog"
       }
     },
@@ -1999,7 +1783,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋名稱、全文或支援檔案",
-        "zh-Hans": "搜索名称、全文或支持文件",
         "en": "Search names, full text or supporting files"
       }
     },
@@ -2009,7 +1792,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。",
-        "zh-Hans": "原文与脚本仅供阅读，不会执行。iOS 文字改写须先导入待确认，再由你批准；批准后为试用中，不代表原版功能已完成对齐。",
         "en": "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity."
       }
     },
@@ -2019,7 +1801,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。",
-        "zh-Hans": "受控浏览器与 MCP 对话有各自的能力限制和批准流程；导入 Skill 不会授予工具权限或自动派发工具。",
         "en": "The controlled browser and MCP chat have separate capability limits and approval flows. Importing a skill grants no tool permissions and dispatches no tools."
       }
     },
@@ -2029,7 +1810,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原始技能與 iOS 文字改寫",
-        "zh-Hans": "原始技能与 iOS 文字改写",
         "en": "Original skills and iOS text adaptations"
       }
     },
@@ -2039,7 +1819,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "找不到符合的技能。",
-        "zh-Hans": "找不到匹配的技能。",
         "en": "No matching skills."
       }
     },
@@ -2049,7 +1828,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "來源與授權",
-        "zh-Hans": "来源与许可",
         "en": "Source and license"
       }
     },
@@ -2059,7 +1837,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Apache-2.0 授權全文",
-        "zh-Hans": "Apache-2.0 许可全文",
         "en": "Full Apache-2.0 license"
       }
     },
@@ -2069,7 +1846,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原始 NOTICE",
-        "zh-Hans": "原始 NOTICE",
         "en": "Original NOTICE"
       }
     },
@@ -2079,7 +1855,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新讀取",
-        "zh-Hans": "重新读取",
         "en": "Reload"
       }
     },
@@ -2089,7 +1864,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "讀取本機目錄",
-        "zh-Hans": "读取本地目录",
         "en": "Reading local catalog"
       }
     },
@@ -2099,7 +1873,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "內建目錄",
-        "zh-Hans": "内置目录",
         "en": "Bundled catalog"
       }
     },
@@ -2109,7 +1882,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "內建技能目錄無法讀取。",
-        "zh-Hans": "内置技能目录无法读取。",
         "en": "The bundled skill catalog could not be read."
       }
     },
@@ -2119,7 +1891,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "內建技能目錄暫時無法讀取。",
-        "zh-Hans": "内置技能目录暂时无法读取。",
         "en": "The bundled skill catalog is temporarily unavailable."
       }
     },
@@ -2129,7 +1900,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "內建技能資源驗證失敗；未匯入任何內容。",
-        "zh-Hans": "内置技能资源验证失败；未导入任何内容。",
         "en": "Bundled skill resources failed validation. Nothing was imported."
       }
     },
@@ -2139,7 +1909,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "找不到這個內建技能。",
-        "zh-Hans": "找不到这个内置技能。",
         "en": "This bundled skill was not found."
       }
     },
@@ -2149,7 +1918,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此文字版已有草稿或已匯入；請到待確認或技能清單管理。",
-        "zh-Hans": "此文字版已有草稿或已导入；请到待确认或技能列表管理。",
         "en": "This text adaptation has a draft or is already imported. Manage it in pending reviews or your skill list."
       }
     },
@@ -2159,7 +1927,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "整理文字稿與字幕",
-        "zh-Hans": "整理文字稿与字幕",
         "en": "Organize transcripts and subtitles"
       }
     },
@@ -2169,7 +1936,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選取文字稿或字幕檔",
-        "zh-Hans": "选取文字稿或字幕文件",
         "en": "Select a transcript or subtitle file"
       }
     },
@@ -2179,7 +1945,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "核准讀檔並確認目的服務後，由模型分段閱讀原文、整理內容與核對引文。",
-        "zh-Hans": "批准读文件并确认目标服务后，由模型分段阅读原文、整理内容与核对引文。",
         "en": "After you approve reading the file and confirm the destination service, the model reads sections of the source, organizes the content and verifies quotations."
       }
     },
@@ -2189,7 +1954,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "編寫個人技能",
-        "zh-Hans": "编写个人技能",
         "en": "Author personal skills"
       }
     },
@@ -2199,7 +1963,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "查閱、編寫與審閱儲存",
-        "zh-Hans": "查阅、编写与审阅保存",
         "en": "Read, author and review before saving"
       }
     },
@@ -2209,7 +1972,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請模型協助編寫技能",
-        "zh-Hans": "请模型协助编写技能",
         "en": "Ask the model to help author a skill"
       }
     },
@@ -2219,7 +1981,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可自行編寫，或請模型查詢、讀取原文並提出草稿；核對全文並核准後，才會儲存至個人技能。",
-        "zh-Hans": "可自行编写，或请模型查询、读取原文并提出草稿；核对全文并批准后，才会保存至个人技能。",
         "en": "Write a skill yourself, or ask the model to search, read original text and prepare a draft. It is saved to personal skills only after you review the full text and approve."
       }
     },
@@ -2229,7 +1990,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "實際文件處理",
-        "zh-Hans": "实际文档处理",
         "en": "Document processing"
       }
     },
@@ -2239,7 +1999,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選取 PDF 並擷取文字",
-        "zh-Hans": "选取 PDF 并提取文字",
         "en": "Select a PDF and extract text"
       }
     },
@@ -2249,7 +2008,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "擷取頁面、重排與合併 PDF",
-        "zh-Hans": "提取页面、重排与合并 PDF",
         "en": "Extract, reorder and combine PDF pages"
       }
     },
@@ -2259,7 +2017,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "在裝置上處理你選取的 PDF；逐步核准，不會自動上傳文件。",
-        "zh-Hans": "在设备上处理你选取的 PDF；逐步批准，不会自动上传文档。",
         "en": "Process your selected PDFs on the device with approval at each step. Documents are not uploaded automatically."
       }
     },
@@ -2269,7 +2026,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "iOS 文字改寫 · 非完整原版功能",
-        "zh-Hans": "iOS 文字改写 · 非完整原版功能",
         "en": "iOS text adaptation · Original features are incomplete"
       }
     },
@@ -2279,7 +2035,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "iOS 文字改寫全文",
-        "zh-Hans": "iOS 文字改写全文",
         "en": "Full iOS text adaptation"
       }
     },
@@ -2289,7 +2044,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "閱讀 iOS 文字改寫全文",
-        "zh-Hans": "阅读 iOS 文字改写全文",
         "en": "Read the full iOS text adaptation"
       }
     },
@@ -2299,7 +2053,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "匯入文字版至待確認",
-        "zh-Hans": "导入文字版至待确认",
         "en": "Import text adaptation for review"
       }
     },
@@ -2309,7 +2062,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未匯入；原資料保留。",
-        "zh-Hans": "未导入；原数据保留。",
         "en": "Not imported; existing data is unchanged."
       }
     },
@@ -2319,7 +2071,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已儲存至待確認，尚未啟用。請關閉目錄後到待確認審閱與核准。",
-        "zh-Hans": "已保存至待确认，尚未启用。请关闭目录后到待确认审阅与批准。",
         "en": "Saved for review, not enabled. Close the catalog and go to pending reviews to review and approve."
       }
     },
@@ -2329,7 +2080,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此文字版已在你的技能清單；啟用、試用或驗證狀態請到技能清單查看。",
-        "zh-Hans": "此文字版已在你的技能列表；启用、试用或验证状态请到技能列表查看。",
         "en": "This text adaptation is already in your skill list. Check that list for its enabled, trial or verified status."
       }
     },
@@ -2339,7 +2089,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "儲存空間目前不可用；仍可閱讀，但不能匯入。",
-        "zh-Hans": "存储空间目前不可用；仍可阅读，但不能导入。",
         "en": "Storage is unavailable. You can still read, but cannot import."
       }
     },
@@ -2349,7 +2098,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版所需能力與限制",
-        "zh-Hans": "原版所需能力与限制",
         "en": "Original requirements and limitations"
       }
     },
@@ -2359,7 +2107,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "固定版本的完整原文 · 唯讀",
-        "zh-Hans": "固定版本的完整原文 · 只读",
         "en": "Complete original text at the pinned version · Read-only"
       }
     },
@@ -2369,7 +2116,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "閱讀原始 SKILL.md 全文",
-        "zh-Hans": "阅读原始 SKILL.md 全文",
         "en": "Read the complete original SKILL.md"
       }
     },
@@ -2379,7 +2125,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Copyright 2026 wangzan101 · Apache-2.0。原文及支援檔案逐位元組保留；iOS 改寫是另外的修改版本。完整 LICENSE 與 NOTICE 見目錄首頁。",
-        "zh-Hans": "Copyright 2026 wangzan101 · Apache-2.0。原文及支持文件逐字节保留；iOS 改写是另外的修改版本。完整 LICENSE 与 NOTICE 见目录首页。",
         "en": "Copyright 2026 wangzan101 · Apache-2.0. Original text and supporting files are preserved byte for byte; the iOS adaptation is a separate modification. Full LICENSE and NOTICE are on the catalog home page."
       }
     },
@@ -2389,7 +2134,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "唯讀文字，不會執行工具、程式或開啟文內連結。",
-        "zh-Hans": "只读文字，不会执行工具、程序或打开文内链接。",
         "en": "Read-only text. Tools, code and links in the text will not run or open."
       }
     },
@@ -2399,7 +2143,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可請模型編寫並核准儲存；原版能力未完整支援",
-        "zh-Hans": "可请模型编写并批准保存；原版能力未完整支持",
         "en": "Model-assisted authoring with reviewed saving; original capabilities are not fully supported"
       }
     },
@@ -2409,7 +2152,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可選取 PDF 擷取文字；原版能力未完整支援",
-        "zh-Hans": "可选取 PDF 提取文字；原版能力未完整支持",
         "en": "Text can be extracted from selected PDFs; original capabilities are not fully supported"
       }
     },
@@ -2419,7 +2161,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可整理核准的文字、字幕與網頁文字；原版能力未完整支援",
-        "zh-Hans": "可整理批准的文字、字幕与网页文字；原版能力未完整支持",
         "en": "Approved text, subtitles and page text can be organized; original capabilities are not fully supported"
       }
     },
@@ -2429,7 +2170,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可匯入 iOS 文字改寫；原版能力未完整支援",
-        "zh-Hans": "可导入 iOS 文字改写；原版能力未完整支持",
         "en": "iOS text adaptations can be imported; original capabilities are not fully supported"
       }
     },
@@ -2439,7 +2179,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Android／其他 App 操作：不在 iOS 範圍",
-        "zh-Hans": "Android／其他 App 操作：不在 iOS 范围",
         "en": "Android and other app control is outside the iOS scope"
       }
     },
@@ -2449,7 +2188,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊",
-        "zh-Hans": "原版网页工具：iOS 提供受控研究与 DOM 操作，非完整浏览器能力对齐",
         "en": "Original web tools: iOS offers controlled research and DOM actions, without complete browser parity"
       }
     },
@@ -2459,7 +2197,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可選取 PDF、文字與字幕；未提供原版的一般工作區",
-        "zh-Hans": "可选取 PDF、文字与字幕；未提供原版的一般工作区",
         "en": "PDFs, text and subtitles can be selected; the original general workspace is not provided"
       }
     },
@@ -2469,7 +2206,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理",
-        "zh-Hans": "原始 PDF 脚本不执行，也不执行 Python；PDF 由设备上的 PDFKit 处理",
         "en": "The original PDF script and Python do not run; PDFKit on the device handles PDFs"
       }
     },
@@ -2479,7 +2215,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "Shell／桌面命令執行：未提供",
-        "zh-Hans": "Shell／桌面命令执行：未提供",
         "en": "Shell and desktop command execution is not provided"
       }
     },
@@ -2489,7 +2224,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版檔案產生與分享工具：未提供",
-        "zh-Hans": "原版文件生成与分享工具：未提供",
         "en": "The original file generation and sharing tools are not provided"
       }
     },
@@ -2499,7 +2233,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版跨網站自動研究：未提供",
-        "zh-Hans": "原版跨网站自动研究：未提供",
         "en": "The original cross-site automated research is not provided"
       }
     },
@@ -2509,7 +2242,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權",
-        "zh-Hans": "原版跨 App 账号／收件箱读取：未提供；MCP 能力另依服务器与授权",
         "en": "Original cross-app account and inbox access is not provided; MCP capabilities depend on the server and authorization"
       }
     },
@@ -2519,7 +2251,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准",
-        "zh-Hans": "原版跨 App 消息发送：未提供；MCP 工具须另行批准",
         "en": "Original cross-app messaging is not provided; MCP tools need separate approval"
       }
     },
@@ -2529,7 +2260,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型可查詢、讀取並提出技能草稿；儲存須由你核准",
-        "zh-Hans": "模型可查询、读取并提出技能草稿；保存须由你批准",
         "en": "The model can search, read and draft skills; saving requires your approval"
       }
     },
@@ -2548,7 +2278,6 @@
       ],
       "translations": {
         "zh-Hant": "共 %1$lld 項原始技能 · 符合 %2$lld 項",
-        "zh-Hans": "共 %1$lld 项原始技能 · 匹配 %2$lld 项",
         "en": "Original skills: %1$lld · Matches: %2$lld"
       }
     },
@@ -2563,7 +2292,6 @@
       ],
       "translations": {
         "zh-Hant": "Mika · 固定來源版本 %1$@",
-        "zh-Hans": "Mika · 固定来源版本 %1$@",
         "en": "Mika · Pinned source version %1$@"
       }
     },
@@ -2573,7 +2301,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "完成",
-        "zh-Hans": "完成",
         "en": "Done"
       }
     },
@@ -2583,7 +2310,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "整理",
-        "zh-Hans": "整理",
         "en": "Organize"
       }
     },
@@ -2593,7 +2319,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "最近開啟",
-        "zh-Hans": "最近打开",
         "en": "Recently opened"
       }
     },
@@ -2603,7 +2328,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除",
-        "zh-Hans": "清除",
         "en": "Clear"
       }
     },
@@ -2613,7 +2337,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "只搜尋目前輸入，或開啟已儲存的最近網頁。",
-        "zh-Hans": "只搜索当前输入，或打开已保存的最近网页。",
         "en": "Search what you typed, or open a saved recent page."
       }
     },
@@ -2623,7 +2346,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "加入書籤",
-        "zh-Hans": "添加书签",
         "en": "Add bookmark"
       }
     },
@@ -2633,7 +2355,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "查看書籤",
-        "zh-Hans": "查看书签",
         "en": "View bookmarks"
       }
     },
@@ -2643,7 +2364,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "好",
-        "zh-Hans": "好",
         "en": "OK"
       }
     },
@@ -2653,7 +2373,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請先開啟網站，再從書籤頁加入目前網頁。",
-        "zh-Hans": "请先打开网站，再从书签页添加当前网页。",
         "en": "Open a website first, then add the current page from Bookmarks."
       }
     },
@@ -2668,7 +2387,6 @@
       ],
       "translations": {
         "zh-Hant": "移除書籤：%1$@",
-        "zh-Hans": "移除书签：%1$@",
         "en": "Remove bookmark: %1$@"
       }
     },
@@ -2678,7 +2396,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增",
-        "zh-Hans": "新增",
         "en": "Add"
       }
     },
@@ -2688,7 +2405,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋或開啟網址",
-        "zh-Hans": "搜索或打开网址",
         "en": "Search or open an address"
       }
     },
@@ -2698,7 +2414,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "關閉網頁並返回起始頁",
-        "zh-Hans": "关闭网页并返回起始页",
         "en": "Close page and return to start"
       }
     },
@@ -2708,7 +2423,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋或輸入網址",
-        "zh-Hans": "搜索或输入网址",
         "en": "Search or enter an address"
       }
     },
@@ -2718,7 +2432,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除輸入",
-        "zh-Hans": "清除输入",
         "en": "Clear input"
       }
     },
@@ -2728,7 +2441,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "停止",
-        "zh-Hans": "停止",
         "en": "Stop"
       }
     },
@@ -2738,7 +2450,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新整理",
-        "zh-Hans": "重新加载",
         "en": "Reload"
       }
     },
@@ -2748,7 +2459,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟",
-        "zh-Hans": "打开",
         "en": "Open"
       }
     },
@@ -2763,7 +2473,6 @@
       ],
       "translations": {
         "zh-Hant": "搜尋引擎：%1$@",
-        "zh-Hans": "搜索引擎：%1$@",
         "en": "Search engine: %1$@"
       }
     },
@@ -2782,7 +2491,6 @@
       ],
       "translations": {
         "zh-Hant": "搜尋：%1$@（%2$@）",
-        "zh-Hans": "搜索：%1$@（%2$@）",
         "en": "Search: %1$@ (%2$@)"
       }
     },
@@ -2792,7 +2500,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此頁面仍受自動化導覽限制。",
-        "zh-Hans": "此页面仍受自动化导航限制。",
         "en": "This page is still restricted by automated navigation."
       }
     },
@@ -2802,7 +2509,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "返回手動瀏覽",
-        "zh-Hans": "返回手动浏览",
         "en": "Return to manual browsing"
       }
     },
@@ -2812,7 +2518,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "研究",
-        "zh-Hans": "研究",
         "en": "Research"
       }
     },
@@ -2822,7 +2527,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "研究此網站",
-        "zh-Hans": "研究此网站",
         "en": "Research this site"
       }
     },
@@ -2832,7 +2536,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "問 Mika 研究此網站",
-        "zh-Hans": "问 Mika 研究此网站",
         "en": "Ask Mika to research this site"
       }
     },
@@ -2842,7 +2545,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "操作",
-        "zh-Hans": "操作",
         "en": "Interact"
       }
     },
@@ -2852,7 +2554,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "分頁、書籤與歷史",
-        "zh-Hans": "标签页、书签与历史记录",
         "en": "Tabs, bookmarks and history"
       }
     },
@@ -2862,7 +2563,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。",
-        "zh-Hans": "可手动登录网站及选择上传文件；网站数据保留在此 App。模型研究与每次批准的操作分别受限。",
         "en": "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits."
       }
     },
@@ -2872,7 +2572,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "頁內尋找",
-        "zh-Hans": "页内查找",
         "en": "Find in page"
       }
     },
@@ -2882,7 +2581,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前偏好：電腦版",
-        "zh-Hans": "当前偏好：桌面版",
         "en": "Current preference: Desktop"
       }
     },
@@ -2892,7 +2590,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前偏好：手機版",
-        "zh-Hans": "当前偏好：手机版",
         "en": "Current preference: Mobile"
       }
     },
@@ -2902,7 +2599,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "手機版網站",
-        "zh-Hans": "手机版网站",
         "en": "Mobile website"
       }
     },
@@ -2912,7 +2608,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "電腦版網站",
-        "zh-Hans": "桌面版网站",
         "en": "Desktop website"
       }
     },
@@ -2922,7 +2617,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可安全重新整理的頁面會立即套用；其他頁面於下次手動導覽套用。",
-        "zh-Hans": "可安全重新加载的页面会立即应用；其他页面将在下次手动导航时应用。",
         "en": "Pages that can reload safely update now; other pages update on the next manual navigation."
       }
     },
@@ -2932,7 +2626,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網站顯示偏好",
-        "zh-Hans": "网站显示偏好",
         "en": "Website display preference"
       }
     },
@@ -2942,7 +2635,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "電腦版",
-        "zh-Hans": "桌面版",
         "en": "Desktop"
       }
     },
@@ -2952,7 +2644,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "手機版",
-        "zh-Hans": "手机版",
         "en": "Mobile"
       }
     },
@@ -2962,7 +2653,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "多網站研究",
-        "zh-Hans": "多网站研究",
         "en": "Multi-site research"
       }
     },
@@ -2972,7 +2662,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "整理此頁文字",
-        "zh-Hans": "整理此页文字",
         "en": "Read this page as text"
       }
     },
@@ -2982,7 +2671,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "上一頁",
-        "zh-Hans": "上一页",
         "en": "Back"
       }
     },
@@ -2992,7 +2680,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "下一頁",
-        "zh-Hans": "下一页",
         "en": "Forward"
       }
     },
@@ -3002,7 +2689,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "起始頁",
-        "zh-Hans": "起始页",
         "en": "Start page"
       }
     },
@@ -3012,7 +2698,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "分享連結",
-        "zh-Hans": "分享链接",
         "en": "Share link"
       }
     },
@@ -3022,7 +2707,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此頁無可分享的公開連結",
-        "zh-Hans": "此页没有可分享的公开链接",
         "en": "No public link to share on this page"
       }
     },
@@ -3032,7 +2716,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "更多",
-        "zh-Hans": "更多",
         "en": "More"
       }
     },
@@ -3042,7 +2725,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網頁",
-        "zh-Hans": "网页",
         "en": "Web page"
       }
     },
@@ -3052,7 +2734,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "複製連結",
-        "zh-Hans": "复制链接",
         "en": "Copy link"
       }
     },
@@ -3062,7 +2743,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "在其他 App 開啟",
-        "zh-Hans": "在其他 App 打开",
         "en": "Open in another app"
       }
     },
@@ -3072,7 +2752,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除書籤",
-        "zh-Hans": "移除书签",
         "en": "Remove bookmark"
       }
     },
@@ -3082,7 +2761,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "加入書籤",
-        "zh-Hans": "添加书签",
         "en": "Add bookmark"
       }
     },
@@ -3092,7 +2770,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "切換為手機版",
-        "zh-Hans": "切换为手机版",
         "en": "Switch to mobile"
       }
     },
@@ -3102,7 +2779,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "切換為電腦版",
-        "zh-Hans": "切换为桌面版",
         "en": "Switch to desktop"
       }
     },
@@ -3112,7 +2788,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "完成",
-        "zh-Hans": "完成",
         "en": "Done"
       }
     },
@@ -3122,7 +2797,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語言與外觀",
-        "zh-Hans": "语言与外观",
         "en": "Language and appearance"
       }
     },
@@ -3132,7 +2806,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "常用",
-        "zh-Hans": "常用",
         "en": "Common"
       }
     },
@@ -3142,7 +2815,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型",
-        "zh-Hans": "模型",
         "en": "Model"
       }
     },
@@ -3152,7 +2824,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型與服務商",
-        "zh-Hans": "模型与服务商",
         "en": "Model & provider"
       }
     },
@@ -3162,7 +2833,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟模型設定頁",
-        "zh-Hans": "打开模型设置页",
         "en": "Open model settings"
       }
     },
@@ -3172,7 +2842,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語言與外觀",
-        "zh-Hans": "语言与外观",
         "en": "Language & appearance"
       }
     },
@@ -3182,7 +2851,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "通知",
-        "zh-Hans": "通知",
         "en": "Notifications"
       }
     },
@@ -3192,7 +2860,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "什麼時候彈出、去系統裡改",
-        "zh-Hans": "什么时候弹出、去系统里改",
         "en": "When they pop up, change in system settings"
       }
     },
@@ -3202,7 +2869,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正常",
-        "zh-Hans": "正常",
         "en": "Normal"
       }
     },
@@ -3220,9 +2886,6 @@
         "zh-Hant": {
           "other": "有 %lld 項不會彈出"
         },
-        "zh-Hans": {
-          "other": "有 %lld 项不会弹出"
-        },
         "en": {
           "one": "%lld won’t pop up",
           "other": "%lld won’t pop up"
@@ -3235,7 +2898,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "一切就緒",
-        "zh-Hans": "一切就绪",
         "en": "All set"
       }
     },
@@ -3245,7 +2907,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型已就緒 · 可使用對話與內建瀏覽器",
-        "zh-Hans": "模型已就绪 · 可使用对话与内置浏览器",
         "en": "Model ready · Chat and browser available"
       }
     },
@@ -3255,7 +2916,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "還沒有能用的模型",
-        "zh-Hans": "还没有能用的模型",
         "en": "No usable model yet"
       }
     },
@@ -3265,7 +2925,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增一個支援工具呼叫的模型",
-        "zh-Hans": "添加一个支持工具调用的模型",
         "en": "Add a model that supports tool calling"
       }
     },
@@ -3275,7 +2934,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增",
-        "zh-Hans": "添加",
         "en": "Add"
       }
     },
@@ -3285,7 +2943,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "通知未允許",
-        "zh-Hans": "通知未允许",
         "en": "Notifications not allowed"
       }
     },
@@ -3295,7 +2952,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "會看不到任務結果和「需要你」提醒",
-        "zh-Hans": "会看不到任务结果和「需要你」提醒",
         "en": "You won’t see task results or “Needs you” alerts"
       }
     },
@@ -3305,7 +2961,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "允許",
-        "zh-Hans": "允许",
         "en": "Allow"
       }
     },
@@ -3315,7 +2970,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "「需要你處理」的通知不會彈出",
-        "zh-Hans": "「需要你处理」的通知不会弹出",
         "en": "“Needs you” notifications won’t pop up"
       }
     },
@@ -3325,7 +2979,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "要你同意時，這類通知現在只安靜地進通知中心，容易錯過。「任務結果」的通知也一樣。點「去開啟」，開啟「橫幅」。",
-        "zh-Hans": "要你同意时，这类通知现在只安静地进通知中心，容易错过。「任务结果」的通知也一样。点「去打开」，打开「横幅」。",
         "en": "When you need to approve, these notifications now land quietly in Notification Center and are easy to miss. The same goes for “Task results”. Tap “Turn on” and turn on “Banners”."
       }
     },
@@ -3335,7 +2988,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "去開啟",
-        "zh-Hans": "去打开",
         "en": "Turn on"
       }
     },
@@ -3345,7 +2997,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "我的資料",
-        "zh-Hans": "我的数据",
         "en": "My data"
       }
     },
@@ -3355,7 +3006,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "記憶、技能與網站登入",
-        "zh-Hans": "记忆、技能与网站登录",
         "en": "Memories, skills, and website sign-ins"
       }
     },
@@ -3365,7 +3015,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "進階與其他",
-        "zh-Hans": "高级与其他",
         "en": "Advanced & other"
       }
     },
@@ -3375,7 +3024,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "MCP 伺服器",
-        "zh-Hans": "MCP 服务器",
         "en": "MCP servers"
       }
     },
@@ -3385,7 +3033,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "網路與連接",
-        "zh-Hans": "网络与连接",
         "en": "Network & connections"
       }
     },
@@ -3395,7 +3042,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未設定",
-        "zh-Hans": "未设置",
         "en": "Not set"
       }
     },
@@ -3405,7 +3051,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已儲存金鑰；留空可沿用同一服務的金鑰。",
-        "zh-Hans": "已保存密钥；留空可沿用同一服务的密钥。",
         "en": "Key saved. Leave the field empty to reuse it for the same service."
       }
     },
@@ -3415,7 +3060,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未儲存金鑰。",
-        "zh-Hans": "尚未保存密钥。",
         "en": "No key saved."
       }
     },
@@ -3425,7 +3069,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "用途",
-        "zh-Hans": "用途",
         "en": "Roles"
       }
     },
@@ -3435,7 +3078,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "主模型",
-        "zh-Hans": "主模型",
         "en": "Main model"
       }
     },
@@ -3445,7 +3087,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "思考和辦事",
-        "zh-Hans": "思考和办事",
         "en": "Reasoning and tasks"
       }
     },
@@ -3455,7 +3096,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "服務商",
-        "zh-Hans": "服务商",
         "en": "Provider"
       }
     },
@@ -3465,7 +3105,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "連線設定",
-        "zh-Hans": "连接设置",
         "en": "Connection settings"
       }
     },
@@ -3475,7 +3114,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "HTTPS 介面網址、模型名稱與 API Key",
-        "zh-Hans": "HTTPS 接口网址、模型名称与 API Key",
         "en": "HTTPS API URL, model name and API key"
       }
     },
@@ -3485,7 +3123,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "介面網址（HTTPS）",
-        "zh-Hans": "接口网址（HTTPS）",
         "en": "API URL (HTTPS)"
       }
     },
@@ -3495,7 +3132,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "清除網址",
-        "zh-Hans": "清除网址",
         "en": "Clear URL"
       }
     },
@@ -3505,7 +3141,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "https://api.example.com/v1",
-        "zh-Hans": "https://api.example.com/v1",
         "en": "https://api.example.com/v1"
       }
     },
@@ -3515,7 +3150,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型名稱",
-        "zh-Hans": "模型名称",
         "en": "Model name"
       }
     },
@@ -3525,7 +3159,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "供應商提供的模型名稱",
-        "zh-Hans": "服务商提供的模型名称",
         "en": "Model name from provider"
       }
     },
@@ -3535,7 +3168,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "API Key",
-        "zh-Hans": "API Key",
         "en": "API key"
       }
     },
@@ -3545,7 +3177,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "輸入金鑰；已儲存時可留空",
-        "zh-Hans": "输入密钥；已保存时可留空",
         "en": "Enter a key; leave empty to reuse the saved key"
       }
     },
@@ -3555,7 +3186,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "儲存設定",
-        "zh-Hans": "保存设置",
         "en": "Save settings"
       }
     },
@@ -3565,7 +3195,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除設定與金鑰",
-        "zh-Hans": "移除设置与密钥",
         "en": "Remove settings and key"
       }
     },
@@ -3575,7 +3204,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。",
-        "zh-Hans": "密钥只保存在这台设备上。更换服务主机或端口时，必须重新输入密钥。",
         "en": "Your key stays on this device. Enter it again if the service host or port changes."
       }
     },
@@ -3585,7 +3213,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "儲存不會測試連線；開始使用模型時才會連線。",
-        "zh-Hans": "保存不会测试连接；开始使用模型时才会连接。",
         "en": "Saving does not test the connection. The app connects when you use the model."
       }
     },
@@ -3595,7 +3222,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。",
-        "zh-Hans": "更换服务或模型会开始新对话，草稿保留；只换密钥会继续当前对话。移除设置会清除本次对话和此 App 的模型密钥。",
         "en": "Changing the service or model starts a new conversation and keeps the draft; changing only the key continues the current one. Removing settings clears this conversation and this app’s model key."
       }
     },
@@ -3605,7 +3231,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "設定已儲存，尚未驗證連線。",
-        "zh-Hans": "设置已保存，尚未验证连接。",
         "en": "Settings saved. The connection has not been tested."
       }
     },
@@ -3615,7 +3240,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。",
-        "zh-Hans": "新设置已保存，尚未验证连接。旧密钥清理失败，可用移除功能清除此 App 的模型密钥。",
         "en": "New settings saved; the connection has not been tested. The old key could not be removed. Use Remove to clear this app’s model keys."
       }
     },
@@ -3625,7 +3249,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已移除此 App 的模型設定與金鑰；訊息草稿保留。",
-        "zh-Hans": "已移除此 App 的模型设置与密钥；消息草稿保留。",
         "en": "This app’s model settings and key were removed; your message draft remains."
       }
     },
@@ -3635,7 +3258,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法讀取或儲存模型設定，請移除設定後重新填寫。",
-        "zh-Hans": "无法读取或保存模型设置，请移除设置后重新填写。",
         "en": "Could not read or save model settings. Remove the settings and enter them again."
       }
     },
@@ -3645,7 +3267,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "設定",
-        "zh-Hans": "设置",
         "en": "Settings"
       }
     },
@@ -3655,7 +3276,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "近期對話",
-        "zh-Hans": "最近对话",
         "en": "Recent conversations"
       }
     },
@@ -3665,7 +3285,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "僅顯示此裝置已加密保存的完整問答。",
-        "zh-Hans": "仅显示此设备已加密保存的完整问答。",
         "en": "Only completed exchanges in this device’s encrypted archive appear here."
       }
     },
@@ -3675,7 +3294,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法讀取加密對話；原檔保留，請解鎖後重新讀取。",
-        "zh-Hans": "无法读取加密对话；原文件保留，请解锁后重新读取。",
         "en": "Could not read the encrypted archive. The original file is retained; unlock and reload."
       }
     },
@@ -3685,7 +3303,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新讀取",
-        "zh-Hans": "重新读取",
         "en": "Reload"
       }
     },
@@ -3695,7 +3312,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無保存的對話",
-        "zh-Hans": "尚无保存的对话",
         "en": "No saved conversations"
       }
     },
@@ -3705,7 +3321,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前對話",
-        "zh-Hans": "当前对话",
         "en": "Current"
       }
     },
@@ -3715,7 +3330,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已釘選",
-        "zh-Hans": "已置顶",
         "en": "Pinned"
       }
     },
@@ -3725,7 +3339,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "釘選",
-        "zh-Hans": "置顶",
         "en": "Pin"
       }
     },
@@ -3735,7 +3348,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "取消釘選",
-        "zh-Hans": "取消置顶",
         "en": "Unpin"
       }
     },
@@ -3745,7 +3357,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "釘選變更未保存；對話維持原狀。請重新開啟再試。",
-        "zh-Hans": "置顶变更未保存；对话保持原状。请重新打开再试。",
         "en": "The pin change was not saved. The conversation is unchanged; reopen it and try again."
       }
     },
@@ -3755,7 +3366,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新命名",
-        "zh-Hans": "重命名",
         "en": "Rename"
       }
     },
@@ -3765,7 +3375,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "重新命名對話",
-        "zh-Hans": "重命名对话",
         "en": "Rename conversation"
       }
     },
@@ -3775,7 +3384,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請輸入非空白的單行標題，且不要過長。",
-        "zh-Hans": "请输入非空白的单行标题，且不要过长。",
         "en": "Enter a nonempty, single-line title that is not too long."
       }
     },
@@ -3785,7 +3393,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "改名未保存；對話內容不變。請重新開啟再試。",
-        "zh-Hans": "重命名未保存；对话内容不变。请重新打开再试。",
         "en": "The new title was not saved. The conversation is unchanged; reopen it and try again."
       }
     },
@@ -3803,9 +3410,6 @@
         "zh-Hant": {
           "other": "%lld 輪"
         },
-        "zh-Hans": {
-          "other": "%lld 轮"
-        },
         "en": {
           "one": "%lld exchange",
           "other": "%lld exchanges"
@@ -3818,7 +3422,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "任務進行中，請先返回處理。",
-        "zh-Hans": "任务进行中，请先返回处理。",
         "en": "A task is running. Return to the chat first."
       }
     },
@@ -3828,7 +3431,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "有待核准的操作，請先返回處理。",
-        "zh-Hans": "有待批准的操作，请先返回处理。",
         "en": "An action awaits your review. Return to the chat first."
       }
     },
@@ -3838,7 +3440,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。",
-        "zh-Hans": "草稿或 PDF 附件尚未发送，请先返回处理。",
         "en": "An unsent draft or PDF attachment is present. Return to the chat first."
       }
     },
@@ -3848,7 +3449,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前答覆尚未保存，請先返回處理。",
-        "zh-Hans": "当前回复尚未保存，请先返回处理。",
         "en": "The current reply has not been saved. Return to the chat first."
       }
     },
@@ -3858,7 +3458,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型服務或金鑰身分不同；可在完整歷史中檢視。",
-        "zh-Hans": "模型服务或密钥身份不同；可在完整历史中查看。",
         "en": "The model service or key identity differs. You can view it in full history."
       }
     },
@@ -3868,7 +3467,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟新對話前確認",
-        "zh-Hans": "开启新对话前确认",
         "en": "Before starting a new conversation"
       }
     },
@@ -3878,7 +3476,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選取的 PDF 尚未送出；開啟新對話會移除附件。",
-        "zh-Hans": "选取的 PDF 尚未发送；开启新对话会移除附件。",
         "en": "The selected PDF has not been sent. Starting a new conversation removes the attachment."
       }
     },
@@ -3888,7 +3485,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。",
-        "zh-Hans": "本次回复尚未保存；开启新对话会清除画面中的回复，并放弃重试保存。",
         "en": "This reply has not been saved. Starting a new conversation clears the reply and gives up the save retry."
       }
     },
@@ -3898,7 +3494,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未完成的回覆片段尚未保存；開啟新對話會清除它。",
-        "zh-Hans": "未完成的回复片段尚未保存；开启新对话会清除它。",
         "en": "The unfinished reply preview has not been saved. Starting a new conversation clears it."
       }
     },
@@ -3908,7 +3503,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已有的純文字草稿會保留。",
-        "zh-Hans": "已有的纯文字草稿会保留。",
         "en": "Your unsent text draft will remain."
       }
     },
@@ -3918,7 +3512,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "捨棄並開啟新對話",
-        "zh-Hans": "舍弃并开启新对话",
         "en": "Discard and start new"
       }
     },
@@ -3928,7 +3521,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "返回目前對話",
-        "zh-Hans": "返回当前对话",
         "en": "Keep current conversation"
       }
     },
@@ -3938,7 +3530,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "等待你核對個人檔案修改…",
-        "zh-Hans": "等待你核对个人档案修改…",
         "en": "Waiting for you to review profile changes…"
       }
     },
@@ -3948,7 +3539,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "等待你核對記憶修改…",
-        "zh-Hans": "等待你核对记忆修改…",
         "en": "Waiting for you to review memory changes…"
       }
     },
@@ -3958,7 +3548,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "等待你核准 MCP 工具…",
-        "zh-Hans": "等待你批准 MCP 工具…",
         "en": "Waiting for you to approve the MCP tool…"
       }
     },
@@ -3968,7 +3557,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在使用 MCP 處理對話…",
-        "zh-Hans": "正在使用 MCP 处理对话…",
         "en": "Working with MCP…"
       }
     },
@@ -3978,7 +3566,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在等待模型回覆…",
-        "zh-Hans": "正在等待模型回复…",
         "en": "Waiting for the model…"
       }
     },
@@ -3988,7 +3575,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "模型已設定",
-        "zh-Hans": "模型已设置",
         "en": "Model configured"
       }
     },
@@ -3998,7 +3584,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚未設定模型",
-        "zh-Hans": "尚未设置模型",
         "en": "Model not configured"
       }
     },
@@ -4008,7 +3593,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請先到設定填寫模型服務與 API Key。",
-        "zh-Hans": "请先到设置填写模型服务与 API Key。",
         "en": "Set up a model service and API key in Settings first."
       }
     },
@@ -4018,7 +3602,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "還不能開始任務",
-        "zh-Hans": "还不能开始任务",
         "en": "Can’t start tasks yet"
       }
     },
@@ -4028,7 +3611,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "還缺:還沒有能用的模型",
-        "zh-Hans": "还缺:还没有能用的模型",
         "en": "Missing: No usable model yet"
       }
     },
@@ -4038,7 +3620,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "知道了",
-        "zh-Hans": "知道了",
         "en": "Got it"
       }
     },
@@ -4048,7 +3629,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "去設定",
-        "zh-Hans": "去设置",
         "en": "Open Settings"
       }
     },
@@ -4058,7 +3638,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "UI 測試模式：固定回覆，不會呼叫網路。",
-        "zh-Hans": "UI 测试模式：固定回复，不会调用网络。",
         "en": "UI test mode: fixed replies; no network calls."
       }
     },
@@ -4068,7 +3647,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。",
-        "zh-Hans": "已完成的问答会加密保存在此设备；未完成任务与未发送的草稿不会保存。工具操作不会恢复；打开历史不会自动发送。",
         "en": "Completed exchanges are encrypted on this device. Unfinished tasks and unsent drafts are not saved. Tool actions are not restored, and opening history does not send anything."
       }
     },
@@ -4083,7 +3661,6 @@
       ],
       "translations": {
         "zh-Hant": "已保存的對話（%1$lld）",
-        "zh-Hans": "已保存的对话（%1$lld）",
         "en": "Saved conversations (%1$lld)"
       }
     },
@@ -4093,7 +3670,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "尚無保存的對話",
-        "zh-Hans": "尚无保存的对话",
         "en": "No saved conversations yet."
       }
     },
@@ -4103,7 +3679,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "關閉",
-        "zh-Hans": "关闭",
         "en": "Close"
       }
     },
@@ -4113,7 +3688,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "離線搜尋擷取文字",
-        "zh-Hans": "离线搜索提取文字",
         "en": "Search extracted text offline"
       }
     },
@@ -4123,7 +3697,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "離線搜尋已擷取文字",
-        "zh-Hans": "离线搜索已提取文字",
         "en": "Search extracted text offline"
       }
     },
@@ -4133,7 +3706,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。",
-        "zh-Hans": "只搜索本次选择并批准提取的页面；没有 OCR，也不会发送数据。",
         "en": "Searches only the pages selected and approved for this extraction. No OCR or data transmission."
       }
     },
@@ -4143,7 +3715,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "不區分英文字母大小寫（A–Z）",
-        "zh-Hans": "不区分英文字母大小写（A–Z）",
         "en": "Ignore English letter case (A–Z)"
       }
     },
@@ -4153,7 +3724,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "使用有限正規表示式",
-        "zh-Hans": "使用有限正则表达式",
         "en": "Use limited regular expressions"
       }
     },
@@ -4163,7 +3733,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "支援文字、.、\\d、\\w、\\s、字元類別如 [A-Z0-9] 或 [^0-9]、+、*、固定次數 {n}（1–16）及跳脫符號；例：[A-Z]+。只列非空匹配，不支援 ?、群組、或跨行。",
-        "zh-Hans": "支持文字、.、\\d、\\w、\\s、字符类如 [A-Z0-9] 或 [^0-9]、+、*、固定次数 {n}（1–16）及转义符号；例：[A-Z]+。只列非空匹配，不支持 ?、分组或跨行。",
         "en": "Use text, ., \\d, \\w, \\s, classes such as [A-Z0-9] or [^0-9], +, *, {n} exact repeats (1–16), and escaped symbols; e.g. [A-Z]+. Empty matches are omitted. No ?, groups, alternation, or cross-line matches."
       }
     },
@@ -4173,7 +3742,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正規表示式為空或格式無效，請檢查後重試。",
-        "zh-Hans": "正则表达式为空或格式无效，请检查后重试。",
         "en": "The pattern is empty or malformed. Check it and try again."
       }
     },
@@ -4183,7 +3751,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此寫法尚未支援；請使用上方列出的有限語法。",
-        "zh-Hans": "此写法尚不支持；请使用上方列出的有限语法。",
         "en": "This syntax is not supported. Use the limited syntax listed above."
       }
     },
@@ -4193,7 +3760,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋已達上限而停止。若單頁過長，請改用字面搜尋；否則可縮小頁數或簡化條件。沒有顯示不完整結果。",
-        "zh-Hans": "搜索已达上限而停止。若单页过长，请改用字面搜索；否则可缩小页数或简化条件。没有显示不完整结果。",
         "en": "Search reached a limit. For an oversized single page, use literal search; otherwise select fewer pages or simplify the pattern. Partial results are not shown."
       }
     },
@@ -4203,7 +3769,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "停止搜尋",
-        "zh-Hans": "停止搜索",
         "en": "Stop search"
       }
     },
@@ -4213,7 +3778,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋中…",
-        "zh-Hans": "搜索中…",
         "en": "Searching…"
       }
     },
@@ -4223,7 +3787,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "輸入文字，最多 256 UTF-8 位元組",
-        "zh-Hans": "输入文字，最多 256 UTF-8 字节",
         "en": "Enter text, up to 256 UTF-8 bytes"
       }
     },
@@ -4233,7 +3796,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋",
-        "zh-Hans": "搜索",
         "en": "Search"
       }
     },
@@ -4243,7 +3805,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請輸入 1–256 UTF-8 位元組的非空白搜尋文字，不能包含控制字元。",
-        "zh-Hans": "请输入 1–256 UTF-8 字节的非空白搜索文字，不能包含控制字符。",
         "en": "Enter 1–256 UTF-8 bytes of nonblank search text without control characters."
       }
     },
@@ -4253,7 +3814,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "搜尋未完成，請重試。",
-        "zh-Hans": "搜索未完成，请重试。",
         "en": "Search did not finish. Try again."
       }
     },
@@ -4263,7 +3823,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "本次擷取頁面沒有符合的文字。",
-        "zh-Hans": "本次提取的页面没有匹配的文字。",
         "en": "No matches in the extracted pages."
       }
     },
@@ -4278,7 +3837,6 @@
       ],
       "translations": {
         "zh-Hant": "找到 %1$lld 處。",
-        "zh-Hans": "找到 %1$lld 处。",
         "en": "Matches: %1$lld."
       }
     },
@@ -4293,7 +3851,6 @@
       ],
       "translations": {
         "zh-Hant": "找到 %1$lld 處；還有其他符合位置。",
-        "zh-Hans": "找到 %1$lld 处；还有其他匹配位置。",
         "en": "Matches: %1$lld; more matches exist."
       }
     },
@@ -4312,7 +3869,6 @@
       ],
       "translations": {
         "zh-Hant": "原第 %1$lld 頁（選取序號 %2$lld）",
-        "zh-Hans": "原第 %1$lld 页（选择序号 %2$lld）",
         "en": "Original page %1$lld (selection %2$lld)"
       }
     },
@@ -4322,7 +3878,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這次擷取結果無法建立搜尋快照，請確認已擷取可讀取的文字。",
-        "zh-Hans": "无法为本次提取结果创建搜索快照，请确认已提取可读取的文字。",
         "en": "Could not create a search snapshot. Make sure readable text was extracted."
       }
     },
@@ -4332,7 +3887,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音輸入",
-        "zh-Hans": "语音输入",
         "en": "Voice input"
       }
     },
@@ -4342,7 +3896,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "按住說話，上滑取消，放開加入草稿。VoiceOver 可啟動開始及結束，或選擇取消語音輸入動作。",
-        "zh-Hans": "按住说话，上滑取消，放开加入草稿。VoiceOver 可激活开始及结束，或选择取消语音输入操作。",
         "en": "Hold to speak, slide up to cancel, release to add to draft. With VoiceOver, activate to start and stop, or choose the cancel voice input action."
       }
     },
@@ -4352,7 +3905,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在聆聽，放開加入草稿；上滑取消",
-        "zh-Hans": "正在聆听，放开加入草稿；上滑取消",
         "en": "Listening. Release to add to draft; slide up to cancel."
       }
     },
@@ -4362,7 +3914,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "放開取消語音輸入",
-        "zh-Hans": "放开取消语音输入",
         "en": "Release to cancel voice input."
       }
     },
@@ -4372,7 +3923,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在辨識語音…",
-        "zh-Hans": "正在识别语音…",
         "en": "Transcribing speech…"
       }
     },
@@ -4382,7 +3932,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未聽清楚，請按住說話再試一次。",
-        "zh-Hans": "未听清楚，请按住说话再试一次。",
         "en": "No speech recognized. Hold and try again."
       }
     },
@@ -4392,7 +3941,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "麥克風權限已關閉，請至設定開啟後再試。",
-        "zh-Hans": "麦克风权限已关闭，请到设置开启后再试。",
         "en": "Microphone access is off. Enable it in Settings and try again."
       }
     },
@@ -4402,7 +3950,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音辨識權限已關閉，請至設定開啟後再試。",
-        "zh-Hans": "语音识别权限已关闭，请到设置开启后再试。",
         "en": "Speech recognition access is off. Enable it in Settings and try again."
       }
     },
@@ -4412,7 +3959,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "此裝置的語音辨識受到限制，請檢查裝置限制。",
-        "zh-Hans": "此设备的语音识别受到限制，请检查设备限制。",
         "en": "Speech recognition is restricted on this device. Check device restrictions."
       }
     },
@@ -4422,7 +3968,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。",
-        "zh-Hans": "目前无法使用设备上语音识别，请使用键盘；服务商语音转文字尚未支持。",
         "en": "On-device speech recognition is unavailable. Use the keyboard; provider transcription is not yet supported."
       }
     },
@@ -4432,7 +3977,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。",
-        "zh-Hans": "音频无法使用或已中断，请检查麦克风及音频设备后再试。",
         "en": "Audio is unavailable or was interrupted. Check your microphone and audio route, then try again."
       }
     },
@@ -4442,7 +3986,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "辨識失敗，請再試一次。",
-        "zh-Hans": "识别失败，请再试一次。",
         "en": "Recognition failed. Please try again."
       }
     },
@@ -4452,7 +3995,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音辨識逾時，請再試一次。",
-        "zh-Hans": "语音识别超时，请再试一次。",
         "en": "Speech recognition timed out. Please try again."
       }
     },
@@ -4462,7 +4004,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "前往設定",
-        "zh-Hans": "前往设置",
         "en": "Open Settings"
       }
     },
@@ -4472,7 +4013,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音輸入已中斷；如果剛完成授權，請再次按住說話。",
-        "zh-Hans": "语音输入已中断；如果刚完成授权，请再次按住说话。",
         "en": "Voice input was interrupted. If you just granted access, hold to speak again."
       }
     },
@@ -4482,7 +4022,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "取消語音輸入",
-        "zh-Hans": "取消语音输入",
         "en": "Cancel voice input"
       }
     },
@@ -4492,7 +4031,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音轉文字",
-        "zh-Hans": "语音转文字",
         "en": "Speech to text"
       }
     },
@@ -4502,7 +4040,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可使用裝置自帶識別。",
-        "zh-Hans": "可使用设备自带识别。",
         "en": "Choose the device’s built-in recognition."
       }
     },
@@ -4512,7 +4049,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "裝置自帶",
-        "zh-Hans": "设备自带",
         "en": "Built into the device"
       }
     },
@@ -4522,7 +4058,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "邊說邊出字；離線辨識需支援目前語言並具備語言包",
-        "zh-Hans": "边说边出字；离线识别需支持当前语言并具备语言包",
         "en": "Shows words as you speak; offline recognition requires a supported language pack"
       }
     },
@@ -4532,7 +4067,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這臺裝置沒有可用的語音辨識",
-        "zh-Hans": "这台设备没有可用的语音识别",
         "en": "This device has no usable speech recognition"
       }
     },
@@ -4542,7 +4076,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "可用",
-        "zh-Hans": "可用",
         "en": "Available"
       }
     },
@@ -4552,7 +4085,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "沒有",
-        "zh-Hans": "没有",
         "en": "None"
       }
     },
@@ -4562,7 +4094,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "不用",
-        "zh-Hans": "不用",
         "en": "None"
       }
     },
@@ -4572,7 +4103,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "輸入框不能按住說話",
-        "zh-Hans": "输入框不能按住说话",
         "en": "The text box can’t be held to talk"
       }
     },
@@ -4582,7 +4112,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "目前選項不可用",
-        "zh-Hans": "当前选项不可用",
         "en": "Current choice unavailable"
       }
     },
@@ -4592,7 +4121,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選擇裝置辨識或關閉",
-        "zh-Hans": "选择设备识别或关闭",
         "en": "Choose on-device recognition or turn it off"
       }
     },
@@ -4602,7 +4130,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "語音輸入已關閉或選項不可用；請在模型設定的「語音轉文字」中選擇。",
-        "zh-Hans": "语音输入已关闭或选项不可用；请在模型设置的“语音转文字”中选择。",
         "en": "Voice input is off or the choice is unavailable. Choose an option in model settings under Speech to text."
       }
     },
@@ -4612,7 +4139,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "無法儲存語音設定，請再試一次。",
-        "zh-Hans": "无法保存语音设置，请再试一次。",
         "en": "Could not save the voice setting. Try again."
       }
     },
@@ -4622,7 +4148,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "新增附件",
-        "zh-Hans": "新增附件",
         "en": "Add attachment"
       }
     },
@@ -4632,7 +4157,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "收起附件面板",
-        "zh-Hans": "收起附件面板",
         "en": "Close attachment panel"
       }
     },
@@ -4642,7 +4166,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "相機",
-        "zh-Hans": "相机",
         "en": "Camera"
       }
     },
@@ -4652,7 +4175,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "相簿",
-        "zh-Hans": "相册",
         "en": "Photos"
       }
     },
@@ -4662,7 +4184,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "檔案",
-        "zh-Hans": "文件",
         "en": "Files"
       }
     },
@@ -4672,7 +4193,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "最近的照片",
-        "zh-Hans": "最近的照片",
         "en": "Recent photos"
       }
     },
@@ -4682,7 +4202,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "你允許渥屋助理存取的照片",
-        "zh-Hans": "你允许渥屋助理访问的照片",
         "en": "Photos you let Woow Assistant access"
       }
     },
@@ -4692,7 +4211,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "全部照片",
-        "zh-Hans": "全部照片",
         "en": "All photos"
       }
     },
@@ -4702,7 +4220,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "更改範圍",
-        "zh-Hans": "更改范围",
         "en": "Change selection"
       }
     },
@@ -4712,7 +4229,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "還沒有照片",
-        "zh-Hans": "还没有照片",
         "en": "No photos yet"
       }
     },
@@ -4722,7 +4238,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "允許存取照片",
-        "zh-Hans": "允许访问照片",
         "en": "Allow photo access"
       }
     },
@@ -4732,7 +4247,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "在這裡直接選照片,需要允許渥屋助理存取照片",
-        "zh-Hans": "在这里直接选照片,需要允许渥屋助理访问照片",
         "en": "To pick photos here, allow Woow Assistant to access your photos"
       }
     },
@@ -4742,7 +4256,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "不允許也可以點上面的「相簿」,用系統的照片選擇器",
-        "zh-Hans": "不允许也可以点上面的「相册」,用系统的照片选择器",
         "en": "Without access, tap Photos above to use the system photo picker"
       }
     },
@@ -4752,7 +4265,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "正在新增附件…",
-        "zh-Hans": "正在添加附件…",
         "en": "Adding attachments…"
       }
     },
@@ -4762,7 +4274,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "知道了",
-        "zh-Hans": "知道了",
         "en": "Got it"
       }
     },
@@ -4772,7 +4283,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這個附件已經不在了",
-        "zh-Hans": "这个附件已经不在了",
         "en": "This attachment is no longer available"
       }
     },
@@ -4782,7 +4292,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "沒有能拍照的相機",
-        "zh-Hans": "没有能拍照的相机",
         "en": "No camera is available"
       }
     },
@@ -4792,7 +4301,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "照片",
-        "zh-Hans": "照片",
         "en": "Photo"
       }
     },
@@ -4809,9 +4317,6 @@
       "translations": {
         "zh-Hant": {
           "other": "%lld 張照片"
-        },
-        "zh-Hans": {
-          "other": "%lld 张照片"
         },
         "en": {
           "one": "%lld photo",
@@ -4834,7 +4339,6 @@
       ],
       "translations": {
         "zh-Hant": "%1$@ 等 %2$lld 個檔案",
-        "zh-Hans": "%1$@ 等 %2$lld 个文件",
         "en": "%1$@ and others (%2$lld files)"
       }
     },
@@ -4844,7 +4348,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "照片和檔案",
-        "zh-Hans": "照片和文件",
         "en": "Photos and files"
       }
     },
@@ -4854,7 +4357,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已選取",
-        "zh-Hans": "已选取",
         "en": "Selected"
       }
     },
@@ -4869,7 +4371,6 @@
       ],
       "translations": {
         "zh-Hant": "去掉%1$@",
-        "zh-Hans": "去掉%1$@",
         "en": "Remove %1$@"
       }
     },
@@ -4884,7 +4385,6 @@
       ],
       "translations": {
         "zh-Hant": "一次最多 %1$lld 個附件",
-        "zh-Hans": "一次最多 %1$lld 个附件",
         "en": "Up to %1$lld attachments at a time"
       }
     },
@@ -4903,7 +4403,6 @@
       ],
       "translations": {
         "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
-        "zh-Hans": "一次最多 %1$lld 个附件,另外 %2$lld 个没加上",
         "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
       }
     },
@@ -4918,7 +4417,6 @@
       ],
       "translations": {
         "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
-        "zh-Hans": "没能添加:%1$@(单个文件不超过 200 MB)",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
       }
     },
@@ -4928,7 +4426,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "能看圖",
-        "zh-Hans": "能看图",
         "en": "Sees images"
       }
     },
@@ -4938,7 +4435,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
-        "zh-Hans": "未确认:它能看图就打开,聊天附上的图片会直接交给它看。",
         "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
       }
     },
@@ -4948,7 +4444,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
-        "zh-Hans": "按你的设置。打开时,聊天附上的图片会直接交给主模型看。",
         "en": "As you set it. When on, photos attached in chat go straight to the main model."
       }
     },
@@ -4966,9 +4461,6 @@
         "zh-Hant": {
           "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         },
-        "zh-Hans": {
-          "other": "这个模型不能看图,%lld 张图片没有交给模型。可到设置的模型页打开「能看图」。"
-        },
         "en": {
           "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
           "other": "This model can’t see images, so %lld images weren’t sent to it. Turn on Sees images on the model settings page."
@@ -4981,7 +4473,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "複製",
-        "zh-Hans": "复制",
         "en": "Copy"
       }
     },
@@ -4991,7 +4482,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已複製",
-        "zh-Hans": "已复制",
         "en": "Copied"
       }
     },
@@ -5001,7 +4491,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "引用",
-        "zh-Hans": "引用",
         "en": "Quote"
       }
     },
@@ -5011,7 +4500,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "沒能引用這則訊息",
-        "zh-Hans": "没能引用这条消息",
         "en": "Couldn’t quote this message"
       }
     },
@@ -5021,7 +4509,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "移除引用",
-        "zh-Hans": "移除引用",
         "en": "Remove quote"
       }
     },
@@ -5036,7 +4523,6 @@
       ],
       "translations": {
         "zh-Hant": "引用渥屋助理:%1$@",
-        "zh-Hans": "引用渥屋助理:%1$@",
         "en": "Quoting woowtech agent: %1$@"
       }
     },
@@ -5051,7 +4537,6 @@
       ],
       "translations": {
         "zh-Hant": "引用你的話:%1$@",
-        "zh-Hans": "引用你的话:%1$@",
         "en": "Quoting you: %1$@"
       }
     },
@@ -5061,7 +4546,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "選取文字",
-        "zh-Hans": "选取文字",
         "en": "Select text"
       }
     },
@@ -5071,7 +4555,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "長按文字就能選取",
-        "zh-Hans": "长按文字就能选取",
         "en": "Press and hold the text to select it"
       }
     },
@@ -5081,7 +4564,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "完成",
-        "zh-Hans": "完成",
         "en": "Done"
       }
     },
@@ -5091,7 +4573,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "從這裡分支",
-        "zh-Hans": "从这里分支",
         "en": "Branch from here"
       }
     },
@@ -5101,7 +4582,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "從這裡重新問",
-        "zh-Hans": "从这里重新问",
         "en": "Ask again from here"
       }
     },
@@ -5111,7 +4591,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "已建立分支",
-        "zh-Hans": "已创建分支",
         "en": "Branch created"
       }
     },
@@ -5121,7 +4600,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "沒能建立分支",
-        "zh-Hans": "没能创建分支",
         "en": "Couldn’t create branch"
       }
     },
@@ -5131,7 +4609,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": " · 分支",
-        "zh-Hans": " · 分支",
         "en": " · branch"
       }
     },
@@ -5141,7 +4618,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "附件需要重新加入",
-        "zh-Hans": "附件需要重新加入",
         "en": "Re-add the attachments you want to include"
       }
     },
@@ -5151,7 +4627,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。",
-        "zh-Hans": "输入框还有内容；请先发送或清除草稿、引用或附件，再从这里分支或重新问。",
         "en": "The input bar isn’t empty. Send or clear the draft, quote or attachments first."
       }
     },
@@ -5161,7 +4636,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "從另一個對話分支",
-        "zh-Hans": "从另一个对话分支",
         "en": "Branched from another chat"
       }
     },
@@ -5171,7 +4645,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。",
-        "zh-Hans": "调用模型失败：API Key 无效或没有权限。请到设置 › 模型检查。草稿已保留。",
         "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved."
       }
     },
@@ -5181,7 +4654,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：額度已用完。草稿已保留。",
-        "zh-Hans": "调用模型失败：额度已用完。草稿已保留。",
         "en": "The model call failed: the account has run out of credit. Your draft is preserved."
       }
     },
@@ -5191,7 +4663,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。",
-        "zh-Hans": "调用模型失败：请求太频繁，请稍后再试。草稿已保留。",
         "en": "The model call failed: too many requests; try again later. Your draft is preserved."
       }
     },
@@ -5201,7 +4672,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。",
-        "zh-Hans": "调用模型失败：服务商那里没有这个模型。请到设置 › 模型检查。草稿已保留。",
         "en": "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved."
       }
     },
@@ -5211,7 +4681,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。",
-        "zh-Hans": "调用模型失败：网络连接失败。请到设置 › 模型检查。草稿已保留。",
         "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved."
       }
     },
@@ -5221,7 +4690,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。",
-        "zh-Hans": "调用模型失败：回复还没传完，连接就中断了。请稍后再试。草稿已保留。",
         "en": "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved."
       }
     },
@@ -5231,7 +4699,6 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。",
-        "zh-Hans": "调用模型失败：看不懂返回的内容，请确认接口地址和接口类型是否相符。草稿已保留。",
         "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved."
       }
     },
@@ -5246,7 +4713,6 @@
       ],
       "translations": {
         "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。",
-        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请稍后再试。草稿已保留。",
         "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved."
       }
     },
@@ -5261,7 +4727,6 @@
       ],
       "translations": {
         "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
-        "zh-Hans": "调用模型失败：服务器端出错（HTTP %1$lld）。请到设置 › 模型检查。草稿已保留。",
         "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
       }
     }

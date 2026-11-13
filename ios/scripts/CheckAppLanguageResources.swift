@@ -30,8 +30,8 @@ import AssistantSkills
             }
             return Bundle(url: url)!
         }
-        let bundle = try makeBundle("complete", languages: ["zh-Hant", "zh-Hans", "en"])
-        let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "語言與外觀", "輪"), (.simplifiedChinese, "语言与外观", "轮"), (.english, "Language and appearance", "exchanges")]
+        let bundle = try makeBundle("complete", languages: ["zh-Hant", "en"])
+        let expected: [(AppDisplayLanguage, String, String)] = [(.traditionalChinese, "語言與外觀", "輪"), (.english, "Language and appearance", "exchanges")]
         for (language, title, plural) in expected {
             let l = AppLocalizer(language: language, bundle: bundle)
             try check(l.resolve(.languageAppearanceTitle).text == title && !l.resolve(.languageAppearanceTitle).usedFallback, "actual localized bundle title")
@@ -45,6 +45,10 @@ import AssistantSkills
             let rendered = l.text(.chatQuotingYou(text: external))
             try check(rendered.contains(external), "parameter is verbatim data, never recursive format/key/markup")
         }
+        // No Simplified Chinese table (2026-11-13): a Simplified Chinese system reads the Traditional one.
+        let simplifiedSystem = AppLocalizer(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), bundle: bundle)
+        try check(simplifiedSystem.resolve(.languageAppearanceTitle) == AppLocalizedText(text: "語言與外觀", language: .traditionalChinese, usedFallback: false)
+                  && simplifiedSystem.text(.drawerRecentTurns(count: 2)) == "2 輪", "a Simplified Chinese system reads the Traditional Chinese table")
         // Every fixed status and the archive explanation must resolve from each
         // shipped bundle, including after the interface language changes.
         let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
@@ -74,34 +78,34 @@ import AssistantSkills
             }
         }
         let searchEnglish = AppLocalizer(language: .english, bundle: bundle)
-        let searchSimplified = AppLocalizer(language: .simplifiedChinese, bundle: bundle)
         let searchTraditional = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         try check(searchEnglish.text(.localPDFSearchCount(count: 2)) == "Matches: 2." &&
-                  searchSimplified.text(.localPDFSearchCount(count: 2)) == "找到 2 处。" &&
                   searchTraditional.text(.localPDFSearchCount(count: 2)) == "找到 2 處。", "search count rerenders in selected language")
         try check(searchEnglish.text(.localPDFSearchTruncated(count: 20)) == "Matches: 20; more matches exist.", "truncation is explicit in English")
         try check(searchEnglish.text(.localPDFSearchHit(page: 3, index: 1)) == "Original page 3 (selection 1)" &&
-                  searchSimplified.text(.localPDFSearchHit(page: 3, index: 1)) == "原第 3 页（选择序号 1）", "original page and occurrence are not interchanged")
+                  searchTraditional.text(.localPDFSearchHit(page: 3, index: 1)) == "原第 3 頁（選取序號 1）", "original page and occurrence are not interchanged")
         let searchSuite = "io.woow.test.search-language." + UUID().uuidString
         guard let searchDefaults = UserDefaults(suiteName: searchSuite) else { throw NSError(domain: "LanguageResources", code: 2) }
         defer { searchDefaults.removePersistentDomain(forName: searchSuite) }
-        let searchStore = AppLanguageStore(defaults: searchDefaults, preferredLanguages: { ["zh-Hant"] })
-        for (choice, expected) in [(AppLanguage.english, "Search"), (.simplifiedChinese, "搜索"), (.traditionalChinese, "搜尋")] {
-            try check(searchStore.setFromUser(choice), "explicit interface language saved")
+        // A Simplified Chinese system: following it shows Traditional Chinese.
+        let searchStore = AppLanguageStore(defaults: searchDefaults, preferredLanguages: { ["zh-Hans-CN"] })
+        for (choice, expected) in [(AppLanguage.english, "Search"), (.system, "搜尋"), (.traditionalChinese, "搜尋")] {
+            try check(searchStore.setFromUser(choice), "interface language saved")
             let selected = AppLocalizer(language: searchStore.resolved, bundle: bundle)
             try check(selected.text(.localPDFSearchButton) == expected && !selected.resolve(.localPDFSearchButton).usedFallback,
-                      "search follows explicit setting rather than system preference")
+                      "search follows the language setting")
         }
         try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
                   "in-flight status uses the current language")
-        try check(AppLocalizer(language: .simplifiedChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的对话（2）",
+        try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的對話（2）",
                   "archive count is formatted with the selected language")
         let en = AppLocalizer(language: .english, bundle: bundle)
         let hant = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "language.appearance.title")
         let fallback = AppLocalizer(language: .english, bundle: partial).resolve(.languageAppearanceTitle)
         try check(fallback.text == "語言與外觀" && fallback.language == .traditionalChinese && fallback.usedFallback, "missing individual key falls back to Hant, not system English")
-        let missingLanguage = AppLocalizer(language: .simplifiedChinese, bundle: partial).resolve(.drawerRecentTurns(count: 2))
+        let hantOnly = try makeBundle("hantOnly", languages: ["zh-Hant"])
+        let missingLanguage = AppLocalizer(language: .english, bundle: hantOnly).resolve(.drawerRecentTurns(count: 2))
         try check(missingLanguage.text == "2 輪" && missingLanguage.usedFallback, "missing language plural falls back to Hant")
         let empty = try makeBundle("empty", languages: [])
         let emergency = AppLocalizer(language: .english, bundle: empty)

@@ -44,7 +44,6 @@ struct AppLocalizer {
         switch choice {
         case .system: return text(.languageSystem)
         case .traditionalChinese: return text(.languageTraditional)
-        case .simplifiedChinese: return text(.languageSimplified)
         case .english: return text(.languageEnglish)
         }
     }

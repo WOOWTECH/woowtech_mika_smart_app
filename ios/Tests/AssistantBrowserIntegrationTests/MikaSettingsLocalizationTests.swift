@@ -3,11 +3,11 @@ import XCTest
 
 @MainActor final class MikaSettingsLocalizationTests: XCTestCase {
     func testSettingsMemoryAndMCPEntriesHaveCompleteTranslations() {
+        let traditional = ["我的資料", "記憶與資料", "記憶、技能與網站登入", "網路與連接", "MCP 伺服器", "通知"]
         let samples: [(AppDisplayLanguage, [String])] = [
-            (.traditionalChinese, ["我的資料", "記憶與資料", "記憶、技能與網站登入",
-                                   "網路與連接", "MCP 伺服器", "通知"]),
-            (.simplifiedChinese, ["我的数据", "记忆与数据", "记忆、技能与网站登录",
-                                  "网络与连接", "MCP 服务器", "通知"]),
+            (.traditionalChinese, traditional),
+            // A Simplified Chinese system shows the Traditional Chinese words.
+            (AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), traditional),
             (.english, ["My data", "Memory & data", "Memories, skills, and website sign-ins",
                         "Network & connections", "MCP servers", "Notifications"])
         ]
@@ -27,7 +27,8 @@ import XCTest
     func testPackagedSettingsCopyAndExistingStatusMessagesUseChosenLanguage() throws {
         let samples: [(AppDisplayLanguage, String, String, String, String)] = [
             (.traditionalChinese, "設定", "常用", "主模型", "尚未儲存金鑰。"),
-            (.simplifiedChinese, "设置", "常用", "主模型", "尚未保存密钥。"),
+            // A Simplified Chinese system shows the Traditional Chinese words.
+            (AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), "設定", "常用", "主模型", "尚未儲存金鑰。"),
             (.english, "Settings", "Common", "Main model", "No key saved.")
         ]
         for (language, title, group, role, missingKey) in samples {
