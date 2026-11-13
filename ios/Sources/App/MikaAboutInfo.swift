@@ -37,6 +37,7 @@ enum MikaAboutKey: CaseIterable {
     case feedback, feedbackDetail, feedbackSheetDetail, diagnosticsCopyTitle, diagnosticsCopyDetail
     case diagnostics, diagnosticsNote, diagnosticsCopy, diagnosticsCopied, diagnosticsShare, close
     case dataNote, copyright, privacyPolicy, privacyPolicyDetail
+    case releasedUnder, licenseLink, licenseTitle, thirdParty, upstreamNote, licenseUnavailable, licensesFooter
 
     var translations: (hant: String, en: String) {
         switch self {
@@ -72,6 +73,18 @@ enum MikaAboutKey: CaseIterable {
         // iOS: App Review asks for the policy inside the app as well.
         case .privacyPolicy: return ("隱私權政策", "Privacy policy")
         case .privacyPolicyDetail: return ("渥屋助理怎麼處理你的資料", "How woowtech agent handles your data")
+        // Play's about_released_under, about_license_link, about_license_title and
+        // licenses_third_party; iOS lists its one upstream component and shows its texts.
+        case .releasedUnder: return ("基於 %@ 釋出", "Released under %@")
+        case .licenseLink: return ("Apache-2.0 開源許可", "Apache-2.0 license")
+        case .licenseTitle: return ("Apache-2.0 授權條款", "Apache-2.0 License")
+        case .thirdParty: return ("第三方元件 · %lld 個", "Third-party components · %lld")
+        case .upstreamNote: return ("記憶、個人技能、網站知識與操作路線的行為依這個版本改寫成 iOS 版，內建技能的原文也來自這裡。",
+                                    "The memory, personal skill, website knowledge and route behavior is adapted for iOS from this revision, which is also the source of the built-in skills' original text.")
+        case .licenseUnavailable: return ("授權條款文字目前無法讀取。上游 wangzan101/Mika 以 Apache-2.0 授權釋出。",
+                                          "The license text can't be read right now. Upstream wangzan101/Mika is released under the Apache-2.0 license.")
+        case .licensesFooter: return ("上面的授權條款全文與版權宣告，取自上游 wangzan101/Mika 的固定版本。",
+                                      "The license text and notice above come from the pinned revision of upstream wangzan101/Mika.")
         }
     }
 }
@@ -104,4 +117,12 @@ struct MikaAboutCopy {
     /// Android about_version and about_build: 版本 %1$s, 建置 %1$s.
     func version(_ value: String) -> String { text(.version) + " " + value }
     func build(_ value: String) -> String { text(.build) + " " + value }
+    /// Android about_released_under around about_license_link.
+    var releasedUnderParts: (before: String, after: String) {
+        let parts = text(.releasedUnder).components(separatedBy: "%@")
+        return (parts.first ?? "", parts.count > 1 ? parts[1] : "")
+    }
+    func thirdParty(_ count: Int) -> String {
+        text(.thirdParty).replacingOccurrences(of: "%lld", with: String(count))
+    }
 }
