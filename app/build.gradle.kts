@@ -173,9 +173,8 @@ android {
     sourceSets.getByName("woowtech").res.srcDir(woowtechBrandRes)
     // apporoplay: Kotlin and manifest from src/apporoplay; resources are the generated Apporo brand strings plus
     // src/apporoplay/res (full Play-adapted copies of the Apporo brand resources; src/apporo/res is not added, its
-    // keys would be duplicates). Only Apporo's brand.properties is shared. No src/nonplay, no ML Kit.
+    // keys would be duplicates). brand.properties is src/apporoplay/resources (Play identity prompt). No src/nonplay, no ML Kit.
     sourceSets.getByName("apporoplay").res.srcDir(apporoplayBrandRes)
-    sourceSets.getByName("apporoplay").resources.srcDir("src/apporo/resources")
     sourceSets.getByName("upstream").java.srcDir("src/nonplay/java")
     sourceSets.getByName("apporo").java.srcDir("src/nonplay/java")
     for (name in listOf("upstream", "apporo")) {
