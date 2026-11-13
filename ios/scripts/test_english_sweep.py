@@ -15,10 +15,7 @@ APP = ROOT / 'Sources/App'
 CJK = re.compile('[㐀-鿿＀-￯　-〿]')
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
-SWEPT = [
-    'UserProfileView', 'UserProfileToolReviewView',
-    'MemoryToolReviewView', 'BrowserSearchSettingsView', 'SavedDataViews',
-]
+SWEPT = ['BrowserSearchSettingsView', 'SavedDataViews']
 
 # (file, literal) -> why it stays Chinese.
 ALLOWED = {}

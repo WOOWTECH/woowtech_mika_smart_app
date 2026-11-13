@@ -1,12 +1,11 @@
 # Local task notifications
 
 This increment implements default-off local notifications for the actual root
-ChatSession: ordinary chat and MCP completion, and profile/memory reviews. Since
-2026-11-13 MCP calls need no approval (like the Play build), so they never post an
-approval notification; the native approval case now uses the memory review that
-follows an MCP call.
-The bridge reads entry count, assistant entry ID/role, submitting state and review
-IDs only. It neither reads nor retains message content, review arguments or error
+ChatSession: ordinary chat and MCP completion. Since 2026-11-13 MCP calls need no
+approval, and since 2026-11-14 memory and profile tools need none either (like the
+Play build), so chat posts no approval notification and `NotificationApprovalUITests`
+is gone.
+The bridge reads entry count, assistant entry ID/role and submitting state only. It neither reads nor retains message content or error
 bodies. Independent skill/browser runners are **not wired** by this increment.
 There is no push service, phone/App automation or additional background execution.
 

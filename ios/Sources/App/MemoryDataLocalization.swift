@@ -15,7 +15,7 @@ func emptyMemoryMessage(for query: String, pending: Bool) -> MemoryDataKey {
 enum MemoryDataKey: String, CaseIterable {
     case title, tabMemory, tabSkills, tabPending, tabPendingCount
     case selected, unselected, search, unavailable, reload, dismissNotice
-    case profile, routeTitle, routeCount, webLogins, storedData
+    case routeTitle, routeCount, webLogins, storedData
     case signInsNone, signInsNoneDetail, signInsManage, signInsVisited, signInsSignOutSite, signInsSignedOut
     case signInsAllTitle, signInsAllQuestion, signInsAllBody, signInsAll, signInsAllDone, signInsNote
     case routesSaved, routesClearAll, routesClearTitle, routesClearBody, clear
@@ -55,7 +55,6 @@ enum MemoryDataKey: String, CaseIterable {
         case .unavailable: return ("記憶資料目前無法讀取；不會以空白資料覆寫原檔。", "Memory data is unavailable. The original file will not be overwritten with empty data.")
         case .reload: return ("重新讀取", "Reload")
         case .dismissNotice: return ("關閉提示", "Dismiss")
-        case .profile: return ("個人檔案", "Profile")
         case .routeTitle: return ("記住的操作路線", "Saved routes")
         case .routeCount: return ("%lld 條", "%lld routes")
         case .webLogins: return ("網站登入", "Website sign-ins")

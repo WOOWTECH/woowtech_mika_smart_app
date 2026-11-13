@@ -91,6 +91,17 @@ archive (`MikaBundledSkills.json`), `BundledSkillCatalog`, the skill tool code a
 and NOTICE are shown under Settings › About › Apache-2.0 License. The sections below
 are history.
 
+### Memory and profile tools without review — 2026-11-14
+
+Also to match the Play build: the Profile page and the memory and profile review
+sheets are gone. A model's `memory_save`, `memory_edit` or `profile_edit` that
+passes the existing quote and target checks is saved at once; the chat keeps its
+receipt line and the memory undo card. The profile store stays and is still used as
+reference; 記憶與資料 › 全部清除 deletes it with its edit history. A change to
+learning data while a reply is pending, by the user or by the model's own tool,
+no longer stops that reply: the chat context fence is gone, and only the memory
+extraction after a reply stays bound to what it read.
+
 ### Original-skill integration follow-up — 2026-11-10
 
 The historical text-adaptation table below describes the catalog's first stage.

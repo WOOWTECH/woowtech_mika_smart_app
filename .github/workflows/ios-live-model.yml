@@ -28,7 +28,7 @@ on:
       ui_scope:
         description: Live App UI coverage
         type: choice
-        options: [all, browser, browser-learning, browser-interaction, user-profile, profile-tool, memory-tools]
+        options: [all, browser, browser-learning, browser-interaction, profile-tool, memory-tools]
         default: all
 
 permissions:
@@ -138,7 +138,7 @@ jobs:
         run: xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveSkillLearningSmoke"
       - name: Real model App UI tests
         if: ${{ !cancelled() && steps.app-build.outcome == 'success' && steps.transport_probe.outcome == 'success' }}
-        # Live UI methods include reviewed profile tools and research flows;
+        # Live UI methods include profile/memory tools and research flows;
         # focused scopes keep their previous 20-minute bound and case limits.
         timeout-minutes: ${{ (inputs.ui_scope || 'all') == 'all' && 40 || 20 }}
         env:
@@ -156,10 +156,8 @@ jobs:
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealMultiPageResearchLearnsPendingSkillAndApprovalSurvivesRelaunch)
           elif [ '${{ inputs.ui_scope }}' = 'browser-interaction' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProposesObservedDOMLinkAndApprovedClickNavigates)
-          elif [ '${{ inputs.ui_scope }}' = 'user-profile' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelRecallsManualProfileAfterRelaunchAndMasterSwitchDisablesIt)
           elif [ '${{ inputs.ui_scope }}' = 'profile-tool' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProfileEditRequiresReviewAndPersistsAfterRelaunch)
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProfileEditAppliesAndIsRecalledAfterRelaunch)
           elif [ '${{ inputs.ui_scope }}' = 'memory-tools' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelSavesOrdinaryMemoryAndUndoSurvivesRelaunch)
           fi

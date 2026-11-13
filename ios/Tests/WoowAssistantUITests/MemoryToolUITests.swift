@@ -1,8 +1,9 @@
 import XCTest
 
-/// Fixture commands through ordinary Chat's real review, encrypted memory store,
-/// undo and pending-procedure approval. Fixtures never seed/save memory directly.
-/// This class is native UI coverage; the separate LiveModel method uses HTTP.
+/// Fixture commands through ordinary Chat's real encrypted memory store, undo
+/// and pending-procedure approval. Like the Play build, a memory tool applies
+/// with no review sheet. Fixtures never seed/save memory directly. This class
+/// is native UI coverage; the separate LiveModel method uses HTTP.
 final class MemoryToolUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
@@ -28,11 +29,9 @@ final class MemoryToolUITests: XCTestCase {
         app.terminate()
     }
 
-    func testApprovedSaveCanBeUndoneAndRemainsAbsentAfterRelaunch() {
+    func testSaveCanBeUndoneAndRemainsAbsentAfterRelaunch() {
         launch(); configureModel()
-        requestReview("Remember preference Prefer jasmine tea", operation: "新增", quote: "Prefer jasmine tea",
-                      before: nil, after: "Prefer jasmine tea", keywords: "jasmine、tea")
-        approveReview(note: "記住了：Prefer jasmine tea")
+        request("Remember preference Prefer jasmine tea", note: "記住了：Prefer jasmine tea")
         openMemory()
         assertSingleMemory("Prefer jasmine tea")
         navigate("chat")
@@ -43,37 +42,12 @@ final class MemoryToolUITests: XCTestCase {
         selectSegment("pending"); assertEmptyPending()
     }
 
-    func testDeclinedSavePreservesDraftAndCreatesNoData() {
-        launch(); configureModel()
-        let prompt = "Remember preference Prefer quiet"
-        requestReview(prompt, operation: "新增", quote: "Prefer quiet",
-                      before: nil, after: "Prefer quiet", keywords: "quiet")
-        tap("memoryTool.decline")
-        absent(app.buttons["memoryTool.approve"].firstMatch)
-        assertLabel(app.staticTexts["chat.error"].firstMatch,
-                    "你已拒絕這次記憶修改；尚未儲存，訊息草稿已保留。")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
-        ready(app.buttons["chat.send"].firstMatch)
-        openMemory(); assertEmptyMemories()
-        selectSegment("pending"); assertEmptyPending()
-        navigate("chat")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        launch(reset: false); openMemory(); assertEmptyMemories()
-        selectSegment("pending"); assertEmptyPending()
-    }
-
-    func testReviewedUpdateOfManualMemoryPersistsAfterRelaunch() {
+    func testUpdateOfManualMemoryPersistsAfterRelaunch() {
         launch(); configureModel(); openMemory()
         addManualPreference("Prefer jasmine tea", keywords: "jasmine tea")
         let originalID = memory("Prefer jasmine tea").identifier
         navigate("chat")
-        let prompt = "Update Prefer jasmine tea to Prefer coffee"
-        requestReview(prompt, operation: "修改", quote: prompt, before: "Prefer jasmine tea",
-                      after: "Prefer coffee", keywords: "coffee")
-        approveReview(note: "更新了：Prefer coffee")
+        request("Update Prefer jasmine tea to Prefer coffee", note: "更新了：Prefer coffee")
         openMemory(); assertSingleMemory("Prefer coffee")
         XCTAssertEqual(memory("Prefer coffee").identifier, originalID)
         XCTAssertFalse(memory("Prefer jasmine tea").exists)
@@ -88,15 +62,12 @@ final class MemoryToolUITests: XCTestCase {
         absent(app.buttons["memory.editor.cancel"].firstMatch)
     }
 
-    func testReviewedDeleteCanBeUndoneAndRestoresManualMemoryAfterRelaunch() {
+    func testDeleteCanBeUndoneAndRestoresManualMemoryAfterRelaunch() {
         launch(); configureModel(); openMemory()
         addManualPreference("Prefer coffee", keywords: "coffee")
         let originalID = memory("Prefer coffee").identifier
         navigate("chat")
-        let prompt = "Delete Prefer coffee"
-        requestReview(prompt, operation: "刪除", quote: prompt, before: "Prefer coffee",
-                      after: nil, keywords: nil)
-        approveReview(note: "已忘掉一條記憶")
+        request("Delete Prefer coffee", note: "已忘掉一條記憶")
         openMemory(); assertEmptyMemories()
         navigate("chat"); undoNote()
         openMemory(); assertSingleMemory("Prefer coffee")
@@ -142,51 +113,18 @@ final class MemoryToolUITests: XCTestCase {
     }
 
     private func savePendingProcedure() {
-        requestReview("Remember procedure Check invoices before paying", operation: "新增",
-                      quote: procedureText, before: nil, after: procedureText,
-                      keywords: "invoices", pending: true)
-        approveReview(note: "待你確認做法：" + procedureText)
+        request("Remember procedure Check invoices before paying", note: "待你確認做法：" + procedureText)
         ready(app.buttons["chat.approveMemory.0"].firstMatch)
         ready(app.buttons["chat.rejectMemory.0"].firstMatch)
     }
 
-    private func requestReview(_ prompt: String, operation: String, quote: String,
-                               before: String?, after: String?, keywords: String?, pending: Bool = false) {
+    /// The model's memory command applies at once and its reply continues.
+    private func request(_ prompt: String, note: String) {
         let draft = chatDraftControl(in: app)
         writeASCII(prompt, into: draft, scroll: false)
         tap("chat.dismissKeyboard")
         XCTAssertEqual(draft.value as? String, prompt)
         tap("chat.send")
-        let operationLabel = app.staticTexts["memoryTool.operation"].firstMatch
-        let outcome = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
-            operationLabel.exists || app.staticTexts["chat.error"].firstMatch.exists
-                || app.staticTexts["chat.message.1.assistant"].firstMatch.exists
-        }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [outcome], timeout: 15), .completed)
-        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
-        assertReadable(operationLabel, equals: operation)
-        assertReadable(app.staticTexts["memoryTool.kind"].firstMatch, equals: pending ? "操作偏好" : "偏好")
-        assertReadable(app.staticTexts["memoryTool.quote"].firstMatch, equals: quote)
-        if let before { assertReadable(app.staticTexts["memoryTool.before"].firstMatch, equals: before) }
-        else { XCTAssertFalse(app.staticTexts["memoryTool.before"].firstMatch.exists) }
-        if let after { assertReadable(app.staticTexts["memoryTool.after"].firstMatch, equals: after) }
-        else { XCTAssertFalse(app.staticTexts["memoryTool.after"].firstMatch.exists) }
-        if let keywords { assertReadable(app.staticTexts["memoryTool.keywords"].firstMatch, equals: keywords) }
-        else { XCTAssertFalse(app.staticTexts["memoryTool.keywords"].firstMatch.exists) }
-        if pending {
-            assertReadable(app.staticTexts["memoryTool.pendingNotice"].firstMatch,
-                           equals: "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。")
-        } else { XCTAssertFalse(app.staticTexts["memoryTool.pendingNotice"].firstMatch.exists) }
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists,
-                       "A model proposal must not publish a persisted memory before human review.")
-        ready(app.buttons["memoryTool.approve"].firstMatch)
-        ready(app.buttons["memoryTool.decline"].firstMatch)
-    }
-
-    private func approveReview(note: String) {
-        tap("memoryTool.approve")
-        absent(app.buttons["memoryTool.approve"].firstMatch)
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
         let error = app.staticTexts["chat.error"].firstMatch
         let finished = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in answer.exists || error.exists }, object: nil)

@@ -9,55 +9,7 @@ enum AppText: Equatable {
     case languageTraditional
     case languageEnglish
     case languageSaveFailed
-    case commonEdit
-    case commonBack
-    case commonReload
-    case commonExpanded
-    case commonCollapsed
-    case commonClearText
-    case commonHideKeyboard
-    case profileScope
-    case profileCount(count: Int)
-    case profileMemoryOff
-    case profileUnavailable
-    case profileActiveSection
-    case profileEmpty
-    case profileAdd
-    case profileHistoryCount(count: Int)
-    case profileHistoryItem(value: String)
-    case profileHistoryNote
-    case profileTitle
-    case profileEditorSection
-    case profileEditorLabel
-    case profileEditorCount(count: Int)
-    case profileEditorRule
-    case profileEditorAddTitle
-    case profileEditorEditTitle
-    case profileToolAdd
-    case profileToolReplace
-    case profileToolIntro
-    case profileToolQuote
-    case profileToolBefore
-    case profileToolAfter
-    case profileToolDeleteNote
-    case profileToolTitle
-    case profileToolDecline
-    case profileToolApprove
     case commonDone
-    case memoryToolIntro
-    case memoryToolAdd
-    case memoryToolUpdate
-    case memoryToolKindFact
-    case memoryToolKindPreference
-    case memoryToolKindProcedure
-    case memoryToolKindMemory
-    case memoryToolKeywords
-    case memoryToolNoKeywords
-    case memoryToolKeywordSeparator
-    case memoryToolPendingNotice
-    case memoryToolTitle
-    case memoryToolDecline
-    case commonApprove
     case learningUnavailable
     case learningProfileSaved
     case learningProcedureApproved
@@ -513,7 +465,6 @@ enum AppText: Equatable {
     case drawerRecentRenameFailed
     case drawerRecentTurns(count: Int)
     case drawerRecentActiveTask
-    case drawerRecentPendingApproval
     case drawerRecentUnsentDraft
     case drawerRecentUnsavedReply
     case drawerRecentDifferentDestination
@@ -524,8 +475,6 @@ enum AppText: Equatable {
     case newConversationDraftRetained
     case newConversationDiscard
     case newConversationKeep
-    case chatStatusProfileReview
-    case chatStatusMemoryReview
     case chatStatusMCPWorking
     case chatStatusWaiting
     case chatStatusConfigured
@@ -643,55 +592,7 @@ enum AppText: Equatable {
         case .languageTraditional: return "language.traditional"
         case .languageEnglish: return "language.english"
         case .languageSaveFailed: return "language.saveFailed"
-        case .commonEdit: return "common.edit"
-        case .commonBack: return "common.back"
-        case .commonReload: return "common.reload"
-        case .commonExpanded: return "common.expanded"
-        case .commonCollapsed: return "common.collapsed"
-        case .commonClearText: return "common.clearText"
-        case .commonHideKeyboard: return "common.hideKeyboard"
-        case .profileScope: return "profile.scope"
-        case .profileCount: return "profile.count"
-        case .profileMemoryOff: return "profile.memoryOff"
-        case .profileUnavailable: return "profile.unavailable"
-        case .profileActiveSection: return "profile.activeSection"
-        case .profileEmpty: return "profile.empty"
-        case .profileAdd: return "profile.add"
-        case .profileHistoryCount: return "profile.historyCount"
-        case .profileHistoryItem: return "profile.historyItem"
-        case .profileHistoryNote: return "profile.historyNote"
-        case .profileTitle: return "profile.title"
-        case .profileEditorSection: return "profile.editor.section"
-        case .profileEditorLabel: return "profile.editor.label"
-        case .profileEditorCount: return "profile.editor.count"
-        case .profileEditorRule: return "profile.editor.rule"
-        case .profileEditorAddTitle: return "profile.editor.addTitle"
-        case .profileEditorEditTitle: return "profile.editor.editTitle"
-        case .profileToolAdd: return "profileTool.add"
-        case .profileToolReplace: return "profileTool.replace"
-        case .profileToolIntro: return "profileTool.intro"
-        case .profileToolQuote: return "profileTool.quote"
-        case .profileToolBefore: return "profileTool.before"
-        case .profileToolAfter: return "profileTool.after"
-        case .profileToolDeleteNote: return "profileTool.deleteNote"
-        case .profileToolTitle: return "profileTool.title"
-        case .profileToolDecline: return "profileTool.decline"
-        case .profileToolApprove: return "profileTool.approve"
         case .commonDone: return "common.done"
-        case .memoryToolIntro: return "memoryTool.intro"
-        case .memoryToolAdd: return "memoryTool.add"
-        case .memoryToolUpdate: return "memoryTool.update"
-        case .memoryToolKindFact: return "memoryTool.kindFact"
-        case .memoryToolKindPreference: return "memoryTool.kindPreference"
-        case .memoryToolKindProcedure: return "memoryTool.kindProcedure"
-        case .memoryToolKindMemory: return "memoryTool.kindMemory"
-        case .memoryToolKeywords: return "memoryTool.keywords"
-        case .memoryToolNoKeywords: return "memoryTool.noKeywords"
-        case .memoryToolKeywordSeparator: return "memoryTool.keywordSeparator"
-        case .memoryToolPendingNotice: return "memoryTool.pendingNotice"
-        case .memoryToolTitle: return "memoryTool.title"
-        case .memoryToolDecline: return "memoryTool.decline"
-        case .commonApprove: return "common.approve"
         case .learningUnavailable: return "learning.unavailable"
         case .learningProfileSaved: return "learning.profileSaved"
         case .learningProcedureApproved: return "learning.procedureApproved"
@@ -1147,7 +1048,6 @@ enum AppText: Equatable {
         case .drawerRecentRenameFailed: return "drawer.recent.renameFailed"
         case .drawerRecentTurns: return "drawer.recent.turns"
         case .drawerRecentActiveTask: return "drawer.recent.activeTask"
-        case .drawerRecentPendingApproval: return "drawer.recent.pendingApproval"
         case .drawerRecentUnsentDraft: return "drawer.recent.unsentDraft"
         case .drawerRecentUnsavedReply: return "drawer.recent.unsavedReply"
         case .drawerRecentDifferentDestination: return "drawer.recent.differentDestination"
@@ -1158,8 +1058,6 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "newConversation.draftRetained"
         case .newConversationDiscard: return "newConversation.discard"
         case .newConversationKeep: return "newConversation.keep"
-        case .chatStatusProfileReview: return "chat.status.profileReview"
-        case .chatStatusMemoryReview: return "chat.status.memoryReview"
         case .chatStatusMCPWorking: return "chat.status.mcpWorking"
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatStatusConfigured: return "chat.status.configured"
@@ -1273,10 +1171,6 @@ enum AppText: Equatable {
 
     var arguments: [CVarArg] {
         switch self {
-        case .profileCount(let count): return [Int64(count)]
-        case .profileHistoryCount(let count): return [Int64(count)]
-        case .profileHistoryItem(let value): return [value]
-        case .profileEditorCount(let count): return [Int64(count)]
         case .learningRemembered(let value): return [value]
         case .learningUpdated(let value): return [value]
         case .learningPendingProcedure(let value): return [value]
@@ -1339,55 +1233,7 @@ enum AppText: Equatable {
         case .languageTraditional: return "繁體中文"
         case .languageEnglish: return "English"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
-        case .commonEdit: return "編輯"
-        case .commonBack: return "返回"
-        case .commonReload: return "重新讀取"
-        case .commonExpanded: return "已展開"
-        case .commonCollapsed: return "已收合"
-        case .commonClearText: return "清空"
-        case .commonHideKeyboard: return "收起鍵盤"
-        case .profileScope: return "個人檔案記錄你的背景與偏好，最多 20 條。修改會在下一次任務使用，當次要求優先。"
-        case .profileCount: return "現用 %1$lld／20 條"
-        case .profileMemoryOff: return "「使用記憶」已關閉；個人檔案仍會保留，但不會加入對話。"
-        case .profileUnavailable: return "資料目前無法讀取；原檔保留且不會被覆寫。"
-        case .profileActiveSection: return "現用個人檔案"
-        case .profileEmpty: return "尚未儲存個人檔案。"
-        case .profileAdd: return "新增個人檔案"
-        case .profileHistoryCount: return "已替換或刪除的紀錄（%1$lld）"
-        case .profileHistoryItem: return "已替換或刪除 · %1$@"
-        case .profileHistoryNote: return "歷史紀錄不會加入對話；清除所有記憶與 Skills 也會清除個人檔案及其歷史。"
-        case .profileTitle: return "個人檔案"
-        case .profileEditorSection: return "一句話描述背景或偏好"
-        case .profileEditorLabel: return "個人檔案內容"
-        case .profileEditorCount: return "%1$lld／160 字元；部分符號會占多個字元。"
-        case .profileEditorRule: return "請使用單句，不要包含換行、密碼、驗證碼或金鑰。"
-        case .profileEditorAddTitle: return "新增個人檔案"
-        case .profileEditorEditTitle: return "編輯個人檔案"
-        case .profileToolAdd: return "新增"
-        case .profileToolReplace: return "修改"
-        case .profileToolIntro: return "模型提出以下個人檔案修改。請核對是否符合你這次的要求；核准後會儲存，下次對話開始時生效。"
-        case .profileToolQuote: return "你的原話"
-        case .profileToolBefore: return "目前內容"
-        case .profileToolAfter: return "儲存後內容"
-        case .profileToolDeleteNote: return "這條內容將不再用於後續對話；修改歷史會保留。"
-        case .profileToolTitle: return "核對個人檔案"
-        case .profileToolDecline: return "拒絕並停止"
-        case .profileToolApprove: return "核准並儲存"
         case .commonDone: return "完成"
-        case .memoryToolIntro: return "請核對這次記憶修改。核准後會儲存，並提供撤銷按鈕。"
-        case .memoryToolAdd: return "新增"
-        case .memoryToolUpdate: return "修改"
-        case .memoryToolKindFact: return "事實"
-        case .memoryToolKindPreference: return "偏好"
-        case .memoryToolKindProcedure: return "操作偏好"
-        case .memoryToolKindMemory: return "記憶"
-        case .memoryToolKeywords: return "搜尋關鍵字"
-        case .memoryToolNoKeywords: return "無"
-        case .memoryToolKeywordSeparator: return "、"
-        case .memoryToolPendingNotice: return "這條操作偏好會先列為待確認；需另外批准後，後續任務才會參考。"
-        case .memoryToolTitle: return "核對記憶修改"
-        case .memoryToolDecline: return "拒絕"
-        case .commonApprove: return "核准"
         case .learningUnavailable: return "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
         case .learningProfileSaved: return "個人檔案已儲存，下一次對話任務開始時生效。"
         case .learningProcedureApproved: return "已批准這條操作偏好，後續任務可以參考。"
@@ -1843,7 +1689,6 @@ enum AppText: Equatable {
         case .drawerRecentRenameFailed: return "改名未保存；對話內容不變。請重新開啟再試。"
         case .drawerRecentTurns: return "%lld 輪"
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
-        case .drawerRecentPendingApproval: return "有待核准的操作，請先返回處理。"
         case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
         case .drawerRecentDifferentDestination: return "模型服務或金鑰身分不同；可在完整歷史中檢視。"
@@ -1854,8 +1699,6 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "已有的純文字草稿會保留。"
         case .newConversationDiscard: return "捨棄並開啟新對話"
         case .newConversationKeep: return "返回目前對話"
-        case .chatStatusProfileReview: return "等待你核對個人檔案修改…"
-        case .chatStatusMemoryReview: return "等待你核對記憶修改…"
         case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
         case .chatStatusWaiting: return "正在等待模型回覆…"
         case .chatStatusConfigured: return "模型已設定"

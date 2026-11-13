@@ -28,9 +28,8 @@ FIXTURE_CLASSES = frozenset({
     "WoowAssistantUITests", "SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests", "AppLanguageUITests", "AppLanguagePhase2UITests", "ConversationArchiveUITests", "ChatAttachmentUITests", "BrowserWorkspaceUITests",
     "BrowserLoginUITests", "BrowserSiteModesUITests", "BrowserSearchUITests", "BrowserExternalOpenUITests", "BrowserInteractionUITests", "BrowserUploadUITests",
     "BrowserLearningUITests", "MemoryUITests",
-    "MemoryRaceUITests", "UserProfileUITests", "UserProfileToolUITests",
-    "MemoryToolUITests",
-    "MCPConversationUITests", "MCPLearningUITests", "NotificationUITests", "NotificationApprovalUITests",
+    "MemoryRaceUITests", "MemoryToolUITests",
+    "MCPConversationUITests", "MCPLearningUITests", "NotificationUITests",
 })
 
 

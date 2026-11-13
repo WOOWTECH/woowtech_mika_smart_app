@@ -28,7 +28,7 @@ COHORTS = (
     ("ui-documents", "ui-memory-tools"),
     ("ui-workspace", "ui-browser"),
     ("ui-learning", "ui-language", "ui-notifications", "core"),
-    ("ui-memory", "ui-profile"),
+    ("ui-memory",),
     ("ui-mcp", "ui-archive"),
     ("ui-chat",),
 )
@@ -66,10 +66,10 @@ def make_plan(root, *, current_only=False, compact_only=False, large_only=False,
     selection = selection_from_flags(current_only, compact_only, large_only)
     iphones = SELECTIONS[selection]
     catalog = ui_inventory(root)
-    if len(UI_SHARDS) != 13 or set(catalog["shards"]) != set(UI_SHARDS):
-        raise ValueError("The 13 owned UI shards changed; review the CI partition")
+    if len(UI_SHARDS) != 12 or set(catalog["shards"]) != set(UI_SHARDS):
+        raise ValueError("The 12 owned UI shards changed; review the CI partition")
     cohort_scopes = [scope for group in COHORTS for scope in group]
-    if len(cohort_scopes) != 14 or set(cohort_scopes) != set(UI_SHARDS) | {"core"}:
+    if len(cohort_scopes) != 13 or set(cohort_scopes) != set(UI_SHARDS) | {"core"}:
         raise ValueError("Every UI shard and core must have exactly one cohort owner")
     if IPAD_ONLY not in catalog["shards"]["ui-startup"]["tests"]:
         raise ValueError("The iPad-only method must be owned by ui-startup")

@@ -82,7 +82,7 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
         self.sleep = sleep
     }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
-        // Keep the existing structured dispatcher/review path intact.
+        // Keep the existing structured dispatcher path intact.
         try await completeClient.complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
@@ -110,7 +110,7 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                         } else {
                             // Preserve the existing closed profile/memory fixture
                             // commands. The App still parses the complete JSON
-                            // and requires its normal host review before effects.
+                            // and runs its normal host checks before effects.
                             let command = try await completeClient.complete(
                                 messages: messages, configuration: configuration, apiKey: apiKey)
                             try Task.checkCancellation()
@@ -222,9 +222,6 @@ actor UITestChatModelClient: ChatModelClient {
             case "Remember preference Prefer jasmine tea":
                 return try memoryCommand("memory_save", ["kind": "preference", "content": "Prefer jasmine tea",
                     "quote": "Prefer jasmine tea", "keywords": ["jasmine", "tea"]])
-            case "Remember preference Prefer quiet":
-                return try memoryCommand("memory_save", ["kind": "preference", "content": "Prefer quiet",
-                    "quote": "Prefer quiet", "keywords": ["quiet"]])
             case "Remember procedure Check invoices before paying":
                 return try memoryCommand("memory_save", ["kind": "procedure", "content": "Check invoices before paying",
                     "quote": "Check invoices before paying", "keywords": ["invoices"]])
@@ -237,7 +234,6 @@ actor UITestChatModelClient: ChatModelClient {
             let operation: [String: String]?
             switch prompt {
             case "Remember Prefer tea": operation = ["op": "add", "text": "Prefer tea", "quote": prompt]
-            case "Remember Prefer quiet": operation = ["op": "add", "text": "Prefer quiet", "quote": prompt]
             case "Replace Prefer tea with Prefer walks":
                 operation = ["op": "replace", "match": "Prefer tea", "text": "Prefer walks", "quote": prompt]
             case "Delete Prefer walks": operation = ["op": "delete", "match": "Prefer walks", "quote": prompt]
@@ -245,7 +241,7 @@ actor UITestChatModelClient: ChatModelClient {
             }
             if let operation {
                 // An actual proposal only; the fixture never applies or stores
-                // it. Native review, approval and persistence remain required.
+                // it. The App's own checks and persistence remain required.
                 return String(decoding: try JSONSerialization.data(withJSONObject:
                     ["action": "profile_edit", "arguments": operation]), as: UTF8.self)
             }
@@ -257,7 +253,6 @@ actor UITestChatModelClient: ChatModelClient {
             // The normal App dispatcher still validates the exact current quote.
             let memoryPrompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
             let profilePrompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
-            let declinedPrompt = "[fixture:mcp-memory-decline] Remember preference Prefer quiet"
             let current = messages.last?.content ?? ""
             func command(_ action: String, _ arguments: [String: Any]) throws -> String {
                 String(decoding: try JSONSerialization.data(withJSONObject:
@@ -280,12 +275,6 @@ actor UITestChatModelClient: ChatModelClient {
                     return #"{"action":"finish","answer":"MCP 個人檔案流程已完成。"}"#
                 }
                 return try command("profile_edit", ["op": "add", "text": "Prefer jasmine tea", "quote": profilePrompt])
-            }
-            if messages.contains(where: { $0.role == "user" && $0.content == declinedPrompt }) {
-                if current.hasPrefix("Host memory_save receipt") {
-                    return #"{"action":"finish","answer":"MCP 記憶流程已完成。"}"#
-                }
-                return try command("memory_save", ["kind": "preference", "content": "Prefer quiet", "quote": declinedPrompt, "keywords": ["quiet"]])
             }
             if let result = messages.last?.content, result.hasPrefix("MCP execution result") {
                 let raw = result.components(separatedBy: "\n").dropFirst().joined(separator: "\n")

@@ -382,28 +382,27 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(!client.emit("Late after restore"), "late stream cannot enter restored conversation")
         client.finish()
         try a.check(try Data(contentsOf: e.archiveFile) == savedBytes, "restore never saves partial or replay")
-        try a.check(client.counts.complete == 0 && client.counts.stream == 1 && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "restore creates no calls or reviews")
+        try a.check(client.counts.complete == 0 && client.counts.stream == 1 && session.profileReceipt == nil && session.memoryReceipt == nil, "restore creates no calls or learning changes")
         return a.count
     }
-    static func structuredFlowsRemainReviewed() async throws -> Int {
+    static func structuredToolsApplyDirectly() async throws -> Int {
         var a = Assertions()
         #if DEBUG
         a.count += try await nativeStreamingFixture()
         #endif
-        for approve in [false, true] {
+        do {
+            // Like the Play build, profile_edit applies with no review sheet.
             let e = try StreamEnvironment(); defer { e.close() }
             _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
             let proposal = #"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#
             let client = CompleteSequenceClient([proposal, #"{"action":"finish","answer":"Saved profile."}"#]); let session = e.session(client)
             let task = try start(session, "Please remember that I prefer jasmine tea")
-            try await wait("actual profile review") { session.pendingProfileReview != nil || !session.isSubmitting }
-            guard let review = session.pendingProfileReview else { throw Failure(name: "missing actual profile review") }
-            try a.check(session.chatStatusMessage == .chatStatusProfileReview, "profile approval takes precedence in status")
-            try a.check(client.counts.stream == 0 && session.replyPreview == nil && session.entries.isEmpty, "profile raw JSON is never streamed")
-            try a.check(e.archive.conversations.isEmpty && e.learning.profile.snapshot().entries.isEmpty, "profile approval still required before effect")
-            session.resolveProfileReview(id: review.id, approved: approve); await task.value
-            try a.check((session.entries.count == 2) == approve && (e.archive.conversations.count == 1) == approve, "only approved final answer is complete")
-            try a.check(session.replyPreview == nil && client.counts.stream == 0 && client.counts.complete == (approve ? 2 : 1), "structured flow uses unchanged bounded complete requests")
+            await task.value
+            try a.check(session.profileReceipt?.applied == true && e.learning.profile.snapshot().entries.map(\.text) == ["I prefer jasmine tea"],
+                        "profile_edit applies without a review")
+            try a.check(session.entries.count == 2 && session.entries[1].content == "Saved profile." && e.archive.conversations.count == 1,
+                        "the model continues to its final answer after its own edit")
+            try a.check(session.replyPreview == nil && client.counts.stream == 0 && client.counts.complete == 2, "structured flow uses unchanged bounded complete requests")
         }
         do {
             // Like the Play build, the selected tool runs with no approval card.
@@ -469,20 +468,18 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(session.replyPreview == nil && session.entries.isEmpty && e.learning.profile.snapshot().entries.isEmpty,
                         "tool JSON and arguments stay hidden before validation")
             client.finish()
-            try await wait("actual streamed proposal review") { session.pendingProfileReview != nil }
-            try a.check(session.replyPreview == nil && e.archive.conversations.isEmpty && client.counts.complete == 0,
-                        "streamed proposal cannot bypass approval or fall back to complete")
-            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
             try await wait("streamed post-commit answer") { client.counts.stream == 2 }
+            try a.check(session.replyPreview == nil && e.archive.conversations.isEmpty && client.counts.complete == 0,
+                        "streamed proposal never falls back to complete")
             try a.check(e.learning.profile.snapshot().entries.count == 1 && session.entries.isEmpty,
-                        "actual approved receipt remains separate from final answer")
+                        "actual applied receipt remains separate from final answer")
             try a.check(client.emit(#"{"action":"finish","answer":"Saved "# , at: 1), "second stream accepts decoded partial")
             try await wait("post-commit decoded partial") { session.replyPreview?.text == "Saved " }
             try a.check(client.emit(#"profile."}"#, at: 1), "second stream accepts final delta")
             client.finish(at: 1); await task.value
             try a.check(session.entries.last?.content == "Saved profile." && e.reopen().conversations.count == 1,
-                        "approved edit and validated streamed finish publish once")
-            try a.check(client.counts.stream == 2 && client.counts.complete == 0, "review stays within two model calls")
+                        "applied edit and validated streamed finish publish once")
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0, "the edit stays within two model calls")
         }
         return a.count
     }
@@ -559,12 +556,15 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("memory proposal stream") { client.counts.stream == 1 }
             client.emit(#"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Prefer jasmine tea","keywords":["tea"]}}"#)
             client.finish()
-            try await wait("memory proposal review") { session.pendingMemoryReview != nil }
+            try await wait("memory follow-up stream") { client.counts.stream == 2 }
             try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
-                        "memory tool arguments cannot be previewed or saved before review")
-            session.resolveMemoryReview(id: session.pendingMemoryReview!.id, approved: false); await task.value
-            try a.check(session.entries.isEmpty && e.learning.memory.memories.isEmpty && client.counts.stream == 1,
-                        "declined streamed memory proposal has no effect")
+                        "memory tool arguments are never previewed")
+            try a.check(e.learning.memory.memories.map(\.content) == ["Prefer jasmine tea"] && session.memoryReceipt != nil,
+                        "streamed memory_save applies without a review")
+            client.emit(#"{"action":"finish","answer":"Saved memory."}"#, at: 1)
+            client.finish(at: 1); await task.value
+            try a.check(session.entries.last?.content == "Saved memory." && client.counts.stream == 2,
+                        "the reply continues after the model's own memory change")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
@@ -662,21 +662,12 @@ private actor StreamMCP: MCPDiscovering {
             } catch HTTPChatModelError.invalidConfiguration { try a.check(deltas == 0, "fixture cannot stream raw structured instructions") }
         }
         session.newConversation(); _ = e.learning.updatePreferences { $0.useMemory = true }
-        let reviewed = try start(session, "Remember Prefer tea")
-        try await wait("fixture still enters actual profile review") { session.pendingProfileReview != nil }
-        try a.check(session.replyPreview == nil && session.entries.isEmpty, "stream flag cannot bypass enabled profile review")
-        session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: false); await reviewed.value
-        try a.check(e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty, "fixture decline remains without effect")
-        session.newConversation()
-        let approved = try start(session, "Remember Prefer tea")
-        try await wait("fixture approved profile review") { session.pendingProfileReview != nil }
-        try a.check(session.replyPreview == nil && session.entries.isEmpty && e.learning.profile.snapshot().entries.isEmpty,
-                    "structured command stays hidden and unapplied before approval")
-        session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true); await approved.value
+        let applied = try start(session, "Remember Prefer tea")
+        await applied.value
         try a.check(e.learning.profile.snapshot().entries.count == 1
                     && session.entries.last?.content == "個人檔案工具已完成。" && session.replyPreview == nil,
-                    "approved profile command uses the existing reviewed final-answer path")
-        try a.check(e.reopen().conversations.count == 2, "only approved completed profile answer adds a durable pair")
+                    "the fixture's profile command applies with no review and reaches its final answer")
+        try a.check(e.reopen().conversations.count == 2, "the completed profile answer adds one durable pair")
 
         session.newConversation()
         // Gate the fixture only in this host integration test, so it can
@@ -688,7 +679,7 @@ private actor StreamMCP: MCPDiscovering {
         let structured = try start(structuredSession, "[fixture:structured-stream-complete]")
         try await wait("actual structured fixture first delta") { structuredSession.replyPreview?.text == "結構化串流：第一段" }
         try a.check(structuredSession.replyPreview?.phase == .receiving && structuredSession.entries.isEmpty
-                    && structuredSession.pendingProfileReview == nil && e.reopen().conversations.count == 2,
+                    && structuredSession.profileReceipt == nil && e.reopen().conversations.count == 2,
                     "split finish.answer previews without exposing a command or saving an unfinished answer")
         await gate.release()
         await structured.value
@@ -756,15 +747,11 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Please remember that I prefer jasmine tea")
             try await wait("first rejected transport") { client.counts.stream == 1 }
             client.finish(HTTPStreamFallbackError.explicitUnsupported(415))
-            try await wait("complete-only review") { session.pendingProfileReview != nil }
-            try a.check(e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty,
-                        "fallback proposal cannot write profile before review")
-            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
             await task.value
             try a.check(client.counts.stream == 1 && client.counts.complete == 2 &&
                         e.learning.profile.snapshot().entries.count == 1 &&
                         session.entries.last?.content == "Saved through known complete transport",
-                        "known complete-only transport carries approved tool final within three total calls")
+                        "known complete-only transport carries the applied tool's final within three total calls")
         }
         for failure: Error in [HTTPChatModelError.httpStatus(429), HTTPChatModelError.timedOut,
                                HTTPChatModelError.incompleteResponse, CancellationError(),
@@ -796,11 +783,9 @@ private actor StreamMCP: MCPDiscovering {
             _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
             let client = StreamClient([#"{"action":"finish","answer":"MUST NOT RETRY"}"#]), session = e.session(client)
             let task = try start(session, "Please remember that I prefer jasmine tea")
-            try await wait("reviewed tool first stream") { client.counts.stream == 1 }
+            try await wait("tool first stream") { client.counts.stream == 1 }
             client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
             client.finish()
-            try await wait("reviewed tool approval") { session.pendingProfileReview != nil }
-            session.resolveProfileReview(id: session.pendingProfileReview!.id, approved: true)
             try await wait("post-tool second stream") { client.counts.stream == 2 }
             client.finish(HTTPStreamFallbackError.explicitUnsupported(415), at: 1); await task.value
             try a.check(client.counts.complete == 0 && e.learning.profile.snapshot().entries.count == 1 &&
@@ -958,10 +943,12 @@ private actor StreamMCP: MCPDiscovering {
         }
         return a.count
     }
-    static func structuredLearningRevocation() async throws -> Int {
+    /// Like the Play build, learning data changed while a reply is pending
+    /// never stops it: the reply still publishes.
+    static func structuredRepliesSurviveLearningChanges() async throws -> Int {
         var a = Assertions()
         let explicitError = Data(#"{"error":{"code":"unsupported_parameter","param":"stream"}}"#.utf8)
-        let reply = #"{"action":"finish","answer":"MUST NOT PUBLISH"}"#
+        let reply = #"{"action":"finish","answer":"Published after the change"}"#
         let completeBody = try JSONSerialization.data(withJSONObject: ["choices": [["message":
             ["role": "assistant", "content": reply], "finish_reason": "stop"]]])
         for kind in ["switch", "delete-memory", "delete-profile", "failed-write"] {
@@ -1008,19 +995,19 @@ private actor StreamMCP: MCPDiscovering {
                 try a.check(e.learning.mutateProfile({ try $0.delete(segment: "jasmine tea") }),
                             "profile deletion persists")
                 try a.check(e.learning.generation == generation && e.learning.profile.snapshot().entries.isEmpty,
-                            "profile revision fences a deletion even without generation rotation")
+                            "profile deletion persists without generation rotation")
             default:
                 let old = e.learning.memory
                 try a.check(!e.learning.mutateMemory({ _ in throw Failure(name: "fixture write failed") }),
                             "failed mutation is rejected")
                 try a.check(e.learning.generation != generation && e.learning.memory == old,
-                            "failed mutation still revokes this run without changing stored memory")
+                            "failed mutation leaves stored memory unchanged")
             }
             fixture.releaseHeldResponses()
             await task.value
-            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.reopen().conversations.isEmpty &&
-                        session.draft == "Do you remember my jasmine tea preference?" && !session.isSubmitting,
-                        "revoked context cannot issue the complete fallback POST or publish an answer (" + kind + ")")
+            try a.check(fixture.requestCount == 2 && session.entries.last?.content == "Published after the change" &&
+                        e.reopen().conversations.count == 1 && session.draft.isEmpty && !session.isSubmitting,
+                        "the pending reply still sends its one complete fallback and publishes (" + kind + ")")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
@@ -1028,24 +1015,27 @@ private actor StreamMCP: MCPDiscovering {
             let client = StreamClient(), session = e.session(client)
             let task = try start(session, "Do you remember jasmine tea?")
             try await wait("ordinary structured reply begins") { client.counts.stream == 1 }
-            client.emit(#"{"action":"finish","answer":"STALE ANSWER"}"#)
+            client.emit(#"{"action":"finish","answer":"ANSWER AFTER SWITCH"}"#)
             _ = e.learning.updatePreferences { $0.useMemory = false }
             client.finish(); await task.value
-            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty &&
-                        e.archive.conversations.isEmpty && session.replyPreview == nil,
-                        "a revoked ordinary finish cannot publish or leave its stale preview")
+            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.last?.content == "ANSWER AFTER SWITCH" &&
+                        e.archive.conversations.count == 1 && session.replyPreview == nil,
+                        "an ordinary finish publishes after the memory switch changes")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
             _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }
             let client = StreamClient(), session = e.session(client)
-            let task = try start(session, "Format correction must respect revocation")
+            let task = try start(session, "Format correction continues after a change")
             try await wait("initial correction candidate") { client.counts.stream == 1 }
             client.emit(#"{"action":"finish","answer":"bad","extra":true}"#)
             _ = e.learning.updatePreferences { $0.useMemory = false }
-            client.finish(); await task.value
-            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty,
-                        "format correction cannot send a second request after revocation")
+            client.finish()
+            try await wait("format correction request") { client.counts.stream == 2 }
+            client.emit(#"{"action":"finish","answer":"Corrected"}"#, at: 1)
+            client.finish(at: 1); await task.value
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0 && session.entries.last?.content == "Corrected",
+                        "format correction still sends its one second request after a change")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
@@ -1056,9 +1046,9 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
             _ = e.learning.updatePreferences { $0.useMemory = false }
             client.finish(); await task.value
-            try a.check(client.counts.stream == 1 && session.pendingProfileReview == nil &&
+            try a.check(client.counts.stream == 1 && session.profileReceipt == nil &&
                         e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty,
-                        "revoked proposal cannot reach review or issue a subsequent model request")
+                        "a profile proposal after memory is switched off is not applied")
         }
         do {
             // Exercise the flow boundary after a trusted tool receipt, where a
@@ -1375,9 +1365,9 @@ private actor StreamMCP: MCPDiscovering {
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
-                ChatStreamingChecks.structuredFlowsRemainReviewed(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
+                ChatStreamingChecks.structuredToolsApplyDirectly(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
-                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredLearningRevocation(),
+                ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredRepliesSurviveLearningChanges(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting(),
                 ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback(),
                 ChatStreamingChecks.consentBeforeFirstSend()]
@@ -1404,12 +1394,12 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
-    @MainActor func testStructuredFlowsRemainReviewed() async throws { let n = try await ChatStreamingChecks.structuredFlowsRemainReviewed(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredToolsApplyDirectly() async throws { let n = try await ChatStreamingChecks.structuredToolsApplyDirectly(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingAnswerAndReview() async throws { let n = try await ChatStreamingChecks.structuredStreamingAnswerAndReview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredStreamingRejectionsAndCancellation() async throws { let n = try await ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testActualHTTPStream() async throws { let n = try await ChatStreamingChecks.actualHTTPStream(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredTransportCompatibility() async throws { let n = try await ChatStreamingChecks.structuredTransportCompatibility(); XCTAssertGreaterThan(n, 0) }
-    @MainActor func testStructuredLearningRevocation() async throws { let n = try await ChatStreamingChecks.structuredLearningRevocation(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testStructuredRepliesSurviveLearningChanges() async throws { let n = try await ChatStreamingChecks.structuredRepliesSurviveLearningChanges(); XCTAssertGreaterThan(n, 0) }
 }
 #endif
 #endif

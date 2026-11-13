@@ -224,17 +224,6 @@ struct MemoryDataView: View {
                         .accessibilityIdentifier("memory.routes")
                     }
                 }
-                // Android's saved data lists website sign-ins, then routes; the
-                // iOS profile has no Android row and follows in its own card.
-                card {
-                    NavigationLink {
-                        UserProfileView(store: store)
-                    } label: {
-                        dataRow(copy.text(.profile), systemImage: "person.crop.circle")
-                    }
-                    .disabled(!store.available)
-                    .accessibilityIdentifier("memory.profile.open")
-                }
             } header: { sectionTitle(copy.text(.storedData)) }
             Section {
                 card {

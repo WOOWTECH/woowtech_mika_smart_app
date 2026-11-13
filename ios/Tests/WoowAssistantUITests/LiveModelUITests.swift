@@ -306,137 +306,41 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["memory.error"].exists)
     }
 
-    func testRealModelRecallsManualProfileAfterRelaunchAndMasterSwitchDisablesIt() throws {
+    /// Like the Play build, profile_edit applies with no review; the profile
+    /// has no page, so a new conversation after relaunch must recall it.
+    func testRealModelProfileEditAppliesAndIsRecalledAfterRelaunch() throws {
         executionTimeAllowance = 300
         var app = try launchLiveApp()
         let value = "amber-" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12).lowercased()
-        navigate(to: "memory", in: app)
-        tapLearningButton("memory.profile.open", in: app)
-        tapLearningButton("profile.add", in: app)
-        let text = app.textViews["profile.editor.text"]
-        waitUntilHittable(text)
-        let sentence = "My preferred profile color is " + value + "."
-        text.tap()
-        dismissNativeKeyboardIntroductionIfPresented(in: app)
-        text.typeText(sentence)
-        XCTAssertTrue(text.value as? String == sentence, "The profile must contain the actual typed sentence.")
-        tapToolbarButton("profile.editor.done", in: app)
-        tapToolbarButton("profile.editor.save", in: app)
-        let item = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "profile.item.", sentence)).firstMatch
-        XCTAssertTrue(item.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["profile.error"].exists)
-        app.terminate()
-        app = try launchLiveApp()
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        let question = "What is my preferred profile color? Reply with the exact saved value only. If no profile preference is provided, reply exactly UNKNOWN."
-        enterDraft(question, in: app)
-        app.buttons["chat.send"].tap()
-        assertReply(value, messageIndex: 1, in: app)
-        navigate(to: "memory", in: app)
-        let toggle = app.switches["memory.toggle.useMemory"]
-        revealLearningElement(toggle, in: app)
-        XCTAssertTrue(toggle.value as? String == "1")
-        let native = toggle.switches.firstMatch
-        let target = native.exists ? native : toggle
-        waitUntilHittable(target); target.tap()
-        let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: toggle)
-        XCTAssertEqual(XCTWaiter.wait(for: [disabled], timeout: 5), .completed)
-        XCTAssertFalse(app.staticTexts["memory.error"].exists)
-        // A fresh App conversation removes earlier answer text as a recall source.
-        app.terminate()
-        app = try launchLiveApp()
-        enterDraft(question, in: app)
-        app.buttons["chat.send"].tap()
-        assertReply("UNKNOWN", messageIndex: 1, in: app)
-        navigate(to: "memory", in: app)
-        tapLearningButton("memory.profile.open", in: app)
-        XCTAssertTrue(app.staticTexts["profile.disabled"].waitForExistence(timeout: 10))
-        let retained = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "profile.item.", sentence)).firstMatch
-        XCTAssertTrue(retained.exists, "Disabling recall must preserve the actual saved profile.")
-    }
-
-    func testRealModelProfileEditRequiresReviewAndPersistsAfterRelaunch() throws {
-        var app = try launchLiveApp()
-        let sentence = "Prefer quiet walks"
-        let prompt = "Add this exact lasting preference to my personal profile using profile_edit: Prefer quiet walks. Use text and quote exactly \"Prefer quiet walks\". I will review the proposed change before you save it."
-        func openProfile(in application: XCUIApplication) {
-            navigate(to: "memory", in: application)
-            tapLearningButton("memory.profile.open", in: application)
-            XCTAssertTrue(application.staticTexts["profile.scope"].firstMatch.waitForExistence(timeout: 10))
-            XCTAssertFalse(application.staticTexts["profile.disabled"].firstMatch.exists)
-            XCTAssertFalse(application.staticTexts["profile.unavailable"].firstMatch.exists)
-            XCTAssertFalse(application.staticTexts["profile.error"].firstMatch.exists)
-        }
-        func savedItem(in application: XCUIApplication) -> XCUIElement {
-            application.staticTexts.matching(NSPredicate(
-                format: "identifier BEGINSWITH %@ AND label == %@", "profile.item.", sentence)).firstMatch
-        }
-
-        openProfile(in: app)
-        XCTAssertTrue(app.staticTexts["profile.empty"].firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["profile.count"].firstMatch.label == "現用 0／20 條")
-        tapToolbarButton("profile.close", in: app)
-        navigate(to: "chat", in: app)
+        let sentence = "My preferred profile color is " + value
+        let prompt = "Add this exact lasting fact to my personal profile using profile_edit: " + sentence
+            + ". Use text and quote exactly \"" + sentence + "\"."
         enterDraft(prompt, in: app)
         XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt,
                       "The exact user request must arrive before any model call.")
         app.buttons["chat.send"].tap()
-        let operation = app.staticTexts["profileTool.operation"].firstMatch
         let error = app.staticTexts["chat.error"].firstMatch
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
-        let proposed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            operation.exists || error.exists || answer.exists
-        }, object: nil)
-        let proposalResult = XCTWaiter.wait(for: [proposed], timeout: 95)
-        print("Live profile-tool phase=proposal;review=\(operation.exists);error=\(error.exists);answer=\(answer.exists)")
-        XCTAssertEqual(proposalResult, .completed)
-        XCTAssertFalse(error.exists, "The actual model proposal failed before review.")
-        XCTAssertTrue(operation.exists, "A prose answer cannot substitute for an actual profile_edit review.")
-        revealLearningElement(operation, in: app, visibility: .readableText)
-        XCTAssertTrue(operation.label == "新增")
-        let quote = app.staticTexts["profileTool.quote"].firstMatch
-        revealLearningElement(quote, in: app, visibility: .readableText)
-        XCTAssertTrue(quote.label == sentence, "Review must quote the exact requested user words.")
-        XCTAssertFalse(app.staticTexts["profileTool.before"].firstMatch.exists)
-        let after = app.staticTexts["profileTool.after"].firstMatch
-        revealLearningElement(after, in: app, visibility: .readableText)
-        XCTAssertTrue(after.label == sentence, "Review must preserve the exact sentence to be stored.")
-        XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists,
-                       "A proposal is not a persisted receipt.")
-        tapToolbarButton("profileTool.approve", in: app)
         let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             error.exists || answer.exists
         }, object: nil)
-        let completionResult = XCTWaiter.wait(for: [completed], timeout: 95)
+        let completionResult = XCTWaiter.wait(for: [completed], timeout: 120)
         let receipt = app.staticTexts["chat.profileReceipt"].firstMatch
         print("Live profile-tool phase=completion;receipt=\(receipt.exists);error=\(error.exists);answer=\(answer.exists)")
         XCTAssertEqual(completionResult, .completed)
-        XCTAssertFalse(error.exists, "A saved receipt alone cannot hide a failed post-approval model turn.")
+        XCTAssertFalse(error.exists, "The model's own profile_edit must not stop its reply.")
         XCTAssertTrue(answer.exists)
         XCTAssertTrue(!answer.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        XCTAssertTrue(receipt.exists)
-        XCTAssertTrue(receipt.label == "本次對話曾儲存個人檔案；可到資料頁查看目前內容。")
-        XCTAssertFalse(app.buttons["profileTool.approve"].firstMatch.exists)
-
-        openProfile(in: app)
-        XCTAssertTrue(app.staticTexts["profile.count"].firstMatch.label == "現用 1／20 條")
-        let item = savedItem(in: app)
-        revealLearningElement(item, in: app, visibility: .readableText)
-        XCTAssertTrue(item.label == sentence)
-        let identifier = item.identifier
-        XCTAssertTrue(identifier.hasPrefix("profile.item."))
-        XCTAssertFalse(app.buttons["profile.history"].firstMatch.exists)
+        XCTAssertTrue(receipt.exists, "profile_edit must apply with no review sheet.")
+        XCTAssertTrue(receipt.label == "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。")
         app.terminate()
         app = try launchLiveApp() // Same isolated vault; no profile seed or draft replay.
         XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
-        openProfile(in: app)
-        XCTAssertTrue(app.staticTexts["profile.count"].firstMatch.label == "現用 1／20 條")
-        let retained = savedItem(in: app)
-        revealLearningElement(retained, in: app, visibility: .readableText)
-        XCTAssertTrue(retained.label == sentence && retained.identifier == identifier,
-                      "Relaunch must load the exact entry committed after the actual model proposal and human review.")
-        XCTAssertFalse(app.buttons["profile.history"].firstMatch.exists)
+        let question = "What is my preferred profile color? Reply with the exact saved value only. If no profile preference is provided, reply exactly UNKNOWN."
+        enterDraft(question, in: app)
+        app.buttons["chat.send"].tap()
+        assertReply(value, messageIndex: 1, in: app)
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
         // Fixed booleans only: no model text, endpoint, key, screenshots or AX dumps.
     }
@@ -444,7 +348,7 @@ final class LiveModelUITests: XCTestCase {
     func testRealModelSavesOrdinaryMemoryAndUndoSurvivesRelaunch() throws {
         var app = try launchLiveApp()
         let sentence = "Prefer jasmine tea"
-        let prompt = "Save this ordinary memory with memory_save: Prefer jasmine tea. Use kind preference, content and quote exactly \"Prefer jasmine tea\", and keywords [\"jasmine\",\"tea\"]. Let me review, then finish after approval."
+        let prompt = "Save this ordinary memory with memory_save: Prefer jasmine tea. Use kind preference, content and quote exactly \"Prefer jasmine tea\", and keywords [\"jasmine\",\"tea\"]. Then finish."
         func item(in application: XCUIApplication) -> XCUIElement {
             application.staticTexts.matching(NSPredicate(
                 format: "identifier BEGINSWITH %@ AND label == %@", "memory.item.", sentence)).firstMatch
@@ -467,12 +371,6 @@ final class LiveModelUITests: XCTestCase {
             XCTAssertFalse(application.staticTexts.matching(NSPredicate(
                 format: "identifier BEGINSWITH %@", "memory.item.")).firstMatch.exists)
         }
-        func reviewLabel(_ identifier: String, equals expected: String) {
-            let label = app.staticTexts[identifier].firstMatch
-            revealLearningElement(label, in: app, visibility: .readableText)
-            // Boolean comparisons keep unexpected model-provided text private.
-            XCTAssertTrue(label.label == expected, "Memory review did not match the explicit synthetic request.")
-        }
 
         openMemory(in: app); assertEmpty(in: app)
         navigate(to: "chat", in: app)
@@ -480,38 +378,18 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertTrue(chatDraftControl(in: app).value as? String == prompt,
                       "The exact request must reach the native input before the real HTTP call.")
         app.buttons["chat.send"].tap()
-        let operation = app.staticTexts["memoryTool.operation"].firstMatch
-        let profileReview = app.staticTexts["profileTool.operation"].firstMatch
+        // Like the Play build, memory_save applies with no review sheet.
         let error = app.staticTexts["chat.error"].firstMatch
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
-        let proposed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            operation.exists || profileReview.exists || error.exists || answer.exists
-        }, object: nil)
-        let proposalResult = XCTWaiter.wait(for: [proposed], timeout: 95)
-        print("Live memory-tool phase=proposal;review=\(operation.exists);profileReview=\(profileReview.exists);error=\(error.exists);answer=\(answer.exists)")
-        XCTAssertEqual(proposalResult, .completed)
-        XCTAssertFalse(error.exists)
-        XCTAssertFalse(profileReview.exists)
-        XCTAssertTrue(operation.exists, "Actual memory_save review is required; prose is not a saved memory.")
-        reviewLabel("memoryTool.operation", equals: "新增")
-        reviewLabel("memoryTool.kind", equals: "偏好")
-        reviewLabel("memoryTool.quote", equals: sentence)
-        reviewLabel("memoryTool.after", equals: sentence)
-        reviewLabel("memoryTool.keywords", equals: "jasmine、tea")
-        XCTAssertFalse(app.staticTexts["memoryTool.before"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["memoryTool.pendingNotice"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
-        tapToolbarButton("memoryTool.approve", in: app)
         let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             error.exists || answer.exists
         }, object: nil)
-        let completionResult = XCTWaiter.wait(for: [completed], timeout: 95)
+        let completionResult = XCTWaiter.wait(for: [completed], timeout: 120)
         let receipt = app.staticTexts["chat.memoryReceipt"].firstMatch
         let note = app.staticTexts["chat.memoryNote.0"].firstMatch
         print("Live memory-tool phase=completion;receipt=\(receipt.exists);note=\(note.exists);error=\(error.exists);answer=\(answer.exists)")
         XCTAssertEqual(completionResult, .completed)
-        XCTAssertFalse(error.exists, "A receipt cannot hide a failed post-approval model turn.")
+        XCTAssertFalse(error.exists, "The model's own memory_save must not stop its reply.")
         XCTAssertTrue(answer.exists && !answer.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         XCTAssertTrue(receipt.exists && receipt.label == "本次對話曾儲存記憶修改；可在資料頁查看目前內容。")
         XCTAssertTrue(note.exists && note.label == "記住了：" + sentence)
@@ -604,35 +482,6 @@ final class LiveModelUITests: XCTestCase {
         button.tap()
         let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: button)
         XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 5), .completed)
-    }
-
-    /// Navigation/keyboard toolbars are outside the Form's scrolling viewport.
-    /// Require the actual native control to be visible and tappable; scrolling
-    /// the Form cannot reveal a toolbar and must not be used as a fallback.
-    private func tapToolbarButton(_ identifier: String, in app: XCUIApplication) {
-        let button = app.buttons.matching(identifier: identifier).firstMatch
-        // isHittable already requires an existing onscreen element. Poll that
-        // single native property: run 42853423972 spent the five-second window
-        // resolving three separate properties, then observed all three true.
-        // Keep enabled, geometry and the same five-second deadline explicit.
-        let ready = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "hittable == true"), object: button)
-        let outcome = XCTWaiter.wait(for: [ready], timeout: 5)
-        if outcome != .completed {
-            let exists = button.exists
-            let frame = exists ? button.frame : .zero
-            let keyboard = app.keyboards.firstMatch
-            // Fixed native identifiers, booleans and geometry only. No trees,
-            // screenshots, input values, provider responses or environments.
-            print("Live toolbar readiness \(identifier): exists=\(exists); enabled=\(exists && button.isEnabled); hittable=\(exists && button.isHittable); frame=\(frame); keyboard=\(keyboard.exists); appFrame=\(app.frame)")
-        }
-        XCTAssertEqual(outcome, .completed)
-        XCTAssertTrue(button.exists)
-        XCTAssertTrue(button.isEnabled)
-        let frame = button.frame
-        XCTAssertFalse(frame.isEmpty)
-        XCTAssertTrue(app.frame.contains(frame), "Native toolbar control must be inside the App window.")
-        button.tap()
     }
 
     private func tapLearningButton(_ identifier: String, in app: XCUIApplication) {

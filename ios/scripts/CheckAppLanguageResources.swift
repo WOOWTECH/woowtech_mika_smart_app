@@ -51,8 +51,7 @@ import AssistantSkills
                   && simplifiedSystem.text(.drawerRecentTurns(count: 2)) == "2 輪", "a Simplified Chinese system reads the Traditional Chinese table")
         // Every fixed status and the archive explanation must resolve from each
         // shipped bundle, including after the interface language changes.
-        let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
-            .chatStatusMCPWorking, .chatStatusWaiting,
+        let chatMessages: [AppText] = [.chatStatusMCPWorking, .chatStatusWaiting,
             .chatStatusConfigured, .chatStatusUnconfigured, .chatModelSetupHint,
             .chatFixtureNotice, .drawerDeleteTitle, .drawerDeleteBody(title: "A")]
         for language in AppDisplayLanguage.allCases {

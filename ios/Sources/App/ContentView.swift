@@ -62,14 +62,12 @@ struct ContentView: View {
         .onAppear {
             session.learning.onUserChange = { [weak browserWorkspace, weak session] in
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
-                session?.invalidateProfileReview()
             }
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 session.cancelMCP()
-                session.invalidateProfileReview()
                 browserWorkspace.cancelAllWork()
                 if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
             }
@@ -711,7 +709,7 @@ private struct ChatView: View {
                 .accessibilityValue(session.mcpDiagnostics ?? "")
         }
         if session.profileReceipt != nil {
-            Text("本次對話曾儲存個人檔案；可到資料頁查看目前內容。")
+            Text("本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。")
                 .font(.caption).accessibilityIdentifier("chat.profileReceipt")
         }
         if session.memoryReceipt != nil {
@@ -1054,18 +1052,6 @@ private struct ChatView: View {
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
-            .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
-                UserProfileToolReviewView(review: review,
-                    approve: { session.resolveProfileReview(id: review.id, approved: true) },
-                    decline: { session.resolveProfileReview(id: review.id, approved: false) })
-                    .interactiveDismissDisabled()
-            }
-            .sheet(item: Binding(get: { session.pendingMemoryReview }, set: { _ in })) { review in
-                MemoryToolReviewView(review: review,
-                    approve: { session.resolveMemoryReview(id: review.id, approved: true) },
-                    decline: { session.resolveMemoryReview(id: review.id, approved: false) })
-                    .interactiveDismissDisabled()
-            }
             // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
             .sheet(item: Binding(get: { session.pendingSendConsent }, set: { _ in })) { prompt in
                 ModelConsentSheet(prompt: prompt, localizer: localizer,

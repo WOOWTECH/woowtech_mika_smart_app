@@ -16,12 +16,6 @@ import AssistantDomain
         session.$isSubmitting.dropFirst().sink { [weak observer] in
             observer?.submittingChanged($0)
         }.store(in: &subscriptions)
-        session.$pendingProfileReview.dropFirst().map { $0?.id }.sink { [weak observer] in
-            observer?.approvalChanged($0, source: .profile)
-        }.store(in: &subscriptions)
-        session.$pendingMemoryReview.dropFirst().map { $0?.id }.sink { [weak observer] in
-            observer?.approvalChanged($0, source: .memory)
-        }.store(in: &subscriptions)
     }
 
     private static func project(_ entries: [ChatEntry]) -> TaskNotificationChatSnapshot {

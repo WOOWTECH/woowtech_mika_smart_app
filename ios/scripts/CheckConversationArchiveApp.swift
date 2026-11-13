@@ -175,8 +175,6 @@ private actor ArchiveModel: ChatModelClient {
         let restoreRequests = await never.requests
         try a.check(restoreRequests.isEmpty && client.operations == baseline && service.trackedCount == 0, "restore zero model/extraction/notification calls")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes, "restore zero learning writes")
-        try a.check(restored.pendingProfileReview == nil && restored.pendingMemoryReview == nil,
-                    "no restored reviews")
         try a.check(restored.mcpSteps.isEmpty && restored.profileReceipt == nil && restored.memoryReceipt == nil && !restored.usesMCP,
                     "no tool receipts or capability restored")
         try a.check(restored.entries.map(\.id) == session.entries.map(\.id) && restored.draft.isEmpty && !restored.isSubmitting, "restore is display only")
@@ -230,8 +228,8 @@ private actor ArchiveModel: ChatModelClient {
 
         try a.check(RecentConversationAccess.open(first, in: session), "explicit safe shortcut opens stored row")
         try a.check(session.entries.map(\.id) == [first.turns[0].userID, first.turns[0].assistantID]
-                    && session.pendingProfileReview == nil
-                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no reviews")
+                    && session.profileReceipt == nil
+                    && session.memoryReceipt == nil, "shortcut restores only complete text and no learning receipts")
         let modelRequests = await model.requests
         try a.check(modelRequests.count == 2, "shortcut made no new model call")
         session.modelDraft = "other-model"; session.saveSettings()
@@ -653,7 +651,7 @@ private actor ArchiveModel: ChatModelClient {
             bridge.invalidate()
             try a.check(session.entries.map(\.id) == entries && e.archive.state == state && !session.isSubmitting,
                         "joined late response cannot overwrite after " + mode)
-            try a.check(session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "no pending actions survive " + mode)
+            try a.check(session.profileReceipt == nil && session.memoryReceipt == nil, "no learning change survives " + mode)
         }
         try a.check(e.reopen().conversations.isEmpty, "deleted conversation stays absent after relaunch")
         try a.rejects("old expected row cannot resurrect") { try e.archive.save(row, expected: row) }
@@ -667,20 +665,18 @@ private actor ArchiveModel: ChatModelClient {
         let command = #"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#
         let model = ArchiveModel([command, #"{"action":"finish","answer":"Saved the requested profile preference."}"#])
         let session = e.session(model); session.draft = request; session.send()
-        guard let task = session.capturedArchiveRequest else { throw Failure(name: "review request") }
-        try await wait { session.pendingProfileReview != nil || !session.isSubmitting }
-        guard let review = session.pendingProfileReview else { throw Failure(name: "actual profile review") }
-        try a.check(e.archive.conversations.isEmpty, "unfinished approval is not archived")
-        session.resolveProfileReview(id: review.id, approved: true); await task.value
-        try a.check(session.profileReceipt != nil && session.entries.count == 2 && e.archive.conversations.count == 1, "actual reviewed completion archived")
+        guard let task = session.capturedArchiveRequest else { throw Failure(name: "profile request") }
+        await task.value
+        // Like the Play build, profile_edit applies with no review.
+        try a.check(session.profileReceipt != nil && session.entries.count == 2 && e.archive.conversations.count == 1, "actual applied completion archived")
         let savedProfile = e.learning.profile; let savedBytes = try Data(contentsOf: e.learningFile)
         let never = ArchiveModel([]); let restored = e.session(never, store: e.reopen())
-        try a.check(restored.openConversation(id: e.archive.conversations[0].id), "open actual reviewed history")
-        try a.check(restored.profileReceipt == nil && restored.memoryReceipt == nil && restored.pendingProfileReview == nil && restored.mcpSteps.isEmpty,
+        try a.check(restored.openConversation(id: e.archive.conversations[0].id), "open actual applied history")
+        try a.check(restored.profileReceipt == nil && restored.memoryReceipt == nil && restored.mcpSteps.isEmpty,
                     "historical mutation does not become executable receipt")
         let calls = await never.requests.count
         try a.check(calls == 0 && e.learning.profile == savedProfile && (try Data(contentsOf: e.learningFile)) == savedBytes, "restore does not repeat mutation or extraction")
-        try a.check(restored.deleteConversation(id: e.archive.conversations[0].id), "delete reviewed transcript")
+        try a.check(restored.deleteConversation(id: e.archive.conversations[0].id), "delete applied transcript")
         try a.check(e.learning.profile == savedProfile && (try Data(contentsOf: e.learningFile)) == savedBytes, "history deletion preserves confirmed profile")
         return a.count
     }
@@ -904,7 +900,7 @@ private actor ArchiveModel: ChatModelClient {
         let requests = await model.requests
         try a.check(requests.first?.contains(where: { $0.content.contains(assistantText) }) == true,
                     "actual model request includes the assistant quotation")
-        try a.check(session.pendingProfileReview == nil && session.profileReceipt == nil && e.learning.profile == profile
+        try a.check(session.profileReceipt == nil && e.learning.profile == profile
                     && session.chatError != nil, "quoted assistant words cannot authorize profile changes")
         try a.check(session.pendingQuote != nil && session.draft == "Explain this" && e.archive.state.conversations[0] == saved,
                     "rejected profile proposal preserves quote, draft and saved history")
@@ -922,7 +918,7 @@ private actor ArchiveModel: ChatModelClient {
         ownSession.draft = "Explain this"; ownSession.send()
         guard let ownTask = ownSession.capturedArchiveRequest else { throw Failure(name: "quoted user profile request") }
         await ownTask.value
-        try a.check(ownSession.pendingProfileReview == nil && ownSession.profileReceipt == nil
+        try a.check(ownSession.profileReceipt == nil
                     && own.learning.profile == ownProfile && ownSession.chatError != nil,
                     "even a real earlier user quotation cannot authorize a new memory operation")
         try a.check(ownSession.draft == "Explain this" && ownSession.pendingQuote?.source == .user,

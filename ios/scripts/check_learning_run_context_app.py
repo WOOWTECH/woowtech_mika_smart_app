@@ -32,7 +32,7 @@ try:
     copy('scripts/check_learning_run_context_app.py');copy('scripts/check_profile_chat_app.py')
     modules={name:[copy(str(p.relative_to(repo))) for p in sorted((repo/'Sources'/name).glob('*.swift'))] for name,_ in MODULES}
     apps=[copy('Sources/App/'+name+'.swift') for name in list(dict.fromkeys(APP_SOURCES+['LearningRunContext']))]
-    views=[copy('Sources/App/ContentView.swift'),copy('Sources/App/UserProfileView.swift')]
+    views=[copy('Sources/App/ContentView.swift')]
     harness=copy('scripts/CheckLearningRunContextApp.swift')
     research=copy('Tests/AssistantDomainTests/WebResearchRunnerTests.swift')
     old=copy('scripts/CheckProfileChatApp.swift') if args.regression else None
