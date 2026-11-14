@@ -261,8 +261,11 @@ final class BrowserWorkspace: ObservableObject {
         guard !isClearingWebsiteData else { return false }
         let id = library.selectedID
         guard update({ try $0.clearPage(in: id) }) else { return false }
+        // The site-mode notice was about the closed page; the start page has none.
+        siteModeNoticeText = nil
         let old = sessions.removeValue(forKey: id)
         old?.onPageFinished = nil
+        old?.onSignInObserved = nil
         old?.onCreateWindow = nil
         old?.onCloseWindow = nil
         old?.canPresentUI = { false }
