@@ -790,6 +790,11 @@ private struct ChatView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 messageRows(targets: targets)
             }
+            // The reply on its way and the tail stay out of the lazy list. On
+            // iPhone SE (iOS 18.5 CI) a send made while reading far up a long
+            // reply scrolled to a tail inside the list and left the transcript
+            // blank; outside it the tail always has its laid-out position.
+            tailRows
         }
         .padding(.vertical, 4)
         .background {
@@ -819,6 +824,9 @@ private struct ChatView: View {
         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
             messageRow(index: index, entry: entry, targets: targets)
         }
+    }
+
+    @ViewBuilder private var tailRows: some View {
         if let preview = session.replyPreview {
             // Like Play's DraftText: the reply grows in place, without a status line.
             Text(ChatReplyMarkdown.render(preview.text, streaming: true))
