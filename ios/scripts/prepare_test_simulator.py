@@ -102,10 +102,17 @@ def save(path, report, exclusive=False):
         temporary.replace(path)
 
 
+# The last step setup reached; logged on failure instead of any native output.
+progress = "start"
+
+
 def prepare(path, runtime, device, fresh=False):
+    global progress
     if path.exists() or path.is_symlink():
         raise ValueError("Refusing to reuse simulator ownership record")
+    progress = "list"
     inventory = json.loads(command("list", "devices", "--json"))
+    progress = "select"
     report = selection(inventory, json.loads(command("list", "runtimes", "--json")),
                        json.loads(command("list", "devicetypes", "--json")), runtime, device)
     report.update(owner=OWNER, mode="fresh" if fresh else "existing",
@@ -123,12 +130,14 @@ def prepare(path, runtime, device, fresh=False):
     # exactly this unique name plus runtime/type, never a pre-existing device.
     save(path, report, exclusive=True)
     try:
+        progress = "create"
         created = identifier(command("create", name, report["device_type_identifier"],
                                      report["runtime_identifier"]))
         if any(identifier(item["udid"]) == created for _, item in devices(inventory)):
             raise ValueError("Create returned a pre-existing simulator UUID")
         report.update(simulator_id=created, phase="created", created_at=timestamp())
         save(path, report)
+        progress = "verify"
         observed = [(key, item) for key, item in devices(
             json.loads(command("list", "devices", "--json")))
             if identifier(item["udid"]) == created or item.get("name") == name]
@@ -230,9 +239,12 @@ def main():
     try:
         print(prepare(args.state, args.runtime, args.device, args.fresh)
               if args.action == "prepare" else cleanup(args.state))
-    except (ValueError, KeyError, TypeError, OSError):
-        # Detailed disposition stays in the bounded, synthetic ownership record.
-        print("Simulator setup/cleanup failed; inspect test-simulator.json", file=sys.stderr)
+    except (ValueError, KeyError, TypeError, OSError) as error:
+        # Detailed disposition stays in the bounded, synthetic ownership record;
+        # the log names only the step reached and the error type, never a UUID
+        # or native output, so a CI row that fails here shows where.
+        print(f"Simulator setup/cleanup failed at {progress} ({type(error).__name__}); "
+              "inspect test-simulator.json", file=sys.stderr)
         return 1
     finally:
         simctl_seconds = SIMCTL_SECONDS
