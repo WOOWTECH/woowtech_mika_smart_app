@@ -211,9 +211,9 @@
 "browser.clear.remaining" = "部分網站資料仍保留，請重新確認。";
 "browser.mode.reloading" = "網站偏好已儲存，正在重新整理此頁以套用。";
 "browser.mode.deferred" = "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。";
-"browser.bookmarks" = "書籤";
+"browser.bookmarks" = "常用網站";
 "browser.clearing" = "正在清除網站資料…";
-"browser.clear.history.question" = "清除瀏覽歷史？書籤與網站登入資料會保留。";
+"browser.clear.history.question" = "清除瀏覽歷史？常用網站與網站登入資料會保留。";
 "browser.clear.history" = "清除歷史";
 "browser.no.history" = "尚無瀏覽歷史";
 "common.delete.name" = "刪除 %1$@";
@@ -253,11 +253,11 @@
 "browser.start.recent" = "最近開啟";
 "browser.start.clear" = "清除";
 "browser.start.suggestion.help" = "只搜尋目前輸入，或開啟已儲存的最近網頁。";
-"browser.start.add.bookmark" = "加入書籤";
+"browser.start.add.bookmark" = "新增常用網站";
 "browser.start.view.bookmarks" = "查看書籤";
 "browser.start.ok" = "好";
-"browser.start.add.bookmark.help" = "請先開啟網站，再從書籤頁加入目前網頁。";
-"browser.start.remove.bookmark" = "移除書籤：%1$@";
+"browser.start.add.bookmark.help" = "開啟網站後，在「更多」裡點「加入常用網站」";
+"browser.start.remove.bookmark" = "移除%1$@";
 "browser.start.add" = "新增";
 "browser.start.suggestion.subtitle" = "搜尋或開啟網址";
 "browser.chrome.close.page" = "關閉網頁並返回起始頁";
@@ -294,8 +294,8 @@
 "browser.chrome.website" = "網頁";
 "browser.chrome.copy.link" = "複製連結";
 "browser.chrome.open.outside" = "在其他 App 開啟";
-"browser.chrome.remove.bookmark" = "移除書籤";
-"browser.chrome.add.bookmark" = "加入書籤";
+"browser.chrome.remove.bookmark" = "從常用移除";
+"browser.chrome.add.bookmark" = "加入常用網站";
 "browser.chrome.switch.mobile" = "切換為手機版";
 "browser.chrome.switch.desktop" = "切換為電腦版";
 "browser.chrome.done" = "完成";

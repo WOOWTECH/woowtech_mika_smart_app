@@ -41,7 +41,7 @@ final class BrowserWorkspaceUITests: XCTestCase {
         let confirmation = app.descendants(matching: .any).matching(NSPredicate(
             format: "(elementType == %d OR elementType == %d) AND label == %@",
             XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
-            "清除瀏覽歷史？書籤與網站登入資料會保留。")).firstMatch
+            "清除瀏覽歷史？常用網站與網站登入資料會保留。")).firstMatch
         // iOS 26 may expose the same action as nested AX buttons. Keep the
         // exact dialog, identifier and label while selecting one representation.
         let clear = confirmation.buttons.matching(NSPredicate(
