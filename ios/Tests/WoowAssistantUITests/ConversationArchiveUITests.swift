@@ -121,24 +121,24 @@ final class ConversationArchiveUITests: XCTestCase {
         ready(older); older.press(forDuration: 1)
         let pin = app.buttons.matching(NSPredicate(
             format: "identifier == %@ AND label == %@",
-            pinActionIdentifier, "釘選")).firstMatch
+            pinActionIdentifier, "置頂")).firstMatch
         ready(pin); pin.tap()
         XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.waitForExistence(timeout: 5))
-        let livePinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已釘選")
+        let livePinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已置頂")
         XCTAssertEqual(revealRecentRow("Newer").value as? String, "目前對話")
         ready(livePinned); livePinned.press(forDuration: 1)
         let liveUnpin = app.buttons.matching(NSPredicate(
             format: "identifier == %@ AND label == %@",
-            pinActionIdentifier, "取消釘選")).firstMatch
+            pinActionIdentifier, "取消置頂")).firstMatch
         ready(liveUnpin)
 
         launch(reset: false); tap("chat.menu")
         XCTAssertTrue(app.staticTexts["drawer.pinned.title"].firstMatch.exists)
-        let pinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已釘選")
+        let pinned = assertRecentRowValue("Older", identifier: olderIdentifier, value: "已置頂")
         ready(pinned); pinned.press(forDuration: 1)
         let unpin = app.buttons.matching(NSPredicate(
             format: "identifier == %@ AND label == %@",
-            pinActionIdentifier, "取消釘選")).firstMatch
+            pinActionIdentifier, "取消置頂")).firstMatch
         ready(unpin); unpin.tap()
         let pinnedHeading = app.staticTexts["drawer.pinned.title"].firstMatch
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
@@ -161,7 +161,7 @@ final class ConversationArchiveUITests: XCTestCase {
         ready(original); original.press(forDuration: 1)
         let pin = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH %@ AND label == %@",
-            "drawer.recent.togglePin.", "釘選")).firstMatch
+            "drawer.recent.togglePin.", "置頂")).firstMatch
         let rename = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH %@", "drawer.recent.rename.")).firstMatch
         ready(pin); ready(rename)
@@ -196,7 +196,7 @@ final class ConversationArchiveUITests: XCTestCase {
         tap("chat.newConversation"); tap("chat.menu")
         let saved = revealRecentRow("Recent guarded")
         XCTAssertFalse(saved.isEnabled, "Existing unsent draft blocks the shortcut")
-        XCTAssertEqual(saved.value as? String, "草稿或 PDF 附件未送出，請先返回處理。")
+        XCTAssertEqual(saved.value as? String, "草稿或附件未送出，請先返回處理。")
     }
 
     func testNewConversationKeepsOrdinaryTextDraftFromBothControls() {

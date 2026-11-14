@@ -452,6 +452,7 @@ enum AppText: Equatable {
     case drawerRecentEmpty
     case drawerRecentCurrent
     case drawerRecentPinned
+    case drawerRecentPinnedMark
     case drawerRecentPin
     case drawerRecentUnpin
     case drawerRecentPinFailed
@@ -475,6 +476,7 @@ enum AppText: Equatable {
     case chatStatusWaiting
     case chatStatusConfigured
     case chatStatusUnconfigured
+    case drawerStatusReady
     case chatModelSetupHint
     case chatSendBlockedTitle
     case chatSendBlockedNoModel
@@ -1341,6 +1343,7 @@ enum AppText: Equatable {
         case .drawerRecentEmpty: return "drawer.recent.empty"
         case .drawerRecentCurrent: return "drawer.recent.current"
         case .drawerRecentPinned: return "drawer.recent.pinned"
+        case .drawerRecentPinnedMark: return "drawer.recent.pinnedMark"
         case .drawerRecentPin: return "drawer.recent.pin"
         case .drawerRecentUnpin: return "drawer.recent.unpin"
         case .drawerRecentPinFailed: return "drawer.recent.pinFailed"
@@ -1364,6 +1367,7 @@ enum AppText: Equatable {
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatStatusConfigured: return "chat.status.configured"
         case .chatStatusUnconfigured: return "chat.status.unconfigured"
+        case .drawerStatusReady: return "drawer.status.ready"
         case .chatModelSetupHint: return "chat.modelSetupHint"
         case .chatSendBlockedTitle: return "chat.sendBlocked.title"
         case .chatSendBlockedNoModel: return "chat.sendBlocked.noModel"
@@ -1987,12 +1991,12 @@ enum AppText: Equatable {
         case .shellSettings: return "設定"
         case .shellToolsTitle: return "Skills 與 MCP"
         case .shellMemoryTitle: return "記憶與資料"
-        case .shellGreetingMorning: return "早上好"
-        case .shellGreetingNoon: return "中午好"
-        case .shellGreetingAfternoon: return "下午好"
-        case .shellGreetingEvening: return "晚上好"
+        case .shellGreetingMorning: return "早安"
+        case .shellGreetingNoon: return "午安"
+        case .shellGreetingAfternoon: return "午安"
+        case .shellGreetingEvening: return "晚安"
         case .shellGreetingNight: return "夜深了"
-        case .shellWhatToDo: return "想讓渥屋助理做什麼？"
+        case .shellWhatToDo: return "想聊什麼，或需要幫忙查找什麼？"
         case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
         case .shellNewsExample: return "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"
         case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
@@ -2004,7 +2008,7 @@ enum AppText: Equatable {
         case .shellMessagePlaceholder: return "輸入訊息"
         case .shellMessageContinuationPlaceholder: return "繼續說點什麼…"
         case .shellMessageDraft: return "訊息草稿"
-        case .shellStop: return "取消"
+        case .shellStop: return "停止"
         case .shellReturnToLatest: return "回到最新訊息"
         case .shellSend: return "傳送"
         case .appearanceTitle: return "外觀"
@@ -2331,17 +2335,18 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "重新讀取"
         case .drawerRecentEmpty: return "尚無保存的對話"
         case .drawerRecentCurrent: return "目前對話"
-        case .drawerRecentPinned: return "已釘選"
-        case .drawerRecentPin: return "釘選"
-        case .drawerRecentUnpin: return "取消釘選"
-        case .drawerRecentPinFailed: return "釘選變更未保存；對話維持原狀。請重新開啟再試。"
-        case .drawerRecentRename: return "重新命名"
-        case .drawerRecentRenameTitle: return "重新命名對話"
+        case .drawerRecentPinned: return "置頂"
+        case .drawerRecentPinnedMark: return "已置頂"
+        case .drawerRecentPin: return "置頂"
+        case .drawerRecentUnpin: return "取消置頂"
+        case .drawerRecentPinFailed: return "置頂變更未保存；對話維持原狀。請重新開啟再試。"
+        case .drawerRecentRename: return "改名"
+        case .drawerRecentRenameTitle: return "改名"
         case .drawerRecentRenameInvalid: return "請輸入非空白的單行標題，且不要過長。"
         case .drawerRecentRenameFailed: return "改名未保存；對話內容不變。請重新開啟再試。"
         case .drawerRecentTurns: return "%lld 輪"
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
-        case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
+        case .drawerRecentUnsentDraft: return "草稿或附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
         case .drawerRecentDifferentDestination: return "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。"
         case .newConversationConfirmTitle: return "開啟新對話前確認"
@@ -2355,6 +2360,7 @@ enum AppText: Equatable {
         case .chatStatusWaiting: return "正在等待模型回覆…"
         case .chatStatusConfigured: return "模型已設定"
         case .chatStatusUnconfigured: return "尚未設定模型"
+        case .drawerStatusReady: return "一切就緒"
         case .chatModelSetupHint: return "請先到設定填寫模型服務與 API Key。"
         case .chatSendBlockedTitle: return "還不能開始任務"
         case .chatSendBlockedNoModel: return "還缺:還沒有能用的模型"

@@ -129,7 +129,9 @@ struct ContentView: View {
                       .buttonStyle(.plain)
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
-                          status: localizer.text(session.chatStatusMessage),
+                          // Play's drawer readiness: 一切就緒, or 還不能開始任務 without a model.
+                          status: localizer.text(session.chatStatusMessage == .chatStatusUnconfigured
+                                                 ? .chatSendBlockedTitle : .drawerStatusReady),
                           session: session,
                           canStartNew: !session.isSubmitting,
                           palette: palette,
