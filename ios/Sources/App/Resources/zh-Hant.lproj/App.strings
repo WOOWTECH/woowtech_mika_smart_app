@@ -455,7 +455,7 @@
 "drawer.recent.activeTask" = "任務進行中，請先返回處理。";
 "drawer.recent.unsentDraft" = "草稿或 PDF 附件未送出，請先返回處理。";
 "drawer.recent.unsavedReply" = "目前答覆尚未保存，請先返回處理。";
-"drawer.recent.differentDestination" = "模型服務或金鑰身分不同；可在完整歷史中檢視。";
+"drawer.recent.differentDestination" = "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。";
 "newConversation.confirmTitle" = "開啟新對話前確認";
 "newConversation.pdfWarning" = "選取的 PDF 尚未送出；開啟新對話會移除附件。";
 "newConversation.unsavedWarning" = "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。";

@@ -455,7 +455,7 @@
 "drawer.recent.activeTask" = "A task is running. Return to the chat first.";
 "drawer.recent.unsentDraft" = "An unsent draft or PDF attachment is present. Return to the chat first.";
 "drawer.recent.unsavedReply" = "The current reply has not been saved. Return to the chat first.";
-"drawer.recent.differentDestination" = "The model service or key identity differs. You can view it in full history.";
+"drawer.recent.differentDestination" = "This conversation used a different model service or key, so it can’t be opened here.";
 "newConversation.confirmTitle" = "Before starting a new conversation";
 "newConversation.pdfWarning" = "The selected PDF has not been sent. Starting a new conversation removes the attachment.";
 "newConversation.unsavedWarning" = "This reply has not been saved. Starting a new conversation clears the reply and gives up the save retry.";

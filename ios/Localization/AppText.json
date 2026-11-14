@@ -4357,8 +4357,8 @@
       "key": "drawer.recent.differentDestination",
       "parameters": [],
       "translations": {
-        "zh-Hant": "模型服務或金鑰身分不同；可在完整歷史中檢視。",
-        "en": "The model service or key identity differs. You can view it in full history."
+        "zh-Hant": "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。",
+        "en": "This conversation used a different model service or key, so it can’t be opened here."
       }
     },
     {

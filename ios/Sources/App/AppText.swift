@@ -2343,7 +2343,7 @@ enum AppText: Equatable {
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
         case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
-        case .drawerRecentDifferentDestination: return "模型服務或金鑰身分不同；可在完整歷史中檢視。"
+        case .drawerRecentDifferentDestination: return "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。"
         case .newConversationConfirmTitle: return "開啟新對話前確認"
         case .newConversationPDFWarning: return "選取的 PDF 尚未送出；開啟新對話會移除附件。"
         case .newConversationUnsavedWarning: return "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。"
