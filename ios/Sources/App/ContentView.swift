@@ -30,6 +30,10 @@ struct ContentView: View {
                           fill: palette.assistant, background: palette.background)
     }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+    /// Play's drawer readiness: 一切就緒, or 還不能開始任務 without a model.
+    private var drawerStatus: String {
+        localizer.text(session.chatStatusMessage == .chatStatusUnconfigured ? .chatSendBlockedTitle : .drawerStatusReady)
+    }
 
     var body: some View {
         shell
@@ -129,9 +133,7 @@ struct ContentView: View {
                       .buttonStyle(.plain)
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
-                          // Play's drawer readiness: 一切就緒, or 還不能開始任務 without a model.
-                          status: localizer.text(session.chatStatusMessage == .chatStatusUnconfigured
-                                                 ? .chatSendBlockedTitle : .drawerStatusReady),
+                          status: drawerStatus,
                           session: session,
                           canStartNew: !session.isSubmitting,
                           palette: palette,
