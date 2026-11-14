@@ -309,7 +309,7 @@ final class BrowserLearningUITests: XCTestCase {
     private func assertTrialSkill(_ name: String) {
         let item = app.staticTexts["skills.item.\(name)"]
         reveal(item)
-        waitForLabel(app.staticTexts["skills.state.\(name)"], "試用中 · 尚未驗證")
+        waitForLabel(app.staticTexts["skills.state.\(name)"], "試用中，還沒用它辦成過事")
         let enabled = app.switches["skills.enabled.\(name)"]
         reveal(enabled)
         XCTAssertEqual(enabled.value as? String, "1")

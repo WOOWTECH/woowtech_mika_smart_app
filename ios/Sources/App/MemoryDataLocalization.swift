@@ -28,18 +28,19 @@ enum MemoryDataKey: String, CaseIterable {
     case emptySkills, skillsScope, mineSkills, importSkill, importHint, importSafety
     case getSkills
     case draftImported, draftPending, draftUpdate, changedLines
-    case acceptTrial, editDraft, fullText, viewFullText, skillSuspended, skillTrial, skillEnabled
+    case acceptTrial, editDraft, fullText, skillSuspended, skillTrial
     case enableReference, share, restorePrevious
     case skillUserCreated
     case skillDeleteTitle, skillDeleteMessage, confirmSkillDelete
     case useMemory, useMemorySub, autoRemember, autoRememberSub
-    case learnSkills, learnSkillsSub, preferenceScope, learningLimit, learningProgress, switches
+    case learnSkills, learnSkillsSub, preferenceScope, learningProgress, switches
     case preferenceSaveFailed, preferenceStillOn, preferenceStillOff
     case memoryEditorKind, memoryEditorContent, memoryEditorKeywords, memoryEditorProcedureHelp
     case memoryEditorAddTitle, memoryEditorEditTitle, cancel, save, clearContent, doneTyping
     case skillEditorImportHelp, skillEditorEditHelp, skillEditorImportTitle, skillEditorEditTitle
-    case importAction, approveAction, clearFullText, done
+    case importAction, clearFullText, done
     case clearStageOne, clearStageTwo, clearWarning, continueClear, confirmClear, clearTitle
+    case saidSource, sourceDayFormat, kindFact, skillImported, routeCountDetail
 
     var key: String { "memoryData." + rawValue }
 
@@ -92,12 +93,13 @@ enum MemoryDataKey: String, CaseIterable {
         case .emptyPending: return ("沒有等你確認的東西", "Nothing to review")
         case .pendingNotFound: return ("沒有找到", "Nothing found")
         case .pendingProcedure: return ("等你批准的記憶", "Memory waiting for your OK")
-        case .pendingSkills: return ("新技能草稿，收下後先試用", "New skill drafts · trial after approval")
+        case .pendingSkills: return ("新技能草稿，收下後先試用", "New skill drafts — tried out after you accept")
         case .pendingSearchHint: return ("搜尋僅篩選記憶；技能草稿會全部列出。", "Search filters memories only; all skill drafts remain listed.")
-        case .manualSource: return ("你手動填寫的", "Written by you")
+        // Play memory_manual and memory_said (date_pattern_md): the user's own words.
+        case .manualSource: return ("你手寫的", "Written by you")
         case .conversationSource: return ("來自你的對話 · %@", "From your conversation · %@")
         case .pinned: return ("已置頂", "Pinned")
-        case .originalContent: return ("原來:%@", "Was: %@")
+        case .originalContent: return ("原來：%@", "Was: %@")
         case .accept: return ("好", "OK")
         case .reject: return ("不要", "No thanks")
         case .edit: return ("改一改", "Edit")
@@ -106,69 +108,76 @@ enum MemoryDataKey: String, CaseIterable {
         case .delete: return ("刪除", "Delete")
         case .kindAbout: return ("關於你", "About you")
         case .kindPreferences: return ("偏好", "Preferences")
-        case .kindProcedures: return ("做法", "Procedures")
-        case .emptySkills: return ("尚未核准任何 Skills。", "No approved skills yet.")
-        case .skillsScope: return ("核准並啟用的 Skills 可作為模型對話的文字參考，不會執行程式、控制其他 App 或授予工具權限。試用中不代表已驗證成功。", "Approved, enabled skills are text references for model conversations. They cannot run code, control other apps, or grant tools. Trial does not mean verified.")
+        case .kindProcedures: return ("做法", "How-tos")
+        case .emptySkills: return ("還沒有學到的技能", "No learned skills yet")
+        case .skillsScope: return ("收下並啟用的技能只是對話時參考的文字，不會執行程式、控制其他 App 或授予工具權限。", "Accepted, enabled skills are only text the model refers to in chat. They can’t run code, control other apps, or grant tools.")
         case .mineSkills: return ("我的技能", "My skills")
         case .importSkill: return ("匯入技能", "Import a skill")
-        case .importHint: return ("貼上別人分享的技能全文", "Paste a shared skill's full text")
+        case .importHint: return ("貼上別人分享的技能全文", "Paste a skill someone shared with you")
         case .importSafety: return ("貼上 SKILL.md；匯入後先進入待確認，不會立即啟用。", "Paste SKILL.md. Imported skills wait for review and are not enabled immediately.")
         case .getSkills: return ("取得技能", "Get skills")
         case .draftImported: return ("由你匯入 · 尚未核准", "Imported by you · awaiting approval")
         case .draftPending: return ("待你核准", "Awaiting your approval")
         case .draftUpdate: return ("更新草稿；核准前仍保留目前版本。", "Update draft. The current version stays in use until approval.")
         case .changedLines: return ("改了這幾行：", "Changed lines:")
-        case .acceptTrial: return ("收下試用", "Accept for trial")
-        case .editDraft: return ("改一改", "Edit first")
-        case .fullText: return ("看全文", "Full text")
-        case .viewFullText: return ("查看全文", "View full text")
-        case .skillSuspended: return ("已停用", "Disabled")
-        case .skillTrial: return ("試用中 · 尚未驗證", "Trial · not verified")
-        case .skillEnabled: return ("已啟用", "Enabled")
+        case .acceptTrial: return ("收下試用", "Accept and try")
+        case .editDraft: return ("改一改", "Edit")
+        case .fullText: return ("看全文", "View full text")
+        // Play skills_suspended and skills_trial; a skill in use has no state line.
+        case .skillSuspended: return ("已停用", "Paused")
+        case .skillTrial: return ("試用中，還沒用它辦成過事", "On trial, no task done with it yet")
         case .enableReference: return ("啟用文字參考", "Enable text reference")
-        case .share: return ("分享", "Share")
-        case .restorePrevious: return ("還原上一版", "Restore previous version")
+        case .share: return ("分享技能", "Share skill")
+        case .restorePrevious: return ("恢復上一版", "Restore previous version")
         case .skillUserCreated: return ("按你的要求寫下", "Written at your request")
         case .skillDeleteTitle: return ("刪除技能？", "Delete skill?")
         case .skillDeleteMessage: return ("將「%@」從我的技能移除，後續對話不再參考。", "Remove “%@” from My Skills? Future conversations will no longer refer to it.")
         case .confirmSkillDelete: return ("確認刪除", "Confirm deletion")
         case .useMemory: return ("使用記憶", "Use memory")
-        case .useMemorySub: return ("關掉後不讀也不記", "Off means do not read or save memories")
+        case .useMemorySub: return ("關掉後不讀也不記", "When off, woowtech agent neither reads nor saves memory")
         case .preferenceSaveFailed: return ("設定未儲存", "Setting not saved")
         case .preferenceStillOn: return ("「%@」畫面仍顯示開啟。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@” still shows as on. Try again later; if data changed elsewhere, reload it first.")
         case .preferenceStillOff: return ("「%@」畫面仍顯示關閉。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@” still shows as off. Try again later; if data changed elsewhere, reload it first.")
-        case .autoRemember: return ("自動記住我說過的事", "Remember what I say automatically")
-        case .autoRememberSub: return ("任務結束後從你的原話整理", "Organize your words after a task")
+        case .autoRemember: return ("自動記住我說過的事", "Remember what I say")
+        case .autoRememberSub: return ("任務結束後從你的原話裡整理", "Organized from your own words after each task")
         case .learnSkills: return ("從做過的事裡學（技能和操作路線）", "Learn from past tasks (skills and routes)")
-        case .learnSkillsSub: return ("學到的內容要你收下才會用", "Learned content is used only after your approval")
+        case .learnSkillsSub: return ("學到的內容要你收下才會用", "What woowtech agent learns is used only after you accept it")
         case .preferenceScope: return ("使用記憶不影響已核准技能；技能請用各自開關停用。學習技能開關只控制起草，不影響匯入或使用已核准技能。", "Turning off memory does not disable approved skills; use each skill's switch. The learning switch controls drafting only, not importing or using approved skills.")
-        case .learningLimit: return ("網站研究達到學習條件後會提出技能草稿，需核准才會使用。一般模型對話不會直接被當成技能驗證成功。", "Website research may propose a skill draft after meeting learning conditions. It needs approval; a normal model reply does not verify it.")
         case .learningProgress: return ("正在整理對話記憶…", "Organizing conversation memories…")
         case .switches: return ("開關", "Switches")
         case .memoryEditorKind: return ("種類", "Type")
-        case .memoryEditorContent: return ("記憶內容（最多 200 個 UTF-16 字元）", "Memory content (up to 200 UTF-16 units)")
-        case .memoryEditorKeywords: return ("關鍵字，以空白分隔", "Keywords, separated by spaces")
-        case .memoryEditorProcedureHelp: return ("做法會先進入待確認，核准後才可供對話參考；不會自動執行操作。", "Procedures wait for your approval before use in conversations. They do not run automatically.")
-        case .memoryEditorAddTitle: return ("新增記憶", "Add memory")
-        case .memoryEditorEditTitle: return ("編輯記憶", "Edit memory")
+        // Play's EditDialog: memory_add or edit_it, memory_content and memory_keywords.
+        case .memoryEditorContent: return ("內容", "Content")
+        case .memoryEditorKeywords: return ("檢索詞（空格分開）", "Keywords (separated by spaces)")
+        case .memoryEditorProcedureHelp: return ("做法會先放進「待確認」，你批准後才會用；不會自動執行操作。", "How-tos go to “To review” first and are used only after you approve them. They don’t run anything automatically.")
+        case .memoryEditorAddTitle: return ("手寫一條", "Write one yourself")
+        case .memoryEditorEditTitle: return ("改一改", "Edit")
         case .cancel: return ("取消", "Cancel")
         case .save: return ("儲存", "Save")
         case .clearContent: return ("清空內容", "Clear content")
         case .doneTyping: return ("完成輸入", "Done typing")
-        case .skillEditorImportHelp: return ("貼上完整 SKILL.md。有效內容會進入待確認，不會立即啟用。", "Paste the full SKILL.md. Valid content waits for review and is not enabled immediately.")
-        case .skillEditorEditHelp: return ("檢查全文後核准試用；不會執行程式或授予工具權限。", "Review the full text before approving a trial. It cannot run code or grant tool access.")
-        case .skillEditorImportTitle: return ("匯入 Skill", "Import skill")
-        case .skillEditorEditTitle: return ("編輯後核准", "Edit and approve")
+        // Play skills_import with skills_import_hint, and skills_edit_title.
+        case .skillEditorImportHelp: return ("會先放進「待確認」，你看過、收下後才會用。", "It goes to “To review” first and isn’t used until you read it and accept it.")
+        case .skillEditorEditHelp: return ("看過全文再收下試用；不會執行程式或授予工具權限。", "Read the full text, then accept it for a trial. It can’t run code or grant tool access.")
+        case .skillEditorImportTitle: return ("匯入技能", "Import a skill")
+        case .skillEditorEditTitle: return ("改一改再試用", "Edit, then try")
         case .importAction: return ("匯入", "Import")
-        case .approveAction: return ("核准", "Approve")
         case .clearFullText: return ("清空全文", "Clear full text")
         case .done: return ("完成", "Done")
         case .clearStageOne: return ("第一步：確認清除範圍", "Step 1: Review what will be cleared")
         case .clearStageTwo: return ("第二步：最後確認", "Step 2: Final confirmation")
-        case .clearWarning: return ("將清除所有記憶、Skills、待確認草稿、渥屋助理記下的個人檔案及其修改紀錄、路線與版本紀錄。模型設定、模型金鑰與 MCP 端點會保留。此操作無法復原。", "This clears all memories, skills, pending drafts, the profile woowtech agent keeps about you and its edit history, routes, and version history. Model settings, keys, and MCP endpoints remain. This cannot be undone.")
+        case .clearWarning: return ("將清除所有記憶、技能、待確認草稿、渥屋助理記下的個人檔案及其修改紀錄、路線與版本紀錄。模型設定、模型金鑰與 MCP 端點會保留。此操作無法復原。", "This clears all memories, skills, pending drafts, the profile woowtech agent keeps about you and its edit history, routes, and version history. Model settings, keys, and MCP endpoints remain. This cannot be undone.")
         case .continueClear: return ("繼續", "Continue")
         case .confirmClear: return ("確認全部清除", "Confirm clear all")
         case .clearTitle: return ("清除資料", "Clear data")
+        case .saidSource: return ("你在 %@說：『%@』", "You said on %@: “%@”")
+        // A date format, not text: Play's date_pattern_md.
+        case .sourceDayFormat: return ("M 月 d 日", "MMM d")
+        // The add dialog's kinds are 事實／偏好／做法; the list headers say 關於你.
+        case .kindFact: return ("事實", "Facts")
+        case .skillImported: return ("匯入的", "Imported")
+        // Play routes_count on the routes page; the memory page row shows routeCount.
+        case .routeCountDetail: return ("%lld 條 · 做過的事下次照著做，更快", "%lld routes · repeats what worked before, faster")
         }
     }
 }
