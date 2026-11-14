@@ -94,10 +94,10 @@ final class AppLanguageUITests: XCTestCase {
             XCTAssertFalse(app.buttons["chat.archive"].exists)
             XCTAssertFalse(app.staticTexts["chat.historyNotice"].exists)
             let menu = app.buttons["chat.menu"].firstMatch
-            XCTAssertTrue(menu.isHittable); menu.tap()
             // Like Play, saved chats are listed in the drawer; its note says where they are kept.
             let notice = app.staticTexts["drawer.recent.boundary"].firstMatch
-            XCTAssertTrue(notice.waitForExistence(timeout: 10)); XCTAssertTrue(notice.label.contains(boundary), notice.label)
+            XCTAssertTrue(menu.isHittable); XCTAssertTrue(tapExpecting(menu, notice))
+            XCTAssertTrue(notice.label.contains(boundary), notice.label)
             app.buttons["drawer.close"].firstMatch.tap()
         }
     }
