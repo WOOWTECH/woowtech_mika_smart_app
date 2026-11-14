@@ -1,3 +1,4 @@
+import AssistantBrowser
 import AssistantModels
 import AssistantMCP
 import AssistantMemory
@@ -13,6 +14,57 @@ struct ModelAccess {
     /// Provider, model and Keychain item. Running work compares this, never
     /// the key, to notice that the settings changed under it.
     let identity: ModelAccessIdentity
+}
+
+/// What the AI-sharing consent (App Review 5.1.2(i)) names: the service and
+/// the host that would receive the user's content, and what asks for it.
+struct ModelConsentPrompt: Identifiable, Equatable {
+    enum Purpose: Equatable {
+        /// Saving the provider that becomes the first main model.
+        case save
+        /// Making another provider's model the main model.
+        case switchMain
+        /// The first send to a main model set up before the consent existed.
+        case send
+    }
+    let id = UUID()
+    let providerName: String
+    /// The host, with its port when it is not 443.
+    let host: String
+    let purpose: Purpose
+
+    init(name: String, baseURL: URL, purpose: Purpose) {
+        providerName = name
+        let parts = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        host = (parts?.host ?? baseURL.absoluteString) + (parts?.port.flatMap { $0 == 443 ? nil : ":\($0)" } ?? "")
+        self.purpose = purpose
+    }
+
+    init(provider: ModelProvider, purpose: Purpose) {
+        self.init(name: provider.name, baseURL: provider.baseURL, purpose: purpose)
+    }
+}
+
+/// Everything the App can send to the main model's provider, in the order the
+/// AI-sharing consent lists it. This is the one list: the privacy policy uses
+/// the same items and words (AppText consent.item.*).
+enum ModelSharedContent: String, CaseIterable {
+    case chat, attachments, images, profile, memory, skills, memoryOrganizing, web, researchJudgment, mcp
+
+    var text: AppText {
+        switch self {
+        case .chat: return .consentItemChat
+        case .attachments: return .consentItemAttachments
+        case .images: return .consentItemImages
+        case .profile: return .consentItemProfile
+        case .memory: return .consentItemMemory
+        case .skills: return .consentItemSkills
+        case .memoryOrganizing: return .consentItemMemoryOrganizing
+        case .web: return .consentItemWeb
+        case .researchJudgment: return .consentItemResearchJudgment
+        case .mcp: return .consentItemMCP
+        }
+    }
 }
 
 struct ChatEntry: Identifiable {
@@ -44,29 +96,6 @@ struct ChatReplyPreview: Identifiable, Equatable {
         case .cancelled: return "已取消・部分回覆未保存"
         case .failed: return "回覆未完成・部分回覆未保存"
         }
-    }
-}
-
-/// The runner publishes .executing before entering its executor. Reacquire the
-/// exact chat fence *after* that callback and hold the cooperative lock until
-/// the real executor returns. Cancellation of the caller does not release the
-/// lock while an executor that ignores cancellation is still running.
-private struct ContextFencedMCPExecutor: MCPConversationExecuting {
-    let executor: any MCPDiscovering
-    let fence: ChatContextFence
-
-    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
-        let lease = try await MainActor.run { try fence.acquire() }
-        defer { lease.release() }
-        try Task.checkCancellation()
-        return try await executor.callAuthorizedTool(name: name, arguments: arguments)
-    }
-
-    func readResource(uri: String) async throws -> JSONValue {
-        let lease = try await MainActor.run { try fence.acquire() }
-        defer { lease.release() }
-        try Task.checkCancellation()
-        return try await executor.readResource(uri: uri)
     }
 }
 
@@ -144,6 +173,20 @@ enum ChatBranchOutcome: Equatable {
     case failed
 }
 
+/// An ordinary chat reply, or the command that starts a web task.
+enum ChatPathReply {
+    case answer(String)
+    case web(ChatWebCommand, raw: String)
+
+    /// A plain reply is a web entry only when it is exactly that command.
+    static func plain(_ text: String, allowsWeb: Bool) -> ChatPathReply {
+        if allowsWeb, let command = try? ChatWebCommand.parseEntry(text) {
+            return .web(command, raw: ChatWebCommand.unfenced(text))
+        }
+        return .answer(text)
+    }
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     static let plainRequestDeadlineSeconds: UInt64 = 90
@@ -182,18 +225,36 @@ final class ChatSession: ObservableObject {
     @Published private(set) var shownSendBlocker: ChatSendBlocker?
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
+    /// The provider list, roles and consent behind Settings › 模型; empty
+    /// before the first provider.
+    @Published private(set) var providerDocument = ModelProvidersDocument()
+    /// Providers whose key item exists; nil when the Keychain could not list them.
+    @Published private(set) var keyedProviders: Set<UUID>?
+    /// What the last change in Settings › 模型 did, in the interface language.
+    @Published private(set) var providerNotice: AppText?
+    /// The consent asked before a send to a provider never agreed to.
+    @Published private(set) var pendingSendConsent: ModelConsentPrompt?
+    /// Android pickToProbe: the provider just saved without a test while no
+    /// main model is chosen; Settings › 模型 offers 選主模型 for it.
+    @Published private(set) var pickMainProvider: UUID?
+    private var consentMCP: MCPSession?
     @Published var usesMCP = false
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
+    /// The skill tool running in this request (Play's chat step labels).
+    @Published private(set) var skillStep: ChatSkillStep?
     @Published private(set) var mcpDiagnostics: String?
-    @Published private(set) var pendingProfileReview: UserProfileToolReview?
     @Published private(set) var profileReceipt: UserProfileToolReceipt?
     private var profileReceiptRequestID: UUID?
-    private var profileApprovalContinuation: CheckedContinuation<Bool, Never>?
-    @Published private(set) var pendingMemoryReview: MemoryToolReview?
     @Published private(set) var memoryReceipt: MemoryToolReceipt?
+    /// The web task this request started, while it runs and three seconds after.
+    @Published private(set) var webTask: ChatWebTaskSession?
+    /// The browser's website data and search engine; set by the root view.
+    /// Without it (MCP conversations, hosted tests) chat offers no web tasks.
+    var webTaskEnvironment: (@MainActor () -> ChatWebTaskEnvironment?)?
+    /// The interface language for text a web task writes into the conversation.
+    var interfaceLanguage: @MainActor () -> AppDisplayLanguage = { .traditionalChinese }
     private var memoryReceiptRequestID: UUID?
-    private var memoryApprovalContinuation: CheckedContinuation<Bool, Never>?
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
     private var mcpFormatCorrections = 0
@@ -303,6 +364,25 @@ final class ChatSession: ObservableObject {
         // Keys no provider uses: an interrupted save, or the v1 setting that
         // could not be read. A locked Keychain waits for the next launch.
         _ = try? repository.sweepOrphanedCredentials()
+        reloadProviders()
+    }
+
+    /// Reads the provider list for Settings › 模型 again, and which providers
+    /// still have their key (a restored device has the list but no keys).
+    func reloadProviders() {
+        let document = (try? repository.document()) ?? nil
+        providerDocument = document ?? ModelProvidersDocument()
+        keyedProviders = document.flatMap { repository.providersWithKeys(in: $0) }
+    }
+
+    /// The main model's provider was never agreed to (App Review 5.1.2(i)):
+    /// a setting from before the consent existed. Nothing is sent to it until
+    /// the user agrees.
+    var mainNeedsConsent: Bool { savedSettings?.providerID != nil && providerDocument.mainNeedsConsent }
+
+    /// What the consent screen names for the main model's provider.
+    func consentPrompt(forProvider id: UUID, purpose: ModelConsentPrompt.Purpose) -> ModelConsentPrompt? {
+        providerDocument.provider(id: id).map { ModelConsentPrompt(provider: $0, purpose: purpose) }
     }
 
     var canSend: Bool {
@@ -325,6 +405,7 @@ final class ChatSession: ObservableObject {
     }
 
     /// Send when every guard passes; otherwise say why and keep the draft.
+    /// A main model whose provider was never agreed to asks first.
     func attemptSend(mcp: MCPSession? = nil) {
         guard canAttemptSend else { return }
         guard savedSettings != nil, hasStoredKey else { shownSendBlocker = .noModel; return }
@@ -333,7 +414,30 @@ final class ChatSession: ObservableObject {
             chatError = "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
             return
         }
+        if mainNeedsConsent, let provider = savedSettings?.providerID {
+            consentMCP = mcp
+            pendingSendConsent = consentPrompt(forProvider: provider, purpose: .send)
+            if pendingSendConsent != nil { return }
+        }
         send(mcp: mcp)
+    }
+
+    /// The answer to the consent asked before a send. Declining sends
+    /// nothing and keeps the draft; agreeing records it and sends.
+    func resolveSendConsent(agreed: Bool) {
+        guard let prompt = pendingSendConsent else { return }
+        let mcp = consentMCP
+        pendingSendConsent = nil; consentMCP = nil
+        guard agreed else {
+            let text = AppText.chatConsentDeclined(provider: prompt.providerName)
+            chatError = String(format: text.traditionalFallback, arguments: text.arguments)
+            chatErrorText = text
+            return
+        }
+        do { try repository.recordConsentForMain() }
+        catch { chatError = Self.settingsMessage(error); return }
+        reloadProviders()
+        attemptSend(mcp: mcp)
     }
 
     func dismissSendBlocker() { shownSendBlocker = nil }
@@ -546,18 +650,30 @@ final class ChatSession: ObservableObject {
 
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
+    /// The main model for work outside the chat (browser research, documents,
+    /// transcripts, skills). Refused until the user agreed to send content to
+    /// its provider. Each call takes a fresh session header value: one run.
     func modelAccess() throws -> ModelAccess {
         guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
             throw HTTPChatModelError.invalidConfiguration
         }
-        return ModelAccess(client: client, configuration: savedSettings.configuration,
+        // Owner decision 2026-11-13: until the consent is given (a setting from
+        // before it), work outside the chat keeps its own "model unavailable"
+        // errors. A later consent prompt for these features would hook in here.
+        guard !mainNeedsConsent else { throw ModelSettingsError.consentRequired }
+        return ModelAccess(client: client, configuration: savedSettings.configuration(conversation: nil),
                            key: try repository.key(for: savedSettings), identity: identity)
     }
 
+    /// The model client a connection test in Settings › 模型 uses: the UI
+    /// test fixture in UI test mode, otherwise HTTPS.
+    var connectionTestClient: any ChatModelClient { client }
+
+    /// A saved provider's key for a test call; empty for one saved without a key.
+    func providerKey(id: UUID) throws -> String { try repository.storedKey(forProvider: id) }
+
     // Keep the state typed so language changes re-render the current status.
     var chatStatusMessage: AppText {
-        if pendingProfileReview != nil { return .chatStatusProfileReview }
-        if pendingMemoryReview != nil { return .chatStatusMemoryReview }
         if isSubmitting && isMCPRun { return .chatStatusMCPWorking }
         if isSubmitting { return .chatStatusWaiting }
         return savedSettings != nil && hasStoredKey ? .chatStatusConfigured : .chatStatusUnconfigured
@@ -565,6 +681,8 @@ final class ChatSession: ObservableObject {
 
     var chatStatus: String { chatStatusMessage.traditionalFallback }
 
+    /// The single form's save from the drafts (phase 1a), kept for the App
+    /// harnesses; Settings › 模型 calls addProvider and chooseMainModel.
     func saveSettings() {
         guard !isSubmitting else { return }
         guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return }
@@ -606,6 +724,7 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        reloadProviders()
     }
 
     func removeSettings() {
@@ -640,7 +759,174 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        reloadProviders()
     }
+
+    // MARK: Settings › 模型 (Android ModelSetupViewModel)
+
+    /// Saves the add-provider form: "測試並儲存" after its test passed
+    /// (`tested`) or "不測試，直接儲存". `consented`: the user agreed on the
+    /// consent screen just now; a save that makes the first main model needs
+    /// it. Returns whether the provider was saved.
+    @discardableResult
+    func addProvider(name: String, baseURL: String, sessionHeader: String?, keyRequired: Bool, key: String,
+                     model: String?, tested: Bool, consented: Bool) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let saved = try repository.addProvider(name: name, baseURL: baseURL, sessionHeader: sessionHeader,
+                                                   keyRequired: keyRequired, key: key, model: model, tested: tested,
+                                                   consentedAt: consented ? Date() : nil)
+            // Also when the main model's own provider was saved again with a new key.
+            if saved.becameMain || saved.main?.providerID == saved.providerID { adoptMain(saved.main) }
+            reloadProviders()
+            providerNotice = tested ? .modelSavedTested(name: saved.providerName)
+                                    : .modelSavedUntested(name: saved.providerName)
+            // Android saveWithoutTest: with no main model yet, choose one from this
+            // provider; the picker tests it before it becomes the main model.
+            pickMainProvider = !tested && providerDocument.roles.main == nil ? saved.providerID : nil
+            if saved.cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// Makes a model the main model: from the main-model picker or a model's
+    /// "用作" sheet. Another provider than the one agreed to needs `consented`.
+    @discardableResult
+    func chooseMainModel(providerID: UUID, model: String, typed: Bool, verified: Bool, consented: Bool) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let record = try repository.chooseMain(ModelRef(providerID: providerID, model: model), typed: typed,
+                                                   verified: verified, consentedAt: consented ? Date() : nil)
+            adoptMain(record)
+            reloadProviders()
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// A model of this provider answered "重新測試".
+    func markModelVerified(providerID: UUID, model: String) {
+        do { try repository.markVerified(providerID: providerID, model: model); settingsError = nil }
+        catch { settingsError = Self.settingsMessage(error) }
+        reloadProviders()
+    }
+
+    /// Android updateProviderKey. A new key for the main model's provider
+    /// keeps the conversation going: it belongs to the provider, not the key.
+    @discardableResult
+    func changeProviderKey(providerID: UUID, key: String) -> Bool {
+        guard beginProviderChange() else { return false }
+        do {
+            let result = try repository.changeKey(providerID: providerID, newKey: key)
+            if result.main?.providerID == providerID { adoptMain(result.main) }
+            reloadProviders()
+            providerNotice = providerDocument.provider(id: providerID).map { .modelsKeyChanged(name: $0.name) }
+            if result.cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// Android removeProvider: the provider and only its key. A main model on
+    /// it is no longer chosen, as on Android.
+    @discardableResult
+    func deleteProvider(id: UUID) -> Bool {
+        let name = providerDocument.provider(id: id)?.name
+        guard beginProviderChange() else { return false }
+        do {
+            let cleanupFailed = try repository.removeProvider(id: id)
+            adoptMain(try repository.load())
+            reloadProviders()
+            providerNotice = name.map { .modelsDeleted(name: $0) }
+            if cleanupFailed { settingsError = Self.cleanupFailure }
+            return true
+        } catch {
+            settingsError = Self.settingsMessage(error)
+            return false
+        }
+    }
+
+    /// The user's "能看圖" answer for one model. Like the old switch, it only
+    /// changes what later prompts send.
+    func setModelVision(providerID: UUID, model: String, sees: Bool?) {
+        guard !isSubmitting else { return }
+        do {
+            let main = try repository.setVision(sees, providerID: providerID, model: model)
+            if let main, main.providerID == savedSettings?.providerID, main.model == savedSettings?.model {
+                savedSettings = main
+            }
+            settingsError = nil
+        } catch {
+            settingsError = Self.settingsMessage(error)
+        }
+        reloadProviders()
+    }
+
+    /// The consent asked on the model page for a main model whose provider was
+    /// never agreed to: recorded on agreement, nothing changes otherwise.
+    func agreeToMainProvider() {
+        do { try repository.recordConsentForMain(); settingsError = nil }
+        catch { settingsError = Self.settingsMessage(error) }
+        reloadProviders()
+    }
+
+    func clearProviderNotice() { providerNotice = nil; settingsError = nil; settingsNotice = nil; pickMainProvider = nil }
+
+    /// Like saving the old form: no change during a reply or with a quote
+    /// waiting, and running work and learning stop first.
+    private func beginProviderChange() -> Bool {
+        guard !isSubmitting else { return false }
+        guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return false }
+        learning.onUserChange?()
+        learning.cancelLearning()
+        settingsError = nil
+        settingsNotice = nil
+        providerNotice = nil
+        pickMainProvider = nil
+        return true
+    }
+
+    /// The main model after a change in Settings › 模型. Only another
+    /// provider or model starts over; a new key for the same provider keeps
+    /// the conversation, its draft and its attachments.
+    private func adoptMain(_ record: SavedModelSettings?) {
+        let changed = savedSettings?.baseURL != record?.baseURL
+            || savedSettings?.accessIdentity?.target != record?.accessIdentity?.target
+        savedSettings = record
+        hasStoredKey = record.map { (try? repository.key(for: $0)) != nil } ?? false
+        baseURLDraft = record?.baseURL.absoluteString ?? ""
+        modelDraft = record?.model ?? ""
+        keyDraft = ""
+        if changed { startOverForNewModel() }
+        chatError = nil
+        chatNotice = nil
+        shownSendBlocker = nil
+    }
+
+    private func startOverForNewModel() {
+        entries = []
+        replyPreview = nil
+        pendingQuote = nil
+        quoteSource = nil
+        conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
+        profileReceipt = nil
+        profileReceiptRequestID = nil
+        memoryReceipt = nil
+        memoryReceiptRequestID = nil
+        discardPendingAttachments()
+        conversationID = UUID().uuidString
+        learning.resetConversationPresentation()
+    }
+
+    /// Mapped to AppText.modelsCleanupFailed for display.
+    nonisolated static let cleanupFailure = "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。"
 
     func send(mcp: MCPSession? = nil) {
         if pendingQuote != nil { archive?.reload() }
@@ -702,17 +988,14 @@ final class ChatSession: ObservableObject {
         let profileState = learning.profile
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
-        let configuration = savedSettings.configuration
-        let contextFence: ChatContextFence?
-        let modelClient: any ChatModelClient
-        if learning.available && (!context.isEmpty || useLearningTools) {
-            let fence = ChatContextFence(store: learning, generation: learningGeneration)
-            do { modelClient = try fencedChatClient(client, fence: fence); contextFence = fence }
-            catch {
-                chatError = "目前模型連線無法確認請求生命週期；參考資料尚未送出，草稿保留。"
-                return
-            }
-        } else { modelClient = client; contextFence = nil }
+        // Like Play, ordinary chat always offers the skill tools, whatever the
+        // memory switches; MCP conversations keep their own runner.
+        let skillIndex: String?? = mcpConnection == nil ? .some(chatSkillCatalog().index()) : nil
+        // Like Android every message may also become a web task; MCP
+        // conversations keep their own runner in this phase.
+        let webEnvironment = mcpConnection == nil ? webTaskEnvironment?() : nil
+        // The provider's session header (OpenCode Go) carries this conversation's value.
+        let configuration = savedSettings.configuration(conversation: conversationID)
         let id = UUID()
         requestID = id
         replyPreview = nil
@@ -725,8 +1008,7 @@ final class ChatSession: ObservableObject {
         chatError = nil
         chatNotice = window.omittedTurns == 0 ? nil
             : "本次傳送最近 \(window.retainedTurns) 輪對話、本輪完整訊息及參考資料；較早 \(window.omittedTurns) 輪仍在畫面中，但未傳送。"
-        let client = modelClient
-        let extractionClient = self.client
+        let client = client
         let attachmentStore = self.attachmentStore
         let attachmentBudget = ChatAttachmentPreparation.textBudget(promptBytes: prompt.utf8.count,
                                                                      contextBytes: context.reduce(0) { $0 + $1.content.utf8.count })
@@ -746,25 +1028,39 @@ final class ChatSession: ObservableObject {
                                                  attachments: prepared.attachments))
                 }
                 let reply: String
+                var webResult: ChatWebTaskResult?
                 if let (connection, tools, resources) = mcpConnection {
                     reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id,
-                        contextFence: contextFence) ?? ""
-                } else if useLearningTools {
-                    reply = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
-                        state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
-                        key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
+                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
                 } else {
-                    reply = try await self?.completePlain(messages: outgoing, configuration: configuration,
-                        key: key, client: client, requestID: id, contextFence: contextFence) ?? ""
+                    let path: ChatPathReply
+                    if useLearningTools {
+                        path = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
+                            state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
+                            key: key, client: client, requestID: id, skillIndex: skillIndex,
+                            web: webEnvironment.map(Self.webEntry)) ?? .answer("")
+                    } else {
+                        path = try await self?.completePlain(messages: outgoing, configuration: configuration,
+                            key: key, client: client, requestID: id, generation: learningGeneration,
+                            skillIndex: skillIndex, utterance: utterance,
+                            webOffer: webEnvironment.map { ChatWebTaskPrompts.entryInstructions(searchTemplate: $0.searchTemplate) })
+                            ?? .answer("")
+                    }
+                    switch path {
+                    case .answer(let text): reply = text
+                    case .web(let command, let raw):
+                        guard let self, let webEnvironment else { return }
+                        let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing, client: client,
+                                                           configuration: configuration, key: key,
+                                                           environment: webEnvironment, requestID: id)
+                        webResult = result
+                        reply = ChatWebTaskTranscript.text(for: result, localizer: AppLocalizer(language: self.interfaceLanguage()))
+                    }
                 }
                 try Task.checkCancellation()
                 guard let self, self.requestID == id else { return }
-                // Keep peer edits fenced until the final reply is published.
-                let publicationLease = try contextFence?.acquire()
-                defer { publicationLease?.release() }
                 if mcpConnection != nil { self.mcpPhase = "finished"; self.updateMCPDiagnostics() }
                 guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     self.finish(id: id, error: "模型回傳空白內容，草稿已保留，請重試。")
@@ -801,12 +1097,14 @@ final class ChatSession: ObservableObject {
                 }
                 // Sent attachments now belong to the transcript; their files stay.
                 if self.pendingAttachments == attachmentsAtStart { self.pendingAttachments = [] }
-                publicationLease?.release()
                 self.finish(id: id)
+                // A round that read web pages is not organized into memory, like
+                // Android (RunLearning). finish(id:) already retired its tab.
+                if webResult != nil { return }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
                 self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
-                    expectedGeneration: learningGeneration, client: extractionClient, configuration: configuration, apiKey: key,
+                    expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
                     preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
             } catch {
                 guard let self, self.requestID == id else { return }
@@ -817,12 +1115,7 @@ final class ChatSession: ObservableObject {
                     self.updateMCPDiagnostics(failure: category)
                 }
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let fenceFailure: Error?
-                do { try contextFence?.check(); fenceFailure = nil }
-                catch { fenceFailure = error }
-                let message = fenceFailure.flatMap(Self.profileFailureMessage)
-                    ?? (error as? MCPChatStop)?.message
-                    ?? (error as? ProfileChatStop)?.message
+                let message = (error as? MCPChatStop)?.message
                     ?? Self.profileFailureMessage(error)
                     ?? Self.modelFailureMessage(error as? MCPConversationError)
                     ?? ((error as? MCPConversationError) == .invalidCommand
@@ -830,14 +1123,14 @@ final class ChatSession: ObservableObject {
                     ?? (mcpConnection == nil ? "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
                         : "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
                 // A plain request names its model failure like Android (ModelErrorCopy).
-                let modelFailure = fenceFailure == nil && mcpConnection == nil ? ChatModelFailure(error) : nil
+                let modelFailure = mcpConnection == nil ? ChatModelFailure(error) : nil
                 if self.memoryReceiptRequestID == id {
                     self.finish(id: id, error: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。")
                 } else if let modelFailure, self.profileReceiptRequestID != id {
                     self.finish(id: id, error: modelFailure.traditionalText, text: modelFailure.text)
                 } else {
                     self.finish(id: id, error: self.profileReceiptRequestID != id ? message
-                        : "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。")
+                        : "個人檔案已儲存，但後續模型回覆未完成；草稿保留。")
                 }
             }
         }
@@ -853,7 +1146,7 @@ final class ChatSession: ObservableObject {
             } else {
                 self.finish(id: id, error: self.profileReceiptRequestID != id
                     ? "等待超過 \(seconds) 秒，已停止等待；草稿已保留，可重試。"
-                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存內容。草稿保留。")
+                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒；草稿保留。")
             }
         }
     }
@@ -927,14 +1220,30 @@ final class ChatSession: ObservableObject {
         catch { settingsError = Self.settingsMessage(error) }
     }
 
-    private func completePlain(messages: [ModelMessage], configuration: ModelConfiguration,
-                               key: String, client: any ChatModelClient, requestID id: UUID,
-                               contextFence: ChatContextFence?) async throws -> String {
+    private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
+                               key: String, client: any ChatModelClient, requestID id: UUID, generation: UUID,
+                               skillIndex: String?? = nil, utterance: String = "",
+                               webOffer: String? = nil) async throws -> ChatPathReply {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        guard let streaming = client as? any StreamingChatModelClient else {
-            return try await client.complete(messages: messages, configuration: configuration, apiKey: key)
+        // One system message: the skill tools offer and the web task offer when
+        // there are any, then Play's identity line and safety rules (AISafetyRules).
+        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) }, web: webOffer)
+        let messages = [AISafetyRules.systemMessage(instructions: offer)] + input
+        // A reply that is exactly one skill tool command starts the skill tools
+        // step; one that is exactly a web entry command starts a web task.
+        func finished(_ text: String) async throws -> ChatPathReply {
+            guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
+            return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
+                                                   generation: generation, configuration: configuration, key: key,
+                                                   client: client, requestID: id))
         }
+        guard let streaming = client as? any StreamingChatModelClient else {
+            return try await finished(try await client.complete(messages: messages, configuration: configuration, apiKey: key))
+        }
+        // A reply opening with "{" or a code fence may be a skill or web command:
+        // it is shown only once it turns out to be an answer.
+        var holds: Bool? = skillIndex == nil && webOffer == nil ? false : nil
         var text = "", bytes = 0, resent = false
         while true {
             do {
@@ -945,10 +1254,9 @@ final class ChatSession: ObservableObject {
                         throw HTTPChatModelError.responseTooLarge
                     }
                     guard !delta.isEmpty else { continue }
-                    let publicationLease = try contextFence?.acquire()
-                    defer { publicationLease?.release() }
                     bytes += delta.utf8.count; text += delta
-                    replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving)
+                    if holds == nil, let first = text.first(where: { !$0.isWhitespace }) { holds = first == "{" || first == "`" }
+                    if holds == false { replyPreview = ChatReplyPreview(id: id, text: text, phase: .receiving) }
                 }
                 break
             } catch HTTPStreamFallbackError.usageOptionUnsupported where !resent && bytes == 0 {
@@ -961,7 +1269,7 @@ final class ChatSession: ObservableObject {
         }
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        return text
+        return try await finished(text)
     }
 
     private func stopPreview(id: UUID, phase: ChatReplyPreview.Phase) {
@@ -996,6 +1304,10 @@ final class ChatSession: ObservableObject {
     }
 
     func cancel() {
+        // Like Android, a stopped web task still leaves its round in the
+        // conversation; the request finishes and writes it. Learning stays
+        // as it is: a new learning generation would refuse to publish the round.
+        if let webTask, webTask.isRunning { webTask.stop(); return }
         learning.cancelLearning()
         guard let id = requestID else { return }
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
@@ -1010,48 +1322,82 @@ final class ChatSession: ObservableObject {
         cancel()
     }
 
-    /// Pending profile and memory reviews are invalidated immediately. Structured
-    /// ordinary-chat responses also recheck learning state before publication.
-    func invalidateProfileReview() {
-        guard pendingProfileReview != nil || pendingMemoryReview != nil else { return }
-        cancel()
+    // MARK: Web tasks from chat
+
+    /// The plain chat's one offer: the skill tools first, then the web task commands.
+    static func plainChatOffer(skills: String?, web: String?) -> String? {
+        let offers = [skills, web].compactMap { $0 }
+        return offers.isEmpty ? nil : offers.joined(separator: "\n")
+    }
+
+    private static func webEntry(_ environment: ChatWebTaskEnvironment) -> UserProfileChatSkillEntry {
+        UserProfileChatSkillEntry(instructions: ChatWebTaskPrompts.entryInstructions(searchTemplate: environment.searchTemplate),
+                                  accepts: { (try? ChatWebCommand.parseEntry($0)) != nil })
+    }
+
+    /// Runs the web task a reply asked for. Like Android there is no overall
+    /// time limit, so the ordinary request deadline ends here.
+    private func runWebTask(entry: ChatWebCommand, raw: String, conversation: [ModelMessage], client: any ChatModelClient,
+                            configuration: ModelConfiguration, key: String, environment: ChatWebTaskEnvironment,
+                            requestID id: UUID) async -> ChatWebTaskResult {
+        deadline?.cancel(); deadline = nil
+        replyPreview = nil
+        let task = ChatWebTaskSession(client: client, configuration: configuration, apiKey: key, environment: environment)
+        webTask = task
+        return await task.run(conversation: conversation, entry: entry, entryRaw: raw)
+    }
+
+    /// The scene changed: a web task pauses in the background and goes on
+    /// when the app is active again; .inactive changes nothing.
+    func webTaskScenePhaseChanged(isActive: Bool, isBackground: Bool) {
+        webTask?.scenePhaseChanged(isActive: isActive, isBackground: isBackground)
+    }
+
+    /// Android leaves the finished task's small view up for three seconds.
+    private func retireWebTask() {
+        guard let task = webTask, !task.isRunning else { return }
+        Task { @MainActor [weak self, weak task] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, let task, self.webTask === task else { return }
+            self.webTask = nil
+            task.tab.close()
+        }
     }
 
     private func completeWithProfile(messages: [ModelMessage], utterance: String,
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
                                      client: any ChatModelClient, requestID: UUID,
-                                     contextFence: ChatContextFence?) async throws -> String {
-        let flow = try UserProfileChatFlow(messages: messages)
+                                     skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil) async throws -> ChatPathReply {
+        let skillEntry = skillIndex.map {
+            UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false),
+                                      accepts: { ChatSkillCommand.parseEntry($0) != nil })
+        }
+        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
-        var expectedProfileRevision = state.revision
-        var expectedMemoryRevision = memoryState.revision
         defer { flow.cancel() }
         while true {
+            // Like the Play build, learning data changed during the reply,
+            // by the user or by the model's own tool call, never stops it.
             let step = try await flow.advance(client: client, configuration: configuration, apiKey: key,
                                               validateState: { [weak self] in
                 guard let self, self.requestID == requestID else { throw CancellationError() }
                 try Task.checkCancellation()
-                try contextFence?.check()
-                guard self.learning.available, self.learning.memory.preferences.useMemory,
-                      self.learning.generation == generation,
-                      self.learning.profile.revision == expectedProfileRevision,
-                      self.learning.memory.revision == expectedMemoryRevision else {
-                    self.replyPreview = nil
-                    throw UserProfileToolError.staleRevision
-                }
             }) { [weak self] answer in
                 guard let self, self.requestID == requestID, !Task.isCancelled else { return }
-                let publicationLease: EncryptedLearningFile.ExclusiveLease?
-                do { publicationLease = try contextFence?.acquire() }
-                catch { self.replyPreview = nil; return }
-                defer { publicationLease?.release() }
                 self.replyPreview = answer.map { ChatReplyPreview(id: requestID, text: $0, phase: .receiving) }
             }
             try Task.checkCancellation()
             guard self.requestID == requestID else { throw CancellationError() }
             switch step {
-            case .answer(let answer): return answer
+            case .answer(let answer): return .answer(answer)
+            case .skillEntry(let json):
+                flow.cancel()
+                return .answer(try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
+                                                       generation: generation, configuration: configuration, key: key, client: client, requestID: requestID))
+            case .webEntry(let json):
+                // The flow accepted it with this same validator.
+                return .web(try ChatWebCommand.parseEntry(json), raw: ChatWebCommand.unfenced(json))
             case .proposedEdit(let arguments):
                 guard learning.available, learning.memory.preferences.useMemory,
                       learning.generation == generation, learning.profile.revision == state.revision else {
@@ -1060,18 +1406,11 @@ final class ChatSession: ObservableObject {
                 // Only the actual draft sent for this run is evidence. Context,
                 // old messages and model replies cannot authorize an edit.
                 let proposal = try UserProfileToolRequest.parse(arguments).prepare(state: state, utterances: [utterance])
-                let approved = await approveProfile(proposal, requestID: requestID)
-                try Task.checkCancellation()
-                guard self.requestID == requestID else { throw CancellationError() }
-                guard approved else { throw ProfileChatStop.declined }
+                // Like the Play build, profile_edit applies without a review.
                 try flow.validateReview()
-                try contextFence?.check()
-                let before = learning.profile
                 let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
                 profileReceipt = receipt // Retained even if the next model call fails.
                 profileReceiptRequestID = requestID
-                if proposal.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
-                expectedProfileRevision = learning.profile.revision
                 try flow.recordCommitted(entryID: receipt.id)
             case .memorySearch(let arguments):
                 try validateMemoryRun(memoryRun, generation: generation)
@@ -1080,80 +1419,67 @@ final class ChatSession: ObservableObject {
             case .proposedMemoryChange(let toolName, let arguments):
                 try validateMemoryRun(memoryRun, generation: generation)
                 let review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments)
-                let approved = await approveMemory(review, requestID: requestID)
-                try Task.checkCancellation()
-                guard self.requestID == requestID else { throw CancellationError() }
-                guard approved else { throw MemoryChatStop.declined }
+                // Memory tools also apply directly, with an undo note in the chat.
                 try flow.validateReview()
-                try contextFence?.check()
-                let before = learning.memory
                 let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
                     conversationID: conversationID)
                 memoryReceipt = receipt
                 memoryReceiptRequestID = requestID
-                if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
-                expectedMemoryRevision = learning.memory.revision
                 try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
             }
         }
+    }
+
+    // MARK: Skill tools in ordinary chat (Play's skill_search, skill_read, skill_save)
+
+    private static let bundledSkills: BundledSkillCatalog? = try? BundledSkillCatalog.bundled()
+
+    /// The bundled skills plus the user's personal skills in use, read fresh.
+    func chatSkillCatalog() -> ChatSkillCatalog {
+        ChatSkillCatalog(bundled: Self.bundledSkills, skills: learning.available ? learning.skills : SkillsState())
+    }
+
+    /// Tool names a saved skill may mention: this chat's tools, like Play's run
+    /// tool list (the skill tools and the web task commands), plus the browser
+    /// research tools existing iOS skills use.
+    static func chatSkillToolNames(memoryOn: Bool) -> Set<String> {
+        ChatSkillCommand.toolNames.union(BrowserSession.toolNames).union(ChatWebCommand.toolNames)
+            .union(memoryOn ? ["memory_search", "memory_save", "memory_edit", "profile_edit"] : [])
+    }
+
+    private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
+                               generation: UUID, configuration: ModelConfiguration, key: String,
+                               client: any ChatModelClient, requestID id: UUID) async throws -> String {
+        guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
+        // Like Play there is no fixed chat deadline once tools run; the step keeps
+        // its own call and time limits.
+        deadline?.cancel(); deadline = nil
+        replyPreview = nil
+        let toolNames = Self.chatSkillToolNames(memoryOn: memoryOn)
+        let run = ChatSkillToolRun(conversation: conversation,
+            catalog: { [weak self] in self?.chatSkillCatalog() ?? ChatSkillCatalog(bundled: nil, skills: SkillsState()) },
+            utterances: [utterance],
+            save: { [weak self] markdown, version in
+                guard let self, self.requestID == id else { throw CancellationError() }
+                // The model's own save, like Play's: it keeps this request going.
+                return try self.learning.commitChatSkillSave(markdown, version: version, expectedGeneration: generation,
+                                                             availableToolNames: toolNames,
+                                                             builtinNames: self.chatSkillCatalog().builtinNames)
+            },
+            onStep: { [weak self] step in
+                guard let self, self.requestID == id else { return }
+                self.skillStep = step
+            })
+        return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
+                                 validateState: { [weak self] in
+            guard let self, self.requestID == id else { throw CancellationError() }
+        })
     }
 
     private func validateMemoryRun(_ run: MemoryToolRun, generation: UUID) throws {
         guard learning.available, learning.memory.preferences.useMemory,
               learning.generation == generation, learning.memory.revision == run.baseRevision else {
             throw MemoryToolError.staleRevision
-        }
-    }
-
-    func resolveMemoryReview(id: UUID, approved: Bool) {
-        guard pendingMemoryReview?.id == id else { return }
-        pendingMemoryReview = nil
-        let continuation = memoryApprovalContinuation
-        memoryApprovalContinuation = nil
-        continuation?.resume(returning: approved)
-    }
-
-    private func approveMemory(_ review: MemoryToolReview, requestID: UUID) async -> Bool {
-        guard self.requestID == requestID, !Task.isCancelled else { return false }
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
-                guard self.requestID == requestID, !Task.isCancelled else {
-                    continuation.resume(returning: false); return
-                }
-                memoryApprovalContinuation = continuation
-                pendingMemoryReview = review
-            }
-        } onCancel: { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self, self.requestID == requestID, let review = self.pendingMemoryReview else { return }
-                self.resolveMemoryReview(id: review.id, approved: false)
-            }
-        }
-    }
-
-    func resolveProfileReview(id: UUID, approved: Bool) {
-        guard pendingProfileReview?.id == id else { return }
-        pendingProfileReview = nil
-        let continuation = profileApprovalContinuation
-        profileApprovalContinuation = nil
-        continuation?.resume(returning: approved)
-    }
-
-    private func approveProfile(_ review: UserProfileToolReview, requestID: UUID) async -> Bool {
-        guard self.requestID == requestID, !Task.isCancelled else { return false }
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
-                guard self.requestID == requestID, !Task.isCancelled else {
-                    continuation.resume(returning: false); return
-                }
-                profileApprovalContinuation = continuation
-                pendingProfileReview = review
-            }
-        } onCancel: { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self, self.requestID == requestID, let proposal = self.pendingProfileReview else { return }
-                self.resolveProfileReview(id: proposal.id, approved: false)
-            }
         }
     }
 
@@ -1167,7 +1493,6 @@ final class ChatSession: ObservableObject {
         if error is LearningFileError {
             return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
         }
-        if let stopped = error as? MemoryChatStop { return stopped.message }
         if error is MemoryToolError || error is MemoryError {
             return "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。"
         }
@@ -1181,26 +1506,21 @@ final class ChatSession: ObservableObject {
                                  profileState: UserProfileState, memoryState: MemoryState,
                                  generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
                                  key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID,
-                                 contextFence: ChatContextFence?) async throws -> String {
+                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
         let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
                                    utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
         if allowsLearning {
             local = { [weak self] proposal, lease in
                 guard let self else { throw CancellationError() }
-                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID, contextFence: contextFence)
+                return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID)
             }
         } else { local = nil }
         // Like the Play build, selected tools and offered resources run with no
         // per-call approval: the tool selection in MCP settings is the limit.
-        // The fenced executor still rechecks the learning context before each call.
-        let executor: any MCPConversationExecuting
-        if let contextFence { executor = ContextFencedMCPExecutor(executor: connection, fence: contextFence) }
-        else { executor = connection }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: executor,
+            tools: tools, resources: resources, executor: connection,
             onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
@@ -1212,10 +1532,8 @@ final class ChatSession: ObservableObject {
     /// Every proposal is validated against this turn's captured user utterance;
     /// remote catalogs/results cannot supply that authority or replace its IDs.
     private func performMCPLocal(_ proposal: MCPLocalProposal, lease: MCPLocalLease,
-                                 turn: MCPLearningTurn, requestID: UUID,
-                                 contextFence: ChatContextFence?) async throws -> MCPLocalOutcome {
+                                 turn: MCPLearningTurn, requestID: UUID) async throws -> MCPLocalOutcome {
         try lease.check()
-        try contextFence?.check()
         guard self.requestID == requestID else { throw CancellationError() }
         switch proposal.action {
         case .memorySearch:
@@ -1229,35 +1547,21 @@ final class ChatSession: ObservableObject {
             }
             let review = try UserProfileToolRequest.parse(proposal.argumentsJSON)
                 .prepare(state: turn.profile, utterances: [turn.utterance])
-            let approved = await approveProfile(review, requestID: requestID)
             // No suspension between this lease/request check and the store's
             // generation/master/revision checks plus atomic write.
-            try lease.check()
-            guard self.requestID == requestID else { throw CancellationError() }
-            guard approved else { return .declined }
-            try contextFence?.check()
-            let before = learning.profile
             let receipt = try learning.commitProfileTool(review, expectedGeneration: turn.generation)
             profileReceipt = receipt
             profileReceiptRequestID = requestID
-            if review.op == .add { try contextFence?.acceptProfileAddition(before: before, receiptID: receipt.id) }
             let data = try JSONEncoder().encode(receipt)
             return .committedReceipt(json: String(decoding: data, as: UTF8.self))
         case .memorySave, .memoryEdit:
             try validateMemoryRun(turn.memory, generation: turn.generation)
             let review = try turn.memory.prepare(toolName: proposal.action.rawValue,
                                                  argumentsJSON: proposal.argumentsJSON)
-            let approved = await approveMemory(review, requestID: requestID)
-            try lease.check()
-            guard self.requestID == requestID else { throw CancellationError() }
-            guard approved else { return .declined }
-            try contextFence?.check()
-            let before = learning.memory
             let receipt = try learning.commitMemoryTool(review, expectedGeneration: turn.generation,
                                                         conversationID: conversationID)
             memoryReceipt = receipt
             memoryReceiptRequestID = requestID
-            if review.op == .add { try contextFence?.acceptMemoryAddition(before: before, receiptID: receipt.id) }
             return .committedReceipt(json: try receipt.resultJSON())
         }
     }
@@ -1304,12 +1608,12 @@ final class ChatSession: ObservableObject {
 
     private func finish(id: UUID, error: String? = nil, text: AppText? = nil) {
         guard requestID == id else { return }
+        retireWebTask()
         if error != nil { stopPreview(id: id, phase: .failed) }
-        if let pending = pendingProfileReview { resolveProfileReview(id: pending.id, approved: false) }
-        if let pending = pendingMemoryReview { resolveMemoryReview(id: pending.id, approved: false) }
         requestID = nil
         isSubmitting = false
         isMCPRun = false
+        skillStep = nil
         request = nil
         deadline?.cancel()
         deadline = nil
@@ -1341,16 +1645,6 @@ final class ChatSession: ObservableObject {
         self.utterance = utterance
         self.generation = generation
     }
-}
-
-private enum ProfileChatStop: Error {
-    case declined
-    var message: String { "你已拒絕這次個人檔案修改；尚未儲存，訊息草稿已保留。" }
-}
-
-private enum MemoryChatStop: Error {
-    case declined
-    var message: String { "你已拒絕這次記憶修改；尚未儲存，訊息草稿已保留。" }
 }
 
 private struct MCPChatStop: Error {

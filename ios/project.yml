@@ -174,12 +174,8 @@ targets:
     sources:
       - Tests/AssistantSkillsTests
       - scripts/CheckProfileChatApp.swift
-      - scripts/CheckDocumentQueryApp.swift
-      - scripts/CheckPDFAssemblyAddApp.swift
-      - scripts/CheckTranscriptReferencesApp.swift
     dependencies:
-      # Exercise PDFKit in the real UIKit host, as it runs in production.
-      # Unhosted iOS tests have stalled during PDFDocument initialization.
+      # CheckProfileChatApp exercises the App's own chat code in the App host.
       - target: WoowAssistant
       - target: AssistantSkills
       - target: AssistantModels
@@ -212,12 +208,9 @@ targets:
       - Tests/AssistantBrowserIntegrationTests
       - scripts/CheckBrowserSiteModesApp.swift
       - Tests/AssistantDomainTests/BrowserUserSiteModesChecks.swift
-      - scripts/CheckBrowserDownloadedPDFApp.swift
       - scripts/CheckBrowserSearchApp.swift
       - Tests/AssistantDomainTests/BrowserSearchChecks.swift
-      - scripts/CheckResearchSourceDiscoveryApp.swift
       - scripts/CheckLearningRunContextApp.swift
-      - scripts/CheckMultiSourceReferenceApp.swift
       - scripts/CheckTaskNotificationApp.swift
       - scripts/CheckReplayReferencesApp.swift
       - scripts/CheckConversationArchiveApp.swift

@@ -5,7 +5,7 @@ import SwiftUI
 import UIKit
 
 /// Settings root and its model destination share the existing stores. The
-/// model form remains iOS's single configured service, with a real back path.
+/// model page (ModelProviderSettingsView) lists providers as Android does.
 @MainActor
 struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: View {
     @ObservedObject var session: ChatSession
@@ -23,7 +23,12 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     /// Android names the main model's provider here, never the model ID.
     private var configuredProviderName: String {
         guard session.hasStoredKey, let saved = session.savedSettings else { return localizer.text(.settingsModelNotSet) }
-        return ModelProviderName.name(for: saved.baseURL)
+        return session.providerDocument.mainProvider?.name ?? ModelProviderName.name(for: saved.baseURL)
+    }
+    /// The status card's line once everything is ready: 主模型：{模型} · {服務商}.
+    private var readyDetail: AppText {
+        guard session.hasStoredKey, let saved = session.savedSettings else { return .settingsStatusReadyDetail }
+        return .settingsStatusReadyMain(model: saved.model, provider: configuredProviderName)
     }
     private var notificationSummary: MikaNotificationSummary? {
         MikaNotificationSummary(enabled: notifications.service.enabled,
@@ -58,7 +63,7 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                MikaSettingsStatusCard(problem: problem, localizer: localizer, palette: palette) { statusFix }
+                MikaSettingsStatusCard(problem: problem, readyDetail: readyDetail, localizer: localizer, palette: palette) { statusFix }
                     .padding(.top, 12)
                 MikaSettingsGroupLabel(title: localizer.text(.settingsHomeBasic))
                 MikaSettingsCard {
@@ -231,6 +236,7 @@ private struct MikaAdvancedSettingsView<MCPDestination: View>: View {
 @MainActor
 private struct MikaSettingsStatusCard<Fix: View>: View {
     let problem: MikaSettingsProblem?
+    let readyDetail: AppText
     let localizer: AppLocalizer
     let palette: MikaSettingsPalette
     @ViewBuilder let fix: () -> Fix
@@ -245,7 +251,7 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
 
     private var copy: (title: AppText, detail: AppText) {
         switch problem {
-        case nil: return (.settingsStatusReady, .settingsStatusReadyDetail)
+        case nil: return (.settingsStatusReady, readyDetail)
         case .noModel?: return (.settingsStatusNoModel, .settingsStatusNoModelDetail)
         case .notificationsOff?: return (.settingsStatusNotificationsOff, .settingsStatusNotificationsOffDetail)
         case .alertsLowered?: return (.settingsStatusAlertsLowered, .settingsStatusAlertsLoweredDetail)
@@ -296,299 +302,4 @@ private struct MikaSettingsStatusFix: View {
     }
 }
 
-@MainActor
-private struct MikaModelSettingsDetailView: View {
-    @ObservedObject var session: ChatSession
-    @ObservedObject var languages: AppLanguageStore
-    @StateObject private var connection = MikaModelConnectionViewModel()
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.scenePhase) private var scenePhase
-    @FocusState private var editingField: Field?
-
-    private enum Field: Hashable { case baseURL, model, key }
-    private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
-    private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
-    private var configuredModelName: String {
-        session.hasStoredKey ? (session.savedSettings?.model ?? localizer.text(.settingsModelNotSet))
-                             : localizer.text(.settingsModelNotSet)
-    }
-    private var savedInputsMatch: Bool {
-        guard let saved = session.savedSettings, session.hasStoredKey else { return false }
-        return session.baseURLDraft == saved.baseURL.absoluteString && session.modelDraft == saved.model
-            && session.keyDraft.isEmpty
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                MikaSettingsGroupLabel(title: localizer.text(.settingsModelRoles))
-                MikaSettingsCard {
-                    VStack(spacing: 0) {
-                        MikaSettingsRow(icon: .spark, title: localizer.text(.settingsModelMain),
-                                        subtitle: localizer.text(.settingsModelMainDetail),
-                                        value: configuredModelName, accessory: .none)
-                        Divider().padding(.leading, 60)
-                        // Android models_sees_images: the user says whether the main model can see images.
-                        Toggle(isOn: Binding(get: { session.seesImages == true }, set: { session.setSeesImages($0) })) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(verbatim: localizer.text(.settingsSeesImages))
-                                Text(verbatim: localizer.text(session.seesImages == nil ? .settingsSeesImagesUnconfirmed : .settingsSeesImagesUser))
-                                    .font(.footnote).foregroundStyle(palette.hint)
-                            }
-                        }
-                        .disabled(session.savedSettings == nil || !session.hasStoredKey || session.isSubmitting)
-                        .padding(.horizontal, 16).padding(.vertical, 12)
-                        .accessibilityIdentifier("settings.seesImages")
-                        Divider().padding(.leading, 60)
-                        NavigationLink {
-                            VoiceSettingsView(languages: languages)
-                        } label: {
-                            MikaSettingsRow(icon: .spark, title: localizer.text(.voiceChoiceTitle),
-                                            subtitle: localizer.text(.voiceChoiceRowDetail))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("settings.voice.open")
-                    }
-                }
-                MikaSettingsGroupLabel(title: localizer.text(.settingsModelProviders))
-                    .padding(.top, 8)
-                modelConfigurationCard
-                Text(verbatim: localizer.text(.settingsModelSaveExplanation))
-                    .font(.footnote).foregroundStyle(palette.hint)
-                    .padding(.horizontal, 16).padding(.top, 8)
-                Text(verbatim: localizer.text(.settingsModelChangeExplanation))
-                    .font(.footnote).foregroundStyle(palette.hint)
-                    .padding(.horizontal, 16).padding(.top, 6)
-                    .padding(.bottom, 28)
-            }
-            .padding(.horizontal, 16)
-        }
-        .background(palette.page)
-        .navigationTitle(localizer.text(.settingsHomeModel))
-        .navigationBarTitleDisplayMode(.inline)
-        .scrollDismissesKeyboard(.interactively)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .submitLabel(.done)
-        .onSubmit { editingField = nil }
-        .onDisappear { connection.reset(); session.keyDraft = "" }
-        .onChange(of: session.baseURLDraft) { _, _ in connection.reset() }
-        .onChange(of: session.modelDraft) { _, _ in connection.reset() }
-        .onChange(of: session.keyDraft) { _, _ in connection.reset() }
-        .onChange(of: session.savedSettings?.credentialAccount) { _, _ in connection.reset() }
-        .onChange(of: session.isSubmitting) { _, submitting in if submitting { connection.reset() } }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { connection.reset() } }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button(localizer.text(.keyboardDone)) { editingField = nil }
-                    .accessibilityIdentifier("settings.dismissKeyboard")
-            }
-        }
-    }
-
-    private var modelConfigurationCard: some View {
-        MikaSettingsCard {
-            VStack(alignment: .leading, spacing: 0) {
-                MikaSettingsRow(icon: .key, title: localizer.text(.settingsModelConnection),
-                                subtitle: localizer.text(.settingsModelConnectionDetail), accessory: .none)
-                Divider().padding(.leading, 60)
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text(verbatim: localizer.text(.settingsModelBaseURL))
-                        Spacer()
-                        Button(localizer.text(.settingsModelClearURL)) {
-                            session.baseURLDraft = ""
-                            editingField = .baseURL
-                        }
-                        .accessibilityIdentifier("settings.clearBaseURL")
-                    }
-                    TextField(localizer.text(.settingsModelBaseURLPlaceholder), text: $session.baseURLDraft)
-                        .keyboardType(.URL)
-                        .focused($editingField, equals: .baseURL)
-                        .accessibilityIdentifier("settings.baseURL")
-                    Text(verbatim: localizer.text(.settingsModelName))
-                    TextField(localizer.text(.settingsModelNamePlaceholder), text: $session.modelDraft)
-                        .focused($editingField, equals: .model)
-                        .accessibilityIdentifier("settings.model")
-                    Text(verbatim: localizer.text(.settingsModelAPIKey))
-                    SecureField(localizer.text(.settingsModelAPIKeyPlaceholder), text: $session.keyDraft)
-                        .focused($editingField, equals: .key)
-                        .privacySensitive()
-                        .accessibilityIdentifier("settings.apiKey")
-                    // Android shows the key state with the provider (API Key 已儲存).
-                    Text(verbatim: localizer.text(session.hasStoredKey ? .settingsModelKeyStored : .settingsModelKeyMissing))
-                        .font(.footnote).foregroundStyle(palette.hint)
-                        .accessibilityIdentifier("settings.keyStatus")
-                    HStack {
-                        Button(localizer.text(.settingsModelSave)) {
-                            editingField = nil
-                            connection.reset()
-                            session.saveSettings()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(session.isSubmitting)
-                        .accessibilityIdentifier("settings.save")
-                        Button(localizer.text(.settingsModelRemove), role: .destructive) {
-                            editingField = nil
-                            connection.reset()
-                            session.removeSettings()
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(session.isSubmitting)
-                        .accessibilityIdentifier("settings.remove")
-                    }
-                    Text(verbatim: connectionCopy(.explanation))
-                        .font(.footnote).foregroundStyle(palette.hint)
-                    HStack {
-                        Button(connectionCopy(.test)) {
-                            editingField = nil
-                            do { connection.start(try session.modelAccess()) }
-                            catch { connection.credentialsUnavailable() }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(!savedInputsMatch || session.isSubmitting || scenePhase != .active || connection.state == .testing)
-                        .accessibilityIdentifier("settings.testConnection")
-                        if connection.state == .testing {
-                            Button(connectionCopy(.cancel)) { connection.reset() }
-                                .accessibilityIdentifier("settings.cancelConnectionTest")
-                        }
-                    }
-                    Text(verbatim: connectionStatus)
-                        .foregroundStyle(palette.secondary)
-                        .accessibilityIdentifier("settings.connectionStatus")
-                    #if DEBUG
-                    if let fixture = connection.fixture {
-                        ModelConnectionFixtureControls(fixture: fixture)
-                    }
-                    #endif
-                    if let error = session.settingsError {
-                        Text(verbatim: localizer.modelSettingsDisplayMessage(error))
-                            .foregroundStyle(.red).accessibilityIdentifier("settings.error")
-                    }
-                    if let notice = displayedSettingsNotice {
-                        Text(verbatim: notice)
-                            .accessibilityIdentifier("settings.notice")
-                    }
-                    Text(verbatim: localizer.text(.settingsModelPrivacy))
-                        .font(.footnote).foregroundStyle(palette.hint)
-                }
-                .textFieldStyle(.roundedBorder)
-                .padding(16)
-            }
-        }
-    }
-
-    private var displayedSettingsNotice: String? {
-        guard let notice = session.settingsNotice else { return nil }
-        if connection.state == .passed {
-            return notice.contains("舊金鑰清理失敗") ? connectionCopy(.cleanupNotice) : nil
-        }
-        return localizer.modelSettingsDisplayMessage(notice)
-    }
-
-    private enum ConnectionCopy { case test, cancel, explanation, untested, testing, passed, cleanupNotice, credentials,
-        configuration, authentication, notFound, rateLimited, server, rejected, response, redirect, timeout, network }
-
-    private var connectionStatus: String {
-        let key: ConnectionCopy
-        switch connection.state {
-        case .untested: key = .untested
-        case .testing: key = .testing
-        case .passed: key = .passed
-        case .failed(let failure):
-            switch failure {
-            case .credentials: key = .credentials
-            case .configuration: key = .configuration
-            case .authentication: key = .authentication
-            case .notFound: key = .notFound
-            case .rateLimited: key = .rateLimited
-            case .server: key = .server
-            case .rejected: key = .rejected
-            case .response: key = .response
-            case .redirect: key = .redirect
-            case .timeout: key = .timeout
-            case .network: key = .network
-            }
-        }
-        return connectionCopy(key)
-    }
-
-    private func connectionCopy(_ key: ConnectionCopy) -> String {
-        let values: (String, String)
-        switch key {
-        case .test: values = ("測試連線", "Test connection")
-        case .cancel: values = ("取消測試", "Cancel test")
-        case .explanation: values = ("請先儲存修改。測試會向已儲存的服務傳送固定短句，可能產生費用；不傳送對話。僅測試文字回覆。", "Save changes first. The test sends a fixed short prompt to the saved service and may incur charges. No conversation is sent. Tests text replies only.")
-        case .untested: values = ("尚未測試連線。", "Connection not tested.")
-        case .testing: values = ("正在測試連線…", "Testing connection…")
-        case .passed: values = ("文字回覆測試通過；未驗證工具或其他能力。", "Text reply test passed; tools and other capabilities were not tested.")
-        case .cleanupNotice: values = ("舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。", "The old key could not be removed. Use Remove to clear this app's model keys.")
-        case .credentials: values = ("無法讀取已儲存的金鑰，請檢查設定。", "Could not read the saved key. Check settings.")
-        case .configuration: values = ("設定無效，請檢查網址與模型。", "Invalid settings. Check the address and model.")
-        case .authentication: values = ("服務拒絕授權，請檢查金鑰與權限。", "Authorization was rejected. Check the key and permissions.")
-        case .notFound: values = ("找不到介面或模型，請檢查網址與模型名稱。", "Endpoint or model not found. Check the address and model.")
-        case .rateLimited: values = ("服務限制請求，請稍後再試。", "The service is rate limited. Try again later.")
-        case .server: values = ("服務端發生錯誤，請稍後再試。", "The service reported an error. Try again later.")
-        case .rejected: values = ("服務拒絕測試請求，請檢查介面與模型設定。", "The service rejected the test. Check the endpoint and model.")
-        case .response: values = ("服務未回傳完整文字回覆。", "The service did not return a complete text reply.")
-        case .redirect: values = ("服務要求轉址；為保護金鑰，測試已停止。", "The service requested a redirect; the test stopped to protect the key.")
-        case .timeout: values = ("測試逾時，請檢查連線後再試。", "The test timed out. Check the connection and try again.")
-        case .network: values = ("無法完成連線，請檢查網路與服務網址。", "Could not complete the connection. Check the network and service address.")
-        }
-        switch languages.resolved {
-        case .traditionalChinese: return values.0
-        case .english: return values.1
-        }
-    }
-}
-
-@MainActor
-private final class MikaModelConnectionViewModel: ObservableObject {
-    @Published private(set) var state: ModelConnectionCheck.State = .untested
-    private let check: ModelConnectionCheck
-
-    #if DEBUG
-    let fixture: ModelConnectionUITestFixture?
-    #endif
-    init() {
-        #if DEBUG
-        fixture = ModelConnectionUITestFixture.selected(arguments: ProcessInfo.processInfo.arguments)
-        // Only the opt-in simulator fixture gets extra time for native UI gestures.
-        check = ModelConnectionCheck(timeoutNanoseconds: fixture == nil ? 20_000_000_000 : 120_000_000_000)
-        if let fixture { check.onFixtureAttemptSettled = { fixture.attemptSettled() } }
-        #else
-        check = ModelConnectionCheck()
-        #endif
-        check.onChange = { [weak self] state in self?.state = state }
-    }
-    func start(_ access: ModelAccess) {
-        #if DEBUG
-        if let fixture {
-            check.start(client: DelayedModelConnectionUITestClient(fixture: fixture),
-                        configuration: access.configuration, apiKey: access.key)
-            return
-        }
-        #endif
-        check.start(client: access.client, configuration: access.configuration, apiKey: access.key)
-    }
-    func reset() { check.reset() }
-    func credentialsUnavailable() { check.credentialsUnavailable() }
-}
-
-#if DEBUG
-@MainActor
-private struct ModelConnectionFixtureControls: View {
-    @ObservedObject var fixture: ModelConnectionUITestFixture
-    var body: some View {
-        VStack(alignment: .leading) {
-            Text("Fixture: \(fixture.started),\(fixture.cancelled),\(fixture.released),\(fixture.settled)")
-                .accessibilityIdentifier("settings.connectionFixture")
-            Button("Release fixture") { fixture.releaseNext() }
-                .disabled(fixture.released >= fixture.started)
-                .accessibilityIdentifier("settings.connectionFixture.release")
-        }
-    }
-}
-#endif
 #endif

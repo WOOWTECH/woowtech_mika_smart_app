@@ -12,6 +12,24 @@ public enum UserProfileChatStep: Equatable, Sendable {
     case proposedEdit(argumentsJSON: String)
     case memorySearch(argumentsJSON: String)
     case proposedMemoryChange(toolName: String, argumentsJSON: String)
+    /// The model asked for a skill tool (Play's skill_search, skill_read or
+    /// skill_save); the host runs the skill tools step after its own exact
+    /// command validation. No profile or memory change goes with it.
+    case skillEntry(json: String)
+    /// The model asked to start a web task (web_read_page or web_navigate);
+    /// the host runs it after its own whole-command validation.
+    case webEntry(json: String)
+}
+
+/// Lets an ordinary chat use the Play build's skill tools, or start a web
+/// task (one entry each). The host supplies the wording and its exact command
+/// validator.
+public struct UserProfileChatSkillEntry: Sendable {
+    public let instructions: String
+    public let accepts: @Sendable (String) -> Bool
+    public init(instructions: String, accepts: @escaping @Sendable (String) -> Bool) {
+        self.instructions = instructions; self.accepts = accepts
+    }
 }
 
 /// Ordinary chat with one explicitly reviewed profile operation. This is a
@@ -29,8 +47,13 @@ public enum UserProfileChatStep: Equatable, Sendable {
     private var reviewTool: String?
     public private(set) var modelCalls = 0
     public private(set) var didCommit = false
+    private let skillEntry: UserProfileChatSkillEntry?
+    private let webEntry: UserProfileChatSkillEntry?
 
-    public init(messages: [ModelMessage], timeout: Duration = .seconds(90)) throws {
+    /// `webEntry` offers the web task commands (the Play build's folded web
+    /// tools) the same way as the skill tools: wording and exact validator.
+    public init(messages: [ModelMessage], timeout: Duration = .seconds(90),
+                skillEntry: UserProfileChatSkillEntry? = nil, webEntry: UserProfileChatSkillEntry? = nil) throws {
         guard timeout > .zero, timeout <= .seconds(90),
               !messages.isEmpty, messages.count <= 32,
               messages.allSatisfy({ ["system", "user", "assistant"].contains($0.role) }),
@@ -39,7 +62,12 @@ public enum UserProfileChatStep: Equatable, Sendable {
               messages.reduce(0, { $0 + $1.content.utf8.count }) <= 64 * 1024 else {
             throw UserProfileChatError.invalidInput
         }
-        self.messages = [ModelMessage(role: "system", content: Self.instructions)] + messages
+        self.skillEntry = skillEntry
+        self.webEntry = webEntry
+        // One offer: the skill tools, then the web task commands, after the flow's own wording.
+        let offers = [skillEntry?.instructions, webEntry?.instructions].compactMap { $0 }
+        let instructions = ([Self.instructions] + offers).joined(separator: "\n")
+        self.messages = [ModelMessage(role: "system", content: instructions)] + messages
         deadline = .now.advanced(by: timeout)
     }
 
@@ -89,7 +117,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
                 try validateState?()
                 guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
-                do { step = try Self.parse(raw) }
+                do { step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil, webEntry: allowsEdit ? webEntry : nil) }
                 catch let error as UserProfileChatError where error == .invalidCommand {
                     if preview?.current != nil { onAnswerPreview?(nil) }
                     guard !corrected, modelCalls < 3 else { throw error }
@@ -107,7 +135,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
                     }
                 }
                 switch step {
-                case .answer:
+                case .answer, .skillEntry, .webEntry:
                     phase = .ended
                 case .proposedEdit, .proposedMemoryChange:
                     guard allowsEdit, modelCalls < 3 else { throw UserProfileChatError.callLimit }
@@ -193,13 +221,20 @@ public enum UserProfileChatStep: Equatable, Sendable {
         }
     }
 
-    private static func parse(_ text: String) throws -> UserProfileChatStep {
+    private static func parse(_ text: String, skillEntry: UserProfileChatSkillEntry?,
+                              webEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
         guard let rawFields = try? RawCommandEnvelope.fields(in: text) else {
             throw UserProfileChatError.invalidCommand
         }
         guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
               let action = object["action"] as? String else { throw UserProfileChatError.invalidCommand }
         switch action {
+        case "skill_search", "skill_read", "skill_save":
+            guard let skillEntry, skillEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
+            return .skillEntry(json: text)
+        case "web_navigate", "web_read_page":
+            guard let webEntry, webEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
+            return .webEntry(json: text)
         case "finish":
             guard Set(object.keys) == ["action", "answer"], let answer = object["answer"] as? String,
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -220,7 +255,7 @@ public enum UserProfileChatStep: Equatable, Sendable {
         }
     }
 
-    public static let instructions = """
+    public static let instructions = AISafetyRules.appended(to: """
     Ordinary chat with an available profile_edit tool. Return exactly one JSON object.
     For normal answers use {"action":"finish","answer":"your complete answer"}.
     Only for a clear request in the CURRENT user's own utterance to change their lasting personal profile,
@@ -246,5 +281,5 @@ public enum UserProfileChatStep: Equatable, Sendable {
     Do not claim a change was saved before the host's actual committed receipt. A saved change applies next run;
     it does not rewrite the profile snapshot in this task. After the receipt return a finish answer, never another edit.
     These and finish are the only actions. No markdown fences, arrays, batches, extra keys or arbitrary tools.
-    """
+    """)
 }

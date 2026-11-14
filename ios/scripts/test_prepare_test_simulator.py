@@ -263,6 +263,31 @@ class TestSimulatorLifecycleTests(unittest.TestCase):
                     simulator.command("list", "devices", "--json")
                 self.assertNotIn("private-path", str(error.exception))
 
+    def test_prepare_allows_a_slow_first_simctl_call_but_cleanup_stays_bounded(self):
+        seen = []
+        def record(action):
+            def run(*args, **kwargs):
+                seen.append((action, simulator.simctl_seconds))
+                return "no ownership record; no device changed" if action == "cleanup" else self.SOURCE
+            return run
+        try:
+            with patch.object(sys, "argv", ["script", "prepare", "--runtime", "iOS-26-2", "--device", "iPhone 17",
+                                            "--state", str(self.state)]), \
+                 patch.object(simulator, "prepare", side_effect=record("prepare")), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(simulator.main(), 0)
+            with patch.object(sys, "argv", ["script", "cleanup", "--state", str(self.state)]), \
+                 patch.object(simulator, "cleanup", side_effect=record("cleanup")), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(simulator.main(), 0)
+        finally:
+            simulator.simctl_seconds = simulator.SIMCTL_SECONDS
+        self.assertEqual(seen, [("prepare", 240), ("cleanup", 60)])
+        with patch.object(simulator, "simctl_seconds", 240), \
+             patch.object(simulator.subprocess, "run", side_effect=subprocess.TimeoutExpired("hidden", 240)):
+            with self.assertRaisesRegex(ValueError, "simctl list failed or exceeded 240 seconds"):
+                simulator.command("list", "devices", "--json")
+
     def test_cli_publishes_only_verified_uuid_and_defaults_to_existing(self):
         with patch.object(sys, "argv", ["script", "prepare", "--runtime", "iOS-26-2", "--device", "iPhone 17", "--state", str(self.state)]), \
              patch.object(simulator, "command", side_effect=self.command), contextlib.redirect_stdout(io.StringIO()) as output:

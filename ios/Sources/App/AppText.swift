@@ -9,13 +9,97 @@ enum AppText: Equatable {
     case languageTraditional
     case languageEnglish
     case languageSaveFailed
+    case commonDone
+    case learningUnavailable
+    case learningProfileSaved
+    case learningProcedureApproved
+    case learningProcedureDeclined
+    case learningCleared
+    case learningClearedKeyPending
+    case learningForgot
+    case learningDeleted
+    case learningRemembered(value: String)
+    case learningUpdated(value: String)
+    case learningPendingProcedure(value: String)
+    case learningUseCountFailed
+    case learningTidyUnconfirmed
+    case learningTidyConflict
+    case learningTidyBusy
+    case learningTidyFailed
+    case learningWebNotSaved
+    case learningNotSaved
+    case learningSkillRecordFailed
+    case learningBusy
+    case learningConflict
+    case learningProfileInvalidSentence
+    case learningProfileDuplicate
+    case learningProfileFull
+    case learningProfileMatchNotUnique
+    case learningProfileInvalidState
+    case learningSkillNotSaved
+    case learningBuiltinNotImported
+    case learningMemorySensitive
+    case learningMemoryInvalid
+    case learningMemoryFull
+    case learningMemoryDuplicate
+    case learningMemoryStale
+    case learningMemoryFailed
+    case learningSkillUnknownTool
+    case learningSkillSensitive
+    case learningSkillChanged
+    case learningSkillDraftPending
+    case learningSkillBuiltinName
+    case learningSkillMissingSection
+    case learningSkillTooLong
+    case learningSkillCapacity
+    case learningSkillInvalid
+    case learningSaveFailed
+    case archiveDeleteNotSaved
+    case archiveReadFailed
+    case browserTabNew
+    case browserTabSignIn
+    case browserTabPage
+    case skillStatusPending
+    case skillStatusTrial
+    case skillStatusActive
+    case skillStatusSuspended
+    case skillAuthoringErrorInvalidRequest
+    case skillAuthoringErrorRequestMismatch
+    case skillAuthoringErrorUnavailable
+    case skillAuthoringErrorCancelled
+    case skillAuthoringErrorNotFound
+    case skillAuthoringErrorReadRequired
+    case skillAuthoringErrorStaleRead
+    case skillAuthoringErrorDisabledNameConflict
+    case skillAuthoringErrorDraftConflict
+    case skillAuthoringErrorReviewChanged
+    case skillAuthoringErrorApprovalRequired
+    case skillAuthoringErrorExpiredApproval
+    case skillAuthoringErrorStorageChanged
+    case skillAuthoringErrorCapabilitiesChanged
+    case skillAuthoringErrorPersistenceFailed
+    case skillAuthoringErrorResourceLimit
+    case skillToolErrorInvalidLimits
+    case skillToolErrorInvalidCommand
+    case skillToolErrorInvalidState
+    case skillToolErrorSourceReadRequired
+    case skillToolErrorSearchRequired
+    case skillToolErrorUnknownReference
+    case skillToolErrorStaleVersion
+    case skillToolErrorUnsupportedFile
+    case skillToolErrorBudgetExceeded
+    case skillToolErrorTimedOut
+    case skillToolErrorModelFailed
+    case skillToolErrorModelRejected
+    case skillToolErrorModelInvalidResponse
+    case skillToolErrorCancelled
+    case skillToolErrorTooManyFailures
     case shellBrandTitle
     case shellMenu
     case shellBackToChat
     case shellBackToMemory
     case shellNewConversation
     case shellCloseMenu
-    case shellChatHistory
     case shellChat
     case shellMemoryAndSkills
     case shellMCPServers
@@ -60,7 +144,6 @@ enum AppText: Equatable {
     case commonCancel
     case commonSave
     case commonClose
-    case commonClear
     case commonName
     case commonSelected
     case commonUnselected
@@ -134,29 +217,12 @@ enum AppText: Equatable {
     case browserClearRemaining
     case browserModeReloading
     case browserModeDeferred
-    case browserLibrary
-    case browserTabs
     case browserBookmarks
-    case browserHistory
-    case browserSites
     case browserClearing
-    case browserDownloads
-    case browserRenameBookmark
     case browserClearHistoryQuestion
     case browserClearHistory
-    case browserClearSiteQuestion
-    case browserClearSite
-    case browserNewTab
-    case browserNoPage
-    case browserBookmarkCurrent
-    case browserNoBookmarks
-    case browserRename
-    case browserClearAllHistory
     case browserNoHistory
-    case browserSitesHelp
-    case browserNoSites
     case commonDeleteName(name: String)
-    case commonCloseName(name: String)
     case browserHistorySearch(query: String)
     case notificationTitle
     case notificationLocal
@@ -187,63 +253,7 @@ enum AppText: Equatable {
     case notificationCompletedBody
     case notificationApprovalBody
     case notificationTestBody
-    case catalogTitle
-    case catalogSearch
-    case catalogScope
-    case catalogCapabilities
-    case catalogSection
-    case catalogEmpty
-    case catalogSource
-    case catalogLicense
-    case catalogNotice
-    case catalogReload
-    case catalogLoading
-    case catalogNavigation
-    case catalogLoadFailure
-    case catalogUnavailable
-    case catalogInvalid
-    case catalogNotFound
-    case catalogAlreadyAdded
-    case catalogTranscriptSection
-    case catalogTranscriptOpen
-    case catalogTranscriptHelp
-    case catalogAuthorSection
-    case catalogAuthorOpen
-    case catalogAgentOpen
-    case catalogAuthorHelp
-    case catalogDocumentsSection
-    case catalogPDFOpen
-    case catalogPDFAssembly
-    case catalogDocumentsHelp
-    case catalogAdaptationSection
-    case catalogAdaptationTitle
-    case catalogAdaptationRead
-    case catalogImport
-    case catalogNotImported
-    case catalogPending
-    case catalogInstalled
-    case catalogStorageUnavailable
-    case catalogRequirements
-    case catalogOriginalSection
-    case catalogOriginalRead
-    case catalogAttribution
-    case catalogTextSafety
     case catalogReadyAuthor
-    case catalogReadyDocuments
-    case catalogReadyTranscript
-    case catalogReadyOther
-    case catalogReqAndroid
-    case catalogReqWeb
-    case catalogReqFiles
-    case catalogReqPython
-    case catalogReqShell
-    case catalogReqExport
-    case catalogReqResearch
-    case catalogReqAccount
-    case catalogReqSend
-    case catalogReqMutation
-    case catalogCount(total: Int, matches: Int)
-    case catalogProvenance(commit: String)
     case browserStartDone
     case browserStartEdit
     case browserStartRecent
@@ -281,8 +291,6 @@ enum AppText: Equatable {
     case browserChromeSiteMode
     case browserChromeDesktop
     case browserChromeMobile
-    case browserChromeMultiResearch
-    case browserChromeTranscript
     case browserChromeBack
     case browserChromeForward
     case browserChromeHome
@@ -324,30 +332,118 @@ enum AppText: Equatable {
     case settingsAdvancedDetail
     case settingsHomeConnections
     case settingsModelNotSet
-    case settingsModelKeyStored
-    case settingsModelKeyMissing
     case settingsModelRoles
     case settingsModelMain
     case settingsModelMainDetail
     case settingsModelProviders
-    case settingsModelConnection
-    case settingsModelConnectionDetail
-    case settingsModelBaseURL
-    case settingsModelClearURL
-    case settingsModelBaseURLPlaceholder
-    case settingsModelName
-    case settingsModelNamePlaceholder
-    case settingsModelAPIKey
-    case settingsModelAPIKeyPlaceholder
-    case settingsModelSave
-    case settingsModelRemove
-    case settingsModelPrivacy
-    case settingsModelSaveExplanation
-    case settingsModelChangeExplanation
     case settingsModelSaved
     case settingsModelSavedCleanup
     case settingsModelRemoved
     case settingsModelFallbackError
+    case roleSpeechWhat
+    case modelsMainAddFirst
+    case modelsMainPick
+    case modelsAddProvider
+    case modelsKeyNote
+    case modelsConnected
+    case modelsUsedBy(roles: String)
+    case modelsUnverified
+    case modelsConsentNeeded(provider: String)
+    case modelsConsentReview
+    case modelsLegacyUnreadable
+    case signinKeyGroup
+    case presetCustom
+    case modelBaseURL
+    case modelProviderName
+    case modelProviderNameHint
+    case modelAPIKey
+    case modelKeyHint
+    case modelKeyOptional
+    case commonShow
+    case commonHide
+    case modelManualName
+    case modelExampleCompat
+    case modelExampleGrok
+    case modelURLHTTPS
+    case modelPresetMatch(name: String)
+    case modelUsePreset(name: String)
+    case modelTestSave
+    case modelTesting
+    case modelFailed(reason: String)
+    case modelReasonCredentials
+    case modelReasonConfiguration
+    case modelErrorAuth
+    case modelReasonNotFound
+    case modelErrorRateLimited
+    case modelReasonServer
+    case modelReasonRefused
+    case modelReasonUnreadable
+    case modelReasonRedirect
+    case modelReasonTimeout
+    case modelErrorNetwork
+    case modelSaveUntested
+    case modelSaveUntestedTitle
+    case modelSaveUntestedBody
+    case modelSaveUntestedConfirm
+    case modelSavedUntested(name: String)
+    case modelSavedTested(name: String)
+    case modelPickMain
+    case modelTestNote
+    case modelNotSavedDeclined(name: String)
+    case roleMainHint
+    case modelsUse
+    case modelsRoleEmpty
+    case capTyped
+    case modelsInUse
+    case modelsPickNote
+    case modelsConnection
+    case modelsStatus
+    case modelKind
+    case modelsOpenAICompat
+    case modelsURL
+    case modelsKeySaved
+    case modelsKeyNone
+    case modelsChange
+    case modelsChangeKey
+    case modelsNewKeyHint
+    case modelsModels
+    case modelsModelsNote
+    case modelsUntestedNote
+    case modelsRetest
+    case modelsRetestPassed(model: String)
+    case modelsDelete
+    case modelsDeleteTitle(name: String)
+    case modelsDeleteBody
+    case modelsDeleteUsed(roles: String)
+    case modelsDeleteUnused
+    case modelsDeleted(name: String)
+    case modelsUseAs(name: String)
+    case modelsKeyChanged(name: String)
+    case modelsCleanupFailed
+    case consentTitle(provider: String)
+    case consentLead(provider: String, host: String)
+    case consentItemChat
+    case consentItemAttachments
+    case consentItemImages
+    case consentItemProfile
+    case consentItemWeb
+    case consentItemResearchJudgment
+    case consentItemMemory
+    case consentItemSkills
+    case consentItemMemoryOrganizing
+    case consentItemMCP
+    case consentPrivacyPolicy
+    case consentThirdParty(provider: String)
+    case consentDeclineSave
+    case consentDeclineSwitch
+    case consentDeclineSend
+    case consentAgain
+    case consentAgree
+    case consentDecline
+    case chatConsentDeclined(provider: String)
+    case settingsStatusReadyMain(model: String, provider: String)
+    case modelSettingsTooManyProviders
+    case modelSettingsConsentRequired
     case settingsHomeTitle
     case drawerRecentTitle
     case drawerRecentBoundary
@@ -365,7 +461,6 @@ enum AppText: Equatable {
     case drawerRecentRenameFailed
     case drawerRecentTurns(count: Int)
     case drawerRecentActiveTask
-    case drawerRecentPendingApproval
     case drawerRecentUnsentDraft
     case drawerRecentUnsavedReply
     case drawerRecentDifferentDestination
@@ -376,8 +471,6 @@ enum AppText: Equatable {
     case newConversationDraftRetained
     case newConversationDiscard
     case newConversationKeep
-    case chatStatusProfileReview
-    case chatStatusMemoryReview
     case chatStatusMCPWorking
     case chatStatusWaiting
     case chatStatusConfigured
@@ -388,10 +481,6 @@ enum AppText: Equatable {
     case chatSendBlockedDismiss
     case chatSendBlockedOpenSettings
     case chatFixtureNotice
-    case archiveBoundary
-    case archiveSavedCount(count: Int)
-    case archiveEmpty
-    case archiveClose
     case localPDFSearchOpen
     case localPDFSearchTitle
     case localPDFSearchNotice
@@ -423,6 +512,9 @@ enum AppText: Equatable {
     case voiceSpeechRestricted
     case voiceUnavailable
     case voiceAudioError
+    case chatSkillFind
+    case chatSkillRead
+    case chatSkillSave
     case voiceRecognitionError
     case voiceTimeout
     case voiceSettings
@@ -446,14 +538,6 @@ enum AppText: Equatable {
     case chatAttachCamera
     case chatAttachAlbum
     case chatAttachFiles
-    case chatAttachRecent
-    case chatAttachRecentLimited
-    case chatAttachAllPhotos
-    case chatAttachChangeScope
-    case chatAttachNoPhotos
-    case chatAttachAllowPhotos
-    case chatAttachPhotosNeeded
-    case chatAttachPhotosHint
     case chatAttachAdding
     case chatAttachGotIt
     case chatAttachGone
@@ -462,7 +546,6 @@ enum AppText: Equatable {
     case chatAttachPhotoCount(count: Int)
     case chatAttachFileAndMore(name: String, count: Int)
     case chatAttachPhotosAndFiles
-    case chatAttachSelected
     case chatAttachRemove(name: String)
     case chatAttachFull(limit: Int)
     case chatAttachOverLimit(limit: Int, count: Int)
@@ -488,6 +571,44 @@ enum AppText: Equatable {
     case chatBranchTitleSuffix
     case chatBranchAttachmentsReadd
     case chatBranchOrigin
+    case chatReportAction
+    case chatReportTitle
+    case chatReportDeliveryNotice
+    case chatReportReference(reference: String, message: String)
+    case chatReportOffensive
+    case chatReportUnsafe
+    case chatReportOther
+    case chatReportNote
+    case chatReportSubmit
+    case chatReportSaveFailed
+    case chatReportLoading
+    case chatReportLoadFailed
+    case chatReportAmbiguous
+    case chatReportUnidentified
+    case chatReportContinueRisk
+    case chatReportContinueNotice
+    case chatReportNewWarning
+    case chatReportCreateNew
+    case chatReportManualNotice
+    case chatReportHistory
+    case chatReportHistoryNotice
+    case chatReportHistoryEmpty
+    case chatReportSelectedManual
+    case chatReportReviewExisting
+    case chatReportBack
+    case chatReportPending(reference: String)
+    case chatReportAcknowledged(reference: String)
+    case chatReportNeedsRetry(reference: String)
+    case chatReportExpired(reference: String)
+    case chatReportRetry
+    case chatReportCancel
+    case chatReportClose
+    case chatReportDelete
+    case chatReportDeleteTitle
+    case chatReportDeleteConfirm
+    case chatReportDeleted
+    case chatReportDeleteFailed
+    case chatReportDeleteUnverified
     case chatModelFailedAuth
     case chatModelFailedQuota
     case chatModelFailedRateLimited
@@ -497,6 +618,277 @@ enum AppText: Equatable {
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
+    case drawerDeleteTitle
+    case drawerDeleteBody(title: String)
+    case chatWebTitle
+    case chatWebWorkingOn(site: String)
+    case chatWebPaused
+    case chatWebActivityThinking
+    case chatWebActivityOpening(site: String)
+    case chatWebActivityReading(site: String)
+    case chatWebActivityFinding(site: String)
+    case chatWebActivityScrolling(site: String)
+    case chatWebActivityBack
+    case chatWebActivityWaiting(site: String)
+    case chatWebActivityPacing(site: String)
+    case chatWebElapsed(time: String)
+    case chatWebStepNumber(number: Int)
+    case chatWebStepOpen(site: String)
+    case chatWebStepRead(site: String)
+    case chatWebStepFind(site: String)
+    case chatWebStepScroll(site: String)
+    case chatWebStepBack(site: String)
+    case chatWebStepWait(site: String)
+    case chatWebStepFailed
+    case chatWebViewProcess
+    case chatWebStop
+    case chatWebShowScreen
+    case chatWebHideScreen
+    case chatWebShrink
+    case chatWebViewPage
+    case chatWebForegroundNote
+    case chatWebProcessTitle
+    case chatWebProcessDone
+    case chatWebProcessEmpty
+    case chatWebCardAccessibility(activity: String, step: Int, elapsed: String)
+    case chatWebSourcesHeading
+    case chatWebPagesReadHeading
+    case chatWebNotDone
+    case chatWebStopped
+    case chatWebStopRepeating
+    case chatWebStopFailures
+    case chatWebStopInvalidCommands
+    case chatWebStopModelFailed
+    case chatWebConsentTitle
+    case chatWebConsentBody
+    case chatWebActivityActing(site: String)
+    case chatWebActivityWaitingForYou
+    case chatWebStepObserve(site: String)
+    case chatWebStepTap(site: String)
+    case chatWebStepType(site: String)
+    case chatWebStepSelect(site: String)
+    case chatWebStepConfirm(site: String)
+    case chatWebStepOutward
+    case chatWebAskTitle(target: String)
+    case chatWebAskTitleAmount(target: String, amount: String)
+    case chatWebAskNote
+    case chatWebAskRefuse
+    case chatWebAskAllowOnce
+    case chatWebHandoverTitle(reason: String)
+    case chatWebReasonLogin
+    case chatWebReasonCaptcha
+    case chatWebReasonAccessBlocked
+    case chatWebReasonPayment
+    case chatWebReasonDecision
+    case chatWebReasonOther
+    case chatWebSkip
+    case chatWebTakeOver
+    case chatWebCancelTask
+    case chatWebWaitingOnYou(reason: String)
+    case chatWebHandBack
+    case chatWebFinishedMyself
+    case chatWebUserHasPage
+    case chatWebPaymentItem(item: String)
+    case chatWebPaymentAmount(amount: String)
+    case chatWebPaymentAddress(address: String)
+    case chatWebQuestionTitle
+    case chatWebAnswerPlaceholder
+    case chatWebAnswerSend
+    case chatWebActivitySummarizing
+    case chatWebStepHandover(site: String)
+    case chatWebStepAsk
+    case notificationWebPausedTitle
+    case notificationWebPausedBody
+    case notificationWebNeedsYouTitle
+    case notificationWebNeedsYouBody
+    case storedChatPartialReceiving
+    case storedChatPartialCancelled
+    case storedChatPartialFailed
+    case storedChatSettingsChanged
+    case storedChatArchiveOpened
+    case storedChatArchiveSaveFailed
+    case storedChatQuoteBeforeChange
+    case storedChatQuoteBeforeRemove
+    case storedChatQuoteChanged
+    case storedChatArchiveChanged
+    case storedChatMcpNotReady
+    case storedChatKeyUnreadable
+    case storedChatLearningUnreadable
+    case storedChatPrepareFailed
+    case storedChatEmptyReply
+    case storedChatNoSingleStep
+    case storedChatSendFailed
+    case storedChatMcpUnfinished
+    case storedChatMemorySavedReplyUnfinished
+    case storedChatProfileSavedReplyUnfinished
+    case storedChatReasonAuth
+    case storedChatReasonRateLimited
+    case storedChatReasonUnavailable
+    case storedChatReasonRefused
+    case storedChatReasonTimeout
+    case storedChatReasonOffline
+    case storedChatReasonToolsOff
+    case storedChatReasonToolExpired
+    case storedChatReasonToolIncomplete
+    case storedChatCancelledWait
+    case storedChatLearningBusy
+    case storedChatLearningChanged
+    case storedChatLearningSaveFailed
+    case storedChatMemoryToolRejected
+    case storedChatProfileToolRejected
+    case storedChatNewChat
+    case storedChatMcpDenied
+    case storedChatMcpToolError
+    case storedChatMcpLocalLimit
+    case storedChatMcpLimit
+    case storedContextIncompleteHistory
+    case storedContextTooLarge
+    case storedReferencePrepareFailed
+    case storedReferenceRevoked
+    case storedReferenceBusy
+    case storedReferenceLifecycle
+    case storedInteractionNoSnapshot
+    case storedInteractionStale
+    case storedInteractionUnavailable
+    case storedInteractionInvalid
+    case storedInteractionUnsafe
+    case storedInteractionApprovalRequired
+    case storedInteractionExpired
+    case storedInteractionBusy
+    case storedInteractionFailed
+    case storedInteractionTimeout
+    case storedResearchInvalidCommand
+    case storedResearchInvalidJSON
+    case storedResearchUnsupported
+    case storedResearchUnknownLink
+    case storedResearchCommandTooLarge
+    case storedResearchNoPage
+    case storedResearchUnsafeNavigation
+    case storedResearchPageChanged
+    case storedResearchNavigationFailed
+    case storedResearchNavigationTimeout
+    case storedResearchReadTimeout
+    case storedResearchDeadline
+    case storedResearchModelConfiguration
+    case storedResearchModelRedirect
+    case storedResearchModelHTTPInvalid
+    case storedResearchInvalidResponse
+    case storedResearchIncompleteResponse
+    case storedResearchResponseTooLarge
+    case storedResearchBackpressure
+    case storedResearchModelTimeout
+    case storedResearchConnectionFailed
+    case storedResearchReferenceRevoked
+    case storedResearchCancelled
+    case storedResearchFailed
+    case storedResearchStepLimit
+    case storedBrowserStart
+    case storedBrowserInteractionIntro
+    case storedBrowserInvalidInput
+    case storedBrowserStopped
+    case storedBrowserResearching
+    case storedBrowserResearchStoppedUnconfirmed
+    case storedBrowserAnswerDelivered
+    case storedBrowserResearchEnded
+    case storedBrowserResearchUnfinished
+    case storedBrowserNeedsModel
+    case storedBrowserLearnStale
+    case storedBrowserLearnNotSaved
+    case storedBrowserJudgedDoneNoDraft
+    case storedBrowserJudgedDoneDraft
+    case storedBrowserJudgedPartial
+    case storedBrowserJudgedNotPossible
+    case storedBrowserJudgedUnknown
+    case storedBrowserLearnUnfinished
+    case storedBrowserReplaying
+    case storedBrowserReplayTimeout
+    case storedBrowserReplayDone
+    case storedBrowserReplayNotSaved
+    case storedBrowserReplayUnconfirmed
+    case storedBrowserReplayEnded
+    case storedBrowserReplayStopped
+    case storedBrowserReplayUnavailable
+    case storedBrowserAwaitApproval
+    case storedBrowserReadingControls
+    case storedBrowserControlsUpdated
+    case storedBrowserModelProposing
+    case storedBrowserProposalTimeout
+    case storedBrowserRunning
+    case storedBrowserActionSent
+    case storedBrowserRejected
+    case storedBrowserCancelled
+    case storedBrowserReloaded
+    case storedBrowserLoading
+    case storedBrowserRequestUnfinished
+    case storedBrowserSitePreferenceSaved
+    case storedBrowserOutsideScope
+    case storedBrowserNoDownload
+    case storedBrowserLoadedManual
+    case storedBrowserLoaded
+    case storedBrowserLoadFailed
+    case storedBrowserProcessStopped
+    case storedBrowserLoadIncomplete
+    case storedBrowserLoadedUnread
+    case storedBrowserReadIncomplete
+    case storedBrowserPostLoadReadIncomplete
+    case storedBrowserLoadIncompleteCheck
+    case storedBrowserReadTooLarge
+    case storedChatContextWindow(retained: Int, omitted: Int)
+    case storedChatMemorySavedReplyTimeout(seconds: Int)
+    case storedChatWaitTimeout(seconds: Int)
+    case storedChatProfileSavedReplyTimeout(seconds: Int)
+    case storedChatMcpActivity(tried: Int, received: Int, failed: Int)
+    case storedResearchModelHTTP(code: Int)
+    case storedSuffixDraftKept
+    case storedSuffixToolResultsKept
+    case storedSuffixReplayNoSkip
+    case chatUseMCP
+    case chatReceiptProfile
+    case chatReceiptMemory
+    case chatMcpResultsView(count: Int)
+    case chatArchiveRetry
+    case chatLearningOrganizing
+    case chatMemoryApprove
+    case chatMemoryReject
+    case chatMemoryUndo
+    case browserDialogTitle
+    case browserDialogInput
+    case browserDialogOk
+    case browserInteractionTitle
+    case browserInteractionApproveTitle
+    case browserInteractionApproveNote
+    case browserInteractionScrollDownScreen
+    case browserInteractionScrollUpScreen
+    case browserInteractionNavigationMethod(method: String)
+    case browserInteractionApproveOnce
+    case browserInteractionReject
+    case browserInteractionReloadCancel
+    case browserInteractionTypeField
+    case browserInteractionTypeNote
+    case browserInteractionProposeType
+    case browserInteractionBackToControls
+    case browserInteractionNextAction
+    case browserInteractionGoal
+    case browserInteractionAskModel
+    case browserInteractionAskModelNote
+    case browserInteractionManual
+    case browserInteractionRefresh
+    case browserInteractionScrollDown
+    case browserInteractionScrollUp
+    case browserInteractionTruncated
+    case browserInteractionStop
+    case browserInteractionKindClick
+    case browserInteractionKindType
+    case browserInteractionKindSelect
+    case browserInteractionKindScroll
+    case browserResearchTitle
+    case browserResearchNote
+    case browserResearchGoal
+    case browserResearchStart
+    case browserResearchStop
+    case browserResearchResult
+    case browserResearchLearning
+    case browserResearchReads(count: Int)
 
     var key: String {
         switch self {
@@ -506,13 +898,97 @@ enum AppText: Equatable {
         case .languageTraditional: return "language.traditional"
         case .languageEnglish: return "language.english"
         case .languageSaveFailed: return "language.saveFailed"
+        case .commonDone: return "common.done"
+        case .learningUnavailable: return "learning.unavailable"
+        case .learningProfileSaved: return "learning.profileSaved"
+        case .learningProcedureApproved: return "learning.procedureApproved"
+        case .learningProcedureDeclined: return "learning.procedureDeclined"
+        case .learningCleared: return "learning.cleared"
+        case .learningClearedKeyPending: return "learning.clearedKeyPending"
+        case .learningForgot: return "learning.forgot"
+        case .learningDeleted: return "learning.deleted"
+        case .learningRemembered: return "learning.remembered"
+        case .learningUpdated: return "learning.updated"
+        case .learningPendingProcedure: return "learning.pendingProcedure"
+        case .learningUseCountFailed: return "learning.useCountFailed"
+        case .learningTidyUnconfirmed: return "learning.tidyUnconfirmed"
+        case .learningTidyConflict: return "learning.tidyConflict"
+        case .learningTidyBusy: return "learning.tidyBusy"
+        case .learningTidyFailed: return "learning.tidyFailed"
+        case .learningWebNotSaved: return "learning.webNotSaved"
+        case .learningNotSaved: return "learning.notSaved"
+        case .learningSkillRecordFailed: return "learning.skillRecordFailed"
+        case .learningBusy: return "learning.busy"
+        case .learningConflict: return "learning.conflict"
+        case .learningProfileInvalidSentence: return "learning.profileInvalidSentence"
+        case .learningProfileDuplicate: return "learning.profileDuplicate"
+        case .learningProfileFull: return "learning.profileFull"
+        case .learningProfileMatchNotUnique: return "learning.profileMatchNotUnique"
+        case .learningProfileInvalidState: return "learning.profileInvalidState"
+        case .learningSkillNotSaved: return "learning.skillNotSaved"
+        case .learningBuiltinNotImported: return "learning.builtinNotImported"
+        case .learningMemorySensitive: return "learning.memorySensitive"
+        case .learningMemoryInvalid: return "learning.memoryInvalid"
+        case .learningMemoryFull: return "learning.memoryFull"
+        case .learningMemoryDuplicate: return "learning.memoryDuplicate"
+        case .learningMemoryStale: return "learning.memoryStale"
+        case .learningMemoryFailed: return "learning.memoryFailed"
+        case .learningSkillUnknownTool: return "learning.skillUnknownTool"
+        case .learningSkillSensitive: return "learning.skillSensitive"
+        case .learningSkillChanged: return "learning.skillChanged"
+        case .learningSkillDraftPending: return "learning.skillDraftPending"
+        case .learningSkillBuiltinName: return "learning.skillBuiltinName"
+        case .learningSkillMissingSection: return "learning.skillMissingSection"
+        case .learningSkillTooLong: return "learning.skillTooLong"
+        case .learningSkillCapacity: return "learning.skillCapacity"
+        case .learningSkillInvalid: return "learning.skillInvalid"
+        case .learningSaveFailed: return "learning.saveFailed"
+        case .archiveDeleteNotSaved: return "archive.deleteNotSaved"
+        case .archiveReadFailed: return "archive.readFailed"
+        case .browserTabNew: return "browserTab.new"
+        case .browserTabSignIn: return "browserTab.signIn"
+        case .browserTabPage: return "browserTab.page"
+        case .skillStatusPending: return "skillStatus.pending"
+        case .skillStatusTrial: return "skillStatus.trial"
+        case .skillStatusActive: return "skillStatus.active"
+        case .skillStatusSuspended: return "skillStatus.suspended"
+        case .skillAuthoringErrorInvalidRequest: return "skillAuthoring.error.invalidRequest"
+        case .skillAuthoringErrorRequestMismatch: return "skillAuthoring.error.requestMismatch"
+        case .skillAuthoringErrorUnavailable: return "skillAuthoring.error.unavailable"
+        case .skillAuthoringErrorCancelled: return "skillAuthoring.error.cancelled"
+        case .skillAuthoringErrorNotFound: return "skillAuthoring.error.notFound"
+        case .skillAuthoringErrorReadRequired: return "skillAuthoring.error.readRequired"
+        case .skillAuthoringErrorStaleRead: return "skillAuthoring.error.staleRead"
+        case .skillAuthoringErrorDisabledNameConflict: return "skillAuthoring.error.disabledNameConflict"
+        case .skillAuthoringErrorDraftConflict: return "skillAuthoring.error.draftConflict"
+        case .skillAuthoringErrorReviewChanged: return "skillAuthoring.error.reviewChanged"
+        case .skillAuthoringErrorApprovalRequired: return "skillAuthoring.error.approvalRequired"
+        case .skillAuthoringErrorExpiredApproval: return "skillAuthoring.error.expiredApproval"
+        case .skillAuthoringErrorStorageChanged: return "skillAuthoring.error.storageChanged"
+        case .skillAuthoringErrorCapabilitiesChanged: return "skillAuthoring.error.capabilitiesChanged"
+        case .skillAuthoringErrorPersistenceFailed: return "skillAuthoring.error.persistenceFailed"
+        case .skillAuthoringErrorResourceLimit: return "skillAuthoring.error.resourceLimit"
+        case .skillToolErrorInvalidLimits: return "skillTool.error.invalidLimits"
+        case .skillToolErrorInvalidCommand: return "skillTool.error.invalidCommand"
+        case .skillToolErrorInvalidState: return "skillTool.error.invalidState"
+        case .skillToolErrorSourceReadRequired: return "skillTool.error.sourceReadRequired"
+        case .skillToolErrorSearchRequired: return "skillTool.error.searchRequired"
+        case .skillToolErrorUnknownReference: return "skillTool.error.unknownReference"
+        case .skillToolErrorStaleVersion: return "skillTool.error.staleVersion"
+        case .skillToolErrorUnsupportedFile: return "skillTool.error.unsupportedFile"
+        case .skillToolErrorBudgetExceeded: return "skillTool.error.budgetExceeded"
+        case .skillToolErrorTimedOut: return "skillTool.error.timedOut"
+        case .skillToolErrorModelFailed: return "skillTool.error.modelFailed"
+        case .skillToolErrorModelRejected: return "skillTool.error.modelRejected"
+        case .skillToolErrorModelInvalidResponse: return "skillTool.error.modelInvalidResponse"
+        case .skillToolErrorCancelled: return "skillTool.error.cancelled"
+        case .skillToolErrorTooManyFailures: return "skillTool.error.tooManyFailures"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
         case .shellBackToChat: return "shell.backToChat"
         case .shellBackToMemory: return "shell.backToMemory"
         case .shellNewConversation: return "shell.newConversation"
         case .shellCloseMenu: return "shell.closeMenu"
-        case .shellChatHistory: return "shell.chatHistory"
         case .shellChat: return "shell.chat"
         case .shellMemoryAndSkills: return "shell.memoryAndSkills"
         case .shellMCPServers: return "shell.mcpServers"
@@ -557,7 +1033,6 @@ enum AppText: Equatable {
         case .commonCancel: return "common.cancel"
         case .commonSave: return "common.save"
         case .commonClose: return "common.close"
-        case .commonClear: return "common.clear"
         case .commonName: return "common.name"
         case .commonSelected: return "common.selected"
         case .commonUnselected: return "common.unselected"
@@ -631,29 +1106,12 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "browser.clear.remaining"
         case .browserModeReloading: return "browser.mode.reloading"
         case .browserModeDeferred: return "browser.mode.deferred"
-        case .browserLibrary: return "browser.library"
-        case .browserTabs: return "browser.tabs"
         case .browserBookmarks: return "browser.bookmarks"
-        case .browserHistory: return "browser.history"
-        case .browserSites: return "browser.sites"
         case .browserClearing: return "browser.clearing"
-        case .browserDownloads: return "browser.downloads"
-        case .browserRenameBookmark: return "browser.rename.bookmark"
         case .browserClearHistoryQuestion: return "browser.clear.history.question"
         case .browserClearHistory: return "browser.clear.history"
-        case .browserClearSiteQuestion: return "browser.clear.site.question"
-        case .browserClearSite: return "browser.clear.site"
-        case .browserNewTab: return "browser.new.tab"
-        case .browserNoPage: return "browser.no.page"
-        case .browserBookmarkCurrent: return "browser.bookmark.current"
-        case .browserNoBookmarks: return "browser.no.bookmarks"
-        case .browserRename: return "browser.rename"
-        case .browserClearAllHistory: return "browser.clear.all.history"
         case .browserNoHistory: return "browser.no.history"
-        case .browserSitesHelp: return "browser.sites.help"
-        case .browserNoSites: return "browser.no.sites"
         case .commonDeleteName: return "common.delete.name"
-        case .commonCloseName: return "common.close.name"
         case .browserHistorySearch: return "browser.history.search"
         case .notificationTitle: return "notification.title"
         case .notificationLocal: return "notification.local"
@@ -684,63 +1142,7 @@ enum AppText: Equatable {
         case .notificationCompletedBody: return "notification.completed.body"
         case .notificationApprovalBody: return "notification.approval.body"
         case .notificationTestBody: return "notification.test.body"
-        case .catalogTitle: return "catalog.title"
-        case .catalogSearch: return "catalog.search"
-        case .catalogScope: return "catalog.scope"
-        case .catalogCapabilities: return "catalog.capabilities"
-        case .catalogSection: return "catalog.section"
-        case .catalogEmpty: return "catalog.empty"
-        case .catalogSource: return "catalog.source"
-        case .catalogLicense: return "catalog.license"
-        case .catalogNotice: return "catalog.notice"
-        case .catalogReload: return "catalog.reload"
-        case .catalogLoading: return "catalog.loading"
-        case .catalogNavigation: return "catalog.navigation"
-        case .catalogLoadFailure: return "catalog.load.failure"
-        case .catalogUnavailable: return "catalog.unavailable"
-        case .catalogInvalid: return "catalog.invalid"
-        case .catalogNotFound: return "catalog.not.found"
-        case .catalogAlreadyAdded: return "catalog.already.added"
-        case .catalogTranscriptSection: return "catalog.transcript.section"
-        case .catalogTranscriptOpen: return "catalog.transcript.open"
-        case .catalogTranscriptHelp: return "catalog.transcript.help"
-        case .catalogAuthorSection: return "catalog.author.section"
-        case .catalogAuthorOpen: return "catalog.author.open"
-        case .catalogAgentOpen: return "catalog.agent.open"
-        case .catalogAuthorHelp: return "catalog.author.help"
-        case .catalogDocumentsSection: return "catalog.documents.section"
-        case .catalogPDFOpen: return "catalog.p.d.f.open"
-        case .catalogPDFAssembly: return "catalog.p.d.f.assembly"
-        case .catalogDocumentsHelp: return "catalog.documents.help"
-        case .catalogAdaptationSection: return "catalog.adaptation.section"
-        case .catalogAdaptationTitle: return "catalog.adaptation.title"
-        case .catalogAdaptationRead: return "catalog.adaptation.read"
-        case .catalogImport: return "catalog.import"
-        case .catalogNotImported: return "catalog.not.imported"
-        case .catalogPending: return "catalog.pending"
-        case .catalogInstalled: return "catalog.installed"
-        case .catalogStorageUnavailable: return "catalog.storage.unavailable"
-        case .catalogRequirements: return "catalog.requirements"
-        case .catalogOriginalSection: return "catalog.original.section"
-        case .catalogOriginalRead: return "catalog.original.read"
-        case .catalogAttribution: return "catalog.attribution"
-        case .catalogTextSafety: return "catalog.text.safety"
         case .catalogReadyAuthor: return "catalog.ready.author"
-        case .catalogReadyDocuments: return "catalog.ready.documents"
-        case .catalogReadyTranscript: return "catalog.ready.transcript"
-        case .catalogReadyOther: return "catalog.ready.other"
-        case .catalogReqAndroid: return "catalog.req.android"
-        case .catalogReqWeb: return "catalog.req.web"
-        case .catalogReqFiles: return "catalog.req.files"
-        case .catalogReqPython: return "catalog.req.python"
-        case .catalogReqShell: return "catalog.req.shell"
-        case .catalogReqExport: return "catalog.req.export"
-        case .catalogReqResearch: return "catalog.req.research"
-        case .catalogReqAccount: return "catalog.req.account"
-        case .catalogReqSend: return "catalog.req.send"
-        case .catalogReqMutation: return "catalog.req.mutation"
-        case .catalogCount: return "catalog.count"
-        case .catalogProvenance: return "catalog.provenance"
         case .browserStartDone: return "browser.start.done"
         case .browserStartEdit: return "browser.start.edit"
         case .browserStartRecent: return "browser.start.recent"
@@ -778,8 +1180,6 @@ enum AppText: Equatable {
         case .browserChromeSiteMode: return "browser.chrome.site.mode"
         case .browserChromeDesktop: return "browser.chrome.desktop"
         case .browserChromeMobile: return "browser.chrome.mobile"
-        case .browserChromeMultiResearch: return "browser.chrome.multi.research"
-        case .browserChromeTranscript: return "browser.chrome.transcript"
         case .browserChromeBack: return "browser.chrome.back"
         case .browserChromeForward: return "browser.chrome.forward"
         case .browserChromeHome: return "browser.chrome.home"
@@ -821,30 +1221,118 @@ enum AppText: Equatable {
         case .settingsAdvancedDetail: return "settings.advanced.detail"
         case .settingsHomeConnections: return "settings.home.connections"
         case .settingsModelNotSet: return "settings.model.notSet"
-        case .settingsModelKeyStored: return "settings.model.keyStored"
-        case .settingsModelKeyMissing: return "settings.model.keyMissing"
         case .settingsModelRoles: return "settings.model.roles"
         case .settingsModelMain: return "settings.model.main"
         case .settingsModelMainDetail: return "settings.model.main.detail"
         case .settingsModelProviders: return "settings.model.providers"
-        case .settingsModelConnection: return "settings.model.connection"
-        case .settingsModelConnectionDetail: return "settings.model.connection.detail"
-        case .settingsModelBaseURL: return "settings.model.baseURL"
-        case .settingsModelClearURL: return "settings.model.clearURL"
-        case .settingsModelBaseURLPlaceholder: return "settings.model.baseURL.placeholder"
-        case .settingsModelName: return "settings.model.name"
-        case .settingsModelNamePlaceholder: return "settings.model.name.placeholder"
-        case .settingsModelAPIKey: return "settings.model.apiKey"
-        case .settingsModelAPIKeyPlaceholder: return "settings.model.apiKey.placeholder"
-        case .settingsModelSave: return "settings.model.save"
-        case .settingsModelRemove: return "settings.model.remove"
-        case .settingsModelPrivacy: return "settings.model.privacy"
-        case .settingsModelSaveExplanation: return "settings.model.saveExplanation"
-        case .settingsModelChangeExplanation: return "settings.model.changeExplanation"
         case .settingsModelSaved: return "settings.model.saved"
         case .settingsModelSavedCleanup: return "settings.model.savedCleanup"
         case .settingsModelRemoved: return "settings.model.removed"
         case .settingsModelFallbackError: return "settings.model.fallbackError"
+        case .roleSpeechWhat: return "role.speech.what"
+        case .modelsMainAddFirst: return "models.mainAddFirst"
+        case .modelsMainPick: return "models.mainPick"
+        case .modelsAddProvider: return "models.addProvider"
+        case .modelsKeyNote: return "models.keyNote"
+        case .modelsConnected: return "models.connected"
+        case .modelsUsedBy: return "models.usedBy"
+        case .modelsUnverified: return "models.unverified"
+        case .modelsConsentNeeded: return "models.consentNeeded"
+        case .modelsConsentReview: return "models.consentReview"
+        case .modelsLegacyUnreadable: return "models.legacyUnreadable"
+        case .signinKeyGroup: return "signin.keyGroup"
+        case .presetCustom: return "preset.custom"
+        case .modelBaseURL: return "model.baseURL"
+        case .modelProviderName: return "model.providerName"
+        case .modelProviderNameHint: return "model.providerNameHint"
+        case .modelAPIKey: return "model.apiKey"
+        case .modelKeyHint: return "model.keyHint"
+        case .modelKeyOptional: return "model.keyOptional"
+        case .commonShow: return "common.show"
+        case .commonHide: return "common.hide"
+        case .modelManualName: return "model.manualName"
+        case .modelExampleCompat: return "model.exampleCompat"
+        case .modelExampleGrok: return "model.exampleGrok"
+        case .modelURLHTTPS: return "model.urlHTTPS"
+        case .modelPresetMatch: return "model.presetMatch"
+        case .modelUsePreset: return "model.usePreset"
+        case .modelTestSave: return "model.testSave"
+        case .modelTesting: return "model.testing"
+        case .modelFailed: return "model.failed"
+        case .modelReasonCredentials: return "model.reason.credentials"
+        case .modelReasonConfiguration: return "model.reason.configuration"
+        case .modelErrorAuth: return "model.error.auth"
+        case .modelReasonNotFound: return "model.reason.notFound"
+        case .modelErrorRateLimited: return "model.error.rateLimited"
+        case .modelReasonServer: return "model.reason.server"
+        case .modelReasonRefused: return "model.reason.refused"
+        case .modelReasonUnreadable: return "model.reason.unreadable"
+        case .modelReasonRedirect: return "model.reason.redirect"
+        case .modelReasonTimeout: return "model.reason.timeout"
+        case .modelErrorNetwork: return "model.error.network"
+        case .modelSaveUntested: return "model.saveUntested"
+        case .modelSaveUntestedTitle: return "model.saveUntestedTitle"
+        case .modelSaveUntestedBody: return "model.saveUntestedBody"
+        case .modelSaveUntestedConfirm: return "model.saveUntestedConfirm"
+        case .modelSavedUntested: return "model.savedUntested"
+        case .modelSavedTested: return "model.savedTested"
+        case .modelPickMain: return "model.pickMain"
+        case .modelTestNote: return "model.testNote"
+        case .modelNotSavedDeclined: return "model.notSavedDeclined"
+        case .roleMainHint: return "role.mainHint"
+        case .modelsUse: return "models.use"
+        case .modelsRoleEmpty: return "models.roleEmpty"
+        case .capTyped: return "cap.typed"
+        case .modelsInUse: return "models.inUse"
+        case .modelsPickNote: return "models.pickNote"
+        case .modelsConnection: return "models.connection"
+        case .modelsStatus: return "models.status"
+        case .modelKind: return "model.kind"
+        case .modelsOpenAICompat: return "models.openaiCompat"
+        case .modelsURL: return "models.url"
+        case .modelsKeySaved: return "models.keySaved"
+        case .modelsKeyNone: return "models.keyNone"
+        case .modelsChange: return "models.change"
+        case .modelsChangeKey: return "models.changeKey"
+        case .modelsNewKeyHint: return "models.newKeyHint"
+        case .modelsModels: return "models.models"
+        case .modelsModelsNote: return "models.modelsNote"
+        case .modelsUntestedNote: return "models.untestedNote"
+        case .modelsRetest: return "models.retest"
+        case .modelsRetestPassed: return "models.retestPassed"
+        case .modelsDelete: return "models.delete"
+        case .modelsDeleteTitle: return "models.deleteTitle"
+        case .modelsDeleteBody: return "models.deleteBody"
+        case .modelsDeleteUsed: return "models.deleteUsed"
+        case .modelsDeleteUnused: return "models.deleteUnused"
+        case .modelsDeleted: return "models.deleted"
+        case .modelsUseAs: return "models.useAs"
+        case .modelsKeyChanged: return "models.keyChanged"
+        case .modelsCleanupFailed: return "models.cleanupFailed"
+        case .consentTitle: return "consent.title"
+        case .consentLead: return "consent.lead"
+        case .consentItemChat: return "consent.item.chat"
+        case .consentItemAttachments: return "consent.item.attachments"
+        case .consentItemImages: return "consent.item.images"
+        case .consentItemProfile: return "consent.item.profile"
+        case .consentItemWeb: return "consent.item.web"
+        case .consentItemResearchJudgment: return "consent.item.researchJudgment"
+        case .consentItemMemory: return "consent.item.memory"
+        case .consentItemSkills: return "consent.item.skills"
+        case .consentItemMemoryOrganizing: return "consent.item.memoryOrganizing"
+        case .consentItemMCP: return "consent.item.mcp"
+        case .consentPrivacyPolicy: return "consent.privacyPolicy"
+        case .consentThirdParty: return "consent.thirdParty"
+        case .consentDeclineSave: return "consent.declineSave"
+        case .consentDeclineSwitch: return "consent.declineSwitch"
+        case .consentDeclineSend: return "consent.declineSend"
+        case .consentAgain: return "consent.again"
+        case .consentAgree: return "consent.agree"
+        case .consentDecline: return "consent.decline"
+        case .chatConsentDeclined: return "chat.consentDeclined"
+        case .settingsStatusReadyMain: return "settings.status.readyMain"
+        case .modelSettingsTooManyProviders: return "modelSettings.tooManyProviders"
+        case .modelSettingsConsentRequired: return "modelSettings.consentRequired"
         case .settingsHomeTitle: return "settings.home.title"
         case .drawerRecentTitle: return "drawer.recent.title"
         case .drawerRecentBoundary: return "drawer.recent.boundary"
@@ -862,7 +1350,6 @@ enum AppText: Equatable {
         case .drawerRecentRenameFailed: return "drawer.recent.renameFailed"
         case .drawerRecentTurns: return "drawer.recent.turns"
         case .drawerRecentActiveTask: return "drawer.recent.activeTask"
-        case .drawerRecentPendingApproval: return "drawer.recent.pendingApproval"
         case .drawerRecentUnsentDraft: return "drawer.recent.unsentDraft"
         case .drawerRecentUnsavedReply: return "drawer.recent.unsavedReply"
         case .drawerRecentDifferentDestination: return "drawer.recent.differentDestination"
@@ -873,8 +1360,6 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "newConversation.draftRetained"
         case .newConversationDiscard: return "newConversation.discard"
         case .newConversationKeep: return "newConversation.keep"
-        case .chatStatusProfileReview: return "chat.status.profileReview"
-        case .chatStatusMemoryReview: return "chat.status.memoryReview"
         case .chatStatusMCPWorking: return "chat.status.mcpWorking"
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatStatusConfigured: return "chat.status.configured"
@@ -885,10 +1370,6 @@ enum AppText: Equatable {
         case .chatSendBlockedDismiss: return "chat.sendBlocked.dismiss"
         case .chatSendBlockedOpenSettings: return "chat.sendBlocked.openSettings"
         case .chatFixtureNotice: return "chat.fixtureNotice"
-        case .archiveBoundary: return "archive.boundary"
-        case .archiveSavedCount: return "archive.savedCount"
-        case .archiveEmpty: return "archive.empty"
-        case .archiveClose: return "archive.close"
         case .localPDFSearchOpen: return "localPDFSearch.open"
         case .localPDFSearchTitle: return "localPDFSearch.title"
         case .localPDFSearchNotice: return "localPDFSearch.notice"
@@ -920,6 +1401,9 @@ enum AppText: Equatable {
         case .voiceSpeechRestricted: return "chat.voiceSpeechRestricted"
         case .voiceUnavailable: return "chat.voiceUnavailable"
         case .voiceAudioError: return "chat.voiceAudioError"
+        case .chatSkillFind: return "chat.skill.find"
+        case .chatSkillRead: return "chat.skill.read"
+        case .chatSkillSave: return "chat.skill.save"
         case .voiceRecognitionError: return "chat.voiceRecognitionError"
         case .voiceTimeout: return "chat.voiceTimeout"
         case .voiceSettings: return "chat.voiceSettings"
@@ -943,14 +1427,6 @@ enum AppText: Equatable {
         case .chatAttachCamera: return "chat.attach.camera"
         case .chatAttachAlbum: return "chat.attach.album"
         case .chatAttachFiles: return "chat.attach.files"
-        case .chatAttachRecent: return "chat.attach.recent"
-        case .chatAttachRecentLimited: return "chat.attach.recentLimited"
-        case .chatAttachAllPhotos: return "chat.attach.allPhotos"
-        case .chatAttachChangeScope: return "chat.attach.changeScope"
-        case .chatAttachNoPhotos: return "chat.attach.noPhotos"
-        case .chatAttachAllowPhotos: return "chat.attach.allowPhotos"
-        case .chatAttachPhotosNeeded: return "chat.attach.photosNeeded"
-        case .chatAttachPhotosHint: return "chat.attach.photosHint"
         case .chatAttachAdding: return "chat.attach.adding"
         case .chatAttachGotIt: return "chat.attach.gotIt"
         case .chatAttachGone: return "chat.attach.gone"
@@ -959,7 +1435,6 @@ enum AppText: Equatable {
         case .chatAttachPhotoCount: return "chat.attach.photoCount"
         case .chatAttachFileAndMore: return "chat.attach.fileAndMore"
         case .chatAttachPhotosAndFiles: return "chat.attach.photosAndFiles"
-        case .chatAttachSelected: return "chat.attach.selected"
         case .chatAttachRemove: return "chat.attach.remove"
         case .chatAttachFull: return "chat.attach.full"
         case .chatAttachOverLimit: return "chat.attach.overLimit"
@@ -985,6 +1460,44 @@ enum AppText: Equatable {
         case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
         case .chatBranchOrigin: return "chat.branch.origin"
+        case .chatReportAction: return "chat.report.action"
+        case .chatReportTitle: return "chat.report.title"
+        case .chatReportDeliveryNotice: return "chat.report.deliveryNotice"
+        case .chatReportReference: return "chat.report.reference"
+        case .chatReportOffensive: return "chat.report.offensive"
+        case .chatReportUnsafe: return "chat.report.unsafe"
+        case .chatReportOther: return "chat.report.other"
+        case .chatReportNote: return "chat.report.note"
+        case .chatReportSubmit: return "chat.report.submit"
+        case .chatReportSaveFailed: return "chat.report.saveFailed"
+        case .chatReportLoading: return "chat.report.loading"
+        case .chatReportLoadFailed: return "chat.report.loadFailed"
+        case .chatReportAmbiguous: return "chat.report.ambiguous"
+        case .chatReportUnidentified: return "chat.report.unidentified"
+        case .chatReportContinueRisk: return "chat.report.continueRisk"
+        case .chatReportContinueNotice: return "chat.report.continueNotice"
+        case .chatReportNewWarning: return "chat.report.newWarning"
+        case .chatReportCreateNew: return "chat.report.createNew"
+        case .chatReportManualNotice: return "chat.report.manualNotice"
+        case .chatReportHistory: return "chat.report.history"
+        case .chatReportHistoryNotice: return "chat.report.historyNotice"
+        case .chatReportHistoryEmpty: return "chat.report.historyEmpty"
+        case .chatReportSelectedManual: return "chat.report.selectedManual"
+        case .chatReportReviewExisting: return "chat.report.reviewExisting"
+        case .chatReportBack: return "chat.report.back"
+        case .chatReportPending: return "chat.report.pending"
+        case .chatReportAcknowledged: return "chat.report.acknowledged"
+        case .chatReportNeedsRetry: return "chat.report.needsRetry"
+        case .chatReportExpired: return "chat.report.expired"
+        case .chatReportRetry: return "chat.report.retry"
+        case .chatReportCancel: return "chat.report.cancel"
+        case .chatReportClose: return "chat.report.close"
+        case .chatReportDelete: return "chat.report.delete"
+        case .chatReportDeleteTitle: return "chat.report.deleteTitle"
+        case .chatReportDeleteConfirm: return "chat.report.deleteConfirm"
+        case .chatReportDeleted: return "chat.report.deleted"
+        case .chatReportDeleteFailed: return "chat.report.deleteFailed"
+        case .chatReportDeleteUnverified: return "chat.report.deleteUnverified"
         case .chatModelFailedAuth: return "chat.modelFailed.auth"
         case .chatModelFailedQuota: return "chat.modelFailed.quota"
         case .chatModelFailedRateLimited: return "chat.modelFailed.rateLimited"
@@ -994,27 +1507,316 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
+        case .drawerDeleteTitle: return "drawer.delete.title"
+        case .drawerDeleteBody: return "drawer.delete.body"
+        case .chatWebTitle: return "chat.web.title"
+        case .chatWebWorkingOn: return "chat.web.workingOn"
+        case .chatWebPaused: return "chat.web.paused"
+        case .chatWebActivityThinking: return "chat.web.activity.thinking"
+        case .chatWebActivityOpening: return "chat.web.activity.opening"
+        case .chatWebActivityReading: return "chat.web.activity.reading"
+        case .chatWebActivityFinding: return "chat.web.activity.finding"
+        case .chatWebActivityScrolling: return "chat.web.activity.scrolling"
+        case .chatWebActivityBack: return "chat.web.activity.back"
+        case .chatWebActivityWaiting: return "chat.web.activity.waiting"
+        case .chatWebActivityPacing: return "chat.web.activity.pacing"
+        case .chatWebElapsed: return "chat.web.elapsed"
+        case .chatWebStepNumber: return "chat.web.stepNumber"
+        case .chatWebStepOpen: return "chat.web.step.open"
+        case .chatWebStepRead: return "chat.web.step.read"
+        case .chatWebStepFind: return "chat.web.step.find"
+        case .chatWebStepScroll: return "chat.web.step.scroll"
+        case .chatWebStepBack: return "chat.web.step.back"
+        case .chatWebStepWait: return "chat.web.step.wait"
+        case .chatWebStepFailed: return "chat.web.step.failed"
+        case .chatWebViewProcess: return "chat.web.viewProcess"
+        case .chatWebStop: return "chat.web.stop"
+        case .chatWebShowScreen: return "chat.web.showScreen"
+        case .chatWebHideScreen: return "chat.web.hideScreen"
+        case .chatWebShrink: return "chat.web.shrink"
+        case .chatWebViewPage: return "chat.web.viewPage"
+        case .chatWebForegroundNote: return "chat.web.foregroundNote"
+        case .chatWebProcessTitle: return "chat.web.process.title"
+        case .chatWebProcessDone: return "chat.web.process.done"
+        case .chatWebProcessEmpty: return "chat.web.process.empty"
+        case .chatWebCardAccessibility: return "chat.web.card.accessibility"
+        case .chatWebSourcesHeading: return "chat.web.sourcesHeading"
+        case .chatWebPagesReadHeading: return "chat.web.pagesReadHeading"
+        case .chatWebNotDone: return "chat.web.notDone"
+        case .chatWebStopped: return "chat.web.stopped"
+        case .chatWebStopRepeating: return "chat.web.stop.repeating"
+        case .chatWebStopFailures: return "chat.web.stop.failures"
+        case .chatWebStopInvalidCommands: return "chat.web.stop.invalidCommands"
+        case .chatWebStopModelFailed: return "chat.web.stop.modelFailed"
+        case .chatWebConsentTitle: return "chat.web.consent.title"
+        case .chatWebConsentBody: return "chat.web.consent.body"
+        case .chatWebActivityActing: return "chat.web.activity.acting"
+        case .chatWebActivityWaitingForYou: return "chat.web.activity.waitingForYou"
+        case .chatWebStepObserve: return "chat.web.step.observe"
+        case .chatWebStepTap: return "chat.web.step.tap"
+        case .chatWebStepType: return "chat.web.step.type"
+        case .chatWebStepSelect: return "chat.web.step.select"
+        case .chatWebStepConfirm: return "chat.web.step.confirm"
+        case .chatWebStepOutward: return "chat.web.step.outward"
+        case .chatWebAskTitle: return "chat.web.ask.title"
+        case .chatWebAskTitleAmount: return "chat.web.ask.titleAmount"
+        case .chatWebAskNote: return "chat.web.ask.note"
+        case .chatWebAskRefuse: return "chat.web.ask.refuse"
+        case .chatWebAskAllowOnce: return "chat.web.ask.allowOnce"
+        case .chatWebHandoverTitle: return "chat.web.handover.title"
+        case .chatWebReasonLogin: return "chat.web.reason.login"
+        case .chatWebReasonCaptcha: return "chat.web.reason.captcha"
+        case .chatWebReasonAccessBlocked: return "chat.web.reason.accessBlocked"
+        case .chatWebReasonPayment: return "chat.web.reason.payment"
+        case .chatWebReasonDecision: return "chat.web.reason.decision"
+        case .chatWebReasonOther: return "chat.web.reason.other"
+        case .chatWebSkip: return "chat.web.skip"
+        case .chatWebTakeOver: return "chat.web.takeOver"
+        case .chatWebCancelTask: return "chat.web.cancelTask"
+        case .chatWebWaitingOnYou: return "chat.web.waitingOnYou"
+        case .chatWebHandBack: return "chat.web.handBack"
+        case .chatWebFinishedMyself: return "chat.web.finishedMyself"
+        case .chatWebUserHasPage: return "chat.web.userHasPage"
+        case .chatWebPaymentItem: return "chat.web.payment.item"
+        case .chatWebPaymentAmount: return "chat.web.payment.amount"
+        case .chatWebPaymentAddress: return "chat.web.payment.address"
+        case .chatWebQuestionTitle: return "chat.web.question.title"
+        case .chatWebAnswerPlaceholder: return "chat.web.answer.placeholder"
+        case .chatWebAnswerSend: return "chat.web.answer.send"
+        case .chatWebActivitySummarizing: return "chat.web.activity.summarizing"
+        case .chatWebStepHandover: return "chat.web.step.handover"
+        case .chatWebStepAsk: return "chat.web.step.ask"
+        case .notificationWebPausedTitle: return "notification.webPaused.title"
+        case .notificationWebPausedBody: return "notification.webPaused.body"
+        case .notificationWebNeedsYouTitle: return "notification.webNeedsYou.title"
+        case .notificationWebNeedsYouBody: return "notification.webNeedsYou.body"
+        case .storedChatPartialReceiving: return "stored.chat.partialReceiving"
+        case .storedChatPartialCancelled: return "stored.chat.partialCancelled"
+        case .storedChatPartialFailed: return "stored.chat.partialFailed"
+        case .storedChatSettingsChanged: return "stored.chat.settingsChanged"
+        case .storedChatArchiveOpened: return "stored.chat.archiveOpened"
+        case .storedChatArchiveSaveFailed: return "stored.chat.archiveSaveFailed"
+        case .storedChatQuoteBeforeChange: return "stored.chat.quoteBeforeChange"
+        case .storedChatQuoteBeforeRemove: return "stored.chat.quoteBeforeRemove"
+        case .storedChatQuoteChanged: return "stored.chat.quoteChanged"
+        case .storedChatArchiveChanged: return "stored.chat.archiveChanged"
+        case .storedChatMcpNotReady: return "stored.chat.mcpNotReady"
+        case .storedChatKeyUnreadable: return "stored.chat.keyUnreadable"
+        case .storedChatLearningUnreadable: return "stored.chat.learningUnreadable"
+        case .storedChatPrepareFailed: return "stored.chat.prepareFailed"
+        case .storedChatEmptyReply: return "stored.chat.emptyReply"
+        case .storedChatNoSingleStep: return "stored.chat.noSingleStep"
+        case .storedChatSendFailed: return "stored.chat.sendFailed"
+        case .storedChatMcpUnfinished: return "stored.chat.mcpUnfinished"
+        case .storedChatMemorySavedReplyUnfinished: return "stored.chat.memorySavedReplyUnfinished"
+        case .storedChatProfileSavedReplyUnfinished: return "stored.chat.profileSavedReplyUnfinished"
+        case .storedChatReasonAuth: return "stored.chat.reasonAuth"
+        case .storedChatReasonRateLimited: return "stored.chat.reasonRateLimited"
+        case .storedChatReasonUnavailable: return "stored.chat.reasonUnavailable"
+        case .storedChatReasonRefused: return "stored.chat.reasonRefused"
+        case .storedChatReasonTimeout: return "stored.chat.reasonTimeout"
+        case .storedChatReasonOffline: return "stored.chat.reasonOffline"
+        case .storedChatReasonToolsOff: return "stored.chat.reasonToolsOff"
+        case .storedChatReasonToolExpired: return "stored.chat.reasonToolExpired"
+        case .storedChatReasonToolIncomplete: return "stored.chat.reasonToolIncomplete"
+        case .storedChatCancelledWait: return "stored.chat.cancelledWait"
+        case .storedChatLearningBusy: return "stored.chat.learningBusy"
+        case .storedChatLearningChanged: return "stored.chat.learningChanged"
+        case .storedChatLearningSaveFailed: return "stored.chat.learningSaveFailed"
+        case .storedChatMemoryToolRejected: return "stored.chat.memoryToolRejected"
+        case .storedChatProfileToolRejected: return "stored.chat.profileToolRejected"
+        case .storedChatNewChat: return "stored.chat.newChat"
+        case .storedChatMcpDenied: return "stored.chat.mcpDenied"
+        case .storedChatMcpToolError: return "stored.chat.mcpToolError"
+        case .storedChatMcpLocalLimit: return "stored.chat.mcpLocalLimit"
+        case .storedChatMcpLimit: return "stored.chat.mcpLimit"
+        case .storedContextIncompleteHistory: return "stored.context.incompleteHistory"
+        case .storedContextTooLarge: return "stored.context.tooLarge"
+        case .storedReferencePrepareFailed: return "stored.reference.prepareFailed"
+        case .storedReferenceRevoked: return "stored.reference.revoked"
+        case .storedReferenceBusy: return "stored.reference.busy"
+        case .storedReferenceLifecycle: return "stored.reference.lifecycle"
+        case .storedInteractionNoSnapshot: return "stored.interaction.noSnapshot"
+        case .storedInteractionStale: return "stored.interaction.stale"
+        case .storedInteractionUnavailable: return "stored.interaction.unavailable"
+        case .storedInteractionInvalid: return "stored.interaction.invalid"
+        case .storedInteractionUnsafe: return "stored.interaction.unsafe"
+        case .storedInteractionApprovalRequired: return "stored.interaction.approvalRequired"
+        case .storedInteractionExpired: return "stored.interaction.expired"
+        case .storedInteractionBusy: return "stored.interaction.busy"
+        case .storedInteractionFailed: return "stored.interaction.failed"
+        case .storedInteractionTimeout: return "stored.interaction.timeout"
+        case .storedResearchInvalidCommand: return "stored.research.invalidCommand"
+        case .storedResearchInvalidJSON: return "stored.research.invalidJSON"
+        case .storedResearchUnsupported: return "stored.research.unsupported"
+        case .storedResearchUnknownLink: return "stored.research.unknownLink"
+        case .storedResearchCommandTooLarge: return "stored.research.commandTooLarge"
+        case .storedResearchNoPage: return "stored.research.noPage"
+        case .storedResearchUnsafeNavigation: return "stored.research.unsafeNavigation"
+        case .storedResearchPageChanged: return "stored.research.pageChanged"
+        case .storedResearchNavigationFailed: return "stored.research.navigationFailed"
+        case .storedResearchNavigationTimeout: return "stored.research.navigationTimeout"
+        case .storedResearchReadTimeout: return "stored.research.readTimeout"
+        case .storedResearchDeadline: return "stored.research.deadline"
+        case .storedResearchModelConfiguration: return "stored.research.modelConfiguration"
+        case .storedResearchModelRedirect: return "stored.research.modelRedirect"
+        case .storedResearchModelHTTPInvalid: return "stored.research.modelHTTPInvalid"
+        case .storedResearchInvalidResponse: return "stored.research.invalidResponse"
+        case .storedResearchIncompleteResponse: return "stored.research.incompleteResponse"
+        case .storedResearchResponseTooLarge: return "stored.research.responseTooLarge"
+        case .storedResearchBackpressure: return "stored.research.backpressure"
+        case .storedResearchModelTimeout: return "stored.research.modelTimeout"
+        case .storedResearchConnectionFailed: return "stored.research.connectionFailed"
+        case .storedResearchReferenceRevoked: return "stored.research.referenceRevoked"
+        case .storedResearchCancelled: return "stored.research.cancelled"
+        case .storedResearchFailed: return "stored.research.failed"
+        case .storedResearchStepLimit: return "stored.research.stepLimit"
+        case .storedBrowserStart: return "stored.browser.start"
+        case .storedBrowserInteractionIntro: return "stored.browser.interactionIntro"
+        case .storedBrowserInvalidInput: return "stored.browser.invalidInput"
+        case .storedBrowserStopped: return "stored.browser.stopped"
+        case .storedBrowserResearching: return "stored.browser.researching"
+        case .storedBrowserResearchStoppedUnconfirmed: return "stored.browser.researchStoppedUnconfirmed"
+        case .storedBrowserAnswerDelivered: return "stored.browser.answerDelivered"
+        case .storedBrowserResearchEnded: return "stored.browser.researchEnded"
+        case .storedBrowserResearchUnfinished: return "stored.browser.researchUnfinished"
+        case .storedBrowserNeedsModel: return "stored.browser.needsModel"
+        case .storedBrowserLearnStale: return "stored.browser.learnStale"
+        case .storedBrowserLearnNotSaved: return "stored.browser.learnNotSaved"
+        case .storedBrowserJudgedDoneNoDraft: return "stored.browser.judgedDoneNoDraft"
+        case .storedBrowserJudgedDoneDraft: return "stored.browser.judgedDoneDraft"
+        case .storedBrowserJudgedPartial: return "stored.browser.judgedPartial"
+        case .storedBrowserJudgedNotPossible: return "stored.browser.judgedNotPossible"
+        case .storedBrowserJudgedUnknown: return "stored.browser.judgedUnknown"
+        case .storedBrowserLearnUnfinished: return "stored.browser.learnUnfinished"
+        case .storedBrowserReplaying: return "stored.browser.replaying"
+        case .storedBrowserReplayTimeout: return "stored.browser.replayTimeout"
+        case .storedBrowserReplayDone: return "stored.browser.replayDone"
+        case .storedBrowserReplayNotSaved: return "stored.browser.replayNotSaved"
+        case .storedBrowserReplayUnconfirmed: return "stored.browser.replayUnconfirmed"
+        case .storedBrowserReplayEnded: return "stored.browser.replayEnded"
+        case .storedBrowserReplayStopped: return "stored.browser.replayStopped"
+        case .storedBrowserReplayUnavailable: return "stored.browser.replayUnavailable"
+        case .storedBrowserAwaitApproval: return "stored.browser.awaitApproval"
+        case .storedBrowserReadingControls: return "stored.browser.readingControls"
+        case .storedBrowserControlsUpdated: return "stored.browser.controlsUpdated"
+        case .storedBrowserModelProposing: return "stored.browser.modelProposing"
+        case .storedBrowserProposalTimeout: return "stored.browser.proposalTimeout"
+        case .storedBrowserRunning: return "stored.browser.running"
+        case .storedBrowserActionSent: return "stored.browser.actionSent"
+        case .storedBrowserRejected: return "stored.browser.rejected"
+        case .storedBrowserCancelled: return "stored.browser.cancelled"
+        case .storedBrowserReloaded: return "stored.browser.reloaded"
+        case .storedBrowserLoading: return "stored.browser.loading"
+        case .storedBrowserRequestUnfinished: return "stored.browser.requestUnfinished"
+        case .storedBrowserSitePreferenceSaved: return "stored.browser.sitePreferenceSaved"
+        case .storedBrowserOutsideScope: return "stored.browser.outsideScope"
+        case .storedBrowserNoDownload: return "stored.browser.noDownload"
+        case .storedBrowserLoadedManual: return "stored.browser.loadedManual"
+        case .storedBrowserLoaded: return "stored.browser.loaded"
+        case .storedBrowserLoadFailed: return "stored.browser.loadFailed"
+        case .storedBrowserProcessStopped: return "stored.browser.processStopped"
+        case .storedBrowserLoadIncomplete: return "stored.browser.loadIncomplete"
+        case .storedBrowserLoadedUnread: return "stored.browser.loadedUnread"
+        case .storedBrowserReadIncomplete: return "stored.browser.readIncomplete"
+        case .storedBrowserPostLoadReadIncomplete: return "stored.browser.postLoadReadIncomplete"
+        case .storedBrowserLoadIncompleteCheck: return "stored.browser.loadIncompleteCheck"
+        case .storedBrowserReadTooLarge: return "stored.browser.readTooLarge"
+        case .storedChatContextWindow: return "stored.chat.contextWindow"
+        case .storedChatMemorySavedReplyTimeout: return "stored.chat.memorySavedReplyTimeout"
+        case .storedChatWaitTimeout: return "stored.chat.waitTimeout"
+        case .storedChatProfileSavedReplyTimeout: return "stored.chat.profileSavedReplyTimeout"
+        case .storedChatMcpActivity: return "stored.chat.mcpActivity"
+        case .storedResearchModelHTTP: return "stored.research.modelHTTP"
+        case .storedSuffixDraftKept: return "stored.suffix.draftKept"
+        case .storedSuffixToolResultsKept: return "stored.suffix.toolResultsKept"
+        case .storedSuffixReplayNoSkip: return "stored.suffix.replayNoSkip"
+        case .chatUseMCP: return "chat.useMCP"
+        case .chatReceiptProfile: return "chat.receipt.profile"
+        case .chatReceiptMemory: return "chat.receipt.memory"
+        case .chatMcpResultsView: return "chat.mcpResults.view"
+        case .chatArchiveRetry: return "chat.archive.retry"
+        case .chatLearningOrganizing: return "chat.learning.organizing"
+        case .chatMemoryApprove: return "chat.memory.approve"
+        case .chatMemoryReject: return "chat.memory.reject"
+        case .chatMemoryUndo: return "chat.memory.undo"
+        case .browserDialogTitle: return "browser.dialog.title"
+        case .browserDialogInput: return "browser.dialog.input"
+        case .browserDialogOk: return "browser.dialog.ok"
+        case .browserInteractionTitle: return "browser.interaction.title"
+        case .browserInteractionApproveTitle: return "browser.interaction.approveTitle"
+        case .browserInteractionApproveNote: return "browser.interaction.approveNote"
+        case .browserInteractionScrollDownScreen: return "browser.interaction.scrollDownScreen"
+        case .browserInteractionScrollUpScreen: return "browser.interaction.scrollUpScreen"
+        case .browserInteractionNavigationMethod: return "browser.interaction.navigationMethod"
+        case .browserInteractionApproveOnce: return "browser.interaction.approveOnce"
+        case .browserInteractionReject: return "browser.interaction.reject"
+        case .browserInteractionReloadCancel: return "browser.interaction.reloadCancel"
+        case .browserInteractionTypeField: return "browser.interaction.typeField"
+        case .browserInteractionTypeNote: return "browser.interaction.typeNote"
+        case .browserInteractionProposeType: return "browser.interaction.proposeType"
+        case .browserInteractionBackToControls: return "browser.interaction.backToControls"
+        case .browserInteractionNextAction: return "browser.interaction.nextAction"
+        case .browserInteractionGoal: return "browser.interaction.goal"
+        case .browserInteractionAskModel: return "browser.interaction.askModel"
+        case .browserInteractionAskModelNote: return "browser.interaction.askModelNote"
+        case .browserInteractionManual: return "browser.interaction.manual"
+        case .browserInteractionRefresh: return "browser.interaction.refresh"
+        case .browserInteractionScrollDown: return "browser.interaction.scrollDown"
+        case .browserInteractionScrollUp: return "browser.interaction.scrollUp"
+        case .browserInteractionTruncated: return "browser.interaction.truncated"
+        case .browserInteractionStop: return "browser.interaction.stop"
+        case .browserInteractionKindClick: return "browser.interaction.kindClick"
+        case .browserInteractionKindType: return "browser.interaction.kindType"
+        case .browserInteractionKindSelect: return "browser.interaction.kindSelect"
+        case .browserInteractionKindScroll: return "browser.interaction.kindScroll"
+        case .browserResearchTitle: return "browser.research.title"
+        case .browserResearchNote: return "browser.research.note"
+        case .browserResearchGoal: return "browser.research.goal"
+        case .browserResearchStart: return "browser.research.start"
+        case .browserResearchStop: return "browser.research.stop"
+        case .browserResearchResult: return "browser.research.result"
+        case .browserResearchLearning: return "browser.research.learning"
+        case .browserResearchReads: return "browser.research.reads"
         }
     }
 
     var arguments: [CVarArg] {
         switch self {
+        case .learningRemembered(let value): return [value]
+        case .learningUpdated(let value): return [value]
+        case .learningPendingProcedure(let value): return [value]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
         case .mcpToolCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
-        case .commonCloseName(let name): return [name]
         case .browserHistorySearch(let query): return [query]
-        case .catalogCount(let total, let matches): return [Int64(total), Int64(matches)]
-        case .catalogProvenance(let commit): return [commit]
         case .browserStartRemoveBookmark(let name): return [name]
         case .browserChromeSearchEngine(let name): return [name]
         case .browserChromeSearchMatch(let query, let engine): return [query, engine]
         case .settingsNotificationsLowered(let count): return [Int64(count)]
+        case .modelsUsedBy(let roles): return [roles]
+        case .modelsConsentNeeded(let provider): return [provider]
+        case .modelPresetMatch(let name): return [name]
+        case .modelUsePreset(let name): return [name]
+        case .modelFailed(let reason): return [reason]
+        case .modelSavedUntested(let name): return [name]
+        case .modelSavedTested(let name): return [name]
+        case .modelNotSavedDeclined(let name): return [name]
+        case .modelsRetestPassed(let model): return [model]
+        case .modelsDeleteTitle(let name): return [name]
+        case .modelsDeleteUsed(let roles): return [roles]
+        case .modelsDeleted(let name): return [name]
+        case .modelsUseAs(let name): return [name]
+        case .modelsKeyChanged(let name): return [name]
+        case .consentTitle(let provider): return [provider]
+        case .consentLead(let provider, let host): return [provider, host]
+        case .consentThirdParty(let provider): return [provider]
+        case .chatConsentDeclined(let provider): return [provider]
+        case .settingsStatusReadyMain(let model, let provider): return [model, provider]
         case .drawerRecentTurns(let count): return [Int64(count)]
-        case .archiveSavedCount(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
         case .localPDFSearchHit(let page, let index): return [Int64(page), Int64(index)]
@@ -1027,8 +1829,53 @@ enum AppText: Equatable {
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
+        case .chatReportReference(let reference, let message): return [reference, message]
+        case .chatReportPending(let reference): return [reference]
+        case .chatReportAcknowledged(let reference): return [reference]
+        case .chatReportNeedsRetry(let reference): return [reference]
+        case .chatReportExpired(let reference): return [reference]
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
+        case .drawerDeleteBody(let title): return [title]
+        case .chatWebWorkingOn(let site): return [site]
+        case .chatWebActivityOpening(let site): return [site]
+        case .chatWebActivityReading(let site): return [site]
+        case .chatWebActivityFinding(let site): return [site]
+        case .chatWebActivityScrolling(let site): return [site]
+        case .chatWebActivityWaiting(let site): return [site]
+        case .chatWebActivityPacing(let site): return [site]
+        case .chatWebElapsed(let time): return [time]
+        case .chatWebStepNumber(let number): return [Int64(number)]
+        case .chatWebStepOpen(let site): return [site]
+        case .chatWebStepRead(let site): return [site]
+        case .chatWebStepFind(let site): return [site]
+        case .chatWebStepScroll(let site): return [site]
+        case .chatWebStepBack(let site): return [site]
+        case .chatWebStepWait(let site): return [site]
+        case .chatWebCardAccessibility(let activity, let step, let elapsed): return [activity, Int64(step), elapsed]
+        case .chatWebActivityActing(let site): return [site]
+        case .chatWebStepObserve(let site): return [site]
+        case .chatWebStepTap(let site): return [site]
+        case .chatWebStepType(let site): return [site]
+        case .chatWebStepSelect(let site): return [site]
+        case .chatWebStepConfirm(let site): return [site]
+        case .chatWebAskTitle(let target): return [target]
+        case .chatWebAskTitleAmount(let target, let amount): return [target, amount]
+        case .chatWebHandoverTitle(let reason): return [reason]
+        case .chatWebWaitingOnYou(let reason): return [reason]
+        case .chatWebPaymentItem(let item): return [item]
+        case .chatWebPaymentAmount(let amount): return [amount]
+        case .chatWebPaymentAddress(let address): return [address]
+        case .chatWebStepHandover(let site): return [site]
+        case .storedChatContextWindow(let retained, let omitted): return [Int64(retained), Int64(omitted)]
+        case .storedChatMemorySavedReplyTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatWaitTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatProfileSavedReplyTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatMcpActivity(let tried, let received, let failed): return [Int64(tried), Int64(received), Int64(failed)]
+        case .storedResearchModelHTTP(let code): return [Int64(code)]
+        case .chatMcpResultsView(let count): return [Int64(count)]
+        case .browserInteractionNavigationMethod(let method): return [method]
+        case .browserResearchReads(let count): return [Int64(count)]
         default: return []
         }
     }
@@ -1042,13 +1889,97 @@ enum AppText: Equatable {
         case .languageTraditional: return "繁體中文"
         case .languageEnglish: return "English"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
+        case .commonDone: return "完成"
+        case .learningUnavailable: return "記憶資料暫時無法讀取，原檔保留且不會被覆寫。請解鎖後重試。"
+        case .learningProfileSaved: return "個人檔案已儲存，下一次對話任務開始時生效。"
+        case .learningProcedureApproved: return "已批准這條操作偏好，後續任務可以參考。"
+        case .learningProcedureDeclined: return "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。"
+        case .learningCleared: return "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。"
+        case .learningClearedKeyPending: return "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。"
+        case .learningForgot: return "已忘掉一條記憶"
+        case .learningDeleted: return "這條記憶已刪除"
+        case .learningRemembered: return "記住了：%1$@"
+        case .learningUpdated: return "更新了：%1$@"
+        case .learningPendingProcedure: return "待你確認做法：%1$@"
+        case .learningUseCountFailed: return "已讀取記憶，但使用次數未能儲存；原記憶保留。"
+        case .learningTidyUnconfirmed: return "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。"
+        case .learningTidyConflict: return "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"
+        case .learningTidyBusy: return "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。"
+        case .learningTidyFailed: return "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。"
+        case .learningWebNotSaved: return "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。"
+        case .learningNotSaved: return "學習資料未儲存；原有技能與路線保留。"
+        case .learningSkillRecordFailed: return "任務已停止；技能結果紀錄未能儲存，既有資料保留。"
+        case .learningBusy: return "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。"
+        case .learningConflict: return "學習資料已在其他位置變更；本次未儲存，原有資料保留。請重新讀取並再次確認。"
+        case .learningProfileInvalidSentence: return "請輸入單句、1–160 字元的個人檔案；不可包含換行、密碼、驗證碼或金鑰等敏感資料。"
+        case .learningProfileDuplicate: return "這條個人檔案已經存在。"
+        case .learningProfileFull: return "個人檔案已達 20 條上限，請先整理。"
+        case .learningProfileMatchNotUnique: return "指定片段必須只出現在一條現用檔案中，而且只出現一次；請重新選擇。"
+        case .learningProfileInvalidState: return "個人檔案狀態無效；原資料保留，變更未套用。"
+        case .learningSkillNotSaved: return "技能未儲存。"
+        case .learningBuiltinNotImported: return "內建技能未匯入。"
+        case .learningMemorySensitive: return "密碼、驗證碼、金鑰與其他敏感資料不能存入記憶。"
+        case .learningMemoryInvalid: return "請輸入 1–200 字的記憶。"
+        case .learningMemoryFull: return "記憶已達 500 條上限，請先整理。"
+        case .learningMemoryDuplicate: return "這條記憶已經存在。"
+        case .learningMemoryStale: return "資料已有新變更，舊的整理結果未套用。"
+        case .learningMemoryFailed: return "記憶變更未完成，請檢查內容後重試。"
+        case .learningSkillUnknownTool: return "技能引用了此版本尚未提供的工具，未匯入或啟用。"
+        case .learningSkillSensitive: return "技能內含可能的敏感資料，未儲存。"
+        case .learningSkillChanged: return "原技能已被修改，請重新檢查更新內容。"
+        case .learningSkillDraftPending: return "同名技能已有待確認草稿，請先處理。"
+        case .learningSkillBuiltinName: return "這個名稱保留給內建技能，請使用不同的個人技能名稱。"
+        case .learningSkillMissingSection: return "技能須包含入口、步驟、容易出錯的地方、怎樣算辦成、什麼時候停下交給使用者五個段落。"
+        case .learningSkillTooLong: return "技能全文超過 4,000 字上限。"
+        case .learningSkillCapacity: return "技能或版本紀錄已達儲存上限；現有資料保留，這次變更未儲存。"
+        case .learningSkillInvalid: return "技能格式或狀態不符，未儲存；請檢查名稱、描述與全文。"
+        case .learningSaveFailed: return "無法儲存記憶資料，變更未套用。請解鎖裝置後重試。"
+        case .archiveDeleteNotSaved: return "刪除未儲存，原對話仍保留。請解鎖後重試。"
+        case .archiveReadFailed: return "無法讀取加密對話，原檔保留且不會被覆寫。請解鎖後重新讀取。"
+        case .browserTabNew: return "新分頁"
+        case .browserTabSignIn: return "網站登入頁面"
+        case .browserTabPage: return "網頁"
+        case .skillStatusPending: return "待確認"
+        case .skillStatusTrial: return "個人技能 · 試用中"
+        case .skillStatusActive: return "個人技能 · 已驗證"
+        case .skillStatusSuspended: return "個人技能 · 已停用"
+        case .skillAuthoringErrorInvalidRequest: return "請提供本次要建立或修改技能的原始要求。"
+        case .skillAuthoringErrorRequestMismatch: return "引用的要求與本次使用者原話不一致，未儲存。"
+        case .skillAuthoringErrorUnavailable: return "技能儲存目前無法使用。"
+        case .skillAuthoringErrorCancelled: return "已取消本次技能寫作，未執行儲存。"
+        case .skillAuthoringErrorNotFound: return "找不到指定技能，請重新查詢。"
+        case .skillAuthoringErrorReadRequired: return "同名技能已存在；請先讀取全文與目前版本。"
+        case .skillAuthoringErrorStaleRead: return "技能在讀取後已變更，請重新讀取再修改。"
+        case .skillAuthoringErrorDisabledNameConflict: return "同名技能目前停用，請先到技能清單處理；本次不會重新啟用它。"
+        case .skillAuthoringErrorDraftConflict: return "同名技能已有待確認草稿，請先處理該草稿。"
+        case .skillAuthoringErrorReviewChanged: return "草稿已變更，請重新檢視並核准完整內容。"
+        case .skillAuthoringErrorApprovalRequired: return "需要核准本次完整草稿；先前的核准不能重複使用。"
+        case .skillAuthoringErrorExpiredApproval: return "本次核准已逾時，請重新檢視草稿。"
+        case .skillAuthoringErrorStorageChanged: return "技能資料已更新，請重新檢視本次修改。"
+        case .skillAuthoringErrorCapabilitiesChanged: return "可用工具已變更，請重新檢視草稿後再核准。"
+        case .skillAuthoringErrorPersistenceFailed: return "技能未能儲存；既有資料保留，請重新檢視後再試。"
+        case .skillAuthoringErrorResourceLimit: return "本次查閱已達上限，請重新開始技能寫作。"
+        case .skillToolErrorInvalidLimits: return "技能協作的執行上限設定無效。"
+        case .skillToolErrorInvalidCommand: return "模型回傳的技能工具格式不符，尚未儲存。"
+        case .skillToolErrorInvalidState: return "本次技能協作狀態已變更，請重新開始。"
+        case .skillToolErrorSourceReadRequired: return "請先讀取本版本的技能編寫原文。"
+        case .skillToolErrorSearchRequired: return "請先查詢是否已有相同用途的技能。"
+        case .skillToolErrorUnknownReference: return "只能讀取本次技能目錄或查詢結果列出的技能。"
+        case .skillToolErrorStaleVersion: return "更新版本與本次讀取的技能不符，尚未儲存。"
+        case .skillToolErrorUnsupportedFile: return "只能讀取這份內建技能列出的原始附件。"
+        case .skillToolErrorBudgetExceeded: return "本次技能協作已達回合或資料上限，尚未儲存。"
+        case .skillToolErrorTimedOut: return "模型等待已達本次時間上限，尚未儲存。"
+        case .skillToolErrorModelFailed: return "無法連線至設定的模型，尚未儲存。"
+        case .skillToolErrorModelRejected: return "設定的模型服務拒絕要求，尚未儲存。"
+        case .skillToolErrorModelInvalidResponse: return "模型回覆不完整或格式無效，尚未儲存。"
+        case .skillToolErrorCancelled: return "已取消技能協作，尚未儲存。"
+        case .skillToolErrorTooManyFailures: return "技能草稿連續未通過檢查，尚未儲存；請調整要求後重新開始。"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
         case .shellBackToChat: return "返回對話"
         case .shellBackToMemory: return "返回記憶"
         case .shellNewConversation: return "新對話"
         case .shellCloseMenu: return "關閉選單"
-        case .shellChatHistory: return "歷史對話"
         case .shellChat: return "對話"
         case .shellMemoryAndSkills: return "記憶與技能"
         case .shellMCPServers: return "MCP 伺服器"
@@ -1093,7 +2024,6 @@ enum AppText: Equatable {
         case .commonCancel: return "取消"
         case .commonSave: return "儲存"
         case .commonClose: return "關閉"
-        case .commonClear: return "清除"
         case .commonName: return "名稱"
         case .commonSelected: return "已選取"
         case .commonUnselected: return "未選取"
@@ -1167,29 +2097,12 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "部分網站資料仍保留，請重新確認。"
         case .browserModeReloading: return "網站偏好已儲存，正在重新整理此頁以套用。"
         case .browserModeDeferred: return "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。"
-        case .browserLibrary: return "瀏覽資料"
-        case .browserTabs: return "分頁"
         case .browserBookmarks: return "書籤"
-        case .browserHistory: return "歷史"
-        case .browserSites: return "網站"
         case .browserClearing: return "正在清除網站資料…"
-        case .browserDownloads: return "下載"
-        case .browserRenameBookmark: return "修改書籤名稱"
         case .browserClearHistoryQuestion: return "清除瀏覽歷史？書籤與網站登入資料會保留。"
         case .browserClearHistory: return "清除歷史"
-        case .browserClearSiteQuestion: return "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。"
-        case .browserClearSite: return "清除網站資料"
-        case .browserNewTab: return "新增分頁"
-        case .browserNoPage: return "尚未開啟網頁"
-        case .browserBookmarkCurrent: return "加入目前頁面書籤"
-        case .browserNoBookmarks: return "尚無書籤"
-        case .browserRename: return "改名"
-        case .browserClearAllHistory: return "清除所有歷史"
         case .browserNoHistory: return "尚無瀏覽歷史"
-        case .browserSitesHelp: return "網站資料由 WebKit 儲存，包括 Cookie 與網站儲存空間；出現在清單不代表目前已登入。"
-        case .browserNoSites: return "尚無網站資料"
         case .commonDeleteName: return "刪除 %1$@"
-        case .commonCloseName: return "關閉 %1$@"
         case .browserHistorySearch: return "搜尋：%1$@"
         case .notificationTitle: return "任務通知"
         case .notificationLocal: return "本機任務通知"
@@ -1220,63 +2133,7 @@ enum AppText: Equatable {
         case .notificationCompletedBody: return "開啟渥屋助理查看結果。"
         case .notificationApprovalBody: return "請開啟渥屋助理查看並決定；通知不會核准操作。"
         case .notificationTestBody: return "這是渥屋助理的測試通知。"
-        case .catalogTitle: return "內建技能目錄"
-        case .catalogSearch: return "搜尋名稱、全文或支援檔案"
-        case .catalogScope: return "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。"
-        case .catalogCapabilities: return "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。"
-        case .catalogSection: return "原始技能與 iOS 文字改寫"
-        case .catalogEmpty: return "找不到符合的技能。"
-        case .catalogSource: return "來源與授權"
-        case .catalogLicense: return "Apache-2.0 授權全文"
-        case .catalogNotice: return "原始 NOTICE"
-        case .catalogReload: return "重新讀取"
-        case .catalogLoading: return "讀取本機目錄"
-        case .catalogNavigation: return "內建目錄"
-        case .catalogLoadFailure: return "內建技能目錄無法讀取。"
-        case .catalogUnavailable: return "內建技能目錄暫時無法讀取。"
-        case .catalogInvalid: return "內建技能資源驗證失敗；未匯入任何內容。"
-        case .catalogNotFound: return "找不到這個內建技能。"
-        case .catalogAlreadyAdded: return "此文字版已有草稿或已匯入；請到待確認或技能清單管理。"
-        case .catalogTranscriptSection: return "整理文字稿與字幕"
-        case .catalogTranscriptOpen: return "選取文字稿或字幕檔"
-        case .catalogTranscriptHelp: return "核准讀檔並確認目的服務後，由模型分段閱讀原文、整理內容與核對引文。"
-        case .catalogAuthorSection: return "編寫個人技能"
-        case .catalogAuthorOpen: return "查閱、編寫與審閱儲存"
-        case .catalogAgentOpen: return "請模型協助編寫技能"
-        case .catalogAuthorHelp: return "可自行編寫，或請模型查詢、讀取原文並提出草稿；核對全文並核准後，才會儲存至個人技能。"
-        case .catalogDocumentsSection: return "實際文件處理"
-        case .catalogPDFOpen: return "選取 PDF 並擷取文字"
-        case .catalogPDFAssembly: return "擷取頁面、重排與合併 PDF"
-        case .catalogDocumentsHelp: return "在裝置上處理你選取的 PDF；逐步核准，不會自動上傳文件。"
-        case .catalogAdaptationSection: return "iOS 文字改寫 · 非完整原版功能"
-        case .catalogAdaptationTitle: return "iOS 文字改寫全文"
-        case .catalogAdaptationRead: return "閱讀 iOS 文字改寫全文"
-        case .catalogImport: return "匯入文字版至待確認"
-        case .catalogNotImported: return "未匯入；原資料保留。"
-        case .catalogPending: return "已儲存至待確認，尚未啟用。請關閉目錄後到待確認審閱與核准。"
-        case .catalogInstalled: return "此文字版已在你的技能清單；啟用、試用或驗證狀態請到技能清單查看。"
-        case .catalogStorageUnavailable: return "儲存空間目前不可用；仍可閱讀，但不能匯入。"
-        case .catalogRequirements: return "原版所需能力與限制"
-        case .catalogOriginalSection: return "固定版本的完整原文 · 唯讀"
-        case .catalogOriginalRead: return "閱讀原始 SKILL.md 全文"
-        case .catalogAttribution: return "Copyright 2026 wangzan101 · Apache-2.0。原文及支援檔案逐位元組保留；iOS 改寫是另外的修改版本。完整 LICENSE 與 NOTICE 見目錄首頁。"
-        case .catalogTextSafety: return "唯讀文字，不會執行工具、程式或開啟文內連結。"
         case .catalogReadyAuthor: return "可請模型編寫並核准儲存；原版能力未完整支援"
-        case .catalogReadyDocuments: return "可選取 PDF 擷取文字；原版能力未完整支援"
-        case .catalogReadyTranscript: return "可整理核准的文字、字幕與網頁文字；原版能力未完整支援"
-        case .catalogReadyOther: return "可匯入 iOS 文字改寫；原版能力未完整支援"
-        case .catalogReqAndroid: return "Android／其他 App 操作：不在 iOS 範圍"
-        case .catalogReqWeb: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
-        case .catalogReqFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"
-        case .catalogReqPython: return "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理"
-        case .catalogReqShell: return "Shell／桌面命令執行：未提供"
-        case .catalogReqExport: return "原版檔案產生與分享工具：未提供"
-        case .catalogReqResearch: return "原版跨網站自動研究：未提供"
-        case .catalogReqAccount: return "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權"
-        case .catalogReqSend: return "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准"
-        case .catalogReqMutation: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
-        case .catalogCount: return "共 %1$lld 項原始技能 · 符合 %2$lld 項"
-        case .catalogProvenance: return "內建技能 · 固定來源版本 %1$@"
         case .browserStartDone: return "完成"
         case .browserStartEdit: return "整理"
         case .browserStartRecent: return "最近開啟"
@@ -1314,8 +2171,6 @@ enum AppText: Equatable {
         case .browserChromeSiteMode: return "網站顯示偏好"
         case .browserChromeDesktop: return "電腦版"
         case .browserChromeMobile: return "手機版"
-        case .browserChromeMultiResearch: return "多網站研究"
-        case .browserChromeTranscript: return "整理此頁文字"
         case .browserChromeBack: return "上一頁"
         case .browserChromeForward: return "下一頁"
         case .browserChromeHome: return "起始頁"
@@ -1357,30 +2212,118 @@ enum AppText: Equatable {
         case .settingsAdvancedDetail: return "MCP 伺服器"
         case .settingsHomeConnections: return "網路與連接"
         case .settingsModelNotSet: return "未設定"
-        case .settingsModelKeyStored: return "已儲存金鑰；留空可沿用同一服務的金鑰。"
-        case .settingsModelKeyMissing: return "尚未儲存金鑰。"
         case .settingsModelRoles: return "用途"
         case .settingsModelMain: return "主模型"
         case .settingsModelMainDetail: return "思考和辦事"
         case .settingsModelProviders: return "服務商"
-        case .settingsModelConnection: return "連線設定"
-        case .settingsModelConnectionDetail: return "HTTPS 介面網址、模型名稱與 API Key"
-        case .settingsModelBaseURL: return "介面網址（HTTPS）"
-        case .settingsModelClearURL: return "清除網址"
-        case .settingsModelBaseURLPlaceholder: return "https://api.example.com/v1"
-        case .settingsModelName: return "模型名稱"
-        case .settingsModelNamePlaceholder: return "供應商提供的模型名稱"
-        case .settingsModelAPIKey: return "API Key"
-        case .settingsModelAPIKeyPlaceholder: return "輸入金鑰；已儲存時可留空"
-        case .settingsModelSave: return "儲存設定"
-        case .settingsModelRemove: return "移除設定與金鑰"
-        case .settingsModelPrivacy: return "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。"
-        case .settingsModelSaveExplanation: return "儲存不會測試連線；開始使用模型時才會連線。"
-        case .settingsModelChangeExplanation: return "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。"
         case .settingsModelSaved: return "設定已儲存，尚未驗證連線。"
         case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
         case .settingsModelFallbackError: return "無法讀取或儲存模型設定，請移除設定後重新填寫。"
+        case .roleSpeechWhat: return "按住說話時用"
+        case .modelsMainAddFirst: return "先新增一個服務商"
+        case .modelsMainPick: return "點這裡選一個"
+        case .modelsAddProvider: return "新增服務商"
+        case .modelsKeyNote: return "API Key 只儲存在這台裝置上，加密存放。"
+        case .modelsConnected: return "已連線"
+        case .modelsUsedBy: return "%1$@在用"
+        case .modelsUnverified: return "沒測試通過，任務可能會失敗"
+        case .modelsConsentNeeded: return "還沒有同意把內容傳給 %1$@；送出訊息前會先問你。"
+        case .modelsConsentReview: return "檢視並同意"
+        case .modelsLegacyUnreadable: return "之前的模型設定讀不出來，沒有搬過來；請重新新增服務商。"
+        case .signinKeyGroup: return "填 API Key"
+        case .presetCustom: return "自訂"
+        case .modelBaseURL: return "介面網址"
+        case .modelProviderName: return "名稱"
+        case .modelProviderNameHint: return "可不填，預設用網址的主機名"
+        case .modelAPIKey: return "API Key"
+        case .modelKeyHint: return "貼上服務商給的 Key"
+        case .modelKeyOptional: return "不需要 Key 的服務可不填"
+        case .commonShow: return "顯示"
+        case .commonHide: return "隱藏"
+        case .modelManualName: return "模型名"
+        case .modelExampleCompat: return "例如 mistral-large-latest"
+        case .modelExampleGrok: return "例如 grok-4"
+        case .modelURLHTTPS: return "介面網址要以 https:// 開頭；渥屋助理只用加密連線送出 Key 和對話。"
+        case .modelPresetMatch: return "這是「%1$@」的官方網址，用它的預設更省事：網址和介面型別都已填好。"
+        case .modelUsePreset: return "改用「%1$@」預設"
+        case .modelTestSave: return "測試並儲存"
+        case .modelTesting: return "正在測試…"
+        case .modelFailed: return "連線失敗：%1$@"
+        case .modelReasonCredentials: return "讀不到已儲存的 Key"
+        case .modelReasonConfiguration: return "網址、模型名或 Key 的格式不對"
+        case .modelErrorAuth: return "API Key 無效或沒有權限"
+        case .modelReasonNotFound: return "找不到這個網址或模型"
+        case .modelErrorRateLimited: return "請求太頻繁，請稍後再試"
+        case .modelReasonServer: return "伺服器端出錯"
+        case .modelReasonRefused: return "服務商拒絕了這個請求"
+        case .modelReasonUnreadable: return "看不懂回傳的內容，請確認介面網址"
+        case .modelReasonRedirect: return "服務要求轉址；為了保護 Key 已停止"
+        case .modelReasonTimeout: return "20 秒內沒有回應"
+        case .modelErrorNetwork: return "網路連線失敗"
+        case .modelSaveUntested: return "不測試，直接儲存"
+        case .modelSaveUntestedTitle: return "不測試就儲存？"
+        case .modelSaveUntestedBody: return "渥屋助理會按你填的位址和 Key 存下這家服務商，不列模型、也不試呼叫。渥屋助理做事需要會呼叫工具的模型，沒測過的這一家可能連不通，也可能不會呼叫工具。存下之後可以在服務商頁「重新測試」。"
+        case .modelSaveUntestedConfirm: return "仍然儲存"
+        case .modelSavedUntested: return "已存下 %1$@，沒有測試過。它標著「沒測試過」；選一個模型時會先試呼叫，也可以在服務商頁「重新測試」。"
+        case .modelSavedTested: return "已存下 %1$@，測試通過。"
+        case .modelPickMain: return "選主模型"
+        case .modelTestNote: return "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。"
+        case .modelNotSavedDeclined: return "沒有儲存：要用 %1$@，需要先同意把內容傳給它。"
+        case .roleMainHint: return "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。"
+        case .modelsUse: return "使用"
+        case .modelsRoleEmpty: return "還沒有可選的模型。先新增一個服務商。"
+        case .capTyped: return "手填"
+        case .modelsInUse: return "正在用這個"
+        case .modelsPickNote: return "這一版還不會向服務商要模型列表。在服務商下面填它說明文件裡的模型名，按「使用」會先試呼叫一次，通了才換。"
+        case .modelsConnection: return "連線"
+        case .modelsStatus: return "狀態"
+        case .modelKind: return "介面"
+        case .modelsOpenAICompat: return "OpenAI 相容"
+        case .modelsURL: return "網址"
+        case .modelsKeySaved: return "已儲存"
+        case .modelsKeyNone: return "沒有填"
+        case .modelsChange: return "更換"
+        case .modelsChangeKey: return "更換 API Key"
+        case .modelsNewKeyHint: return "貼上新的 Key"
+        case .modelsModels: return "模型"
+        case .modelsModelsNote: return "點一個模型，可以把它用作主模型，或設定它能不能看圖。"
+        case .modelsUntestedNote: return "這家是跳過測試存下的，還不知道能不能用。選一個模型時會先試呼叫，也可以點「重新測試」。"
+        case .modelsRetest: return "重新測試"
+        case .modelsRetestPassed: return "測試通過：%1$@ 有回覆。"
+        case .modelsDelete: return "刪除這個服務商"
+        case .modelsDeleteTitle: return "刪除「%1$@」？"
+        case .modelsDeleteBody: return "這家的 API Key 會一起刪掉。"
+        case .modelsDeleteUsed: return "%1$@正在用它，刪除後要重新選。"
+        case .modelsDeleteUnused: return "它沒在給任何用途幹活。"
+        case .modelsDeleted: return "已刪除「%1$@」和它的 API Key。"
+        case .modelsUseAs: return "%1$@ · 用作"
+        case .modelsKeyChanged: return "已更換「%1$@」的 API Key。"
+        case .modelsCleanupFailed: return "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。"
+        case .consentTitle: return "要把內容傳給 %1$@ 嗎？"
+        case .consentLead: return "%1$@（%2$@）會收到下面這些內容，好讓它的模型回覆你："
+        case .consentItemChat: return "你在對話裡輸入的文字"
+        case .consentItemAttachments: return "附件在這台裝置上讀出的文字（每個檔案最多 32 KB，一則訊息合計最多 64 KB）"
+        case .consentItemImages: return "打開「能看圖」時，你附上的圖片"
+        case .consentItemProfile: return "跟對話一起送出的個人檔案"
+        case .consentItemWeb: return "研究網站或執行任務時讀到的網頁文字"
+        case .consentItemResearchJudgment: return "研究網站時，請模型判斷結果的請求"
+        case .consentItemMemory: return "你存的記憶：數量不多時全部附上，較多時附上和對話相關的部分"
+        case .consentItemSkills: return "技能清單（名稱和一句說明），以及相符或用到的技能全文"
+        case .consentItemMemoryOrganizing: return "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶"
+        case .consentItemMCP: return "MCP 工具和資源回傳的結果"
+        case .consentPrivacyPolicy: return "渥屋助理隱私權政策"
+        case .consentThirdParty: return "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。"
+        case .consentDeclineSave: return "不同意的話，什麼都不會傳出去，這家服務商也不會儲存。"
+        case .consentDeclineSwitch: return "不同意的話，什麼都不會傳出去，主模型維持不變。"
+        case .consentDeclineSend: return "不同意的話，什麼都不會傳出去：這則訊息不會送出，草稿會保留。"
+        case .consentAgain: return "之後改用別家服務商的模型時，會再問你一次。"
+        case .consentAgree: return "同意並繼續"
+        case .consentDecline: return "不同意"
+        case .chatConsentDeclined: return "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。"
+        case .settingsStatusReadyMain: return "主模型：%1$@ · %2$@"
+        case .modelSettingsTooManyProviders: return "服務商已達上限，請先刪除不用的服務商。"
+        case .modelSettingsConsentRequired: return "還沒有同意把內容傳給這家服務商，設定未變更。"
         case .settingsHomeTitle: return "設定"
         case .drawerRecentTitle: return "近期對話"
         case .drawerRecentBoundary: return "僅顯示此裝置已加密保存的完整問答。"
@@ -1398,10 +2341,9 @@ enum AppText: Equatable {
         case .drawerRecentRenameFailed: return "改名未保存；對話內容不變。請重新開啟再試。"
         case .drawerRecentTurns: return "%lld 輪"
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
-        case .drawerRecentPendingApproval: return "有待核准的操作，請先返回處理。"
         case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
-        case .drawerRecentDifferentDestination: return "模型服務或金鑰身分不同；可在完整歷史中檢視。"
+        case .drawerRecentDifferentDestination: return "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。"
         case .newConversationConfirmTitle: return "開啟新對話前確認"
         case .newConversationPDFWarning: return "選取的 PDF 尚未送出；開啟新對話會移除附件。"
         case .newConversationUnsavedWarning: return "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。"
@@ -1409,8 +2351,6 @@ enum AppText: Equatable {
         case .newConversationDraftRetained: return "已有的純文字草稿會保留。"
         case .newConversationDiscard: return "捨棄並開啟新對話"
         case .newConversationKeep: return "返回目前對話"
-        case .chatStatusProfileReview: return "等待你核對個人檔案修改…"
-        case .chatStatusMemoryReview: return "等待你核對記憶修改…"
         case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
         case .chatStatusWaiting: return "正在等待模型回覆…"
         case .chatStatusConfigured: return "模型已設定"
@@ -1421,10 +2361,6 @@ enum AppText: Equatable {
         case .chatSendBlockedDismiss: return "知道了"
         case .chatSendBlockedOpenSettings: return "去設定"
         case .chatFixtureNotice: return "UI 測試模式：固定回覆，不會呼叫網路。"
-        case .archiveBoundary: return "已完成的問答會加密保存在此裝置；未完成任務與未送出的草稿不會保存。工具操作不會還原；開啟歷史不會自動傳送。"
-        case .archiveSavedCount: return "已保存的對話（%1$lld）"
-        case .archiveEmpty: return "尚無保存的對話"
-        case .archiveClose: return "關閉"
         case .localPDFSearchOpen: return "離線搜尋擷取文字"
         case .localPDFSearchTitle: return "離線搜尋已擷取文字"
         case .localPDFSearchNotice: return "只搜尋本次選取並核准擷取的頁面；沒有 OCR，也不傳送資料。"
@@ -1456,6 +2392,9 @@ enum AppText: Equatable {
         case .voiceSpeechRestricted: return "此裝置的語音辨識受到限制，請檢查裝置限制。"
         case .voiceUnavailable: return "目前無法使用裝置上語音辨識，請使用鍵盤；服務商語音轉文字尚未支援。"
         case .voiceAudioError: return "音訊無法使用或已中斷，請檢查麥克風及音訊裝置後再試。"
+        case .chatSkillFind: return "查詢技能"
+        case .chatSkillRead: return "檢視技能"
+        case .chatSkillSave: return "儲存技能"
         case .voiceRecognitionError: return "辨識失敗，請再試一次。"
         case .voiceTimeout: return "語音辨識逾時，請再試一次。"
         case .voiceSettings: return "前往設定"
@@ -1465,7 +2404,7 @@ enum AppText: Equatable {
         case .voiceChoiceHint: return "可使用裝置自帶識別。"
         case .voiceChoiceSystem: return "裝置自帶"
         case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
-        case .voiceChoiceSystemNone: return "這臺裝置沒有可用的語音辨識"
+        case .voiceChoiceSystemNone: return "這台裝置沒有可用的語音辨識"
         case .voiceChoiceAvailable: return "可用"
         case .voiceChoiceMissing: return "沒有"
         case .voiceChoiceOff: return "不用"
@@ -1479,14 +2418,6 @@ enum AppText: Equatable {
         case .chatAttachCamera: return "相機"
         case .chatAttachAlbum: return "相簿"
         case .chatAttachFiles: return "檔案"
-        case .chatAttachRecent: return "最近的照片"
-        case .chatAttachRecentLimited: return "你允許渥屋助理存取的照片"
-        case .chatAttachAllPhotos: return "全部照片"
-        case .chatAttachChangeScope: return "更改範圍"
-        case .chatAttachNoPhotos: return "還沒有照片"
-        case .chatAttachAllowPhotos: return "允許存取照片"
-        case .chatAttachPhotosNeeded: return "在這裡直接選照片,需要允許渥屋助理存取照片"
-        case .chatAttachPhotosHint: return "不允許也可以點上面的「相簿」,用系統的照片選擇器"
         case .chatAttachAdding: return "正在新增附件…"
         case .chatAttachGotIt: return "知道了"
         case .chatAttachGone: return "這個附件已經不在了"
@@ -1495,7 +2426,6 @@ enum AppText: Equatable {
         case .chatAttachPhotoCount: return "%lld 張照片"
         case .chatAttachFileAndMore: return "%1$@ 等 %2$lld 個檔案"
         case .chatAttachPhotosAndFiles: return "照片和檔案"
-        case .chatAttachSelected: return "已選取"
         case .chatAttachRemove: return "去掉%1$@"
         case .chatAttachFull: return "一次最多 %1$lld 個附件"
         case .chatAttachOverLimit: return "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上"
@@ -1521,6 +2451,44 @@ enum AppText: Equatable {
         case .chatBranchTitleSuffix: return " · 分支"
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
         case .chatBranchOrigin: return "從另一個對話分支"
+        case .chatReportAction: return "檢舉 AI 回覆"
+        case .chatReportTitle: return "檢舉這則回覆"
+        case .chatReportDeliveryNotice: return "檢舉內容會傳送給開發者。伺服器確認收到前，會保留在這台裝置上等待傳送。"
+        case .chatReportReference: return "回覆編號：%1$@ / %2$@"
+        case .chatReportOffensive: return "冒犯性內容"
+        case .chatReportUnsafe: return "不安全內容"
+        case .chatReportOther: return "其他問題"
+        case .chatReportNote: return "補充說明（選填）"
+        case .chatReportSubmit: return "送出檢舉"
+        case .chatReportSaveFailed: return "無法儲存檢舉，請重試。"
+        case .chatReportLoading: return "正在查詢先前的檢舉…"
+        case .chatReportLoadFailed: return "無法讀取已儲存的檢舉，請重試。"
+        case .chatReportAmbiguous: return "無法確認先前的檢舉是否屬於這則回覆。新建檢舉可能與已收到的檢舉重複，舊紀錄會保留。是否繼續？"
+        case .chatReportUnidentified: return "有一份舊檢舉無法讀取，也無法確認屬於哪則回覆。繼續可能重複傳送開發者已收到的檢舉。要繼續處理這則回覆嗎？"
+        case .chatReportContinueRisk: return "了解風險並繼續"
+        case .chatReportContinueNotice: return "你已選擇繼續。無法讀取的紀錄存在期間，其他檢舉不會自動傳送。"
+        case .chatReportNewWarning: return "舊檢舉尚未確認送達，也可能已經收到。新檢舉會使用新編號和目前時間，可能重複；舊紀錄會保留。是否繼續？"
+        case .chatReportCreateNew: return "新建檢舉"
+        case .chatReportManualNotice: return "這份新檢舉只會在你按下送出或重試時傳送，可能相關的舊檢舉不會自動重送。"
+        case .chatReportHistory: return "查看本機新建的檢舉"
+        case .chatReportHistoryNotice: return "以下檢舉來自本對話，可能屬於其他回覆。請選取前核對回覆內容與編號。"
+        case .chatReportHistoryEmpty: return "沒有本機新建的檢舉。"
+        case .chatReportSelectedManual: return "已選取本機檢舉；下方顯示當時的回覆。"
+        case .chatReportReviewExisting: return "已有內容不同的新檢舉，請在重試前先核對下方內容。"
+        case .chatReportBack: return "返回"
+        case .chatReportPending: return "等待傳送。編號：%1$@"
+        case .chatReportAcknowledged: return "開發者已收到。編號：%1$@"
+        case .chatReportNeedsRetry: return "尚未確認送達。編號：%1$@"
+        case .chatReportExpired: return "尚未確認送達。伺服器只接受建立時間在七天內的檢舉，請檢查裝置日期與時間。編號：%1$@"
+        case .chatReportRetry: return "重新傳送"
+        case .chatReportCancel: return "取消"
+        case .chatReportClose: return "關閉"
+        case .chatReportDelete: return "刪除檢舉"
+        case .chatReportDeleteTitle: return "刪除這份檢舉？"
+        case .chatReportDeleteConfirm: return "已送達的檢舉會從開發者伺服器和本機刪除；未傳送的檢舉會從本機刪除。如果無法確認送達，檢舉會保留。"
+        case .chatReportDeleted: return "檢舉已刪除。"
+        case .chatReportDeleteFailed: return "無法確認刪除，檢舉已保留。請稍後重試。"
+        case .chatReportDeleteUnverified: return "這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。"
         case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
         case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"
         case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
@@ -1530,6 +2498,277 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
+        case .drawerDeleteTitle: return "刪除這個對話？"
+        case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
+        case .chatWebTitle: return "網頁任務"
+        case .chatWebWorkingOn: return "正在操作%1$@"
+        case .chatWebPaused: return "已暫停：回到渥屋助理就會繼續"
+        case .chatWebActivityThinking: return "正在想下一步…"
+        case .chatWebActivityOpening: return "正在開啟 %1$@"
+        case .chatWebActivityReading: return "正在讀 %1$@"
+        case .chatWebActivityFinding: return "正在 %1$@ 找文字"
+        case .chatWebActivityScrolling: return "正在滾動 %1$@"
+        case .chatWebActivityBack: return "正在回上一頁"
+        case .chatWebActivityWaiting: return "正在等 %1$@ 變化"
+        case .chatWebActivityPacing: return "讀完這頁，稍等一下再開 %1$@ 的下一頁"
+        case .chatWebElapsed: return "已進行 %1$@"
+        case .chatWebStepNumber: return "第 %1$lld 步"
+        case .chatWebStepOpen: return "開啟網頁 · %1$@"
+        case .chatWebStepRead: return "讀網頁 · %1$@"
+        case .chatWebStepFind: return "找文字 · %1$@"
+        case .chatWebStepScroll: return "滾動 · %1$@"
+        case .chatWebStepBack: return "返回 · %1$@"
+        case .chatWebStepWait: return "等網頁變化 · %1$@"
+        case .chatWebStepFailed: return "沒成功"
+        case .chatWebViewProcess: return "檢視過程"
+        case .chatWebStop: return "停止"
+        case .chatWebShowScreen: return "顯示畫面"
+        case .chatWebHideScreen: return "隱藏畫面"
+        case .chatWebShrink: return "縮小"
+        case .chatWebViewPage: return "查看網頁"
+        case .chatWebForegroundNote: return "在 App 開著時進行。點小畫面可以放大看，離開 App 會暫停。"
+        case .chatWebProcessTitle: return "過程"
+        case .chatWebProcessDone: return "完成"
+        case .chatWebProcessEmpty: return "還沒有步驟。"
+        case .chatWebCardAccessibility: return "網頁任務：%1$@，第 %2$lld 步，已進行 %3$@"
+        case .chatWebSourcesHeading: return "來源"
+        case .chatWebPagesReadHeading: return "已讀的頁面"
+        case .chatWebNotDone: return "沒有完成"
+        case .chatWebStopped: return "已停止。"
+        case .chatWebStopRepeating: return "一直重複同樣的步驟，所以先停下來。"
+        case .chatWebStopFailures: return "連續好幾步都沒成功，所以先停下來。"
+        case .chatWebStopInvalidCommands: return "模型沒有給出可用的下一步，所以先停下來。"
+        case .chatWebStopModelFailed: return "呼叫模型失敗，網頁任務停在這裡。請檢查模型設定或網路後再試一次。"
+        case .chatWebConsentTitle: return "網頁任務"
+        case .chatWebConsentBody: return "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，也可以替你點選、輸入和送出表單；網址、標題、網頁文字和按鈕、欄位的名稱會傳給你選的模型服務。花錢的步驟每次都要你同意，付款一律由你自己完成。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。"
+        case .chatWebActivityActing: return "正在 %1$@ 的網頁上操作"
+        case .chatWebActivityWaitingForYou: return "等你處理"
+        case .chatWebStepObserve: return "讀取介面元素 · %1$@"
+        case .chatWebStepTap: return "點選 · %1$@"
+        case .chatWebStepType: return "輸入文字 · %1$@"
+        case .chatWebStepSelect: return "選擇選項 · %1$@"
+        case .chatWebStepConfirm: return "請你同意 · %1$@"
+        case .chatWebStepOutward: return "對外動作"
+        case .chatWebAskTitle: return "要你同意：%1$@"
+        case .chatWebAskTitleAmount: return "要你同意：%1$@ %2$@"
+        case .chatWebAskNote: return "花錢的操作每次都要你同意。"
+        case .chatWebAskRefuse: return "拒絕"
+        case .chatWebAskAllowOnce: return "允許這一次"
+        case .chatWebHandoverTitle: return "需要你處理：%1$@"
+        case .chatWebReasonLogin: return "登入"
+        case .chatWebReasonCaptcha: return "驗證碼"
+        case .chatWebReasonAccessBlocked: return "風控驗證"
+        case .chatWebReasonPayment: return "付款"
+        case .chatWebReasonDecision: return "需要你決定"
+        case .chatWebReasonOther: return "其他"
+        case .chatWebSkip: return "跳過"
+        case .chatWebTakeOver: return "我來處理"
+        case .chatWebCancelTask: return "取消任務"
+        case .chatWebWaitingOnYou: return "渥屋助理在等你：%1$@"
+        case .chatWebHandBack: return "處理好了"
+        case .chatWebFinishedMyself: return "我自己做完了"
+        case .chatWebUserHasPage: return "網頁在你手上；處理好後按「處理好了」。"
+        case .chatWebPaymentItem: return "商品：%1$@"
+        case .chatWebPaymentAmount: return "金額：%1$@"
+        case .chatWebPaymentAddress: return "地址：%1$@"
+        case .chatWebQuestionTitle: return "需要你回答"
+        case .chatWebAnswerPlaceholder: return "輸入回答"
+        case .chatWebAnswerSend: return "送出回答"
+        case .chatWebActivitySummarizing: return "正在整理已做的事…"
+        case .chatWebStepHandover: return "請你接手 · %1$@"
+        case .chatWebStepAsk: return "問你一個問題"
+        case .notificationWebPausedTitle: return "網頁任務已暫停"
+        case .notificationWebPausedBody: return "回到渥屋助理就會繼續。"
+        case .notificationWebNeedsYouTitle: return "網頁任務需要你處理"
+        case .notificationWebNeedsYouBody: return "請開啟渥屋助理查看；通知不會核准操作。"
+        case .storedChatPartialReceiving: return "回覆產生中・尚未完成，未保存"
+        case .storedChatPartialCancelled: return "已取消・部分回覆未保存"
+        case .storedChatPartialFailed: return "回覆未完成・部分回覆未保存"
+        case .storedChatSettingsChanged: return "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
+        case .storedChatArchiveOpened: return "已開啟保存的對話；尚未傳送任何訊息。"
+        case .storedChatArchiveSaveFailed: return "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
+        case .storedChatQuoteBeforeChange: return "請先傳送或移除引用，再變更模型設定。"
+        case .storedChatQuoteBeforeRemove: return "請先傳送或移除引用，再移除模型設定。"
+        case .storedChatQuoteChanged: return "引用來源已變更；草稿與引用保留，請重新選取。"
+        case .storedChatArchiveChanged: return "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
+        case .storedChatMcpNotReady: return "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .storedChatKeyUnreadable: return "無法讀取金鑰，草稿已保留。請在設定確認或重新儲存金鑰。"
+        case .storedChatLearningUnreadable: return "無法讀取學習資料，請重新讀取後再試。"
+        case .storedChatPrepareFailed: return "無法準備本次對話。"
+        case .storedChatEmptyReply: return "模型回傳空白內容，草稿已保留，請重試。"
+        case .storedChatNoSingleStep: return "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。"
+        case .storedChatSendFailed: return "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
+        case .storedChatMcpUnfinished: return "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。"
+        case .storedChatMemorySavedReplyUnfinished: return "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。"
+        case .storedChatProfileSavedReplyUnfinished: return "個人檔案已儲存，但後續模型回覆未完成；草稿保留。"
+        case .storedChatReasonAuth: return "模型服務拒絕驗證，請檢查模型金鑰與存取權限。"
+        case .storedChatReasonRateLimited: return "模型服務目前限制請求，請稍後再試。"
+        case .storedChatReasonUnavailable: return "模型服務暫時無法處理請求，請稍後再試。"
+        case .storedChatReasonRefused: return "模型服務拒絕這次請求，請檢查服務與模型設定。"
+        case .storedChatReasonTimeout: return "等待模型回覆已逾時。"
+        case .storedChatReasonOffline: return "無法連線至模型服務，請檢查網路。"
+        case .storedChatReasonToolsOff: return "本次對話未啟用記憶與個人檔案工具，修改要求已停止。"
+        case .storedChatReasonToolExpired: return "這次記憶工具操作已失效，修改要求已停止。"
+        case .storedChatReasonToolIncomplete: return "本機記憶工具未傳回完整結果，對話已停止。"
+        case .storedChatCancelledWait: return "已取消等待，草稿已保留。伺服器可能已收到請求。"
+        case .storedChatLearningBusy: return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
+        case .storedChatLearningChanged: return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
+        case .storedChatLearningSaveFailed: return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
+        case .storedChatMemoryToolRejected: return "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。"
+        case .storedChatProfileToolRejected: return "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。"
+        case .storedChatNewChat: return "已開啟新對話；已確認的記憶與技能保留。"
+        case .storedChatMcpDenied: return "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。"
+        case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。"
+        case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。"
+        case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。"
+        case .storedContextIncompleteHistory: return "聊天歷史不是完整的使用者與助理回合，請開啟新對話後再試。"
+        case .storedContextTooLarge: return "這次訊息與參考內容超過傳送上限，請縮短訊息或參考內容。"
+        case .storedReferencePrepareFailed: return "無法準備本次參考資料，尚未開始研究。"
+        case .storedReferenceRevoked: return "本次參考資料已撤銷，研究已停止；請確認目前設定後重新開始。"
+        case .storedReferenceBusy: return "學習資料正在使用中；請稍後重新開始。"
+        case .storedReferenceLifecycle: return "目前模型連線無法確認請求生命週期；尚未送出參考資料。"
+        case .storedInteractionNoSnapshot: return "請先讀取這個網頁的控制項。"
+        case .storedInteractionStale: return "頁面或控制項已變更；沒有執行，請重新讀取並核准。"
+        case .storedInteractionUnavailable: return "這個控制項不可操作或屬於受保護欄位。"
+        case .storedInteractionInvalid: return "動作格式無法辨識；沒有執行。"
+        case .storedInteractionUnsafe: return "動作目的地不在允許的公開 HTTPS 範圍。"
+        case .storedInteractionApprovalRequired: return "這個動作尚未取得單次核准，或核准已用過。"
+        case .storedInteractionExpired: return "核准要求已逾時；請重新讀取並提出動作。"
+        case .storedInteractionBusy: return "請先停止目前的研究或網頁操作。"
+        case .storedInteractionFailed: return "網頁動作未確認完成；不會自動重試。"
+        case .storedInteractionTimeout: return "網頁回應逾時；動作可能已送出，請先確認頁面，不會重試。"
+        case .storedResearchInvalidCommand: return "研究目標或模型指令的參數不完整，已停止研究。"
+        case .storedResearchInvalidJSON: return "模型回傳的研究指令格式無法辨識，已停止研究。"
+        case .storedResearchUnsupported: return "模型要求不支援的研究操作；未執行該操作。"
+        case .storedResearchUnknownLink: return "模型選取的連結不在目前頁面的可用清單內；未開啟該連結。"
+        case .storedResearchCommandTooLarge: return "模型回傳的研究指令超過大小限制，已停止研究。"
+        case .storedResearchNoPage: return "目前頁面無法讀取；請確認頁面已載入。"
+        case .storedResearchUnsafeNavigation: return "此導覽不在目前允許的公開網站範圍內，已停止研究。"
+        case .storedResearchPageChanged: return "讀取時頁面已變更或內容格式無法辨識，已停止研究。"
+        case .storedResearchNavigationFailed: return "網頁導覽失敗或被瀏覽器阻擋；未當成已完成的讀取。"
+        case .storedResearchNavigationTimeout: return "等待網頁載入超過時間限制，已停止研究。"
+        case .storedResearchReadTimeout: return "讀取網頁內容超過時間限制，已停止研究。"
+        case .storedResearchDeadline: return "網站研究超過整體時間限制，已停止研究。"
+        case .storedResearchModelConfiguration: return "模型設定不完整；請檢查服務、模型與金鑰設定。"
+        case .storedResearchModelRedirect: return "模型服務要求重新導向，已基於安全限制拒絕。"
+        case .storedResearchModelHTTPInvalid: return "模型服務回報無效的 HTTP 狀態，研究未完成。"
+        case .storedResearchInvalidResponse: return "模型服務回應格式無法辨識，研究未完成。"
+        case .storedResearchIncompleteResponse: return "模型回應未完整結束，研究未完成。"
+        case .storedResearchResponseTooLarge: return "模型服務回應超過大小限制，研究未完成。"
+        case .storedResearchBackpressure: return "模型輸出超過處理緩衝限制，研究未完成。"
+        case .storedResearchModelTimeout: return "等待模型服務超過時間限制，研究未完成。"
+        case .storedResearchConnectionFailed: return "模型服務連線失敗，研究未完成；請檢查網路與服務設定。"
+        case .storedResearchReferenceRevoked: return "本次參考資料已撤銷，研究已停止；已讀取內容保留。"
+        case .storedResearchCancelled: return "研究已取消；已讀取內容保留。"
+        case .storedResearchFailed: return "頁面或模型請求未完成；已讀取內容保留，未產生已驗證的技能。"
+        case .storedResearchStepLimit: return "已停止研究：達到步數上限或遇到重複操作。已讀取的頁面保留在操作紀錄，尚未確認任務完成。"
+        case .storedBrowserStart: return "輸入網址開始瀏覽"
+        case .storedBrowserInteractionIntro: return "讀取控制項後，每個動作都需單次核准。"
+        case .storedBrowserInvalidInput: return "請輸入搜尋文字或公開 HTTPS 網址；不接受本機網址、網址帳密或過長的查詢。"
+        case .storedBrowserStopped: return "已停止；已取得的內容與草稿保留"
+        case .storedBrowserResearching: return "正在研究網站…"
+        case .storedBrowserResearchStoppedUnconfirmed: return "研究已停止，尚未確認完成"
+        case .storedBrowserAnswerDelivered: return "回答已交付，正在判定成果…"
+        case .storedBrowserResearchEnded: return "研究已結束"
+        case .storedBrowserResearchUnfinished: return "研究未完成；已讀取內容保留"
+        case .storedBrowserNeedsModel: return "請先到設定儲存模型服務與金鑰。"
+        case .storedBrowserLearnStale: return "資料已變更，未套用這次學習。"
+        case .storedBrowserLearnNotSaved: return "回答已保留；學習資料未儲存，可能有更新或寫入失敗。"
+        case .storedBrowserJudgedDoneNoDraft: return "已判定任務完成；未新增技能草稿。"
+        case .storedBrowserJudgedDoneDraft: return "已判定任務完成；技能草稿已加入待確認，核准後才能使用。"
+        case .storedBrowserJudgedPartial: return "判定只完成部分內容，未學習新的技能。"
+        case .storedBrowserJudgedNotPossible: return "判定未達成要求，未學習新的技能。"
+        case .storedBrowserJudgedUnknown: return "成果尚無法判定，未當成技能驗證成功。"
+        case .storedBrowserLearnUnfinished: return "回答已保留；這次成果判定或學習未完成。"
+        case .storedBrowserReplaying: return "正在逐步核對網頁路線…"
+        case .storedBrowserReplayTimeout: return "路線核對超過時間限制，已停止。"
+        case .storedBrowserReplayDone: return "路線核對與成果判定完成；未重複產生技能。"
+        case .storedBrowserReplayNotSaved: return "成果已交付；路線結果未儲存。"
+        case .storedBrowserReplayUnconfirmed: return "頁面已核對，但原任務尚未確認完成；未增加成功次數。"
+        case .storedBrowserReplayEnded: return "路線重走已結束"
+        case .storedBrowserReplayStopped: return "路線已停止；內容變更或請求未完成"
+        case .storedBrowserReplayUnavailable: return "路線或模型設定不可用，請先確認版本、網站與模型設定。"
+        case .storedBrowserAwaitApproval: return "等待單次核准；尚未操作網頁。"
+        case .storedBrowserReadingControls: return "正在讀取控制項…"
+        case .storedBrowserControlsUpdated: return "控制項已更新；網頁欄位值不會傳給模型。"
+        case .storedBrowserModelProposing: return "模型正在提出下一個動作，尚未執行…"
+        case .storedBrowserProposalTimeout: return "模型提案逾時；沒有核准或執行動作。"
+        case .storedBrowserRunning: return "正在執行這一個已核准動作…"
+        case .storedBrowserActionSent: return "已送出單次 DOM 動作；請確認網頁結果，不代表網站任務已成功。"
+        case .storedBrowserRejected: return "已拒絕；沒有執行動作。"
+        case .storedBrowserCancelled: return "已取消；尚未核准的動作不會執行，已送出的動作無法撤回。"
+        case .storedBrowserReloaded: return "頁面已重新整理；先前的提案已取消。"
+        case .storedBrowserLoading: return "正在載入…"
+        case .storedBrowserRequestUnfinished: return "請求未完成；沒有自動重試或核准其他動作。"
+        case .storedBrowserSitePreferenceSaved: return "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"
+        case .storedBrowserOutsideScope: return "此導覽不在目前允許的公開網站範圍內。"
+        case .storedBrowserNoDownload: return "瀏覽器裡暫時不能下載檔案。"
+        case .storedBrowserLoadedManual: return "頁面已載入；此頁面僅供手動瀏覽"
+        case .storedBrowserLoaded: return "頁面已載入"
+        case .storedBrowserLoadFailed: return "網站載入失敗，請檢查網址或網路。"
+        case .storedBrowserProcessStopped: return "網頁程序已停止；請確認後重新開啟，沒有自動重試。"
+        case .storedBrowserLoadIncomplete: return "載入未完成"
+        case .storedBrowserLoadedUnread: return "頁面已載入；此路由內容未能讀取"
+        case .storedBrowserReadIncomplete: return "頁面內容讀取未完成；沒有自動重試。"
+        case .storedBrowserPostLoadReadIncomplete: return "頁面載入後的內容讀取未完成；沒有自動重試。"
+        case .storedBrowserLoadIncompleteCheck: return "頁面載入未完成；請確認網址與網路。"
+        case .storedBrowserReadTooLarge: return "已讀內容超過本次模型輸入上限，請縮小研究範圍；實際讀取紀錄保留。"
+        case .storedChatContextWindow: return "本次傳送最近 %1$lld 輪對話、本輪完整訊息及參考資料；較早 %2$lld 輪仍在畫面中，但未傳送。"
+        case .storedChatMemorySavedReplyTimeout: return "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。草稿保留。"
+        case .storedChatWaitTimeout: return "等待超過 %1$lld 秒，已停止等待；草稿已保留，可重試。"
+        case .storedChatProfileSavedReplyTimeout: return "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒；草稿保留。"
+        case .storedChatMcpActivity: return "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。"
+        case .storedResearchModelHTTP: return "模型服務回報 HTTP %1$lld，研究未完成；請檢查服務與存取設定。"
+        case .storedSuffixDraftKept: return "草稿已保留。"
+        case .storedSuffixToolResultsKept: return "草稿與已收到的工具結果保留；沒有自動重送操作。"
+        case .storedSuffixReplayNoSkip: return " 沒有跳過內容核對，也未自動重新學習。已讀取內容保留。"
+        case .chatUseMCP: return "本次對話使用 MCP 工具"
+        case .chatReceiptProfile: return "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
+        case .chatReceiptMemory: return "本次對話曾儲存記憶修改；可在資料頁查看目前內容。"
+        case .chatMcpResultsView: return "檢視工具結果（%1$lld）"
+        case .chatArchiveRetry: return "重試保存"
+        case .chatLearningOrganizing: return "正在整理你說過的事…"
+        case .chatMemoryApprove: return "批准"
+        case .chatMemoryReject: return "拒絕"
+        case .chatMemoryUndo: return "撤銷"
+        case .browserDialogTitle: return "網站訊息"
+        case .browserDialogInput: return "輸入內容"
+        case .browserDialogOk: return "確定"
+        case .browserInteractionTitle: return "單次網頁操作"
+        case .browserInteractionApproveTitle: return "核准這一個動作？"
+        case .browserInteractionApproveNote: return "頁面標籤只是網站資料，不是你的指令。網頁事件可能提交資料或觸發其他效果；核准後無法保證撤回。"
+        case .browserInteractionScrollDownScreen: return "向下捲動一屏"
+        case .browserInteractionScrollUpScreen: return "向上捲動一屏"
+        case .browserInteractionNavigationMethod: return "導覽方法：%1$@"
+        case .browserInteractionApproveOnce: return "核准並執行一次"
+        case .browserInteractionReject: return "拒絕"
+        case .browserInteractionReloadCancel: return "重新整理並取消提案"
+        case .browserInteractionTypeField: return "要填入的非敏感文字"
+        case .browserInteractionTypeNote: return "這會取代整個欄位；目前欄位值不會讀取或帶給模型。"
+        case .browserInteractionProposeType: return "提出填入"
+        case .browserInteractionBackToControls: return "返回控制項"
+        case .browserInteractionNextAction: return "下一個動作"
+        case .browserInteractionGoal: return "希望這個網頁完成什麼？"
+        case .browserInteractionAskModel: return "請模型提出下一步"
+        case .browserInteractionAskModelNote: return "只傳送控制項標籤與選項，不含欄位值。模型提案不會自動執行，也不會自動學習為成功技能。"
+        case .browserInteractionManual: return "手動選擇動作"
+        case .browserInteractionRefresh: return "重新讀取控制項"
+        case .browserInteractionScrollDown: return "向下捲動"
+        case .browserInteractionScrollUp: return "向上捲動"
+        case .browserInteractionTruncated: return "控制項數量達上限；未列出的項目不能由模型操作。"
+        case .browserInteractionStop: return "停止操作"
+        case .browserInteractionKindClick: return "點擊"
+        case .browserInteractionKindType: return "填入文字"
+        case .browserInteractionKindSelect: return "選擇選項"
+        case .browserInteractionKindScroll: return "捲動"
+        case .browserResearchTitle: return "網站研究"
+        case .browserResearchNote: return "頁面文字會傳送到你設定的模型服務。研究只讀取網頁與開啟同站連結。"
+        case .browserResearchGoal: return "這次想查清楚什麼？"
+        case .browserResearchStart: return "開始研究"
+        case .browserResearchStop: return "停止研究"
+        case .browserResearchResult: return "目前結果"
+        case .browserResearchLearning: return "學習結果"
+        case .browserResearchReads: return "已完成的讀取（%1$lld）"
         }
     }
 }

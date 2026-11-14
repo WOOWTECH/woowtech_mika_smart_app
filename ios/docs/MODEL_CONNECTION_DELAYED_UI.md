@@ -1,26 +1,31 @@
 # Delayed model connection UI candidate
 
-These three native XCTest methods exercise the saved-model settings through the
-actual UI, with an opt-in, DEBUG-only fixture and an isolated UUID defaults and
-Keychain service. The fixture accepts only the fixed synthetic URL, model and
-key used by these tests; it never performs network I/O. It records only counts.
-The fixture is simulator-only and rejects conflicting Live or UI fixture flags.
+These three native XCTest methods exercise 測試並儲存 and 重新測試 in
+Settings › 模型 through the actual UI, with an opt-in, DEBUG-only fixture and
+an isolated UUID defaults and Keychain service. The fixture accepts only the
+fixed synthetic URL, model and key used by these tests; it never performs
+network I/O. It records only counts. The fixture is simulator-only and rejects
+conflicting Live or UI fixture flags.
 
-The tests observe a pending request, perform the change, confirm cancellation
-was delivered, explicitly release the noncooperative fixture, then wait for
-the actual connection worker to settle before asserting the old result did not
-change the UI. The last successful fixture request checks that the original
-synthetic saved URL, model and key remain usable. The test-only deadline is 120
-seconds for native UI gestures; normal product requests retain 20 seconds.
+The tests start a test from the add-provider form (or 重新測試 on a provider's
+page), perform a change, confirm cancellation was delivered, explicitly release
+the noncooperative fixture, then wait for the actual connection worker to
+settle before asserting that the old result neither asked for the AI-sharing
+consent nor saved or marked a provider. The test-only deadline is 120 seconds
+for native UI gestures; normal product requests retain 20 seconds.
 
-- `testDelayedConnectionEditsCannotPublishOldResult`: edits URL, model and key
-  separately, relaunches against the same isolated saved settings, then tests
-  and uses those settings with the existing synthetic chat client.
-- `testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult`: cancel,
-  save and leave the detail view while a request is pending, with a fresh
-  request and synthetic chat afterwards.
+- `testDelayedConnectionEditsCannotPublishOldResult`: edits the URL, model and
+  key separately while a test runs. Afterwards a released test passes, the
+  consent is agreed to, and the saved provider answers the synthetic chat
+  client.
+- `testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult`: leaves the
+  page while a test runs; saves the provider without a test, adds it again and
+  cancels that form while its test runs, so it stays untested; then 重新測試
+  on the provider's page passes with the saved address, model and key, and
+  用作 › 主模型 makes it the main model after the consent.
 - `testDelayedConnectionBackgroundCannotPublishOldResult`: backgrounds and
-  foregrounds the simulator app, releases the stale result and tests again.
+  foregrounds the simulator app, releases the stale result, then tests again
+  and saves after the consent.
 
 On the MacBook, use a disposable iOS simulator and the Debug scheme; for
 example, after `xcodegen generate`, set `SIMULATOR_ID` to that simulator's UUID:

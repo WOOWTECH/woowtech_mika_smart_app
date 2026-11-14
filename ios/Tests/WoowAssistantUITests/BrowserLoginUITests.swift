@@ -318,14 +318,14 @@ final class BrowserLoginUITests: XCTestCase {
         app.terminate()
     }
 
-    func testNativeFormLoginSharesCookieAcrossTabsAndRelaunchThenLogout() {
+    func testNativeFormLoginSharesCookieAcrossPagesAndRelaunchThenLogout() {
         launch(reset: true)
         XCTAssertTrue(text("LOGIN_ANONYMOUS").exists)
         let firstInstance = serverInstance
         loginByTyping()
         XCTAssertTrue(text("LOGIN_PROTECTED_CHECKS_1").exists)
         let protectedURL = currentProtectedURL()
-        openInNewTab(protectedURL)
+        openInFreshPage(protectedURL)
         XCTAssertTrue(text("LOGIN_PROTECTED_AUTHENTICATED").waitForExistence(timeout: 30))
         XCTAssertTrue(text("LOGIN_PROTECTED_CHECKS_2").exists,
                       "A new tab must make another authenticated HTTP request.")
@@ -345,7 +345,7 @@ final class BrowserLoginUITests: XCTestCase {
         tap(app.webViews.buttons["登出測試帳號"].firstMatch)
         XCTAssertTrue(text("LOGIN_ANONYMOUS").waitForExistence(timeout: 30))
         XCTAssertTrue(text("LOGIN_SERVER_LOGOUTS_1").exists)
-        openInNewTab(currentURL)
+        openInFreshPage(currentURL)
         XCTAssertTrue(text("LOGIN_PROTECTED_DENIED").waitForExistence(timeout: 30),
                       "A fresh protected HTTP request must fail after server-driven cookie expiry.")
         XCTAssertFalse(text("LOGIN_PROTECTED_AUTHENTICATED").exists)
@@ -355,42 +355,26 @@ final class BrowserLoginUITests: XCTestCase {
         launch(reset: true)
         loginByTyping()
         let protectedURL = currentProtectedURL()
-        library()
-        tap(app.segmentedControls["browser.library.sections"].buttons["網站"])
-        let clear = app.buttons["browser.sites.clear.127.0.0.1"]
-        tap(clear, timeout: 30)
-        // 6d480d8 iOS 17 exposes this titled confirmation as Other; iOS 26
-        // exposes Sheet and nested duplicate Buttons. Scope to the exact
-        // dialog title and action, without assuming a single AX container type.
-        let confirmation = app.descendants(matching: .any).matching(NSPredicate(
-            format: "(elementType == %d OR elementType == %d) AND label == %@",
-            XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
-            "清除此網站的資料？可能需要重新登入，所有分頁與下載將停止。")).firstMatch
-        let confirm = confirmation.buttons.matching(NSPredicate(
-            format: "identifier == %@ AND label == %@",
-            "browser.sites.confirmClear", "清除網站資料")).firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 15))
-        XCTAssertEqual(confirm.label, "清除網站資料")
-        tap(confirm)
+        // Like the Play build: Memory › Saved data › Website sign-ins lists the sites.
+        openSignIns()
+        let site = app.buttons["signIns.site.127.0.0.1"]
+        tap(site, timeout: 30)
+        let signOut = app.buttons.matching(identifier: "signIns.signOutSite").firstMatch
+        XCTAssertTrue(signOut.waitForExistence(timeout: 15))
+        tap(signOut)
+        let noticeDone = app.buttons.matching(identifier: "signIns.notice.done").firstMatch
+        XCTAssertTrue(noticeDone.waitForExistence(timeout: 15))
+        tap(noticeDone)
         // 1747c20 SE/Large: removeData completed after 18.8/19.9 s and the
         // synthetic cookie count was zero, while fetchDataRecords was still
-        // pending at the old combined 30 s deadline. 0df511b SE then recorded
-        // removeCompleted at 30.719 s with zero synthetic cookies. Share the
-        // existing 60 s total across both callbacks instead of imposing a
-        // separate 30 s cutoff on each. Do not retry deletion or infer success
-        // from an enabled button; the empty list and real HTTP checks remain.
-        let removalDeadline = ProcessInfo.processInfo.systemUptime + 60
-        let empty = app.staticTexts["browser.sites.empty"]
-        let removed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            empty.exists || (clear.exists && clear.isEnabled)
-        }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [removed], timeout: max(0, removalDeadline - ProcessInfo.processInfo.systemUptime)), .completed,
-                       "Wait for the selected-site removeData callback.")
-        XCTAssertFalse(app.staticTexts["browser.library.error"].exists,
-                       "Stopping-page failure must not be mistaken for successful deletion.")
-        XCTAssertTrue(empty.waitForExistence(timeout: max(0, removalDeadline - ProcessInfo.processInfo.systemUptime)),
+        // pending. Share one 60 s deadline across both callbacks; do not retry
+        // deletion. The empty list and the real HTTP checks below remain.
+        let empty = app.descendants(matching: .any)["signIns.empty"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 60),
                       "Wait for the post-deletion WebKit website-record refresh to show an empty list.")
-        tap(app.buttons["browser.library.close"])
+        XCTAssertFalse(app.staticTexts["browser.workspace.error"].exists,
+                       "Stopping-page failure must not be mistaken for successful deletion.")
+        tap(app.buttons["signIns.close"])
         // The cleared store was empty in d938 SE, but its first post-clear
         // protected navigation stayed in the provisional loading state. Visit
         // the same live server's ordinary status document through a fresh
@@ -398,12 +382,12 @@ final class BrowserLoginUITests: XCTestCase {
         // cleared cookie header independently; the protected 401 below remains
         // a separate, required native navigation and denial assertion.
         let statusURL = protectedURL.deletingLastPathComponent().appendingPathComponent("status")
-        openInNewTab(statusURL)
+        openInFreshPage(statusURL)
         XCTAssertTrue(text("LOGIN_ANONYMOUS").waitForExistence(timeout: 30),
                       "The same HTTP server must receive a fresh WebKit request without the cleared cookie.")
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_1").exists,
                       "The anonymous response must come from the original live server, not a reset fixture.")
-        openInNewTab(protectedURL)
+        openInFreshPage(protectedURL)
         XCTAssertTrue(text("LOGIN_PROTECTED_DENIED").waitForExistence(timeout: 30),
                       "Website clearing must change the Cookie header observed by the same HTTP server.")
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_1").exists,
@@ -663,14 +647,22 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(marker.waitForExistence(timeout: 10))
         return marker.label
     }
-    private func openInNewTab(_ url: URL) {
-        library(); tap(app.buttons["browser.tabs.new"])
+    /// Like the Play build there is one tab: close the current page, then open the URL.
+    private func openInFreshPage(_ url: URL) {
+        let close = app.buttons["browser.closePage"]
+        if close.waitForExistence(timeout: 5) { tap(close) }
         let field = app.textFields["browser.address"]
         tap(field)
-        XCTAssertFalse((field.value as? String ?? "").hasPrefix("http://"), "New tab must start empty.")
+        XCTAssertFalse((field.value as? String ?? "").hasPrefix("http://"), "The start page must start empty.")
         field.typeText(url.absoluteString + "\n")
     }
-    private func library() { tap(app.buttons["browser.library"]); XCTAssertTrue(app.buttons["browser.library.close"].waitForExistence(timeout: 10)) }
+    private func openSignIns() {
+        navigateMikaSection("memory", in: app)
+        let entry = app.buttons["memory.manageWebsites"]
+        revealLearningElement(entry, in: app)
+        tap(entry)
+        XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 15))
+    }
     private func text(_ marker: String) -> XCUIElement { app.webViews.staticTexts.matching(NSPredicate(format: "label == %@", marker)).firstMatch }
     private func tap(_ element: XCUIElement, timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line) {
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true AND enabled == true"), object: element)

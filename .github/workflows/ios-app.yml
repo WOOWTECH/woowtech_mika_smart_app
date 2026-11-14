@@ -33,7 +33,7 @@ on:
       test_scope:
         description: Focused validation without cancelling the full regression matrix
         type: choice
-        options: [all, live-model, live-mcp, interaction, parity, workspace, login, files, file-picker, picker-direct, picker-coordinated, picker-uikit, picker-uikit-copy, picker-user-copy, pdf-assembly, pdf-assembly-uikit, pdf-assembly-copy, pdf-assembly-multi, pdf-pair-coordinated, profile-tool, memory-tools, documents-chat, pdf-export, authoring, skill-settings, transcript, memory-ui, memory-rollback, learning, browser, core, native, startup, ui-startup, ui-chat, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-profile, ui-memory-tools, ui-skills, ui-documents, ui-pdf-capability, ui-download-pdf, ui-mcp]
+        options: [all, live-model, live-mcp, interaction, parity, workspace, login, memory-tools, documents-chat, skill-settings, memory-ui, memory-rollback, learning, browser, core, native, startup, ui-startup, ui-chat, ui-language, ui-notifications, ui-archive, ui-workspace, ui-browser, ui-learning, ui-memory, ui-memory-tools, ui-documents, ui-mcp]
         default: all
 
 permissions:
@@ -108,14 +108,10 @@ jobs:
           python3 scripts/check_ui_test_language.py
           swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
           build/CheckMemoryDataLocalization
-          python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
           swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
           build/MCPSettingsChecks
       - name: Test synthetic provider speech standalone gates
         run: bash scripts/check_provider_speech_ci.sh
-      - name: Test native PDF skill execution once
-        timeout-minutes: 8
-        run: bash scripts/check_skill_execution.sh 2>&1 | tee build/skill-execution-native.log
       - name: Preserve preflight evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -243,10 +239,6 @@ jobs:
         run: |
           if [ -f build/test-simulator-id.txt ]; then
             python3 scripts/copy_browser_site_clear_diagnostics.py "$(cat build/test-simulator-id.txt)" build/browser-site-clear.json
-            if [ -d build/full/${{ matrix.id }}/ui-documents/diagnostics ]; then
-              python3 scripts/copy_skill_fixture_diagnostics.py "$(cat build/test-simulator-id.txt)" \
-                build/full/${{ matrix.id }}/ui-documents/diagnostics build/skill-pdf-fixture-evidence.json
-            fi
           fi
       - name: Clean up only an owned disposable simulator
         if: always()
@@ -262,7 +254,6 @@ jobs:
             ios/build/test-simulator.json
             ios/build/simulator-boot.log
             ios/build/browser-site-clear.json
-            ios/build/skill-pdf-fixture-evidence.json
           if-no-files-found: warn
           compression-level: 0
           overwrite: true
@@ -369,10 +360,6 @@ jobs:
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
       - name: Test synthetic provider speech standalone gates
         run: bash scripts/check_provider_speech_ci.sh
-      - name: Test native PDF skill execution
-        if: github.event_name != 'workflow_dispatch' || inputs.test_scope == 'files' || inputs.test_scope == 'all'
-        timeout-minutes: 6
-        run: bash scripts/check_skill_execution.sh 2>&1 | tee build/skill-execution-native.log
       - name: Test simulator selection
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
       - name: Check interface language resources and explicit UI launch languages
@@ -381,9 +368,6 @@ jobs:
           python3 scripts/check_ui_test_language.py
           swiftc Sources/App/AppLanguage.swift Sources/App/MemoryDataLocalization.swift scripts/CheckMemoryDataLocalization.swift -o build/CheckMemoryDataLocalization
           build/CheckMemoryDataLocalization
-      - name: Test synthetic PDF fixture evidence guards
-        if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","files","file-picker"]'), inputs.test_scope)
-        run: python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
       - name: Test App MCP credential isolation
         run: |
           swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
@@ -423,9 +407,9 @@ jobs:
         # Eleven additional UI cases and hosted DOM integration need their own
         # time plus xcresult export. Login declares 420 seconds for the complete
         # login/tab/relaunch/logout flow; other cases retain their own limits.
-        # Single-method picker experiments need bounded bootstrap feedback.
+        # Small focused scopes need bounded bootstrap feedback.
         # Other scopes retain their previous limit; this does not retry a case.
-        timeout-minutes: ${{ contains(fromJSON('["picker-direct","picker-coordinated","picker-uikit","picker-uikit-copy","picker-user-copy","pdf-assembly","pdf-assembly-uikit","pdf-assembly-copy","pdf-assembly-multi","pdf-pair-coordinated","documents-chat","ui-notifications"]'), inputs.test_scope) && 20 || 55 }}
+        timeout-minutes: ${{ contains(fromJSON('["documents-chat","ui-notifications"]'), inputs.test_scope) && 20 || 55 }}
         run: |
           simulator_options=()
           if [ "$WOOW_FRESH_SIMULATOR" = true ]; then simulator_options+=(--fresh); fi
@@ -458,61 +442,13 @@ jobs:
               test "${#test_filters[@]}" -gt 0
               ;;
             login)
-              test_filters=(-only-testing:WoowAssistantUITests/BrowserLoginUITests/testNativeFormLoginSharesCookieAcrossTabsAndRelaunchThenLogout)
-              ;;
-            file-picker)
-              test_filters=(-only-testing:AssistantSkillsTests/SkillExecutionTests -only-testing:WoowAssistantUITests/BrowserUploadUITests -only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeFilesPDFNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            picker-direct)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeFilesPDFNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            picker-coordinated)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testCoordinatedFixtureCreationNativePDFNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            picker-uikit)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenInPlaceCoordinatedPDFNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            picker-uikit-copy)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitImportCopyCoordinatedPDFNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            picker-user-copy)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyNeedsBothApprovalsAndReturnsActualText)
-              ;;
-            pdf-assembly)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativePDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
-              ;;
-            pdf-assembly-uikit)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUIKitOpenPDFAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
-              ;;
-            pdf-assembly-copy)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testUserChosenPDFImportCopyAssemblyReviewsReversedPagesAndExportCancellationPreservesResult)
-              ;;
-            pdf-assembly-multi)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testUserChosenCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages)
-              ;;
-            pdf-pair-coordinated)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillPDFAssemblyMultiFileUITests/testDirectoryCoordinatedFixtureCopyAddsTwoDistinctPDFsAndInterleavesApprovedPages)
-              ;;
-            profile-tool)
-              test_filters=(-only-testing:WoowAssistantUITests/UserProfileToolUITests)
+              test_filters=(-only-testing:WoowAssistantUITests/BrowserLoginUITests/testNativeFormLoginSharesCookieAcrossPagesAndRelaunchThenLogout)
               ;;
             memory-tools)
               test_filters=(-only-testing:WoowAssistantUITests/MemoryToolUITests)
               ;;
-            pdf-export)
-              test_filters=(-only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeExportSavesTextToChosenLocalFolder -only-testing:WoowAssistantUITests/SkillExecutionUITests/testNativeExportCancellationPreservesResultAndAllowsRetry)
-              ;;
-            authoring)
-              test_filters=(-only-testing:AssistantSkillsTests/SkillAuthoringBridgeTests -only-testing:WoowAssistantUITests/SkillAuthoringUITests)
-              ;;
-            transcript)
-              test_filters=(-only-testing:AssistantSkillsTests/TranscriptRuntimeTests -only-testing:AssistantSkillsTests/TranscriptCommandRecoveryTests -only-testing:AssistantSkillsTests/TranscriptReferenceTests -only-testing:AssistantSkillsTests/TranscriptReferenceAppIntegrationTests -only-testing:AssistantBrowserIntegrationTests/BrowserSessionNavigationTests -only-testing:WoowAssistantUITests/TranscriptUITests)
-              ;;
             skill-settings)
               test_filters=(-only-testing:AssistantSkillsTests/SelfConfigurationTests -only-testing:WoowAssistantUITests/SelfConfigurationUITests)
-              ;;
-            files)
-              test_filters=(-only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests/BrowserDownloadTests -only-testing:AssistantDomainTests/BrowserNavigationIntentTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserUploadUITests -only-testing:WoowAssistantUITests/SkillExecutionUITests)
               ;;
             workspace)
               test_filters=(-only-testing:AssistantDomainTests/BrowserLibraryTests -only-testing:AssistantDomainTests/BrowserNavigationIntentTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserWorkspaceUITests -only-testing:WoowAssistantUITests/BrowserLoginUITests -only-testing:WoowAssistantUITests/BrowserSiteModesUITests -only-testing:WoowAssistantUITests/BrowserSearchUITests -only-testing:WoowAssistantUITests/BrowserExternalOpenUITests)
@@ -527,7 +463,7 @@ jobs:
               test_filters=(-only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserInteractionUITests)
               ;;
             parity)
-              test_filters=(-only-testing:AssistantMCPTests -only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/MCPConversationUITests -only-testing:WoowAssistantUITests/BrowserInteractionUITests -only-testing:WoowAssistantUITests/BrowserLearningUITests -only-testing:WoowAssistantUITests/SkillCatalogUITests -only-testing:WoowAssistantUITests/SkillAuthoringUITests -only-testing:WoowAssistantUITests/MemoryUITests -only-testing:WoowAssistantUITests/MemoryRaceUITests)
+              test_filters=(-only-testing:AssistantMCPTests -only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/MCPConversationUITests -only-testing:WoowAssistantUITests/BrowserInteractionUITests -only-testing:WoowAssistantUITests/BrowserLearningUITests -only-testing:WoowAssistantUITests/MemoryUITests -only-testing:WoowAssistantUITests/MemoryRaceUITests)
               ;;
             startup)
               test_filters=(-only-testing:WoowAssistantUITests/WoowAssistantUITests/testEverySectionIsReachableAndPhoneControlIsExcluded)
@@ -559,7 +495,7 @@ jobs:
             xcrun xcresulttool export diagnostics --path build/Tests.xcresult --output-path build/diagnostics
           fi
       - name: Verify every selected shard case completed without skips
-        if: always() && github.event_name == 'workflow_dispatch' && (startsWith(inputs.test_scope, 'ui-') || contains(fromJSON('["native","picker-user-copy","pdf-assembly","pdf-assembly-uikit","pdf-assembly-copy","pdf-assembly-multi","pdf-pair-coordinated","profile-tool","memory-tools","documents-chat"]'), inputs.test_scope))
+        if: always() && github.event_name == 'workflow_dispatch' && (startsWith(inputs.test_scope, 'ui-') || contains(fromJSON('["native","memory-tools","documents-chat"]'), inputs.test_scope))
         env:
           VALIDATION_SCOPE: ${{ inputs.test_scope }}
         run: |
@@ -578,15 +514,6 @@ jobs:
           if not completion['verified']:
               raise SystemExit('Selected tests did not all complete successfully without skips')
           PY
-      - name: Collect synthetic PDF fixture evidence
-        if: always()
-        run: |
-          if [ -f build/test-simulator-id.txt ]; then
-            python3 scripts/copy_skill_fixture_diagnostics.py "$(cat build/test-simulator-id.txt)" build/diagnostics build/skill-pdf-fixture-evidence.json
-          else
-            mkdir -p build
-            python3 -c 'import json; from pathlib import Path; Path("build/skill-pdf-fixture-evidence.json").write_text(json.dumps({"version": 1, "observation": "unavailable", "reason": "no-simulator-id"}) + "\n")'
-          fi
       - name: Delete only the owned disposable simulator
         if: always()
         timeout-minutes: 4
@@ -604,7 +531,6 @@ jobs:
             ios/build/ui-shard-completion.json
             ios/build/app-configuration.json
             ios/build/browser-site-clear.json
-            ios/build/skill-pdf-fixture-evidence.json
             ios/build/screenshots/
             ios/build/diagnostics/
           if-no-files-found: warn

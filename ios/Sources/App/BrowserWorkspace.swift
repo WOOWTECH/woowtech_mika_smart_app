@@ -24,15 +24,15 @@ final class BrowserWorkspace: ObservableObject {
     @Published private(set) var available = false
     @Published private(set) var websiteRecords: [WKWebsiteDataRecord] = []
     @Published private(set) var isClearingWebsiteData = false
+    /// Memory › Saved data › Website sign-ins shows its list over the browser.
+    @Published var presentsSignIns = false
     private var sessions: [UUID: BrowserSession] = [:]
     private var websiteRecordRevision = UUID()
     private var vault: EncryptedLearningFile?
     let websiteDataStore: WKWebsiteDataStore
-    let downloads: BrowserDownloadManager
     #if DEBUG
     private var uploadFixtureStarted = false
     private var loginFixtureStarted = false
-    private var downloadPDFFixtureStarted = false
     #endif
 
     init(dataStore injectedDataStore: WKWebsiteDataStore? = nil,
@@ -58,11 +58,9 @@ final class BrowserWorkspace: ObservableObject {
         #endif
         if let injectedDataStore { dataStore = injectedDataStore }
         websiteDataStore = dataStore
-        let downloadRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let downloadDirectory = downloadRoot.appendingPathComponent("BrowserDownloads/" + (invalidTestScope ? UUID().uuidString : scope), isDirectory: true)
-        if reset { try? FileManager.default.removeItem(at: downloadDirectory) }
-        downloads = BrowserDownloadManager(directory: downloadDirectory)
+        // Earlier versions kept browser downloads here; like the Play build the
+        // browser no longer downloads files, so remove what an upgrade left.
+        Self.removeLegacyDownloads()
         selected = BrowserSession(dataStore: dataStore)
         do {
             guard !invalidTestScope else { throw BrowserLibraryError.invalidState }
@@ -89,10 +87,9 @@ final class BrowserWorkspace: ObservableObject {
     }
 
     /// Exercise actual workspace persistence with an isolated file/key store.
-    /// Does not open the personal profile, Keychain or download directory.
-    init(dataStore: WKWebsiteDataStore, vault: EncryptedLearningFile, downloadDirectory: URL) {
+    /// Does not open the personal profile or Keychain.
+    init(dataStore: WKWebsiteDataStore, vault: EncryptedLearningFile) {
         websiteDataStore = dataStore
-        downloads = BrowserDownloadManager(directory: downloadDirectory)
         selected = BrowserSession(dataStore: dataStore)
         do {
             let loaded = try vault.load(BrowserLibraryState.self) ?? BrowserLibraryState()
@@ -151,18 +148,6 @@ final class BrowserWorkspace: ObservableObject {
 
     func activateSelected() {
         #if DEBUG
-        if !downloadPDFFixtureStarted, let fixture = BrowserDownloadedPDFFixture.enabled {
-            downloadPDFFixtureStarted = true
-            Task { [weak self] in
-                do {
-                    let url = try await fixture.start()
-                    guard let self else { return }
-                    while self.isClearingWebsiteData { try await Task.sleep(nanoseconds: 50_000_000) }
-                    self.open(url)
-                } catch { self?.selected.reportDownloadPDFFixtureFailure() }
-            }
-            return
-        }
         if !uploadFixtureStarted, let fixture = BrowserUploadFixture.enabled {
             uploadFixtureStarted = true
             Task { [weak self] in
@@ -191,6 +176,12 @@ final class BrowserWorkspace: ObservableObject {
         guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.address.isEmpty, selected.manualLoadDiagnostics == nil else { return }
         selected.openAddress()
     }
+    private static func removeLegacyDownloads() {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let legacy = support.appendingPathComponent("BrowserDownloads", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: legacy.path) else { return }
+        try? FileManager.default.removeItem(at: legacy)
+    }
     @discardableResult private func update(_ change: (inout BrowserLibraryState) throws -> Void) -> Bool {
         guard available, let vault else { errorText = .browserSaveUnavailable; return false }
         do {
@@ -203,15 +194,13 @@ final class BrowserWorkspace: ObservableObject {
         let session = BrowserSession(dataStore: websiteDataStore, configuration: configuration)
         session.manualSiteMode = { [weak self] host in self?.library.userSiteModes.mode(for: host) ?? .mobile }
         session.manualSearchSettings = { [weak self] in self?.library.searchSettings ?? .init() }
-        session.downloads = downloads
         session.canPresentUI = { [weak self] in self?.library.selectedID == id && self?.isClearingWebsiteData == false }
         session.address = library.tabs.first(where: { $0.id == id })?.url?.absoluteString ?? ""
         session.onPageFinished = { [weak self] url, title in
             #if DEBUG
             // Fixture HTTP pages exercise WebKit state, not the public-HTTPS
             // bookmark library. Do not invent persistent public URLs for them.
-            if BrowserUploadFixture.enabled?.allows(url) == true || BrowserLoginFixture.enabled?.allows(url) == true
-                || BrowserDownloadedPDFFixture.enabled?.allowsNavigation(url) == true { return }
+            if BrowserUploadFixture.enabled?.allows(url) == true || BrowserLoginFixture.enabled?.allows(url) == true { return }
             #endif
             _ = self?.update { try $0.visit(tab: id, url: url, title: title) }
         }
@@ -320,7 +309,6 @@ final class BrowserWorkspace: ObservableObject {
                         "persistent": websiteDataStore.isPersistent ? 1 : 0])
         #endif
         isClearingWebsiteData = true
-        for item in downloads.items where item.status.isActive { downloads.cancel(id: item.id) }
         let oldSessions = Array(sessions.values)
         for session in oldSessions { session.cancel() }
         Task { [weak self] in

@@ -67,10 +67,13 @@ final class ChatAttachmentUITests: XCTestCase {
 
         navigate("settings")
         openModelSettings(in: app)
-        let sees = app.switches["settings.seesImages"].firstMatch
-        revealLearningElement(sees, in: app); ready(sees)
+        // As on Android, 能看圖 belongs to each model: its provider's page › 用作.
+        openModelUseAs(provider: "model.invalid", model: "fixture", in: app)
+        let sees = app.switches["useAs.seesImages"].firstMatch
+        ready(sees)
         XCTAssertEqual(sees.value as? String, "0")
         turnOn(sees)
+        closeModelUseAs(provider: "model.invalid", in: app)
         returnFromModelSettings(in: app)
         navigate("chat")
 
@@ -128,7 +131,8 @@ final class ChatAttachmentUITests: XCTestCase {
         dismissSettingsKeyboard()
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
-        tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
+        tap("settings.dismissKeyboard"); tap("setup.test", scroll: true)
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)

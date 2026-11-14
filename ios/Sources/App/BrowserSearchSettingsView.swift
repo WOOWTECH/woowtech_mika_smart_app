@@ -76,7 +76,7 @@ struct BrowserSearchSettingsView: View {
                 .navigationTitle(localizer.text(.searchTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("完成") { dismiss() }.accessibilityIdentifier("browser.searchEngine.close")
+                        Button(localizer.text(.commonDone)) { dismiss() }.accessibilityIdentifier("browser.searchEngine.close")
                     }
                 }
             }

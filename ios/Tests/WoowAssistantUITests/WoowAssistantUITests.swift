@@ -83,8 +83,10 @@ final class WoowAssistantUITests: XCTestCase {
         for _ in 0..<6 where !websiteLink.isHittable { app.swipeUp() }
         XCTAssertTrue(websiteLink.isHittable)
         websiteLink.tap()
+        XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
+        attachScreenshot("09-sign-ins-from-memory", in: app)
+        app.buttons["signIns.close"].tap()
         XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
-        attachScreenshot("09-browser-from-memory", in: app)
         XCTAssertEqual(app.buttons["section.back"].label, "返回記憶")
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 10))
@@ -94,14 +96,9 @@ final class WoowAssistantUITests: XCTestCase {
 
         openSection("browser", in: app)
         XCTAssertTrue(app.textFields["browser.address"].waitForExistence(timeout: 10))
-        let library = app.buttons["browser.library"]
-        XCTAssertTrue(library.isHittable)
-        library.tap()
-        XCTAssertTrue(app.buttons["browser.library.close"].waitForExistence(timeout: 10))
-        attachScreenshot("11-browser-library", in: app)
-        app.buttons["browser.library.close"].tap()
-        XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
-        attachScreenshot("12-browser-return-from-library", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.library"].exists, "Like the Play build, favorites and recent pages are on the start page.")
+        attachScreenshot("11-browser-start-page", in: app)
         app.buttons["section.back"].tap()
         XCTAssertTrue(app.buttons["chat.menu"].waitForExistence(timeout: 10))
 
@@ -128,7 +125,9 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(app.buttons["chat.newConversation"].label, "新對話")
         app.buttons["chat.menu"].tap()
         XCTAssertEqual(app.buttons["drawer.close"].label, "關閉選單")
-        for section in sections { XCTAssertTrue(app.buttons["navigation.\(section)"].exists) }
+        // Like Play's drawer: 新對話 takes the place of a Chat row; the rest are routes.
+        XCTAssertTrue(app.buttons["drawer.newConversation"].exists)
+        for section in sections where section != "chat" { XCTAssertTrue(app.buttons["navigation.\(section)"].exists) }
         app.buttons["drawer.close"].tap()
         openSection("chat", in: app)
     }
@@ -174,7 +173,9 @@ final class WoowAssistantUITests: XCTestCase {
         waitUntilHittable(fix)
         fix.tap()
         XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10))
+        // No provider yet: the add form is open on the Play build's first chip.
+        XCTAssertTrue(app.secureTextFields["settings.apiKey"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["setup.preset.OpenRouter"].isSelected)
         returnFromModelSettings(in: app)
     }
 
@@ -224,13 +225,27 @@ final class WoowAssistantUITests: XCTestCase {
         let feedback = app.buttons["settings.about.feedback"]
         XCTAssertTrue(feedback.waitForExistence(timeout: 10))
         XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("woowtech@designsmart.com.tw"))
-        for id in ["repository", "guide", "license"] {
+        for id in ["repository", "guide"] {
             XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
                            "GitHub entry still shown: \(id)")
         }
         XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
         XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
                        "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
+        // Play's About › Released under Apache-2.0 license → Licenses, with the
+        // upstream texts; no repository link.
+        let license = app.buttons["settings.about.license"]
+        for _ in 0..<5 where !license.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        waitUntilHittable(license)
+        XCTAssertTrue(license.label.contains("Apache-2.0"), license.label)
+        license.tap()
+        let licenses = app.navigationBars["Apache-2.0 授權條款"]
+        XCTAssertTrue(licenses.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.license.text"].waitForExistence(timeout: 10))
+        let licensesBack = licenses.buttons.firstMatch
+        waitUntilHittable(licensesBack)
+        licensesBack.tap()
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
 
         XCTAssertFalse(app.buttons["section.back"].isHittable)
         let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
@@ -556,13 +571,25 @@ final class WoowAssistantUITests: XCTestCase {
     func testHTTPSValidationThenConfiguredChatWithoutAutomaticHistoryRestore() {
         let app = launchApp()
         fillConfiguration(in: app, baseURL: "http://model.example.invalid/v1")
-        save(in: app)
-        XCTAssertTrue(app.staticTexts["settings.error"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["settings.error"].label.contains("HTTPS"))
-        XCTAssertEqual(app.staticTexts["settings.keyStatus"].label, "尚未儲存金鑰。")
+        // As on the Play build, the form says why and offers no save for plain HTTP.
+        let problem = app.staticTexts["setup.urlProblem"]
+        XCTAssertTrue(problem.waitForExistence(timeout: 5))
+        XCTAssertTrue(problem.label.contains("https://"))
+        let save = app.buttons["settings.save"]
+        revealSettings(save, in: app)
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertFalse(app.buttons["setup.test"].isEnabled)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "models.provider.")).firstMatch.exists)
         replaceBaseURL(fixtureURL, in: app)
-        save(in: app)
-        assertSaved(in: app)
+        XCTAssertFalse(problem.exists)
+        self.save(in: app)
+        confirmModelSave(in: app)
+        assertSaved(in: app, tested: false)
+        // As on the Play build, an untested save chooses no main model: 選主模型
+        // tests the typed model first, then asks for the consent.
+        XCTAssertTrue(app.buttons["models.provider.model.example.invalid"].exists)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
+        chooseMainAfterUntestedSave("ui-test-model", in: app)
         returnFromModelSettings(in: app)
         // Like Android, the Model row names the provider (here its host), not the model ID.
         let modelRow = app.buttons["settings.modelJump"]
@@ -574,11 +601,15 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)
+        // Like Play, the drawer lists the saved chat; its note says it is kept encrypted here.
         app.buttons["chat.menu"].tap()
-        app.buttons["drawer.archive"].tap()
-        XCTAssertTrue(app.staticTexts["archive.boundary"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["archive.boundary"].label.contains("加密保存在此裝置"))
-        app.buttons["archive.close"].tap()
+        let boundary = app.staticTexts["drawer.recent.boundary"]
+        XCTAssertTrue(boundary.waitForExistence(timeout: 10))
+        XCTAssertTrue(boundary.label.contains("此裝置已加密保存"), boundary.label)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@",
+                                                       "drawer.recent.row.", "Hello fixture 17")).firstMatch
+            .waitForExistence(timeout: 10))
+        app.buttons["drawer.close"].tap()
         assertDraft("", in: app)
         attachScreenshot("fixture-reply", in: app)
 
@@ -592,20 +623,38 @@ final class WoowAssistantUITests: XCTestCase {
     func testStoredKeyCanBeReusedButNotForDifferentHost() {
         let app = launchApp()
         configure(in: app)
-        // An empty SecureField reuses the existing Keychain item.
+        // The key stays with its provider, whose address cannot be edited.
+        openModelProvider("model.example.invalid", in: app)
+        XCTAssertEqual(app.staticTexts["provider.keyStatus"].label, "已儲存")
+        XCTAssertTrue(app.descendants(matching: .any)["provider.url"].label.contains("model.example.invalid/v1"))
+        XCTAssertFalse(app.textFields["settings.baseURL"].exists)
+        returnFromModelProvider("model.example.invalid", in: app)
+        // Another host is another provider. Left blank, its key stays empty: the
+        // first provider's key never goes there, and its model does not become main.
+        let add = app.buttons["models.addProvider"]
+        revealSettings(add, in: app)
+        add.tap()
+        let custom = app.buttons["setup.preset.custom"]
+        revealSettings(custom, in: app)
+        custom.tap()
+        fillForm(in: app, baseURL: "https://other.example.invalid/v1", model: "other-model", key: nil)
         save(in: app)
-        assertSaved(in: app)
-        replaceBaseURL("https://other.example.invalid/v1", in: app)
-        save(in: app)
-        XCTAssertTrue(app.staticTexts["settings.error"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["settings.error"].label.contains("重新輸入"))
+        confirmModelSave(in: app)
+        let notice = app.staticTexts["settings.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.label.contains("other.example.invalid"))
+        openModelProvider("other.example.invalid", in: app)
+        XCTAssertEqual(app.staticTexts["provider.keyStatus"].label, "沒有填")
+        returnFromModelProvider("other.example.invalid", in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
         returnFromModelSettings(in: app)
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("settings", in: relaunched)
         openModelSettings(in: relaunched)
-        XCTAssertEqual(relaunched.textFields["settings.baseURL"].value as? String, fixtureURL)
-        XCTAssertTrue(relaunched.staticTexts["settings.keyStatus"].label.contains("已儲存金鑰"))
+        openModelProvider("model.example.invalid", in: relaunched)
+        XCTAssertEqual(relaunched.staticTexts["provider.keyStatus"].label, "已儲存")
+        returnFromModelProvider("model.example.invalid", in: relaunched)
         returnFromModelSettings(in: relaunched)
     }
 
@@ -645,28 +694,31 @@ final class WoowAssistantUITests: XCTestCase {
 
     func testSavedModelConnectionTestDoesNotUseUnsavedAddress() {
         let app = launchApp()
-        configure(in: app)
-        let status = app.staticTexts["settings.connectionStatus"]
-        let test = app.buttons["settings.testConnection"]
+        fillConfiguration(in: app)
+        let test = app.buttons["setup.test"]
         revealSettings(test, in: app)
-        XCTAssertEqual(status.label, "尚未測試連線。")
         XCTAssertTrue(test.isEnabled)
         test.tap()
-        let passed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@",
-            "文字回覆測試通過；未驗證工具或其他能力。"), object: status)
-        XCTAssertEqual(XCTWaiter.wait(for: [passed], timeout: 10), .completed)
-        XCTAssertFalse(app.staticTexts["settings.notice"].exists)
-
-        replaceBaseURL("https://different.example.invalid/v1", in: app)
-        revealSettings(test, in: app)
-        XCTAssertEqual(status.label, "尚未測試連線。")
-        XCTAssertFalse(test.isEnabled, "An unsaved address must never receive the stored key")
-
+        // The test call used the typed address, model and key. Saving the first
+        // main model still asks for the consent before anything is stored.
+        agreeToModelConsent(in: app)
+        let notice = app.staticTexts["settings.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 10))
+        XCTAssertTrue(notice.label.contains("測試通過"))
+        XCTAssertFalse(app.staticTexts["settings.error"].exists)
+        // A provider that passed has nothing to test again, and its address is fixed.
+        openModelProvider("model.example.invalid", in: app)
+        XCTAssertFalse(app.buttons["provider.retest"].exists)
+        XCTAssertFalse(app.textFields["settings.baseURL"].exists)
+        returnFromModelProvider("model.example.invalid", in: app)
+        returnFromModelSettings(in: app)
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("settings", in: relaunched); openModelSettings(in: relaunched)
-        XCTAssertEqual(relaunched.textFields["settings.baseURL"].value as? String, fixtureURL)
-        XCTAssertEqual(relaunched.staticTexts["settings.connectionStatus"].label, "尚未測試連線。")
+        let row = relaunched.buttons["models.provider.model.example.invalid"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertFalse(row.label.contains("沒測試通過"), "A provider that passed carries no warning")
+        returnFromModelSettings(in: relaunched)
     }
 
     func testDelayedConnectionEditsCannotPublishOldResult() throws {
@@ -674,10 +726,9 @@ final class WoowAssistantUITests: XCTestCase {
         throw XCTSkip("The delayed connection fixture requires an isolated simulator")
         #else
         executionTimeAllowance = 300
-        for (index, field) in ["url", "model", "key"].enumerated() {
-            let app = launchApp(resetStorage: index == 0, delayedConnection: true)
-            if index == 0 { configure(in: app) }
-            else { openSection("settings", in: app); openModelSettings(in: app) }
+        for field in ["url", "model", "key"] {
+            let app = launchApp(delayedConnection: true)
+            fillConfiguration(in: app)
             startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
             switch field {
             case "url": replaceBaseURL("https://other.example.invalid/v1", in: app)
@@ -690,20 +741,22 @@ final class WoowAssistantUITests: XCTestCase {
                 revealSettings(key, in: app, upward: false)
                 key.tap(); key.typeText("x\n")
             }
-            waitConnectionStatus("尚未測試連線。", in: app)
+            // Android edit(): a change drops the running test, and its late pass saves nothing.
+            waitTestButton("測試並儲存", in: app)
             waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
             releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
-            waitConnectionStatus("尚未測試連線。", in: app)
-            XCTAssertFalse(app.buttons["settings.testConnection"].isEnabled, "Unsaved \(field) must prevent a test")
+            waitTestButton("測試並儲存", in: app)
+            assertNothingSaved(in: app, "after a \(field) edit")
             app.terminate()
         }
-        let app = launchApp(resetStorage: false, delayedConnection: true)
-        openSection("settings", in: app); openModelSettings(in: app)
-        XCTAssertEqual(app.textFields["settings.baseURL"].value as? String, fixtureURL)
-        XCTAssertEqual(app.textFields["settings.model"].value as? String, "ui-test-model")
+        let app = launchApp(delayedConnection: true)
+        fillConfiguration(in: app)
         startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
-        releaseDelayedConnection(in: app, started: 1, cancelled: 0, released: 1, settled: 1)
-        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        tapFixtureRelease(in: app)
+        agreeToModelConsent(in: app)
+        let notice = app.staticTexts["settings.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 10))
+        XCTAssertTrue(notice.label.contains("測試通過"))
         returnFromModelSettings(in: app); openSection("chat", in: app)
         send("Saved connection still works", in: app)
         assertReply("測試回覆：Saved connection still works", in: app)
@@ -716,31 +769,53 @@ final class WoowAssistantUITests: XCTestCase {
         #else
         executionTimeAllowance = 300
         let app = launchApp(delayedConnection: true)
-        configure(in: app)
+        fillConfiguration(in: app)
+        // Leaving the page drops the running test; its late pass saves nothing.
         startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
-        let cancel = app.buttons["settings.cancelConnectionTest"]
-        revealSettings(cancel, in: app); cancel.tap()
-        waitConnectionStatus("尚未測試連線。", in: app)
+        returnFromModelSettings(in: app); openModelSettings(in: app)
         waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
         releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
-        waitConnectionStatus("尚未測試連線。", in: app)
-
+        assertNothingSaved(in: app, "after leaving the page")
+        // Saved without a test, then added again and the form cancelled while
+        // its test is pending: the late pass neither saves nor marks it tested.
+        fillForm(in: app)
+        save(in: app); confirmModelSave(in: app); assertSaved(in: app, tested: false)
+        let add = app.buttons["models.addProvider"]
+        revealSettings(add, in: app)
+        add.tap()
+        let custom = app.buttons["setup.preset.custom"]
+        revealSettings(custom, in: app)
+        custom.tap()
+        fillForm(in: app)
         startDelayedConnection(in: app, started: 2, released: 1, settled: 1)
-        save(in: app); assertSaved(in: app)
-        waitConnectionStatus("尚未測試連線。", in: app)
+        let cancel = app.buttons["setup.cancel"]
+        revealSettings(cancel, in: app, upward: false)
+        cancel.tap()
         waitConnectionFixture(in: app, started: 2, cancelled: 2, released: 1, settled: 1)
         releaseDelayedConnection(in: app, started: 2, cancelled: 2, released: 2, settled: 2)
-        waitConnectionStatus("尚未測試連線。", in: app)
-
-        startDelayedConnection(in: app, started: 3, released: 2, settled: 2)
-        returnFromModelSettings(in: app); openModelSettings(in: app)
-        waitConnectionStatus("尚未測試連線。", in: app)
-        waitConnectionFixture(in: app, started: 3, cancelled: 3, released: 2, settled: 2)
-        releaseDelayedConnection(in: app, started: 3, cancelled: 3, released: 3, settled: 3)
-        waitConnectionStatus("尚未測試連線。", in: app)
-        startDelayedConnection(in: app, started: 4, released: 3, settled: 3)
-        releaseDelayedConnection(in: app, started: 4, cancelled: 3, released: 4, settled: 4)
-        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        XCTAssertFalse(app.buttons["consent.agree"].exists, "A cancelled test must not ask to save")
+        openModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.staticTexts["provider.untested"].exists)
+        // 重新測試 on the provider's page uses its saved address, model and key.
+        let retest = app.buttons["provider.retest"]
+        revealSettings(retest, in: app)
+        retest.tap()
+        waitConnectionFixture(in: app, started: 3, cancelled: 2, released: 2, settled: 2)
+        releaseDelayedConnection(in: app, started: 3, cancelled: 2, released: 3, settled: 3)
+        let status = app.staticTexts["provider.retestStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertTrue(status.label.contains("測試通過"))
+        XCTAssertFalse(app.staticTexts["provider.untested"].exists)
+        // The tested model becomes the main model from its 用作 sheet, after the consent.
+        let model = app.buttons["provider.model.ui-test-model"]
+        revealSettings(model, in: app)
+        model.tap()
+        let useAsMain = app.buttons["useAs.main"]
+        XCTAssertTrue(useAsMain.waitForExistence(timeout: 10))
+        useAsMain.tap()
+        agreeToModelConsent(in: app)
+        returnFromModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
         returnFromModelSettings(in: app); openSection("chat", in: app)
         send("Saved after cancellation", in: app)
         assertReply("測試回覆：Saved after cancellation", in: app)
@@ -753,7 +828,7 @@ final class WoowAssistantUITests: XCTestCase {
         #else
         executionTimeAllowance = 300
         let app = launchApp(delayedConnection: true)
-        configure(in: app)
+        fillConfiguration(in: app)
         startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
         XCUIDevice.shared.press(.home)
         let background = NSPredicate { _, _ in
@@ -761,20 +836,59 @@ final class WoowAssistantUITests: XCTestCase {
         }
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: background, object: nil)], timeout: 10), .completed)
         app.activate()
-        waitConnectionStatus("尚未測試連線。", in: app)
+        waitTestButton("測試並儲存", in: app)
         waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
         releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
-        waitConnectionStatus("尚未測試連線。", in: app)
+        waitTestButton("測試並儲存", in: app)
+        assertNothingSaved(in: app, "after the app went to the background")
         startDelayedConnection(in: app, started: 2, released: 1, settled: 1)
-        releaseDelayedConnection(in: app, started: 2, cancelled: 1, released: 2, settled: 2)
-        waitConnectionStatus("文字回覆測試通過；未驗證工具或其他能力。", in: app)
+        tapFixtureRelease(in: app)
+        agreeToModelConsent(in: app)
+        let notice = app.staticTexts["settings.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 10))
+        XCTAssertTrue(notice.label.contains("測試通過"))
         #endif
+    }
+
+    /// App Review 5.1.2(i): the first save that makes a main model asks first,
+    /// names the service, its host and what would be sent, and declining
+    /// saves and sends nothing.
+    func testConsentNamesTheHostAndDecliningSavesNothing() {
+        let app = launchApp()
+        fillConfiguration(in: app)
+        tapTestAndSave(in: app)
+        let title = app.staticTexts["consent.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertEqual(title.label, "要把內容傳給 model.example.invalid 嗎？")
+        XCTAssertTrue(app.staticTexts["consent.body"].label.contains("（model.example.invalid）"))
+        for item in ["chat", "attachments", "images", "profile", "memory", "skills", "memoryOrganizing", "web",
+                     "researchJudgment", "mcp"] {
+            XCTAssertTrue(app.descendants(matching: .any)["consent.item." + item].exists, "Consent lists \(item)")
+        }
+        XCTAssertTrue(app.staticTexts["consent.decline.note"].label.contains("什麼都不會傳出去"))
+        XCTAssertTrue(app.descendants(matching: .any)["consent.privacyPolicy"].exists)
+        answerModelConsent(agree: false, in: app)
+        let notice = app.staticTexts["settings.notice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.label.contains("沒有儲存"))
+        assertNothingSaved(in: app, "after declining")
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
+        // The form keeps what was typed; agreeing after the next test stores it.
+        tapTestAndSave(in: app)
+        agreeToModelConsent(in: app)
+        assertSaved(in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("ui-test-model"))
+        returnFromModelSettings(in: app)
+        openSection("chat", in: app)
+        send("After consent", in: app)
+        assertReply("測試回覆：After consent", in: app)
     }
 
     func testKeychainWriteFailureDoesNotPublishConfiguration() {
         let app = launchApp(keychainWriteFails: true)
         fillConfiguration(in: app)
         save(in: app)
+        confirmModelSave(in: app)
         XCTAssertTrue(app.staticTexts["settings.error"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["settings.error"].label.contains("Keychain"))
         returnFromModelSettings(in: app)
@@ -788,10 +902,9 @@ final class WoowAssistantUITests: XCTestCase {
         let app = launchApp()
         enterChatDraft("Draft after key removal", in: app)
         configure(in: app)
-        let remove = app.buttons["settings.remove"]
-        revealSettings(remove, in: app)
-        remove.tap()
-        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
+        // Like the Play build, a provider is removed with its key from its own page.
+        deleteModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已刪除"))
         returnFromModelSettings(in: app)
         openSection("chat", in: app)
         assertDraft("Draft after key removal", in: app)
@@ -918,25 +1031,52 @@ final class WoowAssistantUITests: XCTestCase {
     private func fillConfiguration(in app: XCUIApplication, baseURL: String? = nil) {
         openSection("settings", in: app)
         openModelSettings(in: app)
-        enter(baseURL ?? fixtureURL, into: app.textFields["settings.baseURL"])
-        let model = app.textFields["settings.model"]
-        revealSettings(model, in: app)
-        enter("ui-test-model", into: model)
-        let key = app.secureTextFields["settings.apiKey"]
-        revealSettings(key, in: app)
-        enter("fixture-only-not-a-real-key", into: key)
+        fillForm(in: app, baseURL: baseURL ?? fixtureURL)
     }
 
+    /// The add form's 自訂 fields; a nil key leaves the key blank.
+    private func fillForm(in app: XCUIApplication, baseURL: String? = nil, model: String = "ui-test-model",
+                          key: String? = "fixture-only-not-a-real-key") {
+        let address = app.textFields["settings.baseURL"]
+        revealSettings(address, in: app)
+        enter(baseURL ?? fixtureURL, into: address)
+        let modelField = app.textFields["settings.model"]
+        revealSettings(modelField, in: app)
+        enter(model, into: modelField)
+        if let key {
+            let keyField = app.secureTextFields["settings.apiKey"]
+            revealSettings(keyField, in: app)
+            enter(key, into: keyField)
+        }
+    }
+
+    /// A main model: 測試並儲存 passes on the fixture model, then the consent.
     private func configure(in app: XCUIApplication) {
         fillConfiguration(in: app)
-        save(in: app)
+        tapTestAndSave(in: app)
+        agreeToModelConsent(in: app)
         assertSaved(in: app)
     }
 
-    private func waitConnectionStatus(_ expected: String, in app: XCUIApplication) {
-        let status = app.staticTexts["settings.connectionStatus"].firstMatch
-        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: status)
+    /// 測試並儲存; the consent screen follows when the save makes the first main model.
+    private func tapTestAndSave(in app: XCUIApplication) {
+        let test = app.buttons["setup.test"]
+        revealSettings(test, in: app)
+        XCTAssertTrue(test.isEnabled)
+        test.tap()
+    }
+
+    /// 測試並儲存 reads 正在測試… while its test runs.
+    private func waitTestButton(_ expected: String, in app: XCUIApplication) {
+        let test = app.buttons["setup.test"].firstMatch
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: test)
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
+    }
+
+    private func assertNothingSaved(in app: XCUIApplication, _ when: String) {
+        XCTAssertFalse(app.buttons["consent.agree"].exists, "A stale result must not ask to save \(when)")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "models.provider.")).firstMatch.exists,
+                       "A stale result must save nothing \(when)")
     }
 
     private func waitConnectionFixture(in app: XCUIApplication, started: Int, cancelled: Int, released: Int, settled: Int) {
@@ -947,39 +1087,49 @@ final class WoowAssistantUITests: XCTestCase {
     }
 
     private func startDelayedConnection(in app: XCUIApplication, started: Int, released: Int, settled: Int) {
-        let test = app.buttons["settings.testConnection"]
+        let test = app.buttons["setup.test"]
         revealSettings(test, in: app)
         XCTAssertTrue(test.isEnabled)
         test.tap()
         waitConnectionFixture(in: app, started: started, cancelled: released, released: released, settled: settled)
-        waitConnectionStatus("正在測試連線…", in: app)
+        waitTestButton("正在測試…", in: app)
     }
 
     private func releaseDelayedConnection(in app: XCUIApplication, started: Int, cancelled: Int, released: Int, settled: Int) {
+        tapFixtureRelease(in: app)
+        waitConnectionFixture(in: app, started: started, cancelled: cancelled, released: released, settled: settled)
+    }
+
+    /// Releases the pending fixture reply; a pass then shows the consent screen over the page.
+    private func tapFixtureRelease(in app: XCUIApplication) {
         let release = app.buttons["settings.connectionFixture.release"]
         revealSettings(release, in: app)
         XCTAssertTrue(release.isEnabled)
         release.tap()
-        waitConnectionFixture(in: app, started: started, cancelled: cancelled, released: released, settled: settled)
     }
 
+    /// 不測試，直接儲存; confirmModelSave answers its question.
     private func save(in app: XCUIApplication) {
         let save = app.buttons["settings.save"]
         revealSettings(save, in: app)
         save.tap()
     }
 
-    private func assertSaved(in app: XCUIApplication) {
+    private func assertSaved(in app: XCUIApplication, tested: Bool = true) {
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("尚未驗證連線"))
+        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains(tested ? "測試通過" : "沒有測試過"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
     }
 
+    /// Deletes the typed address from its end, then types the new one.
     private func replaceBaseURL(_ value: String, in app: XCUIApplication) {
-        let clear = app.buttons["settings.clearBaseURL"]
-        revealSettings(clear, in: app, upward: false)
-        clear.tap()
-        enter(value, into: app.textFields["settings.baseURL"])
+        let field = app.textFields["settings.baseURL"]
+        revealSettings(field, in: app, upward: false)
+        let current = (field.value as? String) ?? ""
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2) + value + "\n")
+        XCTAssertEqual(field.value as? String, value)
     }
 
     private func enter(_ text: String, into field: XCUIElement) {

@@ -30,6 +30,9 @@ enum LiveModelUITestSupport {
             throw ModelSettingsError.missingKey
         }
         _ = try repository.save(baseURL: baseURL, model: model, newKey: key)
+        // The private runner stands for a user who agreed to share content
+        // with this provider (App Review 5.1.2(i)); the consent screen has its own tests.
+        try repository.recordConsentForMain()
     }
 }
 #endif

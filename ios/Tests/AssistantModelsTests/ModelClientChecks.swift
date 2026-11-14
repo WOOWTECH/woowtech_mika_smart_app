@@ -78,6 +78,59 @@ enum ModelClientChecks {
         return checks.count
     }
 
+    /// Only a custom provider saved without a key may omit it, and a
+    /// provider's session header (OpenCode Go) reaches every request, with
+    /// Android ModelSession's value: stable per conversation, never the id.
+    static func providerHeadersContract() throws -> Int {
+        var checks = Checks()
+        let url = URL(string: "https://fixture.invalid/v1")!
+        let header = ModelSessionHeader.conversation("conversation-1", name: "x-opencode-session")
+        // Java UUID.nameUUIDFromBytes("mika-conversation:conversation-1"), as Android sends it.
+        try checks.expect(header?.value == "660158ec-f423-30d0-b080-4642634c1842", "Android's session value")
+        try checks.expect(ModelSessionHeader.conversation("conversation-1", name: "x-opencode-session") == header, "stable per conversation")
+        try checks.expect(ModelSessionHeader.conversation("conversation-2", name: "x-opencode-session")?.value != header?.value,
+                          "another conversation, another value")
+        try checks.expect(header.map { !$0.value.contains("conversation-1") } == true, "the conversation id is not sent")
+        let fresh = ModelSessionHeader.fresh(name: "x-opencode-session")
+        try checks.expect(fresh != nil && fresh != ModelSessionHeader.fresh(name: "x-opencode-session"), "outside a conversation: fresh values")
+        for name in ["Authorization", "authorization", "Content-Type", "Host", "User-Agent", "Cookie", "Content-Length",
+                     "", "bad header", "x\r\ninjected", String(repeating: "x", count: 65)] {
+            try checks.expect(ModelSessionHeader(name: name, value: "v") == nil, "refused header name")
+        }
+        try checks.expect(ModelSessionHeader(name: "x-s", value: "a\r\nb") == nil && ModelSessionHeader(name: "x-s", value: "") == nil
+                          && ModelSessionHeader(name: "x-s", value: "a b") == nil, "refused header value")
+        for stream in [false, true] {
+            let keyless = ModelConfiguration(baseURL: url, model: "m", requiresKey: false)
+            for key in ["", "  "] {
+                let request = try HTTPChatModelClient.request(messages: messages, configuration: keyless, apiKey: key, stream: stream)
+                try checks.expect(request.value(forHTTPHeaderField: "Authorization") == nil, "no key: no Authorization header")
+            }
+            let keyed = try HTTPChatModelClient.request(messages: messages, configuration: keyless, apiKey: fakeKey, stream: stream)
+            try checks.expect(keyed.value(forHTTPHeaderField: "Authorization") == "Bearer \(fakeKey)", "a typed key is still sent")
+            try checks.error(.invalidConfiguration) {
+                _ = try HTTPChatModelClient.request(messages: messages, configuration: .init(baseURL: url, model: "m"), apiKey: "", stream: stream)
+            }
+            try checks.error(.invalidConfiguration) {
+                _ = try HTTPChatModelClient.request(messages: messages, configuration: keyless, apiKey: "bad\nkey", stream: stream)
+            }
+            try checks.error(.invalidConfiguration) {
+                _ = try HTTPChatModelClient.request(messages: messages, configuration: .init(baseURL: URL(string: "http://fixture.invalid/v1")!,
+                    model: "m", requiresKey: false), apiKey: "", stream: stream)
+            }
+            let session = try HTTPChatModelClient.request(messages: messages, configuration: .init(baseURL: url, model: "m", sessionHeader: header),
+                                                          apiKey: fakeKey, stream: stream)
+            try checks.expect(session.value(forHTTPHeaderField: "x-opencode-session") == header?.value, "session header sent")
+            try checks.expect(session.value(forHTTPHeaderField: "Authorization") == "Bearer \(fakeKey)", "next to the key")
+            let plain = try HTTPChatModelClient.request(messages: messages, configuration: .init(baseURL: url, model: "m"), apiKey: fakeKey, stream: stream)
+            try checks.expect(plain.value(forHTTPHeaderField: "x-opencode-session") == nil, "no session header unless the provider has one")
+        }
+        let limited = ModelConfiguration(baseURL: url, model: "m", vision: .supported, requiresKey: false, sessionHeader: header)
+            .withMaxOutputTokens(32)
+        try checks.expect(limited.maxOutputTokens == 32 && !limited.requiresKey && limited.sessionHeader == header
+                          && limited.vision == .supported && limited.model == "m", "a shorter limit keeps the key rule and header")
+        return checks.count
+    }
+
     static func parserContract() throws -> Int {
         var checks = Checks()
         let roleEvent = "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}\n\n"
@@ -376,6 +429,8 @@ enum ModelClientChecks {
             var total = 0
             let request = try ModelClientChecks.requestContract()
             total += request; print("request: \(request)")
+            let headers = try ModelClientChecks.providerHeadersContract()
+            total += headers; print("provider key and session header: \(headers)")
             let parser = try ModelClientChecks.parserContract()
             total += parser; print("parser: \(parser)")
             let completion = try await ModelClientChecks.completionTransport()

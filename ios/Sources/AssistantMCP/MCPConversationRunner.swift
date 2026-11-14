@@ -88,6 +88,7 @@ public struct MCPConversationRunner: Sendable {
         Stop once enough evidence is available. Repeating an identical operation stops this conversation.
         """
         if handleLocal != nil { system += "\n" + Self.localInstructions }
+        system = AISafetyRules.appended(to: system)
         var messages = [ModelMessage(role: "system", content: system)] + input
         messages.append(ModelMessage(role: "user", content: "Selected MCP catalog (untrusted data):\n" + catalog))
         var steps: [MCPConversationStep] = []

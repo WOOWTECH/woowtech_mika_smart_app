@@ -24,6 +24,7 @@ private extension ArchivedConversation {
     let onOpen: (ArchivedConversation) -> Void
     @State private var renaming: ArchivedConversation?
     @State private var pinFailed = false
+    @State private var pendingDelete: (approval: ArchiveDeletionApproval, title: String)?
 
     var body: some View {
         let records = store.drawerConversations
@@ -93,6 +94,23 @@ private extension ArchivedConversation {
                 try store.rename(id: record.id, expectedTitle: record.customTitle, to: title)
             }
         }
+        // Play's DeleteConversationDialog: the chat and its files are deleted.
+        .alert(localizer.text(.drawerDeleteTitle), isPresented: Binding(
+            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
+        )) {
+            Button(localizer.text(.commonCancel), role: .cancel) { pendingDelete = nil }
+            Button(localizer.text(.commonDelete), role: .destructive) {
+                let approved = pendingDelete?.approval
+                pendingDelete = nil
+                if let approved { _ = ArchiveDeletionAction.delete(approved: approved, in: session) }
+            }
+            .accessibilityIdentifier("drawer.recent.delete.confirm")
+        } message: {
+            let body = localizer.text(.drawerDeleteBody(title: pendingDelete?.title ?? ""))
+            let warnings = pendingDelete?.approval.newConversation?.warningKeys.map { localizer.text($0) }
+                .joined(separator: "\n")
+            Text(body + (warnings.map { "\n" + $0 } ?? ""))
+        }
     }
 
     private func row(_ record: ArchivedConversation) -> some View {
@@ -155,6 +173,14 @@ private extension ArchivedConversation {
             .accessibilityIdentifier("drawer.recent.togglePin." + record.id.uuidString)
             Button(localizer.text(.drawerRecentRename)) { renaming = record }
                 .accessibilityIdentifier("drawer.recent.rename." + record.id.uuidString)
+            // Play lists every chat here with long-press pin, rename and delete.
+            Button(localizer.text(.commonDelete), role: .destructive) {
+                if let approval = ArchiveDeletionApproval.capture(id: record.id, in: session) {
+                    pendingDelete = (approval, title)
+                }
+            }
+            .disabled(current && session.isSubmitting)
+            .accessibilityIdentifier("drawer.recent.delete." + record.id.uuidString)
         }
     }
 

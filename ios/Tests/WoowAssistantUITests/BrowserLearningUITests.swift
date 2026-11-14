@@ -106,64 +106,14 @@ final class BrowserLearningUITests: XCTestCase {
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
 
-        // Website knowledge and routes are separate persisted records. The
-        // website lesson still needs its own approval; approving a skill must
-        // not silently approve the website evidence too.
-        openWebsites(expectedCounts: "1／1")
-        let lesson = app.staticTexts.matching(NSPredicate(
-            format: "identifier BEGINSWITH %@ AND label == %@", "website.lesson.", "WOOW_WEB_GUIDE")).firstMatch
-        reveal(lesson)
-        let lessonID = String(lesson.identifier.dropFirst("website.lesson.".count))
-        let approve = app.buttons["website.approve.\(lessonID)"]
-        reveal(approve)
-        XCTAssertTrue(approve.isEnabled)
-        let route = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "website.route.")).firstMatch
-        reveal(route)
-        XCTAssertEqual(route.label, goal)
-        let routeID = String(route.identifier.dropFirst("website.route.".count))
-        reveal(app.staticTexts["6 步 · research.example.invalid"])
-        XCTAssertFalse(app.staticTexts["website.error"].exists)
-
-        // This app was relaunched above: replay must mount the real WKWebView
-        // from Memory, not depend on a browser left visible by the first run.
-        let replay = app.buttons["website.replay.\(routeID)"]
-        let websites = app.collectionViews["website.manager"]
-        XCTAssertTrue(replay.waitForExistence(timeout: 5))
-        // SE's recording showed the button below the screen while eight short
-        // drags starting in website.search left the list at its initial offset.
-        // Use one normal list swipe, then keep the full-visibility tap check.
-        if !websites.frame.intersection(app.frame).insetBy(dx: 4, dy: 4).contains(replay.frame) {
-            websites.swipeUp(velocity: .slow)
-        }
-        tap("website.replay.\(routeID)", scroll: true)
-        let confirmations = app.alerts.buttons.matching(NSPredicate(format: "label == %@", "開啟並逐步核對"))
-        XCTAssertTrue(confirmations.firstMatch.waitForExistence(timeout: 5))
-        // iOS 26 can expose both a wrapper and its nested action; tap the leaf.
-        guard let confirmation = confirmations.allElementsBoundByIndex.last else {
-            XCTFail("The persisted route requires explicit replay confirmation.")
-            return
-        }
-        waitFor(confirmation, predicate: "exists == true AND hittable == true")
-        confirmation.tap()
-        waitFor(app.staticTexts["browser.status"], predicate: "exists == true")
-        // A fresh app needed 57.481s merely to launch WebContent on hosted CI.
-        // Keep all per-step URL/quote and judged-result assertions below.
-        waitForLabel(app.staticTexts["browser.status"], "路線重走已結束", timeout: 105)
-        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["browser.error"].exists)
-        tap("browser.research")
-        XCTAssertTrue(app.buttons["browser.start"].waitForExistence(timeout: 5))
-        XCTAssertEqual(goalField.value as? String, goal)
-        let replayAnswer = app.staticTexts["browser.answer"]
-        reveal(replayAnswer)
-        XCTAssertEqual(replayAnswer.label, "WOOW_WEB_GUIDE: five sections reviewed.")
-        let replayLearning = app.staticTexts["browser.learning"]
-        revealLearningElement(replayLearning, in: app, visibility: .readableText)
-        XCTAssertEqual(replayLearning.label, "路線核對與成果判定完成；未重複產生技能。")
-        tap("browser.research.close")
+        // Like the Play build, research keeps a saved route and proposes no
+        // website notes; Memory › Saved data shows the route count.
+        let routes = app.buttons["memory.routes"]
+        reveal(routes)
+        XCTAssertTrue(routes.label.contains("1 條"), routes.label)
     }
 
-    func testUnconfiguredBrowserRetainsGoalAndManualWebsiteKnowledgeSurvivesRelaunch() {
+    func testUnconfiguredBrowserRetainsGoalAcrossSections() {
         launch()
         openFixture()
         enterGoal()
@@ -185,48 +135,12 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
         tap("browser.research.close")
 
-        // Manual, sourced website knowledge does not require a model/key and
-        // must not invent a multi-step route or a personal memory.
+        // Without a model nothing is learned: no memory and no saved route.
         openMemory()
         XCTAssertTrue(app.staticTexts["memory.empty"].exists)
-        openWebsites(expectedCounts: "0／0")
-        let save = app.buttons["website.save"]
-        XCTAssertTrue(save.waitForExistence(timeout: 5))
-        XCTAssertFalse(save.isEnabled)
-        let note = "Use the guide links to review each section."
-        enter(note + "\n", into: app.textFields["website.note"])
-        waitFor(app.keyboards.firstMatch, predicate: "exists == false")
-        tap("website.save", scroll: true)
-        waitFor(save, predicate: "exists == true AND enabled == false")
-        XCTAssertFalse(app.staticTexts["website.error"].exists)
-        tap("website.close")
-        waitFor(app.buttons["website.close"], predicate: "exists == false")
-        openWebsites(expectedCounts: "1／0")
-        let lesson = app.staticTexts.matching(NSPredicate(
-            format: "identifier BEGINSWITH %@ AND label == %@", "website.lesson.", note)).firstMatch
-        reveal(lesson)
-        let lessonIdentifier = lesson.identifier
-        let lessonID = String(lessonIdentifier.dropFirst("website.lesson.".count))
-        XCTAssertFalse(app.buttons["website.approve.\(lessonID)"].exists)
-        reveal(app.staticTexts["website.routes.empty"])
-
-        launch(reset: false)
-        waitForLabel(app.staticTexts["chat.status"], "尚未設定模型")
-        openMemory()
-        XCTAssertTrue(app.staticTexts["memory.empty"].exists)
-        openWebsites(expectedCounts: "1／0")
-        let persistedLesson = app.staticTexts[lessonIdentifier]
-        reveal(persistedLesson)
-        XCTAssertEqual(persistedLesson.label, note)
-        reveal(app.staticTexts["已核准"])
-        let persistedEvidence = app.staticTexts.matching(NSPredicate(
-            format: "label BEGINSWITH %@ AND label CONTAINS %@", "來源：", "WOOW_WEB_GUIDE")).firstMatch
-        reveal(persistedEvidence)
-        XCTAssertFalse(app.buttons["website.approve.\(lessonID)"].exists)
-        // The page is session-only, but its reviewed note and evidence persist.
-        XCTAssertFalse(app.textFields["website.note"].exists)
-        reveal(app.staticTexts["website.routes.empty"])
-        XCTAssertFalse(app.staticTexts["website.error"].exists)
+        let routes = app.buttons["memory.routes"]
+        reveal(routes)
+        XCTAssertTrue(routes.label.contains("0 條"), routes.label)
     }
 
     func testRemovingModelSettingsCancelsResearchAndPreservesGoalWithoutLearning() {
@@ -246,9 +160,10 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research.close")
         navigateMikaSection("settings", in: app)
         openModelSettings(in: app)
-        tap("settings.remove", scroll: true)
-        waitForLabel(app.staticTexts["settings.keyStatus"], "尚未儲存金鑰。")
-        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已移除"))
+        // Like the Play build, a provider is removed with its key from its own page.
+        deleteModelProvider("model.example.invalid", in: app)
+        XCTAssertTrue(app.buttons["models.role.main"].label.contains("未設定"))
+        XCTAssertTrue(app.staticTexts["settings.notice"].label.contains("已刪除"))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
         returnFromModelSettings(in: app)
 
@@ -273,9 +188,10 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["skills.empty"].waitForExistence(timeout: 5))
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
-        let websites = app.buttons["memory.websites"]
-        reveal(websites)
-        XCTAssertEqual(websites.label, "網站知識與路線（0／0）")
+        // Website notes are gone; Saved data now ends with the saved routes row.
+        let routes = app.buttons["memory.routes"]
+        reveal(routes)
+        XCTAssertTrue(routes.label.contains("記住的操作路線"), routes.label)
         XCTAssertFalse(app.staticTexts["memory.error"].exists)
 
         // Recheck after navigation gives cancellation completion a chance to
@@ -312,7 +228,8 @@ final class BrowserLearningUITests: XCTestCase {
         let key = app.secureTextFields["settings.apiKey"]
         reveal(key)
         enter("fixture-only-not-a-real-key\n", into: key)
-        tap("settings.save", scroll: true)
+        tap("setup.test", scroll: true)
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].exists)
         returnFromModelSettings(in: app)
@@ -382,15 +299,6 @@ final class BrowserLearningUITests: XCTestCase {
         navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["memory.status"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["memory.unavailable"].exists)
-    }
-
-    private func openWebsites(expectedCounts: String) {
-        let websites = app.buttons["memory.websites"]
-        reveal(websites)
-        XCTAssertEqual(websites.label, "網站知識與路線（\(expectedCounts)）")
-        websites.tap()
-        XCTAssertTrue(app.buttons["website.close"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["website.error"].exists)
     }
 
     private func select(_ segment: String) {

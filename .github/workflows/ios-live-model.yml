@@ -26,9 +26,9 @@ on:
         options: ['18.5', '17.0.1']
         default: '18.5'
       ui_scope:
-        description: Live App UI coverage (source discovery uses public search without model probes)
+        description: Live App UI coverage
         type: choice
-        options: [all, browser, browser-learning, browser-interaction, multi-source, source-discovery, user-profile, profile-tool, memory-tools, skill-authoring, browser-transcript, transcript-files, transcript-formats, document-query]
+        options: [all, browser, browser-learning, browser-interaction, profile-tool, memory-tools]
         default: all
 
 permissions:
@@ -93,12 +93,8 @@ jobs:
           xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
             -I build/live -L build/live -lAssistantModels -lAssistantSkills \
             scripts/LiveSkillLearningSmoke.swift -o build/live/LiveSkillLearningSmoke
-          xcrun swiftc -sdk "$sdk_path" -target "$sim_target" -parse-as-library \
-            -I build/live -L build/live -lAssistantModels -lAssistantSkills \
-            scripts/LiveTranscriptSmoke.swift -o build/live/LiveTranscriptSmoke
       - name: Prepare App UI test build
         id: app-build
-        if: inputs.ui_scope != 'transcript-formats'
         run: |
           tool_dir="$(mktemp -d "$RUNNER_TEMP/woow-xcodegen.XXXXXX")"
           curl --fail --location --retry 3 --max-time 120 \
@@ -118,7 +114,6 @@ jobs:
           fi
       - name: Make two bounded live requests inside iOS Simulator
         id: transport_probe
-        if: inputs.ui_scope != 'source-discovery'
         timeout-minutes: 4
         env:
           SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
@@ -128,7 +123,6 @@ jobs:
           test -n "$SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY" || { echo 'Missing model test secret'; exit 1; }
           xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveModelSmoke"
       - name: Real memory and approved skill behavior inside iOS Simulator
-        if: inputs.ui_scope != 'source-discovery'
         timeout-minutes: 6
         env:
           SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
@@ -136,26 +130,15 @@ jobs:
           SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
         run: xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveLearningSmoke"
       - name: Real outcome judge and pending skill generation
-        if: inputs.ui_scope != 'source-discovery'
         timeout-minutes: 6
         env:
           SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
           SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
           SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
         run: xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveSkillLearningSmoke"
-      - name: Real model completes all five transcript formats over fixed text
-        if: ${{ !cancelled() && steps.native-build.outcome == 'success' && steps.transport_probe.outcome == 'success' && contains(fromJSON('["all","transcript-formats","transcript-files","browser-transcript"]'), inputs.ui_scope || 'all') }}
-        timeout-minutes: 12
-        env:
-          SIMCTL_CHILD_WOOW_MODEL_TEST_BASE_URL: ${{ secrets.WOOW_MODEL_TEST_BASE_URL }}
-          SIMCTL_CHILD_WOOW_MODEL_TEST_MODEL: ${{ secrets.WOOW_MODEL_TEST_MODEL }}
-          SIMCTL_CHILD_WOOW_MODEL_TEST_API_KEY: ${{ secrets.WOOW_MODEL_TEST_API_KEY }}
-        run: |
-          xcrun simctl spawn "$WOOW_LIVE_SIMULATOR" "$PWD/build/live/LiveTranscriptSmoke" \
-            "$PWD/Sources/AssistantSkills/Resources/MikaBundledSkills.json"
       - name: Real model App UI tests
-        if: ${{ !cancelled() && steps.app-build.outcome == 'success' && (steps.transport_probe.outcome == 'success' || inputs.ui_scope == 'source-discovery') }}
-        # Live UI methods include reviewed profile tools and research flows;
+        if: ${{ !cancelled() && steps.app-build.outcome == 'success' && steps.transport_probe.outcome == 'success' }}
+        # Live UI methods include profile/memory tools and research flows;
         # focused scopes keep their previous 20-minute bound and case limits.
         timeout-minutes: ${{ (inputs.ui_scope || 'all') == 'all' && 40 || 20 }}
         env:
@@ -166,31 +149,17 @@ jobs:
           test_runs=(build/LiveDerivedData/Build/Products/*.xctestrun)
           [ "${#test_runs[@]}" -eq 1 ] || { echo 'Expected one generated test runner'; exit 1; }
           python3 scripts/prepare_live_xctestrun.py "${test_runs[0]}"
-          ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests -only-testing:WoowAssistantUITests/LiveTranscriptUITests -only-testing:WoowAssistantUITests/LiveDocumentQueryUITests -only-testing:WoowAssistantUITests/LiveSourceDiscoveryUITests)
+          ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests)
           if [ '${{ inputs.ui_scope }}' = 'browser' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealWebKitResearchUsesPublicWebsiteAndJudgesOutcome)
           elif [ '${{ inputs.ui_scope }}' = 'browser-learning' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealMultiPageResearchLearnsPendingSkillAndApprovalSurvivesRelaunch)
           elif [ '${{ inputs.ui_scope }}' = 'browser-interaction' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProposesObservedDOMLinkAndApprovedClickNavigates)
-          elif [ '${{ inputs.ui_scope }}' = 'multi-source' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealWebKitMultiSourceResearchCitesBothApprovedRoots)
-          elif [ '${{ inputs.ui_scope }}' = 'user-profile' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelRecallsManualProfileAfterRelaunchAndMasterSwitchDisablesIt)
           elif [ '${{ inputs.ui_scope }}' = 'profile-tool' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProfileEditRequiresReviewAndPersistsAfterRelaunch)
+            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelProfileEditAppliesAndIsRecalledAfterRelaunch)
           elif [ '${{ inputs.ui_scope }}' = 'memory-tools' ]; then
             ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelSavesOrdinaryMemoryAndUndoSurvivesRelaunch)
-          elif [ '${{ inputs.ui_scope }}' = 'skill-authoring' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelReadsOriginalSkillAndReviewedSaveSurvivesRelaunch)
-          elif [ '${{ inputs.ui_scope }}' = 'browser-transcript' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveModelUITests/testRealModelTranscribesApprovedPublicWebTextWithVerifiedQuotes)
-          elif [ '${{ inputs.ui_scope }}' = 'transcript-files' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveTranscriptUITests)
-          elif [ '${{ inputs.ui_scope }}' = 'document-query' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveDocumentQueryUITests)
-          elif [ '${{ inputs.ui_scope }}' = 'source-discovery' ]; then
-            ui_filters=(-only-testing:WoowAssistantUITests/LiveSourceDiscoveryUITests)
           fi
           test_exit=0
           xcodebuild -xctestrun "${test_runs[0]}" \

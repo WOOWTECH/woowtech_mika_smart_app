@@ -20,7 +20,7 @@ from check_profile_chat_app import APP_SOURCES, MODULES
 PRIVATE_FIELDS = ("WOOW_MODEL_TEST_BASE_URL", "WOOW_MODEL_TEST_MODEL", "WOOW_MODEL_TEST_API_KEY")
 MCP_PRIVATE_FIELD = "WOOW_HA_MCP_TEST_URL"
 HARNESSES = {"ordinary": "LiveLearningToolAppSmoke.swift", "mcp": "LiveMCPLearningAppSmoke.swift"}
-VIEWS = ("ContentView", "UserProfileToolReviewView", "MemoryToolReviewView")
+VIEWS = ("ContentView",)
 REQUIRED_CHECKS = {name + "-build" for name, _ in MODULES} | {
     config + suffix for config in ("Debug", "Release") for suffix in ("-typecheck", "-iOS-syntax")}
 SNAPSHOT_ERROR = "Compile snapshot is incomplete or stale; regenerate before live testing."

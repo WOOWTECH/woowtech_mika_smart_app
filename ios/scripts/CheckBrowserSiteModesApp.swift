@@ -154,7 +154,7 @@ private final class SiteModeKeys: LearningKeyStore {
         let file = root.appendingPathComponent("library.vault"), keys = SiteModeKeys()
         func vault() -> EncryptedLearningFile { EncryptedLearningFile(url: file, keys: keys) }
         let store = WKWebsiteDataStore.nonPersistent()
-        let workspace = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("Downloads"))
+        let workspace = BrowserWorkspace(dataStore: store, vault: vault())
         try check(workspace.available, "isolated actual workspace available")
         let host = try Host(); defer { host.close(); workspace.cancelAllWork() }
         let browser = workspace.selected, probe = Probe(workspace.selected)
@@ -220,10 +220,10 @@ private final class SiteModeKeys: LearningKeyStore {
         try check(cookies.contains { $0.name == cookie.name && $0.value == cookie.value }, "same profile retains synthetic cookie")
         try check((browser.webView.customUserAgent ?? "").isEmpty, "no UA spoofing")
         try check(browser.manualSiteMode("child.research.example.invalid") == .desktop, "live resolver inherits")
-        try check(workspace.library.tabs.count == 1 && workspace.downloads.items.isEmpty, "tabs and downloads retained")
+        try check(workspace.library.tabs.count == 1, "tabs retained")
         let ciphertext = try Data(contentsOf: file)
         try check(!String(decoding: ciphertext, as: UTF8.self).contains("research.example.invalid"), "host encrypted on disk")
-        let reopened = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("Downloads"))
+        let reopened = BrowserWorkspace(dataStore: store, vault: vault())
         try check(reopened.available && reopened.library == workspace.library, "actual encrypted workspace restart")
         try check(reopened.selected.manualSiteMode("research.example.invalid") == .desktop, "restored session wired to persisted choice")
         let originalLibrary = workspace.library
@@ -263,7 +263,8 @@ private final class SiteModeKeys: LearningKeyStore {
         let beforeDownload = probe.actions.count
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('download').click(); true")
         try await wait("manual download policy", { probe.actions.count > beforeDownload })
-        try check(probe.actions.last?.policy == .download, "manual download gate preserved in preferences delegate")
+        try check(probe.actions.last?.policy == .cancel && browser.error == BrowserSession.noDownloadMessage,
+                  "like the Play build, a manual download is refused with its notice")
         let previous = probe.actions.count
         _ = try await browser.webView.evaluateJavaScript("document.getElementById('post').requestSubmit(); true")
         try await wait("actual manual POST action", { probe.actions.count > previous })
@@ -315,14 +316,14 @@ private final class SiteModeKeys: LearningKeyStore {
         try legacyVault.save(LegacyLibrary(tabs: state.tabs, selectedID: state.selectedID,
                                            bookmarks: state.bookmarks, history: state.history))
         let migrated = BrowserWorkspace(dataStore: store,
-            vault: EncryptedLearningFile(url: legacyFile, keys: keys), downloadDirectory: root.appendingPathComponent("LegacyDownloads"))
+            vault: EncryptedLearningFile(url: legacyFile, keys: keys))
         try check(migrated.available && migrated.library.tabs == state.tabs && migrated.library.history == state.history
                   && migrated.library.bookmarks == state.bookmarks && migrated.library.selectedID == state.selectedID,
                   "legacy encrypted library migrates without metadata loss")
         try check(migrated.library.userSiteModes.desktopHosts.isEmpty, "legacy encrypted library starts mobile")
         // Corrupt ciphertext: fail closed and leave original bytes untouched.
         try Data("corrupt fixture".utf8).write(to: file)
-        let corrupt = BrowserWorkspace(dataStore: store, vault: vault(), downloadDirectory: root.appendingPathComponent("OtherDownloads"))
+        let corrupt = BrowserWorkspace(dataStore: store, vault: vault())
         try check(!corrupt.available && !corrupt.setManualSiteMode(.desktop), "corrupt encrypted vault unavailable")
         try check(try Data(contentsOf: file) == Data("corrupt fixture".utf8), "corrupt vault not overwritten")
         return ["assertions": count, "actual_webkit": true, "mobile_effective_raw": mobileEffective,

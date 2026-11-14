@@ -5,42 +5,57 @@ import XCTest
 final class ChatStreamingUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
-    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
+    // ui-chat permits 300 s. On the iOS 26.2 runner each UI step costs 1–2 s and the
+    // shared model setup alone took about 170 s, leaving these streaming cases at
+    // 231–240 s; one setup-heavy case ran out before its first send.
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws { app.terminate() }
 
     /// Exercises the actual composer state with a cancellable fake transport.
     /// The field and microphone are disabled during generation: no steer/answer
     /// placeholder can truthfully imply that an interrupt would be accepted.
-    func testComposerIdleAndBusyControlsInThreeLanguages() {
-        executionTimeAllowance = 600
+    /// One case per system language: the three together took up to 290 s on
+    /// iPhone SE and ran past the 300 s ui-chat maximum on iPhone 16 Pro Max.
+    func testComposerIdleAndBusyControlsForTraditionalChineseSystem() {
+        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hant)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
+                                          cancelledStatus: "已取消・部分回覆未保存")
+    }
+
+    /// A Simplified Chinese system shows Traditional Chinese.
+    func testComposerIdleAndBusyControlsForSimplifiedChineseSystem() {
+        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hans)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
+                                          cancelledStatus: "已取消・部分回覆未保存")
+    }
+
+    func testComposerIdleAndBusyControlsForEnglishSystem() {
+        assertComposerIdleAndBusyControls(systemLanguages: "(en)", placeholder: "Type a message", voiceLabel: "Voice input",
+                                          cancelledStatus: "Cancelled · partial reply not saved")
+    }
+
+    private func assertComposerIdleAndBusyControls(systemLanguages: String, placeholder: String, voiceLabel: String,
+                                                   cancelledStatus: String) {
         launch(); configure(); disableMemory()
-        // A Simplified Chinese system shows Traditional Chinese.
-        let cases = [("(zh-Hant)", "輸入訊息", "語音輸入"),
-                     ("(zh-Hans)", "輸入訊息", "語音輸入"),
-                     ("(en)", "Type a message", "Voice input")]
-        for (systemLanguages, placeholder, voiceLabel) in cases {
-            launchLocalizedStreamingFixture(app, systemLanguages: systemLanguages, namespace: namespace)
-            let draft = chatDraftControl(in: app)
-            let mic = app.buttons["chat.voice"].firstMatch
-            XCTAssertTrue(draft.waitForExistence(timeout: 15))
-            XCTAssertTrue(mic.waitForExistence(timeout: 10))
-            wait(NSPredicate(format: "placeholderValue == %@", placeholder), on: draft)
-            XCTAssertTrue(draft.isEnabled)
-            XCTAssertEqual(mic.label, voiceLabel)
-            XCTAssertTrue(mic.isEnabled)
-            XCTAssertFalse(app.buttons["chat.cancel"].exists)
-            compose("[fixture:stream-cancel]"); tap("chat.send")
-            assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-            XCTAssertFalse(draft.isEnabled, "Generating does not accept typed interrupts")
-            XCTAssertFalse(mic.isEnabled, "Generating does not accept voice interrupts")
-            XCTAssertTrue(app.buttons["chat.cancel"].isEnabled)
-            tap("chat.cancel")
-            assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
-            wait(NSPredicate(format: "enabled == true"), on: draft)
-            wait(NSPredicate(format: "enabled == true"), on: mic)
-            XCTAssertEqual(draft.value as? String, "[fixture:stream-cancel]")
-            XCTAssertFalse(app.descendants(matching: .any)["chat.message.0.user"].exists)
-        }
+        launchLocalizedStreamingFixture(app, systemLanguages: systemLanguages, namespace: namespace)
+        let draft = chatDraftControl(in: app)
+        let mic = app.buttons["chat.voice"].firstMatch
+        XCTAssertTrue(draft.waitForExistence(timeout: 15))
+        XCTAssertTrue(mic.waitForExistence(timeout: 10))
+        wait(NSPredicate(format: "placeholderValue == %@", placeholder), on: draft)
+        XCTAssertTrue(draft.isEnabled)
+        XCTAssertEqual(mic.label, voiceLabel)
+        XCTAssertTrue(mic.isEnabled)
+        XCTAssertFalse(app.buttons["chat.cancel"].exists)
+        compose("[fixture:stream-cancel]"); tap("chat.send")
+        assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
+        XCTAssertFalse(draft.isEnabled, "Generating does not accept typed interrupts")
+        XCTAssertFalse(mic.isEnabled, "Generating does not accept voice interrupts")
+        XCTAssertTrue(app.buttons["chat.cancel"].isEnabled)
+        tap("chat.cancel")
+        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, cancelledStatus)
+        wait(NSPredicate(format: "enabled == true"), on: draft)
+        wait(NSPredicate(format: "enabled == true"), on: mic)
+        XCTAssertEqual(draft.value as? String, "[fixture:stream-cancel]")
+        XCTAssertFalse(app.descendants(matching: .any)["chat.message.0.user"].exists)
     }
 
     func testMemoryEnabledStructuredStreamPreviewsThenArchivesCompletedAnswer() {
@@ -67,7 +82,7 @@ final class ChatStreamingUITests: XCTestCase {
         launch(reset: false); openArchive()
         let saved = row("[fixture:structured-stream-complete]")
         ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"), "結構化串流：第一段；完整回覆。")
+        assertLabel(identifiedText("chat.message.1.assistant"), "結構化串流：第一段；完整回覆。")
         print("STRUCTURED_STREAM_UI memoryEnabled=1 partialObserved=1 archiveAfterCompletion=1 archiveRelaunch=1")
     }
 
@@ -94,7 +109,7 @@ final class ChatStreamingUITests: XCTestCase {
         assertNotificationAttempts(1)
         launch(reset: false); openArchive()
         let saved = row("[fixture:stream-complete]"); ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"), "串流測試：第一段；完整回覆。")
+        assertLabel(identifiedText("chat.message.1.assistant"), "串流測試：第一段；完整回覆。")
         print("CHAT_STREAM_UI partialObserved=1 completedPair=1 archiveRelaunch=1 completionNotificationAttempts=1")
     }
 
@@ -112,14 +127,14 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         assertNotificationAttempts(0)
         openArchive()
-        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
-        tap("archive.close")
+        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
+        tap("drawer.close")
         assertNotificationAttempts(0)
         launch(reset: false)
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists, "Partials are not claimed durable")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         openArchive()
-        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_STREAM_UI partialObserved=1 cancelled=1 draftRetained=1 archiveAbsentAfterRelaunch=1 completionNotificationAttempts=0")
     }
 
@@ -141,8 +156,13 @@ final class ChatStreamingUITests: XCTestCase {
 
         launch(reset: false); openArchive()
         let saved = row("[fixture:stream-markdown]"); ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"),
-                    "# 標題\n\n**粗體** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
+        // Like Play there is no history sheet showing the stored source; reopening the
+        // chat from the drawer renders the archived Markdown into the same bubble.
+        let reopened = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "• 第二項"), on: reopened, seconds: 10)
+        XCTAssertTrue(reopened.label.contains("標題") && reopened.label.contains("粗體 與 連結"))
+        XCTAssertTrue(reopened.label.contains("• 第一項"))
+        XCTAssertFalse(reopened.label.contains("**") || reopened.label.contains("[連結]"))
     }
 
     func testReadingEarlierStreamingTextDoesNotJumpToNewChunk() {
@@ -165,6 +185,20 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertGreaterThan(completed.frame.minY, readingOrigin - 160,
                              "Completion must not treat the first saved message as a new conversation and jump to the tail")
         XCTAssertFalse(partial.exists)
+    }
+
+    /// Split from the case above: on iPhone SE (iOS 18.5) the two together need
+    /// more than the 240 s allowance, mostly fixed fixture waits and typing.
+    func testSendAfterReadingEarlierTextFollowsTheNewAnswer() {
+        launch(); configure(); disableMemory()
+        compose("[fixture:stream-scroll]"); tap("chat.send")
+        let completed = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "SCROLL_SECOND_END"), on: completed, seconds: 100)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        ready(transcript)
+        let tailOrigin = completed.frame.minY
+        for _ in 0..<3 where completed.frame.minY - tailOrigin <= 260 { transcript.swipeDown() }
+        XCTAssertGreaterThan(completed.frame.minY - tailOrigin, 260, "Native scrolling must reach earlier transcript text")
 
         // Editing the next prompt changes the keyboard/viewport; the explicit
         // send must nevertheless restore follow for the accepted new request.
@@ -410,7 +444,8 @@ final class ChatStreamingUITests: XCTestCase {
         dismissSettingsKeyboard()
         let key = app.secureTextFields["settings.apiKey"].firstMatch
         revealLearningElement(key, in: app); ready(key); key.tap(); prepareKeyboard(); key.typeText("fixture-key")
-        tap("settings.dismissKeyboard"); tap("settings.save", scroll: true)
+        tap("settings.dismissKeyboard"); tap("setup.test", scroll: true)
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)
@@ -435,7 +470,11 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
     }
     private func row(_ title: String) -> XCUIElement {
-        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "archive.row.", title)).firstMatch
+        let scroll = app.scrollViews["drawer.scroll"].firstMatch
+        let target = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@",
+                                                      "drawer.recent.row.", title)).firstMatch
+        for _ in 0..<4 where !target.exists || !scroll.frame.contains(target.frame) { scroll.swipeUp() }
+        return target
     }
     private func identifiedText(_ identifier: String) -> XCUIElement {
         // Selectable SwiftUI Text can be an AX Other on iOS 17 and StaticText
@@ -494,15 +533,16 @@ final class ChatStreamingUITests: XCTestCase {
         let absent = NSPredicate(format: "exists == false")
         if !absent.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: absent, object: button)], timeout: 5), .completed) }
     }
+    /// Like the Play build, saved chats are listed in the drawer (no history sheet).
     private func openArchive() {
         tap("chat.menu")
-        tap("drawer.archive")
+        XCTAssertTrue(app.scrollViews["drawer.scroll"].firstMatch.waitForExistence(timeout: 10))
     }
     private func assertArchiveUnavailableDuringRun() {
         tap("chat.menu")
-        let history = app.buttons["drawer.archive"].firstMatch
-        XCTAssertTrue(history.waitForExistence(timeout: 5))
-        XCTAssertFalse(history.isEnabled, "History must remain unavailable during a run")
+        let newConversation = app.buttons["drawer.newConversation"].firstMatch
+        XCTAssertTrue(newConversation.waitForExistence(timeout: 5))
+        XCTAssertFalse(newConversation.isEnabled, "Switching chats waits until the run ends")
         tap("drawer.close")
     }
     private func tap(_ id: String, scroll: Bool = false) {

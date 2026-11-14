@@ -30,8 +30,7 @@ public struct BrowserSearchEngine: Codable, Equatable, Sendable, Identifiable {
     public static let builtins: [BrowserSearchEngine] = [
         .init(id: "bing", name: "Bing", template: "https://www.bing.com/search?q=%s"),
         .init(id: "google", name: "Google", template: "https://www.google.com/search?q=%s"),
-        .init(id: "duckduckgo", name: "DuckDuckGo", template: "https://duckduckgo.com/?q=%s"),
-        .init(id: "baidu", name: "Baidu", template: "https://www.baidu.com/s?wd=%s")
+        .init(id: "duckduckgo", name: "DuckDuckGo", template: "https://duckduckgo.com/?q=%s")
     ]
 
     func validateCustom() throws {
@@ -130,6 +129,17 @@ public struct BrowserSearchSettings: Codable, Equatable, Sendable {
     public private(set) var selectedID = Self.defaultEngineID
     public private(set) var custom: [BrowserSearchEngine] = []
     public init() {}
+
+    /// Baidu was built in until the owner removed it on 2026-11-14; a saved
+    /// choice of it loads as the default instead of failing validation.
+    static let removedBuiltinIDs: Set<String> = ["baidu"]
+    private enum CodingKeys: String, CodingKey { case selectedID, custom }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let stored = try values.decode(String.self, forKey: .selectedID)
+        selectedID = Self.removedBuiltinIDs.contains(stored) ? Self.defaultEngineID : stored
+        custom = try values.decode([BrowserSearchEngine].self, forKey: .custom)
+    }
     public var all: [BrowserSearchEngine] { BrowserSearchEngine.builtins + custom }
     public var selected: BrowserSearchEngine {
         all.first { $0.id == selectedID }

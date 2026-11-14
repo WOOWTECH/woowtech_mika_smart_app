@@ -238,7 +238,6 @@ struct VoiceAudioCoordinatorChecks {
             check(!gate.sealCoverage() && !slot.acquire(onRevoked: {}), "unattested coverage denies")
             check(session.log.isEmpty, "unsealed gate does not reset session")
             gate.attestIntegratedRoute(.browserSession)
-            gate.attestIntegratedRoute(.sourceDiscovery)
             check(!gate.sealCoverage(), "missing native route cannot seal")
             gate.attestIntegratedRoute(.nativeAudio)
             check(gate.sealCoverage(), "all explicit attestations can seal isolated gate")
@@ -249,7 +248,7 @@ struct VoiceAudioCoordinatorChecks {
             }
             let oldTicket = gate.admit(.browserSession)!
             oldTicket.releaseAfterTeardown()
-            let liveTicket = gate.admit(.sourceDiscovery)!
+            let liveTicket = gate.admit(.browserSession)!
             oldTicket.releaseAfterTeardown()
             check(!slot.acquire(onRevoked: {}) && session.log.isEmpty, "stale ticket cannot remove a new client")
             liveTicket.releaseAfterTeardown()
@@ -284,10 +283,10 @@ struct VoiceAudioCoordinatorChecks {
             check(slot.acquire(onRevoked: { notices += 1 }), "unacknowledged conflict voice lease")
             check(slot.activateForRecording(), "unacknowledged conflict voice activation")
             session.recording = true
-            check(gate.admit(.sourceDiscovery) == nil && gate.admit(.sourceDiscovery) == nil && notices == 1,
+            check(gate.admit(.browserSession) == nil && gate.admit(.browserSession) == nil && notices == 1,
                   "competing WebView denied until engine is stopped")
             session.recording = false; slot.release()
-            let ticket = gate.admit(.sourceDiscovery)
+            let ticket = gate.admit(.browserSession)
             check(ticket != nil, "competing WebView may enter after release")
             ticket?.releaseAfterTeardown()
         }

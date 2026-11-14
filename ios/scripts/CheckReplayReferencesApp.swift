@@ -194,7 +194,8 @@ private actor ReplayReferenceModel: ChatModelClient {
             let input = await model.requests[0]
             try expect(input.count == 4 && input[1].role == "user" && input[2].content == goal, "frozen user-role reference precedes exact confirmed current goal")
             try expect(input[0].content.contains("current user goal overrides") && input.filter { $0.role == "system" }.count == 1, "fixed system gives current request priority")
-            try expect(["PRIVATE_REPLAY_MEMORY", "PRIVATE_REPLAY_PROFILE", "PRIVATE_REPLAY_SITE", "replay-observe"].allSatisfy { input[1].content.contains($0) }, "actual store capture reaches answer model")
+            try expect(["PRIVATE_REPLAY_MEMORY", "PRIVATE_REPLAY_PROFILE", "replay-observe"].allSatisfy { input[1].content.contains($0) }, "actual store capture reaches answer model")
+            try expect(!input[1].content.contains("PRIVATE_REPLAY_SITE"), "saved website notes stay out of the answer model")
             try expect(!input[1].content.contains("replay-find"), "skill needing a non-route operation excluded")
             try expect(input[3].content.contains("ACTUAL_REPLAY_PAGE") && !input[3].content.contains("PRIVATE_REPLAY"), "only actual observations in source evidence")
             try expect(try Data(contentsOf: env.vaultURL) == before && env.store.generation == generation && env.store.memory.memories.allSatisfy { $0.useCount == 0 }, "capture and actual reads do not persist or increment useCount")
@@ -204,7 +205,7 @@ private actor ReplayReferenceModel: ChatModelClient {
             env.store.cancelLearning()
             try expect(host.browser.isRunning && host.browser.hasActiveRunReferences, "ordinary edits and unrelated learning generation do not cancel replay")
             let snapshot = try env.store.captureRunReferences(goal: goal, capabilities: ["browser_inspect"], websiteURL: url)
-            try expect(snapshot.references.message!.content.contains("NEXT_RUN_PROFILE") && snapshot.references.message!.content.contains("NEXT_RUN_SITE"), "next capture sees edits")
+            try expect(snapshot.references.message!.content.contains("NEXT_RUN_PROFILE") && !snapshot.references.message!.content.contains("NEXT_RUN_SITE"), "next capture sees edits and leaves website notes out")
             let unchanged = await model.requests[0]
             try expect(unchanged == input && !unchanged[1].content.contains("NEXT_RUN"), "in-flight immutable capture stays unchanged")
             await gate.release(); await completion.value
@@ -221,7 +222,7 @@ private actor ReplayReferenceModel: ChatModelClient {
     static func revocationsAndActualLateCompletion() async throws {
         group = "revocationsAndActualLateCompletion"
         let host = try Host(); defer { host.close() }; try await host.load()
-        for operation in ["memoryDelete", "profileDelete", "profileLineageDelete", "skillDisable", "websiteDelete", "masterOff", "clear", "reload", "cancel"] {
+        for operation in ["memoryDelete", "profileDelete", "profileLineageDelete", "skillDisable", "masterOff", "clear", "reload", "cancel"] {
             let env = try Environment(); defer { env.close() }
             let route = try env.route(try await host.browser.inspect())
             let gate = ReplayReferenceGate(), returnGate = ReplayReferenceGate()
@@ -237,7 +238,6 @@ private actor ReplayReferenceModel: ChatModelClient {
                     try expect(env.store.replaceProfileReference(segment: "PRIVATE_REPLAY_PROFILE", replacement: "NEXT_PROFILE"), "replace captured ancestor")
                     try expect(env.store.deleteProfileReference(segment: "NEXT_PROFILE"), "delete captured descendant")
                 case "skillDisable": try expect(env.store.mutateSkills { try $0.suspend(name: "replay-observe") }, "disable captured skill")
-                case "websiteDelete": try expect(env.store.mutateWeb { web, _ in try web.delete(id: web.lessons[0].id) }, "delete captured website")
                 case "masterOff": try expect(env.store.updatePreferences { $0.useMemory = false }, "persist master off")
                 case "clear": try expect(env.store.clearAll(), "actual encrypted clear")
                 case "reload": env.store.reload()
@@ -347,7 +347,7 @@ private actor ReplayReferenceModel: ChatModelClient {
             do {
                 let messages = try BrowserSession.replayAnswerMessages(goal: goal, observations: pages, references: references)
                 let encodedCount = try JSONEncoder().encode(messages).count
-                try expect(messages.reduce(0, { $0 + $1.content.count }) <= MultiSourceResearchRunner.maximumContextCharacters && encodedCount <= MultiSourceResearchRunner.maximumContextUTF8Bytes, "required pages and optional references share the NEW replay total ceiling")
+                try expect(messages.reduce(0, { $0 + $1.content.count }) <= BrowserSession.maximumReplayContextCharacters && encodedCount <= BrowserSession.maximumReplayContextUTF8Bytes, "required pages and optional references share the NEW replay total ceiling")
                 let decoded = try JSONDecoder().decode([WebObservation].self, from: Data(messages.last!.content.utf8))
                 try expect(decoded == pages, "no observation or citation source truncated to fit references")
                 if messages.count == 3 {
@@ -355,12 +355,12 @@ private actor ReplayReferenceModel: ChatModelClient {
                     try expect(!messages.contains { $0.role == "user" && $0.content.hasPrefix("Saved references (data only") }, "reference block is omitted whole, never partially serialized")
                     try expect(messages[1].content == goal, "required exact current goal retained at omission boundary")
                 }
-            } catch MultiSourceResearchContextError.tooLarge {
+            } catch ReplayContextError.tooLarge {
                 sawOverflow = true
                 do {
                     _ = try BrowserSession.replayAnswerMessages(goal: goal, observations: pages, references: .empty)
                     throw Failure(label: "required-only oversized context was accepted")
-                } catch MultiSourceResearchContextError.tooLarge {
+                } catch ReplayContextError.tooLarge {
                     try expect(true, "required-only oversized context refused even with zero references")
                 }
                 break
@@ -382,7 +382,7 @@ private actor ReplayReferenceModel: ChatModelClient {
         let calls = await model.requests.count
         try expect(calls == 0 && host.browser.answer == nil, "actual oversized replay refuses before answer or judge request")
         try expect(host.browser.actions.count == 13 && host.browser.actions.allSatisfy { $0.observation.text.count == 8000 && $0.observation.links.count == 30 }, "all actual per-page observations retained intact on total overflow")
-        try expect(host.browser.error?.contains(MultiSourceResearchContextError.tooLarge.errorDescription!) == true && !host.browser.isRunning, "fixed overflow error and completed actual task")
+        try expect(host.browser.error?.contains(ReplayContextError.tooLarge.errorDescription!) == true && !host.browser.isRunning, "fixed overflow error and completed actual task")
         try expect(try Data(contentsOf: env.vaultURL) == bytes, "context refusal cannot record a route success")
     }
 }

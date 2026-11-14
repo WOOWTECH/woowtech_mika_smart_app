@@ -86,7 +86,6 @@ def main():
         modules = config["MODULES"]
         module_paths = {name: [path(str(p.relative_to(source))) for p in sorted((source / "Sources" / name).glob("*.swift"))] for name, _ in modules}
         apps = [path("Sources/App/" + name + ".swift") for name in config["APP_SOURCES"]]
-        caller = path("Sources/App/WebsiteDataView.swift")
         harness = path("scripts/CheckReplayReferencesApp.swift")
         single_site = path("scripts/CheckLearningRunContextApp.swift")
         research = path("Tests/AssistantDomainTests/WebResearchRunnerTests.swift")
@@ -107,7 +106,7 @@ def main():
         run("website-regression-run", [str(binary)], 45)
         for config, flags in [("Debug", ["-DDEBUG"]), ("Release", [])]:
             run(config + "-owned-syntax", ["swiftc", "-frontend", "-parse", "-warnings-as-errors", *flags, path("Sources/App/BrowserSession.swift"), harness])
-            run(config + "-iOS-syntax", ["swiftc", "-frontend", "-parse", "-target", "arm64-apple-ios17.0", *flags, *apps, caller, harness])
+            run(config + "-iOS-syntax", ["swiftc", "-frontend", "-parse", "-target", "arm64-apple-ios17.0", *flags, *apps, harness])
             binary = out / ("replay-" + config)
             run(config + "-build", common + flags + ["-DREPLAY_REFERENCE_APP_STANDALONE", *apps, harness, "-o", str(binary)])
             run(config + "-run", [str(binary)], 450)

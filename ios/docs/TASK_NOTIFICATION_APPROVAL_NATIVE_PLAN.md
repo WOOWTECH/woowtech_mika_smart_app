@@ -1,5 +1,8 @@
 # Native Chat approval notification case plan
 
+Superseded again on 2026-11-14: memory and profile tools need no review either, so
+chat posts no approval notification and `NotificationApprovalUITests` is removed.
+
 Superseded on 2026-11-13: like the Play build, MCP calls no longer ask for
 approval, `MCPApprovalView.swift` is gone and its results list lives in
 `MCPResultsView.swift`. `NotificationApprovalUITests` now drives the memory review

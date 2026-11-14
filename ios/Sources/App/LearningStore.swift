@@ -226,6 +226,27 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         return receipt
     }
 
+    /// Play's skill_save from an ordinary chat: the model's own tool commit, so
+    /// like commitMemoryTool it neither cancels learning nor counts as a user
+    /// edit. Nothing is published before the encrypted file is written.
+    func commitChatSkillSave(_ markdown: String, version: String?, expectedGeneration: UUID,
+                             availableToolNames: Set<String>,
+                             builtinNames: Set<String>) throws -> SkillChatSaveReceipt {
+        guard available else { throw LearningFileError.notLoaded }
+        // Like commitMemoryTool: a reply that started before 全部清除 must not
+        // write a skill into the cleared store.
+        guard generation == expectedGeneration else { throw SkillChatSaveError.storageChanged }
+        var next = skills
+        let receipt = try next.saveRequestedInChat(markdown, version: version, availableToolNames: availableToolNames,
+                                                   builtinNames: builtinNames)
+        do { try persist(memory: memory, skills: next) }
+        catch { self.error = Self.message(error); throw error }
+        checkSkillReferenceRemoval(next)
+        skills = next
+        error = nil; notice = nil
+        return receipt
+    }
+
     func canReviewMemory(_ note: MemoryNote) -> Bool {
         available && memory.memories.contains { $0.id == note.pendingID && $0.status == .pending }
     }
@@ -304,7 +325,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             memory = nextMemory; skills = nextSkills; notes = []; available = true; error = nil
             websites = .init(); routes = .init(); profile = nextProfile
             notice = retiredKeysRemoved
-                ? "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。"
+                ? "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。"
                 : "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。"
             return true
         } catch { self.error = Self.message(error); return false }
@@ -464,37 +485,31 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                        expectedGeneration: UUID) -> Bool {
         guard available, generation == expectedGeneration else { return false }
         do {
-            var nextSkills = skills, nextWebsites = websites, nextRoutes = routes
+            var nextSkills = skills, nextRoutes = routes
+            let nextWebsites = websites
             _ = try nextSkills.apply(assessment, availableToolNames: BrowserSession.toolNames)
             if memory.preferences.learnSkills, assessment.judgment.outcome == .done {
                 let task = try WebTaskEvidence(outcome: .succeeded, confirmed: true, summary: "已由獨立成果判定核對網站研究回答。")
-                if let citation = assessment.judgment.citations.first,
-                   let index = Int(citation.actionID.replacingOccurrences(of: "action-", with: "")),
-                   actions.indices.contains(index), actions[index].tool != "browser_find",
-                   actions[index].observation.text.contains(citation.quote) {
-                    let page = actions[index].observation
-                    let snapshot = PageSnapshot(url: page.url, title: page.title, visibleText: page.text, capturedAt: page.capturedAt)
-                    if let evidence = try? WebsiteLessonEvidence(snapshot: snapshot, quote: citation.quote),
-                       !nextWebsites.lessons.contains(where: { $0.evidence.sourceURL == evidence.sourceURL && $0.text == citation.quote }) {
-                        _ = try nextWebsites.propose(text: citation.quote, evidence: evidence, task: task)
-                    }
-                }
+                // Like the Play build, no website notes are proposed; only routes are kept.
                 // A one-page answer is not a reusable multi-step route.
                 if actions.filter({ $0.tool == "browser_open_link" }).count >= 2 {
-                    let steps = try actions.filter { $0.tool != "browser_find" }.map { action -> WebRouteStep in
+                    // A step can be refused, for example a page address with a query string;
+                    // then only the route is dropped and the skill result above is still saved.
+                    if let steps = try? actions.filter({ $0.tool != "browser_find" }).map({ action -> WebRouteStep in
                         let page = action.observation
                         return try WebRouteStep(kind: action.tool == "browser_open_link" ? .navigate : .observe,
                             snapshot: PageSnapshot(url: page.url, title: page.title, visibleText: page.text, capturedAt: page.capturedAt),
                             evidenceQuote: String(page.text.prefix(160)))
+                    }) {
+                        _ = try? nextRoutes.record(intent: goal, steps: steps, task: task)
                     }
-                    _ = try nextRoutes.record(intent: goal, steps: steps, task: task)
                 }
             }
             try saveSnapshot(LearningSnapshot(memory: memory, skills: nextSkills, websites: nextWebsites, routes: nextRoutes, profile: profile))
             checkSkillReferenceRemoval(nextSkills)
             skills = nextSkills; websites = nextWebsites; routes = nextRoutes; error = nil
             return true
-        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能、網站知識與路線保留。"; return false }
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能與路線保留。"; return false }
     }
 
     func recordResearchFailure(usedSkills: [SkillUsedReference], kind: SkillFailureKind, expectedGeneration: UUID) {
@@ -524,11 +539,6 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             loadedRevision = vault.loadedRevision
             return result
         }
-    }
-
-    @discardableResult
-    func importCatalogSkill(id: String, catalog: BundledSkillCatalog) -> Bool {
-        mutateSkills { _ = try catalog.stageAdaptation(id: id, into: &$0) }
     }
 
     static func message(_ error: Error) -> String {

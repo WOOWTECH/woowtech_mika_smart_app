@@ -9,7 +9,9 @@ final class MemoryUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 180
+        // iPhone SE on iOS 18.5 needs about 70 s just to configure the model, so the
+        // two-step clear case ran out of a 180 s allowance one relaunch from the end.
+        executionTimeAllowance = 240
     }
 
     override func tearDownWithError() throws {
@@ -70,8 +72,9 @@ final class MemoryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["skills.empty"].firstMatch.exists)
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].firstMatch.exists)
-        reveal(app.staticTexts["memory.browserPending"].firstMatch)
-        XCTAssertTrue(app.staticTexts["memory.browserPending"].firstMatch.label.contains("瀏覽器的網站頁面"))
+        let routes = app.buttons["memory.routes"].firstMatch
+        reveal(routes)
+        XCTAssertTrue(routes.label.contains("0 條"), "Play's Saved data lists saved routes with their count.")
         select("memories")
         for name in ["useMemory", "autoRemember", "learnSkills"] {
             let toggle = app.switches["memory.toggle.\(name)"].firstMatch
@@ -98,6 +101,10 @@ final class MemoryUITests: XCTestCase {
         launch()
         openMemory()
         tap("memory.manageWebsites", scroll: true)
+        // Play's Website sign-ins list opens over the browser, where WebKit lists its sites.
+        XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["signIns.empty"].waitForExistence(timeout: 30))
+        app.buttons["signIns.close"].tap()
         XCTAssertTrue(app.staticTexts["browser.status"].waitForExistence(timeout: 10))
         let back = app.buttons["section.back"]
         XCTAssertEqual(back.label, "返回記憶")
@@ -106,6 +113,8 @@ final class MemoryUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["browser.status"].isHittable)
 
         tap("memory.manageWebsites", scroll: true)
+        XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
+        app.buttons["signIns.close"].tap()
         navigateMikaSection("settings", in: app)
         XCTAssertTrue(app.staticTexts["settings.status"].waitForExistence(timeout: 10))
         navigateMikaSection("browser", in: app)
@@ -293,7 +302,8 @@ final class MemoryUITests: XCTestCase {
         enter("fixture-model\n", into: app.textFields["settings.model"].firstMatch)
         reveal(app.secureTextFields["settings.apiKey"].firstMatch)
         enter("fixture-only-not-a-real-key\n", into: app.secureTextFields["settings.apiKey"].firstMatch)
-        tap("settings.save", scroll: true)
+        tap("setup.test", scroll: true)
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].firstMatch.waitForExistence(timeout: 5))
         returnFromModelSettings(in: app)
         openMemory()

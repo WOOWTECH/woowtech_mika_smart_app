@@ -71,7 +71,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
     }
 
-    func testEnglishBrowserLibrarySearchAndSkillCatalogKeepUnsentChatDraft() {
+    func testEnglishBrowserSearchKeepsUnsentChatDraft() {
         launchAndEnterDraft()
         chooseEnglishInSettings()
 
@@ -89,35 +89,9 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertEqual(add.label, "Add and use")
         tapChrome(app.buttons["browser.searchEngine.close"])
 
-        tapChrome(app.buttons["browser.library"])
-        XCTAssertTrue(app.navigationBars["Browsing data"].waitForExistence(timeout: 10))
-        let bookmarks = app.segmentedControls["browser.library.sections"].buttons["Bookmarks"]
-        tapChrome(bookmarks)
-        exactText("browser.bookmarks.empty", "No bookmarks yet")
-        let addBookmark = app.buttons["browser.bookmarks.add"]
-        XCTAssertTrue(addBookmark.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.frame.contains(addBookmark.frame) && !addBookmark.frame.isEmpty)
-        XCTAssertEqual(addBookmark.label, "Bookmark current page")
-        XCTAssertFalse(addBookmark.isEnabled, "No page has been opened or approved for bookmarking.")
-        tapChrome(app.buttons["browser.library.close"])
-
-        tapRoot("memory")
-        tapChrome(app.buttons["memory.segment.skills"])
-        tapContent(app.buttons["skills.catalog.open"])
-        exactVisibleText("catalog.status", "Built-in skill catalog")
-        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 5")
-        exactText("catalog.scope", "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity.")
-        let search = app.textFields["catalog.search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.frame.contains(search.frame))
-        XCTAssertTrue(search.isEnabled && search.isHittable)
-        search.tap()
-        prepareLatinKeyboard()
-        search.typeText("ZQX987\n")
-        XCTAssertEqual(search.value as? String, "ZQX987")
-        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 0")
-        exactText("catalog.empty", "No matching skills.")
-        tapChrome(app.buttons["catalog.close"])
+        let start = app.descendants(matching: .any)["browser.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["browser.start.history.empty"].label, "No browsing history yet")
 
         tapRoot("chat")
         XCTAssertEqual(chatDraftControl(in: app).value as? String, chatDraft)
@@ -161,12 +135,13 @@ final class AppLanguagePhase2UITests: XCTestCase {
         tapContent(app.buttons["settings.modelJump"])
         let detail = app.navigationBars["Model"]
         XCTAssertTrue(detail.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 5))
+        // With no provider yet, the add form is open on Android's first chip.
+        XCTAssertTrue(app.secureTextFields["settings.apiKey"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["settings.appearance"].isHittable)
         tapChrome(detail.buttons.firstMatch)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["settings.modelJump"].isHittable)
-        XCTAssertFalse(app.textFields["settings.baseURL"].isHittable)
+        XCTAssertFalse(app.secureTextFields["settings.apiKey"].isHittable)
     }
 
     private func tapRoot(_ section: String) {

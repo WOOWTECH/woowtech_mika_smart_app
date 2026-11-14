@@ -370,39 +370,22 @@ private actor ReferenceBrowser: WebResearchExecuting {
         try expect(f.store.memory.context(goal:"reference").usedIDs.count == 500,"real Auto retrieval can select all 500 short active memories")
         let before=try Data(contentsOf:f.url)
         let result=try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames,websiteURL:url)
-        try expect(result.references.included.count + result.references.omitted.count == 528,"actual legal 20+500+3+5 capture does not throw")
+        try expect(result.references.included.count + result.references.omitted.count == 523,"actual legal 20+500+3 capture does not throw; website notes are not research context")
         try expect(!result.references.omitted.isEmpty && result.references.characterCount <= 6000 && result.references.utf8Count <= 24000,"whole-row omission enforces combined output budget")
-        try expect(Set(result.references.included.map(\.kind)) == Set(RunReferenceKind.allCases),"shared budget includes every available reference kind")
+        try expect(Set(result.references.included.map(\.kind)) == Set(RunReferenceKind.allCases).subtracting([.website]),"shared budget includes every reference kind except website notes, like the Play build")
         try expect(try Data(contentsOf:f.url) == before,"maximum capture is still read-only")
     }
-    static func websiteEditDeleteAndFailure() throws {
-        group="websiteEditDeleteAndFailure";let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+    static func websiteLessonsStayOutOfRunReferences() throws {
+        group="websiteLessonsStayOutOfRunReferences";let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
         let url=URL(string:"https://reference.example/article")!
         let evidence=try WebsiteLessonEvidence(snapshot:.init(url:url,title:"Synthetic",visibleText:"Observed evidence",capturedAt:.now),quote:"Observed evidence")
-        try expect(f.store.mutateWeb { web,_ in _ = try web.addManual(text:"Original website reference",evidence:evidence) },"persist website lesson")
-        let id=f.store.websites.lessons[0].id
+        try expect(f.store.mutateWeb { web,_ in _ = try web.addManual(text:"Older website reference",evidence:evidence) },"an older saved website note still loads")
         let snapshot=try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames,websiteURL:url)
-        let wrongOrigin=try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames,websiteURL:URL(string:"https://other.example/")!)
-        try expect(!wrongOrigin.references.included.contains{$0.kind == .website},"website references remain exact-origin")
-        var edits=0,broad=0
-        f.store.onUserChange={edits += 1;if !f.store.referenceEditInProgress {broad += 1}}
-        try expect(f.store.mutateWeb { web,_ in try web.edit(id:id,text:"Changed website reference",evidence:evidence) },"ordinary website edit succeeds")
-        try snapshot.check()
-        try expect(edits == 1 && broad == 0 && snapshot.references.message!.content.contains("Original website reference"),"ordinary website edit preserves frozen snapshot without broad cancellation")
-        let next=try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames,websiteURL:url)
-        try expect(next.references.message!.content.contains("Changed website reference"),"next run receives changed website lesson")
-        let before=try Data(contentsOf:f.url)
-        f.keys.unavailable=true
-        try expect(!f.store.mutateWeb { web,_ in try web.delete(id:id) },"actual failed website persistence rejects deletion")
-        try expect(!snapshot.revoked && !next.revoked && broad == 0,"failed write does not revoke existing reference or broadly cancel")
-        try expect(try Data(contentsOf:f.url) == before,"failed website deletion leaves encrypted bytes unchanged")
-        f.keys.unavailable=false
-        try expect(f.store.mutateWeb { web,_ in try web.delete(id:id) },"actual website deletion succeeds")
-        try expect(snapshot.revoked && next.revoked && !wrongOrigin.revoked,"deletion revokes only captured website rows")
-        try expect(f.store.mutateWeb { web,_ in _ = try web.addManual(text:"New website reference",evidence:evidence) },"new website row")
-        let clearSnapshot=try f.store.captureRunReferences(goal:"reference",capabilities:BrowserSession.toolNames,websiteURL:url)
+        try expect(!snapshot.references.included.contains{$0.kind == .website} && !snapshot.references.omitted.contains{$0.kind == .website},
+                   "like the Play build, research no longer receives website notes")
+        try expect((snapshot.references.message?.content.contains("Older website reference") ?? false) == false,"no website note text reaches the model")
         try expect(f.store.mutateWeb { web,_ in web.clear() },"website clear persisted")
-        try expect(clearSnapshot.revoked,"website clear revokes captured row")
+        try expect(!snapshot.revoked,"clearing unused website notes does not revoke a run")
     }
     static func actualRunnerAndLateCancellation() async throws {
         group="actualRunnerAndLateCancellation";let f=try fixture();defer{try? FileManager.default.removeItem(at:f.root)}
@@ -436,6 +419,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
             defer{defaults.removePersistentDomain(forName:suite)}
             let repository=ModelSettingsRepository(defaults:defaults,credentials:RunReferenceCredentials())
             _ = try repository.save(baseURL:configuration.baseURL.absoluteString,model:configuration.model,newKey:"synthetic-not-a-key")
+            try repository.recordConsentForMain() // the user agreed to share content (App Review 5.1.2(i))
             let gate=ReferenceGate(), model=ReferenceModel(gate:gate)
             let chat=ChatSession(learning:f.store,repository:repository,client:model)
             let browser=BrowserSession(dataStore:.nonPersistent())
@@ -537,7 +521,7 @@ private actor ReferenceBrowser: WebResearchExecuting {
         try LearningRunAppChecks.profileReplacementThenUnrelatedDelete()
         try LearningRunAppChecks.reloadClearAndFailedWrite()
         try LearningRunAppChecks.maximumLegalCapture()
-        try LearningRunAppChecks.websiteEditDeleteAndFailure()
+        try LearningRunAppChecks.websiteLessonsStayOutOfRunReferences()
         try await LearningRunAppChecks.actualRunnerAndLateCancellation()
         try await LearningRunAppChecks.actualBrowserSessionReferences()
         let groups=LearningRunAppChecks.counts
@@ -554,7 +538,7 @@ final class LearningRunAppIntegrationTests: XCTestCase {
     @MainActor func testProfileReplacementThenUnrelatedDelete() throws {try LearningRunAppChecks.profileReplacementThenUnrelatedDelete()}
     @MainActor func testReloadClearAndFailedWrite() throws {try LearningRunAppChecks.reloadClearAndFailedWrite()}
     @MainActor func testMaximumLegalCapture() throws {try LearningRunAppChecks.maximumLegalCapture()}
-    @MainActor func testWebsiteEditDeleteAndFailure() throws {try LearningRunAppChecks.websiteEditDeleteAndFailure()}
+    @MainActor func testWebsiteLessonsStayOutOfRunReferences() throws {try LearningRunAppChecks.websiteLessonsStayOutOfRunReferences()}
     @MainActor func testActualRunnerAndLateCancellation() async throws {try await LearningRunAppChecks.actualRunnerAndLateCancellation()}
     @MainActor func testActualBrowserSessionReferences() async throws {try await LearningRunAppChecks.actualBrowserSessionReferences()}
 }

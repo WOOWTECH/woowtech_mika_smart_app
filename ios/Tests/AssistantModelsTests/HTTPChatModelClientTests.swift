@@ -6,6 +6,10 @@ final class HTTPChatModelClientTests: XCTestCase {
         XCTAssertGreaterThan(try ModelClientChecks.requestContract(), 0)
     }
 
+    func testKeylessCustomProviderAndSessionHeader() throws {
+        XCTAssertGreaterThan(try ModelClientChecks.providerHeadersContract(), 0)
+    }
+
     func testStrictIncrementalSSEParserAndBounds() throws {
         XCTAssertGreaterThan(try ModelClientChecks.parserContract(), 0)
     }

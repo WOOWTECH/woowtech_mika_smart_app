@@ -149,7 +149,7 @@ jobs:
           python3 scripts/prepare_live_xctestrun.py "${test_runs[0]}" --service mcp
           selectors=(WoowAssistantUITests/LiveMCPUITests WoowAssistantUITests/LiveMCPConversationUITests)
           if [ '${{ inputs.ui_scope }}' = memory-learning ]; then
-            selectors=(WoowAssistantUITests/LiveMCPConversationUITests/testRealModelUsesRemoteToolThenReviewedLocalMemoryAndUndo)
+            selectors=(WoowAssistantUITests/LiveMCPConversationUITests/testRealModelUsesRemoteToolThenLocalMemoryAndUndo)
           fi
           ui_filters=()
           verification_filters=()
