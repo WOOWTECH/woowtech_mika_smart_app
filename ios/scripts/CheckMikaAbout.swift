@@ -43,7 +43,7 @@ import Foundation
         let report = MikaAboutDiagnostics(info: installed,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 2, patchVersion: 1),
             language: .english).text
-        try check(report == "woowtech assistant diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
+        try check(report == "woowtech agent diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
                   "Report contains only the explicitly selected metadata")
         let missingReport = MikaAboutDiagnostics(info: unresolved,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 0, patchVersion: 0),

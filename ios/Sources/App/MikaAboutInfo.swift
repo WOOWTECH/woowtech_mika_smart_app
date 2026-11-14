@@ -79,8 +79,8 @@ enum MikaAboutKey: CaseIterable {
         case .licenseLink: return ("Apache-2.0 開源許可", "Apache-2.0 license")
         case .licenseTitle: return ("Apache-2.0 授權條款", "Apache-2.0 License")
         case .thirdParty: return ("第三方元件 · %lld 個", "Third-party components · %lld")
-        case .upstreamNote: return ("記憶、個人技能、網站知識與操作路線的行為依這個版本改寫成 iOS 版，內建技能的原文也來自這裡。",
-                                    "The memory, personal skill, website knowledge and route behavior is adapted for iOS from this revision, which is also the source of the built-in skills' original text.")
+        case .upstreamNote: return ("記憶、個人技能與操作路線的行為依這個版本改寫成 iOS 版，內建技能的原文也來自這裡。",
+                                    "The memory, personal skill and route behavior is adapted for iOS from this revision, which is also the source of the built-in skills' original text.")
         case .licenseUnavailable: return ("授權條款文字目前無法讀取。上游 wangzan101/Mika 以 Apache-2.0 授權釋出。",
                                           "The license text can't be read right now. Upstream wangzan101/Mika is released under the Apache-2.0 license.")
         case .licensesFooter: return ("上面的授權條款全文與版權宣告，取自上游 wangzan101/Mika 的固定版本。",
@@ -98,7 +98,7 @@ struct MikaAboutDiagnostics {
     var text: String {
         let copy = MikaAboutCopy(language: language)
         let os = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
-        return ["woowtech assistant diagnostics", "App version: \(info.version ?? copy.text(.unavailable))",
+        return ["woowtech agent diagnostics", "App version: \(info.version ?? copy.text(.unavailable))",
                 "Build: \(info.build ?? copy.text(.unavailable))", "iOS/iPadOS: \(os)"].joined(separator: "\n")
     }
 }

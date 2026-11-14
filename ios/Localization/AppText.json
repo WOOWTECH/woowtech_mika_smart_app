@@ -110,8 +110,8 @@
       "key": "learning.cleared",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。",
-        "en": "Cleared your profile, memories, skills, website notes and routes, and renewed the encryption key. Model and MCP settings are kept."
+        "zh-Hant": "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。",
+        "en": "Cleared your profile, memories, skills and routes, and renewed the encryption key. Model and MCP settings are kept."
       }
     },
     {
@@ -242,8 +242,8 @@
       "key": "learning.notSaved",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料未儲存；原有技能、網站知識與路線保留。",
-        "en": "Learning data wasn’t saved. Existing skills, website notes and routes are kept."
+        "zh-Hant": "學習資料未儲存；原有技能與路線保留。",
+        "en": "Learning data wasn’t saved. Existing skills and routes are kept."
       }
     },
     {
@@ -2297,7 +2297,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "開啟渥屋助理查看結果。",
-        "en": "Open Woow Assistant to view the result."
+        "en": "Open woowtech agent to view the result."
       }
     },
     {
@@ -2306,7 +2306,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "請開啟渥屋助理查看並決定；通知不會核准操作。",
-        "en": "Open Woow Assistant to review and decide. Notifications do not approve actions."
+        "en": "Open woowtech agent to review and decide. Notifications do not approve actions."
       }
     },
     {
@@ -2315,7 +2315,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "這是渥屋助理的測試通知。",
-        "en": "This is a test notification from Woow Assistant."
+        "en": "This is a test notification from woowtech agent."
       }
     },
     {
@@ -2568,7 +2568,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "問渥屋助理研究此網站",
-        "en": "Ask the assistant to research this site"
+        "en": "Ask woowtech agent to research this site"
       }
     },
     {

@@ -321,7 +321,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             memory = nextMemory; skills = nextSkills; notes = []; available = true; error = nil
             websites = .init(); routes = .init(); profile = nextProfile
             notice = retiredKeysRemoved
-                ? "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。"
+                ? "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。"
                 : "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。"
             return true
         } catch { self.error = Self.message(error); return false }
@@ -502,7 +502,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             checkSkillReferenceRemoval(nextSkills)
             skills = nextSkills; websites = nextWebsites; routes = nextRoutes; error = nil
             return true
-        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能、網站知識與路線保留。"; return false }
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能與路線保留。"; return false }
     }
 
     func recordResearchFailure(usedSkills: [SkillUsedReference], kind: SkillFailureKind, expectedGeneration: UUID) {

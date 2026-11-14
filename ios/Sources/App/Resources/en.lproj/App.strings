@@ -10,7 +10,7 @@
 "learning.profileSaved" = "Profile saved. It applies from your next conversation task.";
 "learning.procedureApproved" = "Procedure approved. Later tasks can use it.";
 "learning.procedureDeclined" = "Procedure declined. If there’s an undo record, the earlier content is restored.";
-"learning.cleared" = "Cleared your profile, memories, skills, website notes and routes, and renewed the encryption key. Model and MCP settings are kept.";
+"learning.cleared" = "Cleared your profile, memories, skills and routes, and renewed the encryption key. Model and MCP settings are kept.";
 "learning.clearedKeyPending" = "Data cleared and the encryption key renewed, but removing the old key didn’t finish. Unlock the device and clear again.";
 "learning.forgot" = "Forgot a memory";
 "learning.deleted" = "This memory was deleted";
@@ -23,7 +23,7 @@
 "learning.tidyBusy" = "Reply finished. Learning data is being saved elsewhere, so this memory tidy-up wasn’t saved. Check again later.";
 "learning.tidyFailed" = "Reply finished. This memory tidy-up didn’t finish and existing data is unchanged. You can also add a memory yourself in Memory & Data.";
 "learning.webNotSaved" = "Website data wasn’t saved. Check the content, source and version; existing data is kept.";
-"learning.notSaved" = "Learning data wasn’t saved. Existing skills, website notes and routes are kept.";
+"learning.notSaved" = "Learning data wasn’t saved. Existing skills and routes are kept.";
 "learning.skillRecordFailed" = "The task stopped. The skill result record couldn’t be saved; existing data is kept.";
 "learning.busy" = "Learning data is being saved elsewhere. Nothing was saved this time and existing data is kept. Try again later.";
 "learning.conflict" = "Learning data changed elsewhere. Nothing was saved this time and existing data is kept. Reload and confirm again.";
@@ -244,9 +244,9 @@
 "notification.completed.title" = "Task completed";
 "notification.approval.title" = "An action needs your approval";
 "notification.test.title" = "Notification test";
-"notification.completed.body" = "Open Woow Assistant to view the result.";
-"notification.approval.body" = "Open Woow Assistant to review and decide. Notifications do not approve actions.";
-"notification.test.body" = "This is a test notification from Woow Assistant.";
+"notification.completed.body" = "Open woowtech agent to view the result.";
+"notification.approval.body" = "Open woowtech agent to review and decide. Notifications do not approve actions.";
+"notification.test.body" = "This is a test notification from woowtech agent.";
 "catalog.ready.author" = "Model-assisted authoring with reviewed saving; original capabilities are not fully supported";
 "browser.start.done" = "Done";
 "browser.start.edit" = "Organize";
@@ -272,7 +272,7 @@
 "browser.chrome.return.manual" = "Return to manual browsing";
 "browser.chrome.research" = "Research";
 "browser.chrome.research.site" = "Research this site";
-"browser.page.ask.research" = "Ask the assistant to research this site";
+"browser.page.ask.research" = "Ask woowtech agent to research this site";
 "browser.chrome.interact" = "Interact";
 "browser.chrome.library" = "Tabs, bookmarks and history";
 "browser.chrome.explanation" = "You can sign in to sites and choose files to upload manually. Site data stays in this app. Model research and each approved action have separate limits.";

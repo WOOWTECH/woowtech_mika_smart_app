@@ -10,7 +10,7 @@
 "learning.profileSaved" = "個人檔案已儲存，下一次對話任務開始時生效。";
 "learning.procedureApproved" = "已批准這條操作偏好，後續任務可以參考。";
 "learning.procedureDeclined" = "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。";
-"learning.cleared" = "已清除個人檔案、記憶、技能、網站知識與路線，並更新加密金鑰；模型和 MCP 設定保留。";
+"learning.cleared" = "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。";
 "learning.clearedKeyPending" = "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。";
 "learning.forgot" = "已忘掉一條記憶";
 "learning.deleted" = "這條記憶已刪除";
@@ -23,7 +23,7 @@
 "learning.tidyBusy" = "回覆已完成；學習資料正在其他位置儲存，這次記憶整理未儲存。請稍後確認。";
 "learning.tidyFailed" = "回覆已完成；這次記憶整理未完成，既有資料不變。你也可以到記憶與資料手寫一條。";
 "learning.webNotSaved" = "網站資料未儲存；請檢查內容、來源與版本，既有資料保留。";
-"learning.notSaved" = "學習資料未儲存；原有技能、網站知識與路線保留。";
+"learning.notSaved" = "學習資料未儲存；原有技能與路線保留。";
 "learning.skillRecordFailed" = "任務已停止；技能結果紀錄未能儲存，既有資料保留。";
 "learning.busy" = "學習資料正在其他位置儲存；本次未儲存，原有資料保留。請稍後再試。";
 "learning.conflict" = "學習資料已在其他位置變更；本次未儲存，原有資料保留。請重新讀取並再次確認。";
