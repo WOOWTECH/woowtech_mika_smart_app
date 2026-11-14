@@ -179,6 +179,53 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
     }
 
+    /// Android Onboarding.start: with no main model and the setup never
+    /// finished, the App opens on the welcome page. 開始設定 shows the model
+    /// page in its first-launch mode (providers before the roles), where 下一步
+    /// waits for a main model; Back returns to the welcome page.
+    func testFirstLaunchWelcomeLeadsToModelSetupWhereNextWaitsForMainModel() {
+        let app = XCUIApplication()
+        // Without -WoowSkipOnboarding: the first launch people see.
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+        app.launchEnvironment = [:]
+        app.launch()
+        let start = app.buttons["welcome.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        XCTAssertEqual(app.staticTexts["welcome.title"].label, "你好，我是渥屋助理")
+        XCTAssertEqual(app.staticTexts["welcome.lead"].label, "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。")
+        for feature in ["chat", "voice", "web", "memory"] {
+            XCTAssertTrue(app.descendants(matching: .any)["welcome.feature." + feature].exists, "Welcome lists \(feature)")
+        }
+        XCTAssertEqual(app.staticTexts["welcome.note"].label, "先設定自己的模型帳號或 API Key，即可開始使用。")
+        XCTAssertEqual(start.label, "開始設定")
+        attachScreenshot("onboarding-welcome", in: app)
+
+        waitUntilHittable(start)
+        start.tap()
+        let bar = app.navigationBars["設定模型"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["setup.lead"].label.hasPrefix("渥屋助理用你自己的模型服務來思考。"))
+        let next = app.buttons["setup.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 10))
+        XCTAssertEqual(next.label, "下一步")
+        XCTAssertFalse(next.isEnabled, "下一步 waits for a main model.")
+        // No provider yet: the add form is open above the main model's role.
+        let preset = app.buttons["setup.preset.OpenRouter"]
+        let main = app.buttons["models.role.main"]
+        XCTAssertTrue(preset.waitForExistence(timeout: 10))
+        XCTAssertTrue(main.exists)
+        XCTAssertLessThan(preset.frame.minY, main.frame.minY, "Providers come before the roles on first launch.")
+        XCTAssertFalse(app.buttons["settings.voice.open"].exists, "Speech to text stays in Settings, as on Play.")
+        XCTAssertTrue(app.staticTexts["setup.onboardingNote"].exists)
+        attachScreenshot("onboarding-model-setup", in: app)
+
+        let back = bar.buttons.firstMatch
+        waitUntilHittable(back)
+        back.tap()
+        waitUntilHittable(start)
+    }
+
     func testDrawerAboutOpensAndReturnsToChat() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)
