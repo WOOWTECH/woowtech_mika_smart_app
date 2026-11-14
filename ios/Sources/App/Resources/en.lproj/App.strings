@@ -262,6 +262,7 @@
 "browser.start.suggestion.subtitle" = "Search or open an address";
 "browser.chrome.close.page" = "Close page and return to start";
 "browser.chrome.address.placeholder" = "Search or enter an address";
+"browser.chrome.edit.address" = "Edit URL";
 "browser.chrome.clear.input" = "Clear input";
 "browser.chrome.stop" = "Stop";
 "browser.chrome.reload" = "Reload";

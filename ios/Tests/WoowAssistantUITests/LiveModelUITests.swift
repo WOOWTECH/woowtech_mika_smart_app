@@ -189,7 +189,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 20), .completed)
         XCTAssertFalse(app.staticTexts["browser.interaction.error"].exists, "The approved DOM dispatch failed.")
         app.buttons["browser.interaction.close"].tap()
-        let address = app.textFields["browser.address"]
+        let address = app.buttons["browser.addressPill"]
         let navigated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "https://www.iana.org/about"), object: address)
         XCTAssertEqual(XCTWaiter.wait(for: [navigated], timeout: 45), .completed,
                        "A proposal alone is insufficient: the actual WebKit URL must change.")
@@ -255,7 +255,7 @@ final class LiveModelUITests: XCTestCase {
         }
         app.buttons["browser.research.close"].tap()
         XCTAssertFalse(app.staticTexts["browser.error"].exists)
-        XCTAssertTrue((app.textFields["browser.address"].value as? String) == sources.last,
+        XCTAssertTrue((app.buttons["browser.addressPill"].value as? String) == sources.last,
                       "Research should finish on the last required public page.")
 
         navigate(to: "memory", in: app)

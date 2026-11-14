@@ -339,7 +339,7 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists,
                       "Relaunch must not secretly submit the login form again.")
         XCTAssertNotEqual(serverInstance, firstInstance, "The receipt must come from a new server process.")
-        guard let statusURL = URL(string: app.textFields["browser.address"].value as? String ?? ""),
+        guard let statusURL = URL(string: app.buttons["browser.addressPill"].value as? String ?? ""),
               statusURL.host == "127.0.0.1" else { XCTFail("Expected synthetic status URL after relaunch."); return }
         let currentURL = statusURL.deletingLastPathComponent().appendingPathComponent("protected")
         tap(app.webViews.buttons["登出測試帳號"].firstMatch)
@@ -633,7 +633,8 @@ final class BrowserLoginUITests: XCTestCase {
     }
 
     private func currentProtectedURL() -> URL {
-        let raw = app.textFields["browser.address"].value as? String ?? ""
+        // Play's page bar shows the site; the address pill's value is the full URL.
+        let raw = app.buttons["browser.addressPill"].value as? String ?? ""
         guard let url = URL(string: raw), url.host == "127.0.0.1",
               url.path == "/login-fixture/\(namespace.lowercased())/protected" else {
             XCTFail("Expected the synthetic protected HTTP page.")

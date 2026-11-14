@@ -40,13 +40,15 @@ final class BrowserSearchUITests: XCTestCase {
         let address = app.textFields["browser.address"]
         enter("fixture cats & dogs/+%", in: address)
         address.typeText("\n")
-        let query = app.staticTexts["browser.search.query"]
-        XCTAssertTrue(query.waitForExistence(timeout: 75))
-        XCTAssertTrue(query.label.contains("fixture cats & dogs/+%"))
-        XCTAssertTrue((address.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
+        // Like Play's page bar, a search results page shows the searched words;
+        // the pill's value is the full search URL.
+        let query = app.buttons["browser.addressPill"]
+        let searched = NSPredicate(format: "exists == true AND label CONTAINS %@", "fixture cats & dogs/+%")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
+        XCTAssertTrue((query.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
+        XCTAssertFalse(app.buttons["browser.searchEngine.open"].exists, "The engine choice is on the start page, as Play's engine note is.")
         launch()
-        XCTAssertTrue(query.waitForExistence(timeout: 75))
-        XCTAssertTrue(query.label.contains("fixture cats & dogs/+%"))
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
         // Like the Play build, recent pages are on the start page (no library sheet).
         tap(app.buttons["browser.closePage"])
         let history = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.start.history.open.")).firstMatch

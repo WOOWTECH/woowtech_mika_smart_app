@@ -67,7 +67,7 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research.close")
         waitFor(fixtureHeading, predicate: "exists == true")
         XCTAssertFalse(app.staticTexts["browser.error"].exists)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String,
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String,
                        "https://research.example.invalid/epsilon")
 
         openMemory()
@@ -125,7 +125,7 @@ final class BrowserLearningUITests: XCTestCase {
         waitForLabel(app.staticTexts["chat.status"], "尚未設定模型")
         navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], "頁面已載入")
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         tap("browser.research")
         XCTAssertTrue(app.buttons["browser.start"].waitForExistence(timeout: 5))
         XCTAssertEqual(goalField.value as? String, goal)
@@ -171,7 +171,7 @@ final class BrowserLearningUITests: XCTestCase {
         navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], stopped)
         XCTAssertFalse(app.buttons["browser.cancel"].exists)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         tap("browser.research")
         waitForLabel(app.staticTexts["browser.task.status"], stopped)
         XCTAssertEqual(goalField.value as? String, waitingGoal)

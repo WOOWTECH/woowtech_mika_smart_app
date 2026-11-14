@@ -9,6 +9,7 @@ import WebKit
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
     private var webViewURLObservation: NSKeyValueObservation?
+    private var webViewLoadObservations: [NSKeyValueObservation] = []
     // Hosted integration tests can observe completion of the actual KVO work,
     // including when publishSameDocumentURL rejects an event. Never grants access.
     var onSameDocumentURLKVOHandled: ((URL?) -> Void)?
@@ -66,8 +67,26 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                 self.onSameDocumentURLKVOHandled?(observedURL)
             }
         }
+        // Play's page bar swaps reload for stop and draws a thin progress line
+        // while a page loads; publish WebKit's own loading state for it.
+        webViewLoadObservations = [
+            view.observe(\.isLoading, options: [.new]) { [weak self, weak view] _, _ in
+                Task { @MainActor [weak self, weak view] in self?.publishLoadState(of: view) }
+            },
+            view.observe(\.estimatedProgress, options: [.new]) { [weak self, weak view] _, _ in
+                Task { @MainActor [weak self, weak view] in self?.publishLoadState(of: view) }
+            }
+        ]
         return view
     }
+    @Published private(set) var isLoading = false
+    @Published private(set) var loadProgress = 0.0
+    private func publishLoadState(of view: WKWebView?) {
+        guard let view, storedWebView === view else { return }
+        if isLoading != view.isLoading { isLoading = view.isLoading }
+        if loadProgress != view.estimatedProgress { loadProgress = view.estimatedProgress }
+    }
+    private var userStoppedNavigation: WKNavigation?
     @Published var address = ""
     @Published var goal = ""
     @Published private(set) var status = "輸入網址開始瀏覽"
@@ -143,6 +162,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             if fixtureMode { loadFixture(url: url); return trackedNavigation }
             return webView.load(URLRequest(url: url))
         }
+    }
+
+    /// Play's stop key: stop the page that is loading and keep what WebKit
+    /// already shows. A stop is not reported as a failed load.
+    func stopLoading() {
+        guard !isRunning, !isInteracting, let view = storedWebView, view.isLoading else { return }
+        userStoppedNavigation = trackedNavigation
+        view.stopLoading()
     }
 
     func returnToManualBrowsing() {
@@ -958,12 +985,16 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             return
         }
         guard let navigation, trackedNavigation === navigation else { return }
+        let nsError = underlying as NSError
+        let stoppedByUser = userStoppedNavigation === navigation
+            && nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+        userStoppedNavigation = nil
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         if expectedNavigation === navigation { navigationFinished = false; expectedNavigation = nil }
         invalidatePageObservation(); requestedNavigationPending = false
+        if stoppedByUser && !isRunning { keepStoppedPage(); return }
         error = "網站載入失敗，請檢查網址或網路。"
         if !isRunning {
-            let nsError = underlying as NSError
             let category: ManualLoadFailure = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorTimedOut
                 ? .navigationTimeout : .navigationFailed
             failManualLoad(category)
@@ -1036,6 +1067,21 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         invalidatePageObservation()
         trackedNavigation = nil; requestedNavigationPending = true
         if !isRunning { resetLoadTrace(); traceLoad(.requested) }
+    }
+    /// After the user's stop the document WebKit shows (often already drawn)
+    /// stays the current page; it is not read for research.
+    private func keepStoppedPage() {
+        manualDocumentURL = nil; manualDocumentNavigation = nil
+        trackedNavigation = nil
+        current = nil; error = nil; status = "載入未完成"
+        if let view = storedWebView {
+            canGoBack = view.canGoBack; canGoForward = view.canGoForward
+            if let url = view.url, manualPermitted(url) {
+                loadedURL = url; address = url.absoluteString
+                pageTitle = Self.displayTitle(view.title, url: url)
+            }
+        }
+        traceLoad(.failed, failure: .cancelled)
     }
     private func failManualLoad(_ category: ManualLoadFailure) {
         siteModeReloadState.invalidate(); automaticSiteModeReload = false

@@ -268,6 +268,7 @@ enum AppText: Equatable {
     case browserStartSuggestionSubtitle
     case browserChromeClosePage
     case browserChromeAddressPlaceholder
+    case browserChromeEditAddress
     case browserChromeClearInput
     case browserChromeStop
     case browserChromeReload
@@ -1157,6 +1158,7 @@ enum AppText: Equatable {
         case .browserStartSuggestionSubtitle: return "browser.start.suggestion.subtitle"
         case .browserChromeClosePage: return "browser.chrome.close.page"
         case .browserChromeAddressPlaceholder: return "browser.chrome.address.placeholder"
+        case .browserChromeEditAddress: return "browser.chrome.edit.address"
         case .browserChromeClearInput: return "browser.chrome.clear.input"
         case .browserChromeStop: return "browser.chrome.stop"
         case .browserChromeReload: return "browser.chrome.reload"
@@ -2148,6 +2150,7 @@ enum AppText: Equatable {
         case .browserStartSuggestionSubtitle: return "搜尋或開啟網址"
         case .browserChromeClosePage: return "關閉網頁並返回起始頁"
         case .browserChromeAddressPlaceholder: return "搜尋或輸入網址"
+        case .browserChromeEditAddress: return "改網址"
         case .browserChromeClearInput: return "清除輸入"
         case .browserChromeStop: return "停止"
         case .browserChromeReload: return "重新整理"

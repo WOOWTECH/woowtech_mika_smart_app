@@ -15,6 +15,8 @@ struct BrowserView: View {
     @State private var showSearchSettings = false
     @State private var showMore = false
     @State private var startQuery = ""
+    /// Play's page bar: the address shows the site until tapped, then the full URL.
+    @State private var editingAddress = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var addressFocused: Bool
@@ -41,79 +43,23 @@ struct BrowserView: View {
     }
     var body: some View {
         VStack(spacing: 4) {
-            HStack(spacing: 8) {
-                if !isStartPage {
-                    Button { closePage() } label: { Image(systemName: "xmark").frame(width: 36, height: 40) }
-                        .accessibilityLabel(localizer.text(.browserChromeClosePage))
-                        .accessibilityIdentifier("browser.closePage")
-                        .disabled(!workspace.available || workspace.isClearingWebsiteData)
-                }
-                HStack(spacing: 8) {
-                    Image(systemName: isStartPage ? "magnifyingglass" :
-                          (browser.loadedURL?.scheme == "https" ? "lock.fill" : "globe"))
-                        .font(.caption).foregroundStyle(palette.tertiary)
-                    if isStartPage {
-                        TextField(localizer.text(.browserChromeAddressPlaceholder), text: $startQuery)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .keyboardType(.default).submitLabel(.go).focused($addressFocused)
-                            .onSubmit { submitStartQuery() }
-                            .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-                            .accessibilityIdentifier("browser.address")
-                        if !startQuery.isEmpty {
-                            Button { startQuery = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 30, height: 30) }
-                                .accessibilityLabel(localizer.text(.browserChromeClearInput))
-                                .accessibilityIdentifier("browser.start.clearInput")
-                        }
-                    } else {
-                        TextField(localizer.text(.browserChromeAddressPlaceholder), text: $browser.address)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .keyboardType(.default).submitLabel(.go).focused($addressFocused)
-                            .onSubmit { open() }
-                            .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
-                            .accessibilityIdentifier("browser.address")
-                    }
-                }
-                .padding(.horizontal, 14)
-                .frame(height: isStartPage ? 52 : 40)
-                .background(palette.surface, in: Capsule())
-                .overlay(Capsule().stroke(palette.edge, lineWidth: 0.5))
-                if !isStartPage {
-                    if browser.isRunning {
-                        Button { browser.cancel() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
-                            .accessibilityLabel(localizer.text(.browserChromeStop))
-                            .accessibilityIdentifier("browser.cancel")
-                    } else {
-                        Button { browser.reloadPage() } label: { Image(systemName: "arrow.clockwise").frame(width: 36, height: 40) }
-                            .accessibilityLabel(localizer.text(.browserChromeReload))
-                            .accessibilityIdentifier("browser.reload")
-                            .disabled(browser.loadedURL == nil || browser.isInteracting || workspace.isClearingWebsiteData)
-                    }
-                }
-                Button { isStartPage ? submitStartQuery() : open() } label: { Image(systemName: "arrow.right").frame(width: 36, height: 40) }
-                    .accessibilityLabel(localizer.text(.browserChromeOpen))
-                    .accessibilityIdentifier("browser.open")
-                    .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+            Group {
+                if isStartPage { startBar }
+                else if editingAddress { addressEditor }
+                else { pageBar }
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.top, isStartPage ? 12 : 4)
-            if !isStartPage {
-                Group {
-                    if browser.webView.isLoading { ProgressView().progressViewStyle(.linear) }
-                    else { Color.clear }
-                }
-                .frame(height: 2)
-            }
-            HStack {
-                Button(localizer.text(.browserChromeSearchEngine(name: workspace.library.searchSettings.selected.name))) {
-                    addressFocused = false; browser.webView.endEditing(true); showSearchSettings = true
-                }.font(.caption).lineLimit(1).accessibilityIdentifier("browser.searchEngine.open")
-                    .disabled(!workspace.available || workspace.isClearingWebsiteData)
-                Spacer()
-            }.padding(.horizontal, 20)
-            if let match = browser.manualSearchMatch {
-                Text(localizer.text(.browserChromeSearchMatch(query: match.query, engine: match.engineName)))
-                    .font(.caption).lineLimit(2).accessibilityIdentifier("browser.search.query")
+            if !isStartPage { progressLine }
+            if isStartPage {
+                HStack {
+                    Button(localizer.text(.browserChromeSearchEngine(name: workspace.library.searchSettings.selected.name))) {
+                        addressFocused = false; browser.webView.endEditing(true); showSearchSettings = true
+                    }.font(.caption).lineLimit(1).accessibilityIdentifier("browser.searchEngine.open")
+                        .disabled(!workspace.available || workspace.isClearingWebsiteData)
+                    Spacer()
+                }.padding(.horizontal, 20)
             }
             if workspace.isClearingWebsiteData {
                 ProgressView(localizer.text(.browserClearing))
@@ -212,15 +158,162 @@ struct BrowserView: View {
         .onAppear { workspace.activateSelected(); browser.setPageHostVisible(pageHostVisible) }
         .onDisappear { browser.setPageHostVisible(false) }
         .onChange(of: pageHostVisible) { _, visible in browser.setPageHostVisible(visible) }
+        .onChange(of: addressFocused) { _, focused in
+            if !focused && editingAddress { endAddressEditing() }
+        }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
             showResearch = false; showInteractions = false
-            showMore = false; showInvalidStartInput = false; startQuery = ""
+            showMore = false; showInvalidStartInput = false; startQuery = ""; editingAddress = false
             browser.setPageHostVisible(pageHostVisible)
         }
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
         }
     }
+    private var startBar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(palette.tertiary)
+                TextField(localizer.text(.browserChromeAddressPlaceholder), text: $startQuery)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .keyboardType(.default).submitLabel(.go).focused($addressFocused)
+                    .onSubmit { submitStartQuery() }
+                    .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+                    .accessibilityIdentifier("browser.address")
+                if !startQuery.isEmpty {
+                    Button { startQuery = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 30, height: 30) }
+                        .accessibilityLabel(localizer.text(.browserChromeClearInput))
+                        .accessibilityIdentifier("browser.start.clearInput")
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 52)
+            .background(palette.surface, in: Capsule())
+            .overlay(Capsule().stroke(palette.edge, lineWidth: 0.5))
+            Button { submitStartQuery() } label: { Image(systemName: "arrow.right").frame(width: 36, height: 40) }
+                .accessibilityLabel(localizer.text(.browserChromeOpen))
+                .accessibilityIdentifier("browser.open")
+                .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+        }
+    }
+
+    /// Play's BrowserPageBar: close, the address pill, then stop while loading or reload.
+    private var pageBar: some View {
+        HStack(spacing: 4) {
+            Button { closePage() } label: { Image(systemName: "xmark").frame(width: 36, height: 40) }
+                .accessibilityLabel(localizer.text(.browserChromeClosePage))
+                .accessibilityIdentifier("browser.closePage")
+                .disabled(!workspace.available || workspace.isClearingWebsiteData)
+            addressPill
+            if browser.isRunning {
+                Button { browser.cancel() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
+                    .accessibilityLabel(localizer.text(.browserChromeStop))
+                    .accessibilityIdentifier("browser.cancel")
+            } else if browser.isLoading {
+                Button { browser.stopLoading() } label: { Image(systemName: "stop.fill").frame(width: 36, height: 40) }
+                    .accessibilityLabel(localizer.text(.browserChromeStop))
+                    .accessibilityIdentifier("browser.stop")
+                    .disabled(browser.isInteracting || workspace.isClearingWebsiteData)
+            } else {
+                Button { browser.reloadPage() } label: { Image(systemName: "arrow.clockwise").frame(width: 36, height: 40) }
+                    .accessibilityLabel(localizer.text(.browserChromeReload))
+                    .accessibilityIdentifier("browser.reload")
+                    .disabled(browser.loadedURL == nil || browser.isInteracting || workspace.isClearingWebsiteData)
+            }
+        }
+    }
+
+    /// The page WebKit shows, or is loading, for the address pill.
+    private var pageAddress: URL? {
+        if let shown = browser.webView.url, ["https", "http"].contains(shown.scheme?.lowercased() ?? "") { return shown }
+        return browser.loadedURL ?? URL(string: browser.address)
+    }
+
+    /// Like Play's AddressPill: the site name, or the words on a search results
+    /// page, with a 電腦版 tag when this site uses the desktop version. Tap it to
+    /// edit the full URL; its accessibility value is the full URL.
+    private var addressPill: some View {
+        let url = pageAddress
+        let search = url.flatMap { workspace.library.searchSettings.match($0) }
+        let shown = search?.query ?? url.map(Self.siteName) ?? browser.address
+        let desktop = workspace.library.userSiteModes.mode(for: url?.host) == .desktop
+        let desktopTag = localizer.text(.browserChromeDesktop)
+        return Button { beginAddressEditing(url) } label: {
+            HStack(spacing: 6) {
+                if search != nil {
+                    Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(palette.tertiary)
+                } else if url?.scheme?.lowercased() == "https" {
+                    Image(systemName: "lock.fill").font(.caption).foregroundStyle(palette.tertiary)
+                }
+                Text(verbatim: shown).lineLimit(1).truncationMode(.tail).foregroundStyle(palette.primary)
+                if desktop {
+                    Text(desktopTag).font(.caption2.weight(.semibold)).foregroundStyle(Color.orange).lineLimit(1)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+            .background(palette.surface, in: Capsule())
+            .overlay(Capsule().stroke(palette.edge, lineWidth: 0.5))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(desktop ? shown + " " + desktopTag : shown)
+        .accessibilityValue(url?.absoluteString ?? "")
+        .accessibilityHint(localizer.text(.browserChromeEditAddress))
+        .accessibilityIdentifier("browser.addressPill")
+        .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+    }
+
+    /// Play's AddressEditor: the full URL, all selected, with Go; 取消 folds it back.
+    private var addressEditor: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: pageAddress?.scheme?.lowercased() == "https" ? "lock.fill" : "globe")
+                    .font(.caption).foregroundStyle(palette.tertiary)
+                TextField(localizer.text(.browserChromeAddressPlaceholder), text: $browser.address)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .keyboardType(.default).submitLabel(.go).focused($addressFocused)
+                    .onSubmit { submitPageAddress() }
+                    .disabled(browser.isRunning || browser.isInteracting || workspace.isClearingWebsiteData)
+                    .accessibilityIdentifier("browser.address")
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 40)
+            .background(palette.surface, in: Capsule())
+            .overlay(Capsule().stroke(.tint, lineWidth: 1.5))
+            Button(localizer.text(.commonCancel)) { endAddressEditing() }
+                .foregroundStyle(.tint)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 40)
+                .accessibilityIdentifier("browser.address.cancel")
+        }
+        .onAppear { DispatchQueue.main.async { addressFocused = true } }
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
+            // Select the whole URL so typing replaces it, as on Play.
+            guard editingAddress, let field = note.object as? UITextField, field.text == browser.address else { return }
+            DispatchQueue.main.async { field.selectAll(nil) }
+        }
+    }
+
+    private var progressLine: some View {
+        GeometryReader { proxy in
+            if browser.isLoading {
+                Rectangle().fill(.tint)
+                    .frame(width: proxy.size.width * CGFloat(min(1, max(0.05, browser.loadProgress))))
+            }
+        }
+        .frame(height: 2)
+        .accessibilityHidden(true)
+    }
+
+    private static func siteName(_ url: URL) -> String {
+        guard var host = url.host, !host.isEmpty else { return url.absoluteString }
+        if host.lowercased().hasPrefix("www.") { host.removeFirst(4) }
+        return host
+    }
+
     private func pageAskBar(host: String) -> some View {
         Button {
             addressFocused = false
@@ -347,7 +440,7 @@ struct BrowserView: View {
     }
 
     private func closePage() {
-        addressFocused = false; browser.webView.endEditing(true)
+        editingAddress = false; addressFocused = false; browser.webView.endEditing(true)
         if workspace.closeCurrentPage() { startQuery = ""; showInvalidStartInput = false }
     }
     private func submitStartQuery() {
@@ -359,7 +452,20 @@ struct BrowserView: View {
         showInvalidStartInput = browser.error != nil
         if !showInvalidStartInput { startQuery = "" }
     }
-    private func open() { addressFocused = false; browser.openAddress() }
+    private func beginAddressEditing(_ url: URL?) {
+        if let url { browser.address = url.absoluteString }
+        editingAddress = true
+    }
+    private func endAddressEditing() {
+        editingAddress = false; addressFocused = false
+        if let url = browser.loadedURL { browser.address = url.absoluteString }
+    }
+    private func submitPageAddress() {
+        editingAddress = false; addressFocused = false
+        browser.openAddress()
+        // A refused address keeps the current page, like Play's toast.
+        if browser.error != nil, let url = browser.loadedURL { browser.address = url.absoluteString }
+    }
 }
 
 @MainActor

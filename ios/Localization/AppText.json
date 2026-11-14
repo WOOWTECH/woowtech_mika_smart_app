@@ -2459,6 +2459,15 @@
       }
     },
     {
+      "case": "browserChromeEditAddress",
+      "key": "browser.chrome.edit.address",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "改網址",
+        "en": "Edit URL"
+      }
+    },
+    {
       "case": "browserChromeClearInput",
       "key": "browser.chrome.clear.input",
       "parameters": [],

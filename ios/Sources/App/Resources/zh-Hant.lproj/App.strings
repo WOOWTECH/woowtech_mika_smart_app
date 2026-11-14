@@ -262,6 +262,7 @@
 "browser.start.suggestion.subtitle" = "搜尋或開啟網址";
 "browser.chrome.close.page" = "關閉網頁並返回起始頁";
 "browser.chrome.address.placeholder" = "搜尋或輸入網址";
+"browser.chrome.edit.address" = "改網址";
 "browser.chrome.clear.input" = "清除輸入";
 "browser.chrome.stop" = "停止";
 "browser.chrome.reload" = "重新整理";

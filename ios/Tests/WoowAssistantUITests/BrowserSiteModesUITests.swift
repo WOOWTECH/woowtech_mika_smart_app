@@ -35,20 +35,26 @@ final class BrowserSiteModesUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [reloaded], timeout: 30), .completed, "Known manual GET must reload and replace the form field")
         XCTAssertTrue(app.staticTexts["browser.siteMode.notice"].exists)
         XCTAssertTrue(app.staticTexts["browser.siteMode.notice"].label.contains("正在重新整理"))
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        // Like Play's page bar, the address pill carries a 電腦版 tag.
+        let pill = app.buttons["browser.addressPill"]
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid 電腦版")
         launch(reset: false)
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("電腦版")
         XCTAssertEqual(mode.value as? String, "電腦版")
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid 電腦版")
         try chooseMode("mobile", from: "電腦版")
         try waitForMode("手機版")
         XCTAssertEqual(mode.value as? String, "手機版")
+        XCTAssertEqual(pill.label, "research.example.invalid")
         launch(reset: false)
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("手機版")
         XCTAssertEqual(mode.value as? String, "手機版")
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid")
     }
 
     private var siteMode: XCUIElement {

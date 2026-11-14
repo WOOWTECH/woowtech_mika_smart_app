@@ -63,9 +63,22 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertEqual(entry.label, "問渥屋助理研究此網站")
         XCTAssertEqual(entry.value as? String, "research.example.invalid")
         XCTAssertTrue(dom("Workspace first").exists)
-        let address = app.textFields["browser.address"]
+        // Like Play's page bar, the address shows the site; the full URL is its value.
+        let address = app.buttons["browser.addressPill"]
         let pageURL = "https://research.example.invalid/workspace-one"
+        XCTAssertEqual(address.label, "research.example.invalid")
         XCTAssertEqual(address.value as? String, pageURL)
+        XCTAssertTrue(app.buttons["browser.reload"].exists)
+        XCTAssertFalse(app.buttons["browser.open"].exists, "Like Play, a page has no separate Go key.")
+        // Tapping it opens the full URL for editing; 取消 folds it back unchanged.
+        address.tap()
+        let field = app.textFields["browser.address"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, pageURL)
+        app.buttons["browser.address.cancel"].tap()
+        XCTAssertTrue(address.waitForExistence(timeout: 5))
+        XCTAssertFalse(field.exists)
+        XCTAssertTrue(entry.waitForExistence(timeout: 5))
 
         entry.tap()
         let goal = app.descendants(matching: .any).matching(identifier: "browser.goal").firstMatch
@@ -125,6 +138,9 @@ final class BrowserWorkspaceUITests: XCTestCase {
         navigateMikaSection("browser", in: app)
     }
     private func open(_ path: String) {
+        // On a page the address is a pill until tapped, as on Play.
+        let pill = app.buttons["browser.addressPill"]
+        if pill.exists { pill.tap() }
         let field = app.textFields["browser.address"]
         XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
