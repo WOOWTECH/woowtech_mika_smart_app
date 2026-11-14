@@ -268,6 +268,7 @@ enum AppText: Equatable {
     case browserStartSuggestionSubtitle
     case browserChromeClosePage
     case browserChromeAddressPlaceholder
+    case browserChromeEditAddress
     case browserChromeClearInput
     case browserChromeStop
     case browserChromeReload
@@ -1194,6 +1195,7 @@ enum AppText: Equatable {
         case .browserStartSuggestionSubtitle: return "browser.start.suggestion.subtitle"
         case .browserChromeClosePage: return "browser.chrome.close.page"
         case .browserChromeAddressPlaceholder: return "browser.chrome.address.placeholder"
+        case .browserChromeEditAddress: return "browser.chrome.edit.address"
         case .browserChromeClearInput: return "browser.chrome.clear.input"
         case .browserChromeStop: return "browser.chrome.stop"
         case .browserChromeReload: return "browser.chrome.reload"
@@ -2172,9 +2174,9 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "部分網站資料仍保留，請重新確認。"
         case .browserModeReloading: return "網站偏好已儲存，正在重新整理此頁以套用。"
         case .browserModeDeferred: return "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。"
-        case .browserBookmarks: return "書籤"
+        case .browserBookmarks: return "常用網站"
         case .browserClearing: return "正在清除網站資料…"
-        case .browserClearHistoryQuestion: return "清除瀏覽歷史？書籤與網站登入資料會保留。"
+        case .browserClearHistoryQuestion: return "清除瀏覽歷史？常用網站與網站登入資料會保留。"
         case .browserClearHistory: return "清除歷史"
         case .browserNoHistory: return "尚無瀏覽歷史"
         case .commonDeleteName: return "刪除 %1$@"
@@ -2214,15 +2216,16 @@ enum AppText: Equatable {
         case .browserStartRecent: return "最近開啟"
         case .browserStartClear: return "清除"
         case .browserStartSuggestionHelp: return "只搜尋目前輸入，或開啟已儲存的最近網頁。"
-        case .browserStartAddBookmark: return "加入書籤"
+        case .browserStartAddBookmark: return "新增常用網站"
         case .browserStartViewBookmarks: return "查看書籤"
         case .browserStartOK: return "好"
-        case .browserStartAddBookmarkHelp: return "請先開啟網站，再從書籤頁加入目前網頁。"
-        case .browserStartRemoveBookmark: return "移除書籤：%1$@"
+        case .browserStartAddBookmarkHelp: return "開啟網站後，在「更多」裡點「加入常用網站」"
+        case .browserStartRemoveBookmark: return "移除%1$@"
         case .browserStartAdd: return "新增"
         case .browserStartSuggestionSubtitle: return "搜尋或開啟網址"
         case .browserChromeClosePage: return "關閉網頁並返回起始頁"
         case .browserChromeAddressPlaceholder: return "搜尋或輸入網址"
+        case .browserChromeEditAddress: return "改網址"
         case .browserChromeClearInput: return "清除輸入"
         case .browserChromeStop: return "停止"
         case .browserChromeReload: return "重新整理"
@@ -2255,8 +2258,8 @@ enum AppText: Equatable {
         case .browserChromeWebsite: return "網頁"
         case .browserChromeCopyLink: return "複製連結"
         case .browserChromeOpenOutside: return "在其他 App 開啟"
-        case .browserChromeRemoveBookmark: return "移除書籤"
-        case .browserChromeAddBookmark: return "加入書籤"
+        case .browserChromeRemoveBookmark: return "從常用移除"
+        case .browserChromeAddBookmark: return "加入常用網站"
         case .browserChromeSwitchMobile: return "切換為手機版"
         case .browserChromeSwitchDesktop: return "切換為電腦版"
         case .browserChromeDone: return "完成"

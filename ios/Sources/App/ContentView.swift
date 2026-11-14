@@ -99,7 +99,9 @@ struct ContentView: View {
                 if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
             }
         }
-        .onChange(of: selection) { _, destination in
+        .onChange(of: selection) { previous, destination in
+            // Like Play, leaving the browser closes its page; coming back shows the start page.
+            if previous == .browser && destination != .browser { browserWorkspace.leaveBrowser() }
             if destination == .chat { menuHasVoiceOverFocus = true }
             else { backHasVoiceOverFocus = true }
         }
@@ -258,7 +260,7 @@ struct ContentView: View {
     }
 
     private func memoryDataView(resetNavigation: Bool) -> some View {
-        MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
+        MemoryDataView(store: session.learning, workspace: browserWorkspace, modelAccess: session.modelAccess,
                        modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
                        onOpenBrowser: {
                            browserReturnSection = .memory

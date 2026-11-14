@@ -31,7 +31,7 @@ final class BrowserExternalOpenUITests: XCTestCase {
         address.typeText(url + "\n")
         let page = app.webViews.staticTexts["Workspace first"]
         XCTAssertTrue(page.waitForExistence(timeout: 75))
-        XCTAssertEqual(address.value as? String, url)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, url)
 
         let more = app.buttons["browser.more"]
         XCTAssertTrue(more.isHittable)

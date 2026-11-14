@@ -59,6 +59,9 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
     public private(set) var history: [BrowserSavedPage] = []
     public private(set) var userSiteModes = BrowserUserSiteModes()
     public private(set) var searchSettings = BrowserSearchSettings()
+    /// Play's 網站登入 list for the person's own browsing (see BrowserSignInSite).
+    public private(set) var signInSites: [BrowserSignInSite] = []
+    public static let maximumSignInSites = 200
 
     public init() {
         let tab = BrowserTab(title: "新分頁")
@@ -66,7 +69,7 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, tabs, selectedID, bookmarks, history, userSiteModes, searchSettings
+        case version, tabs, selectedID, bookmarks, history, userSiteModes, searchSettings, signInSites
     }
 
     public init(from decoder: Decoder) throws {
@@ -82,6 +85,8 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
             ? try values.decode(BrowserUserSiteModes.self, forKey: .userSiteModes) : .init()
         searchSettings = values.contains(.searchSettings)
             ? try values.decode(BrowserSearchSettings.self, forKey: .searchSettings) : .init()
+        signInSites = values.contains(.signInSites)
+            ? try values.decode([BrowserSignInSite].self, forKey: .signInSites) : []
     }
 
     public mutating func setManualSiteMode(_ mode: BrowserManualSiteMode, for host: String) throws {
@@ -102,6 +107,10 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
             guard tab.title.count <= 256, tab.lastVisitedAt.timeIntervalSince1970.isFinite,
                   tab.url == nil || BrowserManualNavigationPolicy.libraryURL(tab.url!) == tab.url else { throw BrowserLibraryError.invalidState }
         }
+        guard signInSites.count <= Self.maximumSignInSites,
+              Set(signInSites.map(\.host)).count == signInSites.count,
+              signInSites.allSatisfy({ BrowserSignInSite.key($0.host) == $0.host && $0.lastVisit.timeIntervalSince1970.isFinite })
+        else { throw BrowserLibraryError.invalidState }
         for entries in [bookmarks, history] {
             guard Set(entries.map(\.id)).count == entries.count,
                   Set(entries.map(\.url)).count == entries.count else { throw BrowserLibraryError.invalidState }
@@ -163,6 +172,44 @@ public struct BrowserLibraryState: Codable, Equatable, Sendable {
         guard !clean.isEmpty, clean.count <= 256 else { throw BrowserLibraryError.invalidTitle }
         guard let index = bookmarks.firstIndex(where: { $0.id == id }) else { throw BrowserLibraryError.notFound }
         bookmarks[index].title = clean; bookmarks[index].edited = true
+    }
+    /// Play's SiteRegistry.loginObserved for the person's own browsing: a new
+    /// site is listed only when a page shows it signed in; a listed site keeps
+    /// its entry and records what the page shows now.
+    public mutating func observeSignIn(host: String, signedIn: Bool, at date: Date = .now) throws {
+        guard let key = BrowserSignInSite.key(host), date.timeIntervalSince1970.isFinite else { throw BrowserLibraryError.invalidURL }
+        if let index = signInSites.firstIndex(where: { $0.host == key }) {
+            signInSites[index].signedIn = signedIn
+            signInSites[index].lastVisit = date
+            return
+        }
+        guard signedIn else { return }
+        signInSites.append(BrowserSignInSite(host: key, lastVisit: date, signedIn: true))
+        if signInSites.count > Self.maximumSignInSites,
+           let oldest = signInSites.indices.min(by: { signInSites[$0].lastVisit < signInSites[$1].lastVisit }) {
+            signInSites.remove(at: oldest)
+        }
+    }
+    /// A page of a listed site finished loading.
+    public mutating func touchSignInSite(host: String?, at date: Date = .now) {
+        guard let host, let key = BrowserSignInSite.key(host), date.timeIntervalSince1970.isFinite,
+              let index = signInSites.firstIndex(where: { $0.host == key }) else { return }
+        signInSites[index].lastVisit = date
+    }
+    public mutating func removeSignInSite(host: String) {
+        guard let key = BrowserSignInSite.key(host) else { return }
+        signInSites.removeAll { $0.host == key }
+    }
+    /// The website-data record [recordName] was removed: its sites are signed out.
+    public mutating func removeSignInSites(coveredByRecordNamed recordName: String) {
+        signInSites.removeAll { $0.isCovered(byRecordNamed: recordName) }
+    }
+    public mutating func clearSignInSites() { signInSites = [] }
+    /// Like Play's list: signed-in sites first, then the most recently visited.
+    public var signInList: [BrowserSignInSite] {
+        signInSites.sorted { first, second in
+            first.signedIn != second.signedIn ? first.signedIn : first.lastVisit > second.lastVisit
+        }
     }
     public mutating func removeBookmark(_ id: UUID) { bookmarks.removeAll { $0.id == id } }
     public mutating func removeHistory(_ id: UUID) { history.removeAll { $0.id == id } }

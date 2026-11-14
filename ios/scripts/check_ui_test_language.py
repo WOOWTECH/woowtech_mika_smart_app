@@ -18,8 +18,6 @@ def audit(root):
             end=text.find(']',match.end());block=text[match.start():end+1]
             expected='"-AppleLanguages", "(zh-Hant)"' in block and '"-AppleLocale", "zh_TW"' in block
             exception=None
-            if path.name=='BrowserWorkspaceUITests.swift':
-                exception='native-find-English' if ('"-AppleLanguages", nativeFindEnglish ? "(en)" : "(zh-Hant)"' in block and '"-AppleLocale", nativeFindEnglish ? "en_US" : "zh_TW"' in block) else None
             if path.name=='AppLanguageUITests.swift':
                 exception='explicit-language-acceptance' if '"-AppleLanguages", systemLanguages' in block and '"-AppleLocale", "zh_TW"' in block else None
             if path.name=='ChatVoiceUITests.swift':

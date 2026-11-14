@@ -1989,8 +1989,8 @@
       "key": "browser.bookmarks",
       "parameters": [],
       "translations": {
-        "zh-Hant": "書籤",
-        "en": "Bookmarks"
+        "zh-Hant": "常用網站",
+        "en": "Favorites"
       }
     },
     {
@@ -2007,8 +2007,8 @@
       "key": "browser.clear.history.question",
       "parameters": [],
       "translations": {
-        "zh-Hant": "清除瀏覽歷史？書籤與網站登入資料會保留。",
-        "en": "Clear browsing history? Bookmarks and site sign-in data will be kept."
+        "zh-Hant": "清除瀏覽歷史？常用網站與網站登入資料會保留。",
+        "en": "Clear browsing history? Favorites and site sign-in data will be kept."
       }
     },
     {
@@ -2377,8 +2377,8 @@
       "key": "browser.start.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "新增常用網站",
+        "en": "Add a favorite"
       }
     },
     {
@@ -2404,8 +2404,8 @@
       "key": "browser.start.add.bookmark.help",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請先開啟網站，再從書籤頁加入目前網頁。",
-        "en": "Open a website first, then add the current page from Bookmarks."
+        "zh-Hant": "開啟網站後，在「更多」裡點「加入常用網站」",
+        "en": "Open a site, then tap “Add to favorites” under “More”"
       }
     },
     {
@@ -2418,8 +2418,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "移除書籤：%1$@",
-        "en": "Remove bookmark: %1$@"
+        "zh-Hant": "移除%1$@",
+        "en": "Remove %1$@"
       }
     },
     {
@@ -2456,6 +2456,15 @@
       "translations": {
         "zh-Hant": "搜尋或輸入網址",
         "en": "Search or enter an address"
+      }
+    },
+    {
+      "case": "browserChromeEditAddress",
+      "key": "browser.chrome.edit.address",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "改網址",
+        "en": "Edit URL"
       }
     },
     {
@@ -2765,8 +2774,8 @@
       "key": "browser.chrome.remove.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "移除書籤",
-        "en": "Remove bookmark"
+        "zh-Hant": "從常用移除",
+        "en": "Remove from favorites"
       }
     },
     {
@@ -2774,8 +2783,8 @@
       "key": "browser.chrome.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "加入常用網站",
+        "en": "Add to favorites"
       }
     },
     {

@@ -37,11 +37,19 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertTrue(dom("Workspace first").waitForExistence(timeout: 75))
         app.buttons["browser.closePage"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 5))
+        // Like Play, leaving the browser closes the page: coming back shows the start page.
+        recent.tap()
+        XCTAssertTrue(dom("Workspace first").waitForExistence(timeout: 75))
+        navigateMikaSection("chat", in: app)
+        navigateMikaSection("browser", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.closePage"].exists)
+        XCTAssertFalse(dom("Workspace first").exists)
         app.buttons["browser.start.history.clear"].tap()
         let confirmation = app.descendants(matching: .any).matching(NSPredicate(
             format: "(elementType == %d OR elementType == %d) AND label == %@",
             XCUIElement.ElementType.sheet.rawValue, XCUIElement.ElementType.other.rawValue,
-            "清除瀏覽歷史？書籤與網站登入資料會保留。")).firstMatch
+            "清除瀏覽歷史？常用網站與網站登入資料會保留。")).firstMatch
         // iOS 26 may expose the same action as nested AX buttons. Keep the
         // exact dialog, identifier and label while selecting one representation.
         let clear = confirmation.buttons.matching(NSPredicate(
@@ -63,9 +71,22 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertEqual(entry.label, "問渥屋助理研究此網站")
         XCTAssertEqual(entry.value as? String, "research.example.invalid")
         XCTAssertTrue(dom("Workspace first").exists)
-        let address = app.textFields["browser.address"]
+        // Like Play's page bar, the address shows the site; the full URL is its value.
+        let address = app.buttons["browser.addressPill"]
         let pageURL = "https://research.example.invalid/workspace-one"
+        XCTAssertEqual(address.label, "research.example.invalid")
         XCTAssertEqual(address.value as? String, pageURL)
+        XCTAssertTrue(app.buttons["browser.reload"].exists)
+        XCTAssertFalse(app.buttons["browser.open"].exists, "Like Play, a page has no separate Go key.")
+        // Tapping it opens the full URL for editing; 取消 folds it back unchanged.
+        address.tap()
+        let field = app.textFields["browser.address"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, pageURL)
+        app.buttons["browser.address.cancel"].tap()
+        XCTAssertTrue(address.waitForExistence(timeout: 5))
+        XCTAssertFalse(field.exists)
+        XCTAssertTrue(entry.waitForExistence(timeout: 5))
 
         entry.tap()
         let goal = app.descendants(matching: .any).matching(identifier: "browser.goal").firstMatch
@@ -93,8 +114,9 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 5))
         XCTAssertEqual(favorites.count, 1)
         launch(reset: false)
-        if app.buttons["browser.closePage"].waitForExistence(timeout: 10) { app.buttons["browser.closePage"].tap() }
+        // Like Play, a relaunch opens the start page, not the last page.
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.closePage"].exists)
         XCTAssertTrue(favorites.firstMatch.waitForExistence(timeout: 5), "The favorite is stored encrypted and survives a relaunch.")
         XCTAssertEqual(favorites.count, 1)
         app.buttons["browser.favorites.edit"].tap()
@@ -125,12 +147,15 @@ final class BrowserWorkspaceUITests: XCTestCase {
         navigateMikaSection("browser", in: app)
     }
     private func open(_ path: String) {
+        // On a page the address is a pill until tapped, as on Play.
+        let pill = app.buttons["browser.addressPill"]
+        if pill.exists { pill.tap() }
         let field = app.textFields["browser.address"]
         XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         if let value = field.value as? String, value.hasPrefix("https://") { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
         field.typeText("https://research.example.invalid/" + path + "\n")
-        let title = path.hasPrefix("page-find") ? "Find fixture" : (path.hasPrefix("workspace-two") ? "Workspace second" : "Workspace first")
+        let title = path.hasPrefix("workspace-two") ? "Workspace second" : "Workspace first"
         XCTAssertTrue(dom(title).waitForExistence(timeout: 75))
     }
     /// Play's More › Add to favorites; the sheet closes after the choice.
