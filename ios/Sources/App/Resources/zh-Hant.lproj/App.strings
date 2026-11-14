@@ -392,7 +392,7 @@
 "welcome.web.body" = "內建瀏覽器，讀網頁、比價、查資料";
 "welcome.memory" = "記憶";
 "welcome.memory.body" = "保留往後對話需要的資訊";
-"welcome.note" = "先設定自己的模型帳號或 API Key，即可開始使用。";
+"welcome.note" = "先設定你自己的模型服務，就可以開始使用。";
 "welcome.start" = "開始設定";
 "welcome.later" = "稍後再說";
 "modelSetup.title" = "設定模型";

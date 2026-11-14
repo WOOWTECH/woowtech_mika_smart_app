@@ -76,7 +76,7 @@ private struct OnboardingFlowView: View {
 }
 
 /// Android WelcomeScreen, store build: the logo, who the assistant is, what
-/// it does, the note about a model account or key, the first of two dots and
+/// it does, the note about the model service, the first of two dots and
 /// 開始設定, with 稍後再說 below it.
 @MainActor
 private struct OnboardingWelcomeView: View {

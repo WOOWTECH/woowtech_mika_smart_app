@@ -2313,7 +2313,7 @@ enum AppText: Equatable {
         case .welcomeWebBody: return "內建瀏覽器，讀網頁、比價、查資料"
         case .welcomeMemory: return "記憶"
         case .welcomeMemoryBody: return "保留往後對話需要的資訊"
-        case .welcomeNote: return "先設定自己的模型帳號或 API Key，即可開始使用。"
+        case .welcomeNote: return "先設定你自己的模型服務，就可以開始使用。"
         case .welcomeStart: return "開始設定"
         case .welcomeLater: return "稍後再說"
         case .modelSetupTitle: return "設定模型"

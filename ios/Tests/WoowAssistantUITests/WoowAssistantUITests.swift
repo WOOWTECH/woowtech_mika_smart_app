@@ -197,7 +197,7 @@ final class WoowAssistantUITests: XCTestCase {
         for feature in ["chat", "voice", "web", "memory"] {
             XCTAssertTrue(app.descendants(matching: .any)["welcome.feature." + feature].exists, "Welcome lists \(feature)")
         }
-        XCTAssertEqual(app.staticTexts["welcome.note"].label, "先設定自己的模型帳號或 API Key，即可開始使用。")
+        XCTAssertEqual(app.staticTexts["welcome.note"].label, "先設定你自己的模型服務，就可以開始使用。")
         XCTAssertEqual(start.label, "開始設定")
         attachScreenshot("onboarding-welcome", in: app)
 

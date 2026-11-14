@@ -3702,8 +3702,8 @@
       "key": "welcome.note",
       "parameters": [],
       "translations": {
-        "zh-Hant": "先設定自己的模型帳號或 API Key，即可開始使用。",
-        "en": "Set up your model account or API key to begin."
+        "zh-Hant": "先設定你自己的模型服務，就可以開始使用。",
+        "en": "Set up your own model service to begin."
       }
     },
     {
