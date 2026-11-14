@@ -4332,8 +4332,8 @@
       "key": "consent.item.researchJudgment",
       "parameters": [],
       "translations": {
-        "zh-Hant": "研究網站時，請模型判斷結果的請求",
-        "en": "Requests during research that ask the model to judge the results"
+        "zh-Hant": "研究網站、執行網頁任務或用技能做事之後，請模型判斷結果並起草技能的請求（含讀到的網頁內容和做過的步驟）",
+        "en": "Requests after website research, web tasks or skill steps that ask the model to judge the result and draft a skill, including the pages read and the steps taken"
       }
     },
     {

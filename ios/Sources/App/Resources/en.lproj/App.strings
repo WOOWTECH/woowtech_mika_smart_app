@@ -455,7 +455,7 @@
 "consent.item.images" = "Photos you attach, when “Can see images” is on";
 "consent.item.profile" = "Your profile, sent along with conversations";
 "consent.item.web" = "Text of web pages read during research and tasks";
-"consent.item.researchJudgment" = "Requests during research that ask the model to judge the results";
+"consent.item.researchJudgment" = "Requests after website research, web tasks or skill steps that ask the model to judge the result and draft a skill, including the pages read and the steps taken";
 "consent.item.memory" = "Your saved memories: all of them when there are few, otherwise those relevant to the conversation";
 "consent.item.skills" = "Your skill list (names and one-line descriptions), and the full text of matching or used skills";
 "consent.item.memoryOrganizing" = "With “Remember what I say automatically” on, the request after each reply that organizes your memories, with what you said and related memories";
