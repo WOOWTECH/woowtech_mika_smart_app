@@ -807,34 +807,23 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: relaunched)
     }
 
-    func testDelayedConnectionEditsCannotPublishOldResult() throws {
+    // Split in two: on iPhone 17 (iOS 26.2, run 43606357170) four launches in one
+    // case ran past its 300 s allowance.
+    func testDelayedConnectionAddressAndModelEditsCannotPublishOldResult() throws {
         #if !targetEnvironment(simulator)
         throw XCTSkip("The delayed connection fixture requires an isolated simulator")
         #else
         executionTimeAllowance = 300
-        for field in ["url", "model", "key"] {
-            let app = launchApp(delayedConnection: true)
-            fillConfiguration(in: app)
-            startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
-            switch field {
-            case "url": replaceBaseURL("https://other.example.invalid/v1", in: app)
-            case "model":
-                let model = app.textFields["settings.model"]
-                revealSettings(model, in: app, upward: false)
-                model.tap(); model.typeText("x\n")
-            default:
-                let key = app.secureTextFields["settings.apiKey"]
-                revealSettings(key, in: app, upward: false)
-                key.tap(); key.typeText("x\n")
-            }
-            // Android edit(): a change drops the running test, and its late pass saves nothing.
-            waitTestButton("測試並儲存", in: app)
-            waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
-            releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
-            waitTestButton("測試並儲存", in: app)
-            assertNothingSaved(in: app, "after a \(field) edit")
-            app.terminate()
-        }
+        for field in ["url", "model"] { assertEditDropsDelayedTest(field) }
+        #endif
+    }
+
+    func testDelayedConnectionKeyEditCannotPublishOldResultAndLaterPassSaves() throws {
+        #if !targetEnvironment(simulator)
+        throw XCTSkip("The delayed connection fixture requires an isolated simulator")
+        #else
+        executionTimeAllowance = 300
+        assertEditDropsDelayedTest("key")
         let app = launchApp(delayedConnection: true)
         fillConfiguration(in: app)
         startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
@@ -847,6 +836,31 @@ final class WoowAssistantUITests: XCTestCase {
         send("Saved connection still works", in: app)
         assertReply("測試回覆：Saved connection still works", in: app)
         #endif
+    }
+
+    /// Edits one field while a delayed test runs: Android edit() drops the
+    /// running test, and its late pass saves nothing.
+    private func assertEditDropsDelayedTest(_ field: String) {
+        let app = launchApp(delayedConnection: true)
+        fillConfiguration(in: app)
+        startDelayedConnection(in: app, started: 1, released: 0, settled: 0)
+        switch field {
+        case "url": replaceBaseURL("https://other.example.invalid/v1", in: app)
+        case "model":
+            let model = app.textFields["settings.model"]
+            revealSettings(model, in: app, upward: false)
+            model.tap(); model.typeText("x\n")
+        default:
+            let key = app.secureTextFields["settings.apiKey"]
+            revealSettings(key, in: app, upward: false)
+            key.tap(); key.typeText("x\n")
+        }
+        waitTestButton("測試並儲存", in: app)
+        waitConnectionFixture(in: app, started: 1, cancelled: 1, released: 0, settled: 0)
+        releaseDelayedConnection(in: app, started: 1, cancelled: 1, released: 1, settled: 1)
+        waitTestButton("測試並儲存", in: app)
+        assertNothingSaved(in: app, "after a \(field) edit")
+        app.terminate()
     }
 
     func testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult() throws {

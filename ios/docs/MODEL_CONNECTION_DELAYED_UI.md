@@ -14,10 +14,11 @@ settle before asserting that the old result neither asked for the AI-sharing
 consent nor saved or marked a provider. The test-only deadline is 120 seconds
 for native UI gestures; normal product requests retain 20 seconds.
 
-- `testDelayedConnectionEditsCannotPublishOldResult`: edits the URL, model and
-  key separately while a test runs. Afterwards a released test passes, the
-  consent is agreed to, and the saved provider answers the synthetic chat
-  client.
+- `testDelayedConnectionAddressAndModelEditsCannotPublishOldResult`: edits the
+  URL, then the model, while a test runs.
+- `testDelayedConnectionKeyEditCannotPublishOldResultAndLaterPassSaves`: edits
+  the key while a test runs. Afterwards a released test passes, the consent is
+  agreed to, and the saved provider answers the synthetic chat client.
 - `testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult`: leaves the
   page while a test runs; saves the provider without a test, adds it again and
   cancels that form while its test runs, so it stays untested; then 重新測試
@@ -33,7 +34,8 @@ example, after `xcodegen generate`, set `SIMULATOR_ID` to that simulator's UUID:
 ```sh
 xcodebuild -project WoowAssistant.xcodeproj -scheme WoowAssistant -configuration Debug \
   -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
-  -only-testing:WoowAssistantUITests/WoowAssistantUITests/testDelayedConnectionEditsCannotPublishOldResult \
+  -only-testing:WoowAssistantUITests/WoowAssistantUITests/testDelayedConnectionAddressAndModelEditsCannotPublishOldResult \
+  -only-testing:WoowAssistantUITests/WoowAssistantUITests/testDelayedConnectionKeyEditCannotPublishOldResultAndLaterPassSaves \
   -only-testing:WoowAssistantUITests/WoowAssistantUITests/testDelayedConnectionCancelSaveAndLeaveCannotPublishOldResult \
   -only-testing:WoowAssistantUITests/WoowAssistantUITests/testDelayedConnectionBackgroundCannotPublishOldResult test
 ```
