@@ -1131,7 +1131,9 @@ private enum CheckProfileChatApp {
                       action + " never publishes a local receipt")
             try check(env.store.memory == before && env.reopen().memory == before,
                       action + " cannot change durable memory after invalidation")
-            try check(calls == 0 && requests == 1 && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+            // Disconnecting MCP stops the turn (onConnectionChange), like a stop.
+            let stopped = action == "cancel" || action == "disconnect"
+            try check(calls == 0 && requests == 1 && ended(session, stopped ? .cancelled : .failed) && session.draft.isEmpty,
                       action + " neither dispatches a remote call nor invents a completed answer")
         }
     }
