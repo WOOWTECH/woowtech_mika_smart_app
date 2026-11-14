@@ -25,7 +25,7 @@ struct BrowserView: View {
         isStartPage || showResearch || showInteractions
             || showSearchSettings || showMore || workspace.presentsSignIns || browser.pageDialog != nil
     }
-    private var pageFindHostVisible: Bool {
+    private var pageHostVisible: Bool {
         scenePhase == .active && !pageCovered && !workspace.isClearingWebsiteData
     }
     /// Offer the existing research form only for the page WebKit currently shows
@@ -155,7 +155,7 @@ struct BrowserView: View {
             .padding(.horizontal, 20)
             ZStack {
                 BrowserWebView(webView: browser.webView, coveredByResearch: pageCovered,
-                               onDetach: { [browser] in browser.setPageFindHostVisible(false) })
+                               onDetach: { [browser] in browser.setPageHostVisible(false) })
                     .id(ObjectIdentifier(browser))
                     .allowsHitTesting(!isStartPage && !browser.isRunning && !browser.isInteracting
                                       && !workspace.isClearingWebsiteData)
@@ -209,13 +209,13 @@ struct BrowserView: View {
         .sheet(item: $browser.pageDialog, onDismiss: { browser.resolveDialog(nil) }) { dialog in
             BrowserDialogView(dialog: dialog, browser: browser)
         }
-        .onAppear { workspace.activateSelected(); browser.setPageFindHostVisible(pageFindHostVisible) }
-        .onDisappear { browser.setPageFindHostVisible(false) }
-        .onChange(of: pageFindHostVisible) { _, visible in browser.setPageFindHostVisible(visible) }
+        .onAppear { workspace.activateSelected(); browser.setPageHostVisible(pageHostVisible) }
+        .onDisappear { browser.setPageHostVisible(false) }
+        .onChange(of: pageHostVisible) { _, visible in browser.setPageHostVisible(visible) }
         .onChange(of: ObjectIdentifier(browser)) { _, _ in
             showResearch = false; showInteractions = false
             showMore = false; showInvalidStartInput = false; startQuery = ""
-            browser.setPageFindHostVisible(pageFindHostVisible)
+            browser.setPageHostVisible(pageHostVisible)
         }
         .onChange(of: browser.interactionProposal?.id) { _, value in
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }

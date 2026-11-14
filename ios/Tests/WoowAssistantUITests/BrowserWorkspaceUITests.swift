@@ -130,7 +130,7 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         if let value = field.value as? String, value.hasPrefix("https://") { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
         field.typeText("https://research.example.invalid/" + path + "\n")
-        let title = path.hasPrefix("page-find") ? "Find fixture" : (path.hasPrefix("workspace-two") ? "Workspace second" : "Workspace first")
+        let title = path.hasPrefix("workspace-two") ? "Workspace second" : "Workspace first"
         XCTAssertTrue(dom(title).waitForExistence(timeout: 75))
     }
     /// Play's More › Add to favorites; the sheet closes after the choice.
