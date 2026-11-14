@@ -573,7 +573,7 @@ final class BrowserLoginUITests: XCTestCase {
             return visible
         }
         var verifiedOffset: CGVector?
-        func passwordIsReady() -> Bool {
+        func passwordIsReady(nearMiddle: Bool) -> Bool {
             verifiedOffset = nil
             guard password.exists else { return false }
             let snapshot: XCUIElementSnapshot
@@ -594,15 +594,25 @@ final class BrowserLoginUITests: XCTestCase {
                   [field.minX, field.minY, field.width, field.height,
                    visible.minX, visible.minY, visible.width, visible.height].allSatisfy({ $0.isFinite }),
                   !field.isEmpty, visible.insetBy(dx: 1, dy: 1).contains(field) else { return false }
+            // 9bfc51c8 SE: without the status line the field was already fully
+            // visible just above the page toolbar and was tapped there; the App
+            // then never reported idle again (60 s per event up to the 7-minute
+            // limit). In the passing SE runs it was first scrolled to the middle.
+            if nearMiddle && abs(field.midY - visible.midY) > field.height { return false }
             verifiedOffset = CGVector(dx: field.midX - frame.minX, dy: field.midY - frame.minY)
             print("LOGIN_PASSWORD_TARGET_VERIFIED width=\(Int(field.width)) height=\(Int(field.height)) inside=1")
             return true
         }
+        var previousMidY: CGFloat?
         for attempt in 0...3 {
-            if passwordIsReady() { return verifiedOffset }
+            // A page that no longer scrolls (or the last attempt) keeps the
+            // original rule: the whole field visible is enough.
+            let stopped = previousMidY.map { abs(password.frame.midY - $0) < 1 } ?? false
+            if passwordIsReady(nearMiddle: !stopped && attempt < 3) { return verifiedOffset }
             let frame = web.frame
             let visible = visibleFrame(in: frame)
             let field = password.frame
+            previousMidY = field.midY
             let fieldY = Int(field.minY - frame.minY)
             // Only fixed synthetic field geometry; no values, labels, URLs,
             // accessibility tree or keyboard contents are attached.
