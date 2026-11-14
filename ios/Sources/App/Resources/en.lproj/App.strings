@@ -101,7 +101,7 @@
 "shell.mcpServers" = "MCP servers";
 "shell.browser" = "Browser";
 "shell.settings" = "Settings";
-"shell.toolsTitle" = "Skills and MCP";
+"shell.toolsTitle" = "MCP servers";
 "shell.memoryTitle" = "Memory & data";
 "shell.greetingMorning" = "Good morning";
 "shell.greetingNoon" = "Good afternoon";

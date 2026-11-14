@@ -1990,7 +1990,7 @@ enum AppText: Equatable {
         case .shellMCPServers: return "MCP 伺服器"
         case .shellBrowser: return "瀏覽器"
         case .shellSettings: return "設定"
-        case .shellToolsTitle: return "Skills 與 MCP"
+        case .shellToolsTitle: return "MCP 伺服器"
         case .shellMemoryTitle: return "記憶與資料"
         case .shellGreetingMorning: return "早安"
         case .shellGreetingNoon: return "午安"

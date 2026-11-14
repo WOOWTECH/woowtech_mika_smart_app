@@ -944,8 +944,8 @@
       "key": "shell.toolsTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Skills 與 MCP",
-        "en": "Skills and MCP"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
