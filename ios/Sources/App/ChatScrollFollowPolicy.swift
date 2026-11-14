@@ -37,11 +37,16 @@ struct ChatScrollFollowPolicy {
 
     mutating func beginDrag() {
         guard !isDragging else { return }
+        // A drag that starts before the previous one settled continues it: two
+        // quick flicks back to the end are one move toward the latest text, even
+        // when the second only bounces at the end.
+        if !isSettling {
+            draggedTowardEarlier = false
+            draggedTowardLatest = false
+            dragStartOffset = previous.map { $0.contentHeight - $0.bottomY }
+        }
         isDragging = true
         isSettling = false
-        draggedTowardEarlier = false
-        draggedTowardLatest = false
-        dragStartOffset = previous.map { $0.contentHeight - $0.bottomY }
         movementRevision += 1
     }
 

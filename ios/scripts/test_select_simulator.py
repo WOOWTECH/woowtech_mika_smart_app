@@ -145,9 +145,25 @@ class SimulatorSelectionTests(unittest.TestCase):
         }}
         self.assertEqual(select_device(payload, device_name=name), "patch10")
 
+    def test_exact_ipad_name_selects_only_that_ipad(self):
+        payload = {"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-26-2": [
+            device("iPhone 17", "phone"),
+            device("iPad (A16)", "ipad"),
+            device("iPad Air 11-inch (M3)", "air"),
+        ]}}
+        self.assertEqual(select_device(payload, "iOS-26-2", "iPad (A16)"), "ipad")
+        self.assertEqual(select_device(payload, "iOS-26-2"), "phone")
+        for name in ["iPad", "iPad (A16) ", "ipad (a16)"]:
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    select_device(payload, "iOS-26-2", name)
+        with self.assertRaises(ValueError) as caught:
+            select_device(payload, "iOS-18-5", "iPad (A16)")
+        self.assertIn("No available iPad", str(caught.exception))
+
     def test_exact_name_does_not_bypass_iphone_or_runtime_eligibility(self):
         for name, runtime in [
-            ("iPad Pro", "iOS-18-5"),
+            ("iPad Pro", "iOS-16-4"),
             ("iPhone 16 Pro Max", "tvOS-26-2"),
             ("iPhone SE (3rd generation)", "iOS-16-4"),
             ("iPhone 16 Pro Max", "iOS-18-5-beta"),
