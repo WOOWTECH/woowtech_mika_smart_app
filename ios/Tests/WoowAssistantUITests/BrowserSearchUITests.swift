@@ -48,14 +48,17 @@ final class BrowserSearchUITests: XCTestCase {
         XCTAssertTrue((query.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
         XCTAssertFalse(app.buttons["browser.searchEngine.open"].exists, "The engine choice is on the start page, as Play's engine note is.")
         launch()
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
-        // Like the Play build, recent pages are on the start page (no library sheet).
-        tap(app.buttons["browser.closePage"])
+        // Like the Play build, a relaunch opens the start page, and recent pages
+        // (no library sheet) keep the search.
         let history = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.start.history.open.")).firstMatch
         XCTAssertTrue(history.waitForExistence(timeout: 10))
+        XCTAssertFalse(query.exists)
         revealLearningElement(history, in: app)
         XCTAssertTrue(history.label.contains("搜尋：fixture cats & dogs/+%"))
         XCTAssertTrue(settings.label.contains("Fixture Search"))
+        tap(history)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: searched, object: query)], timeout: 75), .completed)
+        tap(app.buttons["browser.closePage"])
         tap(settings)
         let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.searchEngine.remove.custom:")).firstMatch
         tap(remove, scroll: true)

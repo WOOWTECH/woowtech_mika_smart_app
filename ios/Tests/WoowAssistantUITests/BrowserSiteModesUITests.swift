@@ -17,9 +17,7 @@ final class BrowserSiteModesUITests: XCTestCase {
 
     func testManualGETChoiceReloadsAndSurvivesRelaunch() throws {
         launch(reset: true)
-        let field = app.textFields["browser.address"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
-        field.typeText("https://research.example.invalid/workspace-one\n")
+        openWorkspace()
         let note = app.webViews.textFields["Tab note"]
         XCTAssertTrue(note.waitForExistence(timeout: 75))
         note.tap(); note.typeText("Retain this note")
@@ -39,7 +37,9 @@ final class BrowserSiteModesUITests: XCTestCase {
         let pill = app.buttons["browser.addressPill"]
         XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
         XCTAssertEqual(pill.label, "research.example.invalid 電腦版")
+        // Like Play, a relaunch opens the start page; the site's choice is kept.
         launch(reset: false)
+        openWorkspace()
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("電腦版")
         XCTAssertEqual(mode.value as? String, "電腦版")
@@ -50,11 +50,19 @@ final class BrowserSiteModesUITests: XCTestCase {
         XCTAssertEqual(mode.value as? String, "手機版")
         XCTAssertEqual(pill.label, "research.example.invalid")
         launch(reset: false)
+        openWorkspace()
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("手機版")
         XCTAssertEqual(mode.value as? String, "手機版")
         XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
         XCTAssertEqual(pill.label, "research.example.invalid")
+    }
+
+    /// Type the fixture page on the start page, where the browser opens.
+    private func openWorkspace() {
+        let field = app.textFields["browser.address"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
+        field.typeText("https://research.example.invalid/workspace-one\n")
     }
 
     private var siteMode: XCUIElement {

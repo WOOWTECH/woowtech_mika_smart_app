@@ -260,8 +260,10 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let reopened = BrowserWorkspace(dataStore: store, vault: vault())
         defer { reopened.cancelAllWork() }
         try check(reopened.available && reopened.library == workspace.library, "encrypted restart preserves library and selected custom engine")
-        try check(reopened.selected.manualSearchSettings().selected == engine && reopened.selected.address == url.absoluteString,
-                  "restored session keeps original URL and new resolver")
+        // Like Play, a relaunch opens the start page; the result stays in recent pages.
+        try check(reopened.selected.manualSearchSettings().selected == engine && reopened.selected.address.isEmpty
+                  && reopened.library.history.first?.url == url,
+                  "restored session opens the start page with the new resolver")
         let beforeFailure = workspace.library
         keys.unavailable = true
         try check(!workspace.selectSearchEngine("google") && workspace.library == beforeFailure, "failed encrypted write does not publish")

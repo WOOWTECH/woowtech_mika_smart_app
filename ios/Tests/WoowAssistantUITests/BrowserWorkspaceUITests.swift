@@ -37,6 +37,14 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertTrue(dom("Workspace first").waitForExistence(timeout: 75))
         app.buttons["browser.closePage"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 5))
+        // Like Play, leaving the browser closes the page: coming back shows the start page.
+        recent.tap()
+        XCTAssertTrue(dom("Workspace first").waitForExistence(timeout: 75))
+        navigateMikaSection("chat", in: app)
+        navigateMikaSection("browser", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.closePage"].exists)
+        XCTAssertFalse(dom("Workspace first").exists)
         app.buttons["browser.start.history.clear"].tap()
         let confirmation = app.descendants(matching: .any).matching(NSPredicate(
             format: "(elementType == %d OR elementType == %d) AND label == %@",
@@ -106,8 +114,9 @@ final class BrowserWorkspaceUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 5))
         XCTAssertEqual(favorites.count, 1)
         launch(reset: false)
-        if app.buttons["browser.closePage"].waitForExistence(timeout: 10) { app.buttons["browser.closePage"].tap() }
+        // Like Play, a relaunch opens the start page, not the last page.
         XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["browser.closePage"].exists)
         XCTAssertTrue(favorites.firstMatch.waitForExistence(timeout: 5), "The favorite is stored encrypted and survives a relaunch.")
         XCTAssertEqual(favorites.count, 1)
         app.buttons["browser.favorites.edit"].tap()

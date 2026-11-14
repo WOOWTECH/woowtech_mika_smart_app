@@ -82,8 +82,7 @@ final class BrowserWorkspace: ObservableObject {
                 self?.isClearingWebsiteData = false
             }
         }
-        // Restore metadata only. Visiting a saved page starts when Browser opens,
-        // not during unrelated chat/settings startup or a background relaunch.
+        // Restore metadata only. The browser opens on its start page.
     }
 
     /// Exercise actual workspace persistence with an isolated file/key store.
@@ -173,8 +172,17 @@ final class BrowserWorkspace: ObservableObject {
             return
         }
         #endif
-        guard !isClearingWebsiteData, selected.loadedURL == nil, !selected.address.isEmpty, selected.manualLoadDiagnostics == nil else { return }
-        selected.openAddress()
+        // Like Play, the browser opens on its start page: a page from before a
+        // relaunch is not loaded again (it stays in the recent pages).
+    }
+
+    /// Like Play (UserBrowser.closeHost), leaving the browser screen closes the
+    /// page, so coming back shows the start page. Research or an approved page
+    /// action that is still running keeps its page until it ends.
+    func leaveBrowser() {
+        guard !isClearingWebsiteData, !selected.isRunning, !selected.isInteracting,
+              selected.loadedURL != nil || !selected.address.isEmpty || selected.isLoading else { return }
+        closeCurrentPage()
     }
     private static func removeLegacyDownloads() {
         guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
@@ -195,7 +203,6 @@ final class BrowserWorkspace: ObservableObject {
         session.manualSiteMode = { [weak self] host in self?.library.userSiteModes.mode(for: host) ?? .mobile }
         session.manualSearchSettings = { [weak self] in self?.library.searchSettings ?? .init() }
         session.canPresentUI = { [weak self] in self?.library.selectedID == id && self?.isClearingWebsiteData == false }
-        session.address = library.tabs.first(where: { $0.id == id })?.url?.absoluteString ?? ""
         session.onPageFinished = { [weak self] url, title in
             #if DEBUG
             // Fixture HTTP pages exercise WebKit state, not the public-HTTPS
