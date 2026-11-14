@@ -1144,7 +1144,9 @@ final class WoowAssistantUITests: XCTestCase {
         if keychainWriteFails { app.launchArguments.append("-UITestKeychainWriteFailure") }
         if delayedConnection { app.launchArguments.append("-UITestModelConnectionDelay") }
         app.launch()
-        XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
+        // The first launch on a freshly created iPad simulator showed no chat
+        // within 10 s (run 43628091777); later launches take a few seconds.
+        XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 30))
         XCTAssertTrue(app.staticTexts["uitest.banner"].exists)
         attachScreenshot("launch", in: app)
         return app
