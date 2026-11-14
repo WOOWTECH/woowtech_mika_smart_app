@@ -52,6 +52,7 @@ struct ContentView: View {
         .background(palette.background)
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
+        .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
         .taskNotifications(chat: session, store: notifications) { destination in
             showsDrawer = false
             browserReturnSection = .chat
