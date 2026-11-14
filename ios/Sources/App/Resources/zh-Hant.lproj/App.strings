@@ -421,8 +421,8 @@
 "consent.item.profile" = "跟對話一起送出的個人檔案";
 "consent.item.web" = "研究網站或執行任務時讀到的網頁文字";
 "consent.item.researchJudgment" = "研究網站時，請模型判斷結果的請求";
-"consent.item.memory" = "加進對話的記憶搜尋結果";
-"consent.item.skills" = "用到的技能內容";
+"consent.item.memory" = "你存的記憶：數量不多時全部附上，較多時附上和對話相關的部分";
+"consent.item.skills" = "技能清單（名稱和一句說明），以及相符或用到的技能全文";
 "consent.item.memoryOrganizing" = "開啟「自動記住我說過的事」時，每次回覆後自動整理記憶的請求，含你說的話和相關的記憶";
 "consent.item.mcp" = "MCP 工具和資源回傳的結果";
 "consent.privacyPolicy" = "渥屋助理隱私權政策";

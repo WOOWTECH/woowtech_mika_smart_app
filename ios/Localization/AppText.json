@@ -4012,8 +4012,8 @@
       "key": "consent.item.memory",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加進對話的記憶搜尋結果",
-        "en": "Memory search results added to the conversation"
+        "zh-Hant": "你存的記憶：數量不多時全部附上，較多時附上和對話相關的部分",
+        "en": "Your saved memories: all of them when there are few, otherwise those relevant to the conversation"
       }
     },
     {
@@ -4021,8 +4021,8 @@
       "key": "consent.item.skills",
       "parameters": [],
       "translations": {
-        "zh-Hant": "用到的技能內容",
-        "en": "The content of skills that are used"
+        "zh-Hant": "技能清單（名稱和一句說明），以及相符或用到的技能全文",
+        "en": "Your skill list (names and one-line descriptions), and the full text of matching or used skills"
       }
     },
     {
