@@ -30,6 +30,10 @@ struct ContentView: View {
                           fill: palette.assistant, background: palette.background)
     }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+    /// Play's drawer readiness: 一切就緒, or 還不能開始任務 without a model.
+    private var drawerStatus: String {
+        localizer.text(session.chatStatusMessage == .chatStatusUnconfigured ? .chatSendBlockedTitle : .drawerStatusReady)
+    }
 
     var body: some View {
         shell
@@ -52,6 +56,7 @@ struct ContentView: View {
         .background(palette.background)
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
+        .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
         .taskNotifications(chat: session, store: notifications) { destination in
             showsDrawer = false
             browserReturnSection = .chat
@@ -74,6 +79,9 @@ struct ContentView: View {
                 guard let browserWorkspace else { return nil }
                 var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
                                                          searchTemplate: browserWorkspace.library.searchSettings.selected.template)
+                environment.onSignInObserved = { [weak browserWorkspace] url, state in
+                    browserWorkspace?.observeSignIn(url, state)
+                }
                 #if DEBUG
                 if let fixture = ChatWebTaskFixture.shared {
                     environment.fixtureOrigin = fixture.originURL
@@ -88,13 +96,19 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
-            if phase != .active {
+            if phase != .active { browserWorkspace.cancelAllWork() }
+            // Like the Play build, MCP stays set up. A brief interruption (Notification
+            // Center, a permission alert) keeps the connection; in the background iOS
+            // stops the work, and the connection comes back when the app is active.
+            if phase == .background {
                 session.cancelMCP()
-                browserWorkspace.cancelAllWork()
-                if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
+                mcpSession.appWillLeaveForeground()
             }
+            if phase == .active { mcpSession.appDidBecomeActive() }
         }
-        .onChange(of: selection) { _, destination in
+        .onChange(of: selection) { previous, destination in
+            // Like Play, leaving the browser closes its page; coming back shows the start page.
+            if previous == .browser && destination != .browser { browserWorkspace.leaveBrowser() }
             if destination == .chat { menuHasVoiceOverFocus = true }
             else { backHasVoiceOverFocus = true }
         }
@@ -129,7 +143,7 @@ struct ContentView: View {
                       .buttonStyle(.plain)
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
-                          status: localizer.text(session.chatStatusMessage),
+                          status: drawerStatus,
                           session: session,
                           canStartNew: !session.isSubmitting,
                           palette: palette,
@@ -227,6 +241,11 @@ struct ContentView: View {
                                  browserReturnSection = .chat
                                  selection = .settings
                                  showsDrawer = false
+                             },
+                             openPendingSkills: {
+                                 session.learning.requestPendingSkills()
+                                 selection = .memory
+                                 showsDrawer = false
                              })
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
@@ -253,7 +272,7 @@ struct ContentView: View {
     }
 
     private func memoryDataView(resetNavigation: Bool) -> some View {
-        MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
+        MemoryDataView(store: session.learning, workspace: browserWorkspace, modelAccess: session.modelAccess,
                        modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
                        onOpenBrowser: {
                            browserReturnSection = .memory
@@ -283,7 +302,7 @@ struct ContentView: View {
         #if DEBUG
         VStack(spacing: 0) {
             // -UITestAttachments: adds a generated photo and note to the tray on demand,
-            // after a test has saved its model (saving settings starts a new conversation).
+            // after a test has saved its model.
             if session.isUITestMode, ProcessInfo.processInfo.arguments.contains("-UITestAttachments") {
                 Button("加入測試附件") { Task { await session.addAttachments(ChatAttachmentUITestFixture.pickedFiles()) } }
                     .font(.caption2)
@@ -481,6 +500,8 @@ private struct ChatView: View {
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     let openSettings: () -> Void
+    /// 看看 under a learned-skill note (Play opens 待確認).
+    var openPendingSkills: () -> Void = {}
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -617,7 +638,19 @@ private struct ChatView: View {
         }
     }
 
+    @ViewBuilder
     private func messageBubble(index: Int, entry: ChatEntry, words: String, targets: ChatMessageActionTargets) -> some View {
+        if let outcome = entry.outcome, entry.role == "assistant" {
+            ChatTurnOutcomeRow(outcome: outcome, reason: localizer.stored(entry.content), notDone: localizer.text(.chatTurnNotDone),
+                               stopped: localizer.text(.chatTurnStopped), ink: palette.ink, secondary: palette.secondaryInk)
+                .accessibilityIdentifier("chat.message.\(index).assistant")
+        } else {
+            answerOrQuestionBubble(index: index, entry: entry, words: words, targets: targets)
+        }
+    }
+
+    private func answerOrQuestionBubble(index: Int, entry: ChatEntry, words: String,
+                                        targets: ChatMessageActionTargets) -> some View {
         let user = entry.role == "user"
         return HStack {
             if user { Spacer(minLength: 40) }
@@ -717,9 +750,9 @@ private struct ChatView: View {
                 .accessibilityIdentifier("uitest.banner")
         }
 
-        LearningChatNotes(store: session.learning)
+        LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills)
 
-        if mcp.canUseInConversation || session.usesMCP {
+        if mcp.isAvailableForChats || session.usesMCP {
             Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
                 .font(.callout)
                 .disabled(session.isSubmitting)
@@ -778,6 +811,11 @@ private struct ChatView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 messageRows(targets: targets)
             }
+            // The reply on its way and the tail stay out of the lazy list. On
+            // iPhone SE (iOS 18.5 CI) a send made while reading far up a long
+            // reply scrolled to a tail inside the list and left the transcript
+            // blank; outside it the tail always has its laid-out position.
+            tailRows
         }
         .padding(.vertical, 4)
         .background {
@@ -807,20 +845,23 @@ private struct ChatView: View {
         ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
             messageRow(index: index, entry: entry, targets: targets)
         }
+    }
+
+    @ViewBuilder private var tailRows: some View {
         if let preview = session.replyPreview {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(localizer.stored(preview.status)).font(.caption.bold()).foregroundStyle(.secondary)
-                    .accessibilityIdentifier("chat.partialStatus")
-                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
-                    .font(.system(size: 15.5)).lineSpacing(4)
-                    .foregroundStyle(palette.ink).textSelection(.enabled)
-                    .accessibilityIdentifier("chat.partialReply")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14).padding(.vertical, 12)
-                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .id(preview.id)
+            // Like Play's DraftText: the reply grows in place, without a status line.
+            Text(ChatReplyMarkdown.render(preview.text, streaming: true))
+                .font(.system(size: 15.5)).lineSpacing(4)
+                .foregroundStyle(palette.ink).textSelection(.enabled)
+                .accessibilityIdentifier("chat.partialReply")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .id(preview.id)
+        } else if session.isSubmitting, session.webTask == nil, let started = session.requestStartedAt {
+            ChatWorkingRow(started: started, label: localizer.text(.chatTurnWorking), tint: palette.accent,
+                           ink: palette.ink, secondary: palette.secondaryInk)
         }
         if let task = session.webTask {
             ChatWebTaskCard(task: task, localizer: localizer, colors: webTaskColors, onStop: { session.cancel() })
@@ -1253,6 +1294,7 @@ private struct ChatEmptyState: View {
 @MainActor
 private struct LearningChatNotes: View {
     @ObservedObject var store: LearningStore
+    var openPendingSkills: () -> Void = {}
     @Environment(\.appLocalizer) private var localizer
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1269,7 +1311,7 @@ private struct LearningChatNotes: View {
             }
             ForEach(Array(store.notes.enumerated()), id: \.element.memoryID) { index, note in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(localizer.stored(store.noteText(note))).font(.caption)
+                    Text(store.noteText(note, localizer: localizer)).font(.caption)
                         .accessibilityIdentifier("chat.memoryNote.\(index)")
                     HStack {
                         if store.canReviewMemory(note) {
@@ -1286,6 +1328,89 @@ private struct LearningChatNotes: View {
                     .font(.caption)
                 }
             }
+            ForEach(Array(store.skillNotes.enumerated()), id: \.element.id) { index, note in
+                HStack(spacing: 8) {
+                    Text(skillNoteText(note)).font(.caption)
+                        .accessibilityIdentifier("chat.skillNote.\(index)")
+                    if case .learned = note.kind {
+                        Button(localizer.text(.chatSkillNoteView)) { openPendingSkills() }
+                            .font(.caption)
+                            .accessibilityIdentifier("chat.skillNote.view.\(index)")
+                    }
+                }
+            }
         }
+    }
+
+    private func skillNoteText(_ note: ChatSkillNote) -> String {
+        switch note.kind {
+        case .learned(_, let description): return localizer.text(.chatSkillNoteLearned(description: description))
+        case .verified(let name): return localizer.text(.chatSkillNoteVerified(name: name))
+        case .suspended: return localizer.text(.chatSkillNoteSuspended)
+        }
+    }
+}
+
+/// The Play build's work row under a question still on its way: a spinner,
+/// 正在處理 and the time since it was sent ("0:24").
+private struct ChatWorkingRow: View {
+    let started: Date
+    let label: String
+    let tint: Color
+    let ink: Color
+    let secondary: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().controlSize(.small).tint(tint)
+            Text(verbatim: label).font(.callout).foregroundStyle(ink)
+            Spacer(minLength: 8)
+            TimelineView(.periodic(from: started, by: 1)) { context in
+                Text(verbatim: Self.clock(context.date.timeIntervalSince(started)))
+                    .font(.caption.monospacedDigit()).foregroundStyle(secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("chat.working")
+    }
+
+    /// Play's ChatCopy.clock: 0:24, 12:05, 1:02:03.
+    static func clock(_ interval: TimeInterval) -> String {
+        let seconds = max(0, Int(interval))
+        let hours = seconds / 3600, minutes = seconds % 3600 / 60, rest = seconds % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, rest) : String(format: "%d:%02d", minutes, rest)
+    }
+}
+
+/// A turn without an answer, as the Play build shows it: a red dot with 沒有完成
+/// and the reason under it, or 已停止。
+private struct ChatTurnOutcomeRow: View {
+    let outcome: ArchivedConversationTurn.Outcome
+    let reason: String
+    let notDone: String
+    let stopped: String
+    let ink: Color
+    let secondary: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            switch outcome {
+            case .failed:
+                HStack(spacing: 8) {
+                    Circle().fill(Color.red).frame(width: 8, height: 8).accessibilityHidden(true)
+                    Text(verbatim: notDone).font(.body.weight(.semibold)).foregroundStyle(ink)
+                }
+                Text(verbatim: reason).font(.callout).foregroundStyle(secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .cancelled:
+                Text(verbatim: stopped).font(.body).foregroundStyle(secondary)
+            }
+        }
+        .padding(.horizontal, 2).padding(.bottom, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: outcome == .failed ? notDone + "\n" + reason : stopped))
+        .accessibilityAddTraits(.isStaticText)
     }
 }

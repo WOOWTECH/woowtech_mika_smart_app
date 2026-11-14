@@ -5,7 +5,7 @@ import XCTest
 func launchLocalizedStreamingFixture(_ app: XCUIApplication, systemLanguages: String, namespace: String) {
     app.terminate()
     app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                           "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+                           "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming", "-WoowSkipOnboarding"]
     app.launchEnvironment = [:]
     app.launch()
 }
@@ -81,7 +81,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, status, hint, boundary) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             let headerStatus = app.staticTexts["chat.status"].firstMatch
@@ -114,7 +114,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, expected) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             let draft = chatDraftControl(in: app)
@@ -145,7 +145,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             navigateMikaSection("settings", in: app)
@@ -178,7 +178,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, settingsTitle, advancedTitle, mcpTitle) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             navigateMikaSection("settings", in: app)
@@ -207,7 +207,7 @@ final class AppLanguageUITests: XCTestCase {
 
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]; app.launch()
         navigateMikaSection("settings", in: app)
         let appearance = app.buttons["settings.appearance"]

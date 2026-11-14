@@ -5,6 +5,7 @@ extension AppLocalizer {
         switch error {
         case .keychainStatus(let code): return .mcpKeychainStatus(code: String(code))
         case .invalidEndpoint: return .mcpInvalidEndpoint
+        case .invalidToken: return .mcpInvalidToken
         case .unavailableKeychain: return .mcpKeychainUnavailable
         case .invalidTestNamespace: return .mcpInvalidNamespace
         case .missingLiveTestEndpoint: return .mcpMissingLiveEndpoint

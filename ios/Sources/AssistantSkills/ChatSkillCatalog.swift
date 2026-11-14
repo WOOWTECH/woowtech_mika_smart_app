@@ -43,6 +43,7 @@ public struct ChatSkillCatalog: Sendable {
         let item: ChatSkillItem
         let body: String?
         let version: String
+        let fingerprint: String
     }
     private let bundled: [Bundled]
     private let personal: [Personal]
@@ -54,6 +55,14 @@ public struct ChatSkillCatalog: Sendable {
 
     /// Bundled names cannot be used by an imported or saved personal skill.
     public var builtinNames: Set<String> { Set(bundled.map(\.item.name)) }
+
+    /// Play's RunEvent.SkillUsed: a personal skill read in full counts as used,
+    /// so the run's outcome is recorded against this exact version.
+    public func usedReference(name: String) -> SkillUsedReference? {
+        personal.first { $0.item.name == name }.map {
+            SkillUsedReference(name: $0.item.name, fingerprint: $0.fingerprint, followed: true)
+        }
+    }
 
     /// Personal skills are read fresh by the caller for every catalog: accepting
     /// or turning one off happens at any time.
@@ -110,8 +119,10 @@ public struct ChatSkillCatalog: Sendable {
                 return .failed(error: "personal_skill_invalid", message: "The user's personal skill '\(item.name)' is damaged and cannot be read; do not rely on it. The user can fix or delete it in 記憶與資料 › 技能 (Memory & Data › Skills).")
             }
             let cut = body.count > Self.viewLimit
+            // Like Play's GuideCatalog, a skill shared from another device may name
+            // tools this one lacks: the note goes with every skill_read.
             return .found(item: item, file: ChatSkillItem.mainFile,
-                          content: cut ? String(body.prefix(Self.viewLimit)) + "\n…(truncated)" : body,
+                          content: Self.unavailableToolsNote + "\n" + (cut ? String(body.prefix(Self.viewLimit)) + "\n…(truncated)" : body),
                           truncated: cut, version: entry.version)
         }
         guard item.files.contains(path) else {
@@ -175,7 +186,7 @@ public struct ChatSkillCatalog: Sendable {
         let body = ChatSkillFrontMatter.parse(skill.markdown).body
         let valid = one("name") == skill.name && !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let shown = trial ? "[Unverified personal skill draft: use it only as a trial; the result must be checked.]\n" + body : body
-        return Personal(item: item, body: valid ? shown : nil, version: skill.version)
+        return Personal(item: item, body: valid ? shown : nil, version: skill.version, fingerprint: skill.fingerprint)
     }
 }
 

@@ -100,6 +100,10 @@ final class MemoryUITests: XCTestCase {
     func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
         launch()
         openMemory()
+        // Like Play's 網站登入 row, it counts the sites signed in to (none yet).
+        let signIns = app.buttons["memory.manageWebsites"].firstMatch
+        reveal(signIns)
+        XCTAssertTrue(signIns.label.contains("0 個"), signIns.label)
         tap("memory.manageWebsites", scroll: true)
         // Play's Website sign-ins list opens over the browser, where WebKit lists its sites.
         XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
@@ -226,7 +230,7 @@ final class MemoryUITests: XCTestCase {
         let enabled = app.switches["skills.enabled.notes-test"].firstMatch
         reveal(enabled)
         setSwitch(enabled, value: "0")
-        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "已停用")
+        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "匯入的 · 已停用")
         setSwitch(enabled, value: "1")
         XCTAssertTrue(app.buttons["skills.share.notes-test"].firstMatch.exists)
         launch(reset: false)
@@ -343,7 +347,7 @@ final class MemoryUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 10))

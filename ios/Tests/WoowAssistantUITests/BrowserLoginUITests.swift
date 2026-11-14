@@ -339,7 +339,7 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists,
                       "Relaunch must not secretly submit the login form again.")
         XCTAssertNotEqual(serverInstance, firstInstance, "The receipt must come from a new server process.")
-        guard let statusURL = URL(string: app.textFields["browser.address"].value as? String ?? ""),
+        guard let statusURL = URL(string: app.buttons["browser.addressPill"].value as? String ?? ""),
               statusURL.host == "127.0.0.1" else { XCTFail("Expected synthetic status URL after relaunch."); return }
         let currentURL = statusURL.deletingLastPathComponent().appendingPathComponent("protected")
         tap(app.webViews.buttons["登出測試帳號"].firstMatch)
@@ -355,12 +355,17 @@ final class BrowserLoginUITests: XCTestCase {
         launch(reset: true)
         loginByTyping()
         let protectedURL = currentProtectedURL()
-        // Like the Play build: Memory › Saved data › Website sign-ins lists the sites.
-        openSignIns()
+        // Like the Play build: Memory › Saved data › Website sign-ins counts and
+        // lists the sites signed in to here; the signed-in page put this one there.
+        openSignIns(expectedCount: 1)
         let site = app.buttons["signIns.site.127.0.0.1"]
+        XCTAssertTrue(site.waitForExistence(timeout: 30))
+        XCTAssertTrue(site.label.contains("在渥屋助理裡登入過"), site.label)
         tap(site, timeout: 30)
         let signOut = app.buttons.matching(identifier: "signIns.signOutSite").firstMatch
         XCTAssertTrue(signOut.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons.matching(identifier: "signIns.openLogin").firstMatch.exists,
+                      "Like Play, a listed site offers 開啟登入.")
         tap(signOut)
         let noticeDone = app.buttons.matching(identifier: "signIns.notice.done").firstMatch
         XCTAssertTrue(noticeDone.waitForExistence(timeout: 15))
@@ -401,7 +406,7 @@ final class BrowserLoginUITests: XCTestCase {
     private func launch(reset: Bool) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         navigateMikaSection("browser", in: app)
@@ -568,7 +573,7 @@ final class BrowserLoginUITests: XCTestCase {
             return visible
         }
         var verifiedOffset: CGVector?
-        func passwordIsReady() -> Bool {
+        func passwordIsReady(nearMiddle: Bool) -> Bool {
             verifiedOffset = nil
             guard password.exists else { return false }
             let snapshot: XCUIElementSnapshot
@@ -589,15 +594,25 @@ final class BrowserLoginUITests: XCTestCase {
                   [field.minX, field.minY, field.width, field.height,
                    visible.minX, visible.minY, visible.width, visible.height].allSatisfy({ $0.isFinite }),
                   !field.isEmpty, visible.insetBy(dx: 1, dy: 1).contains(field) else { return false }
+            // 9bfc51c8 SE: without the status line the field was already fully
+            // visible just above the page toolbar and was tapped there; the App
+            // then never reported idle again (60 s per event up to the 7-minute
+            // limit). In the passing SE runs it was first scrolled to the middle.
+            if nearMiddle && abs(field.midY - visible.midY) > field.height { return false }
             verifiedOffset = CGVector(dx: field.midX - frame.minX, dy: field.midY - frame.minY)
             print("LOGIN_PASSWORD_TARGET_VERIFIED width=\(Int(field.width)) height=\(Int(field.height)) inside=1")
             return true
         }
+        var previousMidY: CGFloat?
         for attempt in 0...3 {
-            if passwordIsReady() { return verifiedOffset }
+            // A page that no longer scrolls (or the last attempt) keeps the
+            // original rule: the whole field visible is enough.
+            let stopped = previousMidY.map { abs(password.frame.midY - $0) < 1 } ?? false
+            if passwordIsReady(nearMiddle: !stopped && attempt < 3) { return verifiedOffset }
             let frame = web.frame
             let visible = visibleFrame(in: frame)
             let field = password.frame
+            previousMidY = field.midY
             let fieldY = Int(field.minY - frame.minY)
             // Only fixed synthetic field geometry; no values, labels, URLs,
             // accessibility tree or keyboard contents are attached.
@@ -633,7 +648,8 @@ final class BrowserLoginUITests: XCTestCase {
     }
 
     private func currentProtectedURL() -> URL {
-        let raw = app.textFields["browser.address"].value as? String ?? ""
+        // Play's page bar shows the site; the address pill's value is the full URL.
+        let raw = app.buttons["browser.addressPill"].value as? String ?? ""
         guard let url = URL(string: raw), url.host == "127.0.0.1",
               url.path == "/login-fixture/\(namespace.lowercased())/protected" else {
             XCTFail("Expected the synthetic protected HTTP page.")
@@ -651,15 +667,16 @@ final class BrowserLoginUITests: XCTestCase {
     private func openInFreshPage(_ url: URL) {
         let close = app.buttons["browser.closePage"]
         if close.waitForExistence(timeout: 5) { tap(close) }
-        let field = app.textFields["browser.address"]
-        tap(field)
+        let field = focusBrowserAddress(in: app)
         XCTAssertFalse((field.value as? String ?? "").hasPrefix("http://"), "The start page must start empty.")
+        // Return submits once; the field then folds into the page's address pill.
         field.typeText(url.absoluteString + "\n")
     }
-    private func openSignIns() {
+    private func openSignIns(expectedCount: Int) {
         navigateMikaSection("memory", in: app)
         let entry = app.buttons["memory.manageWebsites"]
         revealLearningElement(entry, in: app)
+        XCTAssertTrue(entry.label.contains("\(expectedCount) 個"), entry.label)
         tap(entry)
         XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 15))
     }

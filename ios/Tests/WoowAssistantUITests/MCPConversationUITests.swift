@@ -8,7 +8,7 @@ final class MCPConversationUITests: XCTestCase {
         continueAfterFailure = false
         executionTimeAllowance = 180
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture"]
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
@@ -35,7 +35,7 @@ final class MCPConversationUITests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
-            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+            "-UITestMCPFixture", "-UITestMCPLeaseHold", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
@@ -114,7 +114,7 @@ final class MCPConversationUITests: XCTestCase {
     }
 
     /// The tool selection is the limit: a tool that is not selected never runs.
-    func testUnselectedToolNeverRunsAndDraftIsKept() {
+    func testUnselectedToolNeverRunsAndTheTurnIsNotDone() {
         navigateMikaSection("tools", in: app)
         let enabled = app.switches["mcp.enable.fixture_echo"]
         revealLearningElement(enabled, in: app)
@@ -124,27 +124,31 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertEqual(app.switches["chat.useMCP"].value as? String, "1")
         let prompt = "[fixture:mcp] hello"
         send(prompt)
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        // Like the Play build the turn stays as 沒有完成 with its reason.
+        let failed = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(failed.waitForExistence(timeout: 10))
+        XCTAssertTrue(failed.label.hasPrefix("沒有完成"), failed.label)
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.buttons["chat.mcpResults"].exists)
         navigateMikaSection("tools", in: app)
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
         navigateMikaSection("chat", in: app)
-        app.buttons["chat.send"].tap()
+        send(prompt)
         // Same actor connection: count 1 proves the unselected call never ran.
-        assertAnswer("FIXTURE_CALL_1: hello")
+        assertAnswer("FIXTURE_CALL_1: hello", index: 3)
     }
 
-    /// Leaving the app cancels a tool call that is still running (held by the
-    /// fixture), keeps the draft and disconnects MCP.
-    func testBackgroundCancelsRunningToolAndRetainsDraft() {
+    /// Leaving the app stops a tool call that is still running (held by the
+    /// fixture); like the Play build the turn stays as 已停止。 and MCP stays set
+    /// up: the connection comes back by itself with the same tool choice.
+    func testBackgroundStopsRunningToolAndReconnects() {
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
-            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+            "-UITestMCPFixture", "-UITestMCPLeaseHold", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
@@ -156,21 +160,38 @@ final class MCPConversationUITests: XCTestCase {
         XCUIDevice.shared.press(.home)
         app.activate()
         XCTAssertTrue(app.buttons["chat.send"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        app.buttons["chat.send"].tap()
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["chat.error"].label.contains("連線"))
+        let stopped = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(stopped.waitForExistence(timeout: 10))
+        XCTAssertEqual(stopped.label, "已停止。")
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
         navigateMikaSection("tools", in: app)
-        waitForStatus("已中斷本機連線")
+        waitForStatus("已連線，目錄擷取完成")
+        let enabled = app.switches["mcp.enable.fixture_echo"]
+        revealLearningElement(enabled, in: app)
+        XCTAssertEqual(enabled.value as? String, "1", "The tool choice survives the background")
+        navigateMikaSection("chat", in: app)
+        XCTAssertEqual(app.switches["chat.useMCP"].value as? String, "1")
+        send(prompt)
+        navigateMikaSection("memory", in: app)
+        XCTAssertTrue(app.staticTexts["fixture.mcp.lease.holding"].waitForExistence(timeout: 10),
+                      "The resent call runs on the restored connection")
+        let release = app.buttons["fixture.mcp.lease.release"]
+        revealLearningElement(release, in: app)
+        XCTAssertTrue(release.waitForExistence(timeout: 10))
+        release.tap()
+        navigateMikaSection("chat", in: app)
+        // The stopped call never finished, so this is the first result.
+        assertAnswer("FIXTURE_CALL_1: hello", index: 3)
     }
 
-    func testToolErrorPreservesDraftAndActualErrorResult() {
+    /// Like the Play build a tool error leaves the turn as 沒有完成 with its reason.
+    func testToolErrorShowsNotDoneAndActualErrorResult() {
         send("[fixture:mcp-error]")
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["chat.error"].label.contains("工具回報錯誤"))
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:mcp-error]")
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        let failed = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(failed.waitForExistence(timeout: 10))
+        XCTAssertTrue(failed.label.hasPrefix("沒有完成") && failed.label.contains("工具回報錯誤"), failed.label)
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:mcp-error]")
         app.buttons["chat.mcpResults"].tap()
         let result = app.staticTexts["mcp.result.0"]
         XCTAssertTrue(result.waitForExistence(timeout: 5))
@@ -193,8 +214,8 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(fields.contains("results=\(results)"))
         XCTAssertTrue(fields.contains("failure=none"))
     }
-    private func assertAnswer(_ text: String) {
-        let answer = app.staticTexts["chat.message.1.assistant"]
+    private func assertAnswer(_ text: String, index: Int = 1) {
+        let answer = app.staticTexts["chat.message.\(index).assistant"]
         XCTAssertTrue(answer.waitForExistence(timeout: 15))
         XCTAssertEqual(answer.label, text)
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
@@ -209,10 +230,14 @@ final class MCPConversationUITests: XCTestCase {
                                                object: app.staticTexts["mcp.status"])
         XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: 10), .completed)
     }
+    /// MCP tools start allowed, like the Play build, so only tap when the value differs.
     private func setSwitch(_ toggle: XCUIElement, on: Bool) {
-        let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
-        XCTAssertTrue(target.isHittable)
-        target.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if toggle.value as? String != (on ? "1" : "0") {
+            let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+            XCTAssertTrue(target.isHittable)
+            target.tap()
+        }
         let expected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", on ? "1" : "0"), object: toggle)
         XCTAssertEqual(XCTWaiter.wait(for: [expected], timeout: 5), .completed)
     }

@@ -6,6 +6,9 @@ import Foundation
 /// discovery, sampling, elicitation and unsolicited server requests are not enabled.
 public actor MCPClient {
     private let endpoint: URL
+    /// Sent as "Authorization: Bearer <token>" on every request, like the Play
+    /// build's access token. Never logged, never part of an error.
+    private let token: String?
     private let transport: MCPHTTPTransport
     private let timeout: Duration
     private var server: MCPServerInfo?
@@ -16,15 +19,17 @@ public actor MCPClient {
     static let maximumPages = 32
     static let maximumItems = 10_000
 
-    public init(endpoint: URL) {
+    public init(endpoint: URL, token: String? = nil) {
         self.endpoint = endpoint
+        self.token = token
         transport = MCPHTTPTransport(configuration: .ephemeral)
         timeout = .seconds(60)
     }
 
     // Injection is internal so production clients always use an ephemeral session.
-    init(endpoint: URL, configuration: URLSessionConfiguration, timeout: Duration = .seconds(60)) {
+    init(endpoint: URL, configuration: URLSessionConfiguration, timeout: Duration = .seconds(60), token: String? = nil) {
         self.endpoint = endpoint
+        self.token = token
         transport = MCPHTTPTransport(configuration: configuration)
         self.timeout = max(.milliseconds(1), min(timeout, .seconds(60)))
     }
@@ -232,6 +237,8 @@ public actor MCPClient {
         request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue(sessionID, forHTTPHeaderField: "Mcp-Session-Id")
         request.setValue(server?.protocolVersion, forHTTPHeaderField: "MCP-Protocol-Version")
+        // Redirects are refused (MCPRejectRedirects), so the token only ever goes to this endpoint.
+        if let token { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
         var body: [String: JSONValue] = ["jsonrpc": .string("2.0"), "method": .string(method)]
         if let params = params { body["params"] = params }
         var id: String?

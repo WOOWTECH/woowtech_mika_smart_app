@@ -75,9 +75,26 @@ enum MCPClientChecks {
                     try checks.expect(record.0.timeoutInterval <= 60, "bounded timeout")
                     try checks.expect(record.0.value(forHTTPHeaderField: "Mcp-Session-Id") == (index == 0 ? nil : session), "session header")
                     try checks.expect(record.0.value(forHTTPHeaderField: "MCP-Protocol-Version") == (index == 0 ? nil : version), "version header")
+                    try checks.expect(record.0.value(forHTTPHeaderField: "Authorization") == nil, "no Authorization without a token")
                 }
             }
         }
+        // Like the Play build's access token: "Authorization: Bearer <token>" on every request.
+        let tokenScenario = MCPProtocolFixture.Scenario { _, body, _ in
+            if let reply = try initialized(body, version: "2025-03-26", session: "fixture-session") { return reply }
+            return try .result(.object([:]), request: body)
+        }
+        let tokenEndpoint = MCPProtocolFixture.register(tokenScenario)
+        defer { MCPProtocolFixture.remove(tokenEndpoint) }
+        let tokenClient = MCPClient(endpoint: tokenEndpoint, configuration: MCPProtocolFixture.configuration(),
+                                    token: "fixture.Token-123_abc")
+        _ = try await tokenClient.initialize()
+        try await tokenClient.ping()
+        let tokenRecords = tokenScenario.records
+        try checks.expect(tokenRecords.count == 3, "initialize, notification and ping with a token")
+        try checks.expect(tokenRecords.allSatisfy { $0.0.value(forHTTPHeaderField: "Authorization") == "Bearer fixture.Token-123_abc" },
+                          "token sent as a Bearer header on every request")
+        try checks.expect(tokenRecords.allSatisfy { $0.0.url == tokenEndpoint }, "token never moves into the URL")
         return checks.count
     }
 

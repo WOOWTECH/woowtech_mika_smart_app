@@ -179,6 +179,79 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
     }
 
+    /// Android Onboarding.start: with no main model and the setup never
+    /// finished, the App opens on the welcome page. 開始設定 shows the model
+    /// page in its first-launch mode (providers before the roles), where 下一步
+    /// waits for a main model; Back returns to the welcome page.
+    func testFirstLaunchWelcomeLeadsToModelSetupWhereNextWaitsForMainModel() {
+        let app = XCUIApplication()
+        // Without -WoowSkipOnboarding: the first launch people see.
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+        app.launchEnvironment = [:]
+        app.launch()
+        let start = app.buttons["welcome.start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 15))
+        XCTAssertEqual(app.staticTexts["welcome.title"].label, "你好，我是渥屋助理")
+        XCTAssertEqual(app.staticTexts["welcome.lead"].label, "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。")
+        for feature in ["chat", "voice", "web", "memory"] {
+            XCTAssertTrue(app.descendants(matching: .any)["welcome.feature." + feature].exists, "Welcome lists \(feature)")
+        }
+        XCTAssertEqual(app.staticTexts["welcome.note"].label, "先設定你自己的模型服務，就可以開始使用。")
+        XCTAssertEqual(start.label, "開始設定")
+        attachScreenshot("onboarding-welcome", in: app)
+
+        waitUntilHittable(start)
+        start.tap()
+        let bar = app.navigationBars["設定模型"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["setup.lead"].label.hasPrefix("渥屋助理用你自己的模型服務來思考。"))
+        let next = app.buttons["setup.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 10))
+        XCTAssertEqual(next.label, "下一步")
+        XCTAssertFalse(next.isEnabled, "下一步 waits for a main model.")
+        // No provider yet: the add form is open above the main model's role.
+        let preset = app.buttons["setup.preset.OpenRouter"]
+        let main = app.buttons["models.role.main"]
+        XCTAssertTrue(preset.waitForExistence(timeout: 10))
+        XCTAssertTrue(main.exists)
+        XCTAssertLessThan(preset.frame.minY, main.frame.minY, "Providers come before the roles on first launch.")
+        XCTAssertFalse(app.buttons["settings.voice.open"].exists, "Speech to text stays in Settings, as on Play.")
+        XCTAssertTrue(app.staticTexts["setup.onboardingNote"].exists)
+        attachScreenshot("onboarding-model-setup", in: app)
+
+        let back = bar.buttons.firstMatch
+        waitUntilHittable(back)
+        back.tap()
+        waitUntilHittable(start)
+    }
+
+    /// Like Back on Android's welcome page: 稍後再說 shows the chat without
+    /// finishing the setup, so the next launch with no main model asks again.
+    func testWelcomeNotNowShowsTheChatAndTheNextLaunchAsksAgain() {
+        let app = XCUIApplication()
+        // Without -WoowSkipOnboarding: the first launch people see.
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+        app.launchEnvironment = [:]
+        app.launch()
+        let later = app.buttons["welcome.later"]
+        XCTAssertTrue(later.waitForExistence(timeout: 15))
+        XCTAssertEqual(later.label, "稍後再說")
+        waitUntilHittable(later)
+        later.tap()
+        waitUntilHittable(app.buttons["chat.menu"])
+        XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")
+        XCTAssertTrue(app.staticTexts["uitest.banner"].exists)
+        attachScreenshot("onboarding-later-chat", in: app)
+
+        // Same namespace, no reset: still no main model, so it starts again.
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-UITestResetStorage" }
+        app.launch()
+        XCTAssertTrue(app.buttons["welcome.start"].waitForExistence(timeout: 15))
+    }
+
     func testDrawerAboutOpensAndReturnsToChat() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)
@@ -229,7 +302,7 @@ final class WoowAssistantUITests: XCTestCase {
             XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
                            "GitHub entry still shown: \(id)")
         }
-        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
+        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。")
         XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
                        "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
         // Play's About › Released under Apache-2.0 license → Licenses, with the
@@ -402,7 +475,7 @@ final class WoowAssistantUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", UUID().uuidString,
-                               "-UITestResetStorage", "-UITestChatAccessibilitySize"]
+                               "-UITestResetStorage", "-UITestChatAccessibilitySize", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         let transcript = app.scrollViews["chat.transcript"].firstMatch
@@ -550,12 +623,12 @@ final class WoowAssistantUITests: XCTestCase {
     func testBrowserReportsCurrentLimitationsAndToolsIsReachable() {
         let app = launchApp()
         openSection("browser", in: app)
-        XCTAssertEqual(app.staticTexts["browser.status"].label, "輸入網址開始瀏覽")
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["browser.address"].exists)
         XCTAssertTrue(app.buttons["browser.open"].isEnabled)
         XCTAssertFalse(app.buttons["browser.research"].isEnabled)
-        XCTAssertEqual(app.staticTexts["browser.explanation"].label,
-                       "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。")
+        // Like the Play build, the browser shows no explanation paragraph.
+        XCTAssertFalse(app.staticTexts["browser.explanation"].exists)
         XCTAssertFalse(app.staticTexts["公開 HTTPS 頁面已通過第一層安全政策"].exists)
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
@@ -658,7 +731,9 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: relaunched)
     }
 
-    func testCancellationPreservesDraftAndAllowsAnotherAttempt() {
+    /// Like the Play build the question is in the conversation as soon as it is
+    /// sent; a stop leaves 已停止。 under it and the next message goes as usual.
+    func testCancellationLeavesStoppedTurnAndAllowsAnotherAttempt() {
         let app = launchApp()
         configure(in: app)
         returnFromModelSettings(in: app)
@@ -667,27 +742,38 @@ final class WoowAssistantUITests: XCTestCase {
         let cancel = app.buttons["chat.cancel"]
         waitUntilHittable(cancel)
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertTrue(app.descendants(matching: .any)["chat.message.0.user"].waitForExistence(timeout: 5))
         cancel.tap()
-        XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
-        assertDraft("[fixture:wait]", in: app)
-        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+        let stopped = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(stopped.waitForExistence(timeout: 5))
+        XCTAssertEqual(stopped.label, "已停止。")
+        assertDraft("", in: app)
         XCTAssertTrue(chatDraftControl(in: app).isEnabled)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        attachScreenshot("cancel-draft-retained", in: app)
+        attachScreenshot("cancel-stopped-turn", in: app)
+        send("Another attempt", in: app)
+        let reply = app.descendants(matching: .any)["chat.message.3.assistant"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertEqual(reply.label, "測試回覆：Another attempt")
     }
 
-    func testFailureRetainsDraftAndRetryProducesReply() {
+    /// Like the Play build a failed turn stays in the conversation: 沒有完成 and
+    /// its reason. Asking again sends a new message.
+    func testFailureShowsNotDoneAndRetryProducesReply() {
         let app = launchApp()
         configure(in: app)
         returnFromModelSettings(in: app)
         openSection("chat", in: app)
         send("[fixture:error-once]", in: app)
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
-        assertDraft("[fixture:error-once]", in: app)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        attachScreenshot("error-draft-retained", in: app)
-        app.buttons["chat.send"].tap()
-        assertReply("測試回覆：[fixture:error-once]", in: app)
+        let failed = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(failed.waitForExistence(timeout: 5))
+        XCTAssertTrue(failed.label.hasPrefix("沒有完成"), failed.label)
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
+        assertDraft("", in: app)
+        attachScreenshot("error-not-done", in: app)
+        send("[fixture:error-once]", in: app)
+        let reply = app.descendants(matching: .any)["chat.message.3.assistant"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertEqual(reply.label, "測試回覆：[fixture:error-once]")
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
         assertDraft("", in: app)
     }
@@ -946,10 +1032,30 @@ final class WoowAssistantUITests: XCTestCase {
         app.buttons["mcp.save"].tap()
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         XCTAssertFalse(app.buttons["mcp.clearDraft"].isEnabled)
+        // Like the Play build's optional access token: checked, saved, never shown.
+        let token = app.secureTextFields["mcp.token"]
+        revealMCP(token, in: app, upward: false)
+        enter("two words", into: token)
+        revealMCP(app.buttons["mcp.save"], in: app)
+        app.buttons["mcp.save"].tap()
+        revealMCP(app.staticTexts["mcp.error"], in: app)
+        XCTAssertTrue(app.staticTexts["mcp.error"].label.contains("權杖"))
+        XCTAssertFalse(app.staticTexts["mcp.tokenStatus"].exists)
+        revealMCP(app.buttons["mcp.clearDraft"], in: app, upward: false)
+        app.buttons["mcp.clearDraft"].tap()
+        revealMCP(token, in: app, upward: false)
+        enter("fixture.Token-123_abc", into: token)
+        revealMCP(app.buttons["mcp.save"], in: app)
+        app.buttons["mcp.save"].tap()
+        revealMCP(app.staticTexts["mcp.tokenStatus"], in: app, upward: false)
+        XCTAssertTrue(app.staticTexts["mcp.tokenStatus"].exists)
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("tools", in: relaunched)
         XCTAssertEqual(relaunched.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
+        revealMCP(relaunched.staticTexts["mcp.tokenStatus"], in: relaunched, upward: false)
+        XCTAssertTrue(relaunched.staticTexts["mcp.tokenStatus"].exists, "The token survives a relaunch")
         XCTAssertTrue(relaunched.staticTexts["mcp.testIsolation"].exists)
         revealMCP(relaunched.buttons["mcp.connect"], in: relaunched)
         XCTAssertFalse(relaunched.buttons["mcp.connect"].isEnabled)
@@ -1017,7 +1123,7 @@ final class WoowAssistantUITests: XCTestCase {
     private func launchApp(resetStorage: Bool = true, keychainWriteFails: Bool = false,
                            delayedConnection: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if resetStorage { app.launchArguments.append("-UITestResetStorage") }
         if keychainWriteFails { app.launchArguments.append("-UITestKeychainWriteFailure") }
         if delayedConnection { app.launchArguments.append("-UITestModelConnectionDelay") }
@@ -1129,7 +1235,10 @@ final class WoowAssistantUITests: XCTestCase {
         field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2) + value + "\n")
-        XCTAssertEqual(field.value as? String, value)
+        // In CI run 43578340934 (16 Pro Max) the value read straight after typing
+        // was "https://ot"; the recording shows the whole address a moment later.
+        let typed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 10), .completed)
     }
 
     private func enter(_ text: String, into field: XCUIElement) {
@@ -1169,7 +1278,7 @@ final class WoowAssistantUITests: XCTestCase {
         let card = app.descendants(matching: .any)["chat.sendBlocked"]
         XCTAssertTrue(card.waitForExistence(timeout: 5), file: file, line: line)
         XCTAssertTrue(card.staticTexts["還不能開始任務"].exists, file: file, line: line)
-        XCTAssertTrue(card.staticTexts["還缺:還沒有能用的模型"].exists, file: file, line: line)
+        XCTAssertTrue(card.staticTexts["還缺：還沒有能用的模型"].exists, file: file, line: line)
         XCTAssertEqual(app.buttons["chat.sendBlocked.openSettings"].label, "去設定", file: file, line: line)
         XCTAssertFalse(app.buttons["chat.cancel"].exists, "No request may start without a model.", file: file, line: line)
         attachScreenshot("unconfigured-send-explained", in: app)

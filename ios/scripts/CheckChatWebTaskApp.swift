@@ -225,6 +225,8 @@ import AssistantPersistence
         try await waitUntil("the user is asked", seconds: 30) { session.webTask?.pendingConsent != nil }
         try check(session.webTask?.pendingConsent?.amount == "NT$ 1,290" && session.webTask?.activity == .waitingForYou,
                   "the card asks with the amount")
+        try check(session.webTask?.pendingConsent?.action == .order && session.webTask?.pendingConsent?.target == "送出訂單"
+                  && session.webTask?.pendingConsent?.content == "無線耳機 1 副", "the card gets the kind, button and content")
         try check(!fixture.requestedPaths.contains("POST /shop/ordered"), "nothing ordered before the OK")
         session.webTask?.answerConsent(true)
         await order.value

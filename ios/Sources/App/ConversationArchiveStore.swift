@@ -41,8 +41,11 @@ import Foundation
 
     /// Match the exact pre-request row. Deletion/replacement cannot be undone by
     /// a late response, and unrelated conversation deletion does not block this row.
-    func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws {
+    /// Returns the conversations that gave way to make room (see ConversationArchive.save).
+    @discardableResult
+    func save(_ record: ArchivedConversation, expected: ArchivedConversation?) throws -> [UUID] {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
+        var evicted: [UUID] = []
         let next = try vault.withExclusiveAccess {
             var latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             let current = latest.conversations.first(where: { $0.id == record.id })
@@ -53,24 +56,31 @@ import Foundation
                   current?.turns == expected?.turns else {
                 throw ConversationArchiveError.staleConversation
             }
-            try latest.save(record)
+            evicted = try latest.save(record)
             try vault.save(latest)
             return latest
         }
         state = next; error = nil
+        return evicted
     }
 
     /// Publish only after the complete branch snapshot is encrypted and saved.
-    func commitBranch(_ plan: ConversationBranchPlan, isBusy: Bool, hasUnfinishedOrUnsavedTurn: Bool) throws {
+    /// Returns the conversations that gave way to make room.
+    @discardableResult
+    func commitBranch(_ plan: ConversationBranchPlan, isBusy: Bool, hasUnfinishedOrUnsavedTurn: Bool) throws -> [UUID] {
         guard available, let vault else { throw ConversationArchiveError.unavailable }
+        var evicted: [UUID] = []
         let next = try vault.withExclusiveAccess {
             let latest = try vault.load(ConversationArchive.self) ?? ConversationArchive()
             let next = try plan.applying(to: latest, isBusy: isBusy,
                                          hasUnfinishedOrUnsavedTurn: hasUnfinishedOrUnsavedTurn)
+            let kept = Set(next.conversations.map(\.id))
+            evicted = latest.conversations.map(\.id).filter { !kept.contains($0) }
             try vault.save(next)
             return next
         }
         state = next; error = nil
+        return evicted
     }
 
     func rename(id: UUID, expectedTitle: String?, to title: String) throws {

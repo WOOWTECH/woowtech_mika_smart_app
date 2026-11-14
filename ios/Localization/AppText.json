@@ -128,7 +128,7 @@
       "key": "learning.forgot",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已忘掉一條記憶",
+        "zh-Hant": "忘掉了一條記憶",
         "en": "Forgot a memory"
       }
     },
@@ -137,8 +137,8 @@
       "key": "learning.deleted",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這條記憶已刪除",
-        "en": "This memory was deleted"
+        "zh-Hant": "一條已刪除的記憶",
+        "en": "a deleted memory"
       }
     },
     {
@@ -170,6 +170,38 @@
       }
     },
     {
+      "case": "learningUpdatedWas",
+      "key": "learning.updatedWas",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        },
+        {
+          "name": "was",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "更新了：%1$@（原本：%2$@）",
+        "en": "Updated: %1$@ (was: %2$@)"
+      }
+    },
+    {
+      "case": "learningForgotItem",
+      "key": "learning.forgotItem",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "忘掉了：%1$@",
+        "en": "Forgot: %1$@"
+      }
+    },
+    {
       "case": "learningPendingProcedure",
       "key": "learning.pendingProcedure",
       "parameters": [
@@ -179,8 +211,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "待你確認做法：%1$@",
-        "en": "Procedure to review: %1$@"
+        "zh-Hant": "要我以後都這樣做嗎？%1$@",
+        "en": "Do it this way from now on? %1$@"
       }
     },
     {
@@ -944,8 +976,8 @@
       "key": "shell.toolsTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Skills 與 MCP",
-        "en": "Skills and MCP"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -962,7 +994,7 @@
       "key": "shell.greetingMorning",
       "parameters": [],
       "translations": {
-        "zh-Hant": "早上好",
+        "zh-Hant": "早安",
         "en": "Good morning"
       }
     },
@@ -971,7 +1003,7 @@
       "key": "shell.greetingNoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "中午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -980,7 +1012,7 @@
       "key": "shell.greetingAfternoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "下午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -989,7 +1021,7 @@
       "key": "shell.greetingEvening",
       "parameters": [],
       "translations": {
-        "zh-Hant": "晚上好",
+        "zh-Hant": "晚安",
         "en": "Good evening"
       }
     },
@@ -1007,8 +1039,8 @@
       "key": "shell.whatToDo",
       "parameters": [],
       "translations": {
-        "zh-Hant": "想讓渥屋助理做什麼？",
-        "en": "What should woowtech agent do?"
+        "zh-Hant": "想聊什麼，或需要幫忙查找什麼？",
+        "en": "What would you like help with?"
       }
     },
     {
@@ -1115,7 +1147,7 @@
       "key": "shell.stop",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消",
+        "zh-Hant": "停止",
         "en": "Stop"
       }
     },
@@ -1336,8 +1368,8 @@
       "key": "mcp.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 與 Skills",
-        "en": "MCP and Skills"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -1363,8 +1395,8 @@
       "key": "mcp.explanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。",
-        "en": "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. The model runs selected tools without asking you each time, so select only tools you allow it to use. Tool descriptions and results are sent to your configured model."
+        "zh-Hant": "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。",
+        "en": "Connect an external MCP server and choose which tools the assistant can use; all are allowed by default. The server must use HTTPS, and the access token stays on this device. Turn on “Use MCP tools in this chat” and the app connects by itself. The model runs allowed tools without asking each time, and tool descriptions and results go to the model you set up."
       }
     },
     {
@@ -1417,8 +1449,35 @@
       "key": "mcp.endpoint.help",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Webhook URL 等同憑證，完整網址僅儲存於此裝置解鎖時可讀取的 Keychain，不透過 iCloud 同步。輸入新端點後，請先儲存或清除草稿再連線。",
-        "en": "A webhook URL is a credential. The complete URL is stored only in this device’s Keychain, accessible while unlocked, without iCloud sync. Save or clear a new endpoint draft before connecting."
+        "zh-Hant": "完整網址和存取權杖只存在這台裝置解鎖時可讀的 Keychain，不透過 iCloud 同步。存成另一個網址時，原本的權杖和工具選擇會一起清除。",
+        "en": "The complete URL and the access token are kept only in this device’s Keychain, readable while it is unlocked, and never sync through iCloud. Saving a different URL also clears the old token and tool choices."
+      }
+    },
+    {
+      "case": "mcpToken",
+      "key": "mcp.token",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存取權杖（選填）",
+        "en": "Access token (optional)"
+      }
+    },
+    {
+      "case": "mcpTokenAX",
+      "key": "mcp.token.a.x",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 存取權杖",
+        "en": "MCP access token"
+      }
+    },
+    {
+      "case": "mcpTokenStored",
+      "key": "mcp.token.stored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已儲存存取權杖；不顯示內容。",
+        "en": "An access token is saved; it isn’t shown."
       }
     },
     {
@@ -1426,8 +1485,8 @@
       "key": "mcp.save",
       "parameters": [],
       "translations": {
-        "zh-Hant": "儲存端點",
-        "en": "Save endpoint"
+        "zh-Hant": "儲存",
+        "en": "Save"
       }
     },
     {
@@ -1507,8 +1566,8 @@
       "key": "mcp.remove.question",
       "parameters": [],
       "translations": {
-        "zh-Hant": "移除此裝置儲存的 MCP 端點？",
-        "en": "Remove the MCP endpoint saved on this device?"
+        "zh-Hant": "移除此裝置儲存的 MCP 端點、存取權杖和工具選擇？",
+        "en": "Remove the MCP endpoint, access token and tool choices saved on this device?"
       }
     },
     {
@@ -1593,12 +1652,21 @@
       }
     },
     {
+      "case": "mcpSuspended",
+      "key": "mcp.suspended",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已暫停連線；回到 App 時會自動重新連線",
+        "en": "Paused; reconnects when you return to the app"
+      }
+    },
+    {
       "case": "mcpSelectionLimit",
       "key": "mcp.selection.limit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "每次對話最多選取 64 個工具。",
-        "en": "Select at most 64 tools per conversation."
+        "zh-Hant": "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。",
+        "en": "A chat can use at most 64 tools, with up to 128 KB of tool descriptions and no malformed tool; the rest stay off."
       }
     },
     {
@@ -1606,8 +1674,8 @@
       "key": "mcp.saved.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "端點已存入此裝置的 Keychain；尚未送出連線請求。",
-        "en": "Endpoint saved in this device’s Keychain; no connection request has been sent."
+        "zh-Hant": "已存入此裝置的 Keychain；尚未送出連線請求。",
+        "en": "Saved in this device’s Keychain; no connection request has been sent."
       }
     },
     {
@@ -1615,8 +1683,8 @@
       "key": "mcp.removed.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已移除此 App 的 MCP 端點。",
-        "en": "This app’s MCP endpoint was removed."
+        "zh-Hant": "已移除此 App 的 MCP 端點、存取權杖和工具選擇。",
+        "en": "This app’s MCP endpoint, access token and tool choices were removed."
       }
     },
     {
@@ -1633,8 +1701,8 @@
       "key": "mcp.connection.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 連線或目錄擷取失敗。請檢查端點、網路及伺服器的 Streamable HTTP 支援；不會自動重試。",
-        "en": "MCP connection or catalog retrieval failed. Check the endpoint, network and server’s Streamable HTTP support. There is no automatic retry."
+        "zh-Hant": "MCP 連線或目錄擷取失敗。請檢查端點、存取權杖、網路及伺服器的 Streamable HTTP 支援；不會自動重試。",
+        "en": "MCP connection or catalog retrieval failed. Check the endpoint, access token, network and server’s Streamable HTTP support. There is no automatic retry."
       }
     },
     {
@@ -1660,8 +1728,8 @@
       "key": "mcp.disconnected.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已停止本機工作並清除目錄；端點設定保留。未要求伺服器撤銷憑證或刪除遠端工作階段。",
-        "en": "Local work stopped and catalogs cleared; the endpoint is retained. The server was not asked to revoke credentials or delete its session."
+        "zh-Hant": "已中斷連線並清除目錄；端點、存取權杖和工具選擇保留。未要求伺服器撤銷憑證或刪除遠端工作階段。",
+        "en": "Disconnected and catalogs cleared; the endpoint, access token and tool choices are kept. The server was not asked to revoke credentials or delete its session."
       }
     },
     {
@@ -1680,6 +1748,15 @@
       "translations": {
         "zh-Hant": "請輸入完整 HTTPS MCP 端點，不可含帳密、片段或空白。查詢參數會與整個端點一起安全儲存。",
         "en": "Enter a complete HTTPS MCP endpoint without URL credentials, fragments or whitespace. Query parameters are stored securely with the endpoint."
+      }
+    },
+    {
+      "case": "mcpInvalidToken",
+      "key": "mcp.invalid.token",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存取權杖要是一行、不含空白的英數字與符號，最長 8 KB。",
+        "en": "The access token must be one line of letters, digits and symbols with no spaces, at most 8 KB."
       }
     },
     {
@@ -1989,8 +2066,8 @@
       "key": "browser.bookmarks",
       "parameters": [],
       "translations": {
-        "zh-Hant": "書籤",
-        "en": "Bookmarks"
+        "zh-Hant": "常用網站",
+        "en": "Favorites"
       }
     },
     {
@@ -2007,8 +2084,8 @@
       "key": "browser.clear.history.question",
       "parameters": [],
       "translations": {
-        "zh-Hant": "清除瀏覽歷史？書籤與網站登入資料會保留。",
-        "en": "Clear browsing history? Bookmarks and site sign-in data will be kept."
+        "zh-Hant": "清除瀏覽歷史？常用網站與網站登入資料會保留。",
+        "en": "Clear browsing history? Favorites and site sign-in data will be kept."
       }
     },
     {
@@ -2251,8 +2328,8 @@
       "key": "notification.authorization.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "無法完成系統權限請求，請重新整理狀態後再試。",
-        "en": "The system permission request did not complete. Refresh the status and try again."
+        "zh-Hant": "無法完成系統權限請求，請再點一次「去開啟」。",
+        "en": "The system permission request did not complete. Tap “Turn on” again."
       }
     },
     {
@@ -2377,8 +2454,8 @@
       "key": "browser.start.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "新增常用網站",
+        "en": "Add a favorite"
       }
     },
     {
@@ -2404,8 +2481,8 @@
       "key": "browser.start.add.bookmark.help",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請先開啟網站，再從書籤頁加入目前網頁。",
-        "en": "Open a website first, then add the current page from Bookmarks."
+        "zh-Hant": "開啟網站後，在「更多」裡點「加入常用網站」",
+        "en": "Open a site, then tap “Add to favorites” under “More”"
       }
     },
     {
@@ -2418,8 +2495,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "移除書籤：%1$@",
-        "en": "Remove bookmark: %1$@"
+        "zh-Hant": "移除%1$@",
+        "en": "Remove %1$@"
       }
     },
     {
@@ -2456,6 +2533,15 @@
       "translations": {
         "zh-Hant": "搜尋或輸入網址",
         "en": "Search or enter an address"
+      }
+    },
+    {
+      "case": "browserChromeEditAddress",
+      "key": "browser.chrome.edit.address",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "改網址",
+        "en": "Edit URL"
       }
     },
     {
@@ -2765,8 +2851,8 @@
       "key": "browser.chrome.remove.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "移除書籤",
-        "en": "Remove bookmark"
+        "zh-Hant": "從常用移除",
+        "en": "Remove from favorites"
       }
     },
     {
@@ -2774,8 +2860,8 @@
       "key": "browser.chrome.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "加入常用網站",
+        "en": "Add to favorites"
       }
     },
     {
@@ -2904,6 +2990,96 @@
           "one": "%lld won’t pop up",
           "other": "%lld won’t pop up"
         }
+      }
+    },
+    {
+      "case": "settingsNotificationsMaster",
+      "key": "settings.notifications.master",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知總開關",
+        "en": "All notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOn",
+      "key": "settings.notifications.master.on",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許渥屋助理發通知",
+        "en": "woowtech agent can send notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOff",
+      "key": "settings.notifications.master.off",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "現在不允許渥屋助理發通知，任務結果和提醒都看不到",
+        "en": "woowtech agent can’t send notifications, so you won’t see task results or alerts"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttention",
+      "key": "settings.notifications.attention",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你處理",
+        "en": "Needs you"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttentionWhen",
+      "key": "settings.notifications.attention.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你接管、確認、回答時",
+        "en": "When you need to take over, approve or answer"
+      }
+    },
+    {
+      "case": "settingsNotificationsResult",
+      "key": "settings.notifications.result",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務結果",
+        "en": "Task results"
+      }
+    },
+    {
+      "case": "settingsNotificationsResultWhen",
+      "key": "settings.notifications.result.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務做完時",
+        "en": "When a task finishes"
+      }
+    },
+    {
+      "case": "settingsNotificationsPopsUp",
+      "key": "settings.notifications.popsUp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會彈出",
+        "en": "Pops up"
+      }
+    },
+    {
+      "case": "settingsNotificationsQuiet",
+      "key": "settings.notifications.quiet",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只進通知中心",
+        "en": "Notification Center only"
+      }
+    },
+    {
+      "case": "settingsNotificationsFooter",
+      "key": "settings.notifications.footer",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理",
+        "en": "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. Path: Settings › Notifications › woowtech agent"
       }
     },
     {
@@ -3608,6 +3784,159 @@
       }
     },
     {
+      "case": "welcomeTitle",
+      "key": "welcome.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你好，我是渥屋助理",
+        "en": "Hi, I’m woowtech agent"
+      }
+    },
+    {
+      "case": "welcomeLead",
+      "key": "welcome.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。",
+        "en": "Chat, speak, browse and keep useful notes in one place."
+      }
+    },
+    {
+      "case": "welcomeChat",
+      "key": "welcome.chat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "AI 對話",
+        "en": "AI chat"
+      }
+    },
+    {
+      "case": "welcomeChatBody",
+      "key": "welcome.chat.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提問並延續之前的對話",
+        "en": "Ask questions and continue past conversations"
+      }
+    },
+    {
+      "case": "welcomeVoice",
+      "key": "welcome.voice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入",
+        "en": "Voice input"
+      }
+    },
+    {
+      "case": "welcomeVoiceBody",
+      "key": "welcome.voice.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "說話即可輸入訊息",
+        "en": "Speak to compose a message"
+      }
+    },
+    {
+      "case": "welcomeWeb",
+      "key": "welcome.web",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "上網查",
+        "en": "Browse the web"
+      }
+    },
+    {
+      "case": "welcomeWebBody",
+      "key": "welcome.web.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "內建瀏覽器，讀網頁、比價、查資料",
+        "en": "Built-in browser to read pages, compare prices and look things up"
+      }
+    },
+    {
+      "case": "welcomeMemory",
+      "key": "welcome.memory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶",
+        "en": "Memory"
+      }
+    },
+    {
+      "case": "welcomeMemoryBody",
+      "key": "welcome.memory.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "保留往後對話需要的資訊",
+        "en": "Keep useful details for later conversations"
+      }
+    },
+    {
+      "case": "welcomeNote",
+      "key": "welcome.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "先設定你自己的模型服務，就可以開始使用。",
+        "en": "Set up your own model service to begin."
+      }
+    },
+    {
+      "case": "welcomeStart",
+      "key": "welcome.start",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開始設定",
+        "en": "Get started"
+      }
+    },
+    {
+      "case": "welcomeLater",
+      "key": "welcome.later",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "稍後再說",
+        "en": "Not now"
+      }
+    },
+    {
+      "case": "modelSetupTitle",
+      "key": "modelSetup.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定模型",
+        "en": "Set up a model"
+      }
+    },
+    {
+      "case": "modelSetupLead",
+      "key": "modelSetup.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。",
+        "en": "woowtech agent thinks with your own model service. Connect a provider first, then pick a model for each job."
+      }
+    },
+    {
+      "case": "modelSetupOnboardingNote",
+      "key": "modelSetup.onboardingNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只有主模型必須選，其他用途可以以後再說。",
+        "en": "Only the main model is required; the other roles can wait."
+      }
+    },
+    {
+      "case": "commonNext",
+      "key": "common.next",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下一步",
+        "en": "Next"
+      }
+    },
+    {
       "case": "modelNotSavedDeclined",
       "key": "model.notSavedDeclined",
       "parameters": [
@@ -4003,8 +4332,8 @@
       "key": "consent.item.researchJudgment",
       "parameters": [],
       "translations": {
-        "zh-Hant": "研究網站時，請模型判斷結果的請求",
-        "en": "Requests during research that ask the model to judge the results"
+        "zh-Hant": "研究網站、執行網頁任務或用技能做事之後，請模型判斷結果並起草技能的請求（含讀到的網頁內容和做過的步驟）",
+        "en": "Requests after website research, web tasks or skill steps that ask the model to judge the result and draft a skill, including the pages read and the steps taken"
       }
     },
     {
@@ -4135,24 +4464,6 @@
       }
     },
     {
-      "case": "settingsStatusReadyMain",
-      "key": "settings.status.readyMain",
-      "parameters": [
-        {
-          "name": "model",
-          "type": "String"
-        },
-        {
-          "name": "provider",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "主模型：%1$@ · %2$@",
-        "en": "Main model: %1$@ · %2$@"
-      }
-    },
-    {
       "case": "modelSettingsTooManyProviders",
       "key": "modelSettings.tooManyProviders",
       "parameters": [],
@@ -4238,7 +4549,16 @@
       "key": "drawer.recent.pinned",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已釘選",
+        "zh-Hant": "置頂",
+        "en": "Pinned"
+      }
+    },
+    {
+      "case": "drawerRecentPinnedMark",
+      "key": "drawer.recent.pinnedMark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已置頂",
         "en": "Pinned"
       }
     },
@@ -4247,7 +4567,7 @@
       "key": "drawer.recent.pin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選",
+        "zh-Hant": "置頂",
         "en": "Pin"
       }
     },
@@ -4256,7 +4576,7 @@
       "key": "drawer.recent.unpin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消釘選",
+        "zh-Hant": "取消置頂",
         "en": "Unpin"
       }
     },
@@ -4265,7 +4585,7 @@
       "key": "drawer.recent.pinFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選變更未保存；對話維持原狀。請重新開啟再試。",
+        "zh-Hant": "置頂變更未保存；對話維持原狀。請重新開啟再試。",
         "en": "The pin change was not saved. The conversation is unchanged; reopen it and try again."
       }
     },
@@ -4274,7 +4594,7 @@
       "key": "drawer.recent.rename",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名",
+        "zh-Hant": "改名",
         "en": "Rename"
       }
     },
@@ -4283,8 +4603,8 @@
       "key": "drawer.recent.renameTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名對話",
-        "en": "Rename conversation"
+        "zh-Hant": "改名",
+        "en": "Rename chat"
       }
     },
     {
@@ -4339,8 +4659,8 @@
       "key": "drawer.recent.unsentDraft",
       "parameters": [],
       "translations": {
-        "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。",
-        "en": "An unsent draft or PDF attachment is present. Return to the chat first."
+        "zh-Hant": "草稿或附件未送出，請先返回處理。",
+        "en": "An unsent draft or attachment is present. Return to the chat first."
       }
     },
     {
@@ -4350,15 +4670,6 @@
       "translations": {
         "zh-Hant": "目前答覆尚未保存，請先返回處理。",
         "en": "The current reply has not been saved. Return to the chat first."
-      }
-    },
-    {
-      "case": "drawerRecentDifferentDestination",
-      "key": "drawer.recent.differentDestination",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。",
-        "en": "This conversation used a different model service or key, so it can’t be opened here."
       }
     },
     {
@@ -4438,8 +4749,35 @@
       "key": "chat.status.waiting",
       "parameters": [],
       "translations": {
-        "zh-Hant": "正在等待模型回覆…",
-        "en": "Waiting for the model…"
+        "zh-Hant": "正在處理",
+        "en": "Working"
+      }
+    },
+    {
+      "case": "chatTurnNotDone",
+      "key": "chat.turn.notDone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有完成",
+        "en": "Not finished"
+      }
+    },
+    {
+      "case": "chatTurnStopped",
+      "key": "chat.turn.stopped",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停止。",
+        "en": "Stopped."
+      }
+    },
+    {
+      "case": "chatTurnWorking",
+      "key": "chat.turn.working",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在處理",
+        "en": "Working"
       }
     },
     {
@@ -4458,6 +4796,15 @@
       "translations": {
         "zh-Hant": "尚未設定模型",
         "en": "Model not configured"
+      }
+    },
+    {
+      "case": "drawerStatusReady",
+      "key": "drawer.status.ready",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一切就緒",
+        "en": "All set"
       }
     },
     {
@@ -4483,7 +4830,7 @@
       "key": "chat.sendBlocked.noModel",
       "parameters": [],
       "translations": {
-        "zh-Hant": "還缺:還沒有能用的模型",
+        "zh-Hant": "還缺：還沒有能用的模型",
         "en": "Missing: No usable model yet"
       }
     },
@@ -4930,6 +5277,24 @@
       }
     },
     {
+      "case": "voiceChoiceSystemOffline",
+      "key": "voice.choice.system.offline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線依語言支援",
+        "en": "Offline depends on language"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemGone",
+      "key": "voice.choice.system.gone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置沒有",
+        "en": "Not on this device"
+      }
+    },
+    {
       "case": "voiceChoiceAvailable",
       "key": "voice.choice.available",
       "parameters": [],
@@ -5180,7 +5545,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
+        "zh-Hant": "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上",
         "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
       }
     },
@@ -5194,7 +5559,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
+        "zh-Hant": "沒能新增：%1$@（單個檔案不超過 200 MB）",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
       }
     },
@@ -5212,7 +5577,7 @@
       "key": "settings.seesImages.unconfirmed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
+        "zh-Hant": "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。",
         "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
       }
     },
@@ -5221,7 +5586,7 @@
       "key": "settings.seesImages.user",
       "parameters": [],
       "translations": {
-        "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
+        "zh-Hant": "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。",
         "en": "As you set it. When on, photos attached in chat go straight to the main model."
       }
     },
@@ -5237,7 +5602,7 @@
       "plural": "count",
       "translations": {
         "zh-Hant": {
-          "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+          "other": "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         },
         "en": {
           "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
@@ -5300,7 +5665,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用渥屋助理:%1$@",
+        "zh-Hant": "引用渥屋助理：%1$@",
         "en": "Quoting woowtech agent: %1$@"
       }
     },
@@ -5314,7 +5679,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用你的話:%1$@",
+        "zh-Hant": "引用你的話：%1$@",
         "en": "Quoting you: %1$@"
       }
     },
@@ -5784,8 +6149,8 @@
       "key": "chat.modelFailed.auth",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。",
+        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models."
       }
     },
     {
@@ -5793,8 +6158,8 @@
       "key": "chat.modelFailed.quota",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：額度已用完。草稿已保留。",
-        "en": "The model call failed: the account has run out of credit. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：額度已用完。",
+        "en": "The model call failed: the account has run out of credit."
       }
     },
     {
@@ -5802,8 +6167,8 @@
       "key": "chat.modelFailed.rateLimited",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。",
-        "en": "The model call failed: too many requests; try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。",
+        "en": "The model call failed: too many requests; try again later."
       }
     },
     {
@@ -5811,8 +6176,8 @@
       "key": "chat.modelFailed.notFound",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。",
+        "en": "The model call failed: the provider has no such model. Check Settings › Models."
       }
     },
     {
@@ -5820,8 +6185,8 @@
       "key": "chat.modelFailed.network",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。",
+        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models."
       }
     },
     {
@@ -5829,8 +6194,8 @@
       "key": "chat.modelFailed.streamCut",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。",
-        "en": "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。",
+        "en": "The model call failed: the connection dropped before the reply finished. Try again later."
       }
     },
     {
@@ -5838,8 +6203,8 @@
       "key": "chat.modelFailed.unreadable",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。",
-        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。",
+        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match."
       }
     },
     {
@@ -5852,8 +6217,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。",
-        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later."
       }
     },
     {
@@ -5866,8 +6231,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models."
       }
     },
     {
@@ -6457,7 +6822,7 @@
       "key": "chat.web.ask.title",
       "parameters": [
         {
-          "name": "target",
+          "name": "action",
           "type": "String"
         }
       ],
@@ -6467,21 +6832,90 @@
       }
     },
     {
-      "case": "chatWebAskTitleAmount",
-      "key": "chat.web.ask.titleAmount",
+      "case": "chatWebAskActionPay",
+      "key": "chat.web.ask.action.pay",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "付款",
+        "en": "Pay"
+      }
+    },
+    {
+      "case": "chatWebAskActionOrder",
+      "key": "chat.web.ask.action.order",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下單",
+        "en": "Place order"
+      }
+    },
+    {
+      "case": "chatWebAskActionSubmit",
+      "key": "chat.web.ask.action.submit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提交",
+        "en": "Submit"
+      }
+    },
+    {
+      "case": "chatWebAskActionDelete",
+      "key": "chat.web.ask.action.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "chatWebAskActionSend",
+      "key": "chat.web.ask.action.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送",
+        "en": "Send"
+      }
+    },
+    {
+      "case": "chatWebAskSite",
+      "key": "chat.web.ask.site",
       "parameters": [
         {
-          "name": "target",
-          "type": "String"
-        },
-        {
-          "name": "amount",
+          "name": "site",
           "type": "String"
         }
       ],
       "translations": {
-        "zh-Hant": "要你同意：%1$@ %2$@",
-        "en": "Needs your OK: %1$@ %2$@"
+        "zh-Hant": "在 %1$@",
+        "en": "In %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskTarget",
+      "key": "chat.web.ask.target",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "目標：%1$@",
+        "en": "Target: %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskContent",
+      "key": "chat.web.ask.content",
+      "parameters": [
+        {
+          "name": "content",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "內容：%1$@",
+        "en": "Content: %1$@"
       }
     },
     {
@@ -6785,42 +7219,6 @@
       }
     },
     {
-      "case": "storedChatPartialReceiving",
-      "key": "stored.chat.partialReceiving",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "回覆產生中・尚未完成，未保存",
-        "en": "Reply in progress · not finished, not saved"
-      }
-    },
-    {
-      "case": "storedChatPartialCancelled",
-      "key": "stored.chat.partialCancelled",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已取消・部分回覆未保存",
-        "en": "Cancelled · partial reply not saved"
-      }
-    },
-    {
-      "case": "storedChatPartialFailed",
-      "key": "stored.chat.partialFailed",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "回覆未完成・部分回覆未保存",
-        "en": "Reply not finished · partial reply not saved"
-      }
-    },
-    {
-      "case": "storedChatSettingsChanged",
-      "key": "stored.chat.settingsChanged",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。",
-        "en": "The model settings this chat used have changed. Start a new chat to send; your draft is kept."
-      }
-    },
-    {
       "case": "storedChatArchiveOpened",
       "key": "stored.chat.archiveOpened",
       "parameters": [],
@@ -6834,26 +7232,8 @@
       "key": "stored.chat.archiveSaveFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。",
-        "en": "The reply is shown, but this chat couldn’t be saved and may be lost when the app closes. Earlier saved content is kept; no old chat was deleted."
-      }
-    },
-    {
-      "case": "storedChatQuoteBeforeChange",
-      "key": "stored.chat.quoteBeforeChange",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "請先傳送或移除引用，再變更模型設定。",
-        "en": "Send or remove the quote before changing model settings."
-      }
-    },
-    {
-      "case": "storedChatQuoteBeforeRemove",
-      "key": "stored.chat.quoteBeforeRemove",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "請先傳送或移除引用，再移除模型設定。",
-        "en": "Send or remove the quote before removing model settings."
+        "zh-Hant": "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。",
+        "en": "The reply is shown, but this chat couldn’t be saved and may be lost when the app closes."
       }
     },
     {
@@ -6879,8 +7259,17 @@
       "key": "stored.chat.mcpNotReady",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。",
-        "en": "Connect and select MCP tools first, or turn off MCP for this chat. Your draft is kept."
+        "zh-Hant": "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。",
+        "en": "Save an endpoint and keep at least one tool on the MCP servers page, or turn off MCP for this chat. Your draft is kept."
+      }
+    },
+    {
+      "case": "storedChatMcpUnavailable",
+      "key": "stored.chat.mcpUnavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。",
+        "en": "The MCP server couldn’t be reached. Your draft is kept. Check its URL and access token on the MCP servers page, then try again."
       }
     },
     {
@@ -6915,8 +7304,8 @@
       "key": "stored.chat.emptyReply",
       "parameters": [],
       "translations": {
-        "zh-Hant": "模型回傳空白內容，草稿已保留，請重試。",
-        "en": "The model returned an empty reply. Your draft is kept; try again."
+        "zh-Hant": "模型回傳空白內容，請重試。",
+        "en": "The model returned an empty reply. Try again."
       }
     },
     {
@@ -6924,8 +7313,8 @@
       "key": "stored.chat.noSingleStep",
       "parameters": [],
       "translations": {
-        "zh-Hant": "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。",
-        "en": "The model still didn’t give a usable single-step command, so it stopped. Your draft and earlier tool results are kept."
+        "zh-Hant": "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。",
+        "en": "The model still didn’t give a usable single-step command, so it stopped. Earlier tool results are kept."
       }
     },
     {
@@ -6933,8 +7322,8 @@
       "key": "stored.chat.sendFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。",
-        "en": "Couldn’t send; your draft is kept. Check the model settings or network and try again."
+        "zh-Hant": "傳送失敗。請檢查模型設定或網路後重試。",
+        "en": "Couldn’t send. Check the model settings or network and try again."
       }
     },
     {
@@ -6942,8 +7331,8 @@
       "key": "stored.chat.mcpUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。",
-        "en": "The MCP chat didn’t finish. Your draft and the tool results received are kept. Check any actions already sent; nothing is retried automatically."
+        "zh-Hant": "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。",
+        "en": "The MCP chat didn’t finish. The tool results received are kept. Check any actions already sent; nothing is retried automatically."
       }
     },
     {
@@ -6951,8 +7340,8 @@
       "key": "stored.chat.memorySavedReplyUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。",
-        "en": "The memory change was saved, but the model’s reply didn’t finish. Check the saved result or undo it so it isn’t changed twice. Your draft is kept."
+        "zh-Hant": "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。",
+        "en": "The memory change was saved, but the model’s reply didn’t finish. Check the saved result or undo it so it isn’t changed twice."
       }
     },
     {
@@ -6960,8 +7349,8 @@
       "key": "stored.chat.profileSavedReplyUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "個人檔案已儲存，但後續模型回覆未完成；草稿保留。",
-        "en": "The profile was saved, but the model’s reply didn’t finish. Your draft is kept."
+        "zh-Hant": "個人檔案已儲存，但後續模型回覆未完成。",
+        "en": "The profile was saved, but the model’s reply didn’t finish."
       }
     },
     {
@@ -7046,21 +7435,12 @@
       }
     },
     {
-      "case": "storedChatCancelledWait",
-      "key": "stored.chat.cancelledWait",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已取消等待，草稿已保留。伺服器可能已收到請求。",
-        "en": "Stopped waiting; your draft is kept. The server may already have received the request."
-      }
-    },
-    {
       "case": "storedChatLearningBusy",
       "key": "stored.chat.learningBusy",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。",
-        "en": "Learning data is being saved elsewhere, so this change wasn’t saved. Your draft is kept; check again shortly."
+        "zh-Hant": "學習資料正在其他位置儲存；本次修改未儲存。請稍後重新確認。",
+        "en": "Learning data is being saved elsewhere, so this change wasn’t saved. Check again shortly."
       }
     },
     {
@@ -7068,8 +7448,8 @@
       "key": "stored.chat.learningChanged",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。",
-        "en": "Learning data changed, so this chat stopped. Your draft is kept; reload the data and check again."
+        "zh-Hant": "學習資料已變更；本次對話已停止。請重新讀取資料並再次確認。",
+        "en": "Learning data changed, so this chat stopped. Reload the data and check again."
       }
     },
     {
@@ -7077,8 +7457,8 @@
       "key": "stored.chat.learningSaveFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。",
-        "en": "Learning data couldn’t be saved, so this change wasn’t applied. Your existing data and draft are kept; check the device’s storage and try again."
+        "zh-Hant": "學習資料無法儲存，這次修改未發布；原有資料保留，請確認裝置儲存狀態後再試。",
+        "en": "Learning data couldn’t be saved, so this change wasn’t applied. Your existing data is kept; check the device’s storage and try again."
       }
     },
     {
@@ -7086,8 +7466,8 @@
       "key": "stored.chat.memoryToolRejected",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。",
-        "en": "The memory tool failed its source, target or data check and stopped. Your draft is kept; finished saves are shown separately."
+        "zh-Hant": "記憶工具未通過來源、目標或資料狀態檢查，已停止。已完成的儲存會另外顯示。",
+        "en": "The memory tool failed its source, target or data check and stopped. Finished saves are shown separately."
       }
     },
     {
@@ -7095,8 +7475,8 @@
       "key": "stored.chat.profileToolRejected",
       "parameters": [],
       "translations": {
-        "zh-Hant": "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。",
-        "en": "The profile tool failed its checks or hit its limit and stopped. Your draft is kept; finished saves are shown separately."
+        "zh-Hant": "個人檔案工具未通過檢查或已超過執行限制，已停止。已完成的儲存會另外顯示。",
+        "en": "The profile tool failed its checks or hit its limit and stopped. Finished saves are shown separately."
       }
     },
     {
@@ -7113,8 +7493,8 @@
       "key": "stored.chat.mcpDenied",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。",
-        "en": "You declined this call, so the MCP chat stopped. Your draft and earlier tool results are kept."
+        "zh-Hant": "你已拒絕這次呼叫，MCP 對話已停止；先前的工具結果保留。",
+        "en": "You declined this call, so the MCP chat stopped. Earlier tool results are kept."
       }
     },
     {
@@ -7122,8 +7502,8 @@
       "key": "stored.chat.mcpToolError",
       "parameters": [],
       "translations": {
-        "zh-Hant": "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。",
-        "en": "A tool reported an error, so it stopped. Review the tool results. Your draft is kept; nothing is retried automatically."
+        "zh-Hant": "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。",
+        "en": "A tool reported an error, so it stopped. Review the tool results; nothing is retried automatically."
       }
     },
     {
@@ -7131,8 +7511,8 @@
       "key": "stored.chat.mcpLocalLimit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。",
-        "en": "This chat used up its memory search or change allowance, so it stopped. Your draft and earlier results are kept."
+        "zh-Hant": "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。",
+        "en": "This chat used up its memory search or change allowance, so it stopped. Earlier results are kept."
       }
     },
     {
@@ -7140,8 +7520,8 @@
       "key": "stored.chat.mcpLimit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。",
-        "en": "Reached the MCP run limit or detected repeated calls. Your draft and the tool results received are kept."
+        "zh-Hant": "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。",
+        "en": "Reached the MCP run limit or detected repeated calls. The tool results received are kept."
       }
     },
     {
@@ -8000,8 +8380,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。草稿保留。",
-        "en": "The memory change was saved, but the reply took more than %1$lld seconds. Check the saved result or undo it. Your draft is kept."
+        "zh-Hant": "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。",
+        "en": "The memory change was saved, but the reply took more than %1$lld seconds. Check the saved result or undo it."
       }
     },
     {
@@ -8014,8 +8394,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "等待超過 %1$lld 秒，已停止等待；草稿已保留，可重試。",
-        "en": "Stopped waiting after %1$lld seconds. Your draft is kept; you can try again."
+        "zh-Hant": "等待超過 %1$lld 秒，已停止等待。",
+        "en": "Stopped waiting after %1$lld seconds."
       }
     },
     {
@@ -8028,8 +8408,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒；草稿保留。",
-        "en": "The profile was saved, but the reply took more than %1$lld seconds. Your draft is kept."
+        "zh-Hant": "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒。",
+        "en": "The profile was saved, but the reply took more than %1$lld seconds."
       }
     },
     {
@@ -8082,8 +8462,8 @@
       "key": "stored.suffix.toolResultsKept",
       "parameters": [],
       "translations": {
-        "zh-Hant": "草稿與已收到的工具結果保留；沒有自動重送操作。",
-        "en": "Your draft and the tool results received are kept; nothing was resent."
+        "zh-Hant": "已收到的工具結果保留；沒有自動重送操作。",
+        "en": "The tool results received are kept; nothing was sent again automatically."
       }
     },
     {
@@ -8159,8 +8539,8 @@
       "key": "chat.memory.approve",
       "parameters": [],
       "translations": {
-        "zh-Hant": "批准",
-        "en": "Approve"
+        "zh-Hant": "好",
+        "en": "OK"
       }
     },
     {
@@ -8168,8 +8548,8 @@
       "key": "chat.memory.reject",
       "parameters": [],
       "translations": {
-        "zh-Hant": "拒絕",
-        "en": "Decline"
+        "zh-Hant": "不要",
+        "en": "No thanks"
       }
     },
     {
@@ -8531,6 +8911,52 @@
       "translations": {
         "zh-Hant": "已完成的讀取（%1$lld）",
         "en": "Completed reads (%1$lld)"
+      }
+    },
+    {
+      "case": "chatSkillNoteLearned",
+      "key": "chat.skillNote.learned",
+      "parameters": [
+        {
+          "name": "description",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "渥屋助理學會了一項技能：%1$@",
+        "en": "woowtech agent learned a skill: %1$@"
+      }
+    },
+    {
+      "case": "chatSkillNoteVerified",
+      "key": "chat.skillNote.verified",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "這項技能用它辦成了事，轉為正式：%1$@",
+        "en": "Skill worked, now in regular use: %1$@"
+      }
+    },
+    {
+      "case": "chatSkillNoteSuspended",
+      "key": "chat.skillNote.suspended",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這項技能最近不靈，先停用了",
+        "en": "This skill hasn’t been working lately, so it’s paused"
+      }
+    },
+    {
+      "case": "chatSkillNoteView",
+      "key": "chat.skillNote.view",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看看",
+        "en": "Take a look"
       }
     }
   ]

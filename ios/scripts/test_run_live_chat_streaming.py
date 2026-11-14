@@ -29,7 +29,7 @@ class LiveStreamRunnerTests(unittest.TestCase):
                 'transport_failure': 'none', 'cancel_boundary': 'not_covered_single_sse_delta',
                 'partial_observed': True, 'partial_never_saved': True, 'completed_pair_saved': True,
                 'encrypted_relaunch_matches': True, 'learning_unchanged': True, 'cancel_covered': False,
-                'cancel_no_archive': False, 'cancel_draft_partial_retained': False, 'cancel_no_completion_notification': False,
+                'cancel_saved_as_stopped': False, 'cancel_input_cleared': False, 'cancel_no_completion_notification': False,
                 'native_ios_ui': False, 'synthetic_prompts_only': True, 'personal_keychain': False,
                 'private_defaults_on_disk': False, 'maximum_http_attempts': 4, 'http_stream_attempts': 1,
                 'http_stream_completions': 1, 'sse_text_deltas': [1], 'seconds': 1.0}

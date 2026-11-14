@@ -82,7 +82,7 @@ extension AppText {
 
     private static let storedFixed: [AppText] = [
         .learningUnavailable, .learningProfileSaved, .learningProcedureApproved, .learningProcedureDeclined,
-        .learningCleared, .learningClearedKeyPending, .learningForgot, .learningDeleted, .learningUseCountFailed,
+        .learningCleared, .learningClearedKeyPending, .learningUseCountFailed,
         .learningTidyUnconfirmed, .learningTidyConflict, .learningTidyBusy, .learningTidyFailed,
         .learningWebNotSaved, .learningNotSaved, .learningSkillRecordFailed, .learningBusy, .learningConflict,
         .learningProfileInvalidSentence, .learningProfileDuplicate, .learningProfileFull,
@@ -95,15 +95,13 @@ extension AppText {
         // Default titles the browser library gives tabs it has no page title for.
         .browserTabNew, .browserTabSignIn, .browserTabPage,
         // Chat, browser and module messages shown on the chat and browser screens.
-        .storedChatPartialReceiving, .storedChatPartialCancelled, .storedChatPartialFailed,
-        .storedChatSettingsChanged, .storedChatArchiveOpened, .storedChatArchiveSaveFailed,
-        .storedChatQuoteBeforeChange, .storedChatQuoteBeforeRemove, .storedChatQuoteChanged,
-        .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
+        .storedChatArchiveOpened, .storedChatArchiveSaveFailed, .storedChatQuoteChanged,
+        .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatMcpUnavailable, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
         .storedChatPrepareFailed, .storedChatEmptyReply, .storedChatNoSingleStep, .storedChatSendFailed,
         .storedChatMcpUnfinished, .storedChatMemorySavedReplyUnfinished, .storedChatProfileSavedReplyUnfinished,
         .storedChatReasonAuth, .storedChatReasonRateLimited, .storedChatReasonUnavailable, .storedChatReasonRefused,
         .storedChatReasonTimeout, .storedChatReasonOffline, .storedChatReasonToolsOff, .storedChatReasonToolExpired,
-        .storedChatReasonToolIncomplete, .storedChatCancelledWait, .storedChatLearningBusy,
+        .storedChatReasonToolIncomplete, .storedChatLearningBusy,
         .storedChatLearningChanged, .storedChatLearningSaveFailed, .storedChatMemoryToolRejected,
         .storedChatProfileToolRejected, .storedChatNewChat, .storedChatMcpDenied, .storedChatMcpToolError,
         .storedChatMcpLocalLimit, .storedChatMcpLimit, .storedContextIncompleteHistory, .storedContextTooLarge,
@@ -143,9 +141,6 @@ extension AppText {
     ]
 
     private static let storedPatterns: [(AppText, (StoredValues) -> AppText?)] = [
-        (.learningRemembered(value: ""), { .learningRemembered(value: $0.text(1)) }),
-        (.learningUpdated(value: ""), { .learningUpdated(value: $0.text(1)) }),
-        (.learningPendingProcedure(value: ""), { .learningPendingProcedure(value: $0.text(1)) }),
         (.storedChatContextWindow(retained: 0, omitted: 0), { values in
             guard let retained = values.count(1), let omitted = values.count(2) else { return nil }
             return .storedChatContextWindow(retained: retained, omitted: omitted)

@@ -75,7 +75,7 @@ extension FreshInstallKeychainReset {
     /// service-scoped, like every other Keychain call here. A new service belongs here.
     static let services = [
         "io.woowtech.assistant.model-credentials.v1",      // model API key (ChatSession)
-        "io.woowtech.assistant.mcp-endpoint.v1",           // whole MCP URL (MCPSettingsStore)
+        "io.woowtech.assistant.mcp-endpoint.v1",           // MCP URL, access token, tool choice (MCPSettingsStore)
         "io.woowtech.assistant.skillworker.v1",            // script service key (SkillWorkerSettings)
         "io.woowtech.assistant.learning.v1.personal",      // file key (LearningStore)
         "io.woowtech.assistant.conversations.v1.personal", // file key (ConversationArchiveStore)

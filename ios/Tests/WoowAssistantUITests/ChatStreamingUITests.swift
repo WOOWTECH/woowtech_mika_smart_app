@@ -18,22 +18,22 @@ final class ChatStreamingUITests: XCTestCase {
     /// iPhone SE and ran past the 300 s ui-chat maximum on iPhone 16 Pro Max.
     func testComposerIdleAndBusyControlsForTraditionalChineseSystem() {
         assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hant)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
-                                          cancelledStatus: "已取消・部分回覆未保存")
+                                          stopped: "已停止。")
     }
 
     /// A Simplified Chinese system shows Traditional Chinese.
     func testComposerIdleAndBusyControlsForSimplifiedChineseSystem() {
         assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hans)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
-                                          cancelledStatus: "已取消・部分回覆未保存")
+                                          stopped: "已停止。")
     }
 
     func testComposerIdleAndBusyControlsForEnglishSystem() {
         assertComposerIdleAndBusyControls(systemLanguages: "(en)", placeholder: "Type a message", voiceLabel: "Voice input",
-                                          cancelledStatus: "Cancelled · partial reply not saved")
+                                          stopped: "Stopped.")
     }
 
     private func assertComposerIdleAndBusyControls(systemLanguages: String, placeholder: String, voiceLabel: String,
-                                                   cancelledStatus: String) {
+                                                   stopped: String) {
         launch(); configure(); disableMemory()
         launchLocalizedStreamingFixture(app, systemLanguages: systemLanguages, namespace: namespace)
         let draft = chatDraftControl(in: app)
@@ -46,16 +46,18 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertTrue(mic.isEnabled)
         XCTAssertFalse(app.buttons["chat.cancel"].exists)
         compose("[fixture:stream-cancel]"); tap("chat.send")
+        // Like the Play build the question shows at once and the input bar empties.
+        assertLabel(identifiedText("chat.message.0.user"), "[fixture:stream-cancel]")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
         XCTAssertFalse(draft.isEnabled, "Generating does not accept typed interrupts")
         XCTAssertFalse(mic.isEnabled, "Generating does not accept voice interrupts")
         XCTAssertTrue(app.buttons["chat.cancel"].isEnabled)
         tap("chat.cancel")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, cancelledStatus)
+        assertLabel(identifiedText("chat.message.1.assistant"), stopped)
+        XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
         wait(NSPredicate(format: "enabled == true"), on: draft)
         wait(NSPredicate(format: "enabled == true"), on: mic)
-        XCTAssertEqual(draft.value as? String, "[fixture:stream-cancel]")
-        XCTAssertFalse(app.descendants(matching: .any)["chat.message.0.user"].exists)
+        XCTAssertNotEqual(draft.value as? String, "[fixture:stream-cancel]")
     }
 
     func testMemoryEnabledStructuredStreamPreviewsThenArchivesCompletedAnswer() {
@@ -68,10 +70,10 @@ final class ChatStreamingUITests: XCTestCase {
         navigate("chat")
 
         compose("[fixture:structured-stream-complete]"); tap("chat.send")
+        assertLabel(identifiedText("chat.message.0.user"), "[fixture:structured-stream-complete]")
         assertLabel(identifiedText("chat.partialReply"), "結構化串流：第一段")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
-        assertLabel(app.staticTexts["chat.status"].firstMatch, "正在等待模型回覆…")
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "正在處理")
         assertArchiveUnavailableDuringRun()
 
         let completed = identifiedText("chat.message.1.assistant")
@@ -92,8 +94,8 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "placeholderValue == %@", "輸入訊息"), on: draft)
         assertNotificationAttempts(0)
         compose("[fixture:stream-complete]"); tap("chat.send")
+        assertLabel(identifiedText("chat.message.0.user"), "[fixture:stream-complete]")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         assertArchiveUnavailableDuringRun()
         assertNotificationAttempts(0)
@@ -113,29 +115,27 @@ final class ChatStreamingUITests: XCTestCase {
         print("CHAT_STREAM_UI partialObserved=1 completedPair=1 archiveRelaunch=1 completionNotificationAttempts=1")
     }
 
-    func testCancelRetainsDraftAndPartialWithoutArchiveOrCompletionNotification() {
+    /// Like the Play build a stop leaves the question with 已停止。, saved with the
+    /// conversation; the partial is not kept and nothing notifies a completion.
+    func testCancelLeavesStoppedTurnSavedWithoutPartialOrCompletionNotification() {
         launch(); configure(); disableMemory(); enableNotifications()
         assertNotificationAttempts(0)
         compose("[fixture:stream-cancel]"); tap("chat.send")
+        assertLabel(identifiedText("chat.message.0.user"), "[fixture:stream-cancel]")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "回覆產生中・尚未完成，未保存")
         tap("chat.cancel")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
-        assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:stream-cancel]")
-        XCTAssertFalse(identifiedText("chat.message.0.user").exists)
-        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
-        assertNotificationAttempts(0)
-        openArchive()
-        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
-        tap("drawer.close")
+        assertLabel(identifiedText("chat.message.1.assistant"), "已停止。")
+        XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:stream-cancel]")
         assertNotificationAttempts(0)
         launch(reset: false)
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists, "Partials are not claimed durable")
-        XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         openArchive()
-        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
-        print("CHAT_STREAM_UI partialObserved=1 cancelled=1 draftRetained=1 archiveAbsentAfterRelaunch=1 completionNotificationAttempts=0")
+        let saved = row("[fixture:stream-cancel]"); ready(saved); saved.tap()
+        assertLabel(identifiedText("chat.message.0.user"), "[fixture:stream-cancel]")
+        assertLabel(identifiedText("chat.message.1.assistant"), "已停止。")
+        XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
+        print("CHAT_STREAM_UI partialObserved=1 cancelled=1 stoppedTurnSaved=1 completionNotificationAttempts=0")
     }
 
     func testMarkdownFormatsCompletedBubbleButArchivesOriginalStreamingBytes() {
@@ -189,6 +189,8 @@ final class ChatStreamingUITests: XCTestCase {
 
     /// Split from the case above: on iPhone SE (iOS 18.5) the two together need
     /// more than the 240 s allowance, mostly fixed fixture waits and typing.
+    /// Like the Play build the sent question appears at once; the transcript
+    /// follows it, the reply and the 已停止。 that ends it at the tail.
     func testSendAfterReadingEarlierTextFollowsTheNewAnswer() {
         launch(); configure(); disableMemory()
         compose("[fixture:stream-scroll]"); tap("chat.send")
@@ -203,11 +205,16 @@ final class ChatStreamingUITests: XCTestCase {
         // Editing the next prompt changes the keyboard/viewport; the explicit
         // send must nevertheless restore follow for the accepted new request.
         compose("[fixture:stream-cancel]"); tap("chat.send")
+        assertLabel(identifiedText("chat.message.2.user"), "[fixture:stream-cancel]")
         let renewed = identifiedText("chat.partialReply")
         assertLabel(renewed, "串流測試：第一段")
         XCTAssertTrue(renewed.isHittable, "The newly submitted answer must be visible at the tail")
+        assertTranscriptTailVisible(renewed, in: transcript)
+        XCTAssertFalse(app.buttons["chat.returnToLatest"].firstMatch.exists, "Sending returns the reader to the tail")
         tap("chat.cancel")
-        XCTAssertFalse(identifiedText("chat.message.3.assistant").exists)
+        let stopped = identifiedText("chat.message.3.assistant")
+        assertLabel(stopped, "已停止。")
+        assertTranscriptTailVisible(stopped, in: transcript)
     }
 
     func testSmallScrollAndLongPressDoNotJumpWhenLaterChunkArrives() {
@@ -392,7 +399,8 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "value IN %@", ["notDetermined", "authorized"]), on: authorization)
         let before = authorization.value as? String
         XCTAssertTrue(before == "notDetermined" || before == "authorized", "No simulator permission resets")
-        tap("notifications.enable", scroll: true)
+        // 去開啟 on Play's 通知總開關, the row that is a button while off.
+        tap("notifications.enabled", scroll: true)
         if before == "notDetermined" {
             let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
             XCTAssertTrue(alert.waitForExistence(timeout: 15))
@@ -404,9 +412,8 @@ final class ChatStreamingUITests: XCTestCase {
         }
         revealLearningElement(authorization, in: app, visibility: .readableText)
         wait(NSPredicate(format: "value == %@", "authorized"), on: authorization, seconds: 15)
-        let enabled = app.staticTexts["notifications.enabled"].firstMatch
-        revealLearningElement(enabled, in: app, visibility: .readableText)
-        assertLabel(enabled, "已開啟")
+        let master = app.descendants(matching: .any)["notifications.enabled"].firstMatch
+        wait(NSPredicate(format: "value == %@", "已允許"), on: master, seconds: 15)
         let back = app.navigationBars["通知"].buttons.firstMatch; ready(back); back.tap()
         navigate("chat")
     }
@@ -424,7 +431,7 @@ final class ChatStreamingUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming", "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))

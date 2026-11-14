@@ -29,6 +29,10 @@ import AssistantBrowser
     private var navigationStarted = false
     /// The last message a page tried to show in a dialog; dialogs close at once.
     private(set) var lastDialog: String?
+    /// Play lists sites signed in to while a task works there too: each finished
+    /// page gets the browser's read-only sign-in probe (BrowserSignInProbe).
+    var onSignInObserved: ((URL, BrowserSignInState) -> Void)?
+    private var signInProbeTask: Task<Void, Never>?
 
     init(dataStore: WKWebsiteDataStore, fixtureOrigin: URL? = nil) {
         let configuration = WKWebViewConfiguration()
@@ -55,6 +59,7 @@ import AssistantBrowser
 
     /// Stops loading and leaves a blank page, so nothing keeps running.
     func close() {
+        signInProbeTask?.cancel(); signInProbeTask = nil
         webView.stopLoading()
         webView.loadHTMLString("", baseURL: nil)
     }
@@ -212,6 +217,7 @@ import AssistantBrowser
     // MARK: Loading
 
     private func prepareNavigation() {
+        signInProbeTask?.cancel(); signInProbeTask = nil
         state = .loading; committed = false; stoppedBy = nil; httpStatus = nil; lastDialog = nil
         terminated = false; idleSince = nil; requestedURL = nil
     }
@@ -353,7 +359,35 @@ import AssistantBrowser
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { committed = true }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { state = .finished }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        state = .finished
+        if let url = currentURL, url.scheme == "https" { probeSignIn(url) }
+    }
+
+    /// Like BrowserSession.probeSignIn (Play's UserBrowser.scheduleProbe): once when
+    /// the page finishes and once more a moment later for late account areas. The
+    /// script only reads the DOM in the default client world; nothing is sent.
+    private func probeSignIn(_ url: URL) {
+        guard onSignInObserved != nil else { return }
+        signInProbeTask?.cancel()
+        signInProbeTask = Task { [weak self] in
+            for attempt in 0..<2 {
+                if attempt > 0 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+                guard let self, !Task.isCancelled, self.webView.url == url, !self.webView.isLoading else { return }
+                let raw: String? = await withCheckedContinuation { continuation in
+                    self.webView.evaluateJavaScript(BrowserSignInProbe.script, in: nil, in: .defaultClient) { result in
+                        if case .success(let value) = result { continuation.resume(returning: value as? String) }
+                        else { continuation.resume(returning: nil) }
+                    }
+                }
+                guard !Task.isCancelled, self.webView.url == url, let raw,
+                      let signals = BrowserSignInProbe.parse(raw),
+                      let observed = signals.url.flatMap({ URL(string: $0) }), observed.host == url.host else { return }
+                let state = BrowserSignInProbe.classify(signals)
+                if state != .unknown || attempt == 1 { self.onSignInObserved?(url, state); return }
+            }
+        }
+    }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(error) }
 

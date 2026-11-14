@@ -94,7 +94,7 @@ import AssistantSkills
             try check(selected.text(.localPDFSearchButton) == expected && !selected.resolve(.localPDFSearchButton).usedFallback,
                       "search follows the language setting")
         }
-        try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
+        try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Working",
                   "in-flight status uses the current language")
         try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.drawerDeleteBody(title: "A")) == "「A」和裡面的檔案都會刪掉。",
                   "the drawer's delete prompt is formatted with the selected language")

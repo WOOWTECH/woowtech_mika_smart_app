@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ConversationArchiveError: Error, Equatable {
-    case invalidData, full, destinationMismatch, staleConversation, unavailable
+    case invalidData, full, staleConversation, unavailable
 }
 
 /// Nonsecret identity, including the Keychain account UUID, never its credential.
@@ -32,9 +32,17 @@ public struct ConversationDestination: Codable, Equatable, Sendable {
     }
 }
 
-/// Only a completed pair. No roles, commands, approvals, credentials or receipts
-/// can be decoded into executable state from this representation.
+/// One question and how it ended. No roles, commands, approvals, credentials or
+/// receipts can be decoded into executable state from this representation.
 public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
+    /// How a turn without an answer ended, like the Play build's failed and
+    /// cancelled turns. nil is a completed answer.
+    public enum Outcome: String, Codable, Sendable {
+        /// assistantText is the reason shown under 沒有完成.
+        case failed
+        /// The user stopped it; assistantText is a fixed marker.
+        case cancelled
+    }
     public let userID: UUID
     public let assistantID: UUID
     public let userText: String
@@ -42,9 +50,10 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
     public let pdf: ArchivedPDFAnswer?
     /// Names and locations of the files the user attached, never their bytes.
     public let attachments: [ArchivedAttachment]
+    public let outcome: Outcome?
 
     public init(userID: UUID = UUID(), assistantID: UUID = UUID(), userText: String, assistantText: String,
-                pdf: ArchivedPDFAnswer? = nil, attachments: [ArchivedAttachment] = []) throws {
+                pdf: ArchivedPDFAnswer? = nil, attachments: [ArchivedAttachment] = [], outcome: Outcome? = nil) throws {
         guard userID != assistantID,
               [userText, assistantText].allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                   && $0.utf8.count <= ConversationArchive.maximumMessageBytes }),
@@ -55,15 +64,17 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
         self.userText = userText; self.assistantText = assistantText
         self.pdf = pdf
         self.attachments = attachments
+        self.outcome = outcome
     }
 
-    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf, attachments }
+    private enum CodingKeys: String, CodingKey { case userID, assistantID, userText, assistantText, pdf, attachments, outcome }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(userID: c.decode(UUID.self, forKey: .userID), assistantID: c.decode(UUID.self, forKey: .assistantID),
                       userText: c.decode(String.self, forKey: .userText), assistantText: c.decode(String.self, forKey: .assistantText),
                       pdf: c.decodeIfPresent(ArchivedPDFAnswer.self, forKey: .pdf),
-                      attachments: c.decodeIfPresent([ArchivedAttachment].self, forKey: .attachments) ?? [])
+                      attachments: c.decodeIfPresent([ArchivedAttachment].self, forKey: .attachments) ?? [],
+                      outcome: c.decodeIfPresent(Outcome.self, forKey: .outcome))
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -73,6 +84,7 @@ public struct ArchivedConversationTurn: Codable, Equatable, Sendable {
         try c.encodeIfPresent(pdf, forKey: .pdf)
         // Rows without attachments keep exactly their previous encoding.
         if !attachments.isEmpty { try c.encode(attachments, forKey: .attachments) }
+        try c.encodeIfPresent(outcome, forKey: .outcome)
     }
 }
 
@@ -173,18 +185,22 @@ public struct ArchivedConversation: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-/// Bounded whole snapshot, persisted atomically by the host. Never evicts data.
+/// Bounded whole snapshot, persisted atomically by the host. Like the Play
+/// build, saving a conversation never fails for lack of room: the oldest
+/// unpinned conversations give way (see save). The bounds keep one encrypted
+/// file quick to rewrite after every turn.
 public struct ConversationArchive: Codable, Equatable, Sendable {
-    public static let maximumConversations = 50
-    public static let maximumTurnsPerConversation = 200
+    public static let maximumConversations = 200
+    public static let maximumTurnsPerConversation = 1000
     public static let maximumMessageBytes = 1024 * 1024
-    public static let maximumEncodedBytes = 3 * 1024 * 1024
+    public static let maximumEncodedBytes = 8 * 1024 * 1024
     public static let maximumTitleCharacters = 120
     public static let maximumTitleBytes = 512
     public private(set) var conversations: [ArchivedConversation] = []
     // Keep archives without user metadata readable by the v2 app. A title
     // needs v3; a pin needs v4 because the v3 reader ignores unknown row keys.
-    // Branch provenance requires v5; never downgrade after metadata is removed.
+    // Branch provenance requires v5; failed and cancelled turns require v6.
+    // Never downgrade after metadata is removed.
     private var writeVersion = 2
     public init() {}
 
@@ -215,11 +231,14 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         return trimmed
     }
 
-    public mutating func save(_ record: ArchivedConversation) throws {
+    /// Saves one conversation and returns the conversations that gave way.
+    /// A conversation is not tied to one model, like the Play build: the row
+    /// keeps the destination of its latest turn.
+    @discardableResult
+    public mutating func save(_ record: ArchivedConversation) throws -> [UUID] {
         var next = self
         if let index = next.conversations.firstIndex(where: { $0.id == record.id }) {
             let prior = next.conversations[index]
-            guard prior.destination == record.destination else { throw ConversationArchiveError.destinationMismatch }
             guard record.turns.count >= prior.turns.count,
                   Array(record.turns.prefix(prior.turns.count)) == prior.turns
             else { throw ConversationArchiveError.staleConversation }
@@ -233,8 +252,29 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
             else { throw ConversationArchiveError.invalidData }
             next.conversations.append(record)
         }
-        try next.validate()
+        if record.turns.contains(where: { $0.outcome != nil }) { next.writeVersion = max(next.writeVersion, 6) }
+        let evicted = try next.makeRoom(keeping: [record.id])
         self = next
+        return evicted
+    }
+
+    /// Removes the oldest unpinned conversations, never one in [keeping],
+    /// until the archive fits. Throws .full only when nothing else can go.
+    private mutating func makeRoom(keeping: Set<UUID>) throws -> [UUID] {
+        var evicted: [UUID] = []
+        while true {
+            do {
+                try validate()
+                return evicted
+            } catch ConversationArchiveError.full {
+                let candidates = conversations.filter { $0.pinnedAt == nil && !keeping.contains($0.id) }
+                guard let oldest = candidates.min(by: { lhs, rhs in
+                    lhs.updatedAt == rhs.updatedAt ? lhs.id.uuidString < rhs.id.uuidString : lhs.updatedAt < rhs.updatedAt
+                }) else { throw ConversationArchiveError.full }
+                conversations.removeAll { $0.id == oldest.id }
+                evicted.append(oldest.id)
+            }
+        }
     }
 
     public mutating func rename(id: UUID, expectedTitle: String?, to title: String) throws {
@@ -288,7 +328,8 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
         var next = self
         next.conversations.append(row)
         next.writeVersion = max(next.writeVersion, 5)
-        try next.validate()
+        if row.turns.contains(where: { $0.outcome != nil }) { next.writeVersion = max(next.writeVersion, 6) }
+        _ = try next.makeRoom(keeping: [plan.source.id, row.id])
         self = next
     }
 
@@ -298,10 +339,11 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     }
 
     private func validate() throws {
-        guard (2...5).contains(writeVersion),
+        guard (2...6).contains(writeVersion),
               (writeVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
               (writeVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
-              (writeVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
+              (writeVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil })),
+              (writeVersion >= 6 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.outcome == nil } }))
         else { throw ConversationArchiveError.invalidData }
         guard conversations.count <= Self.maximumConversations else { throw ConversationArchiveError.full }
         guard Set(conversations.map(\.id)).count == conversations.count else { throw ConversationArchiveError.invalidData }
@@ -320,14 +362,15 @@ public struct ConversationArchive: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let storedVersion = try c.decode(Int.self, forKey: .version)
-        guard (1...5).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
+        guard (1...6).contains(storedVersion) else { throw ConversationArchiveError.invalidData }
         writeVersion = max(2, storedVersion)
         conversations = try c.decode([ArchivedConversation].self, forKey: .conversations)
         guard storedVersion != 1 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.pdf == nil } })
         else { throw ConversationArchiveError.invalidData }
         guard (storedVersion >= 3 || conversations.allSatisfy({ $0.customTitle == nil })),
               (storedVersion >= 4 || conversations.allSatisfy({ $0.pinnedAt == nil })),
-              (storedVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil }))
+              (storedVersion >= 5 || conversations.allSatisfy({ $0.branchOrigin == nil })),
+              (storedVersion >= 6 || conversations.allSatisfy({ $0.turns.allSatisfy { $0.outcome == nil } }))
         else { throw ConversationArchiveError.invalidData }
         try validate()
     }

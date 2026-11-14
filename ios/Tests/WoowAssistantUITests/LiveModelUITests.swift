@@ -20,7 +20,7 @@ final class LiveModelUITests: XCTestCase {
         guard launched else { return }
         let app = XCUIApplication()
         app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
@@ -49,7 +49,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
     }
 
-    func testLiveCancellationKeepsDraft() throws {
+    func testLiveCancellationLeavesStoppedTurn() throws {
         let app = try launchLiveApp()
         let prompt = "Explain 30 practical ways to organize a small personal library, using one short sentence per item."
         enterDraft(prompt, in: app)
@@ -63,10 +63,11 @@ final class LiveModelUITests: XCTestCase {
             return
         }
         cancel.tap()
-        XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        // Like the Play build the question stays with 已停止。 and the input bar is empty.
+        let stopped = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(stopped.waitForExistence(timeout: 5))
+        XCTAssertEqual(stopped.label, "已停止。")
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
     }
 
     func testRealAutomaticMemorySurvivesRelaunchAndMasterSwitchBlocksRecall() throws {
@@ -189,7 +190,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 20), .completed)
         XCTAssertFalse(app.staticTexts["browser.interaction.error"].exists, "The approved DOM dispatch failed.")
         app.buttons["browser.interaction.close"].tap()
-        let address = app.textFields["browser.address"]
+        let address = app.buttons["browser.addressPill"]
         let navigated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "https://www.iana.org/about"), object: address)
         XCTAssertEqual(XCTWaiter.wait(for: [navigated], timeout: 45), .completed,
                        "A proposal alone is insufficient: the actual WebKit URL must change.")
@@ -255,7 +256,7 @@ final class LiveModelUITests: XCTestCase {
         }
         app.buttons["browser.research.close"].tap()
         XCTAssertFalse(app.staticTexts["browser.error"].exists)
-        XCTAssertTrue((app.textFields["browser.address"].value as? String) == sources.last,
+        XCTAssertTrue((app.buttons["browser.addressPill"].value as? String) == sources.last,
                       "Research should finish on the last required public page.")
 
         navigate(to: "memory", in: app)
@@ -493,7 +494,7 @@ final class LiveModelUITests: XCTestCase {
         let item = app.staticTexts["skills.item.\(name)"]
         revealLearningElement(item, in: app)
         XCTAssertTrue(item.exists)
-        XCTAssertEqual(app.staticTexts["skills.state.\(name)"].label, "試用中 · 尚未驗證",
+        XCTAssertEqual(app.staticTexts["skills.state.\(name)"].label, "試用中，還沒用它辦成過事",
                        "The task that created a skill cannot also verify using that skill.")
         let enabled = app.switches["skills.enabled.\(name)"]
         revealLearningElement(enabled, in: app)
@@ -510,7 +511,7 @@ final class LiveModelUITests: XCTestCase {
             throw LiveTestSetupError.missingConfiguration
         }
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launchEnvironment = [
             "WOOW_LIVE_BASE_URL": transportFailure ? "https://unreachable.invalid/v1" : baseURL,
             "WOOW_LIVE_MODEL": transportFailure ? "unused-test-model" : model,

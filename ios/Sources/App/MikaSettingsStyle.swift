@@ -81,7 +81,7 @@ struct MikaSettingsCard<Content: View>: View {
 }
 
 enum MikaSettingsIcon {
-    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy, mic, plus, trash
+    case spark, globe, bell, key, heart, link, info, wrench, bug, shield, copy, mic, plus, trash, message
 }
 
 struct MikaSettingsIconTile: View {
@@ -364,6 +364,17 @@ struct MikaSettingsIconShape: Shape {
             for point in [(7.5, 20), (16.5, 20), (17.5, 6.5)] { path.addLine(to: CGPoint(x: point.0, y: point.1)) }
             path.move(to: CGPoint(x: 10, y: 10)); path.addLine(to: CGPoint(x: 10, y: 16.5))
             path.move(to: CGPoint(x: 14, y: 10)); path.addLine(to: CGPoint(x: 14, y: 16.5))
+        case .message:
+            // Android Message: a round bubble with its tail at the lower left. The
+            // second arc is the SVG's, whose radius grows to span its endpoints.
+            path.move(to: CGPoint(x: 21, y: 12))
+            path.addArc(center: CGPoint(x: 13, y: 12), radius: 8,
+                        startAngle: .degrees(0), endAngle: .degrees(116.9), clockwise: false)
+            path.addLine(to: CGPoint(x: 4, y: 20))
+            path.addLine(to: CGPoint(x: 5, y: 15.4))
+            path.addArc(center: CGPoint(x: 13, y: 13.7), radius: 8.18,
+                        startAngle: .degrees(168), endAngle: .degrees(348), clockwise: false)
+            path.closeSubpath()
         }
         return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
             .translatedBy(x: rect.minX, y: rect.minY))

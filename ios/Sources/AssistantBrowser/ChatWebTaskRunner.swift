@@ -94,7 +94,7 @@ public enum ChatWebTaskPrompts {
         {"action":"finish","answer":"…","sources":[1,2]} gives the final answer. sources lists the page numbers (n of "page-n") of pages you read and used, at most 6.
         {"action":"web_observe"} lists the page's controls (links, buttons, text fields, choices) with a ref and a snapshotId.
         {"action":"web_tap","ref":"e12","snapshotId":"s1"} taps a control; {"action":"web_type_text","ref":"e4","snapshotId":"s1","text":"words","pressEnter":true} types into a field (pressEnter submits it); {"action":"web_select","ref":"e7","snapshotId":"s1","option":"shown text"} picks a choice. A snapshot is good for one action: web_observe again before the next one.
-        {"action":"request_confirmation","kind":"order","target":"the button's text","content":"what will happen","amount":"NT$ 1,290"} asks the user before a step that spends money (kind: order, submit or delete).
+        {"action":"request_confirmation","kind":"order","target":"the button's text","content":"what it sends or buys (item, quantity)","amount":"NT$ 1,290"} asks the user before a step that spends money (kind: order, submit or delete).
         {"action":"hand_to_user","reason":"login","message":"what the user should do"} hands the open page to the user (reason: login, captcha, access_blocked, payment, decision or other; for payment add "item", "amount" and "address"). Open the page first. The result says whether the user handed it back, finished it themselves or skipped.
         {"action":"ask_user","prompt":"question","options":["A","B"]} asks the user (2-8 options, or none for a free answer). Ask only when a missing detail would change the result (the person, item, quantity or money).
 
@@ -154,6 +154,10 @@ public enum ChatWebTaskPrompts {
 
     public private(set) var steps: [ChatWebStep] = []
     private var pages: [ChatWebSource] = []
+    /// What read and find steps returned, by step id, for the judgment after
+    /// the answer (ChatWebTaskResult.evidence). Memory only.
+    private var evidence: [Int: String] = [:]
+    private var userInterrupted = false
     private var exchanges: [Exchange] = []
     private var latestLinks: [ChatWebCapturedLink] = []
     /// Links of each page read, so going back to a list keeps its numbers.
@@ -332,6 +336,7 @@ public enum ChatWebTaskPrompts {
             catch let failure as ChatWebExecutionError { return failed(.find, failure, site: currentSite) }
             let matches = Self.matches(of: text, in: capture.text)
             record(.find, site: ChatWebTaskPolicy.site(of: capture.url), title: capture.title, url: capture.url, succeeded: true)
+            if let step = steps.last { evidence[step.id] = matches.items.map(\.context).joined(separator: "\n") }
             return success(["ok": true, "total": matches.total,
                             "matches": matches.items.map { ["offset": $0.offset, "context": $0.context] },
                             "hint": "Read from an offset with web_read_page."], untrusted: true, advanced: false)
@@ -384,20 +389,22 @@ public enum ChatWebTaskPrompts {
                                  kind: .type, pressEnter: pressEnter)
         case .select(let ref, let snapshot, let option):
             return try await act(.select(ref: ref, option: option), ref: ref, snapshot: snapshot, kind: .select, pressEnter: false)
-        case .requestConfirmation(let kind, let target, _, let amount):
+        case .requestConfirmation(let kind, let target, let content, let amount):
             let site = currentSite
             guard kind != .pay else { return failed(.confirm, nil, site: site, code: "payment_requires_user") }
             guard kind != .send else { return failed(.confirm, nil, site: site, code: "not_needed_send_directly") }
             if consent.wasDeclined(kind, site: site) {
+                userInterrupted = true
                 record(.confirm, site: site, title: target, url: nil, succeeded: false)
                 return success(["ok": true, "allowed": false, "hint": "The user refused this earlier; do not try it again."],
                                untrusted: false, advanced: false)
             }
-            let request = ChatWebConsentGate.Request(action: kind, site: site, target: target, amount: amount)
+            let request = ChatWebConsentGate.Request(action: kind, site: site, target: target, content: content, amount: amount)
             onActivity?(.waitingForYou)
             let allowed = await confirm?(request) ?? false
             try Task.checkCancellation()
             consent.record(request, allowed: allowed, step: actionCount)
+            if !allowed { userInterrupted = true }
             record(.confirm, site: site, title: target, url: nil, succeeded: allowed)
             return success(["ok": true, "allowed": allowed,
                             "hint": allowed ? "Do that one step now on this page; the OK is used by it."
@@ -412,6 +419,7 @@ public enum ChatWebTaskPrompts {
             latestControls = nil
             if let url = executor.currentURL { current = (pageIDs[url], url) }
             record(.handover, site: site, title: request.message, url: executor.currentURL, succeeded: outcome != .noAnswer)
+            if outcome == .finishedByUser || outcome == .skipped { userInterrupted = true }
             let hint: String
             switch outcome {
             case .handedBack: hint = "The user handed the page back. Read it and check what changed before going on."
@@ -472,7 +480,10 @@ public enum ChatWebTaskPrompts {
             consent.noteOtherAction()
             return failed(kind, nil, site: site, code: "payment_requires_user")
         case .needsConsent(let needed, let amount):
-            if consent.wasDeclined(needed, site: site) { return failed(kind, nil, site: site, code: "confirmation_refused") }
+            if consent.wasDeclined(needed, site: site) {
+                userInterrupted = true
+                return failed(kind, nil, site: site, code: "confirmation_refused")
+            }
             switch consent.permit(needed, site: site, target: control.label, pageAmount: amount, step: actionCount) {
             case .allowed: outward = true
             case .noConsent: return failed(kind, nil, site: site, code: "confirmation_required")
@@ -570,6 +581,9 @@ public enum ChatWebTaskPrompts {
         let status = lastLoad.flatMap { $0.url == capture.url ? $0.httpStatus : nil }
         let verdict = Self.pageVerdict(capture, httpStatus: status)
         record(.read, site: ChatWebTaskPolicy.site(of: capture.url), title: capture.title, url: capture.url, succeeded: true)
+        if let step = steps.last {
+            evidence[step.id] = String(characters[start..<end].prefix(ChatWebTaskResult.maximumEvidenceCharacters))
+        }
         let links: [[String: Any]] = latestLinks.enumerated().map { index, link in
             ["id": index + 1, "title": String(link.title.prefix(120)), "url": String(link.url.absoluteString.prefix(300))]
         }
@@ -678,7 +692,8 @@ public enum ChatWebTaskPrompts {
                         stop: ChatWebTaskResult.Stop? = nil, error: Error? = nil,
                         sources: [ChatWebSource]) -> ChatWebTaskResult {
         ChatWebTaskResult(status: status, answer: answer, reason: reason, stop: stop, error: error,
-                          sources: status == .stopped ? [] : sources, pagesRead: pages, steps: steps, modelCalls: modelCalls)
+                          sources: status == .stopped ? [] : sources, pagesRead: pages, steps: steps, modelCalls: modelCalls,
+                          evidence: evidence, userInterrupted: userInterrupted)
     }
 
     /// After 停止, one short model call says what was done (Android

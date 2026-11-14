@@ -50,7 +50,8 @@ final class MemoryToolUITests: XCTestCase {
         addManualPreference("Prefer jasmine tea", keywords: "jasmine tea")
         let originalID = memory("Prefer jasmine tea").identifier
         navigate("chat")
-        request("Update Prefer jasmine tea to Prefer coffee", note: "更新了：Prefer coffee")
+        // Play's note names the memory it replaced.
+        request("Update Prefer jasmine tea to Prefer coffee", note: "更新了：Prefer coffee（原本：Prefer jasmine tea）")
         openMemory(); assertSingleMemory("Prefer coffee")
         XCTAssertEqual(memory("Prefer coffee").identifier, originalID)
         XCTAssertFalse(memory("Prefer jasmine tea").exists)
@@ -70,7 +71,7 @@ final class MemoryToolUITests: XCTestCase {
         addManualPreference("Prefer coffee", keywords: "coffee")
         let originalID = memory("Prefer coffee").identifier
         navigate("chat")
-        request("Delete Prefer coffee", note: "已忘掉一條記憶")
+        request("Delete Prefer coffee", note: "忘掉了一條記憶")
         openMemory(); assertEmptyMemories()
         navigate("chat"); undoNote()
         openMemory(); assertSingleMemory("Prefer coffee")
@@ -116,7 +117,7 @@ final class MemoryToolUITests: XCTestCase {
     }
 
     private func savePendingProcedure() {
-        request("Remember procedure Check invoices before paying", note: "待你確認做法：" + procedureText)
+        request("Remember procedure Check invoices before paying", note: "要我以後都這樣做嗎？" + procedureText)
         ready(app.buttons["chat.approveMemory.0"].firstMatch)
         ready(app.buttons["chat.rejectMemory.0"].firstMatch)
     }
@@ -213,7 +214,7 @@ final class MemoryToolUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]
         app.launch()

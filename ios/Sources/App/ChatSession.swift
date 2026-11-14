@@ -74,33 +74,32 @@ struct ChatEntry: Identifiable {
     let content: String
     let pdf: ArchivedPDFAnswer?
     let attachments: [ChatAttachmentItem]
+    /// A reply that did not come: 沒有完成 with its reason, or 已停止。 Like the
+    /// Play build these stay in the conversation; nil is an answer.
+    let outcome: ArchivedConversationTurn.Outcome?
     init(id: UUID = UUID(), role: String, content: String, pdf: ArchivedPDFAnswer? = nil,
-         attachments: [ChatAttachmentItem] = []) {
+         attachments: [ChatAttachmentItem] = [], outcome: ArchivedConversationTurn.Outcome? = nil) {
         self.id = id; self.role = role; self.content = content
         self.pdf = pdf
         self.attachments = attachments
+        self.outcome = outcome
     }
 }
 
-/// Display-only text from one unfinished plain request. It never becomes a
-/// ChatEntry, archive turn, learning utterance or notification completion.
+/// Display-only text of the reply still arriving. It never becomes a
+/// ChatEntry, archive turn, learning utterance or notification completion;
+/// a stop or a failure replaces it with the turn's 已停止。 or 沒有完成.
 struct ChatReplyPreview: Identifiable, Equatable {
-    enum Phase { case receiving, cancelled, failed }
+    enum Phase { case receiving }
     static let maximumUTF8Bytes = 4 * 1024 * 1024
     let id: UUID
     let text: String
     var phase: Phase
-    var status: String {
-        switch phase {
-        case .receiving: return "回覆產生中・尚未完成，未保存"
-        case .cancelled: return "已取消・部分回覆未保存"
-        case .failed: return "回覆未完成・部分回覆未保存"
-        }
-    }
 }
 
 /// Why a typed message cannot start yet. Mirrors the Android store build's
-/// chat card ("還不能開始任務／還缺:…") so a tap on send is never silent.
+/// chat card (還不能開始任務 / chat.sendBlocked.noModel 「還缺：還沒有能用的模型」) so a tap on
+/// send is never silent.
 enum ChatSendBlocker: Equatable {
     case noModel
 }
@@ -155,9 +154,6 @@ enum ChatModelFailure: Equatable {
         case .status(let status): return .chatModelFailedStatus(status: status)
         }
     }
-
-    /// The Traditional Chinese sentence, for chatError and its existing readers.
-    var traditionalText: String { String(format: text.traditionalFallback, arguments: text.arguments) }
 }
 
 /// What 從這裡分支 or 從這裡重新問 did; the chat view says it in a toast
@@ -189,11 +185,24 @@ enum ChatPathReply {
 
 @MainActor
 final class ChatSession: ObservableObject {
-    static let plainRequestDeadlineSeconds: UInt64 = 90
+    /// MCP runs keep a host deadline; ordinary chat has none, like the Play build.
+    static let mcpRequestDeadlineSeconds: UInt64 = 180
+    /// The archived marker of a stopped turn, shown as 已停止。 (Play's CANCELLED_OUTCOME).
+    nonisolated static let stoppedMarker = "已取消"
     let learning: LearningStore
     let archive: ConversationArchiveStore?
     @Published private(set) var conversationID = UUID().uuidString
-    private var conversationDestination: ConversationDestination?
+    /// The question on its way: already in the transcript, saved with its outcome.
+    private struct PendingTurn {
+        let requestID: UUID
+        let user: ChatEntry
+        let archiveID: UUID
+        let destination: ConversationDestination?
+        let prior: ArchivedConversation?
+    }
+    private var pendingTurn: PendingTurn?
+    /// When the request on its way started; the working row shows the time since.
+    @Published private(set) var requestStartedAt: Date?
     @Published private(set) var archiveNotice: String?
     private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?)?
     var canRetryArchiveSave: Bool { pendingArchiveSave != nil && !isSubmitting }
@@ -243,6 +252,8 @@ final class ChatSession: ObservableObject {
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
     /// The skill tool running in this request (Play's chat step labels).
     @Published private(set) var skillStep: ChatSkillStep?
+    /// The skills a skill step read, for learning after the reply (ChatLearning.swift).
+    var pendingSkillLearning: ChatSkillLearningInput?
     @Published private(set) var mcpDiagnostics: String?
     @Published private(set) var profileReceipt: UserProfileToolReceipt?
     private var profileReceiptRequestID: UUID?
@@ -388,7 +399,6 @@ final class ChatSession: ObservableObject {
     var canSend: Bool {
         savedSettings != nil && hasStoredKey && !isSubmitting && !isAddingAttachments
             && quoteSourceIsCurrent
-            && (conversationDestination == nil || conversationDestination == archiveDestination)
             && hasSomethingToSend
     }
 
@@ -410,10 +420,6 @@ final class ChatSession: ObservableObject {
         guard canAttemptSend else { return }
         guard savedSettings != nil, hasStoredKey else { shownSendBlocker = .noModel; return }
         shownSendBlocker = nil
-        guard conversationDestination == nil || conversationDestination == archiveDestination else {
-            chatError = "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
-            return
-        }
         if mainNeedsConsent, let provider = savedSettings?.providerID {
             consentMCP = mcp
             pendingSendConsent = consentPrompt(forProvider: provider, purpose: .send)
@@ -459,8 +465,10 @@ final class ChatSession: ObservableObject {
             model: target.model, credentialAccount: target.providerID)
     }
 
+    /// Like the Play build, a conversation is not tied to the model it was saved
+    /// with: it opens and continues with the current main model.
     func canOpenConversation(_ record: ArchivedConversation) -> Bool {
-        archive?.available == true && hasStoredKey && archiveDestination == record.destination
+        archive?.available == true
     }
 
     func isCurrentConversation(id: UUID) -> Bool { conversationID == id.uuidString }
@@ -471,12 +479,12 @@ final class ChatSession: ObservableObject {
         let expected = record.turns.flatMap { turn in
             [ChatEntry(id: turn.userID, role: "user", content: turn.userText, pdf: turn.pdf,
                        attachments: turn.attachments.map(ChatAttachmentItem.init(archived:))),
-             ChatEntry(id: turn.assistantID, role: "assistant", content: turn.assistantText)]
+             ChatEntry(id: turn.assistantID, role: "assistant", content: turn.assistantText, outcome: turn.outcome)]
         }
         return isCurrentConversation(id: record.id) && entries.count == expected.count
             && zip(entries, expected).allSatisfy { actual, saved in
                 actual.id == saved.id && actual.role == saved.role && actual.content == saved.content && actual.pdf == saved.pdf
-                    && actual.attachments == saved.attachments
+                    && actual.attachments == saved.attachments && actual.outcome == saved.outcome
             }
     }
 
@@ -524,10 +532,11 @@ final class ChatSession: ObservableObject {
     var messageActionTargets: ChatMessageActionTargets {
         guard let record = savedConversationOnScreen else { return .none }
         let saved = Set(record.turns.flatMap { [$0.userID, $0.assistantID] })
-        // A branch opens only under the model setup its conversation was saved with.
         guard canOpenConversation(record) else { return ChatMessageActionTargets(saved: saved, replies: [], questions: []) }
+        // Like the Play build 從這裡分支 is on answers; 沒有完成 and 已停止。 are not
+        // replies (a branch or 從這裡重新問 still copies them along).
         return ChatMessageActionTargets(
-            saved: saved, replies: Set(record.turns.map(\.assistantID)),
+            saved: saved, replies: Set(record.turns.filter { $0.outcome == nil }.map(\.assistantID)),
             questions: Set(record.turns.filter { !$0.userText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.userID)))
     }
 
@@ -600,8 +609,9 @@ final class ChatSession: ObservableObject {
         guard let archive, archive.available, canOpenConversation(plan.source), matchesArchivedTranscript(plan.source) else {
             throw ConversationBranchError.staleSource
         }
-        try archive.commitBranch(plan, isBusy: isSubmitting,
-                                 hasUnfinishedOrUnsavedTurn: branchHasUnfinishedOrUnsavedWork)
+        let evicted = try archive.commitBranch(plan, isBusy: isSubmitting,
+                                               hasUnfinishedOrUnsavedTurn: branchHasUnfinishedOrUnsavedWork)
+        deleteAttachments(ofEvicted: evicted)
         // Saved: like Android, the branch opens with an empty input bar. The
         // quote goes here; opening clears the draft and waiting attachments.
         clearComposerQuote()
@@ -612,25 +622,26 @@ final class ChatSession: ObservableObject {
     }
 
     @discardableResult func openConversation(id: UUID) -> Bool {
-        guard pendingQuote == nil, let record = archive?.state.conversations.first(where: { $0.id == id }),
-              canOpenConversation(record) else { return false }
+        guard let found = archive?.state.conversations.first(where: { $0.id == id }),
+              canOpenConversation(found) else { return false }
         // Publish restored entries only after submitting and approvals have ended.
         // Restored text cannot complete a notification ticket or resume a task.
+        // A stop saves its 已停止。 first, so the row is read again after it.
         cancel()
+        guard let record = archive?.state.conversations.first(where: { $0.id == id }) else { return false }
         newConversation()
         usesMCP = false
         conversationID = record.id.uuidString
-        conversationDestination = record.destination
         draft = ""
         entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf,
                                                    attachments: $0.attachments.map(ChatAttachmentItem.init(archived:))),
-                                         ChatEntry(id: $0.assistantID, role: "assistant", content: $0.assistantText)] }
+                                         ChatEntry(id: $0.assistantID, role: "assistant", content: $0.assistantText,
+                                                   outcome: $0.outcome)] }
         chatNotice = "已開啟保存的對話；尚未傳送任何訊息。"
         return true
     }
 
     @discardableResult func deleteConversation(id: UUID) -> Bool {
-        guard !isCurrentConversation(id: id) || pendingQuote == nil else { return false }
         if conversationID == id.uuidString { cancel() }
         guard archive?.delete(id: id) == true else { return false }
         attachmentStore.deleteConversation(id.uuidString,
@@ -648,7 +659,7 @@ final class ChatSession: ObservableObject {
         } catch { archiveNotice = Self.archiveSaveFailure }
     }
 
-    private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
+    private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。"
 
     /// The main model for work outside the chat (browser research, documents,
     /// transcripts, skills). Refused until the user agreed to send content to
@@ -682,39 +693,21 @@ final class ChatSession: ObservableObject {
     var chatStatus: String { chatStatusMessage.traditionalFallback }
 
     /// The single form's save from the drafts (phase 1a), kept for the App
-    /// harnesses; Settings › 模型 calls addProvider and chooseMainModel.
+    /// harnesses; Settings › 模型 calls addProvider and chooseMainModel. Like
+    /// them, and like the Play build, the conversation stays.
     func saveSettings() {
         guard !isSubmitting else { return }
-        guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return }
         learning.onUserChange?()
         learning.cancelLearning()
         settingsError = nil
         settingsNotice = nil
         do {
             let result = try repository.save(baseURL: baseURLDraft, model: modelDraft, newKey: keyDraft)
-            // Only another provider or model starts over; a new key for the
-            // same provider keeps the conversation and its draft going.
-            let changed = savedSettings?.baseURL != result.record.baseURL
-                || savedSettings?.accessIdentity?.target != result.record.accessIdentity?.target
             savedSettings = result.record
             hasStoredKey = true
             baseURLDraft = result.record.baseURL.absoluteString
             modelDraft = result.record.model
             keyDraft = ""
-            if changed {
-                entries = []
-                replyPreview = nil
-                pendingQuote = nil
-                quoteSource = nil
-                conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
-                profileReceipt = nil
-                profileReceiptRequestID = nil
-                memoryReceipt = nil
-                memoryReceiptRequestID = nil
-                discardPendingAttachments()
-                conversationID = UUID().uuidString
-                learning.resetConversationPresentation()
-            }
             chatError = nil
             chatNotice = nil
             shownSendBlocker = nil
@@ -727,9 +720,10 @@ final class ChatSession: ObservableObject {
         reloadProviders()
     }
 
+    /// The single form's remove (phase 1a), kept for the App harnesses. Like
+    /// deleteProvider, the conversation stays; the next send asks for a model.
     func removeSettings() {
         guard !isSubmitting else { return }
-        guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再移除模型設定。"; return }
         learning.onUserChange?()
         learning.cancelLearning()
         settingsError = nil
@@ -741,18 +735,6 @@ final class ChatSession: ObservableObject {
             baseURLDraft = ""
             modelDraft = ""
             keyDraft = ""
-            entries = []
-            replyPreview = nil
-            pendingQuote = nil
-            quoteSource = nil
-            conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
-            profileReceipt = nil
-            profileReceiptRequestID = nil
-            memoryReceipt = nil
-            memoryReceiptRequestID = nil
-            discardPendingAttachments()
-            conversationID = UUID().uuidString
-            learning.resetConversationPresentation()
             chatError = nil
             chatNotice = nil
             settingsNotice = "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
@@ -879,11 +861,10 @@ final class ChatSession: ObservableObject {
 
     func clearProviderNotice() { providerNotice = nil; settingsError = nil; settingsNotice = nil; pickMainProvider = nil }
 
-    /// Like saving the old form: no change during a reply or with a quote
-    /// waiting, and running work and learning stop first.
+    /// Like saving the old form: no change during a reply, and running work
+    /// and learning stop first.
     private func beginProviderChange() -> Bool {
         guard !isSubmitting else { return false }
-        guard pendingQuote == nil else { settingsError = "請先傳送或移除引用，再變更模型設定。"; return false }
         learning.onUserChange?()
         learning.cancelLearning()
         settingsError = nil
@@ -893,36 +874,18 @@ final class ChatSession: ObservableObject {
         return true
     }
 
-    /// The main model after a change in Settings › 模型. Only another
-    /// provider or model starts over; a new key for the same provider keeps
-    /// the conversation, its draft and its attachments.
+    /// The main model after a change in Settings › 模型. Like the Play build the
+    /// conversation, its draft and its attachments stay: the next message goes
+    /// to the new model (after the consent for another provider).
     private func adoptMain(_ record: SavedModelSettings?) {
-        let changed = savedSettings?.baseURL != record?.baseURL
-            || savedSettings?.accessIdentity?.target != record?.accessIdentity?.target
         savedSettings = record
         hasStoredKey = record.map { (try? repository.key(for: $0)) != nil } ?? false
         baseURLDraft = record?.baseURL.absoluteString ?? ""
         modelDraft = record?.model ?? ""
         keyDraft = ""
-        if changed { startOverForNewModel() }
         chatError = nil
         chatNotice = nil
         shownSendBlocker = nil
-    }
-
-    private func startOverForNewModel() {
-        entries = []
-        replyPreview = nil
-        pendingQuote = nil
-        quoteSource = nil
-        conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
-        profileReceipt = nil
-        profileReceiptRequestID = nil
-        memoryReceipt = nil
-        memoryReceiptRequestID = nil
-        discardPendingAttachments()
-        conversationID = UUID().uuidString
-        learning.resetConversationPresentation()
     }
 
     /// Mapped to AppText.modelsCleanupFailed for display.
@@ -937,15 +900,15 @@ final class ChatSession: ObservableObject {
             chatError = "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
             return
         }
-        let mcpConnection: ((any MCPDiscovering), [MCPTool], [MCPResource])?
+        // Like the Play build, a saved MCP server needs no manual connect: the
+        // request connects to it first (MCPSession.chatConnection()).
+        let mcpConnection: MCPSession?
         if usesMCP {
-            do {
-                guard let mcp else { throw MCPError.notInitialized }
-                mcpConnection = try mcp.conversationConnection()
-            } catch {
-                chatError = "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
+            guard let mcp, mcp.isAvailableForChats else {
+                chatError = Self.mcpAvailabilityMessage(.notConfigured)
                 return
             }
+            mcpConnection = mcp
         } else { mcpConnection = nil }
         learning.cancelLearning()
         let key: String
@@ -976,7 +939,7 @@ final class ChatSession: ObservableObject {
         let window: ChatContextWindow
         do {
             window = try ChatContextWindow(
-                history: entries.map { ModelMessage(role: $0.role, content: $0.content) },
+                history: Self.modelHistory(entries),
                 context: context, prompt: prompt)
         } catch {
             chatError = ((error as? ChatContextWindowError)?.errorDescription ?? "無法準備本次對話。")
@@ -984,6 +947,7 @@ final class ChatSession: ObservableObject {
             return
         }
         let messages = window.messages
+        learning.clearSkillNotes()
         let learningGeneration = learning.generation
         let profileState = learning.profile
         let memoryState = learning.memory
@@ -998,6 +962,16 @@ final class ChatSession: ObservableObject {
         let configuration = savedSettings.configuration(conversation: conversationID)
         let id = UUID()
         requestID = id
+        // Like the Play build the question shows in the conversation at once and
+        // the input bar empties; how the turn ends is saved with it.
+        let userEntry = ChatEntry(role: "user", content: prompt, attachments: attachmentsAtStart.map(\.sent))
+        entries.append(userEntry)
+        draft = ""; pendingQuote = nil; quoteSource = nil
+        // Sent attachments now belong to the transcript; their files stay.
+        pendingAttachments = []
+        pendingTurn = PendingTurn(requestID: id, user: userEntry, archiveID: archiveID,
+                                  destination: destination, prior: archivePrior)
+        requestStartedAt = Date()
         replyPreview = nil
         isSubmitting = true
         isMCPRun = mcpConnection != nil
@@ -1029,7 +1003,9 @@ final class ChatSession: ObservableObject {
                 }
                 let reply: String
                 var webResult: ChatWebTaskResult?
-                if let (connection, tools, resources) = mcpConnection {
+                if let mcpConnection {
+                    let (connection, tools, resources) = try await mcpConnection.chatConnection()
+                    try Task.checkCancellation()
                     reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
@@ -1063,92 +1039,163 @@ final class ChatSession: ObservableObject {
                 guard let self, self.requestID == id else { return }
                 if mcpConnection != nil { self.mcpPhase = "finished"; self.updateMCPDiagnostics() }
                 guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self.finish(id: id, error: "模型回傳空白內容，草稿已保留，請重試。")
+                    self.failTurn(id: id, reason: "模型回傳空白內容，請重試。")
                     return
                 }
-                let userEntry = ChatEntry(role: "user", content: prompt, attachments: attachmentsAtStart.map(\.sent))
-                let assistantEntry = ChatEntry(role: "assistant", content: reply)
-                if let archive = self.archive {
-                    self.pendingArchiveSave = nil
-                    do {
-                        guard let destination else { throw ConversationArchiveError.invalidData }
-                        let all = self.entries + [userEntry, assistantEntry]
-                        let turns = try stride(from: 0, to: all.count, by: 2).map { index in
-                            try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
-                                userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf,
-                                attachments: all[index].attachments.map { try $0.archived() })
-                        }
-                        let record = try ArchivedConversation(id: archiveID, destination: destination,
-                            updatedAt: Date(), turns: turns)
-                        self.pendingArchiveSave = (record, archivePrior)
-                        try archive.save(record, expected: archivePrior)
-                        self.pendingArchiveSave = nil
-                        self.archiveNotice = nil
-                    } catch {
-                        self.archiveNotice = Self.archiveSaveFailure
-                    }
-                }
-                self.conversationDestination = destination
-                self.replyPreview = nil
-                self.entries.append(userEntry)
-                self.entries.append(assistantEntry)
-                if self.draft == draftAtStart && self.pendingQuote == quoteAtStart {
-                    self.draft = ""; self.pendingQuote = nil; self.quoteSource = nil
-                }
-                // Sent attachments now belong to the transcript; their files stay.
-                if self.pendingAttachments == attachmentsAtStart { self.pendingAttachments = [] }
-                self.finish(id: id)
+                self.completeTurn(id: id, assistant: ChatEntry(role: "assistant", content: reply))
                 // A round that read web pages is not organized into memory, like
                 // Android (RunLearning). finish(id:) already retired its tab.
-                if webResult != nil { return }
+                if let webResult {
+                    // Skills are still learned from it, like Play's RunLearning.
+                    self.learnFromWebTask(webResult, goal: utterance, generation: learningGeneration,
+                                          client: client, configuration: configuration, key: key)
+                    return
+                }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
                 self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
                     expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
                     preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
+                self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
+                    priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
+                    client: client, configuration: configuration, key: key)
             } catch {
                 guard let self, self.requestID == id else { return }
+                self.recordFailedSkillStep(requestID: id, error: error, generation: learningGeneration)
+                let unavailable = error as? MCPChatAvailability
+                if (error as? MCPConversationError) == .executionFailed { mcpConnection?.connectionFailed() }
                 if mcpConnection != nil {
+                    let connect: String? = unavailable.map { "connect-\($0)" }
                     let category = (error as? MCPConversationError)?.rawValue
                         ?? (error as? MCPChatStop)?.reason.rawValue
+                        ?? connect
                         ?? (error is CancellationError ? "cancelled" : "unknown")
                     self.updateMCPDiagnostics(failure: category)
                 }
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let message = (error as? MCPChatStop)?.message
+                let reason: String? = unavailable.map(Self.mcpAvailabilityMessage)
+                let message = reason
+                    ?? (error as? MCPChatStop)?.message
                     ?? Self.profileFailureMessage(error)
                     ?? Self.modelFailureMessage(error as? MCPConversationError)
                     ?? ((error as? MCPConversationError) == .invalidCommand
-                        ? "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。" : nil)
-                    ?? (mcpConnection == nil ? "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
-                        : "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
+                        ? "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。" : nil)
+                    ?? (mcpConnection == nil ? "傳送失敗。請檢查模型設定或網路後重試。"
+                        : "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
                 // A plain request names its model failure like Android (ModelErrorCopy).
                 let modelFailure = mcpConnection == nil ? ChatModelFailure(error) : nil
+                // Like the Play build the turn stays in the conversation as 沒有完成 with its reason.
                 if self.memoryReceiptRequestID == id {
-                    self.finish(id: id, error: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。")
+                    self.failTurn(id: id, reason: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。")
                 } else if let modelFailure, self.profileReceiptRequestID != id {
-                    self.finish(id: id, error: modelFailure.traditionalText, text: modelFailure.text)
+                    self.failTurn(id: id, text: modelFailure.text)
                 } else {
-                    self.finish(id: id, error: self.profileReceiptRequestID != id ? message
-                        : "個人檔案已儲存，但後續模型回覆未完成；草稿保留。")
+                    self.failTurn(id: id, reason: self.profileReceiptRequestID != id ? message
+                        : "個人檔案已儲存，但後續模型回覆未完成。")
                 }
             }
         }
+        // Like the Play build ordinary chat has no fixed time limit; a stalled
+        // connection ends through the HTTP client's own timeouts. MCP runs keep
+        // the host deadline.
+        guard mcpConnection != nil else { return }
         deadline = Task { [weak self] in
-            let seconds: UInt64 = mcpConnection == nil ? Self.plainRequestDeadlineSeconds : 180
+            let seconds: UInt64 = Self.mcpRequestDeadlineSeconds
             do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) }
             catch { return }
             guard let self, self.requestID == id else { return }
             self.request?.cancel()
-            if mcpConnection != nil { self.updateMCPDiagnostics(failure: "hostDeadline") }
+            self.updateMCPDiagnostics(failure: "hostDeadline")
             if self.memoryReceiptRequestID == id {
-                self.finish(id: id, error: "記憶修改已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存結果或撤銷。草稿保留。")
+                self.failTurn(id: id, reason: "記憶修改已儲存，但後續回覆等待超過 \(seconds) 秒；請先查看保存結果或撤銷。")
             } else {
-                self.finish(id: id, error: self.profileReceiptRequestID != id
-                    ? "等待超過 \(seconds) 秒，已停止等待；草稿已保留，可重試。"
-                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒；草稿保留。")
+                self.failTurn(id: id, reason: self.profileReceiptRequestID != id
+                    ? "等待超過 \(seconds) 秒，已停止等待。"
+                    : "個人檔案已儲存，但後續回覆等待超過 \(seconds) 秒。")
             }
         }
+    }
+
+    /// Completed questions and answers only. A turn that did not finish (沒有完成,
+    /// 已停止。) stays on screen and in the archive but is not a reply the model gave.
+    static func modelHistory(_ entries: [ChatEntry]) -> [ModelMessage] {
+        var messages: [ModelMessage] = []
+        var index = 0
+        while index + 1 < entries.count {
+            let question = entries[index], reply = entries[index + 1]
+            if question.role == "user", reply.role == "assistant", reply.outcome == nil {
+                messages.append(ModelMessage(role: question.role, content: question.content))
+                messages.append(ModelMessage(role: reply.role, content: reply.content))
+            }
+            index += 2
+        }
+        return messages
+    }
+
+    private func completeTurn(id: UUID, assistant: ChatEntry) { endTurn(id: id, assistant: assistant) }
+
+    /// Like the Play build a turn that did not finish stays in the conversation:
+    /// 沒有完成 and its reason, saved with it. The input bar stays empty. A fixed
+    /// reason is kept as written and shown in the interface language
+    /// (AppLocalizer.stored), like the App's other stored messages.
+    private func failTurn(id: UUID, reason: String) {
+        endTurn(id: id, assistant: ChatEntry(role: "assistant", content: reason, outcome: .failed))
+    }
+
+    /// A named model failure (ModelErrorCopy) is kept in the interface language
+    /// of the moment, like the Play build keeps its outcome text.
+    private func failTurn(id: UUID, text: AppText) {
+        let shown = AppLocalizer(language: interfaceLanguage()).text(text)
+        endTurn(id: id, assistant: ChatEntry(role: "assistant", content: shown, outcome: .failed))
+    }
+
+    /// The user stopped the turn: 已停止。 stays in the conversation, like the Play build.
+    private func stopTurn(id: UUID) {
+        endTurn(id: id, assistant: ChatEntry(role: "assistant", content: Self.stoppedMarker, outcome: .cancelled))
+    }
+
+    private func endTurn(id: UUID, assistant: ChatEntry) {
+        guard requestID == id else { return }
+        if let turn = pendingTurn, turn.requestID == id, entries.last?.id == turn.user.id {
+            archiveTurn(turn, assistant: assistant)
+            entries.append(assistant)
+        }
+        replyPreview = nil
+        finish(id: id)
+    }
+
+    /// Saves the whole conversation with this turn. Conversations that gave way
+    /// for it (oldest, never pinned) take their attachment files with them.
+    private func archiveTurn(_ turn: PendingTurn, assistant: ChatEntry) {
+        guard let archive else { return }
+        pendingArchiveSave = nil
+        do {
+            guard let destination = turn.destination else { throw ConversationArchiveError.invalidData }
+            let all = entries + [assistant]
+            guard all.count % 2 == 0 else { throw ConversationArchiveError.invalidData }
+            let turns = try stride(from: 0, to: all.count, by: 2).map { index in
+                try ArchivedConversationTurn(userID: all[index].id, assistantID: all[index + 1].id,
+                    userText: all[index].content, assistantText: all[index + 1].content, pdf: all[index].pdf,
+                    attachments: all[index].attachments.map { try $0.archived() }, outcome: all[index + 1].outcome)
+            }
+            let record = try ArchivedConversation(id: turn.archiveID, destination: destination,
+                updatedAt: Date(), turns: turns)
+            pendingArchiveSave = (record, turn.prior)
+            let evicted = try archive.save(record, expected: turn.prior)
+            pendingArchiveSave = nil
+            archiveNotice = nil
+            deleteAttachments(ofEvicted: evicted)
+        } catch {
+            archiveNotice = Self.archiveSaveFailure
+        }
+    }
+
+    /// Conversations that gave way for a save take their attachment files with
+    /// them, except files a remaining branch still shows.
+    private func deleteAttachments(ofEvicted evicted: [UUID]) {
+        guard !evicted.isEmpty, let archive else { return }
+        let referenced = ChatAttachmentStore.referencedFolders(in: archive.state.conversations)
+        for gone in evicted { attachmentStore.deleteConversation(gone.uuidString, keeping: referenced) }
     }
 
     /// Copies picked photos and files into this conversation's folder. The tray
@@ -1272,11 +1319,6 @@ final class ChatSession: ObservableObject {
         return try await finished(text)
     }
 
-    private func stopPreview(id: UUID, phase: ChatReplyPreview.Phase) {
-        guard var preview = replyPreview, preview.id == id, preview.phase == .receiving else { return }
-        preview.phase = phase; replyPreview = preview
-    }
-
     private static func modelFailureMessage(_ error: MCPConversationError?) -> String? {
         let reason: String
         switch error {
@@ -1300,7 +1342,7 @@ final class ChatSession: ObservableObject {
             reason = "本機記憶工具未傳回完整結果，對話已停止。"
         default: return nil
         }
-        return reason + "草稿與已收到的工具結果保留；沒有自動重送操作。"
+        return reason + "已收到的工具結果保留；沒有自動重送操作。"
     }
 
     func cancel() {
@@ -1311,15 +1353,24 @@ final class ChatSession: ObservableObject {
         learning.cancelLearning()
         guard let id = requestID else { return }
         if isMCPRun { updateMCPDiagnostics(failure: "cancelled") }
-        stopPreview(id: id, phase: .cancelled)
         request?.cancel()
-        finish(id: id)
-        chatNotice = "已取消等待，草稿已保留。伺服器可能已收到請求。"
+        // Like the Play build: 已停止。 stays in the conversation, saved with it.
+        stopTurn(id: id)
     }
 
     func cancelMCP() {
         guard isMCPRun else { return }
         cancel()
+    }
+
+    /// Closed messages; AppLocalizer.stored shows them in the app language.
+    static func mcpAvailabilityMessage(_ reason: MCPChatAvailability) -> String {
+        switch reason {
+        case .notConfigured, .noTools:
+            return "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .unreachable:
+            return "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。"
+        }
     }
 
     // MARK: Web tasks from chat
@@ -1336,7 +1387,7 @@ final class ChatSession: ObservableObject {
     }
 
     /// Runs the web task a reply asked for. Like Android there is no overall
-    /// time limit, so the ordinary request deadline ends here.
+    /// time limit.
     private func runWebTask(entry: ChatWebCommand, raw: String, conversation: [ModelMessage], client: any ChatModelClient,
                             configuration: ModelConfiguration, key: String, environment: ChatWebTaskEnvironment,
                             requestID id: UUID) async -> ChatWebTaskResult {
@@ -1470,6 +1521,9 @@ final class ChatSession: ObservableObject {
                 guard let self, self.requestID == id else { return }
                 self.skillStep = step
             })
+        defer {
+            pendingSkillLearning = ChatSkillLearningInput(requestID: id, used: run.usedSkills, completedTools: run.completedTools)
+        }
         return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
                                  validateState: { [weak self] in
             guard let self, self.requestID == id else { throw CancellationError() }
@@ -1485,19 +1539,19 @@ final class ChatSession: ObservableObject {
 
     private static func profileFailureMessage(_ error: Error) -> String? {
         if (error as? LearningFileError) == .busy {
-            return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
+            return "學習資料正在其他位置儲存；本次修改未儲存。請稍後重新確認。"
         }
         if (error as? LearningFileError) == .conflict {
-            return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
+            return "學習資料已變更；本次對話已停止。請重新讀取資料並再次確認。"
         }
         if error is LearningFileError {
-            return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
+            return "學習資料無法儲存，這次修改未發布；原有資料保留，請確認裝置儲存狀態後再試。"
         }
         if error is MemoryToolError || error is MemoryError {
-            return "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。"
+            return "記憶工具未通過來源、目標或資料狀態檢查，已停止。已完成的儲存會另外顯示。"
         }
         if error is UserProfileToolError || error is UserProfileError || error is UserProfileChatError {
-            return "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。"
+            return "個人檔案工具未通過檢查或已超過執行限制，已停止。已完成的儲存會另外顯示。"
         }
         return nil
     }
@@ -1588,14 +1642,14 @@ final class ChatSession: ObservableObject {
     }
 
     func newConversation() {
-        guard !isSubmitting, pendingQuote == nil else { return }
+        guard !isSubmitting else { return }
         discardPendingAttachments()
         learning.resetConversationPresentation()
         entries = []; conversationID = UUID().uuidString
         replyPreview = nil
         pendingQuote = nil
         quoteSource = nil
-        conversationDestination = nil; archiveNotice = nil; pendingArchiveSave = nil
+        archiveNotice = nil; pendingArchiveSave = nil
         mcpActivity = nil; mcpSteps = []; mcpSentCount = 0
         mcpDiagnostics = nil
         profileReceipt = nil
@@ -1606,10 +1660,11 @@ final class ChatSession: ObservableObject {
         shownSendBlocker = nil
     }
 
-    private func finish(id: UUID, error: String? = nil, text: AppText? = nil) {
+    private func finish(id: UUID) {
         guard requestID == id else { return }
         retireWebTask()
-        if error != nil { stopPreview(id: id, phase: .failed) }
+        if pendingTurn?.requestID == id { pendingTurn = nil }
+        requestStartedAt = nil
         requestID = nil
         isSubmitting = false
         isMCPRun = false
@@ -1617,8 +1672,7 @@ final class ChatSession: ObservableObject {
         request = nil
         deadline?.cancel()
         deadline = nil
-        chatError = error
-        chatErrorText = text
+        chatError = nil
     }
 
     private static func liveRepository() -> ModelSettingsRepository {
@@ -1651,10 +1705,10 @@ private struct MCPChatStop: Error {
     let reason: MCPConversationStopReason
     var message: String {
         switch reason {
-        case .approvalDenied: return "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。"
-        case .toolError: return "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。"
-        case .localCallLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。"
-        default: return "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。"
+        case .approvalDenied: return "你已拒絕這次呼叫，MCP 對話已停止；先前的工具結果保留。"
+        case .toolError: return "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。"
+        case .localCallLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。"
+        default: return "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。"
         }
     }
 }
