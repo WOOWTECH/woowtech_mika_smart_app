@@ -33,8 +33,10 @@ final class WoowAssistantUITests: XCTestCase {
 
         app.buttons["chat.menu"].tap()
         XCTAssertTrue(app.buttons["drawer.close"].waitForExistence(timeout: 10))
-        for route in ["chat", "memory", "tools", "browser", "settings"] {
-            XCTAssertTrue(app.buttons["navigation.\(route)"].isHittable)
+        // Like the Play build's drawer: 新對話, the sections, then 設定 and 關於.
+        XCTAssertTrue(app.buttons["drawer.newConversation"].isHittable)
+        for route in ["memory", "tools", "browser", "settings", "about"] {
+            XCTAssertTrue(app.buttons["navigation.\(route)"].isHittable, "navigation.\(route)")
         }
         attachScreenshot("01-drawer", in: app)
         app.buttons["drawer.close"].tap()
