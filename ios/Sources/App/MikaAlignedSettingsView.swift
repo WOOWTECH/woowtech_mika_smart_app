@@ -180,14 +180,10 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     }
 
     /// Turns on task notifications and asks the system once. After a refusal
-    /// only the system settings can allow them, as with Android's fix.
+    /// only the system settings can allow them, as with Android's fix. The
+    /// notification page's 去開啟 does the same.
     private func allowNotifications() {
-        let service = notifications.service
-        let refused = service.systemSettings.authorization == .denied
-        Task {
-            await service.enableFromUserGesture()
-            if refused { openNotificationSettings() }
-        }
+        Task { if await notifications.service.allowFromUserGesture() { openNotificationSettings() } }
     }
 
     private func openNotificationSettings() {
