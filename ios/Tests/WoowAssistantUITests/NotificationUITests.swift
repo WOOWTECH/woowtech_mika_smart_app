@@ -128,7 +128,7 @@ final class NotificationUITests: XCTestCase {
 
     private func launch(reset: Bool) {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]
         app.launch()

@@ -402,7 +402,7 @@ final class WoowAssistantUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", UUID().uuidString,
-                               "-UITestResetStorage", "-UITestChatAccessibilitySize"]
+                               "-UITestResetStorage", "-UITestChatAccessibilitySize", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         let transcript = app.scrollViews["chat.transcript"].firstMatch
@@ -1017,7 +1017,7 @@ final class WoowAssistantUITests: XCTestCase {
     private func launchApp(resetStorage: Bool = true, keychainWriteFails: Bool = false,
                            delayedConnection: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if resetStorage { app.launchArguments.append("-UITestResetStorage") }
         if keychainWriteFails { app.launchArguments.append("-UITestKeychainWriteFailure") }
         if delayedConnection { app.launchArguments.append("-UITestModelConnectionDelay") }

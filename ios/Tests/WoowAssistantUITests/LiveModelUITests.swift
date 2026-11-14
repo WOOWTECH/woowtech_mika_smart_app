@@ -20,7 +20,7 @@ final class LiveModelUITests: XCTestCase {
         guard launched else { return }
         let app = XCUIApplication()
         app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
@@ -510,7 +510,7 @@ final class LiveModelUITests: XCTestCase {
             throw LiveTestSetupError.missingConfiguration
         }
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launchEnvironment = [
             "WOOW_LIVE_BASE_URL": transportFailure ? "https://unreachable.invalid/v1" : baseURL,
             "WOOW_LIVE_MODEL": transportFailure ? "unused-test-model" : model,

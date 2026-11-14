@@ -65,7 +65,7 @@ final class BrowserSearchUITests: XCTestCase {
 
     private func launch() {
         app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         // This test owns a new UUID namespace. Clearing its empty WebKit store
         // adds an unrelated asynchronous reset before settings are usable. Both
         // launches keep this same isolated store to exercise actual persistence.

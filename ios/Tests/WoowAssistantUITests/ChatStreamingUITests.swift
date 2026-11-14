@@ -424,7 +424,7 @@ final class ChatStreamingUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming", "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))

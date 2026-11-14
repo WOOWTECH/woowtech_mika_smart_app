@@ -17,7 +17,7 @@ final class BrowserExternalOpenUITests: XCTestCase {
 
     func testNativeMoreMenuTapLeavesAppForSystemHandoff() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launch()
         navigateMikaSection("browser", in: app)
 

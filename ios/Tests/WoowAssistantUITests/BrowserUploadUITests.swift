@@ -449,7 +449,7 @@ final class BrowserUploadUITests: XCTestCase {
     private func launchFixture() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", UUID().uuidString,
-                               "-UITestResetStorage", "-UITestBrowserUpload"]
+                               "-UITestResetStorage", "-UITestBrowserUpload", "-WoowSkipOnboarding"]
         app.launch()
         navigateMikaSection("browser", in: app)
         XCTAssertTrue(webText("UPLOAD_FORM_READY").waitForExistence(timeout: 75),

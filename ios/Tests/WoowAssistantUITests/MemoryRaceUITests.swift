@@ -8,7 +8,7 @@ final class MemoryRaceUITests: XCTestCase {
         executionTimeAllowance = 240
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                               "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launch()
         defer { app.terminate() }
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))

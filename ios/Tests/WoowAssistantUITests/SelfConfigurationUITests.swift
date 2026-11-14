@@ -43,7 +43,7 @@ final class SelfConfigurationUITests: XCTestCase {
 
     private func launch() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launch()
         navigateMikaSection("settings", in: app)
         let link = app.buttons["settings.appearance"]

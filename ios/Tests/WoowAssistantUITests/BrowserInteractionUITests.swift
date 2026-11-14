@@ -104,7 +104,7 @@ final class BrowserInteractionUITests: XCTestCase {
 
     private func launchFixture() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
-                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
         navigateMikaSection("browser", in: app)
