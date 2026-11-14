@@ -188,9 +188,10 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["skills.empty"].waitForExistence(timeout: 5))
         select("pending")
         XCTAssertTrue(app.staticTexts["memory.pending.empty"].waitForExistence(timeout: 5))
-        let websites = app.buttons["memory.websites"]
-        reveal(websites)
-        XCTAssertEqual(websites.label, "網站知識與路線（0／0）")
+        // Website notes are gone; Saved data now ends with the saved routes row.
+        let routes = app.buttons["memory.routes"]
+        reveal(routes)
+        XCTAssertTrue(routes.label.contains("記住的操作路線"), routes.label)
         XCTAssertFalse(app.staticTexts["memory.error"].exists)
 
         // Recheck after navigation gives cancellation completion a chance to
