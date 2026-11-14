@@ -51,6 +51,7 @@ struct BrowserView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.top, isStartPage ? 12 : 4)
+            .overlay(alignment: .topLeading) { loadObservation }
             if !isStartPage { progressLine }
             if isStartPage {
                 HStack {
@@ -65,12 +66,7 @@ struct BrowserView: View {
                 ProgressView(localizer.text(.browserClearing))
                     .font(.caption).accessibilityIdentifier("browser.sites.clearing")
             }
-            if let diagnostics = browser.manualLoadDiagnostics {
-                Text(localizer.stored(browser.status)).font(.caption).accessibilityIdentifier("browser.status")
-                    .accessibilityValue(diagnostics)
-            } else {
-                Text(localizer.stored(browser.status)).font(.caption).accessibilityIdentifier("browser.status")
-            }
+            // Like the Play build there is no status line; only problems show.
             if let error = browser.error {
                 Text(localizer.stored(error)).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
             }
@@ -80,14 +76,6 @@ struct BrowserView: View {
             if let error = workspace.errorText {
                 Text(localizer.text(error)).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.workspace.error")
             }
-            if browser.automationOwnsDocument && !browser.isRunning && !browser.isInteracting {
-                HStack {
-                    Text(localizer.text(.browserChromeAutomationNotice)).font(.caption)
-                    Button(localizer.text(.browserChromeReturnManual)) { addressFocused = false; browser.returnToManualBrowsing() }
-                        .accessibilityIdentifier("browser.returnToManual")
-                        .disabled(workspace.isClearingWebsiteData || browser.loadedURL == nil)
-                }.padding(.horizontal)
-            }
             HStack(spacing: 12) {
                 Button(localizer.text(isStartPage ? .browserChromeResearch : .browserChromeResearchSite)) { addressFocused = false; showResearch = true }
                     .disabled(browser.current == nil || browser.isInteracting || workspace.isClearingWebsiteData)
@@ -95,6 +83,13 @@ struct BrowserView: View {
                 Button(localizer.text(.browserChromeInteract)) { addressFocused = false; showInteractions = true }
                     .disabled(browser.current == nil || browser.isRunning || workspace.isClearingWebsiteData)
                     .accessibilityIdentifier("browser.interactions")
+                // After research or an action the page stays limited to that site
+                // until the next manual load; this reloads it for manual browsing.
+                if browser.automationOwnsDocument && !browser.isRunning && !browser.isInteracting {
+                    Button(localizer.text(.browserChromeReturnManual)) { addressFocused = false; browser.returnToManualBrowsing() }
+                        .accessibilityIdentifier("browser.returnToManual")
+                        .disabled(workspace.isClearingWebsiteData || browser.loadedURL == nil)
+                }
                 Spacer(minLength: 0)
             }
             .font(.subheadline)
@@ -116,9 +111,6 @@ struct BrowserView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if let host = pageAskHost { pageAskBar(host: host) }
-            Text(localizer.text(.browserChromeExplanation))
-                .font(.caption2).foregroundStyle(.secondary).padding(.horizontal)
-                .accessibilityIdentifier("browser.explanation")
             if !isStartPage { pageToolbar }
         }
         .background(palette.background)
@@ -170,6 +162,27 @@ struct BrowserView: View {
             if value != nil && !showResearch { addressFocused = false; showInteractions = true }
         }
     }
+    /// UI tests wait on the page's load state through this element; it is in
+    /// DEBUG test launches only and draws nothing. People see no status text.
+    @ViewBuilder private var loadObservation: some View {
+        #if DEBUG
+        if Self.exposesLoadObservation {
+            Text(localizer.stored(browser.status))
+                .font(.system(size: 1)).foregroundStyle(.clear)
+                .frame(width: 1, height: 1).allowsHitTesting(false)
+                .accessibilityIdentifier("browser.status")
+                .accessibilityValue(browser.manualLoadDiagnostics ?? "")
+        }
+        #endif
+    }
+    #if DEBUG
+    private static let exposesLoadObservation: Bool = {
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("-UITestMode") || arguments.contains("-LiveModelUITest")
+            || arguments.contains("-LiveBrowserUITest")
+    }()
+    #endif
+
     private var startBar: some View {
         HStack(spacing: 8) {
             HStack(spacing: 8) {

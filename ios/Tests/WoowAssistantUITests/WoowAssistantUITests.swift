@@ -550,12 +550,12 @@ final class WoowAssistantUITests: XCTestCase {
     func testBrowserReportsCurrentLimitationsAndToolsIsReachable() {
         let app = launchApp()
         openSection("browser", in: app)
-        XCTAssertEqual(app.staticTexts["browser.status"].label, "輸入網址開始瀏覽")
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["browser.address"].exists)
         XCTAssertTrue(app.buttons["browser.open"].isEnabled)
         XCTAssertFalse(app.buttons["browser.research"].isEnabled)
-        XCTAssertEqual(app.staticTexts["browser.explanation"].label,
-                       "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。")
+        // Like the Play build, the browser shows no explanation paragraph.
+        XCTAssertFalse(app.staticTexts["browser.explanation"].exists)
         XCTAssertFalse(app.staticTexts["公開 HTTPS 頁面已通過第一層安全政策"].exists)
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
