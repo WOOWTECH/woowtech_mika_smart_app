@@ -414,7 +414,7 @@ final class ConversationArchiveUITests: XCTestCase {
     private func launch(reset: Bool = true, streaming: Bool = false) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace]
+            "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if streaming { app.launchArguments.append("-UITestChatStreaming") }
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]; app.launch()

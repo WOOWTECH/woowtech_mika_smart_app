@@ -3698,6 +3698,159 @@
       }
     },
     {
+      "case": "welcomeTitle",
+      "key": "welcome.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你好，我是渥屋助理",
+        "en": "Hi, I’m woowtech agent"
+      }
+    },
+    {
+      "case": "welcomeLead",
+      "key": "welcome.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。",
+        "en": "Chat, speak, browse and keep useful notes in one place."
+      }
+    },
+    {
+      "case": "welcomeChat",
+      "key": "welcome.chat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "AI 對話",
+        "en": "AI chat"
+      }
+    },
+    {
+      "case": "welcomeChatBody",
+      "key": "welcome.chat.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提問並延續之前的對話",
+        "en": "Ask questions and continue past conversations"
+      }
+    },
+    {
+      "case": "welcomeVoice",
+      "key": "welcome.voice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入",
+        "en": "Voice input"
+      }
+    },
+    {
+      "case": "welcomeVoiceBody",
+      "key": "welcome.voice.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "說話即可輸入訊息",
+        "en": "Speak to compose a message"
+      }
+    },
+    {
+      "case": "welcomeWeb",
+      "key": "welcome.web",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "上網查",
+        "en": "Browse the web"
+      }
+    },
+    {
+      "case": "welcomeWebBody",
+      "key": "welcome.web.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "內建瀏覽器，讀網頁、比價、查資料",
+        "en": "Built-in browser to read pages, compare prices and look things up"
+      }
+    },
+    {
+      "case": "welcomeMemory",
+      "key": "welcome.memory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶",
+        "en": "Memory"
+      }
+    },
+    {
+      "case": "welcomeMemoryBody",
+      "key": "welcome.memory.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "保留往後對話需要的資訊",
+        "en": "Keep useful details for later conversations"
+      }
+    },
+    {
+      "case": "welcomeNote",
+      "key": "welcome.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "先設定你自己的模型服務，就可以開始使用。",
+        "en": "Set up your own model service to begin."
+      }
+    },
+    {
+      "case": "welcomeStart",
+      "key": "welcome.start",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開始設定",
+        "en": "Get started"
+      }
+    },
+    {
+      "case": "welcomeLater",
+      "key": "welcome.later",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "稍後再說",
+        "en": "Not now"
+      }
+    },
+    {
+      "case": "modelSetupTitle",
+      "key": "modelSetup.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定模型",
+        "en": "Set up a model"
+      }
+    },
+    {
+      "case": "modelSetupLead",
+      "key": "modelSetup.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。",
+        "en": "woowtech agent thinks with your own model service. Connect a provider first, then pick a model for each job."
+      }
+    },
+    {
+      "case": "modelSetupOnboardingNote",
+      "key": "modelSetup.onboardingNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只有主模型必須選，其他用途可以以後再說。",
+        "en": "Only the main model is required; the other roles can wait."
+      }
+    },
+    {
+      "case": "commonNext",
+      "key": "common.next",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下一步",
+        "en": "Next"
+      }
+    },
+    {
       "case": "modelNotSavedDeclined",
       "key": "model.notSavedDeclined",
       "parameters": [

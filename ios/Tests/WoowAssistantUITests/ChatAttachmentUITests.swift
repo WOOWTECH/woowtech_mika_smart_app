@@ -89,7 +89,7 @@ final class ChatAttachmentUITests: XCTestCase {
     private func launch(reset: Bool = true, attachments: Bool = false) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         if attachments { app.launchArguments.append("-UITestAttachments") }
         app.launchEnvironment = [:]; app.launch()

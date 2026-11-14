@@ -343,7 +343,7 @@ final class MemoryUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 10))

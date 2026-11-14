@@ -103,7 +103,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
 
     private func launchAndEnterDraft() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         let draft = chatDraftControl(in: app)

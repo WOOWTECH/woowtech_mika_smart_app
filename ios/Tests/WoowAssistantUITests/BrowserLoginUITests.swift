@@ -401,7 +401,7 @@ final class BrowserLoginUITests: XCTestCase {
     private func launch(reset: Bool) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         navigateMikaSection("browser", in: app)

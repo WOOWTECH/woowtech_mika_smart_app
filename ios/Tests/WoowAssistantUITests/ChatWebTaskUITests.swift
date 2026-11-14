@@ -137,7 +137,7 @@ final class ChatWebTaskUITests: XCTestCase {
     private func launch() {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestChatWeb"]
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestChatWeb", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         XCTAssertTrue(app.staticTexts["uitest.banner"].firstMatch.waitForExistence(timeout: 15))

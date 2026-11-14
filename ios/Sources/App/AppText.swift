@@ -399,6 +399,23 @@ enum AppText: Equatable {
     case modelSavedTested(name: String)
     case modelPickMain
     case modelTestNote
+    case welcomeTitle
+    case welcomeLead
+    case welcomeChat
+    case welcomeChatBody
+    case welcomeVoice
+    case welcomeVoiceBody
+    case welcomeWeb
+    case welcomeWebBody
+    case welcomeMemory
+    case welcomeMemoryBody
+    case welcomeNote
+    case welcomeStart
+    case welcomeLater
+    case modelSetupTitle
+    case modelSetupLead
+    case modelSetupOnboardingNote
+    case commonNext
     case modelNotSavedDeclined(name: String)
     case roleMainHint
     case modelsUse
@@ -1308,6 +1325,23 @@ enum AppText: Equatable {
         case .modelSavedTested: return "model.savedTested"
         case .modelPickMain: return "model.pickMain"
         case .modelTestNote: return "model.testNote"
+        case .welcomeTitle: return "welcome.title"
+        case .welcomeLead: return "welcome.lead"
+        case .welcomeChat: return "welcome.chat"
+        case .welcomeChatBody: return "welcome.chat.body"
+        case .welcomeVoice: return "welcome.voice"
+        case .welcomeVoiceBody: return "welcome.voice.body"
+        case .welcomeWeb: return "welcome.web"
+        case .welcomeWebBody: return "welcome.web.body"
+        case .welcomeMemory: return "welcome.memory"
+        case .welcomeMemoryBody: return "welcome.memory.body"
+        case .welcomeNote: return "welcome.note"
+        case .welcomeStart: return "welcome.start"
+        case .welcomeLater: return "welcome.later"
+        case .modelSetupTitle: return "modelSetup.title"
+        case .modelSetupLead: return "modelSetup.lead"
+        case .modelSetupOnboardingNote: return "modelSetup.onboardingNote"
+        case .commonNext: return "common.next"
         case .modelNotSavedDeclined: return "model.notSavedDeclined"
         case .roleMainHint: return "role.mainHint"
         case .modelsUse: return "models.use"
@@ -2320,6 +2354,23 @@ enum AppText: Equatable {
         case .modelSavedTested: return "已存下 %1$@，測試通過。"
         case .modelPickMain: return "選主模型"
         case .modelTestNote: return "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。"
+        case .welcomeTitle: return "你好，我是渥屋助理"
+        case .welcomeLead: return "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。"
+        case .welcomeChat: return "AI 對話"
+        case .welcomeChatBody: return "提問並延續之前的對話"
+        case .welcomeVoice: return "語音輸入"
+        case .welcomeVoiceBody: return "說話即可輸入訊息"
+        case .welcomeWeb: return "上網查"
+        case .welcomeWebBody: return "內建瀏覽器，讀網頁、比價、查資料"
+        case .welcomeMemory: return "記憶"
+        case .welcomeMemoryBody: return "保留往後對話需要的資訊"
+        case .welcomeNote: return "先設定你自己的模型服務，就可以開始使用。"
+        case .welcomeStart: return "開始設定"
+        case .welcomeLater: return "稍後再說"
+        case .modelSetupTitle: return "設定模型"
+        case .modelSetupLead: return "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。"
+        case .modelSetupOnboardingNote: return "只有主模型必須選，其他用途可以以後再說。"
+        case .commonNext: return "下一步"
         case .modelNotSavedDeclined: return "沒有儲存：要用 %1$@，需要先同意把內容傳給它。"
         case .roleMainHint: return "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。"
         case .modelsUse: return "使用"

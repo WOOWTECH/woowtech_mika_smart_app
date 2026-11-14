@@ -52,10 +52,16 @@ struct ModelConsentRequest: Identifiable {
 /// speech to text in phase 1), the providers with 新增服務商, the add form
 /// (open while there is no provider), and the note about keys. Changes apply
 /// at once, so the page has only Back.
+///
+/// On first launch it is Android's ModelSetupScreen in onboarding mode: 設定模型
+/// with a lead, the providers before the roles (the main model only), a note
+/// that only the main model is needed, and 下一步 once one is chosen.
 @MainActor
 struct MikaModelSettingsDetailView: View {
     @ObservedObject var session: ChatSession
     @ObservedObject var languages: AppLanguageStore
+    /// 下一步 of the first-launch flow; nil in Settings.
+    var onboardingNext: (() -> Void)? = nil
     @ObservedObject private var voice = VoicePreferences.shared
     @StateObject private var tester = ModelConnectionTester()
     @State private var form = ModelProviderFormInput()
@@ -76,28 +82,23 @@ struct MikaModelSettingsDetailView: View {
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
     private var providers: [ModelProvider] { session.providerDocument.providers }
     private var showsForm: Bool { formOpen || providers.isEmpty }
+    private var onboarding: Bool { onboardingNext != nil }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    rolesSection
-                    providersSection
-                    noticeSection
-                    if showsForm {
-                        addProviderForm.id("models.addForm")
+                    // Android: on first launch connect a provider, then choose;
+                    // in Settings the roles come first.
+                    if onboarding {
+                        onboardingLead
+                        providersPart
+                        rolesSection
+                        onboardingNote
+                    } else {
+                        rolesSection
+                        providersPart
                     }
-                    #if DEBUG
-                    // Only while this page is on top, so a pushed page's controls are the only ones.
-                    if pageVisible, let fixture = tester.fixture {
-                        ModelConnectionFixtureControls(fixture: fixture).padding(.top, 12)
-                    }
-                    #endif
-                    Text(verbatim: localizer.text(.modelsKeyNote))
-                        .font(.footnote).foregroundStyle(palette.hint)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 28)
-                        .accessibilityIdentifier("models.keyNote")
                 }
                 .padding(.horizontal, 16)
             }
@@ -107,7 +108,13 @@ struct MikaModelSettingsDetailView: View {
             }
         }
         .background(palette.page)
-        .navigationTitle(localizer.text(.settingsHomeModel))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Android hides it while the keyboard is up, leaving the room to the form.
+            if let onboardingNext, field == nil {
+                OnboardingNextBar(localizer: localizer, enabled: session.savedSettings != nil, next: onboardingNext)
+            }
+        }
+        .navigationTitle(localizer.text(onboarding ? .modelSetupTitle : .settingsHomeModel))
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
         .textInputAutocapitalization(.never)
@@ -149,25 +156,48 @@ struct MikaModelSettingsDetailView: View {
         }
     }
 
+    // MARK: First launch (Android ModelSetupContent, onboarding)
+
+    private var onboardingLead: some View {
+        Text(verbatim: localizer.text(.modelSetupLead))
+            .font(.subheadline).foregroundStyle(palette.secondary)
+            .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 4).padding(.bottom, 12)
+            .accessibilityIdentifier("setup.lead")
+    }
+
+    private var onboardingNote: some View {
+        Text(verbatim: localizer.text(.modelSetupOnboardingNote))
+            .font(.footnote).foregroundStyle(palette.hint)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 28)
+            .accessibilityIdentifier("setup.onboardingNote")
+    }
+
     // MARK: Roles
 
     private var rolesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             MikaSettingsGroupLabel(title: localizer.text(.settingsModelRoles))
+                .padding(.top, onboarding ? 8 : 0)
             MikaSettingsCard {
                 VStack(spacing: 0) {
                     mainRoleRow
-                    Divider().padding(.leading, 70)
-                    NavigationLink {
-                        VoiceSettingsView(languages: languages)
-                    } label: {
-                        let speech = speechLine
-                        ModelRoleCard(icon: .mic, label: localizer.text(.voiceChoiceTitle) + " · " + localizer.text(.roleSpeechWhat),
-                                      title: speech.title, subtitle: speech.subtitle, subtitleOk: speech.ok,
-                                      isModel: false, unset: speech.unset)
+                    // Android leaves speech to text out of the first launch.
+                    if !onboarding {
+                        Divider().padding(.leading, 70)
+                        NavigationLink {
+                            VoiceSettingsView(languages: languages)
+                        } label: {
+                            let speech = speechLine
+                            ModelRoleCard(icon: .mic, label: localizer.text(.voiceChoiceTitle) + " · " + localizer.text(.roleSpeechWhat),
+                                          title: speech.title, subtitle: speech.subtitle, subtitleOk: speech.ok,
+                                          isModel: false, unset: speech.unset)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.voice.open")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings.voice.open")
                 }
             }
             if session.mainNeedsConsent, let provider = session.providerDocument.mainProvider {
@@ -238,6 +268,27 @@ struct MikaModelSettingsDetailView: View {
     }
 
     // MARK: Providers
+
+    /// Android ProvidersSection: the providers, what the last change did, the
+    /// add form and the note about keys.
+    @ViewBuilder private var providersPart: some View {
+        providersSection
+        noticeSection
+        if showsForm {
+            addProviderForm.id("models.addForm")
+        }
+        #if DEBUG
+        // Only while this page is on top, so a pushed page's controls are the only ones.
+        if pageVisible, let fixture = tester.fixture {
+            ModelConnectionFixtureControls(fixture: fixture).padding(.top, 12)
+        }
+        #endif
+        Text(verbatim: localizer.text(.modelsKeyNote))
+            .font(.footnote).foregroundStyle(palette.hint)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, onboarding ? 0 : 28)
+            .accessibilityIdentifier("models.keyNote")
+    }
 
     @ViewBuilder private var providersSection: some View {
         if !providers.isEmpty {
