@@ -302,7 +302,9 @@ final class BrowserLoginFixture: @unchecked Sendable {
     private func stateContent(authenticated: Bool) -> String {
         let controls: String
         if authenticated {
-            controls = "<a href=\"\(prefix)/protected\">開啟受保護頁面</a><form method=\"post\" action=\"\(prefix)/logout\"><button type=\"submit\">登出測試帳號</button></form>"
+            // Like a real site, the signed-in account controls sit in the page's
+            // navigation, where the browser's sign-in check reads them.
+            controls = "<nav><a href=\"\(prefix)/protected\">開啟受保護頁面</a><form method=\"post\" action=\"\(prefix)/logout\"><button type=\"submit\">登出測試帳號</button></form></nav>"
         } else {
             controls = """
             <form method="post" action="\(prefix)/login" autocomplete="off">

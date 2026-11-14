@@ -13,7 +13,7 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>other</key>
-			<string>這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。</string>
+			<string>這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。</string>
 		</dict>
 	</dict>
 	<key>chat.attach.photoCount</key>

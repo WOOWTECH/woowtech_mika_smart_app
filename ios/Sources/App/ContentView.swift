@@ -30,6 +30,10 @@ struct ContentView: View {
                           fill: palette.assistant, background: palette.background)
     }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
+    /// Play's drawer readiness: 一切就緒, or 還不能開始任務 without a model.
+    private var drawerStatus: String {
+        localizer.text(session.chatStatusMessage == .chatStatusUnconfigured ? .chatSendBlockedTitle : .drawerStatusReady)
+    }
 
     var body: some View {
         shell
@@ -52,6 +56,7 @@ struct ContentView: View {
         .background(palette.background)
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
+        .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
         .taskNotifications(chat: session, store: notifications) { destination in
             showsDrawer = false
             browserReturnSection = .chat
@@ -98,7 +103,9 @@ struct ContentView: View {
             }
             if phase == .active { mcpSession.appDidBecomeActive() }
         }
-        .onChange(of: selection) { _, destination in
+        .onChange(of: selection) { previous, destination in
+            // Like Play, leaving the browser closes its page; coming back shows the start page.
+            if previous == .browser && destination != .browser { browserWorkspace.leaveBrowser() }
             if destination == .chat { menuHasVoiceOverFocus = true }
             else { backHasVoiceOverFocus = true }
         }
@@ -133,7 +140,7 @@ struct ContentView: View {
                       .buttonStyle(.plain)
                       .accessibilityHidden(true)
                       MikaNavigationDrawer(
-                          status: localizer.text(session.chatStatusMessage),
+                          status: drawerStatus,
                           session: session,
                           canStartNew: !session.isSubmitting,
                           palette: palette,
@@ -262,7 +269,7 @@ struct ContentView: View {
     }
 
     private func memoryDataView(resetNavigation: Bool) -> some View {
-        MemoryDataView(store: session.learning, browser: browser, modelAccess: session.modelAccess,
+        MemoryDataView(store: session.learning, workspace: browserWorkspace, modelAccess: session.modelAccess,
                        modelChanges: session.$savedSettings.dropFirst().map { _ in () }.eraseToAnyPublisher(),
                        onOpenBrowser: {
                            browserReturnSection = .memory

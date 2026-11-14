@@ -94,9 +94,11 @@ public struct ChatWebConsentGate: Sendable {
         public let action: ChatWebSpending.Action
         public let site: String
         public let target: String
+        /// What the step sends, in the model's words (Android's content); shown, never matched.
+        public let content: String?
         public let amount: String?
-        public init(action: ChatWebSpending.Action, site: String, target: String, amount: String?) {
-            self.action = action; self.site = site; self.target = target; self.amount = amount
+        public init(action: ChatWebSpending.Action, site: String, target: String, content: String? = nil, amount: String?) {
+            self.action = action; self.site = site; self.target = target; self.content = content; self.amount = amount
         }
     }
     public enum Permit: Equatable, Sendable { case allowed, noConsent, mismatch }

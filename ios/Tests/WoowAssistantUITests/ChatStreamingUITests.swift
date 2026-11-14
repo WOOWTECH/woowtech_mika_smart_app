@@ -399,7 +399,8 @@ final class ChatStreamingUITests: XCTestCase {
         wait(NSPredicate(format: "value IN %@", ["notDetermined", "authorized"]), on: authorization)
         let before = authorization.value as? String
         XCTAssertTrue(before == "notDetermined" || before == "authorized", "No simulator permission resets")
-        tap("notifications.enable", scroll: true)
+        // 去開啟 on Play's 通知總開關, the row that is a button while off.
+        tap("notifications.enabled", scroll: true)
         if before == "notDetermined" {
             let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
             XCTAssertTrue(alert.waitForExistence(timeout: 15))
@@ -411,9 +412,8 @@ final class ChatStreamingUITests: XCTestCase {
         }
         revealLearningElement(authorization, in: app, visibility: .readableText)
         wait(NSPredicate(format: "value == %@", "authorized"), on: authorization, seconds: 15)
-        let enabled = app.staticTexts["notifications.enabled"].firstMatch
-        revealLearningElement(enabled, in: app, visibility: .readableText)
-        assertLabel(enabled, "已開啟")
+        let master = app.descendants(matching: .any)["notifications.enabled"].firstMatch
+        wait(NSPredicate(format: "value == %@", "已允許"), on: master, seconds: 15)
         let back = app.navigationBars["通知"].buttons.firstMatch; ready(back); back.tap()
         navigate("chat")
     }
@@ -431,7 +431,7 @@ final class ChatStreamingUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming", "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]; app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 15))

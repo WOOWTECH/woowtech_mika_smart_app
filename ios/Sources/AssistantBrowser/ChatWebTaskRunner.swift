@@ -94,7 +94,7 @@ public enum ChatWebTaskPrompts {
         {"action":"finish","answer":"…","sources":[1,2]} gives the final answer. sources lists the page numbers (n of "page-n") of pages you read and used, at most 6.
         {"action":"web_observe"} lists the page's controls (links, buttons, text fields, choices) with a ref and a snapshotId.
         {"action":"web_tap","ref":"e12","snapshotId":"s1"} taps a control; {"action":"web_type_text","ref":"e4","snapshotId":"s1","text":"words","pressEnter":true} types into a field (pressEnter submits it); {"action":"web_select","ref":"e7","snapshotId":"s1","option":"shown text"} picks a choice. A snapshot is good for one action: web_observe again before the next one.
-        {"action":"request_confirmation","kind":"order","target":"the button's text","content":"what will happen","amount":"NT$ 1,290"} asks the user before a step that spends money (kind: order, submit or delete).
+        {"action":"request_confirmation","kind":"order","target":"the button's text","content":"what it sends or buys (item, quantity)","amount":"NT$ 1,290"} asks the user before a step that spends money (kind: order, submit or delete).
         {"action":"hand_to_user","reason":"login","message":"what the user should do"} hands the open page to the user (reason: login, captcha, access_blocked, payment, decision or other; for payment add "item", "amount" and "address"). Open the page first. The result says whether the user handed it back, finished it themselves or skipped.
         {"action":"ask_user","prompt":"question","options":["A","B"]} asks the user (2-8 options, or none for a free answer). Ask only when a missing detail would change the result (the person, item, quantity or money).
 
@@ -389,7 +389,7 @@ public enum ChatWebTaskPrompts {
                                  kind: .type, pressEnter: pressEnter)
         case .select(let ref, let snapshot, let option):
             return try await act(.select(ref: ref, option: option), ref: ref, snapshot: snapshot, kind: .select, pressEnter: false)
-        case .requestConfirmation(let kind, let target, _, let amount):
+        case .requestConfirmation(let kind, let target, let content, let amount):
             let site = currentSite
             guard kind != .pay else { return failed(.confirm, nil, site: site, code: "payment_requires_user") }
             guard kind != .send else { return failed(.confirm, nil, site: site, code: "not_needed_send_directly") }
@@ -399,7 +399,7 @@ public enum ChatWebTaskPrompts {
                 return success(["ok": true, "allowed": false, "hint": "The user refused this earlier; do not try it again."],
                                untrusted: false, advanced: false)
             }
-            let request = ChatWebConsentGate.Request(action: kind, site: site, target: target, amount: amount)
+            let request = ChatWebConsentGate.Request(action: kind, site: site, target: target, content: content, amount: amount)
             onActivity?(.waitingForYou)
             let allowed = await confirm?(request) ?? false
             try Task.checkCancellation()

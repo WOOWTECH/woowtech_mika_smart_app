@@ -97,7 +97,7 @@ final class MCPLearningUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace, "-UITestMCPFixture"]
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestMCPFixture", "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launchEnvironment = [:]
         app.launch()

@@ -100,6 +100,7 @@ enum CheckTaskNotificationApp {
             var groups: [String: Int] = [:]
             let cases: [(String, () async throws -> Void)] = [
                 ("nativeUNContentAndScope", nativeContent), ("factoryAndPreferences", preferences),
+                ("allowFromSettings", allowFromSettings),
                 ("realChatSuccessFailureClear", realChat), ("realChatCancelGeneration", lateChat),
                 ("realMCPCompletesWithoutApproval", realMCP), ("realProfileMemoryWithoutApproval", localTools)
             ]
@@ -174,6 +175,37 @@ enum CheckTaskNotificationApp {
         try Checks.expect(!defaults.bool(forKey: TaskNotificationStore.preferenceKey), "actual defaults disabled persists")
         try Checks.expect(second.systemSettings.authorization == .authorized, "App opt-out does not falsify OS authorization")
         first.disable(); await first.waitUntilIdle()
+    }
+
+    /// Settings › 通知 去開啟 and the status card's 允許, like Play's
+    /// Fix.AllowNotifications: off until tapped; the first tap asks iOS; after
+    /// a refusal iOS Settings opens instead of a second prompt; an App opt-out
+    /// saved by an earlier build turns back on without one.
+    @MainActor static func allowFromSettings() async throws {
+        let center = TaskNotificationFakeCenter()
+        center.value = TaskNotificationSettings(authorization: .notDetermined)
+        center.grant = false
+        var saved: [Bool] = []
+        let service = TaskNotificationService(client: center, persistEnabled: { saved.append($0) })
+        await service.refresh()
+        try Checks.expect(!service.enabled && saved.isEmpty && center.permissionCalls == 0, "off until the person turns them on")
+        var opens = await service.allowFromUserGesture()
+        try Checks.expect(!opens && service.enabled && saved == [true] && center.permissionCalls == 1,
+                          "the first tap saves the choice and asks iOS")
+        try Checks.expect(service.systemSettings.authorization == .denied, "a refusal in the prompt opens nothing")
+        opens = await service.allowFromUserGesture()
+        try Checks.expect(opens && center.permissionCalls == 1, "after a refusal only iOS Settings can allow them")
+
+        center.value = TaskNotificationSettings(authorization: .authorized, sound: .enabled, alert: .enabled)
+        service.disable(); await service.refresh()
+        try Checks.expect(!service.enabled && service.systemSettings.authorization == .authorized, "an earlier App opt-out")
+        opens = await service.allowFromUserGesture()
+        try Checks.expect(!opens && service.enabled && saved.last == true && center.permissionCalls == 1,
+                          "an App opt-out turns back on without a prompt")
+        let ticket = try Checks.begin(service); service.receive(.completed, for: ticket)
+        await service.waitUntilIdle()
+        try Checks.expect(center.pending.count == 1, "notifications arrive again")
+        service.disable(); await service.waitUntilIdle()
     }
 
     @MainActor static func realChat() async throws {
@@ -297,6 +329,7 @@ enum CheckTaskNotificationApp {
 final class TaskNotificationAppTests: XCTestCase {
     @MainActor func testNativeUNContentAndScope() async throws { try await CheckTaskNotificationApp.nativeContent() }
     @MainActor func testFactoryAndPreferences() async throws { try await CheckTaskNotificationApp.preferences() }
+    @MainActor func testAllowFromSettings() async throws { try await CheckTaskNotificationApp.allowFromSettings() }
     @MainActor func testRealChatSuccessFailureClear() async throws { try await CheckTaskNotificationApp.realChat() }
     @MainActor func testRealChatCancelGeneration() async throws { try await CheckTaskNotificationApp.lateChat() }
     @MainActor func testRealMCPCompletesWithoutApproval() async throws { try await CheckTaskNotificationApp.realMCP() }

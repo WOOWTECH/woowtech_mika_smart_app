@@ -944,8 +944,8 @@
       "key": "shell.toolsTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Skills 與 MCP",
-        "en": "Skills and MCP"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -962,7 +962,7 @@
       "key": "shell.greetingMorning",
       "parameters": [],
       "translations": {
-        "zh-Hant": "早上好",
+        "zh-Hant": "早安",
         "en": "Good morning"
       }
     },
@@ -971,7 +971,7 @@
       "key": "shell.greetingNoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "中午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -980,7 +980,7 @@
       "key": "shell.greetingAfternoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "下午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -989,7 +989,7 @@
       "key": "shell.greetingEvening",
       "parameters": [],
       "translations": {
-        "zh-Hant": "晚上好",
+        "zh-Hant": "晚安",
         "en": "Good evening"
       }
     },
@@ -1007,8 +1007,8 @@
       "key": "shell.whatToDo",
       "parameters": [],
       "translations": {
-        "zh-Hant": "想讓渥屋助理做什麼？",
-        "en": "What should woowtech agent do?"
+        "zh-Hant": "想聊什麼，或需要幫忙查找什麼？",
+        "en": "What would you like help with?"
       }
     },
     {
@@ -1115,7 +1115,7 @@
       "key": "shell.stop",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消",
+        "zh-Hant": "停止",
         "en": "Stop"
       }
     },
@@ -1336,8 +1336,8 @@
       "key": "mcp.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 與 Skills",
-        "en": "MCP and Skills"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -2034,8 +2034,8 @@
       "key": "browser.bookmarks",
       "parameters": [],
       "translations": {
-        "zh-Hant": "書籤",
-        "en": "Bookmarks"
+        "zh-Hant": "常用網站",
+        "en": "Favorites"
       }
     },
     {
@@ -2052,8 +2052,8 @@
       "key": "browser.clear.history.question",
       "parameters": [],
       "translations": {
-        "zh-Hant": "清除瀏覽歷史？書籤與網站登入資料會保留。",
-        "en": "Clear browsing history? Bookmarks and site sign-in data will be kept."
+        "zh-Hant": "清除瀏覽歷史？常用網站與網站登入資料會保留。",
+        "en": "Clear browsing history? Favorites and site sign-in data will be kept."
       }
     },
     {
@@ -2296,8 +2296,8 @@
       "key": "notification.authorization.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "無法完成系統權限請求，請重新整理狀態後再試。",
-        "en": "The system permission request did not complete. Refresh the status and try again."
+        "zh-Hant": "無法完成系統權限請求，請再點一次「去開啟」。",
+        "en": "The system permission request did not complete. Tap “Turn on” again."
       }
     },
     {
@@ -2422,8 +2422,8 @@
       "key": "browser.start.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "新增常用網站",
+        "en": "Add a favorite"
       }
     },
     {
@@ -2449,8 +2449,8 @@
       "key": "browser.start.add.bookmark.help",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請先開啟網站，再從書籤頁加入目前網頁。",
-        "en": "Open a website first, then add the current page from Bookmarks."
+        "zh-Hant": "開啟網站後，在「更多」裡點「加入常用網站」",
+        "en": "Open a site, then tap “Add to favorites” under “More”"
       }
     },
     {
@@ -2463,8 +2463,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "移除書籤：%1$@",
-        "en": "Remove bookmark: %1$@"
+        "zh-Hant": "移除%1$@",
+        "en": "Remove %1$@"
       }
     },
     {
@@ -2501,6 +2501,15 @@
       "translations": {
         "zh-Hant": "搜尋或輸入網址",
         "en": "Search or enter an address"
+      }
+    },
+    {
+      "case": "browserChromeEditAddress",
+      "key": "browser.chrome.edit.address",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "改網址",
+        "en": "Edit URL"
       }
     },
     {
@@ -2810,8 +2819,8 @@
       "key": "browser.chrome.remove.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "移除書籤",
-        "en": "Remove bookmark"
+        "zh-Hant": "從常用移除",
+        "en": "Remove from favorites"
       }
     },
     {
@@ -2819,8 +2828,8 @@
       "key": "browser.chrome.add.bookmark",
       "parameters": [],
       "translations": {
-        "zh-Hant": "加入書籤",
-        "en": "Add bookmark"
+        "zh-Hant": "加入常用網站",
+        "en": "Add to favorites"
       }
     },
     {
@@ -2949,6 +2958,96 @@
           "one": "%lld won’t pop up",
           "other": "%lld won’t pop up"
         }
+      }
+    },
+    {
+      "case": "settingsNotificationsMaster",
+      "key": "settings.notifications.master",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知總開關",
+        "en": "All notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOn",
+      "key": "settings.notifications.master.on",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許渥屋助理發通知",
+        "en": "woowtech agent can send notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOff",
+      "key": "settings.notifications.master.off",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "現在不允許渥屋助理發通知，任務結果和提醒都看不到",
+        "en": "woowtech agent can’t send notifications, so you won’t see task results or alerts"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttention",
+      "key": "settings.notifications.attention",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你處理",
+        "en": "Needs you"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttentionWhen",
+      "key": "settings.notifications.attention.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你接管、確認、回答時",
+        "en": "When you need to take over, approve or answer"
+      }
+    },
+    {
+      "case": "settingsNotificationsResult",
+      "key": "settings.notifications.result",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務結果",
+        "en": "Task results"
+      }
+    },
+    {
+      "case": "settingsNotificationsResultWhen",
+      "key": "settings.notifications.result.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務做完時",
+        "en": "When a task finishes"
+      }
+    },
+    {
+      "case": "settingsNotificationsPopsUp",
+      "key": "settings.notifications.popsUp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會彈出",
+        "en": "Pops up"
+      }
+    },
+    {
+      "case": "settingsNotificationsQuiet",
+      "key": "settings.notifications.quiet",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只進通知中心",
+        "en": "Notification Center only"
+      }
+    },
+    {
+      "case": "settingsNotificationsFooter",
+      "key": "settings.notifications.footer",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理",
+        "en": "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. Path: Settings › Notifications › woowtech agent"
       }
     },
     {
@@ -3653,6 +3752,159 @@
       }
     },
     {
+      "case": "welcomeTitle",
+      "key": "welcome.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "你好，我是渥屋助理",
+        "en": "Hi, I’m woowtech agent"
+      }
+    },
+    {
+      "case": "welcomeLead",
+      "key": "welcome.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。",
+        "en": "Chat, speak, browse and keep useful notes in one place."
+      }
+    },
+    {
+      "case": "welcomeChat",
+      "key": "welcome.chat",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "AI 對話",
+        "en": "AI chat"
+      }
+    },
+    {
+      "case": "welcomeChatBody",
+      "key": "welcome.chat.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提問並延續之前的對話",
+        "en": "Ask questions and continue past conversations"
+      }
+    },
+    {
+      "case": "welcomeVoice",
+      "key": "welcome.voice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "語音輸入",
+        "en": "Voice input"
+      }
+    },
+    {
+      "case": "welcomeVoiceBody",
+      "key": "welcome.voice.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "說話即可輸入訊息",
+        "en": "Speak to compose a message"
+      }
+    },
+    {
+      "case": "welcomeWeb",
+      "key": "welcome.web",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "上網查",
+        "en": "Browse the web"
+      }
+    },
+    {
+      "case": "welcomeWebBody",
+      "key": "welcome.web.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "內建瀏覽器，讀網頁、比價、查資料",
+        "en": "Built-in browser to read pages, compare prices and look things up"
+      }
+    },
+    {
+      "case": "welcomeMemory",
+      "key": "welcome.memory",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "記憶",
+        "en": "Memory"
+      }
+    },
+    {
+      "case": "welcomeMemoryBody",
+      "key": "welcome.memory.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "保留往後對話需要的資訊",
+        "en": "Keep useful details for later conversations"
+      }
+    },
+    {
+      "case": "welcomeNote",
+      "key": "welcome.note",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "先設定你自己的模型服務，就可以開始使用。",
+        "en": "Set up your own model service to begin."
+      }
+    },
+    {
+      "case": "welcomeStart",
+      "key": "welcome.start",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "開始設定",
+        "en": "Get started"
+      }
+    },
+    {
+      "case": "welcomeLater",
+      "key": "welcome.later",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "稍後再說",
+        "en": "Not now"
+      }
+    },
+    {
+      "case": "modelSetupTitle",
+      "key": "modelSetup.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設定模型",
+        "en": "Set up a model"
+      }
+    },
+    {
+      "case": "modelSetupLead",
+      "key": "modelSetup.lead",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。",
+        "en": "woowtech agent thinks with your own model service. Connect a provider first, then pick a model for each job."
+      }
+    },
+    {
+      "case": "modelSetupOnboardingNote",
+      "key": "modelSetup.onboardingNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只有主模型必須選，其他用途可以以後再說。",
+        "en": "Only the main model is required; the other roles can wait."
+      }
+    },
+    {
+      "case": "commonNext",
+      "key": "common.next",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下一步",
+        "en": "Next"
+      }
+    },
+    {
       "case": "modelNotSavedDeclined",
       "key": "model.notSavedDeclined",
       "parameters": [
@@ -4180,24 +4432,6 @@
       }
     },
     {
-      "case": "settingsStatusReadyMain",
-      "key": "settings.status.readyMain",
-      "parameters": [
-        {
-          "name": "model",
-          "type": "String"
-        },
-        {
-          "name": "provider",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "主模型：%1$@ · %2$@",
-        "en": "Main model: %1$@ · %2$@"
-      }
-    },
-    {
       "case": "modelSettingsTooManyProviders",
       "key": "modelSettings.tooManyProviders",
       "parameters": [],
@@ -4283,7 +4517,16 @@
       "key": "drawer.recent.pinned",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已釘選",
+        "zh-Hant": "置頂",
+        "en": "Pinned"
+      }
+    },
+    {
+      "case": "drawerRecentPinnedMark",
+      "key": "drawer.recent.pinnedMark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已置頂",
         "en": "Pinned"
       }
     },
@@ -4292,7 +4535,7 @@
       "key": "drawer.recent.pin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選",
+        "zh-Hant": "置頂",
         "en": "Pin"
       }
     },
@@ -4301,7 +4544,7 @@
       "key": "drawer.recent.unpin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消釘選",
+        "zh-Hant": "取消置頂",
         "en": "Unpin"
       }
     },
@@ -4310,7 +4553,7 @@
       "key": "drawer.recent.pinFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選變更未保存；對話維持原狀。請重新開啟再試。",
+        "zh-Hant": "置頂變更未保存；對話維持原狀。請重新開啟再試。",
         "en": "The pin change was not saved. The conversation is unchanged; reopen it and try again."
       }
     },
@@ -4319,7 +4562,7 @@
       "key": "drawer.recent.rename",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名",
+        "zh-Hant": "改名",
         "en": "Rename"
       }
     },
@@ -4328,8 +4571,8 @@
       "key": "drawer.recent.renameTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名對話",
-        "en": "Rename conversation"
+        "zh-Hant": "改名",
+        "en": "Rename chat"
       }
     },
     {
@@ -4384,8 +4627,8 @@
       "key": "drawer.recent.unsentDraft",
       "parameters": [],
       "translations": {
-        "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。",
-        "en": "An unsent draft or PDF attachment is present. Return to the chat first."
+        "zh-Hant": "草稿或附件未送出，請先返回處理。",
+        "en": "An unsent draft or attachment is present. Return to the chat first."
       }
     },
     {
@@ -4524,6 +4767,15 @@
       }
     },
     {
+      "case": "drawerStatusReady",
+      "key": "drawer.status.ready",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一切就緒",
+        "en": "All set"
+      }
+    },
+    {
       "case": "chatModelSetupHint",
       "key": "chat.modelSetupHint",
       "parameters": [],
@@ -4546,7 +4798,7 @@
       "key": "chat.sendBlocked.noModel",
       "parameters": [],
       "translations": {
-        "zh-Hant": "還缺:還沒有能用的模型",
+        "zh-Hant": "還缺：還沒有能用的模型",
         "en": "Missing: No usable model yet"
       }
     },
@@ -4993,6 +5245,24 @@
       }
     },
     {
+      "case": "voiceChoiceSystemOffline",
+      "key": "voice.choice.system.offline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線依語言支援",
+        "en": "Offline depends on language"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemGone",
+      "key": "voice.choice.system.gone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置沒有",
+        "en": "Not on this device"
+      }
+    },
+    {
       "case": "voiceChoiceAvailable",
       "key": "voice.choice.available",
       "parameters": [],
@@ -5243,7 +5513,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
+        "zh-Hant": "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上",
         "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
       }
     },
@@ -5257,7 +5527,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
+        "zh-Hant": "沒能新增：%1$@（單個檔案不超過 200 MB）",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
       }
     },
@@ -5275,7 +5545,7 @@
       "key": "settings.seesImages.unconfirmed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
+        "zh-Hant": "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。",
         "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
       }
     },
@@ -5284,7 +5554,7 @@
       "key": "settings.seesImages.user",
       "parameters": [],
       "translations": {
-        "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
+        "zh-Hant": "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。",
         "en": "As you set it. When on, photos attached in chat go straight to the main model."
       }
     },
@@ -5300,7 +5570,7 @@
       "plural": "count",
       "translations": {
         "zh-Hant": {
-          "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+          "other": "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         },
         "en": {
           "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
@@ -5363,7 +5633,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用渥屋助理:%1$@",
+        "zh-Hant": "引用渥屋助理：%1$@",
         "en": "Quoting woowtech agent: %1$@"
       }
     },
@@ -5377,7 +5647,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用你的話:%1$@",
+        "zh-Hant": "引用你的話：%1$@",
         "en": "Quoting you: %1$@"
       }
     },
@@ -6520,7 +6790,7 @@
       "key": "chat.web.ask.title",
       "parameters": [
         {
-          "name": "target",
+          "name": "action",
           "type": "String"
         }
       ],
@@ -6530,21 +6800,90 @@
       }
     },
     {
-      "case": "chatWebAskTitleAmount",
-      "key": "chat.web.ask.titleAmount",
+      "case": "chatWebAskActionPay",
+      "key": "chat.web.ask.action.pay",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "付款",
+        "en": "Pay"
+      }
+    },
+    {
+      "case": "chatWebAskActionOrder",
+      "key": "chat.web.ask.action.order",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下單",
+        "en": "Place order"
+      }
+    },
+    {
+      "case": "chatWebAskActionSubmit",
+      "key": "chat.web.ask.action.submit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提交",
+        "en": "Submit"
+      }
+    },
+    {
+      "case": "chatWebAskActionDelete",
+      "key": "chat.web.ask.action.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "chatWebAskActionSend",
+      "key": "chat.web.ask.action.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送",
+        "en": "Send"
+      }
+    },
+    {
+      "case": "chatWebAskSite",
+      "key": "chat.web.ask.site",
       "parameters": [
         {
-          "name": "target",
-          "type": "String"
-        },
-        {
-          "name": "amount",
+          "name": "site",
           "type": "String"
         }
       ],
       "translations": {
-        "zh-Hant": "要你同意：%1$@ %2$@",
-        "en": "Needs your OK: %1$@ %2$@"
+        "zh-Hant": "在 %1$@",
+        "en": "In %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskTarget",
+      "key": "chat.web.ask.target",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "目標：%1$@",
+        "en": "Target: %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskContent",
+      "key": "chat.web.ask.content",
+      "parameters": [
+        {
+          "name": "content",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "內容：%1$@",
+        "en": "Content: %1$@"
       }
     },
     {
@@ -8168,8 +8507,8 @@
       "key": "chat.memory.approve",
       "parameters": [],
       "translations": {
-        "zh-Hant": "批准",
-        "en": "Approve"
+        "zh-Hant": "好",
+        "en": "OK"
       }
     },
     {
@@ -8177,8 +8516,8 @@
       "key": "chat.memory.reject",
       "parameters": [],
       "translations": {
-        "zh-Hant": "拒絕",
-        "en": "Decline"
+        "zh-Hant": "不要",
+        "en": "No thanks"
       }
     },
     {

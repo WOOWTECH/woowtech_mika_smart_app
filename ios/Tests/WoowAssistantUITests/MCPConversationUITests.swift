@@ -8,7 +8,7 @@ final class MCPConversationUITests: XCTestCase {
         continueAfterFailure = false
         executionTimeAllowance = 180
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture"]
+            "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
@@ -35,7 +35,7 @@ final class MCPConversationUITests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
-            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+            "-UITestMCPFixture", "-UITestMCPLeaseHold", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()
@@ -148,7 +148,7 @@ final class MCPConversationUITests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage",
-            "-UITestMCPFixture", "-UITestMCPLeaseHold"]
+            "-UITestMCPFixture", "-UITestMCPLeaseHold", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         connectFixture()

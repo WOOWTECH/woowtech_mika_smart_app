@@ -25,7 +25,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         let audited = name.contains("testRealModelUsesRemoteToolThenLocalMemoryAndUndo")
             ? ["ha_eval_template"] : ["ha_eval_template", "ha_list_floors_areas"]
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveMCPConversationUITest",
+            "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveMCPConversationUITest", "-WoowSkipOnboarding",
             "-LiveMCPAllowedTools", audited.joined(separator: ",")]
         app.launchEnvironment = Dictionary(uniqueKeysWithValues:
             ["WOOW_LIVE_API_KEY", "WOOW_LIVE_MODEL", "WOOW_LIVE_BASE_URL", "WOOW_LIVE_MCP_URL"].map { ($0, environment[$0]!) })
@@ -63,7 +63,7 @@ final class LiveMCPConversationUITests: XCTestCase {
             XCTFail("LIVE_MCP_CLEANUP initial launch did not complete; namespace cleanup is unverified and isolated simulator removal is required.")
             return
         }
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         try LiveMCPNativeLifecycle.requireForeground(app)

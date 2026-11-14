@@ -34,8 +34,11 @@ devices and independent browser/skill-runner notifications are not covered.
 
 The App delegate installs the UserNotifications delegate before launch completes.
 ContentView and the delegate share the same cached TaskNotificationStore. The
-root modifier owns the ChatSession observer, and Settings provides the explicit
-permission, opt-out, current OS status and test-notification controls.
+root modifier owns the ChatSession observer. Since 2026-11-14 Settings › 通知
+follows the Play page (SettingsSubPages.kt NotificationsScreen): 通知總開關, the
+任務通知 group with 需要你處理 and 任務結果, and an iOS footer. iOS has one
+notification setting for the App, so both kinds show the same state; Play's
+任務進度 row is left out because iOS has no ongoing progress notification.
 
 Opening a notification selects only the chat or browser section and recreates the
 root navigation stack identity to dismiss destination-style pushed detail screens.
@@ -66,14 +69,21 @@ independent-runner integration is claimed here.
 
 ## Consent, copy and bounded state
 
-Only `enableFromUserGesture()` requests `.alert` and `.sound`; its call site is
-the explicit settings button. Launch, refresh, task events and factory creation
-never request permission. Notification preferences default off even if iOS has
-previously granted system permission. App opt-out does not change OS permission.
-Denied status exposes the system notification-settings link. Unknown and future
-authorization values fail closed. Provisional/ephemeral are displayed honestly;
-the UI-test-only test button (Debug builds; the product has none, like Play)
-requires full `authorized` status.
+Only `enableFromUserGesture()` requests `.alert` and `.sound`. Its one caller is
+`allowFromUserGesture()`, behind 去開啟 on Settings › 通知 and 允許 on the Settings
+status card. Launch, refresh, task events and factory creation never request
+permission. Notification preferences default off even if iOS has previously
+granted system permission. 通知總開關 shows 已允許 only when the App preference is
+on and iOS allows delivery; otherwise the row is the 去開啟 button. After an
+earlier refusal it opens the App's iOS notification settings instead of asking
+again; an App opt-out saved by an earlier build turns back on without a prompt.
+Like Play, there is no in-app off switch: notifications are turned off in iOS
+Settings, which both kind rows open (`UIApplication.openNotificationSettingsURLString`).
+The page reads the system state when it opens and whenever the App is active
+again; there is no refresh button. Unknown and future authorization values fail
+closed. Provisional or banner-less authorization shows as 只進通知中心 on both
+kinds; the UI-test-only test button (Debug builds; the product has none, like
+Play) requires full `authorized` status.
 
 The settings fetch that belongs to an enable click returns its own observed
 authorization, even when a concurrent refresh supersedes its UI publication.
@@ -137,19 +147,18 @@ test configuration in Release. No fixture implicitly enables notifications.
 
 | Accessibility ID | Stable value/action |
 | --- | --- |
-| notifications.enabled | actual Text label/value: 已開啟 or 已關閉 |
-| notifications.authorization | raw value: unknown, notDetermined, denied, authorized, provisional, ephemeral |
-| notifications.sound | raw value: unknown, notSupported, disabled, enabled |
-| notifications.alert | same raw setting values |
-| notifications.enable | explicit permission/enable Button |
-| notifications.disable | app opt-out Button |
-| notifications.systemSettings | UIApplication.openNotificationSettingsURLString |
-| notifications.refresh | read current settings, no prompt |
+| notifications.enabled | 通知總開關 row: label is its title and subtitle, value 已允許 or 去開啟. A Button (`allowFromUserGesture`) only while notifications cannot be delivered |
+| notifications.attention | 需要你處理 Button: value 會彈出, 只進通知中心 or 已關閉; opens UIApplication.openNotificationSettingsURLString |
+| notifications.result | 任務結果 Button: same value and action |
+| notifications.group | 任務通知 group label |
+| notifications.footer | footer text |
+| notifications.authorization | UI tests only (Debug, `-UITestMode`): hidden Text, raw value unknown, notDetermined, denied, authorized, provisional, ephemeral |
 | notifications.test | UI tests only (Debug, `-UITestMode`): fixed test notification, full authorization only. Removed from the product on 2026-11-13 to match the Play build |
 | notifications.notice | fixed failure text, only when present |
 
-The status IDs and raw values belong to the actual Text values, not the surrounding
-row. `TaskNotificationStore(defaults:center:scope:)` also permits explicit injected
+The row states are the rows' accessibility values (the visible state line); the
+raw authorization belongs to the hidden test-only Text.
+`TaskNotificationStore(defaults:center:scope:)` also permits explicit injected
 construction; tests must use their own suite and scope, never personal defaults.
 
 ## Executable verification and limits
@@ -179,7 +188,7 @@ passed after using the click's actual settings result. Separate suspended-add
 tests cover disable, cancel, approval resolution and system revocation.
 
 Native Domain tests discover TaskNotificationTests normally. For the hosted
-`TaskNotificationAppTests` six-case wrapper, the hosted target includes
+`TaskNotificationAppTests` seven-case wrapper, the hosted target includes
 `scripts/CheckTaskNotificationApp.swift` and
 `Tests/AssistantDomainTests/TaskNotificationChecks.swift`, links AssistantDomain,
 AssistantMCP and existing App dependencies, and uses the WoowAssistant host. No
@@ -194,8 +203,10 @@ puts this App in the foreground and reveals root Chat with the pushed notificati
 settings page gone. App attribution depends on that actual route. iOS 18's compact
 banner can show the App icon without a separate App-name text label; the test must
 not require an OS-omitted label or accept App-name text embedded in the body as
-independent attribution. It also verifies opt-in and opt-out
-across relaunch. A screenshot and matched banner labels are attached. Provisional
+independent attribution. It also verifies opt-in across relaunch, that
+需要你處理 opens iOS Settings and the page refreshes on return, and that an App
+opt-out turns back on without a second prompt. A screenshot and matched banner
+labels are attached. Provisional
 or denied states are not treated as full banner authorization; external Settings
 revocation and audible sound remain separate acceptance. Shared source drift is
 reported as SOURCE_CHANGED instead of silently relabeling older results.

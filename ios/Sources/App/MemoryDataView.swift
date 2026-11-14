@@ -6,7 +6,8 @@ import SwiftUI
 @MainActor
 struct MemoryDataView: View {
     @ObservedObject var store: LearningStore
-    @ObservedObject var browser: BrowserSession
+    /// The browser's website sign-in list, counted on the 網站登入 row.
+    @ObservedObject var workspace: BrowserWorkspace
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
@@ -221,7 +222,8 @@ struct MemoryDataView: View {
                 card {
                     VStack(spacing: 0) {
                         Button { onOpenSignIns() } label: {
-                            dataRow(copy.text(.webLogins), systemImage: "globe")
+                            dataRow(copy.text(.webLogins), systemImage: "globe",
+                                    value: signInCountText(workspace.signInSites.count))
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
                         cardDivider
@@ -344,11 +346,9 @@ struct MemoryDataView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: item.content)
                 .accessibilityIdentifier("memory.item.\(item.id.uuidString)")
-            Text(item.source.type == "manual" ? copy.text(.manualSource)
-                 : copy.text(.conversationSource,
-                             item.source.at.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted)
-                                 .locale(Locale(identifier: copy.language.rawValue)))))
+            Text(sourceLine(item.source))
                 .font(.caption).foregroundStyle(palette.ink3)
+                .lineLimit(4)
             if item.pinned {
                 Text(copy.text(.pinned)).font(.caption)
                     .accessibilityIdentifier("memory.pinned.\(item.id.uuidString)")
@@ -385,6 +385,20 @@ struct MemoryDataView: View {
             .buttonStyle(.borderless)
             .frame(minHeight: 44)
         }
+    }
+
+    /// Play's MemoryViewModel.sourceLine: 你手寫的, or the day and the words the
+    /// memory came from (你在 11 月 14 日說：『…』). Without saved words, the day only.
+    private func sourceLine(_ source: MemorySource) -> String {
+        if source.type == "manual" { return copy.text(.manualSource) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: copy.language.rawValue)
+        formatter.dateFormat = copy.text(.sourceDayFormat)
+        let day = formatter.string(from: source.at)
+        guard let quote = source.quote?.trimmingCharacters(in: .whitespacesAndNewlines), !quote.isEmpty else {
+            return copy.text(.conversationSource, day)
+        }
+        return copy.text(.saidSource, day, quote)
     }
 
     @ViewBuilder private var skillsSections: some View {
@@ -498,13 +512,18 @@ struct MemoryDataView: View {
                         .accessibilityIdentifier("skills.item.\(skill.name)")
                     Text(verbatim: skill.document.description)
                         .foregroundStyle(palette.ink2)
-                    // Like Play's skill row, a skill saved at the user's request in chat says so.
-                    Text(verbatim: ([skill.source == .user ? copy.text(.skillUserCreated) : nil,
-                                     copy.text(skill.status == .suspended ? .skillSuspended
-                                               : skill.status == .trial ? .skillTrial : .skillEnabled)]
-                                    as [String?]).compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(palette.ink3)
-                        .accessibilityIdentifier("skills.state.\(skill.name)")
+                    // Like Play's skill row: 按你的要求寫下 or 匯入的, then 已停用 or the
+                    // trial note; a skill in use has no state.
+                    let state: String? = skill.status == .suspended ? copy.text(.skillSuspended)
+                        : skill.status == .trial ? copy.text(.skillTrial) : nil
+                    let details = ([skill.source == .user ? copy.text(.skillUserCreated) : nil,
+                                    skill.source == .imported ? copy.text(.skillImported) : nil, state]
+                                   as [String?]).compactMap { $0 }
+                    if !details.isEmpty {
+                        Text(verbatim: details.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(palette.ink3)
+                            .accessibilityIdentifier("skills.state.\(skill.name)")
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Toggle(copy.text(.enableReference), isOn: Binding(get: { skill.isEnabled }, set: { enabled in
@@ -519,7 +538,7 @@ struct MemoryDataView: View {
                 .tint(palette.accent)
             }
             HStack(spacing: 8) {
-                Button(copy.text(.viewFullText)) { sheet = .fullText(skillTitle(skill.document), skill.markdown) }
+                Button(copy.text(.fullText)) { sheet = .fullText(skillTitle(skill.document), skill.markdown) }
                     .accessibilityIdentifier("skills.fullText.\(skill.name)")
                     .memoryActionPill(palette)
                 if let shared = try? store.skills.exportMarkdown(name: skill.name) {
@@ -580,11 +599,6 @@ struct MemoryDataView: View {
                 .accessibilityIdentifier("memory.preferenceScope")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-            Text(copy.text(.learningLimit))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .accessibilityIdentifier("skills.learningLimit")
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             if store.isLearning { ProgressView(copy.text(.learningProgress)) }
         } header: { sectionTitle(copy.text(.switches)) }
         .disabled(!store.available)
@@ -639,6 +653,11 @@ struct MemoryDataView: View {
             .frame(height: 1)
             .padding(.vertical, 10)
             .accessibilityHidden(true)
+    }
+
+    /// Play's settings_count_sites: 「%d 個」.
+    private func signInCountText(_ count: Int) -> String {
+        copy.text(count == 1 ? .signInsCountOne : .signInsCount, Int64(count))
     }
 
     private func dataRow(_ title: String, systemImage: String, value: String? = nil) -> some View {
@@ -757,6 +776,10 @@ private let memoryKinds: [MemoryKind] = [.fact, .preference, .procedure]
 private func memoryKindKey(_ kind: MemoryKind) -> MemoryDataKey {
     switch kind { case .fact: return .kindAbout; case .preference: return .kindPreferences; case .procedure: return .kindProcedures }
 }
+/// Play's add dialog (KIND_NAMES): 事實／偏好／做法.
+private func memoryEditorKindKey(_ kind: MemoryKind) -> MemoryDataKey {
+    kind == .fact ? .kindFact : memoryKindKey(kind)
+}
 private func skillTitle(_ document: SkillDocument) -> String {
     document.frontMatter["display"]?.stringValue ?? document.name
 }
@@ -795,7 +818,7 @@ private struct MemoryEditor: View {
             if item == nil {
                 Picker(copy.text(.memoryEditorKind), selection: $kind) {
                     ForEach(memoryKinds, id: \.rawValue) { value in
-                        Text(copy.text(memoryKindKey(value))).tag(value)
+                        Text(copy.text(memoryEditorKindKey(value))).tag(value)
                             .accessibilityIdentifier("memory.kind.\(value.rawValue)")
                     }
                 }
@@ -891,7 +914,7 @@ private struct SkillEditor: View {
                 Button(copy.text(.cancel)) { dismiss() }.accessibilityIdentifier("skills.editor.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(copy.text(draft == nil ? .importAction : .approveAction)) {
+                Button(copy.text(draft == nil ? .importAction : .acceptTrial)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
                         // Built-in skill names cannot be used, like Play's import.

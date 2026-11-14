@@ -58,6 +58,32 @@ class AppTextResourceTests(unittest.TestCase):
             self.assertEqual(entries[case]['zh-Hant'], hant, case)
             self.assertEqual(entries[case]['en'], english, case)
 
+    def test_chat_wording_matches_play_964d7bec(self):
+        # Play 964d7bec, woowtech flavor: greetings from strings_woowtech_wording.xml,
+        # chat_empty_prompt from strings_woowtech.xml, the rest from strings_chat.xml
+        # (chat_stop, all_ready, pin/unpin, drawer_pinned(_mark), drawer_rename(_title)).
+        expected = {
+            'shellGreetingMorning': ('早安', 'Good morning'),
+            'shellGreetingNoon': ('午安', 'Good afternoon'),
+            'shellGreetingAfternoon': ('午安', 'Good afternoon'),
+            'shellGreetingEvening': ('晚安', 'Good evening'),
+            'shellGreetingNight': ('夜深了', 'Up late'),
+            'shellWhatToDo': ('想聊什麼，或需要幫忙查找什麼？', 'What would you like help with?'),
+            'shellStop': ('停止', 'Stop'),
+            'drawerStatusReady': ('一切就緒', 'All set'),
+            'chatSendBlockedTitle': ('還不能開始任務', 'Can’t start tasks yet'),
+            'drawerRecentPin': ('置頂', 'Pin'),
+            'drawerRecentUnpin': ('取消置頂', 'Unpin'),
+            'drawerRecentPinned': ('置頂', 'Pinned'),
+            'drawerRecentPinnedMark': ('已置頂', 'Pinned'),
+            'drawerRecentRename': ('改名', 'Rename'),
+            'drawerRecentRenameTitle': ('改名', 'Rename chat'),
+        }
+        entries = {e['case']: e['translations'] for e in self.catalog['entries']}
+        for case, (hant, english) in expected.items():
+            self.assertEqual(entries[case]['zh-Hant'], hant, case)
+            self.assertEqual(entries[case]['en'], english, case)
+
     def test_six_examples_match_play_964d7bec_resource_evidence(self):
         root = Path(__file__).resolve().parents[1]
         evidence = json.loads((root / 'docs/evidence/play-964d7bec-chat-examples.json').read_text())

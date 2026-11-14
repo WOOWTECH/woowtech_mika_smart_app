@@ -23,7 +23,7 @@ final class LiveMCPUITests: XCTestCase {
             XCTFail("LIVE_MCP_CLEANUP initial launch did not complete; namespace cleanup is unverified and isolated simulator removal is required.")
             return
         }
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         try LiveMCPNativeLifecycle.requireForeground(app)
@@ -38,7 +38,7 @@ final class LiveMCPUITests: XCTestCase {
         let app = XCUIApplication()
         try LiveMCPNativeLifecycle.stopAndShowHome(app)
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-LiveMCPUITest"]
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-LiveMCPUITest", "-WoowSkipOnboarding"]
         app.launchEnvironment = ["WOOW_LIVE_MCP_URL": endpoint]
         launched = true
         app.launch()

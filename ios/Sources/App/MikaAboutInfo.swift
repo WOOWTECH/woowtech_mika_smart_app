@@ -64,10 +64,9 @@ enum MikaAboutKey: CaseIterable {
         case .diagnosticsCopied: return ("已複製", "Copied")
         case .diagnosticsShare: return ("分享", "Share")
         case .close: return ("完成", "Done")
-        // Play's about_data_note without its sentence on reporting AI replies,
-        // which iOS cannot do yet.
-        case .dataNote: return ("你送出的內容由你選擇的 AI 服務商處理。",
-                                "What you send is processed by the AI provider you choose.")
+        // Play's about_data_note: a reported AI reply is sent to WOOW TECH for review.
+        case .dataNote: return ("你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。",
+                                "What you send is processed by the AI provider you choose. If you report an AI response, that response is sent to WOOW TECH for review.")
         case .copyright: return ("© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）",
                                  "© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)")
         // iOS: App Review asks for the policy inside the app as well.

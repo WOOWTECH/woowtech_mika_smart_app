@@ -273,6 +273,7 @@ enum AppText: Equatable {
     case browserStartSuggestionSubtitle
     case browserChromeClosePage
     case browserChromeAddressPlaceholder
+    case browserChromeEditAddress
     case browserChromeClearInput
     case browserChromeStop
     case browserChromeReload
@@ -320,6 +321,16 @@ enum AppText: Equatable {
     case settingsHomeNotificationDetail
     case settingsNotificationsNormal
     case settingsNotificationsLowered(count: Int)
+    case settingsNotificationsMaster
+    case settingsNotificationsMasterOn
+    case settingsNotificationsMasterOff
+    case settingsNotificationsAttention
+    case settingsNotificationsAttentionWhen
+    case settingsNotificationsResult
+    case settingsNotificationsResultWhen
+    case settingsNotificationsPopsUp
+    case settingsNotificationsQuiet
+    case settingsNotificationsFooter
     case settingsStatusReady
     case settingsStatusReadyDetail
     case settingsStatusNoModel
@@ -394,6 +405,23 @@ enum AppText: Equatable {
     case modelSavedTested(name: String)
     case modelPickMain
     case modelTestNote
+    case welcomeTitle
+    case welcomeLead
+    case welcomeChat
+    case welcomeChatBody
+    case welcomeVoice
+    case welcomeVoiceBody
+    case welcomeWeb
+    case welcomeWebBody
+    case welcomeMemory
+    case welcomeMemoryBody
+    case welcomeNote
+    case welcomeStart
+    case welcomeLater
+    case modelSetupTitle
+    case modelSetupLead
+    case modelSetupOnboardingNote
+    case commonNext
     case modelNotSavedDeclined(name: String)
     case roleMainHint
     case modelsUse
@@ -446,7 +474,6 @@ enum AppText: Equatable {
     case consentAgree
     case consentDecline
     case chatConsentDeclined(provider: String)
-    case settingsStatusReadyMain(model: String, provider: String)
     case modelSettingsTooManyProviders
     case modelSettingsConsentRequired
     case settingsHomeTitle
@@ -457,6 +484,7 @@ enum AppText: Equatable {
     case drawerRecentEmpty
     case drawerRecentCurrent
     case drawerRecentPinned
+    case drawerRecentPinnedMark
     case drawerRecentPin
     case drawerRecentUnpin
     case drawerRecentPinFailed
@@ -482,6 +510,7 @@ enum AppText: Equatable {
     case chatTurnWorking
     case chatStatusConfigured
     case chatStatusUnconfigured
+    case drawerStatusReady
     case chatModelSetupHint
     case chatSendBlockedTitle
     case chatSendBlockedNoModel
@@ -532,6 +561,8 @@ enum AppText: Equatable {
     case voiceChoiceSystem
     case voiceChoiceSystemNote
     case voiceChoiceSystemNone
+    case voiceChoiceSystemOffline
+    case voiceChoiceSystemGone
     case voiceChoiceAvailable
     case voiceChoiceMissing
     case voiceChoiceOff
@@ -676,8 +707,15 @@ enum AppText: Equatable {
     case chatWebStepSelect(site: String)
     case chatWebStepConfirm(site: String)
     case chatWebStepOutward
-    case chatWebAskTitle(target: String)
-    case chatWebAskTitleAmount(target: String, amount: String)
+    case chatWebAskTitle(action: String)
+    case chatWebAskActionPay
+    case chatWebAskActionOrder
+    case chatWebAskActionSubmit
+    case chatWebAskActionDelete
+    case chatWebAskActionSend
+    case chatWebAskSite(site: String)
+    case chatWebAskTarget(target: String)
+    case chatWebAskContent(content: String)
     case chatWebAskNote
     case chatWebAskRefuse
     case chatWebAskAllowOnce
@@ -1167,6 +1205,7 @@ enum AppText: Equatable {
         case .browserStartSuggestionSubtitle: return "browser.start.suggestion.subtitle"
         case .browserChromeClosePage: return "browser.chrome.close.page"
         case .browserChromeAddressPlaceholder: return "browser.chrome.address.placeholder"
+        case .browserChromeEditAddress: return "browser.chrome.edit.address"
         case .browserChromeClearInput: return "browser.chrome.clear.input"
         case .browserChromeStop: return "browser.chrome.stop"
         case .browserChromeReload: return "browser.chrome.reload"
@@ -1214,6 +1253,16 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
         case .settingsNotificationsNormal: return "settings.notifications.normal"
         case .settingsNotificationsLowered: return "settings.notifications.lowered"
+        case .settingsNotificationsMaster: return "settings.notifications.master"
+        case .settingsNotificationsMasterOn: return "settings.notifications.master.on"
+        case .settingsNotificationsMasterOff: return "settings.notifications.master.off"
+        case .settingsNotificationsAttention: return "settings.notifications.attention"
+        case .settingsNotificationsAttentionWhen: return "settings.notifications.attention.when"
+        case .settingsNotificationsResult: return "settings.notifications.result"
+        case .settingsNotificationsResultWhen: return "settings.notifications.result.when"
+        case .settingsNotificationsPopsUp: return "settings.notifications.popsUp"
+        case .settingsNotificationsQuiet: return "settings.notifications.quiet"
+        case .settingsNotificationsFooter: return "settings.notifications.footer"
         case .settingsStatusReady: return "settings.status.ready"
         case .settingsStatusReadyDetail: return "settings.status.ready.detail"
         case .settingsStatusNoModel: return "settings.status.noModel"
@@ -1288,6 +1337,23 @@ enum AppText: Equatable {
         case .modelSavedTested: return "model.savedTested"
         case .modelPickMain: return "model.pickMain"
         case .modelTestNote: return "model.testNote"
+        case .welcomeTitle: return "welcome.title"
+        case .welcomeLead: return "welcome.lead"
+        case .welcomeChat: return "welcome.chat"
+        case .welcomeChatBody: return "welcome.chat.body"
+        case .welcomeVoice: return "welcome.voice"
+        case .welcomeVoiceBody: return "welcome.voice.body"
+        case .welcomeWeb: return "welcome.web"
+        case .welcomeWebBody: return "welcome.web.body"
+        case .welcomeMemory: return "welcome.memory"
+        case .welcomeMemoryBody: return "welcome.memory.body"
+        case .welcomeNote: return "welcome.note"
+        case .welcomeStart: return "welcome.start"
+        case .welcomeLater: return "welcome.later"
+        case .modelSetupTitle: return "modelSetup.title"
+        case .modelSetupLead: return "modelSetup.lead"
+        case .modelSetupOnboardingNote: return "modelSetup.onboardingNote"
+        case .commonNext: return "common.next"
         case .modelNotSavedDeclined: return "model.notSavedDeclined"
         case .roleMainHint: return "role.mainHint"
         case .modelsUse: return "models.use"
@@ -1340,7 +1406,6 @@ enum AppText: Equatable {
         case .consentAgree: return "consent.agree"
         case .consentDecline: return "consent.decline"
         case .chatConsentDeclined: return "chat.consentDeclined"
-        case .settingsStatusReadyMain: return "settings.status.readyMain"
         case .modelSettingsTooManyProviders: return "modelSettings.tooManyProviders"
         case .modelSettingsConsentRequired: return "modelSettings.consentRequired"
         case .settingsHomeTitle: return "settings.home.title"
@@ -1351,6 +1416,7 @@ enum AppText: Equatable {
         case .drawerRecentEmpty: return "drawer.recent.empty"
         case .drawerRecentCurrent: return "drawer.recent.current"
         case .drawerRecentPinned: return "drawer.recent.pinned"
+        case .drawerRecentPinnedMark: return "drawer.recent.pinnedMark"
         case .drawerRecentPin: return "drawer.recent.pin"
         case .drawerRecentUnpin: return "drawer.recent.unpin"
         case .drawerRecentPinFailed: return "drawer.recent.pinFailed"
@@ -1376,6 +1442,7 @@ enum AppText: Equatable {
         case .chatTurnWorking: return "chat.turn.working"
         case .chatStatusConfigured: return "chat.status.configured"
         case .chatStatusUnconfigured: return "chat.status.unconfigured"
+        case .drawerStatusReady: return "drawer.status.ready"
         case .chatModelSetupHint: return "chat.modelSetupHint"
         case .chatSendBlockedTitle: return "chat.sendBlocked.title"
         case .chatSendBlockedNoModel: return "chat.sendBlocked.noModel"
@@ -1426,6 +1493,8 @@ enum AppText: Equatable {
         case .voiceChoiceSystem: return "voice.choice.system"
         case .voiceChoiceSystemNote: return "voice.choice.system.note"
         case .voiceChoiceSystemNone: return "voice.choice.system.none"
+        case .voiceChoiceSystemOffline: return "voice.choice.system.offline"
+        case .voiceChoiceSystemGone: return "voice.choice.system.gone"
         case .voiceChoiceAvailable: return "voice.choice.available"
         case .voiceChoiceMissing: return "voice.choice.missing"
         case .voiceChoiceOff: return "voice.choice.off"
@@ -1571,7 +1640,14 @@ enum AppText: Equatable {
         case .chatWebStepConfirm: return "chat.web.step.confirm"
         case .chatWebStepOutward: return "chat.web.step.outward"
         case .chatWebAskTitle: return "chat.web.ask.title"
-        case .chatWebAskTitleAmount: return "chat.web.ask.titleAmount"
+        case .chatWebAskActionPay: return "chat.web.ask.action.pay"
+        case .chatWebAskActionOrder: return "chat.web.ask.action.order"
+        case .chatWebAskActionSubmit: return "chat.web.ask.action.submit"
+        case .chatWebAskActionDelete: return "chat.web.ask.action.delete"
+        case .chatWebAskActionSend: return "chat.web.ask.action.send"
+        case .chatWebAskSite: return "chat.web.ask.site"
+        case .chatWebAskTarget: return "chat.web.ask.target"
+        case .chatWebAskContent: return "chat.web.ask.content"
         case .chatWebAskNote: return "chat.web.ask.note"
         case .chatWebAskRefuse: return "chat.web.ask.refuse"
         case .chatWebAskAllowOnce: return "chat.web.ask.allowOnce"
@@ -1825,7 +1901,6 @@ enum AppText: Equatable {
         case .consentLead(let provider, let host): return [provider, host]
         case .consentThirdParty(let provider): return [provider]
         case .chatConsentDeclined(let provider): return [provider]
-        case .settingsStatusReadyMain(let model, let provider): return [model, provider]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
@@ -1869,8 +1944,10 @@ enum AppText: Equatable {
         case .chatWebStepType(let site): return [site]
         case .chatWebStepSelect(let site): return [site]
         case .chatWebStepConfirm(let site): return [site]
-        case .chatWebAskTitle(let target): return [target]
-        case .chatWebAskTitleAmount(let target, let amount): return [target, amount]
+        case .chatWebAskTitle(let action): return [action]
+        case .chatWebAskSite(let site): return [site]
+        case .chatWebAskTarget(let target): return [target]
+        case .chatWebAskContent(let content): return [content]
         case .chatWebHandoverTitle(let reason): return [reason]
         case .chatWebWaitingOnYou(let reason): return [reason]
         case .chatWebPaymentItem(let item): return [item]
@@ -1997,14 +2074,14 @@ enum AppText: Equatable {
         case .shellMCPServers: return "MCP 伺服器"
         case .shellBrowser: return "瀏覽器"
         case .shellSettings: return "設定"
-        case .shellToolsTitle: return "Skills 與 MCP"
+        case .shellToolsTitle: return "MCP 伺服器"
         case .shellMemoryTitle: return "記憶與資料"
-        case .shellGreetingMorning: return "早上好"
-        case .shellGreetingNoon: return "中午好"
-        case .shellGreetingAfternoon: return "下午好"
-        case .shellGreetingEvening: return "晚上好"
+        case .shellGreetingMorning: return "早安"
+        case .shellGreetingNoon: return "午安"
+        case .shellGreetingAfternoon: return "午安"
+        case .shellGreetingEvening: return "晚安"
         case .shellGreetingNight: return "夜深了"
-        case .shellWhatToDo: return "想讓渥屋助理做什麼？"
+        case .shellWhatToDo: return "想聊什麼，或需要幫忙查找什麼？"
         case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
         case .shellNewsExample: return "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"
         case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
@@ -2016,7 +2093,7 @@ enum AppText: Equatable {
         case .shellMessagePlaceholder: return "輸入訊息"
         case .shellMessageContinuationPlaceholder: return "繼續說點什麼…"
         case .shellMessageDraft: return "訊息草稿"
-        case .shellStop: return "取消"
+        case .shellStop: return "停止"
         case .shellReturnToLatest: return "回到最新訊息"
         case .shellSend: return "傳送"
         case .appearanceTitle: return "外觀"
@@ -2040,7 +2117,7 @@ enum AppText: Equatable {
         case .commonSelected: return "已選取"
         case .commonUnselected: return "未選取"
         case .commonUnknown: return "尚未取得"
-        case .mcpTitle: return "MCP 與 Skills"
+        case .mcpTitle: return "MCP 伺服器"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
         case .mcpExplanation: return "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。"
@@ -2114,9 +2191,9 @@ enum AppText: Equatable {
         case .browserClearRemaining: return "部分網站資料仍保留，請重新確認。"
         case .browserModeReloading: return "網站偏好已儲存，正在重新整理此頁以套用。"
         case .browserModeDeferred: return "網站偏好已儲存；為避免重送表單或自動化操作，此頁不會重新整理，下次手動導覽時套用。"
-        case .browserBookmarks: return "書籤"
+        case .browserBookmarks: return "常用網站"
         case .browserClearing: return "正在清除網站資料…"
-        case .browserClearHistoryQuestion: return "清除瀏覽歷史？書籤與網站登入資料會保留。"
+        case .browserClearHistoryQuestion: return "清除瀏覽歷史？常用網站與網站登入資料會保留。"
         case .browserClearHistory: return "清除歷史"
         case .browserNoHistory: return "尚無瀏覽歷史"
         case .commonDeleteName: return "刪除 %1$@"
@@ -2142,7 +2219,7 @@ enum AppText: Equatable {
         case .notificationProvisional: return "暫時允許（安靜通知）"
         case .notificationEphemeral: return "暫時允許（短期）"
         case .notificationNotSupported: return "不支援"
-        case .notificationAuthorizationError: return "無法完成系統權限請求，請重新整理狀態後再試。"
+        case .notificationAuthorizationError: return "無法完成系統權限請求，請再點一次「去開啟」。"
         case .notificationDeliveryError: return "這次通知未能送出，請直接在 App 查看任務。"
         case .notificationCompletedTitle: return "任務已完成"
         case .notificationApprovalTitle: return "有操作需要你核准"
@@ -2156,15 +2233,16 @@ enum AppText: Equatable {
         case .browserStartRecent: return "最近開啟"
         case .browserStartClear: return "清除"
         case .browserStartSuggestionHelp: return "只搜尋目前輸入，或開啟已儲存的最近網頁。"
-        case .browserStartAddBookmark: return "加入書籤"
+        case .browserStartAddBookmark: return "新增常用網站"
         case .browserStartViewBookmarks: return "查看書籤"
         case .browserStartOK: return "好"
-        case .browserStartAddBookmarkHelp: return "請先開啟網站，再從書籤頁加入目前網頁。"
-        case .browserStartRemoveBookmark: return "移除書籤：%1$@"
+        case .browserStartAddBookmarkHelp: return "開啟網站後，在「更多」裡點「加入常用網站」"
+        case .browserStartRemoveBookmark: return "移除%1$@"
         case .browserStartAdd: return "新增"
         case .browserStartSuggestionSubtitle: return "搜尋或開啟網址"
         case .browserChromeClosePage: return "關閉網頁並返回起始頁"
         case .browserChromeAddressPlaceholder: return "搜尋或輸入網址"
+        case .browserChromeEditAddress: return "改網址"
         case .browserChromeClearInput: return "清除輸入"
         case .browserChromeStop: return "停止"
         case .browserChromeReload: return "重新整理"
@@ -2197,8 +2275,8 @@ enum AppText: Equatable {
         case .browserChromeWebsite: return "網頁"
         case .browserChromeCopyLink: return "複製連結"
         case .browserChromeOpenOutside: return "在其他 App 開啟"
-        case .browserChromeRemoveBookmark: return "移除書籤"
-        case .browserChromeAddBookmark: return "加入書籤"
+        case .browserChromeRemoveBookmark: return "從常用移除"
+        case .browserChromeAddBookmark: return "加入常用網站"
         case .browserChromeSwitchMobile: return "切換為手機版"
         case .browserChromeSwitchDesktop: return "切換為電腦版"
         case .browserChromeDone: return "完成"
@@ -2212,6 +2290,16 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
         case .settingsNotificationsNormal: return "正常"
         case .settingsNotificationsLowered: return "有 %lld 項不會彈出"
+        case .settingsNotificationsMaster: return "通知總開關"
+        case .settingsNotificationsMasterOn: return "允許渥屋助理發通知"
+        case .settingsNotificationsMasterOff: return "現在不允許渥屋助理發通知，任務結果和提醒都看不到"
+        case .settingsNotificationsAttention: return "需要你處理"
+        case .settingsNotificationsAttentionWhen: return "需要你接管、確認、回答時"
+        case .settingsNotificationsResult: return "任務結果"
+        case .settingsNotificationsResultWhen: return "任務做完時"
+        case .settingsNotificationsPopsUp: return "會彈出"
+        case .settingsNotificationsQuiet: return "只進通知中心"
+        case .settingsNotificationsFooter: return "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理"
         case .settingsStatusReady: return "一切就緒"
         case .settingsStatusReadyDetail: return "模型已就緒 · 可使用對話與內建瀏覽器"
         case .settingsStatusNoModel: return "還沒有能用的模型"
@@ -2286,6 +2374,23 @@ enum AppText: Equatable {
         case .modelSavedTested: return "已存下 %1$@，測試通過。"
         case .modelPickMain: return "選主模型"
         case .modelTestNote: return "「測試並儲存」會用填的模型送出一句固定的測試訊息，有回覆才儲存；不會送出你的對話，但服務商可能收取少量費用。"
+        case .welcomeTitle: return "你好，我是渥屋助理"
+        case .welcomeLead: return "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。"
+        case .welcomeChat: return "AI 對話"
+        case .welcomeChatBody: return "提問並延續之前的對話"
+        case .welcomeVoice: return "語音輸入"
+        case .welcomeVoiceBody: return "說話即可輸入訊息"
+        case .welcomeWeb: return "上網查"
+        case .welcomeWebBody: return "內建瀏覽器，讀網頁、比價、查資料"
+        case .welcomeMemory: return "記憶"
+        case .welcomeMemoryBody: return "保留往後對話需要的資訊"
+        case .welcomeNote: return "先設定你自己的模型服務，就可以開始使用。"
+        case .welcomeStart: return "開始設定"
+        case .welcomeLater: return "稍後再說"
+        case .modelSetupTitle: return "設定模型"
+        case .modelSetupLead: return "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。"
+        case .modelSetupOnboardingNote: return "只有主模型必須選，其他用途可以以後再說。"
+        case .commonNext: return "下一步"
         case .modelNotSavedDeclined: return "沒有儲存：要用 %1$@，需要先同意把內容傳給它。"
         case .roleMainHint: return "思考和辦事都靠它。選支援工具呼叫的模型，辦事才靠得住。"
         case .modelsUse: return "使用"
@@ -2338,7 +2443,6 @@ enum AppText: Equatable {
         case .consentAgree: return "同意並繼續"
         case .consentDecline: return "不同意"
         case .chatConsentDeclined: return "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。"
-        case .settingsStatusReadyMain: return "主模型：%1$@ · %2$@"
         case .modelSettingsTooManyProviders: return "服務商已達上限，請先刪除不用的服務商。"
         case .modelSettingsConsentRequired: return "還沒有同意把內容傳給這家服務商，設定未變更。"
         case .settingsHomeTitle: return "設定"
@@ -2348,17 +2452,18 @@ enum AppText: Equatable {
         case .drawerRecentReload: return "重新讀取"
         case .drawerRecentEmpty: return "尚無保存的對話"
         case .drawerRecentCurrent: return "目前對話"
-        case .drawerRecentPinned: return "已釘選"
-        case .drawerRecentPin: return "釘選"
-        case .drawerRecentUnpin: return "取消釘選"
-        case .drawerRecentPinFailed: return "釘選變更未保存；對話維持原狀。請重新開啟再試。"
-        case .drawerRecentRename: return "重新命名"
-        case .drawerRecentRenameTitle: return "重新命名對話"
+        case .drawerRecentPinned: return "置頂"
+        case .drawerRecentPinnedMark: return "已置頂"
+        case .drawerRecentPin: return "置頂"
+        case .drawerRecentUnpin: return "取消置頂"
+        case .drawerRecentPinFailed: return "置頂變更未保存；對話維持原狀。請重新開啟再試。"
+        case .drawerRecentRename: return "改名"
+        case .drawerRecentRenameTitle: return "改名"
         case .drawerRecentRenameInvalid: return "請輸入非空白的單行標題，且不要過長。"
         case .drawerRecentRenameFailed: return "改名未保存；對話內容不變。請重新開啟再試。"
         case .drawerRecentTurns: return "%lld 輪"
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
-        case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
+        case .drawerRecentUnsentDraft: return "草稿或附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
         case .newConversationConfirmTitle: return "開啟新對話前確認"
         case .newConversationPDFWarning: return "選取的 PDF 尚未送出；開啟新對話會移除附件。"
@@ -2374,9 +2479,10 @@ enum AppText: Equatable {
         case .chatTurnWorking: return "正在處理"
         case .chatStatusConfigured: return "模型已設定"
         case .chatStatusUnconfigured: return "尚未設定模型"
+        case .drawerStatusReady: return "一切就緒"
         case .chatModelSetupHint: return "請先到設定填寫模型服務與 API Key。"
         case .chatSendBlockedTitle: return "還不能開始任務"
-        case .chatSendBlockedNoModel: return "還缺:還沒有能用的模型"
+        case .chatSendBlockedNoModel: return "還缺：還沒有能用的模型"
         case .chatSendBlockedDismiss: return "知道了"
         case .chatSendBlockedOpenSettings: return "去設定"
         case .chatFixtureNotice: return "UI 測試模式：固定回覆，不會呼叫網路。"
@@ -2424,6 +2530,8 @@ enum AppText: Equatable {
         case .voiceChoiceSystem: return "裝置自帶"
         case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
         case .voiceChoiceSystemNone: return "這台裝置沒有可用的語音辨識"
+        case .voiceChoiceSystemOffline: return "離線依語言支援"
+        case .voiceChoiceSystemGone: return "這台裝置沒有"
         case .voiceChoiceAvailable: return "可用"
         case .voiceChoiceMissing: return "沒有"
         case .voiceChoiceOff: return "不用"
@@ -2447,19 +2555,19 @@ enum AppText: Equatable {
         case .chatAttachPhotosAndFiles: return "照片和檔案"
         case .chatAttachRemove: return "去掉%1$@"
         case .chatAttachFull: return "一次最多 %1$lld 個附件"
-        case .chatAttachOverLimit: return "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上"
-        case .chatAttachRefused: return "沒能新增:%1$@(單個檔案不超過 200 MB)"
+        case .chatAttachOverLimit: return "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上"
+        case .chatAttachRefused: return "沒能新增：%1$@（單個檔案不超過 200 MB）"
         case .settingsSeesImages: return "能看圖"
-        case .settingsSeesImagesUnconfirmed: return "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。"
-        case .settingsSeesImagesUser: return "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。"
-        case .chatAttachImagesNotSeen: return "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+        case .settingsSeesImagesUnconfirmed: return "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。"
+        case .settingsSeesImagesUser: return "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。"
+        case .chatAttachImagesNotSeen: return "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         case .chatMessageCopy: return "複製"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"
         case .chatMessageQuoteFailed: return "沒能引用這則訊息"
         case .chatQuoteRemove: return "移除引用"
-        case .chatQuotingAssistant: return "引用渥屋助理:%1$@"
-        case .chatQuotingYou: return "引用你的話:%1$@"
+        case .chatQuotingAssistant: return "引用渥屋助理：%1$@"
+        case .chatQuotingYou: return "引用你的話：%1$@"
         case .chatMessageSelectText: return "選取文字"
         case .chatMessageSelectHint: return "長按文字就能選取"
         case .chatMessageSelectDone: return "完成"
@@ -2569,7 +2677,14 @@ enum AppText: Equatable {
         case .chatWebStepConfirm: return "請你同意 · %1$@"
         case .chatWebStepOutward: return "對外動作"
         case .chatWebAskTitle: return "要你同意：%1$@"
-        case .chatWebAskTitleAmount: return "要你同意：%1$@ %2$@"
+        case .chatWebAskActionPay: return "付款"
+        case .chatWebAskActionOrder: return "下單"
+        case .chatWebAskActionSubmit: return "提交"
+        case .chatWebAskActionDelete: return "刪除"
+        case .chatWebAskActionSend: return "傳送"
+        case .chatWebAskSite: return "在 %1$@"
+        case .chatWebAskTarget: return "目標：%1$@"
+        case .chatWebAskContent: return "內容：%1$@"
         case .chatWebAskNote: return "花錢的操作每次都要你同意。"
         case .chatWebAskRefuse: return "拒絕"
         case .chatWebAskAllowOnce: return "允許這一次"
@@ -2741,8 +2856,8 @@ enum AppText: Equatable {
         case .chatMcpResultsView: return "檢視工具結果（%1$lld）"
         case .chatArchiveRetry: return "重試保存"
         case .chatLearningOrganizing: return "正在整理你說過的事…"
-        case .chatMemoryApprove: return "批准"
-        case .chatMemoryReject: return "拒絕"
+        case .chatMemoryApprove: return "好"
+        case .chatMemoryReject: return "不要"
         case .chatMemoryUndo: return "撤銷"
         case .browserDialogTitle: return "網站訊息"
         case .browserDialogInput: return "輸入內容"

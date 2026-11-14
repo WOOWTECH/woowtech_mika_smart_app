@@ -104,13 +104,13 @@ final class BrowserInteractionUITests: XCTestCase {
 
     private func launchFixture() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
-                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
         navigateMikaSection("browser", in: app)
         enter(fixtureURL + "\n", into: app.textFields["browser.address"])
         wait(app.staticTexts["browser.status"], "label == %@", "頁面已載入", timeout: 75)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         XCTAssertTrue(dom("Interaction fixture").exists)
     }
     private func openControls() {

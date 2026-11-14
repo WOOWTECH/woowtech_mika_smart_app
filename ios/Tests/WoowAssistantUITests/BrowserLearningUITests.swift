@@ -67,7 +67,7 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research.close")
         waitFor(fixtureHeading, predicate: "exists == true")
         XCTAssertFalse(app.staticTexts["browser.error"].exists)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String,
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String,
                        "https://research.example.invalid/epsilon")
 
         openMemory()
@@ -113,7 +113,7 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertTrue(routes.label.contains("1 條"), routes.label)
     }
 
-    func testUnconfiguredBrowserRetainsGoalAcrossSections() {
+    func testUnconfiguredResearchLearnsNothingAndLeavingClosesThePage() {
         launch()
         openFixture()
         enterGoal()
@@ -123,17 +123,15 @@ final class BrowserLearningUITests: XCTestCase {
         tap("browser.research.close")
         navigateMikaSection("chat", in: app)
         waitForLabel(app.staticTexts["chat.status"], "尚未設定模型")
+        // Like the Play build, leaving the browser closes the page (nothing was
+        // running), so coming back shows the start page.
         navigateMikaSection("browser", in: app)
-        waitForLabel(app.staticTexts["browser.status"], "頁面已載入")
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
-        tap("browser.research")
-        XCTAssertTrue(app.buttons["browser.start"].waitForExistence(timeout: 5))
-        XCTAssertEqual(goalField.value as? String, goal)
-        XCTAssertFalse(app.buttons["browser.start"].isEnabled)
-        XCTAssertFalse(app.buttons["browser.task.cancel"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        waitForLabel(app.staticTexts["browser.status"], "輸入網址開始瀏覽")
+        XCTAssertFalse(app.buttons["browser.addressPill"].exists)
+        XCTAssertFalse(app.buttons["browser.research"].isEnabled)
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
-        tap("browser.research.close")
 
         // Without a model nothing is learned: no memory and no saved route.
         openMemory()
@@ -168,10 +166,12 @@ final class BrowserLearningUITests: XCTestCase {
         returnFromModelSettings(in: app)
 
         let stopped = "已停止；已取得的內容與草稿保留"
+        // The page was still running research when the browser was left, so it
+        // was kept rather than closed: it shows the stop.
         navigateMikaSection("browser", in: app)
         waitForLabel(app.staticTexts["browser.status"], stopped)
         XCTAssertFalse(app.buttons["browser.cancel"].exists)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         tap("browser.research")
         waitForLabel(app.staticTexts["browser.task.status"], stopped)
         XCTAssertEqual(goalField.value as? String, waitingGoal)
@@ -194,24 +194,22 @@ final class BrowserLearningUITests: XCTestCase {
         XCTAssertTrue(routes.label.contains("記住的操作路線"), routes.label)
         XCTAssertFalse(app.staticTexts["memory.error"].exists)
 
-        // Recheck after navigation gives cancellation completion a chance to
-        // publish; neither a stale reply nor a learning result may appear.
+        // The stopped research no longer held the page when Memory opened, so,
+        // like Play, leaving closed it: coming back shows the start page, and
+        // neither a stale reply nor a learning result appears.
         navigateMikaSection("browser", in: app)
-        waitForLabel(app.staticTexts["browser.status"], stopped)
-        tap("browser.research")
-        waitForLabel(app.staticTexts["browser.task.status"], stopped)
-        XCTAssertEqual(goalField.value as? String, waitingGoal)
-        XCTAssertFalse(app.buttons["browser.start"].isEnabled)
+        XCTAssertTrue(app.descendants(matching: .any)["browser.start"].waitForExistence(timeout: 10))
+        waitForLabel(app.staticTexts["browser.status"], "輸入網址開始瀏覽")
+        XCTAssertFalse(app.buttons["browser.research"].isEnabled)
         XCTAssertFalse(app.staticTexts["browser.answer"].exists)
         XCTAssertFalse(app.staticTexts["browser.learning"].exists)
-        tap("browser.research.close")
     }
 
     private func launch(reset: Bool = true) {
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 10))
@@ -309,7 +307,7 @@ final class BrowserLearningUITests: XCTestCase {
     private func assertTrialSkill(_ name: String) {
         let item = app.staticTexts["skills.item.\(name)"]
         reveal(item)
-        waitForLabel(app.staticTexts["skills.state.\(name)"], "試用中 · 尚未驗證")
+        waitForLabel(app.staticTexts["skills.state.\(name)"], "試用中，還沒用它辦成過事")
         let enabled = app.switches["skills.enabled.\(name)"]
         reveal(enabled)
         XCTAssertEqual(enabled.value as? String, "1")

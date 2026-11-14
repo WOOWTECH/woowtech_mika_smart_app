@@ -339,7 +339,7 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertTrue(text("LOGIN_SERVER_LOGINS_0").exists,
                       "Relaunch must not secretly submit the login form again.")
         XCTAssertNotEqual(serverInstance, firstInstance, "The receipt must come from a new server process.")
-        guard let statusURL = URL(string: app.textFields["browser.address"].value as? String ?? ""),
+        guard let statusURL = URL(string: app.buttons["browser.addressPill"].value as? String ?? ""),
               statusURL.host == "127.0.0.1" else { XCTFail("Expected synthetic status URL after relaunch."); return }
         let currentURL = statusURL.deletingLastPathComponent().appendingPathComponent("protected")
         tap(app.webViews.buttons["登出測試帳號"].firstMatch)
@@ -355,12 +355,17 @@ final class BrowserLoginUITests: XCTestCase {
         launch(reset: true)
         loginByTyping()
         let protectedURL = currentProtectedURL()
-        // Like the Play build: Memory › Saved data › Website sign-ins lists the sites.
-        openSignIns()
+        // Like the Play build: Memory › Saved data › Website sign-ins counts and
+        // lists the sites signed in to here; the signed-in page put this one there.
+        openSignIns(expectedCount: 1)
         let site = app.buttons["signIns.site.127.0.0.1"]
+        XCTAssertTrue(site.waitForExistence(timeout: 30))
+        XCTAssertTrue(site.label.contains("在渥屋助理裡登入過"), site.label)
         tap(site, timeout: 30)
         let signOut = app.buttons.matching(identifier: "signIns.signOutSite").firstMatch
         XCTAssertTrue(signOut.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons.matching(identifier: "signIns.openLogin").firstMatch.exists,
+                      "Like Play, a listed site offers 開啟登入.")
         tap(signOut)
         let noticeDone = app.buttons.matching(identifier: "signIns.notice.done").firstMatch
         XCTAssertTrue(noticeDone.waitForExistence(timeout: 15))
@@ -401,7 +406,7 @@ final class BrowserLoginUITests: XCTestCase {
     private func launch(reset: Bool) {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestBrowserLogin", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         navigateMikaSection("browser", in: app)
@@ -633,7 +638,8 @@ final class BrowserLoginUITests: XCTestCase {
     }
 
     private func currentProtectedURL() -> URL {
-        let raw = app.textFields["browser.address"].value as? String ?? ""
+        // Play's page bar shows the site; the address pill's value is the full URL.
+        let raw = app.buttons["browser.addressPill"].value as? String ?? ""
         guard let url = URL(string: raw), url.host == "127.0.0.1",
               url.path == "/login-fixture/\(namespace.lowercased())/protected" else {
             XCTFail("Expected the synthetic protected HTTP page.")
@@ -656,10 +662,11 @@ final class BrowserLoginUITests: XCTestCase {
         XCTAssertFalse((field.value as? String ?? "").hasPrefix("http://"), "The start page must start empty.")
         field.typeText(url.absoluteString + "\n")
     }
-    private func openSignIns() {
+    private func openSignIns(expectedCount: Int) {
         navigateMikaSection("memory", in: app)
         let entry = app.buttons["memory.manageWebsites"]
         revealLearningElement(entry, in: app)
+        XCTAssertTrue(entry.label.contains("\(expectedCount) 個"), entry.label)
         tap(entry)
         XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 15))
     }
