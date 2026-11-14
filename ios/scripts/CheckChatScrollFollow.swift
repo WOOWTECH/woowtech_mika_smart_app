@@ -119,6 +119,48 @@ enum CheckChatScrollFollow {
         expect(!follow.observe(sample(1880, 1020)))
         expect(!follow.followsTail)
 
+        // Two quick flicks back to the end: the first reaches it and the second
+        // starts before the first settled, only bouncing there. Together they
+        // move toward the latest text and resume following (iPhone 16 Pro Max,
+        // run 43606357170, kept showing 回到最新訊息 at the end).
+        var twoFlicks = ChatScrollFollowPolicy()
+        expect(twoFlicks.observe(sample(1200, 500)))
+        twoFlicks.beginDrag()
+        twoFlicks.userDraggedTowardEarlierContent()
+        expect(!twoFlicks.observe(sample(1200, 800)))
+        twoFlicks.endDrag()
+        expect(twoFlicks.settle(expectedRevision: twoFlicks.pendingSettleRevision!))
+        expect(!twoFlicks.followsTail)
+        twoFlicks.beginDrag()
+        twoFlicks.userDraggedTowardLatestContent()
+        expect(!twoFlicks.observe(sample(1200, 500))) // the first flick reaches the end
+        twoFlicks.endDrag()
+        twoFlicks.beginDrag() // before the first settled
+        twoFlicks.userDraggedTowardLatestContent()
+        expect(!twoFlicks.observe(sample(1200, 460))) // rubber band past the end
+        expect(!twoFlicks.observe(sample(1200, 500)))
+        twoFlicks.endDrag()
+        expect(twoFlicks.settle(expectedRevision: twoFlicks.pendingSettleRevision!))
+        expect(twoFlicks.followsTail)
+        // A drag after the previous one settled still starts fresh: a bounce at
+        // the end while reading earlier does not resume following by itself.
+        var settledBounce = ChatScrollFollowPolicy()
+        expect(settledBounce.observe(sample(1200, 500)))
+        settledBounce.beginDrag()
+        settledBounce.userDraggedTowardEarlierContent()
+        expect(!settledBounce.observe(sample(1200, 800)))
+        settledBounce.endDrag()
+        expect(settledBounce.settle(expectedRevision: settledBounce.pendingSettleRevision!))
+        expect(!settledBounce.observe(sample(1200, 500))) // passive motion to the end
+        expect(!settledBounce.followsTail)
+        settledBounce.beginDrag()
+        settledBounce.userDraggedTowardLatestContent()
+        expect(!settledBounce.observe(sample(1200, 460)))
+        expect(!settledBounce.observe(sample(1200, 500)))
+        settledBounce.endDrag()
+        expect(settledBounce.settle(expectedRevision: settledBounce.pendingSettleRevision!))
+        expect(!settledBounce.followsTail)
+
         follow.userSubmitted() // a newly accepted send always resumes follow
         expect(follow.followsTail)
         expect(follow.pendingSettleRevision == nil)
