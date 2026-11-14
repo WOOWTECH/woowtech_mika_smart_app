@@ -2,6 +2,7 @@ import XCTest
 
 final class ChatWebTaskTests: XCTestCase {
     @MainActor func testPolicyCommandsPacingAndRunner() async throws {
-        XCTAssertGreaterThan(try await ChatWebTaskChecks.run(), 100)
+        let checks = try await ChatWebTaskChecks.run()
+        XCTAssertGreaterThan(checks, 100)
     }
 }
