@@ -493,13 +493,16 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
                 // Like the Play build, no website notes are proposed; only routes are kept.
                 // A one-page answer is not a reusable multi-step route.
                 if actions.filter({ $0.tool == "browser_open_link" }).count >= 2 {
-                    let steps = try actions.filter { $0.tool != "browser_find" }.map { action -> WebRouteStep in
+                    // A step can be refused, for example a page address with a query string;
+                    // then only the route is dropped and the skill result above is still saved.
+                    if let steps = try? actions.filter({ $0.tool != "browser_find" }).map({ action -> WebRouteStep in
                         let page = action.observation
                         return try WebRouteStep(kind: action.tool == "browser_open_link" ? .navigate : .observe,
                             snapshot: PageSnapshot(url: page.url, title: page.title, visibleText: page.text, capturedAt: page.capturedAt),
                             evidenceQuote: String(page.text.prefix(160)))
+                    }) {
+                        _ = try? nextRoutes.record(intent: goal, steps: steps, task: task)
                     }
-                    _ = try nextRoutes.record(intent: goal, steps: steps, task: task)
                 }
             }
             try saveSnapshot(LearningSnapshot(memory: memory, skills: nextSkills, websites: nextWebsites, routes: nextRoutes, profile: profile))
