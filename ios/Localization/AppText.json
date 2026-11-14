@@ -2251,8 +2251,8 @@
       "key": "notification.authorization.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "無法完成系統權限請求，請重新整理狀態後再試。",
-        "en": "The system permission request did not complete. Refresh the status and try again."
+        "zh-Hant": "無法完成系統權限請求，請再點一次「去開啟」。",
+        "en": "The system permission request did not complete. Tap “Turn on” again."
       }
     },
     {

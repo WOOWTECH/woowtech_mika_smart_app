@@ -239,7 +239,7 @@
 "notification.provisional" = "Provisionally allowed (quiet notifications)";
 "notification.ephemeral" = "Temporarily allowed";
 "notification.not.supported" = "Not supported";
-"notification.authorization.error" = "The system permission request did not complete. Refresh the status and try again.";
+"notification.authorization.error" = "The system permission request did not complete. Tap “Turn on” again.";
 "notification.delivery.error" = "This notification could not be sent. View the task in the app.";
 "notification.completed.title" = "Task completed";
 "notification.approval.title" = "An action needs your approval";

@@ -2145,7 +2145,7 @@ enum AppText: Equatable {
         case .notificationProvisional: return "暫時允許（安靜通知）"
         case .notificationEphemeral: return "暫時允許（短期）"
         case .notificationNotSupported: return "不支援"
-        case .notificationAuthorizationError: return "無法完成系統權限請求，請重新整理狀態後再試。"
+        case .notificationAuthorizationError: return "無法完成系統權限請求，請再點一次「去開啟」。"
         case .notificationDeliveryError: return "這次通知未能送出，請直接在 App 查看任務。"
         case .notificationCompletedTitle: return "任務已完成"
         case .notificationApprovalTitle: return "有操作需要你核准"

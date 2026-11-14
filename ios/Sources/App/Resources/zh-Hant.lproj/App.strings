@@ -239,7 +239,7 @@
 "notification.provisional" = "暫時允許（安靜通知）";
 "notification.ephemeral" = "暫時允許（短期）";
 "notification.not.supported" = "不支援";
-"notification.authorization.error" = "無法完成系統權限請求，請重新整理狀態後再試。";
+"notification.authorization.error" = "無法完成系統權限請求，請再點一次「去開啟」。";
 "notification.delivery.error" = "這次通知未能送出，請直接在 App 查看任務。";
 "notification.completed.title" = "任務已完成";
 "notification.approval.title" = "有操作需要你核准";

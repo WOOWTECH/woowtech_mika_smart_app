@@ -92,7 +92,7 @@ public enum TaskNotificationNotice: String, Sendable {
     case authorizationUnavailable, deliveryUnavailable
     public var message: String {
         switch self {
-        case .authorizationUnavailable: return "無法完成系統權限請求，請重新整理狀態後再試。"
+        case .authorizationUnavailable: return "無法完成系統權限請求，請再點一次「去開啟」。"
         case .deliveryUnavailable: return "這次通知未能送出，請直接在 App 查看任務。"
         }
     }
