@@ -1,7 +1,8 @@
 import XCTest
 
-/// Real authorization, native test-notification banner and preference
-/// persistence in an isolated simulator. Audible sound still needs a person.
+/// Play's notification page with real authorization, the native
+/// test-notification banner, iOS Settings and preference persistence in an
+/// isolated simulator. Audible sound still needs a person.
 final class NotificationUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
@@ -9,7 +10,8 @@ final class NotificationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 240
+        // Three launches, a system banner and a round trip to iOS Settings.
+        executionTimeAllowance = 300
     }
 
     override func tearDownWithError() throws {
@@ -28,10 +30,13 @@ final class NotificationUITests: XCTestCase {
         app.terminate()
     }
 
-    func testExplicitAuthorizationAndPreferenceSurviveRelaunchThenDisable() throws {
+    func testExplicitAllowSurvivesRelaunchAndAnAppOptOutTurnsBackOnWithoutAPrompt() throws {
         launch(reset: true)
         try openSettings()
-        XCTAssertEqual(app.staticTexts["notifications.enabled"].label, "已關閉")
+        // Like the Play page: off by default, so the master switch offers 去開啟
+        // and both kinds read 已關閉.
+        try assertMaster(allowed: false)
+        try assertKinds("已關閉")
         let before = try authorization()
         // Permission belongs to the simulator's App, not a UserDefaults suite.
         // Do not invent a private resetAuthorizationStatus raw value.
@@ -39,12 +44,12 @@ final class NotificationUITests: XCTestCase {
                       "The banner case requires full authorization; provisional or denied states are separate cases.")
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         XCTAssertFalse(springboard.alerts.firstMatch.exists, "Opening settings must not ask for permission.")
-        try tap(app.buttons["notifications.enable"])
+        try tap(app.buttons["notifications.enabled"])
 
         var promptObserved = false
         if before == "notDetermined" {
             let alert = springboard.alerts.firstMatch
-            XCTAssertTrue(alert.waitForExistence(timeout: 15), "Explicit enable must show the actual system prompt.")
+            XCTAssertTrue(alert.waitForExistence(timeout: 15), "去開啟 must show the actual system prompt.")
             let snapshot = try alert.snapshot()
             var labels: [String] = []
             func visit(_ node: XCUIElementSnapshot) {
@@ -60,14 +65,15 @@ final class NotificationUITests: XCTestCase {
             try tap(allow, scroll: false)
             promptObserved = true
         }
-        try wait("The local preference and actual system grant must both be ready.", seconds: 15) {
-            let authorization = self.app.staticTexts["notifications.authorization"].value as? String ?? "unknown"
-            return self.app.staticTexts["notifications.enabled"].label == "已開啟"
-                && authorization == "authorized"
+        try wait("The master switch and the actual system grant must both be ready.", seconds: 15) {
+            self.master.value as? String == "已允許"
+                && self.app.staticTexts["notifications.authorization"].value as? String == "authorized"
         }
         let granted = try authorization()
         XCTAssertEqual(granted, "authorized")
-        try assertSettingsValues()
+        try assertMaster(allowed: true)
+        // One App-level iOS setting: with banners on, both kinds pop up.
+        try assertKinds("會彈出")
         print("NOTIFICATION_SETTINGS enabled=1 systemPromptObserved=\(promptObserved ? 1 : 0)")
 
         // The explicit test action uses the production UN adapter. Require a
@@ -106,24 +112,39 @@ final class NotificationUITests: XCTestCase {
         app.terminate()
         launch(reset: false)
         try openSettings()
-        XCTAssertEqual(app.staticTexts["notifications.enabled"].label, "已開啟")
+        try assertMaster(allowed: true)
         XCTAssertEqual(try authorization(), granted)
-        try tap(app.buttons["notifications.refresh"])
-        XCTAssertEqual(try authorization(), granted)
-        try assertSettingsValues()
-        try tap(app.buttons["notifications.disable"])
-        try wait("Disable must persist without changing the system permission.", seconds: 10) {
-            self.app.staticTexts["notifications.enabled"].label == "已關閉"
-        }
-        XCTAssertEqual(try authorization(), granted)
+        // Like Play's channel rows, a kind opens where iOS changes it. Coming
+        // back refreshes the page; there is no refresh button any more.
+        try tap(app.buttons["notifications.attention"])
+        let systemSettings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssertTrue(systemSettings.wait(for: .runningForeground, timeout: 15),
+                      "需要你處理 must open the App's notification settings in iOS Settings.")
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        try assertMaster(allowed: true)
+        try assertKinds("會彈出")
+        systemSettings.terminate()
+        print("NOTIFICATION_SETTINGS relaunchEnabled=1 kindOpensSystemSettings=1")
 
+        // An App opt-out saved by an earlier build: the preference is cleared
+        // while iOS still allows notifications. 去開啟 turns them back on
+        // without asking again, so nobody is stuck with them off.
         app.terminate()
-        launch(reset: false)
+        launch(reset: true)
         try openSettings()
-        XCTAssertEqual(app.staticTexts["notifications.enabled"].label, "已關閉")
+        try assertMaster(allowed: false)
+        try assertKinds("已關閉")
         XCTAssertEqual(try authorization(), granted)
-        XCTAssertFalse(springboard.alerts.firstMatch.exists)
-        print("NOTIFICATION_SETTINGS relaunchEnabled=1 disablePersisted=1 systemPermissionRetained=1")
+        try tap(app.buttons["notifications.enabled"])
+        try wait("去開啟 must turn the notifications back on.", seconds: 10) {
+            self.master.value as? String == "已允許"
+        }
+        XCTAssertFalse(springboard.alerts.firstMatch.exists, "iOS already allows them: no second prompt.")
+        try assertMaster(allowed: true)
+        try assertKinds("會彈出")
+        XCTAssertEqual(try authorization(), granted)
+        print("NOTIFICATION_SETTINGS appOptOutTurnedBackOn=1 systemPermissionRetained=1")
     }
 
     private func launch(reset: Bool) {
@@ -140,9 +161,41 @@ final class NotificationUITests: XCTestCase {
         let entry = app.buttons["settings.notifications"]
         revealLearningElement(entry, in: app)
         try tap(entry)
-        XCTAssertTrue(app.staticTexts["notifications.enabled"].waitForExistence(timeout: 10))
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
     }
 
+    /// Play's 通知總開關: a button with 去開啟 only while notifications cannot
+    /// be delivered; 已允許 otherwise.
+    private var master: XCUIElement { app.descendants(matching: .any)["notifications.enabled"].firstMatch }
+
+    private func assertMaster(allowed: Bool) throws {
+        let master = self.master
+        try wait("The master switch must show the actual state.", seconds: 10) {
+            master.exists && master.value as? String == (allowed ? "已允許" : "去開啟")
+        }
+        XCTAssertTrue(master.label.hasPrefix("通知總開關"), master.label)
+        if allowed {
+            XCTAssertTrue(master.label.contains("允許渥屋助理發通知") && !master.label.contains("不允許"), master.label)
+        } else {
+            XCTAssertTrue(master.label.contains("現在不允許渥屋助理發通知"), master.label)
+        }
+        XCTAssertEqual(app.buttons["notifications.enabled"].exists, !allowed,
+                       "Like Play, only a master switch that is off can be tapped.")
+    }
+
+    /// iOS has one notification setting for the App, so both kinds always
+    /// show the same state.
+    private func assertKinds(_ state: String) throws {
+        for (identifier, title) in [("notifications.attention", "需要你處理"), ("notifications.result", "任務結果")] {
+            let row = app.buttons[identifier]
+            try wait("Both kinds must show the App-level state.", seconds: 10) {
+                row.exists && row.value as? String == state
+            }
+            XCTAssertTrue(row.label.hasPrefix(title), row.label)
+        }
+    }
+
+    /// The raw iOS authorization, exposed for UI tests only.
     private func authorization() throws -> String {
         let value = app.staticTexts["notifications.authorization"]
         if !value.exists { revealLearningElement(value, in: app, visibility: .readableText) }
@@ -151,16 +204,6 @@ final class NotificationUITests: XCTestCase {
             return ["notDetermined", "denied", "authorized", "provisional", "ephemeral"].contains(raw)
         }
         return value.value as? String ?? "unknown"
-    }
-
-    private func assertSettingsValues() throws {
-        for identifier in ["notifications.sound", "notifications.alert"] {
-            let field = app.staticTexts[identifier]
-            if !field.exists { revealLearningElement(field, in: app, visibility: .readableText) }
-            XCTAssertTrue(field.exists)
-            XCTAssertTrue(["enabled", "disabled", "notSupported"].contains(field.value as? String ?? "unknown"),
-                          "Display the actual system setting, never infer sound/alert delivery from permission alone.")
-        }
     }
 
     private struct SystemBanner { let frame: CGRect; let labels: [String] }
