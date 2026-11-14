@@ -20,6 +20,8 @@ enum AppText: Equatable {
     case learningDeleted
     case learningRemembered(value: String)
     case learningUpdated(value: String)
+    case learningUpdatedWas(value: String, was: String)
+    case learningForgotItem(value: String)
     case learningPendingProcedure(value: String)
     case learningUseCountFailed
     case learningTidyUnconfirmed
@@ -952,6 +954,8 @@ enum AppText: Equatable {
         case .learningDeleted: return "learning.deleted"
         case .learningRemembered: return "learning.remembered"
         case .learningUpdated: return "learning.updated"
+        case .learningUpdatedWas: return "learning.updatedWas"
+        case .learningForgotItem: return "learning.forgotItem"
         case .learningPendingProcedure: return "learning.pendingProcedure"
         case .learningUseCountFailed: return "learning.useCountFailed"
         case .learningTidyUnconfirmed: return "learning.tidyUnconfirmed"
@@ -1871,6 +1875,8 @@ enum AppText: Equatable {
         switch self {
         case .learningRemembered(let value): return [value]
         case .learningUpdated(let value): return [value]
+        case .learningUpdatedWas(let value, let was): return [value, was]
+        case .learningForgotItem(let value): return [value]
         case .learningPendingProcedure(let value): return [value]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
@@ -1985,11 +1991,13 @@ enum AppText: Equatable {
         case .learningProcedureDeclined: return "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。"
         case .learningCleared: return "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。"
         case .learningClearedKeyPending: return "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。"
-        case .learningForgot: return "已忘掉一條記憶"
-        case .learningDeleted: return "這條記憶已刪除"
+        case .learningForgot: return "忘掉了一條記憶"
+        case .learningDeleted: return "一條已刪除的記憶"
         case .learningRemembered: return "記住了：%1$@"
         case .learningUpdated: return "更新了：%1$@"
-        case .learningPendingProcedure: return "待你確認做法：%1$@"
+        case .learningUpdatedWas: return "更新了：%1$@（原本：%2$@）"
+        case .learningForgotItem: return "忘掉了：%1$@"
+        case .learningPendingProcedure: return "要我以後都這樣做嗎？%1$@"
         case .learningUseCountFailed: return "已讀取記憶，但使用次數未能儲存；原記憶保留。"
         case .learningTidyUnconfirmed: return "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。"
         case .learningTidyConflict: return "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。"

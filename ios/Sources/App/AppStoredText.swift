@@ -82,7 +82,7 @@ extension AppText {
 
     private static let storedFixed: [AppText] = [
         .learningUnavailable, .learningProfileSaved, .learningProcedureApproved, .learningProcedureDeclined,
-        .learningCleared, .learningClearedKeyPending, .learningForgot, .learningDeleted, .learningUseCountFailed,
+        .learningCleared, .learningClearedKeyPending, .learningUseCountFailed,
         .learningTidyUnconfirmed, .learningTidyConflict, .learningTidyBusy, .learningTidyFailed,
         .learningWebNotSaved, .learningNotSaved, .learningSkillRecordFailed, .learningBusy, .learningConflict,
         .learningProfileInvalidSentence, .learningProfileDuplicate, .learningProfileFull,
@@ -141,9 +141,6 @@ extension AppText {
     ]
 
     private static let storedPatterns: [(AppText, (StoredValues) -> AppText?)] = [
-        (.learningRemembered(value: ""), { .learningRemembered(value: $0.text(1)) }),
-        (.learningUpdated(value: ""), { .learningUpdated(value: $0.text(1)) }),
-        (.learningPendingProcedure(value: ""), { .learningPendingProcedure(value: $0.text(1)) }),
         (.storedChatContextWindow(retained: 0, omitted: 0), { values in
             guard let retained = values.count(1), let omitted = values.count(2) else { return nil }
             return .storedChatContextWindow(retained: retained, omitted: omitted)

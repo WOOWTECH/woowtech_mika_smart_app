@@ -1308,7 +1308,7 @@ private struct LearningChatNotes: View {
             }
             ForEach(Array(store.notes.enumerated()), id: \.element.memoryID) { index, note in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(localizer.stored(store.noteText(note))).font(.caption)
+                    Text(store.noteText(note, localizer: localizer)).font(.caption)
                         .accessibilityIdentifier("chat.memoryNote.\(index)")
                     HStack {
                         if store.canReviewMemory(note) {

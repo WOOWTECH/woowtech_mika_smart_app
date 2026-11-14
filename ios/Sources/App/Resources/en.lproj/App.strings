@@ -13,10 +13,12 @@
 "learning.cleared" = "Cleared your profile, memories, skills and routes, and renewed the encryption key. Model and MCP settings are kept.";
 "learning.clearedKeyPending" = "Data cleared and the encryption key renewed, but removing the old key didn’t finish. Unlock the device and clear again.";
 "learning.forgot" = "Forgot a memory";
-"learning.deleted" = "This memory was deleted";
+"learning.deleted" = "a deleted memory";
 "learning.remembered" = "Remembered: %1$@";
 "learning.updated" = "Updated: %1$@";
-"learning.pendingProcedure" = "Procedure to review: %1$@";
+"learning.updatedWas" = "Updated: %1$@ (was: %2$@)";
+"learning.forgotItem" = "Forgot: %1$@";
+"learning.pendingProcedure" = "Do it this way from now on? %1$@";
 "learning.useCountFailed" = "Memory was read, but its use count couldn’t be saved. The memory is unchanged.";
 "learning.tidyUnconfirmed" = "Reply finished. The current model connection couldn’t confirm the memory tidy-up request, so memory wasn’t tidied this time.";
 "learning.tidyConflict" = "Reply finished. Learning data changed elsewhere, so this memory tidy-up wasn’t saved. Reload and check.";

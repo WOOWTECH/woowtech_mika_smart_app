@@ -128,7 +128,7 @@
       "key": "learning.forgot",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已忘掉一條記憶",
+        "zh-Hant": "忘掉了一條記憶",
         "en": "Forgot a memory"
       }
     },
@@ -137,8 +137,8 @@
       "key": "learning.deleted",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這條記憶已刪除",
-        "en": "This memory was deleted"
+        "zh-Hant": "一條已刪除的記憶",
+        "en": "a deleted memory"
       }
     },
     {
@@ -170,6 +170,38 @@
       }
     },
     {
+      "case": "learningUpdatedWas",
+      "key": "learning.updatedWas",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        },
+        {
+          "name": "was",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "更新了：%1$@（原本：%2$@）",
+        "en": "Updated: %1$@ (was: %2$@)"
+      }
+    },
+    {
+      "case": "learningForgotItem",
+      "key": "learning.forgotItem",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "忘掉了：%1$@",
+        "en": "Forgot: %1$@"
+      }
+    },
+    {
       "case": "learningPendingProcedure",
       "key": "learning.pendingProcedure",
       "parameters": [
@@ -179,8 +211,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "待你確認做法：%1$@",
-        "en": "Procedure to review: %1$@"
+        "zh-Hant": "要我以後都這樣做嗎？%1$@",
+        "en": "Do it this way from now on? %1$@"
       }
     },
     {

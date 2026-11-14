@@ -358,15 +358,19 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         if success { notes.removeAll { $0.undoToken == token } }
     }
 
-    func noteText(_ note: MemoryNote) -> String {
-        guard let item = memory.memories.first(where: { $0.id == note.memoryID }) else {
-            return note.kind == .forgot ? "已忘掉一條記憶" : "這條記憶已刪除"
-        }
+    /// The note under the reply, worded like Play's ChatViewModel.noteText: the
+    /// memory as it is now, or 一條已刪除的記憶 once it is gone.
+    func noteText(_ note: MemoryNote, localizer: AppLocalizer) -> String {
+        let item = memory.memories.first(where: { $0.id == note.memoryID })
+        let content = item?.content ?? localizer.text(.learningDeleted)
         switch note.kind {
-        case .added: return "記住了：\(item.content)"
-        case .updated: return "更新了：\(item.content)"
-        case .forgot: return "已忘掉一條記憶"
-        case .pending: return "待你確認做法：\(item.content)"
+        case .added: return localizer.text(.learningRemembered(value: content))
+        case .updated:
+            if let was = item?.replaces { return localizer.text(.learningUpdatedWas(value: content, was: was)) }
+            return localizer.text(.learningUpdated(value: content))
+        case .forgot:
+            return item == nil ? localizer.text(.learningForgot) : localizer.text(.learningForgotItem(value: content))
+        case .pending: return localizer.text(.learningPendingProcedure(value: content))
         }
     }
 

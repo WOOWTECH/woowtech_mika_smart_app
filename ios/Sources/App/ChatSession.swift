@@ -98,7 +98,8 @@ struct ChatReplyPreview: Identifiable, Equatable {
 }
 
 /// Why a typed message cannot start yet. Mirrors the Android store build's
-/// chat card ("還不能開始任務／還缺:…") so a tap on send is never silent.
+/// chat card (還不能開始任務 / chat.sendBlocked.noModel 「還缺：還沒有能用的模型」) so a tap on
+/// send is never silent.
 enum ChatSendBlocker: Equatable {
     case noModel
 }

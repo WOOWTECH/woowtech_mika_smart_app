@@ -70,7 +70,7 @@ final class MemoryToolUITests: XCTestCase {
         addManualPreference("Prefer coffee", keywords: "coffee")
         let originalID = memory("Prefer coffee").identifier
         navigate("chat")
-        request("Delete Prefer coffee", note: "已忘掉一條記憶")
+        request("Delete Prefer coffee", note: "忘掉了一條記憶")
         openMemory(); assertEmptyMemories()
         navigate("chat"); undoNote()
         openMemory(); assertSingleMemory("Prefer coffee")
@@ -116,7 +116,7 @@ final class MemoryToolUITests: XCTestCase {
     }
 
     private func savePendingProcedure() {
-        request("Remember procedure Check invoices before paying", note: "待你確認做法：" + procedureText)
+        request("Remember procedure Check invoices before paying", note: "要我以後都這樣做嗎？" + procedureText)
         ready(app.buttons["chat.approveMemory.0"].firstMatch)
         ready(app.buttons["chat.rejectMemory.0"].firstMatch)
     }

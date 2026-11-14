@@ -12,11 +12,13 @@
 "learning.procedureDeclined" = "已拒絕這條操作偏好；有可用撤銷紀錄時恢復修改前內容。";
 "learning.cleared" = "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。";
 "learning.clearedKeyPending" = "資料已清除並更新加密金鑰，但舊金鑰清理未完成；請解鎖後再次執行清除。";
-"learning.forgot" = "已忘掉一條記憶";
-"learning.deleted" = "這條記憶已刪除";
+"learning.forgot" = "忘掉了一條記憶";
+"learning.deleted" = "一條已刪除的記憶";
 "learning.remembered" = "記住了：%1$@";
 "learning.updated" = "更新了：%1$@";
-"learning.pendingProcedure" = "待你確認做法：%1$@";
+"learning.updatedWas" = "更新了：%1$@（原本：%2$@）";
+"learning.forgotItem" = "忘掉了：%1$@";
+"learning.pendingProcedure" = "要我以後都這樣做嗎？%1$@";
 "learning.useCountFailed" = "已讀取記憶，但使用次數未能儲存；原記憶保留。";
 "learning.tidyUnconfirmed" = "回覆已完成；目前模型連線無法確認記憶整理請求的生命週期，本次未整理。";
 "learning.tidyConflict" = "回覆已完成；學習資料已在其他位置變更，這次記憶整理未儲存。請重新讀取並確認。";
