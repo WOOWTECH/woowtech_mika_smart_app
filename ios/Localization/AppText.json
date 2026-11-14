@@ -944,8 +944,8 @@
       "key": "shell.toolsTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Skills 與 MCP",
-        "en": "Skills and MCP"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -962,7 +962,7 @@
       "key": "shell.greetingMorning",
       "parameters": [],
       "translations": {
-        "zh-Hant": "早上好",
+        "zh-Hant": "早安",
         "en": "Good morning"
       }
     },
@@ -971,7 +971,7 @@
       "key": "shell.greetingNoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "中午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -980,7 +980,7 @@
       "key": "shell.greetingAfternoon",
       "parameters": [],
       "translations": {
-        "zh-Hant": "下午好",
+        "zh-Hant": "午安",
         "en": "Good afternoon"
       }
     },
@@ -989,7 +989,7 @@
       "key": "shell.greetingEvening",
       "parameters": [],
       "translations": {
-        "zh-Hant": "晚上好",
+        "zh-Hant": "晚安",
         "en": "Good evening"
       }
     },
@@ -1007,8 +1007,8 @@
       "key": "shell.whatToDo",
       "parameters": [],
       "translations": {
-        "zh-Hant": "想讓渥屋助理做什麼？",
-        "en": "What should woowtech agent do?"
+        "zh-Hant": "想聊什麼，或需要幫忙查找什麼？",
+        "en": "What would you like help with?"
       }
     },
     {
@@ -1115,7 +1115,7 @@
       "key": "shell.stop",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消",
+        "zh-Hant": "停止",
         "en": "Stop"
       }
     },
@@ -1336,8 +1336,8 @@
       "key": "mcp.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 與 Skills",
-        "en": "MCP and Skills"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -4135,24 +4135,6 @@
       }
     },
     {
-      "case": "settingsStatusReadyMain",
-      "key": "settings.status.readyMain",
-      "parameters": [
-        {
-          "name": "model",
-          "type": "String"
-        },
-        {
-          "name": "provider",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "主模型：%1$@ · %2$@",
-        "en": "Main model: %1$@ · %2$@"
-      }
-    },
-    {
       "case": "modelSettingsTooManyProviders",
       "key": "modelSettings.tooManyProviders",
       "parameters": [],
@@ -4238,7 +4220,16 @@
       "key": "drawer.recent.pinned",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已釘選",
+        "zh-Hant": "置頂",
+        "en": "Pinned"
+      }
+    },
+    {
+      "case": "drawerRecentPinnedMark",
+      "key": "drawer.recent.pinnedMark",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已置頂",
         "en": "Pinned"
       }
     },
@@ -4247,7 +4238,7 @@
       "key": "drawer.recent.pin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選",
+        "zh-Hant": "置頂",
         "en": "Pin"
       }
     },
@@ -4256,7 +4247,7 @@
       "key": "drawer.recent.unpin",
       "parameters": [],
       "translations": {
-        "zh-Hant": "取消釘選",
+        "zh-Hant": "取消置頂",
         "en": "Unpin"
       }
     },
@@ -4265,7 +4256,7 @@
       "key": "drawer.recent.pinFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "釘選變更未保存；對話維持原狀。請重新開啟再試。",
+        "zh-Hant": "置頂變更未保存；對話維持原狀。請重新開啟再試。",
         "en": "The pin change was not saved. The conversation is unchanged; reopen it and try again."
       }
     },
@@ -4274,7 +4265,7 @@
       "key": "drawer.recent.rename",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名",
+        "zh-Hant": "改名",
         "en": "Rename"
       }
     },
@@ -4283,8 +4274,8 @@
       "key": "drawer.recent.renameTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "重新命名對話",
-        "en": "Rename conversation"
+        "zh-Hant": "改名",
+        "en": "Rename chat"
       }
     },
     {
@@ -4339,8 +4330,8 @@
       "key": "drawer.recent.unsentDraft",
       "parameters": [],
       "translations": {
-        "zh-Hant": "草稿或 PDF 附件未送出，請先返回處理。",
-        "en": "An unsent draft or PDF attachment is present. Return to the chat first."
+        "zh-Hant": "草稿或附件未送出，請先返回處理。",
+        "en": "An unsent draft or attachment is present. Return to the chat first."
       }
     },
     {
@@ -4461,6 +4452,15 @@
       }
     },
     {
+      "case": "drawerStatusReady",
+      "key": "drawer.status.ready",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "一切就緒",
+        "en": "All set"
+      }
+    },
+    {
       "case": "chatModelSetupHint",
       "key": "chat.modelSetupHint",
       "parameters": [],
@@ -4483,7 +4483,7 @@
       "key": "chat.sendBlocked.noModel",
       "parameters": [],
       "translations": {
-        "zh-Hant": "還缺:還沒有能用的模型",
+        "zh-Hant": "還缺：還沒有能用的模型",
         "en": "Missing: No usable model yet"
       }
     },
@@ -4930,6 +4930,24 @@
       }
     },
     {
+      "case": "voiceChoiceSystemOffline",
+      "key": "voice.choice.system.offline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線依語言支援",
+        "en": "Offline depends on language"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemGone",
+      "key": "voice.choice.system.gone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置沒有",
+        "en": "Not on this device"
+      }
+    },
+    {
       "case": "voiceChoiceAvailable",
       "key": "voice.choice.available",
       "parameters": [],
@@ -5180,7 +5198,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
+        "zh-Hant": "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上",
         "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
       }
     },
@@ -5194,7 +5212,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
+        "zh-Hant": "沒能新增：%1$@（單個檔案不超過 200 MB）",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
       }
     },
@@ -5212,7 +5230,7 @@
       "key": "settings.seesImages.unconfirmed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
+        "zh-Hant": "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。",
         "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
       }
     },
@@ -5221,7 +5239,7 @@
       "key": "settings.seesImages.user",
       "parameters": [],
       "translations": {
-        "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
+        "zh-Hant": "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。",
         "en": "As you set it. When on, photos attached in chat go straight to the main model."
       }
     },
@@ -5237,7 +5255,7 @@
       "plural": "count",
       "translations": {
         "zh-Hant": {
-          "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+          "other": "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         },
         "en": {
           "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
@@ -5300,7 +5318,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用渥屋助理:%1$@",
+        "zh-Hant": "引用渥屋助理：%1$@",
         "en": "Quoting woowtech agent: %1$@"
       }
     },
@@ -5314,7 +5332,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用你的話:%1$@",
+        "zh-Hant": "引用你的話：%1$@",
         "en": "Quoting you: %1$@"
       }
     },
@@ -6457,7 +6475,7 @@
       "key": "chat.web.ask.title",
       "parameters": [
         {
-          "name": "target",
+          "name": "action",
           "type": "String"
         }
       ],
@@ -6467,21 +6485,90 @@
       }
     },
     {
-      "case": "chatWebAskTitleAmount",
-      "key": "chat.web.ask.titleAmount",
+      "case": "chatWebAskActionPay",
+      "key": "chat.web.ask.action.pay",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "付款",
+        "en": "Pay"
+      }
+    },
+    {
+      "case": "chatWebAskActionOrder",
+      "key": "chat.web.ask.action.order",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下單",
+        "en": "Place order"
+      }
+    },
+    {
+      "case": "chatWebAskActionSubmit",
+      "key": "chat.web.ask.action.submit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提交",
+        "en": "Submit"
+      }
+    },
+    {
+      "case": "chatWebAskActionDelete",
+      "key": "chat.web.ask.action.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "chatWebAskActionSend",
+      "key": "chat.web.ask.action.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送",
+        "en": "Send"
+      }
+    },
+    {
+      "case": "chatWebAskSite",
+      "key": "chat.web.ask.site",
       "parameters": [
         {
-          "name": "target",
-          "type": "String"
-        },
-        {
-          "name": "amount",
+          "name": "site",
           "type": "String"
         }
       ],
       "translations": {
-        "zh-Hant": "要你同意：%1$@ %2$@",
-        "en": "Needs your OK: %1$@ %2$@"
+        "zh-Hant": "在 %1$@",
+        "en": "In %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskTarget",
+      "key": "chat.web.ask.target",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "目標：%1$@",
+        "en": "Target: %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskContent",
+      "key": "chat.web.ask.content",
+      "parameters": [
+        {
+          "name": "content",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "內容：%1$@",
+        "en": "Content: %1$@"
       }
     },
     {
@@ -8159,8 +8246,8 @@
       "key": "chat.memory.approve",
       "parameters": [],
       "translations": {
-        "zh-Hant": "批准",
-        "en": "Approve"
+        "zh-Hant": "好",
+        "en": "OK"
       }
     },
     {
@@ -8168,8 +8255,8 @@
       "key": "chat.memory.reject",
       "parameters": [],
       "translations": {
-        "zh-Hant": "拒絕",
-        "en": "Decline"
+        "zh-Hant": "不要",
+        "en": "No thanks"
       }
     },
     {

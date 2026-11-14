@@ -494,6 +494,7 @@ import AssistantModels
             let requests = await model.requests
             try check(requests[2].last?.content.contains("confirmation_required") == true, "ordering without an OK is refused")
             try check(asked.count == 1 && asked[0].action == .order && asked[0].site == "104.com.tw", "the user was asked once")
+            try check(asked[0].target == "立即購買" && asked[0].content == "耳機 1 副", "the card gets the button and what it sends")
             try check(requests[3].last?.content.contains("\"allowed\":true") == true, "the answer goes back to the model")
             try check(tab.acted.count == 1, "only the allowed step ran")
             try check(requests[7].last?.content.contains("confirmation_required") == true, "the OK was used by that step")

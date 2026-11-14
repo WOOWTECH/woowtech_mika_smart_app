@@ -106,7 +106,7 @@ struct SavedRoutesView: View {
                     .foregroundStyle(.secondary).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(copy.text(.routesSaved))
-                    Text(copy.text(.routeCount, Int64(count))).font(.caption).foregroundStyle(.secondary)
+                    Text(copy.text(.routeCountDetail, Int64(count))).font(.caption).foregroundStyle(.secondary)
                         .accessibilityIdentifier("routes.count")
                 }
                 Spacer(minLength: 8)

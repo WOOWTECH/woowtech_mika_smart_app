@@ -493,7 +493,7 @@ final class LiveModelUITests: XCTestCase {
         let item = app.staticTexts["skills.item.\(name)"]
         revealLearningElement(item, in: app)
         XCTAssertTrue(item.exists)
-        XCTAssertEqual(app.staticTexts["skills.state.\(name)"].label, "試用中 · 尚未驗證",
+        XCTAssertEqual(app.staticTexts["skills.state.\(name)"].label, "試用中，還沒用它辦成過事",
                        "The task that created a skill cannot also verify using that skill.")
         let enabled = app.switches["skills.enabled.\(name)"]
         revealLearningElement(enabled, in: app)

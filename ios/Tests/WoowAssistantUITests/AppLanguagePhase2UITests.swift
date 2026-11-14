@@ -34,7 +34,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         tapChrome(app.buttons["drawer.close"])
 
         tapRoot("tools")
-        exactVisibleText("tools.status", "MCP and Skills")
+        exactVisibleText("tools.status", "MCP servers")
         exactVisibleText("mcp.status", "MCP is not configured")
         exactText("mcp.testIsolation", "Isolated UI test mode: no MCP network requests.")
         exactVisibleText("mcp.endpointStatus", "No endpoint saved.")

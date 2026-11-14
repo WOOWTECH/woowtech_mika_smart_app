@@ -234,7 +234,8 @@ enum ChatWebTaskUITestModel {
         case (.order, 1), (.order, 4): return command(["action": "web_observe"])
         case (.order, 2): return tap("送出訂單", in: messages)
         case (.order, 3):
-            return command(["action": "request_confirmation", "kind": "order", "target": "送出訂單", "amount": "NT$ 1,290"])
+            return command(["action": "request_confirmation", "kind": "order", "target": "送出訂單", "content": "無線耳機 1 副",
+                            "amount": "NT$ 1,290"])
         case (.order, 5):
             if messages.contains(where: { $0.role == "user" && $0.content.contains("\"allowed\":false") }) {
                 return command(["action": "finish", "answer": "WEB_TASK_ORDER_REFUSED：沒有下單。"])

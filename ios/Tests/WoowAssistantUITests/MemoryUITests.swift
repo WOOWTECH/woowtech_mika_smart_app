@@ -226,7 +226,7 @@ final class MemoryUITests: XCTestCase {
         let enabled = app.switches["skills.enabled.notes-test"].firstMatch
         reveal(enabled)
         setSwitch(enabled, value: "0")
-        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "已停用")
+        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "匯入的 · 已停用")
         setSwitch(enabled, value: "1")
         XCTAssertTrue(app.buttons["skills.share.notes-test"].firstMatch.exists)
         launch(reset: false)
