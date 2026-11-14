@@ -4,7 +4,10 @@ import CoreGraphics
 final class BrowserSiteModesUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
-    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 180 }
+    // On iPhone 17 (iOS 26.2, run 43628091777) one tap on the page's note field
+    // waited 120 s for the web content, so 180 s ran out; the ui-workspace job
+    // allows 420 s per case.
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             let tree = XCTAttachment(string: app.debugDescription)
