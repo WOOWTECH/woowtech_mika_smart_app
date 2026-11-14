@@ -672,8 +672,15 @@ enum AppText: Equatable {
     case chatWebStepSelect(site: String)
     case chatWebStepConfirm(site: String)
     case chatWebStepOutward
-    case chatWebAskTitle(target: String)
-    case chatWebAskTitleAmount(target: String, amount: String)
+    case chatWebAskTitle(action: String)
+    case chatWebAskActionPay
+    case chatWebAskActionOrder
+    case chatWebAskActionSubmit
+    case chatWebAskActionDelete
+    case chatWebAskActionSend
+    case chatWebAskSite(site: String)
+    case chatWebAskTarget(target: String)
+    case chatWebAskContent(content: String)
     case chatWebAskNote
     case chatWebAskRefuse
     case chatWebAskAllowOnce
@@ -1565,7 +1572,14 @@ enum AppText: Equatable {
         case .chatWebStepConfirm: return "chat.web.step.confirm"
         case .chatWebStepOutward: return "chat.web.step.outward"
         case .chatWebAskTitle: return "chat.web.ask.title"
-        case .chatWebAskTitleAmount: return "chat.web.ask.titleAmount"
+        case .chatWebAskActionPay: return "chat.web.ask.action.pay"
+        case .chatWebAskActionOrder: return "chat.web.ask.action.order"
+        case .chatWebAskActionSubmit: return "chat.web.ask.action.submit"
+        case .chatWebAskActionDelete: return "chat.web.ask.action.delete"
+        case .chatWebAskActionSend: return "chat.web.ask.action.send"
+        case .chatWebAskSite: return "chat.web.ask.site"
+        case .chatWebAskTarget: return "chat.web.ask.target"
+        case .chatWebAskContent: return "chat.web.ask.content"
         case .chatWebAskNote: return "chat.web.ask.note"
         case .chatWebAskRefuse: return "chat.web.ask.refuse"
         case .chatWebAskAllowOnce: return "chat.web.ask.allowOnce"
@@ -1864,8 +1878,10 @@ enum AppText: Equatable {
         case .chatWebStepType(let site): return [site]
         case .chatWebStepSelect(let site): return [site]
         case .chatWebStepConfirm(let site): return [site]
-        case .chatWebAskTitle(let target): return [target]
-        case .chatWebAskTitleAmount(let target, let amount): return [target, amount]
+        case .chatWebAskTitle(let action): return [action]
+        case .chatWebAskSite(let site): return [site]
+        case .chatWebAskTarget(let target): return [target]
+        case .chatWebAskContent(let content): return [content]
         case .chatWebHandoverTitle(let reason): return [reason]
         case .chatWebWaitingOnYou(let reason): return [reason]
         case .chatWebPaymentItem(let item): return [item]
@@ -2558,7 +2574,14 @@ enum AppText: Equatable {
         case .chatWebStepConfirm: return "請你同意 · %1$@"
         case .chatWebStepOutward: return "對外動作"
         case .chatWebAskTitle: return "要你同意：%1$@"
-        case .chatWebAskTitleAmount: return "要你同意：%1$@ %2$@"
+        case .chatWebAskActionPay: return "付款"
+        case .chatWebAskActionOrder: return "下單"
+        case .chatWebAskActionSubmit: return "提交"
+        case .chatWebAskActionDelete: return "刪除"
+        case .chatWebAskActionSend: return "傳送"
+        case .chatWebAskSite: return "在 %1$@"
+        case .chatWebAskTarget: return "目標：%1$@"
+        case .chatWebAskContent: return "內容：%1$@"
         case .chatWebAskNote: return "花錢的操作每次都要你同意。"
         case .chatWebAskRefuse: return "拒絕"
         case .chatWebAskAllowOnce: return "允許這一次"

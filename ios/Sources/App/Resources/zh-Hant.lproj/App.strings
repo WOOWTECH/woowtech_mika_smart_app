@@ -663,7 +663,14 @@
 "chat.web.step.confirm" = "請你同意 · %1$@";
 "chat.web.step.outward" = "對外動作";
 "chat.web.ask.title" = "要你同意：%1$@";
-"chat.web.ask.titleAmount" = "要你同意：%1$@ %2$@";
+"chat.web.ask.action.pay" = "付款";
+"chat.web.ask.action.order" = "下單";
+"chat.web.ask.action.submit" = "提交";
+"chat.web.ask.action.delete" = "刪除";
+"chat.web.ask.action.send" = "傳送";
+"chat.web.ask.site" = "在 %1$@";
+"chat.web.ask.target" = "目標：%1$@";
+"chat.web.ask.content" = "內容：%1$@";
 "chat.web.ask.note" = "花錢的操作每次都要你同意。";
 "chat.web.ask.refuse" = "拒絕";
 "chat.web.ask.allowOnce" = "允許這一次";

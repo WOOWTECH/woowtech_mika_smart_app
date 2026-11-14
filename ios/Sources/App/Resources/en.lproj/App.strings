@@ -663,7 +663,14 @@
 "chat.web.step.confirm" = "Ask for your OK · %1$@";
 "chat.web.step.outward" = "Outward action";
 "chat.web.ask.title" = "Needs your OK: %1$@";
-"chat.web.ask.titleAmount" = "Needs your OK: %1$@ %2$@";
+"chat.web.ask.action.pay" = "Pay";
+"chat.web.ask.action.order" = "Place order";
+"chat.web.ask.action.submit" = "Submit";
+"chat.web.ask.action.delete" = "Delete";
+"chat.web.ask.action.send" = "Send";
+"chat.web.ask.site" = "In %1$@";
+"chat.web.ask.target" = "Target: %1$@";
+"chat.web.ask.content" = "Content: %1$@";
 "chat.web.ask.note" = "Anything that spends money needs your OK every time.";
 "chat.web.ask.refuse" = "Refuse";
 "chat.web.ask.allowOnce" = "Allow this once";

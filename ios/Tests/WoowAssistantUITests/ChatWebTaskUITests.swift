@@ -76,8 +76,11 @@ final class ChatWebTaskUITests: XCTestCase {
         tapSend()
         let allow = app.buttons["chat.web.consent.allow"]
         XCTAssertTrue(allow.waitForExistence(timeout: 60))
-        let title = app.staticTexts["chat.web.consent.title"].firstMatch
-        XCTAssertTrue(title.label.contains("送出訂單") && title.label.contains("NT$ 1,290"), title.label)
+        // Like Play's card: the kind of step, then where, the button, what it sends and the amount.
+        XCTAssertEqual(app.staticTexts["chat.web.consent.title"].firstMatch.label, "要你同意：下單")
+        let detail = app.staticTexts["chat.web.consent.detail"].firstMatch.label
+        XCTAssertTrue(detail.hasPrefix("在 ") && detail.contains("目標：送出訂單") && detail.contains("內容：無線耳機 1 副")
+                      && detail.contains("金額：NT$ 1,290"), detail)
         XCTAssertTrue(app.staticTexts["花錢的操作每次都要你同意。"].exists)
         allow.tap()
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch

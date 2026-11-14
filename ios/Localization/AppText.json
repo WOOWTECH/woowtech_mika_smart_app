@@ -6475,7 +6475,7 @@
       "key": "chat.web.ask.title",
       "parameters": [
         {
-          "name": "target",
+          "name": "action",
           "type": "String"
         }
       ],
@@ -6485,21 +6485,90 @@
       }
     },
     {
-      "case": "chatWebAskTitleAmount",
-      "key": "chat.web.ask.titleAmount",
+      "case": "chatWebAskActionPay",
+      "key": "chat.web.ask.action.pay",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "付款",
+        "en": "Pay"
+      }
+    },
+    {
+      "case": "chatWebAskActionOrder",
+      "key": "chat.web.ask.action.order",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "下單",
+        "en": "Place order"
+      }
+    },
+    {
+      "case": "chatWebAskActionSubmit",
+      "key": "chat.web.ask.action.submit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "提交",
+        "en": "Submit"
+      }
+    },
+    {
+      "case": "chatWebAskActionDelete",
+      "key": "chat.web.ask.action.delete",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "chatWebAskActionSend",
+      "key": "chat.web.ask.action.send",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "傳送",
+        "en": "Send"
+      }
+    },
+    {
+      "case": "chatWebAskSite",
+      "key": "chat.web.ask.site",
       "parameters": [
         {
-          "name": "target",
-          "type": "String"
-        },
-        {
-          "name": "amount",
+          "name": "site",
           "type": "String"
         }
       ],
       "translations": {
-        "zh-Hant": "要你同意：%1$@ %2$@",
-        "en": "Needs your OK: %1$@ %2$@"
+        "zh-Hant": "在 %1$@",
+        "en": "In %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskTarget",
+      "key": "chat.web.ask.target",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "目標：%1$@",
+        "en": "Target: %1$@"
+      }
+    },
+    {
+      "case": "chatWebAskContent",
+      "key": "chat.web.ask.content",
+      "parameters": [
+        {
+          "name": "content",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "內容：%1$@",
+        "en": "Content: %1$@"
       }
     },
     {
