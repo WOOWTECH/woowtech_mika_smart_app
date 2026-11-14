@@ -23,6 +23,19 @@ struct BrowserView: View {
     private var palette: BrowserPalette { BrowserPalette(colorScheme) }
     private var isStartPage: Bool { browser.loadedURL == nil && browser.address.isEmpty || showInvalidStartInput }
     @State private var showInvalidStartInput = false
+    /// The bottom container inset SwiftUI reports here, before the check below.
+    @State private var reportedBottom: CGFloat = 0
+    /// iOS can report an impossible bottom container inset here (708 pt on the
+    /// iOS 27 iPhone 17 Pro Max simulator), the one the chat column already
+    /// ignores (ChatKeyboardReserveModifier); honoured, it left the page 0 pt
+    /// tall. A plausible inset is kept, otherwise the window's own home indicator.
+    private var bottomPadding: CGFloat {
+        let plausible = ChatKeyboardReserve.containerBottom(reportedBottom)
+        if plausible > 0 || reportedBottom <= 0 { return plausible }
+        let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?.keyWindow
+        return ChatKeyboardReserve.containerBottom(window?.safeAreaInsets.bottom ?? 0)
+    }
     private var pageCovered: Bool {
         isStartPage || showResearch || showInteractions
             || showSearchSettings || showMore || workspace.presentsSignIns || browser.pageDialog != nil
@@ -112,6 +125,16 @@ struct BrowserView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if let host = pageAskHost { pageAskBar(host: host) }
             if !isStartPage { pageToolbar }
+        }
+        .padding(.bottom, bottomPadding)
+        .ignoresSafeArea(.container, edges: .bottom)
+        .background {
+            // Outside the ignored region this reads the inset the system reports.
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { reportedBottom = proxy.safeAreaInsets.bottom }
+                    .onChange(of: proxy.safeAreaInsets.bottom) { _, value in reportedBottom = value }
+            }
         }
         .background(palette.background)
         .sheet(isPresented: $showResearch) {
