@@ -53,18 +53,15 @@ import Foundation
 
         let expected = [
             AppDisplayLanguage.traditionalChinese: "關於渥屋助理",
-            .simplifiedChinese: "关于渥屋助理",
             .english: "About woowtech agent"
         ]
         // woowtech Play edition about_tagline, about_version and about_build.
         let taglines: [AppDisplayLanguage: String] = [
             .traditionalChinese: "在同一個地方對話、瀏覽網頁，並記住有用的資訊",
-            .simplifiedChinese: "在同一个地方对话、浏览网页，并记住有用的信息",
             .english: "Chat, browse, and keep useful information in one place"
         ]
         let versionLines: [AppDisplayLanguage: (String, String)] = [
             .traditionalChinese: ("版本 0.1.0", "建置 42"),
-            .simplifiedChinese: ("版本 0.1.0", "构建 42"),
             .english: ("Version 0.1.0", "Build 42")
         ]
         for language in AppDisplayLanguage.allCases {
@@ -78,6 +75,10 @@ import Foundation
                 try check(!copy.text(key).isEmpty, "About copy has no empty language entry")
             }
         }
+        // No Simplified Chinese column (2026-11-13): a Simplified Chinese system reads the Traditional one.
+        let simplifiedSystem = MikaAboutCopy(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]))
+        try check(simplifiedSystem.text(.title) == "關於渥屋助理" && simplifiedSystem.build("42") == "建置 42",
+                  "A Simplified Chinese system shows the Traditional Chinese About page")
         print("MikaAbout: \(assertions) assertions passed")
     }
 

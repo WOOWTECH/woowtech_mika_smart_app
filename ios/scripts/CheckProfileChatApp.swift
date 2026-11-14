@@ -187,6 +187,18 @@ private actor LearningMCPServer: MCPDiscovering {
     func cancel() async {}
 }
 
+/// Resources only, in server order. Nothing is read in discovery.
+private actor ListedResourcesMCPServer: MCPDiscovering {
+    let resources: [MCPResource]
+    init(_ resources: [MCPResource]) { self.resources = resources }
+    func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["resources"]) }
+    func listTools() async throws -> [MCPTool] { [] }
+    func listResources() async throws -> [MCPResource] { resources }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
+
 /// Holds the actual async executor open even after cancellation. A returned
 /// method has no detached producer, matching the MCPDiscovering contract.
 private actor GatedMCPServer: MCPDiscovering {
@@ -333,30 +345,35 @@ private enum CheckProfileChatApp {
         }
         for change in ["delete", "replace", "add", "memory", "cancel"] {
             let env = try Environment(); defer { try? env.close() }
-            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed approval profile")
+            try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed multi-round profile")
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
             let secondRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{"round":2}}"#
             let model = ScriptedModel([.init(remoteRead), .init(secondRead), .init(finished)])
-            let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
-            try await until("first remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-            guard let first = session.pendingMCPApproval else { throw CheckFailure(check: "first approval missing") }
-            session.resolveMCPApproval(id: first.id, approved: true)
-            try await until("second remote approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-            guard let second = session.pendingMCPApproval, second.id != first.id else { throw CheckFailure(check: "second approval missing") }
-            let before = await model.requests
-            try check(before.count == 2 && before.allSatisfy { $0.contains { $0.content.contains("Private synthetic preference") } }, "two prior requests predate modification")
-            switch change {
-            case "delete": try check(env.store.deleteProfileReference(segment: "Private synthetic preference"), "delete during remote approval")
-            case "replace": try check(env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed"), "replace during remote approval")
-            case "add": try check(env.store.mutateProfile { try $0.add(text: "Another synthetic record") }, "add during remote approval")
-            case "memory": try check(env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }, "memory change during remote approval")
-            default: session.cancel()
+            let session = env.session(model)
+            // No approval card waits between the second model reply and its
+            // dispatch any more; change the context at that dispatch intent.
+            var changed = false
+            let subscription = session.$mcpActivity.sink { message in
+                guard !changed, message?.contains("MCP 嘗試呼叫 2 次") == true else { return }
+                // Set the latch before cancel(), whose publications can reenter.
+                changed = true
+                switch change {
+                case "delete": changed = env.store.deleteProfileReference(segment: "Private synthetic preference")
+                case "replace": changed = env.store.replaceProfileReference(segment: "Private synthetic preference", replacement: "changed")
+                case "add": changed = env.store.mutateProfile { try $0.add(text: "Another synthetic record") }
+                case "memory": changed = env.store.mutateMemory { _ = try $0.add(kind: .fact, content: "Synthetic concurrent record") }
+                default: session.cancel()
+                }
             }
-            session.resolveMCPApproval(id: second.id, approved: true)
+            defer { subscription.cancel() }
+            let running = try startMCP(session, connection: connection, draft: "synthetic question")
             await running.value
             let after = await model.requests, calls = await server.calls
-            try check(after.count == 2 && calls.count == 1, "no stale model continuation or second tool dispatch after \(change)")
+            try check(changed, "\(change) happened at the second dispatch")
+            try check(after.count == 2 && after.allSatisfy { $0.contains { $0.content.contains("Private synthetic preference") } },
+                      "both model requests predate modification")
+            try check(calls.count == 1, "no stale model continuation or second tool dispatch after \(change)")
             try check(session.entries.isEmpty && session.draft == "synthetic question", "interrupted multi-round turn retains draft")
         }
         for mcp in [false, true] {
@@ -401,10 +418,7 @@ private enum CheckProfileChatApp {
         let command = #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
         let model = ScriptedModel([.init(command), .init(finished)]), session = env.session(model)
         let running = try startMCP(session, connection: connection)
-        try await until("fixture approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-        guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "fixture approval missing") }
-        session.resolveMCPApproval(id: approval.id, approved: true)
-        try await until("fixture holds actual executor") { UITestMCPLeaseControl.shared.isHolding }
+        try await until("fixture holds actual executor with no approval") { UITestMCPLeaseControl.shared.isHolding }
         let before = try env.bytes()
         try check(!env.store.updatePreferences { $0.useMemory = false }, "real lease blocks preference write")
         try check(env.store.memory.preferences.useMemory && (try env.bytes()) == before,
@@ -433,7 +447,7 @@ private enum CheckProfileChatApp {
                 let env = try Environment(); defer { try? env.close() }
                 try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed post-event profile")
                 let peer = env.reopen(), server = LearningMCPServer(resourcesEnabled: true)
-                let connection = try await connectedMCP(server, includeResource: true)
+                let connection = try await connectedMCP(server)
                 defer { connection.disconnect() }
                 let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
                 let session = env.session(model)
@@ -448,9 +462,6 @@ private enum CheckProfileChatApp {
                 }
                 defer { subscription.cancel() }
                 let running = try startMCP(session, connection: connection, draft: "synthetic question")
-                try await until("post-event approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "post-event approval missing") }
-                session.resolveMCPApproval(id: approval.id, approved: true)
                 await running.value
                 let calls = await server.calls, reads = await server.reads, requests = await model.requests
                 try check(changed && calls.isEmpty && reads.isEmpty && requests.count == 1,
@@ -468,14 +479,11 @@ private enum CheckProfileChatApp {
                 let env = try Environment(); defer { try? env.close() }
                 try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed in-flight fence")
                 let peer = env.reopen(), server = GatedMCPServer(fail: mode == "failure")
-                let connection = try await connectedMCP(server, includeResource: true)
+                let connection = try await connectedMCP(server)
                 defer { connection.disconnect() }
                 let model = ScriptedModel([.init(resource ? resourceCommand : remoteRead), .init(finished)])
                 let session = env.session(model), running = try startMCP(session, connection: connection, draft: "synthetic question")
-                try await until("gated approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-                guard let approval = session.pendingMCPApproval else { throw CheckFailure(check: "gated approval missing") }
-                session.resolveMCPApproval(id: approval.id, approved: true)
-                try await until("executor entered") { await server.entered == 1 }
+                try await until("executor entered with no approval") { await server.entered == 1 }
                 if mode == "cancel" { session.cancel() }
                 try check(!env.store.deleteProfileReference(segment: "Private synthetic preference"), "same-store write is busy during executor")
                 try check(!peer.updatePreferences { $0.useMemory = false }, "peer write is busy during executor")
@@ -1036,13 +1044,12 @@ private enum CheckProfileChatApp {
         return value
     }
 
-    @MainActor static func connectedMCP(_ server: any MCPDiscovering, includeResource: Bool = false) async throws -> MCPSession {
+    @MainActor static func connectedMCP(_ server: any MCPDiscovering) async throws -> MCPSession {
         let connection = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in server })
         connection.connect()
         try await until("Actual synthetic MCP discovery") { !connection.isBusy }
         try check(connection.phase == .connected, "Real MCPSession completes discovery")
         connection.selectTool("synthetic_read", enabled: true)
-        if includeResource { connection.selectResource("fixture://synthetic", enabled: true) }
         try check(connection.canUseInConversation && connection.tools.map(\.name) == ["synthetic_read"],
                   "Local tools are not fabricated remote catalog entries")
         return connection
@@ -1059,20 +1066,18 @@ private enum CheckProfileChatApp {
 
     static let remoteRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
 
-    @MainActor static func mcpMemoryAndRemoteApprovals() async throws {
+    /// Like the Play build, the selected remote call runs with no approval;
+    /// the local memory write still waits for its own review.
+    @MainActor static func mcpRemoteCallThenMemoryReview() async throws {
         let env = try Environment(); defer { try? env.close() }
         let server = LearningMCPServer(), connection = try await connectedMCP(server)
         defer { connection.disconnect() }
         let model = ScriptedModel([.init(remoteRead), .init(try memorySave()), .init(finished)])
         let session = env.session(model), running = try startMCP(session, connection: connection)
-        try await until("Remote native approval precedes dispatch") { session.pendingMCPApproval != nil || !session.isSubmitting }
-        guard let remote = session.pendingMCPApproval else { throw CheckFailure(check: "Remote approval required") }
-        let beforeCalls = await server.calls.count
-        try check(beforeCalls == 0 && session.pendingMemoryReview == nil && env.store.memory.memories.isEmpty,
-                  "Remote proposal cannot dispatch or save local memory without its own approvals")
-        try check(remote.name == "synthetic_read" && remote.arguments == .object([:]), "Exact remote proposal retained")
-        session.resolveMCPApproval(id: remote.id, approved: true)
         let pending = try await memoryReview(session)
+        let dispatched = await server.calls
+        try check(dispatched == [.object([:])] && session.mcpSteps.map(\.proposal.action) == [.callTool(name: "synthetic_read", arguments: .object([:]))],
+                  "The selected remote call ran once with its exact arguments and no approval")
         try check(session.mcpSteps.count == 1 && env.store.memory.memories.isEmpty && session.memoryReceipt == nil,
                   "Actual remote result precedes a separate uncommitted local review")
         try check(pending.quote == utterance && pending.after?.content == text, "Local authority is the current user draft")
@@ -1094,28 +1099,27 @@ private enum CheckProfileChatApp {
         try check(env.reopen().memory.memories.isEmpty, "MCP conversation memory uses the actual durable undo path")
     }
 
-    @MainActor static func mcpProfileReceiptSurvivesRemoteRefusal() async throws {
+    /// There is no remote approval to refuse any more; a later remote failure
+    /// still cannot erase an already committed profile receipt.
+    @MainActor static func mcpProfileReceiptSurvivesRemoteFailure() async throws {
         let env = try Environment(); defer { try? env.close() }
-        let server = LearningMCPServer(), connection = try await connectedMCP(server)
+        let server = GatedMCPServer(fail: true), connection = try await connectedMCP(server)
         defer { connection.disconnect() }
+        await server.gate.release()
         let model = ScriptedModel([.init(proposal), .init(remoteRead)])
         let session = env.session(model), running = try startMCP(session, connection: connection)
         let pending = try await review(session)
         try check(env.store.profile.snapshot().entries.isEmpty && session.profileReceipt == nil,
                   "MCP profile proposal still needs the native profile review")
         session.resolveProfileReview(id: pending.id, approved: true)
-        try await until("Remote approval after local commit") { session.pendingMCPApproval != nil || !session.isSubmitting }
-        guard let remote = session.pendingMCPApproval else { throw CheckFailure(check: "Later remote approval required") }
-        try check(env.reopen().profile.snapshot().entries.first?.text == text && session.profileReceipt != nil,
-                  "Profile commit is durable before the later MCP decision")
-        session.resolveMCPApproval(id: remote.id, approved: false)
         await running.value
-        let calls = await server.calls.count
-        try check(calls == 0 && session.mcpSteps.isEmpty, "Remote refusal never dispatches")
+        let entered = await server.entered, sent = await server.sent
+        try check(entered == 1 && sent == 0 && session.mcpSteps.isEmpty,
+                  "The later remote call ran with no approval, failed once and was not retried")
         try check(session.profileReceipt != nil && env.reopen().profile.snapshot().entries.first?.text == text,
-                  "Later remote refusal cannot erase an already committed profile receipt")
+                  "Later remote failure cannot erase an already committed profile receipt")
         try check(session.chatError?.contains("已儲存") == true && session.draft == utterance && session.entries.isEmpty,
-                  "Post-commit refusal explains saved state and retains the draft")
+                  "Post-commit failure explains saved state and retains the draft")
     }
 
     @MainActor static func mcpMemorySearchDeleteAndFences() async throws {
@@ -1134,8 +1138,8 @@ private enum CheckProfileChatApp {
             let requests = await model.requests
             try check(requests.count == 2 && requests[1].last?.content.contains(id.uuidString) == true,
                       "MCP local search returns the actual stable ID before edit review")
-            try check(pending.targetID == id && env.reopen().memory.memories.count == 1 && session.pendingMCPApproval == nil,
-                      "Search has no remote approval and delete stays uncommitted until local review")
+            try check(pending.targetID == id && env.reopen().memory.memories.count == 1,
+                      "Search needs no review and delete stays uncommitted until local review")
             session.resolveMemoryReview(id: pending.id, approved: true)
             await running.value
             let receipt = try memoryReceipt(session), calls = await server.calls.count
@@ -1210,9 +1214,6 @@ private enum CheckProfileChatApp {
             defer { connection.disconnect() }
             let model = ScriptedModel([.init(remoteRead), .init(try memorySave())])
             let session = env.session(model), running = try startMCP(session, connection: connection, draft: "Read the selected service")
-            try await until("Read untrusted result approval") { session.pendingMCPApproval != nil || !session.isSubmitting }
-            guard let remote = session.pendingMCPApproval else { throw CheckFailure(check: "Read approval required") }
-            session.resolveMCPApproval(id: remote.id, approved: true)
             await running.value
             try check(session.mcpSteps.count == 1 && session.chatError != nil && session.memoryReceipt == nil,
                       "Actual remote text cannot become the user's memory permission")
@@ -1235,6 +1236,23 @@ private enum CheckProfileChatApp {
             try check(session.chatError?.contains("已儲存") == true && session.entries.isEmpty,
                       "Shared local mutation limit retains the prior committed receipt")
         }
+        try await mcpResourceOffer()
+    }
+    /// Like the Play build, discovered resources are offered without a picker:
+    /// at most 30 in server order, skipping any the runner would refuse.
+    @MainActor static func mcpResourceOffer() async throws {
+        let usable = (1...31).map { MCPResource(uri: "fixture://resource/\($0)", name: "Resource \($0)") }
+        let listed = Array(usable[..<2]) + [MCPResource(uri: "fixture://refused", name: "control\u{7}name")] + Array(usable[2...])
+        let connection = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in ListedResourcesMCPServer(listed) })
+        connection.connect()
+        try await until("Resource-only discovery") { !connection.isBusy }
+        try check(connection.phase == .connected && connection.selectedToolNames.isEmpty && connection.canUseInConversation,
+                  "Discovered resources alone make the connection usable in chat")
+        let (_, tools, offered) = try connection.conversationConnection()
+        try check(tools.isEmpty && offered.map(\.uri) == (1...30).map { "fixture://resource/\($0)" },
+                  "The first 30 usable resources are offered in order; a refused one is skipped")
+        connection.disconnect()
+        try check(connection.resources.isEmpty && !connection.canUseInConversation, "Disconnect clears the offered resources")
     }
     @MainActor static func hostJSON(_ messages: [ModelMessage], prefix: String) throws -> [String: Any] {
         guard let body = messages.last?.content, body.hasPrefix(prefix + "\n"),
@@ -1724,12 +1742,9 @@ private enum CheckProfileChatApp {
         defer { connection.disconnect() }
         let prompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
         let session = env.session(client), running = try startMCP(session, connection: connection, draft: prompt)
-        try await until("Actual fixture remote proposal") { session.pendingMCPApproval != nil || !session.isSubmitting }
-        guard let remote = session.pendingMCPApproval else { throw CheckFailure(check: "Actual fixture remote review") }
-        try check(remote.name == "fixture_echo" && remote.arguments == .object(["text": .string("hello")]),
-                  "Actual fixture remote arguments are unchanged")
-        session.resolveMCPApproval(id: remote.id, approved: true)
         let pending = try await memoryReview(session)
+        try check(session.mcpSteps.map(\.proposal.action) == [.callTool(name: "fixture_echo", arguments: .object(["text": .string("hello")]))],
+                  "Actual fixture remote call ran with unchanged arguments and no approval")
         try check(pending.quote == prompt && pending.after?.content == text && pending.keywords == ["jasmine", "tea"],
                   "Actual mixed fixture memory quote/content/keywords match UI contract")
         try check(env.reopen().memory.memories.isEmpty, "Actual fixture does not seed or save before review")
@@ -1922,8 +1937,8 @@ private enum CheckProfileChatApp {
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
-            try await group("mcpMemoryAndRemoteApprovals", mcpMemoryAndRemoteApprovals)
-            try await group("mcpProfileReceiptSurvivesRemoteRefusal", mcpProfileReceiptSurvivesRemoteRefusal)
+            try await group("mcpRemoteCallThenMemoryReview", mcpRemoteCallThenMemoryReview)
+            try await group("mcpProfileReceiptSurvivesRemoteFailure", mcpProfileReceiptSurvivesRemoteFailure)
             try await group("mcpMemorySearchDeleteAndFences", mcpMemorySearchDeleteAndFences)
             try await group("mcpLocalAuthorityAndLimits", mcpLocalAuthorityAndLimits)
             #if DEBUG
@@ -2008,11 +2023,11 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     @MainActor func testMemoryPostCommitReceiptAndLateCancellation() async throws {
         try await CheckProfileChatApp.memoryPostCommitAndLateCancellation()
     }
-    @MainActor func testMCPMemoryAndRemoteApprovalsAreSeparate() async throws {
-        try await CheckProfileChatApp.mcpMemoryAndRemoteApprovals()
+    @MainActor func testMCPRemoteCallRunsThenMemoryWaitsForReview() async throws {
+        try await CheckProfileChatApp.mcpRemoteCallThenMemoryReview()
     }
-    @MainActor func testMCPProfileReceiptSurvivesRemoteRefusal() async throws {
-        try await CheckProfileChatApp.mcpProfileReceiptSurvivesRemoteRefusal()
+    @MainActor func testMCPProfileReceiptSurvivesRemoteFailure() async throws {
+        try await CheckProfileChatApp.mcpProfileReceiptSurvivesRemoteFailure()
     }
     @MainActor func testMCPLocalAuthorityAndSharedMutationLimit() async throws {
         try await CheckProfileChatApp.mcpLocalAuthorityAndLimits()

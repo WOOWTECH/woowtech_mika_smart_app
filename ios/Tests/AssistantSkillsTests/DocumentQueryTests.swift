@@ -192,9 +192,9 @@ import XCTest
         try rejects(.invalidSource) { _ = try source(["text"], inputHash: "bad") }
         try rejects(.invalidSource) { _ = try source(["text"], engine: "claimed OCR") }
         try rejects(.invalidSource) { _ = try source(["text"], engine: "Mika extract_pdf.py / pypdf", script: String(repeating: "0", count: 64)) }
+        // PDFKit is the only PDF path: even the pinned original script's hash is refused.
         let script = try catalog().entry(id: "documents")!.assets.first { $0.path.hasSuffix("/scripts/extract_pdf.py") }!.sha256
-        let worker = try source(["text"], engine: "Mika extract_pdf.py / pypdf", script: script)
-        try expect(worker.originalScriptSHA256 == script, "accept actual worker provenance contract, no worker execution claim")
+        try rejects(.invalidSource) { _ = try source(["text"], engine: "Mika extract_pdf.py / pypdf", script: script) }
         try rejects(.sourceTooLarge) { _ = try source(Array(repeating: "a", count: 201)) }
         try rejects(.sourceTooLarge) { _ = try source([String(repeating: "a", count: DocumentTextSnapshot.maximumBytes + 1)]) }
         try expect(try source([String(repeating: "a", count: DocumentTextSnapshot.maximumBytes)]).byteCount == 2 * 1024 * 1024, "exact 2MiB inclusive bound")

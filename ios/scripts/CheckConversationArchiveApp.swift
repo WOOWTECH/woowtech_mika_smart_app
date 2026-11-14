@@ -175,8 +175,8 @@ private actor ArchiveModel: ChatModelClient {
         let restoreRequests = await never.requests
         try a.check(restoreRequests.isEmpty && client.operations == baseline && service.trackedCount == 0, "restore zero model/extraction/notification calls")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes, "restore zero learning writes")
-        try a.check(restored.pendingMCPApproval == nil && restored.pendingProfileReview == nil && restored.pendingMemoryReview == nil,
-                    "no restored approvals")
+        try a.check(restored.pendingProfileReview == nil && restored.pendingMemoryReview == nil,
+                    "no restored reviews")
         try a.check(restored.mcpSteps.isEmpty && restored.profileReceipt == nil && restored.memoryReceipt == nil && !restored.usesMCP,
                     "no tool receipts or capability restored")
         try a.check(restored.entries.map(\.id) == session.entries.map(\.id) && restored.draft.isEmpty && !restored.isSubmitting, "restore is display only")
@@ -230,8 +230,8 @@ private actor ArchiveModel: ChatModelClient {
 
         try a.check(RecentConversationAccess.open(first, in: session), "explicit safe shortcut opens stored row")
         try a.check(session.entries.map(\.id) == [first.turns[0].userID, first.turns[0].assistantID]
-                    && session.pendingMCPApproval == nil && session.pendingProfileReview == nil
-                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no approvals")
+                    && session.pendingProfileReview == nil
+                    && session.pendingMemoryReview == nil, "shortcut restores only complete text and no reviews")
         let modelRequests = await model.requests
         try a.check(modelRequests.count == 2, "shortcut made no new model call")
         session.modelDraft = "other-model"; session.saveSettings()
@@ -514,7 +514,7 @@ private actor ArchiveModel: ChatModelClient {
 
     static func destinationIsolation() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
-        let model = ArchiveModel(["First", "Other destination reply"]); let session = e.session(model)
+        let model = ArchiveModel(["First", "Other destination reply", "Reply with the new key"]); let session = e.session(model)
         try await send(session, "Original private history"); let record = e.archive.conversations[0]
         session.modelDraft = "other-model"; session.saveSettings()
         try a.check(session.entries.isEmpty && !session.canOpenConversation(record), "model change does not transfer context")
@@ -524,12 +524,55 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(requests.count == 2 && requests[1].count == 1 && requests[1][0].content == "New destination request", "no old transcript sent")
         session.modelDraft = "fixture"; session.saveSettings()
         try a.check(session.canOpenConversation(record), "exact original model identity reusable")
+        try a.check(session.openConversation(id: record.id), "original conversation reopens")
+        let reopened = session.entries.map(\.id)
         session.keyDraft = "replacement-not-a-key"; session.saveSettings()
-        try a.check(!session.canOpenConversation(record), "new credential account cannot continue old history")
+        try a.check(session.canOpenConversation(record) && session.isCurrentConversation(id: record.id)
+                    && session.entries.map(\.id) == reopened, "a new key for the same provider keeps the open conversation")
+        try await send(session, "Continue with the new key")
+        let continued = e.archive.conversations.first { $0.id == record.id }, sent = await model.requests
+        try a.check(continued?.turns.count == 2 && continued?.destination == record.destination && sent.count == 3
+                    && sent[2].contains { $0.content == "Original private history" },
+                    "the new key continues the same saved conversation with its history")
         session.baseURLDraft = "https://other.example.invalid/v1"; session.keyDraft = "other-not-a-key"; session.saveSettings()
         try a.check(!session.canOpenConversation(record) && e.archive.conversations.count == 2, "destination change preserves readable rows")
         session.removeSettings()
         try a.check(!session.canOpenConversation(record) && e.reopen().conversations.count == 2, "removing settings does not remove archive encryption keys")
+        return a.count
+    }
+
+    /// A conversation the v1 build saved still opens after the update: the
+    /// imported provider's id is the v1 setting's Keychain account. A new key
+    /// for that provider keeps it going.
+    static func legacyDestinationAfterImport() async throws -> Int {
+        var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
+        let suite = "woow.archive.legacy." + UUID().uuidString
+        guard let defaults = UserDefaults(suiteName: suite) else { throw Failure(name: "legacy defaults") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let account = UUID(), credentials = ArchiveCredentials()
+        credentials.values[account.uuidString] = "legacy-not-a-key"
+        let v1 = SavedModelSettings(baseURL: URL(string: "https://legacy.example.invalid/v1")!, model: "legacy-model",
+                                    credentialAccount: account.uuidString)
+        defaults.set(try JSONEncoder().encode(v1), forKey: ModelSettingsRepository.configurationKey)
+        let saved = try ArchivedConversation(id: UUID(), destination: ConversationDestination(
+            baseURL: v1.baseURL.absoluteString, model: v1.model, credentialAccount: account), updatedAt: Date(),
+            turns: [ArchivedConversationTurn(userText: "Saved before the update", assistantText: "Saved reply")])
+        try e.archive.save(saved, expected: nil)
+        let model = ArchiveModel(["Reply after the update"])
+        let session = ChatSession(learning: e.learning, repository: ModelSettingsRepository(defaults: defaults, credentials: credentials),
+                                  client: model, archive: e.archive)
+        try a.check(session.savedSettings?.providerID == account && session.hasStoredKey, "v1 setting imported with its key")
+        try a.check(session.archiveDestination == saved.destination && session.canOpenConversation(saved),
+                    "a v1 conversation matches its imported provider")
+        session.keyDraft = "replacement-not-a-key"; session.saveSettings()
+        try a.check(session.savedSettings?.credentialAccount != account.uuidString && credentials.values[account.uuidString] == nil
+                    && session.canOpenConversation(saved), "a new key for the imported provider keeps the conversation")
+        try a.check(session.openConversation(id: saved.id), "it opens after the new key")
+        try await send(session, "Continue after the update")
+        let continued = e.archive.conversations.first { $0.id == saved.id }, requests = await model.requests
+        try a.check(continued?.turns.count == 2 && continued?.destination == saved.destination && requests.count == 1
+                    && requests[0].contains { $0.content == "Saved before the update" },
+                    "the next reply joins the same saved conversation, with its history")
         return a.count
     }
 
@@ -610,7 +653,7 @@ private actor ArchiveModel: ChatModelClient {
             bridge.invalidate()
             try a.check(session.entries.map(\.id) == entries && e.archive.state == state && !session.isSubmitting,
                         "joined late response cannot overwrite after " + mode)
-            try a.check(session.pendingMCPApproval == nil && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "no pending actions survive " + mode)
+            try a.check(session.pendingProfileReview == nil && session.pendingMemoryReview == nil, "no pending actions survive " + mode)
         }
         try a.check(e.reopen().conversations.isEmpty, "deleted conversation stays absent after relaunch")
         try a.rejects("old expected row cannot resurrect") { try e.archive.save(row, expected: row) }
@@ -650,14 +693,11 @@ private actor ArchiveModel: ChatModelClient {
         let source = e.archive.state.conversations[0]
         let sourceBytes = try Data(contentsOf: e.file)
         let originalEntries = session.entries.map(\.id)
-        session.draft = "Keep unsent draft"
-        try a.rejects("branch cannot discard draft") {
-            _ = try session.prepareBranch(source: source, assistantID: source.turns[0].assistantID, title: "Branch")
-        }
-        try a.check(session.draft == "Keep unsent draft" && session.entries.map(\.id) == originalEntries
-                    && (try Data(contentsOf: e.file)) == sourceBytes, "draft rejection keeps source and encrypted data")
-        session.draft = ""
+        // Like Android, a draft does not block a branch; only a saved branch clears it.
+        session.draft = "Unsent draft"
         let plan = try session.prepareBranch(source: source, assistantID: source.turns[0].assistantID, title: "Original · 分支")
+        try a.check(session.draft == "Unsent draft" && session.entries.map(\.id) == originalEntries
+                    && (try Data(contentsOf: e.file)) == sourceBytes, "preparing a branch changes neither the draft nor the archive")
         let backup = e.root.appendingPathComponent("branch-write-backup")
         try FileManager.default.moveItem(at: e.file, to: backup)
         try FileManager.default.createDirectory(at: e.file, withIntermediateDirectories: false)
@@ -665,12 +705,14 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(session.isCurrentConversation(id: source.id) && session.entries.map(\.id) == originalEntries
                     && e.archive.state.conversations == [source] && (try Data(contentsOf: backup)) == sourceBytes,
                     "failed branch write preserves current source and recoverable ciphertext")
+        try a.check(session.draft == "Unsent draft", "a failed branch keeps the draft")
         try FileManager.default.removeItem(at: e.file); try FileManager.default.moveItem(at: backup, to: e.file)
         let branchID = try session.commitBranch(plan)
         let branch = e.archive.state.conversations.first { $0.id == branchID }!
         try a.check(session.isCurrentConversation(id: branchID) && session.entries.count == 2
                     && session.entries[0].content == "First question" && session.entries[1].content == "First answer",
                     "session switches only after completed-prefix branch is saved")
+        try a.check(session.draft.isEmpty, "the saved branch opens with an empty input bar")
         try a.check(e.archive.state.conversations.first { $0.id == source.id } == source
                     && branch.branchOrigin?.parentID == source.id && branch.branchOrigin?.parentTurn == 0
                     && branch.customTitle == "Original · 分支" && branch.pinnedAt == nil,
@@ -809,9 +851,9 @@ private actor ArchiveModel: ChatModelClient {
         try a.check(!session.openConversation(id: source.id) && !NewConversationAction.start(in: session, approved: nil)
                     && session.pendingQuote != nil && session.draft == " ", "conversation switching cannot silently discard a pending quote")
         session.draft = "Explain"
-        try a.rejects("branch cannot discard pending quote") {
-            _ = try session.prepareBranch(source: source, assistantID: answer.assistantID, title: "Branch")
-        }
+        _ = try session.prepareBranch(source: source, assistantID: answer.assistantID, title: "Branch")
+        try a.check(session.pendingQuote != nil && session.draft == "Explain",
+                    "preparing a branch leaves the waiting quote; only a saved branch clears it")
         session.send(); guard let task = session.capturedArchiveRequest else { throw Failure(name: "quoted request") }
         await task.value
         let requests = await model.requests
@@ -917,6 +959,17 @@ private actor ArchiveModel: ChatModelClient {
         return a.count
     }
 
+    /// A note as the file picker hands it over: a temporary import folder the
+    /// tray moves into the conversation's own folder.
+    static func pickedNote() throws -> ChatPickedFile {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ChatAttachmentImports/" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent("waiting-note.txt")
+        try Data("waiting note".utf8).write(to: url)
+        return ChatPickedFile(temporaryURL: url, suggestedName: "waiting-note.txt", contentType: "public.plain-text", dedupeKey: nil)
+    }
+
     static func messageMenuActions() async throws -> Int {
         var a = Assertions(); let e = try ArchiveEnvironment(); defer { e.close() }
         let model = ArchiveModel(["**First answer**", "Second answer", "Quoted answer"])
@@ -937,50 +990,57 @@ private actor ArchiveModel: ChatModelClient {
 
         try a.check(session.selectQuote(messageID: first.assistantID, expectedContent: first.assistantText, in: source.id),
                     "quote a saved reply")
-        try a.check(session.branch(fromReply: first.assistantID, title: { _ in "Unused" }) == .composerInUse
-                    && session.isCurrentConversation(id: source.id) && session.pendingQuote != nil,
-                    "branching never discards a waiting quote")
         try await send(session, "Explain")
         let quoted = session.entries[4]
         try a.check(quoted.content == "> [Quoting your earlier reply]\n> First answer\n\nExplain"
                     && session.plainText(of: quoted) == "Explain", "a quoting message copies as its own words")
         let saved = e.archive.state.conversations[0]
-        let bytes = try Data(contentsOf: e.file)
 
+        // Like Android (ChatScreen onBranch), 從這裡分支 clears whatever waits in
+        // the input bar, without asking: here a draft, a quote and a note.
         session.draft = "Unsent"
-        try a.check(session.branch(fromReply: first.assistantID, title: { _ in "Unused" }) == .composerInUse
-                    && session.askAgain(from: second.userID, title: { _ in "Unused" }) == .composerInUse
-                    && session.draft == "Unsent" && session.isCurrentConversation(id: saved.id)
-                    && (try Data(contentsOf: e.file)) == bytes, "a draft is kept and nothing is saved")
-        session.draft = ""
-
+        try a.check(session.selectQuote(messageID: second.assistantID, expectedContent: second.assistantText, in: saved.id),
+                    "quote again before branching")
+        await session.addAttachments([try pickedNote()])
+        let waiting = session.pendingAttachments
+        try a.check(waiting.count == 1 && session.attachmentStore.exists(waiting[0]), "a note waits in the tray")
         var titledFrom: UUID?
         try a.check(session.branch(fromReply: first.assistantID, title: { titledFrom = $0.id; return "First · 分支" }) == .created,
-                    "branch from a finished reply")
+                    "branch from a finished reply while the input bar is in use")
         let branch = e.archive.state.conversations.first { $0.branchOrigin?.parentID == saved.id }
         try a.check(titledFrom == saved.id && branch?.customTitle == "First · 分支" && branch?.branchOrigin?.parentTurn == 0
                     && branch.map { session.isCurrentConversation(id: $0.id) } == true
                     && session.entries.map(\.content) == ["First question", "**First answer**"]
-                    && session.chatNotice == nil && session.draft.isEmpty,
+                    && session.chatNotice == nil,
                     "the branch keeps the turns through that reply and opens; the toast replaces the notice")
+        try a.check(session.draft.isEmpty && session.pendingQuote == nil && session.pendingAttachments.isEmpty
+                    && !session.attachmentStore.exists(waiting[0]),
+                    "the branch opens with an empty input bar; the unsent note's copy is deleted")
 
+        // 從這裡重新問 (ChatScreen onBranchRetry): the question replaces the draft;
+        // the quote goes.
         try a.check(session.openConversation(id: saved.id), "reopen the source")
+        session.draft = "Typed meanwhile"
+        try a.check(session.selectQuote(messageID: first.assistantID, expectedContent: first.assistantText, in: saved.id),
+                    "quote before asking again")
         try a.check(session.askAgain(from: quoted.id, title: { _ in "Again · 分支" }) == .created,
-                    "ask again from your third message")
+                    "ask again from your third message while the input bar is in use")
         let again = e.archive.state.conversations.first { $0.customTitle == "Again · 分支" }
         let calls = await model.requests.count
         try a.check(again?.turns.count == 2 && again?.branchOrigin?.parentTurn == 1
                     && again.map { session.isCurrentConversation(id: $0.id) } == true
                     && session.draft == "Explain" && session.pendingQuote == nil && session.entries.count == 4 && calls == 3,
-                    "the branch ends before that message; its words wait in the input bar, unsent")
+                    "the branch ends before that message; its words replace the draft, unsent")
 
-        session.draft = ""
         try a.check(session.openConversation(id: saved.id), "reopen the source again")
+        session.draft = "Another unsent draft"
+        try a.check(session.selectQuote(messageID: second.assistantID, expectedContent: second.assistantText, in: saved.id),
+                    "quote before asking the first message again")
         let rows = e.archive.state.conversations.count
         try a.check(session.askAgain(from: first.userID, title: { _ in "Unused" }) == .startedOver
-                    && session.entries.isEmpty && session.draft == "First question"
+                    && session.entries.isEmpty && session.draft == "First question" && session.pendingQuote == nil
                     && e.archive.state.conversations.count == rows && !session.isCurrentConversation(id: saved.id),
-                    "asking the first message again starts a new conversation with its words")
+                    "asking the first message again starts a new conversation with its words in place of the draft")
         try a.check(e.reopen().state == e.archive.state, "branches survive an encrypted reload")
         return a.count
     }
@@ -996,12 +1056,13 @@ private actor ArchiveModel: ChatModelClient {
                 ArchiveAppChecks.pinDuringReplyAndEncryptedRelaunch(),
                 ArchiveAppChecks.protectedNewConversation(),
                 ArchiveAppChecks.protectedArchiveDeletion(),
-                ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.failuresAndRetry(),
+                ArchiveAppChecks.destinationIsolation(), ArchiveAppChecks.legacyDestinationAfterImport(),
+                ArchiveAppChecks.failuresAndRetry(),
                 ArchiveAppChecks.lateCompletionAndDeletion(), ArchiveAppChecks.reviewDoesNotReplay(),
                 ArchiveAppChecks.branchDurabilityAndFences(), ArchiveAppChecks.branchStalenessAndInFlight(),
                 ArchiveAppChecks.quotesInRealSession(), ArchiveAppChecks.assistantQuoteCannotAuthorizeMemory(),
                 ArchiveAppChecks.branchUsesLatestWholeArchive(), ArchiveAppChecks.messageMenuActions()]
-            print("{\"groups\":17,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
+            print("{\"groups\":18,\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("ARCHIVE_APP_FAILURE: \(error)"); exit(1) }
     }
 }
@@ -1025,6 +1086,9 @@ final class ConversationArchiveAppTests: XCTestCase {
     @MainActor func testProtectedNewConversation() async throws { let n = try await ArchiveAppChecks.protectedNewConversation(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testProtectedArchiveDeletion() async throws { let n = try await ArchiveAppChecks.protectedArchiveDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testDestinationIsolation() async throws { let n = try await ArchiveAppChecks.destinationIsolation(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testLegacyDestinationAfterImport() async throws {
+        let n = try await ArchiveAppChecks.legacyDestinationAfterImport(); XCTAssertGreaterThan(n, 0)
+    }
     @MainActor func testFailuresAndRetry() async throws { let n = try await ArchiveAppChecks.failuresAndRetry(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testLateCompletionAndDeletion() async throws { let n = try await ArchiveAppChecks.lateCompletionAndDeletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testReviewDoesNotReplay() async throws { let n = try await ArchiveAppChecks.reviewDoesNotReplay(); XCTAssertGreaterThan(n, 0) }

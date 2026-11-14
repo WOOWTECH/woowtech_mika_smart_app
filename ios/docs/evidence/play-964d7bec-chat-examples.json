@@ -1,0 +1,21 @@
+{
+  "source": "WOOWTECH/woowtech_mika_smart_app playstore edition, app/src/woowtech/res/values-b+zh+Hant/strings_woowtech.xml and values/strings_woowtech.xml",
+  "source_commit": "964d7becff9a0daa228f24cc5c8e2664fde8b7d9",
+  "source_date": "2026-11-13",
+  "chat_strings": {
+    "chat_example_follow": "幫我寫一則友善的訊息回覆",
+    "chat_example_group_summary": "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點",
+    "chat_example_jobs": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
+    "chat_example_multi_step": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
+    "chat_example_alarms": "記住我偏好使用繁體中文，回答簡短一點",
+    "chat_example_ai_apps": "你記得我有哪些偏好？"
+  },
+  "chat_strings_en": {
+    "chat_example_follow": "Help me write a friendly reply to this message.",
+    "chat_example_group_summary": "Find a recent AI news article in the built-in browser and summarize three key points.",
+    "chat_example_jobs": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.",
+    "chat_example_multi_step": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.",
+    "chat_example_alarms": "Remember that I prefer concise answers in Traditional Chinese.",
+    "chat_example_ai_apps": "What preferences have I told you to remember?"
+  }
+}

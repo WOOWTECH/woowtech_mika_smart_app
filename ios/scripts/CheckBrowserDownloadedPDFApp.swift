@@ -54,7 +54,7 @@ import AppKit
         defer { model.clear() }
         try c.check(model.plan == nil && model.result == nil && !model.running, "selection does not create execution")
         try c.check(presenter.calls == 0, "selection does not read")
-        model.prepareDownload(pages: "2,1,2", password: "", metadataOnly: false, worker: nil)
+        model.prepareDownload(pages: "2,1,2", password: "", metadataOnly: false)
         guard let plan = model.plan else { throw Failure(check: "download plan prepared") }
         try c.check(plan.steps.count == 2 && plan.steps.allSatisfy(\.requiresAuthorization), "original two approvals retained")
         try c.check(plan.steps[0].availability.detail.contains("已完成下載") && !plan.steps[0].availability.detail.contains("系統檔案選擇器"), "download is not a picker grant")
@@ -109,16 +109,16 @@ import AppKit
             catch is SkillExecutionError { c.count += 1 }
         }
         let model = SkillExecutionViewModel(downloadedPDF: try BrowserDownloadedPDFSelection(manager: manager, userSelectedID: fake))
-        model.prepareDownload(pages: "", password: "", metadataOnly: false, worker: nil)
+        model.prepareDownload(pages: "", password: "", metadataOnly: false)
         model.execute(stepID: model.plan!.steps[0].id)
         if let work = model.executingTask { await work.value }
         try c.check(model.result == nil && model.completedStepIDs.isEmpty && model.status == SkillExecutionError.invalidPDF.errorDescription, "extension alone is not valid PDF")
         model.clear()
         let selection = try BrowserDownloadedPDFSelection(manager: manager, userSelectedID: normal)
         let selected = SkillExecutionViewModel(downloadedPDF: selection)
-        selected.prepareDownload(pages: String(repeating: "1,", count: 200) + "1", password: "", metadataOnly: false, worker: nil)
+        selected.prepareDownload(pages: String(repeating: "1,", count: 200) + "1", password: "", metadataOnly: false)
         try c.check(selected.plan == nil && selected.status == SkillExecutionError.tooManyPages.errorDescription, "201 selected pages rejected")
-        selected.prepareDownload(pages: "1-2", password: "", metadataOnly: false, worker: nil)
+        selected.prepareDownload(pages: "1-2", password: "", metadataOnly: false)
         try c.check(selected.plan != nil, "valid explicit retry allowed")
         let path = try manager.fileURL(id: normal)
         let bytes = try Data(contentsOf: path)
@@ -143,7 +143,7 @@ import AppKit
         let manager = BrowserDownloadManager(directory: root)
         let selected = try BrowserDownloadedPDFSelection(manager: manager, userSelectedID: first)
         let model = SkillExecutionViewModel(downloadedPDF: selected)
-        model.prepareDownload(pages: "", password: "", metadataOnly: false, worker: nil)
+        model.prepareDownload(pages: "", password: "", metadataOnly: false)
         let oldPlan = model.plan!
         try manager.delete(id: first, confirmed: true)
         try c.check(!selected.isValid && model.plan == nil && !model.running, "manager willSet removal immediately cancels")
@@ -151,7 +151,7 @@ import AppKit
         try c.check(model.executingTask == nil && model.result == nil, "deleted selection cannot read")
         let next = try BrowserDownloadedPDFSelection(manager: manager, userSelectedID: second)
         let reading = SkillExecutionViewModel(downloadedPDF: next)
-        reading.prepareDownload(pages: "", password: "", metadataOnly: false, worker: nil)
+        reading.prepareDownload(pages: "", password: "", metadataOnly: false)
         let held = ReadPresenter(url: try manager.fileURL(id: second), held: true)
         NSFileCoordinator.addFilePresenter(held)
         defer { held.release(); NSFileCoordinator.removeFilePresenter(held); reading.clear() }
@@ -160,7 +160,7 @@ import AppKit
         try await wait("real presenter reached", { held.calls == 1 })
         reading.clear()
         try c.check(reading.plan == nil && !reading.running && reading.result == nil, "clear publishes cancellation before read returns")
-        reading.prepareDownload(pages: "2", password: "", metadataOnly: true, worker: nil)
+        reading.prepareDownload(pages: "2", password: "", metadataOnly: true)
         let replacement = reading.plan!.id
         held.release(); await work.value
         try c.check(reading.plan?.id == replacement && reading.completedStepIDs.isEmpty && reading.result == nil, "late actual read cannot populate replacement plan")
@@ -170,36 +170,6 @@ import AppKit
         try c.check(reading.completedStepIDs.count == 1 && reading.result == nil, "new plan needs new explicit approval")
         try manager.delete(id: second, confirmed: true)
         try c.check(reading.plan == nil && !next.isValid && reading.result == nil, "deletion between approvals discards read snapshot")
-        return c.count
-    }
-
-    static func lateWorkerAndDisclosure() async throws -> Int {
-        let c = Counter(), root = temporary(); defer { try? FileManager.default.removeItem(at: root) }
-        let fixture = try StoredFiles(root: root), id = try fixture.add(pdf(), name: "worker.pdf")
-        let manager = BrowserDownloadManager(directory: root)
-        let selection = try BrowserDownloadedPDFSelection(manager: manager, userSelectedID: id)
-        let model = SkillExecutionViewModel(downloadedPDF: selection), worker = HeldWorker()
-        defer { model.clear() }
-        model.prepareDownload(pages: "1", password: "", metadataOnly: false, worker: worker)
-        let plan = model.plan!
-        try c.check(plan.steps[1].disclosure.contains(worker.destination), "explicit selected worker destination disclosed")
-        let before = await worker.calls
-        try c.check(before == 0, "preparing never uploads")
-        model.execute(stepID: plan.steps[0].id)
-        if let task = model.executingTask { await task.value }
-        let afterRead = await worker.calls
-        try c.check(afterRead == 0 && model.result == nil, "read grant never uploads")
-        model.execute(stepID: plan.steps[1].id)
-        guard let task = model.executingTask else { throw Failure(check: "worker actual App task") }
-        await worker.started()
-        let dispatches = await worker.calls
-        try c.check(dispatches == 1 && model.running, "second explicit approval dispatches exactly once")
-        try manager.delete(id: id, confirmed: true)
-        try c.check(model.plan == nil && !model.running && model.result == nil, "deletion revokes while worker is held")
-        await worker.release(); await task.value
-        let replies = await worker.responses, finalCalls = await worker.calls
-        try c.check(replies == 1 && finalCalls == 1, "join actual worker return without new calls")
-        try c.check(model.result == nil && model.nextStepID == nil && model.completedStepIDs.isEmpty, "late worker result never published")
         return c.count
     }
 
@@ -269,21 +239,6 @@ import AppKit
         }
         func release() {
             lock.lock(); held = false; let pending = callback; callback = nil; lock.unlock(); pending?(nil)
-        }
-    }
-    private actor HeldWorker: SkillExecutionPDFWorker {
-        nonisolated let destination = "isolated held test adapter; no network"
-        private(set) var calls = 0, responses = 0
-        private var start: CheckedContinuation<Void, Never>?, pending: CheckedContinuation<Void, Never>?
-        func started() async { if calls == 0 { await withCheckedContinuation { start = $0 } } }
-        func release() { pending?.resume(); pending = nil }
-        func extract(data: Data, options: SkillExecutionPDFOptions) async throws -> SkillExecutionPDFResult {
-            calls += 1; start?.resume(); start = nil
-            await withCheckedContinuation { pending = $0 }
-            responses += 1
-            return SkillExecutionPDFResult(pageCount: 2, pages: [.init(number: 1, text: "Downloaded alpha")], metadata: [:], emptyPages: [],
-                inputSHA256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(), engine: "Held fixture",
-                originalScriptSHA256: SkillExecutionHTTPWorker.scriptSHA256)
         }
     }
     private static func pdf() -> Data {
@@ -361,8 +316,7 @@ private final class PDFDownloadServer: @unchecked Sendable {
             do {
                 let groups = ["realDownloadAndApprovals": try await BrowserDownloadedPDFAppChecks.realDownloadAndApprovals(),
                               "invalidSourcesAndLimits": try await BrowserDownloadedPDFAppChecks.invalidSourcesAndLimits(),
-                              "deletionAndHeldRead": try await BrowserDownloadedPDFAppChecks.deletionAndHeldRead(),
-                              "lateWorkerAndDisclosure": try await BrowserDownloadedPDFAppChecks.lateWorkerAndDisclosure()]
+                              "deletionAndHeldRead": try await BrowserDownloadedPDFAppChecks.deletionAndHeldRead()]
                 let result: [String: Any] = ["groups": groups, "passed": groups.values.reduce(0,+), "failed": 0,
                     "actual_wkdownload": true, "actual_pdfkit": true, "actual_app_execution_caller": true,
                     "external_network_or_model_requests": 0, "native_ui": false]

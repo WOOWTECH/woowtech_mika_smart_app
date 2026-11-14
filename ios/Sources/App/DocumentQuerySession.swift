@@ -165,7 +165,7 @@ struct DocumentQueryAudit {
         guard prior.configuration.baseURL == current.configuration.baseURL,
               prior.configuration.model == current.configuration.model,
               prior.configuration.maxOutputTokens == current.configuration.maxOutputTokens,
-              prior.key == current.key else { throw HostError.changed }
+              prior.identity == current.identity else { throw HostError.changed }
     }
 
     private func fail(_ failure: Error) {

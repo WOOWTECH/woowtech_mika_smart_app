@@ -9,9 +9,9 @@ import Foundation
 // endpoints, catalogs, arguments, server results or model replies are printed.
 private enum Check: String, Error {
     case missingConfiguration, setup, discovery, selection, budget, deadline
-    case unexpectedReview, remoteProposal, remoteFence, remoteResult, memoryReview
+    case unexpectedReview, remoteFence, remoteResult, memoryReview
     case memoryCommit, memoryReopen, undo, profileReview, profileCommit
-    case refusal, draftPreservation, receiptPreservation, encryptedFile, unknown
+    case remoteFailure, draftPreservation, receiptPreservation, encryptedFile, unknown
 }
 
 private final class RAMLearningKeys: LearningKeyStore {
@@ -40,8 +40,10 @@ private struct RAMEndpoint: MCPEndpointStoring {
 private let allowedName = "ha_eval_template"
 private let allowedArguments: JSONValue = .object(["template": .string("{{7*6}}")])
 
-/// Defense in depth around the actual transport, not a fake server. A single
-/// permit is armed only after the real App proposes the exact approved call.
+/// Defense in depth around the actual transport, not a fake server. Like the
+/// Play build, the App runs a selected tool with no per-call approval, so the
+/// single permit is armed before the turn starts and only the exact allowed
+/// name and arguments can use it; any other call never reaches the server.
 private actor BoundedMCP: MCPDiscovering {
     private let client: MCPClient
     private var permit = false
@@ -182,8 +184,7 @@ private actor ActualModel: ChatModelClient {
     }
     @MainActor private static func event(_ session: ChatSession, until deadline: ContinuousClock.Instant) async throws {
         try await wait(until: deadline) {
-            session.pendingMCPApproval != nil || session.pendingMemoryReview != nil
-                || session.pendingProfileReview != nil || !session.isSubmitting
+            session.pendingMemoryReview != nil || session.pendingProfileReview != nil || !session.isSubmitting
         }
     }
     @MainActor private static func start(_ session: ChatSession, connection: MCPSession, prompt: String) throws {
@@ -265,36 +266,33 @@ private actor ActualModel: ChatModelClient {
             try await wait(until: min(overall, clock.now.advanced(by: .seconds(95)))) { !connection.isBusy }
             try require(connection.phase == .connected && connection.supportsTools, .discovery)
             connection.selectTool(allowedName, enabled: true)
-            try require(connection.selectedToolNames == [allowedName] && connection.selectedResourceURIs.isEmpty, .selection)
+            try require(connection.selectedToolNames == [allowedName], .selection)
             let (_, selected, resources) = try connection.conversationConnection()
-            try require(selected.count == 1 && selected.first?.name == allowedName && resources.isEmpty, .selection)
+            // Listed resources are offered read-only without a picker (at most 30); this run reads none.
+            try require(selected.count == 1 && selected.first?.name == allowedName
+                        && resources.count <= MCPSession.offeredResourceLimit, .selection)
             completed.append(phase)
 
             phase = "remote_then_memory"
             let firstDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let firstPrompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review both the remote call and the local write separately. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
-            try start(session, connection: connection, prompt: firstPrompt)
-            try await event(session, until: firstDeadline)
-            output["remote_review_received"] = session.pendingMCPApproval != nil
-            output["first_turn_app_error"] = session.chatError != nil
-            guard let request = session.pendingMCPApproval else { throw Check.unexpectedReview }
-            try require(session.pendingMemoryReview == nil && session.pendingProfileReview == nil, .unexpectedReview)
-            try require(request.name == allowedName && request.arguments == allowedArguments, .remoteProposal)
-            let before = await server.attempts
-            try require(before == 0 && learning.memory.memories.isEmpty && session.memoryReceipt == nil, .remoteFence)
+            let firstPrompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review the local write. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
+            try require(learning.memory.memories.isEmpty && session.memoryReceipt == nil, .remoteFence)
+            // No approval card: the selected tool runs as soon as the model asks.
             try await server.armOnce()
-            session.resolveMCPApproval(id: request.id, approved: true)
-            output["remote_approvals"] = 1
+            try start(session, connection: connection, prompt: firstPrompt)
 
             phase = "memory_review"
             try await event(session, until: firstDeadline)
             output["memory_review_received"] = session.pendingMemoryReview != nil
             output["first_turn_app_error"] = session.chatError != nil
             guard let review = session.pendingMemoryReview else { throw Check.unexpectedReview }
-            try require(session.pendingMCPApproval == nil && session.pendingProfileReview == nil, .unexpectedReview)
+            try require(session.pendingProfileReview == nil, .unexpectedReview)
             let actual = await server.lastResult
-            try require(session.mcpSteps.count == 1 && session.mcpSteps[0].result == actual
+            try require(session.mcpSteps.count == 1
+                        && session.mcpSteps[0].proposal.action == .callTool(name: allowedName, arguments: allowedArguments)
+                        && session.mcpSteps[0].result == actual
                         && !session.mcpSteps[0].isError && actual.map(fortyTwo) == true, .remoteResult)
+            output["remote_ran_without_approval"] = true
             output["remote_result_matches_42"] = true
             output["memory_quote_matches"] = review.quote == "Prefer jasmine tea"
             output["memory_content_matches"] = review.after?.content == "Prefer jasmine tea"
@@ -309,7 +307,7 @@ private actor ActualModel: ChatModelClient {
             phase = "memory_finish"
             try await event(session, until: firstDeadline)
             output["first_turn_app_error"] = session.chatError != nil
-            try require(!session.isSubmitting && session.pendingMemoryReview == nil && session.pendingMCPApproval == nil
+            try require(!session.isSubmitting && session.pendingMemoryReview == nil
                         && session.pendingProfileReview == nil && session.chatError == nil, .memoryCommit)
             guard let receipt = session.memoryReceipt, receipt.ok else { throw Check.memoryCommit }
             try require(session.entries.count == 2 && session.entries.last?.role == "assistant"
@@ -339,12 +337,14 @@ private actor ActualModel: ChatModelClient {
             output["first_turn_remote"] = firstCounters
             completed.append("remote_then_memory")
 
-            phase = "profile_then_remote_refusal"
-            await server.seal() // The second turn cannot dispatch even on a regression.
+            phase = "profile_then_remote_failure"
+            // The second turn's remote call is blocked here, standing in for a
+            // remote failure after a committed profile; it never reaches HA.
+            await server.seal()
             session.newConversation()
             try require(session.entries.isEmpty && session.profileReceipt == nil && session.memoryReceipt == nil, .setup)
             let secondDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". I will review that write. After its successful committed receipt, propose ha_eval_template with only {"template":"{{7*6}}"}. Wait for my separate remote approval; do not call any other tool, save ordinary memory, or read resources. I may refuse the remote call; the saved profile must remain saved."#
+            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". I will review that write. After its successful committed receipt, call ha_eval_template with only {"template":"{{7*6}}"}; that call may fail. Do not call any other tool, save ordinary memory, or read resources. The saved profile must remain saved."#
             try start(session, connection: connection, prompt: secondPrompt)
             try await event(session, until: secondDeadline)
             output["profile_review_received"] = session.pendingProfileReview != nil
@@ -352,36 +352,25 @@ private actor ActualModel: ChatModelClient {
             guard let profile = session.pendingProfileReview else { throw Check.unexpectedReview }
             output["profile_quote_matches"] = profile.quote == "Prefer quiet walks"
             output["profile_content_matches"] = profile.after == "Prefer quiet walks"
-            try require(session.pendingMCPApproval == nil && session.pendingMemoryReview == nil
+            try require(session.pendingMemoryReview == nil
                         && profile.op == .add && profile.before == nil
                         && profile.after == "Prefer quiet walks" && profile.quote == "Prefer quiet walks", .profileReview)
             try require(learning.profile.snapshot().entries.isEmpty && session.profileReceipt == nil, .profileCommit)
             session.resolveProfileReview(id: profile.id, approved: true)
             output["profile_reviews_approved"] = 1
-            phase = "remote_refusal"
+            phase = "remote_failure"
             try await event(session, until: secondDeadline)
-            output["second_remote_review_received"] = session.pendingMCPApproval != nil
-            output["second_turn_app_error"] = session.chatError != nil
-            guard let denied = session.pendingMCPApproval else { throw Check.unexpectedReview }
-            try require(denied.name == allowedName && denied.arguments == allowedArguments
-                        && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, .remoteProposal)
+            try require(!session.isSubmitting && session.pendingProfileReview == nil
+                        && session.pendingMemoryReview == nil, .remoteFailure)
             guard let profileReceipt = session.profileReceipt, profileReceipt.applied,
                   let profileID = profileReceipt.id else { throw Check.profileCommit }
             let committed = reopen()
             try require(committed.available && committed.profile.snapshot().entries.count == 1
                         && committed.profile.snapshot().entries[0].id == profileID
                         && committed.profile.snapshot().entries[0].text == "Prefer quiet walks", .profileCommit)
-            let beforeRefusal = await server.counters()
-            let modelCallsBeforeRefusal = await actualModel.calls
-            try require(beforeRefusal == firstCounters && session.mcpSteps.isEmpty, .remoteFence)
-            session.resolveMCPApproval(id: denied.id, approved: false)
-            output["remote_denials"] = 1
-            try await event(session, until: secondDeadline)
-            try require(!session.isSubmitting && session.pendingMCPApproval == nil
-                        && session.pendingProfileReview == nil && session.pendingMemoryReview == nil, .refusal)
             // After a local commit the actual App replaces the stop message
-            // with its saved-state warning; it does not retain the denial text.
-            try require(session.chatError == "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。", .refusal)
+            // with its saved-state warning.
+            try require(session.chatError == "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。", .remoteFailure)
             try require(session.draft == secondPrompt && session.entries.isEmpty, .draftPreservation)
             try require(session.profileReceipt?.applied == true && session.profileReceipt?.id == profileID
                         && session.memoryReceipt == nil, .receiptPreservation)
@@ -391,18 +380,19 @@ private actor ActualModel: ChatModelClient {
                         && retained.profile.snapshot().entries[0].text == "Prefer quiet walks"
                         && retained.memory.memories.isEmpty, .receiptPreservation)
             try require(try encryptedFile(vault, excluding: "Prefer quiet walks"), .encryptedFile)
-            let afterRefusal = await server.counters(), forwardedProfile = await actualModel.profileReceiptID
-            let modelCallsAfterRefusal = await actualModel.calls
-            try require(afterRefusal == firstCounters && session.mcpSteps.isEmpty
-                        && forwardedProfile == profileID.uuidString
-                        && modelCallsAfterRefusal == modelCallsBeforeRefusal, .remoteFence)
-            output["second_turn_remote_attempts"] = afterRefusal["attempts", default: 0] - beforeRefusal["attempts", default: 0]
+            let afterBlock = await server.counters(), forwardedProfile = await actualModel.profileReceiptID
+            // The blocked call is counted, never sent: attempts and results stay at the first turn's.
+            try require(afterBlock == ["attempts": 1, "results": 1, "blocked": 1, "tool_errors": 0]
+                        && session.mcpSteps.isEmpty && forwardedProfile == profileID.uuidString, .remoteFence)
+            output["second_turn_remote_attempts"] = afterBlock["attempts", default: 0] - firstCounters["attempts", default: 0]
+            output["second_turn_remote_blocked"] = afterBlock["blocked", default: 0]
+            output["expected_remote_error"] = "remoteFence" // The blocked second-turn call sets remote_error.
             output["profile_receipt_forwarded"] = true
             output["profile_receipt_preserved"] = true
             output["profile_encrypted_reopen"] = true
-            output["refused_remote_draft_preserved"] = true
-            output["second_turn_app_error"] = true // Expected saved-state warning after refusal.
-            completed.append("profile_then_remote_refusal")
+            output["failed_remote_draft_preserved"] = true
+            output["second_turn_app_error"] = true // Expected saved-state warning after the blocked call.
+            completed.append("profile_then_remote_failure")
             try require(clock.now < overall, .deadline)
             output["passed"] = true
             output["error"] = "none"

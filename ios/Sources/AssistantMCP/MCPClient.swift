@@ -57,10 +57,10 @@ public actor MCPClient {
         return try await callAuthorizedTool(name: name, arguments: arguments)
     }
 
-    /// Single, already-authorized invocation for trusted host integrations.
-    /// The host must obtain consent for this exact name/arguments before calling;
-    /// use MCPConversationRunner for model-generated proposals. Neither tool
-    /// annotations nor this API's name establish consent. Never retries a call.
+    /// Single invocation for trusted host integrations; the host decides what
+    /// may run. MCPConversationRunner calls only the tools the user selected,
+    /// without a per-call approval, like the Play build. Tool annotations do not
+    /// widen that selection. Never retries a call.
     public func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         guard !name.isEmpty, case .object = arguments else { throw MCPError.invalidRequest }
         return try await perform { deadline in

@@ -67,7 +67,7 @@ import Foundation
         let current = try modelAccess()
         guard let access, access.configuration.baseURL == current.configuration.baseURL,
               access.configuration.model == current.configuration.model,
-              access.key == current.key, storeGeneration == store.generation else {
+              access.identity == current.identity, storeGeneration == store.generation else {
             throw SkillAuthoringError.storageChanged
         }
     }

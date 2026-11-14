@@ -2,7 +2,7 @@ import XCTest
 @testable import WoowAssistant
 
 @MainActor final class BrowserChromeLocalizationIntegrationTests: XCTestCase {
-    func testPackagedStartAndChromeStringsHaveAllThreeLanguages() {
+    func testPackagedStartAndChromeStringsHaveBothLanguages() {
         let messages: [AppText] = [
             .browserStartDone, .browserStartEdit, .browserStartRecent, .browserStartClear,
             .browserStartSuggestionHelp, .browserStartAddBookmark, .browserStartViewBookmarks,
@@ -39,19 +39,20 @@ import XCTest
 
     func testLocalizedControlsPreserveStableMeaningAndUntrustedNames() {
         let hant = AppLocalizer(language: .traditionalChinese)
-        let hans = AppLocalizer(language: .simplifiedChinese)
+        // A Simplified Chinese system shows the Traditional Chinese words.
+        let simplifiedSystem = AppLocalizer(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]))
         let english = AppLocalizer(language: .english)
         XCTAssertEqual(hant.text(.browserStartRecent), "最近開啟")
-        XCTAssertEqual(hans.text(.browserStartRecent), "最近打开")
+        XCTAssertEqual(simplifiedSystem.text(.browserStartRecent), "最近開啟")
         XCTAssertEqual(english.text(.browserStartRecent), "Recently opened")
         XCTAssertEqual(hant.text(.browserChromeHome), "起始頁")
-        XCTAssertEqual(hans.text(.browserChromeHome), "起始页")
+        XCTAssertEqual(simplifiedSystem.text(.browserChromeHome), "起始頁")
         XCTAssertEqual(english.text(.browserChromeHome), "Start page")
-        XCTAssertEqual(hant.text(.browserPageAskResearch), "問 Mika 研究此網站")
-        XCTAssertEqual(hans.text(.browserPageAskResearch), "问 Mika 研究此网站")
-        XCTAssertEqual(english.text(.browserPageAskResearch), "Ask Mika to research this site")
+        XCTAssertEqual(hant.text(.browserPageAskResearch), "問渥屋助理研究此網站")
+        XCTAssertEqual(simplifiedSystem.text(.browserPageAskResearch), "問渥屋助理研究此網站")
+        XCTAssertEqual(english.text(.browserPageAskResearch), "Ask the assistant to research this site")
         XCTAssertEqual(hant.text(.browserChromeOpenOutside), "在其他 App 開啟")
-        XCTAssertEqual(hans.text(.browserChromeOpenOutside), "在其他 App 打开")
+        XCTAssertEqual(simplifiedSystem.text(.browserChromeOpenOutside), "在其他 App 開啟")
         XCTAssertEqual(english.text(.browserChromeOpenOutside), "Open in another app")
 
         let page = "%n browser.start.recent 🧋"

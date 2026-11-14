@@ -104,8 +104,8 @@ final class AppLanguagePhase2UITests: XCTestCase {
         tapRoot("memory")
         tapChrome(app.buttons["memory.segment.skills"])
         tapContent(app.buttons["skills.catalog.open"])
-        exactVisibleText("catalog.status", "Mika bundled skill catalog")
-        exactVisibleText("catalog.count", "Original skills: 6 · Matches: 6")
+        exactVisibleText("catalog.status", "Built-in skill catalog")
+        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 5")
         exactText("catalog.scope", "Original text and scripts are read-only and are not executed. Import an iOS text adaptation for review, then approve it. Approval starts a trial; it does not mean original feature parity.")
         let search = app.textFields["catalog.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 10))
@@ -115,7 +115,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         prepareLatinKeyboard()
         search.typeText("ZQX987\n")
         XCTAssertEqual(search.value as? String, "ZQX987")
-        exactVisibleText("catalog.count", "Original skills: 6 · Matches: 0")
+        exactVisibleText("catalog.count", "Original skills: 5 · Matches: 0")
         exactText("catalog.empty", "No matching skills.")
         tapChrome(app.buttons["catalog.close"])
 

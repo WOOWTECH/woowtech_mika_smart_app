@@ -111,19 +111,11 @@ jobs:
           python3 scripts/check_skill_fixture_diagnostics.py 2>&1 | tee build/skill-fixture-guards.log
           swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
           build/MCPSettingsChecks
-          bash scripts/CheckSkillWorkerSettings.sh
       - name: Test synthetic provider speech standalone gates
         run: bash scripts/check_provider_speech_ci.sh
-      - name: Test original PDF script through the Swift HTTP client once
+      - name: Test native PDF skill execution once
         timeout-minutes: 8
-        run: |
-          bash scripts/skill-worker/check_swift.sh 2>&1 | tee build/skill-execution-native.log
-          python3 -m venv "$RUNNER_TEMP/woow-skill-worker-venv"
-          "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
-          test -x "${TMPDIR:-/tmp}/woow-skill-execution-checks"
-          SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
-            PYTHONDONTWRITEBYTECODE=1 "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" \
-            -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v 2>&1 | tee build/skill-worker-tests.log
+        run: bash scripts/check_skill_execution.sh 2>&1 | tee build/skill-execution-native.log
       - name: Preserve preflight evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -377,17 +369,10 @@ jobs:
           python3 scripts/check_model_connection_delayed_fixture.py 2>&1 | tee build/model-connection-delayed.log
       - name: Test synthetic provider speech standalone gates
         run: bash scripts/check_provider_speech_ci.sh
-      - name: Test original PDF script through the Swift HTTP client
+      - name: Test native PDF skill execution
         if: github.event_name != 'workflow_dispatch' || inputs.test_scope == 'files' || inputs.test_scope == 'all'
         timeout-minutes: 6
-        run: |
-          bash scripts/skill-worker/check_swift.sh 2>&1 | tee build/skill-execution-native.log
-          python3 -m venv "$RUNNER_TEMP/woow-skill-worker-venv"
-          "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" -m pip install --require-hashes -r scripts/skill-worker/requirements.txt
-          test -x "${TMPDIR:-/tmp}/woow-skill-execution-checks"
-          SKILL_EXECUTION_TEST_BINARY="${TMPDIR:-/tmp}/woow-skill-execution-checks" \
-            PYTHONDONTWRITEBYTECODE=1 "$RUNNER_TEMP/woow-skill-worker-venv/bin/python" \
-            -m unittest discover -s scripts/skill-worker -p 'test_*.py' -v 2>&1 | tee build/skill-worker-tests.log
+        run: bash scripts/check_skill_execution.sh 2>&1 | tee build/skill-execution-native.log
       - name: Test simulator selection
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee build/scripts-tests.log
       - name: Check interface language resources and explicit UI launch languages
@@ -403,8 +388,6 @@ jobs:
         run: |
           swiftc -DDEBUG -parse-as-library Sources/App/MCPSettings.swift scripts/MCPSettingsChecks.swift -o build/MCPSettingsChecks
           build/MCPSettingsChecks
-      - name: Test dedicated script-service settings and credential isolation
-        run: bash scripts/CheckSkillWorkerSettings.sh
       - name: Install XcodeGen
         run: |
           tool_dir="$(mktemp -d "$RUNNER_TEMP/woow-xcodegen.XXXXXX")"
@@ -526,7 +509,7 @@ jobs:
               test_filters=(-only-testing:AssistantSkillsTests/TranscriptRuntimeTests -only-testing:AssistantSkillsTests/TranscriptCommandRecoveryTests -only-testing:AssistantSkillsTests/TranscriptReferenceTests -only-testing:AssistantSkillsTests/TranscriptReferenceAppIntegrationTests -only-testing:AssistantBrowserIntegrationTests/BrowserSessionNavigationTests -only-testing:WoowAssistantUITests/TranscriptUITests)
               ;;
             skill-settings)
-              test_filters=(-only-testing:AssistantSkillsTests/SelfConfigurationTests -only-testing:WoowAssistantUITests/SelfConfigurationUITests -only-testing:WoowAssistantUITests/SkillWorkerSettingsUITests)
+              test_filters=(-only-testing:AssistantSkillsTests/SelfConfigurationTests -only-testing:WoowAssistantUITests/SelfConfigurationUITests)
               ;;
             files)
               test_filters=(-only-testing:AssistantSkillsTests -only-testing:AssistantDomainTests/BrowserDownloadTests -only-testing:AssistantDomainTests/BrowserNavigationIntentTests -only-testing:AssistantBrowserIntegrationTests -only-testing:WoowAssistantUITests/BrowserUploadUITests -only-testing:WoowAssistantUITests/SkillExecutionUITests)

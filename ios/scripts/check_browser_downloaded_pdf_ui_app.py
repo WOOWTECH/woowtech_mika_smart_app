@@ -14,7 +14,7 @@ import tempfile
 import time
 
 from check_profile_chat_app import APP_SOURCES, MODULES
-GROUPS = {"actualBrowserFixture", "realDownloadAndApprovals", "invalidSourcesAndLimits", "deletionAndHeldRead", "lateWorkerAndDisclosure"}
+GROUPS = {"actualBrowserFixture", "realDownloadAndApprovals", "invalidSourcesAndLimits", "deletionAndHeldRead"}
 
 
 def main():

@@ -29,15 +29,16 @@
 - [x] HTTPS Streamable HTTP MCP client, explicit tool allowlist, bounded requests and discovery.
 - [x] Keychain-backed model keys and whole MCP endpoints; no plaintext credentials in preferences or logs.
 - [x] User-configurable MCP endpoint with discovery/cancel/disconnect UI.
-- [x] App-level tool/resource selection and bounded model-to-MCP orchestration with explicit per-call approval cards (simulator/live acceptance tracked in VERIFICATION).
+- [x] App-level tool selection and bounded model-to-MCP orchestration (simulator/live acceptance tracked in VERIFICATION). Like the Play build, selected tools and listed resources (at most 30, read-only, no picker) run without a per-call approval card since 2026-11-13; the tool selection is the limit and every call's result stays in the chat's results list. The resource list and the Skills pointer on the MCP page were removed on 2026-11-13.
 - [ ] OAuth PKCE, explicit session reinitialization UI and other required transport modes.
 - [ ] Authorized real-device HA control tests (target and allowed actions pending).
 - [x] Complete pinned Mika bundled-source catalog with hashes/licenses and separately reviewed iOS text adaptations.
-- [x] Capability dependency inventory, per-step PDF grants, native PDFKit and pinned original PDF-worker protocol/tests.
+- [x] Capability dependency inventory, per-step PDF grants and native PDFKit. The pinned original PDF-worker protocol, its 腳本服務 settings and tests were removed on 2026-11-13 to match the Play build.
 - [x] Manual skill-authoring bridge with original-request/read-version/review binding and atomic encrypted persistence; native UI acceptance tracked per revision.
-- [x] Build and execute the pinned original PDF worker in actual isolated GitHub Ubuntu containers; verify effective restrictions and exact results. No endpoint deployed.
+- [x] Build and execute the pinned original PDF worker in actual isolated GitHub Ubuntu containers; verify effective restrictions and exact results. No endpoint deployed. The container and its workflow were removed on 2026-11-13 with the worker.
 - [x] Model-autonomous skill search/read and reviewed-save integration; real-model App flow passed at `6d480d8` (VERIFICATION).
-- [x] Configurable App appearance with model list/set and independent default-off permission; native/live acceptance pending by revision.
+- [x] Configurable App appearance, chosen by the user in Settings › 語言與外觀. The model list/set flow and its permission were removed on 2026-11-13 to match the Play build.
+- [x] Interface languages as in the Play build: 跟隨系統, 繁體中文 and English. The Simplified Chinese interface was removed on 2026-11-13; a Simplified Chinese system shows Traditional Chinese, permission prompts included, and other languages without a translation show English.
 - [x] Original content-transcribe guidance over approved text/subtitle files and browser text snapshots; core HTTP checks pass, native/live acceptance pending by revision.
 - [ ] Full original-skill tool registry and deployed authenticated remote compute environment.
 

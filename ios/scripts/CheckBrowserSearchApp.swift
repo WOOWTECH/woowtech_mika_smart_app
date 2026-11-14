@@ -242,7 +242,7 @@ private final class BrowserSearchKeys: LearningKeyStore {
         let actions = probe.actions.count, finishes = probe.finishes
         let beforeLanguage = workspace.library
         let draftBeforeLanguage = browser.address
-        try check(language.setFromUser(.english) && language.setFromUser(.simplifiedChinese), "change display language with a live manual document")
+        try check(language.setFromUser(.english) && language.setFromUser(.traditionalChinese), "change display language with a live manual document")
         try check(workspace.library == beforeLanguage && workspace.selected === browser && browser.address == draftBeforeLanguage,
                   "language preserves encrypted metadata, session and address draft")
         try check(workspace.selectSearchEngine("bing"), "change engine on completed document")

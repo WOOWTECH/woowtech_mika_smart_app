@@ -124,8 +124,8 @@ import SwiftUI
                             confirmsDelete = pendingDeleteApproval != nil
                         }
                             .disabled(session.isCurrentConversation(id: id) &&
-                                      (session.isSubmitting || session.pendingMCPApproval != nil ||
-                                       session.pendingProfileReview != nil || session.pendingMemoryReview != nil))
+                                      (session.isSubmitting || session.pendingProfileReview != nil ||
+                                       session.pendingMemoryReview != nil))
                             .accessibilityIdentifier("archive.delete")
                         Spacer()
                         Button("開啟此對話", action: open)

@@ -27,16 +27,15 @@ final class MCPSession: ObservableObject {
     @Published private(set) var phase: Phase = .notConfigured
     @Published private(set) var protocolVersion: String?
     @Published private(set) var toolNames: [String] = []
-    @Published private(set) var resourceNames: [String] = []
     @Published private(set) var tools: [MCPTool] = []
+    /// Offered to the model read-only, without a picker, like the Play build's
+    /// resource_read tool: at most 30, read without a per-call approval.
     @Published private(set) var resources: [MCPResource] = []
     @Published private(set) var selectedToolNames: Set<String> = []
-    @Published private(set) var selectedResourceURIs: Set<String> = []
     @Published var toolSearch = ""
     /// Invalidates conversation snapshots before changing the endpoint or selection.
     var onConnectionChange: (() -> Void)?
     @Published private(set) var supportsTools = false
-    @Published private(set) var supportsResources = false
     @Published private(set) var errorText: AppText?
     var errorMessage: String? { errorText.map { AppLocalizer(language: .traditionalChinese).text($0) } }
     @Published private(set) var noticeText: AppText?
@@ -102,7 +101,9 @@ final class MCPSession: ObservableObject {
     deinit { request?.cancel(); deadline?.cancel() }
 
     var isBusy: Bool { phase == .connecting || phase == .discovering }
-    var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !selectedResourceURIs.isEmpty) }
+    var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !resources.isEmpty) }
+    /// Android lists up to 30 resource URIs in its resource_read tool.
+    static let offeredResourceLimit = 30
 
     var visibleTools: [MCPTool] {
         let query = toolSearch.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,18 +120,9 @@ final class MCPSession: ObservableObject {
         else { selectedToolNames.remove(name) }
     }
 
-    func selectResource(_ uri: String, enabled: Bool) {
-        guard resources.contains(where: { $0.uri == uri }) else { return }
-        guard !enabled || selectedResourceURIs.count < 64 else { return }
-        onConnectionChange?()
-        if enabled { selectedResourceURIs.insert(uri) }
-        else { selectedResourceURIs.remove(uri) }
-    }
-
     func conversationConnection() throws -> (any MCPDiscovering, [MCPTool], [MCPResource]) {
         guard canUseInConversation, let client else { throw MCPError.notInitialized }
-        return (client, tools.filter { selectedToolNames.contains($0.name) },
-                resources.filter { selectedResourceURIs.contains($0.uri) })
+        return (client, tools.filter { selectedToolNames.contains($0.name) }, resources)
     }
     var canSave: Bool { repository != nil && !isBusy && !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     var canConnect: Bool {
@@ -227,11 +219,11 @@ final class MCPSession: ObservableObject {
                 guard let self, self.requestID == id else { return }
                 self.protocolVersion = info.protocolVersion
                 self.supportsTools = info.capabilities.contains("tools")
-                self.supportsResources = info.capabilities.contains("resources")
                 self.toolNames = tools.map { Self.displayName($0.name, endpoint: endpoint) }
-                self.resourceNames = resources.map { Self.displayName($0.name, endpoint: endpoint) }
                 self.tools = tools
-                self.resources = resources
+                // Skip entries the conversation runner would refuse, so one bad
+                // resource cannot stop every MCP conversation.
+                self.resources = Array(resources.filter(Self.offerable).prefix(Self.offeredResourceLimit))
                 self.finish(id: id)
                 self.phase = .connected
                 self.noticeText = .mcpDiscoveryNotice
@@ -294,19 +286,23 @@ final class MCPSession: ObservableObject {
     private func clearCatalog() {
         protocolVersion = nil
         toolNames = []
-        resourceNames = []
         tools = []
         resources = []
         selectedToolNames = []
-        selectedResourceURIs = []
         toolSearch = ""
         supportsTools = false
-        supportsResources = false
     }
 
     private static func settingsMessage(_ error: Error) -> AppText {
         guard let error = error as? MCPSettingsError else { return .mcpSettingsError }
         return AppLocalizer.mcpSettingsError(error)
+    }
+
+    /// The same per-resource limits MCPConversationRunner checks.
+    private static func offerable(_ resource: MCPResource) -> Bool {
+        !resource.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && resource.name.utf8.count <= 256
+            && !resource.name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+            && !resource.uri.isEmpty && resource.uri.utf8.count <= 4096 && (resource.mimeType?.utf8.count ?? 0) <= 256
     }
 
     private static func displayName(_ name: String, endpoint: URL) -> String {

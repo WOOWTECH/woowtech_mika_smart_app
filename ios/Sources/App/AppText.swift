@@ -7,10 +7,7 @@ enum AppText: Equatable {
     case languageSystem
     case languageSystemDetail
     case languageTraditional
-    case languageSimplified
     case languageEnglish
-    case languageExplanation
-    case languagePartialNotice
     case languageSaveFailed
     case shellBrandTitle
     case shellMenu
@@ -33,7 +30,7 @@ enum AppText: Equatable {
     case shellGreetingNight
     case shellWhatToDo
     case shellReplyExample
-    case shellDocumentExample
+    case shellNewsExample
     case shellShoppingExample
     case shellRememberExample
     case shellRecallExample
@@ -46,71 +43,12 @@ enum AppText: Equatable {
     case shellStop
     case shellReturnToLatest
     case shellSend
-    case configurationTitle
     case appearanceTitle
-    case appearanceCurrent
-    case appearanceSystem
-    case appearanceLight
-    case appearanceDark
     case appearanceFollowSystem
     case appearanceSystemDetail
     case appearanceAlwaysLight
     case appearanceAlwaysDark
-    case appearanceAppliedDark
-    case appearanceAppliedLight
-    case appearanceExplanation
-    case configurationPermissionTitle
-    case configurationPermission
-    case configurationPermissionExplanation
-    case configurationRequestTitle
-    case configurationRequestExplanation
-    case configurationRequestLabel
-    case configurationCancel
-    case configurationStart
-    case configurationResult
     case keyboardDone
-    case configurationIdle
-    case configurationRunning
-    case configurationClarification
-    case configurationUnchanged
-    case configurationStopped
-    case configurationNotStarted
-    case configurationCancelled
-    case configurationNeedsModel
-    case configurationStepList
-    case configurationErrorPermission
-    case configurationErrorAuthorization
-    case configurationErrorCancelled
-    case configurationErrorRequest
-    case configurationErrorCommand
-    case configurationErrorList
-    case configurationErrorSetting
-    case configurationErrorValue
-    case configurationErrorUsed
-    case configurationErrorTimeout
-    case configurationErrorModel
-    case configurationErrorPersistence
-    case languageResolved(name: String)
-    case configurationChanged(appearance: String)
-    case configurationStepSet(appearance: String)
-    case configurationStepCount(count: Int)
-    case workerTitle
-    case workerSection
-    case workerExplanation
-    case workerEndpoint
-    case workerToken
-    case workerSave
-    case workerRemove
-    case workerLocal
-    case workerConfigured
-    case workerPrivacy
-    case workerLoadFailed
-    case workerCredentialsFailed
-    case workerSavedCleanupFailed
-    case workerSaved
-    case workerInvalid
-    case workerRemoved
-    case workerRemoveFailed
     case modelSettingsInvalidURL
     case modelSettingsMissingModel
     case modelSettingsMissingKey
@@ -130,7 +68,6 @@ enum AppText: Equatable {
     case mcpTitle
     case mcpConnectionSection
     case mcpNoTools
-    case mcpNoResources
     case mcpExplanation
     case mcpIsolation
     case mcpStored
@@ -147,10 +84,6 @@ enum AppText: Equatable {
     case mcpDisconnect
     case mcpServerTools
     case mcpSearchTools
-    case mcpServerResources
-    case mcpSkills
-    case mcpSkillsLocation
-    case mcpSkillsHelp
     case mcpRemoveQuestion
     case mcpRemove
     case mcpNotConfigured
@@ -174,21 +107,14 @@ enum AppText: Equatable {
     case mcpKeychainUnavailable
     case mcpInvalidNamespace
     case mcpMissingLiveEndpoint
-    case mcpApprovalHelp
-    case mcpApprovalRisk
-    case mcpApprovalTitle
-    case mcpDecline
-    case mcpApprove
     case mcpReadResource
     case mcpToolError
     case mcpToolResult
     case mcpResultsTitle
     case mcpResultUnavailable
-    case mcpRouteObservation
     case mcpProtocol(version: String)
     case mcpKeychainStatus(code: String)
     case mcpToolCount(count: Int)
-    case mcpResourceCount(count: Int)
     case mcpSelectedCount(count: Int)
     case searchTitle
     case searchCustom
@@ -281,9 +207,6 @@ enum AppText: Equatable {
     case catalogTranscriptSection
     case catalogTranscriptOpen
     case catalogTranscriptHelp
-    case catalogAppearanceSection
-    case catalogAppearanceOpen
-    case catalogAppearanceHelp
     case catalogAuthorSection
     case catalogAuthorOpen
     case catalogAgentOpen
@@ -305,12 +228,10 @@ enum AppText: Equatable {
     case catalogOriginalRead
     case catalogAttribution
     case catalogTextSafety
-    case catalogReadyAppearance
     case catalogReadyAuthor
     case catalogReadyDocuments
     case catalogReadyTranscript
     case catalogReadyOther
-    case catalogReqSettings
     case catalogReqAndroid
     case catalogReqWeb
     case catalogReqFiles
@@ -457,7 +378,6 @@ enum AppText: Equatable {
     case newConversationKeep
     case chatStatusProfileReview
     case chatStatusMemoryReview
-    case chatStatusMCPApproval
     case chatStatusMCPWorking
     case chatStatusWaiting
     case chatStatusConfigured
@@ -567,7 +487,6 @@ enum AppText: Equatable {
     case chatBranchFailed
     case chatBranchTitleSuffix
     case chatBranchAttachmentsReadd
-    case chatBranchComposerInUse
     case chatBranchOrigin
     case chatModelFailedAuth
     case chatModelFailedQuota
@@ -585,10 +504,7 @@ enum AppText: Equatable {
         case .languageSystem: return "language.system"
         case .languageSystemDetail: return "language.system.detail"
         case .languageTraditional: return "language.traditional"
-        case .languageSimplified: return "language.simplified"
         case .languageEnglish: return "language.english"
-        case .languageExplanation: return "language.explanation"
-        case .languagePartialNotice: return "language.partialNotice"
         case .languageSaveFailed: return "language.saveFailed"
         case .shellBrandTitle: return "shell.brandTitle"
         case .shellMenu: return "shell.menu"
@@ -611,7 +527,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "shell.greetingNight"
         case .shellWhatToDo: return "shell.whatToDo"
         case .shellReplyExample: return "shell.replyExample"
-        case .shellDocumentExample: return "shell.documentExample"
+        case .shellNewsExample: return "shell.newsExample"
         case .shellShoppingExample: return "shell.shoppingExample"
         case .shellRememberExample: return "shell.rememberExample"
         case .shellRecallExample: return "shell.recallExample"
@@ -624,71 +540,12 @@ enum AppText: Equatable {
         case .shellStop: return "shell.stop"
         case .shellReturnToLatest: return "shell.returnToLatest"
         case .shellSend: return "shell.send"
-        case .configurationTitle: return "configuration.title"
         case .appearanceTitle: return "appearance.title"
-        case .appearanceCurrent: return "appearance.current"
-        case .appearanceSystem: return "appearance.system"
-        case .appearanceLight: return "appearance.light"
-        case .appearanceDark: return "appearance.dark"
         case .appearanceFollowSystem: return "appearance.followSystem"
         case .appearanceSystemDetail: return "appearance.system.detail"
         case .appearanceAlwaysLight: return "appearance.alwaysLight"
         case .appearanceAlwaysDark: return "appearance.alwaysDark"
-        case .appearanceAppliedDark: return "appearance.appliedDark"
-        case .appearanceAppliedLight: return "appearance.appliedLight"
-        case .appearanceExplanation: return "appearance.explanation"
-        case .configurationPermissionTitle: return "configuration.permissionTitle"
-        case .configurationPermission: return "configuration.permission"
-        case .configurationPermissionExplanation: return "configuration.permissionExplanation"
-        case .configurationRequestTitle: return "configuration.requestTitle"
-        case .configurationRequestExplanation: return "configuration.requestExplanation"
-        case .configurationRequestLabel: return "configuration.requestLabel"
-        case .configurationCancel: return "configuration.cancel"
-        case .configurationStart: return "configuration.start"
-        case .configurationResult: return "configuration.result"
         case .keyboardDone: return "keyboard.done"
-        case .configurationIdle: return "configuration.idle"
-        case .configurationRunning: return "configuration.running"
-        case .configurationClarification: return "configuration.clarification"
-        case .configurationUnchanged: return "configuration.unchanged"
-        case .configurationStopped: return "configuration.stopped"
-        case .configurationNotStarted: return "configuration.notStarted"
-        case .configurationCancelled: return "configuration.cancelled"
-        case .configurationNeedsModel: return "configuration.needsModel"
-        case .configurationStepList: return "configuration.stepList"
-        case .configurationErrorPermission: return "configuration.error.permission"
-        case .configurationErrorAuthorization: return "configuration.error.authorization"
-        case .configurationErrorCancelled: return "configuration.error.cancelled"
-        case .configurationErrorRequest: return "configuration.error.request"
-        case .configurationErrorCommand: return "configuration.error.command"
-        case .configurationErrorList: return "configuration.error.list"
-        case .configurationErrorSetting: return "configuration.error.setting"
-        case .configurationErrorValue: return "configuration.error.value"
-        case .configurationErrorUsed: return "configuration.error.used"
-        case .configurationErrorTimeout: return "configuration.error.timeout"
-        case .configurationErrorModel: return "configuration.error.model"
-        case .configurationErrorPersistence: return "configuration.error.persistence"
-        case .languageResolved: return "language.resolved"
-        case .configurationChanged: return "configuration.changed"
-        case .configurationStepSet: return "configuration.stepSet"
-        case .configurationStepCount: return "configuration.stepCount"
-        case .workerTitle: return "worker.title"
-        case .workerSection: return "worker.section"
-        case .workerExplanation: return "worker.explanation"
-        case .workerEndpoint: return "worker.endpoint"
-        case .workerToken: return "worker.token"
-        case .workerSave: return "worker.save"
-        case .workerRemove: return "worker.remove"
-        case .workerLocal: return "worker.local"
-        case .workerConfigured: return "worker.configured"
-        case .workerPrivacy: return "worker.privacy"
-        case .workerLoadFailed: return "worker.loadFailed"
-        case .workerCredentialsFailed: return "worker.credentialsFailed"
-        case .workerSavedCleanupFailed: return "worker.savedCleanupFailed"
-        case .workerSaved: return "worker.saved"
-        case .workerInvalid: return "worker.invalid"
-        case .workerRemoved: return "worker.removed"
-        case .workerRemoveFailed: return "worker.removeFailed"
         case .modelSettingsInvalidURL: return "modelSettings.invalidURL"
         case .modelSettingsMissingModel: return "modelSettings.missingModel"
         case .modelSettingsMissingKey: return "modelSettings.missingKey"
@@ -708,7 +565,6 @@ enum AppText: Equatable {
         case .mcpTitle: return "mcp.title"
         case .mcpConnectionSection: return "mcp.connection.section"
         case .mcpNoTools: return "mcp.no.tools"
-        case .mcpNoResources: return "mcp.no.resources"
         case .mcpExplanation: return "mcp.explanation"
         case .mcpIsolation: return "mcp.isolation"
         case .mcpStored: return "mcp.stored"
@@ -725,10 +581,6 @@ enum AppText: Equatable {
         case .mcpDisconnect: return "mcp.disconnect"
         case .mcpServerTools: return "mcp.server.tools"
         case .mcpSearchTools: return "mcp.search.tools"
-        case .mcpServerResources: return "mcp.server.resources"
-        case .mcpSkills: return "mcp.skills"
-        case .mcpSkillsLocation: return "mcp.skills.location"
-        case .mcpSkillsHelp: return "mcp.skills.help"
         case .mcpRemoveQuestion: return "mcp.remove.question"
         case .mcpRemove: return "mcp.remove"
         case .mcpNotConfigured: return "mcp.not.configured"
@@ -752,21 +604,14 @@ enum AppText: Equatable {
         case .mcpKeychainUnavailable: return "mcp.keychain.unavailable"
         case .mcpInvalidNamespace: return "mcp.invalid.namespace"
         case .mcpMissingLiveEndpoint: return "mcp.missing.live.endpoint"
-        case .mcpApprovalHelp: return "mcp.approval.help"
-        case .mcpApprovalRisk: return "mcp.approval.risk"
-        case .mcpApprovalTitle: return "mcp.approval.title"
-        case .mcpDecline: return "mcp.decline"
-        case .mcpApprove: return "mcp.approve"
         case .mcpReadResource: return "mcp.read.resource"
         case .mcpToolError: return "mcp.tool.error"
         case .mcpToolResult: return "mcp.tool.result"
         case .mcpResultsTitle: return "mcp.results.title"
         case .mcpResultUnavailable: return "mcp.result.unavailable"
-        case .mcpRouteObservation: return "mcp.route.observation"
         case .mcpProtocol: return "mcp.protocol"
         case .mcpKeychainStatus: return "mcp.keychain.status"
         case .mcpToolCount: return "mcpToolCount"
-        case .mcpResourceCount: return "mcpResourceCount"
         case .mcpSelectedCount: return "mcpSelectedCount"
         case .searchTitle: return "search.title"
         case .searchCustom: return "search.custom"
@@ -859,9 +704,6 @@ enum AppText: Equatable {
         case .catalogTranscriptSection: return "catalog.transcript.section"
         case .catalogTranscriptOpen: return "catalog.transcript.open"
         case .catalogTranscriptHelp: return "catalog.transcript.help"
-        case .catalogAppearanceSection: return "catalog.appearance.section"
-        case .catalogAppearanceOpen: return "catalog.appearance.open"
-        case .catalogAppearanceHelp: return "catalog.appearance.help"
         case .catalogAuthorSection: return "catalog.author.section"
         case .catalogAuthorOpen: return "catalog.author.open"
         case .catalogAgentOpen: return "catalog.agent.open"
@@ -883,12 +725,10 @@ enum AppText: Equatable {
         case .catalogOriginalRead: return "catalog.original.read"
         case .catalogAttribution: return "catalog.attribution"
         case .catalogTextSafety: return "catalog.text.safety"
-        case .catalogReadyAppearance: return "catalog.ready.appearance"
         case .catalogReadyAuthor: return "catalog.ready.author"
         case .catalogReadyDocuments: return "catalog.ready.documents"
         case .catalogReadyTranscript: return "catalog.ready.transcript"
         case .catalogReadyOther: return "catalog.ready.other"
-        case .catalogReqSettings: return "catalog.req.settings"
         case .catalogReqAndroid: return "catalog.req.android"
         case .catalogReqWeb: return "catalog.req.web"
         case .catalogReqFiles: return "catalog.req.files"
@@ -1035,7 +875,6 @@ enum AppText: Equatable {
         case .newConversationKeep: return "newConversation.keep"
         case .chatStatusProfileReview: return "chat.status.profileReview"
         case .chatStatusMemoryReview: return "chat.status.memoryReview"
-        case .chatStatusMCPApproval: return "chat.status.mcpApproval"
         case .chatStatusMCPWorking: return "chat.status.mcpWorking"
         case .chatStatusWaiting: return "chat.status.waiting"
         case .chatStatusConfigured: return "chat.status.configured"
@@ -1145,7 +984,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "chat.branch.failed"
         case .chatBranchTitleSuffix: return "chat.branch.titleSuffix"
         case .chatBranchAttachmentsReadd: return "chat.branch.attachmentsReadd"
-        case .chatBranchComposerInUse: return "chat.branch.composerInUse"
         case .chatBranchOrigin: return "chat.branch.origin"
         case .chatModelFailedAuth: return "chat.modelFailed.auth"
         case .chatModelFailedQuota: return "chat.modelFailed.quota"
@@ -1161,15 +999,10 @@ enum AppText: Equatable {
 
     var arguments: [CVarArg] {
         switch self {
-        case .languageResolved(let name): return [name]
-        case .configurationChanged(let appearance): return [appearance]
-        case .configurationStepSet(let appearance): return [appearance]
-        case .configurationStepCount(let count): return [Int64(count)]
         case .modelSettingsKeychainStatus(let code): return [code]
         case .mcpProtocol(let version): return [version]
         case .mcpKeychainStatus(let code): return [code]
         case .mcpToolCount(let count): return [Int64(count)]
-        case .mcpResourceCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
         case .commonCloseName(let name): return [name]
@@ -1205,12 +1038,9 @@ enum AppText: Equatable {
         switch self {
         case .languageTitle: return "語言"
         case .languageSystem: return "跟隨系統"
-        case .languageSystemDetail: return "系統語言渥屋助理有譯文時用它,沒有時用繁體中文"
+        case .languageSystemDetail: return "跟著裝置語言；簡體中文改用繁體中文，其他沒有譯文的語言用英文"
         case .languageTraditional: return "繁體中文"
-        case .languageSimplified: return "简体中文"
         case .languageEnglish: return "English"
-        case .languageExplanation: return "依裝置的語言偏好選擇支援的介面語言；未支援時使用繁體中文。不翻譯你的內容、模型回覆或原始技能。"
-        case .languagePartialNotice: return "設定頁、主導覽與新增聊天控制已提供三語翻譯；其他頁面仍可能顯示繁體中文。"
         case .languageSaveFailed: return "無法讀回語言設定，請重新選擇。"
         case .shellBrandTitle: return "渥屋助理"
         case .shellMenu: return "選單"
@@ -1233,7 +1063,7 @@ enum AppText: Equatable {
         case .shellGreetingNight: return "夜深了"
         case .shellWhatToDo: return "想讓渥屋助理做什麼？"
         case .shellReplyExample: return "幫我寫一則友善的訊息回覆"
-        case .shellDocumentExample: return "幫我摘要附上的文件，列出重點"
+        case .shellNewsExample: return "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"
         case .shellShoppingExample: return "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"
         case .shellRememberExample: return "記住我偏好使用繁體中文，回答簡短一點"
         case .shellRecallExample: return "你記得我有哪些偏好？"
@@ -1246,71 +1076,12 @@ enum AppText: Equatable {
         case .shellStop: return "取消"
         case .shellReturnToLatest: return "回到最新訊息"
         case .shellSend: return "傳送"
-        case .configurationTitle: return "外觀與模型權限"
         case .appearanceTitle: return "外觀"
-        case .appearanceCurrent: return "目前外觀"
-        case .appearanceSystem: return "跟隨系統"
-        case .appearanceLight: return "淺色"
-        case .appearanceDark: return "深色"
         case .appearanceFollowSystem: return "跟隨系統"
         case .appearanceSystemDetail: return "裝置是淺色就淺色，深色就深色"
         case .appearanceAlwaysLight: return "一直淺色"
         case .appearanceAlwaysDark: return "一直深色"
-        case .appearanceAppliedDark: return "目前顯示：深色"
-        case .appearanceAppliedLight: return "目前顯示：淺色"
-        case .appearanceExplanation: return "選擇後立即生效；跟隨系統會使用裝置目前的外觀。"
-        case .configurationPermissionTitle: return "模型權限"
-        case .configurationPermission: return "允許模型調整外觀"
-        case .configurationPermissionExplanation: return "預設關閉。開啟後，模型只可查詢及切換外觀；模型、金鑰、登入、刪除資料及網路設定均不提供給此工具。"
-        case .configurationRequestTitle: return "請模型調整外觀"
-        case .configurationRequestExplanation: return "要求會傳送至你已設定的模型。請勿填入密碼或金鑰。"
-        case .configurationRequestLabel: return "外觀調整要求"
-        case .configurationCancel: return "停止調整"
-        case .configurationStart: return "送出外觀要求"
-        case .configurationResult: return "結果"
         case .keyboardDone: return "完成輸入"
-        case .configurationIdle: return "尚未提出外觀調整要求。"
-        case .configurationRunning: return "正在查詢並調整外觀……"
-        case .configurationClarification: return "尚未變更外觀；請補充要求後重新送出。"
-        case .configurationUnchanged: return "這次沒有變更外觀。"
-        case .configurationStopped: return "這次外觀調整已停止。"
-        case .configurationNotStarted: return "尚未開始外觀調整。"
-        case .configurationCancelled: return "已停止；之後抵達的模型回應不會套用。"
-        case .configurationNeedsModel: return "請先在模型設定完成連線設定。"
-        case .configurationStepList: return "settings_list：已讀取外觀及三個可選值"
-        case .configurationErrorPermission: return "請先開啟「允許模型調整外觀」。"
-        case .configurationErrorAuthorization: return "設定或權限已變更，已停止這次操作；請重新提出要求。"
-        case .configurationErrorCancelled: return "已取消，之後抵達的模型回應不會套用。"
-        case .configurationErrorRequest: return "請輸入外觀調整要求，長度不得超過 2,000 個 UTF-8 位元組。"
-        case .configurationErrorCommand: return "模型未回傳有效的設定指令，未套用變更。"
-        case .configurationErrorList: return "模型必須先查詢可調整的設定，未套用變更。"
-        case .configurationErrorSetting: return "模型只能調整外觀，未套用其他設定。"
-        case .configurationErrorValue: return "外觀只接受跟隨系統、淺色或深色，未套用變更。"
-        case .configurationErrorUsed: return "這次設定操作已結束，請重新提出要求。"
-        case .configurationErrorTimeout: return "模型回應逾時，未套用變更。"
-        case .configurationErrorModel: return "模型連線或回應失敗，未套用變更。"
-        case .configurationErrorPersistence: return "無法讀回外觀設定，請檢查目前外觀。"
-        case .languageResolved: return "目前介面：%1$@"
-        case .configurationChanged: return "已讀回外觀：%1$@。已立即套用。"
-        case .configurationStepSet: return "settings_set：已寫入並讀回「%1$@」"
-        case .configurationStepCount: return "%lld 個步驟"
-        case .workerTitle: return "腳本服務設定"
-        case .workerSection: return "原版 PDF 腳本服務"
-        case .workerExplanation: return "填入你部署的 Mika PDF 擷取服務完整 HTTPS 網址與專用存取金鑰。設定不會上傳文件。"
-        case .workerEndpoint: return "https://服務主機/v1/extract-pdf"
-        case .workerToken: return "Bearer 存取金鑰；同一服務可留空沿用"
-        case .workerSave: return "儲存服務設定"
-        case .workerRemove: return "移除服務設定與金鑰"
-        case .workerLocal: return "目前使用裝置上的 PDFKit。"
-        case .workerConfigured: return "服務已設定；每次仍須選擇使用服務，並核准讀檔與上傳。"
-        case .workerPrivacy: return "文件、選頁與 PDF 密碼會在你核准上傳後傳給這個服務。存取金鑰獨立儲存在裝置 Keychain；不會沿用模型的 API Key。"
-        case .workerLoadFailed: return "腳本服務設定無法讀取，原資料保留。"
-        case .workerCredentialsFailed: return "腳本服務設定或金鑰無法讀取，請重新設定或解鎖後再試。"
-        case .workerSavedCleanupFailed: return "設定已儲存，舊金鑰未能移除；請稍後重試移除設定。"
-        case .workerSaved: return "設定已儲存；尚未連線或上傳文件。"
-        case .workerInvalid: return "服務網址或金鑰無效，設定未變更。"
-        case .workerRemoved: return "已移除腳本服務設定與金鑰。"
-        case .workerRemoveFailed: return "無法移除腳本服務設定與金鑰，請解鎖後重試。"
         case .modelSettingsInvalidURL: return "請輸入完整的 HTTPS Base URL，不可包含帳密、查詢參數或片段。"
         case .modelSettingsMissingModel: return "請填寫服務供應商提供的模型名稱。"
         case .modelSettingsMissingKey: return "請輸入 API Key。已有儲存的金鑰時，同一服務可留空沿用。"
@@ -1330,8 +1101,7 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 與 Skills"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpNoResources: return "伺服器未宣告資源能力"
-        case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。每次執行前會顯示工具名稱與完整參數，等你核准；工具說明及結果會送給已設定的模型。"
+        case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
         case .mcpNotStored: return "尚未儲存端點。"
@@ -1347,10 +1117,6 @@ enum AppText: Equatable {
         case .mcpDisconnect: return "中斷連線"
         case .mcpServerTools: return "伺服器工具"
         case .mcpSearchTools: return "搜尋工具名稱"
-        case .mcpServerResources: return "伺服器資源"
-        case .mcpSkills: return "Skills"
-        case .mcpSkillsLocation: return "請到「資料 → 技能」管理"
-        case .mcpSkillsHelp: return "可匯入並審核文字技能，已啟用且相關的內容會提供給對話模型。網站研究可產生待審核技能；MCP 工具依每次對話的核准執行。"
         case .mcpRemoveQuestion: return "移除此裝置儲存的 MCP 端點？"
         case .mcpRemove: return "移除端點"
         case .mcpNotConfigured: return "尚未設定 MCP"
@@ -1374,21 +1140,14 @@ enum AppText: Equatable {
         case .mcpKeychainUnavailable: return "無法存取 MCP Keychain，請解鎖裝置後再試。"
         case .mcpInvalidNamespace: return "UI 測試缺少有效的隔離命名空間；不會讀取正式設定。"
         case .mcpMissingLiveEndpoint: return "Live MCP UI 測試設定未完成，未取得私密端點。"
-        case .mcpApprovalHelp: return "模型請求執行以下工具。核准只適用於這一次的名稱與參數；結果會提供給已設定的模型。"
-        case .mcpApprovalRisk: return "工具可能修改外部資料。取消本機等待無法撤銷已送出的操作。"
-        case .mcpApprovalTitle: return "核准 MCP 呼叫"
-        case .mcpDecline: return "拒絕並停止"
-        case .mcpApprove: return "核准這一次"
         case .mcpReadResource: return "讀取 MCP 資源"
         case .mcpToolError: return "工具回報錯誤"
         case .mcpToolResult: return "已收到工具結果"
         case .mcpResultsTitle: return "本次 MCP 工具結果"
         case .mcpResultUnavailable: return "結果無法顯示"
-        case .mcpRouteObservation: return "通知導頁測試觀測"
         case .mcpProtocol: return "協定版本：%1$@"
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
         case .mcpToolCount: return "工具：%lld 個"
-        case .mcpResourceCount: return "資源：%lld 個"
         case .mcpSelectedCount: return "已選取 %lld 個工具供對話使用"
         case .searchTitle: return "搜尋引擎"
         case .searchCustom: return "新增自訂引擎"
@@ -1461,7 +1220,7 @@ enum AppText: Equatable {
         case .notificationCompletedBody: return "開啟渥屋助理查看結果。"
         case .notificationApprovalBody: return "請開啟渥屋助理查看並決定；通知不會核准操作。"
         case .notificationTestBody: return "這是渥屋助理的測試通知。"
-        case .catalogTitle: return "Mika 內建技能目錄"
+        case .catalogTitle: return "內建技能目錄"
         case .catalogSearch: return "搜尋名稱、全文或支援檔案"
         case .catalogScope: return "原文與腳本僅供閱讀，不會執行。iOS 文字改寫須先匯入待確認，再由你核准；核准後為試用中，不代表原版功能已完成對齊。"
         case .catalogCapabilities: return "受控瀏覽器與 MCP 對話有各自的能力限制和核准流程；匯入 Skill 不會授予工具權限或自動派送工具。"
@@ -1481,9 +1240,6 @@ enum AppText: Equatable {
         case .catalogTranscriptSection: return "整理文字稿與字幕"
         case .catalogTranscriptOpen: return "選取文字稿或字幕檔"
         case .catalogTranscriptHelp: return "核准讀檔並確認目的服務後，由模型分段閱讀原文、整理內容與核對引文。"
-        case .catalogAppearanceSection: return "調整本 App 外觀"
-        case .catalogAppearanceOpen: return "外觀與模型調整權限"
-        case .catalogAppearanceHelp: return "可設定跟隨系統、淺色或深色；允許模型調整的開關預設關閉。"
         case .catalogAuthorSection: return "編寫個人技能"
         case .catalogAuthorOpen: return "查閱、編寫與審閱儲存"
         case .catalogAgentOpen: return "請模型協助編寫技能"
@@ -1505,24 +1261,22 @@ enum AppText: Equatable {
         case .catalogOriginalRead: return "閱讀原始 SKILL.md 全文"
         case .catalogAttribution: return "Copyright 2026 wangzan101 · Apache-2.0。原文及支援檔案逐位元組保留；iOS 改寫是另外的修改版本。完整 LICENSE 與 NOTICE 見目錄首頁。"
         case .catalogTextSafety: return "唯讀文字，不會執行工具、程式或開啟文內連結。"
-        case .catalogReadyAppearance: return "可調整本 App 外觀；原版能力未完整支援"
         case .catalogReadyAuthor: return "可請模型編寫並核准儲存；原版能力未完整支援"
         case .catalogReadyDocuments: return "可選取 PDF 擷取文字；原版能力未完整支援"
         case .catalogReadyTranscript: return "可整理核准的文字、字幕與網頁文字；原版能力未完整支援"
         case .catalogReadyOther: return "可匯入 iOS 文字改寫；原版能力未完整支援"
-        case .catalogReqSettings: return "可允許模型調整本 App 外觀；不提供模型、金鑰或手機操作設定"
         case .catalogReqAndroid: return "Android／其他 App 操作：不在 iOS 範圍"
         case .catalogReqWeb: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
         case .catalogReqFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"
-        case .catalogReqPython: return "原始 PDF 腳本需另行設定服務；本機不執行 Python"
+        case .catalogReqPython: return "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理"
         case .catalogReqShell: return "Shell／桌面命令執行：未提供"
         case .catalogReqExport: return "原版檔案產生與分享工具：未提供"
         case .catalogReqResearch: return "原版跨網站自動研究：未提供"
         case .catalogReqAccount: return "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權"
-        case .catalogReqSend: return "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准"
+        case .catalogReqSend: return "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准"
         case .catalogReqMutation: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
         case .catalogCount: return "共 %1$lld 項原始技能 · 符合 %2$lld 項"
-        case .catalogProvenance: return "Mika · 固定來源版本 %1$@"
+        case .catalogProvenance: return "內建技能 · 固定來源版本 %1$@"
         case .browserStartDone: return "完成"
         case .browserStartEdit: return "整理"
         case .browserStartRecent: return "最近開啟"
@@ -1547,7 +1301,7 @@ enum AppText: Equatable {
         case .browserChromeReturnManual: return "返回手動瀏覽"
         case .browserChromeResearch: return "研究"
         case .browserChromeResearchSite: return "研究此網站"
-        case .browserPageAskResearch: return "問 Mika 研究此網站"
+        case .browserPageAskResearch: return "問渥屋助理研究此網站"
         case .browserChromeInteract: return "操作"
         case .browserChromeLibrary: return "分頁、書籤與歷史"
         case .browserChromeExplanation: return "可手動登入網站及選取上傳檔案；網站資料保留於此 App。模型研究與每次核准的操作各自受限。"
@@ -1622,7 +1376,7 @@ enum AppText: Equatable {
         case .settingsModelRemove: return "移除設定與金鑰"
         case .settingsModelPrivacy: return "金鑰只儲存在這部裝置上。更換服務主機或連接埠時，必須重新輸入金鑰。"
         case .settingsModelSaveExplanation: return "儲存不會測試連線；開始使用模型時才會連線。"
-        case .settingsModelChangeExplanation: return "更換服務、模型或金鑰會開始新的對話，草稿保留。移除設定會清除本次對話及此 App 的模型金鑰。"
+        case .settingsModelChangeExplanation: return "更換服務或模型會開始新的對話，草稿保留；只換金鑰會繼續目前的對話。移除設定會清除本次對話及此 App 的模型金鑰。"
         case .settingsModelSaved: return "設定已儲存，尚未驗證連線。"
         case .settingsModelSavedCleanup: return "新設定已儲存，尚未驗證連線。舊金鑰清理失敗，可用移除功能清除此 App 的模型金鑰。"
         case .settingsModelRemoved: return "已移除此 App 的模型設定與金鑰；訊息草稿保留。"
@@ -1657,7 +1411,6 @@ enum AppText: Equatable {
         case .newConversationKeep: return "返回目前對話"
         case .chatStatusProfileReview: return "等待你核對個人檔案修改…"
         case .chatStatusMemoryReview: return "等待你核對記憶修改…"
-        case .chatStatusMCPApproval: return "等待你核准 MCP 工具…"
         case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
         case .chatStatusWaiting: return "正在等待模型回覆…"
         case .chatStatusConfigured: return "模型已設定"
@@ -1767,7 +1520,6 @@ enum AppText: Equatable {
         case .chatBranchFailed: return "沒能建立分支"
         case .chatBranchTitleSuffix: return " · 分支"
         case .chatBranchAttachmentsReadd: return "附件需要重新加入"
-        case .chatBranchComposerInUse: return "輸入框還有內容；請先傳送或清除草稿、引用或附件，再從這裡分支或重新問。"
         case .chatBranchOrigin: return "從另一個對話分支"
         case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
         case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"

@@ -32,11 +32,12 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         }
         let bundle = Bundle(url: root)!
         let english = AppLocalizer(language: .english, bundle: bundle)
-        let simplified = AppLocalizer(language: .simplifiedChinese, bundle: bundle)
+        // No Simplified Chinese table (2026-11-13): a Simplified Chinese system reads the Traditional one.
+        let simplifiedSystem = AppLocalizer(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]), bundle: bundle)
         let traditional = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         try check(english.text(.mcpSelectedCount(count: 1)) == "1 tool selected for chat", "English native plural singular")
         try check(english.text(.mcpSelectedCount(count: 2)) == "2 tools selected for chat", "English native plural other")
-        try check(simplified.text(.mcpSelectedCount(count: 0)) == "已选取 0 个工具供对话使用", "Chinese native plural zero")
+        try check(traditional.text(.mcpSelectedCount(count: 0)) == "已選取 0 個工具供對話使用", "Chinese native plural zero")
         let userQuery = "刪除 %@ %n %1$@ catalog.title %s"
         try check(english.text(.browserHistorySearch(query: userQuery)) == "Search: " + userQuery, "query is data, not a key or format")
         try check(traditional.text(.searchInvalid).contains("一個 %s"), "literal percent survives explicit formatting")
@@ -45,19 +46,19 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         for error in failures {
             let message = AppLocalizer.mcpSettingsError(error)
             try check(traditional.text(message) == error.errorDescription, "legacy MCP error matches Traditional Chinese exactly")
-            try check(!english.resolve(message).usedFallback && !simplified.resolve(message).usedFallback, "MCP typed error has both translations")
+            try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "MCP typed error has both translations")
         }
         for requirement in SkillCatalogRequirement.allCases {
             let message = AppLocalizer.skillRequirement(requirement)
             try check(traditional.text(message) == requirement.title, "catalog capability semantics unchanged")
-            try check(!english.resolve(message).usedFallback && !simplified.resolve(message).usedFallback, "catalog requirements translated")
+            try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "catalog requirements translated")
         }
         let catalogBytes = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
         let catalog = try BundledSkillCatalog.load(data: catalogBytes)
         for entry in catalog.entries {
             let message = AppLocalizer.skillReadiness(id: entry.id)
             try check(traditional.text(message) == entry.readiness, "catalog readiness semantics unchanged")
-            try check(!english.resolve(message).usedFallback && !simplified.resolve(message).usedFallback, "catalog readiness translated")
+            try check(!english.resolve(message).usedFallback && !traditional.resolve(message).usedFallback, "catalog readiness translated")
             try check(entry.original.executable == false && !entry.originalExecutionSupported, "display language grants no execution authority")
         }
         try check(try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])) == catalogBytes, "pinned original archive unchanged")
@@ -66,9 +67,10 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
             let scope = UUID().uuidString
             let zh = TaskNotificationCenterAdapter.request(payload, sound: true, scope: scope, localizer: traditional)
             let en = TaskNotificationCenterAdapter.request(payload, sound: false, scope: scope, localizer: english)
-            let cn = TaskNotificationCenterAdapter.request(payload, sound: false, scope: scope, localizer: simplified)
+            let cn = TaskNotificationCenterAdapter.request(payload, sound: false, scope: scope, localizer: simplifiedSystem)
             try check(zh.content.title == payload.title && zh.content.body == payload.body, "Traditional notification payload parity")
-            try check(en.content.title != zh.content.title && cn.content.body != zh.content.body, "real UN content reflects language")
+            try check(en.content.title != zh.content.title && cn.content.title == zh.content.title && cn.content.body == zh.content.body,
+                      "real UN content reflects language; a Simplified Chinese system gets the Traditional text")
             try check(en.identifier == zh.identifier && cn.identifier == zh.identifier, "language preserves notification identity")
             try check(TaskNotificationCenterAdapter.logicalIdentifier(en.identifier, scope: scope) == payload.identifier,
                       "localized notification preserves exact route")
@@ -81,7 +83,7 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
             try check(!english.resolve(AppLocalizer.notificationAuthorization(value)).usedFallback, "notification authorization translation")
         }
         for value in [TaskNotificationSetting.unknown, .notSupported, .disabled, .enabled] {
-            try check(!simplified.resolve(AppLocalizer.notificationSetting(value)).usedFallback, "notification setting translation")
+            try check(!english.resolve(AppLocalizer.notificationSetting(value)).usedFallback, "notification setting translation")
         }
         for value in [TaskNotificationNotice.authorizationUnavailable, .deliveryUnavailable] {
             try check(traditional.text(AppLocalizer.notificationNotice(value)) == value.message, "notification error semantics unchanged")
@@ -128,20 +130,21 @@ private final class LanguageMCPEndpoint: MCPEndpointStoring {
         try check(session.phase == .connected && session.noticeText == .mcpDiscoveryNotice, "real MCP discovery completes")
         try check(session.tools.first?.name == toolName && session.resources.first?.name == resourceName, "catalog names stay verbatim")
         session.selectTool(toolName, enabled: true)
-        session.selectResource("synthetic://selected", enabled: true)
         let connection = try session.conversationConnection()
+        // Like the Play build, the listed resource is offered without a picker.
+        try check(connection.2.map(\.uri) == ["synthetic://selected"], "discovered resource offered read-only")
         let selected = session.selectedToolNames
         let beforeInvalidations = invalidations
-        try check(language.setFromUser(.simplifiedChinese), "language changes with existing tool selection")
+        try check(language.setFromUser(.traditionalChinese), "language changes with existing tool selection")
         let after = try session.conversationConnection()
         try check((connection.0 as AnyObject) === (after.0 as AnyObject) && session.selectedToolNames == selected
-                  && session.selectedResourceURIs == ["synthetic://selected"], "same client, tool selection and resource grant remain")
+                  && after.2.map(\.uri) == ["synthetic://selected"], "same client, tool selection and offered resource remain")
         try check(invalidations == beforeInvalidations && scenario.records.count == 4, "no extra network requests or permission invalidation")
         try check(scenario.records.map { $0.1["method"] } == [.string("initialize"), .string("notifications/initialized"), .string("tools/list"), .string("resources/list")], "only handshake and catalogs, no tools or resource reads")
         session.disconnect()
         try check(session.phase == .disconnected && !session.canUseInConversation && session.selectedToolNames.isEmpty,
                   "explicit disconnect still revokes all selections")
-        try check(simplified.text(session.noticeText!) != english.text(session.noticeText!), "disconnect notice remains dynamically renderable")
+        try check(traditional.text(session.noticeText!) != english.text(session.noticeText!), "disconnect notice remains dynamically renderable")
         repository.unavailable = true
         let failed = MCPSession(repository: repository)
         try check(failed.phase == .failed && failed.errorText == .mcpKeychainStatus(code: "-25308"), "actual store failure maps to a closed message")

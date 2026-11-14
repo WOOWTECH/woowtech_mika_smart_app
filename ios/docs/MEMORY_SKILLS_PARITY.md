@@ -84,8 +84,11 @@ must distinguish real models over synthetic traces from actual browser execution
 
 The historical text-adaptation table below describes the catalog's first stage.
 Later native integrations include reviewed model skill authoring (actual-model UI
-passed), appearance `settings_list`/`settings_set`, dedicated authenticated PDF
-worker configuration, and approved text/subtitle/browser snapshot transcription.
+passed) and approved text/subtitle/browser snapshot transcription. A dedicated
+authenticated PDF worker configuration existed too; it was removed on 2026-11-13
+to match the Play build. Appearance `settings_list`/`settings_set`
+was integrated too and removed on 2026-11-13 with the `configure-mika` entry, to
+match the Play build.
 The latter integrations still require their revision-specific native and live
 results; implemented entry points alone do not establish full tool parity. See
 [content transcription](CONTENT_TRANSCRIBE.md), [model authoring](SKILL_MODEL_AUTHORING.md)
@@ -97,10 +100,10 @@ The archived six-skill catalog remains complete as source, while execution remai
 partial. The documents entry now opens the native Files picker, reviews a plan,
 requires separate read/extract approvals, and produces actual PDFKit text, selected
 pages and metadata. Cancellation/refusal must not dispatch a later step. The
-original pinned extract_pdf.py also has a bounded worker protocol and real local
-Swift-to-HTTP-to-Python tests, and actual isolated Docker acceptance on GitHub Ubuntu (`2d67d87`, run
-42770104969), but no deployed authenticated remote service. The container result
-does not establish iOS-to-production connectivity or complete original-tool parity. See SKILL_RUNTIME.md for every original dependency
+original pinned extract_pdf.py had a bounded worker protocol with real local
+Swift-to-HTTP-to-Python tests and isolated Docker acceptance on GitHub Ubuntu (`2d67d87`, run
+42770104969), but never a deployed service; that worker was removed on 2026-11-13 to match
+the Play build, so PDFKit is the only PDF path. See SKILL_RUNTIME.md for every original dependency
 and its current availability; the historical text-adaptation table below describes
 that earlier path, not the new PDF execution capability.
 
@@ -110,8 +113,9 @@ The documents entry additionally supports approved 1–3-file static PDF page ex
 
 ### Bundled Skills catalog increment — 2026-11-10
 
-The local catalog archives **all six SKILL.md entries at the pinned Mika revision**,
-their **three supporting files**, and the full root **LICENSE and NOTICE**: eleven
+The local catalog archives **five of the six SKILL.md entries at the pinned Mika
+revision** (all but `configure-mika`, removed on 2026-11-13 to match the Play build),
+their **three supporting files**, and the full root **LICENSE and NOTICE**: ten
 original files in total. Their complete UTF-8 contents, including final newlines,
 are retained in
 [`MikaBundledSkills.json`](../Sources/AssistantSkills/Resources/MikaBundledSkills.json).
@@ -124,7 +128,6 @@ paths in this table are relative to the corresponding skill directory.
 
 | Original entry | Supporting files retained | Separate iOS text adaptation / boundary |
 |---|---|---|
-| `configure-mika/SKILL.md` | None | Manual settings explanation; no original settings mutation tools, credential changes or automatic deletion |
 | `content-transcribe/SKILL.md` | `references/transcript-output-formats.md` | Organize supplied text into summaries/transcripts; no audio transcription, subtitle downloading or other-App access |
 | `documents/SKILL.md` | `scripts/extract_pdf.py`, `scripts/manifest.json` | Organize supplied document text; no PDF extraction, merge, OCR, decryption, Python or shell execution |
 | `info-research/SKILL.md` | None | Compare supplied evidence and cite sources; explicitly initiated constrained browser research remains subject to its own policy, not original cross-site/App automation |
@@ -150,7 +153,8 @@ permits catalog reading but disables import.
 Approved, enabled adaptations use the existing bounded personal-skill retrieval
 path; pending and suspended skills remain excluded. This is guidance as user-context,
 not an additional permission or automatic tool dispatch. The iOS app's constrained
-DOM actions and MCP conversation tools have separate capability/approval boundaries.
+DOM actions and MCP conversation tools have separate capability boundaries (MCP calls
+run without a per-call approval since 2026-11-13, like the Play build).
 An MCP server may expose additional capabilities, but catalog import neither grants
 access to them nor establishes equivalence with Mika's original tools. Desktop,
 shell, Python and Android/native-App requirements are explicitly marked unsupported

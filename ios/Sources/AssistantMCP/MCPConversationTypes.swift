@@ -1,8 +1,9 @@
 import Foundation
 
 /// A trusted host executor, bound to the same connection as the selected catalog.
-/// Calls arrive only after approval. An error/cancellation cannot promise remote
-/// rollback; implementations must not automatically retry or switch connections.
+/// Calls arrive only for selected tools and offered resources, without a per-call
+/// approval. An error/cancellation cannot promise remote rollback;
+/// implementations must not automatically retry or switch connections.
 public protocol MCPConversationExecuting: Sendable {
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue
     func readResource(uri: String) async throws -> JSONValue
@@ -15,8 +16,8 @@ public enum MCPConversationAction: Codable, Equatable, Sendable {
     case readResource(uri: String)
 }
 
-/// Value snapshot: approval returns a Bool, never replacement arguments.
-/// UI must display the full action, not an abbreviated summary of its arguments.
+/// Value snapshot of one operation the model chose. The results list shows the
+/// full action, not an abbreviated summary of its arguments.
 public struct MCPConversationProposal: Codable, Equatable, Sendable, Identifiable {
     public let id: UUID
     public let action: MCPConversationAction
@@ -38,7 +39,6 @@ public enum MCPConversationEvent: Sendable, Equatable {
     /// One bounded format correction for this conversation; no operation was
     /// accepted from the invalid response. Contains no model-generated content.
     case correctingCommand
-    case awaitingApproval(MCPConversationProposal)
     /// Dispatch intent, emitted before entering the executor; not proof that the
     /// server received anything. Cancellation may still prevent dispatch. Once
     /// entered, a call may reach the server without producing a completed event.
@@ -47,6 +47,8 @@ public enum MCPConversationEvent: Sendable, Equatable {
 }
 
 public enum MCPConversationStopReason: String, Codable, Sendable {
+    /// approvalDenied: the user declined a local memory or profile review.
+    /// Remote MCP calls have no per-call approval to decline.
     case finished, approvalDenied, modelCallLimit, toolCallLimit, repeatedCall, toolError
     case localCallLimit
 }
@@ -79,7 +81,7 @@ public struct MCPConversationLimits: Sendable {
 public enum MCPConversationError: String, Error, Sendable, Equatable, LocalizedError {
     case invalidInput, invalidCatalog, invalidLimits, invalidCommand, unknownTool, unknownResource
     case inputTooLarge, modelResponseTooLarge, outputTooLarge, invalidExecutionResult
-    case modelFailed, approvalFailed, executionFailed, timedOut
+    case modelFailed, executionFailed, timedOut
     case localUnavailable, invalidLocalResult, localLeaseExpired
     /// Provider request failures are distinct from the whole-conversation deadline.
     /// HTTP status numbers, bodies and underlying error descriptions are discarded.

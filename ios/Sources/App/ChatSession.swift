@@ -10,6 +10,9 @@ struct ModelAccess {
     let client: any ChatModelClient
     let configuration: ModelConfiguration
     let key: String
+    /// Provider, model and Keychain item. Running work compares this, never
+    /// the key, to notice that the settings changed under it.
+    let identity: ModelAccessIdentity
 }
 
 struct ChatEntry: Identifiable {
@@ -41,17 +44,6 @@ struct ChatReplyPreview: Identifiable, Equatable {
         case .cancelled: return "已取消・部分回覆未保存"
         case .failed: return "回覆未完成・部分回覆未保存"
         }
-    }
-}
-
-struct MCPApprovalRequest: Identifiable {
-    let id = UUID()
-    let name: String
-    let arguments: JSONValue
-    var argumentsText: String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return (try? encoder.encode(arguments)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 
@@ -148,8 +140,6 @@ enum ChatBranchOutcome: Equatable {
     case needsReattach
     /// The first message asked again: a new conversation with its words back.
     case startedOver
-    /// The input bar holds a draft, quote or attachments that would be lost.
-    case composerInUse
     /// Busy, changed or unsaved conversation, or a failed save (沒能建立分支).
     case failed
 }
@@ -193,7 +183,6 @@ final class ChatSession: ObservableObject {
     @Published private(set) var settingsError: String?
     @Published private(set) var settingsNotice: String?
     @Published var usesMCP = false
-    @Published private(set) var pendingMCPApproval: MCPApprovalRequest?
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
     @Published private(set) var mcpDiagnostics: String?
@@ -208,7 +197,6 @@ final class ChatSession: ObservableObject {
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
     private var mcpFormatCorrections = 0
-    private var mcpApprovalContinuation: CheckedContinuation<Bool, Never>?
     private var isMCPRun = false
     private var mcpSentCount = 0
 
@@ -312,6 +300,9 @@ final class ChatSession: ObservableObject {
         } catch {
             settingsError = Self.settingsMessage(error)
         }
+        // Keys no provider uses: an interrupted save, or the v1 setting that
+        // could not be read. A locked Keychain waits for the next launch.
+        _ = try? repository.sweepOrphanedCredentials()
     }
 
     var canSend: Bool {
@@ -354,10 +345,14 @@ final class ChatSession: ObservableObject {
         return matchesArchivedTranscript(source)
     }
 
+    /// A conversation belongs to a provider and model, not to a key, so a new
+    /// key for the same provider keeps it going. The archive's
+    /// credentialAccount field holds the provider id; the provider imported
+    /// from the v1 setting has that setting's account as its id.
     var archiveDestination: ConversationDestination? {
-        guard let savedSettings, let account = UUID(uuidString: savedSettings.credentialAccount) else { return nil }
+        guard let savedSettings, let target = savedSettings.accessIdentity?.target else { return nil }
         return try? ConversationDestination(baseURL: savedSettings.baseURL.absoluteString,
-            model: savedSettings.model, credentialAccount: account)
+            model: target.model, credentialAccount: target.providerID)
     }
 
     func canOpenConversation(_ record: ArchivedConversation) -> Bool {
@@ -432,13 +427,12 @@ final class ChatSession: ObservableObject {
             questions: Set(record.turns.filter { !$0.userText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.userID)))
     }
 
-    /// Unlike Android, branching never discards what is waiting in the input bar.
-    private var composerIsEmpty: Bool { draft.isEmpty && pendingQuote == nil && pendingAttachments.isEmpty }
-
     /// 從這裡分支: the turns through this finished reply become a new
-    /// conversation, titled by `title` from the source, and it opens.
+    /// conversation, titled by `title` from the source, and it opens with an
+    /// empty input bar. Like Android (ChatScreen onBranch), whatever waited
+    /// there (draft, quote, attachments) is cleared without asking; a failed
+    /// branch leaves it as it was.
     func branch(fromReply replyID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
-        guard composerIsEmpty else { return .composerInUse }
         guard let record = savedConversationOnScreen, record.turns.contains(where: { $0.assistantID == replyID }) else {
             return .failed
         }
@@ -449,16 +443,19 @@ final class ChatSession: ObservableObject {
     }
 
     /// 從這裡重新問: a new conversation with the turns before this message of
-    /// yours, its words back in the input bar and nothing sent. The first
-    /// message has nothing before it, so that is a new, unsaved conversation.
+    /// yours and its words in the input bar in place of the draft, nothing
+    /// sent. Like Android (ChatScreen onBranchRetry), the waiting quote and
+    /// attachments are cleared. The first message has nothing before it, so
+    /// that is a new, unsaved conversation.
     func askAgain(from messageID: UUID, title: (ArchivedConversation) -> String) -> ChatBranchOutcome {
-        guard composerIsEmpty else { return .composerInUse }
         guard let record = savedConversationOnScreen, canOpenConversation(record),
               let index = record.turns.firstIndex(where: { $0.userID == messageID }),
               let entry = entries.first(where: { $0.id == messageID }) else { return .failed }
         let words = ConversationQuote.parse(ChatAttachmentLines.displayText(entry.content, items: entry.attachments)).words
         let reattach = !entry.attachments.isEmpty || entry.pdf != nil
         if index == 0 {
+            // A new conversation keeps the draft; the quote must go first.
+            clearComposerQuote()
             newConversation()
             guard entries.isEmpty else { return .failed }
         } else {
@@ -472,11 +469,14 @@ final class ChatSession: ObservableObject {
         return reattach ? .needsReattach : index == 0 ? .startedOver : .created
     }
 
-    /// Drafts and attachments cannot be silently discarded by branching.
+    /// A reply still arriving or not yet saved blocks branching. The input bar
+    /// does not: like Android, a branch opens with it cleared.
     private var branchHasUnfinishedOrUnsavedWork: Bool {
         replyPreview != nil || pendingArchiveSave != nil || archiveNotice != nil
-            || !draft.isEmpty || pendingQuote != nil || !pendingAttachments.isEmpty
     }
+
+    /// The quote waiting above the input bar, dropped for a branch.
+    private func clearComposerQuote() { pendingQuote = nil; quoteSource = nil }
 
     func prepareBranch(source: ArchivedConversation, assistantID: UUID, title: String,
                        targetID: UUID = UUID(), at: Date = Date()) throws -> ConversationBranchPlan {
@@ -498,6 +498,9 @@ final class ChatSession: ObservableObject {
         }
         try archive.commitBranch(plan, isBusy: isSubmitting,
                                  hasUnfinishedOrUnsavedTurn: branchHasUnfinishedOrUnsavedWork)
+        // Saved: like Android, the branch opens with an empty input bar. The
+        // quote goes here; opening clears the draft and waiting attachments.
+        clearComposerQuote()
         // No suspension occurs between persistence and opening. If opening ever
         // becomes unavailable, the saved branch remains recoverable in archive.
         guard openConversation(id: plan.branch.id) else { throw ConversationArchiveError.unavailable }
@@ -544,16 +547,17 @@ final class ChatSession: ObservableObject {
     private static let archiveSaveFailure = "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
 
     func modelAccess() throws -> ModelAccess {
-        guard let savedSettings, hasStoredKey else { throw HTTPChatModelError.invalidConfiguration }
+        guard let savedSettings, hasStoredKey, let identity = savedSettings.accessIdentity else {
+            throw HTTPChatModelError.invalidConfiguration
+        }
         return ModelAccess(client: client, configuration: savedSettings.configuration,
-                           key: try repository.key(for: savedSettings))
+                           key: try repository.key(for: savedSettings), identity: identity)
     }
 
     // Keep the state typed so language changes re-render the current status.
     var chatStatusMessage: AppText {
         if pendingProfileReview != nil { return .chatStatusProfileReview }
         if pendingMemoryReview != nil { return .chatStatusMemoryReview }
-        if pendingMCPApproval != nil { return .chatStatusMCPApproval }
         if isSubmitting && isMCPRun { return .chatStatusMCPWorking }
         if isSubmitting { return .chatStatusWaiting }
         return savedSettings != nil && hasStoredKey ? .chatStatusConfigured : .chatStatusUnconfigured
@@ -570,9 +574,10 @@ final class ChatSession: ObservableObject {
         settingsNotice = nil
         do {
             let result = try repository.save(baseURL: baseURLDraft, model: modelDraft, newKey: keyDraft)
+            // Only another provider or model starts over; a new key for the
+            // same provider keeps the conversation and its draft going.
             let changed = savedSettings?.baseURL != result.record.baseURL
-                || savedSettings?.model != result.record.model
-                || savedSettings?.credentialAccount != result.record.credentialAccount
+                || savedSettings?.accessIdentity?.target != result.record.accessIdentity?.target
             savedSettings = result.record
             hasStoredKey = true
             baseURLDraft = result.record.baseURL.absoluteString
@@ -1187,23 +1192,16 @@ final class ChatSession: ObservableObject {
                 return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID, contextFence: contextFence)
             }
         } else { local = nil }
+        // Like the Play build, selected tools and offered resources run with no
+        // per-call approval: the tool selection in MCP settings is the limit.
+        // The fenced executor still rechecks the learning context before each call.
         let executor: any MCPConversationExecuting
         if let contextFence { executor = ContextFencedMCPExecutor(executor: connection, fence: contextFence) }
         else { executor = connection }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
             tools: tools, resources: resources, executor: executor,
-            approve: { [weak self] proposal in
-                let approved: Bool
-                switch proposal.action {
-                case .callTool(let name, let arguments):
-                    approved = await self?.approveMCP(name: name, arguments: arguments, requestID: requestID) ?? false
-                case .readResource(let uri):
-                    approved = await self?.approveMCP(name: "讀取 MCP 資源", arguments: .object(["uri": .string(uri)]), requestID: requestID) ?? false
-                }
-                guard approved else { return false }
-                do { try await MainActor.run { try contextFence?.check() }; return true } catch { return false }
-            }, onEvent: { [weak self] event in
+            onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
         guard result.stopReason == .finished, let answer = result.answer else { throw MCPChatStop(reason: result.stopReason) }
@@ -1269,7 +1267,6 @@ final class ChatSession: ObservableObject {
         switch event {
         case .requestingModel(let count): mcpPhase = "requestingModel"; mcpModelCalls = count
         case .correctingCommand: mcpPhase = "correctingCommand"; mcpFormatCorrections += 1
-        case .awaitingApproval: mcpPhase = "awaitingApproval"
         case .executing: mcpPhase = "executing"; mcpSentCount += 1
         case .completed(let step): mcpPhase = "receivedResult"; mcpSteps.append(step)
         }
@@ -1284,32 +1281,6 @@ final class ChatSession: ObservableObject {
         guard isUITestMode || ProcessInfo.processInfo.arguments.contains("-LiveMCPConversationUITest") else { return }
         mcpDiagnostics = "phase=\(mcpPhase);modelCalls=\(mcpModelCalls);formatCorrections=\(mcpFormatCorrections);attempts=\(mcpSentCount);results=\(mcpSteps.count);toolErrors=\(mcpSteps.filter(\.isError).count);failure=\(failure)"
         #endif
-    }
-
-    func resolveMCPApproval(id: UUID, approved: Bool) {
-        guard pendingMCPApproval?.id == id else { return }
-        pendingMCPApproval = nil
-        let continuation = mcpApprovalContinuation
-        mcpApprovalContinuation = nil
-        continuation?.resume(returning: approved)
-    }
-
-    private func approveMCP(name: String, arguments: JSONValue, requestID: UUID) async -> Bool {
-        guard self.requestID == requestID, !Task.isCancelled else { return false }
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
-                guard self.requestID == requestID, !Task.isCancelled else {
-                    continuation.resume(returning: false); return
-                }
-                mcpApprovalContinuation = continuation
-                pendingMCPApproval = MCPApprovalRequest(name: name, arguments: arguments)
-            }
-        } onCancel: { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self, self.requestID == requestID, let proposal = self.pendingMCPApproval else { return }
-                self.resolveMCPApproval(id: proposal.id, approved: false)
-            }
-        }
     }
 
     func newConversation() {
@@ -1334,7 +1305,6 @@ final class ChatSession: ObservableObject {
     private func finish(id: UUID, error: String? = nil, text: AppText? = nil) {
         guard requestID == id else { return }
         if error != nil { stopPreview(id: id, phase: .failed) }
-        if let pending = pendingMCPApproval { resolveMCPApproval(id: pending.id, approved: false) }
         if let pending = pendingProfileReview { resolveProfileReview(id: pending.id, approved: false) }
         if let pending = pendingMemoryReview { resolveMemoryReview(id: pending.id, approved: false) }
         requestID = nil
@@ -1348,7 +1318,8 @@ final class ChatSession: ObservableObject {
     }
 
     private static func liveRepository() -> ModelSettingsRepository {
-        ModelSettingsRepository(defaults: .standard, credentials: KeychainModelCredentials(service: "io.woowtech.assistant.model-credentials.v1"))
+        ModelSettingsRepository(defaults: .standard, credentials: KeychainModelCredentials(service: "io.woowtech.assistant.model-credentials.v1"),
+                                providers: ModelProvidersFile.live())
     }
 
     private static func settingsMessage(_ error: Error) -> String {

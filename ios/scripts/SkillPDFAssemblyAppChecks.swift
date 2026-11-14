@@ -106,8 +106,8 @@ enum SkillPDFAssemblyAppChecks {
 
     @MainActor static func run() async throws {
         let catalog = try BundledSkillCatalog.bundled()
-        try expect(catalog.entries.count == 6 && catalog.entry(id: "documents") != nil,
-                   "actual app-bundled pinned six-skill catalog loads")
+        try expect(catalog.entries.count == 5 && catalog.entry(id: "documents") != nil,
+                   "actual app-bundled pinned five-skill catalog loads")
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("assembly-app-check-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: folder) }

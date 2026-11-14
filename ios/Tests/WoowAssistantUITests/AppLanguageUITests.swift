@@ -52,21 +52,31 @@ final class AppLanguageUITests: XCTestCase {
         XCTAssertEqual(app.buttons["chat.menu"].label, "Menu")
     }
 
-    func testUnsupportedSystemLanguageUsesTraditionalChineseFallback() {
-        launch(systemLanguages: "(fr-FR)")
+    /// Owner, 2026-11-13: a language without a translation shows English.
+    func testUnsupportedSystemLanguageUsesEnglishFallback() {
+        launch(systemLanguages: "(ja)")
+        XCTAssertTrue(app.navigationBars["Language and appearance"].waitForExistence(timeout: 10))
+        assertSelected("settings.language.system")
+        let system = app.buttons["settings.language.system"]
+        XCTAssertTrue(system.label.contains("English for other languages without a translation"), system.label)
+    }
+
+    /// Owner, 2026-11-13: a Simplified Chinese system shows Traditional Chinese.
+    func testSimplifiedChineseSystemUsesTraditionalChinese() {
+        launch(systemLanguages: "(zh-Hans)")
         XCTAssertTrue(app.navigationBars["語言與外觀"].waitForExistence(timeout: 10))
         assertSelected("settings.language.system")
-        // The page has Play's two lists only: no model permission to change the appearance.
-        XCTAssertFalse(app.switches["selfConfiguration.permission"].exists)
-        XCTAssertFalse(app.buttons["selfConfiguration.start"].exists)
+        let system = app.buttons["settings.language.system"]
+        XCTAssertTrue(system.label.contains("簡體中文改用繁體中文"), system.label)
     }
 
     func testChatHeaderAndArchiveBoundaryInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置"),
-            ("(zh-Hans)", "尚未设置模型", "请先到设置填写模型服务与 API Key。", "已完成的问答会加密保存在此设备"),
+            // A Simplified Chinese system shows Traditional Chinese; other languages, English.
+            ("(zh-Hans)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置"),
             ("(en)", "Model not configured", "Set up a model service and API key in Settings first.", "Completed exchanges are encrypted on this device"),
-            ("(fr-FR)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置")
+            ("(fr-FR)", "Model not configured", "Set up a model service and API key in Settings first.", "Completed exchanges are encrypted on this device")
         ]
         for (systemLanguages, status, hint, boundary) in cases {
             app.terminate()
@@ -96,11 +106,12 @@ final class AppLanguageUITests: XCTestCase {
     /// Offline fixture: every example replaces the draft but never sends it.
     func testStoreExamplesFillDraftInEveryLanguageWithoutSending() {
         let cases: [(String, [String])] = [
-            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "幫我摘要附上的文件，列出重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
-            ("(zh-Hans)", ["帮我写一则友善的消息回复", "帮我摘要附上的文件，列出重点", "在 104 人力银行搜索台北的 AI 产品经理职位，选五个帮我比较", "在 momo 购物找 1,000 元以内、4.5 星以上的无线耳机，比较三款的优缺点", "记住我偏好使用繁体中文，回答简短一点", "你记得我有哪些偏好？"]),
-            ("(en)", ["Help me write a friendly reply to this message.", "Summarize the document I attach and list its key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
+            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            // A Simplified Chinese system shows the Traditional Chinese examples.
+            ("(zh-Hans)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            ("(en)", ["Help me write a friendly reply to this message.", "Find a recent AI news article in the built-in browser and summarize three key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
         ]
-        let identifiers = ["reply", "document", "web", "shopping", "remember", "recall"]
+        let identifiers = ["reply", "news", "web", "shopping", "remember", "recall"]
         for (systemLanguages, expected) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
@@ -128,7 +139,8 @@ final class AppLanguageUITests: XCTestCase {
     func testAboutHeroAndDiagnosticsInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "關於渥屋助理", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
-            ("(zh-Hans)", "关于渥屋助理", "在同一个地方对话、浏览网页，并记住有用的信息", "诊断信息"),
+            // A Simplified Chinese system shows Traditional Chinese.
+            ("(zh-Hans)", "關於渥屋助理", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
             ("(en)", "About woowtech agent", "Chat, browse, and keep useful information in one place", "Diagnostics")
         ]
         for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
@@ -160,7 +172,8 @@ final class AppLanguageUITests: XCTestCase {
     func testAdvancedSettingsAndMCPNavigationInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
             ("(zh-Hant)", "設定", "進階與其他", "MCP 伺服器"),
-            ("(zh-Hans)", "设置", "高级与其他", "MCP 服务器"),
+            // A Simplified Chinese system shows Traditional Chinese.
+            ("(zh-Hans)", "設定", "進階與其他", "MCP 伺服器"),
             ("(en)", "Settings", "Advanced & other", "MCP servers")
         ]
         for (systemLanguages, settingsTitle, advancedTitle, mcpTitle) in cases {

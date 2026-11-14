@@ -1,7 +1,10 @@
 # Local task notifications
 
 This increment implements default-off local notifications for the actual root
-ChatSession: ordinary chat, MCP completion/approval, and profile/memory reviews.
+ChatSession: ordinary chat and MCP completion, and profile/memory reviews. Since
+2026-11-13 MCP calls need no approval (like the Play build), so they never post an
+approval notification; the native approval case now uses the memory review that
+follows an MCP call.
 The bridge reads entry count, assistant entry ID/role, submitting state and review
 IDs only. It neither reads nor retains message content, review arguments or error
 bodies. Independent skill/browser runners are **not wired** by this increment.
@@ -41,8 +44,9 @@ The current success contract is a new assistant entry appended during a new
 submitting interval. `finish` alone is not success: it also handles cancellation
 and errors. The host already rejects late request generations before appending.
 An empty/reduced transcript clears notifications, including newConversation,
-successful removeSettings and changed model settings. All three review IDs are
-watched; nil/resolved removes both pending and delivered approval notifications.
+successful removeSettings and changed model settings. Both review IDs (profile and
+memory) are watched; nil/resolved removes both pending and delivered approval
+notifications.
 
 Existing scene cancellation policy stays in place. The modifier additionally
 invalidates notification approval records when not active and refreshes system
@@ -62,7 +66,8 @@ never request permission. Notification preferences default off even if iOS has
 previously granted system permission. App opt-out does not change OS permission.
 Denied status exposes the system notification-settings link. Unknown and future
 authorization values fail closed. Provisional/ephemeral are displayed honestly;
-the explicit test button requires full `authorized` status.
+the UI-test-only test button (Debug builds; the product has none, like Play)
+requires full `authorized` status.
 
 The settings fetch that belongs to an enable click returns its own observed
 authorization, even when a concurrent refresh supersedes its UI publication.
@@ -74,7 +79,7 @@ ordering so an old callback cannot overwrite newer state.
 | --- | --- | --- |
 | completed | 任務已完成 | 開啟渥屋助理查看結果。 |
 | approval | 有操作需要你核准 | 請開啟渥屋助理查看並決定；通知不會核准操作。 |
-| test | 通知測試 | 這是渥屋助理的測試通知。 |
+| test (UI tests only) | 通知測試 | 這是渥屋助理的測試通知。 |
 
 Identifiers contain only a version, storage scope, destination/kind enums and a
 new random UUID. The actual UN request has empty userInfo, attachments, category,
@@ -134,7 +139,7 @@ test configuration in Release. No fixture implicitly enables notifications.
 | notifications.disable | app opt-out Button |
 | notifications.systemSettings | UIApplication.openNotificationSettingsURLString |
 | notifications.refresh | read current settings, no prompt |
-| notifications.test | explicit fixed test notification, full authorization only |
+| notifications.test | UI tests only (Debug, `-UITestMode`): fixed test notification, full authorization only. Removed from the product on 2026-11-13 to match the Play build |
 | notifications.notice | fixed failure text, only when present |
 
 The status IDs and raw values belong to the actual Text values, not the surrounding

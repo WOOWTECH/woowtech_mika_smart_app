@@ -5,26 +5,30 @@ import XCTest
 /// fallback cannot make this packaging acceptance pass.
 @MainActor final class AppLanguageIntegrationTests: XCTestCase {
     func testPackagedLanguageTablesAndNativePluralResolution() throws {
+        // A Simplified Chinese system has no table of its own (2026-11-13): it reads
+        // the Traditional Chinese one.
+        let simplifiedSystem = AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"])
+        XCTAssertEqual(simplifiedSystem, .traditionalChinese)
         let expected: [(AppDisplayLanguage, String, String, String)] = [
-            (.traditionalChinese, "外觀與模型權限", "1 個步驟", "2 個步驟"),
-            (.simplifiedChinese, "外观与模型权限", "1 个步骤", "2 个步骤"),
-            (.english, "Appearance and model permissions", "1 step", "2 steps")
+            (.traditionalChinese, "語言與外觀", "1 輪", "2 輪"),
+            (simplifiedSystem, "語言與外觀", "1 輪", "2 輪"),
+            (.english, "Language and appearance", "1 exchange", "2 exchanges")
         ]
         for (language, title, singular, plural) in expected {
             let directory = try XCTUnwrap(Bundle.main.url(forResource: language.rawValue, withExtension: "lproj"))
             XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("App.strings").path))
             XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("App.stringsdict").path))
             let localizer = AppLocalizer(language: language)
-            for (message, text) in [(AppText.configurationTitle, title),
-                                    (.configurationStepCount(count: 1), singular),
-                                    (.configurationStepCount(count: 2), plural)] {
+            for (message, text) in [(AppText.languageAppearanceTitle, title),
+                                    (.drawerRecentTurns(count: 1), singular),
+                                    (.drawerRecentTurns(count: 2), plural)] {
                 let resolved = localizer.resolve(message)
                 XCTAssertEqual(resolved.text, text)
                 XCTAssertEqual(resolved.language, language)
                 XCTAssertFalse(resolved.usedFallback)
             }
             let original = "%n %#@count@ 原文 🧋"
-            XCTAssertTrue(localizer.text(.configurationChanged(appearance: original)).contains(original))
+            XCTAssertTrue(localizer.text(.chatQuotingYou(text: original)).contains(original))
             let search: [AppText] = [.localPDFSearchOpen, .localPDFSearchTitle, .localPDFSearchNotice,
                 .localPDFSearchPlaceholder, .localPDFSearchButton, .localPDFSearchInvalid, .localPDFSearchFailed,
                 .localPDFSearchEmpty, .localPDFSearchCount(count: 2), .localPDFSearchTruncated(count: 20),
@@ -36,5 +40,22 @@ import XCTest
                 XCTAssertFalse(resolved.text.isEmpty)
             }
         }
+        let simplifiedTables = Bundle.main.bundleURL.appendingPathComponent("zh-Hans.lproj")
+        for table in ["App.strings", "App.stringsdict"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: simplifiedTables.appendingPathComponent(table).path), table)
+        }
+    }
+
+    /// iOS picks zh-Hans.lproj for a Simplified Chinese system's permission prompts;
+    /// the packaged app carries the Traditional Chinese prompts there and nothing else.
+    func testSimplifiedChineseSystemGetsTraditionalPermissionPrompts() throws {
+        let simplified = Bundle.main.bundleURL.appendingPathComponent("zh-Hans.lproj")
+        let names = try FileManager.default.contentsOfDirectory(atPath: simplified.path).filter { !$0.hasPrefix(".") }
+        XCTAssertEqual(names, ["InfoPlist.strings"])
+        let prompts = try XCTUnwrap(NSDictionary(contentsOf: simplified.appendingPathComponent("InfoPlist.strings")))
+        let traditional = try XCTUnwrap(NSDictionary(contentsOf: Bundle.main.bundleURL
+            .appendingPathComponent("zh-Hant.lproj/InfoPlist.strings")))
+        XCTAssertEqual(prompts, traditional)
+        XCTAssertEqual(prompts["NSMicrophoneUsageDescription"] as? String, "渥屋助理會在你使用語音輸入或允許網站使用麥克風時使用麥克風。")
     }
 }

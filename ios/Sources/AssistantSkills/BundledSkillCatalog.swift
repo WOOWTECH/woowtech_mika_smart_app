@@ -15,21 +15,20 @@ public enum SkillCatalogError: String, Error, Sendable, LocalizedError {
 }
 
 public enum SkillCatalogRequirement: String, Codable, Sendable, CaseIterable {
-    case settingsAutomation, androidControl, legacyWebTools, workspaceFiles
+    case androidControl, legacyWebTools, workspaceFiles
     case python, shell, fileExport, crossOriginResearch, accountAccess, externalSend, skillMutationTools
 
     public var title: String {
         switch self {
-        case .settingsAutomation: return "可允許模型調整本 App 外觀；不提供模型、金鑰或手機操作設定"
         case .androidControl: return "Android／其他 App 操作：不在 iOS 範圍"
         case .legacyWebTools: return "原版網頁工具：iOS 提供受控研究與 DOM 操作，非完整瀏覽器能力對齊"
         case .workspaceFiles: return "可選取 PDF、文字與字幕；未提供原版的一般工作區"
-        case .python: return "原始 PDF 腳本需另行設定服務；本機不執行 Python"
+        case .python: return "原始 PDF 腳本不執行，也不執行 Python；PDF 由裝置上的 PDFKit 處理"
         case .shell: return "Shell／桌面命令執行：未提供"
         case .fileExport: return "原版檔案產生與分享工具：未提供"
         case .crossOriginResearch: return "原版跨網站自動研究：未提供"
         case .accountAccess: return "原版跨 App 帳號／收件匣讀取：未提供；MCP 能力另依伺服器與授權"
-        case .externalSend: return "原版跨 App 訊息傳送：未提供；MCP 工具須另行核准"
+        case .externalSend: return "原版跨 App 訊息傳送：未提供；只有你選取的 MCP 工具能執行，不逐次核准"
         case .skillMutationTools: return "模型可查詢、讀取並提出技能草稿；儲存須由你核准"
         }
     }
@@ -63,7 +62,6 @@ public struct SkillCatalogEntry: Decodable, Equatable, Sendable, Identifiable {
     public var originalExecutionSupported: Bool { false }
     public var readiness: String {
         switch id {
-        case "configure-mika": return "可調整本 App 外觀；原版能力未完整支援"
         case "skill-authoring": return "可請模型編寫並核准儲存；原版能力未完整支援"
         case "documents": return "可選取 PDF 擷取文字；原版能力未完整支援"
         case "content-transcribe": return "可整理核准的文字、字幕與網頁文字；原版能力未完整支援"
@@ -72,17 +70,19 @@ public struct SkillCatalogEntry: Decodable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// Mika 0c172724's six bundled skills, their three supporting files, LICENSE and
-/// NOTICE are copied verbatim into the immutable resource. iOS adaptations are
-/// separately labeled modifications. Never feed the raw archive to execution.
+/// Five of Mika 0c172724's six bundled skills, their three supporting files,
+/// LICENSE and NOTICE are copied verbatim into the immutable resource. iOS
+/// adaptations are separately labeled modifications. Never feed the raw archive
+/// to execution. configure-mika is left out: like the Play build, the model
+/// cannot change the App's settings.
 public struct BundledSkillCatalog: Sendable {
     public static let repository = "https://github.com/wangzan101/Mika"
     public static let pinnedCommit = "0c172724f3f0c96f7345262588072f6e95db1138"
-    public static let entryIDs = ["configure-mika", "content-transcribe", "documents", "info-research", "messaging", "skill-authoring"]
+    public static let entryIDs = ["content-transcribe", "documents", "info-research", "messaging", "skill-authoring"]
     // Pin the complete manifest as well as verifying every embedded file hash.
     // Resource changes require deliberate review; network/downloaded catalogs are
     // not accepted by this loader and cannot silently change readiness or prose.
-    private static let resourceHash = "e7389c7c3b39d0dd0bb133d0d7f8733cd1ecfbd3a2e2eb4b66d28b43850a9176"
+    private static let resourceHash = "8ab9d90ac62642bebc191bcdfc9bbb72b8f0bb7ec3d6a8fe65a55d2c572f768a"
     public let entries: [SkillCatalogEntry]
     public let license: SkillCatalogDocument
     public let notice: SkillCatalogDocument
@@ -111,7 +111,7 @@ public struct BundledSkillCatalog: Sendable {
             throw SkillCatalogError.invalidCatalog
         }
         let documents = [archive.license, archive.notice] + archive.entries.flatMap { [$0.original] + $0.assets }
-        guard documents.count == 11, Set(documents.map(\.path)).count == documents.count,
+        guard documents.count == 10, Set(documents.map(\.path)).count == documents.count,
               documents.allSatisfy({ !$0.content.isEmpty && $0.content.utf8.count <= 64 * 1024 &&
                   digest(Data($0.content.utf8)) == $0.sha256 }) else { throw SkillCatalogError.invalidCatalog }
         for entry in archive.entries {

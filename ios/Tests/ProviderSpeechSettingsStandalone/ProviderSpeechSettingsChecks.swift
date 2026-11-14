@@ -38,11 +38,12 @@ private final class Credentials: ModelCredentialStoring {
         check(storedKey == "synthetic", "legal legacy-style setting stores credential")
         let updated = try repository.save(baseURL: "https://site.invalid:443/v1", model: "fixture", newKey: "")
         check(updated.record.credentialAccount == first.record.credentialAccount, "same-origin credential still works")
-        let beforeRejectedSave = defaults.data(forKey: ModelSettingsRepository.configurationKey)
+        let beforeRejectedSave = defaults.data(forKey: ModelSettingsRepository.providersKey)
+        check(beforeRejectedSave != nil, "settings saved as the provider document")
         for raw in invalid {
             do { _ = try repository.save(baseURL: raw, model: "fixture", newKey: "replacement"); fatalError("invalid save accepted") }
             catch ModelSettingsError.invalidURL { count += 1 }
-            check(defaults.data(forKey: ModelSettingsRepository.configurationKey) == beforeRejectedSave,
+            check(defaults.data(forKey: ModelSettingsRepository.providersKey) == beforeRejectedSave,
                   "invalid save must not change existing settings")
             check(credentials.values == [first.record.credentialAccount: "synthetic"],
                   "invalid save must not alter credentials")
@@ -54,8 +55,14 @@ private final class Credentials: ModelCredentialStoring {
             // reproduce a legacy record (and validation now correctly rejects that form).
             let legacy = URL(string: "https://site.invalid/v1")!
             let saved = SavedModelSettings(baseURL: legacy, model: "fixture", credentialAccount: first.record.credentialAccount)
-            defaults.set(try JSONEncoder().encode(saved), forKey: ModelSettingsRepository.configurationKey)
-            guard let loaded = try repository.load() else { fatalError("legacy record rejected") }
+            // As a v1 build stored it; an updated build imports it as a provider.
+            let legacySuite = "speech-settings-legacy-" + UUID().uuidString
+            let legacyDefaults = UserDefaults(suiteName: legacySuite)!
+            defer { legacyDefaults.removePersistentDomain(forName: legacySuite) }
+            legacyDefaults.set(try JSONEncoder().encode(saved), forKey: ModelSettingsRepository.configurationKey)
+            guard let loaded = try ModelSettingsRepository(defaults: legacyDefaults, credentials: credentials).load() else {
+                fatalError("legacy record rejected")
+            }
             check(loaded.baseURL.absoluteString == "https://site.invalid/v1", "legacy model remains available")
             do {
                 _ = try SpeechProviderEndpoint.reviewSaved(providerID: "fixture", kind: .openAICompatible,

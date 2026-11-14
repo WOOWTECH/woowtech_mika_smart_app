@@ -4,7 +4,7 @@ import Foundation
 public enum SkillExecutionError: String, Error, Equatable, LocalizedError, Sendable {
     case unavailable, invalidSelection, fileTooLarge, invalidPDF, passwordRequired
     case invalidPages, tooManyPages, outputTooLarge, approvalRequired, expiredApproval
-    case stalePlan, busy, cancelled, workerFailed, invalidWorkerResponse
+    case stalePlan, busy, cancelled
 
     public var errorDescription: String? {
         switch self {
@@ -21,8 +21,6 @@ public enum SkillExecutionError: String, Error, Equatable, LocalizedError, Senda
         case .stalePlan: return "計畫已變更或結束，請重新建立計畫。"
         case .busy: return "此計畫正在執行，請等候完成。"
         case .cancelled: return "執行已取消。"
-        case .workerFailed: return "工作服務未完成擷取，未自動重試或改用其他服務。"
-        case .invalidWorkerResponse: return "工作服務回應無法驗證，未採用結果。"
         }
     }
 }
@@ -45,7 +43,7 @@ public struct SkillExecutionProvenance: Equatable, Sendable {
 }
 
 public enum SkillExecutionCapability: String, Sendable {
-    case selectedPDFRead, nativePDFText, originalPDFWorker
+    case selectedPDFRead, nativePDFText
 }
 
 public struct SkillExecutionAvailability: Equatable, Sendable {
@@ -86,7 +84,7 @@ public struct SkillExecutionApproval: Sendable {
     let expiresAt: Date
 }
 
-/// Both constructors are trusted UI boundaries, never model/worker/persisted input.
+/// Both constructors are trusted UI boundaries, never model or persisted input.
 /// Neither selection grants permission to read bytes or execute an extraction.
 public struct SkillExecutionSelectedFile: Sendable {
     let id = UUID()

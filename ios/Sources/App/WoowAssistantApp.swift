@@ -3,6 +3,13 @@ import SwiftUI
 @main
 struct WoowAssistantApp: App {
     @UIApplicationDelegateAdaptor(TaskNotificationAppDelegate.self) private var notificationDelegate
+
+    init() {
+        // Before anything opens the Keychain: ContentView's state objects (chat,
+        // MCP, browser and learning stores) do only later; the delegate never does.
+        FreshInstallKeychainReset.live()?.run()
+    }
+
     #if DEBUG && targetEnvironment(simulator)
     /// Explicit, isolated simulator fixture. Release and ordinary launches use
     /// the system's unmodified Dynamic Type setting.
