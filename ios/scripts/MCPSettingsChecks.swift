@@ -42,6 +42,20 @@ enum MCPSettingsChecks {
                 preconditionFailure("A changed or serialized private endpoint was accepted")
             } catch MCPSettingsError.invalidEndpoint { count += 1 }
         }
-        print("PASS: \(count) App MCP network/namespace isolation checks")
+        // Like the Play build's access token, sent as "Authorization: Bearer <token>":
+        // one line of visible ASCII, so the header can never be split or extended.
+        let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJmaXh0dXJlIn0.c2lnbmF0dXJlLXZhbHVl"
+        check(try MCPSettingsStore.validateToken(jwt) == jwt)
+        check(try MCPSettingsStore.validateToken("  " + jwt + "\n") == jwt) // A pasted token is trimmed.
+        check(try MCPSettingsStore.validateToken(String(repeating: "a", count: MCPSettingsStore.maximumTokenBytes)).count
+              == MCPSettingsStore.maximumTokenBytes)
+        for malformed in ["", "   ", "two words", "line\nbreak", "tab\tinside", "token\r\nX-Injected: 1",
+                          "權杖", "caf\u{e9}", String(repeating: "a", count: MCPSettingsStore.maximumTokenBytes + 1)] {
+            do {
+                _ = try MCPSettingsStore.validateToken(malformed)
+                preconditionFailure("A malformed access token was accepted")
+            } catch MCPSettingsError.invalidToken { count += 1 }
+        }
+        print("PASS: \(count) App MCP network/namespace isolation and token checks")
     }
 }

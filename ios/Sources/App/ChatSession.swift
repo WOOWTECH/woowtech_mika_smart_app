@@ -937,15 +937,15 @@ final class ChatSession: ObservableObject {
             chatError = "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
             return
         }
-        let mcpConnection: ((any MCPDiscovering), [MCPTool], [MCPResource])?
+        // Like the Play build, a saved MCP server needs no manual connect: the
+        // request connects to it first (MCPSession.chatConnection()).
+        let mcpConnection: MCPSession?
         if usesMCP {
-            do {
-                guard let mcp else { throw MCPError.notInitialized }
-                mcpConnection = try mcp.conversationConnection()
-            } catch {
-                chatError = "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
+            guard let mcp, mcp.isAvailableForChats else {
+                chatError = Self.mcpAvailabilityMessage(.notConfigured)
                 return
             }
+            mcpConnection = mcp
         } else { mcpConnection = nil }
         learning.cancelLearning()
         let key: String
@@ -1029,7 +1029,9 @@ final class ChatSession: ObservableObject {
                 }
                 let reply: String
                 var webResult: ChatWebTaskResult?
-                if let (connection, tools, resources) = mcpConnection {
+                if let mcpConnection {
+                    let (connection, tools, resources) = try await mcpConnection.chatConnection()
+                    try Task.checkCancellation()
                     reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
                         profileState: profileState, memoryState: memoryState, generation: learningGeneration,
                         allowsLearning: useLearningTools, configuration: configuration,
@@ -1108,14 +1110,20 @@ final class ChatSession: ObservableObject {
                     preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
             } catch {
                 guard let self, self.requestID == id else { return }
+                let unavailable = error as? MCPChatAvailability
+                if (error as? MCPConversationError) == .executionFailed { mcpConnection?.connectionFailed() }
                 if mcpConnection != nil {
+                    let connect: String? = unavailable.map { "connect-\($0)" }
                     let category = (error as? MCPConversationError)?.rawValue
                         ?? (error as? MCPChatStop)?.reason.rawValue
+                        ?? connect
                         ?? (error is CancellationError ? "cancelled" : "unknown")
                     self.updateMCPDiagnostics(failure: category)
                 }
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let message = (error as? MCPChatStop)?.message
+                let reason: String? = unavailable.map(Self.mcpAvailabilityMessage)
+                let message = reason
+                    ?? (error as? MCPChatStop)?.message
                     ?? Self.profileFailureMessage(error)
                     ?? Self.modelFailureMessage(error as? MCPConversationError)
                     ?? ((error as? MCPConversationError) == .invalidCommand
@@ -1320,6 +1328,16 @@ final class ChatSession: ObservableObject {
     func cancelMCP() {
         guard isMCPRun else { return }
         cancel()
+    }
+
+    /// Closed messages; AppLocalizer.stored shows them in the app language.
+    static func mcpAvailabilityMessage(_ reason: MCPChatAvailability) -> String {
+        switch reason {
+        case .notConfigured, .noTools:
+            return "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .unreachable:
+            return "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。"
+        }
     }
 
     // MARK: Web tasks from chat

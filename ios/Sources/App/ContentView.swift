@@ -88,11 +88,15 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
-            if phase != .active {
+            if phase != .active { browserWorkspace.cancelAllWork() }
+            // Like the Play build, MCP stays set up. A brief interruption (Notification
+            // Center, a permission alert) keeps the connection; in the background iOS
+            // stops the work, and the connection comes back when the app is active.
+            if phase == .background {
                 session.cancelMCP()
-                browserWorkspace.cancelAllWork()
-                if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
+                mcpSession.appWillLeaveForeground()
             }
+            if phase == .active { mcpSession.appDidBecomeActive() }
         }
         .onChange(of: selection) { _, destination in
             if destination == .chat { menuHasVoiceOverFocus = true }
@@ -719,7 +723,7 @@ private struct ChatView: View {
 
         LearningChatNotes(store: session.learning)
 
-        if mcp.canUseInConversation || session.usesMCP {
+        if mcp.isAvailableForChats || session.usesMCP {
             Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
                 .font(.callout)
                 .disabled(session.isSubmitting)

@@ -154,6 +154,62 @@ private struct StreamEndpoint: MCPEndpointStoring {
     func save(endpoint: String) throws { throw MCPSettingsError.invalidEndpoint }
     func remove() throws {}
 }
+/// Keeps the tool choice and token like the Keychain store does.
+private final class RememberingEndpoint: MCPEndpointStoring {
+    var allowedTools: [String]?
+    var token: String?
+    func load() throws -> URL? { URL(string: "https://mcp-stream.example.invalid/remember") }
+    func save(endpoint: String) throws {}
+    func remove() throws { allowedTools = nil; token = nil }
+    func loadToken() throws -> String? { token }
+    func save(token: String?) throws { self.token = token }
+    func loadAllowedTools() throws -> [String]? { allowedTools }
+    func save(allowedTools: [String]?) throws { self.allowedTools = allowedTools }
+}
+private actor UnreachableMCP: MCPDiscovering {
+    func initialize() async throws -> MCPServerInfo { throw MCPError.httpStatus(statusCode: 401) }
+    func listTools() async throws -> [MCPTool] { [] }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
+/// The first call fails the way an expired server session does; later ones work.
+private actor FlakyMCP: MCPDiscovering {
+    private(set) var initializations = 0, calls = 0
+    func initialize() async throws -> MCPServerInfo {
+        initializations += 1
+        return .init(protocolVersion: "2025-03-26", capabilities: ["tools"])
+    }
+    func listTools() async throws -> [MCPTool] { [.init(name: "synthetic_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        calls += 1
+        if calls == 1 { throw MCPError.httpStatus(statusCode: 404) }
+        return .object(["isError": .bool(false), "content": .array([.object(["type": .string("text"), "text": .string("Read value")])])])
+    }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
+/// A malformed and an oversized tool ahead of 70 ordinary ones.
+private actor ManyToolsMCP: MCPDiscovering {
+    static let names = (1...70).map { "tool_\($0)" }
+    private(set) var calls = 0
+    func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
+    func listTools() async throws -> [MCPTool] {
+        let schema = JSONValue.object(["type": .string("object")])
+        let huge = JSONValue.object(["type": .string("object"), "description": .string(String(repeating: "x", count: 40 * 1024))])
+        return [MCPTool(name: "bad\u{7}name", inputSchema: schema), MCPTool(name: "huge_schema", inputSchema: huge)]
+            + Self.names.map { MCPTool(name: $0, description: "Synthetic tool", inputSchema: schema) }
+    }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
+        calls += 1
+        return .object(["isError": .bool(false), "content": .array([.object(["type": .string("text"), "text": .string("Read value")])])])
+    }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
 private actor StreamMCP: MCPDiscovering {
     private(set) var calls = 0
     func initialize() async throws -> MCPServerInfo { .init(protocolVersion: "2025-03-26", capabilities: ["tools"]) }
@@ -420,6 +476,84 @@ private actor StreamMCP: MCPDiscovering {
             let after = await server.calls
             try a.check(after == 1 && session.mcpSteps.count == 1 && session.chatError == nil, "the selected tool ran once with no approval")
             try a.check(session.entries.count == 2 && session.replyPreview == nil && client.counts.stream == 0, "MCP finish validator still precedes delivered answer")
+        }
+        do {
+            // Like the Play build: a saved server is used without a manual connect,
+            // every tool is allowed until one is turned off, the choice is kept,
+            // and the background does not cost the setup.
+            let e = try StreamEnvironment(); defer { e.close() }
+            let repository = RememberingEndpoint(), server = StreamMCP()
+            let first = MCPSession(repository: repository, clientFactory: { _ in server })
+            try a.check(first.phase == .saved && first.isAvailableForChats && !first.canUseInConversation,
+                        "a saved server is available to chats before any connect")
+            let (_, offered, _) = try await first.chatConnection()
+            try a.check(first.phase == .connected && offered.map(\.name) == ["synthetic_read"]
+                        && first.selectedToolNames == ["synthetic_read"], "chatConnection() connects by itself and allows every tool")
+            first.selectTool("synthetic_read", enabled: false)
+            try a.check(repository.allowedTools == [] && !first.canUseInConversation, "turning a tool off is saved as the explicit choice")
+            first.appWillLeaveForeground()
+            try a.check(first.phase == .suspended && first.tools.map(\.name) == ["synthetic_read"], "the background keeps the catalog")
+            first.appDidBecomeActive()
+            try await wait("reconnect after the background") { first.phase == .connected }
+            try a.check(first.selectedToolNames.isEmpty, "the reconnect keeps the saved choice")
+            first.selectTool("synthetic_read", enabled: true)
+            try a.check(repository.allowedTools == nil, "turning every tool back on saves the default (all)")
+            let second = MCPSession(repository: repository, clientFactory: { _ in server })
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Connected by itself."}"#])
+            let session = e.session(client); session.usesMCP = true
+            let before = await server.calls
+            let task = try start(session, "Read without connecting first", mcp: second)
+            await task.value
+            let after = await server.calls
+            try a.check(second.phase == .connected && after == before + 1 && session.chatError == nil && session.entries.count == 2,
+                        "a chat connects to the saved server and runs the allowed tool")
+            let unreachable = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in UnreachableMCP() })
+            let down = e.session(CompleteSequenceClient([])); down.usesMCP = true
+            let failed = try start(down, "Server is down", mcp: unreachable)
+            await failed.value
+            try a.check(down.chatError == ChatSession.mcpAvailabilityMessage(.unreachable) && down.draft == "Server is down"
+                        && unreachable.phase == .failed, "an unreachable server keeps the draft and says why")
+        }
+        do {
+            // "Every tool" stays a catalog the runner accepts: malformed or
+            // oversized tools stay off, and at most 64 are offered.
+            let e = try StreamEnvironment(); defer { e.close() }
+            let server = ManyToolsMCP()
+            let many = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
+            many.connect()
+            try await wait("many tools discovered") { !many.isBusy }
+            try a.check(many.phase == .connected && many.selectedToolNames == Set(ManyToolsMCP.names.prefix(64))
+                        && many.noticeText == .mcpSelectionLimit, "the default skips malformed and oversized tools and stops at 64")
+            many.selectTool("huge_schema", enabled: true)
+            many.selectTool("tool_70", enabled: true)
+            try a.check(many.selectedToolNames.count == 64 && !many.selectedToolNames.contains("tool_70")
+                        && !many.selectedToolNames.contains("huge_schema"), "a 65th or oversized tool stays off")
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"tool_1","arguments":{}}"#, #"{"action":"finish","answer":"Many tools."}"#])
+            let session = e.session(client); session.usesMCP = true
+            let task = try start(session, "Use the first tool", mcp: many)
+            await task.value
+            let calls = await server.calls
+            try a.check(session.chatError == nil && session.entries.count == 2 && calls == 1, "the runner accepts the default catalog")
+        }
+        do {
+            // A failed call is not retried and drops the connection; the next chat connects again.
+            let e = try StreamEnvironment(); defer { e.close() }
+            let server = FlakyMCP()
+            let flaky = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
+            let read = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
+            let first = e.session(CompleteSequenceClient([read])); first.usesMCP = true
+            let failed = try start(first, "First try", mcp: flaky)
+            await failed.value
+            let connectsBefore = await server.initializations, callsBefore = await server.calls
+            try a.check(first.chatError != nil && first.draft == "First try" && connectsBefore == 1 && callsBefore == 1
+                        && flaky.phase == .saved,
+                        "a failed call is not retried and drops the connection")
+            let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#])); second.usesMCP = true
+            let retried = try start(second, "Second try", mcp: flaky)
+            await retried.value
+            let connectsAfter = await server.initializations, callsAfter = await server.calls
+            try a.check(second.chatError == nil && connectsAfter == 2 && callsAfter == 2 && flaky.phase == .connected,
+                        "the next chat connects again")
         }
         return a.count
     }

@@ -1363,8 +1363,8 @@
       "key": "mcp.explanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。",
-        "en": "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. The model runs selected tools without asking you each time, so select only tools you allow it to use. Tool descriptions and results are sent to your configured model."
+        "zh-Hant": "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。",
+        "en": "Connect an external MCP server and choose which tools the assistant can use; all are allowed by default. The server must use HTTPS, and the access token stays on this device. Turn on “Use MCP tools in this chat” and the app connects by itself. The model runs allowed tools without asking each time, and tool descriptions and results go to the model you set up."
       }
     },
     {
@@ -1417,8 +1417,35 @@
       "key": "mcp.endpoint.help",
       "parameters": [],
       "translations": {
-        "zh-Hant": "Webhook URL 等同憑證，完整網址僅儲存於此裝置解鎖時可讀取的 Keychain，不透過 iCloud 同步。輸入新端點後，請先儲存或清除草稿再連線。",
-        "en": "A webhook URL is a credential. The complete URL is stored only in this device’s Keychain, accessible while unlocked, without iCloud sync. Save or clear a new endpoint draft before connecting."
+        "zh-Hant": "完整網址和存取權杖只存在這台裝置解鎖時可讀的 Keychain，不透過 iCloud 同步。存成另一個網址時，原本的權杖和工具選擇會一起清除。",
+        "en": "The complete URL and the access token are kept only in this device’s Keychain, readable while it is unlocked, and never sync through iCloud. Saving a different URL also clears the old token and tool choices."
+      }
+    },
+    {
+      "case": "mcpToken",
+      "key": "mcp.token",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存取權杖（選填）",
+        "en": "Access token (optional)"
+      }
+    },
+    {
+      "case": "mcpTokenAX",
+      "key": "mcp.token.a.x",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 存取權杖",
+        "en": "MCP access token"
+      }
+    },
+    {
+      "case": "mcpTokenStored",
+      "key": "mcp.token.stored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已儲存存取權杖；不顯示內容。",
+        "en": "An access token is saved; it isn’t shown."
       }
     },
     {
@@ -1426,8 +1453,8 @@
       "key": "mcp.save",
       "parameters": [],
       "translations": {
-        "zh-Hant": "儲存端點",
-        "en": "Save endpoint"
+        "zh-Hant": "儲存",
+        "en": "Save"
       }
     },
     {
@@ -1507,8 +1534,8 @@
       "key": "mcp.remove.question",
       "parameters": [],
       "translations": {
-        "zh-Hant": "移除此裝置儲存的 MCP 端點？",
-        "en": "Remove the MCP endpoint saved on this device?"
+        "zh-Hant": "移除此裝置儲存的 MCP 端點、存取權杖和工具選擇？",
+        "en": "Remove the MCP endpoint, access token and tool choices saved on this device?"
       }
     },
     {
@@ -1593,12 +1620,21 @@
       }
     },
     {
+      "case": "mcpSuspended",
+      "key": "mcp.suspended",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已暫停連線；回到 App 時會自動重新連線",
+        "en": "Paused; reconnects when you return to the app"
+      }
+    },
+    {
       "case": "mcpSelectionLimit",
       "key": "mcp.selection.limit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "每次對話最多選取 64 個工具。",
-        "en": "Select at most 64 tools per conversation."
+        "zh-Hant": "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。",
+        "en": "A chat can use at most 64 tools, with up to 128 KB of tool descriptions and no malformed tool; the rest stay off."
       }
     },
     {
@@ -1606,8 +1642,8 @@
       "key": "mcp.saved.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "端點已存入此裝置的 Keychain；尚未送出連線請求。",
-        "en": "Endpoint saved in this device’s Keychain; no connection request has been sent."
+        "zh-Hant": "已存入此裝置的 Keychain；尚未送出連線請求。",
+        "en": "Saved in this device’s Keychain; no connection request has been sent."
       }
     },
     {
@@ -1615,8 +1651,8 @@
       "key": "mcp.removed.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已移除此 App 的 MCP 端點。",
-        "en": "This app’s MCP endpoint was removed."
+        "zh-Hant": "已移除此 App 的 MCP 端點、存取權杖和工具選擇。",
+        "en": "This app’s MCP endpoint, access token and tool choices were removed."
       }
     },
     {
@@ -1633,8 +1669,8 @@
       "key": "mcp.connection.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 連線或目錄擷取失敗。請檢查端點、網路及伺服器的 Streamable HTTP 支援；不會自動重試。",
-        "en": "MCP connection or catalog retrieval failed. Check the endpoint, network and server’s Streamable HTTP support. There is no automatic retry."
+        "zh-Hant": "MCP 連線或目錄擷取失敗。請檢查端點、存取權杖、網路及伺服器的 Streamable HTTP 支援；不會自動重試。",
+        "en": "MCP connection or catalog retrieval failed. Check the endpoint, access token, network and server’s Streamable HTTP support. There is no automatic retry."
       }
     },
     {
@@ -1660,8 +1696,8 @@
       "key": "mcp.disconnected.notice",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已停止本機工作並清除目錄；端點設定保留。未要求伺服器撤銷憑證或刪除遠端工作階段。",
-        "en": "Local work stopped and catalogs cleared; the endpoint is retained. The server was not asked to revoke credentials or delete its session."
+        "zh-Hant": "已中斷連線並清除目錄；端點、存取權杖和工具選擇保留。未要求伺服器撤銷憑證或刪除遠端工作階段。",
+        "en": "Disconnected and catalogs cleared; the endpoint, access token and tool choices are kept. The server was not asked to revoke credentials or delete its session."
       }
     },
     {
@@ -1680,6 +1716,15 @@
       "translations": {
         "zh-Hant": "請輸入完整 HTTPS MCP 端點，不可含帳密、片段或空白。查詢參數會與整個端點一起安全儲存。",
         "en": "Enter a complete HTTPS MCP endpoint without URL credentials, fragments or whitespace. Query parameters are stored securely with the endpoint."
+      }
+    },
+    {
+      "case": "mcpInvalidToken",
+      "key": "mcp.invalid.token",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "存取權杖要是一行、不含空白的英數字與符號，最長 8 KB。",
+        "en": "The access token must be one line of letters, digits and symbols with no spaces, at most 8 KB."
       }
     },
     {
@@ -6879,8 +6924,17 @@
       "key": "stored.chat.mcpNotReady",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。",
-        "en": "Connect and select MCP tools first, or turn off MCP for this chat. Your draft is kept."
+        "zh-Hant": "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。",
+        "en": "Save an endpoint and keep at least one tool on the MCP servers page, or turn off MCP for this chat. Your draft is kept."
+      }
+    },
+    {
+      "case": "storedChatMcpUnavailable",
+      "key": "stored.chat.mcpUnavailable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。",
+        "en": "The MCP server couldn’t be reached. Your draft is kept. Check its URL and access token on the MCP servers page, then try again."
       }
     },
     {

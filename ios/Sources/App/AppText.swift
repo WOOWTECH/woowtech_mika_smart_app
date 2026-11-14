@@ -158,6 +158,9 @@ enum AppText: Equatable {
     case mcpEndpoint
     case mcpEndpointAX
     case mcpEndpointHelp
+    case mcpToken
+    case mcpTokenAX
+    case mcpTokenStored
     case mcpSave
     case mcpClearDraft
     case mcpRemoveStored
@@ -177,6 +180,7 @@ enum AppText: Equatable {
     case mcpDisconnected
     case mcpCancelled
     case mcpFailedStatus
+    case mcpSuspended
     case mcpSelectionLimit
     case mcpSavedNotice
     case mcpRemovedNotice
@@ -187,6 +191,7 @@ enum AppText: Equatable {
     case mcpDisconnectedNotice
     case mcpSettingsError
     case mcpInvalidEndpoint
+    case mcpInvalidToken
     case mcpKeychainUnavailable
     case mcpInvalidNamespace
     case mcpMissingLiveEndpoint
@@ -712,6 +717,7 @@ enum AppText: Equatable {
     case storedChatQuoteChanged
     case storedChatArchiveChanged
     case storedChatMcpNotReady
+    case storedChatMcpUnavailable
     case storedChatKeyUnreadable
     case storedChatLearningUnreadable
     case storedChatPrepareFailed
@@ -1047,6 +1053,9 @@ enum AppText: Equatable {
         case .mcpEndpoint: return "mcp.endpoint"
         case .mcpEndpointAX: return "mcp.endpoint.a.x"
         case .mcpEndpointHelp: return "mcp.endpoint.help"
+        case .mcpToken: return "mcp.token"
+        case .mcpTokenAX: return "mcp.token.a.x"
+        case .mcpTokenStored: return "mcp.token.stored"
         case .mcpSave: return "mcp.save"
         case .mcpClearDraft: return "mcp.clear.draft"
         case .mcpRemoveStored: return "mcp.remove.stored"
@@ -1066,6 +1075,7 @@ enum AppText: Equatable {
         case .mcpDisconnected: return "mcp.disconnected"
         case .mcpCancelled: return "mcp.cancelled"
         case .mcpFailedStatus: return "mcp.failed.status"
+        case .mcpSuspended: return "mcp.suspended"
         case .mcpSelectionLimit: return "mcp.selection.limit"
         case .mcpSavedNotice: return "mcp.saved.notice"
         case .mcpRemovedNotice: return "mcp.removed.notice"
@@ -1076,6 +1086,7 @@ enum AppText: Equatable {
         case .mcpDisconnectedNotice: return "mcp.disconnected.notice"
         case .mcpSettingsError: return "mcp.settings.error"
         case .mcpInvalidEndpoint: return "mcp.invalid.endpoint"
+        case .mcpInvalidToken: return "mcp.invalid.token"
         case .mcpKeychainUnavailable: return "mcp.keychain.unavailable"
         case .mcpInvalidNamespace: return "mcp.invalid.namespace"
         case .mcpMissingLiveEndpoint: return "mcp.missing.live.endpoint"
@@ -1601,6 +1612,7 @@ enum AppText: Equatable {
         case .storedChatQuoteChanged: return "stored.chat.quoteChanged"
         case .storedChatArchiveChanged: return "stored.chat.archiveChanged"
         case .storedChatMcpNotReady: return "stored.chat.mcpNotReady"
+        case .storedChatMcpUnavailable: return "stored.chat.mcpUnavailable"
         case .storedChatKeyUnreadable: return "stored.chat.keyUnreadable"
         case .storedChatLearningUnreadable: return "stored.chat.learningUnreadable"
         case .storedChatPrepareFailed: return "stored.chat.prepareFailed"
@@ -2031,14 +2043,17 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 與 Skills"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。"
+        case .mcpExplanation: return "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
         case .mcpNotStored: return "尚未儲存端點。"
         case .mcpEndpoint: return "完整 HTTPS MCP 端點"
         case .mcpEndpointAX: return "MCP 私密端點"
-        case .mcpEndpointHelp: return "Webhook URL 等同憑證，完整網址僅儲存於此裝置解鎖時可讀取的 Keychain，不透過 iCloud 同步。輸入新端點後，請先儲存或清除草稿再連線。"
-        case .mcpSave: return "儲存端點"
+        case .mcpEndpointHelp: return "完整網址和存取權杖只存在這台裝置解鎖時可讀的 Keychain，不透過 iCloud 同步。存成另一個網址時，原本的權杖和工具選擇會一起清除。"
+        case .mcpToken: return "存取權杖（選填）"
+        case .mcpTokenAX: return "MCP 存取權杖"
+        case .mcpTokenStored: return "已儲存存取權杖；不顯示內容。"
+        case .mcpSave: return "儲存"
         case .mcpClearDraft: return "清除輸入"
         case .mcpRemoveStored: return "移除已儲存端點"
         case .mcpExploration: return "探索狀態"
@@ -2047,7 +2062,7 @@ enum AppText: Equatable {
         case .mcpDisconnect: return "中斷連線"
         case .mcpServerTools: return "伺服器工具"
         case .mcpSearchTools: return "搜尋工具名稱"
-        case .mcpRemoveQuestion: return "移除此裝置儲存的 MCP 端點？"
+        case .mcpRemoveQuestion: return "移除此裝置儲存的 MCP 端點、存取權杖和工具選擇？"
         case .mcpRemove: return "移除端點"
         case .mcpNotConfigured: return "尚未設定 MCP"
         case .mcpSavedStatus: return "端點已儲存，尚未驗證連線"
@@ -2057,16 +2072,18 @@ enum AppText: Equatable {
         case .mcpDisconnected: return "已中斷本機連線"
         case .mcpCancelled: return "已取消等待"
         case .mcpFailedStatus: return "MCP 設定或連線未完成"
-        case .mcpSelectionLimit: return "每次對話最多選取 64 個工具。"
-        case .mcpSavedNotice: return "端點已存入此裝置的 Keychain；尚未送出連線請求。"
-        case .mcpRemovedNotice: return "已移除此 App 的 MCP 端點。"
+        case .mcpSuspended: return "已暫停連線；回到 App 時會自動重新連線"
+        case .mcpSelectionLimit: return "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。"
+        case .mcpSavedNotice: return "已存入此裝置的 Keychain；尚未送出連線請求。"
+        case .mcpRemovedNotice: return "已移除此 App 的 MCP 端點、存取權杖和工具選擇。"
         case .mcpDiscoveryNotice: return "僅完成握手與目錄探索，未執行工具或讀取資源內容；不代表服務持續在線。"
-        case .mcpConnectionError: return "MCP 連線或目錄擷取失敗。請檢查端點、網路及伺服器的 Streamable HTTP 支援；不會自動重試。"
+        case .mcpConnectionError: return "MCP 連線或目錄擷取失敗。請檢查端點、存取權杖、網路及伺服器的 Streamable HTTP 支援；不會自動重試。"
         case .mcpTimeout: return "探索超過 90 秒，已停止本機等待；伺服器可能已收到目錄請求。"
         case .mcpCancelledNotice: return "已取消本機等待；伺服器可能已收到目錄請求。"
-        case .mcpDisconnectedNotice: return "已停止本機工作並清除目錄；端點設定保留。未要求伺服器撤銷憑證或刪除遠端工作階段。"
+        case .mcpDisconnectedNotice: return "已中斷連線並清除目錄；端點、存取權杖和工具選擇保留。未要求伺服器撤銷憑證或刪除遠端工作階段。"
         case .mcpSettingsError: return "MCP 設定存取失敗；不會顯示端點或原始錯誤內容。"
         case .mcpInvalidEndpoint: return "請輸入完整 HTTPS MCP 端點，不可含帳密、片段或空白。查詢參數會與整個端點一起安全儲存。"
+        case .mcpInvalidToken: return "存取權杖要是一行、不含空白的英數字與符號，最長 8 KB。"
         case .mcpKeychainUnavailable: return "無法存取 MCP Keychain，請解鎖裝置後再試。"
         case .mcpInvalidNamespace: return "UI 測試缺少有效的隔離命名空間；不會讀取正式設定。"
         case .mcpMissingLiveEndpoint: return "Live MCP UI 測試設定未完成，未取得私密端點。"
@@ -2591,7 +2608,8 @@ enum AppText: Equatable {
         case .storedChatQuoteBeforeRemove: return "請先傳送或移除引用，再移除模型設定。"
         case .storedChatQuoteChanged: return "引用來源已變更；草稿與引用保留，請重新選取。"
         case .storedChatArchiveChanged: return "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
-        case .storedChatMcpNotReady: return "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .storedChatMcpNotReady: return "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .storedChatMcpUnavailable: return "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。"
         case .storedChatKeyUnreadable: return "無法讀取金鑰，草稿已保留。請在設定確認或重新儲存金鑰。"
         case .storedChatLearningUnreadable: return "無法讀取學習資料，請重新讀取後再試。"
         case .storedChatPrepareFailed: return "無法準備本次對話。"

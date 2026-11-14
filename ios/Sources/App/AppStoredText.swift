@@ -98,7 +98,7 @@ extension AppText {
         .storedChatPartialReceiving, .storedChatPartialCancelled, .storedChatPartialFailed,
         .storedChatSettingsChanged, .storedChatArchiveOpened, .storedChatArchiveSaveFailed,
         .storedChatQuoteBeforeChange, .storedChatQuoteBeforeRemove, .storedChatQuoteChanged,
-        .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
+        .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatMcpUnavailable, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
         .storedChatPrepareFailed, .storedChatEmptyReply, .storedChatNoSingleStep, .storedChatSendFailed,
         .storedChatMcpUnfinished, .storedChatMemorySavedReplyUnfinished, .storedChatProfileSavedReplyUnfinished,
         .storedChatReasonAuth, .storedChatReasonRateLimited, .storedChatReasonUnavailable, .storedChatReasonRefused,

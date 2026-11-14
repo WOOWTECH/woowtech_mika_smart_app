@@ -5,6 +5,7 @@ struct MCPToolsView: View {
     @Environment(\.appLocalizer) private var localizer
     @StateObject private var session: MCPSession
     @FocusState private var isEditingEndpoint: Bool
+    @FocusState private var isEditingToken: Bool
     @FocusState private var isSearchingTools: Bool
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
@@ -73,17 +74,35 @@ struct MCPToolsView: View {
                     Text(localizer.text(.mcpEndpointHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    // Like the Play build's optional access token (Bearer header).
+                    SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .privacySensitive()
+                        .focused($isEditingToken)
+                        .submitLabel(.done)
+                        .onSubmit { isEditingToken = false }
+                        .disabled(session.isBusy)
+                        .accessibilityLabel(localizer.text(.mcpTokenAX))
+                        .accessibilityIdentifier("mcp.token")
+                    if session.hasStoredToken {
+                        Text(localizer.text(.mcpTokenStored))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("mcp.tokenStatus")
+                    }
                     HStack(spacing: 12) {
                         Button(localizer.text(.mcpSave)) {
                             isEditingEndpoint = false
+                            isEditingToken = false
                             session.saveEndpoint()
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(!session.canSave)
                         .accessibilityIdentifier("mcp.save")
-                        Button(localizer.text(.mcpClearDraft)) { session.endpointDraft = "" }
+                        Button(localizer.text(.mcpClearDraft)) { session.endpointDraft = ""; session.tokenDraft = "" }
                             .buttonStyle(.bordered)
-                            .disabled(session.endpointDraft.isEmpty || session.isBusy)
+                            .disabled((session.endpointDraft.isEmpty && session.tokenDraft.isEmpty) || session.isBusy)
                             .accessibilityIdentifier("mcp.clearDraft")
                     }
                     if session.hasStoredEndpoint {
@@ -108,6 +127,7 @@ struct MCPToolsView: View {
                     } else {
                         Button(localizer.text(.mcpConnect)) {
                             isEditingEndpoint = false
+                            isEditingToken = false
                             session.connect()
                         }
                         .buttonStyle(.borderedProminent)
@@ -168,7 +188,7 @@ struct MCPToolsView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button(localizer.text(.keyboardDone)) { isEditingEndpoint = false; isSearchingTools = false }
+                Button(localizer.text(.keyboardDone)) { isEditingEndpoint = false; isEditingToken = false; isSearchingTools = false }
                     .accessibilityIdentifier("mcp.dismissKeyboard")
             }
         }
@@ -176,14 +196,17 @@ struct MCPToolsView: View {
             Button(localizer.text(.mcpRemove), role: .destructive) { session.removeEndpoint() }
                 .accessibilityIdentifier("mcp.confirmRemove")
         }
+        // Leaving the page or the app clears what was typed. The connection
+        // itself is the app's (ContentView): like the Play build it stays set
+        // up, and a connection that started here may finish for a chat.
         .onDisappear {
             session.endpointDraft = ""
-            if session.isBusy { session.cancel() }
+            session.tokenDraft = ""
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 session.endpointDraft = ""
-                if session.isBusy || session.phase == .connected { session.disconnect() }
+                session.tokenDraft = ""
             }
         }
     }
@@ -193,7 +216,7 @@ struct MCPToolsView: View {
         case .connected: return "checkmark.circle.fill"
         case .failed: return "exclamationmark.triangle.fill"
         case .connecting, .discovering: return "arrow.triangle.2.circlepath"
-        case .notConfigured, .saved, .disconnected, .cancelled: return "link"
+        case .notConfigured, .saved, .disconnected, .cancelled, .suspended: return "link"
         }
     }
 
@@ -201,7 +224,7 @@ struct MCPToolsView: View {
         switch session.phase {
         case .connected: return .green
         case .failed: return .red
-        case .notConfigured, .saved, .connecting, .discovering, .disconnected, .cancelled: return brandAccent
+        case .notConfigured, .saved, .connecting, .discovering, .disconnected, .cancelled, .suspended: return brandAccent
         }
     }
 
