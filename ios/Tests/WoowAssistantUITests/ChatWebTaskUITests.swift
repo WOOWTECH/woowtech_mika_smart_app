@@ -25,8 +25,9 @@ final class ChatWebTaskUITests: XCTestCase {
         XCTAssertTrue(answer.label.contains("WEB_TASK_JOBS_DONE"), answer.label)
         XCTAssertTrue(answer.label.contains("來源"), "Sources follow the answer")
         waitUntilGone(card, seconds: 10)
-        XCTAssertEqual(chatDraftControl(in: app).value as? String ?? "", chatDraftControl(in: app).placeholderValue ?? "",
-                       "The draft was sent and cleared")
+        // An empty field reports "" on iOS 18.5 and its placeholder on iOS 26.
+        let draft = chatDraftControl(in: app), value = draft.value as? String ?? ""
+        XCTAssertTrue(value.isEmpty || value == draft.placeholderValue, "The draft was sent and cleared")
     }
 
     /// 檢視過程 lists the steps with their pages.

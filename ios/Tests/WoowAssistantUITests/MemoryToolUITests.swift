@@ -12,7 +12,10 @@ final class MemoryToolUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 240
+        // The undo cases relaunch and switch keyboards several times; on iPhone SE
+        // (iOS 18.5) the delete case ran past 240 s in PR #36's run. 300 s is the
+        // most this scope allows.
+        executionTimeAllowance = 300
     }
 
     override func tearDownWithError() throws {
