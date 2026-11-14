@@ -445,13 +445,25 @@ public struct ChatWebTaskResult: @unchecked Sendable {
     public let modelCalls: Int
     /// After 停止, the model's short account of what was done, if it came in time.
     public var stopSummary: String?
+    /// What each read or find step returned (step id → at most 2,000 characters),
+    /// for the outcome judgment after the answer (Play's RunLearning). Kept in
+    /// memory for this result only: never saved, archived or shown.
+    public let evidence: [Int: String]
+    /// Part of the work was not the task's own: the user finished or skipped a
+    /// handed-over step, or refused a confirmation (Play's Eligibility.interrupted).
+    public let userInterrupted: Bool
 
     public init(status: Status, answer: String?, reason: String?, stop: Stop?, error: Error?, sources: [ChatWebSource],
-                pagesRead: [ChatWebSource], steps: [ChatWebStep], modelCalls: Int, stopSummary: String? = nil) {
+                pagesRead: [ChatWebSource], steps: [ChatWebStep], modelCalls: Int, stopSummary: String? = nil,
+                evidence: [Int: String] = [:], userInterrupted: Bool = false) {
         self.status = status; self.answer = answer; self.reason = reason; self.stop = stop; self.error = error
         self.sources = sources; self.pagesRead = pagesRead; self.steps = steps; self.modelCalls = modelCalls
         self.stopSummary = stopSummary
+        self.evidence = evidence.mapValues { String($0.prefix(Self.maximumEvidenceCharacters)) }
+        self.userInterrupted = userInterrupted
     }
+
+    public static let maximumEvidenceCharacters = 2_000
 }
 
 /// Pages the model can read in one go and the links it can open by number.

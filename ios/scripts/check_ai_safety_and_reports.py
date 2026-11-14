@@ -52,7 +52,8 @@ EXEMPT = {
 }
 # Requests that need no rules: the fixed connection test, whose reply only tells
 # whether the service answered and is never shown.
-EXEMPT_FILES = {'Sources/AssistantModels/ModelConnectionCheck.swift'}
+# Play's outcome judge for chat skill steps (OutcomeJudge.kt) is an internal verdict too.
+EXEMPT_FILES = {'Sources/AssistantModels/ModelConnectionCheck.swift', 'Sources/AssistantSkills/ChatOutcomeJudge.swift'}
 # Clients that only pass a request on, and the test fixture.
 PASS_THROUGH = {'Sources/App/LearningRunContext.swift', 'Sources/App/UITestModelFixture.swift'}
 REQUEST = re.compile(r'\.(complete|stream)\(\s*messages:')
