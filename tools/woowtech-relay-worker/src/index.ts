@@ -5,6 +5,7 @@ import cliLicense from '../downloads/LICENSE.txt';
 import appIntegration from '../docs/app-integration.md';
 import { ReportInbox } from './reports';
 import { privacyPlayHtml, privacyPlayCss } from './privacy-play';
+import { privacyIosHtml, privacyIosCss } from './privacy-ios';
 export { AccountAuth };
 export { ReportInbox };
 
@@ -154,6 +155,11 @@ export default {
       return security(new Response(request.method === 'HEAD' ? null : privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
     if (url.pathname === '/privacy/play.css' && request.method === 'GET')
       return security(new Response(privacyPlayCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
+    // The App Store iOS app links here from its consent screen and About page.
+    if (url.pathname === '/privacy/ios' && (request.method === 'GET' || request.method === 'HEAD'))
+      return security(new Response(request.method === 'HEAD' ? null : privacyIosHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+    if (url.pathname === '/privacy/ios.css' && request.method === 'GET')
+      return security(new Response(privacyIosCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
     if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
       if (request.headers.has('origin')) return security(failure(403, 'browser_not_allowed', true));
       const admin = url.pathname.startsWith('/admin/');
