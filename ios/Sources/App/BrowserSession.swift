@@ -1241,8 +1241,11 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         return await withCheckedContinuation { continuation in
             discardingPage = true; discardCompletion = continuation
             view.uiDelegate = nil
+            // The blank document can need a new WebContent process. CI simulators
+            // took 23.6 s and 51.6 s to launch one (runs 43628091777, 43586031812),
+            // past the former 10 s; on a device it commits within a second.
             discardTimeout = Task { [weak self] in
-                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
+                do { try await Task.sleep(nanoseconds: 30_000_000_000) } catch { return }
                 #if DEBUG
                 print("BROWSER_WEBSITE_DISCARD phase=timeout")
                 #endif
