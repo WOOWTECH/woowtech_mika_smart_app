@@ -527,8 +527,12 @@ private actor StreamMCP: MCPDiscovering {
             let down = e.session(CompleteSequenceClient([])); down.usesMCP = true
             let failed = try start(down, "Server is down", mcp: unreachable)
             await failed.value
-            try a.check(down.chatError == ChatSession.mcpAvailabilityMessage(.unreachable) && down.draft == "Server is down"
-                        && unreachable.phase == .failed, "an unreachable server keeps the draft and says why")
+            // Like the Play build the sent question stays and the turn ends as
+            // 沒有完成 with the reason; the input bar was emptied at send.
+            try a.check(down.chatError == nil && down.draft.isEmpty && down.entries.count == 2
+                        && down.entries.last?.outcome == .failed
+                        && down.entries.last?.content == ChatSession.mcpAvailabilityMessage(.unreachable)
+                        && unreachable.phase == .failed, "an unreachable server ends the turn as 沒有完成 and says why")
         }
         do {
             // "Every tool" stays a catalog the runner accepts: malformed or
@@ -561,8 +565,10 @@ private actor StreamMCP: MCPDiscovering {
             let failed = try start(first, "First try", mcp: flaky)
             await failed.value
             let connectsBefore = await server.initializations, callsBefore = await server.calls
-            try a.check(first.chatError != nil && first.draft == "First try" && connectsBefore == 1 && callsBefore == 1
-                        && flaky.phase == .saved,
+            // Like the Play build the turn ends as 沒有完成 in the chat; the input bar
+            // was emptied at send.
+            try a.check(first.chatError == nil && first.draft.isEmpty && first.entries.last?.outcome == .failed
+                        && connectsBefore == 1 && callsBefore == 1 && flaky.phase == .saved,
                         "a failed call is not retried and drops the connection")
             let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#])); second.usesMCP = true
             let retried = try start(second, "Second try", mcp: flaky)
