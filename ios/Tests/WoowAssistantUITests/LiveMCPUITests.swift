@@ -48,36 +48,35 @@ final class LiveMCPUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         XCTAssertFalse(app.staticTexts["mcp.testIsolation"].exists)
-        for attempt in 0..<2 {
-            revealLearningElement(app.buttons["mcp.connect"], in: app)
-            app.buttons["mcp.connect"].tap()
+        func assertConnected(_ step: String) {
             let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 app.staticTexts["mcp.status"].label == "已連線，目錄擷取完成" || app.staticTexts["mcp.error"].exists
             }, object: nil)
-            XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 95), .completed)
-            XCTAssertFalse(app.staticTexts["mcp.error"].exists, "Live MCP discovery failed.")
+            XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 95), .completed, step)
+            XCTAssertFalse(app.staticTexts["mcp.error"].exists, "Live MCP discovery failed: \(step)")
             XCTAssertEqual(app.staticTexts["mcp.status"].label, "已連線，目錄擷取完成")
             revealLearningElement(app.staticTexts["mcp.toolCount"], in: app, visibility: .readableText)
             XCTAssertTrue(app.staticTexts["mcp.toolCount"].label.contains("個"))
             XCTAssertFalse(app.staticTexts["mcp.toolCount"].label.contains("：0 個"))
-            if attempt == 0 {
-                XCUIDevice.shared.press(.home)
-                app.activate()
-            } else {
-                // isHittable alone can include a List row covered by the
-                // native navigation bar or keyboard. Require its full frame
-                // in the actual content viewport and perform one native tap.
-                revealLearningElement(app.buttons["mcp.disconnect"], in: app)
-                app.buttons["mcp.disconnect"].tap()
-            }
-            let disconnected = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                app.staticTexts["mcp.status"].label == "已中斷本機連線"
-            }, object: nil)
-            let waitResult = XCTWaiter.wait(for: [disconnected], timeout: 5)
-            print("LIVE_MCP_DISCONNECT action=\(attempt == 0 ? "background" : "button") completed=\(waitResult == .completed)")
-            XCTAssertEqual(waitResult, .completed)
-            XCTAssertEqual(app.staticTexts["mcp.status"].label, "已中斷本機連線")
-            XCTAssertFalse(app.staticTexts["mcp.toolCount"].exists, "Disconnect must clear the actual discovered catalog.")
         }
+        revealLearningElement(app.buttons["mcp.connect"], in: app)
+        app.buttons["mcp.connect"].tap()
+        assertConnected("first connect")
+        // Like the Play build, leaving the app does not cost the setup: the
+        // connection comes back on its own, with the catalog, when it returns.
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        assertConnected("reconnect after the background")
+        print("LIVE_MCP_RECONNECT completed=true")
+        // isHittable alone can include a List row covered by the native
+        // navigation bar or keyboard. Require its full frame in the actual
+        // content viewport and perform one native tap.
+        revealLearningElement(app.buttons["mcp.disconnect"], in: app)
+        app.buttons["mcp.disconnect"].tap()
+        let disconnected = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.staticTexts["mcp.status"].label == "已中斷本機連線"
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [disconnected], timeout: 5), .completed)
+        XCTAssertFalse(app.staticTexts["mcp.toolCount"].exists, "Disconnect must clear the actual discovered catalog.")
     }
 }

@@ -35,6 +35,8 @@ private struct RAMEndpoint: MCPEndpointStoring {
     func load() throws -> URL? { url }
     func save(endpoint: String) throws { throw Check.setup }
     func remove() throws { throw Check.setup }
+    /// Every tool starts allowed, like the Play build; this run allows only the audited one.
+    func loadAllowedTools() throws -> [String]? { [allowedName] }
 }
 
 private let allowedName = "ha_eval_template"
