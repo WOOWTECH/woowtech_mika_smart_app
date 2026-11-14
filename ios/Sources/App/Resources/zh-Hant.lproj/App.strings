@@ -879,3 +879,7 @@
 "browser.research.result" = "目前結果";
 "browser.research.learning" = "學習結果";
 "browser.research.reads" = "已完成的讀取（%1$lld）";
+"chat.skillNote.learned" = "渥屋助理學會了一項技能：%1$@";
+"chat.skillNote.verified" = "這項技能用它辦成了事，轉為正式：%1$@";
+"chat.skillNote.suspended" = "這項技能最近不靈，先停用了";
+"chat.skillNote.view" = "看看";

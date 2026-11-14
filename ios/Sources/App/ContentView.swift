@@ -227,6 +227,11 @@ struct ContentView: View {
                                  browserReturnSection = .chat
                                  selection = .settings
                                  showsDrawer = false
+                             },
+                             openPendingSkills: {
+                                 session.learning.requestPendingSkills()
+                                 selection = .memory
+                                 showsDrawer = false
                              })
                         .frame(maxWidth: 720)
                         .frame(maxWidth: .infinity)
@@ -481,6 +486,8 @@ private struct ChatView: View {
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     let openSettings: () -> Void
+    /// 看看 under a learned-skill note (Play opens 待確認).
+    var openPendingSkills: () -> Void = {}
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -717,7 +724,7 @@ private struct ChatView: View {
                 .accessibilityIdentifier("uitest.banner")
         }
 
-        LearningChatNotes(store: session.learning)
+        LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills)
 
         if mcp.canUseInConversation || session.usesMCP {
             Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
@@ -1253,6 +1260,7 @@ private struct ChatEmptyState: View {
 @MainActor
 private struct LearningChatNotes: View {
     @ObservedObject var store: LearningStore
+    var openPendingSkills: () -> Void = {}
     @Environment(\.appLocalizer) private var localizer
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1286,6 +1294,25 @@ private struct LearningChatNotes: View {
                     .font(.caption)
                 }
             }
+            ForEach(Array(store.skillNotes.enumerated()), id: \.element.id) { index, note in
+                HStack(spacing: 8) {
+                    Text(skillNoteText(note)).font(.caption)
+                        .accessibilityIdentifier("chat.skillNote.\(index)")
+                    if case .learned = note.kind {
+                        Button(localizer.text(.chatSkillNoteView)) { openPendingSkills() }
+                            .font(.caption)
+                            .accessibilityIdentifier("chat.skillNote.view.\(index)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func skillNoteText(_ note: ChatSkillNote) -> String {
+        switch note.kind {
+        case .learned(_, let description): return localizer.text(.chatSkillNoteLearned(description: description))
+        case .verified(let name): return localizer.text(.chatSkillNoteVerified(name: name))
+        case .suspended: return localizer.text(.chatSkillNoteSuspended)
         }
     }
 }

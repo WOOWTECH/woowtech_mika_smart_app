@@ -36,11 +36,17 @@ struct MemoryDataView: View {
     private var palette: MemoryPalette { MemoryPalette(dark: colorScheme == .dark) }
 
     // Approval stores guidance; it does not start a task or grant capabilities.
-    // Browser references are usable only in the explicitly started research mode.
-    private let toolNames = BrowserSession.toolNames
+    // Like Play's import, any tool Play or this app knows may be mentioned.
+    private let toolNames = LearningStore.skillToolNames
 
     private var pendingCount: Int {
         store.memory.memories.filter { $0.status == .pending }.count + store.skills.pending.count
+    }
+
+    private func showRequestedPendingSkills() {
+        guard store.pendingSkillsRequest != nil else { return }
+        segment = .pending
+        store.pendingSkillsShown()
     }
 
     var body: some View {
@@ -75,6 +81,9 @@ struct MemoryDataView: View {
         }
         .memoryNavigationBackground(palette.background)
         .tint(palette.accent)
+        // 看看 under a learned-skill note in chat opens 待確認, like Play.
+        .onAppear { showRequestedPendingSkills() }
+        .onChange(of: store.pendingSkillsRequest) { _, _ in showRequestedPendingSkills() }
         .sheet(item: $sheet) { destination in
             NavigationStack {
                 switch destination {

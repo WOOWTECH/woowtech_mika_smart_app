@@ -879,3 +879,7 @@
 "browser.research.result" = "Current result";
 "browser.research.learning" = "Learning result";
 "browser.research.reads" = "Completed reads (%1$lld)";
+"chat.skillNote.learned" = "woowtech agent learned a skill: %1$@";
+"chat.skillNote.verified" = "Skill worked, now in regular use: %1$@";
+"chat.skillNote.suspended" = "This skill hasn’t been working lately, so it’s paused";
+"chat.skillNote.view" = "Take a look";
