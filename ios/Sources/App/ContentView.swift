@@ -799,22 +799,30 @@ private struct ChatView: View {
     /// shows above the input bar instead, so a blocked send is never silent.
     private var blockedCardFitsTranscript: Bool { transcriptViewportHeight >= 200 }
 
+    /// The latest messages that render outside the lazy list (three turns).
+    private static let eagerRecentEntries = 6
+
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
+        let rows = Array(session.entries.enumerated())
+        let lazyEnd = max(0, rows.count - Self.eagerRecentEntries)
         return VStack(alignment: .leading, spacing: 16) {
             // The welcome stays out of the lazy list: inside a LazyVStack it hung the
             // main thread on iPhone SE (iOS 18.5 CI) when an example shrank the input
-            // bar while the list was scrolled to its end. The messages keep one
+            // bar while the list was scrolled to its end. Older messages keep one
             // LazyVStack throughout, so the first message never swaps the list.
             welcomeRows
             LazyVStack(alignment: .leading, spacing: 16) {
-                messageRows(targets: targets)
+                messageRows(rows[..<lazyEnd], targets: targets)
             }
-            // The reply on its way and the tail stay out of the lazy list. On
-            // iPhone SE (iOS 18.5 CI) a send made while reading far up a long
-            // reply scrolled to a tail inside the list and left the transcript
-            // blank; outside it the tail always has its laid-out position.
+            // The latest messages, the reply on its way and the tail stay out of
+            // the lazy list. On iPhone SE (iOS 18.5 CI) a send made while reading
+            // far up a long reply scrolled to a tail inside the list and left the
+            // transcript blank; with only the tail outside, iPhone 17 (iOS 26.2,
+            // run 43586031812) still jumped there with the new question unrendered
+            // above the reply. Outside it they always have their laid-out position.
+            messageRows(rows[lazyEnd...], targets: targets)
             tailRows
         }
         .padding(.vertical, 4)
@@ -841,8 +849,9 @@ private struct ChatView: View {
         }
     }
 
-    @ViewBuilder private func messageRows(targets: ChatMessageActionTargets) -> some View {
-        ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+    @ViewBuilder private func messageRows(_ rows: ArraySlice<EnumeratedSequence<[ChatEntry]>.Element>,
+                                          targets: ChatMessageActionTargets) -> some View {
+        ForEach(rows, id: \.element.id) { index, entry in
             messageRow(index: index, entry: entry, targets: targets)
         }
     }
