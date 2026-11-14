@@ -44,7 +44,9 @@ DOCUMENTS_COHORT_SECONDS = 65 * 60
 # document shard's window; every method keeps its own 240/300 s allowance.
 # The archive class, with the two message-menu tests, timed out the same way
 # on iOS 26.2 in PR #33's run; it runs after ui-mcp in the longer cohort.
-LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat", "ui-archive")
+# The memory shard took 24 and 31 minutes on the large simulator and then ran
+# past the 30-minute boundary in PR #37's run 43628091777, leaving no result.
+LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat", "ui-archive", "ui-memory")
 SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
               "compact": IPHONES[:1], "large": IPHONES[1:2]}
 

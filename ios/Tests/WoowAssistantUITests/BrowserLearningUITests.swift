@@ -19,9 +19,11 @@ final class BrowserLearningUITests: XCTestCase {
         // had already failed it. The ui-learning job caps cases at 300s; keep
         // every other case at 240s and all individual wait bounds unchanged.
         let researchReplayCase = " testWebsiteResearchCreatesPendingSkillAndManualApprovalSurvivesRelaunch]"
-        // The iPad simulator is slower: removing the model settings mid-research
-        // ran past 240 s there (run 43606357170), so iPad cases get 300 s too.
-        executionTimeAllowance = name.hasSuffix(researchReplayCase)
+        // Removing the model settings mid-research ran past 240 s on iPad (run
+        // 43606357170) and on the large simulator (run 43628091777), and the
+        // iPad simulator is slower in general, so those get 300 s too.
+        let removingSettingsCase = " testRemovingModelSettingsCancelsResearchAndPreservesGoalWithoutLearning]"
+        executionTimeAllowance = name.hasSuffix(researchReplayCase) || name.hasSuffix(removingSettingsCase)
             || UIDevice.current.userInterfaceIdiom == .pad ? 300 : 240
     }
 
