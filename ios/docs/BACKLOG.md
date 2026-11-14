@@ -27,10 +27,11 @@
 ## M2 — Controlled connections
 
 - [x] HTTPS Streamable HTTP MCP client, explicit tool allowlist, bounded requests and discovery.
-- [x] Keychain-backed model keys and whole MCP endpoints; no plaintext credentials in preferences or logs.
+- [x] Keychain-backed model keys, whole MCP endpoints and MCP access tokens (sent as a Bearer header, like the Play build, since 2026-11-14); no plaintext credentials in preferences or logs.
 - [x] User-configurable MCP endpoint with discovery/cancel/disconnect UI.
-- [x] App-level tool selection and bounded model-to-MCP orchestration (simulator/live acceptance tracked in VERIFICATION). Like the Play build, selected tools and listed resources (at most 30, read-only, no picker) run without a per-call approval card since 2026-11-13; the tool selection is the limit and every call's result stays in the chat's results list. The resource list and the Skills pointer on the MCP page were removed on 2026-11-13.
+- [x] App-level tool selection and bounded model-to-MCP orchestration (simulator/live acceptance tracked in VERIFICATION). Like the Play build, selected tools and listed resources (at most 30, read-only, no picker) run without a per-call approval card since 2026-11-13; the tool selection is the limit and every call's result stays in the chat's results list. The resource list and the Skills pointer on the MCP page were removed on 2026-11-13. Since 2026-11-14, like the Play build, every tool starts allowed and the choice is kept, a saved server connects by itself when a chat uses MCP, and the background no longer drops the setup.
 - [ ] OAuth PKCE, explicit session reinitialization UI and other required transport modes.
+- [ ] 1.1: MCP together with web tasks and skill tools in one chat (then the per-chat MCP switch can go, like the Play build), several servers with names.
 - [ ] Authorized real-device HA control tests (target and allowed actions pending).
 - [x] Complete pinned Mika bundled-source catalog with hashes/licenses and separately reviewed iOS text adaptations.
 - [x] Capability dependency inventory, per-step PDF grants and native PDFKit. The pinned original PDF-worker protocol, its 腳本服務 settings and tests were removed on 2026-11-13 to match the Play build.
