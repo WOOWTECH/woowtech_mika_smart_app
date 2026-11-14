@@ -1235,7 +1235,10 @@ final class WoowAssistantUITests: XCTestCase {
         field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2) + value + "\n")
-        XCTAssertEqual(field.value as? String, value)
+        // In CI run 43578340934 (16 Pro Max) the value read straight after typing
+        // was "https://ot"; the recording shows the whole address a moment later.
+        let typed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 10), .completed)
     }
 
     private func enter(_ text: String, into field: XCUIElement) {
