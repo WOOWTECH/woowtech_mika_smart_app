@@ -16,7 +16,9 @@ enum MemoryDataKey: String, CaseIterable {
     case title, tabMemory, tabSkills, tabPending, tabPendingCount
     case selected, unselected, search, unavailable, reload, dismissNotice
     case routeTitle, routeCount, webLogins, storedData
-    case signInsNone, signInsNoneDetail, signInsManage, signInsVisited, signInsSignOutSite, signInsSignedOut
+    case signInsNone, signInsNoneDetail, signInsManage, signInsSignOutSite, signInsSignedOut
+    case signInsSignedInByYou, signInsLooksSignedOut, signInsLastVisit, signInsYouSignedIn, signInsWasSignedIn
+    case signInsOpenLogin, signInsCount, signInsCountOne
     case signInsAllTitle, signInsAllQuestion, signInsAllBody, signInsAll, signInsAllDone, signInsNote
     case routesSaved, routesClearAll, routesClearTitle, routesClearBody, clear
     case clearAll, clearSubtitle, clearDetails
@@ -61,11 +63,20 @@ enum MemoryDataKey: String, CaseIterable {
         case .webLogins: return ("網站登入", "Website sign-ins")
         case .storedData: return ("儲存的資料", "Saved data")
         // Play's WebSitesSection (web_*) and RoutesScreen (routes_*), with the app name.
-        case .signInsNone: return ("還沒有造訪過的網站", "No sites visited yet")
-        case .signInsNoneDetail: return ("渥屋助理在網頁上辦過事、或你在這裡登入過之後會列在這裡",
-                                         "Sites appear here after woowtech agent works on them or you sign in here")
+        // iOS lists only the sites you signed in to in its browser.
+        case .signInsNone: return ("還沒有登入過的網站", "No sites signed in yet")
+        case .signInsNoneDetail: return ("你在渥屋助理的瀏覽器裡登入網站後，會列在這裡",
+                                         "Sites appear here after you sign in to them in woowtech agent’s browser")
         case .signInsManage: return ("管理", "Manage")
-        case .signInsVisited: return ("渥屋助理造訪過這個網站。", "woowtech agent has visited this site.")
+        case .signInsSignedInByYou: return ("在渥屋助理裡登入過", "Signed in within woowtech agent")
+        case .signInsLooksSignedOut: return ("看起來已登出", "Looks signed out")
+        case .signInsLastVisit: return ("最近造訪 %@", "Last visited %@")
+        case .signInsYouSignedIn: return ("你在渥屋助理裡登入過這個網站。", "You signed in to this site within woowtech agent.")
+        case .signInsWasSignedIn: return ("你在渥屋助理裡登入過這個網站，最近一次看起來已登出。",
+                                          "You signed in to this site within woowtech agent; the last visit looked signed out.")
+        case .signInsOpenLogin: return ("開啟登入", "Open sign-in")
+        case .signInsCount: return ("%lld 個", "%lld sites")
+        case .signInsCountOne: return ("%lld 個", "%lld site")
         case .signInsSignOutSite: return ("登出這個網站", "Sign out of this site")
         case .signInsSignedOut: return ("已登出 %@。個別網站的登入可能仍在，如需徹底清除請用「全部登出」。",
                                         "Signed out of %@. Some sign-ins may remain; use “Sign out of all” to clear everything.")

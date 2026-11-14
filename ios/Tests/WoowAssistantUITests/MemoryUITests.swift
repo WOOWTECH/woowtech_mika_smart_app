@@ -100,6 +100,10 @@ final class MemoryUITests: XCTestCase {
     func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
         launch()
         openMemory()
+        // Like Play's 網站登入 row, it counts the sites signed in to (none yet).
+        let signIns = app.buttons["memory.manageWebsites"].firstMatch
+        reveal(signIns)
+        XCTAssertTrue(signIns.label.contains("0 個"), signIns.label)
         tap("memory.manageWebsites", scroll: true)
         // Play's Website sign-ins list opens over the browser, where WebKit lists its sites.
         XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))

@@ -16,6 +16,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private let websiteDataStore: WKWebsiteDataStore
     private let suppliedConfiguration: WKWebViewConfiguration?
     var onPageFinished: ((URL, String) -> Void)?
+    /// What a manually browsed page showed about the person's sign-in.
+    var onSignInObserved: ((URL, BrowserSignInState) -> Void)?
+    private var signInProbeTask: Task<Void, Never>?
     var onCreateWindow: ((WKWebViewConfiguration, URLRequest) -> WKWebView?)?
     var onCloseWindow: (() -> Void)?
     var canPresentUI: () -> Bool = { true }
@@ -937,6 +940,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         pageTitle = Self.displayTitle(webView.title, url: webView.url)
         if let url = loadedURL { address = url.absoluteString; onPageFinished?(url, pageTitle) }
         if expectedNavigation === navigation { navigationFinished = true; expectedNavigation = nil }
+        if !isRunning, !isInteracting, !automationOwnsDocument, let url = loadedURL { probeSignIn(url) }
         if !isRunning {
             // A login/callback/query page can be browsed manually without turning
             // it into research evidence or exposing its fields to the model.
@@ -1014,6 +1018,44 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private func invalidatePageObservation() {
         pageGeneration = UUID()
         pageObservationTask?.cancel(); pageObservationTask = nil
+        signInProbeTask?.cancel(); signInProbeTask = nil
+    }
+
+    /// Play's UserBrowser.scheduleProbe: look at whether the page shows the
+    /// person signed in, once when it finishes and once more a moment later for
+    /// pages that draw their account area late. The script only reads the DOM,
+    /// in its own script world; nothing is sent anywhere or shown to a model.
+    private func probeSignIn(_ url: URL) {
+        guard onSignInObserved != nil, manualPermitted(url) else { return }
+        let generation = pageGeneration
+        signInProbeTask?.cancel()
+        signInProbeTask = Task { [weak self] in
+            for attempt in 0..<2 {
+                if attempt > 0 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+                guard let self, !Task.isCancelled else { return }
+                guard let state = await self.readSignInState(url, generation: generation) else { return }
+                if state != .unknown || attempt == 1 {
+                    if self.pageGeneration == generation { self.onSignInObserved?(url, state) }
+                    return
+                }
+            }
+        }
+    }
+
+    /// nil when the page changed or could not be read.
+    private func readSignInState(_ url: URL, generation: UUID) async -> BrowserSignInState? {
+        guard pageGeneration == generation, !isRunning, !isInteracting, !automationOwnsDocument,
+              let view = storedWebView, view.url == url, !view.isLoading else { return nil }
+        let raw: String? = await withCheckedContinuation { continuation in
+            view.evaluateJavaScript(BrowserSignInProbe.script, in: nil, in: .defaultClient) { result in
+                if case .success(let value) = result { continuation.resume(returning: value as? String) }
+                else { continuation.resume(returning: nil) }
+            }
+        }
+        guard pageGeneration == generation, storedWebView?.url == url, let raw,
+              let signals = BrowserSignInProbe.parse(raw),
+              let observed = signals.url.flatMap({ URL(string: $0) }), observed.host == url.host else { return nil }
+        return BrowserSignInProbe.classify(signals)
     }
     private static func displayTitle(_ title: String?, url: URL?) -> String {
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

@@ -6,7 +6,8 @@ import SwiftUI
 @MainActor
 struct MemoryDataView: View {
     @ObservedObject var store: LearningStore
-    @ObservedObject var browser: BrowserSession
+    /// The browser's website sign-in list, counted on the 網站登入 row.
+    @ObservedObject var workspace: BrowserWorkspace
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
@@ -212,7 +213,8 @@ struct MemoryDataView: View {
                 card {
                     VStack(spacing: 0) {
                         Button { onOpenSignIns() } label: {
-                            dataRow(copy.text(.webLogins), systemImage: "globe")
+                            dataRow(copy.text(.webLogins), systemImage: "globe",
+                                    value: signInCountText(workspace.signInSites.count))
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
                         cardDivider
@@ -630,6 +632,11 @@ struct MemoryDataView: View {
             .frame(height: 1)
             .padding(.vertical, 10)
             .accessibilityHidden(true)
+    }
+
+    /// Play's settings_count_sites: 「%d 個」.
+    private func signInCountText(_ count: Int) -> String {
+        copy.text(count == 1 ? .signInsCountOne : .signInsCount, Int64(count))
     }
 
     private func dataRow(_ title: String, systemImage: String, value: String? = nil) -> some View {

@@ -211,6 +211,7 @@ final class BrowserWorkspace: ObservableObject {
             #endif
             _ = self?.update { try $0.visit(tab: id, url: url, title: title) }
         }
+        session.onSignInObserved = { [weak self] url, state in self?.observeSignIn(url, state) }
         session.onCreateWindow = { [weak self] configuration, request in
             guard let self, self.library.selectedID == id, !self.isClearingWebsiteData else { return nil }
             var newID: UUID?
@@ -277,6 +278,49 @@ final class BrowserWorkspace: ObservableObject {
     func removeBookmark(_ id: UUID) { _ = update { $0.removeBookmark(id) } }
     func removeHistory(_ id: UUID) { _ = update { $0.removeHistory(id) } }
     func clearHistory() { _ = update { $0.clearHistory() } }
+    /// Play's 網站登入 list: the sites the person signed in to in this browser,
+    /// signed-in ones first. It is App data, so the Memory page can count it
+    /// without asking WebKit.
+    var signInSites: [BrowserSignInSite] { library.signInList }
+
+    /// Play's SiteRegistry: list a site once a page shows the person signed in
+    /// there; a listed site keeps its sign-in state and last visit current.
+    private func observeSignIn(_ url: URL, _ state: BrowserSignInState) {
+        guard !isClearingWebsiteData, let host = url.host, let key = BrowserSignInSite.key(host) else { return }
+        let listed = library.signInSites.contains { $0.host == key }
+        guard listed || state == .signedIn else { return }
+        record { library in
+            if state == .unknown { library.touchSignInSite(host: key) }
+            else { try library.observeSignIn(host: key, signedIn: state == .signedIn) }
+        }
+    }
+
+    /// Saves list bookkeeping without the browser's save-error message.
+    private func record(_ change: (inout BrowserLibraryState) throws -> Void) {
+        guard available, let vault else { return }
+        do {
+            var next = library; try change(&next); try next.validate(); try vault.save(next)
+            library = next
+        } catch {}
+    }
+
+    /// Play's 登出這個網站: remove what WebKit keeps for the site's domain, then
+    /// take it off the list.
+    func signOut(site: BrowserSignInSite) {
+        let known = websiteRecords.filter { site.isCovered(byRecordNamed: $0.displayName) }.count
+        removeWebsiteData(selecting: { site.isCovered(byRecordNamed: $0) }, knownRecords: known) { library, removed in
+            library.removeSignInSite(host: site.host)
+            for name in removed { library.removeSignInSites(coveredByRecordNamed: name) }
+        }
+    }
+
+    /// Play's 全部登出並清除網頁資料: every site's website data and the whole list.
+    func signOutAll() {
+        removeWebsiteData(selecting: { _ in true }, knownRecords: websiteRecords.count) { library, _ in
+            library.clearSignInSites()
+        }
+    }
+
     func refreshWebsiteRecords() {
         guard !isClearingWebsiteData else { return }
         let revision = UUID()
@@ -287,8 +331,19 @@ final class BrowserWorkspace: ObservableObject {
         }
     }
     func removeWebsiteData(_ records: [WKWebsiteDataRecord]) {
-        guard !isClearingWebsiteData, !records.isEmpty else { return }
+        guard !records.isEmpty else { return }
         let selectedNames = Set(records.map(\.displayName))
+        removeWebsiteData(selecting: { selectedNames.contains($0) }, knownRecords: records.count) { library, removed in
+            for name in removed { library.removeSignInSites(coveredByRecordNamed: name) }
+        }
+    }
+
+    /// [selects] picks records by WebKit's display name. After the picked
+    /// records are verified gone, [forget] updates the sign-in list with the
+    /// names that were removed.
+    private func removeWebsiteData(selecting selects: @escaping (String) -> Bool, knownRecords: Int,
+                                   forget: @escaping (inout BrowserLibraryState, Set<String>) -> Void) {
+        guard !isClearingWebsiteData else { return }
         websiteRecordRevision = UUID() // Earlier enumeration cannot republish stale records.
         errorText = nil
         #if DEBUG
@@ -312,7 +367,7 @@ final class BrowserWorkspace: ObservableObject {
                 catch { print("BROWSER_WEBSITE_REMOVAL diagnosticWriteFailed=1") }
             }
         }
-        trace("begin", ["records": records.count, "sessions": sessions.count,
+        trace("begin", ["records": knownRecords, "sessions": sessions.count,
                         "persistent": websiteDataStore.isPersistent ? 1 : 0])
         #endif
         isClearingWebsiteData = true
@@ -352,7 +407,8 @@ final class BrowserWorkspace: ObservableObject {
             let allTypes = WKWebsiteDataStore.allWebsiteDataTypes()
             self.websiteDataStore.fetchDataRecords(ofTypes: allTypes) { [weak self] fresh in
                 guard let self else { return }
-                let selectedRecords = fresh.filter { selectedNames.contains($0.displayName) }
+                let selectedRecords = fresh.filter { selects($0.displayName) }
+                let removedNames = Set(selectedRecords.map(\.displayName))
                 let selectedTypes = Set(selectedRecords.flatMap { $0.dataTypes }).intersection(allTypes)
                 #if DEBUG
                 trace("recordsSelected", ["records": selectedRecords.count, "types": selectedTypes.count])
@@ -361,9 +417,10 @@ final class BrowserWorkspace: ObservableObject {
                     guard let self else { return }
                     self.websiteDataStore.fetchDataRecords(ofTypes: allTypes) { [weak self] remaining in
                         guard let self else { return }
-                        let selected = remaining.filter { selectedNames.contains($0.displayName) }
+                        let selected = remaining.filter { selects($0.displayName) }
                         self.websiteRecords = remaining.sorted { $0.displayName < $1.displayName }
                         self.errorText = selected.isEmpty ? nil : .browserClearRemaining
+                        if selected.isEmpty { self.record { forget(&$0, removedNames) } }
                         #if DEBUG
                         let classifiedTypes: Set<String> = [WKWebsiteDataTypeCookies, WKWebsiteDataTypeMemoryCache, WKWebsiteDataTypeDiskCache]
                         trace("recordsRefreshed", ["allRecords": remaining.count, "selectedRecords": selected.count,
