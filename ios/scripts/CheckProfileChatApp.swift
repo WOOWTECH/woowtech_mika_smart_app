@@ -3,6 +3,7 @@ import AssistantMemory
 import AssistantModels
 import AssistantMCP
 import AssistantPersistence
+import AssistantSkills
 import Combine
 import Foundation
 #if !PROFILE_CHAT_APP_STANDALONE
@@ -1388,6 +1389,20 @@ private enum CheckProfileChatApp {
             throw CheckFailure(check: "Disabled memory transaction must reject")
         } catch let error as MemoryToolError { try check(error == .disabled, "Commit checks master switch even with current generation") }
         try check((try env.bytes()) == disabled, "Disabled direct transaction writes no ciphertext")
+        try check(env.store.updatePreferences { $0.useMemory = true }, "Enable memory again for the skill save gate")
+        let skillGeneration = env.store.generation
+        try check(env.store.clearAll(), "Clear all while a reply that may save a skill is running")
+        let cleared = try env.bytes()
+        do {
+            _ = try env.store.commitChatSkillSave("---\nname: tea-notes\ndescription: Tea notes\n---\n# Tea notes\n",
+                                                  version: nil, expectedGeneration: skillGeneration,
+                                                  availableToolNames: [], builtinNames: [])
+            throw CheckFailure(check: "Chat skill save after Clear all must reject")
+        } catch let error as SkillChatSaveError {
+            try check(error == .storageChanged, "Chat skill save from a reply started before Clear all is refused")
+        }
+        try check((try env.bytes()) == cleared && env.store.skills.installed.isEmpty,
+                  "Refused chat skill save leaves the cleared store unchanged")
     }
 
     /// Same shared encrypted file as the attachment-fixture negative control:

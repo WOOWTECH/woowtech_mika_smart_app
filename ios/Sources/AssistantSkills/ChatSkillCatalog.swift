@@ -250,6 +250,8 @@ public enum ChatSkillFrontMatter {
 /// not carry the version skill_read returned for it.
 public enum SkillChatSaveError: String, Error, Equatable, Sendable {
     case exists
+    /// The learning data was cleared or replaced after this reply started.
+    case storageChanged
 }
 
 public struct SkillChatSaveReceipt: Equatable, Sendable {

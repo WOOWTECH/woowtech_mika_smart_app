@@ -229,9 +229,13 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     /// Play's skill_save from an ordinary chat: the model's own tool commit, so
     /// like commitMemoryTool it neither cancels learning nor counts as a user
     /// edit. Nothing is published before the encrypted file is written.
-    func commitChatSkillSave(_ markdown: String, version: String?, availableToolNames: Set<String>,
+    func commitChatSkillSave(_ markdown: String, version: String?, expectedGeneration: UUID,
+                             availableToolNames: Set<String>,
                              builtinNames: Set<String>) throws -> SkillChatSaveReceipt {
         guard available else { throw LearningFileError.notLoaded }
+        // Like commitMemoryTool: a reply that started before 全部清除 must not
+        // write a skill into the cleared store.
+        guard generation == expectedGeneration else { throw SkillChatSaveError.storageChanged }
         var next = skills
         let receipt = try next.saveRequestedInChat(markdown, version: version, availableToolNames: availableToolNames,
                                                    builtinNames: builtinNames)

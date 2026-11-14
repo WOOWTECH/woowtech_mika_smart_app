@@ -1043,7 +1043,8 @@ final class ChatSession: ObservableObject {
                             web: webEnvironment.map(Self.webEntry)) ?? .answer("")
                     } else {
                         path = try await self?.completePlain(messages: outgoing, configuration: configuration,
-                            key: key, client: client, requestID: id, skillIndex: skillIndex, utterance: utterance,
+                            key: key, client: client, requestID: id, generation: learningGeneration,
+                            skillIndex: skillIndex, utterance: utterance,
                             webOffer: webEnvironment.map { ChatWebTaskPrompts.entryInstructions(searchTemplate: $0.searchTemplate) })
                             ?? .answer("")
                     }
@@ -1220,7 +1221,7 @@ final class ChatSession: ObservableObject {
     }
 
     private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
-                               key: String, client: any ChatModelClient, requestID id: UUID,
+                               key: String, client: any ChatModelClient, requestID id: UUID, generation: UUID,
                                skillIndex: String?? = nil, utterance: String = "",
                                webOffer: String? = nil) async throws -> ChatPathReply {
         try Task.checkCancellation()
@@ -1234,7 +1235,8 @@ final class ChatSession: ObservableObject {
         func finished(_ text: String) async throws -> ChatPathReply {
             guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
             return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
-                                                   configuration: configuration, key: key, client: client, requestID: id))
+                                                   generation: generation, configuration: configuration, key: key,
+                                                   client: client, requestID: id))
         }
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await finished(try await client.complete(messages: messages, configuration: configuration, apiKey: key))
@@ -1392,7 +1394,7 @@ final class ChatSession: ObservableObject {
             case .skillEntry(let json):
                 flow.cancel()
                 return .answer(try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
-                                                       configuration: configuration, key: key, client: client, requestID: requestID))
+                                                       generation: generation, configuration: configuration, key: key, client: client, requestID: requestID))
             case .webEntry(let json):
                 // The flow accepted it with this same validator.
                 return .web(try ChatWebCommand.parseEntry(json), raw: ChatWebCommand.unfenced(json))
@@ -1446,8 +1448,8 @@ final class ChatSession: ObservableObject {
     }
 
     private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
-                               configuration: ModelConfiguration, key: String, client: any ChatModelClient,
-                               requestID id: UUID) async throws -> String {
+                               generation: UUID, configuration: ModelConfiguration, key: String,
+                               client: any ChatModelClient, requestID id: UUID) async throws -> String {
         guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
         // Like Play there is no fixed chat deadline once tools run; the step keeps
         // its own call and time limits.
@@ -1460,7 +1462,8 @@ final class ChatSession: ObservableObject {
             save: { [weak self] markdown, version in
                 guard let self, self.requestID == id else { throw CancellationError() }
                 // The model's own save, like Play's: it keeps this request going.
-                return try self.learning.commitChatSkillSave(markdown, version: version, availableToolNames: toolNames,
+                return try self.learning.commitChatSkillSave(markdown, version: version, expectedGeneration: generation,
+                                                             availableToolNames: toolNames,
                                                              builtinNames: self.chatSkillCatalog().builtinNames)
             },
             onStep: { [weak self] step in
