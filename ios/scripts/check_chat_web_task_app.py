@@ -69,6 +69,13 @@ class Pages(BaseHTTPRequestHandler):
             return self.send(200, page("會員", "<p>請輸入密碼</p><input type='password' name='pw'>"), html)
         if parts.path == "/captcha":
             return self.send(200, page("驗證", "<p>請完成驗證</p><div class='g-recaptcha' style='width:300px;height:80px'></div>"), html)
+        if parts.path == "/form/sensitive-zh":
+            return self.send(200, page("填寫資料", "<form action='/jobs/search'>"
+                                                 "<label>簡訊驗證碼 <input name='smsCode'></label>"
+                                                 "<label>卡號 <input name='cardNo'></label>"
+                                                 "<label>帳號 <input name='account'></label>"
+                                                 "<label>收件地址 <input name='address'></label>"
+                                                 "<button>確認</button></form>"), html)
         if parts.path == "/form/search":
             return self.send(200, page("搜尋表單", "<form action='/jobs/search'><label>關鍵字 <input name='keyword'></label>"
                                                  "<button>搜尋</button></form>"), html)

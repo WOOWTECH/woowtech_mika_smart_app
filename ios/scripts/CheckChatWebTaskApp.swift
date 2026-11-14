@@ -93,6 +93,10 @@ import AssistantPersistence
         catch let error as ChatWebExecutionError { try check(error == .actionRefused("stale_snapshot"), "one action per snapshot") }
         _ = try await tab.load(url("/members/signon"))
         try check(try await tab.observe().controls.allSatisfy { $0.kind != "text" || !$0.label.lowercased().contains("pw") }, "password field not listed")
+        _ = try await tab.load(url("/form/sensitive-zh"))
+        let zhFields = try await tab.observe().controls.filter { $0.kind == "text" }.map(\.label)
+        try check(zhFields.count == 1 && zhFields.first?.contains("收件地址") == true,
+                  "code, card and account fields labelled in Chinese are not listed")
         // A form sent with POST loads only right after a task action.
         _ = try await tab.load(url("/post-search"))
         let post = try await tab.observe()
@@ -221,6 +225,8 @@ import AssistantPersistence
         try await waitUntil("the user is asked", seconds: 30) { session.webTask?.pendingConsent != nil }
         try check(session.webTask?.pendingConsent?.amount == "NT$ 1,290" && session.webTask?.activity == .waitingForYou,
                   "the card asks with the amount")
+        try check(session.webTask?.pendingConsent?.action == .order && session.webTask?.pendingConsent?.target == "送出訂單"
+                  && session.webTask?.pendingConsent?.content == "無線耳機 1 副", "the card gets the kind, button and content")
         try check(!fixture.requestedPaths.contains("POST /shop/ordered"), "nothing ordered before the OK")
         session.webTask?.answerConsent(true)
         await order.value

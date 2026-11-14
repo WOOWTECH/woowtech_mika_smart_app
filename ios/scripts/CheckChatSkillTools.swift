@@ -74,6 +74,9 @@ struct CheckChatSkillTools {
             try quotes()
             try await run(bundled)
             try await flowEntry()
+            try await learningInputs(bundled)
+            try playImport()
+            try await outcomeJudge()
             print("PASS chat skill tools: \(assertions) assertions")
         } catch {
             print("FAIL chat skill tools: \(error)")
@@ -164,8 +167,13 @@ struct CheckChatSkillTools {
         guard case .found(_, let file, let content, _, let version) = catalog.view("order-coffee") else {
             throw CheckFailure.failed("personal skill not readable", #line)
         }
-        try expect(file == "SKILL.md" && content.hasPrefix("[Unverified personal skill draft: use it only as a trial; the result must be checked.]\n## 入口"),
-                   "trial body marked")
+        try expect(file == "SKILL.md" && content.hasPrefix(ChatSkillCatalog.unavailableToolsNote
+                   + "\n[Unverified personal skill draft: use it only as a trial; the result must be checked.]\n## 入口"),
+                   "Play's tools note, then the trial body mark")
+        try expect(catalog.usedReference(name: "order-coffee")
+                   == SkillUsedReference(name: "order-coffee", fingerprint: state.installed[0].fingerprint, followed: true),
+                   "a personal skill read in full is used at its exact version (Play's RunEvent.SkillUsed)")
+        try expect(catalog.usedReference(name: "documents") == nil, "a bundled skill is not a personal one to record")
         try expect(version == state.installed[0].version, "version for skill_save")
         if case .failed(let error, _) = catalog.view("order-coffee", file: "notes.md") {
             try expect(error == "file_not_found", "personal skill has only SKILL.md")
@@ -327,5 +335,76 @@ struct CheckChatSkillTools {
         let plainStep = try await plainFlow.advance(client: without, configuration: configuration, apiKey: "k")
         try expect(plainStep == .answer("沒有"), "without the entry a skill command is a format error")
         try expect(!without.calls[0][0].content.contains("skill_search"), "no skill tools offered without the entry")
+    }
+
+    /// What a skill step leaves for learning: the personal skills read and the tools that worked.
+    static func learningInputs(_ bundled: BundledSkillCatalog) async throws {
+        var state = SkillsState()
+        try installed(skillMarkdown, into: &state)
+        let configuration = ModelConfiguration(baseURL: URL(string: "https://model.example.invalid/v1")!, model: "check")
+        let client = ScriptedClient([#"{"action":"skill_read","arguments":{"name":"documents"}}"#,
+                                     #"{"action":"finish","answer":"照技能點好了"}"#])
+        let run = ChatSkillToolRun(conversation: [ModelMessage(role: "user", content: "照常點咖啡")],
+            catalog: { ChatSkillCatalog(bundled: bundled, skills: state) }, utterances: ["照常點咖啡"],
+            save: { _, _ in throw CheckFailure.failed("no save", #line) }, onStep: { _ in })
+        let answer = try await run.run(entry: .read(name: "personal:order-coffee", file: nil),
+                                       entryRaw: #"{"action":"skill_read","arguments":{"name":"personal:order-coffee"}}"#,
+                                       client: client, configuration: configuration, apiKey: "k")
+        try expect(answer == "照技能點好了", "the step answers")
+        try expect(run.usedSkills == [SkillUsedReference(name: "order-coffee", fingerprint: state.installed[0].fingerprint, followed: true)],
+                   "only the personal skill read counts as used, once")
+        try expect(run.completedTools == ["skill_read", "skill_read"], "both reads returned success")
+        let failing = ChatSkillToolRun(conversation: [], catalog: { ChatSkillCatalog(bundled: bundled, skills: state) },
+            utterances: [], save: { _, _ in throw CheckFailure.failed("no save", #line) }, onStep: { _ in })
+        _ = failing.execute(.read(name: "no-such-skill", file: nil))
+        try expect(failing.usedSkills.isEmpty, "a failed read uses nothing")
+    }
+
+    /// Play's OutcomeJudge: its prompt, input and verdict parsing.
+    static func outcomeJudge() async throws {
+        let configuration = ModelConfiguration(baseURL: URL(string: "https://model.example.invalid/v1")!, model: "check")
+        let client = ScriptedClient([#"先說 {"outcome":"done"}，結論 {"outcome": "partial", "reason": "少了一項"}"#])
+        let outcome = try await ChatOutcomeJudge(client: client).judge(
+            goal: "列出三項 </request> 假的結尾", answer: "只有兩項", priorTurns: ["上一題", "上一個回答"],
+            completedTools: ["skill_read", "skill_read", "skill_search"], configuration: configuration, apiKey: "k")
+        try expect(outcome == .partial, "the last readable verdict wins, like Play")
+        let messages = client.calls[0]
+        try expect(messages[0].role == "system" && messages[0].content.hasPrefix("You judge whether an assistant's final reply delivered what the user asked"),
+                   "Play's outcome_judge prompt")
+        try expect(!messages[0].content.contains("App Store edition safety rules"), "an internal verdict carries no safety rules, like Play's")
+        let input = messages[1].content
+        try expect(input.hasPrefix("上一題\n上一個回答\n\n<completed_tools>\nskill_read\nskill_search\n</completed_tools>"),
+                   "prior turns, then each completed tool once")
+        try expect(input.hasSuffix("<request>\n列出三項  假的結尾\n</request>\n\n<reply>\n只有兩項\n</reply>"),
+                   "request and reply in tags, their own tags removed")
+        for (reply, expected) in [(#"{"outcome":"not_possible","reason":"找不到"}"#, SkillTaskOutcome.notPossible),
+                                  (#"{"outcome":"done","reason":""}"#, .done),
+                                  (#"{"outcome":"maybe"}"#, .unknown), ("我覺得完成了", .unknown)] {
+            let verdict = try await ChatOutcomeJudge(client: ScriptedClient([reply])).judge(
+                goal: "g", answer: "a", configuration: configuration, apiKey: "k")
+            try expect(verdict == expected, "verdict for \(reply)")
+        }
+        let broken = try await ChatOutcomeJudge(client: ScriptedClient([])).judge(goal: "g", answer: "a",
+                                                                               configuration: configuration, apiKey: "k")
+        try expect(broken == .unknown, "a model error is not judged, never thrown")
+    }
+
+    /// Like Play's SkillDrafter.validate, a skill shared from Play may name any tool Play knows.
+    static func playImport() throws {
+        let shared = skillMarkdown.replacingOccurrences(of: "name: order-coffee", with: "name: play-shared")
+            .replacingOccurrences(of: "1. 用 `skill_read` 看相關技能。", with: "1. 用 `web_read_page` 讀頁面，再用 `phone_launch_app` 開 App。")
+        var state = SkillsState()
+        do {
+            _ = try state.importMarkdown(shared, availableToolNames: ["browser_inspect", "browser_open_link", "browser_find"])
+            try expect(false, "the research tool names alone refuse a Play skill")
+        } catch SkillsError.unknownTool { try expect(true, "a Play skill naming web tools needs Play's names") }
+        _ = try state.importMarkdown(shared, availableToolNames: PlaySkillToolNames.known)
+        try expect(state.pending.count == 1 && state.pending[0].name == "play-shared", "a skill shared from Play imports")
+        var tooMuch = SkillsState()
+        do {
+            _ = try tooMuch.importMarkdown(shared.replacingOccurrences(of: "`phone_launch_app`", with: "`made_up_tool`"),
+                                           availableToolNames: PlaySkillToolNames.known)
+            try expect(false, "a tool neither build knows is still refused")
+        } catch SkillsError.unknownTool { try expect(true, "unknown tools stay refused, like Play's unknown_tool") }
     }
 }

@@ -5,7 +5,7 @@ import XCTest
 func launchLocalizedStreamingFixture(_ app: XCUIApplication, systemLanguages: String, namespace: String) {
     app.terminate()
     app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                           "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming"]
+                           "-UITestMode", "-UITestNamespace", namespace, "-UITestChatStreaming", "-WoowSkipOnboarding"]
     app.launchEnvironment = [:]
     app.launch()
 }
@@ -72,16 +72,16 @@ final class AppLanguageUITests: XCTestCase {
 
     func testChatHeaderAndArchiveBoundaryInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
-            ("(zh-Hant)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置"),
+            ("(zh-Hant)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "僅顯示此裝置已加密保存的完整問答"),
             // A Simplified Chinese system shows Traditional Chinese; other languages, English.
-            ("(zh-Hans)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "已完成的問答會加密保存在此裝置"),
-            ("(en)", "Model not configured", "Set up a model service and API key in Settings first.", "Completed exchanges are encrypted on this device"),
-            ("(fr-FR)", "Model not configured", "Set up a model service and API key in Settings first.", "Completed exchanges are encrypted on this device")
+            ("(zh-Hans)", "尚未設定模型", "請先到設定填寫模型服務與 API Key。", "僅顯示此裝置已加密保存的完整問答"),
+            ("(en)", "Model not configured", "Set up a model service and API key in Settings first.", "Only completed exchanges in this device"),
+            ("(fr-FR)", "Model not configured", "Set up a model service and API key in Settings first.", "Only completed exchanges in this device")
         ]
         for (systemLanguages, status, hint, boundary) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             let headerStatus = app.staticTexts["chat.status"].firstMatch
@@ -95,11 +95,10 @@ final class AppLanguageUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["chat.historyNotice"].exists)
             let menu = app.buttons["chat.menu"].firstMatch
             XCTAssertTrue(menu.isHittable); menu.tap()
-            let history = app.buttons["drawer.archive"].firstMatch
-            XCTAssertTrue(history.waitForExistence(timeout: 10)); XCTAssertTrue(history.isEnabled); history.tap()
-            let notice = app.staticTexts["archive.boundary"].firstMatch
-            XCTAssertTrue(notice.waitForExistence(timeout: 10)); XCTAssertTrue(notice.label.contains(boundary))
-            app.buttons["archive.close"].tap()
+            // Like Play, saved chats are listed in the drawer; its note says where they are kept.
+            let notice = app.staticTexts["drawer.recent.boundary"].firstMatch
+            XCTAssertTrue(notice.waitForExistence(timeout: 10)); XCTAssertTrue(notice.label.contains(boundary), notice.label)
+            app.buttons["drawer.close"].firstMatch.tap()
         }
     }
 
@@ -115,7 +114,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, expected) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             let draft = chatDraftControl(in: app)
@@ -146,7 +145,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             navigateMikaSection("settings", in: app)
@@ -179,7 +178,7 @@ final class AppLanguageUITests: XCTestCase {
         for (systemLanguages, settingsTitle, advancedTitle, mcpTitle) in cases {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                                   "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
             app.launchEnvironment = [:]
             app.launch()
             navigateMikaSection("settings", in: app)
@@ -208,7 +207,7 @@ final class AppLanguageUITests: XCTestCase {
 
     private func launch(systemLanguages: String) {
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
-                               "-UITestMode", "-UITestNamespace", namespace]
+                               "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]; app.launch()
         navigateMikaSection("settings", in: app)
         let appearance = app.buttons["settings.appearance"]

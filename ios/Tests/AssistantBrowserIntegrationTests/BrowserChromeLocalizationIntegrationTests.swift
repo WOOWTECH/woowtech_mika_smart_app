@@ -5,16 +5,16 @@ import XCTest
     func testPackagedStartAndChromeStringsHaveBothLanguages() {
         let messages: [AppText] = [
             .browserStartDone, .browserStartEdit, .browserStartRecent, .browserStartClear,
-            .browserStartSuggestionHelp, .browserStartAddBookmark, .browserStartViewBookmarks,
+            .browserStartSuggestionHelp, .browserStartAddBookmark,
             .browserStartOK, .browserStartAddBookmarkHelp, .browserStartRemoveBookmark(name: "Page"),
             .browserStartAdd, .browserStartSuggestionSubtitle,
-            .browserChromeClosePage, .browserChromeAddressPlaceholder, .browserChromeClearInput,
+            .browserChromeClosePage, .browserChromeAddressPlaceholder, .browserChromeEditAddress,
+            .browserChromeClearInput,
             .browserChromeStop, .browserChromeReload, .browserChromeOpen,
             .browserChromeSearchEngine(name: "Engine"),
-            .browserChromeSearchMatch(query: "Query", engine: "Engine"),
-            .browserChromeAutomationNotice, .browserChromeReturnManual, .browserChromeResearch,
-            .browserChromeResearchSite, .browserPageAskResearch, .browserChromeInteract, .browserChromeLibrary,
-            .browserChromeExplanation, .browserChromeFind, .browserChromeCurrentDesktop,
+            .browserChromeReturnManual, .browserChromeResearch,
+            .browserChromeResearchSite, .browserPageAskResearch, .browserChromeInteract,
+            .browserChromeCurrentDesktop,
             .browserChromeCurrentMobile, .browserChromeMobileWebsite, .browserChromeDesktopWebsite,
             .browserChromeSiteModeHelp, .browserChromeSiteMode, .browserChromeDesktop,
             .browserChromeMobile,
@@ -24,7 +24,12 @@ import XCTest
             .browserChromeRemoveBookmark, .browserChromeAddBookmark,
             .browserChromeSwitchMobile, .browserChromeSwitchDesktop, .browserChromeDone
         ]
-        XCTAssertEqual(messages.count, 53)
+        // The library sheet (bookmark list) and find in page were removed like the
+        // Play build, so their three strings are no longer shown or listed here.
+        // The address pill shows a results page's search words, as Play's page bar
+        // does, in place of the separate 搜尋：…（…） line. Like Play, the screen
+        // has no explanation paragraph or automation notice.
+        XCTAssertEqual(messages.count, 46)
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language)
             for message in messages {

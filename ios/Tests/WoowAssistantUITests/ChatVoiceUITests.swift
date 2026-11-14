@@ -144,7 +144,7 @@ final class ChatVoiceUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", systemLanguages, "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", UUID().uuidString,
-                               "-UITestResetStorage", "-UITestVoiceFixture"]
+                               "-UITestResetStorage", "-UITestVoiceFixture", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))

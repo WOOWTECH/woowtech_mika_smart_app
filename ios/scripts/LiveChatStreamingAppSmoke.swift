@@ -101,7 +101,7 @@ private final class ProbeHTTP: StreamingChatModelClient, @unchecked Sendable {
         var result: [String: Any] = ["schema_version": 1, "status": "FAIL", "failure": "none", "phase": "configuration",
             "partial_observed": false, "partial_never_saved": false, "completed_pair_saved": false,
             "encrypted_relaunch_matches": false, "learning_unchanged": false, "cancel_covered": false,
-            "cancel_no_archive": false, "cancel_draft_partial_retained": false, "cancel_no_completion_notification": false,
+            "cancel_saved_as_stopped": false, "cancel_input_cleared": false, "cancel_no_completion_notification": false,
             "cancel_boundary": "not_attempted", "native_ios_ui": false, "synthetic_prompts_only": true,
             "personal_keychain": false, "private_defaults_on_disk": false, "maximum_http_attempts": 4]
         do { try await exercise(client, result: &result); result["status"] = "PASS" }
@@ -137,7 +137,9 @@ private final class ProbeHTTP: StreamingChatModelClient, @unchecked Sendable {
         let observer = session.$replyPreview.sink { preview in
             guard preview?.phase == .receiving else { return }
             observations += 1
-            unsaved = unsaved && session.entries.isEmpty && archive.conversations.isEmpty && !FileManager.default.fileExists(atPath: archiveURL.path)
+            // Like the Play build the question shows at once; the answer is not saved yet.
+            unsaved = unsaved && session.entries.map(\.role) == ["user"] && archive.conversations.isEmpty
+                && !FileManager.default.fileExists(atPath: archiveURL.path)
         }
         let prompt = "Write a numbered list of twenty short, neutral tips for organizing a fictional library. Each item must be a complete sentence. Do not use tools or mention real people."
         result["phase"] = "complete_stream"
@@ -159,7 +161,7 @@ private final class ProbeHTTP: StreamingChatModelClient, @unchecked Sendable {
         }
         result["phase"] = "cancel_stream"
         session.newConversation()
-        let archiveBytes = try Data(contentsOf: archiveURL); var cancelObservations = 0, cancelledInFlight = false
+        var cancelObservations = 0, cancelledInFlight = false
         var cancellation: Task<Void, Never>?
         let cancellationObserver = session.$replyPreview.sink { value in
             guard value?.phase == .receiving else { return }
@@ -176,10 +178,13 @@ private final class ProbeHTTP: StreamingChatModelClient, @unchecked Sendable {
         guard let cancelTask = session.capturedArchiveRequest else { throw StreamProbeFailure.observation }
         await cancelTask.value; await cancellation?.value; await notifications.waitUntilIdle()
         if cancelledInFlight {
-            guard session.entries.isEmpty, session.replyPreview?.phase == .cancelled, session.replyPreview?.text.isEmpty == false,
-                  session.draft == prompt, try Data(contentsOf: archiveURL) == archiveBytes, center.completedAdds == 1 else { throw StreamProbeFailure.cancellation }
-            result["cancel_covered"] = true; result["cancel_no_archive"] = true
-            result["cancel_draft_partial_retained"] = true; result["cancel_no_completion_notification"] = true
+            // Like the Play build the stopped question stays as 已停止。, saved without the partial.
+            let saved = ConversationArchiveStore(vault: EncryptedLearningFile(url: archiveURL, keys: keys)).state.conversations
+            guard session.entries.count == 2, session.entries.last?.outcome == .cancelled, session.replyPreview == nil,
+                  session.draft.isEmpty, saved.count == 2, saved.contains(where: { $0.turns.map(\.outcome) == [.cancelled] }),
+                  center.completedAdds == 1 else { throw StreamProbeFailure.cancellation }
+            result["cancel_covered"] = true; result["cancel_saved_as_stopped"] = true
+            result["cancel_input_cleared"] = true; result["cancel_no_completion_notification"] = true
             result["cancel_boundary"] = "cancelled_after_two_observed_deltas_while_transport_inflight"
         } else {
             result["cancel_boundary"] = client.counts.deltas.last ?? 0 <= 1 ? "not_covered_single_sse_delta" : "not_covered_no_inflight_window"

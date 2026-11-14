@@ -187,7 +187,8 @@ private extension ArchivedConversation {
     private func accessibilityValue(current: Bool, block: RecentConversationBlock?, pinned: Bool, branch: Bool) -> String {
         let status = current ? localizer.text(.drawerRecentCurrent)
             : block.map { localizer.text($0.message) } ?? ""
-        let markers = [pinned ? localizer.text(.drawerRecentPinned) : nil, branch ? localizer.text(.chatBranchOrigin) : nil]
+        // Play: the heading is drawer_pinned (置頂), a row's mark drawer_pinned_mark (已置頂).
+        let markers = [pinned ? localizer.text(.drawerRecentPinnedMark) : nil, branch ? localizer.text(.chatBranchOrigin) : nil]
         return ([status] + markers.compactMap { $0 }).filter { !$0.isEmpty }.joined(separator: " · ")
     }
 

@@ -32,8 +32,9 @@ import AssistantPersistence
     /// A nil approval starts only when there is nothing protected to discard.
     /// A non-nil approval must still describe the exact current attachment/result.
     static func canStart(in session: ChatSession, approved: NewConversationProtection?) -> Bool {
+        // Like the Play build a waiting quote does not block a new conversation;
+        // starting one clears it.
         !session.isSubmitting
-            && session.pendingQuote == nil
             && NewConversationProtection.current(in: session) == approved
     }
 

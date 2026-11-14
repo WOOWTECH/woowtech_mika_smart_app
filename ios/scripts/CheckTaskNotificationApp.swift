@@ -100,6 +100,7 @@ enum CheckTaskNotificationApp {
             var groups: [String: Int] = [:]
             let cases: [(String, () async throws -> Void)] = [
                 ("nativeUNContentAndScope", nativeContent), ("factoryAndPreferences", preferences),
+                ("allowFromSettings", allowFromSettings),
                 ("realChatSuccessFailureClear", realChat), ("realChatCancelGeneration", lateChat),
                 ("realMCPCompletesWithoutApproval", realMCP), ("realProfileMemoryWithoutApproval", localTools)
             ]
@@ -176,6 +177,37 @@ enum CheckTaskNotificationApp {
         first.disable(); await first.waitUntilIdle()
     }
 
+    /// Settings › 通知 去開啟 and the status card's 允許, like Play's
+    /// Fix.AllowNotifications: off until tapped; the first tap asks iOS; after
+    /// a refusal iOS Settings opens instead of a second prompt; an App opt-out
+    /// saved by an earlier build turns back on without one.
+    @MainActor static func allowFromSettings() async throws {
+        let center = TaskNotificationFakeCenter()
+        center.value = TaskNotificationSettings(authorization: .notDetermined)
+        center.grant = false
+        var saved: [Bool] = []
+        let service = TaskNotificationService(client: center, persistEnabled: { saved.append($0) })
+        await service.refresh()
+        try Checks.expect(!service.enabled && saved.isEmpty && center.permissionCalls == 0, "off until the person turns them on")
+        var opens = await service.allowFromUserGesture()
+        try Checks.expect(!opens && service.enabled && saved == [true] && center.permissionCalls == 1,
+                          "the first tap saves the choice and asks iOS")
+        try Checks.expect(service.systemSettings.authorization == .denied, "a refusal in the prompt opens nothing")
+        opens = await service.allowFromUserGesture()
+        try Checks.expect(opens && center.permissionCalls == 1, "after a refusal only iOS Settings can allow them")
+
+        center.value = TaskNotificationSettings(authorization: .authorized, sound: .enabled, alert: .enabled)
+        service.disable(); await service.refresh()
+        try Checks.expect(!service.enabled && service.systemSettings.authorization == .authorized, "an earlier App opt-out")
+        opens = await service.allowFromUserGesture()
+        try Checks.expect(!opens && service.enabled && saved.last == true && center.permissionCalls == 1,
+                          "an App opt-out turns back on without a prompt")
+        let ticket = try Checks.begin(service); service.receive(.completed, for: ticket)
+        await service.waitUntilIdle()
+        try Checks.expect(center.pending.count == 1, "notifications arrive again")
+        service.disable(); await service.waitUntilIdle()
+    }
+
     @MainActor static func realChat() async throws {
         let env = try NotificationEnvironment(); defer { try? env.close() }
         let model = NotificationScriptedModel([privateOutput, privateOutput])
@@ -192,14 +224,18 @@ enum CheckTaskNotificationApp {
         chat.draft = "synthetic second request"; chat.send()
         try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
         chat.removeSettings(); await service.waitUntilIdle()
-        try Checks.expect(chat.savedSettings == nil && center.pending.isEmpty, "actual removeSettings clears notification")
+        try Checks.expect(chat.savedSettings == nil && chat.entries.count == 2 && center.pending.count == 1,
+                          "like Play removing the model keeps the conversation and its result")
+        chat.newConversation(); await service.waitUntilIdle()
+        try Checks.expect(center.pending.isEmpty, "a new conversation clears the result")
 
         let failedEnv = try NotificationEnvironment(); defer { try? failedEnv.close() }
         let failed = failedEnv.session(NotificationScriptedModel([]))
         let failedBridge = TaskNotificationChatBridge(session: failed, service: service)
         failed.draft = "synthetic failed request"; failed.send()
         try await Checks.until { !failed.isSubmitting }; await service.waitUntilIdle()
-        try Checks.expect(failed.chatError != nil && center.additions.count == 2, "actual model failure emits no completion")
+        try Checks.expect(failed.entries.last?.outcome == .failed && center.additions.count == 2,
+                          "actual model failure (沒有完成 in the conversation) emits no completion")
         failedBridge.invalidate()
     }
 
@@ -219,7 +255,8 @@ enum CheckTaskNotificationApp {
             throw Checks.Failure(check: "observe actual request for deterministic join")
         }
         chat.cancel(); await gate.release(); await task.value; await service.waitUntilIdle()
-        try Checks.expect(chat.entries.isEmpty && center.addCalls == 0, "actual cancelled late model reply rejected")
+        try Checks.expect(chat.entries.last?.outcome == .cancelled && center.addCalls == 0,
+                          "actual cancelled late model reply rejected; 已停止。 is no completion")
         chat.draft = "synthetic new generation"; chat.send()
         try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
         try Checks.expect(center.addCalls == 1, "new generation can complete after cancellation")
@@ -292,6 +329,7 @@ enum CheckTaskNotificationApp {
 final class TaskNotificationAppTests: XCTestCase {
     @MainActor func testNativeUNContentAndScope() async throws { try await CheckTaskNotificationApp.nativeContent() }
     @MainActor func testFactoryAndPreferences() async throws { try await CheckTaskNotificationApp.preferences() }
+    @MainActor func testAllowFromSettings() async throws { try await CheckTaskNotificationApp.allowFromSettings() }
     @MainActor func testRealChatSuccessFailureClear() async throws { try await CheckTaskNotificationApp.realChat() }
     @MainActor func testRealChatCancelGeneration() async throws { try await CheckTaskNotificationApp.lateChat() }
     @MainActor func testRealMCPCompletesWithoutApproval() async throws { try await CheckTaskNotificationApp.realMCP() }

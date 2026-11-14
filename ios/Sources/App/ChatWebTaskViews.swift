@@ -68,6 +68,54 @@ struct ChatWebTaskText {
         return step.succeeded ? text : text + " · " + localizer.text(.chatWebStepFailed)
     }
 
+    /// Android's 要你同意 card (ConfirmationCopy.title and detail): the kind of
+    /// step, then where it happens, the button, what it sends and the amount.
+    func consentTitle(_ request: ChatWebConsentGate.Request) -> String {
+        let action: String
+        switch request.action {
+        case .pay: action = localizer.text(.chatWebAskActionPay)
+        case .order: action = localizer.text(.chatWebAskActionOrder)
+        case .submit: action = localizer.text(.chatWebAskActionSubmit)
+        case .delete: action = localizer.text(.chatWebAskActionDelete)
+        case .send: action = localizer.text(.chatWebAskActionSend)
+        }
+        return localizer.text(.chatWebAskTitle(action: action))
+    }
+
+    func consentLines(_ request: ChatWebConsentGate.Request) -> [String] {
+        var lines: [String] = []
+        if let site = Self.plain(request.site) { lines.append(localizer.text(.chatWebAskSite(site: site))) }
+        if let target = Self.plain(request.target) { lines.append(localizer.text(.chatWebAskTarget(target: target))) }
+        if let content = request.content.flatMap({ Self.plain($0) }) {
+            lines.append(localizer.text(.chatWebAskContent(content: content)))
+        }
+        if let amount = request.amount.flatMap({ Self.plain($0) }) {
+            lines.append(localizer.text(.chatWebPaymentAmount(amount: amount)))
+        }
+        return lines
+    }
+
+    /// Model-written text as one plain line, like Android's ConfirmationCopy.plain:
+    /// no control or invisible characters, spaces collapsed, no look-alike field
+    /// separators (· and colons), at most 200 characters.
+    static func plain(_ text: String, limit: Int = 200) -> String? {
+        var scalars = String.UnicodeScalarView()
+        var pendingSpace = false
+        for scalar in text.unicodeScalars {
+            if CharacterSet.whitespacesAndNewlines.contains(scalar) { pendingSpace = !scalars.isEmpty; continue }
+            if CharacterSet.controlCharacters.contains(scalar) { continue }
+            if pendingSpace { scalars.append(" "); pendingSpace = false }
+            switch scalar {
+            case "\u{00B7}": scalars.append("/")
+            case ":", "\u{FF1A}": scalars.append("\u{2236}")
+            default: scalars.append(scalar)
+            }
+        }
+        let line = String(scalars)
+        guard !line.isEmpty else { return nil }
+        return line.count > limit ? String(line.prefix(limit)) + "\u{2026}" : line
+    }
+
     @MainActor func headline(_ task: ChatWebTaskSession) -> String {
         guard let site = task.steps.last(where: { !$0.site.isEmpty })?.site else { return localizer.text(.chatWebTitle) }
         return localizer.text(.chatWebWorkingOn(site: site))
@@ -152,10 +200,13 @@ struct ChatWebTaskCard: View {
     /// Android's 要你同意 card: allowing works only here, never from a notification.
     private func consent(_ request: ChatWebConsentGate.Request) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: request.amount.map { localizer.text(.chatWebAskTitleAmount(target: request.target, amount: $0)) }
-                 ?? localizer.text(.chatWebAskTitle(target: request.target)))
+            Text(verbatim: text.consentTitle(request))
                 .font(.subheadline.weight(.semibold)).foregroundStyle(colors.ink)
                 .accessibilityIdentifier("chat.web.consent.title")
+            Text(verbatim: text.consentLines(request).joined(separator: "\n"))
+                .font(.callout).foregroundStyle(colors.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("chat.web.consent.detail")
             Text(verbatim: localizer.text(.chatWebAskNote)).font(.caption).foregroundStyle(colors.secondaryInk)
             HStack(spacing: 12) {
                 Button(localizer.text(.chatWebAskRefuse)) { task.answerConsent(false) }

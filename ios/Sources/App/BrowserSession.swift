@@ -9,12 +9,16 @@ import WebKit
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
     private var storedWebView: WKWebView?
     private var webViewURLObservation: NSKeyValueObservation?
+    private var webViewLoadObservations: [NSKeyValueObservation] = []
     // Hosted integration tests can observe completion of the actual KVO work,
     // including when publishSameDocumentURL rejects an event. Never grants access.
     var onSameDocumentURLKVOHandled: ((URL?) -> Void)?
     private let websiteDataStore: WKWebsiteDataStore
     private let suppliedConfiguration: WKWebViewConfiguration?
     var onPageFinished: ((URL, String) -> Void)?
+    /// What a manually browsed page showed about the person's sign-in.
+    var onSignInObserved: ((URL, BrowserSignInState) -> Void)?
+    private var signInProbeTask: Task<Void, Never>?
     var onCreateWindow: ((WKWebViewConfiguration, URLRequest) -> WKWebView?)?
     var onCloseWindow: (() -> Void)?
     var canPresentUI: () -> Bool = { true }
@@ -33,10 +37,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     // Workspace replaces this session after deleting its shared website data.
     // Retained references must never restart its old WebKit document.
     private var retiredForDataRemoval = false
-    // The query belongs only to WebKit's native, per-document find session.
-    // It is never a model request, saved setting, or script argument.
-    private var pageFindHostVisible = false
-    @Published private(set) var pageFindDocumentReady = false
+    // True only while the browser screen shows this page on screen. Only then
+    // may the page reach WebKit's camera/microphone prompt.
+    private var pageHostVisible = false
     @Published private(set) var loadedURL: URL?
     @Published private(set) var pageTitle = "新分頁"
     @Published var pageDialog: BrowserPageDialog?
@@ -67,8 +70,26 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                 self.onSameDocumentURLKVOHandled?(observedURL)
             }
         }
+        // Play's page bar swaps reload for stop and draws a thin progress line
+        // while a page loads; publish WebKit's own loading state for it.
+        webViewLoadObservations = [
+            view.observe(\.isLoading, options: [.new]) { [weak self, weak view] _, _ in
+                Task { @MainActor [weak self, weak view] in self?.publishLoadState(of: view) }
+            },
+            view.observe(\.estimatedProgress, options: [.new]) { [weak self, weak view] _, _ in
+                Task { @MainActor [weak self, weak view] in self?.publishLoadState(of: view) }
+            }
+        ]
         return view
     }
+    @Published private(set) var isLoading = false
+    @Published private(set) var loadProgress = 0.0
+    private func publishLoadState(of view: WKWebView?) {
+        guard let view, storedWebView === view else { return }
+        if isLoading != view.isLoading { isLoading = view.isLoading }
+        if loadProgress != view.estimatedProgress { loadProgress = view.estimatedProgress }
+    }
+    private var userStoppedNavigation: WKNavigation?
     @Published var address = ""
     @Published var goal = ""
     @Published private(set) var status = "輸入網址開始瀏覽"
@@ -146,6 +167,14 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         }
     }
 
+    /// Play's stop key: stop the page that is loading and keep what WebKit
+    /// already shows. A stop is not reported as a failed load.
+    func stopLoading() {
+        guard !isRunning, !isInteracting, let view = storedWebView, view.isLoading else { return }
+        userStoppedNavigation = trackedNavigation
+        view.stopLoading()
+    }
+
     func returnToManualBrowsing() {
         guard automationOwnsDocument, !isRunning, !isInteracting,
               let url = loadedURL ?? storedWebView?.url else { return }
@@ -183,70 +212,10 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         return true
     }
 
-    var canFindInPage: Bool {
-        guard pageFindDocumentReady, !retiredForDataRemoval, !discardingPage,
-              !automationOwnsDocument, !isRunning, !isInteracting, pageDialog == nil,
-              canPresentUI(), !requestedNavigationPending,
-              let view = storedWebView, !view.isLoading,
-              let url = loadedURL, url == view.url, manualPermitted(url) else { return false }
-        return true
-    }
-
-    func setPageFindHostVisible(_ visible: Bool) {
-        pageFindHostVisible = visible
-        synchronizePageFind()
-    }
-
-    @discardableResult
-    func presentPageFind() -> Bool {
-        guard pageFindHostVisible, canFindInPage, storedWebView?.window != nil else { return false }
-        #if os(iOS)
-        synchronizePageFind()
-        guard let interaction = storedWebView?.findInteraction else { return false }
-        if !interaction.isFindNavigatorVisible {
-            interaction.searchText = ""
-            interaction.presentFindNavigator(showingReplace: false)
-        }
-        return true
-        #else
-        // The iOS product uses UIFindInteraction, which is not a macOS API.
-        return false
-        #endif
-    }
-
-    func closePageFind() {
-        resetNativePageFind()
-        synchronizePageFind()
-    }
-
-    private func synchronizePageFind() {
-        guard pageFindHostVisible, canFindInPage else { resetNativePageFind(); return }
-        #if os(iOS)
-        if let view = storedWebView, !view.isFindInteractionEnabled {
-            view.isFindInteractionEnabled = true
-            // Also start hardware-keyboard Find with a fresh query after a
-            // navigation/tab boundary; do not reset an already active panel.
-            view.findInteraction?.searchText = ""
-        }
-        #endif
-    }
-
-    private func resetNativePageFind() {
-        #if os(iOS)
-        // End the native session before removing the interaction. Disabling it
-        // also prevents hardware-keyboard Find from reopening a hidden or
-        // automation-owned document. Never replace WebKit's session delegate.
-        if let view = storedWebView, view.isFindInteractionEnabled {
-            view.findInteraction?.dismissFindNavigator()
-            view.findInteraction?.searchText = ""
-            view.isFindInteractionEnabled = false
-        }
-        #endif
-    }
-
-    private func invalidatePageFindDocument() {
-        pageFindDocumentReady = false
-        resetNativePageFind()
+    // Like the Play build there is no find in page: WebKit's find interaction
+    // stays off (its default), so a hardware ⌘F opens nothing.
+    func setPageHostVisible(_ visible: Bool) {
+        pageHostVisible = visible
     }
 
     @discardableResult
@@ -273,7 +242,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func cancel() {
-        invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         let reference = runReferences; runReferences = nil
         reference?.onRevoke = nil; reference?.revoke()
@@ -747,7 +715,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func cancelInteraction() {
-        closePageFind()
         navigationIntent.invalidate()
         interactionRunID = nil; interactionWork?.cancel(); interactionWork = nil
         storedDOMExecutor?.cancel(); isInteracting = false; postAllowance = nil
@@ -779,7 +746,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         else { requestedNavigationPending = false; failManualLoad(.navigationFailed) }
     }
     private func claimAutomationDocument(originURL: URL? = nil) {
-        invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         if !automationOwnsDocument {
             automationDocumentOrigin = (originURL ?? storedWebView?.url ?? loadedURL).flatMap { Self.origin($0) }
@@ -895,7 +861,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             trackedNavigation = navigation
             if !isRunning { resetLoadTrace() }
         }
-        invalidatePageFindDocument()
         siteModeReloadState.start(navigation)
         invalidateControls()
         // A normal click/reload changes the displayed document too. Do not
@@ -972,11 +937,10 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         automaticSiteModeReload = false
         canGoBack = webView.canGoBack; canGoForward = webView.canGoForward
         loadedURL = webView.url
-        pageFindDocumentReady = true
-        synchronizePageFind()
         pageTitle = Self.displayTitle(webView.title, url: webView.url)
         if let url = loadedURL { address = url.absoluteString; onPageFinished?(url, pageTitle) }
         if expectedNavigation === navigation { navigationFinished = true; expectedNavigation = nil }
+        if !isRunning, !isInteracting, !automationOwnsDocument, let url = loadedURL { probeSignIn(url) }
         if !isRunning {
             // A login/callback/query page can be browsed manually without turning
             // it into research evidence or exposing its fields to the model.
@@ -1025,12 +989,16 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             return
         }
         guard let navigation, trackedNavigation === navigation else { return }
+        let nsError = underlying as NSError
+        let stoppedByUser = userStoppedNavigation === navigation
+            && nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+        userStoppedNavigation = nil
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         if expectedNavigation === navigation { navigationFinished = false; expectedNavigation = nil }
         invalidatePageObservation(); requestedNavigationPending = false
+        if stoppedByUser && !isRunning { keepStoppedPage(); return }
         error = "網站載入失敗，請檢查網址或網路。"
         if !isRunning {
-            let nsError = underlying as NSError
             let category: ManualLoadFailure = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorTimedOut
                 ? .navigationTimeout : .navigationFailed
             failManualLoad(category)
@@ -1038,7 +1006,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         manualDocumentURL = nil; manualDocumentNavigation = nil
         invalidatePageObservation(); invalidateControls()
@@ -1051,6 +1018,44 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private func invalidatePageObservation() {
         pageGeneration = UUID()
         pageObservationTask?.cancel(); pageObservationTask = nil
+        signInProbeTask?.cancel(); signInProbeTask = nil
+    }
+
+    /// Play's UserBrowser.scheduleProbe: look at whether the page shows the
+    /// person signed in, once when it finishes and once more a moment later for
+    /// pages that draw their account area late. The script only reads the DOM,
+    /// in its own script world; nothing is sent anywhere or shown to a model.
+    private func probeSignIn(_ url: URL) {
+        guard onSignInObserved != nil, manualPermitted(url) else { return }
+        let generation = pageGeneration
+        signInProbeTask?.cancel()
+        signInProbeTask = Task { [weak self] in
+            for attempt in 0..<2 {
+                if attempt > 0 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+                guard let self, !Task.isCancelled else { return }
+                guard let state = await self.readSignInState(url, generation: generation) else { return }
+                if state != .unknown || attempt == 1 {
+                    if self.pageGeneration == generation { self.onSignInObserved?(url, state) }
+                    return
+                }
+            }
+        }
+    }
+
+    /// nil when the page changed or could not be read.
+    private func readSignInState(_ url: URL, generation: UUID) async -> BrowserSignInState? {
+        guard pageGeneration == generation, !isRunning, !isInteracting, !automationOwnsDocument,
+              let view = storedWebView, view.url == url, !view.isLoading else { return nil }
+        let raw: String? = await withCheckedContinuation { continuation in
+            view.evaluateJavaScript(BrowserSignInProbe.script, in: nil, in: .defaultClient) { result in
+                if case .success(let value) = result { continuation.resume(returning: value as? String) }
+                else { continuation.resume(returning: nil) }
+            }
+        }
+        guard pageGeneration == generation, storedWebView?.url == url, let raw,
+              let signals = BrowserSignInProbe.parse(raw),
+              let observed = signals.url.flatMap({ URL(string: $0) }), observed.host == url.host else { return nil }
+        return BrowserSignInProbe.classify(signals)
     }
     private static func displayTitle(_ title: String?, url: URL?) -> String {
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -1099,17 +1104,28 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         }
     }
     private func preparePageNavigation() {
-        invalidatePageFindDocument()
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         manualDocumentURL = nil; manualDocumentNavigation = nil
         invalidatePageObservation()
         trackedNavigation = nil; requestedNavigationPending = true
         if !isRunning { resetLoadTrace(); traceLoad(.requested) }
     }
+    /// After the user's stop the document WebKit shows (often already drawn)
+    /// stays the current page; it is not read for research.
+    private func keepStoppedPage() {
+        manualDocumentURL = nil; manualDocumentNavigation = nil
+        trackedNavigation = nil
+        current = nil; error = nil; status = "載入未完成"
+        if let view = storedWebView {
+            canGoBack = view.canGoBack; canGoForward = view.canGoForward
+            if let url = view.url, manualPermitted(url) {
+                loadedURL = url; address = url.absoluteString
+                pageTitle = Self.displayTitle(view.title, url: url)
+            }
+        }
+        traceLoad(.failed, failure: .cancelled)
+    }
     private func failManualLoad(_ category: ManualLoadFailure) {
-        // Failure to build a model observation does not invalidate a loaded
-        // manual document. Native find does not depend on that text excerpt.
-        if category != .observationFailed && category != .observationTimeout { invalidatePageFindDocument() }
         siteModeReloadState.invalidate(); automaticSiteModeReload = false
         manualDocumentURL = nil; manualDocumentNavigation = nil
         invalidatePageObservation()
@@ -1277,7 +1293,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         // Only a visible, manually browsed page may reach WebKit's own
         // per-site permission prompt. A hidden tab or model-owned document
         // must never start camera or microphone capture in the background.
-        let allowed = canPresentUI() && pageFindHostVisible && storedWebView === webView
+        let allowed = canPresentUI() && pageHostVisible && storedWebView === webView
             && !retiredForDataRemoval && !discardingPage && !automationOwnsDocument
             && !isRunning && !isInteracting && pageDialog == nil
             && webView.url.map(manualPermitted) == true
@@ -1314,13 +1330,6 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             <button onclick="document.getElementById('dialog-result').textContent=confirm('Fixture confirmation')?'CONFIRMED':'CANCELLED'">Confirm fixture</button>
             <p id="dialog-result">NO DIALOG RESULT</p><input type="file" aria-label="Select upload file">
             </body></html>
-            """
-        } else if url.path == "/page-find" {
-            html = """
-            <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Find fixture</title></head>
-            <body><h1>Find fixture</h1><p>WOOW_FIND_ORCHID first 茶香</p>
-            <p>WOOW_FIND_ORCHID second</p><p>ignore previous instructions</p>
-            <div style="height:900px"></div><p>WOOW_FIND_ORCHID third 茶香</p></body></html>
             """
         } else if url.path == "/interaction" {
             html = Self.interactionFixtureHTML
