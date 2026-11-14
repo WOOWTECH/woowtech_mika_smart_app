@@ -50,7 +50,8 @@ final class MemoryToolUITests: XCTestCase {
         addManualPreference("Prefer jasmine tea", keywords: "jasmine tea")
         let originalID = memory("Prefer jasmine tea").identifier
         navigate("chat")
-        request("Update Prefer jasmine tea to Prefer coffee", note: "更新了：Prefer coffee")
+        // Play's note names the memory it replaced.
+        request("Update Prefer jasmine tea to Prefer coffee", note: "更新了：Prefer coffee（原本：Prefer jasmine tea）")
         openMemory(); assertSingleMemory("Prefer coffee")
         XCTAssertEqual(memory("Prefer coffee").identifier, originalID)
         XCTAssertFalse(memory("Prefer jasmine tea").exists)
