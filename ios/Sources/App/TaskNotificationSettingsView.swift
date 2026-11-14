@@ -102,8 +102,16 @@ import AssistantDomain
             .task { await store.service.refresh() }
             .onChange(of: store.route?.id) { _, _ in openPendingRoute() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await store.service.refresh() } }
-                else { store.service.invalidateApprovals() }
+                if phase == .active {
+                    store.service.clearNotices()
+                    Task { await store.service.refresh() }
+                } else {
+                    store.service.invalidateApprovals()
+                    // iOS pauses a web task in the background: say so, or that it waits for the person.
+                    if phase == .background, let task = chat.webTask, task.isRunning {
+                        store.service.postNotice(task.waitsForUser ? .webNeedsYou : .webPaused, destination: .chat)
+                    }
+                }
             }
     }
     private func openPendingRoute() {

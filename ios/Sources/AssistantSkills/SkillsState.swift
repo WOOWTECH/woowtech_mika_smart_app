@@ -33,6 +33,38 @@ public struct SkillsState: Codable, Equatable, Sendable {
                   builtinNames: builtinNames, now: now, draftID: draftID)
     }
 
+    /// Play's skill_save (core/general/SkillSave.kt @964d7bec): a skill the user
+    /// asked for in chat is installed at once, on trial and marked as written at
+    /// the user's request; there is no review step. A built-in name, a pending
+    /// draft with the same name, or an existing personal skill without the version
+    /// skill_read returned for it is refused. The caller has already checked that
+    /// the request quotes the user's own words and holds no sensitive value.
+    @discardableResult
+    public mutating func saveRequestedInChat(_ raw: String, version: String?, availableToolNames: Set<String>,
+                                             builtinNames: Set<String>, now: Date = Date()) throws -> SkillChatSaveReceipt {
+        let text = try SkillDocument.importText(raw, source: .user)
+        let document = try SkillDocument.parse(text, availableToolNames: availableToolNames)
+        guard !builtinNames.contains(document.name) else { throw SkillsError.builtinName }
+        guard !pending.contains(where: { $0.name == document.name }) else { throw SkillsError.draftPending }
+        let existing = installed.first { $0.name == document.name }
+        if let existing {
+            guard let version = version?.trimmingCharacters(in: .whitespaces), !version.isEmpty else {
+                throw SkillChatSaveError.exists
+            }
+            guard version == existing.version else { throw SkillsError.changedSinceRead }
+            // The replaced version stays restorable, like an approved update.
+            try archive(name: document.name, operation: .approve, previous: existing, now: now)
+        } else {
+            guard installed.count < Self.maxInstalled else { throw SkillsError.capacityReached }
+        }
+        let skill = PersonalSkill(document: document, status: .trial, source: .user,
+                                  createdAt: existing?.createdAt ?? now, outcomes: [])
+        installed.removeAll { $0.name == document.name }
+        installed.append(skill)
+        return SkillChatSaveReceipt(name: skill.name, action: existing == nil ? "created" : "updated",
+                                    status: skill.status, version: skill.version)
+    }
+
     /// Low-level compatibility hook for trusted orchestrators. Prefer applying a
     /// SkillLearningService assessment: it carries an optimistic snapshot guard.
     @discardableResult

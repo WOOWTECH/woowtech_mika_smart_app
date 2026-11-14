@@ -177,6 +177,26 @@ private struct ErrorClient: ChatModelClient {
         checkModel.reset()
         try await wait { held.stopCount > 0 }
         try check(checkModel.state == .untested && held.requestCount == 1, "cancel stops intercepted transport without replay")
+
+        // "測試並儲存" for a custom provider saved without a key, and for
+        // OpenCode Go: no Authorization header, and the provider's session
+        // header with a fresh value, as Android's connection test sends.
+        let keyless = ModelProtocolFixture.Scenario(chunks: [response])
+        let keylessURL = ModelProtocolFixture.register(keyless); defer { ModelProtocolFixture.remove(keylessURL) }
+        let header = ModelSessionHeader.fresh(name: "x-opencode-session")
+        checkModel.start(client: HTTPChatModelClient(session: session),
+                         configuration: .init(baseURL: keylessURL, model: "fixture", requiresKey: false, sessionHeader: header),
+                         apiKey: "")
+        try await wait { checkModel.state != .testing }
+        try check(checkModel.state == .passed && keyless.requestCount == 1, "a custom provider without a key passes the test")
+        try check(keyless.lastRequest?.value(forHTTPHeaderField: "Authorization") == nil, "no key: no Authorization header on the wire")
+        try check(header != nil && keyless.lastRequest?.value(forHTTPHeaderField: "x-opencode-session") == header?.value,
+                  "the test carries the provider's session header")
+        checkModel.start(client: HTTPChatModelClient(session: session),
+                         configuration: .init(baseURL: keylessURL, model: "fixture"), apiKey: "")
+        try await wait { checkModel.state != .testing }
+        try check(checkModel.state == .failed(.configuration) && keyless.requestCount == 1,
+                  "a provider that needs a key sends nothing without one")
         print("PASS model connection: \(assertions) assertions; synthetic clients and intercepted HTTP only")
     }
 }

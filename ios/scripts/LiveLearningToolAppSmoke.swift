@@ -4,8 +4,8 @@ import AssistantPersistence
 import Foundation
 
 // Compile beside the unchanged App sources. This is actual model/App-logic
-// coverage on macOS, not iOS UI or human-review acceptance. Only this executable
-// approves its fixed synthetic proposals; the product still requires its UI.
+// coverage on macOS, not iOS UI acceptance. Like the Play build, the App applies
+// the model's memory and profile tools without a review.
 private struct SmokeFailure: Error {}
 private final class SmokeLearningKeys: LearningKeyStore {
     var keys: [String: Data] = [:]
@@ -70,13 +70,8 @@ private actor SmokeModel: ChatModelClient {
         }
         return task
     }
-    @MainActor static func memoryTurn(_ session: ChatSession, prompt: String,
-                                     operation: MemoryToolOperation, content: String?) async throws {
+    @MainActor static func memoryTurn(_ session: ChatSession, prompt: String) async throws {
         let task = try start(session, prompt)
-        try await wait { session.pendingMemoryReview != nil || !session.isSubmitting }
-        guard let review = session.pendingMemoryReview else { throw SmokeFailure() }
-        try require(review.op == operation && review.after?.content == content)
-        session.resolveMemoryReview(id: review.id, approved: true)
         await task.value
         try require(session.chatError == nil && session.memoryReceipt?.ok == true
                     && session.entries.last?.role == "assistant" && !session.entries.last!.content.isEmpty)
@@ -85,7 +80,7 @@ private actor SmokeModel: ChatModelClient {
     @MainActor static func main() async {
         let model = SmokeModel()
         var output: [String: Any] = ["native_ios_ui": false, "actual_http_model": true,
-            "approval_driver": "fixed synthetic executable", "production_keychain_used": false]
+            "approval_driver": "none", "production_keychain_used": false]
         let started = Date()
         do {
             let environment = ProcessInfo.processInfo.environment
@@ -107,30 +102,21 @@ private actor SmokeModel: ChatModelClient {
             defer { session.cancel(); learning.cancelLearning() }
 
             phase = "profile_add"
-            let task = try start(session, #"Add this exact lasting preference to my personal profile using profile_edit: Prefer quiet walks. Use text and quote exactly "Prefer quiet walks". I will review the proposed change before you save it."#)
-            try await wait { session.pendingProfileReview != nil || !session.isSubmitting }
-            output["profile_review_received"] = session.pendingProfileReview != nil
-            output["profile_app_error"] = session.chatError != nil
-            guard let profile = session.pendingProfileReview else { throw SmokeFailure() }
-            output["profile_operation_matches"] = profile.op == .add
-            output["profile_content_matches"] = profile.after == "Prefer quiet walks"
-            output["profile_quote_matches"] = profile.quote == "Prefer quiet walks"
-            output["profile_content_ignoring_outer_punctuation_matches"] = profile.after?.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)) == "Prefer quiet walks"
-            output["profile_quote_ignoring_outer_punctuation_matches"] = profile.quote.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)) == "Prefer quiet walks"
-            try require(profile.op == .add && profile.after == "Prefer quiet walks" && profile.quote == "Prefer quiet walks")
-            session.resolveProfileReview(id: profile.id, approved: true)
+            let task = try start(session, #"Add this exact lasting preference to my personal profile using profile_edit: Prefer quiet walks. Use text and quote exactly "Prefer quiet walks"."#)
             await task.value
+            output["profile_app_error"] = session.chatError != nil
+            output["profile_applied"] = session.profileReceipt?.applied == true
             try require(session.chatError == nil && session.profileReceipt?.applied == true)
             try require(reopen().profile.snapshot().entries.map(\.text) == ["Prefer quiet walks"])
             completed.append(phase)
 
             phase = "memory_save"
-            try await memoryTurn(session, prompt: #"Use memory_save to save the ordinary preference with content and quote both exactly "Prefer jasmine tea", and keywords ["jasmine", "tea"]. I will review the write."#, operation: .add, content: "Prefer jasmine tea")
+            try await memoryTurn(session, prompt: #"Use memory_save to save the ordinary preference with content and quote both exactly "Prefer jasmine tea", and keywords ["jasmine", "tea"]."#)
             try require(reopen().memory.memories.contains { $0.content == "Prefer jasmine tea" && $0.source.type == "user_said" })
             completed.append(phase)
 
             phase = "memory_search_delete_undo"
-            try await memoryTurn(session, prompt: "Delete the ordinary memory Prefer jasmine tea. First use memory_search for jasmine tea, then memory_edit delete. Quote this whole request for the explicit deletion request.", operation: .delete, content: nil)
+            try await memoryTurn(session, prompt: "Delete the ordinary memory Prefer jasmine tea. First use memory_search for jasmine tea, then memory_edit delete. Quote this whole request for the explicit deletion request.")
             try require(reopen().memory.memories.isEmpty)
             guard let deleted = session.memoryReceipt?.note else { throw SmokeFailure() }
             learning.undo(deleted)
@@ -138,7 +124,7 @@ private actor SmokeModel: ChatModelClient {
             completed.append(phase)
 
             phase = "procedure_pending_then_approve"
-            try await memoryTurn(session, prompt: #"Use memory_save to save an ordinary procedure with content and quote both exactly "Check invoices before paying", and keywords ["invoices"]. I will review the write."#, operation: .add, content: "Check invoices before paying")
+            try await memoryTurn(session, prompt: #"Use memory_save to save an ordinary procedure with content and quote both exactly "Check invoices before paying", and keywords ["invoices"]."#)
             guard let pending = session.memoryReceipt?.note else { throw SmokeFailure() }
             try require(learning.canReviewMemory(pending))
             try require(reopen().memory.memories.contains { $0.id == pending.memoryID && $0.status == .pending })

@@ -1,5 +1,9 @@
 # Native validation for chat context fencing
 
+Superseded on 2026-11-14: like the Play build, the chat context fence is gone,
+so this plan is history. `MCPConversationUITests/testMemorySwitchChangesWhileAnMCPCallIsHeld`
+now checks that the memory switch saves while an MCP call is held.
+
 This is a test plan, not a claim that an iOS SDK build, simulator, device, or
 multi-window UI run passed. The local synthetic gate compiles the actual App
 sources with isolated temporary encrypted files and fake model transport.

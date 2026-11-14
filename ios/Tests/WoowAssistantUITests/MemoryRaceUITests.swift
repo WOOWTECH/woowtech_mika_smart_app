@@ -3,7 +3,7 @@ import XCTest
 /// Deterministic production-App race regressions. Only the model transport is a
 /// DEBUG fixture; persistence, state generations and UI are the real components.
 final class MemoryRaceUITests: XCTestCase {
-    func testClearWhileReplyPendingDoesNotRepopulateAndNewChatHidesOldNotes() {
+    func testClearWhileReplyPendingPublishesWithoutRepopulatingAndNewChatHidesOldNotes() {
         continueAfterFailure = false
         executionTimeAllowance = 240
         let app = XCUIApplication()
@@ -19,8 +19,9 @@ final class MemoryRaceUITests: XCTestCase {
         fill(app.textFields["settings.model"], "fixture-model\n")
         reveal(app.secureTextFields["settings.apiKey"], in: app)
         fill(app.secureTextFields["settings.apiKey"], "fixture-key-not-real\n")
-        reveal(app.buttons["settings.save"], in: app)
-        app.buttons["settings.save"].tap()
+        reveal(app.buttons["setup.test"], in: app)
+        app.buttons["setup.test"].tap()
+        agreeToModelConsent(in: app)
         XCTAssertTrue(app.staticTexts["settings.notice"].waitForExistence(timeout: 5))
         returnFromModelSettings(in: app)
         navigateMikaSection("chat", in: app)
@@ -38,7 +39,12 @@ final class MemoryRaceUITests: XCTestCase {
         navigateMikaSection("chat", in: app)
         // Prove the clear happened before the main reply, not after extraction.
         XCTAssertEqual(app.staticTexts["chat.status"].label, "正在等待模型回覆…")
-        XCTAssertTrue(app.staticTexts["chat.message.1.assistant"].waitForExistence(timeout: 65))
+        // Like the Play build, the clear never stops the pending reply; only its
+        // extraction is skipped, so the old message cannot refill cleared memory.
+        let reply = app.staticTexts["chat.message.1.assistant"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 65))
+        XCTAssertTrue(reply.label.hasPrefix("測試回覆："))
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
         XCTAssertFalse(app.staticTexts["chat.learning"].exists)
         XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].exists)
         navigateMikaSection("memory", in: app)

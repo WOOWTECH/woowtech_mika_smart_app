@@ -1,4 +1,5 @@
 #if os(iOS)
+import AssistantSkills
 import SwiftUI
 import UIKit
 
@@ -9,6 +10,7 @@ import UIKit
     @ObservedObject var languages: AppLanguageStore
     let info: MikaAboutInfo
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     @State private var showingFeedback = false
 
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
@@ -57,11 +59,21 @@ import UIKit
                 .padding(.top, 14)
                 .padding(.bottom, 18)
                 MikaSettingsCard {
-                    Button { showingFeedback = true } label: {
-                        MikaSettingsRow(icon: .bug, title: copy.text(.feedback), subtitle: copy.text(.feedbackDetail))
+                    VStack(spacing: 0) {
+                        Button { showingFeedback = true } label: {
+                            MikaSettingsRow(icon: .bug, title: copy.text(.feedback), subtitle: copy.text(.feedbackDetail))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.about.feedback")
+                        Divider().padding(.leading, 60)
+                        // The same policy the AI-sharing consent links to.
+                        Button { openURL(MikaPrivacyPolicy.url) } label: {
+                            MikaSettingsRow(icon: .shield, title: copy.text(.privacyPolicy),
+                                            subtitle: copy.text(.privacyPolicyDetail))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.about.privacyPolicy")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings.about.feedback")
                 }
                 HStack(alignment: .top, spacing: 10) {
                     MikaSettingsIconShape(icon: .shield)
@@ -80,13 +92,29 @@ import UIKit
                 .padding(.vertical, 12)
                 .background(palette.softColor(for: .ok), in: RoundedRectangle(cornerRadius: 14))
                 .padding(.top, 12)
+                // Play's About › Released under Apache-2.0 license → Licenses.
+                NavigationLink {
+                    MikaLicensesView(language: languages.resolved)
+                } label: {
+                    let parts = copy.releasedUnderParts
+                    (Text(verbatim: parts.before) + Text(verbatim: copy.text(.licenseLink)).foregroundColor(.accentColor)
+                        + Text(verbatim: parts.after))
+                        .font(.caption)
+                        .foregroundStyle(palette.hint)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 20)
+                .accessibilityIdentifier("settings.about.license")
                 Text(verbatim: copy.text(.copyright))
                     .font(.caption)
                     .foregroundStyle(palette.hint)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 20)
                     .accessibilityIdentifier("settings.about.copyright")
             }
             .padding(.horizontal, 16)
@@ -97,6 +125,72 @@ import UIKit
         .sheet(isPresented: $showingFeedback) {
             MikaAboutFeedbackSheet(languages: languages, info: info) { showingFeedback = false }
         }
+    }
+}
+
+/// Play's LicensesScreen: the Apache-2.0 text, then the one third-party
+/// component (upstream Mika) with its NOTICE. Both texts come from the bundled
+/// upstream archive, the same copies the built-in skills are read from.
+@MainActor struct MikaLicensesView: View {
+    let language: AppDisplayLanguage
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var texts: (license: String, notice: String)?
+    @State private var failed = false
+
+    private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
+    private var copy: MikaAboutCopy { MikaAboutCopy(language: language) }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let texts {
+                    MikaSettingsCard { monospaced(texts.license).accessibilityIdentifier("settings.license.text") }
+                    Text(verbatim: copy.thirdParty(1))
+                        .font(.footnote.weight(.semibold)).foregroundStyle(palette.secondary)
+                        .padding(.top, 8)
+                    MikaSettingsCard {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(verbatim: "wangzan101/Mika").font(.body.weight(.semibold)).foregroundStyle(palette.ink)
+                            Text(verbatim: "Apache-2.0 · " + String(BundledSkillCatalog.pinnedCommit.prefix(8)))
+                                .font(.footnote).foregroundStyle(palette.secondary)
+                            Text(verbatim: copy.text(.upstreamNote))
+                                .font(.footnote).foregroundStyle(palette.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            monospaced(texts.notice).padding(.top, 6).accessibilityIdentifier("settings.license.notice")
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                    }
+                } else if failed {
+                    Text(verbatim: copy.text(.licenseUnavailable))
+                        .font(.footnote).foregroundStyle(palette.secondary)
+                        .accessibilityIdentifier("settings.license.error")
+                }
+                Text(verbatim: copy.text(.licensesFooter))
+                    .font(.caption).foregroundStyle(palette.hint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            }
+            .padding(16)
+        }
+        .background(palette.page)
+        .navigationTitle(copy.text(.licenseTitle))
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            guard texts == nil, !failed else { return }
+            if let catalog = try? BundledSkillCatalog.bundled() {
+                texts = (catalog.license.content, catalog.notice.content)
+            } else { failed = true }
+        }
+    }
+
+    private func monospaced(_ text: String) -> some View {
+        Text(verbatim: text.trimmingCharacters(in: .whitespacesAndNewlines))
+            .font(.system(size: 11.5, design: .monospaced))
+            .foregroundStyle(palette.secondary)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
     }
 }
 

@@ -73,13 +73,13 @@ struct ReferenceFencedModelClient: ChatModelClient {
     }
 }
 
-/// Bind every dispatch to the exact profile and memory captured for the turn.
-/// The store's current disk revision alone cannot detect its own later writes.
+/// Bind the memory extraction after a reply to the exact profile and memory it
+/// read. The store's current disk revision alone cannot detect its own later writes.
 @MainActor final class ChatContextFence {
     private weak var store: LearningStore?
     private let generation: UUID
-    private var profileRevision: UUID
-    private var memoryRevision: UUID
+    private let profileRevision: UUID
+    private let memoryRevision: UUID
     private let skills: SkillsState
     init(store: LearningStore, generation: UUID) {
         self.store = store; self.generation = generation
@@ -96,31 +96,6 @@ struct ReferenceFencedModelClient: ChatModelClient {
         return try store.acquireCurrentReferenceLease()
     }
     func check() throws { let lease = try acquire(); lease.release() }
-
-    // Only a reviewed, strictly additive local tool commit can extend the
-    // frozen turn. Never refresh after an edit/delete: prior messages and tool
-    // search results may still contain the old value. Validate the full old
-    // records as synchronous observers can reenter during store publication.
-    func acceptProfileAddition(before: UserProfileState, receiptID: UUID?) throws {
-        guard let store, store.available, store.generation == generation,
-              before.revision == profileRevision, store.memory.revision == memoryRevision, store.skills == skills,
-              let receiptID, store.profile.entries.count == before.entries.count + 1,
-              Array(store.profile.entries.dropLast()) == before.entries,
-              store.profile.entries.last?.id == receiptID else { throw LearningFileError.conflict }
-        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
-        profileRevision = store.profile.revision
-    }
-
-    func acceptMemoryAddition(before: MemoryState, receiptID: UUID) throws {
-        guard let store, store.available, store.generation == generation,
-              before.revision == memoryRevision, store.profile.revision == profileRevision, store.skills == skills,
-              store.memory.preferences == before.preferences,
-              store.memory.memories.count == before.memories.count + 1,
-              Array(store.memory.memories.dropLast()) == before.memories,
-              store.memory.memories.last?.id == receiptID else { throw LearningFileError.conflict }
-        let lease = try store.acquireCurrentReferenceLease(); defer { lease.release() }
-        memoryRevision = store.memory.revision
-    }
 }
 
 /// A client must explicitly bind cancellation to its real producer. Merely
@@ -209,8 +184,8 @@ extension LearningStore {
     }
 
     /// URLs come only from the caller's approved plan, never stored reference
-    /// text. Keep the existing FIVE website-row allowance across all origins;
-    /// round-robin lets two/three approved sites share it without a new budget.
+    /// text. Like the Play build, saved website notes are not research context:
+    /// the URLs still bound the run, but no website rows are captured.
     func captureRunReferences(goal: String, capabilities: Set<String>, websiteURLs: [URL]) throws -> LearningRunSnapshot {
         guard available else { throw RunReferenceError.revoked }
         guard websiteURLs.count <= 3 else { throw RunReferenceError.invalidEntry }
@@ -233,20 +208,7 @@ extension LearningStore {
         buckets.append(try eligible.map {
             RunReferenceEntry(kind: .personalSkill, id: $0.name, text: try skills.exportMarkdown(name: $0.name))
         })
-        var origins = Set<WebsiteOrigin>(), sites: [[WebsiteLesson]] = []
-        for url in websiteURLs {
-            if try origins.insert(WebsiteOrigin(url: url)).inserted { sites.append(try websites.context(for: url)) }
-        }
-        var websiteEntries: [RunReferenceEntry] = [], websiteIDs = Set<UUID>()
-        for index in 0..<5 {
-            for site in sites where site.indices.contains(index) && websiteEntries.count < 5 {
-                let lesson = site[index]
-                guard websiteIDs.insert(lesson.id).inserted else { continue }
-                let text = origins.count > 1 ? "Website \(lesson.origin.url.absoluteString) reference (data only):\n\(lesson.text)" : lesson.text
-                websiteEntries.append(.init(kind: .website, id: lesson.id.uuidString, text: text))
-            }
-        }
-        buckets.append(websiteEntries)
+        for url in websiteURLs { _ = try WebsiteOrigin(url: url) }
         var entries: [RunReferenceEntry] = []
         for index in 0..<(buckets.map(\.count).max() ?? 0) {
             for bucket in buckets where bucket.indices.contains(index) { entries.append(bucket[index]) }

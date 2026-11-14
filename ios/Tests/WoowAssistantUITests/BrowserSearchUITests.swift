@@ -44,16 +44,15 @@ final class BrowserSearchUITests: XCTestCase {
         XCTAssertTrue(query.waitForExistence(timeout: 75))
         XCTAssertTrue(query.label.contains("fixture cats & dogs/+%"))
         XCTAssertTrue((address.value as? String)?.contains("q=fixture%20cats%20%26%20dogs%2F%2B%25") == true)
-        tap(app.buttons["browser.library"])
-        tap(app.segmentedControls["browser.library.sections"].buttons["歷史"])
-        let history = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.history.open.")).firstMatch
-        XCTAssertTrue(history.waitForExistence(timeout: 10))
-        revealLearningElement(history, in: app)
-        XCTAssertTrue(history.label.contains("搜尋：fixture cats & dogs/+%"))
-        tap(app.buttons["browser.library.close"])
         launch()
         XCTAssertTrue(query.waitForExistence(timeout: 75))
         XCTAssertTrue(query.label.contains("fixture cats & dogs/+%"))
+        // Like the Play build, recent pages are on the start page (no library sheet).
+        tap(app.buttons["browser.closePage"])
+        let history = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.start.history.open.")).firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 10))
+        revealLearningElement(history, in: app)
+        XCTAssertTrue(history.label.contains("搜尋：fixture cats & dogs/+%"))
         XCTAssertTrue(settings.label.contains("Fixture Search"))
         tap(settings)
         let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "browser.searchEngine.remove.custom:")).firstMatch

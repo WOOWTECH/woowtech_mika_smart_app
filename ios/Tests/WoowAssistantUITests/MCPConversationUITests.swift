@@ -27,10 +27,10 @@ final class MCPConversationUITests: XCTestCase {
         setSwitch(chatEnabled, on: true)
     }
 
-    func testMemorySwitchReportsBusyAndRetriesAfterActualMCPLease() {
+    func testMemorySwitchChangesWhileAnMCPCallIsHeld() {
         // Start a new isolated namespace so no production state or previous
         // fixture run can supply the result. The held fake executor is reached
-        // through the real MCP runner and context-fenced executor.
+        // through the real MCP runner.
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
@@ -47,38 +47,23 @@ final class MCPConversationUITests: XCTestCase {
         let release = app.buttons["fixture.mcp.lease.release"]
         revealLearningElement(release, in: app)
         XCTAssertTrue(release.waitForExistence(timeout: 10), "The actual fixture executor must be holding before the switch is touched")
+        // Like the Play build, the running MCP call does not lock memory.
         let toggle = app.switches["memory.toggle.useMemory"].firstMatch
         revealLearningElement(toggle, in: app)
         XCTAssertEqual(toggle.value as? String, "1")
-        let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
-        XCTAssertTrue(target.isHittable)
-        target.tap()
-        let alert = app.alerts.firstMatch
-        XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        XCTAssertTrue(alert.staticTexts["設定未儲存"].exists)
-        let message = alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "仍顯示開啟")).firstMatch
-        XCTAssertTrue(message.exists)
-        XCTAssertTrue(message.label.contains("請稍後重試"))
-        alert.buttons["完成"].tap()
-        let current = app.switches["memory.toggle.useMemory"].firstMatch
-        revealLearningElement(current, in: app)
-        XCTAssertEqual(current.value as? String, "1", "A failed write must never appear switched off")
+        setSwitch(toggle, on: false)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
         revealLearningElement(release, in: app)
         release.tap()
-        // The completed event is published only after the real executor and
-        // its lease return. Do not treat gate release as lock release.
+        // The turn still finishes after the change.
         navigateMikaSection("chat", in: app)
         let activity = app.staticTexts["chat.mcpActivity"]
         let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "已收到 1 次結果"), object: activity)
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 15), .completed)
-        navigateMikaSection("memory", in: app)
-        let retry = app.switches["memory.toggle.useMemory"].firstMatch
-        revealLearningElement(retry, in: app)
-        XCTAssertEqual(retry.value as? String, "1")
-        setSwitch(retry, on: false)
-        XCTAssertFalse(app.alerts.firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["chat.message.1.assistant"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
         // Reload the real store through a fresh app launch in the same isolated
-        // namespace, without resetting it, to prove the retry was persisted.
+        // namespace, without resetting it, to prove the change was persisted.
         let args = app.launchArguments.filter { $0 != "-UITestResetStorage" && $0 != "-UITestMCPLeaseHold" }
         app.terminate()
         app = XCUIApplication(); app.launchArguments = args; app.launchEnvironment = [:]; app.launch()

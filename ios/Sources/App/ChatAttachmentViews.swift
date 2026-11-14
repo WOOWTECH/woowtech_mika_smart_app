@@ -1,5 +1,4 @@
 import ImageIO
-import Photos
 import QuickLook
 import SwiftUI
 import UIKit
@@ -14,20 +13,10 @@ struct ChatAttachmentText {
     var camera: String { localizer.text(.chatAttachCamera) }
     var album: String { localizer.text(.chatAttachAlbum) }
     var files: String { localizer.text(.chatAttachFiles) }
-    var recent: String { localizer.text(.chatAttachRecent) }
-    var recentLimited: String { localizer.text(.chatAttachRecentLimited) }
-    var allPhotos: String { localizer.text(.chatAttachAllPhotos) }
-    var changeScope: String { localizer.text(.chatAttachChangeScope) }
-    var noPhotos: String { localizer.text(.chatAttachNoPhotos) }
-    var allowPhotos: String { localizer.text(.chatAttachAllowPhotos) }
-    var photosNeeded: String { localizer.text(.chatAttachPhotosNeeded) }
-    var photosHint: String { localizer.text(.chatAttachPhotosHint) }
     var adding: String { localizer.text(.chatAttachAdding) }
     var gotIt: String { localizer.text(.chatAttachGotIt) }
     var gone: String { localizer.text(.chatAttachGone) }
     var noCamera: String { localizer.text(.chatAttachNoCamera) }
-    var photo: String { localizer.text(.chatAttachPhoto) }
-    var selected: String { localizer.text(.chatAttachSelected) }
     var seesImages: String { localizer.text(.settingsSeesImages) }
     var seesImagesUnconfirmed: String { localizer.text(.settingsSeesImagesUnconfirmed) }
     var seesImagesUser: String { localizer.text(.settingsSeesImagesUser) }
@@ -229,18 +218,15 @@ struct ChatAttachmentNoticeRow: View {
 
 // MARK: - Attach panel (below the input bar)
 
-/// Android AttachPanel (woow.10): three tiles, then the recent photos grid.
+/// Play's AttachPanel: three tiles. Like the Play build there is no recent-photos
+/// grid, so the app never asks for photo library access; photos come from the
+/// system picker, which needs no permission.
 struct ChatAttachPanel: View {
-    @ObservedObject var photos: ChatRecentPhotos
-    /// Asset identifiers of the photos already in the tray, in tray order.
-    let selectedAssets: [String]
     let colors: ChatAttachmentColors
     let text: ChatAttachmentText
     let onCamera: () -> Void
     let onAlbum: () -> Void
     let onFiles: () -> Void
-    let onToggle: (PHAsset) -> Void
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -249,7 +235,6 @@ struct ChatAttachPanel: View {
                 tile("photo", text.album, id: "chat.attach.album", action: onAlbum)
                 tile("paperclip", text.files, id: "chat.attach.files", action: onFiles)
             }
-            recentPhotos
         }
         .padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -270,59 +255,6 @@ struct ChatAttachPanel: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
-    }
-
-    @ViewBuilder private var recentPhotos: some View {
-        switch photos.access {
-        case .full, .limited:
-            HStack(spacing: 12) {
-                Text(verbatim: photos.access == .limited ? text.recentLimited : text.recent)
-                    .font(.footnote.weight(.semibold)).foregroundStyle(colors.secondaryInk)
-                Spacer(minLength: 0)
-                if photos.access == .limited {
-                    Button(text.changeScope) { photos.presentLimitedLibraryPicker() }
-                        .font(.footnote).accessibilityIdentifier("chat.attach.changeScope")
-                }
-                Button(text.allPhotos, action: onAlbum)
-                    .font(.footnote).accessibilityIdentifier("chat.attach.allPhotos")
-            }
-            if photos.assets.isEmpty {
-                if !photos.isLoading {
-                    Text(verbatim: text.noPhotos).font(.footnote).foregroundStyle(colors.secondaryInk)
-                        .frame(maxWidth: .infinity).padding(.top, 24)
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 4), spacing: 4) {
-                        ForEach(photos.assets, id: \.localIdentifier) { asset in
-                            Button { onToggle(asset) } label: {
-                                ChatRecentPhotoCell(asset: asset,
-                                                    selectedIndex: selectedAssets.firstIndex(of: asset.localIdentifier).map { $0 + 1 },
-                                                    accent: colors.accent, photos: photos,
-                                                    photoLabel: text.photo, selectedLabel: text.selected)
-                                    .aspectRatio(1, contentMode: .fit)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .accessibilityIdentifier("chat.attach.recent")
-            }
-        case .notDetermined, .denied:
-            VStack(spacing: 12) {
-                Text(verbatim: text.photosNeeded).font(.footnote).foregroundStyle(colors.ink)
-                    .multilineTextAlignment(.center)
-                Button(text.allowPhotos) {
-                    if photos.access == .denied, let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                    else { Task { await photos.requestAccess() } }
-                }
-                .buttonStyle(.borderedProminent).tint(colors.accent)
-                .accessibilityIdentifier("chat.attach.allowPhotos")
-                Text(verbatim: text.photosHint).font(.caption).foregroundStyle(colors.secondaryInk)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity).padding(.top, 16)
-        }
     }
 }
 

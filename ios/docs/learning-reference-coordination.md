@@ -1,5 +1,10 @@
 # Learning reference coordination
 
+Since 2026-11-14, like the Play build, chat replies are no longer fenced: a change
+to learning data while a reply is pending never stops it, and MCP calls no longer
+hold the lock. `ChatContextFence` now binds only the memory extraction after a
+reply. Browser research and replay snapshots below are unchanged.
+
 Reference capture and every snapshot check acquire the learning file's nonblocking
 cooperative lock and compare its encrypted-file revision with the store's loaded
 revision. A changed or unreadable revision fails closed; a busy lock is reported

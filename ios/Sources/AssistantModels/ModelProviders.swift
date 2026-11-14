@@ -65,7 +65,7 @@ public struct ModelProvider: Codable, Equatable, Identifiable, Sendable {
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               name.count <= 256, name.utf8.count <= 1024,
               !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.union(.newlines).contains),
-              sessionHeader.map(ModelProviderAddress.isHeaderName) ?? true,
+              sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0, value: "-") }) ?? true,
               (models?.count ?? 0) <= ModelProvidersDocument.maximumListedModels,
               models?.allSatisfy({ ModelProviderAddress.isModelName($0.id) && ($0.contextTokens ?? 1) > 0 }) ?? true,
               [verifiedModels.count, typedModels.count, visionOverrides.count]
@@ -206,8 +206,8 @@ public enum ModelConsentRequirement: Equatable, Sendable {
 public enum ModelLegacySettings: String, Codable, Sendable {
     /// It became the first provider.
     case imported
-    /// It could not be read. Nothing was imported; the settings page can say
-    /// so and ask for a provider.
+    /// It could not be read. Nothing was imported; Settings › 模型 says so
+    /// and asks for a provider.
     case unreadable
 }
 
@@ -219,14 +219,20 @@ public enum ModelLegacyRecord: Equatable, Sendable {
 
 public enum ModelProvidersError: Error, Equatable, Sendable {
     case invalidDocument, unsupportedVersion, tooLarge, unknownProvider
+    /// Already as many providers as a document holds.
+    case tooManyProviders
+    /// Another provider would receive the user's content before they agreed
+    /// to it (App Review 5.1.2(i)); nothing was changed.
+    case consentRequired
     /// A blank key, and no saved key to keep.
     case missingKey
     /// A blank key for another host or port: a key never follows its address.
     case changedOrigin
 }
 
-/// What the settings page's one form does while it is the only way to edit
-/// providers (phase 1a): it edits the main role's provider and model.
+/// The single form's save (phase 1a): it edits the main role's provider and
+/// model. Settings › 模型 adds providers instead (addingProvider); this stays
+/// for the App harnesses, the UI test fixtures and the live-model bootstrap.
 public struct ModelMainChange: Equatable, Sendable {
     public let document: ModelProvidersDocument
     public let provider: ModelProvider
@@ -343,7 +349,7 @@ extension ModelProvidersDocument {
         return document
     }
 
-    /// Saving the settings form (phase 1a). The same address edits the main
+    /// Saving the single form (phase 1a). The same address edits the main
     /// provider; another address is another provider, which takes the previous
     /// main provider's place as the single setting did. A blank key keeps the
     /// saved one only at the same scheme, host and port.
@@ -490,6 +496,13 @@ public enum ModelProviderPresets {
         return all.first { ModelProviderAddress.normalized($0.baseURL) == address }
     }
 
+    /// Android ProviderPresets.forHost: the preset on the same host, which the
+    /// custom form suggests using instead ("改用「…」預設").
+    public static func preset(forHost url: URL) -> ModelProviderPreset? {
+        guard let host = url.host?.lowercased(), !host.isEmpty else { return nil }
+        return all.first { $0.baseURL.host?.lowercased() == host }
+    }
+
     /// Android ProviderConnection.nameForUrl: the preset at this address,
     /// otherwise the host.
     public static func displayName(for url: URL) -> String {
@@ -539,14 +552,6 @@ public enum ModelProviderAddress {
         while path.hasSuffix("/") { path.removeLast() }
         let port = parts.port.map { scheme == "https" && $0 == 443 ? "" : ":\($0)" } ?? ""
         return scheme + "://" + host + port + path
-    }
-
-    /// An HTTP token (RFC 9110), so a header name cannot inject another header.
-    static func isHeaderName(_ name: String) -> Bool {
-        let extra = Set("!#$%&'*+-.^_`|~".utf8)
-        return (1...64).contains(name.utf8.count) && name.utf8.allSatisfy { byte in
-            (48...57).contains(byte) || (65...90).contains(byte) || (97...122).contains(byte) || extra.contains(byte)
-        }
     }
 
     /// As the form saves it: trimmed, one line, bounded like a conversation's model.

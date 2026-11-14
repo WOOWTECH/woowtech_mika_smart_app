@@ -1,5 +1,17 @@
 import Foundation
 
+/// Where a built-in skill's original text comes from: the pinned upstream file.
+public struct SkillExecutionProvenance: Equatable, Sendable {
+    public let repository: String
+    public let revision: String
+    public let path: String
+    public let sha256: String
+    init(_ document: SkillCatalogDocument) {
+        repository = BundledSkillCatalog.repository; revision = BundledSkillCatalog.pinnedCommit
+        path = document.path; sha256 = document.sha256
+    }
+}
+
 /// The host captures this from an explicit user request, never from a model,
 /// imported Markdown, a web page, or an MCP result. It is deliberately not Codable.
 public struct SkillAuthoringUserRequest: Sendable {

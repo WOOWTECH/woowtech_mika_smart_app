@@ -1,5 +1,7 @@
 #if DEBUG
+import AssistantBrowser
 import AssistantModels
+import AssistantSkills
 import Foundation
 
 // DEBUG-only UI-test API. Release builds contain neither this client nor these switches.
@@ -10,6 +12,11 @@ import Foundation
 // Prompts: [fixture:wait] waits cancellably; [fixture:error-once] fails once per launch.
 // Every other prompt returns "測試回覆：<prompt>". Keys entered by tests are dummy strings.
 enum UITestModelFixture {
+    /// Plain chat sends the identity line and safety rules first (AISafetyRules); the
+    /// fixtures below tell requests apart by what follows them.
+    static func withoutPlainChatRules(_ messages: [ModelMessage]) -> [ModelMessage] {
+        messages.first == AISafetyRules.message ? Array(messages.dropFirst()) : messages
+    }
     static func repository(arguments: [String]) -> ModelSettingsRepository {
         guard let flag = arguments.firstIndex(of: "-UITestNamespace"),
               arguments.indices.contains(flag + 1),
@@ -30,8 +37,12 @@ enum UITestModelFixture {
         let credentials: any ModelCredentialStoring = arguments.contains("-UITestKeychainWriteFailure")
             ? FailingWrites(base: keychain) : keychain
         let repository = ModelSettingsRepository(defaults: defaults, credentials: credentials, providers: providers)
-        if arguments.contains("-UITestMCPFixture") {
-            do { _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key") }
+        if arguments.contains("-UITestMCPFixture") || arguments.contains(ChatWebTaskFixture.flag) {
+            // A configured model the user already agreed to share content with.
+            do {
+                _ = try repository.save(baseURL: "https://model.example.invalid/v1", model: "fixture", newKey: "fixture-not-a-key")
+                try repository.recordConsentForMain()
+            }
             catch { preconditionFailure("Cannot configure isolated MCP conversation fixture") }
         }
         return repository
@@ -78,21 +89,23 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
         self.sleep = sleep
     }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
-        // Keep the existing structured dispatcher/review path intact.
+        // Keep the existing structured dispatcher path intact.
         try await completeClient.complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
         stream(messages: messages, configuration: configuration, apiKey: apiKey, onDispatch: {}, onProducerFinished: {})
     }
-    func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+    func stream(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                 onDispatch: @escaping @Sendable () -> Void,
                 onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream { continuation in
+        let messages = UITestChatModelClient.withoutSkillOffer(input)
+        return AsyncThrowingStream { continuation in
             let worker = Task {
                 defer { onProducerFinished() }
                 do {
                     try Task.checkCancellation()
                     onDispatch() // Controlled synthetic fixture dispatch.
+                    let messages = UITestModelFixture.withoutPlainChatRules(messages)
                     let prompt = messages.last?.content ?? ""
                     if messages.first?.role == "system",
                        messages.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") == true {
@@ -106,7 +119,7 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
                         } else {
                             // Preserve the existing closed profile/memory fixture
                             // commands. The App still parses the complete JSON
-                            // and requires its normal host review before effects.
+                            // and runs its normal host checks before effects.
                             let command = try await completeClient.complete(
                                 messages: messages, configuration: configuration, apiKey: apiKey)
                             try Task.checkCancellation()
@@ -182,8 +195,26 @@ struct UITestStreamingChatModelClient: StructuredStreamingChatModelClient {
 actor UITestChatModelClient: ChatModelClient {
     private var failedOnce = false
 
-    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+    /// Plain chat now offers the skill tools and the web task commands in a
+    /// leading system message; the closed fixtures answer as before and start
+    /// a skill tool never, a web task only for the web fixture prompts.
+    static func withoutSkillOffer(_ messages: [ModelMessage]) -> [ModelMessage] {
+        guard let first = messages.first, first.role == "system",
+              first.content.hasPrefix(ChatSkillPrompts.plainChatLead) || first.content.hasPrefix(ChatWebTaskPrompts.entryLead)
+        else { return messages }
+        return Array(messages.dropFirst())
+    }
+
+    func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if input.first?.role == "system", input.first?.content.contains(ChatWebTaskPrompts.entryLead) == true,
+           !(input.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") ?? true),
+           let entry = ChatWebTaskUITestModel.entry(for: input.last?.content ?? "") { return entry }
+        let messages = Self.withoutSkillOffer(UITestModelFixture.withoutPlainChatRules(input))
         let instructions = messages.first?.content ?? ""
+        if instructions.hasPrefix("You are carrying out the user's request in the app's built-in browser.") {
+            return try await ChatWebTaskUITestModel.next(messages: messages)
+        }
+        if instructions.hasPrefix("The user stopped a web task.") { return "FIXTURE_STOP_SUMMARY：讀了 1 頁，沒有送出任何東西。" }
         if instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
             if messages.last?.content.hasPrefix("Host memory_save receipt") == true
                 || messages.last?.content.hasPrefix("Host memory_edit receipt") == true {
@@ -193,6 +224,7 @@ actor UITestChatModelClient: ChatModelClient {
                 return #"{"action":"finish","answer":"個人檔案工具已完成。"}"#
             }
             let prompt = messages.last?.content ?? ""
+            if instructions.contains("Web tasks:"), let entry = ChatWebTaskUITestModel.entry(for: prompt) { return entry }
             func memoryCommand(_ name: String, _ arguments: [String: Any]) throws -> String {
                 String(decoding: try JSONSerialization.data(withJSONObject:
                     ["action": name, "arguments": arguments]), as: UTF8.self)
@@ -218,9 +250,6 @@ actor UITestChatModelClient: ChatModelClient {
             case "Remember preference Prefer jasmine tea":
                 return try memoryCommand("memory_save", ["kind": "preference", "content": "Prefer jasmine tea",
                     "quote": "Prefer jasmine tea", "keywords": ["jasmine", "tea"]])
-            case "Remember preference Prefer quiet":
-                return try memoryCommand("memory_save", ["kind": "preference", "content": "Prefer quiet",
-                    "quote": "Prefer quiet", "keywords": ["quiet"]])
             case "Remember procedure Check invoices before paying":
                 return try memoryCommand("memory_save", ["kind": "procedure", "content": "Check invoices before paying",
                     "quote": "Check invoices before paying", "keywords": ["invoices"]])
@@ -233,7 +262,6 @@ actor UITestChatModelClient: ChatModelClient {
             let operation: [String: String]?
             switch prompt {
             case "Remember Prefer tea": operation = ["op": "add", "text": "Prefer tea", "quote": prompt]
-            case "Remember Prefer quiet": operation = ["op": "add", "text": "Prefer quiet", "quote": prompt]
             case "Replace Prefer tea with Prefer walks":
                 operation = ["op": "replace", "match": "Prefer tea", "text": "Prefer walks", "quote": prompt]
             case "Delete Prefer walks": operation = ["op": "delete", "match": "Prefer walks", "quote": prompt]
@@ -241,7 +269,7 @@ actor UITestChatModelClient: ChatModelClient {
             }
             if let operation {
                 // An actual proposal only; the fixture never applies or stores
-                // it. Native review, approval and persistence remain required.
+                // it. The App's own checks and persistence remain required.
                 return String(decoding: try JSONSerialization.data(withJSONObject:
                     ["action": "profile_edit", "arguments": operation]), as: UTF8.self)
             }
@@ -253,7 +281,6 @@ actor UITestChatModelClient: ChatModelClient {
             // The normal App dispatcher still validates the exact current quote.
             let memoryPrompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
             let profilePrompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
-            let declinedPrompt = "[fixture:mcp-memory-decline] Remember preference Prefer quiet"
             let current = messages.last?.content ?? ""
             func command(_ action: String, _ arguments: [String: Any]) throws -> String {
                 String(decoding: try JSONSerialization.data(withJSONObject:
@@ -276,12 +303,6 @@ actor UITestChatModelClient: ChatModelClient {
                     return #"{"action":"finish","answer":"MCP 個人檔案流程已完成。"}"#
                 }
                 return try command("profile_edit", ["op": "add", "text": "Prefer jasmine tea", "quote": profilePrompt])
-            }
-            if messages.contains(where: { $0.role == "user" && $0.content == declinedPrompt }) {
-                if current.hasPrefix("Host memory_save receipt") {
-                    return #"{"action":"finish","answer":"MCP 記憶流程已完成。"}"#
-                }
-                return try command("memory_save", ["kind": "preference", "content": "Prefer quiet", "quote": declinedPrompt, "keywords": ["quiet"]])
             }
             if let result = messages.last?.content, result.hasPrefix("MCP execution result") {
                 let raw = result.components(separatedBy: "\n").dropFirst().joined(separator: "\n")

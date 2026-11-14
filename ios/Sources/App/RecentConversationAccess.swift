@@ -6,7 +6,6 @@ import Foundation
 enum RecentConversationBlock: Equatable {
     case unavailable
     case activeTask
-    case pendingApproval
     case unsentDraft
     case unsavedReply
     case differentDestination
@@ -15,7 +14,6 @@ enum RecentConversationBlock: Equatable {
         switch self {
         case .unavailable: return .drawerRecentUnavailable
         case .activeTask: return .drawerRecentActiveTask
-        case .pendingApproval: return .drawerRecentPendingApproval
         case .unsentDraft: return .drawerRecentUnsentDraft
         case .unsavedReply: return .drawerRecentUnsavedReply
         case .differentDestination: return .drawerRecentDifferentDestination
@@ -33,9 +31,6 @@ enum RecentConversationBlock: Equatable {
               session.archive?.state.conversations.contains(where: { $0.id == record.id }) == true
         else { return .unavailable }
         guard !session.isSubmitting else { return .activeTask }
-        guard session.pendingProfileReview == nil,
-              session.pendingMemoryReview == nil
-        else { return .pendingApproval }
         // Waiting attachments, like a draft, are never discarded by opening another chat.
         guard session.draft.isEmpty, session.pendingAttachments.isEmpty else { return .unsentDraft }
         guard session.archiveNotice == nil, session.replyPreview == nil else { return .unsavedReply }

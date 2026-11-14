@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public struct ModelConfiguration: Sendable {
@@ -5,13 +6,29 @@ public struct ModelConfiguration: Sendable {
     public let model: String
     public let maxOutputTokens: Int
     public let vision: ModelVisionCapability
+    /// False only for a custom OpenAI-compatible service saved without a key
+    /// (Android AddForm.keyRequired): a blank key then sends no Authorization
+    /// header. Every preset needs a key.
+    public let requiresKey: Bool
+    /// The header this provider requires on every request, with this
+    /// conversation's value (OpenCode Go: x-opencode-session); nil sends none.
+    public let sessionHeader: ModelSessionHeader?
 
     public init(baseURL: URL, model: String, maxOutputTokens: Int = 1024,
-                vision: ModelVisionCapability = .unknown) {
+                vision: ModelVisionCapability = .unknown, requiresKey: Bool = true,
+                sessionHeader: ModelSessionHeader? = nil) {
         self.baseURL = baseURL
         self.model = model
         self.maxOutputTokens = maxOutputTokens
         self.vision = vision
+        self.requiresKey = requiresKey
+        self.sessionHeader = sessionHeader
+    }
+
+    /// The same destination, key rule and session header with another output limit.
+    public func withMaxOutputTokens(_ tokens: Int) -> ModelConfiguration {
+        ModelConfiguration(baseURL: baseURL, model: model, maxOutputTokens: tokens, vision: vision,
+                           requiresKey: requiresKey, sessionHeader: sessionHeader)
     }
 }
 
@@ -124,6 +141,62 @@ public enum HTTPChatModelError: Error, LocalizedError, Sendable, Equatable {
         case .consumerTooSlow: return "The model stream exceeded the pending output limit."
         case .timedOut: return "The model request exceeded its time limit."
         case .transportFailure: return "The model connection failed."
+        }
+    }
+}
+
+/// A header some providers require on every request, as Android's
+/// ClientHeaders and ModelSession (core model/ClientHeaders.kt): OpenCode Go
+/// rejects a request without x-opencode-session (HTTP 400) and uses it to keep
+/// one conversation's requests together. The value comes from the conversation
+/// id and never reveals it; a request outside a conversation (a connection
+/// test, one browser research run) gets a fresh value.
+public struct ModelSessionHeader: Equatable, Sendable {
+    public let name: String
+    public let value: String
+
+    /// Nil unless `name` is an HTTP token iOS may send (not one of the
+    /// request's own headers) and `value` is one short line of visible ASCII.
+    public init?(name: String, value: String) {
+        guard Self.isAllowed(name: name, value: value) else { return nil }
+        self.name = name; self.value = value
+    }
+
+    /// Android ModelSession.of: the same value for every request of one
+    /// conversation, another for another conversation. Like Java's
+    /// UUID.nameUUIDFromBytes, a version 3 UUID of "mika-conversation:<id>".
+    public static func conversation(_ conversationID: String, name: String) -> ModelSessionHeader? {
+        var bytes = Array(Insecure.MD5.hash(data: Data(("mika-conversation:" + conversationID).utf8)))
+        bytes[6] = (bytes[6] & 0x0f) | 0x30
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        let uuid = UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                               bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+        return ModelSessionHeader(name: name, value: uuid.uuidString.lowercased())
+    }
+
+    /// Android ModelSession.fresh: a request that belongs to no conversation.
+    public static func fresh(name: String) -> ModelSessionHeader? {
+        ModelSessionHeader(name: name, value: UUID().uuidString.lowercased())
+    }
+
+    /// Headers the request sets itself, or that a server or proxy treats as
+    /// part of the connection; a provider's session header is never one of them.
+    static let reservedNames: Set<String> = [
+        "accept", "accept-encoding", "authorization", "connection", "content-length", "content-type", "cookie",
+        "expect", "host", "keep-alive", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade",
+        "user-agent",
+    ]
+
+    static func isAllowed(name: String, value: String) -> Bool {
+        isToken(name) && !reservedNames.contains(name.lowercased())
+            && (1...256).contains(value.utf8.count) && value.utf8.allSatisfy { (0x21...0x7e).contains($0) }
+    }
+
+    /// An HTTP token (RFC 9110) of 1–64 bytes, so a name cannot inject another header.
+    static func isToken(_ name: String) -> Bool {
+        let extra = Set("!#$%&'*+-.^_`|~".utf8)
+        return (1...64).contains(name.utf8.count) && name.utf8.allSatisfy { byte in
+            (48...57).contains(byte) || (65...90).contains(byte) || (97...122).contains(byte) || extra.contains(byte)
         }
     }
 }

@@ -12,13 +12,12 @@ Owner decisions (2026-11-12, main conversation, AskUserQuestion answers):
 
 - "+" (`chat.attach.toggle`, "新增附件" / "收起附件面板", turns into × in 0.2 s) opens an inline panel under the
   input bar in the keyboard's place. × brings the keyboard back; focusing the draft or sending closes the panel.
-- Panel (`chat.attach.panel`): three tiles 相機 / 相簿 / 檔案 (76 pt, 16 pt corners), then 最近的照片.
+- Panel (`chat.attach.panel`): three tiles 相機 / 相簿 / 檔案 (76 pt, 16 pt corners), like Play's AttachPanel.
   - 相機: `UIImagePickerController` (iOS needs NSCameraUsageDescription; Android uses the system camera intent).
   - 相簿: `PHPickerViewController`, images, up to the room left in the tray; no permission needed.
   - 檔案: `UIDocumentPickerViewController` for any type, several at once, copied into the app.
-  - 最近的照片: PhotoKit, newest 120, four columns, numbered badges in tray order. Limited access shows
-    "你允許渥屋助理存取的照片" and "更改範圍" (`presentLimitedLibraryPicker`). Without access the panel explains
-    and offers "允許存取照片"; the system prompt is raised once automatically the first time the panel opens.
+  - The recent-photos grid (PhotoKit with full or limited library access) was removed on 2026-11-14 to match
+    the Play build, which uses only the system photo picker; the app no longer asks for photo library access.
 - Tray (`chat.attach.tray`): photos as 58 pt squares, files as cards with the Android extension badge colors,
   each with "去掉<name>". At most 9 attachments, photos and files together; each file at most 200 MB; less than
   500 MB free or more than 4 GB in one conversation also refuses. Notices: "一次最多 9 個附件,另外 N 個沒加上",

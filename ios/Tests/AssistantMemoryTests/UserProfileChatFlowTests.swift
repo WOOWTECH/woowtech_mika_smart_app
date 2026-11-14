@@ -205,6 +205,53 @@ private actor HeldProfileChatResponse: ChatModelClient {
             throw Failure(name: "Missing actual current user request accepted")
         } catch let actual as UserProfileChatError { try expect(actual == .invalidInput, "User input required") }
     }
+
+    /// The web entry is offered only when the host enables it, passes the
+    /// host's own validator, ends the turn, and never follows a saved edit.
+    static func webEntryStartsAWebTask() async throws {
+        let read = #"{"action":"web_read_page","url":"https://example.com/search?q=tea"}"#
+        let web = UserProfileChatSkillEntry(instructions: "WEB ENTRY RULES", accepts: { $0.contains("https://") })
+        let started = try UserProfileChatFlow(messages: [.init(role: "user", content: "找茶的新聞")], webEntry: web)
+        let model = ProfileChatResponses([read])
+        let step = try await started.advance(client: model, configuration: config, apiKey: "dummy")
+        try expect(step == .webEntry(json: read), "Web entry returns the exact command")
+        let sent = await model.requests
+        try expect(sent[0][0].content.hasPrefix(UserProfileChatFlow.instructions) && sent[0][0].content.hasSuffix("\nWEB ENTRY RULES"),
+                   "Host web wording follows the unchanged instructions")
+        try await error(.invalidPhase) { _ = try await started.advance(client: model, configuration: config, apiKey: "dummy") }
+
+        let plain = try flow(), refused = ProfileChatResponses([read, finish])
+        let answer = try await plain.advance(client: refused, configuration: config, apiKey: "dummy")
+        try expect(answer == .answer("已儲存，下次對話生效。"), "Without the host option a web command is only a format error")
+        let plainSent = await refused.requests
+        try expect(plainSent[0][0].content == UserProfileChatFlow.instructions, "No web wording unless enabled")
+
+        let strict = try UserProfileChatFlow(messages: [.init(role: "user", content: "找茶的新聞")],
+                                             webEntry: UserProfileChatSkillEntry(instructions: "WEB", accepts: { _ in false }))
+        let rejected = ProfileChatResponses([read, finish])
+        let corrected = try await strict.advance(client: rejected, configuration: config, apiKey: "dummy")
+        try expect(corrected == .answer("已儲存，下次對話生效。"), "A command the host validator refuses is corrected, not run")
+
+        // Both offers go in one system message, the skill tools first; each command reaches its own entry.
+        let skills = UserProfileChatSkillEntry(instructions: "SKILL RULES", accepts: { $0.contains("skill_search") })
+        let both = try UserProfileChatFlow(messages: [.init(role: "user", content: "找茶的新聞")], skillEntry: skills, webEntry: web)
+        let bothModel = ProfileChatResponses([read])
+        let webStep = try await both.advance(client: bothModel, configuration: config, apiKey: "dummy")
+        let bothSent = await bothModel.requests
+        try expect(bothSent[0][0].content == UserProfileChatFlow.instructions + "\nSKILL RULES\nWEB ENTRY RULES", "one offer message")
+        try expect(webStep == .webEntry(json: read), "a web command reaches the web entry")
+        let skill = #"{"action":"skill_search","arguments":{"query":"茶"}}"#
+        let skillFlow = try UserProfileChatFlow(messages: [.init(role: "user", content: "有什麼茶的技能？")], skillEntry: skills, webEntry: web)
+        let skillStep = try await skillFlow.advance(client: ProfileChatResponses([skill]), configuration: config, apiKey: "dummy")
+        try expect(skillStep == .skillEntry(json: skill), "a skill command reaches the skill entry")
+
+        let edited = try UserProfileChatFlow(messages: [.init(role: "user", content: "請在個人檔案記下我喜歡茶")], webEntry: web)
+        let afterEdit = ProfileChatResponses([proposal, read, finish])
+        _ = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try edited.recordCommitted(entryID: UUID())
+        let final = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try expect(final == .answer("已儲存，下次對話生效。") && edited.didCommit, "No web task after a saved edit")
+    }
 }
 
 #if PROFILE_CHAT_STANDALONE
@@ -215,7 +262,8 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await ProfileChatFlowChecks.cancellationAndDeadline()
         try await ProfileChatFlowChecks.memorySearchThenReviewedEdit()
         try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites()
-        print("Learning chat flow: 5 behavioral groups passed; no model network or persistence implied")
+        try await ProfileChatFlowChecks.webEntryStartsAWebTask()
+        print("Learning chat flow: 6 behavioral groups passed; no model network or persistence implied")
     }
 }
 #else
@@ -225,5 +273,6 @@ final class UserProfileChatFlowTests: XCTestCase {
     @MainActor func testCancelledAndExpiredTurnsRejectLateResults() async throws { try await ProfileChatFlowChecks.cancellationAndDeadline() }
     @MainActor func testMemorySearchThenReviewedEditSharesTheWholeTurnBudget() async throws { try await ProfileChatFlowChecks.memorySearchThenReviewedEdit() }
     @MainActor func testMemoryOperationsAreBoundedAndNeverImplicitWrites() async throws { try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites() }
+    @MainActor func testWebEntryIsOptInValidatedAndEndsTheTurn() async throws { try await ProfileChatFlowChecks.webEntryStartsAWebTask() }
 }
 #endif

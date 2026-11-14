@@ -127,6 +127,25 @@ import Foundation
         scheduleWork(); return true
     }
 
+    /// One notice for a web task that iOS pauses in the background, or that
+    /// waits for the person. It only opens the app (no action approves
+    /// anything), replaces an earlier notice and goes when the app is active.
+    @discardableResult public func postNotice(_ kind: TaskNotificationKind, destination: TaskNotificationDestination) -> Bool {
+        guard kind == .webPaused || kind == .webNeedsYou, canCreatePayload else { return false }
+        clearNotices()
+        guard let ticket = begin(destination: destination, deadline: now().addingTimeInterval(Self.maximumRunLifetime)) else { return false }
+        records[ticket]?.completed = true
+        records[ticket]?.payload = TaskNotificationPayload(kind: kind, destination: destination)
+        scheduleWork(); return true
+    }
+
+    public func clearNotices() {
+        for ticket in order where records[ticket]?.payload.map({ $0.kind == .webPaused || $0.kind == .webNeedsYou }) == true {
+            records.removeValue(forKey: ticket)
+        }
+        order.removeAll { records[$0] == nil }; scheduleWork(); armExpiry()
+    }
+
     /// Call when resigning active; mirrors existing host approval cancellation, adds no background execution.
     public func invalidateApprovals() {
         for ticket in order where records[ticket]?.approvalID != nil { records.removeValue(forKey: ticket) }

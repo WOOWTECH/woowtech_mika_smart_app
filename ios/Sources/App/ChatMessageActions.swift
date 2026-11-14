@@ -50,6 +50,7 @@ struct ChatMessageMenuText {
     var selectText: String { localizer.text(.chatMessageSelectText) }
     var selectHint: String { localizer.text(.chatMessageSelectHint) }
     var selectDone: String { localizer.text(.chatMessageSelectDone) }
+    var report: String { localizer.text(.chatReportAction) }
     var branch: String { localizer.text(.chatBranch) }
     var askAgain: String { localizer.text(.chatBranchRetry) }
     var titleSuffix: String { localizer.text(.chatBranchTitleSuffix) }
@@ -71,13 +72,13 @@ struct ChatMessageMenuText {
 }
 
 enum ChatMessageAction {
-    case copy, quote, selectText, branch, askAgain
+    case copy, quote, selectText, report, branch, askAgain
 }
 
 /// The long-press menu on one message (Android MessageMenu): copy, quote and
-/// select text, then 從這裡分支 on a finished reply or 從這裡重新問 on your
-/// own message, each only while it works. The same entries are VoiceOver
-/// actions.
+/// select text, 檢舉 AI 回覆 on a saved reply (the Play build's report), then
+/// 從這裡分支 on a finished reply or 從這裡重新問 on your own message, each
+/// only while it works. The same entries are VoiceOver actions.
 struct ChatMessageMenu: ViewModifier {
     let entry: ChatEntry
     let targets: ChatMessageActionTargets
@@ -95,6 +96,9 @@ struct ChatMessageMenu: ViewModifier {
         item(.copy, text.copy, symbol: "doc.on.doc", id: "copy")
         if targets.saved.contains(entry.id) { item(.quote, text.quote, symbol: "text.quote", id: "quote") }
         item(.selectText, text.selectText, symbol: "selection.pin.in.out", id: "selectText")
+        if entry.role == "assistant" && targets.saved.contains(entry.id) {
+            item(.report, text.report, symbol: "ladybug", id: "report")
+        }
         if targets.replies.contains(entry.id) { item(.branch, text.branch, symbol: "arrow.triangle.branch", id: "branch") }
         if targets.questions.contains(entry.id) { item(.askAgain, text.askAgain, symbol: "arrow.triangle.branch", id: "askAgain") }
     }

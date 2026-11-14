@@ -26,11 +26,11 @@ Debug 和 Release 的麥克風說明涵蓋聊天及經同意的網站；兩者�
 | 手動瀏覽與保留分頁 | [`BrowserSession.webView`](../Sources/App/BrowserSession.swift) 延遲建立並保留 WebView；[`BrowserWorkspace`](../Sources/App/BrowserWorkspace.swift) 管理多個 session。網站可能播放媒體，符合條件的手動頁面可向 WebKit 要求麥克風權限。切換分頁與 `cancel()` 的 `stopLoading()` 不是媒體停止或 WebView 已釋放的證據。 |
 | 新視窗／彈出分頁 | `BrowserWorkspace.makeSession` 的 `onCreateWindow` 建立另一個 `BrowserSession` 並取得其 WebView，須共用相同登記，不是額外獨立的安全域。 |
 | 多來源研究 | [`MultiSourceResearchWebKitExecutor`](../Sources/App/MultiSourceResearchSession.swift) 為來源建立多個非持久 `BrowserSession`；視圖被覆蓋或研究取消不等於 WebKit 媒體已原生停止。 |
-| 來源搜尋 | [`ResearchSourceDiscoveryWebKit`](../Sources/AssistantBrowser/ResearchSourceDiscoveryWebKit.swift) 在 AssistantBrowser framework 直接建立另一個非持久 WebView。雖然限制載入資源及 JavaScript，仍需將它納入生命週期盤點，不能單憑規則斷言對共享音訊無影響。 |
+| 對話網頁任務 | [`ChatWebTaskTab`](../Sources/App/ChatWebTaskTab.swift) 為對話叫的網頁任務建立一個 WebView，共用內建瀏覽器的網站資料。媒體一律要使用者操作才播放（`mediaTypesRequiringUserActionForPlayback = .all`），麥克風與相機一律拒絕，任務進行中畫面不能點；任務結束後載入空白頁再釋放。這些規則不是媒體已停止的證據，仍需納入生命週期盤點。 |
 | App 原生錄音 | [`AppleVoiceInputDriver`](../Sources/App/AppleVoiceInputDriver.swift) 是尚未接線的 `AVAudioEngine`／Speech 候選；[`AppleVoiceAudioSessionAccess`](../Sources/App/AppleVoiceAudioSessionAccess.swift) 是候選 session 操作層。來源樹未找到其他直接 `AVAudioSession`、`AVAudioEngine` 或 `AVPlayer` 建立路徑；這不是對系統／第三方框架內部音訊的完整證明。 |
 | 系統通知 | [`TaskNotificationCenterAdapter`](../Sources/App/TaskNotificationCenterAdapter.swift) 可要求系統播放預設通知聲；它不直接設定此 App 的 `AVAudioSession`。通知、來電及其他 App 的系統中斷仍須原生驗證。 |
 
-靜態測試追蹤來源樹中兩個直接 `WKWebView(...)` 建立點，新增點必須重審；它不能捕捉所有動態建立方式或框架內部行為。Apple 的 [WebKit 播放狀態](https://developer.apple.com/documentation/webkit/wkwebview/requestmediaplaybackstate%28completionhandler%3A%29)及[麥克風擷取狀態](https://developer.apple.com/documentation/webkit/wkwebview/microphonecapturestate)可供原生檢查；由於播放查詢取得的是當下狀態，而頁面之後仍可能變化，單次查詢不足以建立持續獨占。這是依 API 與現有程式做的保守判斷，尚待原生測試。
+靜態測試追蹤來源樹中兩個直接 `WKWebView(...)` 建立點（`BrowserSession` 與 `ChatWebTaskTab`；來源搜尋已移除），新增點必須重審；它不能捕捉所有動態建立方式或框架內部行為。Apple 的 [WebKit 播放狀態](https://developer.apple.com/documentation/webkit/wkwebview/requestmediaplaybackstate%28completionhandler%3A%29)及[麥克風擷取狀態](https://developer.apple.com/documentation/webkit/wkwebview/microphonecapturestate)可供原生檢查；由於播放查詢取得的是當下狀態，而頁面之後仍可能變化，單次查詢不足以建立持續獨占。這是依 API 與現有程式做的保守判斷，尚待原生測試。
 
 ### 有條件可取得的隔離 fence
 
@@ -42,7 +42,7 @@ Debug 和 Release 的麥克風說明涵蓋聊天及經同意的網站；兩者�
 
 lease 的撤銷閉包型別為 `@MainActor`。撤銷先同步通知 driver 停止 engine，再由 driver 明確 release；未確認 release 時保留 fence 並拒絕新租用。啟用過程中重入取消會延後回收，直到啟用呼叫返回；重複撤銷與過期回呼不觸及新持有者。候選嘗試停用並還原 category／mode／options，但僅回報 `restorationAttempted`，不宣稱先前活動狀態已被證明完全恢復。任何步驟失敗或 fence owner 不接受交還，協調器進入 quarantine 並拒絕新租用；provider 必須保留 fence 直到獨立排除不確定性。系統 `setActive(false)` 在音訊物件仍運作時可能使其停止，即使回報錯誤也是如此；因此先停止 engine 的順序是必要條件。[Apple 文件](https://developer.apple.com/documentation/avfaudio/avaudiosession/setactive%28_%3Aoptions%3A%29?changes=_6)。
 
-App 接入需要在兩個 WebView 建立點 **之前** 取得同一個 runtime 的 ticket；既有 `BrowserSession.webView` 與來源搜尋建立器都不是可失敗的 API，須設計可呈現的拒絕／等待路徑，不可在被拒後偷偷建立另一個 WebView。只有在原生驗證其媒體與擷取已終止、WebKit 不再持有可執行音訊的資源後才歸還 ticket；僅靠 `stopLoading`、切換頁面、參考計數或單次播放狀態不夠。來源搜尋位於另一 framework，需明確注入同一 runtime 的准入能力。系統中斷或所有權不可確認時呼叫 `systemStateBecameUncertain()` 並保持 quarantine；重建 owner 前須由宿主完成獨立協調，不能自行清除。
+App 接入需要在兩個 WebView 建立點 **之前** 取得同一個 runtime 的 ticket；既有 `BrowserSession.webView` 與 `ChatWebTaskTab` 都不是可失敗的 API，須設計可呈現的拒絕／等待路徑，不可在被拒後偷偷建立另一個 WebView。只有在原生驗證其媒體與擷取已終止、WebKit 不再持有可執行音訊的資源後才歸還 ticket；僅靠 `stopLoading`、切換頁面、參考計數或單次播放狀態不夠。來源搜尋位於另一 framework，需明確注入同一 runtime 的准入能力。系統中斷或所有權不可確認時呼叫 `systemStateBecameUncertain()` 並保持 quarantine；重建 owner 前須由宿主完成獨立協調，不能自行清除。
 
 目前無可驗證的正式全 App fence 整合；新版混音工廠不以這份 fence 作為前提，仍待原生驗證及介面接線。候選 Apple session adapter 只提供被注入的系統操作，沒有替既有 App 取得所有權；不能因純 Swift 假物件測試通過而宣稱與 WebKit、音訊中斷或系統 active 狀態相容。
 

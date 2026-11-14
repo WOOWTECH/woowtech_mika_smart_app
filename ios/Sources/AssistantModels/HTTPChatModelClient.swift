@@ -189,8 +189,10 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                         includeUsage: Bool = false) throws -> URLRequest {
         let model = configuration.model.trimmingCharacters(in: .whitespacesAndNewlines)
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty, !key.isEmpty, (1...8192).contains(configuration.maxOutputTokens),
+        // Only a custom service saved without a key may go without one.
+        guard !model.isEmpty, !key.isEmpty || !configuration.requiresKey, (1...8192).contains(configuration.maxOutputTokens),
               !apiKey.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
+              configuration.sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0.name, value: $0.value) }) ?? true,
               var parts = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false),
               parts.scheme?.lowercased() == "https", let host = parts.host, !host.isEmpty,
               parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil else {
@@ -205,10 +207,11 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 90)
         request.httpMethod = "POST"
         request.httpShouldHandleCookies = false
-        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        if !key.isEmpty { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue(stream ? "text/event-stream" : "application/json", forHTTPHeaderField: "Accept")
+        if let header = configuration.sessionHeader { request.setValue(header.value, forHTTPHeaderField: header.name) }
         request.httpBody = try OpenAIChatRequest.body(model: model, messages: messages, stream: stream,
                                                       maxOutputTokens: configuration.maxOutputTokens,
                                                       vision: configuration.vision, includeUsage: includeUsage)

@@ -60,8 +60,8 @@ public final class ModelConnectionCheck {
         guard generation == current else { return }
         state = .testing
         guard generation == current, state == .testing else { return }
-        let probe = ModelConfiguration(baseURL: configuration.baseURL, model: configuration.model,
-                                       maxOutputTokens: 32)
+        // The provider's key rule and session header stay; only the output is cut short.
+        let probe = configuration.withMaxOutputTokens(32)
         #if DEBUG
         let fixtureSettled = onFixtureAttemptSettled
         #endif

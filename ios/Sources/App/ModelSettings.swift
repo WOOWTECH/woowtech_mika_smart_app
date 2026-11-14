@@ -13,14 +13,30 @@ struct SavedModelSettings: Codable {
     /// The provider of the main model. Nil in a single record: the script
     /// service's, and the v1 setting before its import.
     var providerID: UUID? = nil
+    /// The header the main model's provider requires on every request
+    /// (OpenCode Go: x-opencode-session); nil sends none.
+    var sessionHeader: String? = nil
 
     // Exactly the v1 record's keys; the provider never enters that record.
     private enum CodingKeys: String, CodingKey { case baseURL, model, credentialAccount, seesImages }
 
-    var configuration: ModelConfiguration {
-        ModelConfiguration(baseURL: baseURL, model: model,
-                           vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown)
+    /// A provider saved without a key (only a custom OpenAI-compatible one)
+    /// sends none; every other record needs its Keychain item.
+    var requiresKey: Bool { providerID == nil || !credentialAccount.isEmpty }
+
+    /// The request settings for one conversation, whose id gives the
+    /// provider's session header its value; nil (work outside a conversation)
+    /// takes a fresh value.
+    func configuration(conversation: String?) -> ModelConfiguration {
+        let header = sessionHeader.flatMap { name in
+            conversation.map { ModelSessionHeader.conversation($0, name: name) } ?? ModelSessionHeader.fresh(name: name)
+        }
+        return ModelConfiguration(baseURL: baseURL, model: model,
+                                  vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown,
+                                  requiresKey: requiresKey, sessionHeader: header)
     }
+
+    var configuration: ModelConfiguration { configuration(conversation: nil) }
 
     /// Provider, model and Keychain item, compared instead of the key. A
     /// record without a provider counts its account as one, as the import does.
@@ -34,9 +50,17 @@ struct SavedModelSettings: Codable {
 enum ModelSettingsError: Error, LocalizedError {
     case invalidURL, missingModel, missingKey, changedOrigin, invalidKey, unavailableKeychain
     case keychainStatus(OSStatus)
+    /// The provider document already holds as many providers as it can.
+    case tooManyProviders
+    /// The main model would change to a provider the user has not agreed to send content to.
+    case consentRequired
 
     var errorDescription: String? {
         switch self {
+        case .tooManyProviders:
+            return "服務商已達上限，請先刪除不用的服務商。"
+        case .consentRequired:
+            return "還沒有同意把內容傳給這家服務商，設定未變更。"
         case .invalidURL:
             return "請輸入完整的 HTTPS Base URL，不可包含帳密、查詢參數或片段。"
         case .missingModel:
@@ -53,6 +77,18 @@ enum ModelSettingsError: Error, LocalizedError {
             return "Keychain 存取失敗（系統代碼 \(status)），設定未變更。"
         }
     }
+}
+
+/// What saving the add-provider form did.
+struct ModelProviderSaved {
+    /// The main model afterwards; nil while none is chosen.
+    let main: SavedModelSettings?
+    let providerID: UUID
+    let providerName: String
+    /// The typed model became the main model.
+    let becameMain: Bool
+    /// Deleting a replaced key failed; the sweep retries it.
+    let cleanupFailed: Bool
 }
 
 protocol ModelCredentialStoring {
@@ -230,7 +266,19 @@ final class ModelSettingsRepository {
     }
 
     static func validate(baseURL: String, model: String) throws -> ModelConfiguration {
-        let address = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = try validatedAddress(baseURL)
+        let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !model.isEmpty, !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+            throw ModelSettingsError.missingModel
+        }
+        return ModelConfiguration(baseURL: url, model: model)
+    }
+
+    /// A typed address as a provider can hold it: HTTPS with a host and a valid
+    /// port, nothing a key could leak through (no user, password, query or
+    /// fragment), and no spaces or control characters.
+    static func validatedAddress(_ raw: String) throws -> URL {
+        let address = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0) }),
               validRawPort(in: address),
               let components = URLComponents(string: address),
@@ -239,12 +287,8 @@ final class ModelSettingsRepository {
               components.user == nil, components.password == nil,
               components.query == nil, components.fragment == nil,
               components.port.map({ (1...65535).contains($0) }) ?? true,
-              let url = components.url else { throw ModelSettingsError.invalidURL }
-        let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty, !model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-            throw ModelSettingsError.missingModel
-        }
-        return ModelConfiguration(baseURL: url, model: model)
+              let url = components.url, ModelProviderAddress.isValid(url) else { throw ModelSettingsError.invalidURL }
+        return url
     }
 
     /// Inspect the original authority before Foundation can discard an empty
@@ -282,6 +326,8 @@ final class ModelSettingsRepository {
     }
 
     func key(for record: SavedModelSettings) throws -> String {
+        // A provider saved without a key sends none.
+        if !record.requiresKey { return "" }
         guard UUID(uuidString: record.credentialAccount) != nil,
               let key = try credentials.read(account: record.credentialAccount), !key.isEmpty else {
             throw ModelSettingsError.missingKey
@@ -293,6 +339,9 @@ final class ModelSettingsRepository {
     // edit followed by a return to the original values. It contains no key.
     var revision: String { defaults.string(forKey: Self.revisionKey) ?? "legacy" }
 
+    /// The single form's save: the script service's one record, or the main
+    /// provider (phase 1a). Records no consent; Settings › 模型 saves through
+    /// addProvider and chooseMain, after its consent screen.
     func save(baseURL: String, model: String, newKey: String) throws -> (record: SavedModelSettings, cleanupFailed: Bool) {
         try Self.withSpeechDispatchLock {
             providers == nil ? try saveRecordLocked(baseURL: baseURL, model: model, newKey: newKey)
@@ -374,9 +423,10 @@ final class ModelSettingsRepository {
         }
     }
 
-    /// Whether saving the form for this address needs the AI-sharing consent
-    /// (App Review 5.1.2(i)) first: the first save ever, or a provider other
-    /// than the one last agreed to. The screen that asks comes later.
+    /// Whether saving the single form for this address needs the AI-sharing
+    /// consent (App Review 5.1.2(i)) first: the first save ever, or a provider
+    /// other than the one last agreed to. Settings › 模型 asks on its consent
+    /// screen (ModelConsentSheet) through addProvider and chooseMain.
     func consentRequirement(forSaving baseURL: URL) throws -> ModelConsentRequirement {
         try Self.withSpeechDispatchLock {
             let document = try documentLocked() ?? ModelProvidersDocument()
@@ -390,6 +440,130 @@ final class ModelSettingsRepository {
             guard var document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
             try document.recordConsent(forProvider: id, at: date)
             try publish(document.encoded(), insertedAccount: nil)
+        }
+    }
+
+    /// Saves the add-provider form (Android ModelSetupViewModel.testAndSave and
+    /// saveWithoutTest through ProviderStore.connect). A typed key goes in
+    /// under a new account first, then the document is published, and a
+    /// replaced key's item is deleted last. The typed model becomes the main
+    /// model only while none is chosen, and only with the user's consent
+    /// (`consentedAt`), which is recorded in the same document.
+    func addProvider(name: String, baseURL: String, sessionHeader: String?, keyRequired: Bool, key: String,
+                     model: String?, tested: Bool, consentedAt: Date?) throws -> ModelProviderSaved {
+        try Self.withSpeechDispatchLock {
+            guard providers != nil else { throw ModelSettingsError.missingModel }
+            let url = try Self.validatedAddress(baseURL)
+            let model = model?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let model, model.isEmpty || model.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) {
+                throw ModelSettingsError.missingModel
+            }
+            let key = try Self.checkedKey(key)
+            // Android providerName: a blank custom name is the host (or the preset at this address).
+            let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = trimmedName.isEmpty ? ModelProviderPresets.displayName(for: url) : trimmedName
+            let draft = ModelProviderDraft(name: name, baseURL: url, sessionHeader: sessionHeader, keyRequired: keyRequired,
+                                           hasNewKey: !key.isEmpty, model: model, tested: tested)
+            let document = try documentLocked() ?? ModelProvidersDocument()
+            let addition: ModelProviderAddition
+            do { addition = try document.addingProvider(draft, consentedAt: consentedAt) }
+            catch let error as ModelProvidersError { throw Self.settingsError(error) }
+            let data = try addition.document.encoded()
+            if let account = addition.newAccount { try credentials.insert(key, account: account.uuidString) }
+            // Published only after the new item exists; the old item goes last.
+            try publish(data, insertedAccount: addition.newAccount)
+            return ModelProviderSaved(main: Self.main(in: addition.document), providerID: addition.provider.id,
+                                      providerName: addition.provider.name, becameMain: addition.becameMain,
+                                      cleanupFailed: retire(addition.retiredAccounts))
+        }
+    }
+
+    /// Android ProviderStore.use(Main): makes a model of a provider the main
+    /// model. A provider other than the one last agreed to needs the user's
+    /// consent (`consentedAt`); without it nothing changes.
+    func chooseMain(_ ref: ModelRef, typed: Bool, verified: Bool, consentedAt: Date?) throws -> SavedModelSettings {
+        try Self.withSpeechDispatchLock {
+            guard let document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            let next: ModelProvidersDocument
+            do { next = try document.choosingMain(ref, typed: typed, verified: verified, consentedAt: consentedAt) }
+            catch let error as ModelProvidersError { throw Self.settingsError(error) }
+            guard let record = Self.main(in: next) else { throw ModelSettingsError.missingModel }
+            try publish(next.encoded(), insertedAccount: nil)
+            return record
+        }
+    }
+
+    /// A model of this provider answered a test call ("重新測試").
+    func markVerified(providerID: UUID, model: String) throws {
+        try Self.withSpeechDispatchLock {
+            guard let document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            try publish(document.markingVerified(providerID: providerID, model: model).encoded(), insertedAccount: nil)
+        }
+    }
+
+    /// Android updateProviderKey: the new key under a new account, the
+    /// document, then the old item. Returns the main model afterwards and
+    /// whether deleting the old item failed (the sweep retries it).
+    func changeKey(providerID: UUID, newKey: String) throws -> (main: SavedModelSettings?, cleanupFailed: Bool) {
+        try Self.withSpeechDispatchLock {
+            let key = try Self.checkedKey(newKey)
+            guard !key.isEmpty else { throw ModelSettingsError.missingKey }
+            guard let document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            let change = try document.changingKey(providerID: providerID)
+            let data = try change.document.encoded()
+            try credentials.insert(key, account: change.newAccount.uuidString)
+            try publish(data, insertedAccount: change.newAccount)
+            return (Self.main(in: change.document), retire(change.retiredAccount.map { [$0] } ?? []))
+        }
+    }
+
+    /// The user's "能看圖" answer for one model of one provider. Returns the
+    /// main model afterwards, whose answer may be this one.
+    func setVision(_ sees: Bool?, providerID: UUID, model: String) throws -> SavedModelSettings? {
+        try Self.withSpeechDispatchLock {
+            guard var document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            try document.setVision(sees, providerID: providerID, model: model)
+            try publish(document.encoded(), insertedAccount: nil)
+            return Self.main(in: document)
+        }
+    }
+
+    /// The user agreed, before a send, to share their content with the main
+    /// model's provider: an update from before the consent existed.
+    func recordConsentForMain(at date: Date = Date()) throws {
+        try Self.withSpeechDispatchLock {
+            guard var document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            try document.recordConsentForMain(at: date)
+            try publish(document.encoded(), insertedAccount: nil)
+        }
+    }
+
+    /// A provider's key for a test call; empty for a provider saved without one.
+    func storedKey(forProvider id: UUID) throws -> String {
+        try Self.withSpeechDispatchLock {
+            guard let provider = try documentLocked()?.provider(id: id) else { throw ModelProvidersError.unknownProvider }
+            guard let account = provider.credentialAccount else { return "" }
+            return try storedKey(account: account)
+        }
+    }
+
+    /// Providers whose Keychain item exists, read from the account names only
+    /// (no key is read). Nil when the Keychain cannot list them.
+    func providersWithKeys(in document: ModelProvidersDocument) -> Set<UUID>? {
+        guard let accounts = (try? credentials.allAccounts()) ?? nil else { return nil }
+        let stored = Set(accounts.compactMap(UUID.init(uuidString:)))
+        return Set(document.providers.compactMap { provider in
+            provider.credentialAccount.flatMap { stored.contains($0) ? provider.id : nil }
+        })
+    }
+
+    private static func settingsError(_ error: ModelProvidersError) -> Error {
+        switch error {
+        case .missingKey: return ModelSettingsError.missingKey
+        case .changedOrigin: return ModelSettingsError.changedOrigin
+        case .tooManyProviders: return ModelSettingsError.tooManyProviders
+        case .consentRequired: return ModelSettingsError.consentRequired
+        case .invalidDocument, .unsupportedVersion, .tooLarge, .unknownProvider: return error
         }
     }
 
@@ -418,7 +592,8 @@ final class ModelSettingsRepository {
         }
         return SavedModelSettings(baseURL: provider.baseURL, model: main.model,
                                   credentialAccount: provider.credentialAccount?.uuidString ?? "",
-                                  seesImages: provider.visionOverrides[main.model], providerID: provider.id)
+                                  seesImages: provider.visionOverrides[main.model], providerID: provider.id,
+                                  sessionHeader: provider.sessionHeader)
     }
 
     /// Advances the revision, then replaces the document. A key written for

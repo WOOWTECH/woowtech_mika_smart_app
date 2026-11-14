@@ -11,7 +11,6 @@ struct BrowserStartPageView: View {
     let query: String
     let onSubmit: () -> Void
     let onOpen: (URL) -> Void
-    let onManageBookmarks: () -> Void
     @State private var editing = false
     @State private var confirmClearHistory = false
     @State private var showAddHint = false
@@ -59,7 +58,6 @@ struct BrowserStartPageView: View {
                 .accessibilityIdentifier("browser.start.history.confirmClear")
         }
         .alert(localizer.text(.browserStartAddBookmark), isPresented: $showAddHint) {
-            Button(localizer.text(.browserStartViewBookmarks)) { onManageBookmarks() }
             Button(localizer.text(.browserStartOK), role: .cancel) {}
         } message: {
             Text(localizer.text(.browserStartAddBookmarkHelp))
@@ -89,7 +87,7 @@ struct BrowserStartPageView: View {
                     } label: {
                         VStack(spacing: 7) {
                             siteTile(page.url.host ?? "", size: 54)
-                            Text(page.title).font(.caption).foregroundStyle(palette.secondary)
+                            Text(localizer.stored(page.title)).font(.caption).foregroundStyle(palette.secondary)
                                 .lineLimit(1).frame(maxWidth: .infinity)
                         }
                     }
@@ -180,7 +178,7 @@ struct BrowserStartPageView: View {
                         Text(localizer.text(.browserHistorySearch(query: match.query))).lineLimit(1)
                         Text(match.engineName).font(.caption).foregroundStyle(palette.tertiary)
                     } else {
-                        Text(page.title).lineLimit(1)
+                        Text(localizer.stored(page.title)).lineLimit(1)
                         Text(page.url.host ?? "").font(.caption).foregroundStyle(palette.tertiary).lineLimit(1)
                     }
                 }

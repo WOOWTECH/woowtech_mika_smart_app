@@ -302,7 +302,7 @@ import XCTest
         try expect(service.mayPresent(identifier: payload.identifier), "explicit valid test may present foreground")
         center.deliver(); clock = clock.addingTimeInterval(30); service.expire(); await service.waitUntilIdle()
         try expect(center.delivered.isEmpty && !service.mayPresent(identifier: payload.identifier), "test expires at 30 seconds")
-        for kind in [TaskNotificationKind.completed, .approval, .test] {
+        for kind in [TaskNotificationKind.completed, .approval, .test, .webPaused, .webNeedsYou] {
             for destination in [TaskNotificationDestination.chat, .browser] {
                 let value = TaskNotificationPayload(kind: kind, destination: destination)
                 try expect(TaskNotificationPayload.destination(for: value.identifier) == destination, "only enum destination recovered")
@@ -317,6 +317,38 @@ import XCTest
         center.value = TaskNotificationSettings(authorization: .provisional)
         let quiet = await service.sendTestFromUserGesture()
         try expect(!quiet && center.permissionCalls == 0, "test requires full authorization without prompting")
+        service.disable(); await service.waitUntilIdle()
+    }
+
+    /// A web task paused in the background or waiting for the person: one
+    /// notice that only opens the app, replaced by the next, gone when active.
+    static func webTaskNotices() async throws {
+        let center = TaskNotificationFakeCenter()
+        let off = TaskNotificationService(client: center)
+        await off.refresh()
+        try expect(!off.postNotice(.webPaused, destination: .chat), "default off: no notice")
+        let service = await active(center)
+        try expect(!service.postNotice(.completed, destination: .chat) && !service.postNotice(.approval, destination: .chat),
+                   "only web task notices")
+        try expect(service.postNotice(.webPaused, destination: .chat), "paused notice accepted")
+        await service.waitUntilIdle()
+        let paused = center.additions.last!.payload
+        try expect(center.pending.count == 1 && paused.kind == .webPaused && paused.title == "網頁任務已暫停"
+                   && paused.body == "回到渥屋助理就會繼續。", "paused notice text")
+        try expect(service.postNotice(.webNeedsYou, destination: .chat), "needs-you notice accepted")
+        await service.waitUntilIdle()
+        let needsYou = center.additions.last!.payload
+        try expect(center.pending.count == 1 && center.pending[needsYou.identifier] != nil && needsYou.title == "網頁任務需要你處理",
+                   "the newer notice replaces the earlier one")
+        try expect(needsYou.body.contains("通知不會核准操作"), "a notice never approves")
+        let ticket = try begin(service)
+        service.receive(.completed, for: ticket)
+        service.clearNotices(); await service.waitUntilIdle()
+        try expect(center.pending.count == 1 && center.pending.values.allSatisfy { $0.kind == .completed },
+                   "back in the app the notice goes; other results stay")
+        center.value = TaskNotificationSettings(authorization: .denied)
+        await service.refresh()
+        try expect(!service.postNotice(.webPaused, destination: .chat), "no notice without permission")
         service.disable(); await service.waitUntilIdle()
     }
 }

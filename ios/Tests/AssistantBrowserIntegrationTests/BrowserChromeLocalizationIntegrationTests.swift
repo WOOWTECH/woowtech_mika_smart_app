@@ -17,7 +17,7 @@ import XCTest
             .browserChromeExplanation, .browserChromeFind, .browserChromeCurrentDesktop,
             .browserChromeCurrentMobile, .browserChromeMobileWebsite, .browserChromeDesktopWebsite,
             .browserChromeSiteModeHelp, .browserChromeSiteMode, .browserChromeDesktop,
-            .browserChromeMobile, .browserChromeMultiResearch, .browserChromeTranscript,
+            .browserChromeMobile,
             .browserChromeBack, .browserChromeForward, .browserChromeHome, .browserChromeShare,
             .browserChromeShareUnavailable, .browserChromeMore, .browserChromeWebsite,
             .browserChromeCopyLink, .browserChromeOpenOutside,
@@ -50,7 +50,7 @@ import XCTest
         XCTAssertEqual(english.text(.browserChromeHome), "Start page")
         XCTAssertEqual(hant.text(.browserPageAskResearch), "問渥屋助理研究此網站")
         XCTAssertEqual(simplifiedSystem.text(.browserPageAskResearch), "問渥屋助理研究此網站")
-        XCTAssertEqual(english.text(.browserPageAskResearch), "Ask the assistant to research this site")
+        XCTAssertEqual(english.text(.browserPageAskResearch), "Ask woowtech agent to research this site")
         XCTAssertEqual(hant.text(.browserChromeOpenOutside), "在其他 App 開啟")
         XCTAssertEqual(simplifiedSystem.text(.browserChromeOpenOutside), "在其他 App 開啟")
         XCTAssertEqual(english.text(.browserChromeOpenOutside), "Open in another app")

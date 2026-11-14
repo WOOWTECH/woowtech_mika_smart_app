@@ -37,7 +37,7 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 95), .completed)
         XCTAssertFalse(app.staticTexts["mcp.error"].exists, "Actual MCP discovery failed.")
         selectTool("ha_eval_template")
-        if name.contains("testRealModelUsesRemoteToolThenReviewedLocalMemoryAndUndo") {
+        if name.contains("testRealModelUsesRemoteToolThenLocalMemoryAndUndo") {
             let count = app.staticTexts["mcp.selectionCount"]
             revealLearningElement(count, in: app, visibility: .readableText)
             XCTAssertTrue(count.label == "已選取 1 個工具供對話使用")
@@ -94,14 +94,12 @@ final class LiveMCPConversationUITests: XCTestCase {
                       "Exactly two actual results and zero tool errors must be reported.")
     }
 
-    func testRealModelUsesRemoteToolThenReviewedLocalMemoryAndUndo() throws {
+    func testRealModelUsesRemoteToolThenLocalMemoryAndUndo() throws {
         let sentence = "Prefer jasmine tea"
         // Same instruction as the successful actual MCP/App harness. Native UI
-        // must deliver the prompt and approve the memory review; no seeded
-        // draft. The selected remote tool runs with no approval card.
-        let prompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review the local write. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
-        let memoryReview = app.staticTexts["memoryTool.operation"].firstMatch
-        let profileReview = app.staticTexts["profileTool.operation"].firstMatch
+        // must deliver the prompt; no seeded draft. Like the Play build, the
+        // selected remote tool and the local memory_save run with no card.
+        let prompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
         let error = app.staticTexts["chat.error"].firstMatch
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
 
@@ -170,14 +168,14 @@ final class LiveMCPConversationUITests: XCTestCase {
         func fixedPhase(_ phase: String) -> String {
             let activity = app.staticTexts["chat.mcpActivity"].firstMatch
             let raw = activity.exists ? (activity.value as? String ?? "") : ""
-            // A sheet may hide the underlying activity label. -1 means not
-            // observed, never zero. Do not print the raw diagnostic or labels.
-            print("Live MCP memory phase=\(phase);modelCalls=\(diagnosticCount("modelCalls", in: raw) ?? -1);corrections=\(diagnosticCount("formatCorrections", in: raw) ?? -1);attempts=\(diagnosticCount("attempts", in: raw) ?? -1);results=\(diagnosticCount("results", in: raw) ?? -1);toolErrors=\(diagnosticCount("toolErrors", in: raw) ?? -1);memoryReview=\(memoryReview.exists);profileReview=\(profileReview.exists);error=\(error.exists);answer=\(answer.exists)")
+            // -1 means not observed, never zero. Do not print the raw
+            // diagnostic or labels.
+            print("Live MCP memory phase=\(phase);modelCalls=\(diagnosticCount("modelCalls", in: raw) ?? -1);corrections=\(diagnosticCount("formatCorrections", in: raw) ?? -1);attempts=\(diagnosticCount("attempts", in: raw) ?? -1);results=\(diagnosticCount("results", in: raw) ?? -1);toolErrors=\(diagnosticCount("toolErrors", in: raw) ?? -1);error=\(error.exists);answer=\(answer.exists)")
             return raw
         }
         func nextStage(_ phase: String) {
             let pending = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                memoryReview.exists || profileReview.exists || error.exists || answer.exists
+                error.exists || answer.exists
             }, object: nil)
             let result = XCTWaiter.wait(for: [pending], timeout: 95)
             _ = fixedPhase(phase)
@@ -202,28 +200,8 @@ final class LiveMCPConversationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["uitest.banner"].firstMatch.exists)
         send(prompt)
 
-        nextStage("memory_review")
-        guard memoryReview.exists, !profileReview.exists, !error.exists, !answer.exists else {
-            XCTFail("An actual local memory_save review must follow the single remote call.")
-            return
-        }
-        readable("memoryTool.operation", equals: "新增")
-        readable("memoryTool.kind", equals: "偏好")
-        readable("memoryTool.quote", equals: sentence)
-        readable("memoryTool.after", equals: sentence)
-        readable("memoryTool.keywords", equals: "jasmine、tea")
-        XCTAssertFalse(app.staticTexts["memoryTool.before"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["memoryTool.pendingNotice"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
-        tap("memoryTool.approve")
-        let reviewClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: memoryReview)
-        XCTAssertEqual(XCTWaiter.wait(for: [reviewClosed], timeout: 5), .completed)
-
         nextStage("completion")
-        XCTAssertFalse(memoryReview.exists)
-        XCTAssertFalse(profileReview.exists)
-        XCTAssertFalse(error.exists, "A committed receipt does not replace the required model finish.")
+        XCTAssertFalse(error.exists, "The model's own memory_save must not stop its reply.")
         XCTAssertTrue(answer.exists && answer.label == "MCP_MEMORY_OK_42")
         let diagnostics = fixedPhase("completed")
         XCTAssertTrue(diagnostics.hasPrefix("phase=finished;"))

@@ -4,7 +4,7 @@ This bounded change follows Mika revision `0c172724f3f0c96f7345262588072f6e95db1
 
 ## Mika behavior retained
 
-- Bing is the initial engine, followed by Google, DuckDuckGo and Baidu. Built-ins cannot be edited or removed. Adding a custom engine selects it; removing the selected custom engine restores Bing. Re-adding the same ID is a no-op.
+- Google is the initial engine; Bing, Google and DuckDuckGo are built in (Baidu was removed on 2026-11-14, and a saved Baidu choice loads as Google). Built-ins cannot be edited or removed. Adding a custom engine selects it; removing the selected custom engine restores Google. Re-adding the same ID is a no-op.
 - Empty input does nothing. Words, phrases, Unicode text and email addresses become searches. ASCII/punycode domains without a scheme become HTTPS destinations. Explicit URL input goes through the existing destination policy; a rejected destination is not retried as a search.
 - A custom engine has a name and one `%s` placeholder. Every inserted query is UTF-8 percent-encoded; only ASCII letters, digits and `-._~` remain unescaped. Spaces use `%20`, semantically equivalent to Mika's form-encoding `+`.
 - Query recognition uses all built-in and saved custom engines, in that order. It matches the template's exact prefix/suffix and decodes once, including `+` as a space. A suffix must end the URL or precede `&`/`#`. It does not reorder query parameters or decode twice.

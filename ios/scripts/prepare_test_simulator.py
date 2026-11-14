@@ -31,13 +31,23 @@ def identifier(value):
     return str(uuid.UUID(value)).upper()
 
 
+SIMCTL_SECONDS = 60
+# The first simctl call on a fresh hosted runner starts CoreSimulatorService and
+# loads every installed runtime. That alone exceeded 60 s: prepare failed after
+# exactly 60 s with no ownership record yet, on every iPad row and some iPhone
+# rows. Setup gets a longer bound; cleanup keeps 60 s within its 4-minute step.
+SETUP_SIMCTL_SECONDS = 240
+simctl_seconds = SIMCTL_SECONDS
+
+
 def command(*args):
     try:
         result = subprocess.run(["xcrun", "simctl", *args], check=True,
-                                capture_output=True, timeout=60)
+                                capture_output=True, timeout=simctl_seconds)
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         # Do not include arbitrary simctl stderr, host paths, or environments.
-        raise ValueError("simctl " + args[0] + " failed or exceeded 60 seconds") from None
+        raise ValueError("simctl " + args[0] + " failed or exceeded "
+                         + str(simctl_seconds) + " seconds") from None
     return result.stdout.decode("utf-8").strip()
 
 
@@ -215,6 +225,8 @@ def main():
     stop = commands.add_parser("cleanup")
     stop.add_argument("--state", type=Path, required=True)
     args = parser.parse_args()
+    global simctl_seconds
+    simctl_seconds = SETUP_SIMCTL_SECONDS if args.action == "prepare" else SIMCTL_SECONDS
     try:
         print(prepare(args.state, args.runtime, args.device, args.fresh)
               if args.action == "prepare" else cleanup(args.state))
@@ -222,6 +234,8 @@ def main():
         # Detailed disposition stays in the bounded, synthetic ownership record.
         print("Simulator setup/cleanup failed; inspect test-simulator.json", file=sys.stderr)
         return 1
+    finally:
+        simctl_seconds = SIMCTL_SECONDS
     return 0
 
 

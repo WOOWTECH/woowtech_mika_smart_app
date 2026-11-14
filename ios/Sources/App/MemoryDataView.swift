@@ -10,6 +10,9 @@ struct MemoryDataView: View {
     let modelAccess: () throws -> ModelAccess
     let modelChanges: AnyPublisher<Void, Never>
     let onOpenBrowser: () -> Void
+    /// Play's Saved data › Website sign-ins. The list is shown over the browser,
+    /// where WebKit can list its website records.
+    let onOpenSignIns: () -> Void
     @State private var segment: LearningSegment = .memories
     @State private var query = ""
     @State private var sheet: LearningSheet?
@@ -85,10 +88,6 @@ struct MemoryDataView: View {
                     SkillTextView(title: title, markdown: markdown)
                 case .clear:
                     LearningClearView(store: store)
-                case .websites:
-                    WebsiteDataView(store: store, browser: browser, modelAccess: modelAccess, onOpenBrowser: onOpenBrowser)
-                case .catalog:
-                    SkillCatalogView(store: store, modelAccess: modelAccess, modelChanges: modelChanges)
                 }
             }
         }
@@ -185,7 +184,7 @@ struct MemoryDataView: View {
             if let error = store.error {
                 Section {
                     card {
-                        Text(verbatim: error).foregroundStyle(palette.bad)
+                        Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(palette.bad)
                             .accessibilityIdentifier("memory.error")
                         Button(copy.text(.dismissNotice)) { store.dismissNotice() }
                     }
@@ -194,7 +193,7 @@ struct MemoryDataView: View {
             if let notice = store.notice {
                 Section {
                     card {
-                        Text(verbatim: notice).accessibilityIdentifier("memory.notice")
+                        Text(verbatim: AppLocalizer(language: copy.language).stored(notice)).accessibilityIdentifier("memory.notice")
                         Button(copy.text(.dismissNotice)) { store.dismissNotice() }
                     }
                 }
@@ -204,63 +203,26 @@ struct MemoryDataView: View {
                 case .memories: memorySections
                 case .skills:
                     skillsSections
-                    builtInSkillsSection
                 case .pending: pendingSections
                 }
             }
             preferencesSection
             Section {
+                // Play's Saved data: website sign-ins, then saved routes.
                 card {
                     VStack(spacing: 0) {
-                        Button { onOpenBrowser() } label: {
+                        Button { onOpenSignIns() } label: {
                             dataRow(copy.text(.webLogins), systemImage: "globe")
                         }
                         .accessibilityIdentifier("memory.manageWebsites")
-                        Text(copy.text(.webLoginsHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.browserPending")
                         cardDivider
-                        Button { sheet = .websites } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                                    .font(.body)
-                                    .frame(width: 38, height: 38)
-                                    .background(palette.fill, in: RoundedRectangle(cornerRadius: 11))
-                                    .accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(copy.text(.routeTitle))
-                                    Text(copy.text(.websiteKnowledgeCount, Int64(store.websites.lessons.count)))
-                                        .font(.caption).foregroundStyle(palette.ink3)
-                                }
-                                Spacer(minLength: 0)
-                                Text(copy.text(.routeCount, Int64(store.routes.routes.count)))
-                                    .foregroundStyle(palette.ink3)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(palette.ink3)
-                                    .accessibilityHidden(true)
-                            }
-                            .foregroundStyle(palette.ink)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        NavigationLink { SavedRoutesView(store: store) } label: {
+                            dataRow(copy.text(.routeTitle), systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                                    value: copy.text(.routeCount, Int64(store.routes.routes.count)))
                         }
-                            .accessibilityLabel(copy.text(.websitesAndRoutes,
-                                                          Int64(store.websites.lessons.count), Int64(store.routes.routes.count)))
-                            .accessibilityIdentifier("memory.websites")
-                        Text(copy.text(.routesHelp))
-                            .font(.caption).foregroundStyle(palette.ink3)
-                            .accessibilityIdentifier("memory.routesPending")
+                        .disabled(!store.available)
+                        .accessibilityIdentifier("memory.routes")
                     }
-                }
-                // Android's saved data lists website sign-ins, then routes; the
-                // iOS profile has no Android row and follows in its own card.
-                card {
-                    NavigationLink {
-                        UserProfileView(store: store)
-                    } label: {
-                        dataRow(copy.text(.profile), systemImage: "person.crop.circle")
-                    }
-                    .disabled(!store.available)
-                    .accessibilityIdentifier("memory.profile.open")
                 }
             } header: { sectionTitle(copy.text(.storedData)) }
             Section {
@@ -456,55 +418,6 @@ struct MemoryDataView: View {
         } header: { sectionTitle(copy.text(.getSkills)) }
     }
 
-    private var builtInSkillsSection: some View {
-        Section {
-            card {
-                Button { sheet = .catalog } label: {
-                    Text(copy.text(.catalog))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.catalog.open")
-            }
-            // Each destination needs its own List row. Multiple NavigationLinks
-            // inside one row share its tap routing on iOS 18 and can open the
-            // last destination even when the PDF link itself was tapped.
-            card {
-                NavigationLink { SkillExecutionView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges) } label: {
-                    Text(copy.text(.pdfRead))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.documents.execute")
-            }
-            card {
-                NavigationLink {
-                    SkillAgentView(store: store, modelAccess: modelAccess)
-                } label: {
-                    Text(copy.text(.agentWrite))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .disabled(!store.available)
-                    .accessibilityIdentifier("skills.agent.open")
-            }
-            card {
-                NavigationLink {
-                    TranscriptView(learning: store, modelAccess: modelAccess, modelChanges: modelChanges)
-                } label: {
-                    Text(copy.text(.transcript))
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                    .accessibilityIdentifier("skills.transcript.open")
-            }
-            Text(copy.text(.builtInHelp))
-                .font(.caption).foregroundStyle(palette.ink3)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        } header: { sectionTitle(copy.text(.builtInTools)) }
-    }
-
     private func draftRow(_ draft: SkillDraft) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: skillTitle(draft.document)).font(.headline)
@@ -576,8 +489,11 @@ struct MemoryDataView: View {
                         .accessibilityIdentifier("skills.item.\(skill.name)")
                     Text(verbatim: skill.document.description)
                         .foregroundStyle(palette.ink2)
-                    Text(copy.text(skill.status == .suspended ? .skillSuspended
-                                   : skill.status == .trial ? .skillTrial : .skillEnabled))
+                    // Like Play's skill row, a skill saved at the user's request in chat says so.
+                    Text(verbatim: ([skill.source == .user ? copy.text(.skillUserCreated) : nil,
+                                     copy.text(skill.status == .suspended ? .skillSuspended
+                                               : skill.status == .trial ? .skillTrial : .skillEnabled)]
+                                    as [String?]).compactMap { $0 }.joined(separator: " · "))
                         .font(.caption).foregroundStyle(palette.ink3)
                         .accessibilityIdentifier("skills.state.\(skill.name)")
                 }
@@ -716,7 +632,7 @@ struct MemoryDataView: View {
             .accessibilityHidden(true)
     }
 
-    private func dataRow(_ title: String, systemImage: String) -> some View {
+    private func dataRow(_ title: String, systemImage: String, value: String? = nil) -> some View {
         HStack(spacing: 14) {
             Image(systemName: systemImage)
                 .font(.body)
@@ -725,6 +641,7 @@ struct MemoryDataView: View {
                 .accessibilityHidden(true)
             Text(title).font(.body)
             Spacer(minLength: 0)
+            if let value { Text(value).foregroundStyle(palette.ink3) }
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.ink3)
@@ -815,7 +732,7 @@ private enum LearningSegment: String, CaseIterable, Identifiable {
 }
 
 private enum LearningSheet: Identifiable {
-    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear, websites, catalog
+    case memory(MemoryItem?), importSkill, editSkill(SkillDraft), fullText(String, String), clear
     var id: String {
         switch self {
         case .memory(let item): return "memory-" + (item?.id.uuidString ?? "new")
@@ -823,8 +740,6 @@ private enum LearningSheet: Identifiable {
         case .editSkill(let draft): return "edit-" + draft.id.uuidString
         case .fullText: return "fulltext"
         case .clear: return "clear"
-        case .websites: return "websites"
-        case .catalog: return "catalog"
         }
     }
 }
@@ -889,7 +804,7 @@ private struct MemoryEditor: View {
                 Text(copy.text(.memoryEditorProcedureHelp))
             }
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("memory.editor.error")
             }
         }
@@ -955,7 +870,7 @@ private struct SkillEditor: View {
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("skills.editor.markdown")
             if let error = store.error {
-                Text(verbatim: error).foregroundStyle(.red)
+                Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                     .accessibilityIdentifier("skills.editor.error")
             }
         }
@@ -970,7 +885,9 @@ private struct SkillEditor: View {
                 Button(copy.text(draft == nil ? .importAction : .approveAction)) {
                     let succeeded = store.mutateSkills { skills in
                         if let draft { _ = try skills.approveDraft(id: draft.id, editedMarkdown: markdown, availableToolNames: toolNames) }
-                        else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames) }
+                        // Built-in skill names cannot be used, like Play's import.
+                        else { _ = try skills.importMarkdown(markdown, availableToolNames: toolNames,
+                                                             builtinNames: Set(BundledSkillCatalog.entryIDs)) }
                     }
                     if succeeded { onSaved(); dismiss() }
                 }
@@ -1043,7 +960,7 @@ private struct LearningClearView: View {
                     .accessibilityIdentifier("memory.clear.confirm")
                 }
                 if let error = store.error {
-                    Text(verbatim: error).foregroundStyle(.red)
+                    Text(verbatim: AppLocalizer(language: copy.language).stored(error)).foregroundStyle(.red)
                         .accessibilityIdentifier("memory.clear.error")
                 }
             }

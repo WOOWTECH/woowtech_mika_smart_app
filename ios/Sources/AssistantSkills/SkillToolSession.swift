@@ -253,7 +253,7 @@ import Foundation
         }
     }
 
-    private static let instructions = """
+    private static let instructions = AISafetyRules.appended(to: """
     你協助使用者撰寫個人技能。請使用繁體中文。每回合只輸出一個 JSON 物件，無 Markdown 圍欄。
     工具格式：{"action":"tool","name":"skill_search","arguments":{"query":"用途關鍵字"}}
     skill_search(query: 1–200 字) 真正查詢本機個人與內建技能，最多十筆。
@@ -267,6 +267,6 @@ import Foundation
     document_tool_names 是草稿可引用的工具名稱，並非本次可呼叫的工具；本次只能呼叫以上三個工具。
     草稿最多4000字：front matter 含 name/display/description/aliases，五段為入口、步驟、容易出錯的地方、怎樣算辦成、什麼時候停下交給使用者。
     不含憑證、個資、執行授權；不將只有原文的目錄、腳本或 Android/跨 App 功能聲稱為 iOS 已支援能力。
-    """
+    """)
 }
 #endif

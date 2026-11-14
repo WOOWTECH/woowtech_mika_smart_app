@@ -80,6 +80,28 @@ citations, and deduplicates executed actions before the five-action drafting gat
 Website quotes are references, not user memory; approval remains separate. Tests
 must distinguish real models over synthetic traces from actual browser execution.
 
+### iOS-only screens removed — 2026-11-14
+
+Owner decision, to match the Play build: the built-in skill catalog screen, manual
+skill authoring, the model skill-authoring page, PDF extraction / questions / page
+assembly, browser downloads, transcript organizing, multi-site research and source
+discovery are gone from iOS, with their tests and CI scopes. The pinned upstream
+archive (`MikaBundledSkills.json`), `BundledSkillCatalog`, the skill tool code and
+`SkillAuthoringBridge` stay for skill tools in ordinary chat. The upstream LICENSE
+and NOTICE are shown under Settings › About › Apache-2.0 License. The sections below
+are history.
+
+### Memory and profile tools without review — 2026-11-14
+
+Also to match the Play build: the Profile page and the memory and profile review
+sheets are gone. A model's `memory_save`, `memory_edit` or `profile_edit` that
+passes the existing quote and target checks is saved at once; the chat keeps its
+receipt line and the memory undo card. The profile store stays and is still used as
+reference; 記憶與資料 › 全部清除 deletes it with its edit history. A change to
+learning data while a reply is pending, by the user or by the model's own tool,
+no longer stops that reply: the chat context fence is gone, and only the memory
+extraction after a reply stays bound to what it read.
+
 ### Original-skill integration follow-up — 2026-11-10
 
 The historical text-adaptation table below describes the catalog's first stage.
@@ -91,8 +113,7 @@ was integrated too and removed on 2026-11-13 with the `configure-mika` entry, to
 match the Play build.
 The latter integrations still require their revision-specific native and live
 results; implemented entry points alone do not establish full tool parity. See
-[content transcription](CONTENT_TRANSCRIBE.md), [model authoring](SKILL_MODEL_AUTHORING.md)
-and [verification](VERIFICATION.md). The original immutable catalog is unchanged.
+[verification](VERIFICATION.md). The original immutable catalog is unchanged.
 
 ### Selected PDF execution increment - 2026-11-10
 
@@ -103,13 +124,12 @@ pages and metadata. Cancellation/refusal must not dispatch a later step. The
 original pinned extract_pdf.py had a bounded worker protocol with real local
 Swift-to-HTTP-to-Python tests and isolated Docker acceptance on GitHub Ubuntu (`2d67d87`, run
 42770104969), but never a deployed service; that worker was removed on 2026-11-13 to match
-the Play build, so PDFKit is the only PDF path. See SKILL_RUNTIME.md for every original dependency
-and its current availability; the historical text-adaptation table below describes
+the Play build, so PDFKit is the only PDF path. The historical text-adaptation table below describes
 that earlier path, not the new PDF execution capability.
 
 ### Native PDF page assembly — 2026-11-10
 
-The documents entry additionally supports approved 1–3-file static PDF page extraction, ordered/interleaved merging and repeated pages. Each selected file is read once into an immutable snapshot; a separately reviewed page plan produces a new PDF, and the user chooses the native export destination. Inputs total at most 200 pages; each input is at most 10 MiB, and output is at most 200 pages / 20 MiB. Encrypted documents and document-wide forms/annotations/attachments/outlines/tag structures/layers are outside this bounded adapter. No generic shell, Python execution or OCR is implied. Native PDFKit core checks passed 284 assertions, including real raster pixels and fractional geometry; actual App Session/FileDocument checks passed 57 assertions in each local configuration. iOS UI acceptance remains separate. See [runtime contract](SKILL_RUNTIME.md) and [verification](VERIFICATION.md).
+The documents entry additionally supports approved 1–3-file static PDF page extraction, ordered/interleaved merging and repeated pages. Each selected file is read once into an immutable snapshot; a separately reviewed page plan produces a new PDF, and the user chooses the native export destination. Inputs total at most 200 pages; each input is at most 10 MiB, and output is at most 200 pages / 20 MiB. Encrypted documents and document-wide forms/annotations/attachments/outlines/tag structures/layers are outside this bounded adapter. No generic shell, Python execution or OCR is implied. Native PDFKit core checks passed 284 assertions, including real raster pixels and fractional geometry; actual App Session/FileDocument checks passed 57 assertions in each local configuration. iOS UI acceptance remains separate. See [verification](VERIFICATION.md).
 
 ### Bundled Skills catalog increment — 2026-11-10
 

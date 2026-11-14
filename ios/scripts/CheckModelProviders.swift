@@ -106,11 +106,332 @@ private final class Environment {
             try removalAndSweep()
             try identity()
             try consent()
+            try providerAdditions()
+            try mainModelChanges()
+            try repositoryProviders()
+            try consentOnSend()
+            try formInput()
             print("PASS model providers: \(count) checks; isolated defaults, temporary files and an in-memory Keychain")
         } catch {
             print("FAIL model providers after \(count) checks: \(error)")
             exit(1)
         }
+    }
+
+    static func draft(_ name: String, _ url: String, key: Bool = true, keyRequired: Bool = true, model: String? = "m",
+                      tested: Bool = false, header: String? = nil) -> ModelProviderDraft {
+        ModelProviderDraft(name: name, baseURL: URL(string: url)!, sessionHeader: header, keyRequired: keyRequired,
+                           hasNewKey: key, model: model, tested: tested)
+    }
+
+    /// The add-provider form's save (Android ProviderStore.connect) as planned.
+    static func providerAdditions() throws {
+        let at = Date(timeIntervalSince1970: 1_800_000_500)
+        let empty = ModelProvidersDocument()
+        let first = draft("OpenRouter", "https://openrouter.ai/api/v1", model: "vendor/a", tested: true)
+        try check(empty.consentRequirement(forAdding: first) == .firstTime, "the first save asks first")
+        try rejects("the first main model without consent", { $0 as? ModelProvidersError == .consentRequired }) {
+            _ = try empty.addingProvider(first, consentedAt: nil)
+        }
+        let id = UUID(), account = UUID()
+        let added = try empty.addingProvider(first, consentedAt: at, newProviderID: id, newAccount: account)
+        try check(added.becameMain && !added.updatedExisting && added.newAccount == account && added.retiredAccounts.isEmpty
+                  && added.provider.id == id && added.provider.credentialAccount == account, "first save: a new provider with its key")
+        try check(added.document.roles.main == ModelRef(providerID: id, model: "vendor/a")
+                  && added.document.consent == ModelConsentRecord(providerID: id, origin: "https://openrouter.ai", consentedAt: at),
+                  "first save: the main model and the consent in one document")
+        try check(added.provider.typedModels == ["vendor/a"] && added.provider.verifiedModels == ["vendor/a"] && !added.provider.savedUntested,
+                  "tested: typed and verified, not untested")
+        var document = added.document
+        let go = draft("OpenCode Go", "https://opencode.ai/zen/go/v1", model: "kimi", header: "x-opencode-session")
+        try check(document.consentRequirement(forAdding: go) == nil && !document.additionBecomesMain(go),
+                  "another provider while a main model exists: not main, no consent")
+        let second = try document.addingProvider(go, consentedAt: nil)
+        try check(!second.becameMain && second.document.roles.main == document.roles.main && second.document.consent == document.consent
+                  && second.provider.sessionHeader == "x-opencode-session" && second.provider.savedUntested
+                  && second.provider.verifiedModels.isEmpty, "untested second provider: saved, header kept, main unchanged")
+        document = second.document
+        let rekeyAccount = UUID()
+        let rekeyed = try document.addingProvider(draft("OpenRouter", "https://openrouter.ai/api/v1/", model: "vendor/b"),
+                                                  consentedAt: nil, newAccount: rekeyAccount)
+        try check(rekeyed.updatedExisting && rekeyed.provider.id == id && rekeyed.retiredAccounts == [account]
+                  && rekeyed.provider.credentialAccount == rekeyAccount && rekeyed.document.providers.count == 2,
+                  "same kind, address and name: the same provider, a new key retires the old item")
+        try check(rekeyed.provider.typedModels == ["vendor/a", "vendor/b"] && !rekeyed.provider.savedUntested,
+                  "an untested save never marks a provider that passed a test as untested")
+        let kept = try document.addingProvider(draft("OpenRouter", "https://openrouter.ai/api/v1", key: false, model: nil), consentedAt: nil)
+        try check(kept.updatedExisting && kept.newAccount == nil && kept.retiredAccounts.isEmpty && kept.provider.credentialAccount == account,
+                  "a blank key keeps the same provider's key")
+        let renamed = try document.addingProvider(draft("Relay B", "https://openrouter.ai/api/v1"), consentedAt: nil)
+        try check(!renamed.updatedExisting && renamed.document.providers.count == 3, "one address under another name is another provider")
+        try rejects("a preset without a key", { $0 as? ModelProvidersError == .missingKey }) {
+            _ = try document.addingProvider(draft("Groq", "https://api.groq.com/openai/v1", key: false), consentedAt: nil)
+        }
+        let keyless = try document.addingProvider(draft("llm.example.invalid", "https://llm.example.invalid/v1", key: false, keyRequired: false),
+                                                  consentedAt: nil)
+        try check(keyless.provider.credentialAccount == nil && keyless.newAccount == nil, "a custom service may be saved without a key")
+        try rejects("plain HTTP", { $0 as? ModelProvidersError == .invalidDocument }) {
+            _ = try document.addingProvider(draft("x", "http://llm.example.invalid/v1"), consentedAt: nil)
+        }
+        try rejects("a model name with a line break", { $0 as? ModelProvidersError == .invalidDocument }) {
+            _ = try document.addingProvider(draft("x", "https://x.example.invalid/v1", model: "a\nb"), consentedAt: nil)
+        }
+        try rejects("an empty name", { $0 as? ModelProvidersError == .invalidDocument }) {
+            _ = try document.addingProvider(draft("  ", "https://x.example.invalid/v1"), consentedAt: nil)
+        }
+        var full = ModelProvidersDocument()
+        full.providers = (0..<ModelProvidersDocument.maximumProviders).map { index in
+            ModelProvider(name: "p\(index)", baseURL: URL(string: "https://p\(index).example.invalid/v1")!, credentialAccount: nil)
+        }
+        try rejects("one provider too many", { $0 as? ModelProvidersError == .tooManyProviders }) {
+            _ = try full.addingProvider(draft("one more", "https://more.example.invalid/v1", model: nil), consentedAt: nil)
+        }
+        try check(try full.addingProvider(draft("p0", "https://p0.example.invalid/v1", model: nil), consentedAt: nil).updatedExisting,
+                  "a full document still updates a provider it has")
+        var withoutMain = document
+        withoutMain.roles.main = nil
+        let untested = draft("Groq", "https://api.groq.com/openai/v1", model: "llama")
+        let viaUntested = try withoutMain.addingProvider(untested, consentedAt: nil)
+        try check(withoutMain.consentRequirement(forAdding: untested) == nil && !viaUntested.becameMain
+                  && viaUntested.document.roles.main == nil && viaUntested.provider.typedModels == ["llama"]
+                  && viaUntested.provider.savedUntested && viaUntested.document.consent == withoutMain.consent,
+                  "Play's saveWithoutTest: saved untested with its typed model, never the main model, so no consent asked")
+        let tested = draft("Groq", "https://api.groq.com/openai/v1", model: "llama", tested: true)
+        try check(withoutMain.consentRequirement(forAdding: tested) == .differentProvider,
+                  "a tested save that becomes the first main model, after another provider: asked again")
+        let viaTested = try withoutMain.addingProvider(tested, consentedAt: at)
+        try check(viaTested.becameMain && viaTested.document.consent?.providerID == viaTested.provider.id,
+                  "after the consent the tested model is the main model")
+        try check(withoutMain.consentRequirement(forAdding: draft("OpenRouter", "https://openrouter.ai/api/v1", model: "x", tested: true)) == nil,
+                  "the provider last agreed to needs no new consent")
+        try check(withoutMain.consentRequirement(forAdding: draft("Groq", "https://api.groq.com/openai/v1", model: nil)) == nil,
+                  "a provider saved without a model is never main, so no consent")
+        try check(ModelProviderPresets.preset(forHost: URL(string: "https://OPENROUTER.ai/other")!)?.name == "OpenRouter"
+                  && ModelProviderPresets.preset(forHost: URL(string: "https://example.invalid/v1")!) == nil, "a preset on the same host")
+        var reserved = document
+        reserved.providers[1].sessionHeader = "Authorization"
+        try rejects("a session header named like the request's own", { $0 as? ModelProvidersError == .invalidDocument }) {
+            _ = try reserved.encoded()
+        }
+    }
+
+    /// The main-model picker and a model's 用作 sheet.
+    static func mainModelChanges() throws {
+        let at = Date(timeIntervalSince1970: 1_800_001_000)
+        var document = sample()
+        let main = document.providers[0], go = document.providers[1]
+        try check(document.consentRequirement(forMain: ModelRef(providerID: main.id, model: "typed-a")) == nil
+                  && document.consentRequirement(forMain: ModelRef(providerID: go.id, model: "kimi")) == .differentProvider,
+                  "the same provider needs no new consent, another one does")
+        try rejects("another provider without consent", { $0 as? ModelProvidersError == .consentRequired }) {
+            _ = try document.choosingMain(ModelRef(providerID: go.id, model: "kimi"), typed: true, verified: true, consentedAt: nil)
+        }
+        let same = try document.choosingMain(ModelRef(providerID: main.id, model: "typed-a"), typed: false, verified: false, consentedAt: nil)
+        try check(same.roles.main == ModelRef(providerID: main.id, model: "typed-a") && same.consent == document.consent,
+                  "another model of the same provider: no consent asked, the record kept")
+        let switched = try document.choosingMain(ModelRef(providerID: go.id, model: "kimi"), typed: true, verified: true, consentedAt: at)
+        let goAfter = switched.provider(id: go.id)
+        try check(switched.roles.main == ModelRef(providerID: go.id, model: "kimi")
+                  && switched.consent == ModelConsentRecord(providerID: go.id, origin: "https://opencode.ai", consentedAt: at)
+                  && goAfter?.typedModels == ["kimi"] && goAfter?.verifiedModels == ["kimi"] && goAfter?.savedUntested == false,
+                  "a typed model that passed: main, typed, verified, consent recorded")
+        try rejects("a model of an unknown provider", { $0 as? ModelProvidersError == .unknownProvider }) {
+            _ = try document.choosingMain(ModelRef(providerID: UUID(), model: "m"), typed: false, verified: false, consentedAt: at)
+        }
+        let verified = try document.markingVerified(providerID: go.id, model: "any-model")
+        try check(verified.provider(id: go.id)?.savedUntested == false && verified.provider(id: go.id)?.verifiedModels == ["any-model"],
+                  "a test that passed clears 'saved without a test'")
+        let newAccount = UUID()
+        let change = try document.changingKey(providerID: main.id, newAccount: newAccount)
+        try check(change.newAccount == newAccount && change.retiredAccount == main.credentialAccount
+                  && change.document.provider(id: main.id)?.credentialAccount == newAccount
+                  && change.document.roles == document.roles, "a new key: a new item, the old one retired, roles unchanged")
+        let keyed = try document.changingKey(providerID: go.id)
+        try check(keyed.retiredAccount == nil && keyed.document.provider(id: go.id)?.credentialAccount == keyed.newAccount,
+                  "a provider without a key can get one")
+        try document.setVision(true, providerID: go.id, model: "kimi")
+        try document.setVision(nil, providerID: main.id, model: "typed-a")
+        try check(document.provider(id: go.id)?.visionOverrides == ["kimi": true]
+                  && document.provider(id: main.id)?.visionOverrides == ["vendor/model-b": false], "能看圖 per model, nil forgets")
+        try check(document.knownModels(of: main.id) == ["vendor/model-a", "typed-a", "typed-z", "vendor/model-b"],
+                  "known models: the main one, then typed or verified, then the list")
+        try check(document.knownModels(of: UUID()).isEmpty, "an unknown provider has no models")
+        try check(!document.mainNeedsConsent, "the main provider was agreed to")
+        document.consent = nil
+        try check(document.mainNeedsConsent, "a main model never agreed to needs consent before anything is sent")
+        try document.recordConsentForMain(at: at)
+        try check(!document.mainNeedsConsent && document.consent?.providerID == main.id, "agreeing before a send records the main provider")
+        document.roles.main = nil
+        try check(!document.mainNeedsConsent, "no main model: nothing to agree to")
+        try rejects("consent for a main model that does not exist", { $0 as? ModelProvidersError == .unknownProvider }) {
+            try document.recordConsentForMain(at: at)
+        }
+    }
+
+    /// The screens' saves through the actual repository: Keychain order,
+    /// consent in the same document, and refusals that change nothing.
+    static func repositoryProviders() throws {
+        try scenario { env in
+            let repository = env.repository()
+            try rejects("the first main model without consent", { ($0 as? ModelSettingsError).map { if case .consentRequired = $0 { return true }; return false } ?? false }) {
+                _ = try repository.addProvider(name: "OpenRouter", baseURL: "https://openrouter.ai/api/v1", sessionHeader: nil,
+                                               keyRequired: true, key: "k", model: "vendor/a", tested: true, consentedAt: nil)
+            }
+            try check(env.keychain.calls.isEmpty && (try env.file.read()) == nil, "refused: no key written, no document")
+            let at = Date(timeIntervalSince1970: 1_800_002_000)
+            let saved = try repository.addProvider(name: "OpenRouter", baseURL: " https://openrouter.ai/api/v1 ", sessionHeader: nil,
+                                                   keyRequired: true, key: " first-key ", model: " vendor/a ", tested: true, consentedAt: at)
+            let document = try repository.document()
+            let account = document?.provider(id: saved.providerID)?.credentialAccount
+            try check(saved.becameMain && saved.main?.model == "vendor/a" && saved.main?.providerID == saved.providerID
+                      && saved.providerName == "OpenRouter" && !saved.cleanupFailed, "saved and main")
+            try check(env.keychain.calls == [.insert(account!.uuidString)] && env.keychain.seen.first?.published == nil
+                      && env.keychain.values == [account!.uuidString: "first-key"], "the key is written before the document")
+            try check(document?.consent?.providerID == saved.providerID && document?.consent?.consentedAt == at,
+                      "the consent is in the published document")
+            try check(try repository.load()?.model == "vendor/a" && (try repository.key(for: repository.load()!)) == "first-key",
+                      "the main model loads with its key")
+            env.keychain.calls = []
+            let go = try repository.addProvider(name: "OpenCode Go", baseURL: "https://opencode.ai/zen/go/v1",
+                                                sessionHeader: "x-opencode-session", keyRequired: true, key: "go-key",
+                                                model: "kimi", tested: false, consentedAt: nil)
+            try check(!go.becameMain && go.main?.providerID == saved.providerID, "a second provider leaves the main model")
+            try rejects("switching without consent", { ($0 as? ModelSettingsError).map { if case .consentRequired = $0 { return true }; return false } ?? false }) {
+                _ = try repository.chooseMain(ModelRef(providerID: go.providerID, model: "kimi"), typed: false, verified: false, consentedAt: nil)
+            }
+            let switched = try repository.chooseMain(ModelRef(providerID: go.providerID, model: "kimi"), typed: false, verified: false, consentedAt: at)
+            try check(switched.providerID == go.providerID && switched.sessionHeader == "x-opencode-session" && switched.requiresKey,
+                      "switched to OpenCode Go after consent, with its session header")
+            let conversation = switched.configuration(conversation: "conversation-1")
+            try check(conversation.sessionHeader?.value == "660158ec-f423-30d0-b080-4642634c1842"
+                      && conversation.sessionHeader?.name == "x-opencode-session"
+                      && switched.configuration(conversation: nil).sessionHeader?.value != conversation.sessionHeader?.value,
+                      "a conversation's requests carry its session value; other work a fresh one")
+            try check(saved.main?.configuration(conversation: "conversation-1").sessionHeader == nil, "other providers send none")
+            try check(try repository.storedKey(forProvider: go.providerID) == "go-key", "the provider's key for a test call")
+            env.keychain.calls = []; env.keychain.seen = []
+            let goAccount = try repository.document()?.provider(id: go.providerID)?.credentialAccount
+            let changed = try repository.changeKey(providerID: go.providerID, newKey: "go-key-2")
+            let newAccount = try repository.document()?.provider(id: go.providerID)?.credentialAccount
+            try check(env.keychain.calls == [.insert(newAccount!.uuidString), .remove(goAccount!.uuidString)] && !changed.cleanupFailed
+                      && changed.main?.providerID == go.providerID && changed.main?.credentialAccount == newAccount?.uuidString,
+                      "change key: the new item first, the old one last; the main model keeps its provider")
+            try rejects("a blank new key") { _ = try repository.changeKey(providerID: go.providerID, newKey: "  ") }
+            let vision = try repository.setVision(true, providerID: go.providerID, model: "kimi")
+            try check(vision?.seesImages == true && vision?.configuration.vision == .supported, "能看圖 for the main model")
+            try repository.markVerified(providerID: go.providerID, model: "kimi")
+            try check(try repository.document()?.provider(id: go.providerID)?.savedUntested == false, "a passed retest is remembered")
+            env.keychain.calls = []
+            let keyless = try repository.addProvider(name: "", baseURL: "https://llm.example.invalid/v1", sessionHeader: nil,
+                                                     keyRequired: false, key: "", model: "local", tested: false, consentedAt: nil)
+            try check(keyless.providerName == "llm.example.invalid", "a blank custom name is the host")
+            try check(env.keychain.calls.isEmpty && (try repository.storedKey(forProvider: keyless.providerID)) == "",
+                      "a custom service without a key writes and reads no key")
+            try check(repository.providersWithKeys(in: try repository.document()!) == [saved.providerID, go.providerID],
+                      "which providers have their key item")
+            env.keychain.listable = false
+            try check(repository.providersWithKeys(in: try repository.document()!) == nil, "a Keychain that cannot list says so")
+            env.keychain.listable = true
+            let switchedKeyless = try repository.chooseMain(ModelRef(providerID: keyless.providerID, model: "local"), typed: false,
+                                                            verified: false, consentedAt: at)
+            try check(!switchedKeyless.requiresKey && (try repository.key(for: switchedKeyless)) == ""
+                      && !switchedKeyless.configuration.requiresKey, "a keyless main model sends no key")
+            try rejects("an address that is not HTTPS", { ($0 as? ModelSettingsError).map { if case .invalidURL = $0 { return true }; return false } ?? false }) {
+                _ = try repository.addProvider(name: "x", baseURL: "http://llm.example.invalid/v1", sessionHeader: nil,
+                                               keyRequired: false, key: "", model: nil, tested: false, consentedAt: nil)
+            }
+            try rejects("a key with a space", { ($0 as? ModelSettingsError).map { if case .invalidKey = $0 { return true }; return false } ?? false }) {
+                _ = try repository.addProvider(name: "Groq", baseURL: "https://api.groq.com/openai/v1", sessionHeader: nil,
+                                               keyRequired: true, key: "two words", model: nil, tested: false, consentedAt: nil)
+            }
+            try rejects("a preset without a key", { ($0 as? ModelSettingsError).map { if case .missingKey = $0 { return true }; return false } ?? false }) {
+                _ = try repository.addProvider(name: "Groq", baseURL: "https://api.groq.com/openai/v1", sessionHeader: nil,
+                                               keyRequired: true, key: "", model: nil, tested: false, consentedAt: nil)
+            }
+        }
+        try scenario { env in
+            let storage = FixtureStorage()
+            let repository = env.repository(storage)
+            storage.failWrites = true
+            try rejects("a document that cannot be written") {
+                _ = try repository.addProvider(name: "Groq", baseURL: "https://api.groq.com/openai/v1", sessionHeader: nil,
+                                               keyRequired: true, key: "k", model: "llama", tested: true, consentedAt: Date())
+            }
+            guard case .insert(let taken)? = env.keychain.calls.first else { throw Failure(description: "no insert before the failed write") }
+            try check(env.keychain.calls == [.insert(taken), .remove(taken)] && env.keychain.values.isEmpty,
+                      "failed write: the new provider's key is taken back")
+        }
+    }
+
+    /// An update from before the consent: the main model exists, and nothing
+    /// may be sent to it until the user agrees.
+    static func consentOnSend() throws {
+        try scenario { env in
+            let account = UUID()
+            try env.writeV1("https://api.x.ai/v1", model: "grok-4", account: account, key: "k")
+            let repository = env.repository()
+            let imported = try repository.document()
+            try check(imported?.mainNeedsConsent == true && imported?.consent == nil, "an imported setting was never agreed to")
+            let at = Date(timeIntervalSince1970: 1_800_003_000)
+            try repository.recordConsentForMain(at: at)
+            let agreed = try repository.document()
+            try check(agreed?.mainNeedsConsent == false
+                      && agreed?.consent == ModelConsentRecord(providerID: account, origin: "https://api.x.ai", consentedAt: at),
+                      "agreeing before the first send records the imported provider")
+        }
+    }
+
+    /// The add form's rules (Android AddForm), before anything is saved.
+    static func formInput() throws {
+        var form = ModelProviderFormInput()
+        try check(form.preset == "OpenRouter" && !form.isCustom && form.keyRequired && form.address?.absoluteString == "https://openrouter.ai/api/v1",
+                  "Android's first chip is chosen")
+        try check(!form.canSaveUntested && !form.canTest, "a preset needs a key")
+        form.key = " sk-or "; form.model = "vendor/a"
+        try check(form.canSaveUntested && form.canTest && form.providerName == "OpenRouter" && form.sessionHeader == nil
+                  && form.trimmedKey == "sk-or", "a key and a model: test and save")
+        let configuration = form.testConfiguration
+        try check(configuration?.requiresKey == true && configuration?.model == "vendor/a" && configuration?.sessionHeader == nil,
+                  "the test's request")
+        form.key = "two words"
+        try check(form.keyProblem == .modelSettingsInvalidKey && !form.canSaveUntested, "a key with a space is refused")
+        form = ModelProviderFormInput(preset: "OpenCode Go", key: "k")
+        form.model = "kimi"
+        try check(form.sessionHeader == "x-opencode-session" && form.testConfiguration?.sessionHeader?.name == "x-opencode-session",
+                  "OpenCode Go's test carries its session header")
+        form = ModelProviderFormInput(preset: "xAI")
+        try check(form.modelExample == .modelExampleGrok && ModelProviderFormInput().modelExample == .modelExampleCompat, "model examples")
+        form = ModelProviderFormInput(preset: nil)
+        try check(form.isCustom && !form.keyRequired && form.urlProblem == nil && form.address == nil && !form.canSaveUntested,
+                  "自訂 starts without an address and without a hint")
+        form.baseURL = "http://model.example.invalid/v1"
+        try check(form.urlProblem == .modelURLHTTPS && !form.canSaveUntested, "HTTP is refused with the HTTPS hint")
+        form.baseURL = "ftp://x"
+        try check(form.urlProblem == .modelURLHTTPS, "another scheme too")
+        form.baseURL = "https://me@model.example.invalid/v1"
+        try check(form.urlProblem == .modelSettingsInvalidURL && form.address == nil, "a user in the address")
+        form.baseURL = "https://model.example.invalid/v1?key=1"
+        try check(form.urlProblem == .modelSettingsInvalidURL, "a query in the address")
+        form.baseURL = " https://model.example.invalid/v1 "
+        try check(form.urlProblem == nil && form.canSaveUntested && !form.canTest && form.providerName == "model.example.invalid"
+                  && form.testConfiguration == nil, "a custom service: no key needed; testing needs a model; named by host")
+        form.model = "local"
+        try check(form.canTest && form.testConfiguration?.requiresKey == false, "a custom test without a key sends none")
+        form.key = "k"
+        try check(form.testConfiguration?.requiresKey == true, "with a key, the key is sent")
+        form.name = String(repeating: "名", count: 40)
+        try check(form.providerName.count == ModelProviderFormInput.maximumNameLength, "a custom name keeps 32 characters")
+        form.name = ""
+        form.baseURL = "https://opencode.ai/zen/go/v1"
+        try check(form.sessionHeader == "x-opencode-session" && form.providerName == "OpenCode Go"
+                  && form.suggestedPreset?.name == "OpenCode Go", "a preset's address typed by hand: its header, name and suggestion")
+        form.baseURL = "https://api.x.ai/other"
+        try check(form.suggestedPreset?.name == "xAI" && form.sessionHeader == nil && form.modelExample == .modelExampleGrok,
+                  "another path on a preset's host: suggestion only")
+        let draft = form.draft(tested: true)
+        try check(draft?.name == "api.x.ai" && draft?.keyRequired == false && draft?.hasNewKey == true && draft?.model == "local"
+                  && draft?.tested == true, "the draft the form saves")
+        try check(ModelProviderFormInput(preset: "Groq").draft(tested: false)?.hasNewKey == false, "no key typed: none to write")
     }
 
     static func sample() -> ModelProvidersDocument {

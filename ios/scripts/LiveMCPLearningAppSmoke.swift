@@ -5,12 +5,12 @@ import AssistantPersistence
 import Foundation
 
 // Real HTTP + unchanged App transactions on macOS; NOT native iOS/UI acceptance.
-// The executable approves only the two synthetic local reviews below. No keys,
-// endpoints, catalogs, arguments, server results or model replies are printed.
+// Like the Play build, the App applies both local writes below without a review.
+// No keys, endpoints, catalogs, arguments, server results or model replies are printed.
 private enum Check: String, Error {
     case missingConfiguration, setup, discovery, selection, budget, deadline
-    case unexpectedReview, remoteFence, remoteResult, memoryReview
-    case memoryCommit, memoryReopen, undo, profileReview, profileCommit
+    case remoteFence, remoteResult
+    case memoryCommit, memoryReopen, undo, profileCommit
     case remoteFailure, draftPreservation, receiptPreservation, encryptedFile, unknown
 }
 
@@ -183,9 +183,7 @@ private actor ActualModel: ChatModelClient {
         guard ContinuousClock.now < deadline else { throw Check.deadline }
     }
     @MainActor private static func event(_ session: ChatSession, until deadline: ContinuousClock.Instant) async throws {
-        try await wait(until: deadline) {
-            session.pendingMemoryReview != nil || session.pendingProfileReview != nil || !session.isSubmitting
-        }
+        try await wait(until: deadline) { !session.isSubmitting }
     }
     @MainActor private static func start(_ session: ChatSession, connection: MCPSession, prompt: String) throws {
         session.usesMCP = true; session.draft = prompt
@@ -275,18 +273,15 @@ private actor ActualModel: ChatModelClient {
 
             phase = "remote_then_memory"
             let firstDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let firstPrompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. I will review the local write. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
+            let firstPrompt = #"First call ha_eval_template exactly once with only {"template":"{{7*6}}"}. Wait for its actual successful result to equal 42. Then use local memory_save with kind preference, content and quote exactly "Prefer jasmine tea", and keywords ["jasmine","tea"]. Only after the committed local receipt, finish with exactly MCP_MEMORY_OK_42. Do not search, edit my profile, read resources, or call any other tool."#
             try require(learning.memory.memories.isEmpty && session.memoryReceipt == nil, .remoteFence)
             // No approval card: the selected tool runs as soon as the model asks.
             try await server.armOnce()
             try start(session, connection: connection, prompt: firstPrompt)
 
-            phase = "memory_review"
+            phase = "memory_finish"
             try await event(session, until: firstDeadline)
-            output["memory_review_received"] = session.pendingMemoryReview != nil
             output["first_turn_app_error"] = session.chatError != nil
-            guard let review = session.pendingMemoryReview else { throw Check.unexpectedReview }
-            try require(session.pendingProfileReview == nil, .unexpectedReview)
             let actual = await server.lastResult
             try require(session.mcpSteps.count == 1
                         && session.mcpSteps[0].proposal.action == .callTool(name: allowedName, arguments: allowedArguments)
@@ -294,21 +289,8 @@ private actor ActualModel: ChatModelClient {
                         && !session.mcpSteps[0].isError && actual.map(fortyTwo) == true, .remoteResult)
             output["remote_ran_without_approval"] = true
             output["remote_result_matches_42"] = true
-            output["memory_quote_matches"] = review.quote == "Prefer jasmine tea"
-            output["memory_content_matches"] = review.after?.content == "Prefer jasmine tea"
-            output["memory_keywords_match"] = review.keywords == ["jasmine", "tea"]
-            try require(review.toolName == "memory_save" && review.op == .add && review.before == nil
-                        && review.kind == .preference && review.after?.status == .active
-                        && review.quote == "Prefer jasmine tea" && review.after?.content == "Prefer jasmine tea"
-                        && review.keywords == ["jasmine", "tea"], .memoryReview)
-            try require(learning.memory.memories.isEmpty && reopen().memory.memories.isEmpty && session.memoryReceipt == nil, .memoryCommit)
-            session.resolveMemoryReview(id: review.id, approved: true)
-            output["memory_reviews_approved"] = 1
-            phase = "memory_finish"
-            try await event(session, until: firstDeadline)
-            output["first_turn_app_error"] = session.chatError != nil
-            try require(!session.isSubmitting && session.pendingMemoryReview == nil
-                        && session.pendingProfileReview == nil && session.chatError == nil, .memoryCommit)
+            try require(!session.isSubmitting && session.chatError == nil, .memoryCommit)
+            output["memory_applied_without_review"] = session.memoryReceipt?.ok == true
             guard let receipt = session.memoryReceipt, receipt.ok else { throw Check.memoryCommit }
             try require(session.entries.count == 2 && session.entries.last?.role == "assistant"
                         && session.entries.last?.content == "MCP_MEMORY_OK_42" && session.draft.isEmpty, .memoryCommit)
@@ -344,24 +326,12 @@ private actor ActualModel: ChatModelClient {
             session.newConversation()
             try require(session.entries.isEmpty && session.profileReceipt == nil && session.memoryReceipt == nil, .setup)
             let secondDeadline = min(overall, clock.now.advanced(by: .seconds(185)))
-            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". I will review that write. After its successful committed receipt, call ha_eval_template with only {"template":"{{7*6}}"}; that call may fail. Do not call any other tool, save ordinary memory, or read resources. The saved profile must remain saved."#
+            let secondPrompt = #"First use local profile_edit to add the preference with text and quote exactly "Prefer quiet walks". After its successful committed receipt, call ha_eval_template with only {"template":"{{7*6}}"}; that call may fail. Do not call any other tool, save ordinary memory, or read resources. The saved profile must remain saved."#
             try start(session, connection: connection, prompt: secondPrompt)
-            try await event(session, until: secondDeadline)
-            output["profile_review_received"] = session.pendingProfileReview != nil
-            output["second_turn_app_error"] = session.chatError != nil
-            guard let profile = session.pendingProfileReview else { throw Check.unexpectedReview }
-            output["profile_quote_matches"] = profile.quote == "Prefer quiet walks"
-            output["profile_content_matches"] = profile.after == "Prefer quiet walks"
-            try require(session.pendingMemoryReview == nil
-                        && profile.op == .add && profile.before == nil
-                        && profile.after == "Prefer quiet walks" && profile.quote == "Prefer quiet walks", .profileReview)
-            try require(learning.profile.snapshot().entries.isEmpty && session.profileReceipt == nil, .profileCommit)
-            session.resolveProfileReview(id: profile.id, approved: true)
-            output["profile_reviews_approved"] = 1
             phase = "remote_failure"
             try await event(session, until: secondDeadline)
-            try require(!session.isSubmitting && session.pendingProfileReview == nil
-                        && session.pendingMemoryReview == nil, .remoteFailure)
+            try require(!session.isSubmitting, .remoteFailure)
+            output["profile_applied_without_review"] = session.profileReceipt?.applied == true
             guard let profileReceipt = session.profileReceipt, profileReceipt.applied,
                   let profileID = profileReceipt.id else { throw Check.profileCommit }
             let committed = reopen()
@@ -370,7 +340,7 @@ private actor ActualModel: ChatModelClient {
                         && committed.profile.snapshot().entries[0].text == "Prefer quiet walks", .profileCommit)
             // After a local commit the actual App replaces the stop message
             // with its saved-state warning.
-            try require(session.chatError == "個人檔案已儲存，但後續模型回覆未完成；請先查看已保存內容，避免重複修改。草稿保留。", .remoteFailure)
+            try require(session.chatError == "個人檔案已儲存，但後續模型回覆未完成；草稿保留。", .remoteFailure)
             try require(session.draft == secondPrompt && session.entries.isEmpty, .draftPreservation)
             try require(session.profileReceipt?.applied == true && session.profileReceipt?.id == profileID
                         && session.memoryReceipt == nil, .receiptPreservation)

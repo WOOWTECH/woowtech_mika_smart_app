@@ -51,10 +51,9 @@ import AssistantSkills
                   && simplifiedSystem.text(.drawerRecentTurns(count: 2)) == "2 輪", "a Simplified Chinese system reads the Traditional Chinese table")
         // Every fixed status and the archive explanation must resolve from each
         // shipped bundle, including after the interface language changes.
-        let chatMessages: [AppText] = [.chatStatusProfileReview, .chatStatusMemoryReview,
-            .chatStatusMCPWorking, .chatStatusWaiting,
+        let chatMessages: [AppText] = [.chatStatusMCPWorking, .chatStatusWaiting,
             .chatStatusConfigured, .chatStatusUnconfigured, .chatModelSetupHint,
-            .chatFixtureNotice, .archiveBoundary, .archiveSavedCount(count: 2), .archiveEmpty, .archiveClose]
+            .chatFixtureNotice, .drawerDeleteTitle, .drawerDeleteBody(title: "A")]
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language, bundle: bundle)
             for message in chatMessages {
@@ -97,8 +96,8 @@ import AssistantSkills
         }
         try check(AppLocalizer(language: .english, bundle: bundle).text(.chatStatusWaiting) == "Waiting for the model…",
                   "in-flight status uses the current language")
-        try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.archiveSavedCount(count: 2)) == "已保存的對話（2）",
-                  "archive count is formatted with the selected language")
+        try check(AppLocalizer(language: .traditionalChinese, bundle: bundle).text(.drawerDeleteBody(title: "A")) == "「A」和裡面的檔案都會刪掉。",
+                  "the drawer's delete prompt is formatted with the selected language")
         let en = AppLocalizer(language: .english, bundle: bundle)
         let hant = AppLocalizer(language: .traditionalChinese, bundle: bundle)
         let partial = try makeBundle("partial", languages: ["zh-Hant", "en"], omitKey: "language.appearance.title")
@@ -115,7 +114,8 @@ import AssistantSkills
         let missingSearch = AppLocalizer(language: .english, bundle: searchFallback).resolve(.localPDFSearchInvalid)
         try check(missingSearch.usedFallback && missingSearch.language == .traditionalChinese &&
                   missingSearch.text == searchTraditional.text(.localPDFSearchInvalid), "missing search error falls back to Traditional Chinese")
-        let modelErrors: [ModelSettingsError] = [.invalidURL, .missingModel, .missingKey, .changedOrigin, .invalidKey, .unavailableKeychain, .keychainStatus(-25293)]
+        let modelErrors: [ModelSettingsError] = [.invalidURL, .missingModel, .missingKey, .changedOrigin, .invalidKey, .unavailableKeychain,
+                                                 .keychainStatus(-25293), .tooManyProviders, .consentRequired]
         for error in modelErrors {
             let message = AppLocalizer.modelSettingsError(error)
             try check(hant.text(message) == error.errorDescription, "model settings code presentation preserves original Hant including ungrouped system code")

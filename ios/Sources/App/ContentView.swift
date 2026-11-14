@@ -3,13 +3,13 @@ import SwiftUI
 import UIKit
 import AssistantSkills
 import AssistantPersistence
+import AssistantBrowser
 
 @MainActor
 struct ContentView: View {
     @State private var selection: AppSection = .chat
     @State private var browserReturnSection: AppSection = .chat
     @State private var showsDrawer = false
-    @State private var showsArchive = false
     @State private var showsNewConversationConfirmation = false
     @State private var pendingNewConversationProtection: NewConversationProtection?
     @AccessibilityFocusState private var menuHasVoiceOverFocus: Bool
@@ -25,14 +25,15 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    private var webTaskColors: ChatWebTaskColors {
+        ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
+                          fill: palette.assistant, background: palette.background)
+    }
     private var localizer: AppLocalizer { AppLocalizer(language: languages.resolved) }
 
     var body: some View {
         shell
         .animation(.easeOut(duration: 0.22), value: showsDrawer)
-        .sheet(isPresented: $showsArchive) {
-            if let store = session.archive { ConversationArchiveView(store: store, session: session) }
-        }
         .alert(localizer.text(.newConversationConfirmTitle), isPresented: $showsNewConversationConfirmation) {
             Button(localizer.text(.newConversationDiscard), role: .destructive) {
                 let approved = pendingNewConversationProtection
@@ -66,14 +67,29 @@ struct ContentView: View {
         .onAppear {
             session.learning.onUserChange = { [weak browserWorkspace, weak session] in
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
-                session?.invalidateProfileReview()
             }
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
+            session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
+            session.webTaskEnvironment = { [weak browserWorkspace] in
+                guard let browserWorkspace else { return nil }
+                var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
+                                                         searchTemplate: browserWorkspace.library.searchSettings.selected.template)
+                #if DEBUG
+                if let fixture = ChatWebTaskFixture.shared {
+                    environment.fixtureOrigin = fixture.originURL
+                    environment.skipsPacing = true
+                }
+                #endif
+                return environment
+            }
+            #if DEBUG
+            Task { _ = try? await ChatWebTaskFixture.shared?.start() }
+            #endif
         }
         .onChange(of: scenePhase) { _, phase in
+            session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
             if phase != .active {
                 session.cancelMCP()
-                session.invalidateProfileReview()
                 browserWorkspace.cancelAllWork()
                 if mcpSession.phase == .connected || mcpSession.isBusy { mcpSession.disconnect() }
             }
@@ -97,6 +113,13 @@ struct ContentView: View {
           }
           .id(notificationNavigationID)
           .accessibilityHidden(showsDrawer)
+          if let task = session.webTask {
+              // The task tab stays in the window on every screen; it is seen
+              // only in the chat (Android's small view).
+              ChatWebTaskPreview(task: task, localizer: localizer, colors: webTaskColors,
+                                 isOnScreen: selection == .chat && !showsDrawer, onStop: { session.cancel() })
+                  .id(task.id)
+          }
           if showsDrawer {
               GeometryReader { geometry in
                   ZStack(alignment: .leading) {
@@ -109,14 +132,12 @@ struct ContentView: View {
                           status: localizer.text(session.chatStatusMessage),
                           session: session,
                           canStartNew: !session.isSubmitting,
-                          canOpenArchive: session.archive != nil && !session.isSubmitting,
                           palette: palette,
                           localizer: localizer,
                           topInset: geometry.safeAreaInsets.top,
                           bottomInset: geometry.safeAreaInsets.bottom,
                           onClose: closeDrawer,
                           onNew: requestNewConversation,
-                          onArchive: { showsDrawer = false; showsArchive = true },
                           onOpenRecent: { record in
                               if RecentConversationAccess.isCurrent(record, in: session) {
                                   closeDrawer()
@@ -238,6 +259,12 @@ struct ContentView: View {
                            browserReturnSection = .memory
                            selection = .browser
                            if resetNavigation { notificationNavigationID = UUID() }
+                       },
+                       onOpenSignIns: {
+                           browserReturnSection = .memory
+                           selection = .browser
+                           if resetNavigation { notificationNavigationID = UUID() }
+                           browserWorkspace.presentsSignIns = true
                        })
     }
 
@@ -322,14 +349,12 @@ private struct MikaNavigationDrawer: View {
     let status: String
     @ObservedObject var session: ChatSession
     let canStartNew: Bool
-    let canOpenArchive: Bool
     let palette: MikaVisualPalette
     let localizer: AppLocalizer
     let topInset: CGFloat
     let bottomInset: CGFloat
     let onClose: () -> Void
     let onNew: () -> Void
-    let onArchive: () -> Void
     let onOpenRecent: (ArchivedConversation) -> Void
     let onSelect: (AppSection) -> Void
     @AccessibilityFocusState private var closeHasVoiceOverFocus: Bool
@@ -354,8 +379,6 @@ private struct MikaNavigationDrawer: View {
             ScrollView {
                 VStack(spacing: 0) {
                     row(localizer.text(.shellNewConversation), symbol: "square.and.pencil", id: "drawer.newConversation", enabled: canStartNew, action: onNew)
-                    row(localizer.text(.shellChatHistory), symbol: "clock.arrow.circlepath", id: "drawer.archive", enabled: canOpenArchive, action: onArchive)
-                    row(localizer.text(.shellChat), symbol: "message", id: "navigation.chat") { onSelect(.chat) }
                     row(localizer.text(.shellMemoryAndSkills), symbol: "heart", id: "navigation.memory") { onSelect(.memory) }
                     row(localizer.text(.shellMCPServers), symbol: "link", id: "navigation.tools") { onSelect(.tools) }
                     row(localizer.text(.shellBrowser), symbol: "globe", id: "navigation.browser") { onSelect(.browser) }
@@ -441,22 +464,6 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
         }
     }
 
-    var explanation: String {
-        switch self {
-        case .chat:
-            return "請先到設定填寫模型服務與 API Key。"
-        case .browser:
-            return "此版本尚未載入網頁，也未進行網站連線驗證。分頁、登入、上傳、下載與頁面操作仍待實作。"
-        case .tools:
-            return "此版本尚未載入或執行 Skills，也未連接 MCP 伺服器；目前沒有可呼叫的工具。"
-        case .memory:
-            return "記憶、個人技能與待確認草稿；附件與網站資料另行管理。"
-        case .settings:
-            return "設定模型服務；通知、語言與外觀設定仍待實作。"
-        case .about:
-            return "版本、資源與支援。"
-        }
-    }
 }
 
 @MainActor
@@ -491,15 +498,19 @@ private struct ChatView: View {
     @State private var showsCamera = false
     @State private var attachmentPreview: ChatAttachmentPreviewTarget?
     @State private var selectingText: ChatSelectTextTarget?
+    @State private var reportTarget: AIResponseReportTarget?
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
-    @StateObject private var recentPhotos = ChatRecentPhotos()
     @State private var scrollFollow = ChatScrollFollowPolicy()
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
+    private var webTaskColors: ChatWebTaskColors {
+        ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
+                          fill: palette.assistant, background: palette.background)
+    }
     private var attachmentText: ChatAttachmentText { ChatAttachmentText(localizer: localizer) }
     private var menuText: ChatMessageMenuText { ChatMessageMenuText(localizer: localizer) }
     private var attachmentColors: ChatAttachmentColors {
@@ -565,9 +576,8 @@ private struct ChatView: View {
     /// Android's attach panel takes the keyboard's place under the input bar.
     @ViewBuilder private var attachPanel: some View {
         if showsAttachPanel {
-            ChatAttachPanel(photos: recentPhotos, selectedAssets: session.pendingAttachments.compactMap(\.sourceKey),
-                            colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
-                            onFiles: { attachPicker = .files }, onToggle: toggleRecentPhoto)
+            ChatAttachPanel(colors: attachmentColors, text: attachmentText, onCamera: openCamera, onAlbum: openAlbum,
+                            onFiles: { attachPicker = .files })
                 .frame(height: 320)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
@@ -636,6 +646,10 @@ private struct ChatView: View {
             }
         case .selectText:
             selectingText = ChatSelectTextTarget(text: session.plainText(of: entry))
+        case .report:
+            reportTarget = AIResponseReportTarget(
+                reference: AIResponseReference(conversationID: session.conversationID, messageKey: entry.id.uuidString),
+                response: session.plainText(of: entry))
         case .branch:
             if let toast = menuText.toast(for: session.branch(fromReply: entry.id, title: branchTitle)) { showToast(toast) }
         case .askAgain:
@@ -663,15 +677,6 @@ private struct ChatView: View {
     private func openAlbum() {
         guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
         attachPicker = .album
-    }
-
-    /// A recent photo toggles in and out of the tray, numbered in tray order.
-    private func toggleRecentPhoto(_ asset: PHAsset) {
-        if let item = session.pendingAttachments.first(where: { $0.sourceKey == asset.localIdentifier }) {
-            session.removeAttachment(id: item.id); return
-        }
-        guard session.pendingAttachments.count < ChatAttachmentLimits.maximumCount else { session.attachmentNotice = .trayFull; return }
-        Task { if let file = await recentPhotos.export(asset) { await session.addAttachments([file]) } }
     }
 
     private func openAttachment(_ item: ChatAttachmentItem) {
@@ -715,26 +720,31 @@ private struct ChatView: View {
         LearningChatNotes(store: session.learning)
 
         if mcp.canUseInConversation || session.usesMCP {
-            Toggle("本次對話使用 MCP 工具", isOn: $session.usesMCP)
+            Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
                 .font(.callout)
                 .disabled(session.isSubmitting)
                 .accessibilityIdentifier("chat.useMCP")
         }
         if let activity = session.mcpActivity {
-            Text(activity).font(.caption)
+            Text(localizer.stored(activity)).font(.caption)
                 .accessibilityIdentifier("chat.mcpActivity")
                 .accessibilityValue(session.mcpDiagnostics ?? "")
         }
+        if let step = session.skillStep {
+            // Play's chat step line while a skill tool runs.
+            Text(localizer.text(step == .find ? .chatSkillFind : step == .read ? .chatSkillRead : .chatSkillSave))
+                .font(.caption).accessibilityIdentifier("chat.skillStep")
+        }
         if session.profileReceipt != nil {
-            Text("本次對話曾儲存個人檔案；可到資料頁查看目前內容。")
+            Text(localizer.text(.chatReceiptProfile))
                 .font(.caption).accessibilityIdentifier("chat.profileReceipt")
         }
         if session.memoryReceipt != nil {
-            Text("本次對話曾儲存記憶修改；可在資料頁查看目前內容。")
+            Text(localizer.text(.chatReceiptMemory))
                 .font(.caption).accessibilityIdentifier("chat.memoryReceipt")
         }
         if !session.mcpSteps.isEmpty {
-            Button("檢視工具結果（\(session.mcpSteps.count)）") { showsMCPResults = true }
+            Button(localizer.text(.chatMcpResultsView(count: session.mcpSteps.count))) { showsMCPResults = true }
                 .font(.caption).accessibilityIdentifier("chat.mcpResults")
                 .disabled(session.isSubmitting)
         }
@@ -783,7 +793,7 @@ private struct ChatView: View {
 
     @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
-        if session.entries.isEmpty && session.replyPreview == nil && session.shownSendBlocker == nil {
+        if session.entries.isEmpty && session.replyPreview == nil && session.webTask == nil && session.shownSendBlocker == nil {
             ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
         }
         if !session.hasStoredKey && session.shownSendBlocker == nil {
@@ -799,7 +809,7 @@ private struct ChatView: View {
         }
         if let preview = session.replyPreview {
             VStack(alignment: .leading, spacing: 4) {
-                Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
+                Text(localizer.stored(preview.status)).font(.caption.bold()).foregroundStyle(.secondary)
                     .accessibilityIdentifier("chat.partialStatus")
                 Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
                     .font(.system(size: 15.5)).lineSpacing(4)
@@ -811,6 +821,10 @@ private struct ChatView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .id(preview.id)
+        }
+        if let task = session.webTask {
+            ChatWebTaskCard(task: task, localizer: localizer, colors: webTaskColors, onStop: { session.cancel() })
+                .id(task.id)
         }
         if session.shownSendBlocker != nil && blockedCardFitsTranscript {
             sendBlockedCard.padding(.top, 8).padding(.bottom, 12)
@@ -841,7 +855,7 @@ private struct ChatView: View {
             // An empty conversation is a browsable list, not a transcript
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
-            let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil
+            let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
             if scrollFollow.observe(position, hasTranscript: hasTranscript) {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
@@ -850,7 +864,7 @@ private struct ChatView: View {
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
             scrollFollow.conversationChanged()
-            if !session.entries.isEmpty || session.replyPreview != nil {
+            if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
         }
@@ -864,7 +878,7 @@ private struct ChatView: View {
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil) {
+            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
                 Button {
                     cancelScrollSettle()
                     scrollFollow.userRequestedLatest()
@@ -906,21 +920,21 @@ private struct ChatView: View {
     /// Errors, notices, voice status and the send-blocked card above the composer.
     @ViewBuilder private var chatStatus: some View {
         if let error = session.chatError {
-            Text(session.chatErrorText.map { localizer.text($0) } ?? error)
+            Text(session.chatErrorText.map { localizer.text($0) } ?? localizer.stored(error))
                 .font(.callout)
                 .foregroundStyle(.red)
                 .accessibilityIdentifier("chat.error")
         }
         if let notice = session.chatNotice {
-            Text(notice)
+            Text(localizer.stored(notice))
                 .font(.callout)
                 .accessibilityIdentifier("chat.notice")
         }
         if let notice = session.archiveNotice {
-            Text(notice).font(.callout).foregroundStyle(.orange)
+            Text(localizer.stored(notice)).font(.callout).foregroundStyle(.orange)
                 .accessibilityIdentifier("chat.archiveNotice")
             if session.canRetryArchiveSave {
-                Button("重試保存") { session.retryArchiveSave() }
+                Button(localizer.text(.chatArchiveRetry)) { session.retryArchiveSave() }
                     .accessibilityIdentifier("chat.archiveRetry")
             }
         }
@@ -1067,25 +1081,14 @@ private struct ChatView: View {
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
-            .onChange(of: showsAttachPanel) { _, open in
-                guard open else { return }
-                recentPhotos.refresh()
-                // Android asks once, the first time the panel ever opens. UI tests never raise the system prompt.
-                if !session.isUITestMode { Task { await recentPhotos.askOnceIfNeeded() } }
-            }
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
-            .sheet(item: Binding(get: { session.pendingProfileReview }, set: { _ in })) { review in
-                UserProfileToolReviewView(review: review,
-                    approve: { session.resolveProfileReview(id: review.id, approved: true) },
-                    decline: { session.resolveProfileReview(id: review.id, approved: false) })
-                    .interactiveDismissDisabled()
-            }
-            .sheet(item: Binding(get: { session.pendingMemoryReview }, set: { _ in })) { review in
-                MemoryToolReviewView(review: review,
-                    approve: { session.resolveMemoryReview(id: review.id, approved: true) },
-                    decline: { session.resolveMemoryReview(id: review.id, approved: false) })
-                    .interactiveDismissDisabled()
+            .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
+            // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
+            .sheet(item: Binding(get: { session.pendingSendConsent }, set: { _ in })) { prompt in
+                ModelConsentSheet(prompt: prompt, localizer: localizer,
+                                  agree: { session.resolveSendConsent(agreed: true) },
+                                  decline: { session.resolveSendConsent(agreed: false) })
             }
     }
 
@@ -1094,7 +1097,7 @@ private struct ChatView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") { isEditingDraft = false }
+                    Button(localizer.text(.commonDone)) { isEditingDraft = false }
                         .accessibilityIdentifier("chat.dismissKeyboard")
                 }
             }
@@ -1116,13 +1119,13 @@ private struct ChatView: View {
                 withAnimation(.easeOut(duration: 0.2)) { messageToast = nil }
             }
             .onAppear { voice.attach(session: session) }
+            // Like Android's chat screen: reports waiting on this device are sent while the chat is shown.
+            .task { await AIResponseReportService.shared.deliverDueWhileVisible() }
             .onDisappear { voice.cancel() }
             .onChange(of: session.conversationID) { _, _ in voice.cancel() }
             .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { voice.cancel(interrupted: true) }
-                // Photo access may have changed in Settings, as Android re-checks on return.
-                else if showsAttachPanel { recentPhotos.refresh() }
             }
             .task(id: voice.isActive) {
                 while voice.isActive && !Task.isCancelled {
@@ -1250,32 +1253,33 @@ private struct ChatEmptyState: View {
 @MainActor
 private struct LearningChatNotes: View {
     @ObservedObject var store: LearningStore
+    @Environment(\.appLocalizer) private var localizer
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if store.isLearning {
-                Text("正在整理你說過的事…")
+                Text(localizer.text(.chatLearningOrganizing))
                     .font(.caption).accessibilityIdentifier("chat.learning")
             }
             if let notice = store.notice {
-                Text(notice).font(.caption).accessibilityIdentifier("chat.learningNotice")
+                Text(localizer.stored(notice)).font(.caption).accessibilityIdentifier("chat.learningNotice")
             }
             if let error = store.error {
-                Text(error).font(.caption).foregroundStyle(.orange)
+                Text(localizer.stored(error)).font(.caption).foregroundStyle(.orange)
                     .accessibilityIdentifier("chat.learningError")
             }
             ForEach(Array(store.notes.enumerated()), id: \.element.memoryID) { index, note in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(store.noteText(note)).font(.caption)
+                    Text(localizer.stored(store.noteText(note))).font(.caption)
                         .accessibilityIdentifier("chat.memoryNote.\(index)")
                     HStack {
                         if store.canReviewMemory(note) {
-                            Button("批准") { store.approvePendingMemory(note) }
+                            Button(localizer.text(.chatMemoryApprove)) { store.approvePendingMemory(note) }
                                 .accessibilityIdentifier("chat.approveMemory.\(index)")
-                            Button("拒絕") { store.rejectPendingMemory(note) }
+                            Button(localizer.text(.chatMemoryReject)) { store.rejectPendingMemory(note) }
                                 .accessibilityIdentifier("chat.rejectMemory.\(index)")
                         }
                         if note.undoToken != nil {
-                            Button("撤銷") { store.undo(note) }
+                            Button(localizer.text(.chatMemoryUndo)) { store.undo(note) }
                                 .accessibilityIdentifier("chat.undoMemory.\(index)")
                         }
                     }

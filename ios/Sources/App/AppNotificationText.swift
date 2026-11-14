@@ -30,6 +30,8 @@ extension AppLocalizer {
         case .completed: return text(.notificationCompletedTitle)
         case .approval: return text(.notificationApprovalTitle)
         case .test: return text(.notificationTestTitle)
+        case .webPaused: return text(.notificationWebPausedTitle)
+        case .webNeedsYou: return text(.notificationWebNeedsYouTitle)
         }
     }
     func notificationBody(_ kind: TaskNotificationKind) -> String {
@@ -37,6 +39,8 @@ extension AppLocalizer {
         case .completed: return text(.notificationCompletedBody)
         case .approval: return text(.notificationApprovalBody)
         case .test: return text(.notificationTestBody)
+        case .webPaused: return text(.notificationWebPausedBody)
+        case .webNeedsYou: return text(.notificationWebNeedsYouBody)
         }
     }
 }

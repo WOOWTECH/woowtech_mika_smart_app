@@ -1,14 +1,14 @@
 import XCTest
 
-/// Synthetic in-process MCP/model fixtures through the native memory and
-/// profile reviews and the encrypted learning store. Like the Play build, the
-/// remote MCP call itself runs with no approval card. Neither fixture can
-/// approve or persist a local proposal.
+/// Synthetic in-process MCP/model fixtures through the encrypted learning
+/// store. Like the Play build, neither the remote MCP call nor the local
+/// memory/profile write shows an approval card, and the reply continues after
+/// the model's own write. Neither fixture can persist a local proposal itself.
 final class MCPLearningUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
     private let memoryReceipt = "本次對話曾儲存記憶修改；可在資料頁查看目前內容。"
-    private let profileReceipt = "本次對話曾儲存個人檔案；可到資料頁查看目前內容。"
+    private let profileReceipt = "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -29,15 +29,11 @@ final class MCPLearningUITests: XCTestCase {
         app.terminate()
     }
 
-    func testRemoteCallThenMemoryApprovalFinishesAndUndoRemainsAbsentAfterRelaunch() {
+    func testRemoteCallThenMemorySaveFinishesAndUndoRemainsAbsentAfterRelaunch() {
         launch(); connectFixture()
         let prompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
         send(prompt)
-        // The remote call needs no tap; the first card is the memory review.
-        assertMemoryReview(quote: prompt, content: "Prefer jasmine tea", keywords: "jasmine、tea")
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
-        tap("memoryTool.approve")
-        absent(app.buttons["memoryTool.approve"].firstMatch)
+        // Neither the remote call nor the local memory_save needs a tap.
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "MCP 記憶流程已完成。")
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
@@ -73,22 +69,11 @@ final class MCPLearningUITests: XCTestCase {
         selectSegment("pending"); assertEmptyPending()
     }
 
-    func testProfileApprovalThenRemoteCallFinishesAndSurvivesRelaunch() {
+    func testProfileEditThenRemoteCallFinishes() {
         launch(); connectFixture()
         let prompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
         send(prompt)
-        let operation = app.staticTexts["profileTool.operation"].firstMatch
-        XCTAssertTrue(operation.waitForExistence(timeout: 15))
-        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
-        assertReadable(operation, equals: "新增")
-        assertReadable(app.staticTexts["profileTool.quote"].firstMatch, equals: prompt)
-        assertReadable(app.staticTexts["profileTool.after"].firstMatch, equals: "Prefer jasmine tea")
-        XCTAssertFalse(app.staticTexts["profileTool.before"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
-        ready(app.buttons["profileTool.decline"].firstMatch)
-        tap("profileTool.approve")
-        absent(app.buttons["profileTool.approve"].firstMatch)
-        // After the saved profile, the remote call runs with no approval card.
+        // The profile_edit applies with no card; the remote call then runs.
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "MCP 個人檔案流程已完成。")
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
@@ -104,49 +89,9 @@ final class MCPLearningUITests: XCTestCase {
         XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: hello"))
         let close = app.buttons["mcp.results.close"].firstMatch
         ready(close); close.tap(); absent(result)
-        openProfile(); assertSingleProfile("Prefer jasmine tea")
-        let savedID = profileItem("Prefer jasmine tea").identifier
-        tap("profile.close"); absent(app.buttons["profile.close"].firstMatch)
-        navigate("chat")
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
-        launch(reset: false); openProfile(); assertSingleProfile("Prefer jasmine tea")
-        XCTAssertEqual(profileItem("Prefer jasmine tea").identifier, savedID,
-                       "Relaunch must load the approved entry with its original identity.")
-    }
-
-    func testDeclinedLocalMemoryPreservesDraftWithoutDataOrRemoteAttempt() {
-        launch(); connectFixture()
-        let prompt = "[fixture:mcp-memory-decline] Remember preference Prefer quiet"
-        send(prompt)
-        assertMemoryReview(quote: prompt, content: "Prefer quiet", keywords: "quiet")
-        tap("memoryTool.decline")
-        absent(app.buttons["memoryTool.decline"].firstMatch)
-        assertLabel(app.staticTexts["chat.error"].firstMatch,
-                    "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。")
-        assertActivity(attempts: 0, results: 0, modelCalls: 1, failure: "approvalDenied")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.profileReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].firstMatch.exists)
-        XCTAssertFalse(app.buttons["chat.mcpResults"].firstMatch.exists)
-        ready(app.buttons["chat.send"].firstMatch)
+        // The profile has no page of its own; Memory still lists no memory.
         openMemory(); assertEmptyMemories()
-        selectSegment("pending"); assertEmptyPending()
-        navigate("chat")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        assertActivity(attempts: 0, results: 0, modelCalls: 1, failure: "approvalDenied")
-        launch(reset: false); openMemory(); assertEmptyMemories()
-        selectSegment("pending"); assertEmptyPending()
-        selectSegment("memories")
-        tap("memory.profile.open", scroll: true)
-        assertReadable(app.staticTexts["profile.count"].firstMatch, equals: "現用 0／20 條")
-        assertReadable(app.staticTexts["profile.empty"].firstMatch, equals: "尚未儲存個人檔案。")
-        XCTAssertFalse(profileItems.firstMatch.exists)
-        XCTAssertFalse(app.buttons["profile.history"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["profile.unavailable"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["profile.error"].firstMatch.exists)
     }
 
     private func launch(reset: Bool = true) {
@@ -182,23 +127,6 @@ final class MCPLearningUITests: XCTestCase {
         absent(app.keyboards.firstMatch)
         XCTAssertEqual(draft.value as? String, prompt)
         tap("chat.send")
-    }
-
-    private func assertMemoryReview(quote: String, content: String, keywords: String) {
-        let operation = app.staticTexts["memoryTool.operation"].firstMatch
-        XCTAssertTrue(operation.waitForExistence(timeout: 15))
-        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
-        assertReadable(operation, equals: "新增")
-        assertReadable(app.staticTexts["memoryTool.kind"].firstMatch, equals: "偏好")
-        assertReadable(app.staticTexts["memoryTool.quote"].firstMatch, equals: quote)
-        assertReadable(app.staticTexts["memoryTool.after"].firstMatch, equals: content)
-        assertReadable(app.staticTexts["memoryTool.keywords"].firstMatch, equals: keywords)
-        XCTAssertFalse(app.staticTexts["memoryTool.before"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["memoryTool.pendingNotice"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["chat.memoryNote.0"].firstMatch.exists)
-        ready(app.buttons["memoryTool.approve"].firstMatch)
-        ready(app.buttons["memoryTool.decline"].firstMatch)
     }
 
     private func assertActivity(attempts: Int, results: Int, modelCalls: Int, failure: String) {
@@ -259,30 +187,6 @@ final class MCPLearningUITests: XCTestCase {
     private func assertEmptyPending() {
         assertReadable(app.staticTexts["memory.pending.empty"].firstMatch, equals: "沒有等你確認的東西")
         XCTAssertFalse(memoryItems.firstMatch.exists)
-    }
-
-    private func openProfile() {
-        openMemory()
-        tap("memory.profile.open", scroll: true)
-        XCTAssertTrue(app.staticTexts["profile.scope"].firstMatch.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["profile.disabled"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["profile.unavailable"].firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["profile.error"].firstMatch.exists)
-    }
-
-    private var profileItems: XCUIElementQuery {
-        app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "profile.item."))
-    }
-
-    private func profileItem(_ text: String) -> XCUIElement {
-        profileItems.matching(NSPredicate(format: "label == %@", text)).firstMatch
-    }
-
-    private func assertSingleProfile(_ text: String) {
-        assertReadable(app.staticTexts["profile.count"].firstMatch, equals: "現用 1／20 條")
-        assertReadable(profileItem(text), equals: text)
-        XCTAssertEqual(profileItems.count, 1)
-        XCTAssertFalse(app.buttons["profile.history"].firstMatch.exists)
     }
 
     private func navigate(_ section: String) {

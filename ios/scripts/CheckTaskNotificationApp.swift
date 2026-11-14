@@ -101,7 +101,7 @@ enum CheckTaskNotificationApp {
             let cases: [(String, () async throws -> Void)] = [
                 ("nativeUNContentAndScope", nativeContent), ("factoryAndPreferences", preferences),
                 ("realChatSuccessFailureClear", realChat), ("realChatCancelGeneration", lateChat),
-                ("realMCPCompletesWithoutApproval", realMCP), ("realProfileMemoryApprovals", localApprovals)
+                ("realMCPCompletesWithoutApproval", realMCP), ("realProfileMemoryWithoutApproval", localTools)
             ]
             for (name, body) in cases {
                 let before = Checks.assertions; try await body(); groups[name] = Checks.assertions - before
@@ -118,7 +118,7 @@ enum CheckTaskNotificationApp {
 
     @MainActor static func nativeContent() async throws {
         let scope = UUID().uuidString
-        for kind in [TaskNotificationKind.completed, .approval, .test] {
+        for kind in [TaskNotificationKind.completed, .approval, .test, .webPaused, .webNeedsYou] {
             for sound in [false, true] {
                 let payload = TaskNotificationPayload(kind: kind, destination: .chat)
                 let request = TaskNotificationCenterAdapter.request(payload, sound: sound, scope: scope)
@@ -254,7 +254,9 @@ enum CheckTaskNotificationApp {
         try privacy(center)
     }
 
-    @MainActor static func localApprovals() async throws {
+    /// Like the Play build, the model's own memory and profile tools apply with
+    /// no review, so they never post an approval prompt.
+    @MainActor static func localTools() async throws {
         for memory in [false, true] {
             let env = try NotificationEnvironment(memory: true); defer { try? env.close() }
             let proposal = memory
@@ -265,14 +267,11 @@ enum CheckTaskNotificationApp {
             let bridge = TaskNotificationChatBridge(session: chat, service: service)
             defer { bridge.invalidate(); service.disable() }
             chat.draft = "Please remember Prefer jasmine tea"; chat.send()
-            try await Checks.until { memory ? chat.pendingMemoryReview != nil : chat.pendingProfileReview != nil }
-            await service.waitUntilIdle()
-            try Checks.expect(center.pending.values.first?.kind == .approval, "actual local review notifies")
-            if memory { chat.resolveMemoryReview(id: chat.pendingMemoryReview!.id, approved: true) }
-            else { chat.resolveProfileReview(id: chat.pendingProfileReview!.id, approved: true) }
             try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
-            try Checks.expect(chat.chatError == nil && center.pending.values.first?.kind == .completed, "actual local approval completion replaces prompt")
-            try Checks.expect(center.pending.count == 1, "no leftover local approval notification")
+            try Checks.expect(chat.chatError == nil && (memory ? chat.memoryReceipt != nil : chat.profileReceipt != nil),
+                              "the actual local tool applies with no review")
+            try Checks.expect(!center.additions.contains { $0.payload.kind == .approval }, "a local tool never posts an approval prompt")
+            try Checks.expect(center.pending.count == 1 && center.pending.values.first?.kind == .completed, "the finished turn notifies once")
             try privacy(center)
         }
     }
@@ -296,7 +295,7 @@ final class TaskNotificationAppTests: XCTestCase {
     @MainActor func testRealChatSuccessFailureClear() async throws { try await CheckTaskNotificationApp.realChat() }
     @MainActor func testRealChatCancelGeneration() async throws { try await CheckTaskNotificationApp.lateChat() }
     @MainActor func testRealMCPCompletesWithoutApproval() async throws { try await CheckTaskNotificationApp.realMCP() }
-    @MainActor func testRealProfileMemoryApprovals() async throws { try await CheckTaskNotificationApp.localApprovals() }
+    @MainActor func testRealProfileMemoryWithoutApproval() async throws { try await CheckTaskNotificationApp.localTools() }
 }
 #endif
 #endif

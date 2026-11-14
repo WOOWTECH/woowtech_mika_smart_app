@@ -43,7 +43,7 @@ import Foundation
         let report = MikaAboutDiagnostics(info: installed,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 2, patchVersion: 1),
             language: .english).text
-        try check(report == "woowtech assistant diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
+        try check(report == "woowtech agent diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
                   "Report contains only the explicitly selected metadata")
         let missingReport = MikaAboutDiagnostics(info: unresolved,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 0, patchVersion: 0),
@@ -79,6 +79,18 @@ import Foundation
         let simplifiedSystem = MikaAboutCopy(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]))
         try check(simplifiedSystem.text(.title) == "關於渥屋助理" && simplifiedSystem.build("42") == "建置 42",
                   "A Simplified Chinese system shows the Traditional Chinese About page")
+        let policy = URLComponents(url: MikaPrivacyPolicy.url, resolvingAgainstBaseURL: false)
+        try check(policy?.scheme == "https" && policy?.host == "assistant-relay.woowtech.io" && policy?.path == "/privacy/ios"
+                  && policy?.query == nil && policy?.fragment == nil, "The privacy policy is one HTTPS address")
+        try check(MikaAboutCopy(language: .traditionalChinese).text(.privacyPolicy) == "隱私權政策"
+                  && MikaAboutCopy(language: .english).text(.privacyPolicy) == "Privacy policy", "Privacy policy row in both languages")
+        let hant = MikaAboutCopy(language: .traditionalChinese), english = MikaAboutCopy(language: .english)
+        try check(hant.releasedUnderParts == ("基於 ", " 釋出") && english.releasedUnderParts == ("Released under ", ""),
+                  "The license line wraps its link like Play's about_released_under")
+        try check(hant.text(.licenseLink) == "Apache-2.0 開源許可" && english.text(.licenseTitle) == "Apache-2.0 License",
+                  "License link and page title follow Play")
+        try check(hant.thirdParty(1) == "第三方元件 · 1 個" && english.thirdParty(1) == "Third-party components · 1",
+                  "Third-party count follows Play's licenses_third_party")
         print("MikaAbout: \(assertions) assertions passed")
     }
 
