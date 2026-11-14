@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 import CoreGraphics
 
@@ -18,7 +19,12 @@ final class BrowserLearningUITests: XCTestCase {
         // had already failed it. The ui-learning job caps cases at 300s; keep
         // every other case at 240s and all individual wait bounds unchanged.
         let researchReplayCase = " testWebsiteResearchCreatesPendingSkillAndManualApprovalSurvivesRelaunch]"
-        executionTimeAllowance = name.hasSuffix(researchReplayCase) ? 300 : 240
+        // Removing the model settings mid-research ran past 240 s on iPad (run
+        // 43606357170) and on the large simulator (run 43628091777), and the
+        // iPad simulator is slower in general, so those get 300 s too.
+        let removingSettingsCase = " testRemovingModelSettingsCancelsResearchAndPreservesGoalWithoutLearning]"
+        executionTimeAllowance = name.hasSuffix(researchReplayCase) || name.hasSuffix(removingSettingsCase)
+            || UIDevice.current.userInterfaceIdiom == .pad ? 300 : 240
     }
 
     override func tearDownWithError() throws {

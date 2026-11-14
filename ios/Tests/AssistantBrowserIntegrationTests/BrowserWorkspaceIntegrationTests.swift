@@ -668,11 +668,11 @@ final class BrowserWorkspaceIntegrationTests: XCTestCase {
 
         func close() async {
             // A failed 15s assertion can leave the production removal Task in
-            // its second per-tab 10s discard. Do not remove its delegate or
+            // its second per-tab 30s discard. Do not remove its delegate or
             // profile while that Task still owns the sessions/store. This is
             // failure cleanup only; it cannot turn the original failure green.
             if workspace?.isClearingWebsiteData == true {
-                let deadline = ProcessInfo.processInfo.systemUptime + Double(max(1, sessions.count) * 10)
+                let deadline = ProcessInfo.processInfo.systemUptime + Double(max(1, sessions.count) * 30)
                 while workspace?.isClearingWebsiteData == true, ProcessInfo.processInfo.systemUptime < deadline {
                     try? await Task.sleep(nanoseconds: 20_000_000)
                 }

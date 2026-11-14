@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 import CoreGraphics
 
@@ -11,7 +12,9 @@ final class MemoryUITests: XCTestCase {
         continueAfterFailure = false
         // iPhone SE on iOS 18.5 needs about 70 s just to configure the model, so the
         // two-step clear case ran out of a 180 s allowance one relaunch from the end.
-        executionTimeAllowance = 240
+        // The iPad simulator is slower still: the edit, pin and delete case ran
+        // past 240 s there (run 43606357170), so iPad gets the 300 s maximum.
+        executionTimeAllowance = UIDevice.current.userInterfaceIdiom == .pad ? 300 : 240
     }
 
     override func tearDownWithError() throws {

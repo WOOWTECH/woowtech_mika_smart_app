@@ -4,7 +4,10 @@ import CoreGraphics
 final class BrowserSiteModesUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
-    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 180 }
+    // On iPhone 17 (iOS 26.2, run 43628091777) one tap on the page's note field
+    // waited 120 s for the web content, so 180 s ran out; the ui-workspace job
+    // allows 420 s per case.
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             let tree = XCTAttachment(string: app.debugDescription)
@@ -71,9 +74,15 @@ final class BrowserSiteModesUITests: XCTestCase {
         // The captured failure includes this real WebKit input-accessory Done
         // button. A tap on an already-selected app tab does not resign focus.
         let done = app.toolbars.buttons.matching(NSPredicate(format: "label IN %@", ["Done", "完成"])).firstMatch
+        // An iPad keyboard has no input-accessory Done (iPad row, run 43606357170);
+        // its own key hides it.
+        let hide = app.keyboards.descendants(matching: .any).matching(
+            NSPredicate(format: "label IN %@", ["隱藏鍵盤", "Hide keyboard", "Dismiss keyboard"])).firstMatch
         if app.keyboards.firstMatch.exists || done.exists {
-            try wait("WebKit keyboard Done must be visible and hittable") { self.canTap(done) }
-            done.tap()
+            try wait("WebKit keyboard Done, or the iPad keyboard's hide key, must be visible and hittable") {
+                self.canTap(done) || self.canTap(hide)
+            }
+            if canTap(done) { done.tap() } else { hide.tap() }
         }
         try wait("WebKit keyboard and input accessory must actually close") {
             !self.app.keyboards.firstMatch.exists && !done.exists

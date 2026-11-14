@@ -549,7 +549,9 @@ final class ConversationArchiveUITests: XCTestCase {
     private func tap(_ id: String, scroll: Bool = false) {
         let button = app.buttons[id].firstMatch
         if scroll { revealLearningElement(button, in: app) }
-        ready(button); XCTAssertTrue(app.frame.contains(button.frame)); button.tap()
+        ready(button); XCTAssertTrue(app.frame.contains(button.frame))
+        // The menu only opens the drawer, so a lost tap may be repeated once.
+        if id == "chat.menu" { tapExpecting(button, app.scrollViews["drawer.scroll"].firstMatch) } else { button.tap() }
     }
     private func ready(_ element: XCUIElement) {
         let hittable = NSPredicate(format: "hittable == true")

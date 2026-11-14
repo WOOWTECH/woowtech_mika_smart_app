@@ -17,14 +17,12 @@ func openModelSettings(in app: XCUIApplication, file: StaticString = #filePath, 
     XCTAssertTrue(link.isEnabled && link.isHittable, file: file, line: line)
     XCTAssertFalse(app.textFields["settings.baseURL"].exists,
                    "Model fields belong to the destination, not the Settings root.", file: file, line: line)
-    link.tap()
-    XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10), file: file, line: line)
+    XCTAssertTrue(tapExpecting(link, app.navigationBars["模型"]), file: file, line: line)
     XCTAssertTrue(app.buttons["models.role.main"].waitForExistence(timeout: 10), file: file, line: line)
     let custom = app.buttons["setup.preset.custom"]
     if custom.waitForExistence(timeout: 2) {
         revealLearningElement(custom, in: app, file: file, line: line)
-        custom.tap()
-        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10), file: file, line: line)
+        XCTAssertTrue(tapExpecting(custom, app.textFields["settings.baseURL"]), file: file, line: line)
     }
     XCTAssertFalse(link.isHittable, file: file, line: line)
     XCTAssertFalse(app.buttons["section.back"].isHittable,

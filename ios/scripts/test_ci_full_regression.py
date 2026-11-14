@@ -276,8 +276,8 @@ class FullRegressionPlanTests(unittest.TestCase):
             self.assertAlmostEqual(durations[0], ci.SLICE_SECONDS, delta=1)
             self.assertAlmostEqual(durations[1], ci.DOCUMENTS_SLICE_SECONDS, delta=1)
 
-    def test_startup_and_chat_shards_get_the_long_window(self):
-        for scope in ('ui-startup', 'ui-chat'):
+    def test_startup_chat_and_memory_shards_get_the_long_window(self):
+        for scope in ('ui-startup', 'ui-chat', 'ui-memory'):
             row = next(r for r in self.plan['rows'] if r['slices'][0]['scope'] == scope)
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)

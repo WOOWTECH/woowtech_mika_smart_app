@@ -557,7 +557,10 @@ final class BrowserUploadUITests: XCTestCase {
 
     private let applicationLabels = ["渥屋助理", "WoowAssistant"]
     // Apple documents these names: https://support.apple.com/zh-tw/102570
-    private let localLabels = ["我的 iPhone", "在我的 iPhone 上", "On My iPhone", "我的 iPad", "On My iPad"]
+    // The iPad row's Files (iOS 26.2, run 43606357170) showed 我的iPad without the
+    // space: its diagnostics counted one "local-no-space" cell and no other.
+    private let localLabels = ["我的 iPhone", "在我的 iPhone 上", "On My iPhone", "我的 iPad", "On My iPad",
+                               "我的iPhone", "我的iPad"]
     private let browseLabels = ["瀏覽", "Browse"]
     private let locationsLabels = ["位置", "Locations"]
 
