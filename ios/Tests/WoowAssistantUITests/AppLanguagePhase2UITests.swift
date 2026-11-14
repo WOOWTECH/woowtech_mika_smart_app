@@ -41,26 +41,30 @@ final class AppLanguagePhase2UITests: XCTestCase {
 
         tapRoot("settings")
         tapContent(app.buttons["settings.notifications"])
-        exactText("notifications.enabled", "Off")
-        XCTAssertEqual(app.staticTexts["notifications.enabled"].value as? String, "Off")
-        let authorization = app.staticTexts["notifications.authorization"]
-        revealLearningElement(authorization, in: app)
-        let expectedAuthorization = [
-            "unknown": "Not available yet", "notDetermined": "Not requested",
-            "denied": "Denied", "authorized": "Allowed",
-            "provisional": "Provisionally allowed (quiet notifications)",
-            "ephemeral": "Temporarily allowed"
-        ]
-        let rawAuthorization = authorization.value as? String ?? ""
-        guard let expected = expectedAuthorization[rawAuthorization] else {
-            XCTFail("The actual system authorization raw state has no localized mapping.")
-            return
+        XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 10))
+        // Play's notification page in English. Storage was reset, so task
+        // notifications are off whatever iOS allows.
+        let master = app.buttons["notifications.enabled"]
+        XCTAssertTrue(master.waitForExistence(timeout: 10))
+        revealLearningElement(master, in: app)
+        XCTAssertTrue(master.label.hasPrefix("All notifications"), master.label)
+        XCTAssertTrue(master.label.contains("woowtech agent can’t send notifications, so you won’t see task results or alerts"),
+                      master.label)
+        XCTAssertEqual(master.value as? String, "Turn on")
+        exactText("notifications.group", "Task notifications")
+        for (identifier, title, purpose) in [
+            ("notifications.attention", "Needs you", "When you need to take over, approve or answer"),
+            ("notifications.result", "Task results", "When a task finishes")
+        ] {
+            let row = app.buttons[identifier]
+            revealLearningElement(row, in: app)
+            XCTAssertTrue(row.label.hasPrefix(title) && row.label.contains(purpose), row.label)
+            XCTAssertEqual(row.value as? String, "Off")
         }
-        XCTAssertEqual(authorization.label, expected,
-                       "The actual system authorization state must be rendered in English.")
-        let enable = app.buttons["notifications.enable"]
-        revealLearningElement(enable, in: app)
-        XCTAssertEqual(enable.label, "Enable and request notification permission")
+        exactText("notifications.footer", "On iOS, only you can change whether notifications pop up or make a sound, in Settings. "
+                  + "Both kinds of task notifications share the same settings. To turn notifications off, turn off "
+                  + "“Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. "
+                  + "Path: Settings › Notifications › woowtech agent")
         let testNotification = app.buttons["notifications.test"]
         XCTAssertTrue(testNotification.waitForExistence(timeout: 10))
         XCTAssertFalse(testNotification.isEnabled,

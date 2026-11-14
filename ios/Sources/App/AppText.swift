@@ -315,6 +315,16 @@ enum AppText: Equatable {
     case settingsHomeNotificationDetail
     case settingsNotificationsNormal
     case settingsNotificationsLowered(count: Int)
+    case settingsNotificationsMaster
+    case settingsNotificationsMasterOn
+    case settingsNotificationsMasterOff
+    case settingsNotificationsAttention
+    case settingsNotificationsAttentionWhen
+    case settingsNotificationsResult
+    case settingsNotificationsResultWhen
+    case settingsNotificationsPopsUp
+    case settingsNotificationsQuiet
+    case settingsNotificationsFooter
     case settingsStatusReady
     case settingsStatusReadyDetail
     case settingsStatusNoModel
@@ -1214,6 +1224,16 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "settings.home.notification.detail"
         case .settingsNotificationsNormal: return "settings.notifications.normal"
         case .settingsNotificationsLowered: return "settings.notifications.lowered"
+        case .settingsNotificationsMaster: return "settings.notifications.master"
+        case .settingsNotificationsMasterOn: return "settings.notifications.master.on"
+        case .settingsNotificationsMasterOff: return "settings.notifications.master.off"
+        case .settingsNotificationsAttention: return "settings.notifications.attention"
+        case .settingsNotificationsAttentionWhen: return "settings.notifications.attention.when"
+        case .settingsNotificationsResult: return "settings.notifications.result"
+        case .settingsNotificationsResultWhen: return "settings.notifications.result.when"
+        case .settingsNotificationsPopsUp: return "settings.notifications.popsUp"
+        case .settingsNotificationsQuiet: return "settings.notifications.quiet"
+        case .settingsNotificationsFooter: return "settings.notifications.footer"
         case .settingsStatusReady: return "settings.status.ready"
         case .settingsStatusReadyDetail: return "settings.status.ready.detail"
         case .settingsStatusNoModel: return "settings.status.noModel"
@@ -2146,7 +2166,7 @@ enum AppText: Equatable {
         case .notificationProvisional: return "暫時允許（安靜通知）"
         case .notificationEphemeral: return "暫時允許（短期）"
         case .notificationNotSupported: return "不支援"
-        case .notificationAuthorizationError: return "無法完成系統權限請求，請重新整理狀態後再試。"
+        case .notificationAuthorizationError: return "無法完成系統權限請求，請再點一次「去開啟」。"
         case .notificationDeliveryError: return "這次通知未能送出，請直接在 App 查看任務。"
         case .notificationCompletedTitle: return "任務已完成"
         case .notificationApprovalTitle: return "有操作需要你核准"
@@ -2216,6 +2236,16 @@ enum AppText: Equatable {
         case .settingsHomeNotificationDetail: return "什麼時候彈出、去系統裡改"
         case .settingsNotificationsNormal: return "正常"
         case .settingsNotificationsLowered: return "有 %lld 項不會彈出"
+        case .settingsNotificationsMaster: return "通知總開關"
+        case .settingsNotificationsMasterOn: return "允許渥屋助理發通知"
+        case .settingsNotificationsMasterOff: return "現在不允許渥屋助理發通知，任務結果和提醒都看不到"
+        case .settingsNotificationsAttention: return "需要你處理"
+        case .settingsNotificationsAttentionWhen: return "需要你接管、確認、回答時"
+        case .settingsNotificationsResult: return "任務結果"
+        case .settingsNotificationsResultWhen: return "任務做完時"
+        case .settingsNotificationsPopsUp: return "會彈出"
+        case .settingsNotificationsQuiet: return "只進通知中心"
+        case .settingsNotificationsFooter: return "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理"
         case .settingsStatusReady: return "一切就緒"
         case .settingsStatusReadyDetail: return "模型已就緒 · 可使用對話與內建瀏覽器"
         case .settingsStatusNoModel: return "還沒有能用的模型"

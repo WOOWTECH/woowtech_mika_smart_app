@@ -239,7 +239,7 @@
 "notification.provisional" = "暫時允許（安靜通知）";
 "notification.ephemeral" = "暫時允許（短期）";
 "notification.not.supported" = "不支援";
-"notification.authorization.error" = "無法完成系統權限請求，請重新整理狀態後再試。";
+"notification.authorization.error" = "無法完成系統權限請求，請再點一次「去開啟」。";
 "notification.delivery.error" = "這次通知未能送出，請直接在 App 查看任務。";
 "notification.completed.title" = "任務已完成";
 "notification.approval.title" = "有操作需要你核准";
@@ -308,6 +308,16 @@
 "settings.notifications.title" = "通知";
 "settings.home.notification.detail" = "什麼時候彈出、去系統裡改";
 "settings.notifications.normal" = "正常";
+"settings.notifications.master" = "通知總開關";
+"settings.notifications.master.on" = "允許渥屋助理發通知";
+"settings.notifications.master.off" = "現在不允許渥屋助理發通知，任務結果和提醒都看不到";
+"settings.notifications.attention" = "需要你處理";
+"settings.notifications.attention.when" = "需要你接管、確認、回答時";
+"settings.notifications.result" = "任務結果";
+"settings.notifications.result.when" = "任務做完時";
+"settings.notifications.popsUp" = "會彈出";
+"settings.notifications.quiet" = "只進通知中心";
+"settings.notifications.footer" = "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理";
 "settings.status.ready" = "一切就緒";
 "settings.status.ready.detail" = "模型已就緒 · 可使用對話與內建瀏覽器";
 "settings.status.noModel" = "還沒有能用的模型";

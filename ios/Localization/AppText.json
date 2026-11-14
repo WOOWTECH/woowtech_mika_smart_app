@@ -2251,8 +2251,8 @@
       "key": "notification.authorization.error",
       "parameters": [],
       "translations": {
-        "zh-Hant": "無法完成系統權限請求，請重新整理狀態後再試。",
-        "en": "The system permission request did not complete. Refresh the status and try again."
+        "zh-Hant": "無法完成系統權限請求，請再點一次「去開啟」。",
+        "en": "The system permission request did not complete. Tap “Turn on” again."
       }
     },
     {
@@ -2904,6 +2904,96 @@
           "one": "%lld won’t pop up",
           "other": "%lld won’t pop up"
         }
+      }
+    },
+    {
+      "case": "settingsNotificationsMaster",
+      "key": "settings.notifications.master",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知總開關",
+        "en": "All notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOn",
+      "key": "settings.notifications.master.on",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "允許渥屋助理發通知",
+        "en": "woowtech agent can send notifications"
+      }
+    },
+    {
+      "case": "settingsNotificationsMasterOff",
+      "key": "settings.notifications.master.off",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "現在不允許渥屋助理發通知，任務結果和提醒都看不到",
+        "en": "woowtech agent can’t send notifications, so you won’t see task results or alerts"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttention",
+      "key": "settings.notifications.attention",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你處理",
+        "en": "Needs you"
+      }
+    },
+    {
+      "case": "settingsNotificationsAttentionWhen",
+      "key": "settings.notifications.attention.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "需要你接管、確認、回答時",
+        "en": "When you need to take over, approve or answer"
+      }
+    },
+    {
+      "case": "settingsNotificationsResult",
+      "key": "settings.notifications.result",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務結果",
+        "en": "Task results"
+      }
+    },
+    {
+      "case": "settingsNotificationsResultWhen",
+      "key": "settings.notifications.result.when",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "任務做完時",
+        "en": "When a task finishes"
+      }
+    },
+    {
+      "case": "settingsNotificationsPopsUp",
+      "key": "settings.notifications.popsUp",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "會彈出",
+        "en": "Pops up"
+      }
+    },
+    {
+      "case": "settingsNotificationsQuiet",
+      "key": "settings.notifications.quiet",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只進通知中心",
+        "en": "Notification Center only"
+      }
+    },
+    {
+      "case": "settingsNotificationsFooter",
+      "key": "settings.notifications.footer",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理",
+        "en": "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. Path: Settings › Notifications › woowtech agent"
       }
     },
     {

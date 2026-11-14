@@ -239,7 +239,7 @@
 "notification.provisional" = "Provisionally allowed (quiet notifications)";
 "notification.ephemeral" = "Temporarily allowed";
 "notification.not.supported" = "Not supported";
-"notification.authorization.error" = "The system permission request did not complete. Refresh the status and try again.";
+"notification.authorization.error" = "The system permission request did not complete. Tap “Turn on” again.";
 "notification.delivery.error" = "This notification could not be sent. View the task in the app.";
 "notification.completed.title" = "Task completed";
 "notification.approval.title" = "An action needs your approval";
@@ -308,6 +308,16 @@
 "settings.notifications.title" = "Notifications";
 "settings.home.notification.detail" = "When they pop up, change in system settings";
 "settings.notifications.normal" = "Normal";
+"settings.notifications.master" = "All notifications";
+"settings.notifications.master.on" = "woowtech agent can send notifications";
+"settings.notifications.master.off" = "woowtech agent can’t send notifications, so you won’t see task results or alerts";
+"settings.notifications.attention" = "Needs you";
+"settings.notifications.attention.when" = "When you need to take over, approve or answer";
+"settings.notifications.result" = "Task results";
+"settings.notifications.result.when" = "When a task finishes";
+"settings.notifications.popsUp" = "Pops up";
+"settings.notifications.quiet" = "Notification Center only";
+"settings.notifications.footer" = "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. Path: Settings › Notifications › woowtech agent";
 "settings.status.ready" = "All set";
 "settings.status.ready.detail" = "Model ready · Chat and browser available";
 "settings.status.noModel" = "No usable model yet";
