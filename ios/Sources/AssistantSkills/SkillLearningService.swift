@@ -21,6 +21,13 @@ public struct SkillLearningService: Sendable {
         self.timeoutNanoseconds = min(timeoutNanoseconds, 30_000_000_000)
     }
 
+    /// The distinct executed actions, counted as `assess` counts them; a draft
+    /// needs at least five (Play's Eligibility.MIN_ACTIONS), so a caller with no
+    /// used skill to record can skip the judge request below that.
+    public static func countedActions(_ actions: [SkillExecutedAction]) -> Int {
+        SkillLearningSafety.uniqueActionCount(actions)
+    }
+
     public func assess(goal: String, answer: String, actions: [SkillExecutedAction],
                        context: SkillTaskContext = .init(), state: SkillsState,
                        availableToolNames: Set<String>, builtinNames: Set<String> = [],
@@ -60,7 +67,8 @@ public struct SkillLearningService: Sendable {
                 // Only the explicit executor-owned field establishes provenance.
                 // Do not infer it from requested arguments or URLs in page text.
                 let sourceURLIdentity: String?
-                if ["browser_inspect", "browser_open_link", "browser_find"].contains(action.toolName),
+                // Pages read by website research and by chat web tasks.
+                if ["browser_inspect", "browser_open_link", "browser_find", "web_read_page", "web_find"].contains(action.toolName),
                    let observedURL = action.observedURL {
                     sourceURLIdentity = judgeURLs.identity(forExactURL: observedURL.absoluteString)
                 } else { sourceURLIdentity = nil }
@@ -153,8 +161,8 @@ public struct SkillLearningService: Sendable {
         guard data.count <= 128 * 1024 else { throw CallFailure.invalid }
         let messages = [ModelMessage(role: "system", content: instructions),
                         ModelMessage(role: "user", content: String(decoding: data, as: UTF8.self))]
-        let boundedConfig = ModelConfiguration(baseURL: configuration.baseURL, model: configuration.model,
-                                              maxOutputTokens: min(configuration.maxOutputTokens, maxTokens))
+        // The provider's key rule and session header go with every request.
+        let boundedConfig = configuration.withMaxOutputTokens(min(configuration.maxOutputTokens, maxTokens))
         let output = try await withThrowingTaskGroup(of: String.self) { group in
             group.addTask { try await client.complete(messages: messages, configuration: boundedConfig, apiKey: apiKey) }
             group.addTask { try await Task.sleep(nanoseconds: timeoutNanoseconds); throw CallFailure.timedOut }
