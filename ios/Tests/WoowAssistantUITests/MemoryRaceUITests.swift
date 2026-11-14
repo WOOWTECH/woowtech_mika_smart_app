@@ -38,7 +38,7 @@ final class MemoryRaceUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         navigateMikaSection("chat", in: app)
         // Prove the clear happened before the main reply, not after extraction.
-        XCTAssertEqual(app.staticTexts["chat.status"].label, "正在等待模型回覆…")
+        XCTAssertEqual(app.staticTexts["chat.status"].label, "正在處理")
         // Like the Play build, the clear never stops the pending reply; only its
         // extraction is skipped, so the old message cannot refill cleared memory.
         let reply = app.staticTexts["chat.message.1.assistant"]

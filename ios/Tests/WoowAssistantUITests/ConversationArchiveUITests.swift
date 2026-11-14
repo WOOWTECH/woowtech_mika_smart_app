@@ -212,38 +212,28 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
     }
 
-    func testUnfinishedReplyNeedsConfirmationFromTopAndDrawer() {
+    /// Like the Play build a stop saves the question with 已停止。, so there is no
+    /// unfinished fragment left to confirm before a new conversation.
+    func testStoppedReplyIsSavedAndNewConversationNeedsNoConfirmation() {
         launch(streaming: true); configure(); disableMemory(); compose("[fixture:stream-cancel]"); tap("chat.send")
         assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
         tap("chat.cancel")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
-
-        tap("chat.newConversation")
-        let alert = app.alerts.firstMatch
-        XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
-        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "未完成的回覆片段尚未保存")).firstMatch.exists)
-        ready(alert.buttons["返回目前對話"].firstMatch); alert.buttons["返回目前對話"].tap()
-        assertLabel(app.staticTexts["chat.partialReply"].firstMatch, "串流測試：第一段")
-
-        tap("chat.menu"); tap("drawer.newConversation")
-        XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        ready(alert.buttons["返回目前對話"].firstMatch); alert.buttons["返回目前對話"].firstMatch.tap()
-        tap("drawer.close")
-        tap("chat.newConversation")
-        XCTAssertTrue(alert.waitForExistence(timeout: 10))
-        XCTAssertTrue(alert.label.contains("開啟新對話前確認"))
-        XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "未完成的回覆片段尚未保存")).firstMatch.exists)
-        let discard = alert.buttons["捨棄並開啟新對話"].firstMatch
-        ready(discard); discard.tap()
+        assertLabel(turn("chat.message.1.assistant"), "已停止。")
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists)
-        XCTAssertEqual(app.descendants(matching: .any)["chat.draft"].firstMatch.value as? String,
-                       "[fixture:stream-cancel]")
+
+        tap("chat.newConversation")
+        XCTAssertFalse(app.alerts.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertFalse(turn("chat.message.0.user").exists)
         tap("chat.menu")
-        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
+        let saved = revealRecentRow("[fixture:stream-cancel]")
+        ready(saved); saved.tap()
+        assertLabel(turn("chat.message.0.user"), "[fixture:stream-cancel]")
+        assertLabel(turn("chat.message.1.assistant"), "已停止。")
     }
 
-    func testChangedModelDisablesContinuationFromTheDrawer() {
+    /// Like the Play build a conversation is not tied to its model: the model
+    /// change keeps it open, and it continues from the drawer on the new model.
+    func testChangedModelStillContinuesFromTheDrawer() {
         launch(); configure(); send("Archive original")
         navigate("settings")
         openModelSettings(in: app)
@@ -251,10 +241,16 @@ final class ConversationArchiveUITests: XCTestCase {
         chooseTypedMainModel("different", provider: "model.invalid", in: app)
         XCTAssertFalse(app.staticTexts["settings.error"].firstMatch.exists)
         returnFromModelSettings(in: app)
-        navigate("chat"); tap("chat.menu")
+        navigate("chat")
+        assertLabel(turn("chat.message.1.assistant"), "測試回覆：Archive original")
+        tap("chat.newConversation"); tap("chat.menu")
         let original = revealRecentRow("Archive original")
-        XCTAssertFalse(original.isEnabled, "A chat saved with another main model cannot continue on this one.")
-        XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+        XCTAssertTrue(original.isEnabled, "A chat saved with another main model continues on this one.")
+        original.tap()
+        assertLabel(turn("chat.message.1.assistant"), "測試回覆：Archive original")
+        compose("Continue on the new model"); tap("chat.send")
+        assertLabel(turn("chat.message.3.assistant"), "測試回覆：Continue on the new model")
+        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
     }
 
     func testDeletionRemainsAbsentAfterRelaunch() {
@@ -278,22 +274,25 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(recentRow("Archive delete").exists)
     }
 
-    func testCancelledRunAndUnsentDraftAreNotClaimedAsSaved() {
+    /// Like the Play build a stopped run stays in the conversation as 已停止。,
+    /// saved with it, and the input bar is empty.
+    func testCancelledRunIsSavedAsStopped() {
         launch(); configure()
         compose("[fixture:wait]"); tap("chat.send")
         ready(app.buttons["chat.cancel"].firstMatch)
+        assertLabel(turn("chat.message.0.user"), "[fixture:wait]")
         assertArchiveUnavailableDuringRun()
         tap("chat.cancel")
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, "[fixture:wait]")
-        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
-        tap("chat.menu")
-        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
-        launch(reset: false)
-        XCTAssertFalse(app.staticTexts["chat.message.0.user"].firstMatch.exists)
+        assertLabel(turn("chat.message.1.assistant"), "已停止。")
         XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:wait]")
+        launch(reset: false)
+        XCTAssertFalse(turn("chat.message.0.user").exists)
         tap("chat.menu")
-        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
+        let saved = revealRecentRow("[fixture:wait]")
+        ready(saved); saved.tap()
+        assertLabel(turn("chat.message.0.user"), "[fixture:wait]")
+        assertLabel(turn("chat.message.1.assistant"), "已停止。")
     }
 
     /// Android MessageMenu: quote a reply and send with it, then ask again from your
@@ -464,6 +463,11 @@ final class ConversationArchiveUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "測試回覆：" + text)
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
+    }
+    /// A transcript message by identifier, whatever element type it is (沒有完成
+    /// and 已停止。 rows are one combined element).
+    private func turn(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
     private func recentRow(_ title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "drawer.recent.row.", title)).firstMatch

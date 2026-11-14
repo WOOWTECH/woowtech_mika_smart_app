@@ -95,15 +95,13 @@ extension AppText {
         // Default titles the browser library gives tabs it has no page title for.
         .browserTabNew, .browserTabSignIn, .browserTabPage,
         // Chat, browser and module messages shown on the chat and browser screens.
-        .storedChatPartialReceiving, .storedChatPartialCancelled, .storedChatPartialFailed,
-        .storedChatSettingsChanged, .storedChatArchiveOpened, .storedChatArchiveSaveFailed,
-        .storedChatQuoteBeforeChange, .storedChatQuoteBeforeRemove, .storedChatQuoteChanged,
+        .storedChatArchiveOpened, .storedChatArchiveSaveFailed, .storedChatQuoteChanged,
         .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
         .storedChatPrepareFailed, .storedChatEmptyReply, .storedChatNoSingleStep, .storedChatSendFailed,
         .storedChatMcpUnfinished, .storedChatMemorySavedReplyUnfinished, .storedChatProfileSavedReplyUnfinished,
         .storedChatReasonAuth, .storedChatReasonRateLimited, .storedChatReasonUnavailable, .storedChatReasonRefused,
         .storedChatReasonTimeout, .storedChatReasonOffline, .storedChatReasonToolsOff, .storedChatReasonToolExpired,
-        .storedChatReasonToolIncomplete, .storedChatCancelledWait, .storedChatLearningBusy,
+        .storedChatReasonToolIncomplete, .storedChatLearningBusy,
         .storedChatLearningChanged, .storedChatLearningSaveFailed, .storedChatMemoryToolRejected,
         .storedChatProfileToolRejected, .storedChatNewChat, .storedChatMcpDenied, .storedChatMcpToolError,
         .storedChatMcpLocalLimit, .storedChatMcpLimit, .storedContextIncompleteHistory, .storedContextTooLarge,

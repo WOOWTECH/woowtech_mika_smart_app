@@ -283,7 +283,7 @@ struct ContentView: View {
         #if DEBUG
         VStack(spacing: 0) {
             // -UITestAttachments: adds a generated photo and note to the tray on demand,
-            // after a test has saved its model (saving settings starts a new conversation).
+            // after a test has saved its model.
             if session.isUITestMode, ProcessInfo.processInfo.arguments.contains("-UITestAttachments") {
                 Button("加入測試附件") { Task { await session.addAttachments(ChatAttachmentUITestFixture.pickedFiles()) } }
                     .font(.caption2)
@@ -617,7 +617,19 @@ private struct ChatView: View {
         }
     }
 
+    @ViewBuilder
     private func messageBubble(index: Int, entry: ChatEntry, words: String, targets: ChatMessageActionTargets) -> some View {
+        if let outcome = entry.outcome, entry.role == "assistant" {
+            ChatTurnOutcomeRow(outcome: outcome, reason: localizer.stored(entry.content), notDone: localizer.text(.chatTurnNotDone),
+                               stopped: localizer.text(.chatTurnStopped), ink: palette.ink, secondary: palette.secondaryInk)
+                .accessibilityIdentifier("chat.message.\(index).assistant")
+        } else {
+            answerOrQuestionBubble(index: index, entry: entry, words: words, targets: targets)
+        }
+    }
+
+    private func answerOrQuestionBubble(index: Int, entry: ChatEntry, words: String,
+                                        targets: ChatMessageActionTargets) -> some View {
         let user = entry.role == "user"
         return HStack {
             if user { Spacer(minLength: 40) }
@@ -808,19 +820,19 @@ private struct ChatView: View {
             messageRow(index: index, entry: entry, targets: targets)
         }
         if let preview = session.replyPreview {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(localizer.stored(preview.status)).font(.caption.bold()).foregroundStyle(.secondary)
-                    .accessibilityIdentifier("chat.partialStatus")
-                Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
-                    .font(.system(size: 15.5)).lineSpacing(4)
-                    .foregroundStyle(palette.ink).textSelection(.enabled)
-                    .accessibilityIdentifier("chat.partialReply")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14).padding(.vertical, 12)
-                    .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .id(preview.id)
+            // Like Play's DraftText: the reply grows in place, without a status line.
+            Text(ChatReplyMarkdown.render(preview.text, streaming: true))
+                .font(.system(size: 15.5)).lineSpacing(4)
+                .foregroundStyle(palette.ink).textSelection(.enabled)
+                .accessibilityIdentifier("chat.partialReply")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(palette.assistant, in: RoundedRectangle(cornerRadius: 20))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .id(preview.id)
+        } else if session.isSubmitting, session.webTask == nil, let started = session.requestStartedAt {
+            ChatWorkingRow(started: started, label: localizer.text(.chatTurnWorking), tint: palette.accent,
+                           ink: palette.ink, secondary: palette.secondaryInk)
         }
         if let task = session.webTask {
             ChatWebTaskCard(task: task, localizer: localizer, colors: webTaskColors, onStop: { session.cancel() })
@@ -1287,5 +1299,69 @@ private struct LearningChatNotes: View {
                 }
             }
         }
+    }
+}
+
+/// The Play build's work row under a question still on its way: a spinner,
+/// 正在處理 and the time since it was sent ("0:24").
+private struct ChatWorkingRow: View {
+    let started: Date
+    let label: String
+    let tint: Color
+    let ink: Color
+    let secondary: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().controlSize(.small).tint(tint)
+            Text(verbatim: label).font(.callout).foregroundStyle(ink)
+            Spacer(minLength: 8)
+            TimelineView(.periodic(from: started, by: 1)) { context in
+                Text(verbatim: Self.clock(context.date.timeIntervalSince(started)))
+                    .font(.caption.monospacedDigit()).foregroundStyle(secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("chat.working")
+    }
+
+    /// Play's ChatCopy.clock: 0:24, 12:05, 1:02:03.
+    static func clock(_ interval: TimeInterval) -> String {
+        let seconds = max(0, Int(interval))
+        let hours = seconds / 3600, minutes = seconds % 3600 / 60, rest = seconds % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, rest) : String(format: "%d:%02d", minutes, rest)
+    }
+}
+
+/// A turn without an answer, as the Play build shows it: a red dot with 沒有完成
+/// and the reason under it, or 已停止。
+private struct ChatTurnOutcomeRow: View {
+    let outcome: ArchivedConversationTurn.Outcome
+    let reason: String
+    let notDone: String
+    let stopped: String
+    let ink: Color
+    let secondary: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            switch outcome {
+            case .failed:
+                HStack(spacing: 8) {
+                    Circle().fill(Color.red).frame(width: 8, height: 8).accessibilityHidden(true)
+                    Text(verbatim: notDone).font(.body.weight(.semibold)).foregroundStyle(ink)
+                }
+                Text(verbatim: reason).font(.callout).foregroundStyle(secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .cancelled:
+                Text(verbatim: stopped).font(.body).foregroundStyle(secondary)
+            }
+        }
+        .padding(.horizontal, 2).padding(.bottom, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: outcome == .failed ? notDone + "\n" + reason : stopped))
+        .accessibilityAddTraits(.isStaticText)
     }
 }

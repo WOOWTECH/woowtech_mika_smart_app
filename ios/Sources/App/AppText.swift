@@ -463,7 +463,6 @@ enum AppText: Equatable {
     case drawerRecentActiveTask
     case drawerRecentUnsentDraft
     case drawerRecentUnsavedReply
-    case drawerRecentDifferentDestination
     case newConversationConfirmTitle
     case newConversationPDFWarning
     case newConversationUnsavedWarning
@@ -473,6 +472,9 @@ enum AppText: Equatable {
     case newConversationKeep
     case chatStatusMCPWorking
     case chatStatusWaiting
+    case chatTurnNotDone
+    case chatTurnStopped
+    case chatTurnWorking
     case chatStatusConfigured
     case chatStatusUnconfigured
     case chatModelSetupHint
@@ -701,14 +703,8 @@ enum AppText: Equatable {
     case notificationWebPausedBody
     case notificationWebNeedsYouTitle
     case notificationWebNeedsYouBody
-    case storedChatPartialReceiving
-    case storedChatPartialCancelled
-    case storedChatPartialFailed
-    case storedChatSettingsChanged
     case storedChatArchiveOpened
     case storedChatArchiveSaveFailed
-    case storedChatQuoteBeforeChange
-    case storedChatQuoteBeforeRemove
     case storedChatQuoteChanged
     case storedChatArchiveChanged
     case storedChatMcpNotReady
@@ -730,7 +726,6 @@ enum AppText: Equatable {
     case storedChatReasonToolsOff
     case storedChatReasonToolExpired
     case storedChatReasonToolIncomplete
-    case storedChatCancelledWait
     case storedChatLearningBusy
     case storedChatLearningChanged
     case storedChatLearningSaveFailed
@@ -1352,7 +1347,6 @@ enum AppText: Equatable {
         case .drawerRecentActiveTask: return "drawer.recent.activeTask"
         case .drawerRecentUnsentDraft: return "drawer.recent.unsentDraft"
         case .drawerRecentUnsavedReply: return "drawer.recent.unsavedReply"
-        case .drawerRecentDifferentDestination: return "drawer.recent.differentDestination"
         case .newConversationConfirmTitle: return "newConversation.confirmTitle"
         case .newConversationPDFWarning: return "newConversation.pdfWarning"
         case .newConversationUnsavedWarning: return "newConversation.unsavedWarning"
@@ -1362,6 +1356,9 @@ enum AppText: Equatable {
         case .newConversationKeep: return "newConversation.keep"
         case .chatStatusMCPWorking: return "chat.status.mcpWorking"
         case .chatStatusWaiting: return "chat.status.waiting"
+        case .chatTurnNotDone: return "chat.turn.notDone"
+        case .chatTurnStopped: return "chat.turn.stopped"
+        case .chatTurnWorking: return "chat.turn.working"
         case .chatStatusConfigured: return "chat.status.configured"
         case .chatStatusUnconfigured: return "chat.status.unconfigured"
         case .chatModelSetupHint: return "chat.modelSetupHint"
@@ -1590,14 +1587,8 @@ enum AppText: Equatable {
         case .notificationWebPausedBody: return "notification.webPaused.body"
         case .notificationWebNeedsYouTitle: return "notification.webNeedsYou.title"
         case .notificationWebNeedsYouBody: return "notification.webNeedsYou.body"
-        case .storedChatPartialReceiving: return "stored.chat.partialReceiving"
-        case .storedChatPartialCancelled: return "stored.chat.partialCancelled"
-        case .storedChatPartialFailed: return "stored.chat.partialFailed"
-        case .storedChatSettingsChanged: return "stored.chat.settingsChanged"
         case .storedChatArchiveOpened: return "stored.chat.archiveOpened"
         case .storedChatArchiveSaveFailed: return "stored.chat.archiveSaveFailed"
-        case .storedChatQuoteBeforeChange: return "stored.chat.quoteBeforeChange"
-        case .storedChatQuoteBeforeRemove: return "stored.chat.quoteBeforeRemove"
         case .storedChatQuoteChanged: return "stored.chat.quoteChanged"
         case .storedChatArchiveChanged: return "stored.chat.archiveChanged"
         case .storedChatMcpNotReady: return "stored.chat.mcpNotReady"
@@ -1619,7 +1610,6 @@ enum AppText: Equatable {
         case .storedChatReasonToolsOff: return "stored.chat.reasonToolsOff"
         case .storedChatReasonToolExpired: return "stored.chat.reasonToolExpired"
         case .storedChatReasonToolIncomplete: return "stored.chat.reasonToolIncomplete"
-        case .storedChatCancelledWait: return "stored.chat.cancelledWait"
         case .storedChatLearningBusy: return "stored.chat.learningBusy"
         case .storedChatLearningChanged: return "stored.chat.learningChanged"
         case .storedChatLearningSaveFailed: return "stored.chat.learningSaveFailed"
@@ -2343,7 +2333,6 @@ enum AppText: Equatable {
         case .drawerRecentActiveTask: return "任務進行中，請先返回處理。"
         case .drawerRecentUnsentDraft: return "草稿或 PDF 附件未送出，請先返回處理。"
         case .drawerRecentUnsavedReply: return "目前答覆尚未保存，請先返回處理。"
-        case .drawerRecentDifferentDestination: return "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。"
         case .newConversationConfirmTitle: return "開啟新對話前確認"
         case .newConversationPDFWarning: return "選取的 PDF 尚未送出；開啟新對話會移除附件。"
         case .newConversationUnsavedWarning: return "本次回覆尚未保存；開啟新對話會清除畫面中的回覆，並放棄重試保存。"
@@ -2352,7 +2341,10 @@ enum AppText: Equatable {
         case .newConversationDiscard: return "捨棄並開啟新對話"
         case .newConversationKeep: return "返回目前對話"
         case .chatStatusMCPWorking: return "正在使用 MCP 處理對話…"
-        case .chatStatusWaiting: return "正在等待模型回覆…"
+        case .chatStatusWaiting: return "正在處理"
+        case .chatTurnNotDone: return "沒有完成"
+        case .chatTurnStopped: return "已停止。"
+        case .chatTurnWorking: return "正在處理"
         case .chatStatusConfigured: return "模型已設定"
         case .chatStatusUnconfigured: return "尚未設定模型"
         case .chatModelSetupHint: return "請先到設定填寫模型服務與 API Key。"
@@ -2489,15 +2481,15 @@ enum AppText: Equatable {
         case .chatReportDeleted: return "檢舉已刪除。"
         case .chatReportDeleteFailed: return "無法確認刪除，檢舉已保留。請稍後重試。"
         case .chatReportDeleteUnverified: return "這份檢舉可能已送達，但沒有有效的刪除憑證，因此已保留。請依隱私權政策聯絡開發者並提供檢舉編號。"
-        case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。"
-        case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。草稿已保留。"
-        case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
-        case .chatModelFailedNotFound: return "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。"
-        case .chatModelFailedNetwork: return "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。"
-        case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。"
-        case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。"
-        case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。"
-        case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。"
+        case .chatModelFailedAuth: return "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。"
+        case .chatModelFailedQuota: return "呼叫模型失敗：額度已用完。"
+        case .chatModelFailedRateLimited: return "呼叫模型失敗：請求太頻繁，請稍後再試。"
+        case .chatModelFailedNotFound: return "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。"
+        case .chatModelFailedNetwork: return "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。"
+        case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。"
+        case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。"
+        case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。"
+        case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。"
         case .drawerDeleteTitle: return "刪除這個對話？"
         case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
         case .chatWebTitle: return "網頁任務"
@@ -2581,26 +2573,20 @@ enum AppText: Equatable {
         case .notificationWebPausedBody: return "回到渥屋助理就會繼續。"
         case .notificationWebNeedsYouTitle: return "網頁任務需要你處理"
         case .notificationWebNeedsYouBody: return "請開啟渥屋助理查看；通知不會核准操作。"
-        case .storedChatPartialReceiving: return "回覆產生中・尚未完成，未保存"
-        case .storedChatPartialCancelled: return "已取消・部分回覆未保存"
-        case .storedChatPartialFailed: return "回覆未完成・部分回覆未保存"
-        case .storedChatSettingsChanged: return "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
         case .storedChatArchiveOpened: return "已開啟保存的對話；尚未傳送任何訊息。"
-        case .storedChatArchiveSaveFailed: return "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
-        case .storedChatQuoteBeforeChange: return "請先傳送或移除引用，再變更模型設定。"
-        case .storedChatQuoteBeforeRemove: return "請先傳送或移除引用，再移除模型設定。"
+        case .storedChatArchiveSaveFailed: return "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。"
         case .storedChatQuoteChanged: return "引用來源已變更；草稿與引用保留，請重新選取。"
         case .storedChatArchiveChanged: return "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
         case .storedChatMcpNotReady: return "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
         case .storedChatKeyUnreadable: return "無法讀取金鑰，草稿已保留。請在設定確認或重新儲存金鑰。"
         case .storedChatLearningUnreadable: return "無法讀取學習資料，請重新讀取後再試。"
         case .storedChatPrepareFailed: return "無法準備本次對話。"
-        case .storedChatEmptyReply: return "模型回傳空白內容，草稿已保留，請重試。"
-        case .storedChatNoSingleStep: return "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。"
-        case .storedChatSendFailed: return "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
-        case .storedChatMcpUnfinished: return "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。"
-        case .storedChatMemorySavedReplyUnfinished: return "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。"
-        case .storedChatProfileSavedReplyUnfinished: return "個人檔案已儲存，但後續模型回覆未完成；草稿保留。"
+        case .storedChatEmptyReply: return "模型回傳空白內容，請重試。"
+        case .storedChatNoSingleStep: return "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。"
+        case .storedChatSendFailed: return "傳送失敗。請檢查模型設定或網路後重試。"
+        case .storedChatMcpUnfinished: return "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。"
+        case .storedChatMemorySavedReplyUnfinished: return "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。"
+        case .storedChatProfileSavedReplyUnfinished: return "個人檔案已儲存，但後續模型回覆未完成。"
         case .storedChatReasonAuth: return "模型服務拒絕驗證，請檢查模型金鑰與存取權限。"
         case .storedChatReasonRateLimited: return "模型服務目前限制請求，請稍後再試。"
         case .storedChatReasonUnavailable: return "模型服務暫時無法處理請求，請稍後再試。"
@@ -2610,17 +2596,16 @@ enum AppText: Equatable {
         case .storedChatReasonToolsOff: return "本次對話未啟用記憶與個人檔案工具，修改要求已停止。"
         case .storedChatReasonToolExpired: return "這次記憶工具操作已失效，修改要求已停止。"
         case .storedChatReasonToolIncomplete: return "本機記憶工具未傳回完整結果，對話已停止。"
-        case .storedChatCancelledWait: return "已取消等待，草稿已保留。伺服器可能已收到請求。"
-        case .storedChatLearningBusy: return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
-        case .storedChatLearningChanged: return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
-        case .storedChatLearningSaveFailed: return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
-        case .storedChatMemoryToolRejected: return "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。"
-        case .storedChatProfileToolRejected: return "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。"
+        case .storedChatLearningBusy: return "學習資料正在其他位置儲存；本次修改未儲存。請稍後重新確認。"
+        case .storedChatLearningChanged: return "學習資料已變更；本次對話已停止。請重新讀取資料並再次確認。"
+        case .storedChatLearningSaveFailed: return "學習資料無法儲存，這次修改未發布；原有資料保留，請確認裝置儲存狀態後再試。"
+        case .storedChatMemoryToolRejected: return "記憶工具未通過來源、目標或資料狀態檢查，已停止。已完成的儲存會另外顯示。"
+        case .storedChatProfileToolRejected: return "個人檔案工具未通過檢查或已超過執行限制，已停止。已完成的儲存會另外顯示。"
         case .storedChatNewChat: return "已開啟新對話；已確認的記憶與技能保留。"
-        case .storedChatMcpDenied: return "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。"
-        case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。"
-        case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。"
-        case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。"
+        case .storedChatMcpDenied: return "你已拒絕這次呼叫，MCP 對話已停止；先前的工具結果保留。"
+        case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。"
+        case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。"
+        case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。"
         case .storedContextIncompleteHistory: return "聊天歷史不是完整的使用者與助理回合，請開啟新對話後再試。"
         case .storedContextTooLarge: return "這次訊息與參考內容超過傳送上限，請縮短訊息或參考內容。"
         case .storedReferencePrepareFailed: return "無法準備本次參考資料，尚未開始研究。"
@@ -2714,13 +2699,13 @@ enum AppText: Equatable {
         case .storedBrowserLoadIncompleteCheck: return "頁面載入未完成；請確認網址與網路。"
         case .storedBrowserReadTooLarge: return "已讀內容超過本次模型輸入上限，請縮小研究範圍；實際讀取紀錄保留。"
         case .storedChatContextWindow: return "本次傳送最近 %1$lld 輪對話、本輪完整訊息及參考資料；較早 %2$lld 輪仍在畫面中，但未傳送。"
-        case .storedChatMemorySavedReplyTimeout: return "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。草稿保留。"
-        case .storedChatWaitTimeout: return "等待超過 %1$lld 秒，已停止等待；草稿已保留，可重試。"
-        case .storedChatProfileSavedReplyTimeout: return "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒；草稿保留。"
+        case .storedChatMemorySavedReplyTimeout: return "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。"
+        case .storedChatWaitTimeout: return "等待超過 %1$lld 秒，已停止等待。"
+        case .storedChatProfileSavedReplyTimeout: return "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒。"
         case .storedChatMcpActivity: return "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。"
         case .storedResearchModelHTTP: return "模型服務回報 HTTP %1$lld，研究未完成；請檢查服務與存取設定。"
         case .storedSuffixDraftKept: return "草稿已保留。"
-        case .storedSuffixToolResultsKept: return "草稿與已收到的工具結果保留；沒有自動重送操作。"
+        case .storedSuffixToolResultsKept: return "已收到的工具結果保留；沒有自動重送操作。"
         case .storedSuffixReplayNoSkip: return " 沒有跳過內容核對，也未自動重新學習。已讀取內容保留。"
         case .chatUseMCP: return "本次對話使用 MCP 工具"
         case .chatReceiptProfile: return "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
