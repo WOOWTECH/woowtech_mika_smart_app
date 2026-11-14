@@ -147,12 +147,9 @@ final class BrowserWorkspaceUITests: XCTestCase {
         navigateMikaSection("browser", in: app)
     }
     private func open(_ path: String) {
-        // On a page the address is a pill until tapped, as on Play.
-        let pill = app.buttons["browser.addressPill"]
-        if pill.exists { pill.tap() }
-        let field = app.textFields["browser.address"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        // On a page the address is a pill until tapped, as on Play; the opened
+        // field holds the page's URL, which the deletes clear before typing.
+        let field = focusBrowserAddress(in: app)
         if let value = field.value as? String, value.hasPrefix("https://") { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
         field.typeText("https://research.example.invalid/" + path + "\n")
         let title = path.hasPrefix("workspace-two") ? "Workspace second" : "Workspace first"

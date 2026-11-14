@@ -22,13 +22,8 @@ final class BrowserExternalOpenUITests: XCTestCase {
         navigateMikaSection("browser", in: app)
 
         let url = "https://research.example.invalid/workspace-one#/docs/42"
-        let address = app.textFields["browser.address"]
-        XCTAssertTrue(address.waitForExistence(timeout: 10))
-        XCTAssertTrue(address.isHittable)
-        address.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
-                      "The native address keyboard must appear before typeText")
-        address.typeText(url + "\n")
+        // Return submits once; the field then folds into the page's address pill.
+        focusBrowserAddress(in: app).typeText(url + "\n")
         let page = app.webViews.staticTexts["Workspace first"]
         XCTAssertTrue(page.waitForExistence(timeout: 75))
         XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, url)

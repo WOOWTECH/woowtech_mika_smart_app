@@ -657,9 +657,9 @@ final class BrowserLoginUITests: XCTestCase {
     private func openInFreshPage(_ url: URL) {
         let close = app.buttons["browser.closePage"]
         if close.waitForExistence(timeout: 5) { tap(close) }
-        let field = app.textFields["browser.address"]
-        tap(field)
+        let field = focusBrowserAddress(in: app)
         XCTAssertFalse((field.value as? String ?? "").hasPrefix("http://"), "The start page must start empty.")
+        // Return submits once; the field then folds into the page's address pill.
         field.typeText(url.absoluteString + "\n")
     }
     private func openSignIns(expectedCount: Int) {

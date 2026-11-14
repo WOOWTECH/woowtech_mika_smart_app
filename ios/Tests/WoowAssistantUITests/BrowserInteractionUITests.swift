@@ -108,7 +108,8 @@ final class BrowserInteractionUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
         navigateMikaSection("browser", in: app)
-        enter(fixtureURL + "\n", into: app.textFields["browser.address"])
+        // Return submits once; the field then folds into the page's address pill.
+        focusBrowserAddress(in: app).typeText(fixtureURL + "\n")
         wait(app.staticTexts["browser.status"], "label == %@", "頁面已載入", timeout: 75)
         XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         XCTAssertTrue(dom("Interaction fixture").exists)
@@ -219,9 +220,10 @@ final class BrowserInteractionUITests: XCTestCase {
         element.tap()
     }
     private func enter(_ value: String, into field: XCUIElement) {
-        if field.identifier == "browser.address" { waitForFixedChrome(field) }
-        else { revealLearningElement(field, in: app) }
-        if field.elementType == .textView {
+        revealLearningElement(field, in: app)
+        // Read the type before typing: a submitted field may be gone afterwards.
+        let isTextView = field.elementType == .textView
+        if isTextView {
             // The iOS 17 failure screenshot/AX shows the complete native
             // multiline editor, but element.tap() left it unfocused. Use a
             // point inside that verified frame; never tap a screen coordinate
@@ -233,7 +235,7 @@ final class BrowserInteractionUITests: XCTestCase {
         } else { field.tap() }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText(value)
-        if field.elementType == .textView { XCTAssertEqual(field.value as? String, value) }
+        if isTextView { XCTAssertEqual(field.value as? String, value) }
     }
     private func waitForFixedChrome(_ element: XCUIElement) {
         wait(element, "exists == true AND hittable == true AND enabled == true")

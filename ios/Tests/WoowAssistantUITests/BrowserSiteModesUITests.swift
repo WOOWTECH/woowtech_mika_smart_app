@@ -60,9 +60,7 @@ final class BrowserSiteModesUITests: XCTestCase {
 
     /// Type the fixture page on the start page, where the browser opens.
     private func openWorkspace() {
-        let field = app.textFields["browser.address"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
-        field.typeText("https://research.example.invalid/workspace-one\n")
+        focusBrowserAddress(in: app).typeText("https://research.example.invalid/workspace-one\n")
     }
 
     private var siteMode: XCUIElement {
