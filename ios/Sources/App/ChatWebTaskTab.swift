@@ -438,6 +438,10 @@ import AssistantBrowser
     // Passwords, one-time codes, card numbers and sign-in names are the user's to type.
     const sensitive = e => /password|passwd|secret|token|api.?key|credential|one.?time|otp|cc-|credit.?card|card.?number|cvv|cvc|username|login/i.test(
       [e.type, e.name, e.id, e.autocomplete, e.getAttribute('aria-label'), e.getAttribute('placeholder'), labelText(e)].join(' '));
+    // Text fields for codes, card or account numbers and sign-in names, also when the page labels
+    // them only in Chinese. Field-only, so links and buttons that mention an account stay usable.
+    const sensitiveField = e => /密碼|驗證碼|簡訊|卡號|信用卡|安全碼|帳號|帳戶|使用者名稱|身分證|verif|sms|auth.?code|passcode|pin.?code|card.?no|account|user.?id/i.test(
+      [e.name, e.id, e.autocomplete, e.getAttribute('aria-label'), e.getAttribute('placeholder'), labelText(e)].join(' '));
     const describe = e => {
       if (!visible(e) || sensitive(e)) return null;
       const tag = e.tagName, type = (e.type || '').toLowerCase(), role = (e.getAttribute('role') || '').toLowerCase();
@@ -448,6 +452,7 @@ import AssistantBrowser
       else if (tag === 'TEXTAREA' || (tag === 'INPUT' && ['', 'text', 'search', 'email', 'url', 'tel', 'number'].includes(type))) kind = 'text';
       else if (tag === 'SELECT' && !e.multiple && e.options.length <= 100) kind = 'select';
       if (!kind) return null;
+      if (kind === 'text' && sensitiveField(e)) return null;
       return {kind, label: label(e), enabled: !e.matches(':disabled') && !e.readOnly && e.getAttribute('aria-disabled') !== 'true',
         checked: kind === 'toggle' ? !!e.checked : undefined,
         options: kind === 'select' ? Array.from(e.options).slice(0, 100).map(o => clip(o.label || o.text)) : undefined};
