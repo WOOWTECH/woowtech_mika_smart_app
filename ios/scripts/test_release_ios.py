@@ -103,6 +103,47 @@ class PrivacyManifestTests(unittest.TestCase):
                         release.verify_required_reasons(app)
 
 
+    def test_collected_data_matches_the_app_privacy_label(self):
+        root = Path(__file__).resolve().parents[1]
+        payload = plistlib.loads((root / "Sources/App/PrivacyInfo.xcprivacy").read_bytes())
+        self.assertEqual(payload["NSPrivacyCollectedDataTypes"], release.COLLECTED_DATA)
+        for path in sorted((root / "Configuration/PrivacyManifests").glob("*/PrivacyInfo.xcprivacy")):
+            with self.subTest(framework=path.parent.name):
+                own = plistlib.loads(path.read_bytes())
+                self.assertIs(own["NSPrivacyTracking"], False)
+                self.assertEqual(own["NSPrivacyCollectedDataTypes"], [])
+        entry = release.COLLECTED_DATA[0]
+        variants = {"none": [], "linked": [{**entry, "NSPrivacyCollectedDataTypeLinked": True}],
+                    "tracking": [{**entry, "NSPrivacyCollectedDataTypeTracking": True}],
+                    "purpose": [{**entry, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAnalytics"]}],
+                    "extra": [entry, {**entry, "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCrashData"}]}
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            framework = app / "Frameworks/Kit.framework"
+            framework.mkdir(parents=True)
+            target = app / "PrivacyInfo.xcprivacy"
+            target.write_bytes(plistlib.dumps(payload, fmt=plistlib.FMT_BINARY))
+            self.assertEqual(release.verify_collected_data(app, [framework]), ["NSPrivacyCollectedDataTypeOtherUserContent"])
+            for name, collected in variants.items():
+                with self.subTest(name=name):
+                    target.write_bytes(plistlib.dumps({**payload, "NSPrivacyCollectedDataTypes": collected}))
+                    with self.assertRaisesRegex(release.ReleaseError, "隱私標籤"):
+                        release.verify_collected_data(app, [framework])
+            for name, changed in {"tracking": {"NSPrivacyTracking": True},
+                                  "domains": {"NSPrivacyTrackingDomains": ["tracker.example"]}}.items():
+                with self.subTest(name=name):
+                    target.write_bytes(plistlib.dumps({**payload, **changed}))
+                    with self.assertRaisesRegex(release.ReleaseError, "不追蹤"):
+                        release.verify_collected_data(app, [framework])
+            target.write_bytes(plistlib.dumps(payload))
+            (framework / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(
+                {"NSPrivacyTracking": False, "NSPrivacyCollectedDataTypes": release.COLLECTED_DATA}))
+            with self.assertRaisesRegex(release.ReleaseError, "Kit.framework"):
+                release.verify_collected_data(app, [framework])
+            target.unlink()
+            with self.assertRaisesRegex(release.ReleaseError, "PrivacyInfo"):
+                release.verify_collected_data(app, [framework])
+
     def test_binary_scan_requires_each_used_category_in_app_and_framework_manifests(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "Example.app"
@@ -308,6 +349,22 @@ class BuildTests(unittest.TestCase):
                                 release.verify_app(app)
                             native_tool.assert_not_called()
 
+    def test_release_rejects_photo_library_reading_and_files_sharing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            app.mkdir()
+            base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
+                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
+                    **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}
+            for key, value in [("NSPhotoLibraryUsageDescription", "Recent photos in the attach panel."),
+                               ("UIFileSharingEnabled", True), ("LSSupportsOpeningDocumentsInPlace", True)]:
+                with self.subTest(key=key):
+                    (app / "Info.plist").write_bytes(plistlib.dumps({**base, key: value}))
+                    with patch.object(release, "run") as native_tool:
+                        with self.assertRaisesRegex(release.ReleaseError, key):
+                            release.verify_app(app)
+                        native_tool.assert_not_called()
+
     def test_release_requires_exempt_encryption_flag(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "Example.app"
@@ -345,6 +402,9 @@ class BuildTests(unittest.TestCase):
                 with self.subTest(signed=signed), patch.object(release, "run", side_effect=fake_run):
                     report = release.verify_app(app, signed=signed, identity=DIGEST if signed else None)
                     self.assertTrue(report["ats_key_absent"])
+                    self.assertTrue(report["documents_hidden_from_files"])
+                    self.assertTrue(report["photo_library_read_absent"])
+                    self.assertEqual(report["collected_data_types"], ["NSPrivacyCollectedDataTypeOtherUserContent"])
                     self.assertTrue(report["browser_media_purpose_strings_verified"])
                     self.assertTrue(report["required_reason_entries_verified"])
                     self.assertEqual(report["signature_verified"], signed)

@@ -21,8 +21,9 @@ python3 scripts/release_ios.py build --output build/release-check
 - 最低系統是 iOS 17.0。
 - 九個二進位檔都只有 arm64。
 - 不含 ATS 例外。
-- 相機、麥克風、照片、語音辨識的用途說明都不是空的。
-- 支援 Documents 共享。
+- 相機、麥克風、加入照片、語音辨識的用途說明都不是空的。
+- 沒有讀取相簿的用途說明（照片只用系統選擇器），也不把 Documents 公開到「檔案」App（`UIFileSharingEnabled`、`LSSupportsOpeningDocumentsInPlace` 只留在 Debug，給 Files 選擇器的 UI 測試用）。
+- App 的隱私清單不追蹤，收集資料只宣告「其他使用者內容」（AI 回覆檢舉；不連結身分、用於 App 功能），和 App Store Connect 的 App 隱私標籤一致；框架的清單不宣告收集資料。
 
 隱私清單的檢查方式：腳本讀取每個二進位檔引用的符號和 selector（Apple 上傳時 ITMS-91053 也是這樣檢查），用到需要宣告理由的 API 類別時：
 

@@ -4,8 +4,6 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>用於在聊天中拍照附加，以及在你同意後讓目前開啟的網站使用相機。</string>
 	<key>NSLocalNetworkUsageDescription</key>
@@ -17,8 +15,6 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>將你在聊天中說的話轉成可編輯的文字；此功能只使用裝置上的語音辨識。</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
-	<true/>
-	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

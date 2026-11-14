@@ -277,6 +277,34 @@ def verify_required_reasons(app, binaries=()):
     return sorted(used)
 
 
+# AI response reports go to woowtech's relay and stay there for review. The App
+# Store privacy label lists them as Other User Content, not linked to the person,
+# not used for tracking, for app functionality; the App's manifest must agree.
+COLLECTED_DATA = [{"NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+                   "NSPrivacyCollectedDataTypeLinked": False, "NSPrivacyCollectedDataTypeTracking": False,
+                   "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]}]
+
+
+def verify_collected_data(app, frameworks=()):
+    def manifest(path, owner):
+        try:
+            privacy = plistlib.loads(path.read_bytes())
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            raise ReleaseError(owner + " 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
+        if (not isinstance(privacy, dict) or privacy.get("NSPrivacyTracking", False) is not False
+                or privacy.get("NSPrivacyTrackingDomains")):
+            raise ReleaseError(owner + " 的 PrivacyInfo.xcprivacy 必須宣告不追蹤，也不列追蹤網域。")
+        return privacy
+    if manifest(app / "PrivacyInfo.xcprivacy", "App").get("NSPrivacyCollectedDataTypes") != COLLECTED_DATA:
+        raise ReleaseError("App 的 PrivacyInfo.xcprivacy 收集資料宣告必須和 App 隱私標籤一致："
+                           "只有其他使用者內容（不連結身分、不追蹤、用於 App 功能）。")
+    for framework in frameworks:
+        path = framework / "PrivacyInfo.xcprivacy"
+        if path.exists() and manifest(path, framework.name).get("NSPrivacyCollectedDataTypes"):
+            raise ReleaseError(framework.name + " 的 PrivacyInfo.xcprivacy 不應宣告收集資料；檢舉只由 App 送出。")
+    return [entry["NSPrivacyCollectedDataType"] for entry in COLLECTED_DATA]
+
+
 def verify_app(app, signed=False, identity=None, expected_build_number=None):
     info = plistlib.loads((app / "Info.plist").read_bytes())
     if expected_build_number is not None and info.get("CFBundleVersion") != expected_build_number:
@@ -297,16 +325,24 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ReleaseError("Release App 缺少媒體或語音辨識權限用途說明：" + key)
+    # Nor does the store build read the photo library or show its Documents
+    # folder in the Files app, as the privacy policy says. Debug keeps the two
+    # Files keys for the Files-picker UI tests.
+    for key in ("NSPhotoLibraryUsageDescription", "UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace"):
+        if key in info:
+            raise ReleaseError("Release App 不得含 " + key + "：照片只用系統選擇器，Documents 也不公開到「檔案」App。")
     # Only Apple's own encryption (HTTPS, Keychain, CryptoKit) is used, which is
     # exempt; YES without an approved export code makes the upload fail processing.
     if info.get("ITSAppUsesNonExemptEncryption") is not False:
         raise ReleaseError("Release App 的 ITSAppUsesNonExemptEncryption 必須是 false（只用 Apple 系統內建加密）。")
     binaries = [app / info["CFBundleExecutable"]]
-    for framework in (app / "Frameworks").glob("*.framework"):
+    frameworks = sorted((app / "Frameworks").glob("*.framework"))
+    for framework in frameworks:
         data = plistlib.loads((framework / "Info.plist").read_bytes())
         binaries.append(framework / data["CFBundleExecutable"])
     binaries.extend((app / "Frameworks").glob("*.dylib"))
     reason_categories = verify_required_reasons(app, binaries)
+    collected_data = verify_collected_data(app, frameworks)
     for binary in binaries:
         arches = run(["xcrun", "lipo", "-archs", str(binary)], "檢查裝置架構").decode().split()
         if "arm64" not in arches or "x86_64" in arches:
@@ -334,11 +370,12 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
                 raise ReleaseError("App 未使用指定 distribution 憑證簽章。")
     return {"bundle_id": BUNDLE_ID, "minimum_os": "17.0", "platform": "iphoneos",
             "verified_binary_count": len(binaries), "signature_verified": signed,
-            "ats_key_absent": True, "native_documents_enabled": True,
+            "ats_key_absent": True, "documents_hidden_from_files": True, "photo_library_read_absent": True,
             "browser_media_purpose_strings_verified": True,
             "export_compliance_exempt": True,
             "required_reason_entries_verified": True,
-            "required_reason_categories": reason_categories}
+            "required_reason_categories": reason_categories,
+            "collected_data_types": collected_data}
 
 
 @contextmanager
