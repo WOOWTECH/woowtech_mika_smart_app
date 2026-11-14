@@ -11,7 +11,9 @@ while the person's OK, hand-over or answer is waiting (`postNotice`, kinds
 `webPaused`/`webNeedsYou`). It only opens the app and is cleared when the app is
 active again (`clearNotices`).
 The bridge reads entry count, assistant entry ID/role and submitting state only. It neither reads nor retains message content or error
-bodies. Independent skill/browser runners are **not wired** by this increment.
+bodies. Since 2026-11-14 a sent question enters the transcript at once and a failed or stopped turn
+stays as 沒有完成 or 已停止。 (like the Play build); those entries are not answers, so the bridge
+tracks the last answer's ID and they never read as a completion. Independent skill/browser runners are **not wired** by this increment.
 There is no push service, phone/App automation or additional background execution.
 
 ## Notification approval matrix completed at f49c8f7
@@ -95,8 +97,8 @@ control actual presentation and sound. An accepted `add` is not proof of either.
 
 There are at most 32 tracked tasks and one desired notification per task. Oldest
 records are evicted; late events cannot recreate missing tickets. Run lifetime is
-at most 30 minutes; the chat bridge uses the existing 180-second maximum, while
-ChatSession's ordinary-chat 90-second cancellation remains authoritative.
+at most 30 minutes, and the chat bridge uses that: like the Play build ordinary chat
+has no fixed time limit (since 2026-11-14), and MCP runs stop at 180 seconds.
 Approval lifetime is at most 180 seconds and cannot outlive the run; a resolved
 shorter approval deadline does not shorten the remaining run. Results expire
 after 24 hours; test notifications expire after 30 seconds. An active-process
