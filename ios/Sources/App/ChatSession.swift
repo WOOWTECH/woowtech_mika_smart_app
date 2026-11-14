@@ -251,6 +251,8 @@ final class ChatSession: ObservableObject {
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
     /// The skill tool running in this request (Play's chat step labels).
     @Published private(set) var skillStep: ChatSkillStep?
+    /// The skills a skill step read, for learning after the reply (ChatLearning.swift).
+    var pendingSkillLearning: ChatSkillLearningInput?
     @Published private(set) var mcpDiagnostics: String?
     @Published private(set) var profileReceipt: UserProfileToolReceipt?
     private var profileReceiptRequestID: UUID?
@@ -944,6 +946,7 @@ final class ChatSession: ObservableObject {
             return
         }
         let messages = window.messages
+        learning.clearSkillNotes()
         let learningGeneration = learning.generation
         let profileState = learning.profile
         let memoryState = learning.memory
@@ -1041,14 +1044,23 @@ final class ChatSession: ObservableObject {
                 self.completeTurn(id: id, assistant: ChatEntry(role: "assistant", content: reply))
                 // A round that read web pages is not organized into memory, like
                 // Android (RunLearning). finish(id:) already retired its tab.
-                if webResult != nil { return }
+                if let webResult {
+                    // Skills are still learned from it, like Play's RunLearning.
+                    self.learnFromWebTask(webResult, goal: utterance, generation: learningGeneration,
+                                          client: client, configuration: configuration, key: key)
+                    return
+                }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
                 self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
                     expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
                     preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
+                self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
+                    priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
+                    client: client, configuration: configuration, key: key)
             } catch {
                 guard let self, self.requestID == id else { return }
+                self.recordFailedSkillStep(requestID: id, error: error, generation: learningGeneration)
                 let unavailable = error as? MCPChatAvailability
                 if (error as? MCPConversationError) == .executionFailed { mcpConnection?.connectionFailed() }
                 if mcpConnection != nil {
@@ -1508,6 +1520,9 @@ final class ChatSession: ObservableObject {
                 guard let self, self.requestID == id else { return }
                 self.skillStep = step
             })
+        defer {
+            pendingSkillLearning = ChatSkillLearningInput(requestID: id, used: run.usedSkills, completedTools: run.completedTools)
+        }
         return try await run.run(entry: entry, entryRaw: entryRaw, client: client, configuration: configuration, apiKey: key,
                                  validateState: { [weak self] in
             guard let self, self.requestID == id else { throw CancellationError() }

@@ -8541,6 +8541,52 @@
         "zh-Hant": "已完成的讀取（%1$lld）",
         "en": "Completed reads (%1$lld)"
       }
+    },
+    {
+      "case": "chatSkillNoteLearned",
+      "key": "chat.skillNote.learned",
+      "parameters": [
+        {
+          "name": "description",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "渥屋助理學會了一項技能：%1$@",
+        "en": "woowtech agent learned a skill: %1$@"
+      }
+    },
+    {
+      "case": "chatSkillNoteVerified",
+      "key": "chat.skillNote.verified",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "這項技能用它辦成了事，轉為正式：%1$@",
+        "en": "Skill worked, now in regular use: %1$@"
+      }
+    },
+    {
+      "case": "chatSkillNoteSuspended",
+      "key": "chat.skillNote.suspended",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這項技能最近不靈，先停用了",
+        "en": "This skill hasn’t been working lately, so it’s paused"
+      }
+    },
+    {
+      "case": "chatSkillNoteView",
+      "key": "chat.skillNote.view",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "看看",
+        "en": "Take a look"
+      }
     }
   ]
 }

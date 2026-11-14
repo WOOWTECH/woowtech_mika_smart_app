@@ -1,4 +1,5 @@
 #if PROFILE_CHAT_APP_STANDALONE || canImport(WoowAssistant)
+import AssistantBrowser
 import AssistantMemory
 import AssistantModels
 import AssistantMCP
@@ -1799,6 +1800,118 @@ private enum CheckProfileChatApp {
     #endif
 
     #if PROFILE_CHAT_APP_STANDALONE
+    /// Play's RunLearning for chat (RunLearning.kt:85-157): a web task's steps as
+    /// executed actions, a judged-done task drafted under 待確認 with Play's note,
+    /// and skill outcomes (regular after a done run, paused after failures).
+    @MainActor static func chatLearningLikePlay() async throws {
+        let env = try Environment(); defer { try? env.close() }
+        let url = URL(string: "https://shop.example.invalid/jackets")!
+        let site = "shop.example.invalid"
+        let steps = [
+            ChatWebStep(id: 1, kind: .open, site: site, title: "Jackets", url: url, succeeded: true),
+            ChatWebStep(id: 2, kind: .read, site: site, title: "Jackets", url: url, succeeded: true),
+            ChatWebStep(id: 3, kind: .tap, site: site, title: "Menu", url: url, succeeded: true),
+            ChatWebStep(id: 4, kind: .type, site: site, title: "Search box", url: url, succeeded: true),
+            ChatWebStep(id: 5, kind: .select, site: site, title: "Size", url: url, succeeded: true),
+            ChatWebStep(id: 6, kind: .scroll, site: site, title: "", url: url, succeeded: true),
+            ChatWebStep(id: 7, kind: .back, site: site, title: "Shop", url: url, succeeded: true),
+            ChatWebStep(id: 8, kind: .confirm, site: site, title: "Order", url: nil, succeeded: true),
+        ]
+        let read = "Order status: the size M jacket is in stock and ready to ship."
+        let result = ChatWebTaskResult(status: .succeeded, answer: "The size M jacket is in stock.", reason: nil, stop: nil,
+                                       error: nil, sources: [], pagesRead: [], steps: steps, modelCalls: 4, evidence: [2: read])
+        let actions = ChatWebLearningEvidence.actions(from: result)
+        try check(actions.map(\.toolName) == ["web_navigate", "web_read_page", "web_tap", "web_type_text", "web_select",
+                                               "web_scroll", "web_back"], "steps map to Play's web tools; a confirmation is no action")
+        try check(actions[1].kind == .observation && actions[1].result == read && actions[1].observedURL == url,
+                  "a read keeps what was read, with its page")
+        try check(actions.filter { $0.kind != .observation }.allSatisfy { !$0.result.isEmpty && $0.observedURL == nil },
+                  "an action has a result to count and no page of its own")
+        try check(SkillLearningService.countedActions(actions) == 6, "six distinct actions count toward Play's five")
+        let judge = #"{"outcome":"done","reason":"In stock.","evidence":[{"actionID":"step-2","quote":"the size M jacket is in stock and ready to ship"}]}"#
+        let draft = """
+        ---
+        name: check-stock
+        description: 查商品有沒有現貨
+        ---
+        ## 入口
+        打開商店頁。
+        ## 步骤
+        1. 用 `web_tap` 打開選單。
+        ## 容易出错的地方
+        - 尺寸要選對。
+        ## 怎样算办成
+        - 看到現貨字樣。
+        ## 什么时候停下交给用户
+        - 要付款的時候。
+        """
+        let configuration = ModelConfiguration(baseURL: URL(string: "https://profile-check.example.invalid/v1")!, model: "synthetic")
+        let model = ScriptedModel([.init(judge), .init(draft)])
+        let assessment = try await SkillLearningService(client: model).assess(goal: "那件外套 M 號有沒有貨",
+            answer: result.answer ?? "", actions: actions, state: env.store.skills,
+            availableToolNames: ChatWebCommand.toolNames, configuration: configuration, apiKey: "synthetic-not-a-key")
+        try check(assessment.proposal != nil, "a judged-done web task of five or more actions is drafted (Play's Eligibility)")
+        try check(!env.store.applyChatLearning(assessment, availableToolNames: ChatWebCommand.toolNames, builtinNames: [],
+                                               expectedGeneration: UUID()) && env.store.skills.pending.isEmpty,
+                  "a reply from before Clear all or another change learns nothing")
+
+        // Through the chat session: a short task or one the user finished asks
+        // nothing; the full one is judged and drafted in the background.
+        let quiet = ScriptedModel([]), session = env.session(quiet)
+        let short = ChatWebTaskResult(status: .succeeded, answer: "In stock.", reason: nil, stop: nil, error: nil,
+                                      sources: [], pagesRead: [], steps: Array(steps.prefix(4)), modelCalls: 2, evidence: [2: read])
+        let interrupted = ChatWebTaskResult(status: .succeeded, answer: "In stock.", reason: nil, stop: nil, error: nil,
+                                            sources: [], pagesRead: [], steps: steps, modelCalls: 4, evidence: [2: read],
+                                            userInterrupted: true)
+        for ended in [short, interrupted] {
+            session.learnFromWebTask(ended, goal: "那件外套 M 號有沒有貨", generation: env.store.generation,
+                                     client: quiet, configuration: configuration, key: "synthetic-not-a-key")
+        }
+        for _ in 0..<20 { await Task.yield() }
+        let quietRequests = await quiet.requests
+        try check(quietRequests.isEmpty, "below five actions, or with the user's part, no judge request")
+        let learning = ScriptedModel([.init(judge), .init(draft)])
+        session.learnFromWebTask(result, goal: "那件外套 M 號有沒有貨", generation: env.store.generation,
+                                 client: learning, configuration: configuration, key: "synthetic-not-a-key")
+        try await until("the judged task is learned") { env.store.skills.pending.count == 1 }
+        let learningRequests = await learning.requests
+        try check(learningRequests.count == 2, "one judge and one draft request")
+        guard let pending = env.store.skills.pending.first, env.store.skills.pending.count == 1 else {
+            throw CheckFailure(check: "one learned draft under 待確認")
+        }
+        try check(pending.source == .learned && env.store.skills.installed.isEmpty, "a draft waits for the user, never auto-installed")
+        try check(env.store.skillNotes.map(\.kind) == [.learned(draftID: pending.id, description: "查商品有沒有現貨")],
+                  "Play's skill_learned note with the draft to open")
+        try check(env.reopen().skills == env.store.skills, "the draft is written before it is shown")
+        env.store.requestPendingSkills()
+        try check(env.store.pendingSkillsRequest != nil, "看看 asks the memory page for 待確認")
+        env.store.pendingSkillsShown()
+        try check(env.store.pendingSkillsRequest == nil, "the page takes the request once")
+
+        try check(env.store.mutateSkills { _ = try $0.approveDraft(id: pending.id, availableToolNames: LearningStore.skillToolNames) },
+                  "accept the draft to try it")
+        let trial = env.store.skills.installed[0]
+        try check(trial.status == .trial, "an accepted draft starts on trial")
+        let used = SkillUsedReference(name: trial.name, fingerprint: trial.fingerprint, followed: true)
+        env.store.clearSkillNotes()
+        try check(!env.store.recordChatSkillOutcomes([used], evidence: SkillRunEvidence(end: .succeeded, outcome: .done,
+                  wasRead: true, followed: true), expectedGeneration: UUID()) && env.store.skills.installed[0].status == .trial,
+                  "a stale outcome is not recorded")
+        try check(env.store.recordChatSkillOutcomes([used], evidence: SkillRunEvidence(end: .succeeded, outcome: .done,
+                  wasRead: true, followed: true), expectedGeneration: env.store.generation), "done outcome recorded")
+        try check(env.store.skills.installed[0].status == .active, "a done run turns a trial skill regular")
+        try check(env.store.skillNotes.map(\.kind) == [.verified(name: "check-stock")], "Play's skill_verified note")
+        let failed = SkillRunEvidence(end: .failed, failureKind: .stepLimit, wasRead: true, followed: true)
+        env.store.clearSkillNotes()
+        _ = env.store.recordChatSkillOutcomes([used], evidence: failed, expectedGeneration: env.store.generation)
+        try check(env.store.skills.installed[0].status == .active && env.store.skillNotes.isEmpty, "one failure keeps it in use")
+        _ = env.store.recordChatSkillOutcomes([used], evidence: failed, expectedGeneration: env.store.generation)
+        try check(env.store.skills.installed[0].status == .suspended && env.store.skillNotes.map(\.kind) == [.suspended],
+                  "it pauses after it kept failing, with Play's skill_suspended note")
+        try check(env.reopen().skills == env.store.skills, "outcomes are written before they are shown")
+        try check(env.store.clearAll() && env.store.skillNotes.isEmpty, "Clear all drops the notes")
+    }
+
     @MainActor static func main() async {
         do {
             if ProcessInfo.processInfo.environment["WOOW_CHAT_CONTEXT_ONLY"] == "1" {
@@ -1838,6 +1951,7 @@ private enum CheckProfileChatApp {
             try await group("sameStoreChangesKeepReplies", sameStoreChangesKeepReplies)
             try await group("chatRepliesIgnoreLearningChanges", chatRepliesIgnoreLearningChanges)
             try await group("memorySearchGrounding", memorySearchGrounding)
+            try await group("chatLearningLikePlay", chatLearningLikePlay)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)

@@ -890,6 +890,10 @@ enum AppText: Equatable {
     case browserResearchResult
     case browserResearchLearning
     case browserResearchReads(count: Int)
+    case chatSkillNoteLearned(description: String)
+    case chatSkillNoteVerified(name: String)
+    case chatSkillNoteSuspended
+    case chatSkillNoteView
 
     var key: String {
         switch self {
@@ -1780,6 +1784,10 @@ enum AppText: Equatable {
         case .browserResearchResult: return "browser.research.result"
         case .browserResearchLearning: return "browser.research.learning"
         case .browserResearchReads: return "browser.research.reads"
+        case .chatSkillNoteLearned: return "chat.skillNote.learned"
+        case .chatSkillNoteVerified: return "chat.skillNote.verified"
+        case .chatSkillNoteSuspended: return "chat.skillNote.suspended"
+        case .chatSkillNoteView: return "chat.skillNote.view"
         }
     }
 
@@ -1878,6 +1886,8 @@ enum AppText: Equatable {
         case .chatMcpResultsView(let count): return [Int64(count)]
         case .browserInteractionNavigationMethod(let method): return [method]
         case .browserResearchReads(let count): return [Int64(count)]
+        case .chatSkillNoteLearned(let description): return [description]
+        case .chatSkillNoteVerified(let name): return [name]
         default: return []
         }
     }
@@ -2772,6 +2782,10 @@ enum AppText: Equatable {
         case .browserResearchResult: return "目前結果"
         case .browserResearchLearning: return "學習結果"
         case .browserResearchReads: return "已完成的讀取（%1$lld）"
+        case .chatSkillNoteLearned: return "渥屋助理學會了一項技能：%1$@"
+        case .chatSkillNoteVerified: return "這項技能用它辦成了事，轉為正式：%1$@"
+        case .chatSkillNoteSuspended: return "這項技能最近不靈，先停用了"
+        case .chatSkillNoteView: return "看看"
         }
     }
 }
