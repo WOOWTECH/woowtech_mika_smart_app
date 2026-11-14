@@ -229,7 +229,7 @@ final class WoowAssistantUITests: XCTestCase {
             XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
                            "GitHub entry still shown: \(id)")
         }
-        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
+        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。")
         XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
                        "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
         // Play's About › Released under Apache-2.0 license → Licenses, with the

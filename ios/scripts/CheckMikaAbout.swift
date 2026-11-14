@@ -91,6 +91,10 @@ import Foundation
                   "License link and page title follow Play")
         try check(hant.thirdParty(1) == "第三方元件 · 1 個" && english.thirdParty(1) == "Third-party components · 1",
                   "Third-party count follows Play's licenses_third_party")
+        // woowtech Play about_data_note: reporting an AI reply sends it to WOOW TECH.
+        try check(hant.text(.dataNote) == "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。"
+                  && english.text(.dataNote) == "What you send is processed by the AI provider you choose. If you report an AI response, that response is sent to WOOW TECH for review.",
+                  "The data note says where a reported reply goes")
         print("MikaAbout: \(assertions) assertions passed")
     }
 
