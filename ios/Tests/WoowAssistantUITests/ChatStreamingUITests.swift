@@ -17,19 +17,23 @@ final class ChatStreamingUITests: XCTestCase {
     /// One case per system language: the three together took up to 290 s on
     /// iPhone SE and ran past the 300 s ui-chat maximum on iPhone 16 Pro Max.
     func testComposerIdleAndBusyControlsForTraditionalChineseSystem() {
-        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hant)", placeholder: "輸入訊息", voiceLabel: "語音輸入")
+        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hant)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
+                                          cancelledStatus: "已取消・部分回覆未保存")
     }
 
     /// A Simplified Chinese system shows Traditional Chinese.
     func testComposerIdleAndBusyControlsForSimplifiedChineseSystem() {
-        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hans)", placeholder: "輸入訊息", voiceLabel: "語音輸入")
+        assertComposerIdleAndBusyControls(systemLanguages: "(zh-Hans)", placeholder: "輸入訊息", voiceLabel: "語音輸入",
+                                          cancelledStatus: "已取消・部分回覆未保存")
     }
 
     func testComposerIdleAndBusyControlsForEnglishSystem() {
-        assertComposerIdleAndBusyControls(systemLanguages: "(en)", placeholder: "Type a message", voiceLabel: "Voice input")
+        assertComposerIdleAndBusyControls(systemLanguages: "(en)", placeholder: "Type a message", voiceLabel: "Voice input",
+                                          cancelledStatus: "Cancelled · partial reply not saved")
     }
 
-    private func assertComposerIdleAndBusyControls(systemLanguages: String, placeholder: String, voiceLabel: String) {
+    private func assertComposerIdleAndBusyControls(systemLanguages: String, placeholder: String, voiceLabel: String,
+                                                   cancelledStatus: String) {
         launch(); configure(); disableMemory()
         launchLocalizedStreamingFixture(app, systemLanguages: systemLanguages, namespace: namespace)
         let draft = chatDraftControl(in: app)
@@ -47,7 +51,7 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(mic.isEnabled, "Generating does not accept voice interrupts")
         XCTAssertTrue(app.buttons["chat.cancel"].isEnabled)
         tap("chat.cancel")
-        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, "已取消・部分回覆未保存")
+        assertLabel(app.staticTexts["chat.partialStatus"].firstMatch, cancelledStatus)
         wait(NSPredicate(format: "enabled == true"), on: draft)
         wait(NSPredicate(format: "enabled == true"), on: mic)
         XCTAssertEqual(draft.value as? String, "[fixture:stream-cancel]")
