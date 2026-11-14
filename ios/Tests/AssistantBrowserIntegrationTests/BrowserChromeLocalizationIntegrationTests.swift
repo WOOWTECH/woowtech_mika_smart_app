@@ -5,7 +5,7 @@ import XCTest
     func testPackagedStartAndChromeStringsHaveBothLanguages() {
         let messages: [AppText] = [
             .browserStartDone, .browserStartEdit, .browserStartRecent, .browserStartClear,
-            .browserStartSuggestionHelp, .browserStartAddBookmark, .browserStartViewBookmarks,
+            .browserStartSuggestionHelp, .browserStartAddBookmark,
             .browserStartOK, .browserStartAddBookmarkHelp, .browserStartRemoveBookmark(name: "Page"),
             .browserStartAdd, .browserStartSuggestionSubtitle,
             .browserChromeClosePage, .browserChromeAddressPlaceholder, .browserChromeClearInput,
@@ -13,8 +13,8 @@ import XCTest
             .browserChromeSearchEngine(name: "Engine"),
             .browserChromeSearchMatch(query: "Query", engine: "Engine"),
             .browserChromeAutomationNotice, .browserChromeReturnManual, .browserChromeResearch,
-            .browserChromeResearchSite, .browserPageAskResearch, .browserChromeInteract, .browserChromeLibrary,
-            .browserChromeExplanation, .browserChromeFind, .browserChromeCurrentDesktop,
+            .browserChromeResearchSite, .browserPageAskResearch, .browserChromeInteract,
+            .browserChromeExplanation, .browserChromeCurrentDesktop,
             .browserChromeCurrentMobile, .browserChromeMobileWebsite, .browserChromeDesktopWebsite,
             .browserChromeSiteModeHelp, .browserChromeSiteMode, .browserChromeDesktop,
             .browserChromeMobile,
@@ -24,7 +24,9 @@ import XCTest
             .browserChromeRemoveBookmark, .browserChromeAddBookmark,
             .browserChromeSwitchMobile, .browserChromeSwitchDesktop, .browserChromeDone
         ]
-        XCTAssertEqual(messages.count, 53)
+        // The library sheet (bookmark list) and find in page were removed like the
+        // Play build, so their three strings are no longer shown or listed here.
+        XCTAssertEqual(messages.count, 48)
         for language in AppDisplayLanguage.allCases {
             let localizer = AppLocalizer(language: language)
             for message in messages {
