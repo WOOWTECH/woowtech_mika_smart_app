@@ -144,7 +144,7 @@
 "common.selected" = "已選取";
 "common.unselected" = "未選取";
 "common.unknown" = "尚未取得";
-"mcp.title" = "MCP 與 Skills";
+"mcp.title" = "MCP 伺服器";
 "mcp.connection.section" = "MCP 連線與目錄";
 "mcp.no.tools" = "伺服器未宣告工具能力";
 "mcp.explanation" = "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。";
@@ -434,7 +434,6 @@
 "consent.agree" = "同意並繼續";
 "consent.decline" = "不同意";
 "chat.consentDeclined" = "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。";
-"settings.status.readyMain" = "主模型：%1$@ · %2$@";
 "modelSettings.tooManyProviders" = "服務商已達上限，請先刪除不用的服務商。";
 "modelSettings.consentRequired" = "還沒有同意把內容傳給這家服務商，設定未變更。";
 "settings.home.title" = "設定";
@@ -519,6 +518,8 @@
 "voice.choice.system" = "裝置自帶";
 "voice.choice.system.note" = "邊說邊出字；離線辨識需支援目前語言並具備語言包";
 "voice.choice.system.none" = "這台裝置沒有可用的語音辨識";
+"voice.choice.system.offline" = "離線依語言支援";
+"voice.choice.system.gone" = "這台裝置沒有";
 "voice.choice.available" = "可用";
 "voice.choice.missing" = "沒有";
 "voice.choice.off" = "不用";

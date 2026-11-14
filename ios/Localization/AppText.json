@@ -1336,8 +1336,8 @@
       "key": "mcp.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 與 Skills",
-        "en": "MCP and Skills"
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP servers"
       }
     },
     {
@@ -4135,24 +4135,6 @@
       }
     },
     {
-      "case": "settingsStatusReadyMain",
-      "key": "settings.status.readyMain",
-      "parameters": [
-        {
-          "name": "model",
-          "type": "String"
-        },
-        {
-          "name": "provider",
-          "type": "String"
-        }
-      ],
-      "translations": {
-        "zh-Hant": "主模型：%1$@ · %2$@",
-        "en": "Main model: %1$@ · %2$@"
-      }
-    },
-    {
       "case": "modelSettingsTooManyProviders",
       "key": "modelSettings.tooManyProviders",
       "parameters": [],
@@ -4945,6 +4927,24 @@
       "translations": {
         "zh-Hant": "這台裝置沒有可用的語音辨識",
         "en": "This device has no usable speech recognition"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemOffline",
+      "key": "voice.choice.system.offline",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "離線依語言支援",
+        "en": "Offline depends on language"
+      }
+    },
+    {
+      "case": "voiceChoiceSystemGone",
+      "key": "voice.choice.system.gone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置沒有",
+        "en": "Not on this device"
       }
     },
     {

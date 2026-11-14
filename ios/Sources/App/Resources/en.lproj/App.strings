@@ -144,7 +144,7 @@
 "common.selected" = "Selected";
 "common.unselected" = "Not selected";
 "common.unknown" = "Not available yet";
-"mcp.title" = "MCP and Skills";
+"mcp.title" = "MCP servers";
 "mcp.connection.section" = "MCP connection and catalog";
 "mcp.no.tools" = "The server did not declare tool support";
 "mcp.explanation" = "Supports HTTPS Streamable HTTP. Connect, select tools for the conversation model, then enable MCP in chat. The model runs selected tools without asking you each time, so select only tools you allow it to use. Tool descriptions and results are sent to your configured model.";
@@ -434,7 +434,6 @@
 "consent.agree" = "Agree and continue";
 "consent.decline" = "Don’t agree";
 "chat.consentDeclined" = "Not sent: you didn’t agree to send your content to %1$@. Your draft is kept.";
-"settings.status.readyMain" = "Main model: %1$@ · %2$@";
 "modelSettings.tooManyProviders" = "You’ve reached the provider limit. Delete one you don’t use first.";
 "modelSettings.consentRequired" = "You haven’t agreed to send your content to this provider; nothing was changed.";
 "settings.home.title" = "Settings";
@@ -519,6 +518,8 @@
 "voice.choice.system" = "Built into the device";
 "voice.choice.system.note" = "Shows words as you speak; offline recognition requires a supported language pack";
 "voice.choice.system.none" = "This device has no usable speech recognition";
+"voice.choice.system.offline" = "Offline depends on language";
+"voice.choice.system.gone" = "Not on this device";
 "voice.choice.available" = "Available";
 "voice.choice.missing" = "None";
 "voice.choice.off" = "None";

@@ -441,7 +441,6 @@ enum AppText: Equatable {
     case consentAgree
     case consentDecline
     case chatConsentDeclined(provider: String)
-    case settingsStatusReadyMain(model: String, provider: String)
     case modelSettingsTooManyProviders
     case modelSettingsConsentRequired
     case settingsHomeTitle
@@ -527,6 +526,8 @@ enum AppText: Equatable {
     case voiceChoiceSystem
     case voiceChoiceSystemNote
     case voiceChoiceSystemNone
+    case voiceChoiceSystemOffline
+    case voiceChoiceSystemGone
     case voiceChoiceAvailable
     case voiceChoiceMissing
     case voiceChoiceOff
@@ -1332,7 +1333,6 @@ enum AppText: Equatable {
         case .consentAgree: return "consent.agree"
         case .consentDecline: return "consent.decline"
         case .chatConsentDeclined: return "chat.consentDeclined"
-        case .settingsStatusReadyMain: return "settings.status.readyMain"
         case .modelSettingsTooManyProviders: return "modelSettings.tooManyProviders"
         case .modelSettingsConsentRequired: return "modelSettings.consentRequired"
         case .settingsHomeTitle: return "settings.home.title"
@@ -1418,6 +1418,8 @@ enum AppText: Equatable {
         case .voiceChoiceSystem: return "voice.choice.system"
         case .voiceChoiceSystemNote: return "voice.choice.system.note"
         case .voiceChoiceSystemNone: return "voice.choice.system.none"
+        case .voiceChoiceSystemOffline: return "voice.choice.system.offline"
+        case .voiceChoiceSystemGone: return "voice.choice.system.gone"
         case .voiceChoiceAvailable: return "voice.choice.available"
         case .voiceChoiceMissing: return "voice.choice.missing"
         case .voiceChoiceOff: return "voice.choice.off"
@@ -1819,7 +1821,6 @@ enum AppText: Equatable {
         case .consentLead(let provider, let host): return [provider, host]
         case .consentThirdParty(let provider): return [provider]
         case .chatConsentDeclined(let provider): return [provider]
-        case .settingsStatusReadyMain(let model, let provider): return [model, provider]
         case .drawerRecentTurns(let count): return [Int64(count)]
         case .localPDFSearchCount(let count): return [Int64(count)]
         case .localPDFSearchTruncated(let count): return [Int64(count)]
@@ -2032,7 +2033,7 @@ enum AppText: Equatable {
         case .commonSelected: return "已選取"
         case .commonUnselected: return "未選取"
         case .commonUnknown: return "尚未取得"
-        case .mcpTitle: return "MCP 與 Skills"
+        case .mcpTitle: return "MCP 伺服器"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
         case .mcpExplanation: return "支援 HTTPS Streamable HTTP。連線後選取要提供給對話模型的工具，再到對話開啟 MCP。模型會直接執行已選取的工具，不會每次先問你，所以只選你允許它使用的工具；工具說明及結果會送給已設定的模型。"
@@ -2325,7 +2326,6 @@ enum AppText: Equatable {
         case .consentAgree: return "同意並繼續"
         case .consentDecline: return "不同意"
         case .chatConsentDeclined: return "沒有送出：你沒有同意把內容傳給 %1$@。草稿已保留。"
-        case .settingsStatusReadyMain: return "主模型：%1$@ · %2$@"
         case .modelSettingsTooManyProviders: return "服務商已達上限，請先刪除不用的服務商。"
         case .modelSettingsConsentRequired: return "還沒有同意把內容傳給這家服務商，設定未變更。"
         case .settingsHomeTitle: return "設定"
@@ -2411,6 +2411,8 @@ enum AppText: Equatable {
         case .voiceChoiceSystem: return "裝置自帶"
         case .voiceChoiceSystemNote: return "邊說邊出字；離線辨識需支援目前語言並具備語言包"
         case .voiceChoiceSystemNone: return "這台裝置沒有可用的語音辨識"
+        case .voiceChoiceSystemOffline: return "離線依語言支援"
+        case .voiceChoiceSystemGone: return "這台裝置沒有"
         case .voiceChoiceAvailable: return "可用"
         case .voiceChoiceMissing: return "沒有"
         case .voiceChoiceOff: return "不用"

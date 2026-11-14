@@ -65,6 +65,7 @@ struct MikaModelSettingsDetailView: View {
     @State private var consent: ModelConsentRequest?
     @State private var declinedName: String?
     @State private var pageVisible = false
+    @State private var deviceRecognition = VoiceSettingsView.deviceRecognitionAvailable()
     @FocusState private var field: Field?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -113,7 +114,10 @@ struct MikaModelSettingsDetailView: View {
         .autocorrectionDisabled()
         .submitLabel(.done)
         .onSubmit { field = nil }
-        .onAppear { pageVisible = true; session.reloadProviders() }
+        .onAppear {
+            pageVisible = true; session.reloadProviders()
+            deviceRecognition = VoiceSettingsView.deviceRecognitionAvailable()
+        }
         .onDisappear {
             pageVisible = false
             tester.reset(); form.key = ""; showsKey = false
@@ -157,8 +161,10 @@ struct MikaModelSettingsDetailView: View {
                     NavigationLink {
                         VoiceSettingsView(languages: languages)
                     } label: {
+                        let speech = speechLine
                         ModelRoleCard(icon: .mic, label: localizer.text(.voiceChoiceTitle) + " · " + localizer.text(.roleSpeechWhat),
-                                      title: voiceTitle, subtitle: nil, isModel: false, unset: voice.choice == .unavailable)
+                                      title: speech.title, subtitle: speech.subtitle, subtitleOk: speech.ok,
+                                      isModel: false, unset: speech.unset)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("settings.voice.open")
@@ -170,11 +176,19 @@ struct MikaModelSettingsDetailView: View {
         }
     }
 
-    private var voiceTitle: String {
+    /// Android ModelsCopy.speechLine (SpeechOptions.summary): the choice, and
+    /// under the device's recognizer whether it can be used. iOS records only
+    /// with on-device recognition, so a usable one works offline (green).
+    private var speechLine: (title: String, subtitle: String?, ok: Bool, unset: Bool) {
+        let system = localizer.text(.voiceChoiceSystem)
         switch voice.choice {
-        case .automatic, .system: return localizer.text(.voiceChoiceSystem)
-        case .off: return localizer.text(.voiceChoiceOff)
-        case .unavailable: return localizer.text(.settingsModelNotSet)
+        case .automatic, .system:
+            if deviceRecognition { return (system, localizer.text(.voiceChoiceSystemOffline), true, false) }
+            // Chosen but missing here: say so. The default without one shows 未設定.
+            if voice.choice == .system { return (system, localizer.text(.voiceChoiceSystemGone), false, false) }
+            return (localizer.text(.settingsModelNotSet), nil, false, true)
+        case .off: return (localizer.text(.voiceChoiceOff), nil, false, false)
+        case .unavailable: return (localizer.text(.settingsModelNotSet), nil, false, true)
         }
     }
 
@@ -1068,6 +1082,8 @@ private struct ModelRoleCard: View {
     let label: String
     let title: String
     let subtitle: String?
+    /// Android RoleLine.subtitleOk: the subtitle in the ok colour.
+    var subtitleOk = false
     let isModel: Bool
     let unset: Bool
     @Environment(\.colorScheme) private var scheme
@@ -1088,7 +1104,7 @@ private struct ModelRoleCard: View {
                     .foregroundStyle(unset ? colors.hint : colors.ink)
                     .lineLimit(1).truncationMode(.middle)
                 if let subtitle {
-                    Text(verbatim: subtitle).font(.caption).foregroundStyle(colors.secondary).lineLimit(1)
+                    Text(verbatim: subtitle).font(.caption).foregroundStyle(subtitleOk ? colors.ok : colors.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)

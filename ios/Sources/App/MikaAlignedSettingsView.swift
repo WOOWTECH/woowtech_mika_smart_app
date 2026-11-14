@@ -25,11 +25,6 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
         guard session.hasStoredKey, let saved = session.savedSettings else { return localizer.text(.settingsModelNotSet) }
         return session.providerDocument.mainProvider?.name ?? ModelProviderName.name(for: saved.baseURL)
     }
-    /// The status card's line once everything is ready: 主模型：{模型} · {服務商}.
-    private var readyDetail: AppText {
-        guard session.hasStoredKey, let saved = session.savedSettings else { return .settingsStatusReadyDetail }
-        return .settingsStatusReadyMain(model: saved.model, provider: configuredProviderName)
-    }
     private var notificationSummary: MikaNotificationSummary? {
         MikaNotificationSummary(enabled: notifications.service.enabled,
                                 settings: notifications.service.systemSettings)
@@ -63,7 +58,7 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                MikaSettingsStatusCard(problem: problem, readyDetail: readyDetail, localizer: localizer, palette: palette) { statusFix }
+                MikaSettingsStatusCard(problem: problem, localizer: localizer, palette: palette) { statusFix }
                     .padding(.top, 12)
                 MikaSettingsGroupLabel(title: localizer.text(.settingsHomeBasic))
                 MikaSettingsCard {
@@ -236,7 +231,6 @@ private struct MikaAdvancedSettingsView<MCPDestination: View>: View {
 @MainActor
 private struct MikaSettingsStatusCard<Fix: View>: View {
     let problem: MikaSettingsProblem?
-    let readyDetail: AppText
     let localizer: AppLocalizer
     let palette: MikaSettingsPalette
     @ViewBuilder let fix: () -> Fix
@@ -251,7 +245,8 @@ private struct MikaSettingsStatusCard<Fix: View>: View {
 
     private var copy: (title: AppText, detail: AppText) {
         switch problem {
-        case nil: return (.settingsStatusReady, readyDetail)
+        // Play's settings_all_ready_detail (woowtech): no model ID or provider here.
+        case nil: return (.settingsStatusReady, .settingsStatusReadyDetail)
         case .noModel?: return (.settingsStatusNoModel, .settingsStatusNoModelDetail)
         case .notificationsOff?: return (.settingsStatusNotificationsOff, .settingsStatusNotificationsOffDetail)
         case .alertsLowered?: return (.settingsStatusAlertsLowered, .settingsStatusAlertsLoweredDetail)
