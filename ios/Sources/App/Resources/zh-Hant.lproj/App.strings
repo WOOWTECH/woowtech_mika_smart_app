@@ -848,8 +848,8 @@
 "chat.mcpResults.view" = "檢視工具結果（%1$lld）";
 "chat.archive.retry" = "重試保存";
 "chat.learning.organizing" = "正在整理你說過的事…";
-"chat.memory.approve" = "批准";
-"chat.memory.reject" = "拒絕";
+"chat.memory.approve" = "好";
+"chat.memory.reject" = "不要";
 "chat.memory.undo" = "撤銷";
 "browser.dialog.title" = "網站訊息";
 "browser.dialog.input" = "輸入內容";

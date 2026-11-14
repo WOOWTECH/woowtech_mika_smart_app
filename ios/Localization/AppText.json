@@ -8246,8 +8246,8 @@
       "key": "chat.memory.approve",
       "parameters": [],
       "translations": {
-        "zh-Hant": "批准",
-        "en": "Approve"
+        "zh-Hant": "好",
+        "en": "OK"
       }
     },
     {
@@ -8255,8 +8255,8 @@
       "key": "chat.memory.reject",
       "parameters": [],
       "translations": {
-        "zh-Hant": "拒絕",
-        "en": "Decline"
+        "zh-Hant": "不要",
+        "en": "No thanks"
       }
     },
     {

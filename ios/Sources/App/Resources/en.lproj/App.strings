@@ -848,8 +848,8 @@
 "chat.mcpResults.view" = "View tool results (%1$lld)";
 "chat.archive.retry" = "Retry saving";
 "chat.learning.organizing" = "Organizing what you said…";
-"chat.memory.approve" = "Approve";
-"chat.memory.reject" = "Decline";
+"chat.memory.approve" = "OK";
+"chat.memory.reject" = "No thanks";
 "chat.memory.undo" = "Undo";
 "browser.dialog.title" = "Message from the site";
 "browser.dialog.input" = "Enter text";
