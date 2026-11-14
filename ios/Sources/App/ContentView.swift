@@ -464,22 +464,6 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
         }
     }
 
-    var explanation: String {
-        switch self {
-        case .chat:
-            return "請先到設定填寫模型服務與 API Key。"
-        case .browser:
-            return "此版本尚未載入網頁，也未進行網站連線驗證。分頁、登入、上傳、下載與頁面操作仍待實作。"
-        case .tools:
-            return "此版本尚未載入或執行 Skills，也未連接 MCP 伺服器；目前沒有可呼叫的工具。"
-        case .memory:
-            return "記憶、個人技能與待確認草稿；附件與網站資料另行管理。"
-        case .settings:
-            return "設定模型服務；通知、語言與外觀設定仍待實作。"
-        case .about:
-            return "版本、資源與支援。"
-        }
-    }
 }
 
 @MainActor
@@ -736,13 +720,13 @@ private struct ChatView: View {
         LearningChatNotes(store: session.learning)
 
         if mcp.canUseInConversation || session.usesMCP {
-            Toggle("本次對話使用 MCP 工具", isOn: $session.usesMCP)
+            Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
                 .font(.callout)
                 .disabled(session.isSubmitting)
                 .accessibilityIdentifier("chat.useMCP")
         }
         if let activity = session.mcpActivity {
-            Text(activity).font(.caption)
+            Text(localizer.stored(activity)).font(.caption)
                 .accessibilityIdentifier("chat.mcpActivity")
                 .accessibilityValue(session.mcpDiagnostics ?? "")
         }
@@ -752,15 +736,15 @@ private struct ChatView: View {
                 .font(.caption).accessibilityIdentifier("chat.skillStep")
         }
         if session.profileReceipt != nil {
-            Text("本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。")
+            Text(localizer.text(.chatReceiptProfile))
                 .font(.caption).accessibilityIdentifier("chat.profileReceipt")
         }
         if session.memoryReceipt != nil {
-            Text("本次對話曾儲存記憶修改；可在資料頁查看目前內容。")
+            Text(localizer.text(.chatReceiptMemory))
                 .font(.caption).accessibilityIdentifier("chat.memoryReceipt")
         }
         if !session.mcpSteps.isEmpty {
-            Button("檢視工具結果（\(session.mcpSteps.count)）") { showsMCPResults = true }
+            Button(localizer.text(.chatMcpResultsView(count: session.mcpSteps.count))) { showsMCPResults = true }
                 .font(.caption).accessibilityIdentifier("chat.mcpResults")
                 .disabled(session.isSubmitting)
         }
@@ -825,7 +809,7 @@ private struct ChatView: View {
         }
         if let preview = session.replyPreview {
             VStack(alignment: .leading, spacing: 4) {
-                Text(preview.status).font(.caption.bold()).foregroundStyle(.secondary)
+                Text(localizer.stored(preview.status)).font(.caption.bold()).foregroundStyle(.secondary)
                     .accessibilityIdentifier("chat.partialStatus")
                 Text(ChatReplyMarkdown.render(preview.text, streaming: preview.phase == .receiving))
                     .font(.system(size: 15.5)).lineSpacing(4)
@@ -936,21 +920,21 @@ private struct ChatView: View {
     /// Errors, notices, voice status and the send-blocked card above the composer.
     @ViewBuilder private var chatStatus: some View {
         if let error = session.chatError {
-            Text(session.chatErrorText.map { localizer.text($0) } ?? error)
+            Text(session.chatErrorText.map { localizer.text($0) } ?? localizer.stored(error))
                 .font(.callout)
                 .foregroundStyle(.red)
                 .accessibilityIdentifier("chat.error")
         }
         if let notice = session.chatNotice {
-            Text(notice)
+            Text(localizer.stored(notice))
                 .font(.callout)
                 .accessibilityIdentifier("chat.notice")
         }
         if let notice = session.archiveNotice {
-            Text(notice).font(.callout).foregroundStyle(.orange)
+            Text(localizer.stored(notice)).font(.callout).foregroundStyle(.orange)
                 .accessibilityIdentifier("chat.archiveNotice")
             if session.canRetryArchiveSave {
-                Button("重試保存") { session.retryArchiveSave() }
+                Button(localizer.text(.chatArchiveRetry)) { session.retryArchiveSave() }
                     .accessibilityIdentifier("chat.archiveRetry")
             }
         }
@@ -1113,7 +1097,7 @@ private struct ChatView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") { isEditingDraft = false }
+                    Button(localizer.text(.commonDone)) { isEditingDraft = false }
                         .accessibilityIdentifier("chat.dismissKeyboard")
                 }
             }
@@ -1269,32 +1253,33 @@ private struct ChatEmptyState: View {
 @MainActor
 private struct LearningChatNotes: View {
     @ObservedObject var store: LearningStore
+    @Environment(\.appLocalizer) private var localizer
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if store.isLearning {
-                Text("正在整理你說過的事…")
+                Text(localizer.text(.chatLearningOrganizing))
                     .font(.caption).accessibilityIdentifier("chat.learning")
             }
             if let notice = store.notice {
-                Text(notice).font(.caption).accessibilityIdentifier("chat.learningNotice")
+                Text(localizer.stored(notice)).font(.caption).accessibilityIdentifier("chat.learningNotice")
             }
             if let error = store.error {
-                Text(error).font(.caption).foregroundStyle(.orange)
+                Text(localizer.stored(error)).font(.caption).foregroundStyle(.orange)
                     .accessibilityIdentifier("chat.learningError")
             }
             ForEach(Array(store.notes.enumerated()), id: \.element.memoryID) { index, note in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(store.noteText(note)).font(.caption)
+                    Text(localizer.stored(store.noteText(note))).font(.caption)
                         .accessibilityIdentifier("chat.memoryNote.\(index)")
                     HStack {
                         if store.canReviewMemory(note) {
-                            Button("批准") { store.approvePendingMemory(note) }
+                            Button(localizer.text(.chatMemoryApprove)) { store.approvePendingMemory(note) }
                                 .accessibilityIdentifier("chat.approveMemory.\(index)")
-                            Button("拒絕") { store.rejectPendingMemory(note) }
+                            Button(localizer.text(.chatMemoryReject)) { store.rejectPendingMemory(note) }
                                 .accessibilityIdentifier("chat.rejectMemory.\(index)")
                         }
                         if note.undoToken != nil {
-                            Button("撤銷") { store.undo(note) }
+                            Button(localizer.text(.chatMemoryUndo)) { store.undo(note) }
                                 .accessibilityIdentifier("chat.undoMemory.\(index)")
                         }
                     }

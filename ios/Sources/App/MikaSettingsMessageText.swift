@@ -33,6 +33,6 @@ extension AppLocalizer {
             "無法讀取或儲存模型設定，請移除設定後重新填寫。": .settingsModelFallbackError,
             ChatSession.cleanupFailure: .modelsCleanupFailed
         ]
-        return notices[raw].map(text) ?? raw
+        return notices[raw].map(text) ?? stored(raw)
     }
 }

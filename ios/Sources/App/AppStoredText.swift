@@ -9,7 +9,20 @@ import Foundation
 /// unchanged.
 extension AppLocalizer {
     func stored(_ text: String) -> String {
-        AppText.storedMessage(text).map(self.text) ?? text
+        if let message = AppText.storedMessage(text) { return self.text(message) }
+        // A stored message followed by one of the closed tails. The Traditional
+        // Chinese text is already what the store wrote, so only English joins parts.
+        guard language == .english else { return text }
+        for suffix in AppText.storedSuffixes {
+            let tail = suffix.traditionalFallback
+            guard text.hasSuffix(tail) else { continue }
+            let head = String(text.dropLast(tail.count))
+            let translatedTail = self.text(suffix).trimmingCharacters(in: .whitespaces)
+            if head.trimmingCharacters(in: .whitespaces).isEmpty { return translatedTail }
+            guard let first = AppText.storedMessage(head) else { continue }
+            return self.text(first) + " " + translatedTail
+        }
+        return text
     }
 }
 
@@ -81,11 +94,81 @@ extension AppText {
         .learningSaveFailed, .archiveDeleteNotSaved, .archiveReadFailed,
         // Default titles the browser library gives tabs it has no page title for.
         .browserTabNew, .browserTabSignIn, .browserTabPage,
+        // Chat, browser and module messages shown on the chat and browser screens.
+        .storedChatPartialReceiving, .storedChatPartialCancelled, .storedChatPartialFailed,
+        .storedChatSettingsChanged, .storedChatArchiveOpened, .storedChatArchiveSaveFailed,
+        .storedChatQuoteBeforeChange, .storedChatQuoteBeforeRemove, .storedChatQuoteChanged,
+        .storedChatArchiveChanged, .storedChatMcpNotReady, .storedChatKeyUnreadable, .storedChatLearningUnreadable,
+        .storedChatPrepareFailed, .storedChatEmptyReply, .storedChatNoSingleStep, .storedChatSendFailed,
+        .storedChatMcpUnfinished, .storedChatMemorySavedReplyUnfinished, .storedChatProfileSavedReplyUnfinished,
+        .storedChatReasonAuth, .storedChatReasonRateLimited, .storedChatReasonUnavailable, .storedChatReasonRefused,
+        .storedChatReasonTimeout, .storedChatReasonOffline, .storedChatReasonToolsOff, .storedChatReasonToolExpired,
+        .storedChatReasonToolIncomplete, .storedChatCancelledWait, .storedChatLearningBusy,
+        .storedChatLearningChanged, .storedChatLearningSaveFailed, .storedChatMemoryToolRejected,
+        .storedChatProfileToolRejected, .storedChatNewChat, .storedChatMcpDenied, .storedChatMcpToolError,
+        .storedChatMcpLocalLimit, .storedChatMcpLimit, .storedContextIncompleteHistory, .storedContextTooLarge,
+        .storedReferencePrepareFailed, .storedReferenceRevoked, .storedReferenceBusy, .storedReferenceLifecycle,
+        .storedInteractionNoSnapshot, .storedInteractionStale, .storedInteractionUnavailable,
+        .storedInteractionInvalid, .storedInteractionUnsafe, .storedInteractionApprovalRequired,
+        .storedInteractionExpired, .storedInteractionBusy, .storedInteractionFailed, .storedInteractionTimeout,
+        .storedResearchInvalidCommand, .storedResearchInvalidJSON, .storedResearchUnsupported,
+        .storedResearchUnknownLink, .storedResearchCommandTooLarge, .storedResearchNoPage,
+        .storedResearchUnsafeNavigation, .storedResearchPageChanged, .storedResearchNavigationFailed,
+        .storedResearchNavigationTimeout, .storedResearchReadTimeout, .storedResearchDeadline,
+        .storedResearchModelConfiguration, .storedResearchModelRedirect, .storedResearchModelHTTPInvalid,
+        .storedResearchInvalidResponse, .storedResearchIncompleteResponse, .storedResearchResponseTooLarge,
+        .storedResearchBackpressure, .storedResearchModelTimeout, .storedResearchConnectionFailed,
+        .storedResearchReferenceRevoked, .storedResearchCancelled, .storedResearchFailed, .storedResearchStepLimit,
+        .storedBrowserStart, .storedBrowserInteractionIntro, .storedBrowserInvalidInput, .storedBrowserStopped,
+        .storedBrowserResearching, .storedBrowserResearchStoppedUnconfirmed, .storedBrowserAnswerDelivered,
+        .storedBrowserResearchEnded, .storedBrowserResearchUnfinished, .storedBrowserNeedsModel,
+        .storedBrowserLearnStale, .storedBrowserLearnNotSaved, .storedBrowserJudgedDoneNoDraft,
+        .storedBrowserJudgedDoneDraft, .storedBrowserJudgedPartial, .storedBrowserJudgedNotPossible,
+        .storedBrowserJudgedUnknown, .storedBrowserLearnUnfinished, .storedBrowserReplaying,
+        .storedBrowserReplayTimeout, .storedBrowserReplayDone, .storedBrowserReplayNotSaved,
+        .storedBrowserReplayUnconfirmed, .storedBrowserReplayEnded, .storedBrowserReplayStopped,
+        .storedBrowserReplayUnavailable, .storedBrowserAwaitApproval, .storedBrowserReadingControls,
+        .storedBrowserControlsUpdated, .storedBrowserModelProposing, .storedBrowserProposalTimeout,
+        .storedBrowserRunning, .storedBrowserActionSent, .storedBrowserRejected, .storedBrowserCancelled,
+        .storedBrowserReloaded, .storedBrowserLoading, .storedBrowserRequestUnfinished,
+        .storedBrowserSitePreferenceSaved, .storedBrowserOutsideScope, .storedBrowserNoDownload,
+        .storedBrowserLoadedManual, .storedBrowserLoaded, .storedBrowserLoadFailed, .storedBrowserProcessStopped,
+        .storedBrowserLoadIncomplete, .storedBrowserLoadedUnread, .storedBrowserReadIncomplete,
+        .storedBrowserPostLoadReadIncomplete, .storedBrowserLoadIncompleteCheck, .storedBrowserReadTooLarge,
+    ]
+
+    /// Closed tails a store appends to another stored message, e.g. 「…草稿已保留。」.
+    static let storedSuffixes: [AppText] = [
+        .storedSuffixDraftKept, .storedSuffixToolResultsKept, .storedSuffixReplayNoSkip,
     ]
 
     private static let storedPatterns: [(AppText, (StoredValues) -> AppText?)] = [
         (.learningRemembered(value: ""), { .learningRemembered(value: $0.text(1)) }),
         (.learningUpdated(value: ""), { .learningUpdated(value: $0.text(1)) }),
         (.learningPendingProcedure(value: ""), { .learningPendingProcedure(value: $0.text(1)) }),
+        (.storedChatContextWindow(retained: 0, omitted: 0), { values in
+            guard let retained = values.count(1), let omitted = values.count(2) else { return nil }
+            return .storedChatContextWindow(retained: retained, omitted: omitted)
+        }),
+        (.storedChatMemorySavedReplyTimeout(seconds: 0), { values in
+            guard let seconds = values.count(1) else { return nil }
+            return .storedChatMemorySavedReplyTimeout(seconds: seconds)
+        }),
+        (.storedChatWaitTimeout(seconds: 0), { values in
+            guard let seconds = values.count(1) else { return nil }
+            return .storedChatWaitTimeout(seconds: seconds)
+        }),
+        (.storedChatProfileSavedReplyTimeout(seconds: 0), { values in
+            guard let seconds = values.count(1) else { return nil }
+            return .storedChatProfileSavedReplyTimeout(seconds: seconds)
+        }),
+        (.storedChatMcpActivity(tried: 0, received: 0, failed: 0), { values in
+            guard let tried = values.count(1), let received = values.count(2), let failed = values.count(3) else { return nil }
+            return .storedChatMcpActivity(tried: tried, received: received, failed: failed)
+        }),
+        (.storedResearchModelHTTP(code: 0), { values in
+            guard let code = values.count(1) else { return nil }
+            return .storedResearchModelHTTP(code: code)
+        }),
     ]
 }

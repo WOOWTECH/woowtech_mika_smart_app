@@ -15,10 +15,15 @@ APP = ROOT / 'Sources/App'
 CJK = re.compile('[㐀-鿿＀-￯　-〿]')
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
-SWEPT = ['BrowserSearchSettingsView', 'SavedDataViews']
+SWEPT = ['BrowserSearchSettingsView', 'SavedDataViews', 'ContentView', 'BrowserView',
+         'BrowserStartPageView', 'ChatWebTaskViews']
 
 # (file, literal) -> why it stays Chinese.
-ALLOWED = {}
+ALLOWED = {
+    # Traditional Chinese corner brackets around a step title; English uses curly quotes.
+    ('ChatWebTaskViews', '「'): 'zh-Hant punctuation',
+    ('ChatWebTaskViews', '」'): 'zh-Hant punctuation',
+}
 # A shared view model below an iOS view may keep Chinese status text for the
 # macOS harnesses when the view shows it through AppLocalizer.stored.
 SHARED_MODEL_MARKER = {}
@@ -71,12 +76,17 @@ class EnglishSweepTests(unittest.TestCase):
         adapter = (APP / 'AppStoredText.swift').read_text()
         fixed = re.findall(r'\.([a-zA-Z0-9]+)', re.search(r'storedFixed: \[AppText\] = \[(.*?)\n    \]', adapter, re.S)[1])
         patterns = re.findall(r'\(\.([a-zA-Z0-9]+)\(', re.search(r'storedPatterns: .*?= \[(.*?)\n    \]', adapter, re.S)[1])
+        suffixes = re.findall(r'\.([a-zA-Z0-9]+)', re.search(r'storedSuffixes: \[AppText\] = \[(.*?)\n    \]', adapter, re.S)[1])
+        self.assertGreater(len(suffixes), 0)
         self.assertGreater(len(fixed), 40)
         sources = '\n'.join(path.read_text() for path in (ROOT / 'Sources').rglob('*.swift') if path.name != 'AppText.swift')
         missing = []
         for case in fixed:
             text = catalog[case]['translations']['zh-Hant']
             if '"' + text + '"' not in sources and f'.{case}.traditionalFallback' not in sources:
+                missing.append(case)
+        for case in suffixes:
+            if '"' + catalog[case]['translations']['zh-Hant'] not in sources:
                 missing.append(case)
         for case in patterns:
             if case in COMPOSED:

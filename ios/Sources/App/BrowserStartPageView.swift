@@ -87,7 +87,7 @@ struct BrowserStartPageView: View {
                     } label: {
                         VStack(spacing: 7) {
                             siteTile(page.url.host ?? "", size: 54)
-                            Text(page.title).font(.caption).foregroundStyle(palette.secondary)
+                            Text(localizer.stored(page.title)).font(.caption).foregroundStyle(palette.secondary)
                                 .lineLimit(1).frame(maxWidth: .infinity)
                         }
                     }
@@ -178,7 +178,7 @@ struct BrowserStartPageView: View {
                         Text(localizer.text(.browserHistorySearch(query: match.query))).lineLimit(1)
                         Text(match.engineName).font(.caption).foregroundStyle(palette.tertiary)
                     } else {
-                        Text(page.title).lineLimit(1)
+                        Text(localizer.stored(page.title)).lineLimit(1)
                         Text(page.url.host ?? "").font(.caption).foregroundStyle(palette.tertiary).lineLimit(1)
                     }
                 }

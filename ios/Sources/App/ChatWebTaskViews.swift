@@ -64,7 +64,7 @@ struct ChatWebTaskText {
         }
         var text = label
         if step.outward { text += " · " + localizer.text(.chatWebStepOutward) }
-        if !step.title.isEmpty && [.tap, .type, .select, .confirm, .handover, .ask].contains(step.kind) { text += "「" + step.title + "」" }
+        if !step.title.isEmpty && [.tap, .type, .select, .confirm, .handover, .ask].contains(step.kind) { text += localizer.language == .english ? " “" + step.title + "”" : "「" + step.title + "」" }
         return step.succeeded ? text : text + " · " + localizer.text(.chatWebStepFailed)
     }
 

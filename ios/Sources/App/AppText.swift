@@ -701,6 +701,194 @@ enum AppText: Equatable {
     case notificationWebPausedBody
     case notificationWebNeedsYouTitle
     case notificationWebNeedsYouBody
+    case storedChatPartialReceiving
+    case storedChatPartialCancelled
+    case storedChatPartialFailed
+    case storedChatSettingsChanged
+    case storedChatArchiveOpened
+    case storedChatArchiveSaveFailed
+    case storedChatQuoteBeforeChange
+    case storedChatQuoteBeforeRemove
+    case storedChatQuoteChanged
+    case storedChatArchiveChanged
+    case storedChatMcpNotReady
+    case storedChatKeyUnreadable
+    case storedChatLearningUnreadable
+    case storedChatPrepareFailed
+    case storedChatEmptyReply
+    case storedChatNoSingleStep
+    case storedChatSendFailed
+    case storedChatMcpUnfinished
+    case storedChatMemorySavedReplyUnfinished
+    case storedChatProfileSavedReplyUnfinished
+    case storedChatReasonAuth
+    case storedChatReasonRateLimited
+    case storedChatReasonUnavailable
+    case storedChatReasonRefused
+    case storedChatReasonTimeout
+    case storedChatReasonOffline
+    case storedChatReasonToolsOff
+    case storedChatReasonToolExpired
+    case storedChatReasonToolIncomplete
+    case storedChatCancelledWait
+    case storedChatLearningBusy
+    case storedChatLearningChanged
+    case storedChatLearningSaveFailed
+    case storedChatMemoryToolRejected
+    case storedChatProfileToolRejected
+    case storedChatNewChat
+    case storedChatMcpDenied
+    case storedChatMcpToolError
+    case storedChatMcpLocalLimit
+    case storedChatMcpLimit
+    case storedContextIncompleteHistory
+    case storedContextTooLarge
+    case storedReferencePrepareFailed
+    case storedReferenceRevoked
+    case storedReferenceBusy
+    case storedReferenceLifecycle
+    case storedInteractionNoSnapshot
+    case storedInteractionStale
+    case storedInteractionUnavailable
+    case storedInteractionInvalid
+    case storedInteractionUnsafe
+    case storedInteractionApprovalRequired
+    case storedInteractionExpired
+    case storedInteractionBusy
+    case storedInteractionFailed
+    case storedInteractionTimeout
+    case storedResearchInvalidCommand
+    case storedResearchInvalidJSON
+    case storedResearchUnsupported
+    case storedResearchUnknownLink
+    case storedResearchCommandTooLarge
+    case storedResearchNoPage
+    case storedResearchUnsafeNavigation
+    case storedResearchPageChanged
+    case storedResearchNavigationFailed
+    case storedResearchNavigationTimeout
+    case storedResearchReadTimeout
+    case storedResearchDeadline
+    case storedResearchModelConfiguration
+    case storedResearchModelRedirect
+    case storedResearchModelHTTPInvalid
+    case storedResearchInvalidResponse
+    case storedResearchIncompleteResponse
+    case storedResearchResponseTooLarge
+    case storedResearchBackpressure
+    case storedResearchModelTimeout
+    case storedResearchConnectionFailed
+    case storedResearchReferenceRevoked
+    case storedResearchCancelled
+    case storedResearchFailed
+    case storedResearchStepLimit
+    case storedBrowserStart
+    case storedBrowserInteractionIntro
+    case storedBrowserInvalidInput
+    case storedBrowserStopped
+    case storedBrowserResearching
+    case storedBrowserResearchStoppedUnconfirmed
+    case storedBrowserAnswerDelivered
+    case storedBrowserResearchEnded
+    case storedBrowserResearchUnfinished
+    case storedBrowserNeedsModel
+    case storedBrowserLearnStale
+    case storedBrowserLearnNotSaved
+    case storedBrowserJudgedDoneNoDraft
+    case storedBrowserJudgedDoneDraft
+    case storedBrowserJudgedPartial
+    case storedBrowserJudgedNotPossible
+    case storedBrowserJudgedUnknown
+    case storedBrowserLearnUnfinished
+    case storedBrowserReplaying
+    case storedBrowserReplayTimeout
+    case storedBrowserReplayDone
+    case storedBrowserReplayNotSaved
+    case storedBrowserReplayUnconfirmed
+    case storedBrowserReplayEnded
+    case storedBrowserReplayStopped
+    case storedBrowserReplayUnavailable
+    case storedBrowserAwaitApproval
+    case storedBrowserReadingControls
+    case storedBrowserControlsUpdated
+    case storedBrowserModelProposing
+    case storedBrowserProposalTimeout
+    case storedBrowserRunning
+    case storedBrowserActionSent
+    case storedBrowserRejected
+    case storedBrowserCancelled
+    case storedBrowserReloaded
+    case storedBrowserLoading
+    case storedBrowserRequestUnfinished
+    case storedBrowserSitePreferenceSaved
+    case storedBrowserOutsideScope
+    case storedBrowserNoDownload
+    case storedBrowserLoadedManual
+    case storedBrowserLoaded
+    case storedBrowserLoadFailed
+    case storedBrowserProcessStopped
+    case storedBrowserLoadIncomplete
+    case storedBrowserLoadedUnread
+    case storedBrowserReadIncomplete
+    case storedBrowserPostLoadReadIncomplete
+    case storedBrowserLoadIncompleteCheck
+    case storedBrowserReadTooLarge
+    case storedChatContextWindow(retained: Int, omitted: Int)
+    case storedChatMemorySavedReplyTimeout(seconds: Int)
+    case storedChatWaitTimeout(seconds: Int)
+    case storedChatProfileSavedReplyTimeout(seconds: Int)
+    case storedChatMcpActivity(tried: Int, received: Int, failed: Int)
+    case storedResearchModelHTTP(code: Int)
+    case storedSuffixDraftKept
+    case storedSuffixToolResultsKept
+    case storedSuffixReplayNoSkip
+    case chatUseMCP
+    case chatReceiptProfile
+    case chatReceiptMemory
+    case chatMcpResultsView(count: Int)
+    case chatArchiveRetry
+    case chatLearningOrganizing
+    case chatMemoryApprove
+    case chatMemoryReject
+    case chatMemoryUndo
+    case browserDialogTitle
+    case browserDialogInput
+    case browserDialogOk
+    case browserInteractionTitle
+    case browserInteractionApproveTitle
+    case browserInteractionApproveNote
+    case browserInteractionScrollDownScreen
+    case browserInteractionScrollUpScreen
+    case browserInteractionNavigationMethod(method: String)
+    case browserInteractionApproveOnce
+    case browserInteractionReject
+    case browserInteractionReloadCancel
+    case browserInteractionTypeField
+    case browserInteractionTypeNote
+    case browserInteractionProposeType
+    case browserInteractionBackToControls
+    case browserInteractionNextAction
+    case browserInteractionGoal
+    case browserInteractionAskModel
+    case browserInteractionAskModelNote
+    case browserInteractionManual
+    case browserInteractionRefresh
+    case browserInteractionScrollDown
+    case browserInteractionScrollUp
+    case browserInteractionTruncated
+    case browserInteractionStop
+    case browserInteractionKindClick
+    case browserInteractionKindType
+    case browserInteractionKindSelect
+    case browserInteractionKindScroll
+    case browserResearchTitle
+    case browserResearchNote
+    case browserResearchGoal
+    case browserResearchStart
+    case browserResearchStop
+    case browserResearchResult
+    case browserResearchLearning
+    case browserResearchReads(count: Int)
 
     var key: String {
         switch self {
@@ -1402,6 +1590,194 @@ enum AppText: Equatable {
         case .notificationWebPausedBody: return "notification.webPaused.body"
         case .notificationWebNeedsYouTitle: return "notification.webNeedsYou.title"
         case .notificationWebNeedsYouBody: return "notification.webNeedsYou.body"
+        case .storedChatPartialReceiving: return "stored.chat.partialReceiving"
+        case .storedChatPartialCancelled: return "stored.chat.partialCancelled"
+        case .storedChatPartialFailed: return "stored.chat.partialFailed"
+        case .storedChatSettingsChanged: return "stored.chat.settingsChanged"
+        case .storedChatArchiveOpened: return "stored.chat.archiveOpened"
+        case .storedChatArchiveSaveFailed: return "stored.chat.archiveSaveFailed"
+        case .storedChatQuoteBeforeChange: return "stored.chat.quoteBeforeChange"
+        case .storedChatQuoteBeforeRemove: return "stored.chat.quoteBeforeRemove"
+        case .storedChatQuoteChanged: return "stored.chat.quoteChanged"
+        case .storedChatArchiveChanged: return "stored.chat.archiveChanged"
+        case .storedChatMcpNotReady: return "stored.chat.mcpNotReady"
+        case .storedChatKeyUnreadable: return "stored.chat.keyUnreadable"
+        case .storedChatLearningUnreadable: return "stored.chat.learningUnreadable"
+        case .storedChatPrepareFailed: return "stored.chat.prepareFailed"
+        case .storedChatEmptyReply: return "stored.chat.emptyReply"
+        case .storedChatNoSingleStep: return "stored.chat.noSingleStep"
+        case .storedChatSendFailed: return "stored.chat.sendFailed"
+        case .storedChatMcpUnfinished: return "stored.chat.mcpUnfinished"
+        case .storedChatMemorySavedReplyUnfinished: return "stored.chat.memorySavedReplyUnfinished"
+        case .storedChatProfileSavedReplyUnfinished: return "stored.chat.profileSavedReplyUnfinished"
+        case .storedChatReasonAuth: return "stored.chat.reasonAuth"
+        case .storedChatReasonRateLimited: return "stored.chat.reasonRateLimited"
+        case .storedChatReasonUnavailable: return "stored.chat.reasonUnavailable"
+        case .storedChatReasonRefused: return "stored.chat.reasonRefused"
+        case .storedChatReasonTimeout: return "stored.chat.reasonTimeout"
+        case .storedChatReasonOffline: return "stored.chat.reasonOffline"
+        case .storedChatReasonToolsOff: return "stored.chat.reasonToolsOff"
+        case .storedChatReasonToolExpired: return "stored.chat.reasonToolExpired"
+        case .storedChatReasonToolIncomplete: return "stored.chat.reasonToolIncomplete"
+        case .storedChatCancelledWait: return "stored.chat.cancelledWait"
+        case .storedChatLearningBusy: return "stored.chat.learningBusy"
+        case .storedChatLearningChanged: return "stored.chat.learningChanged"
+        case .storedChatLearningSaveFailed: return "stored.chat.learningSaveFailed"
+        case .storedChatMemoryToolRejected: return "stored.chat.memoryToolRejected"
+        case .storedChatProfileToolRejected: return "stored.chat.profileToolRejected"
+        case .storedChatNewChat: return "stored.chat.newChat"
+        case .storedChatMcpDenied: return "stored.chat.mcpDenied"
+        case .storedChatMcpToolError: return "stored.chat.mcpToolError"
+        case .storedChatMcpLocalLimit: return "stored.chat.mcpLocalLimit"
+        case .storedChatMcpLimit: return "stored.chat.mcpLimit"
+        case .storedContextIncompleteHistory: return "stored.context.incompleteHistory"
+        case .storedContextTooLarge: return "stored.context.tooLarge"
+        case .storedReferencePrepareFailed: return "stored.reference.prepareFailed"
+        case .storedReferenceRevoked: return "stored.reference.revoked"
+        case .storedReferenceBusy: return "stored.reference.busy"
+        case .storedReferenceLifecycle: return "stored.reference.lifecycle"
+        case .storedInteractionNoSnapshot: return "stored.interaction.noSnapshot"
+        case .storedInteractionStale: return "stored.interaction.stale"
+        case .storedInteractionUnavailable: return "stored.interaction.unavailable"
+        case .storedInteractionInvalid: return "stored.interaction.invalid"
+        case .storedInteractionUnsafe: return "stored.interaction.unsafe"
+        case .storedInteractionApprovalRequired: return "stored.interaction.approvalRequired"
+        case .storedInteractionExpired: return "stored.interaction.expired"
+        case .storedInteractionBusy: return "stored.interaction.busy"
+        case .storedInteractionFailed: return "stored.interaction.failed"
+        case .storedInteractionTimeout: return "stored.interaction.timeout"
+        case .storedResearchInvalidCommand: return "stored.research.invalidCommand"
+        case .storedResearchInvalidJSON: return "stored.research.invalidJSON"
+        case .storedResearchUnsupported: return "stored.research.unsupported"
+        case .storedResearchUnknownLink: return "stored.research.unknownLink"
+        case .storedResearchCommandTooLarge: return "stored.research.commandTooLarge"
+        case .storedResearchNoPage: return "stored.research.noPage"
+        case .storedResearchUnsafeNavigation: return "stored.research.unsafeNavigation"
+        case .storedResearchPageChanged: return "stored.research.pageChanged"
+        case .storedResearchNavigationFailed: return "stored.research.navigationFailed"
+        case .storedResearchNavigationTimeout: return "stored.research.navigationTimeout"
+        case .storedResearchReadTimeout: return "stored.research.readTimeout"
+        case .storedResearchDeadline: return "stored.research.deadline"
+        case .storedResearchModelConfiguration: return "stored.research.modelConfiguration"
+        case .storedResearchModelRedirect: return "stored.research.modelRedirect"
+        case .storedResearchModelHTTPInvalid: return "stored.research.modelHTTPInvalid"
+        case .storedResearchInvalidResponse: return "stored.research.invalidResponse"
+        case .storedResearchIncompleteResponse: return "stored.research.incompleteResponse"
+        case .storedResearchResponseTooLarge: return "stored.research.responseTooLarge"
+        case .storedResearchBackpressure: return "stored.research.backpressure"
+        case .storedResearchModelTimeout: return "stored.research.modelTimeout"
+        case .storedResearchConnectionFailed: return "stored.research.connectionFailed"
+        case .storedResearchReferenceRevoked: return "stored.research.referenceRevoked"
+        case .storedResearchCancelled: return "stored.research.cancelled"
+        case .storedResearchFailed: return "stored.research.failed"
+        case .storedResearchStepLimit: return "stored.research.stepLimit"
+        case .storedBrowserStart: return "stored.browser.start"
+        case .storedBrowserInteractionIntro: return "stored.browser.interactionIntro"
+        case .storedBrowserInvalidInput: return "stored.browser.invalidInput"
+        case .storedBrowserStopped: return "stored.browser.stopped"
+        case .storedBrowserResearching: return "stored.browser.researching"
+        case .storedBrowserResearchStoppedUnconfirmed: return "stored.browser.researchStoppedUnconfirmed"
+        case .storedBrowserAnswerDelivered: return "stored.browser.answerDelivered"
+        case .storedBrowserResearchEnded: return "stored.browser.researchEnded"
+        case .storedBrowserResearchUnfinished: return "stored.browser.researchUnfinished"
+        case .storedBrowserNeedsModel: return "stored.browser.needsModel"
+        case .storedBrowserLearnStale: return "stored.browser.learnStale"
+        case .storedBrowserLearnNotSaved: return "stored.browser.learnNotSaved"
+        case .storedBrowserJudgedDoneNoDraft: return "stored.browser.judgedDoneNoDraft"
+        case .storedBrowserJudgedDoneDraft: return "stored.browser.judgedDoneDraft"
+        case .storedBrowserJudgedPartial: return "stored.browser.judgedPartial"
+        case .storedBrowserJudgedNotPossible: return "stored.browser.judgedNotPossible"
+        case .storedBrowserJudgedUnknown: return "stored.browser.judgedUnknown"
+        case .storedBrowserLearnUnfinished: return "stored.browser.learnUnfinished"
+        case .storedBrowserReplaying: return "stored.browser.replaying"
+        case .storedBrowserReplayTimeout: return "stored.browser.replayTimeout"
+        case .storedBrowserReplayDone: return "stored.browser.replayDone"
+        case .storedBrowserReplayNotSaved: return "stored.browser.replayNotSaved"
+        case .storedBrowserReplayUnconfirmed: return "stored.browser.replayUnconfirmed"
+        case .storedBrowserReplayEnded: return "stored.browser.replayEnded"
+        case .storedBrowserReplayStopped: return "stored.browser.replayStopped"
+        case .storedBrowserReplayUnavailable: return "stored.browser.replayUnavailable"
+        case .storedBrowserAwaitApproval: return "stored.browser.awaitApproval"
+        case .storedBrowserReadingControls: return "stored.browser.readingControls"
+        case .storedBrowserControlsUpdated: return "stored.browser.controlsUpdated"
+        case .storedBrowserModelProposing: return "stored.browser.modelProposing"
+        case .storedBrowserProposalTimeout: return "stored.browser.proposalTimeout"
+        case .storedBrowserRunning: return "stored.browser.running"
+        case .storedBrowserActionSent: return "stored.browser.actionSent"
+        case .storedBrowserRejected: return "stored.browser.rejected"
+        case .storedBrowserCancelled: return "stored.browser.cancelled"
+        case .storedBrowserReloaded: return "stored.browser.reloaded"
+        case .storedBrowserLoading: return "stored.browser.loading"
+        case .storedBrowserRequestUnfinished: return "stored.browser.requestUnfinished"
+        case .storedBrowserSitePreferenceSaved: return "stored.browser.sitePreferenceSaved"
+        case .storedBrowserOutsideScope: return "stored.browser.outsideScope"
+        case .storedBrowserNoDownload: return "stored.browser.noDownload"
+        case .storedBrowserLoadedManual: return "stored.browser.loadedManual"
+        case .storedBrowserLoaded: return "stored.browser.loaded"
+        case .storedBrowserLoadFailed: return "stored.browser.loadFailed"
+        case .storedBrowserProcessStopped: return "stored.browser.processStopped"
+        case .storedBrowserLoadIncomplete: return "stored.browser.loadIncomplete"
+        case .storedBrowserLoadedUnread: return "stored.browser.loadedUnread"
+        case .storedBrowserReadIncomplete: return "stored.browser.readIncomplete"
+        case .storedBrowserPostLoadReadIncomplete: return "stored.browser.postLoadReadIncomplete"
+        case .storedBrowserLoadIncompleteCheck: return "stored.browser.loadIncompleteCheck"
+        case .storedBrowserReadTooLarge: return "stored.browser.readTooLarge"
+        case .storedChatContextWindow: return "stored.chat.contextWindow"
+        case .storedChatMemorySavedReplyTimeout: return "stored.chat.memorySavedReplyTimeout"
+        case .storedChatWaitTimeout: return "stored.chat.waitTimeout"
+        case .storedChatProfileSavedReplyTimeout: return "stored.chat.profileSavedReplyTimeout"
+        case .storedChatMcpActivity: return "stored.chat.mcpActivity"
+        case .storedResearchModelHTTP: return "stored.research.modelHTTP"
+        case .storedSuffixDraftKept: return "stored.suffix.draftKept"
+        case .storedSuffixToolResultsKept: return "stored.suffix.toolResultsKept"
+        case .storedSuffixReplayNoSkip: return "stored.suffix.replayNoSkip"
+        case .chatUseMCP: return "chat.useMCP"
+        case .chatReceiptProfile: return "chat.receipt.profile"
+        case .chatReceiptMemory: return "chat.receipt.memory"
+        case .chatMcpResultsView: return "chat.mcpResults.view"
+        case .chatArchiveRetry: return "chat.archive.retry"
+        case .chatLearningOrganizing: return "chat.learning.organizing"
+        case .chatMemoryApprove: return "chat.memory.approve"
+        case .chatMemoryReject: return "chat.memory.reject"
+        case .chatMemoryUndo: return "chat.memory.undo"
+        case .browserDialogTitle: return "browser.dialog.title"
+        case .browserDialogInput: return "browser.dialog.input"
+        case .browserDialogOk: return "browser.dialog.ok"
+        case .browserInteractionTitle: return "browser.interaction.title"
+        case .browserInteractionApproveTitle: return "browser.interaction.approveTitle"
+        case .browserInteractionApproveNote: return "browser.interaction.approveNote"
+        case .browserInteractionScrollDownScreen: return "browser.interaction.scrollDownScreen"
+        case .browserInteractionScrollUpScreen: return "browser.interaction.scrollUpScreen"
+        case .browserInteractionNavigationMethod: return "browser.interaction.navigationMethod"
+        case .browserInteractionApproveOnce: return "browser.interaction.approveOnce"
+        case .browserInteractionReject: return "browser.interaction.reject"
+        case .browserInteractionReloadCancel: return "browser.interaction.reloadCancel"
+        case .browserInteractionTypeField: return "browser.interaction.typeField"
+        case .browserInteractionTypeNote: return "browser.interaction.typeNote"
+        case .browserInteractionProposeType: return "browser.interaction.proposeType"
+        case .browserInteractionBackToControls: return "browser.interaction.backToControls"
+        case .browserInteractionNextAction: return "browser.interaction.nextAction"
+        case .browserInteractionGoal: return "browser.interaction.goal"
+        case .browserInteractionAskModel: return "browser.interaction.askModel"
+        case .browserInteractionAskModelNote: return "browser.interaction.askModelNote"
+        case .browserInteractionManual: return "browser.interaction.manual"
+        case .browserInteractionRefresh: return "browser.interaction.refresh"
+        case .browserInteractionScrollDown: return "browser.interaction.scrollDown"
+        case .browserInteractionScrollUp: return "browser.interaction.scrollUp"
+        case .browserInteractionTruncated: return "browser.interaction.truncated"
+        case .browserInteractionStop: return "browser.interaction.stop"
+        case .browserInteractionKindClick: return "browser.interaction.kindClick"
+        case .browserInteractionKindType: return "browser.interaction.kindType"
+        case .browserInteractionKindSelect: return "browser.interaction.kindSelect"
+        case .browserInteractionKindScroll: return "browser.interaction.kindScroll"
+        case .browserResearchTitle: return "browser.research.title"
+        case .browserResearchNote: return "browser.research.note"
+        case .browserResearchGoal: return "browser.research.goal"
+        case .browserResearchStart: return "browser.research.start"
+        case .browserResearchStop: return "browser.research.stop"
+        case .browserResearchResult: return "browser.research.result"
+        case .browserResearchLearning: return "browser.research.learning"
+        case .browserResearchReads: return "browser.research.reads"
         }
     }
 
@@ -1491,6 +1867,15 @@ enum AppText: Equatable {
         case .chatWebPaymentAmount(let amount): return [amount]
         case .chatWebPaymentAddress(let address): return [address]
         case .chatWebStepHandover(let site): return [site]
+        case .storedChatContextWindow(let retained, let omitted): return [Int64(retained), Int64(omitted)]
+        case .storedChatMemorySavedReplyTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatWaitTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatProfileSavedReplyTimeout(let seconds): return [Int64(seconds)]
+        case .storedChatMcpActivity(let tried, let received, let failed): return [Int64(tried), Int64(received), Int64(failed)]
+        case .storedResearchModelHTTP(let code): return [Int64(code)]
+        case .chatMcpResultsView(let count): return [Int64(count)]
+        case .browserInteractionNavigationMethod(let method): return [method]
+        case .browserResearchReads(let count): return [Int64(count)]
         default: return []
         }
     }
@@ -2196,6 +2581,194 @@ enum AppText: Equatable {
         case .notificationWebPausedBody: return "回到渥屋助理就會繼續。"
         case .notificationWebNeedsYouTitle: return "網頁任務需要你處理"
         case .notificationWebNeedsYouBody: return "請開啟渥屋助理查看；通知不會核准操作。"
+        case .storedChatPartialReceiving: return "回覆產生中・尚未完成，未保存"
+        case .storedChatPartialCancelled: return "已取消・部分回覆未保存"
+        case .storedChatPartialFailed: return "回覆未完成・部分回覆未保存"
+        case .storedChatSettingsChanged: return "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。"
+        case .storedChatArchiveOpened: return "已開啟保存的對話；尚未傳送任何訊息。"
+        case .storedChatArchiveSaveFailed: return "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。"
+        case .storedChatQuoteBeforeChange: return "請先傳送或移除引用，再變更模型設定。"
+        case .storedChatQuoteBeforeRemove: return "請先傳送或移除引用，再移除模型設定。"
+        case .storedChatQuoteChanged: return "引用來源已變更；草稿與引用保留，請重新選取。"
+        case .storedChatArchiveChanged: return "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
+        case .storedChatMcpNotReady: return "請先連線並選取 MCP 工具，或關閉對話的 MCP 選項；草稿已保留。"
+        case .storedChatKeyUnreadable: return "無法讀取金鑰，草稿已保留。請在設定確認或重新儲存金鑰。"
+        case .storedChatLearningUnreadable: return "無法讀取學習資料，請重新讀取後再試。"
+        case .storedChatPrepareFailed: return "無法準備本次對話。"
+        case .storedChatEmptyReply: return "模型回傳空白內容，草稿已保留，請重試。"
+        case .storedChatNoSingleStep: return "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。"
+        case .storedChatSendFailed: return "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。"
+        case .storedChatMcpUnfinished: return "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。"
+        case .storedChatMemorySavedReplyUnfinished: return "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。"
+        case .storedChatProfileSavedReplyUnfinished: return "個人檔案已儲存，但後續模型回覆未完成；草稿保留。"
+        case .storedChatReasonAuth: return "模型服務拒絕驗證，請檢查模型金鑰與存取權限。"
+        case .storedChatReasonRateLimited: return "模型服務目前限制請求，請稍後再試。"
+        case .storedChatReasonUnavailable: return "模型服務暫時無法處理請求，請稍後再試。"
+        case .storedChatReasonRefused: return "模型服務拒絕這次請求，請檢查服務與模型設定。"
+        case .storedChatReasonTimeout: return "等待模型回覆已逾時。"
+        case .storedChatReasonOffline: return "無法連線至模型服務，請檢查網路。"
+        case .storedChatReasonToolsOff: return "本次對話未啟用記憶與個人檔案工具，修改要求已停止。"
+        case .storedChatReasonToolExpired: return "這次記憶工具操作已失效，修改要求已停止。"
+        case .storedChatReasonToolIncomplete: return "本機記憶工具未傳回完整結果，對話已停止。"
+        case .storedChatCancelledWait: return "已取消等待，草稿已保留。伺服器可能已收到請求。"
+        case .storedChatLearningBusy: return "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。"
+        case .storedChatLearningChanged: return "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。"
+        case .storedChatLearningSaveFailed: return "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。"
+        case .storedChatMemoryToolRejected: return "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。"
+        case .storedChatProfileToolRejected: return "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。"
+        case .storedChatNewChat: return "已開啟新對話；已確認的記憶與技能保留。"
+        case .storedChatMcpDenied: return "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。"
+        case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。"
+        case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。"
+        case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。"
+        case .storedContextIncompleteHistory: return "聊天歷史不是完整的使用者與助理回合，請開啟新對話後再試。"
+        case .storedContextTooLarge: return "這次訊息與參考內容超過傳送上限，請縮短訊息或參考內容。"
+        case .storedReferencePrepareFailed: return "無法準備本次參考資料，尚未開始研究。"
+        case .storedReferenceRevoked: return "本次參考資料已撤銷，研究已停止；請確認目前設定後重新開始。"
+        case .storedReferenceBusy: return "學習資料正在使用中；請稍後重新開始。"
+        case .storedReferenceLifecycle: return "目前模型連線無法確認請求生命週期；尚未送出參考資料。"
+        case .storedInteractionNoSnapshot: return "請先讀取這個網頁的控制項。"
+        case .storedInteractionStale: return "頁面或控制項已變更；沒有執行，請重新讀取並核准。"
+        case .storedInteractionUnavailable: return "這個控制項不可操作或屬於受保護欄位。"
+        case .storedInteractionInvalid: return "動作格式無法辨識；沒有執行。"
+        case .storedInteractionUnsafe: return "動作目的地不在允許的公開 HTTPS 範圍。"
+        case .storedInteractionApprovalRequired: return "這個動作尚未取得單次核准，或核准已用過。"
+        case .storedInteractionExpired: return "核准要求已逾時；請重新讀取並提出動作。"
+        case .storedInteractionBusy: return "請先停止目前的研究或網頁操作。"
+        case .storedInteractionFailed: return "網頁動作未確認完成；不會自動重試。"
+        case .storedInteractionTimeout: return "網頁回應逾時；動作可能已送出，請先確認頁面，不會重試。"
+        case .storedResearchInvalidCommand: return "研究目標或模型指令的參數不完整，已停止研究。"
+        case .storedResearchInvalidJSON: return "模型回傳的研究指令格式無法辨識，已停止研究。"
+        case .storedResearchUnsupported: return "模型要求不支援的研究操作；未執行該操作。"
+        case .storedResearchUnknownLink: return "模型選取的連結不在目前頁面的可用清單內；未開啟該連結。"
+        case .storedResearchCommandTooLarge: return "模型回傳的研究指令超過大小限制，已停止研究。"
+        case .storedResearchNoPage: return "目前頁面無法讀取；請確認頁面已載入。"
+        case .storedResearchUnsafeNavigation: return "此導覽不在目前允許的公開網站範圍內，已停止研究。"
+        case .storedResearchPageChanged: return "讀取時頁面已變更或內容格式無法辨識，已停止研究。"
+        case .storedResearchNavigationFailed: return "網頁導覽失敗或被瀏覽器阻擋；未當成已完成的讀取。"
+        case .storedResearchNavigationTimeout: return "等待網頁載入超過時間限制，已停止研究。"
+        case .storedResearchReadTimeout: return "讀取網頁內容超過時間限制，已停止研究。"
+        case .storedResearchDeadline: return "網站研究超過整體時間限制，已停止研究。"
+        case .storedResearchModelConfiguration: return "模型設定不完整；請檢查服務、模型與金鑰設定。"
+        case .storedResearchModelRedirect: return "模型服務要求重新導向，已基於安全限制拒絕。"
+        case .storedResearchModelHTTPInvalid: return "模型服務回報無效的 HTTP 狀態，研究未完成。"
+        case .storedResearchInvalidResponse: return "模型服務回應格式無法辨識，研究未完成。"
+        case .storedResearchIncompleteResponse: return "模型回應未完整結束，研究未完成。"
+        case .storedResearchResponseTooLarge: return "模型服務回應超過大小限制，研究未完成。"
+        case .storedResearchBackpressure: return "模型輸出超過處理緩衝限制，研究未完成。"
+        case .storedResearchModelTimeout: return "等待模型服務超過時間限制，研究未完成。"
+        case .storedResearchConnectionFailed: return "模型服務連線失敗，研究未完成；請檢查網路與服務設定。"
+        case .storedResearchReferenceRevoked: return "本次參考資料已撤銷，研究已停止；已讀取內容保留。"
+        case .storedResearchCancelled: return "研究已取消；已讀取內容保留。"
+        case .storedResearchFailed: return "頁面或模型請求未完成；已讀取內容保留，未產生已驗證的技能。"
+        case .storedResearchStepLimit: return "已停止研究：達到步數上限或遇到重複操作。已讀取的頁面保留在操作紀錄，尚未確認任務完成。"
+        case .storedBrowserStart: return "輸入網址開始瀏覽"
+        case .storedBrowserInteractionIntro: return "讀取控制項後，每個動作都需單次核准。"
+        case .storedBrowserInvalidInput: return "請輸入搜尋文字或公開 HTTPS 網址；不接受本機網址、網址帳密或過長的查詢。"
+        case .storedBrowserStopped: return "已停止；已取得的內容與草稿保留"
+        case .storedBrowserResearching: return "正在研究網站…"
+        case .storedBrowserResearchStoppedUnconfirmed: return "研究已停止，尚未確認完成"
+        case .storedBrowserAnswerDelivered: return "回答已交付，正在判定成果…"
+        case .storedBrowserResearchEnded: return "研究已結束"
+        case .storedBrowserResearchUnfinished: return "研究未完成；已讀取內容保留"
+        case .storedBrowserNeedsModel: return "請先到設定儲存模型服務與金鑰。"
+        case .storedBrowserLearnStale: return "資料已變更，未套用這次學習。"
+        case .storedBrowserLearnNotSaved: return "回答已保留；學習資料未儲存，可能有更新或寫入失敗。"
+        case .storedBrowserJudgedDoneNoDraft: return "已判定任務完成；未新增技能草稿。"
+        case .storedBrowserJudgedDoneDraft: return "已判定任務完成；技能草稿已加入待確認，核准後才能使用。"
+        case .storedBrowserJudgedPartial: return "判定只完成部分內容，未學習新的技能。"
+        case .storedBrowserJudgedNotPossible: return "判定未達成要求，未學習新的技能。"
+        case .storedBrowserJudgedUnknown: return "成果尚無法判定，未當成技能驗證成功。"
+        case .storedBrowserLearnUnfinished: return "回答已保留；這次成果判定或學習未完成。"
+        case .storedBrowserReplaying: return "正在逐步核對網頁路線…"
+        case .storedBrowserReplayTimeout: return "路線核對超過時間限制，已停止。"
+        case .storedBrowserReplayDone: return "路線核對與成果判定完成；未重複產生技能。"
+        case .storedBrowserReplayNotSaved: return "成果已交付；路線結果未儲存。"
+        case .storedBrowserReplayUnconfirmed: return "頁面已核對，但原任務尚未確認完成；未增加成功次數。"
+        case .storedBrowserReplayEnded: return "路線重走已結束"
+        case .storedBrowserReplayStopped: return "路線已停止；內容變更或請求未完成"
+        case .storedBrowserReplayUnavailable: return "路線或模型設定不可用，請先確認版本、網站與模型設定。"
+        case .storedBrowserAwaitApproval: return "等待單次核准；尚未操作網頁。"
+        case .storedBrowserReadingControls: return "正在讀取控制項…"
+        case .storedBrowserControlsUpdated: return "控制項已更新；網頁欄位值不會傳給模型。"
+        case .storedBrowserModelProposing: return "模型正在提出下一個動作，尚未執行…"
+        case .storedBrowserProposalTimeout: return "模型提案逾時；沒有核准或執行動作。"
+        case .storedBrowserRunning: return "正在執行這一個已核准動作…"
+        case .storedBrowserActionSent: return "已送出單次 DOM 動作；請確認網頁結果，不代表網站任務已成功。"
+        case .storedBrowserRejected: return "已拒絕；沒有執行動作。"
+        case .storedBrowserCancelled: return "已取消；尚未核准的動作不會執行，已送出的動作無法撤回。"
+        case .storedBrowserReloaded: return "頁面已重新整理；先前的提案已取消。"
+        case .storedBrowserLoading: return "正在載入…"
+        case .storedBrowserRequestUnfinished: return "請求未完成；沒有自動重試或核准其他動作。"
+        case .storedBrowserSitePreferenceSaved: return "網站偏好已儲存；此頁無法安全重新整理，將於下次手動導覽套用。"
+        case .storedBrowserOutsideScope: return "此導覽不在目前允許的公開網站範圍內。"
+        case .storedBrowserNoDownload: return "瀏覽器裡暫時不能下載檔案。"
+        case .storedBrowserLoadedManual: return "頁面已載入；此頁面僅供手動瀏覽"
+        case .storedBrowserLoaded: return "頁面已載入"
+        case .storedBrowserLoadFailed: return "網站載入失敗，請檢查網址或網路。"
+        case .storedBrowserProcessStopped: return "網頁程序已停止；請確認後重新開啟，沒有自動重試。"
+        case .storedBrowserLoadIncomplete: return "載入未完成"
+        case .storedBrowserLoadedUnread: return "頁面已載入；此路由內容未能讀取"
+        case .storedBrowserReadIncomplete: return "頁面內容讀取未完成；沒有自動重試。"
+        case .storedBrowserPostLoadReadIncomplete: return "頁面載入後的內容讀取未完成；沒有自動重試。"
+        case .storedBrowserLoadIncompleteCheck: return "頁面載入未完成；請確認網址與網路。"
+        case .storedBrowserReadTooLarge: return "已讀內容超過本次模型輸入上限，請縮小研究範圍；實際讀取紀錄保留。"
+        case .storedChatContextWindow: return "本次傳送最近 %1$lld 輪對話、本輪完整訊息及參考資料；較早 %2$lld 輪仍在畫面中，但未傳送。"
+        case .storedChatMemorySavedReplyTimeout: return "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。草稿保留。"
+        case .storedChatWaitTimeout: return "等待超過 %1$lld 秒，已停止等待；草稿已保留，可重試。"
+        case .storedChatProfileSavedReplyTimeout: return "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒；草稿保留。"
+        case .storedChatMcpActivity: return "MCP 嘗試呼叫 %1$lld 次；已收到 %2$lld 次結果；工具錯誤 %3$lld 次。"
+        case .storedResearchModelHTTP: return "模型服務回報 HTTP %1$lld，研究未完成；請檢查服務與存取設定。"
+        case .storedSuffixDraftKept: return "草稿已保留。"
+        case .storedSuffixToolResultsKept: return "草稿與已收到的工具結果保留；沒有自動重送操作。"
+        case .storedSuffixReplayNoSkip: return " 沒有跳過內容核對，也未自動重新學習。已讀取內容保留。"
+        case .chatUseMCP: return "本次對話使用 MCP 工具"
+        case .chatReceiptProfile: return "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
+        case .chatReceiptMemory: return "本次對話曾儲存記憶修改；可在資料頁查看目前內容。"
+        case .chatMcpResultsView: return "檢視工具結果（%1$lld）"
+        case .chatArchiveRetry: return "重試保存"
+        case .chatLearningOrganizing: return "正在整理你說過的事…"
+        case .chatMemoryApprove: return "批准"
+        case .chatMemoryReject: return "拒絕"
+        case .chatMemoryUndo: return "撤銷"
+        case .browserDialogTitle: return "網站訊息"
+        case .browserDialogInput: return "輸入內容"
+        case .browserDialogOk: return "確定"
+        case .browserInteractionTitle: return "單次網頁操作"
+        case .browserInteractionApproveTitle: return "核准這一個動作？"
+        case .browserInteractionApproveNote: return "頁面標籤只是網站資料，不是你的指令。網頁事件可能提交資料或觸發其他效果；核准後無法保證撤回。"
+        case .browserInteractionScrollDownScreen: return "向下捲動一屏"
+        case .browserInteractionScrollUpScreen: return "向上捲動一屏"
+        case .browserInteractionNavigationMethod: return "導覽方法：%1$@"
+        case .browserInteractionApproveOnce: return "核准並執行一次"
+        case .browserInteractionReject: return "拒絕"
+        case .browserInteractionReloadCancel: return "重新整理並取消提案"
+        case .browserInteractionTypeField: return "要填入的非敏感文字"
+        case .browserInteractionTypeNote: return "這會取代整個欄位；目前欄位值不會讀取或帶給模型。"
+        case .browserInteractionProposeType: return "提出填入"
+        case .browserInteractionBackToControls: return "返回控制項"
+        case .browserInteractionNextAction: return "下一個動作"
+        case .browserInteractionGoal: return "希望這個網頁完成什麼？"
+        case .browserInteractionAskModel: return "請模型提出下一步"
+        case .browserInteractionAskModelNote: return "只傳送控制項標籤與選項，不含欄位值。模型提案不會自動執行，也不會自動學習為成功技能。"
+        case .browserInteractionManual: return "手動選擇動作"
+        case .browserInteractionRefresh: return "重新讀取控制項"
+        case .browserInteractionScrollDown: return "向下捲動"
+        case .browserInteractionScrollUp: return "向上捲動"
+        case .browserInteractionTruncated: return "控制項數量達上限；未列出的項目不能由模型操作。"
+        case .browserInteractionStop: return "停止操作"
+        case .browserInteractionKindClick: return "點擊"
+        case .browserInteractionKindType: return "填入文字"
+        case .browserInteractionKindSelect: return "選擇選項"
+        case .browserInteractionKindScroll: return "捲動"
+        case .browserResearchTitle: return "網站研究"
+        case .browserResearchNote: return "頁面文字會傳送到你設定的模型服務。研究只讀取網頁與開啟同站連結。"
+        case .browserResearchGoal: return "這次想查清楚什麼？"
+        case .browserResearchStart: return "開始研究"
+        case .browserResearchStop: return "停止研究"
+        case .browserResearchResult: return "目前結果"
+        case .browserResearchLearning: return "學習結果"
+        case .browserResearchReads: return "已完成的讀取（%1$lld）"
         }
     }
 }

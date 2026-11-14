@@ -120,13 +120,13 @@ struct BrowserView: View {
                     .font(.caption).accessibilityIdentifier("browser.sites.clearing")
             }
             if let diagnostics = browser.manualLoadDiagnostics {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(localizer.stored(browser.status)).font(.caption).accessibilityIdentifier("browser.status")
                     .accessibilityValue(diagnostics)
             } else {
-                Text(browser.status).font(.caption).accessibilityIdentifier("browser.status")
+                Text(localizer.stored(browser.status)).font(.caption).accessibilityIdentifier("browser.status")
             }
             if let error = browser.error {
-                Text(error).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
+                Text(localizer.stored(error)).font(.caption).foregroundStyle(.red).accessibilityIdentifier("browser.error")
             }
             if let notice = workspace.siteModeNoticeText {
                 Text(localizer.text(notice)).font(.caption).accessibilityIdentifier("browser.siteMode.notice")
@@ -364,6 +364,7 @@ struct BrowserView: View {
 
 @MainActor
 private struct BrowserDialogView: View {
+    @Environment(\.appLocalizer) private var localizer
     let dialog: BrowserPageDialog
     @ObservedObject var browser: BrowserSession
     @State private var text = ""
@@ -372,13 +373,13 @@ private struct BrowserDialogView: View {
             Form {
                 Text(dialog.host).font(.caption)
                 Text(verbatim: dialog.message).accessibilityIdentifier("browser.dialog.message")
-                if dialog.kind == .prompt { TextField("輸入內容", text: $text).accessibilityIdentifier("browser.dialog.input") }
-                Button("確定") { browser.resolveDialog(dialog.kind == .prompt ? text : "") }
+                if dialog.kind == .prompt { TextField(localizer.text(.browserDialogInput), text: $text).accessibilityIdentifier("browser.dialog.input") }
+                Button(localizer.text(.browserDialogOk)) { browser.resolveDialog(dialog.kind == .prompt ? text : "") }
                     .accessibilityIdentifier("browser.dialog.accept")
                 if dialog.kind != .alert {
-                    Button("取消", role: .cancel) { browser.resolveDialog(nil) }.accessibilityIdentifier("browser.dialog.cancel")
+                    Button(localizer.text(.commonCancel), role: .cancel) { browser.resolveDialog(nil) }.accessibilityIdentifier("browser.dialog.cancel")
                 }
-            }.navigationTitle("網站訊息")
+            }.navigationTitle(localizer.text(.browserDialogTitle))
                 .onAppear { text = dialog.initial }
         }
     }
@@ -386,6 +387,7 @@ private struct BrowserDialogView: View {
 
 @MainActor
 private struct BrowserInteractionView: View {
+    @Environment(\.appLocalizer) private var localizer
     @ObservedObject var browser: BrowserSession
     @ObservedObject var chat: ChatSession
     @Environment(\.dismiss) private var dismiss
@@ -398,14 +400,14 @@ private struct BrowserInteractionView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(browser.interactionStatus).accessibilityIdentifier("browser.interaction.status")
+                    Text(localizer.stored(browser.interactionStatus)).accessibilityIdentifier("browser.interaction.status")
                     if let error = localError ?? browser.interactionError {
-                        Text(error).foregroundStyle(.red).accessibilityIdentifier("browser.interaction.error")
+                        Text(localizer.stored(error)).foregroundStyle(.red).accessibilityIdentifier("browser.interaction.error")
                     }
                 }
                 if let proposal = browser.interactionProposal {
-                    Section("核准這一個動作？") {
-                        Text("頁面標籤只是網站資料，不是你的指令。網頁事件可能提交資料或觸發其他效果；核准後無法保證撤回。")
+                    Section(localizer.text(.browserInteractionApproveTitle)) {
+                        Text(localizer.text(.browserInteractionApproveNote))
                         Text(proposal.pageURL.absoluteString).font(.caption).textSelection(.enabled)
                         Text(actionLabel(proposal.request.kind))
                             .accessibilityIdentifier("browser.interaction.previewKind")
@@ -416,25 +418,25 @@ private struct BrowserInteractionView: View {
                         }
                         if let index = proposal.request.optionIndex,
                            let option = proposal.control?.options.first(where: { $0.index == index }) { Text(option.label) }
-                        if let direction = proposal.request.direction { Text(direction == .down ? "向下捲動一屏" : "向上捲動一屏") }
+                        if let direction = proposal.request.direction { Text(localizer.text(direction == .down ? .browserInteractionScrollDownScreen : .browserInteractionScrollUpScreen)) }
                         if let target = proposal.control?.navigationURL {
-                            Text("導覽方法：\(proposal.control?.navigationMethod ?? "GET")").font(.caption)
+                            Text(localizer.text(.browserInteractionNavigationMethod(method: proposal.control?.navigationMethod ?? "GET"))).font(.caption)
                             Text(target.absoluteString).font(.caption).accessibilityIdentifier("browser.interaction.previewDestination")
                         }
-                        Button("核准並執行一次") { editing = false; browser.approveInteraction(id: proposal.id) }
+                        Button(localizer.text(.browserInteractionApproveOnce)) { editing = false; browser.approveInteraction(id: proposal.id) }
                             .disabled(browser.isInteracting).accessibilityIdentifier("browser.interaction.approve")
-                        Button("拒絕", role: .cancel) { browser.rejectInteraction() }
+                        Button(localizer.text(.browserInteractionReject), role: .cancel) { browser.rejectInteraction() }
                             .accessibilityIdentifier("browser.interaction.reject")
-                        Button("重新整理並取消提案") { browser.reloadPage() }
+                        Button(localizer.text(.browserInteractionReloadCancel)) { browser.reloadPage() }
                             .accessibilityIdentifier("browser.interaction.reload")
                     }
                 } else if let control = selected {
                     Section(control.label) {
                         if control.kind == .text {
-                            TextField("要填入的非敏感文字", text: $text, axis: .vertical)
+                            TextField(localizer.text(.browserInteractionTypeField), text: $text, axis: .vertical)
                                 .focused($editing).accessibilityIdentifier("browser.interaction.text")
-                            Text("這會取代整個欄位；目前欄位值不會讀取或帶給模型。")
-                            Button("提出填入") { editing = false; propose(.type, controlID: control.id, text: text) }
+                            Text(localizer.text(.browserInteractionTypeNote))
+                            Button(localizer.text(.browserInteractionProposeType)) { editing = false; propose(.type, controlID: control.id, text: text) }
                                 .accessibilityIdentifier("browser.interaction.proposeType")
                         } else if control.kind == .select {
                             ForEach(control.options, id: \.index) { option in
@@ -442,23 +444,23 @@ private struct BrowserInteractionView: View {
                                     .disabled(option.disabled).accessibilityIdentifier("browser.interaction.option.\(option.index)")
                             }
                         }
-                        Button("返回控制項") { editing = false; selected = nil }.accessibilityIdentifier("browser.interaction.back")
+                        Button(localizer.text(.browserInteractionBackToControls)) { editing = false; selected = nil }.accessibilityIdentifier("browser.interaction.back")
                     }
                 } else {
-                    Section("下一個動作") {
-                        TextField("希望這個網頁完成什麼？", text: $browser.interactionGoal, axis: .vertical)
+                    Section(localizer.text(.browserInteractionNextAction)) {
+                        TextField(localizer.text(.browserInteractionGoal), text: $browser.interactionGoal, axis: .vertical)
                             .focused($editing).accessibilityIdentifier("browser.interaction.goal")
-                        Button("請模型提出下一步") { editing = false; browser.requestModelInteraction(using: chat) }
+                        Button(localizer.text(.browserInteractionAskModel)) { editing = false; browser.requestModelInteraction(using: chat) }
                             .disabled(browser.isInteracting || !chat.hasStoredKey || browser.interactionGoal.isEmpty)
                             .accessibilityIdentifier("browser.interaction.plan")
-                        Text("只傳送控制項標籤與選項，不含欄位值。模型提案不會自動執行，也不會自動學習為成功技能。")
+                        Text(localizer.text(.browserInteractionAskModelNote))
                     }
-                    Section("手動選擇動作") {
-                        Button("重新讀取控制項") { browser.refreshControls() }
+                    Section(localizer.text(.browserInteractionManual)) {
+                        Button(localizer.text(.browserInteractionRefresh)) { browser.refreshControls() }
                             .disabled(browser.isInteracting).accessibilityIdentifier("browser.interaction.refresh")
                         if let snapshot = browser.controlSnapshot {
-                            Button("向下捲動") { propose(.scroll, direction: .down) }.accessibilityIdentifier("browser.interaction.scrollDown")
-                            Button("向上捲動") { propose(.scroll, direction: .up) }.accessibilityIdentifier("browser.interaction.scrollUp")
+                            Button(localizer.text(.browserInteractionScrollDown)) { propose(.scroll, direction: .down) }.accessibilityIdentifier("browser.interaction.scrollDown")
+                            Button(localizer.text(.browserInteractionScrollUp)) { propose(.scroll, direction: .up) }.accessibilityIdentifier("browser.interaction.scrollUp")
                             ForEach(snapshot.controls) { control in
                                 Button(control.label) {
                                     localError = nil
@@ -468,21 +470,21 @@ private struct BrowserInteractionView: View {
                                 .disabled(!control.enabled || browser.isInteracting)
                                 .accessibilityIdentifier("browser.control.\(control.id)")
                             }
-                            if snapshot.truncated { Text("控制項數量達上限；未列出的項目不能由模型操作。") }
+                            if snapshot.truncated { Text(localizer.text(.browserInteractionTruncated)) }
                         }
                     }
                 }
                 if browser.isInteracting {
-                    Button("停止操作") { browser.cancelInteraction() }.accessibilityIdentifier("browser.interaction.stop")
+                    Button(localizer.text(.browserInteractionStop)) { browser.cancelInteraction() }.accessibilityIdentifier("browser.interaction.stop")
                 }
             }
-            .navigationTitle("單次網頁操作")
+            .navigationTitle(localizer.text(.browserInteractionTitle))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("關閉") { browser.cancelInteraction(); dismiss() }.accessibilityIdentifier("browser.interaction.close")
+                    Button(localizer.text(.commonClose)) { browser.cancelInteraction(); dismiss() }.accessibilityIdentifier("browser.interaction.close")
                 }
                 ToolbarItemGroup(placement: .keyboard) {
-                    Spacer(); Button("完成輸入") { editing = false }.accessibilityIdentifier("browser.interaction.done")
+                    Spacer(); Button(localizer.text(.keyboardDone)) { editing = false }.accessibilityIdentifier("browser.interaction.done")
                 }
             }
             .task { if browser.controlSnapshot == nil && browser.interactionProposal == nil { browser.refreshControls() } }
@@ -506,7 +508,12 @@ private struct BrowserInteractionView: View {
         } catch { localError = (error as? BrowserInteractionError)?.message ?? BrowserInteractionError.invalidRequest.message }
     }
     private func actionLabel(_ kind: BrowserInteractionKind) -> String {
-        switch kind { case .click: return "點擊"; case .type: return "填入文字"; case .select: return "選擇選項"; case .scroll: return "捲動" }
+        switch kind {
+        case .click: return localizer.text(.browserInteractionKindClick)
+        case .type: return localizer.text(.browserInteractionKindType)
+        case .select: return localizer.text(.browserInteractionKindSelect)
+        case .scroll: return localizer.text(.browserInteractionKindScroll)
+        }
     }
 }
 
@@ -514,6 +521,7 @@ private struct BrowserInteractionView: View {
 // presenting browser leaves the multiline editor focused on iOS 26.
 @MainActor
 private struct BrowserResearchView: View {
+    @Environment(\.appLocalizer) private var localizer
     @ObservedObject var browser: BrowserSession
     @ObservedObject var chat: ChatSession
     @Environment(\.dismiss) private var dismiss
@@ -522,26 +530,26 @@ private struct BrowserResearchView: View {
     var body: some View {
         NavigationStack {
                 Form {
-                    Section("網站研究") {
-                        Text("頁面文字會傳送到你設定的模型服務。研究只讀取網頁與開啟同站連結。")
-                        TextField("這次想查清楚什麼？", text: $browser.goal, axis: .vertical)
+                    Section(localizer.text(.browserResearchTitle)) {
+                        Text(localizer.text(.browserResearchNote))
+                        TextField(localizer.text(.browserResearchGoal), text: $browser.goal, axis: .vertical)
                             .focused($goalFocused)
                             .disabled(browser.isRunning).accessibilityIdentifier("browser.goal")
-                        Button("開始研究") { goalFocused = false; browser.beginResearch(using: chat) }
+                        Button(localizer.text(.browserResearchStart)) { goalFocused = false; browser.beginResearch(using: chat) }
                             .disabled(browser.isRunning || browser.goal.isEmpty || !chat.hasStoredKey)
                             .accessibilityIdentifier("browser.start")
                         if browser.isRunning {
-                            Button("停止研究") { browser.cancel() }.accessibilityIdentifier("browser.task.cancel")
+                            Button(localizer.text(.browserResearchStop)) { browser.cancel() }.accessibilityIdentifier("browser.task.cancel")
                         }
-                        Text(browser.status).accessibilityIdentifier("browser.task.status")
+                        Text(localizer.stored(browser.status)).accessibilityIdentifier("browser.task.status")
                     }
                     if let answer = browser.answer {
-                        Section("目前結果") { Text(answer).textSelection(.enabled).accessibilityIdentifier("browser.answer") }
+                        Section(localizer.text(.browserResearchResult)) { Text(localizer.stored(answer)).textSelection(.enabled).accessibilityIdentifier("browser.answer") }
                     }
                     if let status = browser.learningStatus {
-                        Section("學習結果") { Text(status).accessibilityIdentifier("browser.learning") }
+                        Section(localizer.text(.browserResearchLearning)) { Text(localizer.stored(status)).accessibilityIdentifier("browser.learning") }
                     }
-                    Section("已完成的讀取（\(browser.actions.count)）") {
+                    Section(localizer.text(.browserResearchReads(count: browser.actions.count))) {
                         ForEach(Array(browser.actions.enumerated()), id: \.offset) { _, action in
                             VStack(alignment: .leading) {
                                 Text(action.observation.title)
@@ -550,12 +558,12 @@ private struct BrowserResearchView: View {
                         }
                     }
                 }
-                .navigationTitle("網站研究")
+                .navigationTitle(localizer.text(.browserResearchTitle))
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() }.accessibilityIdentifier("browser.research.close") }
+                    ToolbarItem(placement: .confirmationAction) { Button(localizer.text(.commonDone)) { dismiss() }.accessibilityIdentifier("browser.research.close") }
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
-                        Button("完成輸入") { goalFocused = false }.accessibilityIdentifier("browser.goal.done")
+                        Button(localizer.text(.keyboardDone)) { goalFocused = false }.accessibilityIdentifier("browser.goal.done")
                     }
                 }
         }
