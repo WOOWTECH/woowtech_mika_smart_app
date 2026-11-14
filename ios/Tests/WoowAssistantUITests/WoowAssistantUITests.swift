@@ -125,7 +125,9 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(app.buttons["chat.newConversation"].label, "新對話")
         app.buttons["chat.menu"].tap()
         XCTAssertEqual(app.buttons["drawer.close"].label, "關閉選單")
-        for section in sections { XCTAssertTrue(app.buttons["navigation.\(section)"].exists) }
+        // Like Play's drawer: 新對話 takes the place of a Chat row; the rest are routes.
+        XCTAssertTrue(app.buttons["drawer.newConversation"].exists)
+        for section in sections where section != "chat" { XCTAssertTrue(app.buttons["navigation.\(section)"].exists) }
         app.buttons["drawer.close"].tap()
         openSection("chat", in: app)
     }
@@ -223,13 +225,27 @@ final class WoowAssistantUITests: XCTestCase {
         let feedback = app.buttons["settings.about.feedback"]
         XCTAssertTrue(feedback.waitForExistence(timeout: 10))
         XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("woowtech@designsmart.com.tw"))
-        for id in ["repository", "guide", "license"] {
+        for id in ["repository", "guide"] {
             XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
                            "GitHub entry still shown: \(id)")
         }
         XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理。")
         XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
                        "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
+        // Play's About › Released under Apache-2.0 license → Licenses, with the
+        // upstream texts; no repository link.
+        let license = app.buttons["settings.about.license"]
+        for _ in 0..<5 where !license.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        waitUntilHittable(license)
+        XCTAssertTrue(license.label.contains("Apache-2.0"), license.label)
+        license.tap()
+        let licenses = app.navigationBars["Apache-2.0 授權條款"]
+        XCTAssertTrue(licenses.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.license.text"].waitForExistence(timeout: 10))
+        let licensesBack = licenses.buttons.firstMatch
+        waitUntilHittable(licensesBack)
+        licensesBack.tap()
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
 
         XCTAssertFalse(app.buttons["section.back"].isHittable)
         let nativeBack = bar.buttons.matching(NSPredicate(format: "identifier != %@", "section.back")).firstMatch
@@ -585,11 +601,15 @@ final class WoowAssistantUITests: XCTestCase {
         openSection("chat", in: app)
         send("Hello fixture 17", in: app)
         assertReply("測試回覆：Hello fixture 17", in: app)
+        // Like Play, the drawer lists the saved chat; its note says it is kept encrypted here.
         app.buttons["chat.menu"].tap()
-        app.buttons["drawer.archive"].tap()
-        XCTAssertTrue(app.staticTexts["archive.boundary"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["archive.boundary"].label.contains("加密保存在此裝置"))
-        app.buttons["archive.close"].tap()
+        let boundary = app.staticTexts["drawer.recent.boundary"]
+        XCTAssertTrue(boundary.waitForExistence(timeout: 10))
+        XCTAssertTrue(boundary.label.contains("此裝置已加密保存"), boundary.label)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@",
+                                                       "drawer.recent.row.", "Hello fixture 17")).firstMatch
+            .waitForExistence(timeout: 10))
+        app.buttons["drawer.close"].tap()
         assertDraft("", in: app)
         attachScreenshot("fixture-reply", in: app)
 

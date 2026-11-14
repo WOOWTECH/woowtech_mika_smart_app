@@ -78,7 +78,7 @@ final class ChatStreamingUITests: XCTestCase {
         launch(reset: false); openArchive()
         let saved = row("[fixture:structured-stream-complete]")
         ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"), "結構化串流：第一段；完整回覆。")
+        assertLabel(identifiedText("chat.message.1.assistant"), "結構化串流：第一段；完整回覆。")
         print("STRUCTURED_STREAM_UI memoryEnabled=1 partialObserved=1 archiveAfterCompletion=1 archiveRelaunch=1")
     }
 
@@ -105,7 +105,7 @@ final class ChatStreamingUITests: XCTestCase {
         assertNotificationAttempts(1)
         launch(reset: false); openArchive()
         let saved = row("[fixture:stream-complete]"); ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"), "串流測試：第一段；完整回覆。")
+        assertLabel(identifiedText("chat.message.1.assistant"), "串流測試：第一段；完整回覆。")
         print("CHAT_STREAM_UI partialObserved=1 completedPair=1 archiveRelaunch=1 completionNotificationAttempts=1")
     }
 
@@ -123,14 +123,14 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         assertNotificationAttempts(0)
         openArchive()
-        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
-        tap("archive.close")
+        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
+        tap("drawer.close")
         assertNotificationAttempts(0)
         launch(reset: false)
         XCTAssertFalse(app.staticTexts["chat.partialReply"].firstMatch.exists, "Partials are not claimed durable")
         XCTAssertFalse(identifiedText("chat.message.1.assistant").exists)
         openArchive()
-        XCTAssertTrue(app.staticTexts["archive.empty"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["drawer.recent.empty"].firstMatch.waitForExistence(timeout: 10))
         print("CHAT_STREAM_UI partialObserved=1 cancelled=1 draftRetained=1 archiveAbsentAfterRelaunch=1 completionNotificationAttempts=0")
     }
 
@@ -152,8 +152,13 @@ final class ChatStreamingUITests: XCTestCase {
 
         launch(reset: false); openArchive()
         let saved = row("[fixture:stream-markdown]"); ready(saved); saved.tap()
-        assertLabel(identifiedText("archive.turn.0.assistant"),
-                    "# 標題\n\n**粗體** 與 [連結](https://example.org)\n\n- 第一項\n- 第二項")
+        // Like Play there is no history sheet showing the stored source; reopening the
+        // chat from the drawer renders the archived Markdown into the same bubble.
+        let reopened = identifiedText("chat.message.1.assistant")
+        wait(NSPredicate(format: "label CONTAINS %@", "• 第二項"), on: reopened, seconds: 10)
+        XCTAssertTrue(reopened.label.contains("標題") && reopened.label.contains("粗體 與 連結"))
+        XCTAssertTrue(reopened.label.contains("• 第一項"))
+        XCTAssertFalse(reopened.label.contains("**") || reopened.label.contains("[連結]"))
     }
 
     func testReadingEarlierStreamingTextDoesNotJumpToNewChunk() {
@@ -461,7 +466,11 @@ final class ChatStreamingUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
     }
     private func row(_ title: String) -> XCUIElement {
-        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "archive.row.", title)).firstMatch
+        let scroll = app.scrollViews["drawer.scroll"].firstMatch
+        let target = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@",
+                                                      "drawer.recent.row.", title)).firstMatch
+        for _ in 0..<4 where !target.exists || !scroll.frame.contains(target.frame) { scroll.swipeUp() }
+        return target
     }
     private func identifiedText(_ identifier: String) -> XCUIElement {
         // Selectable SwiftUI Text can be an AX Other on iOS 17 and StaticText
@@ -520,15 +529,16 @@ final class ChatStreamingUITests: XCTestCase {
         let absent = NSPredicate(format: "exists == false")
         if !absent.evaluate(with: button) { XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: absent, object: button)], timeout: 5), .completed) }
     }
+    /// Like the Play build, saved chats are listed in the drawer (no history sheet).
     private func openArchive() {
         tap("chat.menu")
-        tap("drawer.archive")
+        XCTAssertTrue(app.scrollViews["drawer.scroll"].firstMatch.waitForExistence(timeout: 10))
     }
     private func assertArchiveUnavailableDuringRun() {
         tap("chat.menu")
-        let history = app.buttons["drawer.archive"].firstMatch
-        XCTAssertTrue(history.waitForExistence(timeout: 5))
-        XCTAssertFalse(history.isEnabled, "History must remain unavailable during a run")
+        let newConversation = app.buttons["drawer.newConversation"].firstMatch
+        XCTAssertTrue(newConversation.waitForExistence(timeout: 5))
+        XCTAssertFalse(newConversation.isEnabled, "Switching chats waits until the run ends")
         tap("drawer.close")
     }
     private func tap(_ id: String, scroll: Bool = false) {

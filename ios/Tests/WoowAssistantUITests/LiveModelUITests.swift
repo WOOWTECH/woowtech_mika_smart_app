@@ -43,10 +43,9 @@ final class LiveModelUITests: XCTestCase {
         app.buttons["chat.send"].tap()
         assertReply(marker, messageIndex: 3, in: app)
         app.buttons["chat.menu"].tap()
-        app.buttons["drawer.archive"].tap()
-        XCTAssertTrue(app.staticTexts["archive.boundary"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["archive.boundary"].label.contains("加密保存在此裝置"))
-        app.buttons["archive.close"].tap()
+        XCTAssertTrue(app.staticTexts["drawer.recent.boundary"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["drawer.recent.boundary"].label.contains("此裝置已加密保存"))
+        app.buttons["drawer.close"].tap()
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
     }
 
