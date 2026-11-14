@@ -4,7 +4,7 @@ import SwiftUI
 extension View {
     /// Root integration (ContentView): Android MainActivity checks once, when
     /// the App opens, whether to start the first-launch flow; the flow covers
-    /// the chat until 下一步.
+    /// the chat until 下一步 or 稍後再說.
     @MainActor func firstLaunchOnboarding(session: ChatSession, languages: AppLanguageStore, accent: Color) -> some View {
         modifier(FirstLaunchOnboarding(session: session, languages: languages, accent: accent))
     }
@@ -31,7 +31,10 @@ private struct FirstLaunchOnboarding: ViewModifier {
                 withTransaction(transaction) { presented = true }
             }
             .fullScreenCover(isPresented: $presented) {
-                OnboardingFlowView(session: session, languages: languages, finish: finish)
+                // 稍後再說 finishes nothing, so the next launch without a main
+                // model starts the flow again, as on Android.
+                OnboardingFlowView(session: session, languages: languages, finish: finish,
+                                   later: { presented = false })
                     .tint(accent)
             }
     }
@@ -57,11 +60,12 @@ private struct OnboardingFlowView: View {
     let session: ChatSession
     let languages: AppLanguageStore
     let finish: () -> Void
+    let later: () -> Void
     @State private var settingUpModel = false
 
     var body: some View {
         NavigationStack {
-            OnboardingWelcomeView(languages: languages) { settingUpModel = true }
+            OnboardingWelcomeView(languages: languages, start: { settingUpModel = true }, later: later)
                 .navigationDestination(isPresented: $settingUpModel) {
                     MikaModelSettingsDetailView(session: session, languages: languages, onboardingNext: finish)
                         // Android's top bar there has the back arrow only.
@@ -73,11 +77,12 @@ private struct OnboardingFlowView: View {
 
 /// Android WelcomeScreen, store build: the logo, who the assistant is, what
 /// it does, the note about a model account or key, the first of two dots and
-/// 開始設定.
+/// 開始設定, with 稍後再說 below it.
 @MainActor
 private struct OnboardingWelcomeView: View {
     @ObservedObject var languages: AppLanguageStore
     let start: () -> Void
+    let later: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     private var palette: MikaSettingsPalette { MikaSettingsPalette(scheme: colorScheme) }
@@ -183,8 +188,19 @@ private struct OnboardingWelcomeView: View {
             }
             .buttonStyle(OnboardingButtonStyle())
             .accessibilityIdentifier("welcome.start")
+            // Android leaves this page with Back; iOS has no such key, so the
+            // way to the chat is here, under the main action as in iOS setup.
+            Button(action: later) {
+                Text(verbatim: localizer.text(.welcomeLater))
+                    .font(.body.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 4)
+            .accessibilityIdentifier("welcome.later")
         }
-        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 12)
+        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 4)
         .frame(maxWidth: 600)
         .frame(maxWidth: .infinity)
         .background(palette.page)

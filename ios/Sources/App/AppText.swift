@@ -401,6 +401,7 @@ enum AppText: Equatable {
     case welcomeMemoryBody
     case welcomeNote
     case welcomeStart
+    case welcomeLater
     case modelSetupTitle
     case modelSetupLead
     case modelSetupOnboardingNote
@@ -1306,6 +1307,7 @@ enum AppText: Equatable {
         case .welcomeMemoryBody: return "welcome.memory.body"
         case .welcomeNote: return "welcome.note"
         case .welcomeStart: return "welcome.start"
+        case .welcomeLater: return "welcome.later"
         case .modelSetupTitle: return "modelSetup.title"
         case .modelSetupLead: return "modelSetup.lead"
         case .modelSetupOnboardingNote: return "modelSetup.onboardingNote"
@@ -2313,6 +2315,7 @@ enum AppText: Equatable {
         case .welcomeMemoryBody: return "保留往後對話需要的資訊"
         case .welcomeNote: return "先設定自己的模型帳號或 API Key，即可開始使用。"
         case .welcomeStart: return "開始設定"
+        case .welcomeLater: return "稍後再說"
         case .modelSetupTitle: return "設定模型"
         case .modelSetupLead: return "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。"
         case .modelSetupOnboardingNote: return "只有主模型必須選，其他用途可以以後再說。"

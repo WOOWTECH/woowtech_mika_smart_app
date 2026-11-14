@@ -226,6 +226,32 @@ final class WoowAssistantUITests: XCTestCase {
         waitUntilHittable(start)
     }
 
+    /// Like Back on Android's welcome page: 稍後再說 shows the chat without
+    /// finishing the setup, so the next launch with no main model asks again.
+    func testWelcomeNotNowShowsTheChatAndTheNextLaunchAsksAgain() {
+        let app = XCUIApplication()
+        // Without -WoowSkipOnboarding: the first launch people see.
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+                               "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage"]
+        app.launchEnvironment = [:]
+        app.launch()
+        let later = app.buttons["welcome.later"]
+        XCTAssertTrue(later.waitForExistence(timeout: 15))
+        XCTAssertEqual(later.label, "稍後再說")
+        waitUntilHittable(later)
+        later.tap()
+        waitUntilHittable(app.buttons["chat.menu"])
+        XCTAssertEqual(app.staticTexts["chat.status"].label, "尚未設定模型")
+        XCTAssertTrue(app.staticTexts["uitest.banner"].exists)
+        attachScreenshot("onboarding-later-chat", in: app)
+
+        // Same namespace, no reset: still no main model, so it starts again.
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-UITestResetStorage" }
+        app.launch()
+        XCTAssertTrue(app.buttons["welcome.start"].waitForExistence(timeout: 15))
+    }
+
     func testDrawerAboutOpensAndReturnsToChat() {
         let app = launchApp()
         let draft = chatDraftControl(in: app)

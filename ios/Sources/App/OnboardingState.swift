@@ -25,8 +25,9 @@ enum Onboarding {
 }
 
 /// Android OnboardingState: whether the first launch's model setup was
-/// finished (下一步), kept in the App's own defaults. A UI test (Debug only)
-/// keeps it in its namespace and clears it with the rest of that namespace.
+/// finished (下一步; 稍後再說 is not), kept in the App's own defaults. A UI
+/// test (Debug only) keeps it in its namespace and clears it with the rest of
+/// that namespace.
 struct OnboardingState {
     static let modelSetupDoneKey = "onboarding.modelSetupDone.v1"
     private let defaults: UserDefaults

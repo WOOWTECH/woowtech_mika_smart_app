@@ -394,6 +394,7 @@
 "welcome.memory.body" = "Keep useful details for later conversations";
 "welcome.note" = "Set up your model account or API key to begin.";
 "welcome.start" = "Get started";
+"welcome.later" = "Not now";
 "modelSetup.title" = "Set up a model";
 "modelSetup.lead" = "woowtech agent thinks with your own model service. Connect a provider first, then pick a model for each job.";
 "modelSetup.onboardingNote" = "Only the main model is required; the other roles can wait.";

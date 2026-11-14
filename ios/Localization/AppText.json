@@ -3716,6 +3716,15 @@
       }
     },
     {
+      "case": "welcomeLater",
+      "key": "welcome.later",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "稍後再說",
+        "en": "Not now"
+      }
+    },
+    {
       "case": "modelSetupTitle",
       "key": "modelSetup.title",
       "parameters": [],

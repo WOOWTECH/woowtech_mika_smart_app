@@ -394,6 +394,7 @@
 "welcome.memory.body" = "保留往後對話需要的資訊";
 "welcome.note" = "先設定自己的模型帳號或 API Key，即可開始使用。";
 "welcome.start" = "開始設定";
+"welcome.later" = "稍後再說";
 "modelSetup.title" = "設定模型";
 "modelSetup.lead" = "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。";
 "modelSetup.onboardingNote" = "只有主模型必須選，其他用途可以以後再說。";
