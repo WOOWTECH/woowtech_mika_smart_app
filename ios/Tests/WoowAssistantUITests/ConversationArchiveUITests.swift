@@ -307,11 +307,11 @@ final class ConversationArchiveUITests: XCTestCase {
         }
         XCTAssertFalse(app.buttons["chat.messageMenu.askAgain"].firstMatch.exists, "a reply is not asked again")
         tap("chat.messageMenu.quote")
-        assertLabel(app.staticTexts["chat.quote.text"].firstMatch, "引用渥屋助理:測試回覆：Menu first")
+        assertLabel(app.staticTexts["chat.quote.text"].firstMatch, "引用渥屋助理：測試回覆：Menu first")
         compose("Explain"); tap("chat.send")
         XCTAssertTrue(app.staticTexts["chat.message.3.assistant"].firstMatch.waitForExistence(timeout: 15))
         assertLabel(app.staticTexts["chat.message.2.user"].firstMatch, "Explain")
-        assertLabel(app.descendants(matching: .any)["chat.message.2.quote"].firstMatch, "引用渥屋助理:測試回覆：Menu first")
+        assertLabel(app.descendants(matching: .any)["chat.message.2.quote"].firstMatch, "引用渥屋助理：測試回覆：Menu first")
         XCTAssertFalse(app.staticTexts["chat.quote.text"].firstMatch.exists, "the quote went with the message")
 
         // Like Android (onBranchRetry), nothing asks first: the typed draft is

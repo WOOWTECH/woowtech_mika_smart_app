@@ -55,7 +55,7 @@ struct ChatMessageMenuText {
     var askAgain: String { localizer.text(.chatBranchRetry) }
     var titleSuffix: String { localizer.text(.chatBranchTitleSuffix) }
 
-    /// How VoiceOver reads a quote: 引用渥屋助理:… or 引用你的話:….
+    /// How VoiceOver reads a quote: 引用渥屋助理：… or 引用你的話：….
     func quoting(_ quote: ConversationQuote.Quote) -> String {
         localizer.text(quote.source == .assistant ? .chatQuotingAssistant(text: quote.text) : .chatQuotingYou(text: quote.text))
     }

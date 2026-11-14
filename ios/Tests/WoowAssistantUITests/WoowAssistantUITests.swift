@@ -1169,7 +1169,7 @@ final class WoowAssistantUITests: XCTestCase {
         let card = app.descendants(matching: .any)["chat.sendBlocked"]
         XCTAssertTrue(card.waitForExistence(timeout: 5), file: file, line: line)
         XCTAssertTrue(card.staticTexts["還不能開始任務"].exists, file: file, line: line)
-        XCTAssertTrue(card.staticTexts["還缺:還沒有能用的模型"].exists, file: file, line: line)
+        XCTAssertTrue(card.staticTexts["還缺：還沒有能用的模型"].exists, file: file, line: line)
         XCTAssertEqual(app.buttons["chat.sendBlocked.openSettings"].label, "去設定", file: file, line: line)
         XCTAssertFalse(app.buttons["chat.cancel"].exists, "No request may start without a model.", file: file, line: line)
         attachScreenshot("unconfigured-send-explained", in: app)

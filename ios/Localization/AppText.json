@@ -4483,7 +4483,7 @@
       "key": "chat.sendBlocked.noModel",
       "parameters": [],
       "translations": {
-        "zh-Hant": "還缺:還沒有能用的模型",
+        "zh-Hant": "還缺：還沒有能用的模型",
         "en": "Missing: No usable model yet"
       }
     },
@@ -5198,7 +5198,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "一次最多 %1$lld 個附件,另外 %2$lld 個沒加上",
+        "zh-Hant": "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上",
         "en": "Up to %1$lld attachments at a time; %2$lld more were not added"
       }
     },
@@ -5212,7 +5212,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "沒能新增:%1$@(單個檔案不超過 200 MB)",
+        "zh-Hant": "沒能新增：%1$@（單個檔案不超過 200 MB）",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
       }
     },
@@ -5230,7 +5230,7 @@
       "key": "settings.seesImages.unconfirmed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "未確認:它能看圖就打開,聊天附上的圖片會直接交給它看。",
+        "zh-Hant": "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。",
         "en": "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it."
       }
     },
@@ -5239,7 +5239,7 @@
       "key": "settings.seesImages.user",
       "parameters": [],
       "translations": {
-        "zh-Hant": "按你的設定。打開時,聊天附上的圖片會直接交給主模型看。",
+        "zh-Hant": "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。",
         "en": "As you set it. When on, photos attached in chat go straight to the main model."
       }
     },
@@ -5255,7 +5255,7 @@
       "plural": "count",
       "translations": {
         "zh-Hant": {
-          "other": "這個模型不能看圖,%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
+          "other": "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         },
         "en": {
           "one": "This model can’t see images, so %lld image wasn’t sent to it. Turn on Sees images on the model settings page.",
@@ -5318,7 +5318,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用渥屋助理:%1$@",
+        "zh-Hant": "引用渥屋助理：%1$@",
         "en": "Quoting woowtech agent: %1$@"
       }
     },
@@ -5332,7 +5332,7 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用你的話:%1$@",
+        "zh-Hant": "引用你的話：%1$@",
         "en": "Quoting you: %1$@"
       }
     },
