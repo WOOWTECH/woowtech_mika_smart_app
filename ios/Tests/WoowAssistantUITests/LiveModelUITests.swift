@@ -49,7 +49,7 @@ final class LiveModelUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["uitest.banner"].exists)
     }
 
-    func testLiveCancellationKeepsDraft() throws {
+    func testLiveCancellationLeavesStoppedTurn() throws {
         let app = try launchLiveApp()
         let prompt = "Explain 30 practical ways to organize a small personal library, using one short sentence per item."
         enterDraft(prompt, in: app)
@@ -63,10 +63,11 @@ final class LiveModelUITests: XCTestCase {
             return
         }
         cancel.tap()
-        XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
-        XCTAssertEqual(chatDraftControl(in: app).value as? String, prompt)
-        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
+        // Like the Play build the question stays with 已停止。 and the input bar is empty.
+        let stopped = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(stopped.waitForExistence(timeout: 5))
+        XCTAssertEqual(stopped.label, "已停止。")
+        XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
     }
 
     func testRealAutomaticMemorySurvivesRelaunchAndMasterSwitchBlocksRecall() throws {

@@ -300,6 +300,12 @@ private enum CheckProfileChatApp {
         assertions += 1
         if try !condition() { throw CheckFailure(check: name) }
     }
+    /// Like the Play build the question is in the conversation from the moment
+    /// it is sent and the input bar empties; a turn without an answer ends as
+    /// 沒有完成 (with its reason) or 已停止。
+    @MainActor static func ended(_ session: ChatSession, _ outcome: ArchivedConversationTurn.Outcome) -> Bool {
+        session.entries.last?.role == "assistant" && session.entries.last?.outcome == outcome
+    }
     @MainActor static func until(_ name: String, _ condition: () async -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
         while !(await condition()) {
@@ -377,8 +383,8 @@ private enum CheckProfileChatApp {
             try check(after.allSatisfy { $0.contains { $0.content.contains("Private synthetic preference") } },
                       "every model request keeps the context captured at send")
             if change == "cancel" {
-                try check(after.count == 2 && calls.count == 1 && session.entries.isEmpty && session.draft == "synthetic question",
-                          "an explicit cancel still stops before the second dispatch and keeps the draft")
+                try check(after.count == 2 && calls.count == 1 && ended(session, .cancelled) && session.draft.isEmpty,
+                          "an explicit cancel still stops before the second dispatch and leaves 已停止。")
             } else {
                 try check(after.count == 3 && calls.count == 2 && session.entries.last?.content == "Synthetic answer after commit"
                           && session.draft.isEmpty && session.chatError == nil,
@@ -472,8 +478,8 @@ private enum CheckProfileChatApp {
                 try check(changed, "post-event \(change) happened")
                 if change == "cancel" {
                     try check(calls.isEmpty && reads.isEmpty && requests.count == 1
-                              && session.draft == "synthetic question" && session.entries.isEmpty,
-                              "an explicit cancel still prevents the dispatch and keeps the draft")
+                              && session.draft.isEmpty && ended(session, .cancelled),
+                              "an explicit cancel still prevents the dispatch and leaves 已停止。")
                 } else {
                     try check((resource ? reads.count : calls.count) == 1 && requests.count == 2
                               && session.entries.count == 2 && session.draft.isEmpty && session.chatError == nil,
@@ -512,8 +518,8 @@ private enum CheckProfileChatApp {
                 if mode == "success" {
                     try check(requests.count == 2 && session.entries.count == 2, "the turn completes after the changes")
                 } else {
-                    try check(requests.count == 1 && session.entries.isEmpty && session.draft == "synthetic question",
-                              "\(mode) emits no invented result and retains draft")
+                    try check(requests.count == 1 && ended(session, mode == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                              "\(mode) emits no invented result and ends without an answer")
                 }
             }
         }
@@ -599,7 +605,8 @@ private enum CheckProfileChatApp {
             await probe.before.release()
             try await until("cancelled stream producer finished") { probe.state.finished == 1 }
             await running.value
-            try check(probe.state.dispatched == 0 && session.entries.isEmpty, "cancelled or failed stream never dispatches or publishes")
+            try check(probe.state.dispatched == 0 && ended(session, cancel ? .cancelled : .failed),
+                      "cancelled or failed stream never dispatches or publishes")
         }
         // A model response arriving after a peer's post-dispatch change is
         // still published.
@@ -625,7 +632,7 @@ private enum CheckProfileChatApp {
             if !fail { session.cancel() }
             await probe.before.release(); await probe.after.release(); await running.value
             let sent=await probe.dispatched, done=await probe.finished
-            try check(sent == 0 && done == 1 && session.entries.isEmpty, "cancel or failure never dispatches and preserves chat")
+            try check(sent == 0 && done == 1 && ended(session, fail ? .failed : .cancelled), "cancel or failure never dispatches or publishes")
         }
         for mcp in [false, true] {
             let env=try Environment(); defer { try? env.close() }
@@ -654,7 +661,7 @@ private enum CheckProfileChatApp {
             await probe.before.release(); await probe.after.release()
             try await until("cancelled MCP producer finished") { await probe.finished == 1 }
             let sent=await probe.dispatched
-            try check(sent == 0 && session.entries.isEmpty, "cancelled MCP producer sends nothing")
+            try check(sent == 0 && ended(session, .cancelled), "cancelled MCP producer sends nothing")
         }
         do {
             let env=try Environment(); defer { try? env.close() }
@@ -749,7 +756,7 @@ private enum CheckProfileChatApp {
         let running = try start(session)
         try await until("Committed receipt before second model reply") { session.profileReceipt != nil }
         try check(receiptPublications == 1 && receiptAlreadyDurable, "Receipt observer sees already durable encrypted state")
-        try check(session.entries.isEmpty && session.isSubmitting, "Model reply still pending after actual commit")
+        try check(session.entries.map(\.role) == ["user"] && session.isSubmitting, "Model reply still pending after actual commit")
         try check(env.store.profile.snapshot().entries.map(\.text) == [text], "Exact requested text committed once")
         await gate.release(); await running.value
         try check(session.entries.map(\.role) == ["user", "assistant"] && session.draft.isEmpty, "Actual success completes chat")
@@ -779,8 +786,8 @@ private enum CheckProfileChatApp {
                 other.modelDraft = "different-synthetic"
                 other.saveSettings()
             } else { other.removeSettings() }
-            try check(other.settingsError == nil && other.profileReceipt == nil && other.entries.isEmpty,
-                      "Settings reset clears old conversation receipt")
+            try check(other.settingsError == nil && other.profileReceipt?.id == priorID && other.entries.count == 2,
+                      "Like Play a model change or removal keeps the conversation and its receipt")
             try check((try fresh.bytes()) == saved && fresh.reopen().profile.snapshot().entries.map(\.text) == [text],
                       "Settings reset preserves the actual encrypted profile")
         }
@@ -801,7 +808,8 @@ private enum CheckProfileChatApp {
             }
             let before = env.store.profile, bytes = try env.bytes()
             await gate.release(); await running.value
-            try check(session.profileReceipt == nil && session.draft == utterance, action + " rejects a stale late proposal and keeps the draft")
+            try check(session.profileReceipt == nil && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                      action + " rejects a stale late proposal; the turn ends without an answer")
             try check(env.store.profile == before && (try env.bytes()) == bytes, action + " late model cannot write")
         }
     }
@@ -819,8 +827,8 @@ private enum CheckProfileChatApp {
             if failure == "filesystem" { try env.blockWrite() } else { env.keys.failReads = true }
             await gate.release(); await running.value
             try check(publications == 0 && session.profileReceipt == nil, failure + " cannot publish receipt")
-            try check(env.store.profile == original && (env.store.error != nil || session.chatError != nil), failure + " leaves original published state")
-            try check(session.chatError != nil && session.entries.isEmpty && session.draft == utterance, failure + " surfaces failure without false answer")
+            try check(env.store.profile == original, failure + " leaves original published state")
+            try check(ended(session, .failed) && session.draft.isEmpty, failure + " shows 沒有完成 without a false answer")
             if failure == "filesystem" { try env.restoreWrite() } else { env.keys.failReads = false }
             try check((try env.bytes()) == bytes && env.reopen().profile == original, failure + " preserves original ciphertext and relaunch state")
             let requests = await model.requests
@@ -841,9 +849,9 @@ private enum CheckProfileChatApp {
             if action == "cancel" { session.cancel() }
             await gate.release(); await running.value
             try check(session.profileReceipt?.id == id && (try env.bytes()) == bytes, action + " preserves actual saved receipt and ciphertext")
-            try check(session.entries.isEmpty && session.draft == utterance, action + " does not invent final response")
+            try check(ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty, action + " does not invent final response")
             if action == "disconnect" {
-                try check(session.chatError?.contains("個人檔案已儲存") == true, "Post-commit disconnection explains durable side effect")
+                try check(session.entries.last?.content.contains("個人檔案已儲存") == true, "Post-commit disconnection explains durable side effect")
             }
             try check(env.reopen().profile.snapshot().entries.map(\.text) == [text], action + " preserves exactly one saved change")
         }
@@ -855,7 +863,7 @@ private enum CheckProfileChatApp {
         let session = env.session(model), bytes = try env.bytes()
         let running = try start(session, draft: "Explain how profile review works")
         await running.value
-        try check(session.profileReceipt == nil && session.chatError != nil, "Model quote cannot stand in for actual submitted request")
+        try check(session.profileReceipt == nil && ended(session, .failed), "Model quote cannot stand in for actual submitted request")
         try check((try env.bytes()) == bytes, "Unrelated model proposal cannot write")
 
         let disabled = try Environment(); defer { try? disabled.close() }
@@ -876,10 +884,10 @@ private enum CheckProfileChatApp {
         try check(ordinary.profileReceipt == nil, "Ordinary fixture never claims profile mutation")
         let failedTask = try start(ordinary, draft: "[fixture:error-once]")
         await failedTask.value
-        try check(ordinary.chatError != nil && ordinary.draft == "[fixture:error-once]", "Actual DEBUG fixture error survives structured wrapper")
+        try check(ended(ordinary, .failed) && ordinary.draft.isEmpty, "Actual DEBUG fixture error survives structured wrapper")
         let waitingTask = try start(ordinary, draft: "[fixture:wait]")
         ordinary.cancel(); await waitingTask.value
-        try check(!ordinary.isSubmitting && ordinary.draft == "[fixture:wait]", "Actual DEBUG fixture remains cancellable")
+        try check(!ordinary.isSubmitting && ended(ordinary, .cancelled), "Actual DEBUG fixture remains cancellable")
         #endif
     }
 
@@ -905,7 +913,7 @@ private enum CheckProfileChatApp {
         try check(publications == 1 && session.profileReceipt?.id == oldID, "Failed new write never republishes a receipt")
         try check(env.store.profile == saved && env.reopen().profile == saved && (try env.bytes()) == bytes,
                   "Failed new write preserves only the previous committed state")
-        try check(session.chatError != nil && session.chatError?.contains("但後續模型回覆未完成") == false,
+        try check(ended(session, .failed) && session.entries.last?.content.contains("但後續模型回覆未完成") == false,
                   "Old receipt must not misclassify a new failed write as a completed write followed by model failure")
     }
 
@@ -1069,8 +1077,8 @@ private enum CheckProfileChatApp {
                   "The later remote call ran with no approval, failed once and was not retried")
         try check(session.profileReceipt != nil && env.reopen().profile.snapshot().entries.first?.text == text,
                   "Later remote failure cannot erase an already committed profile receipt")
-        try check(session.chatError?.contains("已儲存") == true && session.draft == utterance && session.entries.isEmpty,
-                  "Post-commit failure explains saved state and retains the draft")
+        try check(ended(session, .failed) && session.entries.last?.content.contains("已儲存") == true && session.draft.isEmpty,
+                  "Post-commit failure explains saved state under 沒有完成")
     }
 
     @MainActor static func mcpMemorySearchDeleteAndFences() async throws {
@@ -1123,7 +1131,7 @@ private enum CheckProfileChatApp {
                       action + " never publishes a local receipt")
             try check(env.store.memory == before && env.reopen().memory == before,
                       action + " cannot change durable memory after invalidation")
-            try check(calls == 0 && requests == 1 && session.entries.isEmpty && session.draft == utterance,
+            try check(calls == 0 && requests == 1 && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
                       action + " neither dispatches a remote call nor invents a completed answer")
         }
     }
@@ -1139,7 +1147,7 @@ private enum CheckProfileChatApp {
             let session = env.session(model), running = try startMCP(session, connection: connection)
             await running.value
             let requests = await model.requests, calls = await server.calls.count
-            try check(session.chatError != nil && session.memoryReceipt == nil,
+            try check(ended(session, .failed) && session.memoryReceipt == nil,
                       "Disabled or duplicate-key local command stops before any receipt")
             try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == 1,
                       "Disabled/duplicate command never writes, dispatches or repairs permission")
@@ -1155,7 +1163,7 @@ private enum CheckProfileChatApp {
             let model = ScriptedModel([.init(remoteRead), .init(try memorySave())])
             let session = env.session(model), running = try startMCP(session, connection: connection, draft: "Read the selected service")
             await running.value
-            try check(session.mcpSteps.count == 1 && session.chatError != nil && session.memoryReceipt == nil,
+            try check(session.mcpSteps.count == 1 && ended(session, .failed) && session.memoryReceipt == nil,
                       "Actual remote text cannot become the user's memory permission")
             try check(env.reopen().memory.memories.isEmpty,
                       "Counterfeit quote is rejected before any disk write")
@@ -1171,7 +1179,7 @@ private enum CheckProfileChatApp {
                       "Profile and memory cannot each consume a separate mutation allowance")
             try check(env.reopen().profile.snapshot().entries.first?.text == text && env.reopen().memory.memories.isEmpty,
                       "Only the first mutation is durable when the second is blocked")
-            try check(session.chatError?.contains("已儲存") == true && session.entries.isEmpty,
+            try check(ended(session, .failed) && session.entries.last?.content.contains("已儲存") == true,
                       "Shared local mutation limit retains the prior committed receipt")
         }
         try await mcpResourceOffer()
@@ -1221,7 +1229,7 @@ private enum CheckProfileChatApp {
         let running = try start(session)
         try await until("Actual memory commit before final response") { await model.requests.count == 2 }
         let receipt = try memoryReceipt(session), id = receipt.id
-        try check(publications == 1 && durable && session.entries.isEmpty, "Memory receipt publishes only after encrypted durability")
+        try check(publications == 1 && durable && session.entries.map(\.role) == ["user"], "Memory receipt publishes only after encrypted durability")
         try check(receipt.ok && receipt.status == .active && receipt.note.kind == .added && receipt.note.undoToken != nil,
                   "Saved memory receipt carries actual active state and undo token")
         try check(env.store.notes == [receipt.note] && env.reopen().memory == env.store.memory,
@@ -1365,8 +1373,8 @@ private enum CheckProfileChatApp {
                       action + " rejects the stale memory commit")
             try check(env.store.memory == before && env.reopen().memory == before && (try env.bytes()) == bytes && env.store.notes == notes,
                       action + " cannot write or overwrite concurrent memory/notes")
-            try check(session.entries.isEmpty && session.draft == utterance,
-                      action + " keeps actual draft without inventing a final answer")
+            try check(ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                      action + " ends without inventing a final answer")
             let calls = await model.requests.count
             try check(calls == 1, action + " emits no fabricated host receipt or continuation call")
         }
@@ -1425,12 +1433,13 @@ private enum CheckProfileChatApp {
                       scenario + " retains newer master switch and no stale memory")
             try check(disk.profile.entries.isEmpty && (try env.bytes()) == ciphertext && Set(env.keys.values.keys) == keyIDs,
                       scenario + " leaves newer ciphertext, profile and keys unchanged")
-            try check(session.memoryReceipt == nil && session.profileReceipt == nil && session.draft == utterance,
-                      scenario + " creates no receipt and retains draft")
+            try check(session.memoryReceipt == nil && session.profileReceipt == nil
+                      && ended(session, scenario == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                      scenario + " creates no receipt and ends without an answer")
             let requests = await model.requests.count
             try check(requests == 1, scenario + " never retries or emits a fabricated receipt")
             if scenario != "cancel" {
-                try check(session.chatError?.contains("資料已變更") == true, "conflict tells user to reload and re-confirm")
+                try check(session.entries.last?.content.contains("資料已變更") == true, "conflict tells user to reload and re-confirm")
             }
         }
         let env = try Environment(); defer { try? env.close() }
@@ -1521,7 +1530,8 @@ private enum CheckProfileChatApp {
             let running = try start(session, draft: prompt)
             let before = env.store.memory, bytes = try env.bytes() // After legitimate context markUsed.
             await running.value
-            try check(session.memoryReceipt == nil && session.chatError?.contains("記憶工具未通過") == true,
+            try check(session.memoryReceipt == nil && ended(session, .failed)
+                      && session.entries.last?.content.contains("記憶工具未通過") == true,
                       scenario + " cannot reach write review with ungrounded target or request")
             try check((try env.bytes()) == bytes && env.reopen().memory == before && env.store.notes.isEmpty,
                       scenario + " writes nothing after context capture")
@@ -1536,8 +1546,8 @@ private enum CheckProfileChatApp {
                               "Guessed or ungrounded edit is tested against a successfully searched real ID")
                 }
             }
-            try check(requests.count == responses.count && session.draft == prompt && session.entries.isEmpty,
-                      scenario + " stops without retries, fabricated success or lost draft")
+            try check(requests.count == responses.count && session.draft.isEmpty && ended(session, .failed),
+                      scenario + " stops without retries or fabricated success")
         }
     }
 
@@ -1566,10 +1576,13 @@ private enum CheckProfileChatApp {
                       failure + " never publishes a receipt for a failed memory write")
             try check(env.store.memory == before && env.reopen().memory == before && (try env.bytes()) == bytes && env.store.notes == notes,
                       failure + " preserves ciphertext, published memory and any earlier undo card")
-            try check((session.chatError?.contains("學習資料無法儲存") == true || session.chatError?.contains("重新讀取") == true) && session.chatError?.contains("後續模型回覆未完成") == false,
+            let reason = session.entries.last?.content ?? ""
+            try check(ended(session, .failed) && (reason.contains("學習資料無法儲存") || reason.contains("重新讀取"))
+                      && !reason.contains("後續模型回覆未完成"),
                       failure + " reports actual storage failure, not a network error or a committed new write")
-            try check(session.entries.map(\.id) == oldEntries && session.draft == prompt,
-                      failure + " retains draft and history")
+            try check(Array(session.entries.map(\.id).prefix(oldEntries.count)) == oldEntries
+                      && session.entries.count == oldEntries.count + 2 && session.draft.isEmpty,
+                      failure + " keeps the history; the failed turn follows it")
             let calls = await model.requests.count
             try check(calls == (failure == "priorReceipt" ? 3 : 1), failure + " emits no continuation receipt after failed persistence")
         }
@@ -1586,10 +1599,12 @@ private enum CheckProfileChatApp {
             await gate.release(); await running.value
             try check(session.memoryReceipt?.id == receipt.id && env.store.notes == [receipt.note] && (try env.bytes()) == bytes,
                       action + " after commit preserves real saved memory receipt and undo card")
-            try check(env.reopen().memory.memories.map(\.content) == [text] && session.entries.isEmpty && session.draft == utterance,
+            try check(env.reopen().memory.memories.map(\.content) == [text]
+                      && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
                       action + " preserves one durable memory without fabricating a completed reply")
             if action == "disconnect" {
-                try check(session.chatError?.contains("記憶修改已儲存") == true, "Post-commit memory error acknowledges actual saved side effect")
+                try check(session.entries.last?.content.contains("記憶修改已儲存") == true,
+                          "Post-commit memory error acknowledges actual saved side effect")
             }
             env.store.undo(receipt.note)
             try check(env.store.error == nil && env.reopen().memory.memories.isEmpty, "Post-commit disconnect/cancel still permits real durable undo")
@@ -1609,7 +1624,7 @@ private enum CheckProfileChatApp {
             let before = env.store.memory, bytes = try env.bytes()
             session.cancel()
             await gate.release(); await running.value // Join the original task, not just isSubmitting.
-            try check(session.memoryReceipt == nil && session.entries.isEmpty && session.draft == quote,
+            try check(session.memoryReceipt == nil && ended(session, .cancelled) && session.draft.isEmpty,
                       phase + " late response cannot resurrect a cancelled memory flow")
             try check(env.reopen().memory == before && (try env.bytes()) == bytes && env.store.notes.isEmpty,
                       phase + " late response cannot write or publish a note")

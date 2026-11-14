@@ -241,9 +241,9 @@ private actor StreamMCP: MCPDiscovering {
     }
     #if DEBUG
     /// Run the real DEBUG adapter with an immediate recording sleeper. This
-    /// checks its emitted fragments and scheduled waits against the same plain
-    /// request deadline that ChatSession uses, without a 75-second test sleep.
-    static func fixtureTimingWithinHostDeadline() async throws -> Int {
+    /// checks its emitted fragments and the UI tests' interaction windows
+    /// without sleeping through them.
+    static func fixtureInteractionWindows() async throws -> Int {
         var a = Assertions()
         guard let fixture = try UITestChatStreamingConfiguration.resolve(arguments:
             ["-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestChatStreaming"])
@@ -271,8 +271,6 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(intervals.count == test.minimumWindows.count &&
                 zip(intervals, test.minimumWindows).allSatisfy({ $0.0 >= $0.1 * second }),
                 "native interaction windows for \(test.prompt)")
-            try a.check(intervals.reduce(0, +) + 15 * second <= ChatSession.plainRequestDeadlineSeconds * second,
-                "fixture completion must precede the real host deadline by 15 seconds for \(test.prompt)")
         }
         let structuredClock = FixturePauseRecorder()
         let structuredClient = UITestStreamingChatModelClient(configuration: fixture,
@@ -288,11 +286,22 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(structuredFragments.count == 2 && structuredFragments[0].contains("結構化串流：第一段")
                     && structuredFragments[1].contains("；完整回覆。"), "structured fixture retains ordered fragments")
         try a.check(structuredIntervals == [30 * second], "structured archive interaction has a 30-second window")
-        try a.check(structuredIntervals.reduce(0, +) + 15 * second <= ChatSession.plainRequestDeadlineSeconds * second,
-                    "structured fixture completes before the host request deadline")
         return a.count
     }
     #endif
+    /// Like the Play build the question is in the transcript from the moment it
+    /// is sent; until an answer arrives the last entry is the question, and a
+    /// turn that ended without one closes with 沒有完成 or 已停止。
+    private static func unanswered(_ session: ChatSession) -> Bool {
+        session.entries.last?.role == "user" || session.entries.last?.outcome != nil
+    }
+    private static func ended(_ session: ChatSession, _ outcome: ArchivedConversationTurn.Outcome) -> Bool {
+        session.entries.last?.role == "assistant" && session.entries.last?.outcome == outcome
+    }
+    /// No completed answer reached the archive (a turn without one may be saved).
+    private static func noSavedAnswer(_ store: ConversationArchiveStore) -> Bool {
+        store.state.conversations.allSatisfy { $0.turns.allSatisfy { $0.outcome != nil } }
+    }
     private static func start(_ session: ChatSession, _ prompt: String, mcp: MCPSession? = nil) throws -> Task<Void, Never> {
         session.draft = prompt; session.send(mcp: mcp)
         guard let task = session.capturedArchiveRequest else { throw Failure(name: "actual request missing") }
@@ -330,13 +339,13 @@ private actor StreamMCP: MCPDiscovering {
         let id = session.replyPreview!.id
         try a.check(session.isSubmitting && session.replyPreview?.phase == .receiving, "partial explicitly unfinished")
         try a.check(session.chatStatusMessage == .chatStatusWaiting, "in-flight status reflects the actual request")
-        try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && !FileManager.default.fileExists(atPath: e.archiveFile.path), "partial not complete or durable")
-        try a.check(session.draft == "A complete streaming question", "draft not consumed by partial")
+        try a.check(session.entries.map(\.role) == ["user"] && e.archive.conversations.isEmpty && !FileManager.default.fileExists(atPath: e.archiveFile.path), "the question shows at once; the partial is neither complete nor durable")
+        try a.check(session.draft.isEmpty && session.entries.first?.content == "A complete streaming question", "like Play the input bar empties when the question is sent")
         await service.waitUntilIdle()
         try a.check(notifications.operations == baseline && notifications.adds == 0, "actual notification bridge ignores partial")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes && !e.learning.isLearning, "partial never extracts learning")
         client.emit("世界 🏡"); try await wait("second real partial") { session.replyPreview?.text == "Hello 世界 🏡" }
-        try a.check(session.replyPreview?.id == id && session.entries.isEmpty, "one preview identity across Unicode deltas")
+        try a.check(session.replyPreview?.id == id && session.entries.count == 1, "one preview identity across Unicode deltas")
         client.finish(); await task.value; await service.waitUntilIdle()
         try a.check(!session.isSubmitting && session.replyPreview == nil && session.entries.count == 2, "only completed stream publishes pair")
         try a.check(session.chatStatusMessage == .chatStatusConfigured, "completed request restores configured status")
@@ -366,13 +375,13 @@ private actor StreamMCP: MCPDiscovering {
         let beforeStart = try start(session, "Cancel before request starts")
         session.cancel(); await beforeStart.value; await service.waitUntilIdle()
         try a.check(client.counts.stream == 0 && client.counts.complete == 0, "cancel before execution does not create a request")
-        try a.check(session.replyPreview == nil && session.entries.isEmpty && notifications.adds == 0, "pre-start cancel has no partial or completion")
+        try a.check(session.replyPreview == nil && ended(session, .cancelled) && session.entries.count == 2 && notifications.adds == 0, "pre-start cancel leaves 已停止。 and no completion")
         let task = try start(session, "Cancelled question")
         try await wait("cancel stream requested") { client.counts.stream == 1 }
         client.emit("Old partial"); try await wait("cancel partial") { session.replyPreview != nil }
         session.cancel(); await task.value; await service.waitUntilIdle()
-        try a.check(session.replyPreview?.text == "Old partial" && session.replyPreview?.phase == .cancelled, "cancel retains labelled partial")
-        try a.check(session.draft == "Cancelled question" && session.entries.isEmpty && e.archive.conversations.isEmpty, "cancel retains draft without saving pair")
+        try a.check(session.replyPreview == nil && ended(session, .cancelled), "cancel replaces the partial with 已停止。, like Play")
+        try a.check(session.draft.isEmpty && e.archive.conversations.first?.turns.last?.outcome == .cancelled && noSavedAnswer(e.archive), "the stopped turn is saved with the conversation, never as an answer")
         try a.check(notifications.adds == 0 && service.trackedCount == 0, "cancel cannot become notification completion")
         let newer = try start(session, "New question")
         try a.check(session.replyPreview == nil, "new submitted generation clears old partial")
@@ -380,18 +389,20 @@ private actor StreamMCP: MCPDiscovering {
         client.emit("New partial", at: 1); try await wait("new partial") { session.replyPreview?.text == "New partial" }
         try a.check(!client.emit("Late poison", at: 0), "cancelled stream rejects actual late producer yield")
         client.finish(at: 0)
-        try a.check(session.replyPreview?.text == "New partial" && session.entries.isEmpty, "old generation cannot replace newer preview")
+        try a.check(session.replyPreview?.text == "New partial" && session.entries.last?.role == "user", "old generation cannot replace newer preview")
         client.finish(HTTPChatModelError.transportFailure, at: 1); await newer.value; await service.waitUntilIdle()
-        try a.check(session.replyPreview?.text == "New partial" && session.replyPreview?.phase == .failed, "failure retains labelled partial")
-        try a.check(session.draft == "New question" && session.chatError != nil && session.entries.isEmpty, "failure retains draft without completed entry")
-        try a.check(e.archive.conversations.isEmpty && notifications.adds == 0 && client.counts.complete == 0, "error does not persist notify or retry")
-        session.newConversation(); try a.check(session.replyPreview == nil, "new conversation discards unfinished display")
+        try a.check(session.replyPreview == nil && ended(session, .failed) && session.chatError == nil, "failure stays in the conversation as 沒有完成, like Play")
+        try a.check(session.draft.isEmpty && e.archive.conversations.first?.turns.last?.outcome == .failed, "the failed turn is saved with its reason")
+        try a.check(noSavedAnswer(e.archive) && notifications.adds == 0 && client.counts.complete == 0, "error does not save an answer, notify or retry")
+        session.newConversation(); try a.check(session.replyPreview == nil && session.entries.isEmpty, "new conversation starts empty")
         let changed = try start(session, "Change destination")
         try await wait("third stream") { client.counts.stream == 3 }
         client.emit("Old destination", at: 2); try await wait("third partial") { session.replyPreview != nil }
         session.cancel(); await changed.value
+        let kept = session.entries.map(\.id)
         session.modelDraft = "new-model"; session.saveSettings()
-        try a.check(session.replyPreview == nil && session.entries.isEmpty, "destination changes do not transfer unfinished text")
+        try a.check(session.replyPreview == nil && session.entries.map(\.id) == kept && ended(session, .cancelled),
+                    "like Play a model change keeps the conversation; no unfinished text carries over")
         try a.check(!client.emit("Late after settings", at: 2), "old stream remains closed after settings change")
         return a.count
     }
@@ -402,11 +413,12 @@ private actor StreamMCP: MCPDiscovering {
         try await wait("bound stream") { client.counts.stream == 1 }
         client.emit("safe"); try await wait("safe prefix") { session.replyPreview != nil }
         client.emit(String(repeating: "界", count: ChatReplyPreview.maximumUTF8Bytes / 3 + 1)); await task.value
-        try a.check(session.replyPreview?.text == "safe" && session.replyPreview?.phase == .failed, "UTF8 overflow does not publish oversized delta")
-        try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.draft == "Bounded text", "overflow cannot persist or consume draft")
+        try a.check(session.replyPreview == nil && ended(session, .failed), "UTF8 overflow ends the turn as 沒有完成")
+        try a.check(!(session.entries.last?.content.contains("界界") ?? true) && noSavedAnswer(e.archive) && session.draft.isEmpty, "the oversized text is never shown or saved")
         let empty = try start(session, "Empty text")
         try await wait("empty stream") { client.counts.stream == 2 }; client.finish(at: 1); await empty.value
-        try a.check(session.replyPreview == nil && session.entries.isEmpty && session.chatError != nil, "empty normal stream is not completed answer")
+        try a.check(session.replyPreview == nil && ended(session, .failed) && session.entries.last?.content == "模型回傳空白內容，請重試。"
+                    && session.chatError == nil, "an empty stream ends as 沒有完成, not an answer")
         try a.check(client.counts.complete == 0, "no automatic HTTP fallback after stream errors")
         let fallback = e.session(CompleteOnlyClient()); await (try start(fallback, "Non-stream adapter")).value
         try a.check(fallback.entries.count == 2 && fallback.replyPreview == nil, "non-stream capability keeps existing complete path")
@@ -427,7 +439,7 @@ private actor StreamMCP: MCPDiscovering {
     static func restoreCancelsPreview() async throws -> Int {
         var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
         let seed = e.session(CompleteOnlyClient()); await (try start(seed, "Saved question")).value
-        let row = e.archive.conversations[0]; let savedBytes = try Data(contentsOf: e.archiveFile)
+        let row = e.archive.conversations[0]
         let client = StreamClient(); let session = e.session(client)
         let task = try start(session, "Unfinished unrelated question")
         try await wait("restore stream") { client.counts.stream == 1 }
@@ -437,7 +449,11 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(session.replyPreview == nil && !session.isSubmitting && session.entries.map(\.id) == [row.turns[0].userID,row.turns[0].assistantID], "restore exposes only saved completed pair")
         try a.check(!client.emit("Late after restore"), "late stream cannot enter restored conversation")
         client.finish()
-        try a.check(try Data(contentsOf: e.archiveFile) == savedBytes, "restore never saves partial or replay")
+        let after = e.reopen().state.conversations
+        try a.check(after.count == 2 && after.first { $0.id == row.id } == row
+                    && after.contains { $0.id != row.id && $0.turns.map(\.outcome) == [.cancelled]
+                        && $0.turns[0].userText == "Unfinished unrelated question" },
+                    "restore keeps the saved row; the interrupted question stays as 已停止。, never its partial")
         try a.check(client.counts.complete == 0 && client.counts.stream == 1 && session.profileReceipt == nil && session.memoryReceipt == nil, "restore creates no calls or learning changes")
         return a.count
     }
@@ -470,7 +486,7 @@ private actor StreamMCP: MCPDiscovering {
             let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
             let session = e.session(client); session.usesMCP = true
             let task = try start(session, "Read selected tool", mcp: connection)
-            try a.check(session.chatStatusMessage == .chatStatusMCPWorking && session.replyPreview == nil && session.entries.isEmpty,
+            try a.check(session.chatStatusMessage == .chatStatusMCPWorking && session.replyPreview == nil && unanswered(session),
                         "a running MCP turn shows the working status; its JSON is never shown")
             await task.value
             let after = await server.calls
@@ -577,11 +593,11 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(session.replyPreview?.text == "Hi 世界 ", "incomplete surrogate is not exposed")
             client.emit(#"\uDFE1\n\"done\""#)
             try await wait("decoded escaped answer") { session.replyPreview?.text == "Hi 世界 🏡\n\"done\"" }
-            try a.check(session.replyPreview?.phase == .receiving && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(session.replyPreview?.phase == .receiving && unanswered(session) && e.archive.conversations.isEmpty,
                         "memory-on answer is explicitly unfinished")
             let unchangedLearningBytes = try Data(contentsOf: e.learningFile) == learningBytes
-            try a.check(session.draft == "普通記憶開啟問題" && unchangedLearningBytes,
-                        "preview cannot consume draft or extract memory")
+            try a.check(session.draft.isEmpty && unchangedLearningBytes,
+                        "the input bar emptied at send; the preview cannot extract memory")
             await service.waitUntilIdle()
             try a.check(notifications.operations == baseline && notifications.adds == 0, "preview cannot notify completion")
             client.emit("\"}"); client.finish(); await task.value; await service.waitUntilIdle()
@@ -599,13 +615,13 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Please remember that I prefer jasmine tea")
             try await wait("structured proposal stream") { client.counts.stream == 1 }
             client.emit(#"{"action":"profile_edit","arguments":{"op":"add","text":"I prefer jasmine tea","quote":"Please remember that I prefer jasmine tea"}}"#)
-            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.learning.profile.snapshot().entries.isEmpty,
+            try a.check(session.replyPreview == nil && unanswered(session) && e.learning.profile.snapshot().entries.isEmpty,
                         "tool JSON and arguments stay hidden before validation")
             client.finish()
             try await wait("streamed post-commit answer") { client.counts.stream == 2 }
             try a.check(session.replyPreview == nil && e.archive.conversations.isEmpty && client.counts.complete == 0,
                         "streamed proposal never falls back to complete")
-            try a.check(e.learning.profile.snapshot().entries.count == 1 && session.entries.isEmpty,
+            try a.check(e.learning.profile.snapshot().entries.count == 1 && unanswered(session),
                         "actual applied receipt remains separate from final answer")
             try a.check(client.emit(#"{"action":"finish","answer":"Saved "# , at: 1), "second stream accepts decoded partial")
             try await wait("post-commit decoded partial") { session.replyPreview?.text == "Saved " }
@@ -632,11 +648,12 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("invalid escape clears preview") { session.replyPreview == nil }
             client.finish()
             try await wait("one bounded format correction") { client.counts.stream == 2 }
-            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.replyPreview == nil,
+            try a.check(unanswered(session) && e.archive.conversations.isEmpty && session.replyPreview == nil,
                         "invalid command neither displays tool bytes nor persists")
             client.emit(#"{"action":"unknown","arguments":{"secret":"HIDDEN"}}"#, at: 1); client.finish(at: 1)
             await task.value
-            try a.check(session.entries.isEmpty && session.replyPreview == nil && session.chatError != nil,
+            try a.check(ended(session, .failed) && session.replyPreview == nil && session.chatError == nil
+                        && !(session.entries.last?.content.contains("HIDDEN") ?? true),
                         "second malformed command fails closed after one correction")
             try a.check(client.counts.stream == 2 && client.counts.complete == 0, "no hidden transport retry")
         }
@@ -649,7 +666,7 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"finish","answer":"tentative","arguments":{"secret":"HIDDEN"}}"#)
             client.finish()
             try await wait("trailing field repair") { client.counts.stream == 2 }
-            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(session.replyPreview == nil && unanswered(session) && e.archive.conversations.isEmpty,
                         "complete validator retracts tentative answer with extra fields")
             client.emit(#"{"action":"finish","answer":"repaired"}"#, at: 1); client.finish(at: 1); await task.value
             try a.check(session.entries.last?.content == "repaired" && client.counts.stream == 2,
@@ -672,14 +689,15 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("strict envelope first stream") { client.counts.stream == 1 }
             client.emit(invalid); client.finish()
             try await wait("strict envelope format correction") { client.counts.stream == 2 }
-            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(session.replyPreview == nil && unanswered(session) && e.archive.conversations.isEmpty,
                         "invalid full command retracts speculative preview without saving")
             try a.check(observed.allSatisfy { !$0.contains("TOOL_SECRET") && !$0.contains("TRAILING_SECRET")
                 && !$0.contains("arguments") && !$0.contains("action") }, "no tool or wire fields in any preview")
             client.emit(#"{"action":"invalid","arguments":{"secret":"TOOL_SECRET"}}"#, at: 1)
             client.finish(at: 1); await task.value
-            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.replyPreview == nil
-                        && session.chatError != nil && client.counts.stream == 2 && client.counts.complete == 0,
+            try a.check(ended(session, .failed) && noSavedAnswer(e.archive) && session.replyPreview == nil
+                        && !(session.entries.last?.content.contains("SECRET") ?? true)
+                        && session.chatError == nil && client.counts.stream == 2 && client.counts.complete == 0,
                         "duplicate, extra and trailing bytes never become completed answers")
         }
         do {
@@ -691,7 +709,7 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","quote":"Prefer jasmine tea","keywords":["tea"]}}"#)
             client.finish()
             try await wait("memory follow-up stream") { client.counts.stream == 2 }
-            try a.check(session.replyPreview == nil && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(session.replyPreview == nil && unanswered(session) && e.archive.conversations.isEmpty,
                         "memory tool arguments are never previewed")
             try a.check(e.learning.memory.memories.map(\.content) == ["Prefer jasmine tea"] && session.memoryReceipt != nil,
                         "streamed memory_save applies without a review")
@@ -709,11 +727,11 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"finish","answer":"partial"#)
             try await wait("truncated partial") { session.replyPreview?.text == "partial" }
             client.finish(HTTPChatModelError.incompleteResponse); await task.value
-            try a.check(session.replyPreview?.text == "partial" && session.replyPreview?.phase == .failed,
-                        "transport truncation retains labelled unfinished decoded text")
-            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.draft == "Truncated response"
+            try a.check(session.replyPreview == nil && ended(session, .failed),
+                        "transport truncation ends the turn as 沒有完成")
+            try a.check(noSavedAnswer(e.archive) && session.draft.isEmpty
                         && client.counts.stream == 1 && client.counts.complete == 0,
-                        "truncation neither saves nor replays a request")
+                        "truncation neither saves an answer nor replays a request")
         }
         do {
             let e = try StreamEnvironment(); defer { e.close() }
@@ -726,10 +744,10 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"finish","answer":"partial"#)
             try await wait("cancel structured partial") { session.replyPreview?.text == "partial" }
             session.cancel(); await task.value; await service.waitUntilIdle()
-            try a.check(session.replyPreview?.phase == .cancelled && session.draft == "Cancel memory-on stream",
-                        "cancel preserves labelled partial and original draft")
+            try a.check(session.replyPreview == nil && ended(session, .cancelled) && session.draft.isEmpty,
+                        "cancel leaves 已停止。 like Play")
             try a.check(!client.emit(#" late","arguments":{"secret":"HIDDEN"}}"#)
-                        && session.entries.isEmpty && e.archive.conversations.isEmpty && notifications.adds == 0,
+                        && ended(session, .cancelled) && noSavedAnswer(e.archive) && notifications.adds == 0,
                         "late stream cannot publish, execute or notify")
         }
         do {
@@ -741,9 +759,9 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"finish","answer":"safe"#)
             try await wait("oversize initial preview") { session.replyPreview?.text == "safe" }
             client.emit(String(repeating: "x", count: 24 * 1024)); await task.value
-            try a.check(session.replyPreview?.text == "safe" && session.replyPreview?.phase == .failed,
-                        "24 KiB whole-command bound stops further display")
-            try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && client.counts.stream == 1,
+            try a.check(session.replyPreview == nil && ended(session, .failed),
+                        "24 KiB whole-command bound ends the turn")
+            try a.check(noSavedAnswer(e.archive) && client.counts.stream == 1,
                         "oversized command cannot commit or retry")
         }
         return a.count
@@ -777,7 +795,7 @@ private actor StreamMCP: MCPDiscovering {
         let session = e.session(client)
         let task = try start(session, "[fixture:stream-complete]")
         try await wait("actual native fixture first delta") { session.replyPreview?.text == "串流測試：第一段" }
-        try a.check(session.replyPreview?.phase == .receiving && session.entries.isEmpty && e.archive.conversations.isEmpty, "fixture traverses actual unfinished App path")
+        try a.check(session.replyPreview?.phase == .receiving && unanswered(session) && e.archive.conversations.isEmpty, "fixture traverses actual unfinished App path")
         await task.value
         try a.check(session.replyPreview == nil && session.entries.last?.content == "串流測試：第一段；完整回覆。", "bounded fixture terminates as real complete pair")
         try a.check(e.reopen().conversations.count == 1, "fixture only saves on complete")
@@ -785,8 +803,9 @@ private actor StreamMCP: MCPDiscovering {
         let cancelled = try start(session, "[fixture:stream-cancel]")
         try await wait("actual fixture cancellation partial") { session.replyPreview != nil }
         session.cancel(); await cancelled.value
-        try a.check(session.replyPreview?.phase == .cancelled && session.entries.isEmpty && session.draft == "[fixture:stream-cancel]", "fixture cancellation preserves actual draft and preview")
-        try a.check(e.reopen().conversations.count == 1, "cancelled fixture adds no archive record")
+        try a.check(session.replyPreview == nil && ended(session, .cancelled) && session.draft.isEmpty, "fixture cancellation leaves 已停止。 like Play")
+        try a.check(e.reopen().conversations.count == 2 && e.reopen().conversations.contains { $0.turns.last?.outcome == .cancelled },
+                    "the stopped fixture turn is saved with its conversation")
         for messages in [[ModelMessage(role: "user", content: "unknown prompt")],
                          [ModelMessage(role: "system", content: "structured tool instruction"), ModelMessage(role: "user", content: "[fixture:stream-complete]")]] {
             var deltas = 0
@@ -801,7 +820,7 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(e.learning.profile.snapshot().entries.count == 1
                     && session.entries.last?.content == "個人檔案工具已完成。" && session.replyPreview == nil,
                     "the fixture's profile command applies with no review and reaches its final answer")
-        try a.check(e.reopen().conversations.count == 2, "the completed profile answer adds one durable pair")
+        try a.check(e.reopen().conversations.count == 3, "the completed profile answer adds one durable pair")
 
         session.newConversation()
         // Gate the fixture only in this host integration test, so it can
@@ -812,13 +831,13 @@ private actor StreamMCP: MCPDiscovering {
         let structuredSession = e.session(gatedClient)
         let structured = try start(structuredSession, "[fixture:structured-stream-complete]")
         try await wait("actual structured fixture first delta") { structuredSession.replyPreview?.text == "結構化串流：第一段" }
-        try a.check(structuredSession.replyPreview?.phase == .receiving && structuredSession.entries.isEmpty
-                    && structuredSession.profileReceipt == nil && e.reopen().conversations.count == 2,
+        try a.check(structuredSession.replyPreview?.phase == .receiving && unanswered(structuredSession)
+                    && structuredSession.profileReceipt == nil && e.reopen().conversations.count == 3,
                     "split finish.answer previews without exposing a command or saving an unfinished answer")
         await gate.release()
         await structured.value
         try a.check(structuredSession.replyPreview == nil && structuredSession.entries.last?.content == "結構化串流：第一段；完整回覆。"
-                    && e.reopen().conversations.count == 3,
+                    && e.reopen().conversations.count == 4,
                     "the actual second JSON delta validates and archives only the completed answer")
         return a.count
     }
@@ -836,7 +855,7 @@ private actor StreamMCP: MCPDiscovering {
             let client: any ChatModelClient = HTTPChatModelClient(session: transport); let session = e.session(client)
             var observed: [ChatReplyPreview] = []; var allWereUnfinished = true
             let subscription = session.$replyPreview.sink { value in
-                if let value { observed.append(value); allWereUnfinished = allWereUnfinished && session.entries.isEmpty && e.archive.conversations.isEmpty }
+                if let value { observed.append(value); allWereUnfinished = allWereUnfinished && Self.unanswered(session) && e.archive.conversations.isEmpty }
             }; defer { subscription.cancel() }
             let task = try start(session, "Actual intercepted SSE request")
             if mode == "cancel" {
@@ -852,8 +871,10 @@ private actor StreamMCP: MCPDiscovering {
             if mode == "success" {
                 try a.check(session.entries.count == 2 && session.replyPreview == nil && e.reopen().conversations[0].turns[0].assistantText == "Actual SSE 🏡", "verified DONE alone permits actual archive completion")
             } else {
-                try a.check(session.entries.isEmpty && e.archive.conversations.isEmpty && session.draft == "Actual intercepted SSE request", "truncated invalid cancelled HTTP never saves or consumes draft")
-                try a.check(session.replyPreview?.text == "Actual SSE 🏡" && session.replyPreview?.phase == (mode == "cancel" ? .cancelled : .failed), "actual HTTP failure preserves labelled partial")
+                try a.check(ended(session, mode == "cancel" ? .cancelled : .failed) && noSavedAnswer(e.reopen()) && session.draft.isEmpty,
+                            "truncated, invalid or cancelled HTTP never saves an answer")
+                try a.check(session.replyPreview == nil && !(session.entries.last?.content.contains("Actual SSE") ?? true),
+                            "the partial gives way to 沒有完成 or 已停止。, like Play")
             }
         }
         return a.count
@@ -896,7 +917,7 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "No automatic retry")
             try await wait("failed stream request") { client.counts.stream == 1 }
             client.finish(failure); await task.value
-            try a.check(client.counts.complete == 0 && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(client.counts.complete == 0 && ended(session, .failed) && noSavedAnswer(e.archive),
                         "rate limit, timeout, incomplete response and cancellation never retry")
         }
         do {
@@ -908,8 +929,8 @@ private actor StreamMCP: MCPDiscovering {
             client.emit(#"{"action":"finish","answer":"partial"#)
             try await wait("partial unsupported preview") { session.replyPreview?.text == "partial" }
             client.finish(HTTPStreamFallbackError.explicitUnsupported(415)); await task.value
-            try a.check(client.counts.complete == 0 && session.replyPreview?.phase == .failed &&
-                        session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(client.counts.complete == 0 && session.replyPreview == nil &&
+                        ended(session, .failed) && noSavedAnswer(e.archive),
                         "even explicit unsupported error after content cannot replay")
         }
         do {
@@ -923,7 +944,7 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("post-tool second stream") { client.counts.stream == 2 }
             client.finish(HTTPStreamFallbackError.explicitUnsupported(415), at: 1); await task.value
             try a.check(client.counts.complete == 0 && e.learning.profile.snapshot().entries.count == 1 &&
-                        session.entries.isEmpty && e.archive.conversations.isEmpty,
+                        ended(session, .failed) && noSavedAnswer(e.archive),
                         "committed tool receipt survives without replaying failed final model request")
         }
         do {
@@ -1042,8 +1063,8 @@ private actor StreamMCP: MCPDiscovering {
             let session = e.session(HTTPChatModelClient(session: transport))
             let task = try start(session, "Terminal HTTP rejection")
             await task.value
-            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.archive.conversations.isEmpty &&
-                        session.chatError != nil && !(session.chatError ?? "").contains(canary),
+            try a.check(fixture.requestCount == 1 && ended(session, .failed) && noSavedAnswer(e.archive) &&
+                        !session.entries.contains { $0.content.contains(canary) } && !(session.chatError ?? "").contains(canary),
                         "excluded status or structured body never sends a complete fallback or private error text")
         }
         do {
@@ -1057,7 +1078,7 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Cancel before error body completes")
             try await wait("first HTTP error body is held") { fixture.requestCount == 1 && fixture.bodyDelivered }
             session.cancel(); await task.value
-            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && e.archive.conversations.isEmpty,
+            try a.check(fixture.requestCount == 1 && ended(session, .cancelled) && noSavedAnswer(e.archive),
                         "cancellation while reading eligibility body never starts fallback")
         }
         do {
@@ -1071,9 +1092,9 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Cancel complete fallback")
             try await wait("complete fallback request is held") { fixture.requestCount == 2 }
             session.cancel(); await task.value
-            try a.check(fixture.requestCount == 2 && session.entries.isEmpty && e.archive.conversations.isEmpty &&
-                        session.draft == "Cancel complete fallback",
-                        "cancelling the sole complete fallback leaves draft and sends no third request")
+            try a.check(fixture.requestCount == 2 && ended(session, .cancelled) && noSavedAnswer(e.archive) &&
+                        session.draft.isEmpty,
+                        "cancelling the sole complete fallback leaves 已停止。 and sends no third request")
         }
         return a.count
     }
@@ -1181,7 +1202,7 @@ private actor StreamMCP: MCPDiscovering {
             _ = e.learning.updatePreferences { $0.useMemory = false }
             client.finish(); await task.value
             try a.check(client.counts.stream == 1 && session.profileReceipt == nil &&
-                        e.learning.profile.snapshot().entries.isEmpty && session.entries.isEmpty,
+                        e.learning.profile.snapshot().entries.isEmpty && unanswered(session),
                         "a profile proposal after memory is switched off is not applied")
         }
         do {
@@ -1232,13 +1253,22 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(session.replyPreview?.text == "Unfinished preview" && e.archive.state == original,
                     "busy branch rejection preserves the real preview and archive")
         session.cancel(); client.finish(at: 1); await running.value
-        session.draft = ""
+        guard let stopped = e.archive.state.conversations.first(where: { $0.id == saved.id }) else {
+            throw Failure(name: "stopped conversation")
+        }
+        try a.check(session.replyPreview == nil && ended(session, .cancelled) && stopped.turns.count == 2
+                    && stopped.turns[1].outcome == .cancelled && stopped.turns[0] == saved.turns[0],
+                    "like Play the stopped turn is saved after the answer before it")
+        let targets = session.messageActionTargets
+        try a.check(targets.replies == [saved.turns[0].assistantID] && targets.questions.contains(stopped.turns[1].userID),
+                    "從這裡分支 is on answers only; 從這裡重新問 stays on the stopped question")
         do {
             _ = try session.prepareBranch(source: saved, assistantID: saved.turns[0].assistantID, title: "Branch")
-            throw Failure(name: "cancelled preview allowed a branch")
-        } catch ConversationBranchError.unfinishedTurn {}
-        try a.check(session.replyPreview?.phase == .cancelled && e.archive.state == original,
-                    "cancelled unsaved preview remains visible and blocks branch")
+            throw Failure(name: "a superseded source allowed a branch")
+        } catch ConversationBranchError.staleSource {}
+        let plan = try session.prepareBranch(source: stopped, assistantID: stopped.turns[1].assistantID, title: "Branch")
+        try a.check(plan.branch.turns.map(\.outcome) == [nil, .cancelled] && plan.branch.turns[1].assistantText == stopped.turns[1].assistantText,
+                    "a branch through a stopped turn keeps it stopped, like the Play build's copy")
 
         let other = try StreamEnvironment(); defer { other.close() }
         let nextClient = StreamClient(), next = other.session(nextClient)
@@ -1354,8 +1384,8 @@ private actor StreamMCP: MCPDiscovering {
     }
 
     /// Android parity (ModelErrorCopy.failure): a plain request's model failure
-    /// says 呼叫模型失敗：<reason> from its HTTP status alone and keeps the draft;
-    /// failures it cannot name keep the generic message.
+    /// says 呼叫模型失敗：<reason> from its HTTP status alone, under the turn's
+    /// 沒有完成 like the Play build; failures it cannot name keep the generic message.
     static func modelFailuresUsePlayWording() async throws -> Int {
         var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
         let cases: [(HTTPChatModelError, AppText?)] = [
@@ -1365,26 +1395,29 @@ private actor StreamMCP: MCPDiscovering {
             (.httpStatus(400), .chatModelFailedStatus(status: 400)), (.transportFailure, .chatModelFailedNetwork),
             (.incompleteResponse, .chatModelFailedStreamCut), (.invalidResponse, .chatModelFailedUnreadable),
             (.timedOut, nil), (.redirectRejected, nil)]
+        let chinese = AppLocalizer(language: .traditionalChinese)
         for (error, expected) in cases {
             let session = e.session(FailingClient(error: error))
-            session.draft = "Keep this draft"
+            session.draft = "Ask once"
             session.send()
             guard let task = session.capturedArchiveRequest else { throw Failure(name: "model failure request \(error)") }
             await task.value
-            try a.check(session.chatErrorText == expected && session.chatError != nil && !session.isSubmitting
-                        && session.draft == "Keep this draft" && session.entries.isEmpty,
-                        "\(error) is named like Android, or keeps the generic message, and the draft stays")
+            let reason = expected.map(chinese.text) ?? "傳送失敗。請檢查模型設定或網路後重試。"
+            try a.check(ended(session, .failed) && session.entries.last?.content == reason && session.chatError == nil
+                        && !session.isSubmitting && session.draft.isEmpty && session.entries.first?.content == "Ask once",
+                        "\(error) is named like Android, or keeps the generic message, as the reason under 沒有完成")
         }
-        try a.check(ChatModelFailure(HTTPChatModelError.httpStatus(429))?.traditionalText
-                        == "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。"
-                    && ChatModelFailure(HTTPChatModelError.httpStatus(500))?.traditionalText
-                        == "呼叫模型失敗：伺服器端出錯（HTTP 500）。請稍後再試。草稿已保留。",
-                    "chatError keeps the Play sentence in Traditional Chinese")
-        let session = e.session(FailingClient(error: .httpStatus(429)))
-        session.draft = "Keep this draft"; session.send()
-        if let task = session.capturedArchiveRequest { await task.value }
-        session.newConversation()
-        try a.check(session.chatError == nil && session.chatErrorText == nil, "clearing the error clears its localized form")
+        try a.check(chinese.text(.chatModelFailedRateLimited) == "呼叫模型失敗：請求太頻繁，請稍後再試。"
+                    && chinese.text(.chatModelFailedServer(status: 500)) == "呼叫模型失敗：伺服器端出錯（HTTP 500）。請稍後再試。",
+                    "the reason keeps the Play sentence in Traditional Chinese")
+        let english = e.session(FailingClient(error: .httpStatus(429)))
+        english.interfaceLanguage = { .english }
+        english.draft = "Ask in English"; english.send()
+        if let task = english.capturedArchiveRequest { await task.value }
+        try a.check(ended(english, .failed) && english.entries.last?.content == AppLocalizer(language: .english).text(.chatModelFailedRateLimited),
+                    "an English interface keeps the reason in English")
+        english.newConversation()
+        try a.check(english.entries.isEmpty && english.chatError == nil && english.chatErrorText == nil, "a new conversation starts clean")
         return a.count
     }
 
@@ -1469,7 +1502,7 @@ private actor StreamMCP: MCPDiscovering {
             let task = try start(session, "Cancel while the refusal is read")
             try await wait("refusal body held") { fixture.requestCount == 1 && fixture.bodyDelivered }
             session.cancel(); await task.value
-            try a.check(fixture.requestCount == 1 && session.entries.isEmpty && session.draft == "Cancel while the refusal is read",
+            try a.check(fixture.requestCount == 1 && ended(session, .cancelled) && session.draft.isEmpty,
                         "cancelling while the refusal is read never resends")
         }
         for (label, failure, emitFirst) in [("Refusal after text", HTTPStreamFallbackError.usageOptionUnsupported(400), true),
@@ -1482,8 +1515,8 @@ private actor StreamMCP: MCPDiscovering {
                 client.emit("partial"); try await wait("\(label) partial") { session.replyPreview?.text == "partial" }
             }
             client.finish(failure); await task.value
-            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && session.entries.isEmpty &&
-                        session.chatError != nil && session.draft == label,
+            try a.check(client.counts.stream == 1 && client.counts.complete == 0 && ended(session, .failed) &&
+                        session.chatError == nil && session.draft.isEmpty,
                         "only an untouched usage-option refusal is resent: \(label)")
         }
         for cancel in [false, true] {
@@ -1495,8 +1528,8 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("the single resend") { client.counts.stream == 2 }
             if cancel { session.cancel() } else { client.finish(HTTPStreamFallbackError.usageOptionUnsupported(400), at: 1) }
             await task.value
-            try a.check(client.counts.stream == 2 && client.counts.complete == 0 && session.entries.isEmpty &&
-                        session.draft == "Refused twice" && e.archive.conversations.isEmpty,
+            try a.check(client.counts.stream == 2 && client.counts.complete == 0 && ended(session, cancel ? .cancelled : .failed) &&
+                        session.draft.isEmpty && noSavedAnswer(e.archive),
                         cancel ? "cancelling the resend sends nothing more" : "a second refusal is not resent")
         }
         return a.count
@@ -1516,7 +1549,7 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback(),
                 ChatStreamingChecks.consentBeforeFirstSend()]
             #if DEBUG
-            groups.append(try await ChatStreamingChecks.fixtureTimingWithinHostDeadline())
+            groups.append(try await ChatStreamingChecks.fixtureInteractionWindows())
             #endif
             print("{\"groups\":\(groups.count),\"assertions\":\(groups.reduce(0,+)),\"group_counts\":\(groups)}")
         } catch { print("STREAM_APP_FAILURE: \(error)"); exit(1) }
@@ -1525,8 +1558,8 @@ private actor StreamMCP: MCPDiscovering {
 #else
 final class ChatStreamingAppTests: XCTestCase {
     #if DEBUG
-    @MainActor func testFixtureTimingWithinHostDeadline() async throws {
-        let n = try await ChatStreamingChecks.fixtureTimingWithinHostDeadline(); XCTAssertEqual(n, 12)
+    @MainActor func testFixtureInteractionWindows() async throws {
+        let n = try await ChatStreamingChecks.fixtureInteractionWindows(); XCTAssertEqual(n, 8)
     }
     #endif
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }

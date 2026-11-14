@@ -192,14 +192,18 @@ enum CheckTaskNotificationApp {
         chat.draft = "synthetic second request"; chat.send()
         try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
         chat.removeSettings(); await service.waitUntilIdle()
-        try Checks.expect(chat.savedSettings == nil && center.pending.isEmpty, "actual removeSettings clears notification")
+        try Checks.expect(chat.savedSettings == nil && chat.entries.count == 2 && center.pending.count == 1,
+                          "like Play removing the model keeps the conversation and its result")
+        chat.newConversation(); await service.waitUntilIdle()
+        try Checks.expect(center.pending.isEmpty, "a new conversation clears the result")
 
         let failedEnv = try NotificationEnvironment(); defer { try? failedEnv.close() }
         let failed = failedEnv.session(NotificationScriptedModel([]))
         let failedBridge = TaskNotificationChatBridge(session: failed, service: service)
         failed.draft = "synthetic failed request"; failed.send()
         try await Checks.until { !failed.isSubmitting }; await service.waitUntilIdle()
-        try Checks.expect(failed.chatError != nil && center.additions.count == 2, "actual model failure emits no completion")
+        try Checks.expect(failed.entries.last?.outcome == .failed && center.additions.count == 2,
+                          "actual model failure (沒有完成 in the conversation) emits no completion")
         failedBridge.invalidate()
     }
 
@@ -219,7 +223,8 @@ enum CheckTaskNotificationApp {
             throw Checks.Failure(check: "observe actual request for deterministic join")
         }
         chat.cancel(); await gate.release(); await task.value; await service.waitUntilIdle()
-        try Checks.expect(chat.entries.isEmpty && center.addCalls == 0, "actual cancelled late model reply rejected")
+        try Checks.expect(chat.entries.last?.outcome == .cancelled && center.addCalls == 0,
+                          "actual cancelled late model reply rejected; 已停止。 is no completion")
         chat.draft = "synthetic new generation"; chat.send()
         try await Checks.until { !chat.isSubmitting }; await service.waitUntilIdle()
         try Checks.expect(center.addCalls == 1, "new generation can complete after cancellation")

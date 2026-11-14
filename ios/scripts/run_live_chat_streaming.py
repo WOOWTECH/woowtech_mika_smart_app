@@ -128,7 +128,7 @@ def fixed_result(raw):
         'cancel_boundary': {'not_attempted', 'not_covered_single_sse_delta', 'not_covered_no_inflight_window', 'cancelled_after_two_observed_deltas_while_transport_inflight'},
     }
     booleans = {'partial_observed', 'partial_never_saved', 'completed_pair_saved', 'encrypted_relaunch_matches', 'learning_unchanged',
-                'cancel_covered', 'cancel_no_archive', 'cancel_draft_partial_retained', 'cancel_no_completion_notification',
+                'cancel_covered', 'cancel_saved_as_stopped', 'cancel_input_cleared', 'cancel_no_completion_notification',
                 'native_ios_ui', 'synthetic_prompts_only', 'personal_keychain', 'private_defaults_on_disk'}
     expected = set(enums) | booleans | {'schema_version', 'maximum_http_attempts', 'http_stream_attempts', 'http_stream_completions', 'sse_text_deltas', 'seconds'}
     if set(value) != expected or any(value[k] not in allowed for k, allowed in enums.items()):
@@ -146,7 +146,7 @@ def fixed_result(raw):
         raise Rejected('output_schema')
     if value['status'] == 'PASS' and not all(value[k] for k in ('partial_observed', 'partial_never_saved', 'completed_pair_saved', 'encrypted_relaunch_matches', 'learning_unchanged')):
         raise Rejected('missing_success_assertions')
-    if value['cancel_covered'] and not all(value[k] for k in ('cancel_no_archive', 'cancel_draft_partial_retained', 'cancel_no_completion_notification')):
+    if value['cancel_covered'] and not all(value[k] for k in ('cancel_saved_as_stopped', 'cancel_input_cleared', 'cancel_no_completion_notification')):
         raise Rejected('missing_cancel_assertions')
     if value['native_ios_ui'] or value['personal_keychain'] or value['private_defaults_on_disk'] or not value['synthetic_prompts_only']:
         raise Rejected('scope_mismatch')

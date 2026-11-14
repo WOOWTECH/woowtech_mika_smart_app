@@ -658,7 +658,9 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: relaunched)
     }
 
-    func testCancellationPreservesDraftAndAllowsAnotherAttempt() {
+    /// Like the Play build the question is in the conversation as soon as it is
+    /// sent; a stop leaves 已停止。 under it and the next message goes as usual.
+    func testCancellationLeavesStoppedTurnAndAllowsAnotherAttempt() {
         let app = launchApp()
         configure(in: app)
         returnFromModelSettings(in: app)
@@ -667,27 +669,38 @@ final class WoowAssistantUITests: XCTestCase {
         let cancel = app.buttons["chat.cancel"]
         waitUntilHittable(cancel)
         XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        XCTAssertTrue(app.descendants(matching: .any)["chat.message.0.user"].waitForExistence(timeout: 5))
         cancel.tap()
-        XCTAssertTrue(app.staticTexts["chat.notice"].waitForExistence(timeout: 5))
-        assertDraft("[fixture:wait]", in: app)
-        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+        let stopped = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(stopped.waitForExistence(timeout: 5))
+        XCTAssertEqual(stopped.label, "已停止。")
+        assertDraft("", in: app)
         XCTAssertTrue(chatDraftControl(in: app).isEnabled)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        attachScreenshot("cancel-draft-retained", in: app)
+        attachScreenshot("cancel-stopped-turn", in: app)
+        send("Another attempt", in: app)
+        let reply = app.descendants(matching: .any)["chat.message.3.assistant"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertEqual(reply.label, "測試回覆：Another attempt")
     }
 
-    func testFailureRetainsDraftAndRetryProducesReply() {
+    /// Like the Play build a failed turn stays in the conversation: 沒有完成 and
+    /// its reason. Asking again sends a new message.
+    func testFailureShowsNotDoneAndRetryProducesReply() {
         let app = launchApp()
         configure(in: app)
         returnFromModelSettings(in: app)
         openSection("chat", in: app)
         send("[fixture:error-once]", in: app)
-        XCTAssertTrue(app.staticTexts["chat.error"].waitForExistence(timeout: 5))
-        assertDraft("[fixture:error-once]", in: app)
-        XCTAssertFalse(app.staticTexts["chat.message.1.assistant"].exists)
-        attachScreenshot("error-draft-retained", in: app)
-        app.buttons["chat.send"].tap()
-        assertReply("測試回覆：[fixture:error-once]", in: app)
+        let failed = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertTrue(failed.waitForExistence(timeout: 5))
+        XCTAssertTrue(failed.label.hasPrefix("沒有完成"), failed.label)
+        XCTAssertFalse(app.staticTexts["chat.error"].exists)
+        assertDraft("", in: app)
+        attachScreenshot("error-not-done", in: app)
+        send("[fixture:error-once]", in: app)
+        let reply = app.descendants(matching: .any)["chat.message.3.assistant"]
+        XCTAssertTrue(reply.waitForExistence(timeout: 10))
+        XCTAssertEqual(reply.label, "測試回覆：[fixture:error-once]")
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
         assertDraft("", in: app)
     }

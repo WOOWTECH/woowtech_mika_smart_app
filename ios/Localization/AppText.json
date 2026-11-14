@@ -4398,15 +4398,6 @@
       }
     },
     {
-      "case": "drawerRecentDifferentDestination",
-      "key": "drawer.recent.differentDestination",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "這段對話用的是別的模型服務或金鑰，目前無法在這裡開啟。",
-        "en": "This conversation used a different model service or key, so it can’t be opened here."
-      }
-    },
-    {
       "case": "newConversationConfirmTitle",
       "key": "newConversation.confirmTitle",
       "parameters": [],
@@ -4483,8 +4474,35 @@
       "key": "chat.status.waiting",
       "parameters": [],
       "translations": {
-        "zh-Hant": "正在等待模型回覆…",
-        "en": "Waiting for the model…"
+        "zh-Hant": "正在處理",
+        "en": "Working"
+      }
+    },
+    {
+      "case": "chatTurnNotDone",
+      "key": "chat.turn.notDone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有完成",
+        "en": "Not finished"
+      }
+    },
+    {
+      "case": "chatTurnStopped",
+      "key": "chat.turn.stopped",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停止。",
+        "en": "Stopped."
+      }
+    },
+    {
+      "case": "chatTurnWorking",
+      "key": "chat.turn.working",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在處理",
+        "en": "Working"
       }
     },
     {
@@ -5829,8 +5847,8 @@
       "key": "chat.modelFailed.auth",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：API Key 無效或沒有權限。請到設定 › 模型檢查。",
+        "en": "The model call failed: the API key is invalid or has no access. Check Settings › Models."
       }
     },
     {
@@ -5838,8 +5856,8 @@
       "key": "chat.modelFailed.quota",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：額度已用完。草稿已保留。",
-        "en": "The model call failed: the account has run out of credit. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：額度已用完。",
+        "en": "The model call failed: the account has run out of credit."
       }
     },
     {
@@ -5847,8 +5865,8 @@
       "key": "chat.modelFailed.rateLimited",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。草稿已保留。",
-        "en": "The model call failed: too many requests; try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：請求太頻繁，請稍後再試。",
+        "en": "The model call failed: too many requests; try again later."
       }
     },
     {
@@ -5856,8 +5874,8 @@
       "key": "chat.modelFailed.notFound",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the provider has no such model. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。",
+        "en": "The model call failed: the provider has no such model. Check Settings › Models."
       }
     },
     {
@@ -5865,8 +5883,8 @@
       "key": "chat.modelFailed.network",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。",
+        "en": "The model call failed: couldn’t connect to the model service. Check Settings › Models."
       }
     },
     {
@@ -5874,8 +5892,8 @@
       "key": "chat.modelFailed.streamCut",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。草稿已保留。",
-        "en": "The model call failed: the connection dropped before the reply finished. Try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。",
+        "en": "The model call failed: the connection dropped before the reply finished. Try again later."
       }
     },
     {
@@ -5883,8 +5901,8 @@
       "key": "chat.modelFailed.unreadable",
       "parameters": [],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。草稿已保留。",
-        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。",
+        "en": "The model call failed: its reply couldn’t be read; check that the base URL and API type match."
       }
     },
     {
@@ -5897,8 +5915,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。草稿已保留。",
-        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Try again later."
       }
     },
     {
@@ -5911,8 +5929,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。草稿已保留。",
-        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models. Your draft is preserved."
+        "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。",
+        "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models."
       }
     },
     {
@@ -6830,42 +6848,6 @@
       }
     },
     {
-      "case": "storedChatPartialReceiving",
-      "key": "stored.chat.partialReceiving",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "回覆產生中・尚未完成，未保存",
-        "en": "Reply in progress · not finished, not saved"
-      }
-    },
-    {
-      "case": "storedChatPartialCancelled",
-      "key": "stored.chat.partialCancelled",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已取消・部分回覆未保存",
-        "en": "Cancelled · partial reply not saved"
-      }
-    },
-    {
-      "case": "storedChatPartialFailed",
-      "key": "stored.chat.partialFailed",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "回覆未完成・部分回覆未保存",
-        "en": "Reply not finished · partial reply not saved"
-      }
-    },
-    {
-      "case": "storedChatSettingsChanged",
-      "key": "stored.chat.settingsChanged",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "這段對話使用的模型設定已變更；請開新對話後再傳送，草稿已保留。",
-        "en": "The model settings this chat used have changed. Start a new chat to send; your draft is kept."
-      }
-    },
-    {
       "case": "storedChatArchiveOpened",
       "key": "stored.chat.archiveOpened",
       "parameters": [],
@@ -6879,26 +6861,8 @@
       "key": "stored.chat.archiveSaveFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。原有保存內容保留，沒有自動刪除舊對話。",
-        "en": "The reply is shown, but this chat couldn’t be saved and may be lost when the app closes. Earlier saved content is kept; no old chat was deleted."
-      }
-    },
-    {
-      "case": "storedChatQuoteBeforeChange",
-      "key": "stored.chat.quoteBeforeChange",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "請先傳送或移除引用，再變更模型設定。",
-        "en": "Send or remove the quote before changing model settings."
-      }
-    },
-    {
-      "case": "storedChatQuoteBeforeRemove",
-      "key": "stored.chat.quoteBeforeRemove",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "請先傳送或移除引用，再移除模型設定。",
-        "en": "Send or remove the quote before removing model settings."
+        "zh-Hant": "回覆已顯示，但本次對話未能保存；關閉程序後可能遺失。",
+        "en": "The reply is shown, but this chat couldn’t be saved and may be lost when the app closes."
       }
     },
     {
@@ -6969,8 +6933,8 @@
       "key": "stored.chat.emptyReply",
       "parameters": [],
       "translations": {
-        "zh-Hant": "模型回傳空白內容，草稿已保留，請重試。",
-        "en": "The model returned an empty reply. Your draft is kept; try again."
+        "zh-Hant": "模型回傳空白內容，請重試。",
+        "en": "The model returned an empty reply. Try again."
       }
     },
     {
@@ -6978,8 +6942,8 @@
       "key": "stored.chat.noSingleStep",
       "parameters": [],
       "translations": {
-        "zh-Hant": "模型仍未提供可用的單一步驟指令，已停止；草稿與先前工具結果保留。",
-        "en": "The model still didn’t give a usable single-step command, so it stopped. Your draft and earlier tool results are kept."
+        "zh-Hant": "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。",
+        "en": "The model still didn’t give a usable single-step command, so it stopped. Earlier tool results are kept."
       }
     },
     {
@@ -6987,8 +6951,8 @@
       "key": "stored.chat.sendFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "傳送失敗，草稿已保留。請檢查模型設定或網路後重試。",
-        "en": "Couldn’t send; your draft is kept. Check the model settings or network and try again."
+        "zh-Hant": "傳送失敗。請檢查模型設定或網路後重試。",
+        "en": "Couldn’t send. Check the model settings or network and try again."
       }
     },
     {
@@ -6996,8 +6960,8 @@
       "key": "stored.chat.mcpUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "MCP 對話未完成，草稿與已收到的工具結果保留；請先確認已送出操作，不會自動重試。",
-        "en": "The MCP chat didn’t finish. Your draft and the tool results received are kept. Check any actions already sent; nothing is retried automatically."
+        "zh-Hant": "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。",
+        "en": "The MCP chat didn’t finish. The tool results received are kept. Check any actions already sent; nothing is retried automatically."
       }
     },
     {
@@ -7005,8 +6969,8 @@
       "key": "stored.chat.memorySavedReplyUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。草稿保留。",
-        "en": "The memory change was saved, but the model’s reply didn’t finish. Check the saved result or undo it so it isn’t changed twice. Your draft is kept."
+        "zh-Hant": "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。",
+        "en": "The memory change was saved, but the model’s reply didn’t finish. Check the saved result or undo it so it isn’t changed twice."
       }
     },
     {
@@ -7014,8 +6978,8 @@
       "key": "stored.chat.profileSavedReplyUnfinished",
       "parameters": [],
       "translations": {
-        "zh-Hant": "個人檔案已儲存，但後續模型回覆未完成；草稿保留。",
-        "en": "The profile was saved, but the model’s reply didn’t finish. Your draft is kept."
+        "zh-Hant": "個人檔案已儲存，但後續模型回覆未完成。",
+        "en": "The profile was saved, but the model’s reply didn’t finish."
       }
     },
     {
@@ -7100,21 +7064,12 @@
       }
     },
     {
-      "case": "storedChatCancelledWait",
-      "key": "stored.chat.cancelledWait",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "已取消等待，草稿已保留。伺服器可能已收到請求。",
-        "en": "Stopped waiting; your draft is kept. The server may already have received the request."
-      }
-    },
-    {
       "case": "storedChatLearningBusy",
       "key": "stored.chat.learningBusy",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料正在其他位置儲存；本次修改未儲存，草稿保留。請稍後重新確認。",
-        "en": "Learning data is being saved elsewhere, so this change wasn’t saved. Your draft is kept; check again shortly."
+        "zh-Hant": "學習資料正在其他位置儲存；本次修改未儲存。請稍後重新確認。",
+        "en": "Learning data is being saved elsewhere, so this change wasn’t saved. Check again shortly."
       }
     },
     {
@@ -7122,8 +7077,8 @@
       "key": "stored.chat.learningChanged",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料已變更；本次對話已停止，草稿保留。請重新讀取資料並再次確認。",
-        "en": "Learning data changed, so this chat stopped. Your draft is kept; reload the data and check again."
+        "zh-Hant": "學習資料已變更；本次對話已停止。請重新讀取資料並再次確認。",
+        "en": "Learning data changed, so this chat stopped. Reload the data and check again."
       }
     },
     {
@@ -7131,8 +7086,8 @@
       "key": "stored.chat.learningSaveFailed",
       "parameters": [],
       "translations": {
-        "zh-Hant": "學習資料無法儲存，這次修改未發布；原有資料與草稿保留，請確認裝置儲存狀態後再試。",
-        "en": "Learning data couldn’t be saved, so this change wasn’t applied. Your existing data and draft are kept; check the device’s storage and try again."
+        "zh-Hant": "學習資料無法儲存，這次修改未發布；原有資料保留，請確認裝置儲存狀態後再試。",
+        "en": "Learning data couldn’t be saved, so this change wasn’t applied. Your existing data is kept; check the device’s storage and try again."
       }
     },
     {
@@ -7140,8 +7095,8 @@
       "key": "stored.chat.memoryToolRejected",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記憶工具未通過來源、目標或資料狀態檢查，已停止；草稿保留。已完成的儲存會另外顯示。",
-        "en": "The memory tool failed its source, target or data check and stopped. Your draft is kept; finished saves are shown separately."
+        "zh-Hant": "記憶工具未通過來源、目標或資料狀態檢查，已停止。已完成的儲存會另外顯示。",
+        "en": "The memory tool failed its source, target or data check and stopped. Finished saves are shown separately."
       }
     },
     {
@@ -7149,8 +7104,8 @@
       "key": "stored.chat.profileToolRejected",
       "parameters": [],
       "translations": {
-        "zh-Hant": "個人檔案工具未通過檢查或已超過執行限制，已停止；草稿保留。已完成的儲存會另外顯示。",
-        "en": "The profile tool failed its checks or hit its limit and stopped. Your draft is kept; finished saves are shown separately."
+        "zh-Hant": "個人檔案工具未通過檢查或已超過執行限制，已停止。已完成的儲存會另外顯示。",
+        "en": "The profile tool failed its checks or hit its limit and stopped. Finished saves are shown separately."
       }
     },
     {
@@ -7167,8 +7122,8 @@
       "key": "stored.chat.mcpDenied",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你已拒絕這次呼叫，MCP 對話已停止；草稿與先前工具結果保留。",
-        "en": "You declined this call, so the MCP chat stopped. Your draft and earlier tool results are kept."
+        "zh-Hant": "你已拒絕這次呼叫，MCP 對話已停止；先前的工具結果保留。",
+        "en": "You declined this call, so the MCP chat stopped. Earlier tool results are kept."
       }
     },
     {
@@ -7176,8 +7131,8 @@
       "key": "stored.chat.mcpToolError",
       "parameters": [],
       "translations": {
-        "zh-Hant": "工具回報錯誤，已停止；請檢視工具結果。草稿保留，不會自動重試。",
-        "en": "A tool reported an error, so it stopped. Review the tool results. Your draft is kept; nothing is retried automatically."
+        "zh-Hant": "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。",
+        "en": "A tool reported an error, so it stopped. Review the tool results; nothing is retried automatically."
       }
     },
     {
@@ -7185,8 +7140,8 @@
       "key": "stored.chat.mcpLocalLimit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "本次對話的記憶搜尋或修改額度已用完，已停止；草稿與先前結果保留。",
-        "en": "This chat used up its memory search or change allowance, so it stopped. Your draft and earlier results are kept."
+        "zh-Hant": "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。",
+        "en": "This chat used up its memory search or change allowance, so it stopped. Earlier results are kept."
       }
     },
     {
@@ -7194,8 +7149,8 @@
       "key": "stored.chat.mcpLimit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已達 MCP 執行限制或偵測到重複呼叫；草稿與已收到的工具結果保留。",
-        "en": "Reached the MCP run limit or detected repeated calls. Your draft and the tool results received are kept."
+        "zh-Hant": "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。",
+        "en": "Reached the MCP run limit or detected repeated calls. The tool results received are kept."
       }
     },
     {
@@ -8054,8 +8009,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。草稿保留。",
-        "en": "The memory change was saved, but the reply took more than %1$lld seconds. Check the saved result or undo it. Your draft is kept."
+        "zh-Hant": "記憶修改已儲存，但後續回覆等待超過 %1$lld 秒；請先查看保存結果或撤銷。",
+        "en": "The memory change was saved, but the reply took more than %1$lld seconds. Check the saved result or undo it."
       }
     },
     {
@@ -8068,8 +8023,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "等待超過 %1$lld 秒，已停止等待；草稿已保留，可重試。",
-        "en": "Stopped waiting after %1$lld seconds. Your draft is kept; you can try again."
+        "zh-Hant": "等待超過 %1$lld 秒，已停止等待。",
+        "en": "Stopped waiting after %1$lld seconds."
       }
     },
     {
@@ -8082,8 +8037,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒；草稿保留。",
-        "en": "The profile was saved, but the reply took more than %1$lld seconds. Your draft is kept."
+        "zh-Hant": "個人檔案已儲存，但後續回覆等待超過 %1$lld 秒。",
+        "en": "The profile was saved, but the reply took more than %1$lld seconds."
       }
     },
     {
@@ -8136,8 +8091,8 @@
       "key": "stored.suffix.toolResultsKept",
       "parameters": [],
       "translations": {
-        "zh-Hant": "草稿與已收到的工具結果保留；沒有自動重送操作。",
-        "en": "Your draft and the tool results received are kept; nothing was resent."
+        "zh-Hant": "已收到的工具結果保留；沒有自動重送操作。",
+        "en": "The tool results received are kept; nothing was sent again automatically."
       }
     },
     {

@@ -341,9 +341,11 @@ private actor ActualModel: ChatModelClient {
                         && committed.profile.snapshot().entries[0].id == profileID
                         && committed.profile.snapshot().entries[0].text == "Prefer quiet walks", .profileCommit)
             // After a local commit the actual App replaces the stop message
-            // with its saved-state warning.
-            try require(session.chatError == "個人檔案已儲存，但後續模型回覆未完成；草稿保留。", .remoteFailure)
-            try require(session.draft == secondPrompt && session.entries.isEmpty, .draftPreservation)
+            // with its saved-state warning, shown under 沒有完成 like the Play build.
+            try require(session.entries.last?.outcome == .failed
+                        && session.entries.last?.content == "個人檔案已儲存，但後續模型回覆未完成。", .remoteFailure)
+            try require(session.draft.isEmpty && session.entries.count == 2 && session.entries[0].content == secondPrompt,
+                        .draftPreservation)
             try require(session.profileReceipt?.applied == true && session.profileReceipt?.id == profileID
                         && session.memoryReceipt == nil, .receiptPreservation)
             let retained = reopen()
@@ -362,7 +364,7 @@ private actor ActualModel: ChatModelClient {
             output["profile_receipt_forwarded"] = true
             output["profile_receipt_preserved"] = true
             output["profile_encrypted_reopen"] = true
-            output["failed_remote_draft_preserved"] = true
+            output["failed_remote_question_kept"] = true
             output["second_turn_app_error"] = true // Expected saved-state warning after the blocked call.
             completed.append("profile_then_remote_failure")
             try require(clock.now < overall, .deadline)
