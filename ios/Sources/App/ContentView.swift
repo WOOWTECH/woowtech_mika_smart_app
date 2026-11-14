@@ -79,6 +79,9 @@ struct ContentView: View {
                 guard let browserWorkspace else { return nil }
                 var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
                                                          searchTemplate: browserWorkspace.library.searchSettings.selected.template)
+                environment.onSignInObserved = { [weak browserWorkspace] url, state in
+                    browserWorkspace?.observeSignIn(url, state)
+                }
                 #if DEBUG
                 if let fixture = ChatWebTaskFixture.shared {
                     environment.fixtureOrigin = fixture.originURL

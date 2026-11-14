@@ -288,7 +288,7 @@ final class BrowserWorkspace: ObservableObject {
 
     /// Play's SiteRegistry: list a site once a page shows the person signed in
     /// there; a listed site keeps its sign-in state and last visit current.
-    private func observeSignIn(_ url: URL, _ state: BrowserSignInState) {
+    func observeSignIn(_ url: URL, _ state: BrowserSignInState) {
         guard !isClearingWebsiteData, let host = url.host, let key = BrowserSignInSite.key(host) else { return }
         let listed = library.signInSites.contains { $0.host == key }
         guard listed || state == .signedIn else { return }
