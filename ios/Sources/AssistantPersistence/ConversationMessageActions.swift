@@ -101,8 +101,10 @@ public struct ConversationBranchPlan {
         }
         guard targetID != source.id, !archive.conversations.contains(where: { $0.id == targetID }),
               ConversationArchive.normalizedTitle(title) == title else { throw ConversationBranchError.invalidTarget }
+        // 沒有完成 and 已停止。 turns stay what they were, like the Play build's copy.
         let copied = try source.turns.prefix(index + 1).map {
-            try ArchivedConversationTurn(userText: $0.userText, assistantText: $0.assistantText, pdf: $0.pdf)
+            try ArchivedConversationTurn(userText: $0.userText, assistantText: $0.assistantText, pdf: $0.pdf,
+                                         outcome: $0.outcome)
         }
         let branch = try ArchivedConversation(id: targetID, destination: source.destination, updatedAt: at, turns: copied)
         let plan = Self(source: source, parentTurn: index, branch: branch, title: title)
