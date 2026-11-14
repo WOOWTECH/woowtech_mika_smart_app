@@ -323,7 +323,10 @@ final class BrowserLearningUITests: XCTestCase {
         if !field.isHittable {
             waitFor(field, predicate: "hittable == true", timeout: max(0, deadline.timeIntervalSinceNow))
         }
-        if field.elementType == .textView {
+        // Read the type before typing: a submitted address folds back into the
+        // page's address pill (like Play), so that field is gone afterwards.
+        let isTextView = field.elementType == .textView
+        if isTextView {
             // iOS 17 AX/screenshot confirms an unobscured multiline goal
             // editor, but element.tap() did not focus it. Target the visible
             // text area within the actual element, then require the keyboard.
@@ -335,7 +338,7 @@ final class BrowserLearningUITests: XCTestCase {
             XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         } else { field.tap() }
         field.typeText(text)
-        if field.elementType == .textView { XCTAssertEqual(field.value as? String, text) }
+        if isTextView { XCTAssertEqual(field.value as? String, text) }
     }
 
     private func tap(_ identifier: String, scroll: Bool = false,
