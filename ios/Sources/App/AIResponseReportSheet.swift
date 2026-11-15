@@ -40,6 +40,8 @@ struct AIResponseReportSheet: View {
     @State private var confirmDelete = false
     @State private var deletionResult: AIResponseReportDeletionResult?
     @State private var deleted = false
+    /// Counts successful deletions, so each one scrolls to 檢舉已刪除。.
+    @State private var deletions = 0
     @State private var now = AIResponseReportQueue.currentTimeMs()
 
     init(target: AIResponseReportTarget, delivery: AIResponseReportDelivery, localizer: AppLocalizer) {
@@ -57,18 +59,19 @@ struct AIResponseReportSheet: View {
             ScrollViewReader { proxy in
                 Form {
                     responseSection
+                    // Play lists these results after the draft form, which the reload
+                    // after a deletion brings back. In the shorter iPad sheet (runs
+                    // 43628091777, 43669040242) that left 檢舉已刪除。 out of sight, so
+                    // the results come right after the response, and a deletion
+                    // scrolls to them at once.
+                    if hasResults { resultSection }
                     if hasNotices { noticeSection }
                     historySection
                     if !loading && !loadFailed && savedReport == nil { draftSection }
-                    if hasResults { resultSection }
                     if let report = savedReport { savedSection(report) }
                 }
-                // Like Play, 檢舉已刪除。 follows the draft form that the reload brings
-                // back. In the shorter iPad sheet (run 43628091777) that put it out of
-                // sight, so once the reload has finished the form scrolls to it.
-                .onChange(of: loading) { _, isLoading in
-                    guard !isLoading, deleted else { return }
-                    withAnimation { proxy.scrollTo(Self.deletedRowID, anchor: .bottom) }
+                .onChange(of: deletions) { _, _ in
+                    withAnimation { proxy.scrollTo(Self.deletedRowID, anchor: .top) }
                 }
             }
             .navigationTitle(localizer.text(.chatReportTitle))
@@ -378,6 +381,7 @@ struct AIResponseReportSheet: View {
             history.removeAll { $0.id == id }
             showHistory = false
             deleted = true
+            deletions += 1
             loadVersion += 1
         }
         saving = false
