@@ -2,6 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 
 export const SITE = 'https://assistant-relay.apporo.ai';
 export const IDENTITY = 'https://www.apporo.ai';
+// The relay's own endpoints on IDENTITY (apporo_relay_oauth 18.0.1.1.0 or later).
+// The bare /oauth2/* paths there belong to the WOOW PaaS platform module.
+export const OAUTH = {
+ authorize:'/apporo-relay/oauth2/authorize',
+ token:'/apporo-relay/oauth2/token',
+ introspect:'/apporo-relay/oauth2/introspect',
+ revoke:'/apporo-relay/oauth2/revoke',
+} as const;
 export const CLIENT = 'apporo-assistant-relay';
 export interface Account { tenant: string; subject: string; }
 type Intent = { verifier: string; browserHash: string; expires: number };
@@ -20,7 +28,7 @@ export function redirect(url: string,cookies: string[]=[]): Response {const h=ne
 // Only Worker-internal requests reach this class. Tokens never enter browser responses.
 export class AccountAuth extends DurableObject {
  protected async provider(path:string,form:Record<string,string>):Promise<any> {
-  const stage=path==='/oauth2/token'?'token':'identity';
+  const stage=path===OAUTH.token?'token':'identity';
   let r:Response;
   // Workers does not implement redirect:"error". Manual mode rejects 3xx below
   // without forwarding credentials to a redirected destination.
@@ -30,7 +38,7 @@ export class AccountAuth extends DurableObject {
   try{return await r.json();}catch{throw new AuthFailure(stage+'_invalid_json');}
  }
  private async identity(token:string):Promise<IdentityResult> {
-  const data=await this.provider('/oauth2/introspect',{client_id:CLIENT,token}) as IdentityResult;
+  const data=await this.provider(OAUTH.introspect,{client_id:CLIENT,token}) as IdentityResult;
   if(data.active!==true || data.client_id!==CLIENT || typeof data.sub!=='string' || !/^\d+$/.test(data.sub) || !data.scope?.split(' ').includes('relay:identity') || !(data.exp>Date.now()/1000))throw new AuthFailure('identity_rejected');
   return data;
  }
@@ -56,7 +64,7 @@ export class AccountAuth extends DurableObject {
     await this.ctx.storage.put('intent:'+await hash(state),{verifier,browserHash:await hash(browser),expires:Date.now()+600000} satisfies Intent);
     await this.cleanupLater();
     const params=new URLSearchParams({response_type:'code',client_id:CLIENT,redirect_uri:SITE+'/auth/callback',scope:'relay:identity',state,code_challenge:await hash(verifier),code_challenge_method:'S256'});
-    return reply({url:IDENTITY+'/oauth2/authorize?'+params,browser});
+    return reply({url:IDENTITY+OAUTH.authorize+'?'+params,browser});
    }
    if(path==='/callback') {
     if(typeof data.state!=='string'||typeof data.browser!=='string'||typeof data.code!=='string'||data.code.length>2048)return reply({error:'invalid_login'},400);
@@ -67,7 +75,7 @@ export class AccountAuth extends DurableObject {
      await tx.delete(key);return v;
     });
     if(!intent)return reply({error:'expired_login'},400);
-    const tokens=await this.provider('/oauth2/token',{grant_type:'authorization_code',client_id:CLIENT,code:data.code,code_verifier:intent.verifier,redirect_uri:SITE+'/auth/callback'});
+    const tokens=await this.provider(OAUTH.token,{grant_type:'authorization_code',client_id:CLIENT,code:data.code,code_verifier:intent.verifier,redirect_uri:SITE+'/auth/callback'});
     if(typeof tokens.access_token!=='string')throw new AuthFailure('invalid_token');
     const identity=await this.identity(tokens.access_token);
     const accountKey='account:'+identity.sub;
@@ -87,7 +95,7 @@ export class AccountAuth extends DurableObject {
     const key='session:'+await hash(data.session),session=await this.ctx.storage.get<Session>(key);
     if(path==='/logout') {
      await this.ctx.storage.delete(key);
-     if(session) {try{await this.provider('/oauth2/revoke',{client_id:CLIENT,token:session.token});}catch{}}
+     if(session) {try{await this.provider(OAUTH.revoke,{client_id:CLIENT,token:session.token});}catch{}}
      return reply({ok:true});
     }
     if(!session||session.expires<=Date.now()) {await this.ctx.storage.delete(key);return reply({error:'login_required'},401);}

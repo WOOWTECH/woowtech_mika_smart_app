@@ -12,7 +12,7 @@ async function call(path,options={}) {return fetch(base+path,{...options,redirec
 function cookie(r,name) {return r.headers.getSetCookie().find(c=>c.startsWith(name+'='))?.split(';')[0];}
 async function login(subject) {
  const start=await call('/auth/start');assert.equal(start.status,303);
- const url=new URL(start.headers.get('location'));assert.equal(url.origin,'https://www.apporo.ai');
+ const url=new URL(start.headers.get('location'));assert.equal(url.origin,'https://www.apporo.ai');assert.equal(url.pathname,'/apporo-relay/oauth2/authorize','sign-in must use the relay-owned Odoo path');
  const path='/auth/callback?'+new URLSearchParams({state:url.searchParams.get('state'),code:subject+':'+url.searchParams.get('code_challenge')});
  assert.equal((await call(path)).status,400,'requires initiating browser');
  const r=await call(path,{headers:{cookie:cookie(start,'__Host-relay_login')}});assert.equal(r.status,303);
@@ -45,8 +45,8 @@ try {
   // Invalid synthetic code must reach Odoo and be rejected with HTTP 400.
   const start=await call('/auth/start'),url=new URL(start.headers.get('location'));
   const r=await call('/auth/callback?'+new URLSearchParams({state:url.searchParams.get('state'),code:'transport-probe'}),{headers:{cookie:cookie(start,'__Host-relay_login')}});
-  assert.equal(r.status,502);assert.match(await r.text(),/token_http_400/,'provider request must reach Odoo without runtime TypeError');
-  console.log('PASS: real workerd provider transport reaches Odoo');
+  assert.equal(r.status,502);assert.match(await r.text(),/token_http_400/,'provider request must reach Odoo /apporo-relay/oauth2/token without runtime TypeError; token_http_404 means apporo_relay_oauth 18.0.1.1.0 is not live yet');
+  console.log('PASS: real workerd provider transport reaches Odoo /apporo-relay/oauth2/token');
  }
  const a=await login('101'),b=await login('202');
  assert.equal((await call('/account',{method:'POST',headers:{cookie:a,origin:'https://evil.example'},body:'action=pair'})).status,403);
@@ -82,5 +82,7 @@ try {
  assert.equal((await call('/account',{headers:{cookie:b}})).status,303);
  // Forged trusted-routing headers cannot select an account on the root relay.
  assert.equal((await call('/mcp',{headers:{'x-relay-tenant':db.tenant,authorization:'Bearer phone-b'}})).status,503);
- console.log('PASS: two-account PKCE login, browser/state binding, callback replay, 43-char Android credential contract, isolated pairing/forwarding/revoke/quotas, CSRF rejection, logout invalidation, header forgery rejection');
+ // Token, introspection and logout revocation all went to the relay-owned paths, never the platform's bare /oauth2/*.
+ assert.deepEqual(await (await call('/__test/provider-paths')).json(),['/apporo-relay/oauth2/introspect','/apporo-relay/oauth2/revoke','/apporo-relay/oauth2/token']);
+ console.log('PASS: two-account PKCE login, browser/state binding, callback replay, 43-char Android credential contract, isolated pairing/forwarding/revoke/quotas, CSRF rejection, logout invalidation, header forgery rejection, relay-owned OAuth paths');
 }finally{for(const s of sockets)s.terminate();child.kill('SIGTERM');await Promise.race([new Promise(r=>child.once('exit',r)),new Promise(r=>setTimeout(r,3000))]);rmSync(dir,{recursive:true,force:true});}
