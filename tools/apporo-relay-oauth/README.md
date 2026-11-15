@@ -8,8 +8,8 @@ Install as a normal Odoo module by adding this directory's parent to addons_path
 
 The Odoo password and website cookie remain at www.apporo.ai. A relay session, phone pairing code, device credential and MCP access token are separate. Revoking the Odoo identity token or disabling the user invalidates website sessions on their next check; an already paired phone must be disconnected separately from the relay account page.
 
-## Endpoint move: stage A (18.0.1.1.0)
+## Endpoint move: stage B (18.0.1.2.0)
 
-The bare /oauth2/* paths on www.apporo.ai are reserved for the WOOW PaaS platform module, which will be installed on the same website. 18.0.1.0.0 served the relay there. This version answers the relay paths and the legacy /oauth2/authorize, /oauth2/token, /oauth2/introspect and /oauth2/revoke with the same handlers, so the deployed Worker keeps working while it switches. The consent form always posts to /apporo-relay/oauth2/authorize. Codes and tokens are stored once, so a token issued on one path is valid, and can be revoked, on the other.
+The bare /oauth2/* paths on www.apporo.ai are reserved for the WOOW PaaS platform module, which will be installed on the same website. 18.0.1.0.0 served the relay there; 18.0.1.1.0 (stage A) served both path sets while the Worker switched to /apporo-relay/oauth2/*. This version serves only the relay paths. Requests to /oauth2/* no longer reach this addon: they return 404 until the platform module answers them.
 
-Stage B (18.0.1.2.0) removes the legacy paths. Install it only after the Worker calls the relay paths and the legacy paths no longer receive relay requests. Do not install the platform module while this addon serves /oauth2/*. The upgrade touches no data: replace the addon files, upgrade the module and restart Odoo. The switch-over order, checks and rollback are in ../apporo-relay-worker/DEPLOYMENT.md.
+Install it only after the Worker calls the relay paths and the legacy paths no longer receive relay requests. It must be live before the platform module is installed. The upgrade touches no data: replace the addon files, upgrade the module and restart Odoo. To roll back, reinstall 18.0.1.1.0 the same way, but not after the platform module is installed. The switch-over order, checks and rollback are in ../apporo-relay-worker/DEPLOYMENT.md.

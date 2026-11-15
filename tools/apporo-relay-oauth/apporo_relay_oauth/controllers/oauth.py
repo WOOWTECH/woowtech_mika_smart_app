@@ -5,9 +5,8 @@ session cookie. Phone pairing and MCP authorization are separate credentials.
 
 The relay's endpoints live under /apporo-relay/oauth2/ so that the bare
 /oauth2/* paths stay free for the WOOW PaaS platform module on the same
-website. Stage A (this version) still answers the legacy /oauth2/* paths with
-identical handling while the deployed relay Worker switches over; stage B
-removes them.
+website. Since 18.0.1.2.0 (stage B) this addon no longer answers the legacy
+/oauth2/* paths that 18.0.1.0.0 used.
 """
 
 import base64
@@ -96,9 +95,7 @@ def _form():
 
 
 class ApporoRelayOAuth(http.Controller):
-    # Each route lists the relay path first and the legacy path second; stage B
-    # deletes the legacy entries. Both paths run the same handler unchanged.
-    @http.route(['/apporo-relay/oauth2/authorize', '/oauth2/authorize'], type='http', auth='user', methods=['GET'], website=False)
+    @http.route('/apporo-relay/oauth2/authorize', type='http', auth='user', methods=['GET'], website=False)
     def authorize_get(self, **params):
         if not _parameters(params):
             return _page('Invalid request', '<h1>Unable to authorize</h1><p>The relay request is invalid. Start again from the Apporo Assistant relay website.</p>', 400)
@@ -111,13 +108,10 @@ class ApporoRelayOAuth(http.Controller):
         )
         csrf = html.escape(request.csrf_token(), quote=True)
         name = html.escape(user.name or 'Apporo user')
-        # The form always posts to the relay path, also when this page was
-        # opened through the legacy path, so a consent page that is still open
-        # when stage B ships can be submitted.
         body = f'''<h1>Allow Apporo Assistant remote access?</h1><p>Signed in as {name}.</p><p>This lets the Apporo relay confirm your account identity and keep your phone connection separate from other users. It does not grant access to your Odoo records. Pairing a phone and authorizing a computer are separate steps.</p><form action="/apporo-relay/oauth2/authorize" method="post"><input type="hidden" name="csrf_token" value="{csrf}">{hidden}<div class="actions"><button name="decision" value="approve">Allow</button><button class="secondary" name="decision" value="deny">Cancel</button></div></form>'''
         return _page('Authorize relay', body)
 
-    @http.route(['/apporo-relay/oauth2/authorize', '/oauth2/authorize'], type='http', auth='user', methods=['POST'], website=False, csrf=True)
+    @http.route('/apporo-relay/oauth2/authorize', type='http', auth='user', methods=['POST'], website=False, csrf=True)
     def authorize_post(self, **params):
         if not _parameters(params):
             return _page('Invalid request', '<h1>Unable to authorize</h1><p>The relay request is invalid. Start again from the relay website.</p>', 400)
@@ -134,7 +128,7 @@ class ApporoRelayOAuth(http.Controller):
         })
         return _callback(code=code, state=params['state'])
 
-    @http.route(['/apporo-relay/oauth2/token', '/oauth2/token'], type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
+    @http.route('/apporo-relay/oauth2/token', type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
     def token(self, **_kwargs):
         form, error = _form()
         if error:
@@ -167,7 +161,7 @@ class ApporoRelayOAuth(http.Controller):
         })
         return _json({'access_token': access_token, 'token_type': 'Bearer', 'expires_in': 3600, 'scope': SCOPE})
 
-    @http.route(['/apporo-relay/oauth2/introspect', '/oauth2/introspect'], type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
+    @http.route('/apporo-relay/oauth2/introspect', type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
     def introspect(self, **_kwargs):
         form, error = _form()
         if error:
@@ -182,7 +176,7 @@ class ApporoRelayOAuth(http.Controller):
         return _json({'active': True, 'sub': str(row.user_id.id), 'client_id': CLIENT_ID,
                       'scope': SCOPE, 'exp': int(expires.timestamp())})
 
-    @http.route(['/apporo-relay/oauth2/revoke', '/oauth2/revoke'], type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
+    @http.route('/apporo-relay/oauth2/revoke', type='http', auth='public', methods=['POST'], csrf=False, save_session=False)
     def revoke(self, **_kwargs):
         form, error = _form()
         if error:

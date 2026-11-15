@@ -1,10 +1,7 @@
 """HTTP acceptance for the one-time code and token revocation boundary.
 
-Stage A serves every endpoint on the relay path and on the legacy /oauth2/*
-path. Each flow runs on both, and a token issued on one path must work on the
-other: Worker sessions created before the switch are checked through the relay
-path afterwards, and a Worker rollback checks newer sessions through the
-legacy path.
+Since 18.0.1.2.0 (stage B) every endpoint is served only on the relay path;
+the bare /oauth2/* paths belong to the WOOW PaaS platform module.
 """
 
 import base64
@@ -19,7 +16,6 @@ from odoo.tests import HttpCase, tagged
 
 
 RELAY = '/apporo-relay/oauth2'
-LEGACY = '/oauth2'
 CLIENT_ID = 'apporo-assistant-relay'
 CALLBACK = 'https://assistant-relay.apporo.ai/auth/callback'
 
@@ -55,12 +51,11 @@ class TestApporoRelayOAuth(HttpCase):
             "form-action 'self' https://assistant-relay.apporo.ai;",
             consent.headers['Content-Security-Policy'],
         )
-        # Whichever path served the page, the form posts to the relay path.
         self.assertIn('<form action="/apporo-relay/oauth2/authorize" method="post">', consent.text)
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', consent.text)
         self.assertIsNotNone(csrf)
 
-        # Same CSRF protection on every path: no token, no authorization code.
+        # No CSRF token, no authorization code.
         forged = self.url_open(prefix + '/authorize', data={**params, 'decision': 'approve'}, allow_redirects=False)
         self.assertEqual(forged.status_code, 400)
         self.assertNotIn('Location', forged.headers)
@@ -137,19 +132,5 @@ class TestApporoRelayOAuth(HttpCase):
     def test_real_consent_uses_exact_callback_and_pkce(self):
         self._assert_consent_flow(RELAY)
 
-    def test_legacy_consent_path_still_works(self):
-        self._assert_consent_flow(LEGACY)
-
     def test_code_is_single_use_and_token_can_be_revoked(self):
         self._assert_code_and_token_lifecycle(RELAY, RELAY)
-
-    def test_legacy_token_paths_still_work(self):
-        self._assert_code_and_token_lifecycle(LEGACY, LEGACY)
-
-    def test_token_from_legacy_path_works_on_relay_path(self):
-        # A Worker session created before the switch keeps working after it.
-        self._assert_code_and_token_lifecycle(LEGACY, RELAY)
-
-    def test_token_from_relay_path_works_on_legacy_path(self):
-        # A Worker rolled back to the legacy paths keeps the newer sessions.
-        self._assert_code_and_token_lifecycle(RELAY, LEGACY)
