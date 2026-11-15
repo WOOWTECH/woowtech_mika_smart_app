@@ -68,7 +68,8 @@ final class MemoryRaceUITests: XCTestCase {
     }
     private func fill(_ field: XCUIElement, _ text: String) {
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: field)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        // Back from Settings on the iPad row (run 43649836107) the draft took over 5 s.
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed)
         field.tap(); field.typeText(text)
     }
     private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
