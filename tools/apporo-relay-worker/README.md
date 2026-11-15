@@ -23,7 +23,9 @@ Use Node.js 22.12 or newer. The local tests use an isolated fake identity provid
     npm run test:accounts
     npx wrangler deploy --dry-run
 
-npm run test:provider is a separate online transport probe. It expects the Odoo addon to be installed and sends an invalid synthetic code to /oauth2/token; it does not sign in. Production account login, phone pairing, and actual MCP task execution need separate acceptance after deployment.
+npm run test:provider is a separate online transport probe. It expects apporo_relay_oauth 18.0.1.1.0 or later on www.apporo.ai and sends an invalid synthetic code to /apporo-relay/oauth2/token; it does not sign in. A token_http_404 result means Odoo does not serve the relay path yet: do not deploy. Production account login, phone pairing, and actual MCP task execution need separate acceptance after deployment.
+
+The relay's identity endpoints are /apporo-relay/oauth2/authorize, /token, /introspect and /revoke on www.apporo.ai (constant OAUTH in src/auth.ts). The bare /oauth2/* paths there belong to the WOOW PaaS platform module. DEPLOYMENT.md describes the switch from the old paths.
 
 The downloaded apporo-relay-cli.py is derived from Mika's Apache-2.0 CLI and supports Apporo's /r/<tenant> prefix. Its default product and Android package are Apporo Assistant. Keep upstream attribution and the bundled license.
 

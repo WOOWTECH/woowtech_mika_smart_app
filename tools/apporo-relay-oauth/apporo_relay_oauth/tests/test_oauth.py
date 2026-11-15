@@ -1,4 +1,11 @@
-"""HTTP acceptance for the one-time code and token revocation boundary."""
+"""HTTP acceptance for the one-time code and token revocation boundary.
+
+Stage A serves every endpoint on the relay path and on the legacy /oauth2/*
+path. Each flow runs on both, and a token issued on one path must work on the
+other: Worker sessions created before the switch are checked through the relay
+path afterwards, and a Worker rollback checks newer sessions through the
+legacy path.
+"""
 
 import base64
 import hashlib
@@ -11,48 +18,64 @@ from odoo import fields
 from odoo.tests import HttpCase, tagged
 
 
+RELAY = '/apporo-relay/oauth2'
+LEGACY = '/oauth2'
+CLIENT_ID = 'apporo-assistant-relay'
+CALLBACK = 'https://assistant-relay.apporo.ai/auth/callback'
+
+
+def _pkce():
+    verifier = secrets.token_urlsafe(32)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode('ascii')).digest()
+    ).rstrip(b'=').decode('ascii')
+    return verifier, challenge
+
+
 @tagged('post_install', '-at_install')
 class TestApporoRelayOAuth(HttpCase):
-    def test_real_consent_uses_exact_callback_and_pkce(self):
+    def _assert_consent_flow(self, prefix):
         self.authenticate('admin', 'admin')
-        verifier = secrets.token_urlsafe(32)
-        challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode('ascii')).digest()
-        ).rstrip(b'=').decode('ascii')
+        verifier, challenge = _pkce()
         params = {
             'response_type': 'code',
-            'client_id': 'apporo-assistant-relay',
-            'redirect_uri': 'https://assistant-relay.apporo.ai/auth/callback',
+            'client_id': CLIENT_ID,
+            'redirect_uri': CALLBACK,
             'scope': 'relay:identity',
             'state': secrets.token_urlsafe(32),
             'code_challenge_method': 'S256',
             'code_challenge': challenge,
         }
-        consent = self.url_open('/oauth2/authorize?' + urlencode(params), allow_redirects=False)
+        consent = self.url_open(prefix + '/authorize?' + urlencode(params), allow_redirects=False)
         self.assertEqual(consent.status_code, 200)
         self.assertIn('Allow Apporo Assistant remote access?', consent.text)
+        # Chromium applies the consent page's form-action to the POST and to
+        # its redirect to the Worker callback, so this page must allow both.
         self.assertIn(
             "form-action 'self' https://assistant-relay.apporo.ai;",
             consent.headers['Content-Security-Policy'],
         )
+        # Whichever path served the page, the form posts to the relay path.
+        self.assertIn('<form action="/apporo-relay/oauth2/authorize" method="post">', consent.text)
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', consent.text)
         self.assertIsNotNone(csrf)
 
-        approved = self.url_open('/oauth2/authorize', data={
+        # Same CSRF protection on every path: no token, no authorization code.
+        forged = self.url_open(prefix + '/authorize', data={**params, 'decision': 'approve'}, allow_redirects=False)
+        self.assertEqual(forged.status_code, 400)
+        self.assertNotIn('Location', forged.headers)
+
+        approved = self.url_open(prefix + '/authorize', data={
             **params, 'csrf_token': csrf.group(1), 'decision': 'approve',
         }, allow_redirects=False)
         self.assertIn(approved.status_code, (302, 303))
-        self.assertIn(
-            "form-action 'self' https://assistant-relay.apporo.ai;",
-            approved.headers['Content-Security-Policy'],
-        )
         callback = urlsplit(approved.headers['Location'])
         self.assertEqual(callback.scheme + '://' + callback.netloc + callback.path, params['redirect_uri'])
         query = parse_qs(callback.query)
         self.assertEqual(query['state'], [params['state']])
         self.assertEqual(len(query['code'][0]), 43)
 
-        token = self.url_open('/oauth2/token', data={
+        token = self.url_open(prefix + '/token', data={
             'grant_type': 'authorization_code',
             'client_id': params['client_id'],
             'redirect_uri': params['redirect_uri'],
@@ -62,20 +85,17 @@ class TestApporoRelayOAuth(HttpCase):
         self.assertEqual(token.status_code, 200)
         self.assertEqual(token.json()['scope'], 'relay:identity')
 
-        denied = self.url_open('/oauth2/authorize', data={
+        denied = self.url_open(prefix + '/authorize', data={
             **params, 'state': secrets.token_urlsafe(32),
             'csrf_token': csrf.group(1), 'decision': 'deny',
         }, allow_redirects=False)
         self.assertIn(denied.status_code, (302, 303))
         self.assertEqual(parse_qs(urlsplit(denied.headers['Location']).query)['error'], ['access_denied'])
 
-    def test_code_is_single_use_and_token_can_be_revoked(self):
-        verifier = secrets.token_urlsafe(32)
+    def _assert_code_and_token_lifecycle(self, token_prefix, check_prefix):
+        verifier, challenge = _pkce()
         code = secrets.token_urlsafe(32)
-        challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode('ascii')).digest()
-        ).rstrip(b'=').decode('ascii')
-        record = self.env['apporo.relay.oauth.code'].sudo().create({
+        self.env['apporo.relay.oauth.code'].sudo().create({
             'code_hash': hashlib.sha256(code.encode('ascii')).hexdigest(),
             'user_id': self.env.ref('base.user_admin').id,
             'code_challenge': challenge,
@@ -84,32 +104,52 @@ class TestApporoRelayOAuth(HttpCase):
         self.env.flush_all()  # HttpCase shares its test transaction with HTTP requests.
         base = {
             'grant_type': 'authorization_code',
-            'client_id': 'apporo-assistant-relay',
-            'redirect_uri': 'https://assistant-relay.apporo.ai/auth/callback',
+            'client_id': CLIENT_ID,
+            'redirect_uri': CALLBACK,
             'code': code,
         }
 
-        wrong = self.url_open('/oauth2/token', data={**base, 'code_verifier': secrets.token_urlsafe(32)})
+        wrong = self.url_open(token_prefix + '/token', data={**base, 'code_verifier': secrets.token_urlsafe(32)})
         self.assertEqual(wrong.status_code, 400)
         self.assertEqual(wrong.json()['error'], 'invalid_grant')
 
-        accepted = self.url_open('/oauth2/token', data={**base, 'code_verifier': verifier})
+        accepted = self.url_open(token_prefix + '/token', data={**base, 'code_verifier': verifier})
         self.assertEqual(accepted.status_code, 200)
         access_token = accepted.json()['access_token']
         self.assertEqual(len(access_token), 43)
 
-        replay = self.url_open('/oauth2/token', data={**base, 'code_verifier': verifier})
+        replay = self.url_open(token_prefix + '/token', data={**base, 'code_verifier': verifier})
         self.assertEqual(replay.status_code, 400)
         self.assertEqual(replay.json()['error'], 'invalid_grant')
 
-        form = {'client_id': 'apporo-assistant-relay', 'token': access_token}
-        active = self.url_open('/oauth2/introspect', data=form)
+        form = {'client_id': CLIENT_ID, 'token': access_token}
+        active = self.url_open(check_prefix + '/introspect', data=form)
         self.assertEqual(active.status_code, 200)
         self.assertEqual(active.json()['sub'], str(self.env.ref('base.user_admin').id))
         self.assertTrue(active.json()['active'])
 
-        revoked = self.url_open('/oauth2/revoke', data=form)
+        revoked = self.url_open(check_prefix + '/revoke', data=form)
         self.assertEqual(revoked.status_code, 200)
-        inactive = self.url_open('/oauth2/introspect', data=form)
+        inactive = self.url_open(check_prefix + '/introspect', data=form)
         self.assertEqual(inactive.status_code, 200)
         self.assertFalse(inactive.json()['active'])
+
+    def test_real_consent_uses_exact_callback_and_pkce(self):
+        self._assert_consent_flow(RELAY)
+
+    def test_legacy_consent_path_still_works(self):
+        self._assert_consent_flow(LEGACY)
+
+    def test_code_is_single_use_and_token_can_be_revoked(self):
+        self._assert_code_and_token_lifecycle(RELAY, RELAY)
+
+    def test_legacy_token_paths_still_work(self):
+        self._assert_code_and_token_lifecycle(LEGACY, LEGACY)
+
+    def test_token_from_legacy_path_works_on_relay_path(self):
+        # A Worker session created before the switch keeps working after it.
+        self._assert_code_and_token_lifecycle(LEGACY, RELAY)
+
+    def test_token_from_relay_path_works_on_legacy_path(self):
+        # A Worker rolled back to the legacy paths keeps the newer sessions.
+        self._assert_code_and_token_lifecycle(RELAY, LEGACY)

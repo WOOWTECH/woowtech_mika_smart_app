@@ -2,7 +2,7 @@
 
 The Apporo relay is a separate Cloudflare Worker + Durable Objects service. Its identity provider is the Apporo Odoo addon in tools/apporo-relay-oauth. Node.js 22.12+ and the pinned Wrangler version are required.
 
-Run npm ci, npm run check, npm test, and npm run test:accounts before deployment. Wrangler deploy --dry-run checks the bundle, but does not verify Cloudflare ownership or live Odoo login. npm run test:provider is an opt-in probe of Odoo's token endpoint using an invalid code after the addon is installed.
+Run npm ci, npm run check, npm test, and npm run test:accounts before deployment. Wrangler deploy --dry-run checks the bundle, but does not verify Cloudflare ownership or live Odoo login. npm run test:provider is an opt-in probe of Odoo's relay token endpoint, /apporo-relay/oauth2/token, using an invalid code after the addon is installed.
 
 Sign in with Wrangler using the Apporo Cloudflare account. Verify that its account owns the apporo.ai zone before any secret or deploy action. Store OWNER_KEY in Cloudflare Worker secrets; use a unique, randomly generated value of at least 32 bytes. Never put it in the repository, a CLI argument, a screenshot or chat. The browser's Odoo login, phone pairing code, device credential, phone MCP token and owner key are five distinct credentials.
 
