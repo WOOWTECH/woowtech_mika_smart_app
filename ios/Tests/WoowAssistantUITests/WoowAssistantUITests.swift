@@ -1261,7 +1261,14 @@ final class WoowAssistantUITests: XCTestCase {
 
     private func enter(_ text: String, into field: XCUIElement) {
         waitUntilHittable(field)
+        // On iPad (runs 43606357170 and 43649836107) a tap on the 自訂 address
+        // field that had just appeared sometimes left it unfocused, and typing
+        // failed. Focusing is safe to repeat: with no keyboard up 5 s after the
+        // tap, the field is tapped once more.
+        let keyboard = XCUIApplication().keyboards.firstMatch
+        let keyboardWasUp = keyboard.exists
         field.tap()
+        if !keyboardWasUp && !keyboard.waitForExistence(timeout: 5) && field.isHittable { field.tap() }
         field.typeText(text + "\n")
     }
 
