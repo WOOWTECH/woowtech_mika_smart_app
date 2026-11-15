@@ -102,8 +102,8 @@ func openModelProvider(_ name: String, in app: XCUIApplication, file: StaticStri
     let row = app.buttons["models.provider." + name]
     XCTAssertTrue(row.waitForExistence(timeout: 10), file: file, line: line)
     revealLearningElement(row, in: app, file: file, line: line)
-    row.tap()
-    XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 10), file: file, line: line)
+    // iPhone 17 (iOS 26.2, run 43649836107) lost this tap once; opening the page is safe to repeat.
+    XCTAssertTrue(tapExpecting(row, app.navigationBars[name]), file: file, line: line)
     XCTAssertTrue(app.buttons["provider.delete"].waitForExistence(timeout: 10), file: file, line: line)
 }
 
