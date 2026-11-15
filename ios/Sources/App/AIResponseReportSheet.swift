@@ -54,13 +54,22 @@ struct AIResponseReportSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                responseSection
-                if hasNotices { noticeSection }
-                historySection
-                if !loading && !loadFailed && savedReport == nil { draftSection }
-                if hasResults { resultSection }
-                if let report = savedReport { savedSection(report) }
+            ScrollViewReader { proxy in
+                Form {
+                    responseSection
+                    if hasNotices { noticeSection }
+                    historySection
+                    if !loading && !loadFailed && savedReport == nil { draftSection }
+                    if hasResults { resultSection }
+                    if let report = savedReport { savedSection(report) }
+                }
+                // Like Play, 檢舉已刪除。 follows the draft form that the reload brings
+                // back. In the shorter iPad sheet (run 43628091777) that put it out of
+                // sight, so once the reload has finished the form scrolls to it.
+                .onChange(of: loading) { _, isLoading in
+                    guard !isLoading, deleted else { return }
+                    withAnimation { proxy.scrollTo(Self.deletedRowID, anchor: .bottom) }
+                }
             }
             .navigationTitle(localizer.text(.chatReportTitle))
             .navigationBarTitleDisplayMode(.inline)
@@ -170,6 +179,8 @@ struct AIResponseReportSheet: View {
         }
     }
 
+    private static let deletedRowID = "chat.report.deletedRow"
+
     private var hasResults: Bool {
         failed || deleted || deletionResult == .retryable || deletionResult == .cannotVerify
     }
@@ -177,7 +188,10 @@ struct AIResponseReportSheet: View {
     private var resultSection: some View {
         Section {
             if failed { Text(localizer.text(.chatReportSaveFailed)).accessibilityIdentifier("chat.report.saveFailed") }
-            if deleted { Text(localizer.text(.chatReportDeleted)).accessibilityIdentifier("chat.report.deleted") }
+            if deleted {
+                Text(localizer.text(.chatReportDeleted)).accessibilityIdentifier("chat.report.deleted")
+                    .id(Self.deletedRowID)
+            }
             if deletionResult == .retryable { Text(localizer.text(.chatReportDeleteFailed)) }
             if deletionResult == .cannotVerify { Text(localizer.text(.chatReportDeleteUnverified)) }
         }
