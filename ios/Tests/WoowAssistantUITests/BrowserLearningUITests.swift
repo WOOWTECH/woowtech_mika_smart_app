@@ -23,8 +23,11 @@ final class BrowserLearningUITests: XCTestCase {
         // 43606357170) and on the large simulator (run 43628091777), and the
         // iPad simulator is slower in general, so those get 300 s too.
         let removingSettingsCase = " testRemovingModelSettingsCancelsResearchAndPreservesGoalWithoutLearning]"
-        executionTimeAllowance = name.hasSuffix(researchReplayCase) || name.hasSuffix(removingSettingsCase)
-            || UIDevice.current.userInterfaceIdiom == .pad ? 300 : 240
+        let pad = UIDevice.current.userInterfaceIdiom == .pad
+        // On a slow iPad simulator the removing case ran past 300 s too (run
+        // 43669040242); the ui-learning job now caps cases at 420 s.
+        executionTimeAllowance = pad && name.hasSuffix(removingSettingsCase) ? 420
+            : name.hasSuffix(researchReplayCase) || name.hasSuffix(removingSettingsCase) || pad ? 300 : 240
     }
 
     override func tearDownWithError() throws {

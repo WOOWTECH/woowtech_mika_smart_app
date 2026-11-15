@@ -194,7 +194,9 @@ def test_command(products, simulator_id, result, sl):
             "-destination", "platform=iOS Simulator,id=" + simulator_id,
             "-resultBundlePath", str(result), "-parallel-testing-enabled", "NO",
             "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "240",
-            "-maximum-test-execution-time-allowance", "420" if sl["scope"] == "ui-workspace" else "300",
+            # ui-learning: on a slow iPad simulator one research case ran past
+            # 300 s (PR #37 run 43669040242); it gets ui-workspace's 420 s cap.
+            "-maximum-test-execution-time-allowance", "420" if sl["scope"] in ("ui-workspace", "ui-learning") else "300",
             *sl["selectors"], "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_ALLOWED=YES"]
 
 

@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 final class MCPConversationUITests: XCTestCase {
@@ -6,7 +7,9 @@ final class MCPConversationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 180
+        // The background-and-reconnect case ran past 180 s on the slower iPad
+        // simulator (run 43669040242); iPad cases get the ui-mcp job's 300 s cap.
+        executionTimeAllowance = UIDevice.current.userInterfaceIdiom == .pad ? 300 : 180
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
             "-UITestMode", "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
