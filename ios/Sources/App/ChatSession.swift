@@ -122,7 +122,7 @@ struct ChatMessageActionTargets: Equatable {
 /// never shown, so the reason comes from the HTTP status alone; failures it
 /// cannot name keep the generic message.
 enum ChatModelFailure: Equatable {
-    case auth, quota, rateLimited, notFound, network, streamCut, unreadable
+    case auth, quota, rateLimited, notFound, network, streamCut, truncated, unreadable
     case server(Int), status(Int)
 
     init?(_ error: Error) {
@@ -136,6 +136,7 @@ enum ChatModelFailure: Equatable {
         case .httpStatus(let status) where (400...499).contains(status): self = .status(status)
         case .transportFailure: self = .network
         case .incompleteResponse: self = .streamCut
+        case .truncatedResponse: self = .truncated
         case .invalidResponse: self = .unreadable
         default: return nil
         }
@@ -149,6 +150,7 @@ enum ChatModelFailure: Equatable {
         case .notFound: return .chatModelFailedNotFound
         case .network: return .chatModelFailedNetwork
         case .streamCut: return .chatModelFailedStreamCut
+        case .truncated: return .chatModelFailedTruncated
         case .unreadable: return .chatModelFailedUnreadable
         case .server(let status): return .chatModelFailedServer(status: status)
         case .status(let status): return .chatModelFailedStatus(status: status)
@@ -1290,11 +1292,12 @@ final class ChatSession: ObservableObject {
         }
         // A reply opening with "{" or a code fence may be a skill or web command:
         // it is shown only once it turns out to be an answer.
-        var holds: Bool? = skillIndex == nil && webOffer == nil ? false : nil
-        var text = "", bytes = 0, resent = false
+        let holdsAtStart: Bool? = skillIndex == nil && webOffer == nil ? false : nil
+        var holds = holdsAtStart, request = messages
+        var text = "", bytes = 0, resent = false, nudged = false
         while true {
             do {
-                for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: key) {
+                for try await delta in streaming.stream(messages: request, configuration: configuration, apiKey: key) {
                     try Task.checkCancellation()
                     guard requestID == id else { throw CancellationError() }
                     guard delta.utf8.count <= ChatReplyPreview.maximumUTF8Bytes - bytes else {
@@ -1312,12 +1315,31 @@ final class ChatSession: ObservableObject {
                 resent = true
                 try Task.checkCancellation()
                 guard requestID == id else { throw CancellationError() }
+            } catch HTTPChatModelError.truncatedResponse where !nudged {
+                // Like Play's AgentLoop (TurnPolicy.afterEmpty, truncated): a reply the
+                // output limit cut is not an answer yet; ask once for a shorter one.
+                nudged = true
+                try Task.checkCancellation()
+                guard requestID == id else { throw CancellationError() }
+                if !text.isEmpty { request.append(ModelMessage(role: "assistant", content: text)) }
+                request.append(ModelMessage(role: "user", content: Self.truncatedReplyNudge))
+                text = ""; bytes = 0; holds = holdsAtStart; replyPreview = nil
+            } catch HTTPChatModelError.truncatedResponse where holds == false && !text.isEmpty {
+                // Cut again: keep the text already on screen, marked as cut off.
+                try Task.checkCancellation()
+                guard requestID == id else { throw CancellationError() }
+                let note = AppLocalizer(language: interfaceLanguage()).text(.chatReplyTruncatedNote)
+                return .answer(text + "\n\n" + note)
             }
         }
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
         return try await finished(text)
     }
+
+    /// Play's truncated_reply nudge (prompts/feedback/loop.md) without the tool clause.
+    static let truncatedReplyNudge = "Your reply was cut off by the output limit before it was complete. "
+        + "Reply again with a shorter final answer."
 
     private static func modelFailureMessage(_ error: MCPConversationError?) -> String? {
         let reason: String

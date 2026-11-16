@@ -23,7 +23,8 @@ private struct LegacyBody: Encodable {
     let model: String
     let messages: [Message]
     let stream: Bool
-    let max_tokens: Int
+    /// Nil is not encoded, as in OpenAIChatRequest.
+    let max_tokens: Int?
 }
 
 @MainActor @main struct CheckModelTokenUsage {
@@ -116,9 +117,9 @@ private struct LegacyBody: Encodable {
             }
             return NSMutableDictionary(dictionary: value)
         }
-        func legacy(_ stream: Bool) throws -> Data {
+        func legacy(_ stream: Bool, maxTokens: Int? = 1024) throws -> Data {
             try JSONEncoder().encode(LegacyBody(model: "fixture", messages: [.init(role: "user", content: "fixture")],
-                                                stream: stream, max_tokens: 1024))
+                                                stream: stream, max_tokens: maxTokens))
         }
         func encoded(stream: Bool, usage: Bool) throws -> Data {
             try OpenAIChatRequest.body(model: "fixture", messages: messages, stream: stream, maxOutputTokens: 1024,
@@ -140,8 +141,8 @@ private struct LegacyBody: Encodable {
         try check(try asking(encoded(stream: true, usage: true), legacy(true)), "a stream adds only stream_options.include_usage")
         let configuration = ModelConfiguration(baseURL: URL(string: "https://fixture.invalid/v1")!, model: "fixture", vision: .supported)
         try check(try unchanged(HTTPChatModelClient.request(messages: messages, configuration: configuration, apiKey: key,
-                                                            stream: true).httpBody, legacy(true)),
-                  "the request builder defaults to the legacy body")
+                                                            stream: true).httpBody, legacy(true, maxTokens: nil)),
+                  "the request builder defaults to the legacy body without an output limit")
         let attachment = try ModelAttachment.text(utf8: Data("synthetic attachment".utf8))
         let attached = [ModelMessage(userText: "question", attachment: attachment)]
         let plain = try HTTPChatModelClient.request(messages: attached, configuration: configuration, apiKey: key, stream: true)
