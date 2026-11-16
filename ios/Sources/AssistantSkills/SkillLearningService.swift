@@ -162,7 +162,7 @@ public struct SkillLearningService: Sendable {
         let messages = [ModelMessage(role: "system", content: instructions),
                         ModelMessage(role: "user", content: String(decoding: data, as: UTF8.self))]
         // The provider's key rule and session header go with every request.
-        let boundedConfig = configuration.withMaxOutputTokens(min(configuration.maxOutputTokens, maxTokens))
+        let boundedConfig = configuration.withMaxOutputTokens(min(configuration.maxOutputTokens ?? maxTokens, maxTokens))
         let output = try await withThrowingTaskGroup(of: String.self) { group in
             group.addTask { try await client.complete(messages: messages, configuration: boundedConfig, apiKey: apiKey) }
             group.addTask { try await Task.sleep(nanoseconds: timeoutNanoseconds); throw CallFailure.timedOut }

@@ -6,13 +6,17 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private let usageSink: (any ModelUsageSink)?
-    private static let maximumTimeout: UInt64 = 90_000_000_000
+    /// A whole request, streamed or not, may take up to 10 minutes; one that stalls
+    /// ends after 120 s without data (timeoutIntervalForRequest), like the Play
+    /// build's model client (ProviderStore.kt: readTimeout 120 s, no call timeout).
+    /// With no reply limit, a long answer streams for more than 90 s.
+    private static let maximumTimeout: UInt64 = 600_000_000_000
     private static let declinedUsageOptions = DeclinedUsageOptions()
 
     public init(usageSink: (any ModelUsageSink)? = nil) {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 90
-        configuration.timeoutIntervalForResource = 90
+        configuration.timeoutIntervalForRequest = 120
+        configuration.timeoutIntervalForResource = 600
         configuration.urlCache = nil
         configuration.httpCookieStorage = nil
         configuration.urlCredentialStorage = nil
@@ -23,7 +27,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         self.init(session: session, timeoutNanoseconds: Self.maximumTimeout, usageSink: usageSink)
     }
 
-    // Shorter deadlines let deterministic tests exercise timeouts; never exceeds 90s.
+    // Shorter deadlines let deterministic tests exercise timeouts; never exceeds 10 minutes.
     init(session: URLSession, timeoutNanoseconds: UInt64, usageSink: (any ModelUsageSink)? = nil) {
         self.session = session
         self.timeoutNanoseconds = min(timeoutNanoseconds, Self.maximumTimeout)
@@ -68,7 +72,9 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         }
     }
 
-    /// Yields text deltas (not accumulated text). Slow consumers fail rather than lose text.
+    /// Yields text deltas (not accumulated text). A reader that falls behind gets the
+    /// text that waited joined into later deltas (ModelStreamHandoff), never a failure
+    /// and never a loss; the response size limit still bounds what can wait.
     /// Asks for usage unless this endpoint and model refused that option; the
     /// refusal ends this stream, and only the host may send it again.
     public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
@@ -79,7 +85,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                        onDispatch: @escaping @Sendable () -> Void,
                        onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
         let meter = ModelUsageMeter(sink: usageSink, configuration: configuration)
-        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(ModelStreamHandoff.queuedDeltas)) { continuation in
             let worker = Task {
                 do {
                     let option = Self.usageOptionKey(configuration)
@@ -138,18 +144,26 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                         try Self.validate(response, stream: true)
                         return try await withTaskCancellationHandler {
                             var parser = ChatSSEParser()
-                            for try await byte in bytes {
-                                try Task.checkCancellation()
-                                if let text = try parser.append(byte) {
-                                    switch continuation.yield(text) {
-                                    case .enqueued: break
-                                    case .dropped: throw HTTPChatModelError.consumerTooSlow
-                                    case .terminated: throw CancellationError()
-                                    @unknown default: throw HTTPChatModelError.consumerTooSlow
+                            var waiting = ""
+                            do {
+                                for try await byte in bytes {
+                                    try Task.checkCancellation()
+                                    if let text = try parser.append(byte) {
+                                        waiting += text
+                                        if try ModelStreamHandoff.offer(waiting, to: continuation) { waiting = "" }
                                     }
+                                    if parser.done { break }
                                 }
-                                if parser.done { break }
+                            } catch HTTPChatModelError.truncatedResponse {
+                                // [DONE] after a cut: the text so far still reaches the reader first.
+                                bytes.task.cancel()
+                                try await ModelStreamHandoff.flush(waiting, to: continuation)
+                                throw HTTPChatModelError.truncatedResponse
                             }
+                            // The request is over; a slow reader still gets the text that
+                            // waited, before the end or a cut reply's truncatedResponse.
+                            bytes.task.cancel()
+                            try await ModelStreamHandoff.flush(waiting, to: continuation)
                             try Task.checkCancellation()
                             try parser.finish()
                             return parser.usage
@@ -190,7 +204,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         let model = configuration.model.trimmingCharacters(in: .whitespacesAndNewlines)
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         // Only a custom service saved without a key may go without one.
-        guard !model.isEmpty, !key.isEmpty || !configuration.requiresKey, (1...8192).contains(configuration.maxOutputTokens),
+        guard !model.isEmpty, !key.isEmpty || !configuration.requiresKey, configuration.maxOutputTokens.map({ (1...8192).contains($0) }) ?? true,
               !apiKey.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               configuration.sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0.name, value: $0.value) }) ?? true,
               var parts = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false),
@@ -204,7 +218,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         if !path.hasSuffix("/chat/completions") { path += "/chat/completions" }
         parts.percentEncodedPath = path
         guard let endpoint = parts.url else { throw HTTPChatModelError.invalidConfiguration }
-        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 90)
+        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.httpShouldHandleCookies = false
         if !key.isEmpty { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
@@ -243,7 +257,8 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private static func completion(_ data: Data) throws -> Reply {
         let response = try JSONDecoder().decode(Completion.self, from: data)
         guard let choice = response.choices.first, choice.finish_reason == "stop" else {
-            throw HTTPChatModelError.incompleteResponse
+            throw response.choices.first?.finish_reason == "length"
+                ? HTTPChatModelError.truncatedResponse : HTTPChatModelError.incompleteResponse
         }
         guard !choice.message.content.isEmpty else { throw HTTPChatModelError.invalidResponse }
         return Reply(text: choice.message.content, usage: response.usage?.value)
@@ -283,6 +298,31 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private struct Choice: Decodable {
         let message: ModelMessage
         let finish_reason: String?
+    }
+}
+
+/// Hands streamed text to a reader without failing or losing any when it falls behind.
+/// The 2026-11-16 iPad test failed a long reply with consumerTooSlow: each delta redrew
+/// the growing reply, so the reader fell more than 256 deltas behind a fast stream.
+/// Text that does not fit in the queue waits and goes out joined with the next delta.
+public enum ModelStreamHandoff {
+    /// Small, so a reader that falls behind soon gets joined text instead of a long backlog.
+    public static let queuedDeltas = 16
+
+    /// False when the queue is full: keep the text and offer it again joined with more.
+    public static func offer(_ text: String, to continuation: AsyncThrowingStream<String, Error>.Continuation) throws -> Bool {
+        switch continuation.yield(text) {
+        case .enqueued: return true
+        case .dropped: return false
+        case .terminated: throw CancellationError()
+        @unknown default: return false
+        }
+    }
+
+    /// Waits for room for the text that is still waiting; cancellation ends the wait.
+    public static func flush(_ text: String, to continuation: AsyncThrowingStream<String, Error>.Continuation) async throws {
+        guard !text.isEmpty else { return }
+        while try !offer(text, to: continuation) { try await Task.sleep(nanoseconds: 10_000_000) }
     }
 }
 

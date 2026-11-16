@@ -6199,6 +6199,24 @@
       }
     },
     {
+      "case": "chatModelFailedTruncated",
+      "key": "chat.modelFailed.truncated",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：回覆超過模型的輸出上限，沒有完整結束。請換個比較短的問法再試。",
+        "en": "The model call failed: the reply hit the model’s output limit before it finished. Try asking for a shorter answer."
+      }
+    },
+    {
+      "case": "chatReplyTruncatedNote",
+      "key": "chat.reply.truncatedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "（回覆超過模型的輸出上限，到這裡被截斷了。）",
+        "en": "(The reply hit the model’s output limit and was cut off here.)"
+      }
+    },
+    {
       "case": "chatModelFailedUnreadable",
       "key": "chat.modelFailed.unreadable",
       "parameters": [],

@@ -201,7 +201,8 @@ public enum ChatWebTaskPrompts {
                 sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) },
                 jitter: @escaping () -> Double = { Double.random(in: 0...1) }) {
         self.client = client; self.executor = executor
-        self.configuration = configuration.withMaxOutputTokens(max(configuration.maxOutputTokens, settings.outputTokens))
+        // No limit stays none, like Play's Chat Completions client; a set one is raised to the task's.
+        self.configuration = configuration.maxOutputTokens.map { configuration.withMaxOutputTokens(max($0, settings.outputTokens)) } ?? configuration
         self.apiKey = apiKey; self.settings = settings; self.pause = pause ?? ChatWebTaskPause()
         self.sleep = sleep; self.jitter = jitter
     }

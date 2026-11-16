@@ -45,14 +45,14 @@ enum ModelClientChecks {
                 try checks.expect(request.value(forHTTPHeaderField: "User-Agent") == "WoowAssistant/0.1", "Descriptive user agent")
                 try checks.expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json", "JSON content type")
                 try checks.expect(request.value(forHTTPHeaderField: "Accept") == (stream ? "text/event-stream" : "application/json"), "Accept")
-                try checks.expect(request.timeoutInterval == 90, "90 second timeout")
+                try checks.expect(request.timeoutInterval == 120, "120 second idle timeout, like Play's read timeout")
                 try checks.expect(!request.httpShouldHandleCookies, "No cookies")
                 let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
                 try checks.expect(body["model"] as? String == "test-model", "Model field")
                 try checks.expect(body["stream"] as? Bool == stream, "Stream field")
-                try checks.expect(body["max_tokens"] as? Int == 1024, "Default output limit")
+                try checks.expect(body["max_tokens"] == nil, "No output limit unless one is set, like Play")
                 try checks.expect((body["messages"] as? [[String: String]]) == [["role": "user", "content": "你好 🏡"]], "Messages")
-                try checks.expect(body.count == 4, "Only agreed fields")
+                try checks.expect(body.count == 3, "Only agreed fields")
             }
         }
         for tokens in [1, 64, 8192] {
@@ -156,7 +156,9 @@ enum ModelClientChecks {
             (Data([100, 97, 116, 97, 58, 32, 0xFF, 10, 10]), .invalidResponse),
             (Data("event: error\ndata: {}\n\n".utf8), .invalidResponse),
             (Data("data: {\"choices\":[]}\n\n".utf8), .invalidResponse),
-            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length")).utf8), .incompleteResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length")).utf8), .truncatedResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8), .truncatedResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + textEvent + doneEvent).utf8), .invalidResponse),
             (Data((textEvent + stopEvent + textEvent + doneEvent).utf8), .invalidResponse),
             (Data(textEvent.replacingOccurrences(of: "\"index\":0", with: "\"index\":1").utf8), .invalidResponse),
             (Data(repeating: 65, count: ChatSSEParser.maximumEventBytes + 1), .responseTooLarge)
@@ -167,6 +169,18 @@ enum ModelClientChecks {
                 for byte in bytes { _ = try parser.append(byte) }
                 try parser.finish()
             }
+        }
+        do {
+            // The output limit cut the reply: its text so far comes out, then the stream throws.
+            var parser = ChatSSEParser()
+            var text = ""
+            try checks.error(.truncatedResponse) {
+                for byte in Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8) {
+                    if let delta = try parser.append(byte) { text += delta }
+                }
+                try parser.finish()
+            }
+            try checks.expect(text == "你好 🏡", "Text before the cut is kept")
         }
         try checks.error(.responseTooLarge) {
             var parser = ChatSSEParser()
@@ -196,7 +210,7 @@ enum ModelClientChecks {
             (200, "text/html", completion, .invalidResponse),
             (200, "application/json", Data("RAW_BODY_\(fakeKey)".utf8), .invalidResponse),
             (200, "application/json", Data(#"{"choices":[]}"#.utf8), .incompleteResponse),
-            (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":"partial"},"finish_reason":"length"}]}"#.utf8), .incompleteResponse),
+            (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":"partial"},"finish_reason":"length"}]}"#.utf8), .truncatedResponse),
             (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"stop"}]}"#.utf8), .invalidResponse),
             (200, "application/json", Data(repeating: 65, count: ChatSSEParser.maximumResponseBytes + 1), .responseTooLarge)
         ] {
@@ -355,15 +369,27 @@ enum ModelClientChecks {
         let base = ModelProtocolFixture.register(fixture)
         defer { ModelProtocolFixture.remove(base) }
         let stream = HTTPChatModelClient(session: session).stream(messages: messages, configuration: .init(baseURL: base, model: "test"), apiKey: fakeKey)
-        // The producer cancels the held-open request after overflowing its queue.
-        // Wait for that observable event instead of assuming a parsing speed.
+        // The producer reads to [DONE] and ends the held-open request while nobody
+        // reads yet. Wait for that observable event instead of assuming a parsing speed.
         try await wait { fixture.stopCount > 0 }
-        var count = 0
+        var count = 0, text = ""
+        for try await delta in stream { count += 1; text += delta }
+        try checks.expect(text == String(repeating: "你好 🏡", count: 300), "A reader that fell behind still gets every character, in order")
+        try checks.expect(count <= ModelStreamHandoff.queuedDeltas + 1, "Text that waited arrives joined, not as a long backlog")
         do {
-            for try await _ in stream { count += 1 }
-            throw CheckFailure(name: "Slow consumer must not lose text silently")
-        } catch let error as HTTPChatModelError { try checks.expect(error == .consumerTooSlow, "Bounded output buffer") }
-        try checks.expect(count == 256, "Exactly bounded pending deltas")
+            // A cut reply read late: all of its text first, then truncatedResponse.
+            let cut = ModelProtocolFixture.Scenario(mime: "text/event-stream", chunks: [Data((String(repeating: textEvent, count: 300) + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8)], holdAfterBody: true)
+            let cutBase = ModelProtocolFixture.register(cut)
+            defer { ModelProtocolFixture.remove(cutBase) }
+            let cutStream = HTTPChatModelClient(session: session).stream(messages: messages, configuration: .init(baseURL: cutBase, model: "test"), apiKey: fakeKey)
+            try await wait { cut.stopCount > 0 }
+            var cutText = ""
+            do {
+                for try await delta in cutStream { cutText += delta }
+                throw CheckFailure(name: "A cut reply must end with truncatedResponse")
+            } catch let error as HTTPChatModelError { try checks.expect(error == .truncatedResponse, "A cut reply read late still ends as cut") }
+            try checks.expect(cutText == String(repeating: "你好 🏡", count: 300), "A slow reader of a cut reply gets all its text first")
+        }
         let request = URLRequest(url: base)
         let task = session.dataTask(with: request) // Never resumed.
         var denied = false

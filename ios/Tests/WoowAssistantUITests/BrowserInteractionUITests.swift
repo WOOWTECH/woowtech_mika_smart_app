@@ -126,7 +126,13 @@ final class BrowserInteractionUITests: XCTestCase {
     }
     private func choose(_ label: String) {
         let element = control(label)
-        revealLearningElement(element, in: app)
+        // On iPad the controls sheet floats over the page, and revealLearningElement
+        // can measure the page's scroll view behind it, so a control in plain sight
+        // failed its visibility check (runs 43649836107, 43669040242, 43688216653).
+        // A control that is already on screen and hittable needs no scrolling.
+        if !(element.exists && element.isHittable && app.frame.contains(element.frame)) {
+            revealLearningElement(element, in: app)
+        }
         XCTAssertTrue(element.isEnabled)
         element.tap()
     }
@@ -170,8 +176,8 @@ final class BrowserInteractionUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "browser.control.", label))
     }
     /// State inspection only: a disabled button need not be hittable. Never use
-    /// this helper to authorize a tap; all actionable Form controls retain the
-    /// existing full-visibility AND hittability checks in revealLearningElement.
+    /// this helper to authorize a tap; an actionable control is tapped only when
+    /// it is hittable on screen, scrolled there by revealLearningElement if not.
     private func revealDisabledRowForStateAssertion(_ element: XCUIElement,
                                                     file: StaticString = #filePath, line: UInt = #line) {
         let candidates = app.collectionViews.allElementsBoundByIndex + app.scrollViews.allElementsBoundByIndex

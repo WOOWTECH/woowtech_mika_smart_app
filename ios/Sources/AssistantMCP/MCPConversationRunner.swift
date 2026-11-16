@@ -244,7 +244,7 @@ public struct MCPConversationRunner: Sendable {
             default: return .modelHTTPRejected
             }
         case .invalidResponse: return .modelInvalidResponse
-        case .incompleteResponse: return .modelIncompleteResponse
+        case .incompleteResponse, .truncatedResponse: return .modelIncompleteResponse
         case .responseTooLarge: return .modelResponseTooLarge
         // Configuration/redirect failures and streaming-only backpressure retain
         // the generic safe category; complete() never streams model output here.

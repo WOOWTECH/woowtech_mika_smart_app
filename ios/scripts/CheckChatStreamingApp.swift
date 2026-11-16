@@ -1399,7 +1399,8 @@ private actor StreamMCP: MCPDiscovering {
             (.httpStatus(402), .chatModelFailedQuota), (.httpStatus(404), .chatModelFailedNotFound),
             (.httpStatus(429), .chatModelFailedRateLimited), (.httpStatus(503), .chatModelFailedServer(status: 503)),
             (.httpStatus(400), .chatModelFailedStatus(status: 400)), (.transportFailure, .chatModelFailedNetwork),
-            (.incompleteResponse, .chatModelFailedStreamCut), (.invalidResponse, .chatModelFailedUnreadable),
+            (.incompleteResponse, .chatModelFailedStreamCut), (.truncatedResponse, .chatModelFailedTruncated),
+            (.invalidResponse, .chatModelFailedUnreadable),
             (.timedOut, nil), (.redirectRejected, nil)]
         let chinese = AppLocalizer(language: .traditionalChinese)
         for (error, expected) in cases {
@@ -1424,6 +1425,47 @@ private actor StreamMCP: MCPDiscovering {
                     "an English interface keeps the reason in English")
         english.newConversation()
         try a.check(english.entries.isEmpty && english.chatError == nil && english.chatErrorText == nil, "a new conversation starts clean")
+        return a.count
+    }
+
+    /// Like Play's AgentLoop, a reply the output limit cut (finish_reason
+    /// length) is asked for once more, shorter; cut again, the text already on
+    /// screen stays as the reply with a note. No output limit is sent by default.
+    static func truncatedReplyAsksOnceThenKeepsText() async throws -> Int {
+        var a = Assertions()
+        func sse(_ text: String, _ reason: String) -> Data {
+            Data(("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\(text)\"},\"finish_reason\":null}]}\n\n"
+                  + "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"\(reason)\"}]}\n\ndata: [DONE]\n\n").utf8)
+        }
+        func body(_ request: URLRequest?) throws -> [String: Any] {
+            guard let request, let value = try JSONSerialization.jsonObject(with: interceptedBody(request)) as? [String: Any] else {
+                throw Failure(name: "intercepted body is not a JSON object")
+            }
+            return value
+        }
+        for cutTwice in [false, true] {
+            let fixture = ModelProtocolFixture.Scenario(status: 200, mime: "text/event-stream", chunks: [sse("Cut once", "length")],
+                followUp: .init(status: 200, mime: "text/event-stream",
+                                chunks: [sse(cutTwice ? "Cut twice" : "Short answer", cutTwice ? "length" : "stop")]))
+            let url = ModelProtocolFixture.register(fixture); defer { ModelProtocolFixture.remove(url) }
+            let transport = ModelProtocolFixture.session(); defer { transport.invalidateAndCancel() }
+            let e = try StreamEnvironment(baseURL: url); defer { e.close() }
+            let session = e.session(HTTPChatModelClient(session: transport))
+            await (try start(session, "Write a long guide")).value
+            let requests = fixture.requestSnapshot
+            try a.check(requests.count == 2, "a cut reply is asked for exactly once more")
+            let first = try body(requests.first), second = try body(requests.last)
+            try a.check(first["max_tokens"] == nil && second["max_tokens"] == nil, "no output limit is sent, like Play")
+            let asked = first["messages"] as? [[String: String]] ?? [], again = second["messages"] as? [[String: String]] ?? []
+            try a.check(!asked.isEmpty && again == asked + [["role": "assistant", "content": "Cut once"],
+                                                           ["role": "user", "content": ChatSession.truncatedReplyNudge]],
+                        "the second request carries the cut text and Play's shorter-answer nudge")
+            let expected = cutTwice
+                ? "Cut twice\n\n" + AppLocalizer(language: .traditionalChinese).text(.chatReplyTruncatedNote) : "Short answer"
+            try a.check(session.entries.last?.role == "assistant" && session.entries.last?.outcome == nil
+                        && session.entries.last?.content == expected && session.chatError == nil && !session.isSubmitting,
+                        cutTwice ? "cut again, the text on screen stays as the reply with a note" : "the shorter answer is the reply")
+        }
         return a.count
     }
 
@@ -1553,7 +1595,7 @@ private actor StreamMCP: MCPDiscovering {
                 ChatStreamingChecks.structuredTransportCompatibility(), ChatStreamingChecks.structuredRepliesSurviveLearningChanges(),
                 ChatStreamingChecks.unfinishedAndUnsavedBranchFences(), ChatStreamingChecks.sendBlockerExplainsWithoutStarting(),
                 ChatStreamingChecks.modelFailuresUsePlayWording(), ChatStreamingChecks.usageOptionFallback(),
-                ChatStreamingChecks.consentBeforeFirstSend()]
+                ChatStreamingChecks.truncatedReplyAsksOnceThenKeepsText(), ChatStreamingChecks.consentBeforeFirstSend()]
             #if DEBUG
             groups.append(try await ChatStreamingChecks.fixtureInteractionWindows())
             #endif
@@ -1571,6 +1613,9 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testUnfinishedAndUnsavedBranchFences() async throws { let n = try await ChatStreamingChecks.unfinishedAndUnsavedBranchFences(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testModelFailuresUsePlayWording() async throws { let n = try await ChatStreamingChecks.modelFailuresUsePlayWording(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testUsageOptionFallback() async throws { let n = try await ChatStreamingChecks.usageOptionFallback(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testTruncatedReplyAsksOnceThenKeepsText() async throws {
+        let n = try await ChatStreamingChecks.truncatedReplyAsksOnceThenKeepsText(); XCTAssertEqual(n, 8)
+    }
     @MainActor func testSendBlockerExplainsWithoutStarting() async throws { let n = try await ChatStreamingChecks.sendBlockerExplainsWithoutStarting(); XCTAssertEqual(n, 7) }
     @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }

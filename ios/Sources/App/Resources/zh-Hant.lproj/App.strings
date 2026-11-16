@@ -645,6 +645,8 @@
 "chat.modelFailed.notFound" = "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。";
 "chat.modelFailed.network" = "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。";
 "chat.modelFailed.streamCut" = "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。";
+"chat.modelFailed.truncated" = "呼叫模型失敗：回覆超過模型的輸出上限，沒有完整結束。請換個比較短的問法再試。";
+"chat.reply.truncatedNote" = "（回覆超過模型的輸出上限，到這裡被截斷了。）";
 "chat.modelFailed.unreadable" = "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。";
 "chat.modelFailed.server" = "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。";
 "chat.modelFailed.status" = "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。";
