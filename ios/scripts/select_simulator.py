@@ -2,8 +2,9 @@
 
 CI supplies a runtime matching its pinned Xcode. Local runs select the newest
 available iOS runtime. An optional device name must match exactly; requested
-filters never fall back to another runtime or device. No devices are created,
-erased, or otherwise changed.
+filters never fall back to another runtime or device. An iPad is selected only
+when its exact name is requested (the full regression's iPad row). No devices
+are created, erased, or otherwise changed.
 """
 
 import argparse
@@ -13,6 +14,7 @@ import sys
 
 
 def select_device(payload, runtime=None, device_name=None):
+    family = "iPad" if device_name is not None and device_name.startswith("iPad") else "iPhone"
     candidates = []
     for key, devices in payload.get("devices", {}).items():
         match = re.search(r"\.iOS-(\d+)-(\d+)(?:-(\d+))?$", key)
@@ -23,7 +25,7 @@ def select_device(payload, runtime=None, device_name=None):
             continue
         for device in devices:
             name = device.get("name", "")
-            if (device.get("isAvailable") and name.startswith("iPhone")
+            if (device.get("isAvailable") and name.startswith(family)
                     and (device_name is None or name == device_name)):
                 candidates.append((version, name, device["udid"]))
     if not candidates:
@@ -33,7 +35,7 @@ def select_device(payload, runtime=None, device_name=None):
         if device_name is not None:
             filters.append(f"device={device_name!r}")
         detail = " matching " + ", ".join(filters) if filters else ""
-        raise ValueError("No available iPhone with iOS 17+" + detail)
+        raise ValueError(f"No available {family} with iOS 17+" + detail)
     return sorted(candidates, reverse=True)[0][2]
 
 

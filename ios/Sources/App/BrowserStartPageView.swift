@@ -150,7 +150,11 @@ struct BrowserStartPageView: View {
                         Text(localizer.text(.browserStartSuggestionSubtitle)).font(.caption).foregroundStyle(palette.tertiary)
                     }
                     Spacer()
-                }.padding(.horizontal, 16).frame(minHeight: 56)
+                }
+                .padding(.horizontal, 16).frame(minHeight: 56)
+                // A plain button takes taps only on what it draws; the whole row
+                // counts, including the gap the Spacer leaves on a wide iPad row.
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain).accessibilityIdentifier("browser.suggestion.submit")
             ForEach(matchingHistory) { page in
@@ -188,6 +192,9 @@ struct BrowserStartPageView: View {
                     .foregroundStyle(palette.tertiary).lineLimit(1)
             }
             .padding(.horizontal, 16).frame(minHeight: 56)
+            // On iPad (run 43606357170) a tap in the middle of the row fell in the
+            // Spacer's gap and opened nothing; the whole row counts.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain).accessibilityIdentifier("browser.start.history.open.\(page.id)")
     }

@@ -161,10 +161,15 @@ enum ConversationArchiveChecks {
         let next = try ArchivedConversation(id: first.id, destination: dest, updatedAt: Date(),
             turns: first.turns + [.init(userText: "Continue", assistantText: "Second actual answer")])
         try state.save(next); try a.check(state.conversations[0].turns.count == 2, "append retains old pair")
-        let before = state
+        // Like the Play build a conversation is not tied to its model: the
+        // next turn on another model continues the row, which keeps that model.
         let changed = try ConversationDestination(baseURL: dest.baseURL, model: "other", credentialAccount: dest.credentialAccount)
-        try a.rejects("cross destination replacement") { try state.save(.init(id: first.id, destination: changed, updatedAt: Date(), turns: next.turns)) }
-        try a.check(state == before, "destination failure transactional")
+        let third = try ArchivedConversation(id: first.id, destination: changed, updatedAt: Date(),
+            turns: next.turns + [.init(userText: "On the other model", assistantText: "Third actual answer")])
+        try state.save(third)
+        try a.check(state.conversations[0].destination == changed && state.conversations[0].turns.count == 3,
+                    "another model continues the conversation and the row keeps the latest one")
+        let before = state
         try a.rejects("old prefix cannot overwrite") { try state.save(first) }
         try a.check(state == before, "stale failure transactional")
         try a.check(dest != ConversationDestination(baseURL: dest.baseURL, model: dest.model, credentialAccount: UUID()), "credential generation is identity")
@@ -180,7 +185,7 @@ enum ConversationArchiveChecks {
             var bad = json; bad.removeValue(forKey: field)
             try a.rejects("required archive field " + field) { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
-        for value: Any in [6, "1", NSNull()] {
+        for value: Any in [7, "1", NSNull()] {
             var bad = json; bad["version"] = value
             try a.rejects("unknown/malformed version") { _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: bad)) }
         }
@@ -203,20 +208,45 @@ enum ConversationArchiveChecks {
         return a.count
     }
 
+    /// Like the Play build saving never stops for lack of room: the oldest
+    /// conversations that are not pinned give way. 200 conversations, 1000
+    /// turns each and 8 MiB keep the one encrypted file quick to rewrite.
     static func boundedTransactions() throws -> Int {
         var a = Assertions(); let dest = try destination(); var state = ConversationArchive()
-        for _ in 0..<ConversationArchive.maximumConversations { try state.save(row(destination: dest)) }
-        let before = state
-        try a.rejects("full archive never evicts") { try state.save(row(destination: dest)) }
-        try a.check(state == before, "full archive unchanged")
+        try a.check(ConversationArchive.maximumConversations == 200 && ConversationArchive.maximumTurnsPerConversation == 1000
+                    && ConversationArchive.maximumEncodedBytes == 8 * 1024 * 1024, "archive bounds")
+        let start = Date(timeIntervalSince1970: 1_000)
+        var rows: [ArchivedConversation] = []
+        for n in 0..<ConversationArchive.maximumConversations {
+            let next = try ArchivedConversation(id: UUID(), destination: dest, updatedAt: start.addingTimeInterval(Double(n)),
+                                                turns: [.init(userText: "u\(n)", assistantText: "a")])
+            try state.save(next); rows.append(next)
+        }
+        try state.setPinned(id: rows[0].id, expectedPinnedAt: nil, pinned: true, at: start)
+        let newest = try ArchivedConversation(id: UUID(), destination: dest, updatedAt: start.addingTimeInterval(10_000),
+                                              turns: [.init(userText: "newest", assistantText: "a")])
+        let evicted = try state.save(newest)
+        try a.check(evicted == [rows[1].id] && state.conversations.count == ConversationArchive.maximumConversations
+                    && state.conversations.contains { $0.id == rows[0].id } && state.conversations.contains { $0.id == newest.id },
+                    "a full archive makes room: the oldest unpinned conversation gives way, never a pinned one")
         let turns = try (0..<ConversationArchive.maximumTurnsPerConversation).map { _ in try ArchivedConversationTurn(userText: "u", assistantText: "a") }
-        _ = try row(destination: dest, turns: turns); try a.check(turns.count == 200, "maximum complete turns accepted")
+        _ = try row(destination: dest, turns: turns); try a.check(turns.count == 1000, "maximum complete turns accepted")
         try a.rejects("turn overflow") { _ = try row(destination: dest, turns: turns + [.init(userText: "u", assistantText: "a")]) }
         try a.rejects("UTF8 overlength") { _ = try ArchivedConversationTurn(userText: String(repeating: "界", count: 349526), assistantText: "a") }
+        var bytes = ConversationArchive()
+        let half = String(repeating: "y", count: 700_000)
+        let older = try ArchivedConversation(id: UUID(), destination: dest, updatedAt: start,
+            turns: try (0..<3).map { _ in try ArchivedConversationTurn(userText: half, assistantText: half) })
+        try bytes.save(older)
+        let newer = try ArchivedConversation(id: UUID(), destination: dest, updatedAt: start.addingTimeInterval(1),
+            turns: try (0..<3).map { _ in try ArchivedConversationTurn(userText: half, assistantText: half) })
+        let gaveWay = try bytes.save(newer)
+        try a.check(gaveWay == [older.id] && bytes.conversations.map(\.id) == [newer.id],
+                    "the byte bound makes room the same way")
         var large = ConversationArchive()
-        let text = String(repeating: "x", count: 600_000)
-        let bigTurns = try (0..<3).map { _ in try ArchivedConversationTurn(userText: text, assistantText: text) }
-        try a.rejects("whole encoded byte bound") { try large.save(row(destination: dest, turns: bigTurns)) }
+        let text = String(repeating: "x", count: 900_000)
+        let bigTurns = try (0..<5).map { _ in try ArchivedConversationTurn(userText: text, assistantText: text) }
+        try a.rejects("one conversation beyond the byte bound, with nothing to give way") { try large.save(row(destination: dest, turns: bigTurns)) }
         try a.check(large.conversations.isEmpty, "byte overflow unchanged")
         let shared = try ArchivedConversationTurn(userText: "u", assistantText: "a")
         try a.rejects("same pair repeated in one record") { _ = try row(destination: dest, turns: [shared, shared]) }
@@ -404,7 +434,7 @@ enum ConversationArchiveChecks {
         // A pin must fail rather than evict turns or publish v4 without bytes.
         func nearLimit(_ length: Int) throws -> ConversationArchive {
             let text = String(repeating: "x", count: length)
-            let turns = try (0..<2).map { _ in try ArchivedConversationTurn(userText: text, assistantText: text) }
+            let turns = try (0..<5).map { _ in try ArchivedConversationTurn(userText: text, assistantText: text) }
             var result = ConversationArchive()
             try result.save(try conversationWithTurns(turns))
             return result
@@ -412,12 +442,12 @@ enum ConversationArchiveChecks {
         func conversationWithTurns(_ turns: [ArchivedConversationTurn]) throws -> ArchivedConversation {
             try .init(id: UUID(), destination: dest, updatedAt: Date(timeIntervalSince1970: 100), turns: turns)
         }
-        let seed = try nearLimit(780_000)
+        let seed = try nearLimit(800_000)
         let seedBytes = try JSONEncoder().encode(seed).count
-        let extra = (ConversationArchive.maximumEncodedBytes - seedBytes - 8) / 4
-        var almostFull = try nearLimit(780_000 + extra)
+        let extra = (ConversationArchive.maximumEncodedBytes - seedBytes - 8) / 10
+        var almostFull = try nearLimit(800_000 + extra)
         let remaining = ConversationArchive.maximumEncodedBytes - (try JSONEncoder().encode(almostFull).count)
-        try a.check((4...12).contains(remaining), "fixture has only a few spare encoded bytes")
+        try a.check((4...20).contains(remaining), "fixture has only a few spare encoded bytes")
         let beforeFailure = almostFull
         let fullID = almostFull.conversations[0].id
         do {
@@ -544,13 +574,51 @@ enum ConversationArchiveChecks {
         for n in 1..<ConversationArchive.maximumConversations {
             try full.save(row(destination: dest, turns: [.init(userText: "Q\(n)", assistantText: "A")]))
         }
-        let fullBefore = full
-        do {
-            _ = try ConversationBranchPlan.prepare(in: full, source: source, assistantID: turns[0].assistantID,
-                targetID: UUID(), title: "Branch", at: time, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
-            throw Failure(name: "branch cannot evict data at archive capacity")
-        } catch ConversationArchiveError.full { a.count += 1 }
-        try a.check(full == fullBefore, "capacity rejection preserves the entire archive")
+        let others = full.conversations.filter { $0.id != source.id }
+        guard let oldest = others.min(by: { $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt < $1.updatedAt })
+        else { throw Failure(name: "capacity fixture") }
+        let roomPlan = try ConversationBranchPlan.prepare(in: full, source: source, assistantID: turns[0].assistantID,
+            targetID: UUID(), title: "Branch", at: time, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        let made = try roomPlan.applying(to: full, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        try a.check(made.conversations.count == ConversationArchive.maximumConversations
+                    && made.conversations.contains { $0.id == source.id } && made.conversations.contains { $0.id == roomPlan.branch.id }
+                    && !made.conversations.contains { $0.id == oldest.id },
+                    "a branch at capacity makes room: the oldest unpinned conversation gives way, never its source")
+        return a.count
+    }
+
+    /// Like the Play build a turn that did not finish (沒有完成, 已停止。) stays in
+    /// its conversation; it needs the v6 archive and a branch keeps it as it was.
+    static func failedAndStoppedTurns() throws -> Int {
+        var a = Assertions(); let dest = try destination()
+        func version(_ archive: ConversationArchive) throws -> Int? {
+            (try JSONSerialization.jsonObject(with: JSONEncoder().encode(archive)) as? [String: Any])?["version"] as? Int
+        }
+        let turns = [try ArchivedConversationTurn(userText: "Q", assistantText: "A"),
+                     try ArchivedConversationTurn(userText: "Failed", assistantText: "呼叫模型失敗：請求太頻繁，請稍後再試。", outcome: .failed),
+                     try ArchivedConversationTurn(userText: "Stopped", assistantText: "已取消", outcome: .cancelled)]
+        var plain = ConversationArchive(); try plain.save(try row(destination: dest, turns: [turns[0]]))
+        try a.check(try version(plain) == 2, "answers alone keep the v2 encoding")
+        let record = try row(destination: dest, turns: turns)
+        var archive = ConversationArchive(); try archive.save(record)
+        let bytes = try JSONEncoder().encode(archive)
+        try a.check(try version(archive) == 6 && (try JSONDecoder().decode(ConversationArchive.self, from: bytes)) == archive,
+                    "failed and stopped turns upgrade to v6 and round-trip")
+        try a.check(archive.conversations[0].turns.map(\.outcome) == [nil, .failed, .cancelled], "outcomes survive")
+        var forged = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+        forged["version"] = 5
+        try a.rejects("v5 cannot carry failed or stopped turns") {
+            _ = try JSONDecoder().decode(ConversationArchive.self, from: JSONSerialization.data(withJSONObject: forged))
+        }
+        let plan = try ConversationBranchPlan.prepare(in: archive, source: record, assistantID: turns[2].assistantID,
+            targetID: UUID(), title: "Branch", at: Date(timeIntervalSince1970: 200), isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        try a.check(plan.branch.turns.map(\.outcome) == [nil, .failed, .cancelled]
+                    && plan.branch.turns.map(\.assistantText) == turns.map(\.assistantText),
+                    "a branch copies 沒有完成 and 已停止。 as they were")
+        let branched = try plan.applying(to: archive, isBusy: false, hasUnfinishedOrUnsavedTurn: false)
+        try a.check(try version(branched) == 6, "the branch keeps v6")
+        try archive.delete(id: record.id)
+        try a.check(try version(archive) == 6, "v6 never downgrades")
         return a.count
     }
 
@@ -563,8 +631,8 @@ enum ConversationArchiveChecks {
                           ConversationArchiveChecks.boundedTransactions(), ConversationArchiveChecks.renameMigrationAndLateAppend(),
                           ConversationArchiveChecks.versionCompatibility(),
                           ConversationArchiveChecks.pinMigrationOrderingAndCapacity(), ConversationArchiveChecks.quoteAndBranch(),
-                          ConversationArchiveChecks.independentVaultLocks()]
-        print("{\"groups\":8,\"assertions\":\(groups.reduce(0,+))}")
+                          ConversationArchiveChecks.failedAndStoppedTurns(), ConversationArchiveChecks.independentVaultLocks()]
+        print("{\"groups\":9,\"assertions\":\(groups.reduce(0,+))}")
     }
 }
 #else
@@ -572,6 +640,7 @@ import XCTest
 final class ConversationArchiveTests: XCTestCase {
     func testIndependentVaultLocks() throws { XCTAssertEqual(try ConversationArchiveChecks.independentVaultLocks(), 1) }
     func testQuoteAndBranch() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.quoteAndBranch(), 0) }
+    func testFailedAndStoppedTurns() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.failedAndStoppedTurns(), 0) }
     func testRoundTripAndIdentity() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.roundTripAndIdentity(), 0) }
     func testMalformedState() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.malformedState(), 0) }
     func testBoundedTransactions() throws { XCTAssertGreaterThan(try ConversationArchiveChecks.boundedTransactions(), 0) }

@@ -21,6 +21,21 @@ private struct LearningSnapshot: Codable {
     }
 }
 
+/// A line under the chat after Play's RunLearning (RunLearning.kt:85-157,
+/// strings_task.xml skill_learned / skill_verified / skill_suspended).
+struct ChatSkillNote: Equatable, Identifiable {
+    enum Kind: Equatable {
+        /// A new draft waits under 待確認; 看看 opens it.
+        case learned(draftID: UUID, description: String)
+        /// A skill used in a run judged done (also when it was already in use, like Play).
+        case verified(name: String)
+        /// A skill that kept not working was paused.
+        case suspended
+    }
+    let id = UUID()
+    let kind: Kind
+}
+
 @MainActor
 final class LearningStore: ObservableObject, SkillAuthoringStoring {
     @Published private(set) var memory = MemoryState()
@@ -29,6 +44,10 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     @Published private(set) var routes = WebRouteState()
     @Published private(set) var profile = UserProfileState()
     @Published private(set) var notes: [MemoryNote] = []
+    /// Play's skill notes under a reply: learned, now in regular use, paused.
+    @Published private(set) var skillNotes: [ChatSkillNote] = []
+    /// Set by 看看 under a learned-skill note; the memory page opens 待確認.
+    @Published private(set) var pendingSkillsRequest: UUID?
     @Published private(set) var error: String?
     @Published private(set) var notice: String?
     @Published private(set) var isLearning = false
@@ -286,7 +305,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
 
     func skillAuthoringSnapshot() -> SkillAuthoringSnapshot {
         SkillAuthoringSnapshot(state: skills, generation: generation,
-            availableToolNames: BrowserSession.toolNames, available: available)
+            availableToolNames: Self.skillToolNames, available: available)
     }
 
     /// Synchronous MainActor transaction. Check the reviewed generation before
@@ -322,7 +341,7 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
             let nextSkills = SkillsState()
             let nextProfile = UserProfileState()
             let retiredKeysRemoved = try saveSnapshot(LearningSnapshot(memory: nextMemory, skills: nextSkills, profile: nextProfile), rotateKey: true)
-            memory = nextMemory; skills = nextSkills; notes = []; available = true; error = nil
+            memory = nextMemory; skills = nextSkills; notes = []; skillNotes = []; available = true; error = nil
             websites = .init(); routes = .init(); profile = nextProfile
             notice = retiredKeysRemoved
                 ? "已清除個人檔案、記憶、技能與路線，並更新加密金鑰；模型和 MCP 設定保留。"
@@ -339,15 +358,19 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         if success { notes.removeAll { $0.undoToken == token } }
     }
 
-    func noteText(_ note: MemoryNote) -> String {
-        guard let item = memory.memories.first(where: { $0.id == note.memoryID }) else {
-            return note.kind == .forgot ? "已忘掉一條記憶" : "這條記憶已刪除"
-        }
+    /// The note under the reply, worded like Play's ChatViewModel.noteText: the
+    /// memory as it is now, or 一條已刪除的記憶 once it is gone.
+    func noteText(_ note: MemoryNote, localizer: AppLocalizer) -> String {
+        let item = memory.memories.first(where: { $0.id == note.memoryID })
+        let content = item?.content ?? localizer.text(.learningDeleted)
         switch note.kind {
-        case .added: return "記住了：\(item.content)"
-        case .updated: return "更新了：\(item.content)"
-        case .forgot: return "已忘掉一條記憶"
-        case .pending: return "待你確認做法：\(item.content)"
+        case .added: return localizer.text(.learningRemembered(value: content))
+        case .updated:
+            if let was = item?.replaces { return localizer.text(.learningUpdatedWas(value: content, was: was)) }
+            return localizer.text(.learningUpdated(value: content))
+        case .forgot:
+            return item == nil ? localizer.text(.learningForgot) : localizer.text(.learningForgotItem(value: content))
+        case .pending: return localizer.text(.learningPendingProcedure(value: content))
         }
     }
 
@@ -456,7 +479,93 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
     func resetConversationPresentation() {
         onUserChange?()
         cancelLearning()
-        notes = []; notice = nil
+        notes = []; skillNotes = []; notice = nil
+    }
+
+    /// Tool names a personal skill may mention when it is imported, edited or
+    /// restored: every tool Play knows (a skill shared from Play), the tools of
+    /// this app's chat and web tasks, and website research's. Like Play, a
+    /// mention is not a capability: tools this device lacks are noted on read.
+    static let skillToolNames: Set<String> = PlaySkillToolNames.known
+        .union(BrowserSession.toolNames).union(ChatWebCommand.toolNames).union(ChatSkillCommand.toolNames)
+        .union(["memory_search", "memory_save", "memory_edit", "profile_edit"])
+
+    /// A new request replaces the previous reply's skill notes.
+    func clearSkillNotes() { skillNotes = [] }
+
+    func requestPendingSkills() { pendingSkillsRequest = UUID() }
+    func pendingSkillsShown() { pendingSkillsRequest = nil }
+
+    /// Play's RunLearning after a chat web task (RunLearning.kt:85-117,134-157):
+    /// the outcomes of skills it used and, for a judged-done run of five or more
+    /// actions, a draft under 待確認. Nothing is published before the file is written.
+    @discardableResult
+    func applyChatLearning(_ assessment: SkillLearningAssessment, availableToolNames: Set<String>,
+                           builtinNames: Set<String>, expectedGeneration: UUID) -> Bool {
+        guard available, generation == expectedGeneration else { return false }
+        do {
+            var next = skills
+            let draft = try next.apply(assessment, availableToolNames: availableToolNames, builtinNames: builtinNames)
+            let used = assessment.usedSkills.map(\.name)
+            let verified = SkillLearningGate.result(for: assessment.evidence) == .verified ? Set(used) : []
+            var added = Self.outcomeNotes(before: skills, after: next, used: used, verified: verified)
+            if let draft {
+                let description = draft.document.description.isEmpty ? draft.name : draft.document.description
+                added.append(ChatSkillNote(kind: .learned(draftID: draft.id, description: description)))
+            }
+            if next != skills {
+                try persist(memory: memory, skills: next)
+                checkSkillReferenceRemoval(next)
+                skills = next; error = nil
+            }
+            skillNotes += added
+            return true
+        } catch is SkillsError {
+            // Like Play's RunLearning, a draft or outcome that no longer fits (the
+            // skills changed meanwhile, a draft of that name waits) is dropped quietly.
+            return false
+        } catch { self.error = [(LearningFileError.conflict), .busy].contains(error as? LearningFileError ?? .unavailable) ? Self.message(error) : "學習資料未儲存；原有技能與路線保留。"; return false }
+    }
+
+    /// Play's recordOutcomes for skills a chat skill step read (RunLearning.kt:120-132).
+    @discardableResult
+    func recordChatSkillOutcomes(_ references: [SkillUsedReference], evidence: SkillRunEvidence,
+                                 expectedGeneration: UUID) -> Bool {
+        guard available, generation == expectedGeneration, !references.isEmpty else { return false }
+        do {
+            var next = skills
+            var verified = Set<String>()
+            for reference in references {
+                // A skill turned off or changed since it was read keeps its record.
+                if (try? next.recordOutcome(reference: reference, evidence: evidence)) == .verified {
+                    verified.insert(reference.name)
+                }
+            }
+            // A verified run of a skill already in use changes nothing when its
+            // last five results were verified too; Play still says so.
+            let added = Self.outcomeNotes(before: skills, after: next, used: references.map(\.name), verified: verified)
+            if next != skills {
+                try persist(memory: memory, skills: next)
+                checkSkillReferenceRemoval(next)
+                skills = next; error = nil
+            }
+            skillNotes += added
+            return true
+        } catch { self.error = Self.message(error); return false }
+    }
+
+    /// Like Play: a skill that became paused says so; one recorded as verified
+    /// says it is in regular use (Play shows this for every such run).
+    static func outcomeNotes(before: SkillsState, after: SkillsState, used: [String], verified: Set<String>) -> [ChatSkillNote] {
+        var notes: [ChatSkillNote] = []
+        var seen = Set<String>()
+        for name in used where seen.insert(name).inserted {
+            guard let now = after.installed.first(where: { $0.name == name })?.status else { continue }
+            let was = before.installed.first(where: { $0.name == name })?.status
+            if now == .suspended && was != .suspended { notes.append(ChatSkillNote(kind: .suspended)) }
+            else if now == .active && verified.contains(name) { notes.append(ChatSkillNote(kind: .verified(name: name))) }
+        }
+        return notes
     }
 
     @discardableResult

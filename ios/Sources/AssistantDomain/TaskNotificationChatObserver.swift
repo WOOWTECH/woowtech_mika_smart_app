@@ -12,8 +12,9 @@ public struct TaskNotificationChatSnapshot: Equatable, Sendable {
 /// Reviews that wait for the person. MCP calls run without one, like the Play build.
 public enum TaskNotificationApprovalSource: Hashable { case profile, memory }
 
-/// Observes ChatSession's actual publication order: submitting -> optional approvals ->
-/// appended assistant -> submitting false. Failure/cancel never append an assistant.
+/// Observes ChatSession's actual publication order: appended question -> submitting ->
+/// optional approvals -> appended answer -> submitting false. A failed or stopped turn
+/// appends no answer (lastAssistantID is the last answer), so it never completes.
 /// Published callbacks must be forwarded synchronously on MainActor, without receive(on:).
 @MainActor public final class TaskNotificationChatObserver {
     private let service: TaskNotificationService
@@ -34,7 +35,9 @@ public enum TaskNotificationApprovalSource: Hashable { case profile, memory }
         guard value != submitting else { return }
         submitting = value
         if value {
-            let end = now().addingTimeInterval(180)
+            // Ordinary chat has no fixed time limit, like the Play build: a late
+            // answer still notifies, within the run maximum.
+            let end = now().addingTimeInterval(TaskNotificationService.maximumRunLifetime)
             deadline = end; ticket = service.begin(destination: .chat, deadline: end)
         } else {
             if let ticket { service.receive(.cancelled, for: ticket) }

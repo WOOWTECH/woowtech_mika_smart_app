@@ -40,6 +40,8 @@ struct AIResponseReportSheet: View {
     @State private var confirmDelete = false
     @State private var deletionResult: AIResponseReportDeletionResult?
     @State private var deleted = false
+    /// Counts successful deletions, so each one scrolls to 檢舉已刪除。.
+    @State private var deletions = 0
     @State private var now = AIResponseReportQueue.currentTimeMs()
 
     init(target: AIResponseReportTarget, delivery: AIResponseReportDelivery, localizer: AppLocalizer) {
@@ -54,13 +56,23 @@ struct AIResponseReportSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                responseSection
-                if hasNotices { noticeSection }
-                historySection
-                if !loading && !loadFailed && savedReport == nil { draftSection }
-                if hasResults { resultSection }
-                if let report = savedReport { savedSection(report) }
+            ScrollViewReader { proxy in
+                Form {
+                    responseSection
+                    // Play lists these results after the draft form, which the reload
+                    // after a deletion brings back. In the shorter iPad sheet (runs
+                    // 43628091777, 43669040242) that left 檢舉已刪除。 out of sight, so
+                    // the results come right after the response, and a deletion
+                    // scrolls to them at once.
+                    if hasResults { resultSection }
+                    if hasNotices { noticeSection }
+                    historySection
+                    if !loading && !loadFailed && savedReport == nil { draftSection }
+                    if let report = savedReport { savedSection(report) }
+                }
+                .onChange(of: deletions) { _, _ in
+                    withAnimation { proxy.scrollTo(Self.deletedRowID, anchor: .top) }
+                }
             }
             .navigationTitle(localizer.text(.chatReportTitle))
             .navigationBarTitleDisplayMode(.inline)
@@ -170,6 +182,8 @@ struct AIResponseReportSheet: View {
         }
     }
 
+    private static let deletedRowID = "chat.report.deletedRow"
+
     private var hasResults: Bool {
         failed || deleted || deletionResult == .retryable || deletionResult == .cannotVerify
     }
@@ -177,7 +191,10 @@ struct AIResponseReportSheet: View {
     private var resultSection: some View {
         Section {
             if failed { Text(localizer.text(.chatReportSaveFailed)).accessibilityIdentifier("chat.report.saveFailed") }
-            if deleted { Text(localizer.text(.chatReportDeleted)).accessibilityIdentifier("chat.report.deleted") }
+            if deleted {
+                Text(localizer.text(.chatReportDeleted)).accessibilityIdentifier("chat.report.deleted")
+                    .id(Self.deletedRowID)
+            }
             if deletionResult == .retryable { Text(localizer.text(.chatReportDeleteFailed)) }
             if deletionResult == .cannotVerify { Text(localizer.text(.chatReportDeleteUnverified)) }
         }
@@ -364,6 +381,7 @@ struct AIResponseReportSheet: View {
             history.removeAll { $0.id == id }
             showHistory = false
             deleted = true
+            deletions += 1
             loadVersion += 1
         }
         saving = false

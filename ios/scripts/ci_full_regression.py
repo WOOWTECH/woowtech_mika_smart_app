@@ -44,7 +44,9 @@ DOCUMENTS_COHORT_SECONDS = 65 * 60
 # document shard's window; every method keeps its own 240/300 s allowance.
 # The archive class, with the two message-menu tests, timed out the same way
 # on iOS 26.2 in PR #33's run; it runs after ui-mcp in the longer cohort.
-LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat", "ui-archive")
+# The memory shard took 24 and 31 minutes on the large simulator and then ran
+# past the 30-minute boundary in PR #37's run 43628091777, leaving no result.
+LONG_SLICE_SCOPES = ("ui-documents", "ui-startup", "ui-chat", "ui-archive", "ui-memory")
 SELECTIONS = {"all": IPHONES, "current": IPHONES[2:],
               "compact": IPHONES[:1], "large": IPHONES[1:2]}
 
@@ -192,7 +194,9 @@ def test_command(products, simulator_id, result, sl):
             "-destination", "platform=iOS Simulator,id=" + simulator_id,
             "-resultBundlePath", str(result), "-parallel-testing-enabled", "NO",
             "-test-timeouts-enabled", "YES", "-default-test-execution-time-allowance", "240",
-            "-maximum-test-execution-time-allowance", "420" if sl["scope"] == "ui-workspace" else "300",
+            # ui-learning: on a slow iPad simulator one research case ran past
+            # 300 s (PR #37 run 43669040242); it gets ui-workspace's 420 s cap.
+            "-maximum-test-execution-time-allowance", "420" if sl["scope"] in ("ui-workspace", "ui-learning") else "300",
             *sl["selectors"], "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_ALLOWED=YES"]
 
 

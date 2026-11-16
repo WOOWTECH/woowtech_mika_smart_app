@@ -7,7 +7,7 @@ enum OpenAIChatRequest {
     static let maximumAttachmentRequestBytes = 8 * 1024 * 1024
 
     static func body(model: String, messages: [ModelMessage], stream: Bool,
-                     maxOutputTokens: Int, vision: ModelVisionCapability, includeUsage: Bool = false) throws -> Data {
+                     maxOutputTokens: Int?, vision: ModelVisionCapability, includeUsage: Bool = false) throws -> Data {
         let attached = messages.filter { !$0.attachments.isEmpty }
         guard attached.count <= 1 else { throw ModelAttachmentError.multipleAttachments }
         if let message = attached.first {
@@ -49,7 +49,8 @@ enum OpenAIChatRequest {
         let model: String
         let messages: [WireMessage]
         let stream: Bool
-        let max_tokens: Int
+        /// Nil is not encoded: the provider's own limit applies.
+        let max_tokens: Int?
         /// Nil is not encoded at all.
         let stream_options: StreamOptions?
     }

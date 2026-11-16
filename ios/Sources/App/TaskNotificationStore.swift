@@ -51,6 +51,20 @@ import AssistantDomain
     func consumeRoute(_ id: UUID) { if route?.id == id { route = nil } }
 }
 
+@MainActor extension TaskNotificationService {
+    /// Android Fix.AllowNotifications, for 去開啟 on Settings › 通知 and 允許 on
+    /// the Settings status card, the only ways to turn task notifications on:
+    /// save the choice and ask iOS unless it was asked before. True when iOS
+    /// had already refused before this tap, so only its Settings can allow
+    /// them now. A refusal in the prompt just shown is the person's answer, so
+    /// nothing opens then.
+    func allowFromUserGesture() async -> Bool {
+        let refused = systemSettings.authorization == .denied
+        await enableFromUserGesture()
+        return refused
+    }
+}
+
 struct TaskNotificationStoreConfiguration: Equatable {
     let suite: String
     let scope: String

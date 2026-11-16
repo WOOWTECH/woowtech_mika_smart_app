@@ -312,3 +312,19 @@ or bundled-catalog parity, physical-device behavior, or native-app knowledge/con
 Evidence and remaining failures are recorded in [VERIFICATION.md](VERIFICATION.md).
 Do not substitute fixture-only UI counts for real-service behavior or missing
 browser/action-learning acceptance.
+
+## Learning from chat (2026-11-14)
+
+Like Play's RunLearning (RunLearning.kt:85-157): a chat web task that ends with an answer is judged against the
+pages it read and, when judged done in five or more actions without a hand-over the user finished or skipped
+or a refused confirmation, drafted as a skill under 待確認 (「渥屋助理學會了一項技能：…」 with 看看). A skill step
+that read personal skills sends Play's outcome judge (`ChatOutcomeJudge`); the verdict turns a trial skill
+regular (「這項技能用它辦成了事，轉為正式：…」) or, after failures, pauses it (「這項技能最近不靈，先停用了」). A step
+that ran out of calls or time counts as failed, like Play's StepLimit. Import, edit and restore accept every tool
+name Play knows (docs/evidence/play-964d7bec-tool-names.json) plus this app's own, and skill_read adds Play's
+note about tools this device does not have for personal skills too.
+
+Differences kept on purpose: a web task reads no skills, so its judgment is requested only when a draft is
+possible (five or more distinct actions, none of them the user's); the 「從做過的事裡學」 switch stops drafts,
+not outcomes, as in Play. Learning that finishes after Clear all, a skill change or the next message is dropped
+without a message (the learning generation), where Play would still record it. The judge waits at most 30 s.

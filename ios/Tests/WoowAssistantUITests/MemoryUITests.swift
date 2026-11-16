@@ -11,7 +11,10 @@ final class MemoryUITests: XCTestCase {
         continueAfterFailure = false
         // iPhone SE on iOS 18.5 needs about 70 s just to configure the model, so the
         // two-step clear case ran out of a 180 s allowance one relaunch from the end.
-        executionTimeAllowance = 240
+        // The iPad simulator is slower still (the edit, pin and delete case ran past
+        // 240 s there, run 43606357170), and on iPhone 17 (iOS 26.2, run 43669040242)
+        // the two-step clear case did too, so every case gets the 300 s maximum.
+        executionTimeAllowance = 300
     }
 
     override func tearDownWithError() throws {
@@ -100,6 +103,10 @@ final class MemoryUITests: XCTestCase {
     func testBrowserOpenedFromMemoryReturnsHereAndDrawerRemainsReachable() {
         launch()
         openMemory()
+        // Like Play's 網站登入 row, it counts the sites signed in to (none yet).
+        let signIns = app.buttons["memory.manageWebsites"].firstMatch
+        reveal(signIns)
+        XCTAssertTrue(signIns.label.contains("0 個"), signIns.label)
         tap("memory.manageWebsites", scroll: true)
         // Play's Website sign-ins list opens over the browser, where WebKit lists its sites.
         XCTAssertTrue(app.buttons["signIns.close"].waitForExistence(timeout: 10))
@@ -226,7 +233,7 @@ final class MemoryUITests: XCTestCase {
         let enabled = app.switches["skills.enabled.notes-test"].firstMatch
         reveal(enabled)
         setSwitch(enabled, value: "0")
-        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "已停用")
+        XCTAssertEqual(app.staticTexts["skills.state.notes-test"].firstMatch.label, "匯入的 · 已停用")
         setSwitch(enabled, value: "1")
         XCTAssertTrue(app.buttons["skills.share.notes-test"].firstMatch.exists)
         launch(reset: false)
@@ -343,7 +350,7 @@ final class MemoryUITests: XCTestCase {
     private func launch(reset: Bool = true) {
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].firstMatch.waitForExistence(timeout: 10))

@@ -17,14 +17,12 @@ func openModelSettings(in app: XCUIApplication, file: StaticString = #filePath, 
     XCTAssertTrue(link.isEnabled && link.isHittable, file: file, line: line)
     XCTAssertFalse(app.textFields["settings.baseURL"].exists,
                    "Model fields belong to the destination, not the Settings root.", file: file, line: line)
-    link.tap()
-    XCTAssertTrue(app.navigationBars["模型"].waitForExistence(timeout: 10), file: file, line: line)
+    XCTAssertTrue(tapExpecting(link, app.navigationBars["模型"]), file: file, line: line)
     XCTAssertTrue(app.buttons["models.role.main"].waitForExistence(timeout: 10), file: file, line: line)
     let custom = app.buttons["setup.preset.custom"]
     if custom.waitForExistence(timeout: 2) {
         revealLearningElement(custom, in: app, file: file, line: line)
-        custom.tap()
-        XCTAssertTrue(app.textFields["settings.baseURL"].waitForExistence(timeout: 10), file: file, line: line)
+        XCTAssertTrue(tapExpecting(custom, app.textFields["settings.baseURL"]), file: file, line: line)
     }
     XCTAssertFalse(link.isHittable, file: file, line: line)
     XCTAssertFalse(app.buttons["section.back"].isHittable,
@@ -104,8 +102,8 @@ func openModelProvider(_ name: String, in app: XCUIApplication, file: StaticStri
     let row = app.buttons["models.provider." + name]
     XCTAssertTrue(row.waitForExistence(timeout: 10), file: file, line: line)
     revealLearningElement(row, in: app, file: file, line: line)
-    row.tap()
-    XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 10), file: file, line: line)
+    // iPhone 17 (iOS 26.2, run 43649836107) lost this tap once; opening the page is safe to repeat.
+    XCTAssertTrue(tapExpecting(row, app.navigationBars[name]), file: file, line: line)
     XCTAssertTrue(app.buttons["provider.delete"].waitForExistence(timeout: 10), file: file, line: line)
 }
 

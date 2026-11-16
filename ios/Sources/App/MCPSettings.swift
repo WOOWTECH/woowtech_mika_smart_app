@@ -3,7 +3,7 @@ import Security
 
 enum MCPSettingsError: Error, LocalizedError {
     case keychainStatus(OSStatus)
-    case invalidEndpoint, unavailableKeychain, invalidTestNamespace, missingLiveTestEndpoint
+    case invalidEndpoint, invalidToken, unavailableKeychain, invalidTestNamespace, missingLiveTestEndpoint
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +11,8 @@ enum MCPSettingsError: Error, LocalizedError {
             return "MCP Keychain 存取失敗（系統代碼 \(status)）。"
         case .invalidEndpoint:
             return "請輸入完整 HTTPS MCP 端點，不可含帳密、片段或空白。查詢參數會與整個端點一起安全儲存。"
+        case .invalidToken:
+            return "存取權杖要是一行、不含空白的英數字與符號，最長 8 KB。"
         case .unavailableKeychain:
             return "無法存取 MCP Keychain，請解鎖裝置後再試。"
         case .invalidTestNamespace:
@@ -24,20 +26,53 @@ enum MCPSettingsError: Error, LocalizedError {
 protocol MCPEndpointStoring {
     func load() throws -> URL?
     func save(endpoint: String) throws
+    /// Removes everything saved for the server: endpoint, access token and tool choice.
     func remove() throws
+    /// Like the Play build's optional access token, sent as a Bearer header.
+    func loadToken() throws -> String?
+    func hasToken() throws -> Bool
+    /// nil removes the token.
+    func save(token: String?) throws
+    /// The tools the assistant may use; nil means all of them (the Play default).
+    func loadAllowedTools() throws -> [String]?
+    func save(allowedTools: [String]?) throws
 }
 
-/// The WHOLE webhook URL is a credential, including host, path and query.
-/// No endpoint, hostname, or secret is written to UserDefaults or diagnostic output.
+/// Test doubles that only hold an endpoint have no token and allow every tool.
+extension MCPEndpointStoring {
+    func loadToken() throws -> String? { nil }
+    func hasToken() throws -> Bool { try loadToken() != nil }
+    func save(token: String?) throws {}
+    func loadAllowedTools() throws -> [String]? { nil }
+    func save(allowedTools: [String]?) throws {}
+}
+
+/// The WHOLE webhook URL is a credential, including host, path and query, and so
+/// is the access token. Both, and the tool choice, live in this Keychain service
+/// (accounts "endpoint", "token", "allowed-tools"); FreshInstallKeychainReset
+/// removes the whole service after a reinstall.
+/// No endpoint, hostname, token or secret is written to UserDefaults or diagnostic output.
 struct MCPSettingsStore: MCPEndpointStoring {
     let service: String
     var failWrites = false
 
-    private var query: [String: Any] {
+    private var query: [String: Any] { query(account: "endpoint") }
+
+    private func query(account: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
          kSecAttrService as String: service,
-         kSecAttrAccount as String: "endpoint",
+         kSecAttrAccount as String: account,
          kSecAttrSynchronizable as String: false]
+    }
+
+    /// Bearer tokens are visible ASCII without spaces, so the header can never be
+    /// split or extended. Home Assistant's long-lived tokens are JWTs and pass.
+    static let maximumTokenBytes = 8192
+    static func validateToken(_ text: String) throws -> String {
+        let token = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty, token.utf8.count <= maximumTokenBytes,
+              token.utf8.allSatisfy({ (0x21...0x7e).contains($0) }) else { throw MCPSettingsError.invalidToken }
+        return token
     }
 
     static func validate(_ text: String) throws -> URL {
@@ -63,7 +98,12 @@ struct MCPSettingsStore: MCPEndpointStoring {
     }
 
     func load() throws -> URL? {
-        var query = query
+        guard let value = try read(account: "endpoint") else { return nil }
+        return try Self.validate(value)
+    }
+
+    private func read(account: String) throws -> String? {
+        var query = query(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
@@ -74,14 +114,19 @@ struct MCPSettingsStore: MCPEndpointStoring {
               let value = String(data: data, encoding: .utf8) else {
             throw MCPSettingsError.unavailableKeychain
         }
-        return try Self.validate(value)
+        return value
     }
 
     func save(endpoint: String) throws {
         let url = try Self.validate(endpoint)
+        try write(Data(url.absoluteString.utf8), account: "endpoint")
+    }
+
+    private func write(_ data: Data, account: String) throws {
         guard !failWrites else { throw MCPSettingsError.unavailableKeychain }
+        let query = query(account: account)
         let attributes: [String: Any] = [
-            kSecValueData as String: Data(url.absoluteString.utf8),
+            kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
         // Update the existing item atomically; never delete the old credential first.
@@ -93,11 +138,51 @@ struct MCPSettingsStore: MCPEndpointStoring {
         guard status == errSecSuccess else { throw MCPSettingsError.keychainStatus(status) }
     }
 
-    func remove() throws {
+    private func delete(_ query: [String: Any]) throws {
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw MCPSettingsError.keychainStatus(status)
         }
+    }
+
+    func remove() throws {
+        // Every account of the service: endpoint, token and tool choice.
+        try delete([kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrSynchronizable as String: false])
+    }
+
+    func loadToken() throws -> String? {
+        guard let value = try read(account: "token") else { return nil }
+        return try Self.validateToken(value)
+    }
+
+    func hasToken() throws -> Bool {
+        var query = query(account: "token")
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        if status == errSecItemNotFound { return false }
+        guard status == errSecSuccess else { throw MCPSettingsError.keychainStatus(status) }
+        return true
+    }
+
+    func save(token: String?) throws {
+        guard let token else { return try delete(query(account: "token")) }
+        try write(Data(try Self.validateToken(token).utf8), account: "token")
+    }
+
+    func loadAllowedTools() throws -> [String]? {
+        guard let value = try read(account: "allowed-tools") else { return nil }
+        guard let names = try? JSONDecoder().decode([String].self, from: Data(value.utf8)) else {
+            throw MCPSettingsError.unavailableKeychain
+        }
+        return names
+    }
+
+    func save(allowedTools: [String]?) throws {
+        guard let allowedTools else { return try delete(query(account: "allowed-tools")) }
+        let data = try JSONEncoder().encode(allowedTools)
+        try write(data, account: "allowed-tools")
     }
 
     static func makeDefault(arguments: [String] = ProcessInfo.processInfo.arguments,
@@ -138,6 +223,11 @@ struct MCPSettingsStore: MCPEndpointStoring {
                 }
                 _ = try Self.validateInjectedEndpoint(endpoint)
                 try store.save(endpoint: endpoint)
+                // Every tool starts allowed, like the Play build. A live run against
+                // a real server narrows that to its audited tools before connecting.
+                if let index = arguments.firstIndex(of: "-LiveMCPAllowedTools"), arguments.indices.contains(index + 1) {
+                    try store.save(allowedTools: arguments[index + 1].split(separator: ",").map(String.init))
+                }
             }
             if regular && arguments.contains("-UITestMode") && arguments.contains("-UITestMCPFixture") {
                 try store.save(endpoint: "https://fixture.invalid/mcp")

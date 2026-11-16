@@ -20,8 +20,13 @@ final class LiveMCPConversationUITests: XCTestCase {
             }
         }
         try LiveMCPNativeLifecycle.stopAndShowHome(app)
+        // Every tool starts allowed, like the Play build, so the launch narrows the
+        // saved choice to the audited read-only tools before anything connects.
+        let audited = name.contains("testRealModelUsesRemoteToolThenLocalMemoryAndUndo")
+            ? ["ha_eval_template"] : ["ha_eval_template", "ha_list_floors_areas"]
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
-            "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveMCPConversationUITest"]
+            "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveMCPConversationUITest", "-WoowSkipOnboarding",
+            "-LiveMCPAllowedTools", audited.joined(separator: ",")]
         app.launchEnvironment = Dictionary(uniqueKeysWithValues:
             ["WOOW_LIVE_API_KEY", "WOOW_LIVE_MODEL", "WOOW_LIVE_BASE_URL", "WOOW_LIVE_MCP_URL"].map { ($0, environment[$0]!) })
         launched = true
@@ -36,14 +41,11 @@ final class LiveMCPConversationUITests: XCTestCase {
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 95), .completed)
         XCTAssertFalse(app.staticTexts["mcp.error"].exists, "Actual MCP discovery failed.")
-        selectTool("ha_eval_template")
-        if name.contains("testRealModelUsesRemoteToolThenLocalMemoryAndUndo") {
-            let count = app.staticTexts["mcp.selectionCount"]
-            revealLearningElement(count, in: app, visibility: .readableText)
-            XCTAssertTrue(count.label == "已選取 1 個工具供對話使用")
-        } else {
-            selectTool("ha_list_floors_areas")
-        }
+        for tool in audited { selectTool(tool) }
+        // Nothing but the audited tools may be on.
+        let count = app.staticTexts["mcp.selectionCount"]
+        revealLearningElement(count, in: app, visibility: .readableText)
+        XCTAssertTrue(count.label == "已選取 \(audited.count) 個工具供對話使用")
         navigate("chat")
         let toggle = app.switches["chat.useMCP"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
@@ -61,7 +63,7 @@ final class LiveMCPConversationUITests: XCTestCase {
             XCTFail("LIVE_MCP_CLEANUP initial launch did not complete; namespace cleanup is unverified and isolated simulator removal is required.")
             return
         }
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-LiveModelUITest", "-LiveModelUITestNamespace", namespace, "-LiveModelUITestCleanup", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()
         try LiveMCPNativeLifecycle.requireForeground(app)
@@ -267,10 +269,14 @@ final class LiveMCPConversationUITests: XCTestCase {
         revealLearningElement(toggle, in: app)
         setSwitch(toggle)
     }
+    /// MCP tools start allowed, like the Play build, so only tap when it is off.
     private func setSwitch(_ toggle: XCUIElement) {
-        let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
-        XCTAssertTrue(target.isHittable)
-        target.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if toggle.value as? String != "1" {
+            let target = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+            XCTAssertTrue(target.isHittable)
+            target.tap()
+        }
         let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: toggle)
         XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
     }

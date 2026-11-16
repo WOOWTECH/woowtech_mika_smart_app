@@ -18,8 +18,11 @@ import AssistantDomain
         }.store(in: &subscriptions)
     }
 
+    /// The last answer: a turn that ended as 沒有完成 or 已停止。 adds an entry
+    /// but no answer, so it never reads as a completion.
     private static func project(_ entries: [ChatEntry]) -> TaskNotificationChatSnapshot {
-        TaskNotificationChatSnapshot(entryCount: entries.count, lastAssistantID: entries.last { $0.role == "assistant" }?.id)
+        TaskNotificationChatSnapshot(entryCount: entries.count,
+                                     lastAssistantID: entries.last { $0.role == "assistant" && $0.outcome == nil }?.id)
     }
     func invalidate() { subscriptions.removeAll(); observer.reset() }
 }

@@ -104,13 +104,14 @@ final class BrowserInteractionUITests: XCTestCase {
 
     private func launchFixture() {
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
-                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage"]
+                               "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"]
         app.launch()
         XCTAssertTrue(app.staticTexts["chat.status"].waitForExistence(timeout: 15))
         navigateMikaSection("browser", in: app)
-        enter(fixtureURL + "\n", into: app.textFields["browser.address"])
+        // Return submits once; the field then folds into the page's address pill.
+        focusBrowserAddress(in: app).typeText(fixtureURL + "\n")
         wait(app.staticTexts["browser.status"], "label == %@", "頁面已載入", timeout: 75)
-        XCTAssertEqual(app.textFields["browser.address"].value as? String, fixtureURL)
+        XCTAssertEqual(app.buttons["browser.addressPill"].value as? String, fixtureURL)
         XCTAssertTrue(dom("Interaction fixture").exists)
     }
     private func openControls() {
@@ -125,7 +126,13 @@ final class BrowserInteractionUITests: XCTestCase {
     }
     private func choose(_ label: String) {
         let element = control(label)
-        revealLearningElement(element, in: app)
+        // On iPad the controls sheet floats over the page, and revealLearningElement
+        // can measure the page's scroll view behind it, so a control in plain sight
+        // failed its visibility check (runs 43649836107, 43669040242, 43688216653).
+        // A control that is already on screen and hittable needs no scrolling.
+        if !(element.exists && element.isHittable && app.frame.contains(element.frame)) {
+            revealLearningElement(element, in: app)
+        }
         XCTAssertTrue(element.isEnabled)
         element.tap()
     }
@@ -169,8 +176,8 @@ final class BrowserInteractionUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "browser.control.", label))
     }
     /// State inspection only: a disabled button need not be hittable. Never use
-    /// this helper to authorize a tap; all actionable Form controls retain the
-    /// existing full-visibility AND hittability checks in revealLearningElement.
+    /// this helper to authorize a tap; an actionable control is tapped only when
+    /// it is hittable on screen, scrolled there by revealLearningElement if not.
     private func revealDisabledRowForStateAssertion(_ element: XCUIElement,
                                                     file: StaticString = #filePath, line: UInt = #line) {
         let candidates = app.collectionViews.allElementsBoundByIndex + app.scrollViews.allElementsBoundByIndex
@@ -219,9 +226,10 @@ final class BrowserInteractionUITests: XCTestCase {
         element.tap()
     }
     private func enter(_ value: String, into field: XCUIElement) {
-        if field.identifier == "browser.address" { waitForFixedChrome(field) }
-        else { revealLearningElement(field, in: app) }
-        if field.elementType == .textView {
+        revealLearningElement(field, in: app)
+        // Read the type before typing: a submitted field may be gone afterwards.
+        let isTextView = field.elementType == .textView
+        if isTextView {
             // The iOS 17 failure screenshot/AX shows the complete native
             // multiline editor, but element.tap() left it unfocused. Use a
             // point inside that verified frame; never tap a screen coordinate
@@ -233,7 +241,7 @@ final class BrowserInteractionUITests: XCTestCase {
         } else { field.tap() }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         field.typeText(value)
-        if field.elementType == .textView { XCTAssertEqual(field.value as? String, value) }
+        if isTextView { XCTAssertEqual(field.value as? String, value) }
     }
     private func waitForFixedChrome(_ element: XCUIElement) {
         wait(element, "exists == true AND hittable == true AND enabled == true")

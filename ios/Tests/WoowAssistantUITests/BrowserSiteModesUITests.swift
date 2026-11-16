@@ -4,7 +4,10 @@ import CoreGraphics
 final class BrowserSiteModesUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
-    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 180 }
+    // On iPhone 17 (iOS 26.2, run 43628091777) one tap on the page's note field
+    // waited 120 s for the web content, so 180 s ran out; the ui-workspace job
+    // allows 420 s per case.
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 300 }
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             let tree = XCTAttachment(string: app.debugDescription)
@@ -17,9 +20,7 @@ final class BrowserSiteModesUITests: XCTestCase {
 
     func testManualGETChoiceReloadsAndSurvivesRelaunch() throws {
         launch(reset: true)
-        let field = app.textFields["browser.address"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10)); field.tap()
-        field.typeText("https://research.example.invalid/workspace-one\n")
+        openWorkspace()
         let note = app.webViews.textFields["Tab note"]
         XCTAssertTrue(note.waitForExistence(timeout: 75))
         note.tap(); note.typeText("Retain this note")
@@ -35,20 +36,34 @@ final class BrowserSiteModesUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [reloaded], timeout: 30), .completed, "Known manual GET must reload and replace the form field")
         XCTAssertTrue(app.staticTexts["browser.siteMode.notice"].exists)
         XCTAssertTrue(app.staticTexts["browser.siteMode.notice"].label.contains("正在重新整理"))
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        // Like Play's page bar, the address pill carries a 電腦版 tag.
+        let pill = app.buttons["browser.addressPill"]
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid 電腦版")
+        // Like Play, a relaunch opens the start page; the site's choice is kept.
         launch(reset: false)
+        openWorkspace()
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("電腦版")
         XCTAssertEqual(mode.value as? String, "電腦版")
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid 電腦版")
         try chooseMode("mobile", from: "電腦版")
         try waitForMode("手機版")
         XCTAssertEqual(mode.value as? String, "手機版")
+        XCTAssertEqual(pill.label, "research.example.invalid")
         launch(reset: false)
+        openWorkspace()
         XCTAssertTrue(app.webViews.staticTexts["Workspace first"].waitForExistence(timeout: 75))
         try waitForMode("手機版")
         XCTAssertEqual(mode.value as? String, "手機版")
-        XCTAssertEqual(field.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.value as? String, "https://research.example.invalid/workspace-one")
+        XCTAssertEqual(pill.label, "research.example.invalid")
+    }
+
+    /// Type the fixture page on the start page, where the browser opens.
+    private func openWorkspace() {
+        focusBrowserAddress(in: app).typeText("https://research.example.invalid/workspace-one\n")
     }
 
     private var siteMode: XCUIElement {
@@ -59,9 +74,15 @@ final class BrowserSiteModesUITests: XCTestCase {
         // The captured failure includes this real WebKit input-accessory Done
         // button. A tap on an already-selected app tab does not resign focus.
         let done = app.toolbars.buttons.matching(NSPredicate(format: "label IN %@", ["Done", "完成"])).firstMatch
+        // An iPad keyboard has no input-accessory Done (iPad row, run 43606357170);
+        // its own key hides it.
+        let hide = app.keyboards.descendants(matching: .any).matching(
+            NSPredicate(format: "label IN %@", ["隱藏鍵盤", "Hide keyboard", "Dismiss keyboard"])).firstMatch
         if app.keyboards.firstMatch.exists || done.exists {
-            try wait("WebKit keyboard Done must be visible and hittable") { self.canTap(done) }
-            done.tap()
+            try wait("WebKit keyboard Done, or the iPad keyboard's hide key, must be visible and hittable") {
+                self.canTap(done) || self.canTap(hide)
+            }
+            if canTap(done) { done.tap() } else { hide.tap() }
         }
         try wait("WebKit keyboard and input accessory must actually close") {
             !self.app.keyboards.firstMatch.exists && !done.exists
@@ -140,7 +161,7 @@ final class BrowserSiteModesUITests: XCTestCase {
 
     private func launch(reset: Bool) {
         app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
         if reset { app.launchArguments.append("-UITestResetStorage") }
         app.launch()
         navigateMikaSection("browser", in: app)

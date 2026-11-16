@@ -13,6 +13,7 @@ struct ChatSSEParser {
     private var errorEvent = false
     private var receivedText = false
     private var stopped = false
+    private var truncated = false
     private(set) var done = false
     /// The last usable report in any event; read only after finish() succeeds.
     private(set) var usage: ModelTokenUsage?
@@ -37,7 +38,7 @@ struct ChatSSEParser {
 
     func finish() throws {
         // EOF never implicitly dispatches an unterminated SSE event.
-        guard done else { throw HTTPChatModelError.incompleteResponse }
+        guard done else { throw truncated ? HTTPChatModelError.truncatedResponse : HTTPChatModelError.incompleteResponse }
     }
 
     private mutating func finishLine() throws -> String? {
@@ -74,6 +75,7 @@ struct ChatSSEParser {
     private mutating func dispatch(_ data: String) throws -> String? {
         guard !done else { throw HTTPChatModelError.invalidResponse }
         if data == "[DONE]" {
+            guard !truncated else { throw HTTPChatModelError.truncatedResponse }
             guard stopped, receivedText else { throw HTTPChatModelError.incompleteResponse }
             done = true
             return nil
@@ -87,10 +89,15 @@ struct ChatSSEParser {
             return nil
         }
         guard chunk.choices.count == 1, let choice = chunk.choices.first,
-              choice.index == 0, !stopped else { throw HTTPChatModelError.invalidResponse }
+              choice.index == 0, !stopped, !truncated else { throw HTTPChatModelError.invalidResponse }
         if let reason = choice.finish_reason {
-            guard reason == "stop" else { throw HTTPChatModelError.incompleteResponse }
-            stopped = true
+            switch reason {
+            case "stop": stopped = true
+            // The output limit cut the reply: its text so far still comes out
+            // and the stream then ends by throwing truncatedResponse.
+            case "length": truncated = true
+            default: throw HTTPChatModelError.incompleteResponse
+            }
         }
         if let text = choice.delta.content, !text.isEmpty {
             receivedText = true

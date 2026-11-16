@@ -70,8 +70,9 @@ struct VoiceSettingsView: View {
     }
 
     /// The same test the device driver makes before it records: on-device
-    /// recognition for the current locale. Asks for no permission.
-    private nonisolated static func deviceRecognitionAvailable() -> Bool {
+    /// recognition for the current locale. Asks for no permission. The model
+    /// page's speech card shows it too.
+    nonisolated static func deviceRecognitionAvailable() -> Bool {
         #if canImport(Speech)
         guard let recognizer = SFSpeechRecognizer(locale: .current) else { return false }
         return recognizer.isAvailable && recognizer.supportsOnDeviceRecognition

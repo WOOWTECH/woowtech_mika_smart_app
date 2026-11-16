@@ -137,6 +137,22 @@ func revealLearningElement(_ element: XCUIElement, in app: XCUIApplication,
 
 /// Open a real drawer row from the chat root. Browser opened from Memory has
 /// one extra return step; use the visible top-bar controls for both hops.
+/// Taps a control whose action is safe to repeat (open the drawer, pick a
+/// drawer row, open a pushed page, pick a preset) and waits for its result.
+/// On the iOS 26.2 and iPhone SE CI simulators a synthesized tap now and then
+/// never reached the app (runs 43586031812, 43598553970, 43606357170 and
+/// 43628091777: menu, 自訂 and 模型 taps left the screen unchanged). Only when
+/// nothing appeared within `timeout` and the control is still there to tap is
+/// it tapped once more; text input is never repeated this way.
+@discardableResult
+func tapExpecting(_ control: XCUIElement, _ result: XCUIElement, timeout: TimeInterval = 10) -> Bool {
+    control.tap()
+    if result.waitForExistence(timeout: timeout) { return true }
+    guard control.exists, control.isHittable else { return false }
+    control.tap()
+    return result.waitForExistence(timeout: timeout)
+}
+
 func navigateMikaSection(_ section: String, in app: XCUIApplication,
                          file: StaticString = #filePath, line: UInt = #line) {
     let menu = app.buttons["chat.menu"]
@@ -169,13 +185,12 @@ func navigateMikaSection(_ section: String, in app: XCUIApplication,
     // interrupt a task merely to satisfy an old bottom-tab tap.
     if app.buttons["section.back"].isHittable && app.staticTexts["\(section).status"].exists { return }
     guard reachChatRoot() else { return }
-    menu.tap()
     let row = app.buttons["navigation.\(section)"]
+    tapExpecting(menu, row)
     guard row.waitForExistence(timeout: 10), row.isHittable else {
         XCTFail("Drawer route \(section) must be visible and hittable", file: file, line: line); return
     }
-    row.tap()
-    XCTAssertTrue(app.buttons["section.back"].waitForExistence(timeout: 10), file: file, line: line)
+    XCTAssertTrue(tapExpecting(row, app.buttons["section.back"]), file: file, line: line)
 }
 
 /// The composer and fixed controls must remain above the native keyboard.

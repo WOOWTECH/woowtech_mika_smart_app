@@ -13,6 +13,9 @@ struct ChatWebTaskEnvironment {
     let searchTemplate: String
     /// Debug fixtures only.
     var fixtureOrigin: URL?
+    /// Sites the task tab sees the person signed in to go to the browser's
+    /// 網站登入 list (BrowserWorkspace), like Play's SiteRegistry.
+    var onSignInObserved: ((URL, BrowserSignInState) -> Void)?
     /// Debug fixtures only: no 4–12 s waits between pages of one site.
     var skipsPacing = false
 }
@@ -54,6 +57,7 @@ struct ChatWebTaskEnvironment {
     init(client: any ChatModelClient, configuration: ModelConfiguration, apiKey: String,
          environment: ChatWebTaskEnvironment) {
         tab = ChatWebTaskTab(dataStore: environment.dataStore, fixtureOrigin: environment.fixtureOrigin)
+        tab.onSignInObserved = environment.onSignInObserved
         let skips = environment.skipsPacing
         runner = ChatWebTaskRunner(client: client, executor: tab, configuration: configuration, apiKey: apiKey,
                                    settings: .init(searchTemplate: environment.searchTemplate, fixtureOrigin: environment.fixtureOrigin),

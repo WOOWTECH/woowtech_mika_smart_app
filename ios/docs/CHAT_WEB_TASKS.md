@@ -34,8 +34,9 @@ such as 付款紀錄 are not actions) and the page's amount to pay (a number nex
 to 合計、總計、實付、應付…):
 - paying is never done: the result is `payment_requires_user`;
 - ordering, or submitting/deleting while the page shows an amount to pay,
-  needs `request_confirmation`; the card shows 要你同意：… with
-  花錢的操作每次都要你同意。 and 拒絕 / 允許這一次. The OK covers the next
+  needs `request_confirmation`; like Play's card, it shows 要你同意：<下單／
+  提交／刪除>, then 在 <site>, 目標：<button>, 內容：<what it sends> and
+  金額：<amount>, with 花錢的操作每次都要你同意。 and 拒絕 / 允許這一次. The OK covers the next
   matching step on the same site within three steps, with the same target
   and amount; any other action except typing ends it; ordering and
   submitting cover each other; a refusal holds for that site for the rest of

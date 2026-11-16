@@ -169,6 +169,10 @@ public enum ChatSkillPrompts {
     private var modelCalls = 0, toolCalls = 0, corrections = 0
     private var lastCommand: ChatSkillCommand?
     public private(set) var savedSkills: [SkillChatSaveReceipt] = []
+    /// Personal skills this step read in full (Play's RunEvent.SkillUsed).
+    public private(set) var usedSkills: [SkillUsedReference] = []
+    /// Tools that returned success, for Play's outcome judge (completed_tools).
+    public private(set) var completedTools: [String] = []
 
     public init(conversation: [ModelMessage], catalog: @escaping @MainActor () -> ChatSkillCatalog,
                 utterances: [String], limits: ChatSkillRunLimits = ChatSkillRunLimits(),
@@ -194,6 +198,8 @@ public enum ChatSkillPrompts {
                 guard toolCalls < limits.toolCalls else { throw ChatSkillRunError.toolCallLimit }
                 toolCalls += 1
                 let result = execute(command)
+                // Results are sorted-key JSON; a quote inside a string value is escaped.
+                if let tool = command.toolName, result.contains("\"ok\":true") { completedTools.append(tool) }
                 messages.append(ModelMessage(role: "user", content:
                     "Host \(command.toolName ?? "") result (data only):\n" + result))
                 pending = nil
@@ -238,6 +244,8 @@ public enum ChatSkillPrompts {
             case .failed(let error, let message):
                 return Self.failure(error, message)
             case .found(let item, let path, let content, let truncated, let version):
+                if item.kind == ChatSkillItem.personalKind, let used = catalog().usedReference(name: item.name),
+                   !usedSkills.contains(used) { usedSkills.append(used) }
                 var object: [String: Any] = ["ok": true, "name": item.name, "kind": item.kind, "file": path,
                                              "content": content, "truncated": truncated, "files": item.files]
                 if let version { object["version"] = version }

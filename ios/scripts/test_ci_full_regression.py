@@ -161,6 +161,8 @@ class FullRegressionPlanTests(unittest.TestCase):
         self.assertEqual(cmd[cmd.index('-maximum-test-execution-time-allowance') + 1], '300')
         workspace = next(s for r in self.plan['rows'] for s in r['slices'] if s['scope'] == 'ui-workspace')
         self.assertIn('420', ci.test_command(Path('p'), 'id', Path('r'), workspace))
+        learning = next(s for r in self.plan['rows'] for s in r['slices'] if s['scope'] == 'ui-learning')
+        self.assertIn('420', ci.test_command(Path('p'), 'id', Path('r'), learning))
 
     def test_completion_rejects_missing_skips_nonzero_exit_and_wrong_core_suites(self):
         row = self.plan['rows'][1]; sl = row['slices'][0]
@@ -276,8 +278,8 @@ class FullRegressionPlanTests(unittest.TestCase):
             self.assertAlmostEqual(durations[0], ci.SLICE_SECONDS, delta=1)
             self.assertAlmostEqual(durations[1], ci.DOCUMENTS_SLICE_SECONDS, delta=1)
 
-    def test_startup_and_chat_shards_get_the_long_window(self):
-        for scope in ('ui-startup', 'ui-chat'):
+    def test_startup_chat_and_memory_shards_get_the_long_window(self):
+        for scope in ('ui-startup', 'ui-chat', 'ui-memory'):
             row = next(r for r in self.plan['rows'] if r['slices'][0]['scope'] == scope)
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)

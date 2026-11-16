@@ -245,7 +245,7 @@ import Foundation
                 switch error {
                 case .timedOut: throw SkillToolError.timedOut
                 case .httpStatus: throw SkillToolError.modelRejected
-                case .invalidResponse, .incompleteResponse, .responseTooLarge: throw SkillToolError.modelInvalidResponse
+                case .invalidResponse, .incompleteResponse, .truncatedResponse, .responseTooLarge: throw SkillToolError.modelInvalidResponse
                 default: break
                 }
             }
