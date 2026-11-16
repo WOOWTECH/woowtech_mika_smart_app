@@ -122,8 +122,9 @@ struct ChatContextFencedStreamClient: StreamingChatModelClient {
         try await ChatContextFencedClient(client: client, fence: fence).complete(messages: messages, configuration: configuration, apiKey: apiKey)
     }
     func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
+        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(ModelStreamHandoff.queuedDeltas)) { continuation in
             let worker = Task {
+                var waiting = ""
                 do {
                     let lease = try await MainActor.run { try fence.acquire() }
                     do { try Task.checkCancellation() }
@@ -134,16 +135,19 @@ struct ChatContextFencedStreamClient: StreamingChatModelClient {
                                                onDispatch: { lease.release() }, onProducerFinished: { lease.release() })
                     for try await delta in stream {
                         try await MainActor.run { try fence.check() }
-                        switch continuation.yield(delta) {
-                        case .enqueued: break
-                        case .dropped: throw HTTPChatModelError.consumerTooSlow
-                        case .terminated: throw CancellationError()
-                        @unknown default: throw HTTPChatModelError.consumerTooSlow
-                        }
+                        waiting += delta
+                        if try ModelStreamHandoff.offer(waiting, to: continuation) { waiting = "" }
                     }
+                    try await ModelStreamHandoff.flush(waiting, to: continuation)
                     try await MainActor.run { try fence.check() }
                     continuation.finish()
-                } catch { continuation.finish(throwing: error) }
+                } catch {
+                    // A cut reply still hands over its text before the cut.
+                    if (error as? HTTPChatModelError) == .truncatedResponse {
+                        try? await ModelStreamHandoff.flush(waiting, to: continuation)
+                    }
+                    continuation.finish(throwing: error)
+                }
             }
             continuation.onTermination = { @Sendable _ in worker.cancel() }
         }
