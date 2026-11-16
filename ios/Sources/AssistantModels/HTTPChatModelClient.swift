@@ -223,7 +223,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         request.httpShouldHandleCookies = false
         if !key.isEmpty { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("ApporoAssistant/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue(stream ? "text/event-stream" : "application/json", forHTTPHeaderField: "Accept")
         if let header = configuration.sessionHeader { request.setValue(header.value, forHTTPHeaderField: header.name) }
         request.httpBody = try OpenAIChatRequest.body(model: model, messages: messages, stream: stream,

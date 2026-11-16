@@ -173,7 +173,7 @@ public actor MCPClient {
         do {
             let reply = try await request("initialize", params: .object([
                 "protocolVersion": .string("2025-03-26"), "capabilities": .object([:]),
-                "clientInfo": .object(["name": .string("WoowAssistant-iOS"), "version": .string("0.1")])
+                "clientInfo": .object(["name": .string("ApporoAssistant-iOS"), "version": .string("0.1")])
             ]), deadline: deadline)
             guard let result = reply.result, let version = result["protocolVersion"]?.stringValue,
                   case .object(let capabilities)? = result["capabilities"],
@@ -234,7 +234,7 @@ public actor MCPClient {
         request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
-        request.setValue("WoowAssistant/0.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("ApporoAssistant/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue(sessionID, forHTTPHeaderField: "Mcp-Session-Id")
         request.setValue(server?.protocolVersion, forHTTPHeaderField: "MCP-Protocol-Version")
         // Redirects are refused (MCPRejectRedirects), so the token only ever goes to this endpoint.

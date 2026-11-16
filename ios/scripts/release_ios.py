@@ -21,7 +21,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 
-BUNDLE_ID = "io.woowtech.assistant"
+BUNDLE_ID = "com.apporo.assistant"
 SCHEME = "WoowAssistant"
 SECRET_NAMES = (
     "IOS_SIGNING_CERTIFICATE_BASE64", "IOS_SIGNING_CERTIFICATE_PASSWORD",
@@ -277,7 +277,7 @@ def verify_required_reasons(app, binaries=()):
     return sorted(used)
 
 
-# AI response reports go to woowtech's relay and stay there for review. The App
+# AI response reports go to Apporo's relay and stay there for review. The App
 # Store privacy label lists them as Other User Content, not linked to the person,
 # not used for tracking, for app functionality; the App's manifest must agree.
 COLLECTED_DATA = [{"NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",

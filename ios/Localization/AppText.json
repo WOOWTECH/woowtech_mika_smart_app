@@ -877,8 +877,8 @@
       "key": "shell.brandTitle",
       "parameters": [],
       "translations": {
-        "zh-Hant": "渥屋助理",
-        "en": "woowtech agent"
+        "zh-Hant": "Apporo Assistant",
+        "en": "Apporo Assistant"
       }
     },
     {
@@ -1048,8 +1048,8 @@
       "key": "shell.replyExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "幫我寫一則友善的訊息回覆",
-        "en": "Help me write a friendly reply to this message."
+        "zh-Hant": "幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。",
+        "en": "Draft a friendly email inviting my team to Friday’s planning meeting."
       }
     },
     {
@@ -1057,8 +1057,8 @@
       "key": "shell.newsExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點",
-        "en": "Find a recent AI news article in the built-in browser and summarize three key points."
+        "zh-Hant": "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。",
+        "en": "Find a recent article about smart buildings in the built-in browser and summarize three key points."
       }
     },
     {
@@ -1066,8 +1066,8 @@
       "key": "shell.shoppingExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
-        "en": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons."
+        "zh-Hant": "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。",
+        "en": "Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking."
       }
     },
     {
@@ -1075,8 +1075,8 @@
       "key": "shell.rememberExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "記住我偏好使用繁體中文，回答簡短一點",
-        "en": "Remember that I prefer concise answers in Traditional Chinese."
+        "zh-Hant": "記住我偏好簡短、先講重點的回答。",
+        "en": "Remember that I prefer short answers with the key point first."
       }
     },
     {
@@ -1085,7 +1085,7 @@
       "parameters": [],
       "translations": {
         "zh-Hant": "你記得我有哪些偏好？",
-        "en": "What preferences have I told you to remember?"
+        "en": "What preferences have I asked you to remember?"
       }
     },
     {
@@ -1093,8 +1093,8 @@
       "key": "shell.webExample",
       "parameters": [],
       "translations": {
-        "zh-Hant": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
-        "en": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me."
+        "zh-Hant": "上網搜尋設施管理職缺，挑五個幫我比較。",
+        "en": "Search the web for facility manager jobs and compare five of them for me."
       }
     },
     {
@@ -2373,8 +2373,8 @@
       "key": "notification.completed.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "開啟渥屋助理查看結果。",
-        "en": "Open woowtech agent to view the result."
+        "zh-Hant": "開啟 Apporo Assistant 查看結果。",
+        "en": "Open Apporo Assistant to view the result."
       }
     },
     {
@@ -2382,8 +2382,8 @@
       "key": "notification.approval.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請開啟渥屋助理查看並決定；通知不會核准操作。",
-        "en": "Open woowtech agent to review and decide. Notifications do not approve actions."
+        "zh-Hant": "請開啟 Apporo Assistant 查看並決定；通知不會核准操作。",
+        "en": "Open Apporo Assistant to review and decide. Notifications do not approve actions."
       }
     },
     {
@@ -2391,8 +2391,8 @@
       "key": "notification.test.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "這是渥屋助理的測試通知。",
-        "en": "This is a test notification from woowtech agent."
+        "zh-Hant": "這是 Apporo Assistant 的測試通知。",
+        "en": "This is a test notification from Apporo Assistant."
       }
     },
     {
@@ -2653,8 +2653,8 @@
       "key": "browser.page.ask.research",
       "parameters": [],
       "translations": {
-        "zh-Hant": "問渥屋助理研究此網站",
-        "en": "Ask woowtech agent to research this site"
+        "zh-Hant": "問 Apporo Assistant 研究此網站",
+        "en": "Ask Apporo Assistant to research this site"
       }
     },
     {
@@ -3006,8 +3006,8 @@
       "key": "settings.notifications.master.on",
       "parameters": [],
       "translations": {
-        "zh-Hant": "允許渥屋助理發通知",
-        "en": "woowtech agent can send notifications"
+        "zh-Hant": "允許 Apporo Assistant 發通知",
+        "en": "Apporo Assistant can send notifications"
       }
     },
     {
@@ -3015,8 +3015,8 @@
       "key": "settings.notifications.master.off",
       "parameters": [],
       "translations": {
-        "zh-Hant": "現在不允許渥屋助理發通知，任務結果和提醒都看不到",
-        "en": "woowtech agent can’t send notifications, so you won’t see task results or alerts"
+        "zh-Hant": "現在不允許 Apporo Assistant 發通知，任務結果和提醒都看不到",
+        "en": "Apporo Assistant can’t send notifications, so you won’t see task results or alerts"
       }
     },
     {
@@ -3078,8 +3078,8 @@
       "key": "settings.notifications.footer",
       "parameters": [],
       "translations": {
-        "zh-Hant": "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟渥屋助理的通知設定頁。路徑：設定 › 通知 › 渥屋助理",
-        "en": "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. Path: Settings › Notifications › woowtech agent"
+        "zh-Hant": "通知是否彈出、是否響鈴，iOS 規定只能由你在系統設定裡改，兩類任務通知共用同一組設定。要關掉通知，也是在那裡關閉「允許通知」。點上面任一類通知會直接開啟 Apporo Assistant 的通知設定頁。路徑：設定 › 通知 › Apporo Assistant",
+        "en": "On iOS, only you can change whether notifications pop up or make a sound, in Settings. Both kinds of task notifications share the same settings. To turn notifications off, turn off “Allow Notifications” there. Tap either kind above to open Apporo Assistant’s notification settings. Path: Settings › Notifications › Apporo Assistant"
       }
     },
     {
@@ -3538,8 +3538,8 @@
       "key": "model.urlHTTPS",
       "parameters": [],
       "translations": {
-        "zh-Hant": "介面網址要以 https:// 開頭；渥屋助理只用加密連線送出 Key 和對話。",
-        "en": "The base URL must start with https://; woowtech agent sends keys and chats only over encrypted connections."
+        "zh-Hant": "介面網址要以 https:// 開頭；Apporo Assistant 只用加密連線送出 Key 和對話。",
+        "en": "The base URL must start with https://; Apporo Assistant sends keys and chats only over encrypted connections."
       }
     },
     {
@@ -3724,8 +3724,8 @@
       "key": "model.saveUntestedBody",
       "parameters": [],
       "translations": {
-        "zh-Hant": "渥屋助理會按你填的位址和 Key 存下這家服務商，不列模型、也不試呼叫。渥屋助理做事需要會呼叫工具的模型，沒測過的這一家可能連不通，也可能不會呼叫工具。存下之後可以在服務商頁「重新測試」。",
-        "en": "woowtech agent will save this provider with the address and key you entered, without listing models or making a test call. woowtech agent needs a model that can call tools to get things done, and an untested one may not connect or may not call tools. You can test it later from the provider’s page."
+        "zh-Hant": "Apporo Assistant 會按你填的位址和 Key 存下這家服務商，不列模型、也不試呼叫。Apporo Assistant 做事需要會呼叫工具的模型，沒測過的這一家可能連不通，也可能不會呼叫工具。存下之後可以在服務商頁「重新測試」。",
+        "en": "Apporo Assistant will save this provider with the address and key you entered, without listing models or making a test call. Apporo Assistant needs a model that can call tools to get things done, and an untested one may not connect or may not call tools. You can test it later from the provider’s page."
       }
     },
     {
@@ -3788,8 +3788,8 @@
       "key": "welcome.title",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你好，我是渥屋助理",
-        "en": "Hi, I’m woowtech agent"
+        "zh-Hant": "你好，我是 Apporo Assistant",
+        "en": "Hi, I’m Apporo Assistant"
       }
     },
     {
@@ -3914,8 +3914,8 @@
       "key": "modelSetup.lead",
       "parameters": [],
       "translations": {
-        "zh-Hant": "渥屋助理用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。",
-        "en": "woowtech agent thinks with your own model service. Connect a provider first, then pick a model for each job."
+        "zh-Hant": "Apporo Assistant 用你自己的模型服務來思考。先連一家服務商，再給每件事選模型。",
+        "en": "Apporo Assistant thinks with your own model service. Connect a provider first, then pick a model for each job."
       }
     },
     {
@@ -4377,8 +4377,8 @@
       "key": "consent.privacyPolicy",
       "parameters": [],
       "translations": {
-        "zh-Hant": "渥屋助理隱私權政策",
-        "en": "woowtech agent privacy policy"
+        "zh-Hant": "Apporo Assistant 隱私權政策",
+        "en": "Apporo Assistant privacy policy"
       }
     },
     {
@@ -4391,8 +4391,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；渥屋助理不會把它們傳到其他地方。",
-        "en": "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; woowtech agent doesn’t send it anywhere else."
+        "zh-Hant": "%1$@ 是你自己選的第三方服務，會按它自己的條款和隱私權政策處理這些資料；Apporo Assistant 不會把它們傳到其他地方。",
+        "en": "%1$@ is a third-party service you chose. It handles this data under its own terms and privacy policy; Apporo Assistant doesn’t send it anywhere else."
       }
     },
     {
@@ -5665,8 +5665,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "引用渥屋助理：%1$@",
-        "en": "Quoting woowtech agent: %1$@"
+        "zh-Hant": "引用 Apporo Assistant：%1$@",
+        "en": "Quoting Apporo Assistant: %1$@"
       }
     },
     {
@@ -6304,8 +6304,8 @@
       "key": "chat.web.paused",
       "parameters": [],
       "translations": {
-        "zh-Hant": "已暫停：回到渥屋助理就會繼續",
-        "en": "Paused. It continues when you return to woowtech agent."
+        "zh-Hant": "已暫停：回到 Apporo Assistant 就會繼續",
+        "en": "Paused. It continues when you return to Apporo Assistant."
       }
     },
     {
@@ -6729,8 +6729,8 @@
       "key": "chat.web.consent.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "你在對話中請渥屋助理上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，也可以替你點選、輸入和送出表單；網址、標題、網頁文字和按鈕、欄位的名稱會傳給你選的模型服務。花錢的步驟每次都要你同意，付款一律由你自己完成。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。",
-        "en": "When you ask woowtech agent to use the web in a chat, it opens websites in the app’s built-in browser, reads them, and can tap, type and send forms for you; page addresses, titles, text and the names of buttons and fields go to the model service you chose. Anything that spends money needs your OK every time, and you always pay yourself. The task tab shares website data with the built-in browser, so it may read sites you signed in to in the app. Screenshots, cookies, passwords and what you type into fields are not sent."
+        "zh-Hant": "你在對話中請 Apporo Assistant 上網時，它會在 App 的內建瀏覽器自動開啟網站、讀取網頁，也可以替你點選、輸入和送出表單；網址、標題、網頁文字和按鈕、欄位的名稱會傳給你選的模型服務。花錢的步驟每次都要你同意，付款一律由你自己完成。任務分頁和內建瀏覽器共用網站資料，所以可能讀到你在 App 內登入的網站內容。截圖、Cookie、密碼和你在欄位裡填的內容都不會傳送。",
+        "en": "When you ask Apporo Assistant to use the web in a chat, it opens websites in the app’s built-in browser, reads them, and can tap, type and send forms for you; page addresses, titles, text and the names of buttons and fields go to the model service you chose. Anything that spends money needs your OK every time, and you always pay yourself. The task tab shares website data with the built-in browser, so it may read sites you signed in to in the app. Screenshots, cookies, passwords and what you type into fields are not sent."
       }
     },
     {
@@ -7068,8 +7068,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "渥屋助理在等你：%1$@",
-        "en": "woowtech agent is waiting for you: %1$@"
+        "zh-Hant": "Apporo Assistant 在等你：%1$@",
+        "en": "Apporo Assistant is waiting for you: %1$@"
       }
     },
     {
@@ -7214,8 +7214,8 @@
       "key": "notification.webPaused.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "回到渥屋助理就會繼續。",
-        "en": "It continues when you return to woowtech agent."
+        "zh-Hant": "回到 Apporo Assistant 就會繼續。",
+        "en": "It continues when you return to Apporo Assistant."
       }
     },
     {
@@ -7232,8 +7232,8 @@
       "key": "notification.webNeedsYou.body",
       "parameters": [],
       "translations": {
-        "zh-Hant": "請開啟渥屋助理查看；通知不會核准操作。",
-        "en": "Open woowtech agent to see it; a notification never approves anything."
+        "zh-Hant": "請開啟 Apporo Assistant 查看；通知不會核准操作。",
+        "en": "Open Apporo Assistant to see it; a notification never approves anything."
       }
     },
     {
@@ -8941,8 +8941,8 @@
         }
       ],
       "translations": {
-        "zh-Hant": "渥屋助理學會了一項技能：%1$@",
-        "en": "woowtech agent learned a skill: %1$@"
+        "zh-Hant": "Apporo Assistant 學會了一項技能：%1$@",
+        "en": "Apporo Assistant learned a skill: %1$@"
       }
     },
     {

@@ -230,8 +230,8 @@ struct MCPToolsView: View {
 
     private var brandAccent: Color {
         colorScheme == .dark
-            ? Color(red: 97.0 / 255, green: 131.0 / 255, blue: 252.0 / 255)
-            : Color(red: 64.0 / 255, green: 105.0 / 255, blue: 251.0 / 255)
+            ? Color(red: 196.0 / 255, green: 158.0 / 255, blue: 83.0 / 255)
+            : Color(red: 139.0 / 255, green: 107.0 / 255, blue: 36.0 / 255)
     }
 
     private var pageBackground: Color {

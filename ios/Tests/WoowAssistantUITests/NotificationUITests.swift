@@ -58,7 +58,7 @@ final class NotificationUITests: XCTestCase {
             }
             visit(snapshot)
             let text = labels.joined(separator: " ")
-            XCTAssertTrue(text.contains("渥屋助理") || text.contains("WoowAssistant"))
+            XCTAssertTrue(text.contains("Apporo Assistant") || text.contains("WoowAssistant"))
             XCTAssertTrue(text.contains("通知") || text.localizedCaseInsensitiveContains("notifications"),
                           "Only this App's notification prompt may be accepted.")
             let allow = alert.buttons.matching(NSPredicate(format: "label IN %@", ["Allow", "允許", "允许"])).firstMatch
@@ -175,9 +175,9 @@ final class NotificationUITests: XCTestCase {
         }
         XCTAssertTrue(master.label.hasPrefix("通知總開關"), master.label)
         if allowed {
-            XCTAssertTrue(master.label.contains("允許渥屋助理發通知") && !master.label.contains("不允許"), master.label)
+            XCTAssertTrue(master.label.contains("允許 Apporo Assistant 發通知") && !master.label.contains("不允許"), master.label)
         } else {
-            XCTAssertTrue(master.label.contains("現在不允許渥屋助理發通知"), master.label)
+            XCTAssertTrue(master.label.contains("現在不允許 Apporo Assistant 發通知"), master.label)
         }
         XCTAssertEqual(app.buttons["notifications.enabled"].exists, !allowed,
                        "Like Play, only a master switch that is off can be tapped.")
@@ -219,7 +219,7 @@ final class NotificationUITests: XCTestCase {
                 && node.frame.height < snapshot.frame.height * 0.5
             if bounded, observedBannerCandidate == nil,
                labels.contains(where: { $0.contains("通知測試") }),
-               labels.contains(where: { $0.contains("這是渥屋助理的測試通知。") }) {
+               labels.contains(where: { $0.contains("這是 Apporo Assistant 的測試通知。") }) {
                 // Retain the first transient candidate even if exact matching
                 // fails and the OS removes the banner before tearDown runs.
                 observedBannerCandidate = "frame=\(node.frame); identifier=\(node.identifier)\n"
@@ -230,7 +230,7 @@ final class NotificationUITests: XCTestCase {
             // actual tap must open this App's root Chat to establish attribution.
             if bounded,
                hasExactField("通知測試", in: labels),
-               hasExactField("這是渥屋助理的測試通知。", in: labels) {
+               hasExactField("這是 Apporo Assistant 的測試通知。", in: labels) {
                 if smallest == nil || node.frame.width * node.frame.height
                     < smallest!.frame.width * smallest!.frame.height {
                     smallest = SystemBanner(frame: node.frame, labels: labels)

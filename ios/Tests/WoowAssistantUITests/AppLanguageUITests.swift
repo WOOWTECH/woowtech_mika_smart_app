@@ -105,10 +105,10 @@ final class AppLanguageUITests: XCTestCase {
     /// Offline fixture: every example replaces the draft but never sends it.
     func testStoreExamplesFillDraftInEveryLanguageWithoutSending() {
         let cases: [(String, [String])] = [
-            ("(zh-Hant)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
+            ("(zh-Hant)", ["幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。", "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。", "上網搜尋設施管理職缺，挑五個幫我比較。", "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。", "記住我偏好簡短、先講重點的回答。", "你記得我有哪些偏好？"]),
             // A Simplified Chinese system shows the Traditional Chinese examples.
-            ("(zh-Hans)", ["幫我寫一則友善的訊息回覆", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點", "記住我偏好使用繁體中文，回答簡短一點", "你記得我有哪些偏好？"]),
-            ("(en)", ["Help me write a friendly reply to this message.", "Find a recent AI news article in the built-in browser and summarize three key points.", "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.", "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.", "Remember that I prefer concise answers in Traditional Chinese.", "What preferences have I told you to remember?"])
+            ("(zh-Hans)", ["幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。", "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。", "上網搜尋設施管理職缺，挑五個幫我比較。", "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。", "記住我偏好簡短、先講重點的回答。", "你記得我有哪些偏好？"]),
+            ("(en)", ["Draft a friendly email inviting my team to Friday’s planning meeting.", "Find a recent article about smart buildings in the built-in browser and summarize three key points.", "Search the web for facility manager jobs and compare five of them for me.", "Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.", "Remember that I prefer short answers with the key point first.", "What preferences have I asked you to remember?"])
         ]
         let identifiers = ["reply", "news", "web", "shopping", "remember", "recall"]
         for (systemLanguages, expected) in cases {
@@ -137,10 +137,10 @@ final class AppLanguageUITests: XCTestCase {
 
     func testAboutHeroAndDiagnosticsInEverySupportedLanguage() {
         let cases: [(String, String, String, String)] = [
-            ("(zh-Hant)", "關於渥屋助理", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
+            ("(zh-Hant)", "關於 Apporo Assistant", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
             // A Simplified Chinese system shows Traditional Chinese.
-            ("(zh-Hans)", "關於渥屋助理", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
-            ("(en)", "About woowtech agent", "Chat, browse, and keep useful information in one place", "Diagnostics")
+            ("(zh-Hans)", "關於 Apporo Assistant", "在同一個地方對話、瀏覽網頁，並記住有用的資訊", "診斷資訊"),
+            ("(en)", "About Apporo Assistant", "Chat, browse, and keep useful information in one place", "Diagnostics")
         ]
         for (systemLanguages, aboutTitle, tagline, diagnosticsTitle) in cases {
             app.terminate()

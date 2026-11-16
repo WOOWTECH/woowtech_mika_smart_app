@@ -61,7 +61,7 @@ class AISafetyAndReportsTests(unittest.TestCase):
             for language, play in [('zh-Hant', EVIDENCE['report_strings'][key]), ('en', EVIDENCE['report_strings_en'][key])]:
                 self.assertEqual(entry['translations'][language], re.sub(r'%(\d)\$s', r'%\1$@', play), (case, language))
         english = ' '.join(e['translations']['en'] for e in entries.values())
-        self.assertIsNone(re.search(r'Mika|woowtech|Woow|渥屋', english, re.I), 'English report text names no app')
+        self.assertIsNone(re.search(r'Mika|Apporo|woowtech|Woow|渥屋', english, re.I), 'English report text names no app')
 
     def test_client_limits_match_play(self):
         client = EVIDENCE['report_client']
@@ -82,8 +82,10 @@ class AISafetyAndReportsTests(unittest.TestCase):
         self.assertIn(f'Task.sleep(nanoseconds: {client["dialog_refresh_ms"] // 1000}_000_000_000)', sheet)
         self.assertIn(f'target.response, {client["preview_characters"]}))\n                    .lineLimit({client["preview_lines"]})', sheet)
         self.assertIn(f'take(report.response, {client["history_preview_characters"]})', sheet)
-        self.assertEqual(EVIDENCE['relay']['endpoint'], 'https://assistant-relay.woowtech.io/api/v1/ai-reports')
-        self.assertIn('URL(string: "' + EVIDENCE['relay']['endpoint'] + '")!', delivery)
+        # Apporo: the evidence is the WOOWTECH Play build; the Apporo relay serves the
+        # same five-field intake at the same path.
+        self.assertEqual(EVIDENCE['relay']['endpoint'].split('/', 3)[3], 'api/v1/ai-reports')
+        self.assertIn('URL(string: "https://assistant-relay.apporo.ai/api/v1/ai-reports")!', delivery)
 
     def test_menu_places_report_like_play(self):
         menu = (ROOT / 'Sources/App/ChatMessageActions.swift').read_text()

@@ -58,11 +58,11 @@ public struct TaskNotificationPayload: Equatable, Sendable {
     }
     public var body: String {
         switch kind {
-        case .completed: return "開啟渥屋助理查看結果。"
-        case .approval: return "請開啟渥屋助理查看並決定；通知不會核准操作。"
-        case .test: return "這是渥屋助理的測試通知。"
-        case .webPaused: return "回到渥屋助理就會繼續。"
-        case .webNeedsYou: return "請開啟渥屋助理查看；通知不會核准操作。"
+        case .completed: return "開啟 Apporo Assistant 查看結果。"
+        case .approval: return "請開啟 Apporo Assistant 查看並決定；通知不會核准操作。"
+        case .test: return "這是 Apporo Assistant 的測試通知。"
+        case .webPaused: return "回到 Apporo Assistant 就會繼續。"
+        case .webNeedsYou: return "請開啟 Apporo Assistant 查看；通知不會核准操作。"
         }
     }
     public init(kind: TaskNotificationKind, destination: TaskNotificationDestination) {

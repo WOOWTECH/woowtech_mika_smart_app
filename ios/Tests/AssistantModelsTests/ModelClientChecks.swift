@@ -42,7 +42,7 @@ enum ModelClientChecks {
                 try checks.expect(request.url?.path == expected, "Exactly one completion suffix")
                 try checks.expect(request.httpMethod == "POST", "POST")
                 try checks.expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer \(fakeKey)", "Authorization")
-                try checks.expect(request.value(forHTTPHeaderField: "User-Agent") == "WoowAssistant/0.1", "Descriptive user agent")
+                try checks.expect(request.value(forHTTPHeaderField: "User-Agent") == "ApporoAssistant/0.1", "Descriptive user agent")
                 try checks.expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json", "JSON content type")
                 try checks.expect(request.value(forHTTPHeaderField: "Accept") == (stream ? "text/event-stream" : "application/json"), "Accept")
                 try checks.expect(request.timeoutInterval == 120, "120 second idle timeout, like Play's read timeout")
@@ -200,7 +200,7 @@ enum ModelClientChecks {
         let result = try await HTTPChatModelClient(session: session).complete(messages: messages, configuration: .init(baseURL: base, model: "test", maxOutputTokens: 64), apiKey: fakeKey)
         try checks.expect(result == "你好 🏡", "Complete Unicode content")
         try checks.expect(fixture.requestCount == 1, "Exactly one request")
-        try checks.expect(fixture.lastRequest?.value(forHTTPHeaderField: "User-Agent") == "WoowAssistant/0.1", "Transport user agent")
+        try checks.expect(fixture.lastRequest?.value(forHTTPHeaderField: "User-Agent") == "ApporoAssistant/0.1", "Transport user agent")
         for (status, mime, body, expected) in [
             (401, "application/json", completion, HTTPChatModelError.httpStatus(401)),
             (403, "application/json", completion, .httpStatus(403)),

@@ -98,7 +98,7 @@ struct WebsiteSignInsView: View {
         }
     }
 
-    /// Play's row subtitle: 在渥屋助理裡登入過 · 最近造訪 11/14.
+    /// Play's row subtitle: 在 Apporo Assistant 裡登入過 · 最近造訪 11/14.
     private func subtitle(_ site: BrowserSignInSite) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: copy.language.rawValue)

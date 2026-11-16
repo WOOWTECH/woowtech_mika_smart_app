@@ -21,7 +21,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         assertEnglishModelNavigation()
 
         tapRoot("chat")
-        XCTAssertTrue(app.navigationBars["woowtech agent"].exists)
+        XCTAssertTrue(app.navigationBars["Apporo Assistant"].exists)
         let menu = app.buttons["chat.menu"]
         XCTAssertEqual(menu.label, "Menu")
         XCTAssertEqual(app.buttons["chat.newConversation"].label, "New chat")
@@ -48,7 +48,7 @@ final class AppLanguagePhase2UITests: XCTestCase {
         XCTAssertTrue(master.waitForExistence(timeout: 10))
         revealLearningElement(master, in: app)
         XCTAssertTrue(master.label.hasPrefix("All notifications"), master.label)
-        XCTAssertTrue(master.label.contains("woowtech agent can’t send notifications, so you won’t see task results or alerts"),
+        XCTAssertTrue(master.label.contains("Apporo Assistant can’t send notifications, so you won’t see task results or alerts"),
                       master.label)
         XCTAssertEqual(master.value as? String, "Turn on")
         exactText("notifications.group", "Task notifications")
@@ -63,8 +63,8 @@ final class AppLanguagePhase2UITests: XCTestCase {
         }
         exactText("notifications.footer", "On iOS, only you can change whether notifications pop up or make a sound, in Settings. "
                   + "Both kinds of task notifications share the same settings. To turn notifications off, turn off "
-                  + "“Allow Notifications” there. Tap either kind above to open woowtech agent’s notification settings. "
-                  + "Path: Settings › Notifications › woowtech agent")
+                  + "“Allow Notifications” there. Tap either kind above to open Apporo Assistant’s notification settings. "
+                  + "Path: Settings › Notifications › Apporo Assistant")
         let testNotification = app.buttons["notifications.test"]
         XCTAssertTrue(testNotification.waitForExistence(timeout: 10))
         XCTAssertFalse(testNotification.isEnabled,

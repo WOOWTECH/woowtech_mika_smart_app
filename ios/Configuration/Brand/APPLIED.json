@@ -1,0 +1,9 @@
+{
+  "brand": "apporo",
+  "brand_json_sha256": "73023ad53df97f345e721726e559a689751b07ddc4c535f8b6022ef4e1aada25",
+  "base": {
+    "brand": "woowtech",
+    "revision": "fc5b81e33fe06167ee86bff29e36ce0667ee9420",
+    "note": "Source of the WOOWTECH iOS build 1.0.0 (4), 渥屋助理"
+  }
+}

@@ -166,7 +166,7 @@ private func relayAccepts(_ request: URLRequest, now: Int64) -> Bool {
         let requests = e.transport.requests
         try c.expect(requests.count == 1, "one upload")
         let request = requests[0]
-        try c.expect(request.httpMethod == "POST" && request.url == URL(string: "https://assistant-relay.woowtech.io/api/v1/ai-reports"),
+        try c.expect(request.httpMethod == "POST" && request.url == URL(string: "https://assistant-relay.apporo.ai/api/v1/ai-reports"),
                      "POST to the relay's report intake")
         try c.expect(request.allHTTPHeaderFields == ["Content-Type": "application/json; charset=utf-8"],
                      "no account, device, cookie or origin header; only the content type")
