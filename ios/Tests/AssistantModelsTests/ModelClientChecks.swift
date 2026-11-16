@@ -45,7 +45,7 @@ enum ModelClientChecks {
                 try checks.expect(request.value(forHTTPHeaderField: "User-Agent") == "WoowAssistant/0.1", "Descriptive user agent")
                 try checks.expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json", "JSON content type")
                 try checks.expect(request.value(forHTTPHeaderField: "Accept") == (stream ? "text/event-stream" : "application/json"), "Accept")
-                try checks.expect(request.timeoutInterval == 90, "90 second timeout")
+                try checks.expect(request.timeoutInterval == 120, "120 second idle timeout, like Play's read timeout")
                 try checks.expect(!request.httpShouldHandleCookies, "No cookies")
                 let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
                 try checks.expect(body["model"] as? String == "test-model", "Model field")

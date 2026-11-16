@@ -6,13 +6,17 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private let session: URLSession
     private let timeoutNanoseconds: UInt64
     private let usageSink: (any ModelUsageSink)?
-    private static let maximumTimeout: UInt64 = 90_000_000_000
+    /// A whole request, streamed or not, may take up to 10 minutes; one that stalls
+    /// ends after 120 s without data (timeoutIntervalForRequest), like the Play
+    /// build's model client (ProviderStore.kt: readTimeout 120 s, no call timeout).
+    /// With no reply limit, a long answer streams for more than 90 s.
+    private static let maximumTimeout: UInt64 = 600_000_000_000
     private static let declinedUsageOptions = DeclinedUsageOptions()
 
     public init(usageSink: (any ModelUsageSink)? = nil) {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 90
-        configuration.timeoutIntervalForResource = 90
+        configuration.timeoutIntervalForRequest = 120
+        configuration.timeoutIntervalForResource = 600
         configuration.urlCache = nil
         configuration.httpCookieStorage = nil
         configuration.urlCredentialStorage = nil
@@ -23,7 +27,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         self.init(session: session, timeoutNanoseconds: Self.maximumTimeout, usageSink: usageSink)
     }
 
-    // Shorter deadlines let deterministic tests exercise timeouts; never exceeds 90s.
+    // Shorter deadlines let deterministic tests exercise timeouts; never exceeds 10 minutes.
     init(session: URLSession, timeoutNanoseconds: UInt64, usageSink: (any ModelUsageSink)? = nil) {
         self.session = session
         self.timeoutNanoseconds = min(timeoutNanoseconds, Self.maximumTimeout)
@@ -204,7 +208,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         if !path.hasSuffix("/chat/completions") { path += "/chat/completions" }
         parts.percentEncodedPath = path
         guard let endpoint = parts.url else { throw HTTPChatModelError.invalidConfiguration }
-        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 90)
+        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.httpShouldHandleCookies = false
         if !key.isEmpty { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
