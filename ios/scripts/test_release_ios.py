@@ -25,7 +25,9 @@ DIGEST = hashlib.sha1(CERT).hexdigest().upper()
 PROFILE_ID = "12345678-1234-1234-1234-123456789ABC"
 MEDIA_PURPOSES = {"NSCameraUsageDescription": "User approved website camera access.",
                   "NSMicrophoneUsageDescription": "User approved website and chat microphone access.",
+                  "NSPhotoLibraryAddUsageDescription": "Save Image from an attachment preview.",
                   "NSSpeechRecognitionUsageDescription": "On-device chat speech recognition."}
+EXPORT_COMPLIANCE = {"ITSAppUsesNonExemptEncryption": False}
 
 
 def synthetic_xctest_completion(scope):
@@ -99,6 +101,81 @@ class PrivacyManifestTests(unittest.TestCase):
                     elif target.exists(): target.unlink()
                     with self.assertRaises(release.ReleaseError):
                         release.verify_required_reasons(app)
+
+
+    def test_collected_data_matches_the_app_privacy_label(self):
+        root = Path(__file__).resolve().parents[1]
+        payload = plistlib.loads((root / "Sources/App/PrivacyInfo.xcprivacy").read_bytes())
+        self.assertEqual(payload["NSPrivacyCollectedDataTypes"], release.COLLECTED_DATA)
+        for path in sorted((root / "Configuration/PrivacyManifests").glob("*/PrivacyInfo.xcprivacy")):
+            with self.subTest(framework=path.parent.name):
+                own = plistlib.loads(path.read_bytes())
+                self.assertIs(own["NSPrivacyTracking"], False)
+                self.assertEqual(own["NSPrivacyCollectedDataTypes"], [])
+        entry = release.COLLECTED_DATA[0]
+        variants = {"none": [], "linked": [{**entry, "NSPrivacyCollectedDataTypeLinked": True}],
+                    "tracking": [{**entry, "NSPrivacyCollectedDataTypeTracking": True}],
+                    "purpose": [{**entry, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAnalytics"]}],
+                    "extra": [entry, {**entry, "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCrashData"}]}
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            framework = app / "Frameworks/Kit.framework"
+            framework.mkdir(parents=True)
+            target = app / "PrivacyInfo.xcprivacy"
+            target.write_bytes(plistlib.dumps(payload, fmt=plistlib.FMT_BINARY))
+            self.assertEqual(release.verify_collected_data(app, [framework]), ["NSPrivacyCollectedDataTypeOtherUserContent"])
+            for name, collected in variants.items():
+                with self.subTest(name=name):
+                    target.write_bytes(plistlib.dumps({**payload, "NSPrivacyCollectedDataTypes": collected}))
+                    with self.assertRaisesRegex(release.ReleaseError, "隱私標籤"):
+                        release.verify_collected_data(app, [framework])
+            for name, changed in {"tracking": {"NSPrivacyTracking": True},
+                                  "domains": {"NSPrivacyTrackingDomains": ["tracker.example"]}}.items():
+                with self.subTest(name=name):
+                    target.write_bytes(plistlib.dumps({**payload, **changed}))
+                    with self.assertRaisesRegex(release.ReleaseError, "不追蹤"):
+                        release.verify_collected_data(app, [framework])
+            target.write_bytes(plistlib.dumps(payload))
+            (framework / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(
+                {"NSPrivacyTracking": False, "NSPrivacyCollectedDataTypes": release.COLLECTED_DATA}))
+            with self.assertRaisesRegex(release.ReleaseError, "Kit.framework"):
+                release.verify_collected_data(app, [framework])
+            target.unlink()
+            with self.assertRaisesRegex(release.ReleaseError, "PrivacyInfo"):
+                release.verify_collected_data(app, [framework])
+
+    def test_binary_scan_requires_each_used_category_in_app_and_framework_manifests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            framework = app / "Frameworks/Kit.framework"
+            framework.mkdir(parents=True)
+            copy_privacy_manifest(app)
+            main, kit = app / "Example", framework / "Kit"
+            main.write_bytes(b"\0_NSURLVolumeAvailableCapacityForImportantUsageKey\0_OBJC_CLASS_$_NSUserDefaults\0")
+            kit.write_bytes(b"\0_NSFileCreationDate\0systemUptime\0")
+            with self.assertRaisesRegex(release.ReleaseError, "Kit.framework"):
+                release.verify_required_reasons(app, [main, kit])
+            own = {"NSPrivacyAccessedAPITypes": [
+                {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp", "NSPrivacyAccessedAPITypeReasons": ["C617.1"]}]}
+            (framework / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(own))
+            with self.assertRaisesRegex(release.ReleaseError, "SystemBootTime"):
+                release.verify_required_reasons(app, [main, kit])
+            own["NSPrivacyAccessedAPITypes"].append(
+                {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime", "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]})
+            (framework / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(own))
+            self.assertEqual(release.verify_required_reasons(app, [main, kit]),
+                             ["NSPrivacyAccessedAPICategoryDiskSpace", "NSPrivacyAccessedAPICategoryFileTimestamp",
+                              "NSPrivacyAccessedAPICategorySystemBootTime", "NSPrivacyAccessedAPICategoryUserDefaults"])
+            main.write_bytes(main.read_bytes() + b"activeInputModes\0")
+            with self.assertRaisesRegex(release.ReleaseError, "ActiveKeyboards"):
+                release.verify_required_reasons(app, [main, kit])
+
+    def test_binary_scan_matches_whole_names_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = Path(directory) / "Example"
+            binary.write_bytes(b"\0_statistics\0x_fstat\0_statfs\0systemUptimeLabel\0")
+            self.assertEqual(release.required_reason_categories(binary), {"NSPrivacyAccessedAPICategoryDiskSpace"})
+            self.assertEqual(release.required_reason_categories(Path(directory) / "missing"), set())
 
 
 class ProfileTests(unittest.TestCase):
@@ -243,7 +320,7 @@ class BuildTests(unittest.TestCase):
                     for ats in variants:
                         with self.subTest(signed=signed, fmt=fmt, ats=ats):
                             info = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
-                                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True,
+                                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
                                     "NSAppTransportSecurity": ats}
                             (app / "Info.plist").write_bytes(plistlib.dumps(info, fmt=fmt))
                             with patch.object(release, "run") as native_tool:
@@ -257,8 +334,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
                     "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
-                    "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True,
-                    **MEDIA_PURPOSES}
+                    **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}
             for key in MEDIA_PURPOSES:
                 for value in (None, "", "  "):
                     with self.subTest(key=key, value=value):
@@ -273,13 +349,47 @@ class BuildTests(unittest.TestCase):
                                 release.verify_app(app)
                             native_tool.assert_not_called()
 
+    def test_release_rejects_photo_library_reading_and_files_sharing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            app.mkdir()
+            base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
+                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
+                    **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}
+            for key, value in [("NSPhotoLibraryUsageDescription", "Recent photos in the attach panel."),
+                               ("UIFileSharingEnabled", True), ("LSSupportsOpeningDocumentsInPlace", True)]:
+                with self.subTest(key=key):
+                    (app / "Info.plist").write_bytes(plistlib.dumps({**base, key: value}))
+                    with patch.object(release, "run") as native_tool:
+                        with self.assertRaisesRegex(release.ReleaseError, key):
+                            release.verify_app(app)
+                        native_tool.assert_not_called()
+
+    def test_release_requires_exempt_encryption_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / "Example.app"
+            app.mkdir()
+            base = {"CFBundleIdentifier": release.BUNDLE_ID, "CFBundleExecutable": "Example",
+                    "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos",
+                    **MEDIA_PURPOSES}
+            for value in (None, True, "NO", 0):
+                with self.subTest(value=value):
+                    info = dict(base)
+                    if value is not None:
+                        info["ITSAppUsesNonExemptEncryption"] = value
+                    (app / "Info.plist").write_bytes(plistlib.dumps(info))
+                    with patch.object(release, "run") as native_tool:
+                        with self.assertRaisesRegex(release.ReleaseError, "ITSAppUsesNonExemptEncryption"):
+                            release.verify_app(app)
+                        native_tool.assert_not_called()
+
     def test_release_accepts_no_ats_key_and_reports_product_verification(self):
         with tempfile.TemporaryDirectory() as directory:
             app = Path(directory) / "Example.app"
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES},
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE},
                 fmt=plistlib.FMT_BINARY))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
@@ -292,6 +402,9 @@ class BuildTests(unittest.TestCase):
                 with self.subTest(signed=signed), patch.object(release, "run", side_effect=fake_run):
                     report = release.verify_app(app, signed=signed, identity=DIGEST if signed else None)
                     self.assertTrue(report["ats_key_absent"])
+                    self.assertTrue(report["documents_hidden_from_files"])
+                    self.assertTrue(report["photo_library_read_absent"])
+                    self.assertEqual(report["collected_data_types"], ["NSPrivacyCollectedDataTypeOtherUserContent"])
                     self.assertTrue(report["browser_media_purpose_strings_verified"])
                     self.assertTrue(report["required_reason_entries_verified"])
                     self.assertEqual(report["signature_verified"], signed)
@@ -302,7 +415,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES}))
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"
@@ -318,7 +431,7 @@ class BuildTests(unittest.TestCase):
             app.mkdir()
             copy_privacy_manifest(app)
             (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": release.BUNDLE_ID,
-                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", "UIFileSharingEnabled": True, "LSSupportsOpeningDocumentsInPlace": True, **MEDIA_PURPOSES}))
+                "CFBundleExecutable": "Example", "MinimumOSVersion": "17.0", "DTPlatformName": "iphoneos", **MEDIA_PURPOSES, **EXPORT_COMPLIANCE}))
             (app / "embedded.mobileprovision").write_bytes(b"synthetic")
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"

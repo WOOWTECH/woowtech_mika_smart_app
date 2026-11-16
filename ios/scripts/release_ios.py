@@ -204,23 +204,105 @@ def verify_macho(output):
         raise ReleaseError("Mach-O 最低系統版本無法驗證或高於 iOS 17.0。")
 
 
-def verify_required_reasons(app):
-    # Audit the packaged file, not merely the repository resource. These are
-    # the two directly used categories: app settings and elapsed-time timers.
+# Apple's upload check (ITMS-91053) reads the symbols and Objective-C selectors
+# each binary references. These names put a binary in a category whose reason
+# must be declared: the app's manifest covers the whole bundle, and a framework
+# that uses one also carries its own manifest.
+REQUIRED_REASON_NAMES = {
+    "NSPrivacyAccessedAPICategoryUserDefaults": ("_OBJC_CLASS_$_NSUserDefaults",),
+    "NSPrivacyAccessedAPICategoryFileTimestamp": (
+        "_stat", "_fstat", "_fstatat", "_lstat", "_getattrlist", "_getattrlistbulk", "_fgetattrlist",
+        "_getattrlistat", "_NSFileCreationDate", "_NSFileModificationDate",
+        "_NSURLContentModificationDateKey", "_NSURLCreationDateKey"),
+    "NSPrivacyAccessedAPICategorySystemBootTime": ("_mach_absolute_time", "systemUptime"),
+    "NSPrivacyAccessedAPICategoryDiskSpace": (
+        "_NSURLVolumeAvailableCapacityKey", "_NSURLVolumeAvailableCapacityForImportantUsageKey",
+        "_NSURLVolumeAvailableCapacityForOpportunisticUsageKey", "_NSURLVolumeTotalCapacityKey",
+        "_NSFileSystemFreeSize", "_NSFileSystemSize", "_statfs", "_statvfs", "_fstatfs", "_fstatvfs"),
+    "NSPrivacyAccessedAPICategoryActiveKeyboards": ("activeInputModes",),
+}
+
+
+def required_reason_categories(binary):
+    """Categories a binary's string tables name, each name matched whole."""
     try:
-        privacy = plistlib.loads((app / "PrivacyInfo.xcprivacy").read_bytes())
+        data = binary.read_bytes()
+    except OSError:
+        return set()  # The architecture check right after reports a missing binary.
+    return {category for category, names in REQUIRED_REASON_NAMES.items()
+            if any(b"\0" + name.encode() + b"\0" in data for name in names)}
+
+
+def declared_reasons(manifest, owner):
+    try:
+        privacy = plistlib.loads(manifest.read_bytes())
     except (OSError, ValueError, plistlib.InvalidFileException):
-        raise ReleaseError("App 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
+        raise ReleaseError(owner + " 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
     entries = privacy.get("NSPrivacyAccessedAPITypes") if isinstance(privacy, dict) else None
     if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
-        raise ReleaseError("App 的 required-reason API 宣告格式不正確。")
+        raise ReleaseError(owner + " 的 required-reason API 宣告格式不正確。")
+    declared = {}
+    for entry in entries:
+        category, reasons = entry.get("NSPrivacyAccessedAPIType"), entry.get("NSPrivacyAccessedAPITypeReasons")
+        if (not isinstance(category, str) or category in declared or not isinstance(reasons, list) or not reasons
+                or any(not isinstance(value, str) or not value for value in reasons)):
+            raise ReleaseError(owner + " 缺少正確且唯一的 required-reason API 宣告：" + str(category))
+        declared[category] = reasons
+    return declared
+
+
+def verify_required_reasons(app, binaries=()):
+    # Audit the packaged files, not merely the repository resources.
+    declared = declared_reasons(app / "PrivacyInfo.xcprivacy", "App")
     for category, reason in [("NSPrivacyAccessedAPICategoryUserDefaults", "CA92.1"),
                              ("NSPrivacyAccessedAPICategorySystemBootTime", "35F9.1"),
-                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "3B52.1")]:
-        matches = [entry for entry in entries if entry.get("NSPrivacyAccessedAPIType") == category]
-        reasons = matches[0].get("NSPrivacyAccessedAPITypeReasons") if len(matches) == 1 else None
-        if not isinstance(reasons, list) or reason not in reasons or any(not isinstance(value, str) for value in reasons):
+                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "3B52.1"),
+                             ("NSPrivacyAccessedAPICategoryFileTimestamp", "C617.1"),
+                             ("NSPrivacyAccessedAPICategoryDiskSpace", "E174.1")]:
+        if reason not in declared.get(category, []):
             raise ReleaseError("App 缺少正確且唯一的 required-reason API 宣告：" + category)
+    used = set()
+    for binary in binaries:
+        categories = required_reason_categories(binary)
+        used |= categories
+        if categories and binary.parent.suffix == ".framework":
+            own = declared_reasons(binary.parent / "PrivacyInfo.xcprivacy", binary.parent.name)
+            missing = sorted(categories - set(own))
+            if missing:
+                raise ReleaseError(binary.parent.name + " 用到需要宣告理由的 API，自己的 PrivacyInfo.xcprivacy 卻沒有宣告："
+                                   + ", ".join(missing))
+    missing = sorted(used - set(declared))
+    if missing:
+        raise ReleaseError("App 的 PrivacyInfo.xcprivacy 沒有宣告二進位檔實際用到的 API 類別：" + ", ".join(missing))
+    return sorted(used)
+
+
+# AI response reports go to woowtech's relay and stay there for review. The App
+# Store privacy label lists them as Other User Content, not linked to the person,
+# not used for tracking, for app functionality; the App's manifest must agree.
+COLLECTED_DATA = [{"NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+                   "NSPrivacyCollectedDataTypeLinked": False, "NSPrivacyCollectedDataTypeTracking": False,
+                   "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]}]
+
+
+def verify_collected_data(app, frameworks=()):
+    def manifest(path, owner):
+        try:
+            privacy = plistlib.loads(path.read_bytes())
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            raise ReleaseError(owner + " 缺少可讀取的 PrivacyInfo.xcprivacy。") from None
+        if (not isinstance(privacy, dict) or privacy.get("NSPrivacyTracking", False) is not False
+                or privacy.get("NSPrivacyTrackingDomains")):
+            raise ReleaseError(owner + " 的 PrivacyInfo.xcprivacy 必須宣告不追蹤，也不列追蹤網域。")
+        return privacy
+    if manifest(app / "PrivacyInfo.xcprivacy", "App").get("NSPrivacyCollectedDataTypes") != COLLECTED_DATA:
+        raise ReleaseError("App 的 PrivacyInfo.xcprivacy 收集資料宣告必須和 App 隱私標籤一致："
+                           "只有其他使用者內容（不連結身分、不追蹤、用於 App 功能）。")
+    for framework in frameworks:
+        path = framework / "PrivacyInfo.xcprivacy"
+        if path.exists() and manifest(path, framework.name).get("NSPrivacyCollectedDataTypes"):
+            raise ReleaseError(framework.name + " 的 PrivacyInfo.xcprivacy 不應宣告收集資料；檢舉只由 App 送出。")
+    return [entry["NSPrivacyCollectedDataType"] for entry in COLLECTED_DATA]
 
 
 def verify_app(app, signed=False, identity=None, expected_build_number=None):
@@ -235,18 +317,32 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
     # Even an empty ATS dictionary is unexpected in the Release configuration.
     if "NSAppTransportSecurity" in info:
         raise ReleaseError("Release App 的 Info.plist 不得含 NSAppTransportSecurity；請檢查 Debug 測試例外是否混入產物。")
-    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription"):
+    # Photos are picked with the system picker, which needs no library access;
+    # the add-only key is needed because an attachment preview's share menu
+    # offers Save Image, and saving without it terminates the app.
+    for key in ("NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSPhotoLibraryAddUsageDescription",
+                "NSSpeechRecognitionUsageDescription"):
         value = info.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ReleaseError("Release App 缺少媒體或語音辨識權限用途說明：" + key)
-    if not all(info.get(key) is True for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace")):
-        raise ReleaseError("Release App 缺少系統檔案選擇器所需的 Documents 共享設定。")
-    verify_required_reasons(app)
+    # Nor does the store build read the photo library or show its Documents
+    # folder in the Files app, as the privacy policy says. Debug keeps the two
+    # Files keys for the Files-picker UI tests.
+    for key in ("NSPhotoLibraryUsageDescription", "UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace"):
+        if key in info:
+            raise ReleaseError("Release App 不得含 " + key + "：照片只用系統選擇器，Documents 也不公開到「檔案」App。")
+    # Only Apple's own encryption (HTTPS, Keychain, CryptoKit) is used, which is
+    # exempt; YES without an approved export code makes the upload fail processing.
+    if info.get("ITSAppUsesNonExemptEncryption") is not False:
+        raise ReleaseError("Release App 的 ITSAppUsesNonExemptEncryption 必須是 false（只用 Apple 系統內建加密）。")
     binaries = [app / info["CFBundleExecutable"]]
-    for framework in (app / "Frameworks").glob("*.framework"):
+    frameworks = sorted((app / "Frameworks").glob("*.framework"))
+    for framework in frameworks:
         data = plistlib.loads((framework / "Info.plist").read_bytes())
         binaries.append(framework / data["CFBundleExecutable"])
     binaries.extend((app / "Frameworks").glob("*.dylib"))
+    reason_categories = verify_required_reasons(app, binaries)
+    collected_data = verify_collected_data(app, frameworks)
     for binary in binaries:
         arches = run(["xcrun", "lipo", "-archs", str(binary)], "檢查裝置架構").decode().split()
         if "arm64" not in arches or "x86_64" in arches:
@@ -274,9 +370,12 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
                 raise ReleaseError("App 未使用指定 distribution 憑證簽章。")
     return {"bundle_id": BUNDLE_ID, "minimum_os": "17.0", "platform": "iphoneos",
             "verified_binary_count": len(binaries), "signature_verified": signed,
-            "ats_key_absent": True, "native_documents_enabled": True,
+            "ats_key_absent": True, "documents_hidden_from_files": True, "photo_library_read_absent": True,
             "browser_media_purpose_strings_verified": True,
-            "required_reason_entries_verified": True}
+            "export_compliance_exempt": True,
+            "required_reason_entries_verified": True,
+            "required_reason_categories": reason_categories,
+            "collected_data_types": collected_data}
 
 
 @contextmanager
