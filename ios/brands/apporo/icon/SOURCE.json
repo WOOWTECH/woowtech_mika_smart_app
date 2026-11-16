@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/WOOWTECH/woowtech_mika_smart_app",
+  "revision": "34a613f0d0de821241f567157d6324efd8da238f",
+  "path": "app/src/apporo/res/drawable/apporo_launcher_foreground.xml",
+  "sha256": "dda5e464845e88bd0ccbed22da8cbcffa92d6eb5ab89f428f38dd399d5e34ed7",
+  "background_source": "app/src/apporo/res/values/colors.xml apporo_icon_bg",
+  "background": "#4D4D4D",
+  "foreground": "#FFFFFF",
+  "geometry": "Original Android viewport/group/paths retained; opaque 1024px iOS render.",
+  "svg": "AppIcon.svg",
+  "svg_sha256": "f167ac31515bde72cd785114b2660c143ea79d07003af8786af4eda973d12462",
+  "png": "AppIcon.png",
+  "png_sha256": "8cca1733bcecce6e61e2572b96760d59f566e1eb27b06f3979613d6c228941fa",
+  "renderer": "rsvg-convert version 2.63.4 via ios/scripts/render_brand_icon.py; alpha removed after an all-opaque check"
+}

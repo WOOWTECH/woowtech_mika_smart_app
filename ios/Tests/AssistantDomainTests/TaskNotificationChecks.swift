@@ -298,7 +298,7 @@ import XCTest
         let accepted = await service.sendTestFromUserGesture(); await service.waitUntilIdle()
         try expect(accepted && center.pending.count == 1, "test uses common scheduling lane")
         let payload = center.additions.last!.payload
-        try expect(payload.title == "通知測試" && payload.body == "這是渥屋助理的測試通知。", "test fixed copy")
+        try expect(payload.title == "通知測試" && payload.body == "這是 Apporo Assistant 的測試通知。", "test fixed copy")
         try expect(service.mayPresent(identifier: payload.identifier), "explicit valid test may present foreground")
         center.deliver(); clock = clock.addingTimeInterval(30); service.expire(); await service.waitUntilIdle()
         try expect(center.delivered.isEmpty && !service.mayPresent(identifier: payload.identifier), "test expires at 30 seconds")
@@ -334,7 +334,7 @@ import XCTest
         await service.waitUntilIdle()
         let paused = center.additions.last!.payload
         try expect(center.pending.count == 1 && paused.kind == .webPaused && paused.title == "網頁任務已暫停"
-                   && paused.body == "回到渥屋助理就會繼續。", "paused notice text")
+                   && paused.body == "回到 Apporo Assistant 就會繼續。", "paused notice text")
         try expect(service.postNotice(.webNeedsYou, destination: .chat), "needs-you notice accepted")
         await service.waitUntilIdle()
         let needsYou = center.additions.last!.payload

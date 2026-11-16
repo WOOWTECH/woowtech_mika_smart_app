@@ -341,7 +341,8 @@ struct ContentView: View {
     #endif
 }
 
-/// WOOWTECH Android brand.properties and ui/theme/Colors.kt at de5be358.
+/// WOOWTECH Android ui/theme/Colors.kt at de5be358 with the Apporo brand.properties
+/// accent (accent.light FF8B6B24, accent.dark FFC49E53).
 /// Keep these visual tokens local to the shell; model and browser policy are unchanged.
 private struct MikaVisualPalette {
     private let dark: Bool
@@ -354,7 +355,7 @@ private struct MikaVisualPalette {
     var surface: Color { dark ? rgb(26, 26, 29) : .white }
     var ink: Color { dark ? rgb(242, 242, 244) : rgb(28, 28, 30) }
     var secondaryInk: Color { dark ? rgb(164, 165, 173) : rgb(95, 96, 104) }
-    var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }
+    var accent: Color { dark ? rgb(196, 158, 83) : rgb(139, 107, 36) }
     var assistant: Color { dark ? .white.opacity(13.0 / 255) : .black.opacity(9.0 / 255) }
     var glass: Color { dark ? surface.opacity(184.0 / 255) : .white.opacity(184.0 / 255) }
     var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }

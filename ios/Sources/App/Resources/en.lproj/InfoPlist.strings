@@ -1,7 +1,7 @@
-/* English name chosen by the owner on 2026-11-13; the Chinese name stays 渥屋助理. */
-"CFBundleDisplayName" = "woowtech agent";
-"NSMicrophoneUsageDescription" = "woowtech agent uses the microphone for your voice input or when you allow a website to use it.";
-"NSSpeechRecognitionUsageDescription" = "woowtech agent uses on-device speech recognition to add your spoken words to the chat draft.";
-"NSCameraUsageDescription" = "woowtech agent uses the camera when you take a photo to attach in chat, or when you allow a website to use it.";
-"NSPhotoLibraryAddUsageDescription" = "woowtech agent saves a photo to your library only when you choose Save Image in the share menu of an attachment preview.";
-"NSLocalNetworkUsageDescription" = "woowtech agent connects to devices on your local network only when you set a model service or MCP server address there.";
+/* Apporo Assistant in every language, as in the Apporo Android editions. */
+"CFBundleDisplayName" = "Apporo Assistant";
+"NSMicrophoneUsageDescription" = "Apporo Assistant uses the microphone for your voice input or when you allow a website to use it.";
+"NSSpeechRecognitionUsageDescription" = "Apporo Assistant uses on-device speech recognition to add your spoken words to the chat draft.";
+"NSCameraUsageDescription" = "Apporo Assistant uses the camera when you take a photo to attach in chat, or when you allow a website to use it.";
+"NSPhotoLibraryAddUsageDescription" = "Apporo Assistant saves a photo to your library only when you choose Save Image in the share menu of an attachment preview.";
+"NSLocalNetworkUsageDescription" = "Apporo Assistant connects to devices on your local network only when you set a model service or MCP server address there.";

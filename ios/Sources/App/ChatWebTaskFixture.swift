@@ -190,9 +190,11 @@ enum ChatWebTaskUITestModel {
         if prompt == "[fixture:web-order]" { return .order }
         if prompt == "[fixture:web-login]" { return .login }
         if prompt == "[fixture:web-ask]" { return .ask }
-        if prompt.contains("104") { return .jobs }
-        if prompt.lowercased().contains("momo") { return .shop }
-        if prompt.contains("AI") && (prompt.contains("新聞") || prompt.lowercased().contains("news")) { return .news }
+        // The Apporo Play examples: facility manager jobs, the air quality monitor
+        // comparison and the smart buildings article.
+        if prompt.contains("設施管理職缺") || prompt.lowercased().contains("facility manager jobs") { return .jobs }
+        if prompt.contains("空氣品質監測器") || prompt.lowercased().contains("air quality monitors") { return .shop }
+        if prompt.contains("智慧建築") || prompt.lowercased().contains("smart buildings") { return .news }
         return nil
     }
 

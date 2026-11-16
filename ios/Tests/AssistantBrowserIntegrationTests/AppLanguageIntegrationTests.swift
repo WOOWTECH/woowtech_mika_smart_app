@@ -56,6 +56,6 @@ import XCTest
         let traditional = try XCTUnwrap(NSDictionary(contentsOf: Bundle.main.bundleURL
             .appendingPathComponent("zh-Hant.lproj/InfoPlist.strings")))
         XCTAssertEqual(prompts, traditional)
-        XCTAssertEqual(prompts["NSMicrophoneUsageDescription"] as? String, "渥屋助理會在你使用語音輸入或允許網站使用麥克風時使用麥克風。")
+        XCTAssertEqual(prompts["NSMicrophoneUsageDescription"] as? String, "Apporo Assistant 會在你使用語音輸入或允許網站使用麥克風時使用麥克風。")
     }
 }

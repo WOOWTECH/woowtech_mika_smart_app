@@ -712,7 +712,7 @@ private struct MemoryPalette {
         ink3 = Color(hex: dark ? 0x8F9099 : 0x73747D)
         hair = Color(hex: dark ? 0x303034 : 0xE8E8EC)
         edge = Color(hex: dark ? 0x2B2B30 : 0xE9E9ED)
-        accent = Color(hex: dark ? 0x5D80FF : 0x0A7CFF)
+        accent = Color(hex: dark ? 0xC49E53 : 0x8B6B24)
         ok = Color(hex: dark ? 0x3CCF7A : 0x1F9D55)
         bad = Color(hex: dark ? 0xFF6961 : 0xE5483D)
     }

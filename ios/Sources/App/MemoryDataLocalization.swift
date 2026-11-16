@@ -66,15 +66,15 @@ enum MemoryDataKey: String, CaseIterable {
         // Play's WebSitesSection (web_*) and RoutesScreen (routes_*), with the app name.
         // iOS lists only the sites you signed in to in its browser.
         case .signInsNone: return ("還沒有登入過的網站", "No sites signed in yet")
-        case .signInsNoneDetail: return ("你在渥屋助理的瀏覽器裡登入網站後，會列在這裡",
-                                         "Sites appear here after you sign in to them in woowtech agent’s browser")
+        case .signInsNoneDetail: return ("你在 Apporo Assistant 的瀏覽器裡登入網站後，會列在這裡",
+                                         "Sites appear here after you sign in to them in Apporo Assistant’s browser")
         case .signInsManage: return ("管理", "Manage")
-        case .signInsSignedInByYou: return ("在渥屋助理裡登入過", "Signed in within woowtech agent")
+        case .signInsSignedInByYou: return ("在 Apporo Assistant 裡登入過", "Signed in within Apporo Assistant")
         case .signInsLooksSignedOut: return ("看起來已登出", "Looks signed out")
         case .signInsLastVisit: return ("最近造訪 %@", "Last visited %@")
-        case .signInsYouSignedIn: return ("你在渥屋助理裡登入過這個網站。", "You signed in to this site within woowtech agent.")
-        case .signInsWasSignedIn: return ("你在渥屋助理裡登入過這個網站，最近一次看起來已登出。",
-                                          "You signed in to this site within woowtech agent; the last visit looked signed out.")
+        case .signInsYouSignedIn: return ("你在 Apporo Assistant 裡登入過這個網站。", "You signed in to this site within Apporo Assistant.")
+        case .signInsWasSignedIn: return ("你在 Apporo Assistant 裡登入過這個網站，最近一次看起來已登出。",
+                                          "You signed in to this site within Apporo Assistant; the last visit looked signed out.")
         case .signInsOpenLogin: return ("開啟登入", "Open sign-in")
         case .signInsCount: return ("%lld 個", "%lld sites")
         case .signInsCountOne: return ("%lld 個", "%lld site")
@@ -83,21 +83,21 @@ enum MemoryDataKey: String, CaseIterable {
                                         "Signed out of %@. Some sign-ins may remain; use “Sign out of all” to clear everything.")
         case .signInsAllTitle: return ("全部登出並清除網頁資料", "Sign out of all and clear web data")
         case .signInsAllQuestion: return ("全部登出並清除網頁資料？", "Sign out of all and clear web data?")
-        case .signInsAllBody: return ("會登出內建瀏覽器裡的所有網站，並清除它們存在渥屋助理裡的網頁資料。之後渥屋助理用網頁辦事時要重新登入。",
-                                      "Signs out of every site in the built-in browser and clears their web data stored in woowtech agent. woowtech agent will need to sign in again when it uses those sites.")
+        case .signInsAllBody: return ("會登出內建瀏覽器裡的所有網站，並清除它們存在 Apporo Assistant 裡的網頁資料。之後 Apporo Assistant 用網頁辦事時要重新登入。",
+                                      "Signs out of every site in the built-in browser and clears their web data stored in Apporo Assistant. Apporo Assistant will need to sign in again when it uses those sites.")
         case .signInsAll: return ("全部登出", "Sign out of all")
         case .signInsAllDone: return ("已全部登出並清除網頁資料。", "Signed out of all and cleared web data.")
-        case .signInsNote: return ("網站的登入資料只存在這臺裝置上渥屋助理的私有空間，沒有另行加密，和系統瀏覽器的保護程度相同。",
-                                   "Website sign-in data is stored only in woowtech agent’s private storage on this device, without extra encryption — the same protection as the system browser.")
+        case .signInsNote: return ("網站的登入資料只存在這臺裝置上 Apporo Assistant 的私有空間，沒有另行加密，和系統瀏覽器的保護程度相同。",
+                                   "Website sign-in data is stored only in Apporo Assistant’s private storage on this device, without extra encryption — the same protection as the system browser.")
         case .routesSaved: return ("已記住的操作路線", "Saved routes")
         case .routesClearAll: return ("全部清除", "Clear all")
         case .routesClearTitle: return ("清除全部已記住的操作路線？", "Clear all saved routes?")
         case .routesClearBody: return ("清除後，做過的事下次會重新一步步來做，不影響別的設定。",
-                                       "After clearing, woowtech agent works things out step by step again next time. Other settings aren’t affected.")
+                                       "After clearing, Apporo Assistant works things out step by step again next time. Other settings aren’t affected.")
         case .clear: return ("清除", "Clear")
         case .clearAll: return ("全部清除", "Clear all")
         case .clearSubtitle: return ("刪掉所有記憶和學到的技能", "Delete all memory and learned skills")
-        case .clearDetails: return ("需要兩次確認，並包含渥屋助理記下的個人檔案及其修改紀錄。模型設定、模型金鑰與 MCP 端點不會被清除。", "Requires two confirmations and includes the profile woowtech agent keeps about you and its edit history. Model settings, keys, and MCP endpoints are kept.")
+        case .clearDetails: return ("需要兩次確認，並包含 Apporo Assistant 記下的個人檔案及其修改紀錄。模型設定、模型金鑰與 MCP 端點不會被清除。", "Requires two confirmations and includes the profile Apporo Assistant keeps about you and its edit history. Model settings, keys, and MCP endpoints are kept.")
         case .emptyMemory: return ("還沒有記住的事", "Nothing remembered yet")
         case .memoryNotFound: return ("沒有找到", "Nothing found")
         case .addMemory: return ("手寫一條", "Write one yourself")
@@ -145,14 +145,14 @@ enum MemoryDataKey: String, CaseIterable {
         case .skillDeleteMessage: return ("將「%@」從我的技能移除，後續對話不再參考。", "Remove “%@” from My Skills? Future conversations will no longer refer to it.")
         case .confirmSkillDelete: return ("確認刪除", "Confirm deletion")
         case .useMemory: return ("使用記憶", "Use memory")
-        case .useMemorySub: return ("關掉後不讀也不記", "When off, woowtech agent neither reads nor saves memory")
+        case .useMemorySub: return ("關掉後不讀也不記", "When off, Apporo Assistant neither reads nor saves memory")
         case .preferenceSaveFailed: return ("設定未儲存", "Setting not saved")
         case .preferenceStillOn: return ("「%@」畫面仍顯示開啟。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@” still shows as on. Try again later; if data changed elsewhere, reload it first.")
         case .preferenceStillOff: return ("「%@」畫面仍顯示關閉。請稍後重試；若資料已在其他位置變更，請重新讀取後再試。", "“%@” still shows as off. Try again later; if data changed elsewhere, reload it first.")
         case .autoRemember: return ("自動記住我說過的事", "Remember what I say")
         case .autoRememberSub: return ("任務結束後從你的原話裡整理", "Organized from your own words after each task")
         case .learnSkills: return ("從做過的事裡學（技能和操作路線）", "Learn from past tasks (skills and routes)")
-        case .learnSkillsSub: return ("學到的內容要你收下才會用", "What woowtech agent learns is used only after you accept it")
+        case .learnSkillsSub: return ("學到的內容要你收下才會用", "What Apporo Assistant learns is used only after you accept it")
         case .preferenceScope: return ("使用記憶不影響已核准技能；技能請用各自開關停用。學習技能開關只控制起草，不影響匯入或使用已核准技能。", "Turning off memory does not disable approved skills; use each skill's switch. The learning switch controls drafting only, not importing or using approved skills.")
         case .learningProgress: return ("正在整理對話記憶…", "Organizing conversation memories…")
         case .switches: return ("開關", "Switches")
@@ -177,7 +177,7 @@ enum MemoryDataKey: String, CaseIterable {
         case .done: return ("完成", "Done")
         case .clearStageOne: return ("第一步：確認清除範圍", "Step 1: Review what will be cleared")
         case .clearStageTwo: return ("第二步：最後確認", "Step 2: Final confirmation")
-        case .clearWarning: return ("將清除所有記憶、技能、待確認草稿、渥屋助理記下的個人檔案及其修改紀錄、路線與版本紀錄。模型設定、模型金鑰與 MCP 端點會保留。此操作無法復原。", "This clears all memories, skills, pending drafts, the profile woowtech agent keeps about you and its edit history, routes, and version history. Model settings, keys, and MCP endpoints remain. This cannot be undone.")
+        case .clearWarning: return ("將清除所有記憶、技能、待確認草稿、Apporo Assistant 記下的個人檔案及其修改紀錄、路線與版本紀錄。模型設定、模型金鑰與 MCP 端點會保留。此操作無法復原。", "This clears all memories, skills, pending drafts, the profile Apporo Assistant keeps about you and its edit history, routes, and version history. Model settings, keys, and MCP endpoints remain. This cannot be undone.")
         case .continueClear: return ("繼續", "Continue")
         case .confirmClear: return ("確認全部清除", "Confirm clear all")
         case .clearTitle: return ("清除資料", "Clear data")
