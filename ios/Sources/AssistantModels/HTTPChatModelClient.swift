@@ -72,7 +72,9 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         }
     }
 
-    /// Yields text deltas (not accumulated text). Slow consumers fail rather than lose text.
+    /// Yields text deltas (not accumulated text). A reader that falls behind gets the
+    /// text that waited joined into later deltas (ModelStreamHandoff), never a failure
+    /// and never a loss; the response size limit still bounds what can wait.
     /// Asks for usage unless this endpoint and model refused that option; the
     /// refusal ends this stream, and only the host may send it again.
     public func stream(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) -> AsyncThrowingStream<String, Error> {
@@ -83,7 +85,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                        onDispatch: @escaping @Sendable () -> Void,
                        onProducerFinished: @escaping @Sendable () -> Void) -> AsyncThrowingStream<String, Error> {
         let meter = ModelUsageMeter(sink: usageSink, configuration: configuration)
-        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(256)) { continuation in
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(ModelStreamHandoff.queuedDeltas)) { continuation in
             let worker = Task {
                 do {
                     let option = Self.usageOptionKey(configuration)
@@ -142,18 +144,26 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
                         try Self.validate(response, stream: true)
                         return try await withTaskCancellationHandler {
                             var parser = ChatSSEParser()
-                            for try await byte in bytes {
-                                try Task.checkCancellation()
-                                if let text = try parser.append(byte) {
-                                    switch continuation.yield(text) {
-                                    case .enqueued: break
-                                    case .dropped: throw HTTPChatModelError.consumerTooSlow
-                                    case .terminated: throw CancellationError()
-                                    @unknown default: throw HTTPChatModelError.consumerTooSlow
+                            var waiting = ""
+                            do {
+                                for try await byte in bytes {
+                                    try Task.checkCancellation()
+                                    if let text = try parser.append(byte) {
+                                        waiting += text
+                                        if try ModelStreamHandoff.offer(waiting, to: continuation) { waiting = "" }
                                     }
+                                    if parser.done { break }
                                 }
-                                if parser.done { break }
+                            } catch HTTPChatModelError.truncatedResponse {
+                                // [DONE] after a cut: the text so far still reaches the reader first.
+                                bytes.task.cancel()
+                                try await ModelStreamHandoff.flush(waiting, to: continuation)
+                                throw HTTPChatModelError.truncatedResponse
                             }
+                            // The request is over; a slow reader still gets the text that
+                            // waited, before the end or a cut reply's truncatedResponse.
+                            bytes.task.cancel()
+                            try await ModelStreamHandoff.flush(waiting, to: continuation)
                             try Task.checkCancellation()
                             try parser.finish()
                             return parser.usage
@@ -288,6 +298,31 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private struct Choice: Decodable {
         let message: ModelMessage
         let finish_reason: String?
+    }
+}
+
+/// Hands streamed text to a reader without failing or losing any when it falls behind.
+/// The 2026-11-16 iPad test failed a long reply with consumerTooSlow: each delta redrew
+/// the growing reply, so the reader fell more than 256 deltas behind a fast stream.
+/// Text that does not fit in the queue waits and goes out joined with the next delta.
+public enum ModelStreamHandoff {
+    /// Small, so a reader that falls behind soon gets joined text instead of a long backlog.
+    public static let queuedDeltas = 16
+
+    /// False when the queue is full: keep the text and offer it again joined with more.
+    public static func offer(_ text: String, to continuation: AsyncThrowingStream<String, Error>.Continuation) throws -> Bool {
+        switch continuation.yield(text) {
+        case .enqueued: return true
+        case .dropped: return false
+        case .terminated: throw CancellationError()
+        @unknown default: return false
+        }
+    }
+
+    /// Waits for room for the text that is still waiting; cancellation ends the wait.
+    public static func flush(_ text: String, to continuation: AsyncThrowingStream<String, Error>.Continuation) async throws {
+        guard !text.isEmpty else { return }
+        while try !offer(text, to: continuation) { try await Task.sleep(nanoseconds: 10_000_000) }
     }
 }
 

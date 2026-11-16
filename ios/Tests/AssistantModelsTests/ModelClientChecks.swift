@@ -369,15 +369,27 @@ enum ModelClientChecks {
         let base = ModelProtocolFixture.register(fixture)
         defer { ModelProtocolFixture.remove(base) }
         let stream = HTTPChatModelClient(session: session).stream(messages: messages, configuration: .init(baseURL: base, model: "test"), apiKey: fakeKey)
-        // The producer cancels the held-open request after overflowing its queue.
-        // Wait for that observable event instead of assuming a parsing speed.
+        // The producer reads to [DONE] and ends the held-open request while nobody
+        // reads yet. Wait for that observable event instead of assuming a parsing speed.
         try await wait { fixture.stopCount > 0 }
-        var count = 0
+        var count = 0, text = ""
+        for try await delta in stream { count += 1; text += delta }
+        try checks.expect(text == String(repeating: "你好 🏡", count: 300), "A reader that fell behind still gets every character, in order")
+        try checks.expect(count <= ModelStreamHandoff.queuedDeltas + 1, "Text that waited arrives joined, not as a long backlog")
         do {
-            for try await _ in stream { count += 1 }
-            throw CheckFailure(name: "Slow consumer must not lose text silently")
-        } catch let error as HTTPChatModelError { try checks.expect(error == .consumerTooSlow, "Bounded output buffer") }
-        try checks.expect(count == 256, "Exactly bounded pending deltas")
+            // A cut reply read late: all of its text first, then truncatedResponse.
+            let cut = ModelProtocolFixture.Scenario(mime: "text/event-stream", chunks: [Data((String(repeating: textEvent, count: 300) + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8)], holdAfterBody: true)
+            let cutBase = ModelProtocolFixture.register(cut)
+            defer { ModelProtocolFixture.remove(cutBase) }
+            let cutStream = HTTPChatModelClient(session: session).stream(messages: messages, configuration: .init(baseURL: cutBase, model: "test"), apiKey: fakeKey)
+            try await wait { cut.stopCount > 0 }
+            var cutText = ""
+            do {
+                for try await delta in cutStream { cutText += delta }
+                throw CheckFailure(name: "A cut reply must end with truncatedResponse")
+            } catch let error as HTTPChatModelError { try checks.expect(error == .truncatedResponse, "A cut reply read late still ends as cut") }
+            try checks.expect(cutText == String(repeating: "你好 🏡", count: 300), "A slow reader of a cut reply gets all its text first")
+        }
         let request = URLRequest(url: base)
         let task = session.dataTask(with: request) // Never resumed.
         var denied = false
