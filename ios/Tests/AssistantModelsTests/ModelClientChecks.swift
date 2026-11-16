@@ -50,9 +50,9 @@ enum ModelClientChecks {
                 let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
                 try checks.expect(body["model"] as? String == "test-model", "Model field")
                 try checks.expect(body["stream"] as? Bool == stream, "Stream field")
-                try checks.expect(body["max_tokens"] as? Int == 1024, "Default output limit")
+                try checks.expect(body["max_tokens"] == nil, "No output limit unless one is set, like Play")
                 try checks.expect((body["messages"] as? [[String: String]]) == [["role": "user", "content": "你好 🏡"]], "Messages")
-                try checks.expect(body.count == 4, "Only agreed fields")
+                try checks.expect(body.count == 3, "Only agreed fields")
             }
         }
         for tokens in [1, 64, 8192] {
@@ -156,7 +156,9 @@ enum ModelClientChecks {
             (Data([100, 97, 116, 97, 58, 32, 0xFF, 10, 10]), .invalidResponse),
             (Data("event: error\ndata: {}\n\n".utf8), .invalidResponse),
             (Data("data: {\"choices\":[]}\n\n".utf8), .invalidResponse),
-            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length")).utf8), .incompleteResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length")).utf8), .truncatedResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8), .truncatedResponse),
+            (Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + textEvent + doneEvent).utf8), .invalidResponse),
             (Data((textEvent + stopEvent + textEvent + doneEvent).utf8), .invalidResponse),
             (Data(textEvent.replacingOccurrences(of: "\"index\":0", with: "\"index\":1").utf8), .invalidResponse),
             (Data(repeating: 65, count: ChatSSEParser.maximumEventBytes + 1), .responseTooLarge)
@@ -167,6 +169,18 @@ enum ModelClientChecks {
                 for byte in bytes { _ = try parser.append(byte) }
                 try parser.finish()
             }
+        }
+        do {
+            // The output limit cut the reply: its text so far comes out, then the stream throws.
+            var parser = ChatSSEParser()
+            var text = ""
+            try checks.error(.truncatedResponse) {
+                for byte in Data((textEvent + stopEvent.replacingOccurrences(of: "stop", with: "length") + doneEvent).utf8) {
+                    if let delta = try parser.append(byte) { text += delta }
+                }
+                try parser.finish()
+            }
+            try checks.expect(text == "你好 🏡", "Text before the cut is kept")
         }
         try checks.error(.responseTooLarge) {
             var parser = ChatSSEParser()
@@ -196,7 +210,7 @@ enum ModelClientChecks {
             (200, "text/html", completion, .invalidResponse),
             (200, "application/json", Data("RAW_BODY_\(fakeKey)".utf8), .invalidResponse),
             (200, "application/json", Data(#"{"choices":[]}"#.utf8), .incompleteResponse),
-            (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":"partial"},"finish_reason":"length"}]}"#.utf8), .incompleteResponse),
+            (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":"partial"},"finish_reason":"length"}]}"#.utf8), .truncatedResponse),
             (200, "application/json", Data(#"{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"stop"}]}"#.utf8), .invalidResponse),
             (200, "application/json", Data(repeating: 65, count: ChatSSEParser.maximumResponseBytes + 1), .responseTooLarge)
         ] {

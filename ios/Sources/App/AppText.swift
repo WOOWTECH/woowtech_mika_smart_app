@@ -655,6 +655,8 @@ enum AppText: Equatable {
     case chatModelFailedNotFound
     case chatModelFailedNetwork
     case chatModelFailedStreamCut
+    case chatModelFailedTruncated
+    case chatReplyTruncatedNote
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
@@ -1589,6 +1591,8 @@ enum AppText: Equatable {
         case .chatModelFailedNotFound: return "chat.modelFailed.notFound"
         case .chatModelFailedNetwork: return "chat.modelFailed.network"
         case .chatModelFailedStreamCut: return "chat.modelFailed.streamCut"
+        case .chatModelFailedTruncated: return "chat.modelFailed.truncated"
+        case .chatReplyTruncatedNote: return "chat.reply.truncatedNote"
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
@@ -2630,6 +2634,8 @@ enum AppText: Equatable {
         case .chatModelFailedNotFound: return "呼叫模型失敗：服務商那裡沒有這個模型。請到設定 › 模型檢查。"
         case .chatModelFailedNetwork: return "呼叫模型失敗：網路連線失敗。請到設定 › 模型檢查。"
         case .chatModelFailedStreamCut: return "呼叫模型失敗：回覆還沒傳完，連線就中斷了。請稍後再試。"
+        case .chatModelFailedTruncated: return "呼叫模型失敗：回覆超過模型的輸出上限，沒有完整結束。請換個比較短的問法再試。"
+        case .chatReplyTruncatedNote: return "（回覆超過模型的輸出上限，到這裡被截斷了。）"
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。"

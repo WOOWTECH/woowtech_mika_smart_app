@@ -6,14 +6,14 @@ private struct SecretError: Error { let secret: String }
 private actor Gate {
     var continuation: CheckedContinuation<String, Error>?
     var messages: [ModelMessage] = []
-    var maxTokens = 0
+    var maxTokens: Int? = 0
     func wait(messages: [ModelMessage], configuration: ModelConfiguration) async throws -> String {
         self.messages = messages; maxTokens = configuration.maxOutputTokens
         return try await withCheckedThrowingContinuation { continuation = $0 }
     }
     func started() -> Bool { continuation != nil }
     func complete(_ text: String) { continuation?.resume(returning: text); continuation = nil }
-    func snapshot() -> ([ModelMessage], Int) { (messages, maxTokens) }
+    func snapshot() -> ([ModelMessage], Int?) { (messages, maxTokens) }
 }
 
 private struct WaitingClient: ChatModelClient {

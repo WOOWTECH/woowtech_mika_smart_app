@@ -190,7 +190,7 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
         let model = configuration.model.trimmingCharacters(in: .whitespacesAndNewlines)
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         // Only a custom service saved without a key may go without one.
-        guard !model.isEmpty, !key.isEmpty || !configuration.requiresKey, (1...8192).contains(configuration.maxOutputTokens),
+        guard !model.isEmpty, !key.isEmpty || !configuration.requiresKey, configuration.maxOutputTokens.map({ (1...8192).contains($0) }) ?? true,
               !apiKey.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               configuration.sessionHeader.map({ ModelSessionHeader.isAllowed(name: $0.name, value: $0.value) }) ?? true,
               var parts = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false),
@@ -243,7 +243,8 @@ public struct HTTPChatModelClient: StructuredStreamingChatModelClient, Reference
     private static func completion(_ data: Data) throws -> Reply {
         let response = try JSONDecoder().decode(Completion.self, from: data)
         guard let choice = response.choices.first, choice.finish_reason == "stop" else {
-            throw HTTPChatModelError.incompleteResponse
+            throw response.choices.first?.finish_reason == "length"
+                ? HTTPChatModelError.truncatedResponse : HTTPChatModelError.incompleteResponse
         }
         guard !choice.message.content.isEmpty else { throw HTTPChatModelError.invalidResponse }
         return Reply(text: choice.message.content, usage: response.usage?.value)

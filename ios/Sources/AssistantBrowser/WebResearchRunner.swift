@@ -80,7 +80,7 @@ public struct WebResearchRunner: Sendable {
                 guard (100...599).contains(code) else { return ("model_http_error", "模型服務回報無效的 HTTP 狀態，研究未完成。") }
                 return ("model_http_\(code)", "模型服務回報 HTTP \(code)，研究未完成；請檢查服務與存取設定。")
             case .invalidResponse: return ("model_invalid_response", "模型服務回應格式無法辨識，研究未完成。")
-            case .incompleteResponse: return ("model_incomplete_response", "模型回應未完整結束，研究未完成。")
+            case .incompleteResponse, .truncatedResponse: return ("model_incomplete_response", "模型回應未完整結束，研究未完成。")
             case .responseTooLarge: return ("model_response_too_large", "模型服務回應超過大小限制，研究未完成。")
             case .consumerTooSlow: return ("model_output_backpressure", "模型輸出超過處理緩衝限制，研究未完成。")
             case .timedOut: return ("model_timeout", "等待模型服務超過時間限制，研究未完成。")
