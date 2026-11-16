@@ -43,7 +43,7 @@ import Foundation
         let report = MikaAboutDiagnostics(info: installed,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 2, patchVersion: 1),
             language: .english).text
-        try check(report == "woowtech agent diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
+        try check(report == "Apporo Assistant diagnostics\nApp version: 0.1.0\nBuild: 42\niOS/iPadOS: 17.2.1",
                   "Report contains only the explicitly selected metadata")
         let missingReport = MikaAboutDiagnostics(info: unresolved,
             osVersion: OperatingSystemVersion(majorVersion: 17, minorVersion: 0, patchVersion: 0),
@@ -52,8 +52,8 @@ import Foundation
                   "Report does not include invalid bundle values")
 
         let expected = [
-            AppDisplayLanguage.traditionalChinese: "關於渥屋助理",
-            .english: "About woowtech agent"
+            AppDisplayLanguage.traditionalChinese: "關於 Apporo Assistant",
+            .english: "About Apporo Assistant"
         ]
         // woowtech Play edition about_tagline, about_version and about_build.
         let taglines: [AppDisplayLanguage: String] = [
@@ -70,17 +70,17 @@ import Foundation
             try check(copy.text(.tagline) == taglines[language], "About tagline follows interface language")
             try check(copy.version("0.1.0") == versionLines[language]?.0, "Version line follows Android about_version")
             try check(copy.build("42") == versionLines[language]?.1, "Build line follows Android about_build")
-            try check(copy.text(.feedbackSheetDetail).contains("woowtech@designsmart.com.tw"), "Feedback names the support address")
+            try check(copy.text(.feedbackSheetDetail).contains("info@apporo.ai"), "Feedback names the support address")
             for key in MikaAboutKey.allCases {
                 try check(!copy.text(key).isEmpty, "About copy has no empty language entry")
             }
         }
         // No Simplified Chinese column (2026-11-13): a Simplified Chinese system reads the Traditional one.
         let simplifiedSystem = MikaAboutCopy(language: AppLanguage.system.resolve(preferredLanguages: ["zh-Hans-CN"]))
-        try check(simplifiedSystem.text(.title) == "關於渥屋助理" && simplifiedSystem.build("42") == "建置 42",
+        try check(simplifiedSystem.text(.title) == "關於 Apporo Assistant" && simplifiedSystem.build("42") == "建置 42",
                   "A Simplified Chinese system shows the Traditional Chinese About page")
         let policy = URLComponents(url: MikaPrivacyPolicy.url, resolvingAgainstBaseURL: false)
-        try check(policy?.scheme == "https" && policy?.host == "assistant-relay.woowtech.io" && policy?.path == "/privacy/ios"
+        try check(policy?.scheme == "https" && policy?.host == "assistant-relay.apporo.ai" && policy?.path == "/privacy/ios"
                   && policy?.query == nil && policy?.fragment == nil, "The privacy policy is one HTTPS address")
         try check(MikaAboutCopy(language: .traditionalChinese).text(.privacyPolicy) == "隱私權政策"
                   && MikaAboutCopy(language: .english).text(.privacyPolicy) == "Privacy policy", "Privacy policy row in both languages")
@@ -91,9 +91,9 @@ import Foundation
                   "License link and page title follow Play")
         try check(hant.thirdParty(1) == "第三方元件 · 1 個" && english.thirdParty(1) == "Third-party components · 1",
                   "Third-party count follows Play's licenses_third_party")
-        // woowtech Play about_data_note: reporting an AI reply sends it to WOOW TECH.
-        try check(hant.text(.dataNote) == "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。"
-                  && english.text(.dataNote) == "What you send is processed by the AI provider you choose. If you report an AI response, that response is sent to WOOW TECH for review.",
+        // Apporo Play about_data_note: reporting an AI reply sends it to Apporo.
+        try check(hant.text(.dataNote) == "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給 Apporo 審查。"
+                  && english.text(.dataNote) == "What you send is processed by the AI provider you choose. If you report an AI response, that response is sent to Apporo for review.",
                   "The data note says where a reported reply goes")
         print("MikaAbout: \(assertions) assertions passed")
     }

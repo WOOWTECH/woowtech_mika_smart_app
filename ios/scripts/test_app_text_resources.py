@@ -42,16 +42,17 @@ class AppTextResourceTests(unittest.TestCase):
         self.reject(lambda c: c.update(languages=['zh-Hant', 'zh-Hans', 'en']))
         self.assertEqual(stale_tables(), [])
 
-    def test_store_example_copy_matches_play_964d7bec(self):
-        # The Play edition's woowtech flavor at 964d7bec (2026-11-13) provides Hant and
-        # English, the two languages iOS ships; its second example became AI news.
+    def test_store_example_copy_matches_apporo_play_6dc10a4e(self):
+        # The Apporo Play edition (apporoplay flavor) at 6dc10a4e (2026-11-13) provides
+        # Hant and English, the two languages iOS ships. Every example works on iOS:
+        # writing, the built-in browser and memory.
         expected = {
-            'shellReplyExample': ('幫我寫一則友善的訊息回覆', 'Help me write a friendly reply to this message.'),
-            'shellNewsExample': ('在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點', 'Find a recent AI news article in the built-in browser and summarize three key points.'),
-            'shellWebExample': ('在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較', 'Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.'),
-            'shellShoppingExample': ('在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點', 'Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.'),
-            'shellRememberExample': ('記住我偏好使用繁體中文，回答簡短一點', 'Remember that I prefer concise answers in Traditional Chinese.'),
-            'shellRecallExample': ('你記得我有哪些偏好？', 'What preferences have I told you to remember?'),
+            'shellReplyExample': ('幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。', 'Draft a friendly email inviting my team to Friday’s planning meeting.'),
+            'shellNewsExample': ('在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。', 'Find a recent article about smart buildings in the built-in browser and summarize three key points.'),
+            'shellWebExample': ('上網搜尋設施管理職缺，挑五個幫我比較。', 'Search the web for facility manager jobs and compare five of them for me.'),
+            'shellShoppingExample': ('比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。', 'Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.'),
+            'shellRememberExample': ('記住我偏好簡短、先講重點的回答。', 'Remember that I prefer short answers with the key point first.'),
+            'shellRecallExample': ('你記得我有哪些偏好？', 'What preferences have I asked you to remember?'),
         }
         entries = {e['case']: e['translations'] for e in self.catalog['entries']}
         for case, (hant, english) in expected.items():
@@ -84,10 +85,10 @@ class AppTextResourceTests(unittest.TestCase):
             self.assertEqual(entries[case]['zh-Hant'], hant, case)
             self.assertEqual(entries[case]['en'], english, case)
 
-    def test_six_examples_match_play_964d7bec_resource_evidence(self):
+    def test_six_examples_match_apporo_play_6dc10a4e_resource_evidence(self):
         root = Path(__file__).resolve().parents[1]
-        evidence = json.loads((root / 'docs/evidence/play-964d7bec-chat-examples.json').read_text())
-        self.assertEqual(evidence['source_commit'], '964d7becff9a0daa228f24cc5c8e2664fde8b7d9')
+        evidence = json.loads((root / 'docs/evidence/apporo-play-6dc10a4e-chat-examples.json').read_text())
+        self.assertEqual(evidence['source_commit'], '6dc10a4e4d7d3ca49a314100836ff421042bece9')
         mapping = {'chat_example_follow': 'shellReplyExample',
                    'chat_example_group_summary': 'shellNewsExample',
                    'chat_example_jobs': 'shellWebExample',

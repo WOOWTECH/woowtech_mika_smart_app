@@ -40,7 +40,7 @@ final class BrowserExternalOpenUITests: XCTestCase {
 
         handoff.tap()
         // iOS 26.2 can keep reporting the App as foreground after Safari has taken
-        // the screen (CI showed Safari with the 渥屋助理 breadcrumb and state 4), so a
+        // the screen (CI showed Safari with the Apporo Assistant breadcrumb and state 4), so a
         // foreground Safari with the App still running also proves the handoff.
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         let leftForeground = XCTWaiter.wait(for: [XCTNSPredicateExpectation(

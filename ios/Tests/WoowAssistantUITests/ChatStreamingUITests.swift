@@ -405,7 +405,7 @@ final class ChatStreamingUITests: XCTestCase {
             let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
             XCTAssertTrue(alert.waitForExistence(timeout: 15))
             let text = alert.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " ")
-            XCTAssertTrue(text.contains("渥屋助理") || text.contains("WoowAssistant"))
+            XCTAssertTrue(text.contains("Apporo Assistant") || text.contains("WoowAssistant"))
             XCTAssertTrue(text.contains("通知") || text.localizedCaseInsensitiveContains("notifications"))
             let allow = alert.buttons.matching(NSPredicate(format: "label IN %@", ["Allow", "允許", "允许"])).firstMatch
             ready(allow); allow.tap()

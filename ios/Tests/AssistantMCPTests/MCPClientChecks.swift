@@ -71,7 +71,7 @@ enum MCPClientChecks {
                     try checks.expect(record.0.url == endpoint, "webhook path and query unchanged")
                     try checks.expect(record.0.httpMethod == "POST", "POST only")
                     try checks.expect(record.0.value(forHTTPHeaderField: "Accept") == "application/json, text/event-stream", "Accept")
-                    try checks.expect(record.0.value(forHTTPHeaderField: "User-Agent") == "WoowAssistant/0.1", "User-Agent")
+                    try checks.expect(record.0.value(forHTTPHeaderField: "User-Agent") == "ApporoAssistant/0.1", "User-Agent")
                     try checks.expect(record.0.timeoutInterval <= 60, "bounded timeout")
                     try checks.expect(record.0.value(forHTTPHeaderField: "Mcp-Session-Id") == (index == 0 ? nil : session), "session header")
                     try checks.expect(record.0.value(forHTTPHeaderField: "MCP-Protocol-Version") == (index == 0 ? nil : version), "version header")

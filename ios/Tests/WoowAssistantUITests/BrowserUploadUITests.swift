@@ -555,7 +555,7 @@ final class BrowserUploadUITests: XCTestCase {
         }
     }
 
-    private let applicationLabels = ["渥屋助理", "WoowAssistant"]
+    private let applicationLabels = ["Apporo Assistant", "WoowAssistant"]
     // Apple documents these names: https://support.apple.com/zh-tw/102570
     // The iPad row's Files (iOS 26.2, run 43606357170) showed 我的iPad without the
     // space: its diagnostics counted one "local-no-space" cell and no other.

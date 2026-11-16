@@ -194,7 +194,7 @@ final class WoowAssistantUITests: XCTestCase {
         app.launch()
         let start = app.buttons["welcome.start"]
         XCTAssertTrue(start.waitForExistence(timeout: 15))
-        XCTAssertEqual(app.staticTexts["welcome.title"].label, "你好，我是渥屋助理")
+        XCTAssertEqual(app.staticTexts["welcome.title"].label, "你好，我是 Apporo Assistant")
         XCTAssertEqual(app.staticTexts["welcome.lead"].label, "在同一個地方對話、語音輸入、瀏覽網頁，並記住有用的資訊。")
         for feature in ["chat", "voice", "web", "memory"] {
             XCTAssertTrue(app.descendants(matching: .any)["welcome.feature." + feature].exists, "Welcome lists \(feature)")
@@ -207,7 +207,7 @@ final class WoowAssistantUITests: XCTestCase {
         start.tap()
         let bar = app.navigationBars["設定模型"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["setup.lead"].label.hasPrefix("渥屋助理用你自己的模型服務來思考。"))
+        XCTAssertTrue(app.staticTexts["setup.lead"].label.hasPrefix("Apporo Assistant 用你自己的模型服務來思考。"))
         let next = app.buttons["setup.next"]
         XCTAssertTrue(next.waitForExistence(timeout: 10))
         XCTAssertEqual(next.label, "下一步")
@@ -265,7 +265,7 @@ final class WoowAssistantUITests: XCTestCase {
         app.buttons["chat.menu"].tap()
         let about = app.buttons["navigation.about"]
         XCTAssertTrue(about.waitForExistence(timeout: 10))
-        XCTAssertEqual(about.label, "關於渥屋助理")
+        XCTAssertEqual(about.label, "關於 Apporo Assistant")
         about.tap()
         XCTAssertTrue(app.staticTexts["settings.about.appName"].waitForExistence(timeout: 10))
         app.buttons["section.back"].tap()
@@ -279,13 +279,13 @@ final class WoowAssistantUITests: XCTestCase {
         let link = app.buttons["settings.about"]
         revealSettings(link, in: app)
         XCTAssertTrue(link.isEnabled)
-        XCTAssertEqual(link.label, "關於渥屋助理")
+        XCTAssertEqual(link.label, "關於 Apporo Assistant")
         let homeVersion = link.value as? String
         link.tap()
 
-        let bar = app.navigationBars["關於渥屋助理"]
+        let bar = app.navigationBars["關於 Apporo Assistant"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
-        XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "渥屋助理")
+        XCTAssertEqual(app.staticTexts["settings.about.appName"].label, "Apporo Assistant")
         XCTAssertEqual(app.staticTexts["settings.about.tagline"].label, "在同一個地方對話、瀏覽網頁，並記住有用的資訊")
         let version = app.staticTexts["settings.about.version"]
         let build = app.staticTexts["settings.about.build"]
@@ -299,14 +299,14 @@ final class WoowAssistantUITests: XCTestCase {
         // The Play edition has no GitHub entries; feedback is diagnostics by email.
         let feedback = app.buttons["settings.about.feedback"]
         XCTAssertTrue(feedback.waitForExistence(timeout: 10))
-        XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("woowtech@designsmart.com.tw"))
+        XCTAssertTrue(feedback.label.contains("回報問題") && feedback.label.contains("info@apporo.ai"))
         for id in ["repository", "guide"] {
             XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "settings.about." + id).firstMatch.exists,
                            "GitHub entry still shown: \(id)")
         }
-        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給渥屋科技審查。")
+        XCTAssertEqual(app.staticTexts["settings.about.dataNote"].label, "你送出的內容由你選擇的 AI 服務商處理；檢舉 AI 回覆時，該則回覆會傳給 Apporo 審查。")
         XCTAssertEqual(app.staticTexts["settings.about.copyright"].label,
-                       "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）")
+                       "© 2026 APPORO UNION INC. · 以 wangzan101/Mika（Apache-2.0）為基礎")
         // Play's About › Released under Apache-2.0 license → Licenses, with the
         // upstream texts; no repository link.
         let license = app.buttons["settings.about.license"]
@@ -342,7 +342,7 @@ final class WoowAssistantUITests: XCTestCase {
         feedback.tap()
         let explanation = app.staticTexts["settings.about.feedback.detail"]
         XCTAssertTrue(explanation.waitForExistence(timeout: 10))
-        XCTAssertEqual(explanation.label, "複製診斷資訊後，寄到 woowtech@designsmart.com.tw")
+        XCTAssertEqual(explanation.label, "複製診斷資訊後，寄到 info@apporo.ai")
         let entry = app.buttons["settings.about.diagnostics"]
         waitUntilHittable(entry)
         entry.tap()
@@ -356,7 +356,7 @@ final class WoowAssistantUITests: XCTestCase {
         copy.tap()
         XCTAssertEqual(copy.label, "已複製")
         app.navigationBars["診斷資訊"].buttons["完成"].tap()
-        XCTAssertTrue(app.navigationBars["關於渥屋助理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["關於 Apporo Assistant"].waitForExistence(timeout: 10))
     }
 
     func testSettingsMemoryAndMCPEntriesOpenExistingScreensAndKeepDrawerRoutes() {
@@ -445,11 +445,11 @@ final class WoowAssistantUITests: XCTestCase {
         returnFromModelSettings(in: app)
         openSection("chat", in: app)
         let cases = [
-            ("reply", "幫我寫一則友善的訊息回覆"),
-            ("news", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"),
-            ("web", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"),
-            ("shopping", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"),
-            ("remember", "記住我偏好使用繁體中文，回答簡短一點"),
+            ("reply", "幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。"),
+            ("news", "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。"),
+            ("web", "上網搜尋設施管理職缺，挑五個幫我比較。"),
+            ("shopping", "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。"),
+            ("remember", "記住我偏好簡短、先講重點的回答。"),
             ("recall", "你記得我有哪些偏好？")
         ]
         for (id, text) in cases {
@@ -488,11 +488,11 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(microphone.waitForExistence(timeout: 10))
         XCTAssertEqual(microphone.label, "語音輸入")
         let cases = [
-            ("reply", "幫我寫一則友善的訊息回覆"),
-            ("news", "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點"),
-            ("web", "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"),
-            ("shopping", "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點"),
-            ("remember", "記住我偏好使用繁體中文，回答簡短一點"),
+            ("reply", "幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。"),
+            ("news", "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。"),
+            ("web", "上網搜尋設施管理職缺，挑五個幫我比較。"),
+            ("shopping", "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。"),
+            ("remember", "記住我偏好簡短、先講重點的回答。"),
             ("recall", "你記得我有哪些偏好？")
         ]
         for (index, item) in cases.enumerated() {

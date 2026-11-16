@@ -52,7 +52,7 @@ def main():
         simulator = str(uuid.UUID(sys.argv[1]))
         destination = Path(sys.argv[2])
         result = subprocess.run(["xcrun", "simctl", "get_app_container", simulator,
-                                 "io.woowtech.assistant", "data"],
+                                 "com.apporo.assistant", "data"],
                                 capture_output=True, text=True, timeout=20, check=True)
         container = Path(result.stdout.strip())
         if not container.is_absolute():

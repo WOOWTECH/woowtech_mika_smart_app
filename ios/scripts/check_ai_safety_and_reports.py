@@ -85,8 +85,8 @@ def rules_audit(root, overrides=None):
     if text != expected:
         failures.append('AISafetyRules.text differs from the Play rules beyond the edition name')
     identity = re.search(r'public static let identity = "(.*)"', source)
-    if not identity or not identity.group(1).startswith("You are woowtech agent (渥屋助理 in Traditional Chinese), the user's personal assistant"):
-        failures.append("the identity line does not follow Play's with the app's names (woowtech agent, 渥屋助理)")
+    if not identity or not identity.group(1).startswith("You are Apporo Assistant, the user's personal assistant"):
+        failures.append("the identity line does not follow Play's with the app's name (Apporo Assistant)")
     if 'public static let prompt = identity + "\\n\\n" + text' not in source:
         failures.append('the safety prompt must be the identity line, then the rules')
     if 'instructions + "\\n\\n" + prompt' not in source:

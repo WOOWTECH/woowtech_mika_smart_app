@@ -1,0 +1,21 @@
+{
+  "source": "WOOWTECH/woowtech_mika_smart_app Apporo Play edition (apporoplay flavor), app/src/apporoplay/res/values-b+zh+Hant/strings_apporoplay.xml and values/strings_apporoplay.xml",
+  "source_commit": "6dc10a4e4d7d3ca49a314100836ff421042bece9",
+  "source_date": "2026-11-13",
+  "chat_strings": {
+    "chat_example_follow": "幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。",
+    "chat_example_group_summary": "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。",
+    "chat_example_jobs": "上網搜尋設施管理職缺，挑五個幫我比較。",
+    "chat_example_multi_step": "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。",
+    "chat_example_alarms": "記住我偏好簡短、先講重點的回答。",
+    "chat_example_ai_apps": "你記得我有哪些偏好？"
+  },
+  "chat_strings_en": {
+    "chat_example_follow": "Draft a friendly email inviting my team to Friday’s planning meeting.",
+    "chat_example_group_summary": "Find a recent article about smart buildings in the built-in browser and summarize three key points.",
+    "chat_example_jobs": "Search the web for facility manager jobs and compare five of them for me.",
+    "chat_example_multi_step": "Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.",
+    "chat_example_alarms": "Remember that I prefer short answers with the key point first.",
+    "chat_example_ai_apps": "What preferences have I asked you to remember?"
+  }
+}

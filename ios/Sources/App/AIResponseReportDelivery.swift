@@ -19,7 +19,7 @@ protocol AIResponseReportTransport: Sendable {
 /// account, pairing, device token or cookie, and exactly the five fields the
 /// relay accepts. Redirects are never followed.
 struct AIResponseReportSender: Sendable {
-    static let relayEndpoint = URL(string: "https://assistant-relay.woowtech.io/api/v1/ai-reports")!
+    static let relayEndpoint = URL(string: "https://assistant-relay.apporo.ai/api/v1/ai-reports")!
 
     let endpoint: URL
     let transport: any AIResponseReportTransport

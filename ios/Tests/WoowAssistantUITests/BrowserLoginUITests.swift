@@ -360,7 +360,7 @@ final class BrowserLoginUITests: XCTestCase {
         openSignIns(expectedCount: 1)
         let site = app.buttons["signIns.site.127.0.0.1"]
         XCTAssertTrue(site.waitForExistence(timeout: 30))
-        XCTAssertTrue(site.label.contains("在渥屋助理裡登入過"), site.label)
+        XCTAssertTrue(site.label.contains("在 Apporo Assistant 裡登入過"), site.label)
         tap(site, timeout: 30)
         let signOut = app.buttons.matching(identifier: "signIns.signOutSite").firstMatch
         XCTAssertTrue(signOut.waitForExistence(timeout: 15))

@@ -172,7 +172,7 @@ import AssistantPersistence
         }
         // Memory on: the reviewed structured flow offers the web entry.
         try check(e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = false }, "memory on")
-        let jobs = "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較"
+        let jobs = "上網搜尋設施管理職缺，挑五個幫我比較。"
         let first = try start(session, jobs)
         try await waitUntil("task card") { session.webTask != nil }
         var mount = Mount(session.webTask!.tab.webView)
@@ -202,7 +202,7 @@ import AssistantPersistence
 
         // Background pause, then the list that grows on scrolling.
         try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
-        let shop = try start(session, "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點")
+        let shop = try start(session, "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。")
         try await waitUntil("shop task starts") { session.webTask != nil }
         mount = Mount(session.webTask!.tab.webView)
         session.webTaskScenePhaseChanged(isActive: false, isBackground: true)
@@ -266,7 +266,7 @@ import AssistantPersistence
         // Memory off: the plain reply can start a task too.
         try check(e.learning.updatePreferences { $0.useMemory = false }, "memory off")
         try await waitUntil("previous tab closes", seconds: 6) { session.webTask == nil }
-        let news = try start(session, "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點")
+        let news = try start(session, "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。")
         try await waitUntil("news task starts") { session.webTask != nil }
         mount = Mount(session.webTask!.tab.webView)
         await news.value

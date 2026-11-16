@@ -101,7 +101,7 @@ final class ChatWebTaskUITests: XCTestCase {
         XCTAssertTrue(answer.label.contains("WEB_TASK_ORDER_REFUSED"), answer.label)
     }
 
-    /// 我來處理 gives the page to the user with 渥屋助理在等你：登入; 處理好了
+    /// 我來處理 gives the page to the user with Apporo Assistant 在等你：登入; 處理好了
     /// hands it back and the task goes on.
     func testSignInIsHandedToTheUserAndBack() {
         launch()
@@ -113,7 +113,7 @@ final class ChatWebTaskUITests: XCTestCase {
         takeOver.tap()
         let waiting = app.staticTexts["chat.web.waitingOnYou"].firstMatch
         XCTAssertTrue(waiting.waitForExistence(timeout: 10))
-        XCTAssertEqual(waiting.label, "渥屋助理在等你：登入")
+        XCTAssertEqual(waiting.label, "Apporo Assistant 在等你：登入")
         app.buttons["chat.web.expanded.handBack"].tap()
         let answer = app.staticTexts["chat.message.1.assistant"].firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 60))
