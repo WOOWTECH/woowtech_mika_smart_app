@@ -7,7 +7,7 @@
     "bundle_id": "com.apporo.assistant",
     "bundle_id_prefix": "com.apporo",
     "marketing_version": "1.0.0",
-    "build": "1",
+    "build": "2",
     "team_id": "W4UWZ8NP2P",
     "company": "APPORO UNION INC.",
     "company_role": "brand and service provider",
@@ -85,7 +85,7 @@
       "id": "project-build-number",
       "file": "project.yml",
       "find": "    CURRENT_PROJECT_VERSION: \"4\"\n",
-      "replace": "    CURRENT_PROJECT_VERSION: \"1\"\n",
+      "replace": "    CURRENT_PROJECT_VERSION: \"2\"\n",
       "count": 1,
       "why": "A new App Store record starts at build 1; MARKETING_VERSION stays 1.0.0."
     },
