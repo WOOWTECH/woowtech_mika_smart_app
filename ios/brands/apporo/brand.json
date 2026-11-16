@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "brand": "apporo",
+  "identity": {
+    "display_name": "Apporo Assistant",
+    "display_name_note": "Apporo Assistant in every language; no Chinese name (owner decision for the Apporo editions).",
+    "bundle_id": "com.apporo.assistant",
+    "bundle_id_prefix": "com.apporo",
+    "marketing_version": "1.0.0",
+    "build": "1",
+    "team_id": "W4UWZ8NP2P",
+    "company": "APPORO UNION INC.",
+    "company_role": "brand and service provider",
+    "developer": "WOOW TECH CO., LTD.",
+    "developer_role": "develops and publishes the app",
+    "website": "https://www.apporo.ai/",
+    "support_email": "info@apporo.ai",
+    "phone": null,
+    "privacy_policy_url": "https://assistant-relay.apporo.ai/privacy/ios",
+    "ai_report_endpoint": "https://assistant-relay.apporo.ai/api/v1/ai-reports",
+    "accent": {
+      "light": "#8B6B24",
+      "dark": "#C49E53"
+    },
+    "references": [
+      "app/src/apporo/resources/brand.properties",
+      "app/src/apporo/res/values/strings_apporo.xml and values-b+zh+Hant/strings_apporo.xml (about_author, about_data_note)",
+      "app/src/apporo/res/values/strings_licenses.xml (woow_lic_mika: modified and distributed by WOOW TECH CO., LTD.)",
+      "apporoplay flavor at 6dc10a4e4d7d3ca49a314100836ff421042bece9: strings_apporoplay.xml (chat_example_*, about_data_note)"
+    ]
+  },
+  "base": {
+    "brand": "woowtech",
+    "revision": "fc5b81e33fe06167ee86bff29e36ce0667ee9420",
+    "note": "Source of the WOOWTECH iOS build 1.0.0 (4), 渥屋助理"
+  },
+  "icon": {
+    "vector": "icon/apporo_launcher_foreground.xml",
+    "source": {
+      "repository": "https://github.com/WOOWTECH/woowtech_mika_smart_app",
+      "revision": "34a613f0d0de821241f567157d6324efd8da238f",
+      "path": "app/src/apporo/res/drawable/apporo_launcher_foreground.xml",
+      "sha256": "dda5e464845e88bd0ccbed22da8cbcffa92d6eb5ab89f428f38dd399d5e34ed7",
+      "background_source": "app/src/apporo/res/values/colors.xml apporo_icon_bg"
+    },
+    "background": "#4D4D4D",
+    "foreground": "#FFFFFF",
+    "size": 1024,
+    "svg": "icon/AppIcon.svg",
+    "png": "icon/AppIcon.png",
+    "provenance": "icon/SOURCE.json"
+  },
+  "scope": {
+    "include": [
+      "project.yml",
+      "Configuration/*.plist",
+      "Sources/**/*.swift",
+      "Sources/**/*.strings",
+      "Sources/**/*.json",
+      "Localization/AppText.json",
+      "Tests/**/*.swift",
+      "scripts/*.swift",
+      "scripts/*.py"
+    ],
+    "exclude": []
+  },
+  "edits": [
+    {
+      "id": "project-bundle-id-prefix",
+      "file": "project.yml",
+      "find": "  bundleIdPrefix: io.woowtech\n",
+      "replace": "  bundleIdPrefix: com.apporo\n",
+      "count": 1,
+      "why": "Targets without an explicit bundle ID (the test bundles) derive theirs from it."
+    },
+    {
+      "id": "project-bundle-ids",
+      "file": "project.yml",
+      "find": "PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant",
+      "replace": "PRODUCT_BUNDLE_IDENTIFIER: com.apporo.assistant",
+      "count": 9,
+      "why": "The App and its eight frameworks: com.apporo.assistant and com.apporo.assistant.<same suffix>."
+    },
+    {
+      "id": "project-build-number",
+      "file": "project.yml",
+      "find": "    CURRENT_PROJECT_VERSION: \"4\"\n",
+      "replace": "    CURRENT_PROJECT_VERSION: \"1\"\n",
+      "count": 1,
+      "why": "A new App Store record starts at build 1; MARKETING_VERSION stays 1.0.0."
+    },
+    {
+      "id": "project-display-name",
+      "file": "project.yml",
+      "find": "        INFOPLIST_KEY_CFBundleDisplayName: 渥屋助理\n",
+      "replace": "        INFOPLIST_KEY_CFBundleDisplayName: Apporo Assistant\n",
+      "count": 1
+    },
+    {
+      "id": "project-accent-color",
+      "file": "project.yml",
+      "find": "        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon\n",
+      "replace": "        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon\n        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor\n",
+      "count": 1,
+      "why": "Color.accentColor (provider chips, links, checkmarks) follows the Apporo accent instead of system blue."
+    },
+    {
+      "id": "infoplist-en-comment",
+      "file": "Sources/App/Resources/en.lproj/InfoPlist.strings",
+      "find": "/* English name chosen by the owner on 2026-11-13; the Chinese name stays 渥屋助理. */\n",
+      "replace": "/* Apporo Assistant in every language, as in the Apporo Android editions. */\n",
+      "count": 1
+    },
+    {
+      "id": "safety-identity",
+      "file": "Sources/AssistantModels/AISafetyRules.swift",
+      "find": "    /// Play's identity prompt opens \"You are Mika, the user's personal assistant\n    /// on their phone.\" Here it names the app as woowtech agent, its English\n    /// name, and 渥屋助理, its Traditional Chinese one, in every interface language.\n    public static let identity = \"You are woowtech agent (渥屋助理 in Traditional Chinese), the user's personal assistant on their iPhone or iPad.\"\n",
+      "replace": "    /// Play's identity prompt opens \"You are Mika, the user's personal assistant\n    /// on their phone.\" Here it names the app Apporo Assistant, its name in every\n    /// language, with the Apporo brand's language rule (English by default,\n    /// Traditional Chinese for Chinese) and the apps it cannot operate.\n    public static let identity = \"You are Apporo Assistant, the user's personal assistant on their iPhone or iPad. Use English by default and follow the user's chosen language; for Chinese use Traditional Chinese. You work only in this app's own screens and its built-in browser; you cannot see or operate other apps, including Apporo aiot, Apporo platform and Apporo smart.\"\n",
+      "count": 1,
+      "why": "Apporo brand.properties identity, limited to what the iOS app can do."
+    },
+    {
+      "id": "safety-identity-audit",
+      "file": "scripts/check_ai_safety_and_reports.py",
+      "find": "    if not identity or not identity.group(1).startswith(\"You are woowtech agent (渥屋助理 in Traditional Chinese), the user's personal assistant\"):\n        failures.append(\"the identity line does not follow Play's with the app's names (woowtech agent, 渥屋助理)\")\n",
+      "replace": "    if not identity or not identity.group(1).startswith(\"You are Apporo Assistant, the user's personal assistant\"):\n        failures.append(\"the identity line does not follow Play's with the app's name (Apporo Assistant)\")\n",
+      "count": 1
+    },
+    {
+      "id": "about-data-note-comment",
+      "file": "Sources/App/MikaAboutInfo.swift",
+      "find": "        // Play's about_data_note: a reported AI reply is sent to WOOW TECH for review.\n",
+      "replace": "        // Apporo Play's about_data_note: a reported AI reply is sent to Apporo for review.\n",
+      "count": 1
+    },
+    {
+      "id": "about-developer-credit",
+      "file": "Sources/App/MikaAboutInfo.swift",
+      "find": "        case .upstreamNote: return (\"記憶、個人技能與操作路線的行為依這個版本改寫成 iOS 版，內建技能的原文也來自這裡。\",\n                                    \"The memory, personal skill and route behavior is adapted for iOS from this revision, which is also the source of the built-in skills' original text.\")\n",
+      "replace": "        // Apporo: the developer credit of the Android Apporo flavor's licenses page (woow_lic_mika).\n        case .upstreamNote: return (\"本 App 由 WOOW TECH CO., LTD. 修改與發行。記憶、個人技能與操作路線的行為依這個版本改寫成 iOS 版，內建技能的原文也來自這裡。\",\n                                    \"This app is modified and distributed by WOOW TECH CO., LTD. The memory, personal skill and route behavior is adapted for iOS from this revision, which is also the source of the built-in skills' original text.\")\n",
+      "count": 1,
+      "why": "APPORO UNION INC. owns the brand; WOOW TECH CO., LTD. develops and publishes the app."
+    },
+    {
+      "id": "about-check-comment",
+      "file": "scripts/CheckMikaAbout.swift",
+      "find": "        // woowtech Play about_data_note: reporting an AI reply sends it to WOOW TECH.\n",
+      "replace": "        // Apporo Play about_data_note: reporting an AI reply sends it to Apporo.\n",
+      "count": 1
+    },
+    {
+      "id": "palette-comment",
+      "file": "Sources/App/ContentView.swift",
+      "find": "/// WOOWTECH Android brand.properties and ui/theme/Colors.kt at de5be358.\n",
+      "replace": "/// WOOWTECH Android ui/theme/Colors.kt at de5be358 with the Apporo brand.properties\n/// accent (accent.light FF8B6B24, accent.dark FFC49E53).\n",
+      "count": 1
+    },
+    {
+      "id": "palette-accent",
+      "file": "Sources/App/ContentView.swift",
+      "find": "    var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }\n",
+      "replace": "    var accent: Color { dark ? rgb(196, 158, 83) : rgb(139, 107, 36) }\n",
+      "count": 1
+    },
+    {
+      "id": "mcp-accent",
+      "file": "Sources/App/MCPToolsView.swift",
+      "find": "            ? Color(red: 97.0 / 255, green: 131.0 / 255, blue: 252.0 / 255)\n            : Color(red: 64.0 / 255, green: 105.0 / 255, blue: 251.0 / 255)\n",
+      "replace": "            ? Color(red: 196.0 / 255, green: 158.0 / 255, blue: 83.0 / 255)\n            : Color(red: 139.0 / 255, green: 107.0 / 255, blue: 36.0 / 255)\n",
+      "count": 1
+    },
+    {
+      "id": "memory-accent",
+      "file": "Sources/App/MemoryDataView.swift",
+      "find": "        accent = Color(hex: dark ? 0x5D80FF : 0x0A7CFF)\n",
+      "replace": "        accent = Color(hex: dark ? 0xC49E53 : 0x8B6B24)\n",
+      "count": 1,
+      "why": "Android draws the memory screen in the theme accent, which is the brand accent."
+    },
+    {
+      "id": "web-fixture-examples",
+      "file": "Sources/App/ChatWebTaskFixture.swift",
+      "find": "        if prompt.contains(\"104\") { return .jobs }\n        if prompt.lowercased().contains(\"momo\") { return .shop }\n        if prompt.contains(\"AI\") && (prompt.contains(\"新聞\") || prompt.lowercased().contains(\"news\")) { return .news }\n",
+      "replace": "        // The Apporo Play examples: facility manager jobs, the air quality monitor\n        // comparison and the smart buildings article.\n        if prompt.contains(\"設施管理職缺\") || prompt.lowercased().contains(\"facility manager jobs\") { return .jobs }\n        if prompt.contains(\"空氣品質監測器\") || prompt.lowercased().contains(\"air quality monitors\") { return .shop }\n        if prompt.contains(\"智慧建築\") || prompt.lowercased().contains(\"smart buildings\") { return .news }\n",
+      "count": 1
+    },
+    {
+      "id": "report-endpoint-test",
+      "file": "scripts/test_ai_safety_and_reports.py",
+      "find": "        self.assertEqual(EVIDENCE['relay']['endpoint'], 'https://assistant-relay.woowtech.io/api/v1/ai-reports')\n        self.assertIn('URL(string: \"' + EVIDENCE['relay']['endpoint'] + '\")!', delivery)\n",
+      "replace": "        # Apporo: the evidence is the WOOWTECH Play build; the Apporo relay serves the\n        # same five-field intake at the same path.\n        self.assertEqual(EVIDENCE['relay']['endpoint'].split('/', 3)[3], 'api/v1/ai-reports')\n        self.assertIn('URL(string: \"https://assistant-relay.apporo.ai/api/v1/ai-reports\")!', delivery)\n",
+      "count": 1
+    },
+    {
+      "id": "report-names-no-app-test",
+      "file": "scripts/test_ai_safety_and_reports.py",
+      "find": "re.search(r'Mika|woowtech|Woow|渥屋', english, re.I)",
+      "replace": "re.search(r'Mika|Apporo|woowtech|Woow|渥屋', english, re.I)",
+      "count": 1
+    },
+    {
+      "id": "examples-test-copy",
+      "file": "scripts/test_app_text_resources.py",
+      "find": "    def test_store_example_copy_matches_play_964d7bec(self):\n        # The Play edition's woowtech flavor at 964d7bec (2026-11-13) provides Hant and\n        # English, the two languages iOS ships; its second example became AI news.\n",
+      "replace": "    def test_store_example_copy_matches_apporo_play_6dc10a4e(self):\n        # The Apporo Play edition (apporoplay flavor) at 6dc10a4e (2026-11-13) provides\n        # Hant and English, the two languages iOS ships. Every example works on iOS:\n        # writing, the built-in browser and memory.\n",
+      "count": 1
+    },
+    {
+      "id": "examples-test-evidence",
+      "file": "scripts/test_app_text_resources.py",
+      "find": "    def test_six_examples_match_play_964d7bec_resource_evidence(self):\n        root = Path(__file__).resolve().parents[1]\n        evidence = json.loads((root / 'docs/evidence/play-964d7bec-chat-examples.json').read_text())\n        self.assertEqual(evidence['source_commit'], '964d7becff9a0daa228f24cc5c8e2664fde8b7d9')\n",
+      "replace": "    def test_six_examples_match_apporo_play_6dc10a4e_resource_evidence(self):\n        root = Path(__file__).resolve().parents[1]\n        evidence = json.loads((root / 'docs/evidence/apporo-play-6dc10a4e-chat-examples.json').read_text())\n        self.assertEqual(evidence['source_commit'], '6dc10a4e4d7d3ca49a314100836ff421042bece9')\n",
+      "count": 1
+    },
+    {
+      "id": "release-bundle-id",
+      "file": "scripts/release_ios.py",
+      "find": "BUNDLE_ID = \"io.woowtech.assistant\"\n",
+      "replace": "BUNDLE_ID = \"com.apporo.assistant\"\n",
+      "count": 1
+    },
+    {
+      "id": "release-relay-comment",
+      "file": "scripts/release_ios.py",
+      "find": "# AI response reports go to woowtech's relay and stay there for review. The App\n",
+      "replace": "# AI response reports go to Apporo's relay and stay there for review. The App\n",
+      "count": 1
+    },
+    {
+      "id": "diagnostics-bundle-id",
+      "file": "scripts/copy_browser_site_clear_diagnostics.py",
+      "find": "\"io.woowtech.assistant\", \"data\"]",
+      "replace": "\"com.apporo.assistant\", \"data\"]",
+      "count": 1
+    }
+  ],
+  "phrases": [
+    {
+      "id": "support-email",
+      "find": "woowtech@designsmart.com.tw",
+      "replace": "info@apporo.ai",
+      "min": 1
+    },
+    {
+      "id": "relay-host",
+      "find": "assistant-relay.woowtech.io",
+      "replace": "assistant-relay.apporo.ai",
+      "min": 1,
+      "why": "Privacy policy /privacy/ios and the AI report intake /api/v1/ai-reports (same five-field API)."
+    },
+    {
+      "id": "user-agent",
+      "find": "WoowAssistant/0.1",
+      "replace": "ApporoAssistant/0.1",
+      "min": 1,
+      "why": "Sent to model providers and MCP servers, which can show it to the person who runs them."
+    },
+    {
+      "id": "mcp-client-name",
+      "find": "WoowAssistant-iOS",
+      "replace": "ApporoAssistant-iOS",
+      "min": 1,
+      "why": "MCP initialize clientInfo.name, shown by MCP servers."
+    },
+    {
+      "id": "data-note-zh",
+      "find": "該則回覆會傳給渥屋科技審查。",
+      "replace": "該則回覆會傳給 Apporo 審查。",
+      "min": 1,
+      "why": "Apporo Play about_data_note (zh-Hant)."
+    },
+    {
+      "id": "data-note-en",
+      "find": "that response is sent to WOOW TECH for review.",
+      "replace": "that response is sent to Apporo for review.",
+      "min": 1,
+      "why": "Apporo Play about_data_note (en)."
+    },
+    {
+      "id": "copyright-zh",
+      "find": "© 2026 WOOW TECH CO., LTD. · 基於 wangzan101/Mika（Apache-2.0）",
+      "replace": "© 2026 APPORO UNION INC. · 以 wangzan101/Mika（Apache-2.0）為基礎",
+      "min": 1,
+      "why": "Android Apporo about_author (zh-Hant)."
+    },
+    {
+      "id": "copyright-en",
+      "find": "© 2026 WOOW TECH CO., LTD. · Based on wangzan101/Mika (Apache-2.0)",
+      "replace": "© 2026 APPORO UNION INC. · Based on wangzan101/Mika (Apache-2.0)",
+      "min": 1,
+      "why": "Android Apporo about_author (en)."
+    },
+    {
+      "id": "example-shellReplyExample-zh-Hant",
+      "find": "幫我寫一則友善的訊息回覆",
+      "replace": "幫我草擬一封友善的電子郵件，邀請團隊參加週五的規劃會議。",
+      "min": 1,
+      "why": "Apporo Play chat example (shellReplyExample)."
+    },
+    {
+      "id": "example-shellReplyExample-en",
+      "find": "Help me write a friendly reply to this message.",
+      "replace": "Draft a friendly email inviting my team to Friday’s planning meeting.",
+      "min": 1,
+      "why": "Apporo Play chat example (shellReplyExample)."
+    },
+    {
+      "id": "example-shellNewsExample-zh-Hant",
+      "find": "在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點",
+      "replace": "在內建瀏覽器找一篇最近關於智慧建築的文章，摘要三個重點。",
+      "min": 1,
+      "why": "Apporo Play chat example (shellNewsExample)."
+    },
+    {
+      "id": "example-shellNewsExample-en",
+      "find": "Find a recent AI news article in the built-in browser and summarize three key points.",
+      "replace": "Find a recent article about smart buildings in the built-in browser and summarize three key points.",
+      "min": 1,
+      "why": "Apporo Play chat example (shellNewsExample)."
+    },
+    {
+      "id": "example-shellWebExample-zh-Hant",
+      "find": "在 104 人力銀行搜尋台北的 AI 產品經理職缺，挑五個幫我比較",
+      "replace": "上網搜尋設施管理職缺，挑五個幫我比較。",
+      "min": 1,
+      "why": "Apporo Play chat example (shellWebExample)."
+    },
+    {
+      "id": "example-shellWebExample-en",
+      "find": "Search 104 Job Bank for AI product manager jobs in Taipei and compare five of them for me.",
+      "replace": "Search the web for facility manager jobs and compare five of them for me.",
+      "min": 1,
+      "why": "Apporo Play chat example (shellWebExample)."
+    },
+    {
+      "id": "example-shellShoppingExample-zh-Hant",
+      "find": "在 momo 購物找 1,000 元以內、4.5 星以上的無線耳機，比較三款的優缺點",
+      "replace": "比較三款適合會議室的空氣品質監測器，附上來源、價格與仍需確認的資訊。",
+      "min": 1,
+      "why": "Apporo Play chat example (shellShoppingExample)."
+    },
+    {
+      "id": "example-shellShoppingExample-en",
+      "find": "Find three wireless earbuds under NT$1,000 rated 4.5 stars or more on momo and compare their pros and cons.",
+      "replace": "Compare three air quality monitors for a meeting room. Include sources, prices and what still needs checking.",
+      "min": 1,
+      "why": "Apporo Play chat example (shellShoppingExample)."
+    },
+    {
+      "id": "example-shellRememberExample-zh-Hant",
+      "find": "記住我偏好使用繁體中文，回答簡短一點",
+      "replace": "記住我偏好簡短、先講重點的回答。",
+      "min": 1,
+      "why": "Apporo Play chat example (shellRememberExample)."
+    },
+    {
+      "id": "example-shellRememberExample-en",
+      "find": "Remember that I prefer concise answers in Traditional Chinese.",
+      "replace": "Remember that I prefer short answers with the key point first.",
+      "min": 1,
+      "why": "Apporo Play chat example (shellRememberExample)."
+    },
+    {
+      "id": "example-shellRecallExample-en",
+      "find": "What preferences have I told you to remember?",
+      "replace": "What preferences have I asked you to remember?",
+      "min": 1,
+      "why": "Apporo Play chat example (shellRecallExample)."
+    },
+    {
+      "id": "name-en",
+      "find": "woowtech agent",
+      "replace": "Apporo Assistant",
+      "min": 1
+    }
+  ],
+  "names": [
+    {
+      "id": "name-zh-Hant",
+      "find": "渥屋助理",
+      "replace": "Apporo Assistant",
+      "min": 1,
+      "cjk_spacing": true,
+      "why": "Half-width spaces around the name in Traditional Chinese text, none next to punctuation."
+    }
+  ],
+  "regenerate": [
+    "app_text"
+  ],
+  "files": {
+    "Sources/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png": "icon/AppIcon.png",
+    "Sources/App/Assets.xcassets/AboutBrandIcon.imageset/AppIcon.png": "icon/AppIcon.png",
+    "Sources/App/Assets.xcassets/AccentColor.colorset/Contents.json": "files/AccentColor.colorset/Contents.json",
+    "Configuration/Brand/SOURCE.json": "icon/SOURCE.json",
+    "Configuration/Brand/AppIcon.svg": "icon/AppIcon.svg",
+    "Configuration/Brand/apporo_launcher_foreground.xml": "icon/apporo_launcher_foreground.xml",
+    "docs/evidence/apporo-play-6dc10a4e-chat-examples.json": "files/apporo-play-6dc10a4e-chat-examples.json"
+  },
+  "remove": [
+    "Configuration/Brand/woow_launcher_foreground.xml",
+    "scripts/render_app_icon.swift"
+  ]
+}
