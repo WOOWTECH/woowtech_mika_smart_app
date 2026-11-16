@@ -35,7 +35,7 @@ private struct LegacyBody: Encodable { let model: String; let messages: [LegacyM
             try check(request.url?.absoluteString == "https://example.invalid/api/chat/completions", "request path")
             try check(request.value(forHTTPHeaderField: "Accept") == (stream ? "text/event-stream" : "application/json"), "accept header")
             let json = try object(request.httpBody!)
-            try check(json["model"] as? String == "fixture" && json["stream"] as? Bool == stream && json["max_tokens"] as? Int == 1024, "body settings")
+            try check(json["model"] as? String == "fixture" && json["stream"] as? Bool == stream && json["max_tokens"] == nil, "body settings")
             let messages = json["messages"] as! [[String: Any]]
             try check(messages[0]["content"] as? String == "system" && messages[2]["content"] as? String == "reply", "history remains strings")
             let parts = messages[3]["content"] as! [[String: Any]]

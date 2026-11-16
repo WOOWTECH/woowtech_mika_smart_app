@@ -645,6 +645,8 @@
 "chat.modelFailed.notFound" = "The model call failed: the provider has no such model. Check Settings › Models.";
 "chat.modelFailed.network" = "The model call failed: couldn’t connect to the model service. Check Settings › Models.";
 "chat.modelFailed.streamCut" = "The model call failed: the connection dropped before the reply finished. Try again later.";
+"chat.modelFailed.truncated" = "The model call failed: the reply hit the model’s output limit before it finished. Try asking for a shorter answer.";
+"chat.reply.truncatedNote" = "(The reply hit the model’s output limit and was cut off here.)";
 "chat.modelFailed.unreadable" = "The model call failed: its reply couldn’t be read; check that the base URL and API type match.";
 "chat.modelFailed.server" = "The model call failed: the server returned an error (HTTP %1$lld). Try again later.";
 "chat.modelFailed.status" = "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models.";

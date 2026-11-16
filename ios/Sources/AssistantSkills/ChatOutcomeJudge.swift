@@ -31,7 +31,7 @@ public struct ChatOutcomeJudge: Sendable {
         let messages = [ModelMessage(role: "system", content: Self.instructions),
                         ModelMessage(role: "user", content: Self.input(goal: goal, answer: answer, priorTurns: priorTurns,
                                                                       completedTools: completedTools))]
-        let bounded = configuration.withMaxOutputTokens(min(configuration.maxOutputTokens, 256))
+        let bounded = configuration.withMaxOutputTokens(min(configuration.maxOutputTokens ?? 256, 256))
         do {
             let reply = try await withThrowingTaskGroup(of: String.self) { group in
                 group.addTask { try await client.complete(messages: messages, configuration: bounded, apiKey: apiKey) }

@@ -4,7 +4,10 @@ import Foundation
 public struct ModelConfiguration: Sendable {
     public let baseURL: URL
     public let model: String
-    public let maxOutputTokens: Int
+    /// Sent as max_tokens. Nil sends none and the provider's own limit applies,
+    /// like Android's Chat Completions client (ProviderStore.kt: models differ on
+    /// max_tokens or max_completion_tokens). Short purposes set their own limit.
+    public let maxOutputTokens: Int?
     public let vision: ModelVisionCapability
     /// False only for a custom OpenAI-compatible service saved without a key
     /// (Android AddForm.keyRequired): a blank key then sends no Authorization
@@ -14,7 +17,7 @@ public struct ModelConfiguration: Sendable {
     /// conversation's value (OpenCode Go: x-opencode-session); nil sends none.
     public let sessionHeader: ModelSessionHeader?
 
-    public init(baseURL: URL, model: String, maxOutputTokens: Int = 1024,
+    public init(baseURL: URL, model: String, maxOutputTokens: Int? = nil,
                 vision: ModelVisionCapability = .unknown, requiresKey: Bool = true,
                 sessionHeader: ModelSessionHeader? = nil) {
         self.baseURL = baseURL
@@ -125,6 +128,8 @@ public enum HTTPChatModelError: Error, LocalizedError, Sendable, Equatable {
     case httpStatus(Int)
     case invalidResponse
     case incompleteResponse
+    /// finish_reason "length": the output limit cut the reply after its text so far.
+    case truncatedResponse
     case responseTooLarge
     case consumerTooSlow
     case timedOut
@@ -137,6 +142,7 @@ public enum HTTPChatModelError: Error, LocalizedError, Sendable, Equatable {
         case .httpStatus(let status): return "The model request failed (HTTP \(status))."
         case .invalidResponse: return "The model returned an invalid response."
         case .incompleteResponse: return "The model response ended before completion."
+        case .truncatedResponse: return "The model response was cut off at its output limit."
         case .responseTooLarge: return "The model response exceeded the size limit."
         case .consumerTooSlow: return "The model stream exceeded the pending output limit."
         case .timedOut: return "The model request exceeded its time limit."

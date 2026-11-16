@@ -111,7 +111,7 @@ public final class ModelConnectionCheck {
             default: return .rejected
             }
         case .timedOut: return .timeout
-        case .invalidResponse, .incompleteResponse, .responseTooLarge: return .response
+        case .invalidResponse, .incompleteResponse, .truncatedResponse, .responseTooLarge: return .response
         case .redirectRejected: return .redirect
         case .consumerTooSlow, .transportFailure: return .network
         }
