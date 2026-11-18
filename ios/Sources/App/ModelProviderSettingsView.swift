@@ -63,7 +63,10 @@ struct MikaModelSettingsDetailView: View {
     /// 下一步 of the first-launch flow; nil in Settings.
     var onboardingNext: (() -> Void)? = nil
     @ObservedObject private var voice = VoicePreferences.shared
+    @ObservedObject private var signIn = ModelAccountSignIn.shared
     @StateObject private var tester = ModelConnectionTester()
+    @State private var signInSheet: ModelAccountSheetTarget?
+    @State private var openedProvider: ModelProviderRoute?
     @State private var form = ModelProviderFormInput()
     @State private var formOpen = false
     @State private var showsKey = false
@@ -122,9 +125,10 @@ struct MikaModelSettingsDetailView: View {
         .submitLabel(.done)
         .onSubmit { field = nil }
         .onAppear {
-            pageVisible = true; session.reloadProviders()
+            pageVisible = true; session.reloadProviders(); signIn.reload(session)
             deviceRecognition = VoiceSettingsView.deviceRecognitionAvailable()
         }
+        .onChange(of: session.providerDocument) { _, _ in signIn.reload(session) }
         .onDisappear {
             pageVisible = false
             tester.reset(); form.key = ""; showsKey = false
@@ -146,6 +150,14 @@ struct MikaModelSettingsDetailView: View {
             ModelConsentSheet(prompt: request.prompt, localizer: localizer,
                               agree: { consent = nil; request.agree() },
                               decline: { consent = nil; request.decline() })
+        }
+        .sheet(item: $signInSheet, onDismiss: signInSheetClosed) { target in
+            ModelAccountSignInSheet(signIn: signIn, session: session, kind: target.kind, localizer: localizer,
+                                    useAPIKey: target.kind == .xai ? { useXAIKey() } : nil,
+                                    close: { signInSheet = nil })
+        }
+        .navigationDestination(item: $openedProvider) { route in
+            ModelProviderDetailView(session: session, languages: languages, providerID: route.id)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -319,15 +331,19 @@ struct MikaModelSettingsDetailView: View {
         }
     }
 
-    /// Android providerLine: 已連線, and which role uses it (phase 1: the main model).
+    /// Android providerLine: 已連線 (an account: signed in or out on this
+    /// device), and which role uses it (phase 1: the main model).
     private func providerLine(_ provider: ModelProvider) -> String {
-        guard session.providerDocument.roles.main?.providerID == provider.id else { return localizer.text(.modelsConnected) }
-        return localizer.text(.modelsConnected) + " · " + localizer.text(.modelsUsedBy(roles: localizer.text(.settingsModelMain)))
+        let state = provider.kind.account == nil ? localizer.text(.modelsConnected)
+            : localizer.text(signIn.status(provider.id)?.signedIn == true ? .signinSignedIn : .signinSignedOut)
+        guard session.providerDocument.roles.main?.providerID == provider.id else { return state }
+        return state + " · " + localizer.text(.modelsUsedBy(roles: localizer.text(.settingsModelMain)))
     }
 
-    /// Android: a model in use that no test call ever confirmed.
+    /// Android: a model in use that no test call ever confirmed. An account's
+    /// sign-in already checked it (Android untested leaves out ChatGPT and xAI).
     private func providerWarning(_ provider: ModelProvider) -> String? {
-        guard let main = session.providerDocument.roles.main, main.providerID == provider.id,
+        guard provider.kind.account == nil, let main = session.providerDocument.roles.main, main.providerID == provider.id,
               !provider.verifiedModels.contains(main.model) else { return nil }
         return localizer.text(.modelsUnverified)
     }
@@ -390,6 +406,9 @@ struct MikaModelSettingsDetailView: View {
                 }
             }
             .padding(.top, 8)
+            ModelAccountSignInGroup(signIn: signIn, document: session.providerDocument, localizer: localizer,
+                                    open: { kind in signIn.clearFailure(kind); signInSheet = ModelAccountSheetTarget(kind: kind) },
+                                    openProvider: { openedProvider = ModelProviderRoute(id: $0) })
             Text(verbatim: localizer.text(.signinKeyGroup))
                 .font(.footnote).foregroundStyle(palette.hint)
                 .padding(.bottom, 8)
@@ -577,6 +596,43 @@ struct MikaModelSettingsDetailView: View {
         form = ModelProviderFormInput()
         formOpen = false; showsKey = false; field = nil; declinedName = nil
     }
+
+    // MARK: Account sign-ins
+
+    /// Android SignInSheetActions.useApiKey: the xAI preset in the key form.
+    private func useXAIKey() {
+        signInSheet = nil
+        form = ModelProviderFormInput(preset: "xAI", key: form.key)
+        formOpen = true
+    }
+
+    /// A finished sign-in opens its provider. With no main model yet its first
+    /// model becomes the main one (Android signInWithChatGpt and
+    /// signInWithAccount), after the consent when it is needed.
+    private func signInSheetClosed() {
+        guard let finished = signIn.finished else { return }
+        signIn.finished = nil
+        let route = ModelProviderRoute(id: finished.providerID)
+        let document = session.providerDocument
+        guard document.roles.main == nil, let provider = document.provider(id: finished.providerID),
+              let model = document.defaultModel(of: provider.id) else {
+            openedProvider = route
+            return
+        }
+        let ref = ModelRef(providerID: provider.id, model: model)
+        guard document.consentRequirement(forMain: ref) != nil else {
+            session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: false)
+            openedProvider = route
+            return
+        }
+        consent = ModelConsentRequest(
+            prompt: ModelConsentPrompt(provider: provider, purpose: .save),
+            agree: {
+                session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: true)
+                openedProvider = route
+            },
+            decline: { openedProvider = route })
+    }
 }
 
 // MARK: - Main model picker (Android RolePickerContent, main role only)
@@ -751,6 +807,8 @@ struct ModelProviderDetailView: View {
     @State private var consent: ModelConsentRequest?
     @State private var retestTarget: String?
     @State private var retested: String?
+    @ObservedObject private var signIn = ModelAccountSignIn.shared
+    @State private var signInSheet: ModelAccountSheetTarget?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -771,7 +829,14 @@ struct ModelProviderDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: tester.state) { _, state in if state == .passed { retestPassed() } }
         .onChange(of: scenePhase) { _, phase in if phase != .active { tester.reset() } }
+        .onAppear { signIn.reload(session) }
         .onDisappear { tester.reset() }
+        .sheet(item: $signInSheet, onDismiss: {
+            if signIn.finished?.providerID == providerID { signIn.finished = nil }
+        }) { target in
+            ModelAccountSignInSheet(signIn: signIn, session: session, kind: target.kind, localizer: localizer,
+                                    useAPIKey: nil, close: { signInSheet = nil })
+        }
         .alert(localizer.text(.modelsChangeKey), isPresented: $changingKey) {
             SecureField(localizer.text(.modelsNewKeyHint), text: $newKey)
                 .accessibilityIdentifier("provider.newKey")
@@ -805,8 +870,14 @@ struct ModelProviderDetailView: View {
 
     private func content(_ provider: ModelProvider) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            MikaSettingsGroupLabel(title: localizer.text(.modelsConnection))
-            MikaSettingsCard { connectionRows(provider) }
+            if let kind = provider.kind.account {
+                ModelAccountConnectionSection(signIn: signIn, session: session, provider: provider, kind: kind, localizer: localizer,
+                                              signInAgain: { signIn.clearFailure(kind); signInSheet = ModelAccountSheetTarget(kind: kind) },
+                                              useAsMain: useAccountModelAsMain)
+            } else {
+                MikaSettingsGroupLabel(title: localizer.text(.modelsConnection))
+                MikaSettingsCard { connectionRows(provider) }
+            }
             MikaSettingsGroupLabel(title: localizer.text(.modelsModels)).padding(.top, 8)
             let models = document.knownModels(of: provider.id)
             if !models.isEmpty {
@@ -827,10 +898,21 @@ struct ModelProviderDetailView: View {
                 }
                 note(localizer.text(.modelsModelsNote), color: palette.hint)
             }
-            if provider.savedUntested {
-                note(localizer.text(.modelsUntestedNote), color: palette.warn).accessibilityIdentifier("provider.untested")
+            if provider.kind.account != nil {
+                // The plan's own list, listed again with the account's token.
+                Button { signIn.refreshModels(providerID: provider.id, session: session) } label: {
+                    Text(verbatim: localizer.text(.signinRefresh)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(signIn.listing[provider.id] == .running || signIn.status(provider.id)?.signedIn != true || session.isSubmitting)
+                .padding(.top, 12)
+                .accessibilityIdentifier("provider.account.refresh")
+            } else {
+                if provider.savedUntested {
+                    note(localizer.text(.modelsUntestedNote), color: palette.warn).accessibilityIdentifier("provider.untested")
+                }
+                retestSection(provider, models: models)
             }
-            retestSection(provider, models: models)
             MikaSettingsCard {
                 Button { confirmsDelete = true } label: {
                     ModelActionRow(icon: .trash, title: localizer.text(.modelsDelete), tint: palette.bad)
@@ -936,6 +1018,22 @@ struct ModelProviderDetailView: View {
     private func useAsDismissed() {
         guard let model = mainAfterSheet, let provider else { return }
         mainAfterSheet = nil
+        let ref = ModelRef(providerID: provider.id, model: model)
+        guard document.roles.main != ref else { return }
+        guard document.consentRequirement(forMain: ref) != nil else {
+            session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: false)
+            return
+        }
+        consent = ModelConsentRequest(
+            prompt: ModelConsentPrompt(provider: provider, purpose: .switchMain),
+            agree: { session.chooseMainModel(providerID: provider.id, model: model, typed: false, verified: false, consented: true) },
+            decline: {})
+    }
+
+    /// Android useAsMain: an account's default model becomes the main one,
+    /// after the consent when its provider is not the one agreed to.
+    private func useAccountModelAsMain(_ model: String) {
+        guard let provider else { return }
         let ref = ModelRef(providerID: provider.id, model: model)
         guard document.roles.main != ref else { return }
         guard document.consentRequirement(forMain: ref) != nil else {

@@ -125,9 +125,10 @@ extension ModelConnectionCheck.Failure {
 
 extension ModelProvider {
     /// A test call's request to one of this provider's models: its address,
-    /// its key rule and a fresh session header value.
+    /// its key rule and a fresh session header value. An account sign-in's
+    /// test goes to its Responses with the account's token, never a key.
     func testConfiguration(model: String) -> ModelConfiguration {
         ModelConfiguration(baseURL: baseURL, model: model, requiresKey: credentialAccount != nil,
-                           sessionHeader: sessionHeader.flatMap(ModelSessionHeader.fresh(name:)))
+                           sessionHeader: sessionHeader.flatMap(ModelSessionHeader.fresh(name:)), account: accountRoute)
     }
 }

@@ -370,6 +370,65 @@ enum AppText: Equatable {
     case modelsConsentReview
     case modelsLegacyUnreadable
     case signinKeyGroup
+    case signinGroup
+    case signinRowChatGPT
+    case signinRowXAI
+    case signinRunning
+    case signinSignedIn
+    case signinSignedOut
+    case signinBusy
+    case signinUseKey
+    case signinContinue
+    case signinStoredNote
+    case signinCopied
+    case signinSetMain
+    case signinSetMainNote
+    case signinSignOutNote
+    case signinListing
+    case signinListFailed
+    case signinRefresh
+    case chatgptTitle
+    case chatgptBody
+    case chatgptContinue
+    case chatgptWaiting
+    case chatgptAccount
+    case chatgptSignOut
+    case chatgptManageUsage
+    case chatgptPlanNote
+    case chatgptSignedOutNote
+    case chatgptRevokeUnconfirmed
+    case chatgptPageDone
+    case chatgptFailDenied
+    case chatgptFailMismatch
+    case chatgptFailNoClient
+    case chatgptFailTimedOut
+    case chatgptFailExchange(code: String)
+    case chatgptFailCodeExpired
+    case chatgptFailRegion
+    case chatgptFailBlocked
+    case chatgptFailIDToken
+    case chatgptFailNoPlan
+    case chatgptFailNetwork
+    case signinXAITitle
+    case signinXAIBody
+    case signinXAIRisk
+    case signinXAIStarting
+    case signinXAICodeTitle
+    case signinXAICodeBody
+    case signinXAICodeValid(minutes: Int)
+    case signinXAICopyReopen
+    case signinXAIWaiting
+    case signinXAINote403
+    case accountSignedInNoteXAI
+    case accountSignedOutNote
+    case accountManageXAI
+    case accountFailDenied
+    case accountFailExpired
+    case accountFailTimedOut
+    case accountFailRejected(code: String)
+    case accountFailNoSub
+    case accountFailNetwork
+    case accountFailIssuer
     case presetCustom
     case modelBaseURL
     case modelProviderName
@@ -660,6 +719,12 @@ enum AppText: Equatable {
     case chatModelFailedUnreadable
     case chatModelFailedServer(status: Int)
     case chatModelFailedStatus(status: Int)
+    case chatModelFailedSignedOut(account: String)
+    case chatModelFailedChatGPTLimit
+    case chatModelFailedChatGPTNotEligible
+    case chatModelFailedPlan(account: String)
+    case chatModelFailedRefused
+    case chatModelFailedContext
     case drawerDeleteTitle
     case drawerDeleteBody(title: String)
     case chatWebTitle
@@ -1306,6 +1371,65 @@ enum AppText: Equatable {
         case .modelsConsentReview: return "models.consentReview"
         case .modelsLegacyUnreadable: return "models.legacyUnreadable"
         case .signinKeyGroup: return "signin.keyGroup"
+        case .signinGroup: return "signin.group"
+        case .signinRowChatGPT: return "signin.row.chatgpt"
+        case .signinRowXAI: return "signin.row.xai"
+        case .signinRunning: return "signin.running"
+        case .signinSignedIn: return "signin.signedIn"
+        case .signinSignedOut: return "signin.signedOut"
+        case .signinBusy: return "signin.busy"
+        case .signinUseKey: return "signin.useKey"
+        case .signinContinue: return "signin.continue"
+        case .signinStoredNote: return "signin.storedNote"
+        case .signinCopied: return "signin.copied"
+        case .signinSetMain: return "signin.setMain"
+        case .signinSetMainNote: return "signin.setMainNote"
+        case .signinSignOutNote: return "signin.signOutNote"
+        case .signinListing: return "signin.listing"
+        case .signinListFailed: return "signin.listFailed"
+        case .signinRefresh: return "signin.refresh"
+        case .chatgptTitle: return "chatgpt.title"
+        case .chatgptBody: return "chatgpt.body"
+        case .chatgptContinue: return "chatgpt.continue"
+        case .chatgptWaiting: return "chatgpt.waiting"
+        case .chatgptAccount: return "chatgpt.account"
+        case .chatgptSignOut: return "chatgpt.signOut"
+        case .chatgptManageUsage: return "chatgpt.manageUsage"
+        case .chatgptPlanNote: return "chatgpt.planNote"
+        case .chatgptSignedOutNote: return "chatgpt.signedOutNote"
+        case .chatgptRevokeUnconfirmed: return "chatgpt.revokeUnconfirmed"
+        case .chatgptPageDone: return "chatgpt.pageDone"
+        case .chatgptFailDenied: return "chatgpt.fail.denied"
+        case .chatgptFailMismatch: return "chatgpt.fail.mismatch"
+        case .chatgptFailNoClient: return "chatgpt.fail.noClient"
+        case .chatgptFailTimedOut: return "chatgpt.fail.timedOut"
+        case .chatgptFailExchange: return "chatgpt.fail.exchange"
+        case .chatgptFailCodeExpired: return "chatgpt.fail.codeExpired"
+        case .chatgptFailRegion: return "chatgpt.fail.region"
+        case .chatgptFailBlocked: return "chatgpt.fail.blocked"
+        case .chatgptFailIDToken: return "chatgpt.fail.idToken"
+        case .chatgptFailNoPlan: return "chatgpt.fail.noPlan"
+        case .chatgptFailNetwork: return "chatgpt.fail.network"
+        case .signinXAITitle: return "signin.xai.title"
+        case .signinXAIBody: return "signin.xai.body"
+        case .signinXAIRisk: return "signin.xai.risk"
+        case .signinXAIStarting: return "signin.xai.starting"
+        case .signinXAICodeTitle: return "signin.xai.codeTitle"
+        case .signinXAICodeBody: return "signin.xai.codeBody"
+        case .signinXAICodeValid: return "signin.xai.codeValid"
+        case .signinXAICopyReopen: return "signin.xai.copyReopen"
+        case .signinXAIWaiting: return "signin.xai.waiting"
+        case .signinXAINote403: return "signin.xai.note403"
+        case .accountSignedInNoteXAI: return "account.signedInNote.xai"
+        case .accountSignedOutNote: return "account.signedOutNote"
+        case .accountManageXAI: return "account.manage.xai"
+        case .accountFailDenied: return "account.fail.denied"
+        case .accountFailExpired: return "account.fail.expired"
+        case .accountFailTimedOut: return "account.fail.timedOut"
+        case .accountFailRejected: return "account.fail.rejected"
+        case .accountFailNoSub: return "account.fail.noSub"
+        case .accountFailNetwork: return "account.fail.network"
+        case .accountFailIssuer: return "account.fail.issuer"
         case .presetCustom: return "preset.custom"
         case .modelBaseURL: return "model.baseURL"
         case .modelProviderName: return "model.providerName"
@@ -1596,6 +1720,12 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "chat.modelFailed.unreadable"
         case .chatModelFailedServer: return "chat.modelFailed.server"
         case .chatModelFailedStatus: return "chat.modelFailed.status"
+        case .chatModelFailedSignedOut: return "chat.modelFailed.signedOut"
+        case .chatModelFailedChatGPTLimit: return "chat.modelFailed.chatgptLimit"
+        case .chatModelFailedChatGPTNotEligible: return "chat.modelFailed.chatgptNotEligible"
+        case .chatModelFailedPlan: return "chat.modelFailed.plan"
+        case .chatModelFailedRefused: return "chat.modelFailed.refused"
+        case .chatModelFailedContext: return "chat.modelFailed.context"
         case .drawerDeleteTitle: return "drawer.delete.title"
         case .drawerDeleteBody: return "drawer.delete.body"
         case .chatWebTitle: return "chat.web.title"
@@ -1895,6 +2025,9 @@ enum AppText: Equatable {
         case .settingsNotificationsLowered(let count): return [Int64(count)]
         case .modelsUsedBy(let roles): return [roles]
         case .modelsConsentNeeded(let provider): return [provider]
+        case .chatgptFailExchange(let code): return [code]
+        case .signinXAICodeValid(let minutes): return [Int64(minutes)]
+        case .accountFailRejected(let code): return [code]
         case .modelPresetMatch(let name): return [name]
         case .modelUsePreset(let name): return [name]
         case .modelFailed(let reason): return [reason]
@@ -1931,6 +2064,8 @@ enum AppText: Equatable {
         case .chatReportExpired(let reference): return [reference]
         case .chatModelFailedServer(let status): return [Int64(status)]
         case .chatModelFailedStatus(let status): return [Int64(status)]
+        case .chatModelFailedSignedOut(let account): return [account]
+        case .chatModelFailedPlan(let account): return [account]
         case .drawerDeleteBody(let title): return [title]
         case .chatWebWorkingOn(let site): return [site]
         case .chatWebActivityOpening(let site): return [site]
@@ -2349,6 +2484,65 @@ enum AppText: Equatable {
         case .modelsConsentReview: return "檢視並同意"
         case .modelsLegacyUnreadable: return "之前的模型設定讀不出來，沒有搬過來；請重新新增服務商。"
         case .signinKeyGroup: return "填 API Key"
+        case .signinGroup: return "用帳號登入 · 不用填 Key"
+        case .signinRowChatGPT: return "用 Plus / Pro 方案的額度"
+        case .signinRowXAI: return "用 SuperGrok 或 X Premium+ 訂閱"
+        case .signinRunning: return "登入中…"
+        case .signinSignedIn: return "已登入"
+        case .signinSignedOut: return "已退出登入"
+        case .signinBusy: return "另一個登入還沒結束，先完成或取消它。"
+        case .signinUseKey: return "改用 API Key"
+        case .signinContinue: return "繼續登入"
+        case .signinStoredNote: return "登入資訊只加密存在這台裝置上，不會寫進日誌。"
+        case .signinCopied: return "已複製"
+        case .signinSetMain: return "設為主模型"
+        case .signinSetMainNote: return "渥屋助理辦事時用它"
+        case .signinSignOutNote: return "只清這台裝置上的登入資訊"
+        case .signinListing: return "正在列出模型…"
+        case .signinListFailed: return "列模型失敗"
+        case .signinRefresh: return "重新整理"
+        case .chatgptTitle: return "用你的 ChatGPT 方案"
+        case .chatgptBody: return "用你 ChatGPT 方案裡包含的用量（或額度餘額）完成渥屋助理裡符合條件的 AI 請求。ChatGPT Plus 和 Pro 可用。渥屋助理本身免費，不另外收費。"
+        case .chatgptContinue: return "使用 ChatGPT 繼續"
+        case .chatgptWaiting: return "請在瀏覽器裡完成登入，再回到渥屋助理。"
+        case .chatgptAccount: return "帳號"
+        case .chatgptSignOut: return "退出登入"
+        case .chatgptManageUsage: return "管理用量"
+        case .chatgptPlanNote: return "使用 ChatGPT 方案額度。Plus 每 5 小時的額度和其他用你方案的 App 共用；Pro 沒有 5 小時的限制。"
+        case .chatgptSignedOutNote: return "這台裝置上已退出登入。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。"
+        case .chatgptRevokeUnconfirmed: return "這台裝置上已退出登入，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與渥屋助理的連線。"
+        case .chatgptPageDone: return "登入成功，回到渥屋助理。"
+        case .chatgptFailDenied: return "已取消登入。如果授權頁提示「所需權限不可用」：用方案額度需要 ChatGPT Plus 或 Pro，免費帳號可以改用其他服務商的 API Key。"
+        case .chatgptFailMismatch: return "登入回來的資訊和這次對不上，請再試一次。"
+        case .chatgptFailNoClient: return "ChatGPT 沒有完成對渥屋助理的註冊，請再試一次。"
+        case .chatgptFailTimedOut: return "登入逾時了，請再試一次。"
+        case .chatgptFailExchange: return "ChatGPT 拒絕了這次登入（錯誤：%1$@），請再試一次。"
+        case .chatgptFailCodeExpired: return "登入碼過期或已用過，請再登入一次。"
+        case .chatgptFailRegion: return "目前網路所在的地區不被 OpenAI 支援，換個網路再試。"
+        case .chatgptFailBlocked: return "請求被 OpenAI 的防護攔下了，換個網路或稍後再試。"
+        case .chatgptFailIDToken: return "核對不了你的 ChatGPT 帳號，請再試一次。"
+        case .chatgptFailNoPlan: return "沒有允許渥屋助理使用你的 ChatGPT 方案。請重新登入並允許使用方案額度（需要 Plus 或 Pro）。"
+        case .chatgptFailNetwork: return "連不上 ChatGPT，請檢查網路後再試。"
+        case .signinXAITitle: return "用 xAI 帳號登入"
+        case .signinXAIBody: return "用你的 SuperGrok 或 X Premium+ 訂閱在渥屋助理裡用 Grok，不用另外買 API 額度。請求直接發給 xAI。"
+        case .signinXAIRisk: return "這項登入借用 xAI 官方命令列工具的公開登入入口，不是 xAI 專門給渥屋助理開的。xAI 可能限制這種用法；有的訂閱檔位登入成功後仍不能呼叫（會提示 403），那時請改用 xAI 的 API Key。"
+        case .signinXAIStarting: return "正在打開 xAI 的確認頁…"
+        case .signinXAICodeTitle: return "在瀏覽器裡確認"
+        case .signinXAICodeBody: return "已打開 xAI 的確認頁。核對頁面上的碼和下面一樣，然後點同意。"
+        case .signinXAICodeValid: return "%1$lld 分鐘內有效"
+        case .signinXAICopyReopen: return "複製碼並重新打開確認頁"
+        case .signinXAIWaiting: return "等你在瀏覽器裡確認…"
+        case .signinXAINote403: return "如果呼叫時提示 403：說明你的訂閱檔位不能用這個介面，可以改用 xAI 的 API Key。"
+        case .accountSignedInNoteXAI: return "在用你的 xAI / Grok 訂閱。額度和這個帳號的其他客戶端共用。這項登入借用 xAI 官方命令列工具的公開登入入口，風險見登入前的說明。"
+        case .accountSignedOutNote: return "這台裝置上已退出登入。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。"
+        case .accountManageXAI: return "打開 xAI 帳號"
+        case .accountFailDenied: return "已取消登入。"
+        case .accountFailExpired: return "登入碼過期或已用過，請再試一次。"
+        case .accountFailTimedOut: return "登入逾時了，請再試一次。"
+        case .accountFailRejected: return "登入被拒絕了（錯誤：%1$@），請再試一次。"
+        case .accountFailNoSub: return "這個帳號沒有可用的 xAI 訂閱。"
+        case .accountFailNetwork: return "連不上登入服務，請檢查網路後再試。"
+        case .accountFailIssuer: return "登入地址不對，已停止，沒有繼續傳送。"
         case .presetCustom: return "自訂"
         case .modelBaseURL: return "介面網址"
         case .modelProviderName: return "名稱"
@@ -2639,6 +2833,12 @@ enum AppText: Equatable {
         case .chatModelFailedUnreadable: return "呼叫模型失敗：看不懂回傳的內容，請確認介面網址和介面類型是否相符。"
         case .chatModelFailedServer: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請稍後再試。"
         case .chatModelFailedStatus: return "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。"
+        case .chatModelFailedSignedOut: return "呼叫模型失敗：%1$@ 登入已失效，請重新登入。請到設定 › 模型檢查。"
+        case .chatModelFailedChatGPTLimit: return "呼叫模型失敗：ChatGPT 額度用完了。請稍後再試。"
+        case .chatModelFailedChatGPTNotEligible: return "呼叫模型失敗：這個帳號不能在其他 App 使用 ChatGPT 額度。請到設定 › 模型檢查。"
+        case .chatModelFailedPlan: return "呼叫模型失敗：你的 %1$@ 訂閱方案不能使用這個介面，請改用 xAI 的 API Key。"
+        case .chatModelFailedRefused: return "呼叫模型失敗：模型拒絕處理這些內容。"
+        case .chatModelFailedContext: return "呼叫模型失敗：對話內容超出模型的上下文長度。"
         case .drawerDeleteTitle: return "刪除這個對話？"
         case .drawerDeleteBody: return "「%1$@」和裡面的檔案都會刪掉。"
         case .chatWebTitle: return "網頁任務"

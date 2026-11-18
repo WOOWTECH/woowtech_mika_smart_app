@@ -41,7 +41,8 @@ class RuntimeInventoryError(ReleaseError):
 # UI class exactly once. Keep class selectors so new methods cannot be omitted.
 UI_SHARDS = {
     # ui-startup (37 methods) exceeded the 30-minute slice on iOS 18 CI runners; chat classes are their own shard.
-    "ui-startup": ["WoowAssistantUITests"],
+    # The account sign-in fixture tests open the same model settings pages.
+    "ui-startup": ["WoowAssistantUITests", "ModelAccountSignInUITests"],
     "ui-chat": ["SelfConfigurationUITests", "ChatStreamingUITests", "ChatVoiceUITests"],
     "ui-language": ["AppLanguageUITests", "AppLanguagePhase2UITests"],
     "ui-notifications": ["NotificationUITests"],

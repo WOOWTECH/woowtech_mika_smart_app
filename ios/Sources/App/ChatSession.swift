@@ -124,8 +124,22 @@ struct ChatMessageActionTargets: Equatable {
 enum ChatModelFailure: Equatable {
     case auth, quota, rateLimited, notFound, network, streamCut, truncated, unreadable
     case server(Int), status(Int)
+    /// An account sign-in (ChatGPT, xAI) failed for its own reason; the
+    /// associated value is the account's brand name.
+    case signedOut(String), chatGPTLimit, chatGPTNotEligible, planNotAllowed(String), refused, context
 
     init?(_ error: Error) {
+        if let account = error as? ModelAccountError {
+            switch account {
+            case .signInExpired(let kind), .unauthorized(let kind): self = .signedOut(kind.accountName)
+            case .planLimitReached: self = .chatGPTLimit
+            case .planNotEligible: self = .chatGPTNotEligible
+            case .planNotAllowed(let kind): self = .planNotAllowed(kind.accountName)
+            case .contentRefused: self = .refused
+            case .contextTooLong: self = .context
+            }
+            return
+        }
         guard let error = error as? HTTPChatModelError else { return nil }
         switch error {
         case .httpStatus(401), .httpStatus(403): self = .auth
@@ -154,6 +168,12 @@ enum ChatModelFailure: Equatable {
         case .unreadable: return .chatModelFailedUnreadable
         case .server(let status): return .chatModelFailedServer(status: status)
         case .status(let status): return .chatModelFailedStatus(status: status)
+        case .signedOut(let account): return .chatModelFailedSignedOut(account: account)
+        case .chatGPTLimit: return .chatModelFailedChatGPTLimit
+        case .chatGPTNotEligible: return .chatModelFailedChatGPTNotEligible
+        case .planNotAllowed(let account): return .chatModelFailedPlan(account: account)
+        case .refused: return .chatModelFailedRefused
+        case .context: return .chatModelFailedContext
         }
     }
 }
@@ -307,7 +327,7 @@ final class ChatSession: ObservableObject {
         precondition(!(arguments.contains("-UITestMode") && arguments.contains("-LiveModelUITest")), "Choose one UI test mode")
         if arguments.contains("-LiveModelUITest") {
             repository = LiveModelUITestSupport.repository(arguments: arguments)
-            client = HTTPChatModelClient()
+            client = Self.providerClient(repository)
             isUITestMode = false
             do {
                 if arguments.contains("-LiveModelUITestCleanup") {
@@ -324,12 +344,12 @@ final class ChatSession: ObservableObject {
             isUITestMode = true
         } else {
             repository = Self.liveRepository()
-            client = HTTPChatModelClient()
+            client = Self.providerClient(repository)
             isUITestMode = false
         }
         #else
         repository = Self.liveRepository()
-        client = HTTPChatModelClient()
+        client = Self.providerClient(repository)
         isUITestMode = false
         #endif
         loadSettings()
@@ -1695,6 +1715,12 @@ final class ChatSession: ObservableObject {
         deadline?.cancel()
         deadline = nil
         chatError = nil
+    }
+
+    /// The client each provider's kind chooses: chat/completions with the key
+    /// for API-key providers, Responses with the account's token for a sign-in.
+    private static func providerClient(_ repository: ModelSettingsRepository) -> any ChatModelClient {
+        ModelProviderClient(accounts: ModelAccountTokens(repository: repository))
     }
 
     private static func liveRepository() -> ModelSettingsRepository {
