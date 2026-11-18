@@ -115,7 +115,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps a user-requested AI conversation or in-app browser task running while showing its progress" />
+                android:value="Keeps a user-requested AI conversation or in-app browser task running while showing its progress; afterwards keeps the one web page the user asked to keep open running, for at most two hours" />
         </service>
 
         <!-- 用 ChatGPT 登录期间:用户在浏览器里登录时撑住进程,本机回调才有人接;登录一结束就停 -->

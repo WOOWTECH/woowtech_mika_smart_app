@@ -70,6 +70,27 @@ class WoowtechManifestTest {
             .forEach { forbidden -> assertFalse("Play manifest still exposes $forbidden", components.any { it.endsWith(forbidden) }) }
     }
 
+    /**
+     * Owner decision 2026-11-18: the Play edition keeps the one web page the user asked to keep open after a task, like the
+     * direct-download edition. The foreground-service declaration (also entered in Play Console) has to say so, and the
+     * browser must not drop its page keeper for this flavor again.
+     */
+    @Test
+    fun taskServiceDeclaresTheKeptPage() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val task = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".task.TaskService" }
+        val properties = task.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "keeps the one web page the user asked to keep open" in subtype)
+        assertTrue(subtype, "at most two hours" in subtype)
+        assertFalse(subtype, "phone task" in subtype || "virtual display" in subtype)
+        val webStack = File(app, "main/java/com/wangzan101/mika/cap/web/WebStack.kt").readText()
+        assertFalse("WebStack drops the page keeper for the Play flavor", "FLAVOR == \"woowtech\"" in webStack)
+    }
+
     @Test
     fun browserEntryIsIsolatedAndUsesTheInstalledPackageScheme() {
         val root = manifest("woowtech/AndroidManifest.xml")
