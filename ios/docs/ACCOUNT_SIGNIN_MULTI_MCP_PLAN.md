@@ -10,6 +10,7 @@ Branch: `ios/1.1-account-signin-multi-mcp`, started from `ios/parity-1.0` at `35
 2. **xAI / Grok sign-in** with SuperGrok or X Premium+.
 3. **Several MCP servers.** iOS keeps one endpoint today; Android keeps a list.
 4. **Drawer title fix.** On iPhone 15 Pro (iOS 26.5, build 4) the drawer title 渥屋助理 sits inside the status bar and overlaps the clock.
+5. **Remove the per-conversation MCP switch** 本次對話使用 MCP 工具 (`chat.useMCP`). A saved MCP server is available in every chat.
 
 Out of scope: OpenRouter sign-in, and Claude or Google account sign-in (`docs/dev/account-signin.md` on `main` explains why those two are not offered).
 
@@ -72,6 +73,13 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 - A server that is down must not block the others.
 - Deleting a server clears only that server's Keychain items.
 
+### Per-conversation MCP switch (`ContentView.swift`, `ChatSession.swift`)
+
+- The switch is more than a screen control. `ChatSession.usesMCP` decides whether a turn goes through the MCP runner (`attemptSend(mcp:)`), and `docs/BACKLOG.md` lists MCP together with web tasks and skill tools in one chat as the work that lets the switch go.
+- Make one chat turn able to use MCP tools, web tasks and skill tools together first. Removing only the switch would either cut MCP off or take web tasks and skill tools away from chats that have a saved server.
+- Then remove the toggle, `usesMCP` and the `chatUseMCP` string, and rewrite the `mcpExplanation` text, which tells people to turn the switch on.
+- Update the UI tests that use `chat.useMCP`: `MCPConversationUITests`, `LiveMCPConversationUITests` and `MCPLearningUITests`.
+
 ## Order of work
 
 1. Drawer title fix.
@@ -80,12 +88,14 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 4. ChatGPT sign-in, end to end.
 5. xAI / Grok sign-in, end to end.
 6. Several MCP servers, including migration.
+7. MCP, web tasks and skill tools in one chat, then remove the per-conversation switch.
 
 ## Done means
 
 - Module checks, App harnesses and UI tests cover each item, and CI is green or every failure is explained.
 - Tested on a real iPhone and iPad: sign-in, model list, streaming chat, a long reply, token refresh, cancel, sign-out, and backgrounding during sign-in.
 - MCP tested with at least two real servers, including migration from one server and one server being down.
+- With a saved MCP server and no switch on screen, one chat can call an MCP tool, run a web task and use a skill.
 
 ## Boundaries
 
