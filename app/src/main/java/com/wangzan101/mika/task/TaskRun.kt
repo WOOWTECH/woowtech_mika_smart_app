@@ -786,6 +786,13 @@ class TaskRun(
                     resultStore = com.wangzan101.mika.mcp.ConversationMcpResultStore(SandboxDirs(service), conversationId),
                     workspace = conversationId,
                 )
+                // 连接失败、超过总时限没连上的只在任务卡片上提示一句,不打断任务;详情在设置页的健康状态里
+                mcpConnections?.failures?.let { failures ->
+                    val names = (service.application as MikaApp).mcpServers.servers.value.associate { it.id to it.name }
+                    McpRunNotice.text(failures, names)?.let { note ->
+                        (_state.value as? TaskState.Running)?.let { publish(it.copy(note = note)) }
+                    }
+                }
             }
             val runApproval = approvalControl.start(remote = provenance.origin == RunOrigin.Mcp).also { approval = it }
             val childRunner = if (provenance.origin == RunOrigin.Ui && web != null) ChildAgentRunner(
