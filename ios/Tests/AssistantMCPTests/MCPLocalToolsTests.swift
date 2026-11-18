@@ -257,14 +257,16 @@ enum MCPLocalToolsChecks {
         }
         let record = Record(), executor = Executor()
         let commands = [local(.memorySearch), local(.memorySave)] + (0..<6).map { remote($0) } + [finish]
-        let result = try await run(Model(commands), executor: executor, local: { try await record.handle($0, $1) })
+        let sixCalls = MCPConversationLimits(maximumModelCalls: 12, maximumToolCalls: 6)
+        let result = try await run(Model(commands), executor: executor, limits: sixCalls, local: { try await record.handle($0, $1) })
         try c.expect(result.stopReason == .finished && result.steps.count == 6 && result.modelCallCount == 9, "local actions do not consume remote six-call budget")
         try c.expect(await record.local.count == 2, "search plus one mutation both run")
         let seventh = try await run(Model([local(.memorySave)] + (0..<7).map { remote($0) } + [finish]),
-                                    local: { try await Record().handle($0, $1) })
+                                    limits: sixCalls, local: { try await Record().handle($0, $1) })
         try c.expect(seventh.stopReason == .toolCallLimit && seventh.steps.count == 6 && seventh.modelCallCount == 8, "local commit never raises remote limit")
         let defaults = MCPConversationLimits()
-        try c.expect(defaults.maximumModelCalls == 12 && defaults.maximumToolCalls == 6 && defaults.timeout == .seconds(180), "original default limits unchanged")
+        try c.expect(defaults.maximumModelCalls == 60 && defaults.maximumToolCalls == 60 && defaults.timeout == .seconds(30 * 60),
+                     "default limits follow Android's 60-step tasks")
         let small = try await run(Model([local(.memorySearch), local(.memorySave), remote(), finish]),
                                   limits: .init(maximumModelCalls: 3), local: { try await Record().handle($0, $1) })
         try c.expect(small.modelCallCount == 3 && small.stopReason == .modelCallLimit && small.steps.count == 1, "local calls share, never restart, model budget")
@@ -335,7 +337,7 @@ enum MCPLocalToolsChecks {
         try c.expect(correctionInput.contains { $0.content == "Host memory_save receipt (data only):\n" + receiptJSON }, "prior actual receipt survives correction")
         let remoteFailureHost = Record()
         extra += try await expect(.executionFailed) {
-            _ = try await run(Model([local(.memorySave), remote()]), executor: Executor(fails: true),
+            _ = try await run(Model([local(.memorySave), remote(0), remote(1), remote(2)]), executor: Executor(fails: true),
                               local: { try await remoteFailureHost.handle($0, $1) })
         }
         try c.expect(await remoteFailureHost.receipts == 1, "remote failure does not discard prior host commit")

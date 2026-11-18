@@ -3,7 +3,9 @@ import Foundation
 /// A trusted host executor, bound to the same connection as the selected catalog.
 /// Calls arrive only for selected tools and offered resources, without a per-call
 /// approval. An error/cancellation cannot promise remote rollback;
-/// implementations must not automatically retry or switch connections.
+/// implementations must not automatically retry or switch connections. Like
+/// Android, a failed call becomes an error result the model reads; the runner
+/// never resends it by itself.
 public protocol MCPConversationExecuting: Sendable {
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue
     func readResource(uri: String) async throws -> JSONValue
@@ -48,7 +50,9 @@ public enum MCPConversationEvent: Sendable, Equatable {
 
 public enum MCPConversationStopReason: String, Codable, Sendable {
     /// approvalDenied: the user declined a local memory or profile review.
-    /// Remote MCP calls have no per-call approval to decline.
+    /// Remote MCP calls have no per-call approval to decline. toolError stays
+    /// for saved conversations: like Android, a tool error now goes back to the
+    /// model instead of stopping the run.
     case finished, approvalDenied, modelCallLimit, toolCallLimit, repeatedCall, toolError
     case localCallLimit
 }
@@ -68,8 +72,15 @@ public struct MCPConversationLimits: Sendable {
     public let maximumToolCalls: Int
     public let timeout: Duration
 
-    public init(maximumModelCalls: Int = 12, maximumToolCalls: Int = 6,
-                timeout: Duration = .seconds(180)) {
+    /// Android AgentLoop.DEFAULT_MAX_STEPS.
+    public static let maximumSteps = 60
+    public static let longestTimeout: Duration = .seconds(30 * 60)
+
+    /// Like Android, a task has many steps and no short overall limit; the
+    /// iOS run still ends after 30 minutes.
+    public init(maximumModelCalls: Int = MCPConversationLimits.maximumSteps,
+                maximumToolCalls: Int = MCPConversationLimits.maximumSteps,
+                timeout: Duration = MCPConversationLimits.longestTimeout) {
         self.maximumModelCalls = maximumModelCalls
         self.maximumToolCalls = maximumToolCalls
         self.timeout = timeout

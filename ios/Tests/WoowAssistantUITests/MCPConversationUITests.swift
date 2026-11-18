@@ -187,12 +187,13 @@ final class MCPConversationUITests: XCTestCase {
         assertAnswer("FIXTURE_CALL_1: hello", index: 3)
     }
 
-    /// Like the Play build a tool error leaves the turn as 沒有完成 with its reason.
-    func testToolErrorShowsNotDoneAndActualErrorResult() {
+    /// Like Android a tool error goes back to the model, which answers from the
+    /// actual error; the error result stays in the results list.
+    func testToolErrorGoesBackToTheModelAndStaysInTheResults() {
         send("[fixture:mcp-error]")
-        let failed = app.descendants(matching: .any)["chat.message.1.assistant"]
-        XCTAssertTrue(failed.waitForExistence(timeout: 10))
-        XCTAssertTrue(failed.label.hasPrefix("沒有完成") && failed.label.contains("工具回報錯誤"), failed.label)
+        assertAnswer("FIXTURE_CALL_1: error", index: 1)
+        let answer = app.descendants(matching: .any)["chat.message.1.assistant"]
+        XCTAssertFalse(answer.label.hasPrefix("沒有完成"), answer.label)
         XCTAssertFalse(app.staticTexts["chat.error"].exists)
         XCTAssertNotEqual(chatDraftControl(in: app).value as? String, "[fixture:mcp-error]")
         app.buttons["chat.mcpResults"].tap()

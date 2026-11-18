@@ -188,7 +188,8 @@ enum ChatPathReply {
 @MainActor
 final class ChatSession: ObservableObject {
     /// MCP runs keep a host deadline; ordinary chat has none, like the Play build.
-    static let mcpRequestDeadlineSeconds: UInt64 = 180
+    /// Just past the MCP runner's own 30-minute limit, so the runner's stop comes first.
+    static let mcpRequestDeadlineSeconds: UInt64 = 1830
     /// The archived marker of a stopped turn, shown as 已停止。 (Play's CANCELLED_OUTCOME).
     nonisolated static let stoppedMarker = "已取消"
     let learning: LearningStore

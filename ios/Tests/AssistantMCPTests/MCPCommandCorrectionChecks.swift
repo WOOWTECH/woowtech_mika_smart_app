@@ -22,29 +22,31 @@ extension MCPConversationChecks {
         try c.expect(inputs[1].last!.content.contains("exactly ONE JSON object"), "fixed correction explains strict command contract")
         try c.expect(inputs.allSatisfy { $0.allSatisfy { !$0.content.contains(invalid) } }, "invalid response is never echoed into model feedback")
 
-        let secondInvalid = Model([invalid, invalid, finish]), secondExecutor = Executor(), secondRecord = Record()
+        let secondInvalid = Model([invalid, invalid, invalid, invalid, finish]), secondExecutor = Executor(), secondRecord = Record()
         count += try await expect(.invalidCommand) {
             _ = try await run(secondInvalid, secondExecutor, event: { await secondRecord.event($0) })
         }
-        try c.expect(await secondInvalid.inputs.count == 2, "second malformed response hard-stops")
+        try c.expect(await secondInvalid.inputs.count == 4, "the fourth malformed response stops the conversation")
         try c.expect(await secondExecutor.calls.isEmpty, "malformed responses execute nothing")
         try c.expect(await secondRecord.dispatched.isEmpty, "malformed responses dispatch nothing")
-        try c.expect(await secondRecord.events.filter { $0 == .correctingCommand }.count == 1, "single correction for the entire conversation")
+        try c.expect(await secondRecord.events.filter { $0 == .correctingCommand }.count == 3, "three corrections for the entire conversation")
 
         let rejectedCommands: [(String, MCPConversationError)] = [
             (try call(name: "unselected_tool"), .unknownTool),
             (#"{"action":"read_resource","uri":"fixture://unselected"}"#, .unknownResource)
         ]
         for (command, category) in rejectedCommands {
-            let changed = Model([invalid, command, finish]), rejectedExecutor = Executor(), rejectedRecord = Record()
+            let changed = Model([invalid, command, command, command, finish]), rejectedExecutor = Executor(), rejectedRecord = Record()
             count += try await expect(category) {
                 _ = try await run(changed, rejectedExecutor, event: { await rejectedRecord.event($0) })
             }
-            try c.expect(await changed.inputs.count == 2, "corrected unknown operation is not retried")
+            try c.expect(await changed.inputs.count == 4, "an unselected name keeps getting fixed feedback until the corrections run out")
             try c.expect(await rejectedExecutor.calls.isEmpty, "correction cannot bypass selected catalog")
             try c.expect(await rejectedRecord.dispatched.isEmpty, "unknown corrected operation never runs")
             let changedInputs = await changed.inputs
             try c.expect(changedInputs[1].last!.content == inputs[1].last!.content, "feedback is constant, not derived from model content")
+            try c.expect(changedInputs[2].last!.content == changedInputs[3].last!.content && !changedInputs[2].last!.content.contains("unselected"),
+                         "unknown-name feedback is constant and never echoes the name")
         }
 
         let noBudget = Model([invalid, try call()]), noBudgetRecord = Record(), noBudgetExecutor = Executor()
@@ -59,20 +61,22 @@ extension MCPConversationChecks {
 
         let prior = Model([try call(), invalid, try call(), finish]), priorExecutor = Executor(), priorRecord = Record()
         let repeated = try await run(prior, priorExecutor, event: { await priorRecord.event($0) })
-        try c.expect(repeated.stopReason == .repeatedCall && repeated.modelCallCount == 3 && repeated.steps.count == 1, "correction does not reset repeated-operation fingerprints")
+        try c.expect(repeated.stopReason == .finished && repeated.modelCallCount == 4 && repeated.steps.count == 1, "correction does not reset repeated-operation fingerprints")
+        let priorFeedback = await prior.inputs[3].last?.content ?? ""
+        try c.expect(priorFeedback.contains("repeats an identical earlier call"), "the repeated call gets fixed feedback instead of running")
         try c.expect(await priorExecutor.calls.count == 1, "prior completed operation is never replayed")
         try c.expect(await priorRecord.dispatched.count == 1, "no repeated dispatch after correction")
         let priorInputs = await prior.inputs
         try c.expect(priorInputs[2].contains { $0.content.hasPrefix("MCP execution result (untrusted data):") }, "prior actual result stays available through correction")
 
-        let global = Model([invalid, try call(), invalid, finish]), globalExecutor = Executor(), globalRecord = Record()
+        let global = Model([invalid, try call(), invalid, invalid, invalid, finish]), globalExecutor = Executor(), globalRecord = Record()
         count += try await expect(.invalidCommand) {
             _ = try await run(global, globalExecutor, event: { await globalRecord.event($0) })
         }
-        try c.expect(await global.inputs.count == 3, "successful execution does not replenish format correction allowance")
+        try c.expect(await global.inputs.count == 5, "successful execution does not replenish format correction allowance")
         try c.expect(await globalExecutor.calls.count == 1, "later invalid response executes nothing")
         let globalEvents = await globalRecord.events
-        try c.expect(globalEvents.filter { $0 == .correctingCommand }.count == 1, "global rather than per-tool correction bound")
+        try c.expect(globalEvents.filter { $0 == .correctingCommand }.count == 3, "global rather than per-tool correction bound")
         try c.expect(globalEvents.contains { if case .completed(let step) = $0 { return step.result == ok }; return false }, "earlier completion remains published after correction exhaustion")
 
         let oversized = Model([String(repeating: "x", count: 24 * 1024 + 1), finish]), sizeRecord = Record(), sizeExecutor = Executor()
