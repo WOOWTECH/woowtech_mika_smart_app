@@ -638,9 +638,12 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertTrue(app.buttons["section.back"].exists)
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
         XCTAssertTrue(app.staticTexts["mcp.testIsolation"].exists)
-        for _ in 0..<4 where !app.buttons["mcp.connect"].isHittable { app.swipeUp() }
-        XCTAssertTrue(app.buttons["mcp.connect"].exists)
-        XCTAssertFalse(app.buttons["mcp.connect"].isEnabled)
+        // Like Android's MCP 伺服器 page: no server yet, so there is nothing to test.
+        XCTAssertTrue(app.descendants(matching: .any)["mcp.servers.empty"].exists)
+        for _ in 0..<4 where !app.buttons["mcp.testAll"].isHittable { app.swipeUp() }
+        XCTAssertTrue(app.buttons["mcp.testAll"].exists)
+        XCTAssertFalse(app.buttons["mcp.testAll"].isEnabled)
+        XCTAssertTrue(app.buttons["mcp.addServer"].isEnabled)
     }
 
     func testHTTPSValidationThenConfiguredChatWithoutAutomaticHistoryRestore() {

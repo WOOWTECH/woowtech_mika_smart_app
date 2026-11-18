@@ -46,6 +46,8 @@ final class LiveMCPUITests: XCTestCase {
         initialLaunchCompleted = true
         navigateMikaSection("tools", in: app)
         XCTAssertTrue(app.staticTexts["mcp.status"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "已儲存 1 個伺服器")
+        openMCPServer(0, in: app)
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         XCTAssertFalse(app.staticTexts["mcp.testIsolation"].exists)
         func assertConnected(_ step: String) {

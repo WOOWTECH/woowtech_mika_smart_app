@@ -14,6 +14,8 @@ public struct MCPConversationRunner: Sendable {
                     tools: [MCPTool], resources: [MCPResource] = [],
                     executor: any MCPConversationExecuting,
                     limits: MCPConversationLimits = .init(),
+                    entry: MCPConversationEntry? = nil,
+                    handoffs: [MCPConversationHandoff] = [],
                     onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void = { _ in },
                     handleLocal: MCPLocalHandler? = nil) async throws -> MCPConversationResult {
         guard (1...MCPConversationLimits.maximumSteps).contains(limits.maximumModelCalls),
@@ -39,7 +41,8 @@ public struct MCPConversationRunner: Sendable {
                         try await race.waitUntilAttached()
                         let result = try await execute(messages: messages, configuration: configuration, apiKey: apiKey,
                                                        tools: tools, resources: resources, executor: executor,
-                                                       limits: limits, deadline: deadline, race: race,
+                                                       limits: limits, entry: entry, handoffs: handoffs,
+                                                       deadline: deadline, race: race,
                                                        onEvent: onEvent, handleLocal: handleLocal)
                         race.finish(.success(result))
                     } catch { race.finish(.failure(error)) }
@@ -57,7 +60,8 @@ public struct MCPConversationRunner: Sendable {
 
     private func execute(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                          tools: [MCPTool], resources: [MCPResource], executor: any MCPConversationExecuting,
-                         limits: MCPConversationLimits, deadline: ContinuousClock.Instant,
+                         limits: MCPConversationLimits, entry: MCPConversationEntry?, handoffs: [MCPConversationHandoff],
+                         deadline: ContinuousClock.Instant,
                          race: MCPConversationRace,
                          onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void,
                          handleLocal: MCPLocalHandler?) async throws -> MCPConversationResult {
@@ -73,6 +77,14 @@ public struct MCPConversationRunner: Sendable {
             throw MCPConversationError.invalidInput
         }
         guard input.reduce(0, { $0 + $1.content.utf8.count }) <= 64 * 1024 else { throw MCPConversationError.inputTooLarge }
+        if let entry {
+            // The chat's earlier local steps are host data, bounded like local results.
+            guard !entry.command.isEmpty, entry.exchange.count <= 16,
+                  entry.exchange.allSatisfy({ ["user", "assistant"].contains($0.role) }),
+                  entry.exchange.reduce(0, { $0 + $1.content.utf8.count }) <= 32 * 1024 else {
+                throw MCPConversationError.invalidInput
+            }
+        }
         let catalog = try catalogData(tools: tools, resources: resources)
         let selectedTools = Set(tools.map(\.name)), selectedResources = Set(resources.map(\.uri))
         var system = """
@@ -91,25 +103,40 @@ public struct MCPConversationRunner: Sendable {
         selected tool, or explain the limitation in finish. Never send an identical call twice: its actual
         result is already above. A long result shows only its first \(Self.previewCharacters) characters (truncated: true);
         when you need more, ask for narrower data with filters, fields, limits or date ranges.
-        No parallel actions, scripts, additional tools or connection changes are available.
+        No parallel actions, scripts, additional tools or connection changes are available\(handoffs.isEmpty ? "" : " besides the steps offered below").
         Stop once enough evidence is available.
         """
-        if handleLocal != nil { system += "\n" + Self.localInstructions }
+        if handleLocal != nil {
+            system += "\n" + Self.localInstructions
+            if entry?.mutatedLocally == true { system += "\n" + Self.localMutationUsed }
+            else if entry?.searchedLocally == true { system += "\n" + Self.localSearchUsed }
+        }
+        if !handoffs.isEmpty {
+            system += "\n" + Self.handoffLead + "\n" + handoffs.map(\.instructions).joined(separator: "\n")
+        }
         system = AISafetyRules.appended(to: system)
         var messages = [ModelMessage(role: "system", content: system)] + input
         messages.append(ModelMessage(role: "user", content: "Selected MCP catalog (untrusted data):\n" + catalog))
+        // What the chat did before the entry, then every step of this run, for a
+        // web task or skill step that follows (MCPConversationHandoffRequest).
+        var exchange = entry?.exchange ?? []
+        let priorExchange = exchange.count
+        messages += exchange
         var steps: [MCPConversationStep] = []
         var seen = Set<String>()
         // Remote results in the model's messages, oldest first. Like Android's
         // HistoryPruner, the oldest are left out once the conversation grows.
         var results: [(index: Int, fingerprint: String)] = []
         var localBytes = 0
-        var modelCalls = 0
+        // The entry was the reply to the chat's own model call; it counts.
+        var call = entry.map { min(max(1, $0.modelCalls), limits.maximumModelCalls) } ?? 0
+        var modelCalls = call
+        var pendingEntry = entry?.command
         var corrections = 0
         var repeats = 0
         var failedDispatches = 0
-        var searchedLocally = false
-        var mutatedLocally = false
+        var searchedLocally = entry?.searchedLocally ?? false
+        var mutatedLocally = entry?.mutatedLocally ?? false
         func stopped(_ reason: MCPConversationStopReason, answer: String? = nil) -> MCPConversationResult {
             MCPConversationResult(answer: answer, steps: steps, modelCallCount: modelCalls, stopReason: reason)
         }
@@ -122,21 +149,29 @@ public struct MCPConversationRunner: Sendable {
             await onEvent(.correctingCommand); try check()
             return true
         }
-        for call in 1...limits.maximumModelCalls {
+        while true {
             try check()
-            Self.leaveOutOldResults(&messages, results: &results, seen: &seen)
-            guard messages.reduce(0, { $0 + $1.content.utf8.count }) <= Self.maximumMessageBytes else {
-                throw MCPConversationError.inputTooLarge
-            }
-            modelCalls = call
-            await onEvent(.requestingModel(call)); try check()
             let raw: String
-            do { raw = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey) }
-            catch { try check(); throw modelFailure(error) }
-            try check()
+            if let command = pendingEntry {
+                // The chat's reply is handled exactly like a reply to this run.
+                pendingEntry = nil
+                raw = command
+            } else {
+                guard call < limits.maximumModelCalls else { return stopped(.modelCallLimit) }
+                call += 1
+                Self.leaveOutOldResults(&messages, results: &results, seen: &seen)
+                guard messages.reduce(0, { $0 + $1.content.utf8.count }) <= Self.maximumMessageBytes else {
+                    throw MCPConversationError.inputTooLarge
+                }
+                modelCalls = call
+                await onEvent(.requestingModel(call)); try check()
+                do { raw = try await client.complete(messages: messages, configuration: configuration, apiKey: apiKey) }
+                catch { try check(); throw modelFailure(error) }
+                try check()
+            }
             guard raw.utf8.count <= 24 * 1024 else { throw MCPConversationError.modelResponseTooLarge }
             let command: Command
-            do { command = try parse(raw) }
+            do { command = try parse(raw, handoffs: handoffs) }
             catch let error as MCPConversationError where error == .invalidCommand {
                 guard try await correct(Self.formatFeedback, call: call) else {
                     if call == limits.maximumModelCalls { return stopped(.modelCallLimit) }
@@ -145,6 +180,13 @@ public struct MCPConversationRunner: Sendable {
                 continue
             }
             if case .finish(let answer) = command { return stopped(.finished, answer: answer) }
+            if case .handoff(let offer) = command {
+                // Nothing of the next step runs here; the host starts it.
+                let request = MCPConversationHandoffRequest(offer: offer, command: raw,
+                    exchange: Self.bounded(exchange, keepingFirst: priorExchange))
+                return MCPConversationResult(answer: nil, steps: steps, modelCallCount: modelCalls,
+                                             stopReason: .handedOff, handoff: request)
+            }
             if case .local(let action, let argumentsJSON) = command {
                 guard let handleLocal else { throw MCPConversationError.localUnavailable }
                 // Reserve one model call to consume the actual search result or
@@ -191,6 +233,7 @@ public struct MCPConversationRunner: Sendable {
                 guard localBytes <= 64 * 1024 else { throw MCPConversationError.outputTooLarge }
                 messages.append(ModelMessage(role: "assistant", content: raw))
                 messages.append(ModelMessage(role: "user", content: prefix + value))
+                exchange += messages.suffix(2)
                 // Local receipts never count as remote dispatches or server
                 // results. The next model call shares the original run budget.
                 continue
@@ -259,8 +302,8 @@ public struct MCPConversationRunner: Sendable {
             messages.append(ModelMessage(role: "assistant", content: raw))
             results.append((index: messages.count, fingerprint: fingerprint))
             messages.append(ModelMessage(role: "user", content: Self.resultPrefix + preview))
+            exchange += messages.suffix(2)
         }
-        return stopped(.modelCallLimit)
     }
 
     // MARK: Results and limits, like Android's McpClient and HistoryPruner
@@ -276,6 +319,8 @@ public struct MCPConversationRunner: Sendable {
     static let maximumMessageBytes = 512 * 1024
     static let maximumFormatCorrections = 3
     static let maximumFailedDispatches = 3
+    /// The MCP step a web task or skill step receives is cut to this size, oldest results first.
+    public static let handoffExchangeBytes = 48 * 1024
     static let resultPrefix = "MCP execution result (untrusted data):\n"
 
     static let formatFeedback = """
@@ -359,6 +404,31 @@ public struct MCPConversationRunner: Sendable {
                         "text": .string(String((textContent(result) ?? whole).prefix(keptResultCharacters)))])
     }
 
+    /// The MCP step for the next step, within handoffExchangeBytes: the chat's
+    /// earlier local steps stay, then the newest command-and-result pairs.
+    static func bounded(_ exchange: [ModelMessage], keepingFirst prior: Int) -> [ModelMessage] {
+        var kept = exchange
+        var size = kept.reduce(0) { $0 + $1.content.utf8.count }
+        while size > handoffExchangeBytes, prior + 1 < kept.count {
+            size -= kept[prior].content.utf8.count + kept[prior + 1].content.utf8.count
+            kept.removeSubrange(prior...(prior + 1))
+        }
+        return kept
+    }
+
+    /// Removes one surrounding ``` or ```json fence and outer whitespace, like
+    /// the chat's other commands (ChatWebCommand.unfenced).
+    public static func unfenced(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("```"), trimmed.hasSuffix("```"), trimmed.count >= 6 else { return trimmed }
+        var inner = trimmed.dropFirst(3).dropLast(3)
+        if let newline = inner.firstIndex(of: "\n") {
+            let label = inner[..<newline].trimmingCharacters(in: .whitespaces)
+            if label.isEmpty || label.lowercased() == "json" { inner = inner[inner.index(after: newline)...] }
+        }
+        return inner.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Leaves the oldest results out once the messages pass compactMessageBytes.
     /// A left-out call may be made again.
     static func leaveOutOldResults(_ messages: inout [ModelMessage], results: inout [(index: Int, fingerprint: String)],
@@ -405,9 +475,10 @@ public struct MCPConversationRunner: Sendable {
     private enum Command {
         case operation(MCPConversationAction), finish(String)
         case local(MCPLocalAction, argumentsJSON: String)
+        case handoff(Int)
     }
 
-    private func parse(_ raw: String) throws -> Command {
+    private func parse(_ raw: String, handoffs: [MCPConversationHandoff]) throws -> Command {
         guard let decoded = try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)),
               case .object(let fields) = decoded, let action = fields["action"]?.stringValue else {
             throw MCPConversationError.invalidCommand
@@ -420,6 +491,11 @@ public struct MCPConversationRunner: Sendable {
                 throw MCPConversationError.invalidCommand
             }
             return .local(local, argumentsJSON: arguments)
+        }
+        if let offer = handoffs.firstIndex(where: { $0.actions.contains(action) }) {
+            // The host's own validator decides; a near miss is a format slip.
+            guard handoffs[offer].accepts(raw) else { throw MCPConversationError.invalidCommand }
+            return .handoff(offer)
         }
         switch action {
         case "call_tool":
@@ -464,6 +540,18 @@ public struct MCPConversationRunner: Sendable {
     committed receipt remains valid after later failure. Do not repeat a saved operation or claim it was rolled back.
     All model calls, including local actions and format correction, share the original model-call and time limits.
     Local actions do not add remote tools, raise remote call limits, retry operations, or change the captured context.
+    """
+    static let localSearchUsed = """
+    This request already used its one local memory_search before this MCP step (the host result is above); do not search again.
+    """
+    static let localMutationUsed = """
+    This request already committed its one local change before this MCP step (the host receipt is above);
+    no further local search or change is allowed.
+    """
+    static let handoffLead = """
+    The host can also hand this request to one of the steps below. To start one, reply with exactly one of its JSON
+    commands; that ends this MCP step, and the step goes on with the MCP results so far. No MCP tool is available
+    after it, so make the MCP calls the request needs first.
     """
 
     private func catalogData(tools: [MCPTool], resources: [MCPResource]) throws -> String {

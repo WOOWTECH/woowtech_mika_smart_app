@@ -73,7 +73,8 @@ final class MCPLearningUITests: XCTestCase {
         launch(); connectFixture()
         let prompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
         send(prompt)
-        // The profile_edit applies with no card; the remote call then runs.
+        // The profile_edit applies with no card in the memory chat; its next
+        // reply starts the MCP step, and the remote call then runs.
         assertLabel(app.staticTexts["chat.message.1.assistant"].firstMatch, "MCP 個人檔案流程已完成。")
         XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
         assertLabel(app.staticTexts["chat.profileReceipt"].firstMatch, profileReceipt)
@@ -106,8 +107,10 @@ final class MCPLearningUITests: XCTestCase {
         assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
     }
 
+    /// Like Android there is no per-chat switch: the saved server is used in every chat.
     private func connectFixture() {
         navigate("tools")
+        openMCPServer(0, in: app)
         tap("mcp.connect", scroll: true)
         assertLabel(app.staticTexts["mcp.status"].firstMatch, "已連線，目錄擷取完成")
         XCTAssertFalse(app.staticTexts["mcp.error"].firstMatch.exists)
@@ -115,7 +118,7 @@ final class MCPLearningUITests: XCTestCase {
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
         navigate("chat")
-        setSwitch(app.switches["chat.useMCP"].firstMatch, on: true)
+        XCTAssertFalse(app.switches["chat.useMCP"].firstMatch.exists)
     }
 
     private func send(_ prompt: String) {

@@ -113,12 +113,21 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 - A server that is down must not block the others.
 - Deleting a server clears only that server's Keychain items.
 
+Built 2026-11-18 (ARCHITECTURE.md has the details):
+
+- `MCPServerDirectory` keeps the list in the same Keychain service as every server's items; the single server of 1.0 becomes the first entry with its accounts unchanged.
+- Settings › MCP 伺服器 lists the servers with Android's status line (可用 · N 個工具, 連線失敗), 新增伺服器 and 測試全部; a server's page has its name, an on/off switch, endpoint, token, test, tools and 刪除伺服器.
+- Tool names follow Android's `mcpToolNames`. Differences from Android, kept on purpose: the server part is the first eight hex digits of the server id instead of the whole id, so names stay short (the list keeps them unique); a resource URI two servers share becomes `mcp_<server>:<uri>`, because iOS reads resources with `read_resource` instead of Android's `resource_read` tool per server; at most 16 servers and names of at most 40 characters that may not contain the endpoint or token.
+- To confirm with real servers on a device: migration from an installed 1.0 build, two real servers (for example Odoo and Home Assistant) in one chat, one server down or slow (15-second budget), and the backgrounding behaviour.
+
 ### Per-conversation MCP switch (`ContentView.swift`, `ChatSession.swift`)
 
 - The switch is more than a screen control. `ChatSession.usesMCP` decides whether a turn goes through the MCP runner (`attemptSend(mcp:)`), and `docs/BACKLOG.md` lists MCP together with web tasks and skill tools in one chat as the work that lets the switch go.
 - Make one chat turn able to use MCP tools, web tasks and skill tools together first. Removing only the switch would either cut MCP off or take web tasks and skill tools away from chats that have a saved server.
 - Then remove the toggle, `usesMCP` and the `chatUseMCP` string, and rewrite the `mcpExplanation` text, which tells people to turn the switch on.
 - Update the UI tests that use `chat.useMCP`: `MCPConversationUITests`, `LiveMCPConversationUITests` and `MCPLearningUITests`.
+
+Built 2026-11-18: plain and memory chats offer the connected servers' catalog next to the skill and web task offers; a reply that is exactly one MCP command starts the MCP step with it, and the MCP step can hand the request to a web task or the skill tools with its results so far. The switch, `usesMCP`, `chatUseMCP` and the `isAvailableForChats` gate are gone. A web task or skill step cannot go back to MCP in the same request; the next message can.
 
 ## Phase 1 order of work
 

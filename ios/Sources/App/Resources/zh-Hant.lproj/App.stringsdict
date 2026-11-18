@@ -30,6 +30,20 @@
 			<string>%lld 張照片</string>
 		</dict>
 	</dict>
+	<key>chatMcpOmitted</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。</string>
+		</dict>
+	</dict>
 	<key>drawer.recent.turns</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -56,6 +70,34 @@
 			<string>lld</string>
 			<key>other</key>
 			<string>已選取 %lld 個工具供對話使用</string>
+		</dict>
+	</dict>
+	<key>mcpServerStatusOK</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>可用 · %lld 個工具</string>
+		</dict>
+	</dict>
+	<key>mcpServersStatus</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>已儲存 %lld 個伺服器</string>
 		</dict>
 	</dict>
 	<key>mcpToolCount</key>

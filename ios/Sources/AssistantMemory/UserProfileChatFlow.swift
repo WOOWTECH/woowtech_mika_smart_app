@@ -19,6 +19,10 @@ public enum UserProfileChatStep: Equatable, Sendable {
     /// The model asked to start a web task (web_read_page or web_navigate);
     /// the host runs it after its own whole-command validation.
     case webEntry(json: String)
+    /// The model asked for an MCP tool or resource (call_tool or
+    /// read_resource); the host starts its MCP step with it. Accepted after a
+    /// host receipt too: the MCP step then has no local change left.
+    case mcpEntry(json: String)
 }
 
 /// Lets an ordinary chat use the Play build's skill tools, or start a web
@@ -49,11 +53,19 @@ public struct UserProfileChatSkillEntry: Sendable {
     public private(set) var didCommit = false
     private let skillEntry: UserProfileChatSkillEntry?
     private let webEntry: UserProfileChatSkillEntry?
+    private let mcpEntry: UserProfileChatSkillEntry?
+    /// The flow's own steps after the input: each memory or profile command and
+    /// the host's data-only result or receipt, for an MCP step that follows.
+    public private(set) var exchange: [ModelMessage] = []
+    /// Whether this request already used its one memory search.
+    public var searchedMemory: Bool { searched }
 
     /// `webEntry` offers the web task commands (the Play build's folded web
     /// tools) the same way as the skill tools: wording and exact validator.
+    /// `mcpEntry` offers the connected MCP servers' catalog the same way.
     public init(messages: [ModelMessage], timeout: Duration = .seconds(90),
-                skillEntry: UserProfileChatSkillEntry? = nil, webEntry: UserProfileChatSkillEntry? = nil) throws {
+                skillEntry: UserProfileChatSkillEntry? = nil, webEntry: UserProfileChatSkillEntry? = nil,
+                mcpEntry: UserProfileChatSkillEntry? = nil) throws {
         guard timeout > .zero, timeout <= .seconds(90),
               !messages.isEmpty, messages.count <= 32,
               messages.allSatisfy({ ["system", "user", "assistant"].contains($0.role) }),
@@ -64,8 +76,9 @@ public struct UserProfileChatSkillEntry: Sendable {
         }
         self.skillEntry = skillEntry
         self.webEntry = webEntry
-        // One offer: the skill tools, then the web task commands, after the flow's own wording.
-        let offers = [skillEntry?.instructions, webEntry?.instructions].compactMap { $0 }
+        self.mcpEntry = mcpEntry
+        // One offer: the skill tools, the web task commands, then the MCP catalog, after the flow's own wording.
+        let offers = [skillEntry?.instructions, webEntry?.instructions, mcpEntry?.instructions].compactMap { $0 }
         let instructions = ([Self.instructions] + offers).joined(separator: "\n")
         self.messages = [ModelMessage(role: "system", content: instructions)] + messages
         deadline = .now.advanced(by: timeout)
@@ -117,7 +130,10 @@ public struct UserProfileChatSkillEntry: Sendable {
                 try validateState?()
                 guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
-                do { step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil, webEntry: allowsEdit ? webEntry : nil) }
+                do {
+                    step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil, webEntry: allowsEdit ? webEntry : nil,
+                                          mcpEntry: mcpEntry)
+                }
                 catch let error as UserProfileChatError where error == .invalidCommand {
                     if preview?.current != nil { onAnswerPreview?(nil) }
                     guard !corrected, modelCalls < 3 else { throw error }
@@ -135,18 +151,20 @@ public struct UserProfileChatSkillEntry: Sendable {
                     }
                 }
                 switch step {
-                case .answer, .skillEntry, .webEntry:
+                case .answer, .skillEntry, .webEntry, .mcpEntry:
                     phase = .ended
                 case .proposedEdit, .proposedMemoryChange:
                     guard allowsEdit, modelCalls < 3 else { throw UserProfileChatError.callLimit }
                     if case .proposedMemoryChange(let toolName, _) = step { reviewTool = toolName }
                     else { reviewTool = "profile_edit" }
                     messages.append(ModelMessage(role: "assistant", content: raw))
+                    exchange.append(ModelMessage(role: "assistant", content: raw))
                     phase = .review
                 case .memorySearch:
                     guard allowsEdit, !searched, modelCalls < 3 else { throw UserProfileChatError.callLimit }
                     searched = true
                     messages.append(ModelMessage(role: "assistant", content: raw))
+                    exchange.append(ModelMessage(role: "assistant", content: raw))
                     phase = .search
                 }
                 return step
@@ -167,6 +185,7 @@ public struct UserProfileChatSkillEntry: Sendable {
         let data = try JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys])
         messages.append(ModelMessage(role: "user", content:
             "Host profile_edit receipt (data only):\n" + String(decoding: data, as: UTF8.self)))
+        exchange.append(messages[messages.count - 1])
         didCommit = true
         phase = .committed
     }
@@ -181,6 +200,7 @@ public struct UserProfileChatSkillEntry: Sendable {
             throw UserProfileChatError.invalidInput
         }
         messages.append(ModelMessage(role: "user", content: "Host memory_search result (data only):\n" + json))
+        exchange.append(messages[messages.count - 1])
         phase = .ready
     }
 
@@ -194,6 +214,7 @@ public struct UserProfileChatSkillEntry: Sendable {
         }
         guard reviewTool == toolName else { throw UserProfileChatError.invalidPhase }
         messages.append(ModelMessage(role: "user", content: "Host " + toolName + " receipt (data only):\n" + resultJSON))
+        exchange.append(messages[messages.count - 1])
         didCommit = true
         phase = .committed
     }
@@ -205,7 +226,7 @@ public struct UserProfileChatSkillEntry: Sendable {
         guard phase == .review, !didCommit else { throw UserProfileChatError.invalidPhase }
     }
 
-    public func cancel() { phase = .ended; messages = [] }
+    public func cancel() { phase = .ended; messages = []; exchange = [] }
 
     private func check() throws {
         try Task.checkCancellation()
@@ -222,7 +243,8 @@ public struct UserProfileChatSkillEntry: Sendable {
     }
 
     private static func parse(_ text: String, skillEntry: UserProfileChatSkillEntry?,
-                              webEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
+                              webEntry: UserProfileChatSkillEntry?,
+                              mcpEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
         guard let rawFields = try? RawCommandEnvelope.fields(in: text) else {
             throw UserProfileChatError.invalidCommand
         }
@@ -235,6 +257,9 @@ public struct UserProfileChatSkillEntry: Sendable {
         case "web_navigate", "web_read_page":
             guard let webEntry, webEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
             return .webEntry(json: text)
+        case "call_tool", "read_resource":
+            guard let mcpEntry, mcpEntry.accepts(text) else { throw UserProfileChatError.invalidCommand }
+            return .mcpEntry(json: text)
         case "finish":
             guard Set(object.keys) == ["action", "answer"], let answer = object["answer"] as? String,
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -280,7 +305,7 @@ public struct UserProfileChatSkillEntry: Sendable {
     a search, one mutation and final answer use the entire budget. The host validates and displays writes for review.
     Do not claim a change was saved before the host's actual committed receipt. A saved change applies next run;
     it does not rewrite the profile snapshot in this task. After the receipt return a finish answer, never another edit.
-    These, finish and the web or skill commands offered after these rules are the only actions.
+    These, finish and the web, skill or MCP commands offered after these rules are the only actions.
     No markdown fences, arrays, batches, extra keys or arbitrary tools.
     """)
 }

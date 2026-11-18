@@ -34,6 +34,22 @@
 			<string>%lld photos</string>
 		</dict>
 	</dict>
+	<key>chatMcpOmitted</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld MCP tool or resource went past the limit for one reply and wasn’t offered to the model.</string>
+			<key>other</key>
+			<string>%lld MCP tools or resources went past the limit for one reply and weren’t offered to the model.</string>
+		</dict>
+	</dict>
 	<key>drawer.recent.turns</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -64,6 +80,38 @@
 			<string>%lld tool selected for chat</string>
 			<key>other</key>
 			<string>%lld tools selected for chat</string>
+		</dict>
+	</dict>
+	<key>mcpServerStatusOK</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Available · %lld tool</string>
+			<key>other</key>
+			<string>Available · %lld tools</string>
+		</dict>
+	</dict>
+	<key>mcpServersStatus</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld server saved</string>
+			<key>other</key>
+			<string>%lld servers saved</string>
 		</dict>
 	</dict>
 	<key>mcpToolCount</key>

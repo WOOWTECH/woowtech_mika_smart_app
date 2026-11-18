@@ -1,3 +1,4 @@
+import AssistantModels
 import Foundation
 
 /// A trusted host executor, bound to the same connection as the selected catalog.
@@ -55,6 +56,9 @@ public enum MCPConversationStopReason: String, Codable, Sendable {
     /// model instead of stopping the run.
     case finished, approvalDenied, modelCallLimit, toolCallLimit, repeatedCall, toolError
     case localCallLimit
+    /// The model started an offered step (a web task or the skill tools); the
+    /// host runs it with MCPConversationResult.handoff.
+    case handedOff
 }
 
 public struct MCPConversationResult: Sendable {
@@ -64,6 +68,82 @@ public struct MCPConversationResult: Sendable {
     public let steps: [MCPConversationStep]
     public let modelCallCount: Int
     public let stopReason: MCPConversationStopReason
+    /// Only for handedOff.
+    public let handoff: MCPConversationHandoffRequest?
+
+    init(answer: String?, steps: [MCPConversationStep], modelCallCount: Int, stopReason: MCPConversationStopReason,
+         handoff: MCPConversationHandoffRequest? = nil) {
+        self.answer = answer; self.steps = steps; self.modelCallCount = modelCallCount
+        self.stopReason = stopReason; self.handoff = handoff
+    }
+}
+
+/// The chat reply that asked for the first MCP operation. A plain or memory chat
+/// offers the MCP catalog (MCPCombinedCatalog.entryInstructions); its first MCP
+/// command starts the runner, which executes it before asking the model again.
+public struct MCPConversationEntry: Sendable {
+    /// The command's exact text, without a surrounding code fence.
+    public let command: String
+    /// What the chat did before it in this request: memory and profile commands
+    /// and the host's data-only results, as the model saw them.
+    public let exchange: [ModelMessage]
+    /// Model calls the chat made for this request, the entry's own included.
+    /// They count toward the runner's model-call limit.
+    public let modelCalls: Int
+    /// The chat's one local search and one local change, already used or not.
+    /// The runner's own allowance is what is left of them.
+    public let searchedLocally: Bool
+    public let mutatedLocally: Bool
+
+    public init(command: String, exchange: [ModelMessage] = [], modelCalls: Int = 1,
+                searchedLocally: Bool = false, mutatedLocally: Bool = false) {
+        self.command = command; self.exchange = exchange; self.modelCalls = modelCalls
+        self.searchedLocally = searchedLocally; self.mutatedLocally = mutatedLocally
+    }
+
+    /// The MCP command a chat reply consists of, without a surrounding code
+    /// fence, or nil. Only the shape is checked here: the runner decides whether
+    /// the tool or resource was offered, and gives fixed feedback if not.
+    public static func command(in text: String) -> String? {
+        let body = MCPConversationRunner.unfenced(text)
+        guard body.utf8.count <= 24 * 1024, (try? RawCommandEnvelope.fields(in: body)) != nil,
+              let decoded = try? JSONDecoder().decode(JSONValue.self, from: Data(body.utf8)),
+              case .object(let fields) = decoded, let action = fields["action"]?.stringValue else { return nil }
+        switch action {
+        case "call_tool":
+            guard Set(fields.keys) == ["action", "name", "arguments"], fields["name"]?.stringValue?.isEmpty == false,
+                  case .object? = fields["arguments"] else { return nil }
+        case "read_resource":
+            guard Set(fields.keys) == ["action", "uri"], fields["uri"]?.stringValue?.isEmpty == false else { return nil }
+        default: return nil
+        }
+        return body
+    }
+}
+
+/// A step the host can run after MCP in the same request (a web task or the
+/// skill tools), offered like the chat offers it. The host supplies the
+/// wording, the actions that start it and its exact command validator.
+public struct MCPConversationHandoff: Sendable {
+    public let instructions: String
+    public let actions: Set<String>
+    public let accepts: @Sendable (String) -> Bool
+
+    public init(instructions: String, actions: Set<String>, accepts: @escaping @Sendable (String) -> Bool) {
+        self.instructions = instructions; self.actions = actions; self.accepts = accepts
+    }
+}
+
+/// The step the model started. Nothing of it ran in the MCP step.
+public struct MCPConversationHandoffRequest: Sendable {
+    /// Index into the offered handoffs.
+    public let offer: Int
+    /// The command's exact text.
+    public let command: String
+    /// The MCP step so far for the next step's conversation: the chat's earlier
+    /// local steps, then each MCP command and its result as the model read it,
+    /// oldest left out first beyond MCPConversationRunner.handoffExchangeBytes.
+    public let exchange: [ModelMessage]
 }
 
 public struct MCPConversationLimits: Sendable {

@@ -302,8 +302,10 @@ private actor StreamMCP: MCPDiscovering {
     private static func noSavedAnswer(_ store: ConversationArchiveStore) -> Bool {
         store.state.conversations.allSatisfy { $0.turns.allSatisfy { $0.outcome != nil } }
     }
+    /// Like the Play build there is no MCP switch: a request offers the server's
+    /// catalog, whose tools are named mcp_00000000__<tool> (MCPServers(single:)).
     private static func start(_ session: ChatSession, _ prompt: String, mcp: MCPSession? = nil) throws -> Task<Void, Never> {
-        session.draft = prompt; session.send(mcp: mcp)
+        session.draft = prompt; session.send(mcp: mcp.map { MCPServers(single: $0) })
         guard let task = session.capturedArchiveRequest else { throw Failure(name: "actual request missing") }
         return task
     }
@@ -483,11 +485,12 @@ private actor StreamMCP: MCPDiscovering {
             connection.connect(); try await wait("actual MCP discovery") { !connection.isBusy }
             connection.selectTool("synthetic_read", enabled: true)
             try a.check(connection.canUseInConversation, "real selected MCP catalog")
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
-            let session = e.session(client); session.usesMCP = true
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Verified tool result."}"#])
+            let session = e.session(client)
             let task = try start(session, "Read selected tool", mcp: connection)
-            try a.check(session.chatStatusMessage == .chatStatusMCPWorking && session.replyPreview == nil && unanswered(session),
-                        "a running MCP turn shows the working status; its JSON is never shown")
+            // The chat's own reply comes first; the MCP step starts with its command.
+            try a.check(session.chatStatusMessage == .chatStatusWaiting && session.replyPreview == nil && unanswered(session),
+                        "a request offering MCP waits for the chat's reply; its JSON is never shown")
             await task.value
             let after = await server.calls
             try a.check(after == 1 && session.mcpSteps.count == 1 && session.chatError == nil, "the selected tool ran once with no approval")
@@ -500,7 +503,7 @@ private actor StreamMCP: MCPDiscovering {
             let e = try StreamEnvironment(); defer { e.close() }
             let repository = RememberingEndpoint(), server = StreamMCP()
             let first = MCPSession(repository: repository, clientFactory: { _ in server })
-            try a.check(first.phase == .saved && first.isAvailableForChats && !first.canUseInConversation,
+            try a.check(first.phase == .saved && first.canConnectForChats && !first.canUseInConversation,
                         "a saved server is available to chats before any connect")
             let (_, offered, _) = try await first.chatConnection()
             try a.check(first.phase == .connected && offered.map(\.name) == ["synthetic_read"]
@@ -515,8 +518,8 @@ private actor StreamMCP: MCPDiscovering {
             first.selectTool("synthetic_read", enabled: true)
             try a.check(repository.allowedTools == nil, "turning every tool back on saves the default (all)")
             let second = MCPSession(repository: repository, clientFactory: { _ in server })
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Connected by itself."}"#])
-            let session = e.session(client); session.usesMCP = true
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#, #"{"action":"finish","answer":"Connected by itself."}"#])
+            let session = e.session(client)
             let before = await server.calls
             let task = try start(session, "Read without connecting first", mcp: second)
             await task.value
@@ -524,58 +527,57 @@ private actor StreamMCP: MCPDiscovering {
             try a.check(second.phase == .connected && after == before + 1 && session.chatError == nil && session.entries.count == 2,
                         "a chat connects to the saved server and runs the allowed tool")
             let unreachable = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in UnreachableMCP() })
-            let down = e.session(CompleteSequenceClient([])); down.usesMCP = true
-            let failed = try start(down, "Server is down", mcp: unreachable)
-            await failed.value
-            // Like the Play build the sent question stays and the turn ends as
-            // 沒有完成 with the reason; the input bar was emptied at send.
+            let down = e.session(CompleteSequenceClient(["Answered without MCP."]))
+            let answered = try start(down, "Server is down", mcp: unreachable)
+            await answered.value
+            // Like Android a server that is down is left out of the request and
+            // named; the reply goes on without its tools.
             try a.check(down.chatError == nil && down.draft.isEmpty && down.entries.count == 2
-                        && down.entries.last?.outcome == .failed
-                        && down.entries.last?.content == ChatSession.mcpAvailabilityMessage(.unreachable)
-                        && unreachable.phase == .failed, "an unreachable server ends the turn as 沒有完成 and says why")
+                        && down.entries.last?.outcome == nil && down.entries.last?.content == "Answered without MCP."
+                        && down.mcpUnavailableServers == ["Synthetic MCP"] && unreachable.phase == .failed,
+                        "an unreachable server is skipped and named; the chat still answers")
         }
         do {
             // "Every tool" stays a catalog the runner accepts: malformed or
-            // oversized tools stay off, and at most 64 are offered.
+            // oversized tools stay off; up to 256 are offered, like Android's every tool.
             let e = try StreamEnvironment(); defer { e.close() }
             let server = ManyToolsMCP()
             let many = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
             many.connect()
             try await wait("many tools discovered") { !many.isBusy }
-            try a.check(many.phase == .connected && many.selectedToolNames == Set(ManyToolsMCP.names.prefix(64))
-                        && many.noticeText == .mcpSelectionLimit, "the default skips malformed and oversized tools and stops at 64")
+            try a.check(many.phase == .connected && many.selectedToolNames == Set(ManyToolsMCP.names)
+                        && many.noticeText == .mcpSelectionLimit, "the default allows every usable tool and skips malformed and oversized ones")
             many.selectTool("huge_schema", enabled: true)
-            many.selectTool("tool_70", enabled: true)
-            try a.check(many.selectedToolNames.count == 64 && !many.selectedToolNames.contains("tool_70")
-                        && !many.selectedToolNames.contains("huge_schema"), "a 65th or oversized tool stays off")
-            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"tool_1","arguments":{}}"#, #"{"action":"finish","answer":"Many tools."}"#])
-            let session = e.session(client); session.usesMCP = true
+            try a.check(many.selectedToolNames.count == 70 && !many.selectedToolNames.contains("huge_schema"),
+                        "an oversized tool stays off")
+            let client = CompleteSequenceClient([#"{"action":"call_tool","name":"mcp_00000000__tool_70","arguments":{}}"#, #"{"action":"finish","answer":"Many tools."}"#])
+            let session = e.session(client)
             let task = try start(session, "Use the first tool", mcp: many)
             await task.value
             let calls = await server.calls
             try a.check(session.chatError == nil && session.entries.count == 2 && calls == 1, "the runner accepts the default catalog")
         }
         do {
-            // A failed call is not retried and drops the connection; the next chat connects again.
+            // Like Android a failed call goes back to the model as an error result
+            // and is not retried; the connection stays for the next chat.
             let e = try StreamEnvironment(); defer { e.close() }
             let server = FlakyMCP()
             let flaky = MCPSession(repository: RememberingEndpoint(), clientFactory: { _ in server })
-            let read = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
-            let first = e.session(CompleteSequenceClient([read])); first.usesMCP = true
+            let read = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#
+            let first = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"The read failed."}"#]))
             let failed = try start(first, "First try", mcp: flaky)
             await failed.value
             let connectsBefore = await server.initializations, callsBefore = await server.calls
-            // Like the Play build the turn ends as 沒有完成 in the chat; the input bar
-            // was emptied at send.
-            try a.check(first.chatError == nil && first.draft.isEmpty && first.entries.last?.outcome == .failed
-                        && connectsBefore == 1 && callsBefore == 1 && flaky.phase == .saved,
-                        "a failed call is not retried and drops the connection")
-            let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#])); second.usesMCP = true
+            try a.check(first.chatError == nil && first.draft.isEmpty && first.entries.last?.outcome == nil
+                        && first.mcpSteps.count == 1 && first.mcpSteps[0].isError
+                        && connectsBefore == 1 && callsBefore == 1 && flaky.phase == .connected,
+                        "a failed call is an error result for the model and is not retried")
+            let second = e.session(CompleteSequenceClient([read, #"{"action":"finish","answer":"Back."}"#]))
             let retried = try start(second, "Second try", mcp: flaky)
             await retried.value
             let connectsAfter = await server.initializations, callsAfter = await server.calls
-            try a.check(second.chatError == nil && connectsAfter == 2 && callsAfter == 2 && flaky.phase == .connected,
-                        "the next chat connects again")
+            try a.check(second.chatError == nil && connectsAfter == 1 && callsAfter == 2 && flaky.phase == .connected,
+                        "the next chat uses the same connection")
         }
         return a.count
     }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// iOS keeps an App's Keychain items after the App is deleted, so a reinstall
-/// would find the previous MCP endpoint and keys. The first launch of a fresh
+/// would find the previous MCP servers and keys. The first launch of a fresh
 /// install removes them; an upgrade keeps them, because its encrypted
 /// conversation, learning and browser files cannot be read without their keys.
 /// When in doubt, nothing is removed.
@@ -75,7 +75,9 @@ extension FreshInstallKeychainReset {
     /// service-scoped, like every other Keychain call here. A new service belongs here.
     static let services = [
         "io.woowtech.assistant.model-credentials.v1",      // model API key (ChatSession)
-        "io.woowtech.assistant.mcp-endpoint.v1",           // MCP URL, access token, tool choice (MCPSettingsStore)
+        // Every MCP server's URL, access token and tool choice, and the server
+        // list, share this one service (MCPKeychainItems), so all of them go.
+        "io.woowtech.assistant.mcp-endpoint.v1",           // MCP servers (MCPServerDirectory)
         "io.woowtech.assistant.skillworker.v1",            // script service key (SkillWorkerSettings)
         "io.woowtech.assistant.learning.v1.personal",      // file key (LearningStore)
         "io.woowtech.assistant.conversations.v1.personal", // file key (ConversationArchiveStore)

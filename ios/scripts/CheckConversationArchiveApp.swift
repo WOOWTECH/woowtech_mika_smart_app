@@ -191,7 +191,7 @@ private actor ArchiveModel: ChatModelClient {
         let restoreRequests = await never.requests
         try a.check(restoreRequests.isEmpty && client.operations == baseline && service.trackedCount == 0, "restore zero model/extraction/notification calls")
         try a.check(try Data(contentsOf: e.learningFile) == learningBytes, "restore zero learning writes")
-        try a.check(restored.mcpSteps.isEmpty && restored.profileReceipt == nil && restored.memoryReceipt == nil && !restored.usesMCP,
+        try a.check(restored.mcpSteps.isEmpty && restored.profileReceipt == nil && restored.memoryReceipt == nil,
                     "no tool receipts or capability restored")
         try a.check(restored.entries.map(\.id) == session.entries.map(\.id) && restored.draft.isEmpty && !restored.isSubmitting, "restore is display only")
         let injected = ChatSession(learning: e.learning, repository: e.repository, client: never)

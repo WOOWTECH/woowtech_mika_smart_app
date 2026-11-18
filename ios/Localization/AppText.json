@@ -1395,8 +1395,8 @@
       "key": "mcp.explanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。",
-        "en": "Connect an external MCP server and choose which tools the assistant can use; all are allowed by default. The server must use HTTPS, and the access token stays on this device. Turn on “Use MCP tools in this chat” and the app connects by itself. The model runs allowed tools without asking each time, and tool descriptions and results go to the model you set up."
+        "zh-Hant": "可以連接多個外部 MCP 伺服器，並為每個伺服器選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，網址和存取權杖只保存在這台裝置的 Keychain。已啟用的伺服器在每個對話都能用，不需要另外打開：助理需要時會自動連線，直接執行允許的工具，不會每次先問你；工具說明和結果會送給你設定的模型。連不上的伺服器那次會略過，不影響其他伺服器。",
+        "en": "Connect one or more external MCP servers and choose which tools the assistant may use on each; all are allowed by default. Servers must use HTTPS, and their URLs and access tokens stay in this device’s Keychain. Enabled servers work in every chat with nothing to turn on: the app connects when needed and the model runs allowed tools without asking each time. Tool descriptions and results go to the model you set up. A server that can’t be reached is skipped for that reply without affecting the others."
       }
     },
     {
@@ -1665,8 +1665,8 @@
       "key": "mcp.selection.limit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。",
-        "en": "A chat can use at most 64 tools, with up to 128 KB of tool descriptions and no malformed tool; the rest stay off."
+        "zh-Hant": "一個伺服器最多提供 256 個工具、說明合計 224 KB，格式不符的工具不能使用；超出的工具維持關閉。",
+        "en": "A server can offer at most 256 tools, with up to 224 KB of tool descriptions and no malformed tool; the rest stay off."
       }
     },
     {
@@ -1897,6 +1897,244 @@
           "one": "%lld tool selected for chat",
           "other": "%lld tools selected for chat"
         }
+      }
+    },
+    {
+      "case": "mcpServersSection",
+      "key": "mcp.servers.section",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "伺服器",
+        "en": "Servers"
+      }
+    },
+    {
+      "case": "mcpServersEmpty",
+      "key": "mcp.servers.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有 MCP 伺服器",
+        "en": "No MCP server added"
+      }
+    },
+    {
+      "case": "mcpServersEmptyDetail",
+      "key": "mcp.servers.empty.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增外部 MCP 伺服器，把它的工具交給助理。",
+        "en": "Add an external MCP server to give its tools to the assistant."
+      }
+    },
+    {
+      "case": "mcpServersStatus",
+      "key": "mcpServersStatus",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "已儲存 %lld 個伺服器"
+        },
+        "en": {
+          "one": "%lld server saved",
+          "other": "%lld servers saved"
+        }
+      }
+    },
+    {
+      "case": "mcpServersStored",
+      "key": "mcp.servers.stored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網址和存取權杖已安全儲存；不顯示網址。",
+        "en": "URLs and access tokens are stored securely; URLs are hidden."
+      }
+    },
+    {
+      "case": "mcpAddServer",
+      "key": "mcp.add.server",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增伺服器",
+        "en": "Add server"
+      }
+    },
+    {
+      "case": "mcpAddSection",
+      "key": "mcp.add.section",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增 MCP 伺服器",
+        "en": "Add an MCP server"
+      }
+    },
+    {
+      "case": "mcpTestAll",
+      "key": "mcp.test.all",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "測試全部",
+        "en": "Test all"
+      }
+    },
+    {
+      "case": "mcpBackToServers",
+      "key": "mcp.back.to.servers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "所有伺服器",
+        "en": "All servers"
+      }
+    },
+    {
+      "case": "mcpServerName",
+      "key": "mcp.server.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "名稱",
+        "en": "Name"
+      }
+    },
+    {
+      "case": "mcpServerDefaultName",
+      "key": "mcp.server.default.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP server"
+      }
+    },
+    {
+      "case": "mcpServerEnabled",
+      "key": "mcp.server.enabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在對話中使用這個伺服器",
+        "en": "Use this server in chats"
+      }
+    },
+    {
+      "case": "mcpServerDisabled",
+      "key": "mcp.server.disabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停用",
+        "en": "Off"
+      }
+    },
+    {
+      "case": "mcpServerStatusOK",
+      "key": "mcpServerStatusOK",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "可用 · %lld 個工具"
+        },
+        "en": {
+          "one": "Available · %lld tool",
+          "other": "Available · %lld tools"
+        }
+      }
+    },
+    {
+      "case": "mcpServerStatusFailed",
+      "key": "mcp.server.status.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連線失敗",
+        "en": "Connection failed"
+      }
+    },
+    {
+      "case": "mcpDeleteServer",
+      "key": "mcp.delete.server",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除伺服器",
+        "en": "Delete server"
+      }
+    },
+    {
+      "case": "mcpDeleteServerQuestion",
+      "key": "mcp.delete.server.question",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除這個伺服器在此裝置儲存的端點、存取權杖和工具選擇？其他伺服器不受影響。",
+        "en": "Delete the endpoint, access token and tool choices this device saved for this server? Other servers stay."
+      }
+    },
+    {
+      "case": "mcpDeleteServerConfirm",
+      "key": "mcp.delete.server.confirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "mcpServerAdded",
+      "key": "mcp.server.added",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已新增並存入此裝置的 Keychain；尚未送出連線請求。",
+        "en": "Added and saved in this device’s Keychain; no connection request has been sent."
+      }
+    },
+    {
+      "case": "mcpServerRenamed",
+      "key": "mcp.server.renamed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已更改名稱。",
+        "en": "Name changed."
+      }
+    },
+    {
+      "case": "mcpServerRemoved",
+      "key": "mcp.server.removed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已刪除這個伺服器的端點、存取權杖和工具選擇。",
+        "en": "This server’s endpoint, access token and tool choices were deleted."
+      }
+    },
+    {
+      "case": "mcpInvalidServerName",
+      "key": "mcp.invalid.server.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。",
+        "en": "Use a name of 1 to 40 characters on one line that contains neither the server URL nor the access token."
+      }
+    },
+    {
+      "case": "mcpTooManyServers",
+      "key": "mcp.too.many.servers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最多可以儲存 16 個 MCP 伺服器。",
+        "en": "You can save at most 16 MCP servers."
+      }
+    },
+    {
+      "case": "mcpNameSeparator",
+      "key": "mcp.name.separator",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "、",
+        "en": ", "
       }
     },
     {
@@ -7552,6 +7790,15 @@
       }
     },
     {
+      "case": "storedChatMcpChanged",
+      "key": "stored.chat.mcpChanged",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 連線或設定在回覆時變更，已停止；沒有執行任何 MCP 工具。",
+        "en": "The MCP connection or settings changed during the reply, so it stopped. No MCP tool ran."
+      }
+    },
+    {
       "case": "storedContextIncompleteHistory",
       "key": "stored.context.incompleteHistory",
       "parameters": [],
@@ -8503,15 +8750,6 @@
       }
     },
     {
-      "case": "chatUseMCP",
-      "key": "chat.useMCP",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "本次對話使用 MCP 工具",
-        "en": "Use MCP tools in this chat"
-      }
-    },
-    {
       "case": "chatReceiptProfile",
       "key": "chat.receipt.profile",
       "parameters": [],
@@ -8541,6 +8779,40 @@
       "translations": {
         "zh-Hant": "檢視工具結果（%1$lld）",
         "en": "View tool results (%1$lld)"
+      }
+    },
+    {
+      "case": "chatMcpUnavailable",
+      "key": "chat.mcpUnavailable",
+      "parameters": [
+        {
+          "name": "names",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "MCP 伺服器連線失敗：%1$@",
+        "en": "MCP servers unavailable: %1$@"
+      }
+    },
+    {
+      "case": "chatMcpOmitted",
+      "key": "chatMcpOmitted",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。"
+        },
+        "en": {
+          "one": "%lld MCP tool or resource went past the limit for one reply and wasn’t offered to the model.",
+          "other": "%lld MCP tools or resources went past the limit for one reply and weren’t offered to the model."
+        }
       }
     },
     {

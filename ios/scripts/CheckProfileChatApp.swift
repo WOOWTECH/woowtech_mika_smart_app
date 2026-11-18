@@ -359,7 +359,7 @@ private enum CheckProfileChatApp {
             try check(env.store.mutateProfile { try $0.add(text: "Private synthetic preference") }, "seed multi-round profile")
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
-            let secondRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{"round":2}}"#
+            let secondRead = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{"round":2}}"#
             let model = ScriptedModel([.init(remoteRead), .init(secondRead), .init(finished)])
             let session = env.session(model)
             // Change the context at the second dispatch intent.
@@ -429,7 +429,7 @@ private enum CheckProfileChatApp {
         try await until("fixture discovery") { !connection.isBusy }
         try check(connection.phase == .connected, "actual fixture discovery completes")
         connection.selectTool("fixture_echo", enabled: true)
-        let command = #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
+        let command = #"{"action":"call_tool","name":"mcp_00000000__fixture_echo","arguments":{"text":"hello"}}"#
         let model = ScriptedModel([.init(command), .init(finished)]), session = env.session(model)
         let running = try startMCP(session, connection: connection)
         try await until("fixture holds actual executor with no approval") { UITestMCPLeaseControl.shared.isHolding }
@@ -518,8 +518,13 @@ private enum CheckProfileChatApp {
                           "both writes made during the executor are durable")
                 if mode == "success" {
                     try check(requests.count == 2 && session.entries.count == 2, "the turn completes after the changes")
+                } else if mode == "failure" {
+                    // Like Android, a failed request goes back to the model as an error result.
+                    try check(requests.count == 2 && session.mcpSteps.count == 1 && session.mcpSteps[0].isError
+                              && session.entries.count == 2 && session.draft.isEmpty,
+                              "failure emits no invented result; the model answers from the error")
                 } else {
-                    try check(requests.count == 1 && ended(session, mode == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
+                    try check(requests.count == 1 && ended(session, .cancelled) && session.draft.isEmpty,
                               "\(mode) emits no invented result and ends without an answer")
                 }
             }
@@ -650,19 +655,26 @@ private enum CheckProfileChatApp {
             await probe.after.release(); await running.value
             try check(session.entries.count == 2 && session.draft.isEmpty, "the late ordinary or MCP reply is published")
         }
-        do {
+        // With MCP offered, the chat's own model call is not MCP work yet:
+        // leaving the app (cancelMCP) keeps that reply going; a stop ends it.
+        for stop in [true, false] {
             let env=try Environment(); defer { try? env.close() }
             try check(env.store.mutateProfile { try $0.add(text:"Private synthetic preference") }, "MCP producer fixture saves profile")
             let peer=env.reopen(), probe=BoundedCompleteProbe(), session=env.session(probe)
             let connection=try await connectedMCP(LearningMCPServer()); defer { connection.disconnect() }
             let running=try startMCP(session,connection:connection,draft:"synthetic question")
             try await until("MCP producer entered") { await probe.entered == 1 }
-            session.cancelMCP(); await running.value
-            try check(peer.updatePreferences { $0.useMemory = false }, "a peer can write while a cancelled MCP producer runs")
-            await probe.before.release(); await probe.after.release()
-            try await until("cancelled MCP producer finished") { await probe.finished == 1 }
+            if stop { session.cancel() } else { session.cancelMCP() }
+            try check(peer.updatePreferences { $0.useMemory = false }, "a peer can write while the chat producer runs")
+            await probe.before.release(); await probe.after.release(); await running.value
+            try await until("chat producer finished") { await probe.finished == 1 }
             let sent=await probe.dispatched
-            try check(sent == 0 && ended(session, .cancelled), "cancelled MCP producer sends nothing")
+            if stop {
+                try check(sent == 0 && ended(session, .cancelled), "a stopped chat producer sends nothing")
+            } else {
+                try check(sent == 1 && session.entries.count == 2 && session.entries.last?.outcome == nil,
+                          "leaving the app before any MCP step keeps the chat reply")
+            }
         }
         do {
             let env=try Environment(); defer { try? env.close() }
@@ -1022,16 +1034,21 @@ private enum CheckProfileChatApp {
         return connection
     }
 
+    /// Like the Play build there is no MCP switch: the request offers the
+    /// connected server's catalog, and the model's first MCP command starts the
+    /// MCP step. The wrapped session's tools are named mcp_00000000__<tool>.
     @MainActor static func startMCP(_ session: ChatSession, connection: MCPSession,
-                                   draft: String = utterance) throws -> Task<Void, Never> {
-        session.usesMCP = true; session.draft = draft
-        connection.onConnectionChange = { [weak session] in session?.cancelMCP() }
+                                   draft: String = utterance, record: MCPServerRecord? = nil) throws -> Task<Void, Never> {
+        session.draft = draft
+        let servers = record.map { MCPServers(sessions: [($0, connection)]) } ?? MCPServers(single: connection)
+        servers.onConnectionChange = { [weak session] in session?.cancelMCP() }
         try check(session.canSend, "Actual settings allow mixed MCP turn")
-        session.send(mcp: connection)
+        session.send(mcp: servers)
         return try task(session)
     }
 
-    static let remoteRead = #"{"action":"call_tool","name":"synthetic_read","arguments":{}}"#
+    static let remoteTool = "mcp_00000000__synthetic_read"
+    static let remoteRead = #"{"action":"call_tool","name":"mcp_00000000__synthetic_read","arguments":{}}"#
 
     /// Like the Play build, neither the selected remote call nor the local
     /// memory write waits for an approval.
@@ -1043,8 +1060,10 @@ private enum CheckProfileChatApp {
         let session = env.session(model), running = try startMCP(session, connection: connection)
         await running.value
         let dispatched = await server.calls
-        try check(dispatched == [.object([:])] && session.mcpSteps.map(\.proposal.action) == [.callTool(name: "synthetic_read", arguments: .object([:]))],
+        try check(dispatched == [.object([:])] && session.mcpSteps.map(\.proposal.action) == [.callTool(name: remoteTool, arguments: .object([:]))],
                   "The selected remote call ran once with its exact arguments and no approval")
+        try check(session.mcpStepOwners[session.mcpSteps[0].proposal.id] == MCPStepOwner(server: "Synthetic MCP", target: "synthetic_read"),
+                  "The results list names the server and its own tool name")
         try check(env.store.memory.memories.map(\.content) == [text] && env.store.memory.memories.first?.source.quote == utterance,
                   "Local authority is the current user draft")
         let receipt = try memoryReceipt(session), requests = await model.requests
@@ -1073,9 +1092,12 @@ private enum CheckProfileChatApp {
         let model = ScriptedModel([.init(proposal), .init(remoteRead)])
         let session = env.session(model), running = try startMCP(session, connection: connection)
         await running.value
-        let entered = await server.entered, sent = await server.sent
-        try check(entered == 1 && sent == 0 && session.mcpSteps.isEmpty,
-                  "The later remote call ran with no approval, failed once and was not retried")
+        let entered = await server.entered, sent = await server.sent, requests = await model.requests
+        // The memory chat saved the profile, then started the MCP step after the receipt.
+        try check(entered == 1 && sent == 0 && session.mcpSteps.count == 1 && session.mcpSteps[0].isError,
+                  "The later remote call ran with no approval, failed once, went back as an error and was not retried")
+        try check(requests.count == 3 && requests[2].first?.content.contains("already committed its one local change") == true,
+                  "The MCP step knows the chat's one local change is used")
         try check(session.profileReceipt != nil && env.reopen().profile.snapshot().entries.first?.text == text,
                   "Later remote failure cannot erase an already committed profile receipt")
         try check(ended(session, .failed) && session.entries.last?.content.contains("已儲存") == true && session.draft.isEmpty,
@@ -1107,7 +1129,7 @@ private enum CheckProfileChatApp {
         }
         // The local write applies when the proposal arrives; these happen
         // while the model is still producing it.
-        for action in ["cancel", "disconnect", "masterOff", "generation", "revision", "writeFailure"] {
+        for action in ["cancel", "masterOff", "generation", "revision", "writeFailure"] {
             let env = try Environment(); defer { try? env.close() }
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
@@ -1116,7 +1138,6 @@ private enum CheckProfileChatApp {
             try await until("Local proposal requested") { await model.requests.count == 1 }
             switch action {
             case "cancel": session.cancel()
-            case "disconnect": connection.disconnect()
             case "masterOff": try check(env.store.updatePreferences { $0.useMemory = false }, "Disable before the MCP local write")
             case "generation": try check(env.store.clearAll(), "Clear real learning store before the MCP local write")
             case "revision":
@@ -1132,9 +1153,7 @@ private enum CheckProfileChatApp {
                       action + " never publishes a local receipt")
             try check(env.store.memory == before && env.reopen().memory == before,
                       action + " cannot change durable memory after invalidation")
-            // Disconnecting MCP stops the turn (onConnectionChange), like a stop.
-            let stopped = action == "cancel" || action == "disconnect"
-            try check(calls == 0 && requests == 1 && ended(session, stopped ? .cancelled : .failed) && session.draft.isEmpty,
+            try check(calls == 0 && requests == 1 && ended(session, action == "cancel" ? .cancelled : .failed) && session.draft.isEmpty,
                       action + " neither dispatches a remote call nor invents a completed answer")
         }
     }
@@ -1150,7 +1169,8 @@ private enum CheckProfileChatApp {
             let session = env.session(model), running = try startMCP(session, connection: connection)
             await running.value
             let requests = await model.requests, calls = await server.calls.count
-            try check(ended(session, .failed) && session.memoryReceipt == nil,
+            // With memory off, the chat offers no local tools, so the text is only a reply.
+            try check((disabled ? session.entries.last?.outcome == nil : ended(session, .failed)) && session.memoryReceipt == nil,
                       "Disabled or duplicate-key local command stops before any receipt")
             try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == 1,
                       "Disabled/duplicate command never writes, dispatches or repairs permission")
@@ -1685,9 +1705,12 @@ private enum CheckProfileChatApp {
         connection.selectTool("fixture_echo", enabled: true)
         defer { connection.disconnect() }
         let prompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
-        let session = env.session(client), running = try startMCP(session, connection: connection, draft: prompt)
+        // The UI fixture model names the tool of fixture server A.
+        let session = env.session(client), running = try startMCP(session, connection: connection, draft: prompt,
+                                                                    record: MCPFixtureServer.a.record)
         await running.value
-        try check(session.mcpSteps.map(\.proposal.action) == [.callTool(name: "fixture_echo", arguments: .object(["text": .string("hello")]))],
+        try check(session.mcpSteps.map(\.proposal.action) == [.callTool(name: UITestMCPFixture.modelName("fixture_echo"),
+                                                                           arguments: .object(["text": .string("hello")]))],
                   "Actual fixture remote call ran with unchanged arguments and no approval")
         let saved = env.reopen().memory.memories.first
         try check(saved?.source.quote == prompt && saved?.content == text && saved?.keywords == ["jasmine", "tea"],

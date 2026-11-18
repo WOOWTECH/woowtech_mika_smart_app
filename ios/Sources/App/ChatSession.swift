@@ -171,10 +171,13 @@ enum ChatBranchOutcome: Equatable {
     case failed
 }
 
-/// An ordinary chat reply, or the command that starts a web task.
+/// An ordinary chat reply, or the command that starts a web task or the MCP step.
 enum ChatPathReply {
     case answer(String)
-    case web(ChatWebCommand, raw: String)
+    /// `exchange` is what an MCP step before it did (MCPConversationHandoffRequest).
+    case web(ChatWebCommand, raw: String, exchange: [ModelMessage] = [])
+    /// A first MCP command, and the memory search a memory chat made before it.
+    case mcp(MCPConversationEntry, memory: MemoryToolRun?)
 
     /// A plain reply is a web entry only when it is exactly that command.
     static func plain(_ text: String, allowsWeb: Bool) -> ChatPathReply {
@@ -249,10 +252,16 @@ final class ChatSession: ObservableObject {
     /// Android pickToProbe: the provider just saved without a test while no
     /// main model is chosen; Settings › 模型 offers 選主模型 for it.
     @Published private(set) var pickMainProvider: UUID?
-    private var consentMCP: MCPSession?
-    @Published var usesMCP = false
+    private var consentMCP: MCPServers?
     @Published private(set) var mcpActivity: String?
     @Published private(set) var mcpSteps: [MCPConversationStep] = []
+    /// Which server and tool each step used, for the results list.
+    @Published private(set) var mcpStepOwners: [UUID: MCPStepOwner] = [:]
+    /// Enabled servers the last request could not reach (the user's names, ""
+    /// for an unnamed one); the request went on with the others.
+    @Published private(set) var mcpUnavailableServers: [String] = []
+    /// Tools and resources the last request left out to stay within the limits.
+    @Published private(set) var mcpOmitted = 0
     /// The skill tool running in this request (Play's chat step labels).
     @Published private(set) var skillStep: ChatSkillStep?
     /// The skills a skill step read, for learning after the reply (ChatLearning.swift).
@@ -272,7 +281,13 @@ final class ChatSession: ObservableObject {
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
     private var mcpFormatCorrections = 0
+    /// The MCP step of this request is running: leaving the app or changing a
+    /// server stops it (cancelMCP), as iOS stops MCP work in the background.
     private var isMCPRun = false
+    /// This request reached its MCP step; its failures read as MCP failures.
+    private var mcpReached = false
+    /// The servers this request connected, while it runs.
+    private var mcpRequestCatalog: MCPChatCatalog?
     private var mcpSentCount = 0
 
     #if DEBUG
@@ -419,7 +434,8 @@ final class ChatSession: ObservableObject {
 
     /// Send when every guard passes; otherwise say why and keep the draft.
     /// A main model whose provider was never agreed to asks first.
-    func attemptSend(mcp: MCPSession? = nil) {
+    /// Every chat may use the enabled MCP servers in `mcp`; nothing is switched on per chat.
+    func attemptSend(mcp: MCPServers? = nil) {
         guard canAttemptSend else { return }
         guard savedSettings != nil, hasStoredKey else { shownSendBlocker = .noModel; return }
         shownSendBlocker = nil
@@ -633,7 +649,6 @@ final class ChatSession: ObservableObject {
         cancel()
         guard let record = archive?.state.conversations.first(where: { $0.id == id }) else { return false }
         newConversation()
-        usesMCP = false
         conversationID = record.id.uuidString
         draft = ""
         entries = record.turns.flatMap { [ChatEntry(id: $0.userID, role: "user", content: $0.userText, pdf: $0.pdf,
@@ -894,7 +909,7 @@ final class ChatSession: ObservableObject {
     /// Mapped to AppText.modelsCleanupFailed for display.
     nonisolated static let cleanupFailure = "設定已儲存，但舊的 API Key 沒能刪掉；下次開啟 App 會再清一次。"
 
-    func send(mcp: MCPSession? = nil) {
+    func send(mcp: MCPServers? = nil) {
         if pendingQuote != nil { archive?.reload() }
         guard quoteSourceIsCurrent else { chatError = "引用來源已變更；草稿與引用保留，請重新選取。"; return }
         guard canSend, let savedSettings else { return }
@@ -903,16 +918,6 @@ final class ChatSession: ObservableObject {
             chatError = "原對話已變更或尚未保存；草稿保留，請先確認保存狀態。"
             return
         }
-        // Like the Play build, a saved MCP server needs no manual connect: the
-        // request connects to it first (MCPSession.chatConnection()).
-        let mcpConnection: MCPSession?
-        if usesMCP {
-            guard let mcp, mcp.isAvailableForChats else {
-                chatError = Self.mcpAvailabilityMessage(.notConfigured)
-                return
-            }
-            mcpConnection = mcp
-        } else { mcpConnection = nil }
         learning.cancelLearning()
         let key: String
         do { key = try repository.key(for: savedSettings) }
@@ -956,11 +961,12 @@ final class ChatSession: ObservableObject {
         let memoryState = learning.memory
         let useLearningTools = learning.available && learning.memory.preferences.useMemory
         // Like Play, ordinary chat always offers the skill tools, whatever the
-        // memory switches; MCP conversations keep their own runner.
-        let skillIndex: String?? = mcpConnection == nil ? .some(chatSkillCatalog().index()) : nil
-        // Like Android every message may also become a web task; MCP
-        // conversations keep their own runner in this phase.
-        let webEnvironment = mcpConnection == nil ? webTaskEnvironment?() : nil
+        // memory switches, and every message may also become a web task. Like
+        // Android, the enabled MCP servers' tools are offered in every chat too
+        // (MCPServers.chatCatalog()); one request can use MCP, then a web task
+        // or a skill tool.
+        let skillIndex: String?? = .some(chatSkillCatalog().index())
+        let webEnvironment = webTaskEnvironment?()
         // The provider's session header (OpenCode Go) carries this conversation's value.
         let configuration = savedSettings.configuration(conversation: conversationID)
         let id = UUID()
@@ -977,9 +983,14 @@ final class ChatSession: ObservableObject {
         requestStartedAt = Date()
         replyPreview = nil
         isSubmitting = true
-        isMCPRun = mcpConnection != nil
+        isMCPRun = false
+        mcpReached = false
+        mcpRequestCatalog = nil
         mcpActivity = nil
         mcpSteps = []
+        mcpStepOwners = [:]
+        mcpUnavailableServers = []
+        mcpOmitted = 0
         mcpSentCount = 0
         mcpModelCalls = 0; mcpFormatCorrections = 0; mcpPhase = "starting"; updateMCPDiagnostics()
         chatError = nil
@@ -1004,43 +1015,52 @@ final class ChatSession: ObservableObject {
                     outgoing.append(ModelMessage(userText: ChatAttachmentPreparation.promptText(last.content, notes: prepared.notes),
                                                  attachments: prepared.attachments))
                 }
-                let reply: String
-                var webResult: ChatWebTaskResult?
-                if let mcpConnection {
-                    let (connection, tools, resources) = try await mcpConnection.chatConnection()
-                    try Task.checkCancellation()
-                    reply = try await self?.completeWithMCP(messages: outgoing, utterance: utterance,
-                        profileState: profileState, memoryState: memoryState, generation: learningGeneration,
-                        allowsLearning: useLearningTools, configuration: configuration,
-                        key: key, client: client, connection: connection, tools: tools, resources: resources, requestID: id) ?? ""
-                } else {
-                    let path: ChatPathReply
-                    if useLearningTools {
-                        path = try await self?.completeWithProfile(messages: outgoing, utterance: utterance,
-                            state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
-                            key: key, client: client, requestID: id, skillIndex: skillIndex,
-                            web: webEnvironment.map(Self.webEntry)) ?? .answer("")
-                    } else {
-                        path = try await self?.completePlain(messages: outgoing, configuration: configuration,
-                            key: key, client: client, requestID: id, generation: learningGeneration,
-                            skillIndex: skillIndex, utterance: utterance,
-                            webOffer: webEnvironment.map { ChatWebTaskPrompts.entryInstructions(searchTemplate: $0.searchTemplate) })
-                            ?? .answer("")
-                    }
-                    switch path {
-                    case .answer(let text): reply = text
-                    case .web(let command, let raw):
-                        guard let self, let webEnvironment else { return }
-                        let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing, client: client,
-                                                           configuration: configuration, key: key,
-                                                           environment: webEnvironment, requestID: id)
-                        webResult = result
-                        reply = ChatWebTaskTranscript.text(for: result, localizer: AppLocalizer(language: self.interfaceLanguage()))
-                    }
-                }
+                // Like Android, every request connects the enabled servers first,
+                // all at once and for at most 15 s together; one that is down or
+                // slow is left out of this request and named above the chat.
+                let mcpCatalog = await mcp?.chatCatalog()
                 try Task.checkCancellation()
                 guard let self, self.requestID == id else { return }
-                if mcpConnection != nil { self.mcpPhase = "finished"; self.updateMCPDiagnostics() }
+                self.mcpRequestCatalog = mcpCatalog
+                self.mcpUnavailableServers = mcpCatalog?.unavailable ?? []
+                self.mcpOmitted = mcpCatalog?.catalog.omitted ?? 0
+                let mcpOffer = mcpCatalog?.instructions
+                var path: ChatPathReply
+                if useLearningTools {
+                    path = try await self.completeWithProfile(messages: outgoing, utterance: utterance,
+                        state: profileState, memoryState: memoryState, generation: learningGeneration, configuration: configuration,
+                        key: key, client: client, requestID: id, skillIndex: skillIndex,
+                        web: webEnvironment.map(Self.webEntry), mcp: mcpOffer)
+                } else {
+                    path = try await self.completePlain(messages: outgoing, configuration: configuration,
+                        key: key, client: client, requestID: id, generation: learningGeneration,
+                        skillIndex: skillIndex, utterance: utterance,
+                        webOffer: webEnvironment.map { ChatWebTaskPrompts.entryInstructions(searchTemplate: $0.searchTemplate) },
+                        mcpOffer: mcpOffer)
+                }
+                if case .mcp(let entry, let memory) = path, let mcpCatalog {
+                    path = try await self.runMCP(entry: entry, catalog: mcpCatalog, messages: outgoing, utterance: utterance,
+                        profileState: profileState, memoryRun: memory ?? MemoryToolRun(state: memoryState, utterances: [utterance]),
+                        generation: learningGeneration, allowsLearning: useLearningTools, configuration: configuration,
+                        key: key, client: client, requestID: id, web: webEnvironment)
+                }
+                let reply: String
+                var webResult: ChatWebTaskResult?
+                switch path {
+                case .answer(let text): reply = text
+                // Only offered with a catalog, so the MCP step above always took it.
+                case .mcp: reply = ""
+                case .web(let command, let raw, let exchange):
+                    guard let webEnvironment else { return }
+                    let result = await self.runWebTask(entry: command, raw: raw, conversation: outgoing + exchange, client: client,
+                                                       configuration: configuration, key: key,
+                                                       environment: webEnvironment, requestID: id)
+                    webResult = result
+                    reply = ChatWebTaskTranscript.text(for: result, localizer: AppLocalizer(language: self.interfaceLanguage()))
+                }
+                try Task.checkCancellation()
+                guard self.requestID == id else { return }
+                if self.mcpReached { self.mcpPhase = "finished"; self.updateMCPDiagnostics() }
                 guard !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     self.failTurn(id: id, reason: "模型回傳空白內容，請重試。")
                     return
@@ -1064,33 +1084,31 @@ final class ChatSession: ObservableObject {
                     client: client, configuration: configuration, key: key)
             } catch {
                 guard let self, self.requestID == id else { return }
-                if mcpConnection == nil, let kept = self.keptReply(after: error, requestID: id) {
+                let mcpRan = self.mcpReached
+                if !mcpRan, let kept = self.keptReply(after: error, requestID: id) {
                     self.completeTurn(id: id, assistant: ChatEntry(role: "assistant", content: kept))
                     return
                 }
                 self.recordFailedSkillStep(requestID: id, error: error, generation: learningGeneration)
-                let unavailable = error as? MCPChatAvailability
-                if (error as? MCPConversationError) == .executionFailed { mcpConnection?.connectionFailed() }
-                if mcpConnection != nil {
-                    let connect: String? = unavailable.map { "connect-\($0)" }
+                if (error as? MCPConversationError) == .executionFailed { self.mcpRequestCatalog?.connectionsFailed() }
+                if mcpRan {
                     let category = (error as? MCPConversationError)?.rawValue
                         ?? (error as? MCPChatStop)?.reason.rawValue
-                        ?? connect
+                        ?? (error is MCPChatChanged ? "connectionChanged" : nil)
                         ?? (error is CancellationError ? "cancelled" : "unknown")
                     self.updateMCPDiagnostics(failure: category)
                 }
                 // Do not surface provider error bodies/URLs: they may contain secrets.
-                let reason: String? = unavailable.map(Self.mcpAvailabilityMessage)
-                let message = reason
-                    ?? (error as? MCPChatStop)?.message
+                let message = (error as? MCPChatStop)?.message
+                    ?? (error is MCPChatChanged ? MCPChatChanged.message : nil)
                     ?? Self.profileFailureMessage(error)
                     ?? Self.modelFailureMessage(error as? MCPConversationError)
                     ?? ((error as? MCPConversationError) == .invalidCommand
                         ? "模型仍未提供可用的單一步驟指令，已停止；先前的工具結果保留。" : nil)
-                    ?? (mcpConnection == nil ? "傳送失敗。請檢查模型設定或網路後重試。"
+                    ?? (!mcpRan ? "傳送失敗。請檢查模型設定或網路後重試。"
                         : "MCP 對話未完成，已收到的工具結果保留；請先確認已送出操作，不會自動重試。")
                 // A plain request names its model failure like Android (ModelErrorCopy).
-                let modelFailure = mcpConnection == nil ? ChatModelFailure(error) : nil
+                let modelFailure = !mcpRan ? ChatModelFailure(error) : nil
                 // Like the Play build the turn stays in the conversation as 沒有完成 with its reason.
                 if self.memoryReceiptRequestID == id {
                     self.failTurn(id: id, reason: "記憶修改已儲存，但後續模型回覆未完成；請先查看保存結果或撤銷，避免重複修改。")
@@ -1103,9 +1121,13 @@ final class ChatSession: ObservableObject {
             }
         }
         // Like the Play build ordinary chat has no fixed time limit; a stalled
-        // connection ends through the HTTP client's own timeouts. MCP runs keep
-        // the host deadline.
-        guard mcpConnection != nil else { return }
+        // connection ends through the HTTP client's own timeouts. The MCP step
+        // keeps a host deadline from when it starts (runMCP).
+    }
+
+    /// Just past the MCP runner's own limit; a web task or skill step after it cancels it.
+    private func startMCPDeadline(requestID id: UUID) {
+        deadline?.cancel()
         deadline = Task { [weak self] in
             let seconds: UInt64 = Self.mcpRequestDeadlineSeconds
             do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) }
@@ -1277,16 +1299,22 @@ final class ChatSession: ObservableObject {
     private func completePlain(messages input: [ModelMessage], configuration: ModelConfiguration,
                                key: String, client: any ChatModelClient, requestID id: UUID, generation: UUID,
                                skillIndex: String?? = nil, utterance: String = "",
-                               webOffer: String? = nil) async throws -> ChatPathReply {
+                               webOffer: String? = nil, mcpOffer: String? = nil) async throws -> ChatPathReply {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
-        // One system message: the skill tools offer and the web task offer when
-        // there are any, then Play's identity line and safety rules (AISafetyRules).
-        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) }, web: webOffer)
+        // One system message: the skill tools offer, the web task offer and the
+        // MCP catalog when there are any, then Play's identity line and safety
+        // rules (AISafetyRules).
+        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) },
+                                        web: webOffer, mcp: mcpOffer)
         let messages = [AISafetyRules.systemMessage(instructions: offer)] + input
         // A reply that is exactly one skill tool command starts the skill tools
-        // step; one that is exactly a web entry command starts a web task.
+        // step; one that is exactly a web entry command starts a web task; one
+        // that is exactly an MCP command starts the MCP step with it.
         func finished(_ text: String) async throws -> ChatPathReply {
+            if mcpOffer != nil, let command = MCPConversationEntry.command(in: text) {
+                return .mcp(MCPConversationEntry(command: command), memory: nil)
+            }
             guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
             return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
                                                    generation: generation, configuration: configuration, key: key,
@@ -1295,9 +1323,9 @@ final class ChatSession: ObservableObject {
         guard let streaming = client as? any StreamingChatModelClient else {
             return try await finished(try await client.complete(messages: messages, configuration: configuration, apiKey: key))
         }
-        // A reply opening with "{" or a code fence may be a skill or web command:
-        // it is shown only once it turns out to be an answer.
-        let holdsAtStart: Bool? = skillIndex == nil && webOffer == nil ? false : nil
+        // A reply opening with "{" or a code fence may be a skill, web or MCP
+        // command: it is shown only once it turns out to be an answer.
+        let holdsAtStart: Bool? = skillIndex == nil && webOffer == nil && mcpOffer == nil ? false : nil
         var holds = holdsAtStart, request = messages
         var text = "", bytes = 0, resent = false, nudged = false
         while true {
@@ -1396,26 +1424,20 @@ final class ChatSession: ObservableObject {
         stopTurn(id: id)
     }
 
+    /// Stops the request while its MCP step runs: the app is leaving the
+    /// screen, or a server's connection or tool choice changed. A plain reply,
+    /// a web task or a skill step goes on.
     func cancelMCP() {
         guard isMCPRun else { return }
         cancel()
     }
 
-    /// Closed messages; AppLocalizer.stored shows them in the app language.
-    static func mcpAvailabilityMessage(_ reason: MCPChatAvailability) -> String {
-        switch reason {
-        case .notConfigured, .noTools:
-            return "請先在 MCP 伺服器頁儲存端點並保留至少一個工具，或關閉對話的 MCP 選項；草稿已保留。"
-        case .unreachable:
-            return "MCP 伺服器連不上，草稿已保留。請到 MCP 伺服器頁確認網址和存取權杖後再試。"
-        }
-    }
-
     // MARK: Web tasks from chat
 
-    /// The plain chat's one offer: the skill tools first, then the web task commands.
-    static func plainChatOffer(skills: String?, web: String?) -> String? {
-        let offers = [skills, web].compactMap { $0 }
+    /// The plain chat's one offer: the skill tools first, then the web task
+    /// commands, then the MCP catalog.
+    static func plainChatOffer(skills: String?, web: String?, mcp: String? = nil) -> String? {
+        let offers = [skills, web, mcp].compactMap { $0 }
         return offers.isEmpty ? nil : offers.joined(separator: "\n")
     }
 
@@ -1457,12 +1479,16 @@ final class ChatSession: ObservableObject {
                                      state: UserProfileState, memoryState: MemoryState, generation: UUID,
                                      configuration: ModelConfiguration, key: String,
                                      client: any ChatModelClient, requestID: UUID,
-                                     skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil) async throws -> ChatPathReply {
+                                     skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil,
+                                     mcp: String? = nil) async throws -> ChatPathReply {
         let skillEntry = skillIndex.map {
             UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false),
                                       accepts: { ChatSkillCommand.parseEntry($0) != nil })
         }
-        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web)
+        let mcpEntry = mcp.map {
+            UserProfileChatSkillEntry(instructions: $0, accepts: { MCPConversationEntry.command(in: $0) != nil })
+        }
+        let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web, mcpEntry: mcpEntry)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         defer { flow.cancel() }
         while true {
@@ -1487,6 +1513,13 @@ final class ChatSession: ObservableObject {
             case .webEntry(let json):
                 // The flow accepted it with this same validator.
                 return .web(try ChatWebCommand.parseEntry(json), raw: ChatWebCommand.unfenced(json))
+            case .mcpEntry(let json):
+                // The MCP step goes on from here: what the flow did and the
+                // local search and change it already used come along.
+                let entry = MCPConversationEntry(command: MCPConversationEntry.command(in: json) ?? json,
+                    exchange: flow.exchange, modelCalls: flow.modelCalls,
+                    searchedLocally: flow.searchedMemory, mutatedLocally: flow.didCommit)
+                return .mcp(entry, memory: memoryRun)
             case .proposedEdit(let arguments):
                 guard learning.available, learning.memory.preferences.useMemory,
                       learning.generation == generation, learning.profile.revision == state.revision else {
@@ -1594,13 +1627,26 @@ final class ChatSession: ObservableObject {
         return nil
     }
 
-    private func completeWithMCP(messages: [ModelMessage], utterance: String,
-                                 profileState: UserProfileState, memoryState: MemoryState,
-                                 generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
-                                 key: String, client: any ChatModelClient,
-                                 connection: any MCPDiscovering, tools: [MCPTool], resources: [MCPResource], requestID: UUID) async throws -> String {
-        let turn = MCPLearningTurn(profile: profileState, memory: memoryState,
-                                   utterance: utterance, generation: generation)
+    /// The MCP step of a request: MCPConversationRunner over every connected
+    /// server's catalog, starting with the chat's first MCP command. Like the
+    /// Play build, selected tools and offered resources run with no per-call
+    /// approval: the tool selection in MCP settings is the limit. The model may
+    /// end it with a web task or a skill tool, which then gets the MCP results.
+    private func runMCP(entry: MCPConversationEntry, catalog: MCPChatCatalog, messages: [ModelMessage],
+                        utterance: String, profileState: UserProfileState, memoryRun: MemoryToolRun,
+                        generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
+                        key: String, client: any ChatModelClient, requestID: UUID,
+                        web: ChatWebTaskEnvironment?) async throws -> ChatPathReply {
+        guard self.requestID == requestID else { throw CancellationError() }
+        // iOS stops MCP work in the background and when a server changes: a reply
+        // that asks for MCP after that starts nothing.
+        guard catalog.isCurrent() else { throw MCPChatChanged() }
+        isMCPRun = true
+        mcpReached = true
+        mcpModelCalls = entry.modelCalls; mcpPhase = "starting"; updateMCPDiagnostics()
+        replyPreview = nil
+        startMCPDeadline(requestID: requestID)
+        let turn = MCPLearningTurn(profile: profileState, memory: memoryRun, utterance: utterance, generation: generation)
         let local: MCPLocalHandler?
         if allowsLearning {
             local = { [weak self] proposal, lease in
@@ -1608,16 +1654,42 @@ final class ChatSession: ObservableObject {
                 return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID)
             }
         } else { local = nil }
-        // Like the Play build, selected tools and offered resources run with no
-        // per-call approval: the tool selection in MCP settings is the limit.
+        // The web task first when there is one, then the skill tools, as the chat offers them.
+        var handoffs: [MCPConversationHandoff] = []
+        if let web {
+            handoffs.append(MCPConversationHandoff(
+                instructions: ChatWebTaskPrompts.entryInstructions(searchTemplate: web.searchTemplate),
+                actions: ChatWebCommand.entryActions, accepts: { (try? ChatWebCommand.parseEntry($0)) != nil }))
+        }
+        let skillOffer = handoffs.count
+        handoffs.append(MCPConversationHandoff(
+            instructions: ChatSkillPrompts.entry(index: chatSkillCatalog().index(), plainChat: false),
+            actions: ChatSkillCommand.toolNames, accepts: { ChatSkillCommand.parseEntry($0) != nil }))
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
-            tools: tools, resources: resources, executor: connection,
+            tools: catalog.catalog.tools, resources: catalog.catalog.resources, executor: catalog.catalog,
+            entry: entry, handoffs: handoffs,
             onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
+        guard self.requestID == requestID else { throw CancellationError() }
+        // The MCP step is over: a web task or skill step after it keeps running
+        // in the background like any other, and has no MCP deadline.
+        isMCPRun = false
+        deadline?.cancel(); deadline = nil
+        if result.stopReason == .handedOff, let handoff = result.handoff {
+            if handoff.offer == skillOffer {
+                return .answer(try await runSkillTools(entryRaw: handoff.command, conversation: messages + handoff.exchange,
+                                                       utterance: utterance, memoryOn: allowsLearning, generation: generation,
+                                                       configuration: configuration, key: key, client: client,
+                                                       requestID: requestID))
+            }
+            // The runner accepted it with this same validator.
+            return .web(try ChatWebCommand.parseEntry(handoff.command), raw: ChatWebCommand.unfenced(handoff.command),
+                        exchange: handoff.exchange)
+        }
         guard result.stopReason == .finished, let answer = result.answer else { throw MCPChatStop(reason: result.stopReason) }
-        return answer
+        return .answer(answer)
     }
 
     /// Local learning and the remote MCP connection are separate capabilities.
@@ -1664,7 +1736,21 @@ final class ChatSession: ObservableObject {
         case .requestingModel(let count): mcpPhase = "requestingModel"; mcpModelCalls = count
         case .correctingCommand: mcpPhase = "correctingCommand"; mcpFormatCorrections += 1
         case .executing: mcpPhase = "executing"; mcpSentCount += 1
-        case .completed(let step): mcpPhase = "receivedResult"; mcpSteps.append(step)
+        case .completed(let step):
+            mcpPhase = "receivedResult"
+            mcpSteps.append(step)
+            if let catalog = mcpRequestCatalog?.catalog {
+                switch step.proposal.action {
+                case .callTool(let name, _):
+                    if let owner = catalog.owner(ofTool: name) {
+                        mcpStepOwners[step.proposal.id] = MCPStepOwner(server: owner.server, target: owner.tool)
+                    }
+                case .readResource(let uri):
+                    if let owner = catalog.owner(ofResource: uri) {
+                        mcpStepOwners[step.proposal.id] = MCPStepOwner(server: owner.server, target: owner.uri)
+                    }
+                }
+            }
         }
         mcpActivity = "MCP 嘗試呼叫 \(mcpSentCount) 次；已收到 \(mcpSteps.count) 次結果；工具錯誤 \(mcpSteps.filter(\.isError).count) 次。"
         updateMCPDiagnostics()
@@ -1688,7 +1774,8 @@ final class ChatSession: ObservableObject {
         pendingQuote = nil
         quoteSource = nil
         archiveNotice = nil; pendingArchiveSave = nil
-        mcpActivity = nil; mcpSteps = []; mcpSentCount = 0
+        mcpActivity = nil; mcpSteps = []; mcpStepOwners = [:]; mcpSentCount = 0
+        mcpUnavailableServers = []; mcpOmitted = 0
         mcpDiagnostics = nil
         profileReceipt = nil
         profileReceiptRequestID = nil
@@ -1706,6 +1793,8 @@ final class ChatSession: ObservableObject {
         requestID = nil
         isSubmitting = false
         isMCPRun = false
+        mcpReached = false
+        mcpRequestCatalog = nil
         skillStep = nil
         request = nil
         deadline?.cancel()
@@ -1731,12 +1820,26 @@ final class ChatSession: ObservableObject {
     let utterance: String
     let generation: UUID
 
-    init(profile: UserProfileState, memory: MemoryState, utterance: String, generation: UUID) {
+    /// `memory` holds the search a memory chat made before its MCP step, if any.
+    init(profile: UserProfileState, memory: MemoryToolRun, utterance: String, generation: UUID) {
         self.profile = profile
-        self.memory = MemoryToolRun(state: memory, utterances: [utterance])
+        self.memory = memory
         self.utterance = utterance
         self.generation = generation
     }
+}
+
+/// The server and its own tool name or resource URI behind one MCP step.
+struct MCPStepOwner: Equatable {
+    /// The user's name for the server; "" for an unnamed one.
+    let server: String
+    let target: String
+}
+
+/// The MCP connection closed or a server changed between the start of the
+/// request and its first MCP command: nothing ran.
+private struct MCPChatChanged: Error {
+    static let message = "MCP 連線或設定在回覆時變更，已停止；沒有執行任何 MCP 工具。"
 }
 
 private struct MCPChatStop: Error {

@@ -206,6 +206,30 @@ enum AppText: Equatable {
     case mcpKeychainStatus(code: String)
     case mcpToolCount(count: Int)
     case mcpSelectedCount(count: Int)
+    case mcpServersSection
+    case mcpServersEmpty
+    case mcpServersEmptyDetail
+    case mcpServersStatus(count: Int)
+    case mcpServersStored
+    case mcpAddServer
+    case mcpAddSection
+    case mcpTestAll
+    case mcpBackToServers
+    case mcpServerName
+    case mcpServerDefaultName
+    case mcpServerEnabled
+    case mcpServerDisabled
+    case mcpServerStatusOK(count: Int)
+    case mcpServerStatusFailed
+    case mcpDeleteServer
+    case mcpDeleteServerQuestion
+    case mcpDeleteServerConfirm
+    case mcpServerAdded
+    case mcpServerRenamed
+    case mcpServerRemoved
+    case mcpInvalidServerName
+    case mcpTooManyServers
+    case mcpNameSeparator
     case searchTitle
     case searchCustom
     case searchTemplate
@@ -785,6 +809,7 @@ enum AppText: Equatable {
     case storedChatMcpToolError
     case storedChatMcpLocalLimit
     case storedChatMcpLimit
+    case storedChatMcpChanged
     case storedContextIncompleteHistory
     case storedContextTooLarge
     case storedReferencePrepareFailed
@@ -886,10 +911,11 @@ enum AppText: Equatable {
     case storedSuffixDraftKept
     case storedSuffixToolResultsKept
     case storedSuffixReplayNoSkip
-    case chatUseMCP
     case chatReceiptProfile
     case chatReceiptMemory
     case chatMcpResultsView(count: Int)
+    case chatMcpUnavailable(names: String)
+    case chatMcpOmitted(count: Int)
     case chatArchiveRetry
     case chatLearningOrganizing
     case chatMemoryApprove
@@ -1143,6 +1169,30 @@ enum AppText: Equatable {
         case .mcpKeychainStatus: return "mcp.keychain.status"
         case .mcpToolCount: return "mcpToolCount"
         case .mcpSelectedCount: return "mcpSelectedCount"
+        case .mcpServersSection: return "mcp.servers.section"
+        case .mcpServersEmpty: return "mcp.servers.empty"
+        case .mcpServersEmptyDetail: return "mcp.servers.empty.detail"
+        case .mcpServersStatus: return "mcpServersStatus"
+        case .mcpServersStored: return "mcp.servers.stored"
+        case .mcpAddServer: return "mcp.add.server"
+        case .mcpAddSection: return "mcp.add.section"
+        case .mcpTestAll: return "mcp.test.all"
+        case .mcpBackToServers: return "mcp.back.to.servers"
+        case .mcpServerName: return "mcp.server.name"
+        case .mcpServerDefaultName: return "mcp.server.default.name"
+        case .mcpServerEnabled: return "mcp.server.enabled"
+        case .mcpServerDisabled: return "mcp.server.disabled"
+        case .mcpServerStatusOK: return "mcpServerStatusOK"
+        case .mcpServerStatusFailed: return "mcp.server.status.failed"
+        case .mcpDeleteServer: return "mcp.delete.server"
+        case .mcpDeleteServerQuestion: return "mcp.delete.server.question"
+        case .mcpDeleteServerConfirm: return "mcp.delete.server.confirm"
+        case .mcpServerAdded: return "mcp.server.added"
+        case .mcpServerRenamed: return "mcp.server.renamed"
+        case .mcpServerRemoved: return "mcp.server.removed"
+        case .mcpInvalidServerName: return "mcp.invalid.server.name"
+        case .mcpTooManyServers: return "mcp.too.many.servers"
+        case .mcpNameSeparator: return "mcp.name.separator"
         case .searchTitle: return "search.title"
         case .searchCustom: return "search.custom"
         case .searchTemplate: return "search.template"
@@ -1722,6 +1772,7 @@ enum AppText: Equatable {
         case .storedChatMcpToolError: return "stored.chat.mcpToolError"
         case .storedChatMcpLocalLimit: return "stored.chat.mcpLocalLimit"
         case .storedChatMcpLimit: return "stored.chat.mcpLimit"
+        case .storedChatMcpChanged: return "stored.chat.mcpChanged"
         case .storedContextIncompleteHistory: return "stored.context.incompleteHistory"
         case .storedContextTooLarge: return "stored.context.tooLarge"
         case .storedReferencePrepareFailed: return "stored.reference.prepareFailed"
@@ -1823,10 +1874,11 @@ enum AppText: Equatable {
         case .storedSuffixDraftKept: return "stored.suffix.draftKept"
         case .storedSuffixToolResultsKept: return "stored.suffix.toolResultsKept"
         case .storedSuffixReplayNoSkip: return "stored.suffix.replayNoSkip"
-        case .chatUseMCP: return "chat.useMCP"
         case .chatReceiptProfile: return "chat.receipt.profile"
         case .chatReceiptMemory: return "chat.receipt.memory"
         case .chatMcpResultsView: return "chat.mcpResults.view"
+        case .chatMcpUnavailable: return "chat.mcpUnavailable"
+        case .chatMcpOmitted: return "chatMcpOmitted"
         case .chatArchiveRetry: return "chat.archive.retry"
         case .chatLearningOrganizing: return "chat.learning.organizing"
         case .chatMemoryApprove: return "chat.memory.approve"
@@ -1889,6 +1941,8 @@ enum AppText: Equatable {
         case .mcpKeychainStatus(let code): return [code]
         case .mcpToolCount(let count): return [Int64(count)]
         case .mcpSelectedCount(let count): return [Int64(count)]
+        case .mcpServersStatus(let count): return [Int64(count)]
+        case .mcpServerStatusOK(let count): return [Int64(count)]
         case .commonDeleteName(let name): return [name]
         case .browserHistorySearch(let query): return [query]
         case .browserStartRemoveBookmark(let name): return [name]
@@ -1973,6 +2027,8 @@ enum AppText: Equatable {
         case .storedChatMcpActivity(let tried, let received, let failed): return [Int64(tried), Int64(received), Int64(failed)]
         case .storedResearchModelHTTP(let code): return [Int64(code)]
         case .chatMcpResultsView(let count): return [Int64(count)]
+        case .chatMcpUnavailable(let names): return [names]
+        case .chatMcpOmitted(let count): return [Int64(count)]
         case .browserInteractionNavigationMethod(let method): return [method]
         case .browserResearchReads(let count): return [Int64(count)]
         case .chatSkillNoteLearned(let description): return [description]
@@ -2134,7 +2190,7 @@ enum AppText: Equatable {
         case .mcpTitle: return "MCP 伺服器"
         case .mcpConnectionSection: return "MCP 連線與目錄"
         case .mcpNoTools: return "伺服器未宣告工具能力"
-        case .mcpExplanation: return "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。"
+        case .mcpExplanation: return "可以連接多個外部 MCP 伺服器，並為每個伺服器選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，網址和存取權杖只保存在這台裝置的 Keychain。已啟用的伺服器在每個對話都能用，不需要另外打開：助理需要時會自動連線，直接執行允許的工具，不會每次先問你；工具說明和結果會送給你設定的模型。連不上的伺服器那次會略過，不影響其他伺服器。"
         case .mcpIsolation: return "UI 測試隔離模式：不會發送 MCP 網路請求。"
         case .mcpStored: return "端點已安全儲存；不顯示網址。"
         case .mcpNotStored: return "尚未儲存端點。"
@@ -2164,7 +2220,7 @@ enum AppText: Equatable {
         case .mcpCancelled: return "已取消等待"
         case .mcpFailedStatus: return "MCP 設定或連線未完成"
         case .mcpSuspended: return "已暫停連線；回到 App 時會自動重新連線"
-        case .mcpSelectionLimit: return "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。"
+        case .mcpSelectionLimit: return "一個伺服器最多提供 256 個工具、說明合計 224 KB，格式不符的工具不能使用；超出的工具維持關閉。"
         case .mcpSavedNotice: return "已存入此裝置的 Keychain；尚未送出連線請求。"
         case .mcpRemovedNotice: return "已移除此 App 的 MCP 端點、存取權杖和工具選擇。"
         case .mcpDiscoveryNotice: return "僅完成握手與目錄探索，未執行工具或讀取資源內容；不代表服務持續在線。"
@@ -2187,6 +2243,30 @@ enum AppText: Equatable {
         case .mcpKeychainStatus: return "MCP Keychain 存取失敗（系統代碼 %1$@）。"
         case .mcpToolCount: return "工具：%lld 個"
         case .mcpSelectedCount: return "已選取 %lld 個工具供對話使用"
+        case .mcpServersSection: return "伺服器"
+        case .mcpServersEmpty: return "還沒有 MCP 伺服器"
+        case .mcpServersEmptyDetail: return "新增外部 MCP 伺服器，把它的工具交給助理。"
+        case .mcpServersStatus: return "已儲存 %lld 個伺服器"
+        case .mcpServersStored: return "網址和存取權杖已安全儲存；不顯示網址。"
+        case .mcpAddServer: return "新增伺服器"
+        case .mcpAddSection: return "新增 MCP 伺服器"
+        case .mcpTestAll: return "測試全部"
+        case .mcpBackToServers: return "所有伺服器"
+        case .mcpServerName: return "名稱"
+        case .mcpServerDefaultName: return "MCP 伺服器"
+        case .mcpServerEnabled: return "在對話中使用這個伺服器"
+        case .mcpServerDisabled: return "已停用"
+        case .mcpServerStatusOK: return "可用 · %lld 個工具"
+        case .mcpServerStatusFailed: return "連線失敗"
+        case .mcpDeleteServer: return "刪除伺服器"
+        case .mcpDeleteServerQuestion: return "刪除這個伺服器在此裝置儲存的端點、存取權杖和工具選擇？其他伺服器不受影響。"
+        case .mcpDeleteServerConfirm: return "刪除"
+        case .mcpServerAdded: return "已新增並存入此裝置的 Keychain；尚未送出連線請求。"
+        case .mcpServerRenamed: return "已更改名稱。"
+        case .mcpServerRemoved: return "已刪除這個伺服器的端點、存取權杖和工具選擇。"
+        case .mcpInvalidServerName: return "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。"
+        case .mcpTooManyServers: return "最多可以儲存 16 個 MCP 伺服器。"
+        case .mcpNameSeparator: return "、"
         case .searchTitle: return "搜尋引擎"
         case .searchCustom: return "新增自訂引擎"
         case .searchTemplate: return "https://example.com/search?q=%%s"
@@ -2766,6 +2846,7 @@ enum AppText: Equatable {
         case .storedChatMcpToolError: return "工具回報錯誤，已停止；請檢視工具結果。不會自動重試。"
         case .storedChatMcpLocalLimit: return "本次對話的記憶搜尋或修改額度已用完，已停止；先前的結果保留。"
         case .storedChatMcpLimit: return "已達 MCP 執行限制或偵測到重複呼叫；已收到的工具結果保留。"
+        case .storedChatMcpChanged: return "MCP 連線或設定在回覆時變更，已停止；沒有執行任何 MCP 工具。"
         case .storedContextIncompleteHistory: return "聊天歷史不是完整的使用者與助理回合，請開啟新對話後再試。"
         case .storedContextTooLarge: return "這次訊息與參考內容超過傳送上限，請縮短訊息或參考內容。"
         case .storedReferencePrepareFailed: return "無法準備本次參考資料，尚未開始研究。"
@@ -2867,10 +2948,11 @@ enum AppText: Equatable {
         case .storedSuffixDraftKept: return "草稿已保留。"
         case .storedSuffixToolResultsKept: return "已收到的工具結果保留；沒有自動重送操作。"
         case .storedSuffixReplayNoSkip: return " 沒有跳過內容核對，也未自動重新學習。已讀取內容保留。"
-        case .chatUseMCP: return "本次對話使用 MCP 工具"
         case .chatReceiptProfile: return "本次對話曾儲存個人檔案；可在資料頁用「全部清除」刪除。"
         case .chatReceiptMemory: return "本次對話曾儲存記憶修改；可在資料頁查看目前內容。"
         case .chatMcpResultsView: return "檢視工具結果（%1$lld）"
+        case .chatMcpUnavailable: return "MCP 伺服器連線失敗：%1$@"
+        case .chatMcpOmitted: return "這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。"
         case .chatArchiveRetry: return "重試保存"
         case .chatLearningOrganizing: return "正在整理你說過的事…"
         case .chatMemoryApprove: return "好"

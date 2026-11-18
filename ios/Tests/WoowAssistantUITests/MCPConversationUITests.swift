@@ -17,17 +17,29 @@ final class MCPConversationUITests: XCTestCase {
         connectFixture()
     }
 
+    /// Like Android there is no switch in the chat: the saved server is used
+    /// in every chat. The page's own test shows its tools first.
     private func connectFixture() {
         navigateMikaSection("tools", in: app)
+        openMCPServer(0, in: app)
         tap("mcp.connect")
         waitForStatus("已連線，目錄擷取完成")
         let enabled = app.switches["mcp.enable.fixture_echo"]
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
         navigateMikaSection("chat", in: app)
-        let chatEnabled = app.switches["chat.useMCP"]
-        XCTAssertTrue(chatEnabled.waitForExistence(timeout: 5))
-        setSwitch(chatEnabled, on: true)
+        XCTAssertTrue(chatDraftControl(in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["chat.useMCP"].exists, "There is no per-chat MCP switch")
+    }
+
+    private func relaunch(_ fixtures: [String]) {
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
+            "-UITestMode", "-UITestNamespace", UUID().uuidString, "-UITestResetStorage", "-WoowSkipOnboarding"] + fixtures
+        app.launchEnvironment = [:]
+        app.launch()
+        XCTAssertTrue(chatDraftControl(in: app).waitForExistence(timeout: 15))
     }
 
     func testMemorySwitchChangesWhileAnMCPCallIsHeld() {
@@ -102,6 +114,7 @@ final class MCPConversationUITests: XCTestCase {
         let result = app.staticTexts["mcp.result.0"]
         XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: hello"))
+        XCTAssertEqual(app.staticTexts["mcp.result.0.server"].label, "Fixture A", "the results name the server")
         XCTAssertFalse(app.staticTexts["mcp.result.1"].exists)
     }
 
@@ -119,12 +132,12 @@ final class MCPConversationUITests: XCTestCase {
     /// The tool selection is the limit: a tool that is not selected never runs.
     func testUnselectedToolNeverRunsAndTheTurnIsNotDone() {
         navigateMikaSection("tools", in: app)
+        openMCPServer(0, in: app)
         let enabled = app.switches["mcp.enable.fixture_echo"]
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: false)
         navigateMikaSection("chat", in: app)
-        // The offered resource keeps MCP on for this chat; the model still asks for fixture_echo.
-        XCTAssertEqual(app.switches["chat.useMCP"].value as? String, "1")
+        // The offered resource keeps MCP in this chat; the model still asks for fixture_echo.
         let prompt = "[fixture:mcp] hello"
         send(prompt)
         // Like the Play build the turn stays as 沒有完成 with its reason.
@@ -135,6 +148,7 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
         XCTAssertFalse(app.buttons["chat.mcpResults"].exists)
         navigateMikaSection("tools", in: app)
+        openMCPServer(0, in: app)
         revealLearningElement(enabled, in: app)
         setSwitch(enabled, on: true)
         navigateMikaSection("chat", in: app)
@@ -168,12 +182,12 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertEqual(stopped.label, "已停止。")
         XCTAssertNotEqual(chatDraftControl(in: app).value as? String, prompt)
         navigateMikaSection("tools", in: app)
+        openMCPServer(0, in: app)
         waitForStatus("已連線，目錄擷取完成")
         let enabled = app.switches["mcp.enable.fixture_echo"]
         revealLearningElement(enabled, in: app)
         XCTAssertEqual(enabled.value as? String, "1", "The tool choice survives the background")
         navigateMikaSection("chat", in: app)
-        XCTAssertEqual(app.switches["chat.useMCP"].value as? String, "1")
         send(prompt)
         navigateMikaSection("memory", in: app)
         XCTAssertTrue(app.staticTexts["fixture.mcp.lease.holding"].waitForExistence(timeout: 10),
@@ -201,6 +215,89 @@ final class MCPConversationUITests: XCTestCase {
         XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertTrue(result.label.contains("FIXTURE_CALL_1: error"))
         XCTAssertTrue(result.label.contains("\"isError\" : true"))
+    }
+
+    /// Like Android: two servers offer the same tool name and each call goes to
+    /// its own server; a server that is down is named and left out, and the
+    /// others still work. Deleting it removes only that server.
+    func testTwoServersShareAToolNameAndOneIsDown() {
+        relaunch(["-UITestMCPServers"])
+        navigateMikaSection("tools", in: app)
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "已儲存 3 個伺服器")
+        for (index, name) in ["Fixture A", "Fixture B", "Fixture down"].enumerated() {
+            XCTAssertTrue(app.buttons["mcp.server.\(index)"].label.contains(name), app.buttons["mcp.server.\(index)"].label)
+        }
+        tap("mcp.testAll")
+        waitForMCPServerRow(0, contains: "可用 · 1 個工具", in: app)
+        waitForMCPServerRow(1, contains: "可用 · 1 個工具", in: app)
+        waitForMCPServerRow(2, contains: "連線失敗", in: app)
+        navigateMikaSection("chat", in: app)
+        XCTAssertFalse(app.switches["chat.useMCP"].exists)
+        send("[fixture:mcp-two] hello")
+        assertAnswer("FIXTURE_CALL_1: hello | FIXTURE_B_CALL_1: hello")
+        XCTAssertEqual(app.staticTexts["chat.mcpUnavailable"].label, "MCP 伺服器連線失敗：Fixture down")
+        assertAudit(attempts: 2, results: 2)
+        app.buttons["chat.mcpResults"].tap()
+        XCTAssertTrue(app.staticTexts["mcp.result.1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["mcp.result.0"].label.contains("FIXTURE_CALL_1: hello"))
+        XCTAssertEqual(app.staticTexts["mcp.result.0.server"].label, "Fixture A")
+        XCTAssertTrue(app.staticTexts["mcp.result.1"].label.contains("FIXTURE_B_CALL_1: hello"))
+        XCTAssertEqual(app.staticTexts["mcp.result.1.server"].label, "Fixture B")
+        app.buttons["mcp.results.close"].tap()
+        // Delete the server that is down: the others keep their settings.
+        navigateMikaSection("tools", in: app)
+        openMCPServer(2, in: app)
+        tap("mcp.deleteServer")
+        // The confirmation is a system sheet; its button keeps the identifier or its 刪除 label.
+        var confirm = app.buttons["mcp.confirmDeleteServer"]
+        if !confirm.waitForExistence(timeout: 5) { confirm = app.buttons.matching(NSPredicate(format: "label == %@", "刪除")).firstMatch }
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["mcp.server.1"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["mcp.server.2"].exists)
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "已儲存 2 個伺服器")
+        navigateMikaSection("chat", in: app)
+        send("[fixture:mcp-two] hello")
+        assertAnswer("FIXTURE_CALL_2: hello | FIXTURE_B_CALL_2: hello", index: 3)
+        XCTAssertFalse(app.staticTexts["chat.mcpUnavailable"].exists, "no server is left out now")
+    }
+
+    /// With a saved server and no switch on screen, one chat calls an MCP
+    /// tool and then runs a web task, and in its next turn calls the tool and
+    /// then uses a skill: the MCP results go along to both.
+    func testOneChatUsesMCPThenAWebTaskThenASkill() {
+        relaunch(["-UITestMCPFixture", "-UITestChatWeb"])
+        XCTAssertFalse(app.switches["chat.useMCP"].exists)
+        send("[fixture:mcp-web]")
+        let web = app.staticTexts["chat.message.1.assistant"]
+        XCTAssertTrue(web.waitForExistence(timeout: 60))
+        XCTAssertTrue(web.label.hasPrefix("WEB_TASK_NEWS_DONE"), web.label)
+        XCTAssertTrue(app.buttons["chat.mcpResults"].waitForExistence(timeout: 5), "the MCP call ran before the web task")
+        app.buttons["chat.mcpResults"].tap()
+        XCTAssertTrue(app.staticTexts["mcp.result.0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["mcp.result.0"].label.contains("FIXTURE_CALL_1: hello"))
+        app.buttons["mcp.results.close"].tap()
+        send("[fixture:mcp-skill]")
+        assertAnswer("FIXTURE_SKILL_AFTER_MCP：FIXTURE_CALL_2: hello", index: 3)
+    }
+
+    /// The single server of earlier versions becomes the first server of the
+    /// list with its endpoint, access token and tool choice.
+    func testEarlierSingleServerMovesIntoTheList() {
+        relaunch(["-UITestMCPLegacyServer"])
+        navigateMikaSection("tools", in: app)
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "已儲存 1 個伺服器")
+        XCTAssertTrue(app.buttons["mcp.server.0"].label.contains("MCP 伺服器"), app.buttons["mcp.server.0"].label)
+        openMCPServer(0, in: app)
+        XCTAssertEqual(app.staticTexts["mcp.endpointStatus"].label, "端點已安全儲存；不顯示網址。")
+        let token = app.staticTexts["mcp.tokenStatus"]
+        revealLearningElement(token, in: app)
+        XCTAssertTrue(token.exists, "the access token moved with the server")
+        tap("mcp.connect")
+        waitForStatus("已連線，目錄擷取完成")
+        let enabled = app.switches["mcp.enable.fixture_echo"]
+        revealLearningElement(enabled, in: app)
+        XCTAssertEqual(enabled.value as? String, "0", "the earlier choice (every tool off) is kept")
     }
 
     private func send(_ text: String) {

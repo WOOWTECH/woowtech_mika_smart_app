@@ -1,5 +1,6 @@
 #if DEBUG
 import AssistantBrowser
+import AssistantMCP
 import AssistantModels
 import AssistantSkills
 import Foundation
@@ -206,6 +207,8 @@ actor UITestChatModelClient: ChatModelClient {
     }
 
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        // MCP first: its prompts also start a web task or a skill tool after the MCP step.
+        if let reply = UITestMCPFixtureModel.reply(to: input) { return reply }
         if input.first?.role == "system", input.first?.content.contains(ChatWebTaskPrompts.entryLead) == true,
            !(input.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") ?? true),
            let entry = ChatWebTaskUITestModel.entry(for: input.last?.content ?? "") { return entry }
@@ -275,50 +278,6 @@ actor UITestChatModelClient: ChatModelClient {
             }
             let answer = try await complete(messages: Array(messages.dropFirst()), configuration: configuration, apiKey: apiKey)
             return String(decoding: try JSONSerialization.data(withJSONObject: ["action": "finish", "answer": answer]), as: UTF8.self)
-        }
-        if instructions.hasPrefix("You operate selected MCP tools") {
-            // Closed mixed-capability fixtures; never write or approve data.
-            // The normal App dispatcher still validates the exact current quote.
-            let memoryPrompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
-            let profilePrompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
-            let current = messages.last?.content ?? ""
-            func command(_ action: String, _ arguments: [String: Any]) throws -> String {
-                String(decoding: try JSONSerialization.data(withJSONObject:
-                    ["action": action, "arguments": arguments]), as: UTF8.self)
-            }
-            if messages.contains(where: { $0.role == "user" && $0.content == memoryPrompt }) {
-                if current.hasPrefix("Host memory_save receipt") {
-                    return #"{"action":"finish","answer":"MCP 記憶流程已完成。"}"#
-                }
-                if current.hasPrefix("MCP execution result") {
-                    return try command("memory_save", ["kind": "preference", "content": "Prefer jasmine tea", "quote": memoryPrompt, "keywords": ["jasmine", "tea"]])
-                }
-                return #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
-            }
-            if messages.contains(where: { $0.role == "user" && $0.content == profilePrompt }) {
-                if current.hasPrefix("Host profile_edit receipt") {
-                    return #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
-                }
-                if current.hasPrefix("MCP execution result") {
-                    return #"{"action":"finish","answer":"MCP 個人檔案流程已完成。"}"#
-                }
-                return try command("profile_edit", ["op": "add", "text": "Prefer jasmine tea", "quote": profilePrompt])
-            }
-            if let result = messages.last?.content, result.hasPrefix("MCP execution result") {
-                let raw = result.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
-                let payload = try JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any]
-                let body = payload?["result"] as? [String: Any]
-                let parts = (body?["content"] ?? body?["contents"]) as? [[String: Any]]
-                let answer = parts?.first?["text"] as? String ?? "Missing fixture result"
-                return String(decoding: try JSONSerialization.data(withJSONObject: ["action": "finish", "answer": answer]), as: UTF8.self)
-            }
-            if messages.contains(where: { $0.content == "[fixture:mcp-resource]" }) {
-                return #"{"action":"read_resource","uri":"fixture://guide"}"#
-            }
-            if messages.contains(where: { $0.content == "[fixture:mcp-error]" }) {
-                return #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"error"}}"#
-            }
-            return #"{"action":"call_tool","name":"fixture_echo","arguments":{"text":"hello"}}"#
         }
         if instructions.hasPrefix("You research the currently open website") {
             if messages.contains(where: { $0.content.contains("[fixture:wait]") }) {
@@ -398,6 +357,115 @@ extension UITestStreamingChatModelClient: ReferenceDispatchBoundStreamingChatMod
         // Synthetic clients only: this point is the controlled dispatch event.
         onDispatch()
         return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+#endif
+
+#if DEBUG
+/// What the Debug model fixture answers while MCP is offered: a chat's first
+/// MCP command, then the MCP step's next command, a web task or a skill tool,
+/// from closed prompts only. It never writes or approves anything itself: the
+/// App's own checks and dispatch still run.
+enum UITestMCPFixtureModel {
+    static let memoryPrompt = "[fixture:mcp-memory] Remember preference Prefer jasmine tea"
+    static let profilePrompt = "[fixture:mcp-profile] Please remember Prefer jasmine tea"
+    static let twoServersPrompt = "[fixture:mcp-two] hello"
+    static let webPrompt = "[fixture:mcp-web]"
+    static let skillPrompt = "[fixture:mcp-skill]"
+    static let prompts: Set<String> = ["[fixture:mcp] hello", "[fixture:mcp-resource]", "[fixture:mcp-error]",
+                                       memoryPrompt, profilePrompt, twoServersPrompt, webPrompt, skillPrompt]
+    static let runnerLead = "You operate selected MCP tools"
+    static let skillStepLead = "You are in the skill tools step"
+
+    static func reply(to input: [ModelMessage]) -> String? {
+        guard let system = input.first, system.role == "system" else { return nil }
+        let instructions = system.content
+        let latest = input.last?.content ?? ""
+        let prompt = input.last(where: { $0.role == "user" && prompts.contains($0.content) })?.content
+        let results = input.filter { $0.role == "user" && $0.content.hasPrefix("MCP execution result") }
+        if instructions.hasPrefix(runnerLead) {
+            return next(prompt: prompt ?? "", latest: latest, results: results)
+        }
+        guard let prompt else { return nil }
+        if instructions.hasPrefix(skillStepLead) {
+            // The skill step after an MCP step sees its results.
+            guard prompt == skillPrompt else { return nil }
+            guard latest.hasPrefix("Host skill_search result") else { return nil }
+            return finish("FIXTURE_SKILL_AFTER_MCP：" + (results.last.map(resultText) ?? "no MCP result"))
+        }
+        // A plain or memory chat that offers the MCP catalog.
+        guard instructions.contains(MCPCombinedCatalog.entryLead), input.last?.role == "user" else { return nil }
+        if prompt == profilePrompt, instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
+            // The profile change first, then MCP after the host's receipt.
+            if latest.hasPrefix("Host profile_edit receipt") { return call(echo, "hello") }
+            guard latest == prompt else { return nil }
+            return json(["action": "profile_edit", "arguments": ["op": "add", "text": "Prefer jasmine tea", "quote": prompt]])
+        }
+        guard latest == prompt else { return nil }
+        switch prompt {
+        case "[fixture:mcp-resource]": return #"{"action":"read_resource","uri":"fixture://guide"}"#
+        case "[fixture:mcp-error]": return call(echo, "error")
+        default: return call(echo, "hello")
+        }
+    }
+
+    /// The MCP step's next command.
+    private static func next(prompt: String, latest: String, results: [ModelMessage]) -> String {
+        switch prompt {
+        case memoryPrompt:
+            if latest.hasPrefix("Host memory_save receipt") { return finish("MCP 記憶流程已完成。") }
+            if latest.hasPrefix("MCP execution result") {
+                return json(["action": "memory_save", "arguments": ["kind": "preference", "content": "Prefer jasmine tea",
+                                                                    "quote": memoryPrompt, "keywords": ["jasmine", "tea"]]])
+            }
+            return call(echo, "hello")
+        case profilePrompt:
+            if latest.hasPrefix("MCP execution result") { return finish("MCP 個人檔案流程已完成。") }
+            return call(echo, "hello")
+        case twoServersPrompt:
+            // The same tool name on both servers: the second call goes to server B.
+            if results.count == 1, latest.hasPrefix("MCP execution result") { return call(echoB, "hello") }
+            if results.count >= 2 { return finish(results.map(resultText).joined(separator: " | ")) }
+            return call(echo, "hello")
+        case webPrompt:
+            guard latest.hasPrefix("MCP execution result") else { return call(echo, "hello") }
+            return ChatWebTaskUITestModel.entry(for: webPrompt) ?? finish("FIXTURE_NO_WEB_TASK")
+        case skillPrompt:
+            guard latest.hasPrefix("MCP execution result") else { return call(echo, "hello") }
+            return json(["action": "skill_search", "arguments": ["query": "fixture"]])
+        case "[fixture:mcp-resource]":
+            if latest.hasPrefix("MCP execution result") { return finish(resultText(results.last!)) }
+            return #"{"action":"read_resource","uri":"fixture://guide"}"#
+        case "[fixture:mcp-error]":
+            if latest.hasPrefix("MCP execution result") { return finish(resultText(results.last!)) }
+            return call(echo, "error")
+        default:
+            if latest.hasPrefix("MCP execution result"), let last = results.last { return finish(resultText(last)) }
+            return call(echo, "hello")
+        }
+    }
+
+    static var echo: String { UITestMCPFixture.modelName("fixture_echo") }
+    static var echoB: String { UITestMCPFixture.modelName("fixture_echo", on: .b) }
+
+    static func call(_ name: String, _ text: String) -> String {
+        json(["action": "call_tool", "name": name, "arguments": ["text": text]])
+    }
+
+    static func finish(_ answer: String) -> String { json(["action": "finish", "answer": answer]) }
+
+    /// The first text of a result as the model read it.
+    static func resultText(_ message: ModelMessage) -> String {
+        let raw = message.content.components(separatedBy: "\n").dropFirst().joined(separator: "\n")
+        guard let payload = (try? JSONSerialization.jsonObject(with: Data(raw.utf8))) as? [String: Any] else { return "Missing fixture result" }
+        if let text = payload["text"] as? String { return text }
+        let body = payload["result"] as? [String: Any]
+        let parts = (body?["content"] ?? body?["contents"]) as? [[String: Any]]
+        return parts?.first?["text"] as? String ?? "Missing fixture result"
+    }
+
+    private static func json(_ object: [String: Any]) -> String {
+        String(decoding: (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data(), as: UTF8.self)
     }
 }
 #endif

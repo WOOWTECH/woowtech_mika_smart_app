@@ -16,7 +16,7 @@ struct ContentView: View {
     @AccessibilityFocusState private var backHasVoiceOverFocus: Bool
     @State private var notificationNavigationID = UUID()
     @StateObject private var session = ChatSession()
-    @StateObject private var mcpSession = MCPSession()
+    @StateObject private var mcpServers = MCPServers()
     @StateObject private var browserWorkspace = BrowserWorkspace()
     @StateObject private var preferences = SelfConfigurationStore.applicationPreferences()
     @StateObject private var languages = AppLanguageStore.applicationPreferences()
@@ -75,7 +75,7 @@ struct ContentView: View {
             session.learning.onUserChange = { [weak browserWorkspace, weak session] in
                 browserWorkspace?.cancelAllWork(preservingFrozenReferences: session?.learning.referenceEditInProgress == true)
             }
-            mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
+            mcpServers.onConnectionChange = { [weak session] in session?.cancelMCP() }
             session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
             // Like Android, no banner about the chat that is already in front.
             notifications.isOnScreen = { destination in
@@ -107,15 +107,16 @@ struct ContentView: View {
             session.webTaskScenePhaseChanged(isActive: phase == .active, isBackground: phase == .background)
             if phase != .active { browserWorkspace.cancelAllWork() }
             // Like the Play build, MCP stays set up. A brief interruption (Notification
-            // Center, a permission alert) keeps the connection; in the background iOS
-            // stops the work, and the connection comes back when the app is active.
+            // Center, a permission alert) keeps the connections; in the background iOS
+            // stops the MCP work of a running request, and the connections come back
+            // when the app is active. A plain reply keeps its extra background time.
             if phase == .background {
                 session.cancelMCP()
-                mcpSession.appWillLeaveForeground()
+                mcpServers.appWillLeaveForeground()
                 keepReplyRunningInBackground()
             }
             if phase == .active {
-                mcpSession.appDidBecomeActive()
+                mcpServers.appDidBecomeActive()
                 endReplyBackgroundTime()
             }
         }
@@ -259,7 +260,7 @@ struct ContentView: View {
             Group {
                 switch selection {
                 case .chat:
-                    ChatView(session: session, mcp: mcpSession, showsDrawer: $showsDrawer, localizer: localizer,
+                    ChatView(session: session, mcp: mcpServers, showsDrawer: $showsDrawer, localizer: localizer,
                              openSettings: {
                                  browserReturnSection = .chat
                                  selection = .settings
@@ -275,12 +276,12 @@ struct ContentView: View {
                 case .settings:
                     MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications,
                                             languages: languages,
-                                            mcpDestination: { MCPToolsView(session: mcpSession) },
+                                            mcpDestination: { MCPToolsView(servers: mcpServers) },
                                             memoryDestination: { memoryDataView(resetNavigation: true) })
                 case .about:
                     MikaAboutView(languages: languages, info: MikaAboutInfo(bundle: .main))
                 case .tools:
-                    MCPToolsView(session: mcpSession)
+                    MCPToolsView(servers: mcpServers)
                 case .memory:
                     memoryDataView(resetNavigation: false)
                 case .browser:
@@ -539,7 +540,8 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
 @MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
-    @ObservedObject var mcp: MCPSession
+    /// Every chat may use the enabled servers; there is no switch per chat.
+    let mcp: MCPServers
     @Binding var showsDrawer: Bool
     let localizer: AppLocalizer
     let openSettings: () -> Void
@@ -800,7 +802,7 @@ private struct ChatView: View {
         }
     }
 
-    /// Notes, MCP switches and receipts above the transcript.
+    /// Notes, MCP activity and receipts above the transcript.
     @ViewBuilder private var chatHeader: some View {
         if session.isUITestMode {
             Text(verbatim: localizer.text(.chatFixtureNotice))
@@ -810,11 +812,18 @@ private struct ChatView: View {
 
         LearningChatNotes(store: session.learning, openPendingSkills: openPendingSkills)
 
-        if mcp.isAvailableForChats || session.usesMCP {
-            Toggle(localizer.text(.chatUseMCP), isOn: $session.usesMCP)
-                .font(.callout)
-                .disabled(session.isSubmitting)
-                .accessibilityIdentifier("chat.useMCP")
+        if !session.mcpUnavailableServers.isEmpty {
+            // Like Android's task card note; the request went on with the other servers.
+            Text(localizer.text(.chatMcpUnavailable(names: session.mcpUnavailableServers
+                .map { $0.isEmpty ? localizer.text(.mcpServerDefaultName) : $0 }
+                .joined(separator: localizer.text(.mcpNameSeparator)))))
+                .font(.caption)
+                .accessibilityIdentifier("chat.mcpUnavailable")
+        }
+        if session.mcpOmitted > 0 {
+            Text(localizer.text(.chatMcpOmitted(count: session.mcpOmitted)))
+                .font(.caption)
+                .accessibilityIdentifier("chat.mcpOmitted")
         }
         if let activity = session.mcpActivity {
             Text(localizer.stored(activity)).font(.caption)
@@ -1136,7 +1145,7 @@ private struct ChatView: View {
                 voice.cancel()
                 isEditingDraft = false
                 showsAttachPanel = false
-                session.attemptSend(mcp: session.usesMCP ? mcp : nil)
+                session.attemptSend(mcp: mcp)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
                     cancelScrollSettle()
@@ -1189,7 +1198,7 @@ private struct ChatView: View {
                 add: { files in Task { await session.addAttachments(files) } },
                 loadingStarted: { session.attachmentsLoadingStarted() }))
             .onChange(of: isEditingDraft) { _, editing in if editing { showsAttachPanel = false } }
-            .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps) }
+            .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps, owners: session.mcpStepOwners) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
             // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
