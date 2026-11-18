@@ -354,8 +354,10 @@ private fun NavEntry(
         Icon(icon, null, Modifier.size(MikaSize.Icon), tint = c.ink2)
         Row(Modifier.then(if (wrapLabel) Modifier.weight(1f) else Modifier),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // 两列的短屏布局里一格只有半宽:放不下的单行名字以「…」结尾,不在格子边上被切掉
             Text(text, modifier = if (wrapLabel) Modifier.weight(1f) else Modifier,
-                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel)
+                style = MikaType.Body, color = c.ink, maxLines = if (wrapLabel) Int.MAX_VALUE else 1, softWrap = wrapLabel,
+                overflow = if (wrapLabel) TextOverflow.Clip else TextOverflow.Ellipsis)
         }
     }
 }
