@@ -37,7 +37,7 @@ class AnthropicModel(
     private val model: String,
     override val capabilities: Capabilities,
     private val http: OkHttpClient,
-    /** 回复上限(`max_tokens`,必填);null 按默认:开了思考的 [THINKING_MAX_TOKENS],否则 [DEFAULT_MAX_TOKENS]。 */
+    /** 写死的回复上限(`max_tokens`,必填;连接测试用);null 按模型定,见 [maxTokensFor]。 */
     maxTokens: Int? = null,
     /** 每个请求都带的头(见 [ClientHeaders]);Key 的头由适配器自己加。 */
     private val headers: Map<String, String> = emptyMap(),
@@ -48,6 +48,11 @@ class AnthropicModel(
      * null 是列表没说(档位来自别的列表写法),照档位发。
      */
     private val thinkingTypes: List<String>? = null,
+    /**
+     * 这个模型一次最多能回多少 token:模型列表写明的(Anthropic 列表的 `max_tokens`,见 [ListedModel.maxOutputTokens]);
+     * null 是列表没说,按 [AnthropicLimits] 认 Claude 的型号。
+     */
+    private val outputTokens: Int? = null,
 ) : StreamingChatModel {
     override val name: String get() = model
     private val endpoint = baseUrl.trimEnd('/') + "/v1/messages"
@@ -57,7 +62,21 @@ class AnthropicModel(
         "none" -> "disabled"
         else -> "adaptive"
     }?.takeIf { thinkingTypes == null || it in thinkingTypes }
-    private val maxTokens = maxTokens ?: if (thinkingType == "adaptive") THINKING_MAX_TOKENS else DEFAULT_MAX_TOKENS
+    private val fixedMaxTokens = maxTokens
+
+    /**
+     * 这次请求的 `max_tokens`。写死了的照用。知道模型能回多长时按它,但流式最多 [STREAM_MAX_TOKENS]、
+     * 不流式最多 [PLAIN_MAX_TOKENS](整段回复生成完才回来,太长会撞上读超时),也不超过上下文窗口的四分之一
+     * (输入加上限超出窗口会被拒;上下文那边给输出留的也是这么多)。不知道模型能回多长(第三方的同形接口)时照旧:
+     * 开了自适应思考 [THINKING_MAX_TOKENS],否则 [DEFAULT_MAX_TOKENS]。
+     */
+    internal fun maxTokensFor(stream: Boolean): Int {
+        fixedMaxTokens?.let { return it }
+        val ceiling = outputTokens?.takeIf { it > 0 } ?: AnthropicLimits.outputTokens(model)
+            ?: return if (thinkingType == "adaptive") THINKING_MAX_TOKENS else DEFAULT_MAX_TOKENS
+        val room = maxOf(DEFAULT_MAX_TOKENS, capabilities.contextTokens / 4)
+        return minOf(ceiling, if (stream) STREAM_MAX_TOKENS else PLAIN_MAX_TOKENS, room)
+    }
     private val json = Json { ignoreUnknownKeys = true }
     private val ephemeral = buildJsonObject { put("type", "ephemeral") }
     /**
@@ -114,7 +133,7 @@ class AnthropicModel(
             .filter { it.isNotEmpty() }.joinToString("\n\n")
         val payload = buildJsonObject {
             put("model", model)
-            put("max_tokens", maxTokens)
+            put("max_tokens", maxTokensFor(stream))
             if (stream) put("stream", true)
             // Anthropic 拒绝空文本块,system 为空时整个字段省略
             if (systemText.isNotBlank()) put("system", buildJsonArray {
@@ -368,9 +387,35 @@ private class AnthropicStream(
     }
 }
 
-/** 默认回复上限;开了思考时思考也占这个额度,4K 往往在出答案前就用完,给 [THINKING_MAX_TOKENS]。 */
+/** 认不出模型时的回复上限;开了思考时思考也占这个额度,4K 往往在出答案前就用完,给 [THINKING_MAX_TOKENS]。 */
 private const val DEFAULT_MAX_TOKENS = 4096
 private const val THINKING_MAX_TOKENS = 16_000
+/** 认得模型时:流式回复最多这么长(和上下文那边给输出留的 20K 同一量级,长回答、长文都够);不流式最多 [PLAIN_MAX_TOKENS]。 */
+internal const val STREAM_MAX_TOKENS = 32_000
+internal const val PLAIN_MAX_TOKENS = 16_000
+
+/**
+ * 已知 Claude 型号一次最多能回多少 token(和 Models API 的 `max_tokens` 一致);认不出的为 null
+ * (第三方的同形接口、以后的新型号:那时按模型列表写明的,或按旧的默认)。型号名里的点按连字号认(`claude-sonnet-4.5`),
+ * 也认带前缀的写法(`anthropic.claude-opus-4-6-v1`)。
+ */
+internal object AnthropicLimits {
+    private val FAMILIES: List<Pair<Regex, Int>> = listOf(
+        Regex("claude-(fable|mythos|opus|sonnet|haiku)-5") to 128_000,
+        Regex("claude-(opus-4-[678]|sonnet-4-6)") to 128_000,
+        Regex("claude-(opus|sonnet|haiku)-4-5") to 64_000,
+        Regex("claude-sonnet-4-(0|2025)") to 64_000,
+        Regex("claude-3-7-sonnet") to 64_000,
+        Regex("claude-opus-4-(0|1|2025)") to 32_000,
+        Regex("claude-3-5-(haiku|sonnet)") to 8_192,
+        Regex("claude-3-(haiku|sonnet|opus)") to 4_096,
+    )
+
+    fun outputTokens(model: String): Int? {
+        val id = model.lowercase().replace('.', '-')
+        return FAMILIES.firstOrNull { (family, _) -> family.containsMatchIn(id) }?.second
+    }
+}
 
 /**
  * 回传的思考块前缀对不上时报错里的一句(Anthropic 文档 Preserved thinking 一节的原文)。

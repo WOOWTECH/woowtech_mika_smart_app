@@ -44,6 +44,8 @@ data class ListedModel(
      * `/messages`);null 表示没说。用不在其中的接口类型调用必然失败,见 [ModelProtocol.ofPath]。
      */
     val protocols: List<ModelProtocol>? = null,
+    /** 服务商写明这个模型一次最多能回多少 token(Anthropic 列表的 `max_tokens`);null 表示没说。 */
+    val maxOutputTokens: Int? = null,
 ) {
     val usable: Boolean get() = endpoint != null || unsupportedApis.isEmpty()
 }
@@ -142,7 +144,7 @@ sealed interface ModelListResult {
  *   `modalities.input`(有 `image/…` 即能看图),以及按协议给地址的 `api` 表(见 [ListedModel.endpoint])。
  *   用 ChatGPT 账号列出的是 `models` 表:名字在 `slug`、显示名在 `display_name`,只留 `visibility` 为 `list` 的、保持服务端的次序;
  *   给了 `input_modalities`、`context_window`、`supported_reasoning_levels` 的照填。
- * - Anthropic:`GET {base}/v1/models`,按 `after_id` 翻页;`max_input_tokens` 是上下文,
+ * - Anthropic:`GET {base}/v1/models`,按 `after_id` 翻页;`max_input_tokens` 是上下文,`max_tokens` 是一次回复的上限,
  *   `capabilities.image_input` / `capabilities.thinking` 是看图和推理。不给工具调用信息。
  *   思考档位按 `capabilities.effort` 和 `capabilities.thinking.types` 逐项照填(见 [anthropicEfforts])。
  * - Gemini:`GET {base}/v1beta/models`,按 `pageToken` 翻页;只留能 `generateContent` 的,
@@ -266,6 +268,7 @@ class ModelCatalog(private val http: OkHttpClient) {
             reasoning = thinking?.bool("supported"),
             reasoningEfforts = types?.let { anthropicEfforts(caps?.obj("effort"), it) },
             thinkingTypes = types,
+            maxOutputTokens = o.int("max_tokens")?.takeIf { it > 0 },
         )
     }
 
