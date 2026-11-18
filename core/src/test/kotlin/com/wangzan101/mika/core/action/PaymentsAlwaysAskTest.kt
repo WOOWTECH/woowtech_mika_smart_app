@@ -48,7 +48,7 @@ private val checkout = listOf(
     el("@e4", "button", "立即支付", listOf(0, 900, 590, 990)),
 )
 
-private class Page(var page: List<UiElement>) : ScreenPort {
+private class ShopPage(var page: List<UiElement>) : ScreenPort {
     val taps = mutableListOf<String>()
     private var reads = 0
     private fun read(id: String) = ScreenSnapshot(id, "com.shop", page, 1080, 2400)
@@ -68,7 +68,7 @@ private class Page(var page: List<UiElement>) : ScreenPort {
     override suspend fun listApps() = listOf("com.shop" to "Shop")
 }
 
-private class Events : RunSink {
+private class ApprovalEvents : RunSink {
     val all = mutableListOf<RunEvent>()
     override fun event(e: RunEvent) { all += e }
 }
@@ -96,11 +96,11 @@ private fun JsonObject.s(k: String) = this[k]!!.jsonPrimitive.content
 /** Owner decision 2026-11-18:商店版开了自主模式,花钱的那一步也照样先问;别的(发送等)照自主直接做。 */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentsAlwaysAskTest {
-    private fun loop(m: ChatModel, s: Page, approvals: ApprovalSettings, sink: RunSink = RunSink.NONE, gate: ConfirmationGate? = ConfirmationGate()) =
+    private fun loop(m: ChatModel, s: ShopPage, approvals: ApprovalSettings, sink: RunSink = RunSink.NONE, gate: ConfirmationGate? = ConfirmationGate()) =
         AgentLoop(m, toolDispatcher(s), "BASE", sink = sink, confirmations = gate, approvals = approvals)
 
     @Test fun autonomousStillAsksBeforePlacingAnOrder() = runTest {
-        val s = Page(checkout); val sink = Events()
+        val s = ShopPage(checkout); val sink = ApprovalEvents()
         val m = FakeModel(OBSERVE, tap("@e3"), GIVE_UP)
         loop(m, s, PlayApprovals(auto = true), sink).run("t")
         assertTrue(s.taps.isEmpty())
@@ -110,7 +110,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun autonomousStillHandsThePaymentToTheUser() = runTest {
-        val s = Page(checkout)
+        val s = ShopPage(checkout)
         val m = FakeModel(OBSERVE, tap("@e4"), GIVE_UP)
         loop(m, s, PlayApprovals(auto = true)).run("t")
         assertTrue(s.taps.isEmpty())
@@ -119,7 +119,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun autonomousSendsWithoutAsking() = runTest {
-        val s = Page(chat); val sink = Events()
+        val s = ShopPage(chat); val sink = ApprovalEvents()
         val m = FakeModel(OBSERVE, tap("@e3"), FINISH)
         loop(m, s, PlayApprovals(auto = true), sink).run("t")
         assertEquals(listOf("@e3"), s.taps)
@@ -127,7 +127,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun anApprovedOrderRunsOnceInAutonomousMode() = runTest {
-        val s = Page(checkout)
+        val s = ShopPage(checkout)
         val m = FakeModel(OBSERVE, ASK_ORDER, tap("@e3"), tap("@e3"), GIVE_UP)
         val l = loop(m, s, PlayApprovals(auto = true))
         val run = async { l.run("t") }
@@ -140,7 +140,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun switchingToAutonomousMidRunKeepsAskingForPayment() = runTest {
-        val s = Page(checkout)
+        val s = ShopPage(checkout)
         val approvals = PlayApprovals(auto = false)
         val m = FakeModel(OBSERVE, tap("@e3"), tap("@e3"), GIVE_UP)
         val flipping = object : ChatModel by m {
@@ -156,7 +156,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun withoutAConfirmationGateAPaymentIsRefusedNotRun() = runTest {
-        val s = Page(checkout)
+        val s = ShopPage(checkout)
         val m = FakeModel(OBSERVE, tap("@e3"), GIVE_UP)
         loop(m, s, PlayApprovals(auto = true), gate = null).run("t")
         assertTrue(s.taps.isEmpty())
@@ -164,7 +164,7 @@ class PaymentsAlwaysAskTest {
     }
 
     @Test fun directDownloadAutonomousStillPaysWithoutAsking() = runTest {
-        val s = Page(checkout)
+        val s = ShopPage(checkout)
         val m = FakeModel(OBSERVE, tap("@e3"), FINISH)
         loop(m, s, ApprovalSettings { true }).run("t")
         assertEquals(listOf("@e3"), s.taps)
