@@ -592,7 +592,8 @@ final class ModelSettingsRepository {
         }
         return SavedModelSettings(baseURL: provider.baseURL, model: main.model,
                                   credentialAccount: provider.credentialAccount?.uuidString ?? "",
-                                  seesImages: provider.visionOverrides[main.model], providerID: provider.id,
+                                  seesImages: ModelProviderPresets.seesImages(provider: provider, model: main.model),
+                                  providerID: provider.id,
                                   sessionHeader: provider.sessionHeader)
     }
 

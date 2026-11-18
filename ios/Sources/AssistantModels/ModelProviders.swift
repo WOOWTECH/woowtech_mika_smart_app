@@ -460,6 +460,9 @@ public struct ModelProviderPreset: Equatable, Sendable {
     public let name: String
     public let baseURL: URL
     public let sessionHeader: String?
+    /// Android ProviderPresets caps(vision): what a model of this provider is
+    /// taken to do when neither its list nor the person says.
+    public let seesImages: Bool
 }
 
 public enum ModelProviderPresets {
@@ -470,8 +473,8 @@ public enum ModelProviderPresets {
         preset("Requesty", "https://router.requesty.ai/v1"),
         // Rejects a request without its conversation's session (HTTP 400).
         preset("OpenCode Go", "https://opencode.ai/zen/go/v1", sessionHeader: "x-opencode-session"),
-        preset("xAI", "https://api.x.ai/v1"),
-        preset("Mistral", "https://api.mistral.ai/v1"),
+        preset("xAI", "https://api.x.ai/v1", seesImages: true),
+        preset("Mistral", "https://api.mistral.ai/v1", seesImages: true),
         preset("Groq", "https://api.groq.com/openai/v1"),
     ]
 
@@ -487,8 +490,18 @@ public enum ModelProviderPresets {
         ("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"),
     ]
 
-    private static func preset(_ name: String, _ address: String, sessionHeader: String? = nil) -> ModelProviderPreset {
-        ModelProviderPreset(name: name, baseURL: URL(string: address)!, sessionHeader: sessionHeader)
+    private static func preset(_ name: String, _ address: String, sessionHeader: String? = nil,
+                               seesImages: Bool = false) -> ModelProviderPreset {
+        ModelProviderPreset(name: name, baseURL: URL(string: address)!, sessionHeader: sessionHeader, seesImages: seesImages)
+    }
+
+    /// Android ModelOptions.seesImages: what the person said about this model,
+    /// else what the provider's model list says, else the preset's default.
+    /// Nil when nothing says (a custom service), which never sends images.
+    public static func seesImages(provider: ModelProvider, model: String) -> Bool? {
+        if let said = provider.visionOverrides[model] { return said }
+        if let listed = provider.models?.first(where: { $0.id == model })?.vision { return listed }
+        return preset(at: provider.baseURL)?.seesImages == true ? true : nil
     }
 
     public static func preset(at url: URL) -> ModelProviderPreset? {
