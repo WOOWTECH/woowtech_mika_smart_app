@@ -408,6 +408,30 @@ private actor StreamMCP: MCPDiscovering {
         try a.check(!client.emit("Late after settings", at: 2), "old stream remains closed after settings change")
         return a.count
     }
+    /// iOS: a reply that was arriving when the app left the screen keeps the
+    /// text already shown if the connection is then cut, marked as cut off.
+    /// Without the trip away the same cut stays 沒有完成, like Play (above).
+    static func leftScreenKeepsShownText() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let client = StreamClient(); let session = e.session(client)
+        let away = try start(session, "Long answer")
+        try await wait("away stream") { client.counts.stream == 1 }
+        client.emit("First half"); try await wait("away partial") { session.replyPreview != nil }
+        session.appLeftScreen()
+        client.finish(HTTPChatModelError.transportFailure); await away.value
+        let kept = session.entries.last, shown = "First half\n\n"
+        try a.check(session.replyPreview == nil && kept?.role == "assistant" && kept?.outcome == nil
+                    && kept?.content.hasPrefix(shown) == true && (kept?.content.count ?? 0) > shown.count,
+                    "the text shown before the cut stays as the answer, with the cut-off note")
+        try a.check((e.archive.conversations.first?.turns ?? []).map(\.outcome) == [nil] && client.counts.complete == 0,
+                    "it is saved as the answer and nothing more is sent")
+        let nothing = try start(session, "Nothing shown yet")
+        try await wait("second away stream") { client.counts.stream == 2 }
+        session.appLeftScreen()
+        client.finish(HTTPChatModelError.transportFailure, at: 1); await nothing.value
+        try a.check(session.replyPreview == nil && ended(session, .failed), "with no text shown yet the cut stays 沒有完成")
+        return a.count
+    }
     static func boundsFallbackAndSaveFailure() async throws -> Int {
         var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
         let client = StreamClient(); let session = e.session(client)
@@ -1591,6 +1615,7 @@ private actor StreamMCP: MCPDiscovering {
     @MainActor static func main() async {
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
+                ChatStreamingChecks.leftScreenKeepsShownText(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredToolsApplyDirectly(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
@@ -1622,6 +1647,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testLeftScreenKeepsShownText() async throws { let n = try await ChatStreamingChecks.leftScreenKeepsShownText(); XCTAssertEqual(n, 3) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testStructuredToolsApplyDirectly() async throws { let n = try await ChatStreamingChecks.structuredToolsApplyDirectly(); XCTAssertGreaterThan(n, 0) }
