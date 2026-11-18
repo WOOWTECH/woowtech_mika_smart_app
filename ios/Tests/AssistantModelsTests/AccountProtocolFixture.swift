@@ -136,6 +136,11 @@ final class FakeAccountTokens: ModelAccountTokenProviding, @unchecked Sendable {
     var rejections: [String?] { lock.lock(); defer { lock.unlock() }; return calls }
 
     func accessToken(for route: ModelAccountRoute, rejected: String?) async throws -> String {
+        try next(rejected: rejected)
+    }
+
+    /// Synchronous, so the lock is never held across a suspension.
+    private func next(rejected: String?) throws -> String {
         lock.lock()
         defer { lock.unlock() }
         calls.append(rejected)
