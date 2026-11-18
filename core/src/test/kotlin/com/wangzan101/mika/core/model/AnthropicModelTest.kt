@@ -89,6 +89,44 @@ class AnthropicModelTest {
         assertFalse(off.containsKey("output_config"))
     }
 
+    /**
+     * 回复上限按模型定:认得的 Claude 型号(或列表写明的上限)流式给 32K、不流式给 16K,不超过型号自己的上限,
+     * 也不超过上下文窗口的四分之一;认不出的照旧 4096(开思考 16000)。写死的(连接测试)照用。
+     */
+    @Test fun replyLimitComesFromTheModel() = runTest {
+        fun claude(id: String, context: Int = 1_000_000, listed: Int? = null, fixed: Int? = null) = AnthropicModel(
+            server.url("/").toString().trimEnd('/'), "sk-ant", id, Capabilities(true, false, context, false), OkHttpClient(),
+            fixed, outputTokens = listed,
+        )
+        server.enqueue(ok("""{"content":[],"stop_reason":"end_turn"}"""))
+        claude("claude-opus-4-6").complete("s", user, emptyList())
+        assertEquals("16000", sentBody().str("max_tokens"))
+        assertEquals(32_000, claude("claude-opus-4-6").maxTokensFor(stream = true))
+        assertEquals(32_000, claude("claude-haiku-4-5", context = 200_000).maxTokensFor(stream = true))
+        assertEquals(4_096, claude("claude-3-haiku-20240307", context = 200_000).maxTokensFor(stream = true))
+        assertEquals(8_192, claude("claude-3-5-sonnet-20241022", context = 200_000).maxTokensFor(stream = false))
+        // 列表写明的上限优先;窗口小的给输入留出地方
+        assertEquals(8_000, claude("claude-sonnet-9", listed = 8_000).maxTokensFor(stream = true))
+        assertEquals(10_000, claude("claude-opus-4-6", context = 40_000).maxTokensFor(stream = true))
+        // 认不出的型号、写死的上限:和以前一样
+        assertEquals(4_096, claude("deepseek-chat").maxTokensFor(stream = true))
+        assertEquals(16, claude("claude-opus-4-6", fixed = 16).maxTokensFor(stream = true))
+    }
+
+    @Test fun knowsTheReplyLimitOfClaudeModels() {
+        assertEquals(128_000, AnthropicLimits.outputTokens("claude-opus-5-5"))
+        assertEquals(128_000, AnthropicLimits.outputTokens("claude-sonnet-4-6"))
+        assertEquals(128_000, AnthropicLimits.outputTokens("anthropic.claude-opus-4-6-v1"))
+        assertEquals(64_000, AnthropicLimits.outputTokens("claude-sonnet-4-5-20250929"))
+        assertEquals(64_000, AnthropicLimits.outputTokens("anthropic/claude-haiku-4.5"))
+        assertEquals(64_000, AnthropicLimits.outputTokens("claude-sonnet-4-20250514"))
+        assertEquals(32_000, AnthropicLimits.outputTokens("claude-opus-4-1-20250805"))
+        assertEquals(8_192, AnthropicLimits.outputTokens("claude-3-5-haiku-20241022"))
+        assertEquals(4_096, AnthropicLimits.outputTokens("claude-3-haiku-20240307"))
+        assertEquals(null, AnthropicLimits.outputTokens("claude-x"))
+        assertEquals(null, AnthropicLimits.outputTokens("kimi-k2"))
+    }
+
     // 列表写明了思考方式的:不接受自适应思考的模型不发档位,不接受关掉思考的不发 disabled(什么都不发,按服务端默认)
     @Test fun sendsOnlyTheThinkingTypesTheModelAccepts() = runTest {
         repeat(4) { server.enqueue(ok("""{"content":[],"stop_reason":"end_turn"}""")) }

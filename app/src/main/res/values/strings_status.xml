@@ -80,4 +80,6 @@
     <string name="sandbox_script">Running a script</string>
     <string name="sandbox_online">online</string>
     <string name="runtime_preparing">Preparing</string>
+    <string name="task_retry_network">Connection lost. Trying again (attempt %1$d)…</string>
+    <string name="task_retry_busy">The model service is busy. Trying again (attempt %1$d)…</string>
 </resources>
