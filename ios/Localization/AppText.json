@@ -6217,6 +6217,15 @@
       }
     },
     {
+      "case": "chatReplyInterruptedNote",
+      "key": "chat.reply.interruptedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "（App 離開畫面後連線中斷，回覆到這裡為止。可以再問一次。）",
+        "en": "(The connection dropped after the app left the screen, so the reply stops here. You can ask again.)"
+      }
+    },
+    {
       "case": "chatModelFailedUnreadable",
       "key": "chat.modelFailed.unreadable",
       "parameters": [],

@@ -48,6 +48,11 @@ import AssistantDomain
     }
 
     func installDelegate() { adapter.installDelegate() }
+    /// Set by the screen: true while it shows that destination in the foreground.
+    var isOnScreen: ((TaskNotificationDestination) -> Bool)? {
+        get { adapter.isOnScreen }
+        set { adapter.isOnScreen = newValue }
+    }
     func consumeRoute(_ id: UUID) { if route?.id == id { route = nil } }
 }
 

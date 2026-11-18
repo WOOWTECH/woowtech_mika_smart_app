@@ -1064,6 +1064,10 @@ final class ChatSession: ObservableObject {
                     client: client, configuration: configuration, key: key)
             } catch {
                 guard let self, self.requestID == id else { return }
+                if mcpConnection == nil, let kept = self.keptReply(after: error, requestID: id) {
+                    self.completeTurn(id: id, assistant: ChatEntry(role: "assistant", content: kept))
+                    return
+                }
                 self.recordFailedSkillStep(requestID: id, error: error, generation: learningGeneration)
                 let unavailable = error as? MCPChatAvailability
                 if (error as? MCPConversationError) == .executionFailed { mcpConnection?.connectionFailed() }
@@ -1336,6 +1340,17 @@ final class ChatSession: ObservableObject {
         try Task.checkCancellation()
         guard requestID == id else { throw CancellationError() }
         return try await finished(text)
+    }
+
+    /// iOS suspends the app soon after it leaves the screen, which can cut a
+    /// streaming reply; Android keeps the task running in a foreground service.
+    /// The text already on screen stays, marked as cut off, instead of the whole
+    /// reply failing with 網路連線失敗.
+    private func keptReply(after error: Error, requestID id: UUID) -> String? {
+        guard let failure = error as? HTTPChatModelError, failure == .transportFailure || failure == .timedOut,
+              let preview = replyPreview, preview.id == id,
+              !preview.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return preview.text + "\n\n" + AppLocalizer(language: interfaceLanguage()).text(.chatReplyInterruptedNote)
     }
 
     /// Play's truncated_reply nudge (prompts/feedback/loop.md) without the tool clause.

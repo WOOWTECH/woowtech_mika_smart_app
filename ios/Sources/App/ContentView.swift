@@ -23,6 +23,8 @@ struct ContentView: View {
     @StateObject private var notifications = TaskNotificationStore.applicationStore()
     private var browser: BrowserSession { browserWorkspace.selected }
     @Environment(\.scenePhase) private var scenePhase
+    /// Extra background time for a reply that is still streaming.
+    @State private var replyBackgroundTask: UIBackgroundTaskIdentifier = .invalid
     @Environment(\.colorScheme) private var colorScheme
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private var webTaskColors: ChatWebTaskColors {
@@ -75,6 +77,13 @@ struct ContentView: View {
             }
             mcpSession.onConnectionChange = { [weak session] in session?.cancelMCP() }
             session.interfaceLanguage = { [weak languages] in languages?.resolved ?? .traditionalChinese }
+            // Like Android, no banner about the chat that is already in front.
+            notifications.isOnScreen = { destination in
+                switch destination {
+                case .chat: return selection == .chat && !showsDrawer
+                case .browser: return selection == .browser
+                }
+            }
             session.webTaskEnvironment = { [weak browserWorkspace] in
                 guard let browserWorkspace else { return nil }
                 var environment = ChatWebTaskEnvironment(dataStore: browserWorkspace.websiteDataStore,
@@ -103,8 +112,15 @@ struct ContentView: View {
             if phase == .background {
                 session.cancelMCP()
                 mcpSession.appWillLeaveForeground()
+                keepReplyRunningInBackground()
             }
-            if phase == .active { mcpSession.appDidBecomeActive() }
+            if phase == .active {
+                mcpSession.appDidBecomeActive()
+                endReplyBackgroundTime()
+            }
+        }
+        .onChange(of: session.isSubmitting) { _, submitting in
+            if !submitting { endReplyBackgroundTime() }
         }
         .onChange(of: selection) { previous, destination in
             // Like Play, leaving the browser closes its page; coming back shows the start page.
@@ -271,6 +287,23 @@ struct ContentView: View {
                     BrowserView(browser: browser, chat: session, workspace: browserWorkspace)
                 }
             }
+    }
+
+    /// iOS suspends the app soon after it leaves the screen, which cuts a
+    /// streaming reply; Android keeps the task running in a foreground service.
+    /// A reply that is still arriving gets iOS's usual extra background time,
+    /// about 30 seconds, so a short trip to another app does not lose it.
+    private func keepReplyRunningInBackground() {
+        guard session.isSubmitting, replyBackgroundTask == .invalid else { return }
+        replyBackgroundTask = UIApplication.shared.beginBackgroundTask(withName: "woow.chat.reply") {
+            endReplyBackgroundTime()
+        }
+    }
+
+    private func endReplyBackgroundTime() {
+        guard replyBackgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(replyBackgroundTask)
+        replyBackgroundTask = .invalid
     }
 
     private func closeDrawer() {
@@ -662,9 +695,10 @@ private struct ChatView: View {
     private func answerOrQuestionBubble(index: Int, entry: ChatEntry, words: String,
                                         targets: ChatMessageActionTargets) -> some View {
         let user = entry.role == "user"
+        let reply = user ? nil : ChatReplyMarkdown.parse(entry.content)
         return HStack {
             if user { Spacer(minLength: 40) }
-            Text(user ? AttributedString(words) : ChatReplyMarkdown.render(entry.content))
+            bubbleText(user: user, words: words, reply: reply)
                 .font(.system(size: 15.5))
                 .lineSpacing(user ? 1 : 4)
                 .foregroundStyle(user ? Color.white : palette.ink)
@@ -674,6 +708,20 @@ private struct ChatView: View {
                 .modifier(ChatMessageMenu(entry: entry, targets: targets, text: menuText,
                                           perform: { perform($0, on: entry) }))
             if !user { Spacer(minLength: 0) }
+        }
+    }
+
+    /// Like Android, a reply with a table or a code block lays them out as
+    /// blocks; it stays one accessibility element with the whole reply.
+    @ViewBuilder
+    private func bubbleText(user: Bool, words: String, reply: ChatReplyMarkdown.Result?) -> some View {
+        if let reply, reply.hasRichBlocks {
+            ChatReplyBlocksView(blocks: reply.blocks, ink: palette.ink)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(reply.text))
+                .accessibilityAddTraits(.isStaticText)
+        } else {
+            Text(user ? AttributedString(words) : reply?.text ?? AttributedString())
         }
     }
 
