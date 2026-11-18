@@ -189,6 +189,20 @@ private actor LearningMCPServer: MCPDiscovering {
     func cancel() async {}
 }
 
+/// A handshake that waits for the test: a server slower than the request's budget.
+private actor SlowMCPServer: MCPDiscovering {
+    let gate = ModelGate()
+    func initialize() async throws -> MCPServerInfo {
+        await gate.wait()
+        return .init(protocolVersion: "2025-03-26", capabilities: ["tools"])
+    }
+    func listTools() async throws -> [MCPTool] { [.init(name: "slow_read", inputSchema: .object(["type": .string("object")]))] }
+    func listResources() async throws -> [MCPResource] { [] }
+    func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func readResource(uri: String) async throws -> JSONValue { throw MCPError.invalidRequest }
+    func cancel() async {}
+}
+
 /// Resources only, in server order. Nothing is read in discovery.
 private actor ListedResourcesMCPServer: MCPDiscovering {
     let resources: [MCPResource]
@@ -1080,6 +1094,43 @@ private enum CheckProfileChatApp {
                   "The final model request receives the actual committed ID")
         env.store.undo(receipt.note)
         try check(env.reopen().memory.memories.isEmpty, "MCP conversation memory uses the actual durable undo path")
+    }
+
+    /// Like Android, a server slower than the request's budget is left out and
+    /// named; the other server's tools are offered and its call goes to it.
+    /// The slow connection goes on for a later request.
+    @MainActor static func mcpSlowServerDoesNotBlockTheOthers() async throws {
+        let env = try Environment(); defer { try? env.close() }
+        let fast = LearningMCPServer(), slow = SlowMCPServer()
+        let first = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in fast })
+        let second = MCPSession(repository: SyntheticMCPEndpoint(), clientFactory: { _ in slow })
+        let servers = MCPServers(sessions: [
+            (MCPServerRecord(id: UUID(uuidString: "0A000000-0000-4000-8000-000000000001")!, name: "Fast", enabled: true, legacy: false), first),
+            (MCPServerRecord(id: UUID(uuidString: "0B000000-0000-4000-8000-000000000002")!, name: "Slow", enabled: true, legacy: false), second)])
+        servers.connectionBudgetNanoseconds = 300_000_000
+        let started = ContinuousClock.now
+        guard let catalog = await servers.chatCatalog() else { throw CheckFailure(check: "The fast server is offered") }
+        try check(ContinuousClock.now - started < .seconds(5), "The slow server does not hold the request past the budget")
+        try check(catalog.unavailable == ["Slow"] && catalog.catalog.tools.map(\.name) == ["mcp_0a000000__synthetic_read"],
+                  "The slow server is named and left out; the fast server's tool is offered")
+        try check(first.phase == .connected && second.phase == .connecting, "The slow connection goes on")
+        let model = ScriptedModel([.init(#"{"action":"call_tool","name":"mcp_0a000000__synthetic_read","arguments":{}}"#),
+                                   .init(finished)])
+        let session = env.session(model)
+        session.draft = "synthetic question"
+        try check(session.canSend, "Actual settings allow the request")
+        session.send(mcp: servers)
+        let running = try task(session)
+        await running.value
+        let calls = await fast.calls
+        try check(calls.count == 1 && session.entries.count == 2 && session.entries.last?.outcome == nil
+                  && session.mcpUnavailableServers == ["Slow"], "The request answers with the fast server and names the slow one")
+        await slow.gate.release()
+        try await until("The slow server connects later") { second.phase == .connected }
+        let later = await servers.chatCatalog()
+        try check(later?.unavailable.isEmpty == true && later?.catalog.tools.count == 2,
+                  "The next request uses both servers")
+        first.disconnect(); second.disconnect()
     }
 
     /// There is no remote approval to refuse any more; a later remote failure
@@ -1979,6 +2030,7 @@ private enum CheckProfileChatApp {
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
             try await group("mcpRemoteCallThenMemorySave", mcpRemoteCallThenMemorySave)
+            try await group("mcpSlowServerDoesNotBlockTheOthers", mcpSlowServerDoesNotBlockTheOthers)
             try await group("mcpProfileReceiptSurvivesRemoteFailure", mcpProfileReceiptSurvivesRemoteFailure)
             try await group("mcpMemorySearchDeleteAndFences", mcpMemorySearchDeleteAndFences)
             try await group("mcpLocalAuthorityAndLimits", mcpLocalAuthorityAndLimits)
@@ -2063,6 +2115,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMCPRemoteCallThenMemorySave() async throws {
         try await CheckProfileChatApp.mcpRemoteCallThenMemorySave()
+    }
+    @MainActor func testMCPSlowServerDoesNotBlockTheOthers() async throws {
+        try await CheckProfileChatApp.mcpSlowServerDoesNotBlockTheOthers()
     }
     @MainActor func testMCPProfileReceiptSurvivesRemoteFailure() async throws {
         try await CheckProfileChatApp.mcpProfileReceiptSurvivesRemoteFailure()
