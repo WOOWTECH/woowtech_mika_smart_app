@@ -136,7 +136,13 @@ struct ContentView: View {
           }
           if showsDrawer {
               GeometryReader { geometry in
-                  ZStack(alignment: .leading) {
+                  // Like Android's ChatDrawer the panel fills the whole screen
+                  // height behind the status and home-indicator areas and pads
+                  // its content by those insets. Top-leading alignment matters:
+                  // the panel is taller than this safe-area container, and a
+                  // centred panel ended 46.5 pt above the bottom edge (showing
+                  // the composer) with its title under the clock.
+                  ZStack(alignment: .topLeading) {
                       Button { closeDrawer() } label: {
                           palette.scrim.ignoresSafeArea()
                       }
@@ -150,6 +156,7 @@ struct ContentView: View {
                           localizer: localizer,
                           topInset: geometry.safeAreaInsets.top,
                           bottomInset: geometry.safeAreaInsets.bottom,
+                          leadingInset: geometry.safeAreaInsets.leading,
                           onClose: closeDrawer,
                           onNew: requestNewConversation,
                           onOpenRecent: { record in
@@ -170,12 +177,12 @@ struct ContentView: View {
                               }
                           }
                       )
-                      .frame(width: min(304, max(0, geometry.size.width - 48)),
+                      .frame(width: min(304, max(0, geometry.size.width - 48)) + geometry.safeAreaInsets.leading,
                              height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)
-                      .offset(y: -geometry.safeAreaInsets.top)
+                      .offset(x: -geometry.safeAreaInsets.leading, y: -geometry.safeAreaInsets.top)
                       .transition(.move(edge: .leading))
                   }
-                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
+                  .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
               }
           }
         }
@@ -372,6 +379,8 @@ private struct MikaNavigationDrawer: View {
     let localizer: AppLocalizer
     let topInset: CGFloat
     let bottomInset: CGFloat
+    /// The landscape notch side: the panel reaches the screen edge behind it.
+    let leadingInset: CGFloat
     let onClose: () -> Void
     let onNew: () -> Void
     let onOpenRecent: (ArchivedConversation) -> Void
@@ -419,6 +428,7 @@ private struct MikaNavigationDrawer: View {
         }
         .padding(.top, topInset)
         .padding(.bottom, bottomInset)
+        .padding(.leading, leadingInset)
         .frame(maxHeight: .infinity)
         .background(palette.background)
         .clipShape(MikaDrawerShape())
