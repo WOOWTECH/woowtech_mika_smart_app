@@ -16,6 +16,9 @@ struct SavedModelSettings: Codable {
     /// The header the main model's provider requires on every request
     /// (OpenCode Go: x-opencode-session); nil sends none.
     var sessionHeader: String? = nil
+    /// The main model's provider kind; nil in a single record. An account
+    /// sign-in's requests carry its account route instead of a key.
+    var providerKind: ModelProviderKind? = nil
 
     // Exactly the v1 record's keys; the provider never enters that record.
     private enum CodingKeys: String, CodingKey { case baseURL, model, credentialAccount, seesImages }
@@ -33,7 +36,13 @@ struct SavedModelSettings: Codable {
         }
         return ModelConfiguration(baseURL: baseURL, model: model,
                                   vision: seesImages.map { $0 ? .supported : .unsupported } ?? .unknown,
-                                  requiresKey: requiresKey, sessionHeader: header)
+                                  requiresKey: requiresKey, sessionHeader: header, account: accountRoute)
+    }
+
+    /// The signed-in account the main model's requests use; nil for a key.
+    var accountRoute: ModelAccountRoute? {
+        guard let providerID, let account = providerKind?.account else { return nil }
+        return ModelAccountRoute(kind: account, providerID: providerID)
     }
 
     var configuration: ModelConfiguration { configuration(conversation: nil) }
@@ -99,10 +108,19 @@ protocol ModelCredentialStoring {
     /// Every account of this service, to find keys no provider uses. Nil
     /// when this store cannot list them; nothing is swept then.
     func allAccounts() throws -> Set<String>?
+    /// Rewrites one item in place, for an account sign-in whose tokens were
+    /// refreshed or cleared: the item keeps its account, so work using the
+    /// provider goes on.
+    func replace(_ key: String, account: String) throws
 }
 
 extension ModelCredentialStoring {
     func allAccounts() throws -> Set<String>? { nil }
+
+    func replace(_ key: String, account: String) throws {
+        try remove(account: account)
+        try insert(key, account: account)
+    }
 }
 
 struct KeychainModelCredentials: ModelCredentialStoring {
@@ -143,6 +161,14 @@ struct KeychainModelCredentials: ModelCredentialStoring {
         var query = query
         query[kSecAttrAccount as String] = account
         try delete(query)
+    }
+
+    func replace(_ key: String, account: String) throws {
+        var query = query
+        query[kSecAttrAccount as String] = account
+        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: Data(key.utf8)] as CFDictionary)
+        if status == errSecItemNotFound { return try insert(key, account: account) }
+        guard status == errSecSuccess else { throw ModelSettingsError.keychainStatus(status) }
     }
 
     func removeAll() throws {
@@ -246,6 +272,9 @@ final class ModelSettingsRepository {
     private let credentials: any ModelCredentialStoring
     /// The main model's provider document; nil keeps one v1 record instead.
     private let providers: (any ModelProvidersStoring)?
+    /// One token gate per signed-in provider, shared by every caller of this
+    /// repository, so there is only ever one refresh at a time.
+    let accountGates = ModelAccountGateRegistry()
 
     /// Providers with their document in `defaults` itself, for an isolated
     /// test suite. The App passes its file.
@@ -332,6 +361,10 @@ final class ModelSettingsRepository {
               let key = try credentials.read(account: record.credentialAccount), !key.isEmpty else {
             throw ModelSettingsError.missingKey
         }
+        // An account's item holds its whole sign-in. It never leaves as a key:
+        // requests take a token from the account's gate (ModelAccountTokens),
+        // and a signed-out account says so when it is used.
+        if record.providerKind?.account != nil { return "" }
         return key
     }
 
@@ -403,8 +436,12 @@ final class ModelSettingsRepository {
     @discardableResult func removeProvider(id: UUID) throws -> Bool {
         try Self.withSpeechDispatchLock {
             guard var document = try documentLocked() else { throw ModelProvidersError.unknownProvider }
+            let kind = document.provider(id: id)?.kind
             let account = try document.removeProvider(id: id)
             try publish(document.encoded(), insertedAccount: nil)
+            // Android removeProvider: a deleted ChatGPT provider forgets its
+            // registered client id; this device's host id stays.
+            if kind == .chatGPTAccount { forgetChatGPTClientLocked() }
             return retire(account.map { [$0] } ?? [])
         }
     }
@@ -538,12 +575,14 @@ final class ModelSettingsRepository {
         }
     }
 
-    /// A provider's key for a test call; empty for a provider saved without one.
+    /// A provider's key for a test call; empty for a provider saved without
+    /// one, and for an account sign-in, whose calls take its token instead.
     func storedKey(forProvider id: UUID) throws -> String {
         try Self.withSpeechDispatchLock {
             guard let provider = try documentLocked()?.provider(id: id) else { throw ModelProvidersError.unknownProvider }
             guard let account = provider.credentialAccount else { return "" }
-            return try storedKey(account: account)
+            let key = try storedKey(account: account)
+            return provider.kind.account == nil ? key : ""
         }
     }
 
@@ -590,11 +629,13 @@ final class ModelSettingsRepository {
         guard let document, let main = document.roles.main, let provider = document.provider(id: main.providerID) else {
             return nil
         }
+        // An account's own model list says which models see images; the user's answer outranks it.
+        // Android ModelOptions.seesImages: the person's switch, the model list, the preset.
         return SavedModelSettings(baseURL: provider.baseURL, model: main.model,
                                   credentialAccount: provider.credentialAccount?.uuidString ?? "",
                                   seesImages: ModelProviderPresets.seesImages(provider: provider, model: main.model),
                                   providerID: provider.id,
-                                  sessionHeader: provider.sessionHeader)
+                                  sessionHeader: provider.sessionHeader, providerKind: provider.kind)
     }
 
     /// Advances the revision, then replaces the document. A key written for
@@ -684,5 +725,193 @@ final class ModelSettingsRepository {
         defaults.set(UUID().uuidString, forKey: Self.revisionKey)
         defaults.set(data, forKey: Self.configurationKey)
         return record
+    }
+}
+
+// MARK: - Account sign-ins (ChatGPT, xAI / Grok)
+
+extension ModelSettingsRepository {
+    /// Not secrets: this device's id at OpenAI and the client id ChatGPT
+    /// registered for it (Android chatgpt-host.json). Kept in these defaults.
+    static let chatGPTRegistrationKey = "model.chatgpt.registration.v1"
+
+    private struct ChatGPTRegistration: Codable {
+        var hostID: String
+        var clientID: String?
+    }
+
+    /// This device's host id, made the first time and then kept, and the
+    /// client id registered so far (nil until the first sign-in registers).
+    func chatGPTRegistration() -> (hostID: String, clientID: String?) {
+        Self.withSpeechDispatchLock {
+            if let data = defaults.data(forKey: Self.chatGPTRegistrationKey),
+               let saved = try? JSONDecoder().decode(ChatGPTRegistration.self, from: data), !saved.hostID.isEmpty {
+                return (saved.hostID, saved.clientID.flatMap { $0.isEmpty ? nil : $0 })
+            }
+            let fresh = ChatGPTRegistration(hostID: ChatGPTSignIn.newHostID(), clientID: nil)
+            defaults.set(try? JSONEncoder().encode(fresh), forKey: Self.chatGPTRegistrationKey)
+            return (fresh.hostID, nil)
+        }
+    }
+
+    /// Kept before the code is exchanged, so a failed exchange need not register again.
+    func rememberChatGPTClient(_ clientID: String) {
+        Self.withSpeechDispatchLock {
+            let host = chatGPTRegistration().hostID
+            defaults.set(try? JSONEncoder().encode(ChatGPTRegistration(hostID: host, clientID: clientID)),
+                         forKey: Self.chatGPTRegistrationKey)
+        }
+    }
+
+    private func forgetChatGPTClientLocked() {
+        guard let data = defaults.data(forKey: Self.chatGPTRegistrationKey),
+              var saved = try? JSONDecoder().decode(ChatGPTRegistration.self, from: data) else { return }
+        saved.clientID = nil
+        defaults.set(try? JSONEncoder().encode(saved), forKey: Self.chatGPTRegistrationKey)
+    }
+
+    /// A signed-in provider's stored sign-in, as kept in its item. Nil when the
+    /// provider is gone or is not an account, or this device has no item (a
+    /// restored device, which then shows it signed out).
+    func accountSessionText(providerID: UUID) throws -> String? {
+        try Self.withSpeechDispatchLock {
+            guard let provider = try documentLocked()?.provider(id: providerID), provider.kind.account != nil,
+                  let account = provider.credentialAccount else { return nil }
+            return try credentials.read(account: account.uuidString)
+        }
+    }
+
+    /// The stored sign-in decoded; one that cannot be read counts as none.
+    func accountSession<Session: Decodable>(_ type: Session.Type, providerID: UUID) throws -> Session? {
+        guard let text = try accountSessionText(providerID: providerID) else { return nil }
+        return try? JSONDecoder().decode(Session.self, from: Data(text.utf8))
+    }
+
+    /// Android connectChatGpt and connectAccount: saves the sign-in and the
+    /// models just listed (nil keeps the previous list) to the one provider of
+    /// this kind. A new provider's item goes in before the document; an
+    /// existing one is rewritten in place. Chooses no main model.
+    func connectAccount<Session: Encodable>(_ kind: ModelAccountKind, session: Session, models: [ListedModel]?) throws -> ModelProvider {
+        let text = try Self.sessionText(session)
+        return try Self.withSpeechDispatchLock {
+            guard providers != nil else { throw ModelSettingsError.missingModel }
+            let document = try documentLocked() ?? ModelProvidersDocument()
+            let connection: ModelAccountConnection
+            do { connection = try document.connectingAccount(kind, models: models) }
+            catch let error as ModelProvidersError { throw Self.settingsError(error) }
+            let data = try connection.document.encoded()
+            if connection.isNew {
+                try credentials.insert(text, account: connection.account.uuidString)
+                try publish(data, insertedAccount: connection.account)
+            } else {
+                try credentials.replace(text, account: connection.account.uuidString)
+                try publish(data, insertedAccount: nil)
+            }
+            return connection.provider
+        }
+    }
+
+    /// A refreshed sign-in, written only while the stored one still holds the
+    /// tokens the refresh started from (Android saveRefreshed): a sign-out or a
+    /// new sign-in meanwhile is never overwritten.
+    func saveRefreshedSession<Session: ModelAccountSessionValue & Codable>(_ after: Session, replacing before: Session,
+                                                                          providerID: UUID) throws {
+        let text = try Self.sessionText(after)
+        try Self.withSpeechDispatchLock {
+            guard let provider = try documentLocked()?.provider(id: providerID), provider.kind.account != nil,
+                  let account = provider.credentialAccount,
+                  let stored = try credentials.read(account: account.uuidString),
+                  let current = try? JSONDecoder().decode(Session.self, from: Data(stored.utf8)),
+                  current.accessToken == before.accessToken, current.refreshToken == before.refreshToken else { return }
+            try credentials.replace(text, account: account.uuidString)
+        }
+    }
+
+    /// Signing out clears the tokens on this device only (Android
+    /// signOutChatGpt and signOutAccount): the provider, its models and the
+    /// roles that use it stay, and so do the account name and the ChatGPT
+    /// registration. Returns the sign-in as it was, for the ChatGPT revoke.
+    func signOutAccount<Session: ModelAccountSessionValue & Codable>(_ type: Session.Type, providerID: UUID) throws -> Session? {
+        try Self.withSpeechDispatchLock {
+            guard let provider = try documentLocked()?.provider(id: providerID), provider.kind.account != nil,
+                  let account = provider.credentialAccount,
+                  let stored = try credentials.read(account: account.uuidString),
+                  let session = try? JSONDecoder().decode(Session.self, from: Data(stored.utf8)) else { return nil }
+            try credentials.replace(try Self.sessionText(session.signedOut()), account: account.uuidString)
+            return session
+        }
+    }
+
+    /// The models an account lists now; the sign-in is not touched.
+    func updateAccountModels(providerID: UUID, models: [ListedModel]) throws {
+        try Self.withSpeechDispatchLock {
+            guard var document = try documentLocked(), let index = document.providers.firstIndex(where: { $0.id == providerID }),
+                  document.providers[index].kind.account != nil else { throw ModelProvidersError.unknownProvider }
+            document.providers[index].models = Array(models.prefix(ModelProvidersDocument.maximumListedModels))
+            try publish(document.encoded(), insertedAccount: nil)
+        }
+    }
+
+    private static func sessionText<Session: Encodable>(_ session: Session) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(decoding: try encoder.encode(session), as: UTF8.self)
+    }
+}
+
+/// The token gates of one repository's signed-in providers, made on first use.
+final class ModelAccountGateRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var gates: [UUID: AnyObject] = [:]
+
+    func gate<Gate: AnyObject>(for providerID: UUID, make: () -> Gate) -> Gate {
+        lock.lock(); defer { lock.unlock() }
+        if let existing = gates[providerID] as? Gate { return existing }
+        let made = make()
+        gates[providerID] = made
+        return made
+    }
+}
+
+/// The access tokens of this repository's account sign-ins, for
+/// ModelProviderClient: read from the provider's Keychain item, refreshed five
+/// minutes before they expire or after a 401, one refresh at a time per
+/// provider, and the rotated pair written back in place. A sign-in that is gone
+/// throws ModelAccountError.signInExpired; tokens never reach a log or a file.
+final class ModelAccountTokens: ModelAccountTokenProviding, @unchecked Sendable {
+    private let repository: ModelSettingsRepository
+    private let chatGPT: ChatGPTAuthClient
+    private let xai: XAIAuthClient
+
+    init(repository: ModelSettingsRepository, chatGPT: ChatGPTAuthClient = ChatGPTAuthClient(), xai: XAIAuthClient = XAIAuthClient()) {
+        self.repository = repository; self.chatGPT = chatGPT; self.xai = xai
+    }
+
+    func accessToken(for route: ModelAccountRoute, rejected: String?) async throws -> String {
+        do {
+            switch route.kind {
+            case .chatGPT: return try await chatGPTGate(route.providerID).accessToken(rejected: rejected)
+            case .xai: return try await xaiGate(route.providerID).accessToken(rejected: rejected)
+            }
+        } catch let error as ModelSettingsError {
+            // A locked Keychain is not a signed-out account: say nothing about the sign-in.
+            _ = error
+            throw HTTPChatModelError.invalidConfiguration
+        }
+    }
+
+    private func chatGPTGate(_ id: UUID) -> ModelAccountTokenGate<ChatGPTSession> {
+        repository.accountGates.gate(for: id) {
+            ChatGPTSignIn.tokenGate(auth: chatGPT,
+                                    load: { [self] in try repository.accountSession(ChatGPTSession.self, providerID: id) },
+                                    save: { [self] before, after in try repository.saveRefreshedSession(after, replacing: before, providerID: id) })
+        }
+    }
+
+    private func xaiGate(_ id: UUID) -> ModelAccountTokenGate<XAISession> {
+        repository.accountGates.gate(for: id) {
+            xai.tokenGate(load: { [self] in try repository.accountSession(XAISession.self, providerID: id) },
+                          save: { [self] before, after in try repository.saveRefreshedSession(after, replacing: before, providerID: id) })
+        }
     }
 }
