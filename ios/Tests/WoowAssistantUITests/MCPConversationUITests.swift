@@ -43,6 +43,7 @@ final class MCPConversationUITests: XCTestCase {
     }
 
     func testMemorySwitchChangesWhileAnMCPCallIsHeld() {
+        executionTimeAllowance = 300 // Two launches; the shard allows 300 s a case.
         // Start a new isolated namespace so no production state or previous
         // fixture run can supply the result. The held fake executor is reached
         // through the real MCP runner.
@@ -161,6 +162,8 @@ final class MCPConversationUITests: XCTestCase {
     /// fixture); like the Play build the turn stays as 已停止。 and MCP stays set
     /// up: the connection comes back by itself with the same tool choice.
     func testBackgroundStopsRunningToolAndReconnects() {
+        // Two launches and a reconnect: 151 s in run 44300764046, over 180 s on a slower runner.
+        executionTimeAllowance = 300
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
@@ -221,6 +224,7 @@ final class MCPConversationUITests: XCTestCase {
     /// its own server; a server that is down is named and left out, and the
     /// others still work. Deleting it removes only that server.
     func testTwoServersShareAToolNameAndOneIsDown() {
+        executionTimeAllowance = 300 // Two launches, two turns and a deletion.
         relaunch(["-UITestMCPServers"])
         navigateMikaSection("tools", in: app)
         XCTAssertEqual(app.staticTexts["mcp.status"].label, "已儲存 3 個伺服器")
@@ -248,10 +252,16 @@ final class MCPConversationUITests: XCTestCase {
         navigateMikaSection("tools", in: app)
         openMCPServer(2, in: app)
         tap("mcp.deleteServer")
-        // The confirmation is a system sheet; its button keeps the identifier or its 刪除 label.
-        var confirm = app.buttons["mcp.confirmDeleteServer"]
-        if !confirm.waitForExistence(timeout: 5) { confirm = app.buttons.matching(NSPredicate(format: "label == %@", "刪除")).firstMatch }
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        // iOS 26 exposes the confirmation row before its nested action button
+        // (run 44308580227: two matches); tap the last exact identifier/label match.
+        let confirmations = app.buttons.matching(identifier: "mcp.confirmDeleteServer")
+            .matching(NSPredicate(format: "label == %@", "刪除"))
+        XCTAssertTrue(confirmations.firstMatch.waitForExistence(timeout: 5))
+        guard let confirm = confirmations.allElementsBoundByIndex.last else {
+            XCTFail("The MCP server deletion confirmation is missing."); return
+        }
+        let hittable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: confirm)
+        XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
         confirm.tap()
         XCTAssertTrue(app.buttons["mcp.server.1"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["mcp.server.2"].exists)
@@ -266,6 +276,7 @@ final class MCPConversationUITests: XCTestCase {
     /// tool and then runs a web task, and in its next turn calls the tool and
     /// then uses a skill: the MCP results go along to both.
     func testOneChatUsesMCPThenAWebTaskThenASkill() {
+        executionTimeAllowance = 300 // Two launches, a web task and a skill step.
         relaunch(["-UITestMCPFixture", "-UITestChatWeb"])
         XCTAssertFalse(app.switches["chat.useMCP"].exists)
         send("[fixture:mcp-web]")
