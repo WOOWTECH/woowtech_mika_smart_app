@@ -172,13 +172,19 @@ private struct MCPServerAddForm: View {
                         .onSubmit { focused = nil }
                         .accessibilityLabel(localizer.text(.mcpTokenAX))
                         .accessibilityIdentifier("mcp.add.token")
-                    Button(localizer.text(.mcpSave)) {
-                        focused = nil
-                        if let id = servers.add() { opened(id) }
+                    HStack(spacing: 12) {
+                        Button(localizer.text(.mcpSave)) {
+                            focused = nil
+                            if let id = servers.add() { opened(id) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!servers.canAdd)
+                        .accessibilityIdentifier("mcp.add.save")
+                        Button(localizer.text(.mcpClearDraft)) { servers.clearDrafts() }
+                            .buttonStyle(.bordered)
+                            .disabled(servers.nameDraft.isEmpty && servers.endpointDraft.isEmpty && servers.tokenDraft.isEmpty)
+                            .accessibilityIdentifier("mcp.add.clearDraft")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!servers.canAdd)
-                    .accessibilityIdentifier("mcp.add.save")
                     if let error = servers.errorText {
                         Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("mcp.error")
                     }

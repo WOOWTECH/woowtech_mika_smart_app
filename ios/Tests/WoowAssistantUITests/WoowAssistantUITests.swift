@@ -1032,24 +1032,23 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(relaunched.staticTexts["chat.status"].label, "尚未設定模型")
     }
 
+    /// Like Android's MCP 伺服器 page: a server is added with a name and an HTTPS
+    /// endpoint, its token is checked and never shown, and both survive a relaunch.
     func testMCPEndpointValidationAndKeychainPersistenceWithoutNetworking() {
         let app = launchApp()
         openSection("tools", in: app)
-        let endpoint = app.secureTextFields["mcp.endpoint"]
-        revealMCP(endpoint, in: app)
-        enter("http://mcp.example.invalid/private", into: endpoint)
-        revealMCP(app.buttons["mcp.save"], in: app)
-        app.buttons["mcp.save"].tap()
-        XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
+        addMCPServer(name: "Test server", endpoint: "http://mcp.example.invalid/private", in: app)
         revealMCP(app.staticTexts["mcp.error"], in: app)
         XCTAssertTrue(app.staticTexts["mcp.error"].label.contains("HTTPS"))
+        revealMCP(app.buttons["mcp.add.clearDraft"], in: app, upward: false)
+        app.buttons["mcp.add.clearDraft"].tap()
+        addMCPServer(name: "Test server", endpoint: "https://mcp.example.invalid/fixture-private", in: app)
+        // Saving opens the new server's page; nothing was sent yet.
+        let status = app.staticTexts["mcp.status"]
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "端點已儲存，尚未驗證連線"), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed)
+        XCTAssertEqual(app.staticTexts["mcp.serverTitle"].label, "Test server")
         revealMCP(app.buttons["mcp.clearDraft"], in: app, upward: false)
-        app.buttons["mcp.clearDraft"].tap()
-        revealMCP(endpoint, in: app, upward: false)
-        enter("https://mcp.example.invalid/fixture-private", into: endpoint)
-        revealMCP(app.buttons["mcp.save"], in: app)
-        app.buttons["mcp.save"].tap()
-        XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         XCTAssertFalse(app.buttons["mcp.clearDraft"].isEnabled)
         // Like the Play build's optional access token: checked, saved, never shown.
         let token = app.secureTextFields["mcp.token"]
@@ -1072,9 +1071,13 @@ final class WoowAssistantUITests: XCTestCase {
         app.terminate()
         let relaunched = launchApp(resetStorage: false)
         openSection("tools", in: relaunched)
+        XCTAssertEqual(relaunched.staticTexts["mcp.status"].label, "已儲存 1 個伺服器")
+        XCTAssertTrue(relaunched.buttons["mcp.server.0"].label.contains("Test server"))
+        openMCPServer(0, in: relaunched)
         XCTAssertEqual(relaunched.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
         revealMCP(relaunched.staticTexts["mcp.tokenStatus"], in: relaunched, upward: false)
         XCTAssertTrue(relaunched.staticTexts["mcp.tokenStatus"].exists, "The token survives a relaunch")
+        revealMCP(relaunched.staticTexts["mcp.testIsolation"], in: relaunched, upward: false)
         XCTAssertTrue(relaunched.staticTexts["mcp.testIsolation"].exists)
         revealMCP(relaunched.buttons["mcp.connect"], in: relaunched)
         XCTAssertFalse(relaunched.buttons["mcp.connect"].isEnabled)
@@ -1083,42 +1086,40 @@ final class WoowAssistantUITests: XCTestCase {
     func testMCPKeychainWriteFailureIsNotReportedAsSaved() {
         let app = launchApp(keychainWriteFails: true)
         openSection("tools", in: app)
-        let endpoint = app.secureTextFields["mcp.endpoint"]
-        revealMCP(endpoint, in: app)
-        enter("https://mcp.example.invalid/fixture-private", into: endpoint)
-        revealMCP(app.buttons["mcp.save"], in: app)
-        app.buttons["mcp.save"].tap()
-        XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
+        addMCPServer(name: "Test server", endpoint: "https://mcp.example.invalid/fixture-private", in: app)
         revealMCP(app.staticTexts["mcp.error"], in: app)
         XCTAssertTrue(app.staticTexts["mcp.error"].label.contains("Keychain"))
+        XCTAssertFalse(app.buttons["mcp.deleteServer"].exists, "a failed save opens no server page")
+        let back = app.buttons["mcp.backToServers"]
+        waitUntilHittable(back); back.tap()
+        XCTAssertEqual(app.staticTexts["mcp.status"].label, "尚未設定 MCP")
+        XCTAssertFalse(app.buttons["mcp.server.0"].exists)
     }
 
+    /// Deleting a server removes only its own endpoint and token; the model key stays.
     func testMCPRemovalClearsOnlyItsSavedEndpoint() {
         let app = launchApp()
         configure(in: app)
         returnFromModelSettings(in: app)
         openSection("tools", in: app)
-        let endpoint = app.secureTextFields["mcp.endpoint"]
-        revealMCP(endpoint, in: app)
-        enter("https://mcp.example.invalid/fixture-private", into: endpoint)
-        revealMCP(app.buttons["mcp.save"], in: app)
-        app.buttons["mcp.save"].tap()
-        XCTAssertEqual(app.staticTexts["mcp.status"].label, "端點已儲存，尚未驗證連線")
-        revealMCP(app.buttons["mcp.remove"], in: app)
-        app.buttons["mcp.remove"].tap()
+        addMCPServer(name: "Test server", endpoint: "https://mcp.example.invalid/fixture-private", in: app)
+        let status = app.staticTexts["mcp.status"]
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "端點已儲存，尚未驗證連線"), object: status)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed)
+        revealMCP(app.buttons["mcp.deleteServer"], in: app)
+        app.buttons["mcp.deleteServer"].tap()
         // iOS 26 exposes the confirmation row before its nested action button.
         // firstMatch can tap the wrapper; use the last exact identifier/label
         // match (the single action on older iOS), without coordinate taps.
-        let confirmations = app.buttons.matching(identifier: "mcp.confirmRemove")
-            .matching(NSPredicate(format: "label == %@", "移除端點"))
+        let confirmations = app.buttons.matching(identifier: "mcp.confirmDeleteServer")
+            .matching(NSPredicate(format: "label == %@", "刪除"))
         XCTAssertTrue(confirmations.firstMatch.waitForExistence(timeout: 5))
         guard let confirm = confirmations.allElementsBoundByIndex.last else {
-            XCTFail("The MCP endpoint removal confirmation is missing.")
+            XCTFail("The MCP server deletion confirmation is missing.")
             return
         }
         waitUntilHittable(confirm)
         confirm.tap()
-        let status = app.staticTexts["mcp.status"]
         let removed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == true AND label == %@", "尚未設定 MCP"),
             object: status
@@ -1130,6 +1131,24 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(relaunched.staticTexts["chat.status"].label, "模型已設定")
         openSection("tools", in: relaunched)
         XCTAssertEqual(relaunched.staticTexts["mcp.status"].label, "尚未設定 MCP")
+    }
+
+    /// The 新增伺服器 form: a name, then the endpoint; saving checks both first.
+    private func addMCPServer(name: String, endpoint: String, in app: XCUIApplication) {
+        if !app.textFields["mcp.add.name"].exists {
+            let add = app.buttons["mcp.addServer"]
+            revealMCP(add, in: app)
+            add.tap()
+        }
+        let nameField = app.textFields["mcp.add.name"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        revealMCP(nameField, in: app, upward: false)
+        enter(name, into: nameField)
+        let endpointField = app.secureTextFields["mcp.add.endpoint"]
+        revealMCP(endpointField, in: app)
+        enter(endpoint, into: endpointField)
+        revealMCP(app.buttons["mcp.add.save"], in: app)
+        app.buttons["mcp.add.save"].tap()
     }
 
     private func revealMCP(_ element: XCUIElement, in app: XCUIApplication, upward: Bool = true) {
