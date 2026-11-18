@@ -78,4 +78,6 @@
     <string name="sandbox_script">스크립트 실행 중</string>
     <string name="sandbox_online">온라인</string>
     <string name="runtime_preparing">준비 중</string>
+    <string name="task_retry_network">연결이 끊겼습니다. 다시 시도하는 중입니다(%1$d번째)…</string>
+    <string name="task_retry_busy">모델 서비스가 혼잡합니다. 다시 시도하는 중입니다(%1$d번째)…</string>
 </resources>

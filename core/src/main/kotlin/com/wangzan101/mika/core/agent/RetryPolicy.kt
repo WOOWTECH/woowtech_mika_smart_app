@@ -63,3 +63,24 @@ class RetryPolicy(
         }
     }
 }
+
+/**
+ * 一次重试(运行事件 `model_retry` 的 detail,写成「main network #1 1534ms」):哪个角色([role],见 ModelCaller 的 ROLE_*)、
+ * 什么故障([label],见 [RetryPolicy.label])、这是第几次重试([attempt])、再发之前等多久。
+ * 界面据此告诉用户正在重试:断线时一次请求可能要等到读超时才失败,不说的话看起来像卡住了。
+ */
+data class RetryNotice(val role: String, val label: String, val attempt: Int, val waitMs: Long) {
+    val detail: String get() = "$role $label #$attempt ${waitMs}ms"
+
+    /** 连不上、断线、超时、代理没起来(不是服务忙、限流、服务端出错)。 */
+    val network: Boolean get() = label == "network" || label == "stream_cut" || label == "proxy_unreachable"
+
+    companion object {
+        private val DETAIL = Regex("^(\\S+) (\\S+) #(\\d+) (\\d+)ms$")
+
+        /** 读回 [detail];不是这个写法为 null。 */
+        fun parse(detail: String): RetryNotice? = DETAIL.matchEntire(detail)?.let { m ->
+            RetryNotice(m.groupValues[1], m.groupValues[2], m.groupValues[3].toInt(), m.groupValues[4].toLong())
+        }
+    }
+}

@@ -78,4 +78,6 @@
     <string name="sandbox_script">スクリプトを実行中</string>
     <string name="sandbox_online">オンライン</string>
     <string name="runtime_preparing">準備中</string>
+    <string name="task_retry_network">接続が切れました。再試行しています（%1$d 回目）…</string>
+    <string name="task_retry_busy">モデルのサービスが混み合っています。再試行しています（%1$d 回目）…</string>
 </resources>
