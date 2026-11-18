@@ -142,8 +142,8 @@ data class AddForm(
         get() = when {
             baseUrl.isBlank() -> tr(R.string.model_need_url)
             !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://") -> tr(R.string.model_url_scheme)
-            !PlayTransportPolicy.permits(baseUrl.trim()) -> tr(R.string.model_url_https_required_play)
-            !PlayModelProviderPolicy.permits(kind, baseUrl.trim()) -> tr(R.string.model_provider_unavailable_play)
+            !PlayTransportPolicy.allows(baseUrl.trim()) -> tr(R.string.model_url_https_required_play)
+            !PlayModelProviderPolicy.allows(kind, baseUrl.trim()) -> tr(R.string.model_provider_unavailable_play)
             else -> null
         }
 
@@ -253,7 +253,7 @@ data class ModelSetupUi(
 
     /** 选好了主模型就能「下一步」。 */
     val canNext: Boolean get() = configFor(ModelRole.Main)?.let { cfg ->
-        PlayModelProviderPolicy.permits(cfg.kind, cfg.baseUrl, providerOf(cfg)?.models?.firstOrNull { it.id == cfg.model }?.endpoint)
+        PlayModelProviderPolicy.allows(cfg.kind, cfg.baseUrl, providerOf(cfg)?.models?.firstOrNull { it.id == cfg.model }?.endpoint)
     } == true
 
     /** 这个用途实际用的配置(「用主模型」时是主模型的)。 */

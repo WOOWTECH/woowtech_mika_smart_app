@@ -10,7 +10,7 @@ internal object PlayTransportPolicy {
     /** The Play package ships no Linux sandbox, so it has no local (stdio) MCP servers. */
     val allowsStdioMcp: Boolean get() = !enabled
 
-    fun permits(url: String): Boolean {
+    fun allows(url: String): Boolean {
         if (!enabled) return true
         val parsed = url.toHttpUrlOrNull() ?: return false
         return parsed.isHttps || (parsed.scheme == "http" && parsed.host in setOf("localhost", "127.0.0.1"))

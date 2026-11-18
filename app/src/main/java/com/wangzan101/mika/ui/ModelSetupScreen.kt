@@ -320,7 +320,7 @@ private fun ProvidersSection(ui: ModelSetupUi, actions: ModelSetupActions) {
         GroupLabel(ModelsCopy.PROVIDERS)
         GroupCard {
             ui.providers.forEachIndexed { i, p ->
-                val permitted = PlayModelProviderPolicy.permits(p.kind, p.baseUrl)
+                val permitted = PlayModelProviderPolicy.allows(p.kind, p.baseUrl)
                 val line = when {
                     !permitted -> stringResource(R.string.model_provider_unavailable_play)
                     ui.signedOut(p) -> ModelsCopy.CHATGPT_SIGNED_OUT

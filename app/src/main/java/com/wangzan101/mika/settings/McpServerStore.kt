@@ -160,7 +160,7 @@ class McpServerStore(
         val url = config.url.toHttpUrlOrNull() ?: return "invalid URL"
         if (url.username.isNotEmpty() || url.password.isNotEmpty()) return "URL must not contain user info"
         if (isBlockedHost(url.host)) return "this host is not allowed"
-        if (!PlayTransportPolicy.permits(config.url)) return "HTTPS is required for off-device servers in this edition"
+        if (!PlayTransportPolicy.allows(config.url)) return "HTTPS is required for off-device servers in this edition"
         if (url.scheme == "http") {
             if (!config.allowLocalHttp) return "HTTP is only allowed for local/private servers after enabling it"
             if (!isLocalHost(url.host)) return "HTTP is only allowed for local/private hosts"

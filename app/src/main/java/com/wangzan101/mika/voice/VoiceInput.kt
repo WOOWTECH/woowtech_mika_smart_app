@@ -30,7 +30,7 @@ class VoiceInput(
     /** 界面先问一下能不能用、用的是哪个(卡片顶上那个小标签)。 */
     override fun spec(): SpeechEngineSpec =
         SpeechResolver.resolve(settings.choice.value, SystemSpeech.capability(context, settings.systemSilent.value),
-            providers.providers.value.filter { PlayModelProviderPolicy.permits(it.kind, it.baseUrl) })
+            providers.providers.value.filter { PlayModelProviderPolicy.allows(it.kind, it.baseUrl) })
 
     /**
      * 开一次会话,按下时调(要在主线程)。[language] 是识别语言(BCP-47);null 跟 App 界面语言。

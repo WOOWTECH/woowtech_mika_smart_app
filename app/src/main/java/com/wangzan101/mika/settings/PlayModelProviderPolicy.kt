@@ -14,5 +14,5 @@ internal object PlayModelProviderPolicy {
     val presets: List<ProviderPreset> get() = ProviderPresets.all
 
     @Suppress("UNUSED_PARAMETER")
-    fun permits(kind: ProviderConfig.Kind, baseUrl: String, endpoint: ModelEndpoint? = null): Boolean = true
+    fun allows(kind: ProviderConfig.Kind, baseUrl: String, endpoint: ModelEndpoint? = null): Boolean = true
 }
