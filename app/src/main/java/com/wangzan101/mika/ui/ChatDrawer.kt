@@ -275,11 +275,15 @@ fun ChatDrawer(
                         Row {
                             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), Modifier.weight(1f),
                                 enabled = canSwitch, onClick = onNew)
-                            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), Modifier.weight(1f), onClick = onMemory)
+                            NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), Modifier.weight(1f), onClick = onPlans)
                         }
                         Row {
+                            NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), Modifier.weight(1f), onClick = onMemory)
                             NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), Modifier.weight(1f), onClick = onMcpServers)
+                        }
+                        Row {
                             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), Modifier.weight(1f), onClick = onBrowser)
+                            Box(Modifier.weight(1f))
                         }
                     }
                 }
@@ -291,6 +295,7 @@ fun ChatDrawer(
                 DrawerHeader(check)
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                     NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
+                    NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
                     NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
                     NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
                     NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)

@@ -80,21 +80,23 @@ class BrowserScreenTest {
             MikaTheme {
                 ChatDrawer(
                     Prerequisites.Check(emptyList()), DrawerSections(emptyList(), emptyList()), canSwitch = true,
-                    onNew = {}, onPlans = {}, onMemory = {},
+                    onNew = {}, onPlans = { calls += "plans" }, onMemory = {},
                     onBrowser = { calls += "browser" },
                     onMcpServers = { calls += "mcp" },
                     onSettings = {}, onOpen = {},
                 )
             }
         }
-        // Play edition: no computer-connection entry in the drawer
+        // Play edition: scheduled tasks are back in the drawer; no computer-connection entry
+        val plans = compose.onNodeWithText("定时任务").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         val memory = compose.onNodeWithText("记忆与技能").fetchSemanticsNode().boundsInRoot
         val mcp = compose.onNodeWithText("MCP 服务器").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         val browser = compose.onNodeWithText("浏览器").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        org.junit.Assert.assertTrue(memory.bottom <= mcp.top && mcp.bottom <= browser.top)
+        org.junit.Assert.assertTrue(plans.bottom <= memory.top && memory.bottom <= mcp.top && mcp.bottom <= browser.top)
+        compose.onNodeWithText("定时任务").performClick()
         compose.onNodeWithText("MCP 服务器").performClick()
         compose.onNodeWithText("浏览器").performClick()
-        assertEquals(listOf("mcp", "browser"), calls)
+        assertEquals(listOf("plans", "mcp", "browser"), calls)
     }
 
     @Test
