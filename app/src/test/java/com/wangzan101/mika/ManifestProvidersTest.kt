@@ -38,8 +38,9 @@ class ManifestProvidersTest {
 
     /**
      * WOOWTECH Play branch: the Play manifest has none of the components that only the built-in shell helper, a computer
-     * over adb or the compatibility self check could reach (phone control and the computer connection are out of this
-     * edition), and nothing asks for shell-level permission.
+     * over adb or the compatibility self check could reach (phone control is out of this edition), and nothing asks for
+     * shell-level permission. The computer connection is the outbound relay only (owner decision 2026-11-18): its
+     * service is declared but not exported, so adb cannot start it to turn on the USB mode.
      */
     @Test
     fun playManifestHasNoShellOnlyComponents() {
@@ -50,9 +51,11 @@ class ManifestProvidersTest {
             (0 until nodes.length).map { nodes.item(it) as Element }
         }
         val names = components.map { it.getAttributeNS(androidNs, "name") }
-        for (gone in listOf(".shell.HelperHandoffProvider", ".mcp.McpService", ".selfcheck.SelfCheckTargetActivity")) {
+        for (gone in listOf(".shell.HelperHandoffProvider", ".selfcheck.SelfCheckTargetActivity")) {
             assertTrue("$gone must not be in the Play manifest", gone !in names)
         }
+        val relay = components.single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
+        assertEquals("false", relay.getAttributeNS(androidNs, "exported"))
         for (c in components) {
             assertTrue(c.getAttributeNS(androidNs, "name"), c.getAttributeNS(androidNs, "permission") != "android.permission.INTERACT_ACROSS_USERS_FULL")
         }

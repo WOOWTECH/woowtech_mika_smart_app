@@ -51,7 +51,10 @@ try {
     '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>',
     'ChatGPT、xAI（Grok）或 OpenRouter 帳號', 'ChatGPT, xAI (Grok) or OpenRouter account',
     '<h2>xAI（Grok）與 OpenRouter 帳號登入</h2>', '<h2>xAI (Grok) and OpenRouter sign-in</h2>',
-    'OpenRouter 的 Keys 頁面', "OpenRouter's Keys page"])
+    'OpenRouter 的 Keys 頁面', "OpenRouter's Keys page",
+    '<h2>連接電腦（遠端閘道）</h2>', '<h2>Connect a computer (remote gateway)</h2>',
+    '並非端對端加密', 'it is not end-to-end encrypted',
+    '不能讀取螢幕、喚醒或解鎖手機，也不能付款或下單', 'cannot read the screen, wake or unlock the phone, or pay or place orders'])
     assert.ok(privacy.includes(text), 'privacy policy covers: ' + text);
   assert.doesNotMatch(privacy, /Play edition|商店版|Google Play 版|WoowTech Assistant/, 'one app name, no edition wording');
   response = await fetch(origin + '/privacy/play', { method: 'HEAD', headers: { host: 'assistant-relay.woowtech.io' } });

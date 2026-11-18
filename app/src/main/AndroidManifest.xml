@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 定时任务和提醒准时开始:用户在系统的「闹钟和提醒」里准许(ExactAlarmGuide);不用 USE_EXACT_ALARM -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- 开机后把定时任务的闹钟重新布置好(ScheduleRestoreReceiver;只做这件事) -->
+    <!-- 开机后把定时任务的闹钟重新布置好,用户开着的电脑连接(远程网关)接回去(ScheduleRestoreReceiver;只做这两件事) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- 对话页附件可以拍照(走系统相机),声明用到相机、但不是必需:没有相机的设备照常安装。
@@ -122,6 +122,17 @@
                 android:value="Keeps a user-requested AI conversation or in-app browser task running while showing its progress; afterwards keeps the one web page the user asked to keep open running, for at most two hours" />
         </service>
 
+        <!-- 电脑连接(商店版只有远程网关):用户开着时撑住出站连线,让电脑交来的对话任务进得来。
+             不对外导出:只有 App 自己能起它(没有 adb 打开 USB 的入口);不能读屏、唤醒或解锁 -->
+        <service
+            android:name=".mcp.McpService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a user-enabled outbound connection to the user's paired remote gateway, so the user's own computer can send AI conversation tasks and read their results; no screen, wake or unlock access" />
+        </service>
+
         <!-- 用 ChatGPT 登录期间:用户在浏览器里登录时撑住进程,本机回调才有人接;登录一结束就停 -->
         <service
             android:name=".settings.ChatGptSignInService"
@@ -167,7 +178,8 @@
             android:name=".setup.PairingCodeReceiver"
             android:exported="false" />
 
-        <!-- 开机、更新、改时间或时区、准时闹钟权限变了:重新布置定时任务的闹钟。这些广播只由系统发出,按要求导出 -->
+        <!-- 开机、更新、改时间或时区、准时闹钟权限变了:重新布置定时任务的闹钟;开机和更新后把开着的电脑连接接回去。
+             这些广播只由系统发出,按要求导出 -->
         <receiver
             android:name=".task.ScheduleRestoreReceiver"
             android:exported="true">

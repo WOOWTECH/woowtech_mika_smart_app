@@ -60,9 +60,12 @@ class WoowtechManifestTest {
         assertTrue(names.toString(), ".task.TriggerAlarmReceiver" in names)
     }
 
-    /** After a reboot the alarms are gone; the boot receiver only re-arms them and never starts phone recovery. */
+    /**
+     * After a reboot the alarms are gone; the boot receiver re-arms them, resumes the computer connection the user left on
+     * (the outbound relay), and never starts phone recovery.
+     */
     @Test
-    fun bootReceiverOnlyRearmsScheduledTasks() {
+    fun bootReceiverRearmsSchedulesAndNeverStartsPhoneRecovery() {
         val receivers = manifest("main/AndroidManifest.xml").getElementsByTagName("receiver")
         val restore = (0 until receivers.length).map { receivers.item(it) as Element }
             .single { it.getAttributeNS(androidNs, "name") == ".task.ScheduleRestoreReceiver" }
@@ -77,6 +80,37 @@ class WoowtechManifestTest {
         listOf("BootRestoreHandler", "PhoneServices", "cap.phone", "deviceAccess").forEach {
             assertFalse("ScheduleRestoreReceiver must not use $it", it in code)
         }
+    }
+
+    /**
+     * Owner decision 2026-11-18: the Play edition connects a computer only through the outbound relay, with no device
+     * permissions. The service is not exported (no adb entry that turns on the USB mode), its foreground-service
+     * declaration (also entered in Play Console) says what it keeps open, and in this flavor the runtime never listens on
+     * the phone and offers no screen state, wake or unlock.
+     */
+    @Test
+    fun computerConnectionIsTheOutboundRelayOnly() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val relay = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
+        assertEquals("false", relay.getAttributeNS(androidNs, "exported"))
+        assertEquals("", relay.getAttributeNS(androidNs, "permission"))
+        assertEquals("specialUse", relay.getAttributeNS(androidNs, "foregroundServiceType"))
+        val properties = relay.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "outbound connection to the user's paired remote gateway" in subtype)
+        assertTrue(subtype, "no screen, wake or unlock access" in subtype)
+        assertFalse(subtype, "private-network" in subtype || "USB" in subtype)
+        val runtime = File(app, "main/java/com/wangzan101/mika/mcp/McpRuntime.kt").readText()
+        assertTrue("McpRuntime listens on the phone in the Play edition",
+            "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in runtime)
+        assertTrue("McpRuntime offers screen state, wake or unlock", "device = null" in runtime && "deviceAccess = false" in runtime)
+        val service = File(app, "main/java/com/wangzan101/mika/mcp/McpService.kt").readText()
+        assertTrue("McpService turns on USB for adb in the Play edition", "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in service)
+        val relayUi = File(app, "main/java/com/wangzan101/mika/ui/RelaySection.kt").readText()
+        assertFalse("the relay page offers wake and unlock", "setRelayDeviceAccess" in relayUi)
     }
 
     @Test

@@ -10,6 +10,12 @@ internal object PlayTransportPolicy {
     /** The Play package ships no Linux sandbox, so it has no local (stdio) MCP servers. */
     val allowsStdioMcp: Boolean get() = !enabled
 
+    /**
+     * Owner decision 2026-11-18: the Play package connects a computer only through the outbound relay, with no device
+     * permissions. It never listens on the LAN (cleartext HTTP) or for adb over USB, even if those switches are on.
+     */
+    val allowsLocalComputerAccess: Boolean get() = !enabled
+
     fun allows(url: String): Boolean {
         if (!enabled) return true
         val parsed = url.toHttpUrlOrNull() ?: return false

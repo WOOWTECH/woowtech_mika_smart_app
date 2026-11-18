@@ -212,6 +212,7 @@ fun ChatDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
@@ -282,8 +283,8 @@ fun ChatDrawer(
                             NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), Modifier.weight(1f), onClick = onMcpServers)
                         }
                         Row {
+                            NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), Modifier.weight(1f), onClick = onComputerAccess)
                             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), Modifier.weight(1f), onClick = onBrowser)
-                            Box(Modifier.weight(1f))
                         }
                     }
                 }
@@ -298,6 +299,7 @@ fun ChatDrawer(
                     NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
                     NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
                     NavEntry(MikaIcons.Link, stringResource(R.string.mcp_servers_title), onClick = onMcpServers)
+                    NavEntry(MikaIcons.Desktop, stringResource(R.string.mcp_title), onClick = onComputerAccess)
                     NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f).lazyListScrollbar(list), state = list) { conversations() }
@@ -528,6 +530,7 @@ fun ChatWithDrawer(
     onMemory: () -> Unit,
     onBrowser: () -> Unit,
     onMcpServers: () -> Unit = {},
+    onComputerAccess: () -> Unit = {},
     onScreens: () -> Unit = {},
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
@@ -632,6 +635,7 @@ fun ChatWithDrawer(
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
                     onMcpServers = { leave(onMcpServers) },
+                    onComputerAccess = { leave(onComputerAccess) },
                     onSettings = { leave(onSettings) },
                     onBrowser = { leave(onBrowser) },
                     onScreens = { leave(onScreens) },
