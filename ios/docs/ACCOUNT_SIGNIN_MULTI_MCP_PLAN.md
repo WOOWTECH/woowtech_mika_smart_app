@@ -118,7 +118,8 @@ Built 2026-11-18 (ARCHITECTURE.md has the details):
 - `MCPServerDirectory` keeps the list in the same Keychain service as every server's items; the single server of 1.0 becomes the first entry with its accounts unchanged.
 - Settings › MCP 伺服器 lists the servers with Android's status line (可用 · N 個工具, 連線失敗), 新增伺服器 and 測試全部; a server's page has its name, an on/off switch, endpoint, token, test, tools and 刪除伺服器.
 - Tool names follow Android's `mcpToolNames`. Differences from Android, kept on purpose: the server part is the first eight hex digits of the server id instead of the whole id, so names stay short (the list keeps them unique); a resource URI two servers share becomes `mcp_<server>:<uri>`, because iOS reads resources with `read_resource` instead of Android's `resource_read` tool per server; at most 16 servers and names of at most 40 characters that may not contain the endpoint or token.
-- To confirm with real servers on a device: migration from an installed 1.0 build, two real servers (for example Odoo and Home Assistant) in one chat, one server down or slow (15-second budget), and the backgrounding behaviour.
+- The endpoint and token fields are marked as one-time codes: with the name field above them, iOS read the add form as a sign-up form and covered both with Automatic Strong Password (CI run 44332295841).
+- To confirm with real servers on a device: migration from an installed 1.0 build, two real servers (for example Odoo and Home Assistant) in one chat, one server down or slow (15-second budget), the backgrounding behaviour, and that no password suggestion or Passwords bar appears on the endpoint and token fields.
 
 ### Per-conversation MCP switch (`ContentView.swift`, `ChatSession.swift`)
 
