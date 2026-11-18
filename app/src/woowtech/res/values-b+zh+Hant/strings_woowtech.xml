@@ -24,9 +24,13 @@
     <string name="drawer_phone_not_ready">對話、內建瀏覽器和記憶功能可使用</string>
     <string name="settings_all_ready_detail">模型已就緒 · 可使用對話與內建瀏覽器</string>
     <string name="settings_memory_sub">記憶、技能與網站登入</string>
-    <!-- Play 版沒有自主模式、計算環境、修復頁，也不在 App 內下載更新。 -->
+    <!-- Play 版沒有計算環境、修復頁，也不在 App 內下載更新。 -->
     <string name="settings_advanced_sub">網路代理與 MCP 伺服器</string>
-    <string name="settings_during_work_sub">螢幕常亮、步數上限與同時任務數</string>
+    <string name="settings_during_work_sub">自主模式、螢幕常亮、步數上限與同時任務數</string>
+    <!-- Owner decision 2026-11-18：提供自主模式，但付款一律先問（PlayApprovalPolicy）。 -->
+    <string name="dev_autonomy_sub">開啟後渥屋助理不停下來問就把任務做完；付款不論開關，一律先問你。</string>
+    <!-- 這一版不操作手機：改設定的工具只有外觀和螢幕常亮（SelfConfigImpl）。 -->
+    <string name="settings_self_config_sub">打開後，任務裡會多一件工具，能看和改這些偏好（外觀、螢幕常亮）。模型和 Key、任何刪資料的操作都不在其中</string>
     <string name="net_proxy_row_sub">呼叫模型、帳號登入和內建瀏覽器都走它</string>
     <string name="net_proxy_hint">渥屋助理自己的連線（呼叫模型、模型清單、帳號登入）和內建瀏覽器都走這個代理。這台手機和區域網路裡的位址（localhost、192.168.x.x、10.x.x.x、以 .local 結尾的名稱）一律直連。可以帶「使用者:密碼@」，加密保存在這台手機上。留空表示直連。</string>
     <string name="net_proxy_container_only">https:// 代理不用於渥屋助理的連線，會照舊直連；請改用 http:// 或 socks5://。</string>

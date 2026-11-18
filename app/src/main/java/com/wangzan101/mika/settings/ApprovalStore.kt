@@ -25,7 +25,10 @@ class ApprovalStore(private val file: File) {
         _autonomous = MutableStateFlow((o?.get("autonomous") as? JsonPrimitive)?.booleanOrNull ?: false)
     }
 
-    /** 自主模式:打开时连付款也不先问你(询问时只有付款先问)。换它请走 [ApprovalControl.setAutonomous],正在跑的任务才会跟着换。 */
+    /**
+     * 自主模式:打开时连付款也不先问你(询问时只有付款先问);商店版付款永远先问(见 [PlayApprovalPolicy])。
+     * 换它请走 [ApprovalControl.setAutonomous],正在跑的任务才会跟着换。
+     */
     val autonomous: StateFlow<Boolean> = _autonomous.asStateFlow()
 
     @Synchronized fun setAutonomous(on: Boolean) {

@@ -807,7 +807,7 @@ class TaskRun(
                         mcpServers = mcpEndpoints())
                     AgentLoop(model, childTools, PlayAiSafetyPrompt.identity(service.packageName), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
-                        confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
+                        confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedWithoutGate,
                         reviewFinalAnswer = false, flags = speed, outwardPacing = OutwardPacing.human())
                 },
                 store = (service.application as MikaApp).childRuns,
@@ -816,7 +816,8 @@ class TaskRun(
             val tools = toolDispatcher(null, model.capabilities.vision, catalog, recordFrames = true, vision = vision?.let { VisionService(it, BitmapImageOps) },
                 // 设置里允许 Mika 改自己时,才把 settings_list、settings_set 发给模型
                 selfConfig = if (FeatureFlags.get(service).selfConfig()) {
-                    com.wangzan101.mika.settings.SelfConfigImpl(FeatureFlags.get(service))
+                    // 商店版没有操作手机:不给操作节奏、静音、悬浮胶囊这几项
+                    com.wangzan101.mika.settings.SelfConfigImpl(FeatureFlags.get(service), phoneControl = false)
                 } else null,
                 stableRefs = speed.inlineScreen, inlineScreen = speed.inlineScreen,
                 adaptiveVision = speed.adaptiveVision,
@@ -873,10 +874,11 @@ class TaskRun(
                 reviewFinalAnswer = false,
                 inputTimeoutMs = TaskService.INPUT_TIMEOUT_MS,
                 // 询问 / 自主:询问时只有花钱的一步先问(有确认关卡和 request_confirmation);自主时连付款也不问。
-                // 开工时询问、中途换成自主的,下一步起不再问;开工时自主的,换成询问留给下一个任务
+                // 开工时询问、中途换成自主的,下一步起不再问;开工时自主的,换成询问留给下一个任务。
+                // 商店版付款永远先问:自主时也有确认关卡,只有花钱的一步要同意(见 PlayApprovalPolicy)
                 confirmations = runApproval.gate(),
                 approvals = runApproval,
-                autonomous = runApproval.startedAutonomous,
+                autonomous = runApproval.startedWithoutGate,
                 confirmTimeoutMs = TaskService.CONFIRM_TIMEOUT_MS,
                 selfPackage = service.packageName,
                 flags = speed,

@@ -52,6 +52,26 @@ class ApprovalStoreTest {
         assertNull(auto.gate())
     }
 
+    /** Owner decision 2026-11-18:商店版开了自主模式,付款也照样先问,所以任务一直有确认关卡。 */
+    @Test fun playRunsKeepAskingBeforePaymentsEvenWhenAutonomous() {
+        val c = ApprovalControl(ApprovalStore(tmp.root.resolve("a.json")), paymentsAlwaysAsk = true)
+        c.setAutonomous(true)
+        val auto = c.start()
+        assertTrue(auto.startedAutonomous)
+        assertTrue(auto.autonomous())
+        assertTrue(auto.paymentsAlwaysAsk())
+        assertFalse(auto.startedWithoutGate)
+        assertNotNull(auto.gate())
+        val remote = c.start(remote = true)
+        assertTrue(remote.paymentsAlwaysAsk())
+        assertNotNull(remote.gate())
+        // 直接下载版照旧:自主时付款也不问,没有关卡
+        val direct = ApprovalControl(ApprovalStore(tmp.root.resolve("b.json"))).apply { setAutonomous(true) }.start()
+        assertFalse(direct.paymentsAlwaysAsk())
+        assertTrue(direct.startedWithoutGate)
+        assertNull(direct.gate())
+    }
+
     @Test fun remoteRunsAlwaysAskAndIgnoreTheSwitch() {
         val c = control()
         c.setAutonomous(true)
