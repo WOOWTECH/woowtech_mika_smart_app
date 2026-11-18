@@ -9,7 +9,7 @@ Branch: `ios/1.1-account-signin-multi-mcp`, started from `ios/parity-1.0` at `35
 1. **ChatGPT sign-in** with a Plus or Pro plan.
 2. **xAI / Grok sign-in** with SuperGrok or X Premium+.
 3. **Several MCP servers.** iOS keeps one endpoint today; Android keeps a list.
-4. **Drawer title fix.** On iPhone 15 Pro (iOS 26.5, build 4) the drawer title 渥屋助理 sits inside the status bar and overlaps the clock.
+4. **Full-height drawer.** The drawer reaches the bottom of the screen with no part of the chat composer showing, and its title sits below the status bar, like the Android direct-download edition.
 5. **Remove the per-conversation MCP switch** 本次對話使用 MCP 工具 (`chat.useMCP`). A saved MCP server is available in every chat.
 
 Out of scope: OpenRouter sign-in, and Claude or Google account sign-in (`docs/dev/account-signin.md` on `main` explains why those two are not offered).
@@ -26,6 +26,7 @@ Branch `playstore/woowtech-compliant-20261111` at `964d7bec`. Match its behavior
 | Responses protocol | `core/src/main/kotlin/com/wangzan101/mika/core/model/ResponsesModel.kt` |
 | Sign-in screens | `app/src/main/java/com/wangzan101/mika/ui/AccountSignIn.kt`, `ModelsScreen.kt`, `ModelSetupViewModel.kt` |
 | MCP servers | `app/src/main/java/com/wangzan101/mika/ui/McpServersScreen.kt`, `core/src/main/kotlin/com/wangzan101/mika/core/cap/mcp/` |
+| Drawer | `app/src/main/java/com/wangzan101/mika/ui/ChatDrawer.kt` |
 
 ## Existing iOS prototype
 
@@ -42,6 +43,14 @@ Still unproven on a real device:
 Prove these first. If the loopback callback cannot work on iOS, stop and report before building the screens on top of it.
 
 ## Gaps to close
+
+### Drawer layout (`ContentView.swift`)
+
+- Measured on iPhone 15 Pro (852 pt tall, safe areas 59 and 34, build 4): the drawer runs from y = -46.5 to y = 805.5. It stops 46.5 pt above the bottom edge, which shows the composer, and its header sits 46.5 pt too high, which puts the title under the clock.
+- Cause: the drawer is taller than its container, so `ZStack(alignment: .leading)` and `.frame(width:height:alignment: .leading)` centre it vertically before `.offset(y: -geometry.safeAreaInsets.top)` moves it again.
+- Fix: use `.topLeading` for both alignments, then confirm the drawer runs from y = 0 to the bottom of the screen.
+- Android's `ChatDrawer.kt` fills the height behind the system bars and pads its content by the status and navigation bar insets.
+- Check iPhone with Dynamic Island, iPhone SE, iPad and landscape.
 
 ### Model layer
 
@@ -82,7 +91,7 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 
 ## Order of work
 
-1. Drawer title fix.
+1. Full-height drawer.
 2. Real-device proof of the sign-in callback.
 3. Responses client with tests.
 4. ChatGPT sign-in, end to end.
@@ -93,6 +102,7 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 ## Done means
 
 - Module checks, App harnesses and UI tests cover each item, and CI is green or every failure is explained.
+- With the drawer open, no part of the composer is visible on any tested device, and the title does not touch the status bar.
 - Tested on a real iPhone and iPad: sign-in, model list, streaming chat, a long reply, token refresh, cancel, sign-out, and backgrounding during sign-in.
 - MCP tested with at least two real servers, including migration from one server and one server being down.
 - With a saved MCP server and no switch on screen, one chat can call an MCP tool, run a web task and use a skill.
