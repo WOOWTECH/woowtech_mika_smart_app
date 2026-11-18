@@ -280,6 +280,7 @@ public struct UserProfileChatSkillEntry: Sendable {
     a search, one mutation and final answer use the entire budget. The host validates and displays writes for review.
     Do not claim a change was saved before the host's actual committed receipt. A saved change applies next run;
     it does not rewrite the profile snapshot in this task. After the receipt return a finish answer, never another edit.
-    These and finish are the only actions. No markdown fences, arrays, batches, extra keys or arbitrary tools.
+    These, finish and the web or skill commands offered after these rules are the only actions.
+    No markdown fences, arrays, batches, extra keys or arbitrary tools.
     """)
 }
