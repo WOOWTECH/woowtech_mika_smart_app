@@ -50,7 +50,7 @@ final class ModelAccountSignInUITests: XCTestCase {
         attach("chatgpt-signed-out", app)
         returnFromModelProvider("ChatGPT", in: app)
         let main = app.buttons["models.role.main"]
-        revealLearningElement(main, in: app, visibility: .readableText)
+        revealLearningElement(main, in: app)
         XCTAssertTrue(main.label.contains("gpt-fixture"), main.label)
         XCTAssertTrue(app.buttons["models.provider.ChatGPT"].exists)
     }

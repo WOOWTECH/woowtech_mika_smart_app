@@ -139,6 +139,9 @@ final class ModelAccountSignIn: ObservableObject {
                 guard self.attempt == attempt else { return }
                 self.end()
                 self.listing[result.providerID] = result.listFailed ? .failed : nil
+                // OpenAI's page or xAI's browser is still closing; the sheet
+                // under it closes after, so two dismissals never overlap.
+                try? await Task.sleep(nanoseconds: Self.pageCloseNanoseconds)
                 self.finished = Finished(kind: kind, providerID: result.providerID)
             } catch {
                 guard self.attempt == attempt else { return }
@@ -248,6 +251,9 @@ final class ModelAccountSignIn: ObservableObject {
         authSession = session
         if !session.start() { cancel() }
     }
+
+    /// How long the system takes to close OpenAI's page or the in-app browser.
+    private static let pageCloseNanoseconds: UInt64 = 700_000_000
 
     /// No page ever redirects here; OpenAI sends the browser back to the loopback listener.
     private static let unusedCallbackScheme = "io.woowtech.assistant.signin"
