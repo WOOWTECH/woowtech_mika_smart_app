@@ -4,9 +4,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
+import android.media.ExifInterface
 import com.wangzan101.mika.core.vision.ImageOps
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -62,12 +65,68 @@ object BitmapImageOps : ImageOps {
         gray.foldIndexed(0L) { i, acc, g -> if (g >= mean) acc or (1L shl i) else acc }
     }
 
-    override fun toJpeg(img: ByteArray, maxSide: Int, quality: Int): ByteArray = use(img) { bmp ->
-        val f = maxSide.toDouble() / max(bmp.width, bmp.height)
-        val out = if (f < 1.0) {
-            Bitmap.createScaledBitmap(bmp, max(1, (bmp.width * f).roundToInt()), max(1, (bmp.height * f).roundToInt()), true)
-        } else bmp
-        try { out.encode(Bitmap.CompressFormat.JPEG, quality) } finally { if (out !== bmp) out.recycle() }
+    /**
+     * 大图(用户附加的照片)先按 2 的幂抽样解码,长边不小于 [maxSide],不把整张原图放进内存;
+     * 照片里记着的拍摄方向(EXIF)照着转正。截屏没有这些,结果和原来一样。
+     */
+    override fun toJpeg(img: ByteArray, maxSide: Int, quality: Int): ByteArray {
+        val bmp = decodeFor(img, maxSide)
+        return try {
+            val f = maxSide.toDouble() / max(bmp.width, bmp.height)
+            val scaled = if (f < 1.0) {
+                Bitmap.createScaledBitmap(bmp, max(1, (bmp.width * f).roundToInt()), max(1, (bmp.height * f).roundToInt()), true)
+            } else bmp
+            val out = oriented(scaled, orientation(img))
+            try {
+                out.encode(Bitmap.CompressFormat.JPEG, quality)
+            } finally {
+                if (out !== scaled) out.recycle()
+                if (scaled !== bmp) scaled.recycle()
+            }
+        } finally {
+            bmp.recycle()
+        }
+    }
+
+    private fun decodeFor(img: ByteArray, maxSide: Int): Bitmap {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(img, 0, img.size, bounds)
+        val side = max(bounds.outWidth, bounds.outHeight)
+        var sample = 1
+        while (maxSide > 0 && side / (sample * 2) >= maxSide) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeByteArray(img, 0, img.size, options) ?: throw IllegalArgumentException("not a decodable image")
+    }
+
+    /** JPEG、HEIF 里记着的拍摄方向;别的格式、读不到时不转。 */
+    private fun orientation(img: ByteArray): Int {
+        val jpeg = img.size > 2 && img[0] == 0xFF.toByte() && img[1] == 0xD8.toByte()
+        val heif = img.size > 12 && String(img, 4, 4, Charsets.ISO_8859_1) == "ftyp"
+        if (!jpeg && !heif) return ExifInterface.ORIENTATION_NORMAL
+        return runCatching {
+            ExifInterface(ByteArrayInputStream(img)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+    }
+
+    private fun oriented(bmp: Bitmap, orientation: Int): Bitmap {
+        val m = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.setScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> m.setRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.setScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                m.setRotate(90f)
+                m.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_90 -> m.setRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                m.setRotate(-90f)
+                m.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_270 -> m.setRotate(-90f)
+            else -> return bmp
+        }
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
     }
 
     override fun drawFrame(img: ByteArray, box: IntArray, expandPx: Int, strokePx: Int): ByteArray = use(img) { bmp ->

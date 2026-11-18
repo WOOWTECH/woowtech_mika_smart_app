@@ -491,6 +491,12 @@ class TaskRun(
     /** 本任务的沙箱:一个任务一份(导出额度按任务算),工作区是本对话的。 */
     private val sandbox by lazy { AndroidSandbox(service, SandboxState.get(service), onShared = ::addShared) }
 
+    /**
+     * 商店版交给模型的工作区:同一个对话工作区里的附件、网页下载和写出来的文件,只有读、写、搜、导出,
+     * 不跑任何命令或脚本(见 [AndroidSandbox.filesOnly])。照片、PDF、Office 文件由 read_file 直接读。
+     */
+    private val workspaceFiles by lazy { AndroidSandbox.filesOnly(service, onShared = ::addShared) }
+
     /** 沙箱导出了一个文件(share_file 或 `mika share`)。 */
     fun addShared(f: SharedFile) = synchronized(service.taskState.shownLock) { _sharedFiles.value = _sharedFiles.value + f }
 
@@ -788,7 +794,7 @@ class TaskRun(
                         web = web, webPacing = { PagePacing.human() }, webPlacePace = { PlacePace.of(catalog.sitePace(it)) },
                         webIdleScroll = { IdleScroll(Random.Default) },
                         appPacing = { pace.appPacing() }, appPace = { PlacePace.of(catalog.appPace(it)) }, appIdleScroll = { IdleScroll(Random.Default) },
-                        sandbox = null, workspace = { conversationId }, runSpec = childSpec,
+                        sandbox = workspaceFiles, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision,
                         mcpServers = mcpEndpoints())
@@ -820,7 +826,7 @@ class TaskRun(
                 // 上传只认本对话工作区里的普通文件(与沙箱同一套路径规则);技能目录、工作区外一律越界
                 workspacePath = web?.let { { p: String -> sandbox.uploadCheck(conversationId, p) } },
                 // 工作区 = 对话:同一对话的追问接着用上一轮的文件,不同对话互不可见
-                sandbox = null, workspace = { conversationId },
+                sandbox = workspaceFiles, workspace = { conversationId },
                 onSandboxCommand = { sandboxNote(StatusCopy.sandboxCommand(it, sandboxOnline())) },
                 onSandboxProgress = { sandboxNote(StatusCopy.sandboxProgress(it, sandboxOnline())) },
                 onSandboxPreparing = { sandboxNote(StatusCopy.RUNTIME_PREPARING) },

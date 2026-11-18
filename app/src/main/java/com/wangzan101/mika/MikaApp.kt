@@ -15,7 +15,6 @@ import android.util.Log
 import com.wangzan101.mika.chat.AndroidBranchWorkspace
 import com.wangzan101.mika.chat.ConversationDeleter
 import com.wangzan101.mika.chat.ConversationStore
-import com.wangzan101.mika.core.cap.sandbox.SandboxStatus
 import com.wangzan101.mika.cap.sandbox.AndroidSandbox
 import com.wangzan101.mika.cap.sandbox.Attachments
 import com.wangzan101.mika.ui.AttachFiles
@@ -292,9 +291,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             runNotes = memory.notes,
             learning = AppLearningActions(app, memory),
             memoryItems = memory.items(),
-            // 附件进对话的工作区,不需要运行环境已准备好:设备支持就给附件按钮
-            sandboxReady = SandboxState.get(app).status.map { it !is SandboxStatus.Unsupported }
-                .stateIn(scope, SharingStarted.Eagerly, SandboxState.get(app).status.value !is SandboxStatus.Unsupported),
+            // 附件进对话的工作区,模型用文件工具读(不需要 Linux 运行环境):任何设备都给附件按钮
+            sandboxReady = kotlinx.coroutines.flow.MutableStateFlow(true),
             sharedFiles = taskState.sharedFiles,
             activities = taskState.activities,
             steers = taskState.steers,

@@ -8,8 +8,14 @@ import com.wangzan101.mika.core.knowledge.ScriptEntry
 import com.wangzan101.mika.core.workspace.WorkspaceFileGate
 import com.wangzan101.mika.core.workspace.SandboxTree
 
-/** 宿主目录放在临时目录里的沙箱;命令不真跑,按 [next] 回结果并记下收到的参数。 */
-class FakeSandbox(var status: SandboxStatus = SandboxStatus.Ready(network = false)) : SandboxPort {
+/**
+ * 宿主目录放在临时目录里的沙箱;命令不真跑,按 [next] 回结果并记下收到的参数。
+ * [runsCommands] 为 false 时是只有文件的工作区(商店版):不提供跑命令、跑脚本的工具。
+ */
+class FakeSandbox(
+    var status: SandboxStatus = SandboxStatus.Ready(network = false),
+    override val runsCommands: Boolean = true,
+) : SandboxPort {
     class Run(val workspace: String, val argv: List<String>, val cwd: String?, val timeoutMs: Long)
 
     override val tree = SandboxTree()

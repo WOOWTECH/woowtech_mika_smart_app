@@ -113,8 +113,12 @@ class AndroidSandbox internal constructor(
     private val proxy: () -> String = { "" },
     /** APK 内的桥客户端；已有运行环境也要随 APK 更新。 */
     private val clientScript: () -> ByteArray? = { null },
+    /** 能跑命令;只有文件的工作区(商店版,见 [filesOnly])为 false:不起任何进程。 */
+    private val commands: Boolean = true,
 ) : SandboxPort {
     override val tree get() = dirs.tree
+
+    override val runsCommands: Boolean get() = commands
 
     constructor(context: Context, state: SandboxState, onShared: (SharedFile) -> Unit = {}) : this(
         SandboxDirs(context), { state.status.value }, { dns(context) }, bridges = true, version = versionOf(context),
@@ -148,6 +152,7 @@ class AndroidSandbox internal constructor(
 
     override suspend fun runWithPhone(workspace: String, argv: List<String>, cwd: String?, timeoutMs: Long, onProgress: (String) -> Unit,
         phone: PhoneCommandHandler?): CommandResult {
+        if (!commands) throw SandboxError(COMMANDS_UNAVAILABLE, NO_COMMANDS)
         val network = (status() as? SandboxStatus.Ready)?.network == true
         // 调用方给的 cwd 再核一遍:必须规范化后仍在工作区里
         val rel = cwd?.takeIf { it.isNotEmpty() }?.let { c ->
@@ -204,6 +209,7 @@ class AndroidSandbox internal constructor(
      * 建目录到启动这一段另拿一次短的 shared,独占的要等它做完才删,启动完再核一次有没有被收回。
      */
     override suspend fun openProcess(workspace: String, argv: List<String>, cwd: String?): SandboxProcess {
+        if (!commands) throw SandboxError(COMMANDS_UNAVAILABLE, NO_COMMANDS)
         val network = (status() as? SandboxStatus.Ready)?.network == true
         val rel = cwd?.takeIf { it.isNotEmpty() }?.let { c ->
             val n = SandboxPaths.normalize(c)?.takeIf(SandboxPaths::isWritable)
@@ -411,6 +417,17 @@ class AndroidSandbox internal constructor(
 
     internal companion object {
         private val OUT_NAME = Regex("^out-(\\d+)\\.txt$")
+        const val COMMANDS_UNAVAILABLE = "commands_unavailable"
+        private const val NO_COMMANDS = "This edition cannot run commands or scripts; only the file tools are available."
+
+        /**
+         * 商店版只有文件的工作区:同一个对话工作区(附件、网页下载、写出来的文件),读、写、搜、存到「下载」照常;
+         * 不跑命令、不起进程,也不准备 Linux 运行环境(商店版没有打包它)。
+         */
+        fun filesOnly(context: Context, onShared: (SharedFile) -> Unit = {}): AndroidSandbox = AndroidSandbox(
+            SandboxDirs(context), { SandboxStatus.Ready(network = false) }, { emptyList() },
+            exporter = ShareExporter(context)::export, onShared = onShared, allowNetwork = { false }, commands = false,
+        )
 
         private fun versionOf(context: Context): String =
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()

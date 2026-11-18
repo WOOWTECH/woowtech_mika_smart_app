@@ -50,18 +50,21 @@ internal class SandboxCapability(
     /** 这次的话带着工作区里的文件(附件一行写着 /workspace/ 下的路径):开局就展开沙箱一组。 */
     override fun preload(task: String): Boolean = available() && "${SandboxPaths.WORKSPACE}/" in task
 
-    /** 沙箱那一组收着时不给。 */
+    /** 沙箱那一组收着时不给。只有文件的工作区(没有命令可跑)给 [WORKSPACE] 那一段。 */
     override fun sections(env: PromptEnv): List<String> {
         if (!env.isOpen(id) || SandboxGroup.tools.none { it.name in env.offered }) return emptyList()
         val p = port?.takeIf { available() }
+        if (p?.runsCommands == false) return listOf(env.gate(Prompts.capability(WORKSPACE)))
         return listOf(env.gate(section(p?.status() ?: SandboxStatus.NotInstalled, p?.networkAllowed() == true)))
     }
 
+    /** 只有文件的工作区跑不了技能脚本:知识、技能里提到的脚本一律按不可用说。 */
     override val scripts = object : BundledScripts {
-        override fun offered() = available()
+        override fun offered() = available() && port?.runsCommands != false
 
         override suspend fun ready(): Boolean {
             val p = port ?: return false
+            if (!p.runsCommands) return false
             if (p.status() !is SandboxStatus.Ready) return false
             p.prepare()
             return true
@@ -84,6 +87,9 @@ internal class SandboxCapability(
 
     companion object {
         val KEY = CapabilityKey<SandboxCapability>(SANDBOX)
+
+        /** 只有文件的工作区那一段提示词(prompts/capabilities/workspace.md)。 */
+        const val WORKSPACE = "workspace"
 
         /** 沙箱一段:写明此刻是否联网([network]:用户的联网设置);运行环境还没准备好时多一句,第一次用工具会等它。 */
         fun section(status: SandboxStatus, network: Boolean): String {
