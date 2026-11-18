@@ -69,8 +69,9 @@ public enum MCPToolNaming {
 public struct MCPServerOffer: Sendable {
     /// Android's server id in the tool names; see MCPToolNaming.
     public let key: String
-    /// The name the user gave the server. The model sees it in each tool's
-    /// description, like Android's McpProvenance; never a URL or a token.
+    /// The name the user gave the server; empty for an unnamed one. The model
+    /// sees it in each tool's description, like Android's McpProvenance; never
+    /// a URL or a token.
     public let name: String
     public let tools: [MCPTool]
     public let resources: [MCPResource]
@@ -210,7 +211,8 @@ public struct MCPCombinedCatalog: MCPConversationExecuting {
     /// Android McpProvenance.describe: the server's name first, then the description.
     static func described(_ description: String?, server: String) -> String {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.withoutEscapingSlashes]
-        let quoted = (try? encoder.encode(String(server.prefix(200)))).map { String(decoding: $0, as: UTF8.self) } ?? "\"\""
+        let name = server.isEmpty ? "MCP server" : String(server.prefix(200))
+        let quoted = (try? encoder.encode(name)).map { String(decoding: $0, as: UTF8.self) } ?? "\"\""
         let lead = "Configured MCP server: " + quoted + "; transport: HTTP.\n"
         var room = maximumDescriptionBytes - lead.utf8.count
         var body = ""

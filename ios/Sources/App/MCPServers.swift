@@ -229,7 +229,11 @@ final class MCPServers: ObservableObject {
         let race = MCPConnectionRace(count: enabled.count)
         for (index, server) in enabled.enumerated() {
             Task { @MainActor in
-                do { race.deliver(index, .connected(try await server.session.chatConnection())) }
+                do {
+                    let connection = try await server.session.chatConnection()
+                    // The connection this catalog came from, read in the same actor turn.
+                    race.deliver(index, .connected(connection, epoch: server.session.connectionEpoch))
+                }
                 catch MCPChatAvailability.noTools { race.deliver(index, .nothingSelected) }
                 catch { race.deliver(index, .unavailable) }
             }
@@ -249,12 +253,12 @@ final class MCPServers: ObservableObject {
         var connected: [(session: MCPSession, epoch: Int)] = []
         for (index, server) in enabled.enumerated() {
             switch race.outcomes[index] {
-            case .connected(let connection)?:
-                let session = server.session, epoch = session.connectionEpoch
+            case .connected(let connection, let epoch)?:
+                let session = server.session
                 let executor = MCPCheckedExecutor(base: connection.0) { action in
                     await MainActor.run { session.allows(action, epoch: epoch) }
                 }
-                offers.append(MCPServerOffer(key: server.record.key, name: server.record.name.isEmpty ? "MCP server" : server.record.name,
+                offers.append(MCPServerOffer(key: server.record.key, name: server.record.name,
                                              tools: connection.1, resources: connection.2, executor: executor))
                 connected.append((session, epoch))
             case .nothingSelected?: break
@@ -304,7 +308,7 @@ private struct MCPCheckedExecutor: MCPConversationExecuting {
 /// answered", the budget or cancellation ends the wait.
 @MainActor private final class MCPConnectionRace {
     enum Outcome {
-        case connected((any MCPDiscovering, [MCPTool], [MCPResource]))
+        case connected((any MCPDiscovering, [MCPTool], [MCPResource]), epoch: Int)
         /// Connected, with every tool switched off and no resource.
         case nothingSelected
         case unavailable

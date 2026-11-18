@@ -95,6 +95,11 @@ enum MCPServerCatalogChecks {
         let single = MCPCombinedCatalog(servers: [MCPServerOffer(key: "0a11ce00", name: "Odoo", tools: [tool("t")],
                                                                  resources: [MCPResource(uri: "doc://guide", name: "Guide")], executor: odoo)])
         try c.expect(single.resources.map(\.uri) == ["doc://guide"], "a URI only one server offers keeps its form")
+        let unnamed = MCPCombinedCatalog(servers: [MCPServerOffer(key: "0a11ce00", name: "", tools: [tool("t")],
+                                                                  resources: [], executor: odoo)])
+        try c.expect(unnamed.tools[0].description?.hasPrefix("Configured MCP server: \"MCP server\";") == true
+                     && unnamed.owner(ofTool: unnamed.tools[0].name)?.server == "",
+                     "an unnamed server has a fixed name for the model and stays unnamed for the App")
         try c.expect(MCPCombinedCatalog(servers: []).isEmpty, "no server, nothing offered")
         // More than the runner accepts: the first 256 tools, in server order.
         let wide = (0..<200).map { tool("tool_\($0)") }
