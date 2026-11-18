@@ -84,4 +84,6 @@
     <string name="sandbox_script">Выполняет скрипт</string>
     <string name="sandbox_online">онлайн</string>
     <string name="runtime_preparing">Подготовка</string>
+    <string name="task_retry_network">Связь прервалась. Пробуем снова (попытка %1$d)…</string>
+    <string name="task_retry_busy">Сервис модели перегружен. Пробуем снова (попытка %1$d)…</string>
 </resources>

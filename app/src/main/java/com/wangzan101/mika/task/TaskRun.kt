@@ -44,6 +44,7 @@ import com.wangzan101.mika.MikaApp
 import com.wangzan101.mika.core.action.ConfirmChoice
 import com.wangzan101.mika.core.agent.AgentLoop
 import com.wangzan101.mika.core.agent.FailKind
+import com.wangzan101.mika.core.agent.RetryNotice
 import com.wangzan101.mika.core.agent.ModelRouter
 import com.wangzan101.mika.core.memory.MemoryExtractor
 import com.wangzan101.mika.core.memory.MemoryStore
@@ -461,6 +462,8 @@ class TaskRun(
                 e is RunEvent.State && e.name == "reply_interrupted" -> steerJoin.interrupted(e.detail)
                 e is RunEvent.State && e.name == "reply_finished_before_steer" -> steerJoin.finished(e.detail)
                 e is RunEvent.State && e.name == "steer_received" -> joinSteer(e.detail)
+                // 模型请求一时失败、要重试:卡片上说一声(断线还是服务忙、第几次),下一步的状态会把它换掉
+                e is RunEvent.State && e.name == "model_retry" -> RetryNotice.parse(e.detail)?.let { retryNote(it) }
             }
         }
     }
@@ -1285,6 +1288,11 @@ class TaskRun(
     private fun sandboxNote(text: String) {
         val s = _state.value as? TaskState.Running ?: return
         publish(s.copy(note = text))
+    }
+
+    private fun retryNote(n: RetryNotice) {
+        val s = _state.value as? TaskState.Running ?: return
+        publish(s.copy(note = ModelRetryCopy.note(n)))
     }
 
     private fun sandboxOnline() = (sandbox.status() as? SandboxStatus.Ready)?.network == true
