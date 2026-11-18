@@ -12,7 +12,8 @@ final class MCPLearningUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 240
+        // 140 s in run 44300764046, over 240 s on a slower runner (44308580227); the shard allows 300 s.
+        executionTimeAllowance = 300
     }
 
     override func tearDownWithError() throws {
@@ -119,6 +120,8 @@ final class MCPLearningUITests: XCTestCase {
         setSwitch(enabled, on: true)
         navigate("chat")
         XCTAssertFalse(app.switches["chat.useMCP"].firstMatch.exists)
+        // The composer is ready again before the prompt is typed.
+        ready(chatDraftControl(in: app))
     }
 
     private func send(_ prompt: String) {
@@ -220,6 +223,9 @@ final class MCPLearningUITests: XCTestCase {
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists { XCTAssertLessThanOrEqual(frame.maxY, keyboard.frame.minY) }
         field.tap()
+        // A tap right after a navigation can leave the field unfocused (run
+        // 44308580227); focusing again is safe and types nothing.
+        if !keyboard.waitForExistence(timeout: 3) && field.isHittable { field.tap() }
         prepareLatinKeyboard()
         var remaining = text[...]
         var entered = ""

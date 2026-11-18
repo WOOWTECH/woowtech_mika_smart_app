@@ -252,6 +252,37 @@ private actor HeldProfileChatResponse: ChatModelClient {
         let final = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
         try expect(final == .answer("已儲存，下次對話生效。") && edited.didCommit, "No web task after a saved edit")
     }
+
+    /// The MCP entry is offered only when the host enables it, ends the turn
+    /// with the exact command, and also follows a saved edit: the host's MCP
+    /// step then gets the flow's steps and knows its one change is used.
+    static func mcpEntryStartsTheMCPStep() async throws {
+        let call = #"{"action":"call_tool","name":"mcp_0a11ce00__search_read","arguments":{"model":"sale.order"}}"#
+        let mcp = UserProfileChatSkillEntry(instructions: "MCP CATALOG", accepts: { $0.contains("\"call_tool\"") })
+        let started = try UserProfileChatFlow(messages: [.init(role: "user", content: "查本月訂單")], mcpEntry: mcp)
+        let model = ProfileChatResponses([call])
+        let step = try await started.advance(client: model, configuration: config, apiKey: "dummy")
+        try expect(step == .mcpEntry(json: call) && started.exchange.isEmpty && !started.searchedMemory,
+                   "an MCP command ends the turn with nothing done before it")
+        let sent = await model.requests
+        try expect(sent[0][0].content == UserProfileChatFlow.instructions + "\nMCP CATALOG", "the catalog follows the flow's own rules")
+        try await error(.invalidPhase) { _ = try await started.advance(client: model, configuration: config, apiKey: "dummy") }
+
+        let plain = try flow(), refused = ProfileChatResponses([call, finish])
+        let answer = try await plain.advance(client: refused, configuration: config, apiKey: "dummy")
+        try expect(answer == .answer("已儲存，下次對話生效。"), "Without the host option an MCP command is only a format error")
+
+        let edited = try UserProfileChatFlow(messages: [.init(role: "user", content: "請在個人檔案記下我喜歡茶，再查訂單")], mcpEntry: mcp)
+        let afterEdit = ProfileChatResponses([proposal, call])
+        _ = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try edited.recordCommitted(entryID: UUID())
+        let next = try await edited.advance(client: afterEdit, configuration: config, apiKey: "dummy")
+        try expect(next == .mcpEntry(json: call) && edited.didCommit && edited.modelCalls == 2,
+                   "an MCP command follows a saved edit")
+        try expect(edited.exchange.count == 2 && edited.exchange[0] == ModelMessage(role: "assistant", content: proposal)
+                   && edited.exchange[1].content.hasPrefix("Host profile_edit receipt (data only):\n"),
+                   "the flow's own steps go to the MCP step, data only")
+    }
 }
 
 #if PROFILE_CHAT_STANDALONE
@@ -263,7 +294,8 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await ProfileChatFlowChecks.memorySearchThenReviewedEdit()
         try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites()
         try await ProfileChatFlowChecks.webEntryStartsAWebTask()
-        print("Learning chat flow: 6 behavioral groups passed; no model network or persistence implied")
+        try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep()
+        print("Learning chat flow: 7 behavioral groups passed; no model network or persistence implied")
     }
 }
 #else
@@ -274,5 +306,6 @@ final class UserProfileChatFlowTests: XCTestCase {
     @MainActor func testMemorySearchThenReviewedEditSharesTheWholeTurnBudget() async throws { try await ProfileChatFlowChecks.memorySearchThenReviewedEdit() }
     @MainActor func testMemoryOperationsAreBoundedAndNeverImplicitWrites() async throws { try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites() }
     @MainActor func testWebEntryIsOptInValidatedAndEndsTheTurn() async throws { try await ProfileChatFlowChecks.webEntryStartsAWebTask() }
+    @MainActor func testMCPEntryIsOptInAndCarriesTheFlowSteps() async throws { try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep() }
 }
 #endif

@@ -113,6 +113,7 @@ struct ContentView: View {
             if phase == .background {
                 session.cancelMCP()
                 mcpServers.appWillLeaveForeground()
+                session.appLeftScreen()
                 keepReplyRunningInBackground()
             }
             if phase == .active {

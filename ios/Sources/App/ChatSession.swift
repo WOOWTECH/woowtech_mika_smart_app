@@ -322,6 +322,8 @@ final class ChatSession: ObservableObject {
     private var request: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
     private var requestID: UUID?
+    /// The request that was still arriving when the app left the screen (keptReply).
+    private var requestLeftScreen: UUID?
     /// Read-only completion handle for joining an already captured task after cancellation.
     var capturedArchiveRequest: Task<Void, Never>? { request }
 
@@ -1390,12 +1392,20 @@ final class ChatSession: ObservableObject {
         return try await finished(text)
     }
 
+    /// The app left the screen. A reply that is still arriving may be cut when
+    /// iOS suspends the app (keptReply).
+    func appLeftScreen() {
+        if isSubmitting { requestLeftScreen = requestID }
+    }
+
     /// iOS suspends the app soon after it leaves the screen, which can cut a
     /// streaming reply; Android keeps the task running in a foreground service.
-    /// The text already on screen stays, marked as cut off, instead of the whole
-    /// reply failing with 網路連線失敗.
+    /// For a reply that was arriving when the app left the screen, the text
+    /// already on screen stays, marked as cut off, instead of the whole reply
+    /// failing with 網路連線失敗. Any other cut stays 沒有完成, like Play.
     private func keptReply(after error: Error, requestID id: UUID) -> String? {
-        guard let failure = error as? HTTPChatModelError, failure == .transportFailure || failure == .timedOut,
+        guard requestLeftScreen == id,
+              let failure = error as? HTTPChatModelError, failure == .transportFailure || failure == .timedOut,
               let preview = replyPreview, preview.id == id,
               !preview.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         return preview.text + "\n\n" + AppLocalizer(language: interfaceLanguage()).text(.chatReplyInterruptedNote)

@@ -8,7 +8,6 @@ import SwiftUI
 struct MCPToolsView: View {
     @Environment(\.appLocalizer) private var localizer
     @ObservedObject var servers: MCPServers
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @State private var page = Page.list
 
@@ -33,13 +32,9 @@ struct MCPToolsView: View {
         }
         .tint(MCPPageStyle.accent(colorScheme))
         .background(MCPPageStyle.background(colorScheme))
-        // Leaving the page or the app clears what was typed. The connections
-        // themselves are the app's (ContentView): like the Play build they stay
-        // set up, and a connection that started here may finish for a chat.
-        .onDisappear { servers.clearDrafts() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { servers.clearDrafts() }
-        }
+        // Each page clears what was typed when it or the app is left. The
+        // connections themselves are the app's (ContentView): like the Play
+        // build they stay set up, and one that started here may finish for a chat.
     }
 
     private var list: some View {
@@ -64,8 +59,8 @@ struct MCPToolsView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("mcp.server.\(index)")
                     }
-                    Button(localizer.text(.mcpAddServer)) { servers.clearDrafts(); page = .add }
-                        .disabled(servers.servers.count >= MCPServerDirectory.maximumServers)
+                    Button(localizer.text(.mcpAddServer)) { page = .add }
+                        .disabled(!servers.canAddServer)
                         .accessibilityIdentifier("mcp.addServer")
                     Button(localizer.text(.mcpTestAll)) { servers.testAll() }
                         .disabled(!servers.canTestAll)
@@ -129,14 +124,27 @@ private struct MCPServerRow: View {
 }
 
 /// A new server: name, endpoint and optional token. Saving sends no request.
+/// What is typed stays in this form only (like a server page's drafts in its
+/// MCPSession), so typing redraws nothing above it; it is cleared when the
+/// form or the app is left.
 private struct MCPServerAddForm: View {
     @Environment(\.appLocalizer) private var localizer
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var servers: MCPServers
     let back: () -> Void
     let opened: (UUID) -> Void
+    @State private var name = ""
+    @State private var endpoint = ""
+    @State private var token = ""
     @FocusState private var focused: Field?
     enum Field { case name, endpoint, token }
+
+    private var canSave: Bool {
+        servers.canAddServer && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    private func clear() { name = ""; endpoint = ""; token = "" }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -144,13 +152,14 @@ private struct MCPServerAddForm: View {
                           back: back)
             List {
                 Section(localizer.text(.mcpAddSection)) {
-                    TextField(localizer.text(.mcpServerName), text: $servers.nameDraft)
+                    TextField(localizer.text(.mcpServerName), text: $name)
                         .autocorrectionDisabled()
                         .focused($focused, equals: .name)
-                        .submitLabel(.next)
-                        .onSubmit { focused = .endpoint }
+                        .submitLabel(.done)
+                        .onSubmit { focused = nil }
                         .accessibilityIdentifier("mcp.add.name")
-                    SecureField(localizer.text(.mcpEndpoint), text: $servers.endpointDraft)
+                    SecureField(localizer.text(.mcpEndpoint), text: $endpoint)
+                        .mcpSecretEntry()
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -163,7 +172,8 @@ private struct MCPServerAddForm: View {
                     Text(localizer.text(.mcpEndpointHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    SecureField(localizer.text(.mcpToken), text: $servers.tokenDraft)
+                    SecureField(localizer.text(.mcpToken), text: $token)
+                        .mcpSecretEntry()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .privacySensitive()
@@ -172,13 +182,19 @@ private struct MCPServerAddForm: View {
                         .onSubmit { focused = nil }
                         .accessibilityLabel(localizer.text(.mcpTokenAX))
                         .accessibilityIdentifier("mcp.add.token")
-                    Button(localizer.text(.mcpSave)) {
-                        focused = nil
-                        if let id = servers.add() { opened(id) }
+                    HStack(spacing: 12) {
+                        Button(localizer.text(.mcpSave)) {
+                            focused = nil
+                            if let id = servers.add(name: name, endpoint: endpoint, token: token) { clear(); opened(id) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canSave)
+                        .accessibilityIdentifier("mcp.add.save")
+                        Button(localizer.text(.mcpClearDraft)) { clear() }
+                            .buttonStyle(.bordered)
+                            .disabled(name.isEmpty && endpoint.isEmpty && token.isEmpty)
+                            .accessibilityIdentifier("mcp.add.clearDraft")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!servers.canAdd)
-                    .accessibilityIdentifier("mcp.add.save")
                     if let error = servers.errorText {
                         Text(localizer.text(error)).foregroundStyle(.red).accessibilityIdentifier("mcp.error")
                     }
@@ -195,6 +211,11 @@ private struct MCPServerAddForm: View {
                     .accessibilityIdentifier("mcp.dismissKeyboard")
             }
         }
+        // Leaving the form or the app clears what was typed.
+        .onDisappear { clear() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { clear() }
+        }
     }
 }
 
@@ -203,6 +224,7 @@ private struct MCPServerAddForm: View {
 private struct MCPServerDetail: View {
     @Environment(\.appLocalizer) private var localizer
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var servers: MCPServers
     let record: MCPServerRecord
     @ObservedObject var session: MCPSession
@@ -242,6 +264,7 @@ private struct MCPServerDetail: View {
                             .accessibilityIdentifier("mcp.testIsolation")
                     }
                     SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
+                        .mcpSecretEntry()
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -257,6 +280,7 @@ private struct MCPServerDetail: View {
                         .foregroundStyle(.secondary)
                     // Like the Play build's optional access token (Bearer header).
                     SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
+                        .mcpSecretEntry()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .privacySensitive()
@@ -381,9 +405,13 @@ private struct MCPServerDetail: View {
             .accessibilityIdentifier("mcp.confirmDeleteServer")
         }
         .onAppear { nameDraft = current.name }
+        // Leaving the page or the app clears what was typed.
         .onDisappear {
             session.endpointDraft = ""
             session.tokenDraft = ""
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { session.endpointDraft = ""; session.tokenDraft = "" }
         }
     }
 
@@ -483,5 +511,16 @@ private enum MCPPageStyle {
 
     static func card(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(red: 26.0 / 255, green: 26.0 / 255, blue: 29.0 / 255) : .white
+    }
+}
+
+private extension View {
+    /// The endpoint and token are secrets, not passwords. With a name field
+    /// above them, iOS read the form as a sign-up form and covered both with
+    /// Automatic Strong Password (CI run 44332295841: no keyboard came up and
+    /// the endpoint kept one character). An explicit non-password content
+    /// type keeps iOS from generating, filling or offering to save a password.
+    func mcpSecretEntry() -> some View {
+        textContentType(.oneTimeCode)
     }
 }

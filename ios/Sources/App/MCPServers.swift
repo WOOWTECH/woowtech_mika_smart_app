@@ -33,10 +33,6 @@ final class MCPServers: ObservableObject {
     @Published private(set) var servers: [Server] = []
     @Published private(set) var errorText: AppText?
     @Published private(set) var noticeText: AppText?
-    /// The add form; cleared when the page or the app is left.
-    @Published var nameDraft = ""
-    @Published var endpointDraft = ""
-    @Published var tokenDraft = ""
     /// Invalidates conversation snapshots before a server's endpoint, tool
     /// choice or connection changes, or a server goes away.
     var onConnectionChange: (() -> Void)?
@@ -106,11 +102,7 @@ final class MCPServers: ObservableObject {
         self.init(sessions: [(MCPServerRecord(id: Self.singleServerID, name: name, enabled: true, legacy: false), session)])
     }
 
-    var canAdd: Bool {
-        directory != nil && servers.count < MCPServerDirectory.maximumServers
-            && !nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    var canAddServer: Bool { directory != nil && servers.count < MCPServerDirectory.maximumServers }
 
     func server(id: UUID) -> Server? { servers.first { $0.id == id } }
 
@@ -127,18 +119,18 @@ final class MCPServers: ObservableObject {
     }
 
     /// Saves a new server from the add form. Its endpoint and token are checked
-    /// before anything is written; no connection request is sent.
-    @discardableResult func add() -> UUID? {
+    /// before anything is written; no connection request is sent. The form
+    /// keeps what is typed itself, so nothing typed is published here.
+    @discardableResult func add(name: String, endpoint: String, token: String) -> UUID? {
         guard let directory else { return nil }
         errorText = nil; noticeText = nil
-        let token = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            let record = try directory.add(name: nameDraft, endpoint: endpointDraft, token: token.isEmpty ? nil : token,
+            let record = try directory.add(name: name, endpoint: endpoint, token: token.isEmpty ? nil : token,
                                            to: servers.map(\.record))
             let server = Server(record: record, session: makeSession(directory.store(for: record)))
             wire(server)
             servers.append(server)
-            clearDrafts()
             noticeText = .mcpServerAdded
             return record.id
         } catch {
@@ -201,12 +193,7 @@ final class MCPServers: ObservableObject {
         allowsNetwork && servers.contains { $0.record.enabled && $0.session.canConnect }
     }
 
-    func clearDrafts() { nameDraft = ""; endpointDraft = ""; tokenDraft = "" }
-
-    func appWillLeaveForeground() {
-        clearDrafts()
-        servers.forEach { $0.session.appWillLeaveForeground() }
-    }
+    func appWillLeaveForeground() { servers.forEach { $0.session.appWillLeaveForeground() } }
 
     func appDidBecomeActive() { servers.forEach { $0.session.appDidBecomeActive() } }
 
@@ -229,7 +216,11 @@ final class MCPServers: ObservableObject {
         let race = MCPConnectionRace(count: enabled.count)
         for (index, server) in enabled.enumerated() {
             Task { @MainActor in
-                do { race.deliver(index, .connected(try await server.session.chatConnection())) }
+                do {
+                    let connection = try await server.session.chatConnection()
+                    // The connection this catalog came from, read in the same actor turn.
+                    race.deliver(index, .connected(connection, epoch: server.session.connectionEpoch))
+                }
                 catch MCPChatAvailability.noTools { race.deliver(index, .nothingSelected) }
                 catch { race.deliver(index, .unavailable) }
             }
@@ -249,12 +240,12 @@ final class MCPServers: ObservableObject {
         var connected: [(session: MCPSession, epoch: Int)] = []
         for (index, server) in enabled.enumerated() {
             switch race.outcomes[index] {
-            case .connected(let connection)?:
-                let session = server.session, epoch = session.connectionEpoch
+            case .connected(let connection, let epoch)?:
+                let session = server.session
                 let executor = MCPCheckedExecutor(base: connection.0) { action in
                     await MainActor.run { session.allows(action, epoch: epoch) }
                 }
-                offers.append(MCPServerOffer(key: server.record.key, name: server.record.name.isEmpty ? "MCP server" : server.record.name,
+                offers.append(MCPServerOffer(key: server.record.key, name: server.record.name,
                                              tools: connection.1, resources: connection.2, executor: executor))
                 connected.append((session, epoch))
             case .nothingSelected?: break
@@ -304,7 +295,7 @@ private struct MCPCheckedExecutor: MCPConversationExecuting {
 /// answered", the budget or cancellation ends the wait.
 @MainActor private final class MCPConnectionRace {
     enum Outcome {
-        case connected((any MCPDiscovering, [MCPTool], [MCPResource]))
+        case connected((any MCPDiscovering, [MCPTool], [MCPResource]), epoch: Int)
         /// Connected, with every tool switched off and no resource.
         case nothingSelected
         case unavailable
