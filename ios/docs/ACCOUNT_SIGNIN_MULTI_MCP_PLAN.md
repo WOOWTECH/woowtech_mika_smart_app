@@ -1,22 +1,36 @@
-# iOS: account sign-in and several MCP servers
+# iOS: alignment with the Android direct-download edition
 
-Owner request, 2026-11-18. This is the hand-off for the session that builds the work on the MacBook with Xcode.
+Owner decision, 2026-11-18: iOS follows the Android direct-download edition for models, chat, memory, skills, browser, MCP and everything else except phone control, in phases. This is the hand-off for the session that builds the work on the MacBook with Xcode.
 
 Branch: `ios/1.1-account-signin-multi-mcp`, started from `ios/parity-1.0` at `35bbb4bb6`.
 
-## Scope
+## Phase 1
 
-1. **ChatGPT sign-in** with a Plus or Pro plan.
-2. **xAI / Grok sign-in** with SuperGrok or X Premium+.
-3. **Several MCP servers.** iOS keeps one endpoint today; Android keeps a list.
-4. **Full-height drawer.** The drawer reaches the bottom of the screen with no part of the chat composer showing, and its title sits below the status bar, like the Android direct-download edition.
-5. **Remove the per-conversation MCP switch** 本次對話使用 MCP 工具 (`chat.useMCP`). A saved MCP server is available in every chat.
+1. **Full-height drawer.** The drawer reaches the bottom of the screen with no part of the chat composer showing, and its title sits below the status bar.
+2. **Defects from the device test** (below).
+3. **ChatGPT sign-in** with a Plus or Pro plan.
+4. **xAI / Grok sign-in** with SuperGrok or X Premium+.
+5. **Several MCP servers.** iOS keeps one endpoint today; Android keeps a list.
+6. **Remove the per-conversation MCP switch** 本次對話使用 MCP 工具 (`chat.useMCP`). A saved MCP server is available in every chat.
 
-Out of scope: OpenRouter sign-in, and Claude or Google account sign-in (`docs/dev/account-signin.md` on `main` explains why those two are not offered).
+## Phase 2
+
+Start with a fresh item-by-item comparison against Android `main`, then close every gap except phone control. Known gaps:
+
+- OpenRouter sign-in
+- Anthropic, Gemini, OpenAI, Ollama and LM Studio presets, and choosing Chat Completions or Responses
+- Vision and light model roles, reasoning and context settings
+- Token usage page and run timeline
+- Scheduled tasks and the plans page
+- Steering a running task, step limit, keep screen on and network proxy
+- The browser Ask bar
+- Autonomous mode. **Owner decision: payments always ask first, even in autonomous mode.**
+
+Claude and Google account sign-in are not offered on Android either (`docs/dev/account-signin.md` on `main` explains why).
 
 ## Android reference (read only)
 
-Branch `playstore/woowtech-compliant-20261111` at `964d7bec`. Match its behavior unless iOS needs a platform difference, and record any difference.
+Direct-download edition: `main`. The latest public release is `v0.1.37-woow.10` at `b3a5fe0d`. Match its behavior unless iOS needs a platform difference, and record any difference.
 
 | Area | Files |
 |---|---|
@@ -27,6 +41,23 @@ Branch `playstore/woowtech-compliant-20261111` at `964d7bec`. Match its behavior
 | Sign-in screens | `app/src/main/java/com/wangzan101/mika/ui/AccountSignIn.kt`, `ModelsScreen.kt`, `ModelSetupViewModel.kt` |
 | MCP servers | `app/src/main/java/com/wangzan101/mika/ui/McpServersScreen.kt`, `core/src/main/kotlin/com/wangzan101/mika/core/cap/mcp/` |
 | Drawer | `app/src/main/java/com/wangzan101/mika/ui/ChatDrawer.kt` |
+
+## Defects from the device test
+
+Build 4 on iPhone 15 Pro, iOS 26.5, main model `chatgpt/gpt-6-sol`, 2026-11-18. The causes are not confirmed yet.
+
+| Severity | Defect | Expected |
+|---|---|---|
+| High | The home screen example 在內建瀏覽器找一篇最近的 AI 新聞，摘要三個重點 answers that it cannot operate the built-in browser. | The web task runs. |
+| High | Going to the home screen for about 10 seconds during a streaming reply loses the reply and shows 呼叫模型失敗：網路連線失敗. | The reply continues, or is kept and can resume. |
+| High | After attaching a photo, the model answers that it cannot view the image. Check whether the image is sent for a custom provider whose vision support is unknown. | The model describes the photo. |
+| Medium | Markdown tables show raw `\|` characters and code blocks have no block style. | Formatted table and code block. |
+| Medium | The 任務已完成 banner appears while the app is open on that chat. | No banner on the chat in front. |
+| Low | In English, the greeting on a new chat is cut off under the MCP switch row. | The greeting is fully visible. |
+| Low | 回到最新訊息 stays over the text after a long reply ends. | The button goes away at the end of the reply. |
+| Low | In dark mode, the note 已開啟保存的對話 overlaps messages when an old chat opens. | The note does not cover messages. |
+
+A 2,633-character reply finished in about 87 seconds on build 4. That is just under the 90-second limit fixed by PR #40, so it does not prove long replies work on this build.
 
 ## Existing iOS prototype
 
@@ -42,7 +73,7 @@ Still unproven on a real device:
 
 Prove these first. If the loopback callback cannot work on iOS, stop and report before building the screens on top of it.
 
-## Gaps to close
+## Phase 1 details
 
 ### Drawer layout (`ContentView.swift`)
 
@@ -67,7 +98,7 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 
 ### Screens (`ModelProviderSettingsView.swift`, `ModelProviderForm.swift`, `ModelSettings.swift`)
 
-- Add the group 用帳號登入 · 不用填 Key with ChatGPT and xAI / Grok.
+- Add the group 用帳號登入 · 不用填 Key.
 - Open an explanation sheet first. Sign-in starts only after the person continues.
 - Show the xAI risk note before sign-in. The flow uses the public client id of xAI's official command-line tool, which xAI did not register for this app.
 - Add the device-code view, progress, cancel, failure reasons, and a provider page with account, status, models and sign-out.
@@ -89,21 +120,23 @@ Prove these first. If the loopback callback cannot work on iOS, stop and report 
 - Then remove the toggle, `usesMCP` and the `chatUseMCP` string, and rewrite the `mcpExplanation` text, which tells people to turn the switch on.
 - Update the UI tests that use `chat.useMCP`: `MCPConversationUITests`, `LiveMCPConversationUITests` and `MCPLearningUITests`.
 
-## Order of work
+## Phase 1 order of work
 
 1. Full-height drawer.
-2. Real-device proof of the sign-in callback.
-3. Responses client with tests.
-4. ChatGPT sign-in, end to end.
-5. xAI / Grok sign-in, end to end.
-6. Several MCP servers, including migration.
-7. MCP, web tasks and skill tools in one chat, then remove the per-conversation switch.
+2. High-severity defects, then the other device-test defects.
+3. Real-device proof of the sign-in callback.
+4. Responses client with tests.
+5. ChatGPT sign-in, end to end.
+6. xAI / Grok sign-in, end to end.
+7. Several MCP servers, including migration.
+8. MCP, web tasks and skill tools in one chat, then remove the per-conversation switch.
 
 ## Done means
 
 - Module checks, App harnesses and UI tests cover each item, and CI is green or every failure is explained.
 - With the drawer open, no part of the composer is visible on any tested device, and the title does not touch the status bar.
-- Tested on a real iPhone and iPad: sign-in, model list, streaming chat, a long reply, token refresh, cancel, sign-out, and backgrounding during sign-in.
+- Every device-test defect is retested on a real iPhone.
+- Tested on a real iPhone and iPad: sign-in, model list, streaming chat, a long reply over 90 seconds, token refresh, cancel, sign-out, and backgrounding during sign-in.
 - MCP tested with at least two real servers, including migration from one server and one server being down.
 - With a saved MCP server and no switch on screen, one chat can call an MCP tool, run a web task and use a skill.
 
