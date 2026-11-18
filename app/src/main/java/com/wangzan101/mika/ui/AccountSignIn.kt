@@ -86,7 +86,7 @@ internal fun ModelSetupUi.signInState(kind: SignInKind): Triple<String?, Boolean
 internal fun AccountSignInGroup(ui: ModelSetupUi, onOpen: (SignInKind) -> Unit, openProvider: (String) -> Unit) {
     GroupLabel(ModelsCopy.SIGN_IN_GROUP)
     GroupCard {
-        val kinds = if (PlayModelProviderPolicy.enabled) listOf(SignInKind.ChatGpt) else SignInKind.entries
+        val kinds = if (PlayModelProviderPolicy.enabled) listOf(SignInKind.ChatGpt, SignInKind.Xai) else SignInKind.entries
         kinds.forEachIndexed { i, kind ->
             val (signedIn, running, _) = ui.signInState(kind)
             Box(Modifier.testTag("signin-${kind.tag}")) {
