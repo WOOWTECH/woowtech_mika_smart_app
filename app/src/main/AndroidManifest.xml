@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 定时任务和提醒准时开始:用户在系统的「闹钟和提醒」里准许(ExactAlarmGuide);不用 USE_EXACT_ALARM -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- 开机后把定时任务的闹钟重新布置好(ScheduleRestoreReceiver;只做这件事) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- 对话页附件可以拍照(走系统相机),声明用到相机、但不是必需:没有相机的设备照常安装。
          有的系统按 APK 特征给应用分类,不声明时 Mika 可能被当成游戏、限制刷新率;这条声明要留着 -->
@@ -162,6 +166,20 @@
         <receiver
             android:name=".setup.PairingCodeReceiver"
             android:exported="false" />
+
+        <!-- 开机、更新、改时间或时区、准时闹钟权限变了:重新布置定时任务的闹钟。这些广播只由系统发出,按要求导出 -->
+        <receiver
+            android:name=".task.ScheduleRestoreReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".task.TriggerAlarmReceiver" android:exported="false" />
 
     </application>
 

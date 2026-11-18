@@ -779,8 +779,9 @@ class TaskRun(
                 provenance, if (conditionCheck) setOf("web", "sandbox") else null, readOnly = conditionCheck,
                 stepBudget = stepLimit)
             // External MCP is outbound only. Keep each connection inside this run's resource scope;
-            // the server allowlist and the normal tool approval rules still apply.
-            if (!conditionCheck && provenance.origin == RunOrigin.Ui) {
+            // the server allowlist and the normal tool approval rules still apply. Like main, every run except a
+            // condition check gets them (scheduled tasks too); child tasks share the parent's connections.
+            if (!conditionCheck) {
                 mcpConnections = (service.application as MikaApp).mcpServers.connectionsFor(
                     resources,
                     resultStore = com.wangzan101.mika.mcp.ConversationMcpResultStore(SandboxDirs(service), conversationId),
@@ -841,8 +842,8 @@ class TaskRun(
                 onSandboxScript = { sandboxNote(StatusCopy.sandboxScript(sandboxOnline())) },
                 imageOps = BitmapImageOps, runSpec = runSpec,
                 userScreens = userScreens,
-                scheduleTrigger = null,
-                scheduleAdmin = null,
+                scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
+                scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
                 childHost = childRunner,
                 // 用户要求时写下或改写个人技能(和自学收下的放在同一处,设置里立刻能看到)
                 personalSkills = memoryRuntime.skills(),

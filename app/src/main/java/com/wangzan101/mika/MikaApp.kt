@@ -332,7 +332,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         // Play edition: do not start the shell helper, accessibility recovery, or cross-app capsule.
         // 上次进程被杀时没结束的运行:现在就标为中断并告知,不等任务服务起来
         runRecovery.recover().let { if (it.isNotEmpty()) Log.w("MikaTask", "${it.size} runs interrupted by process restart") }
-        // 商店版沒有背景定時操控任務，不重啟舊版排程。
+        // 先对一下设备时区:没记过就记下当前的(升级上来的用户也有基线),和记下的不同就重算当地时间计划(关着时改了时区也补上);
+        // 再把定时任务的闹钟布置好
+        scope.launch(Dispatchers.IO) { runCatching { TriggerRuntime.syncTimeZone(this@MikaApp); TriggerRuntime.rearm(this@MikaApp) } }
         // Play edition does not expose USB shell control.
         // 上次导出写到一半被杀留下的空壳条目
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }
