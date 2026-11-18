@@ -78,4 +78,6 @@
     <string name="sandbox_script">正在运行脚本</string>
     <string name="sandbox_online">可联网</string>
     <string name="runtime_preparing">正在准备</string>
+    <string name="task_retry_network">连接中断,正在重试(第 %1$d 次)…</string>
+    <string name="task_retry_busy">模型服务繁忙,正在重试(第 %1$d 次)…</string>
 </resources>

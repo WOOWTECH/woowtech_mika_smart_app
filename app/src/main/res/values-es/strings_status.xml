@@ -82,4 +82,6 @@
     <string name="sandbox_script">Ejecutando un script</string>
     <string name="sandbox_online">con conexión</string>
     <string name="runtime_preparing">Preparando</string>
+    <string name="task_retry_network">Se perdió la conexión. Reintentando (intento %1$d)…</string>
+    <string name="task_retry_busy">El servicio del modelo está ocupado. Reintentando (intento %1$d)…</string>
 </resources>

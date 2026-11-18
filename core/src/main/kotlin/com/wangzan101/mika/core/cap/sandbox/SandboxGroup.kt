@@ -39,8 +39,10 @@ private const val TIMEOUT = "Time limit in seconds, 1-600 (default 60). The comm
 internal interface SandboxTool : AgentTool {
     override val capability: String get() = SANDBOX
     override val offScreen: Boolean get() = true
-    override fun available(ctx: ToolContext) = ctx.sandboxRunner != null
-    override fun offered(ctx: ToolContext) = ctx.sandboxAvailable()
+    /** 要执行代码(命令、脚本):只有文件的工作区([SandboxPort.runsCommands] 为 false)不提供。 */
+    val runsCode: Boolean get() = false
+    override fun available(ctx: ToolContext) = ctx.sandboxRunner?.let { !runsCode || it.runsCommands } == true
+    override fun offered(ctx: ToolContext) = available(ctx) && ctx.sandboxAvailable()
 }
 
 /** 命令与脚本的输出(失败的输出也是事实,照样记)、读到的文件、写入与导出的路径,都是模型可能引用的事实。 */
@@ -49,6 +51,7 @@ private fun ok(r: ToolExecution) = r.content["ok"] == JsonPrimitive(true)
 
 internal object RunCommand : SandboxTool {
     override val verb = Verb.RunCommand
+    override val runsCode = true
     override val label = "处理文件"
     override val risk = Risk.Write
     override val entry = Entry.Opens
@@ -72,6 +75,7 @@ internal object RunCommand : SandboxTool {
 
 internal object RunBundledScript : SandboxTool {
     override val verb = Verb.RunBundledScript
+    override val runsCode = true
     override val label = "运行自带脚本"
     override val risk = Risk.Write
     override val composite = true
@@ -105,7 +109,7 @@ internal object ReadFile : SandboxTool {
             "limit" to int("Bytes to read, 1-262144 (default 65536).", 1, MAX_READ_BYTES),
         ), listOf("path"))
 
-    override suspend fun execute(a: Args, ctx: ToolContext) = ctx.sandboxRunner!!.run { ws, _ -> withContext(Dispatchers.IO) { readFile(a, ws) } }
+    override suspend fun execute(a: Args, ctx: ToolContext) = ctx.sandboxRunner!!.run { ws, _ -> withContext(Dispatchers.IO) { readFile(a, ws, ctx.config.imageOps) } }
     override fun observations(o: JsonObject, r: ToolExecution, log: EvidenceLog) =
         // 读回助手自己用 write_file 写的文件,读到的是它自己写的字,不算证据
         listOfNotNull(if (ok(r) && res(r, "path") !in log.writtenPaths) res(r, "content")?.let { output(it, Place.file("read_file ${res(r, "path")}")) } else null)

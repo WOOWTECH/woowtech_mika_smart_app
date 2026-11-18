@@ -11,16 +11,16 @@ class PlayModelProviderPolicyTest {
         assumeTrue(PlayModelProviderPolicy.enabled)
         assertEquals(ProviderPresets.all.map { it.label }, PlayModelProviderPolicy.presets.map { it.label })
         for (preset in PlayModelProviderPolicy.presets) {
-            assertTrue(PlayModelProviderPolicy.permits(preset.kind, preset.baseUrl))
+            assertTrue(PlayModelProviderPolicy.allows(preset.kind, preset.baseUrl))
         }
-        assertTrue(PlayModelProviderPolicy.permits(ProviderConfig.Kind.OpenAiCompat, "https://gateway.example/v1"))
-        assertTrue(PlayModelProviderPolicy.permits(ProviderConfig.Kind.OpenAiResponses, "https://openrouter.ai/api/v1"))
+        assertTrue(PlayModelProviderPolicy.allows(ProviderConfig.Kind.OpenAiCompat, "https://gateway.example/v1"))
+        assertTrue(PlayModelProviderPolicy.allows(ProviderConfig.Kind.OpenAiResponses, "https://openrouter.ai/api/v1"))
     }
 
     @Test fun cleartextOffThePhoneStaysBlocked() {
         assumeTrue(PlayTransportPolicy.enabled)
-        assertTrue(PlayTransportPolicy.permits("https://gateway.example/v1"))
-        assertTrue(PlayTransportPolicy.permits("http://127.0.0.1:11434/v1"))
-        assertFalse(PlayTransportPolicy.permits("http://192.168.1.10:11434/v1"))
+        assertTrue(PlayTransportPolicy.allows("https://gateway.example/v1"))
+        assertTrue(PlayTransportPolicy.allows("http://127.0.0.1:11434/v1"))
+        assertFalse(PlayTransportPolicy.allows("http://192.168.1.10:11434/v1"))
     }
 }

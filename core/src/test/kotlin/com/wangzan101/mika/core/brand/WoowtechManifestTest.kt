@@ -1,4 +1,4 @@
-// WOOWTECH Play branch: guards restricted alarm permissions of the branded manifest.
+// WOOWTECH Play branch: guards restricted permissions and components of the branded manifest.
 package com.wangzan101.mika.core.brand
 
 import org.junit.Assert.assertEquals
@@ -10,7 +10,8 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * The Play edition has no background alarm capability or alarm permission.
+ * The Play edition schedules tasks with the user-granted exact alarm (SCHEDULE_EXACT_ALARM), never USE_EXACT_ALARM, and
+ * has no phone-control component.
  */
 class WoowtechManifestTest {
     private val androidNs = "http://schemas.android.com/apk/res/android"
@@ -42,13 +43,74 @@ class WoowtechManifestTest {
         assertFalse(manifest("woowtech/AndroidManifest.xml").hasAttribute("package"))
     }
 
-    /** No alarm permission may be brought into the Play build. */
+    /**
+     * Owner decision 2026-11-18: scheduled tasks are back. Play limits USE_EXACT_ALARM to alarm, timer and calendar apps,
+     * so the Play build asks the user for SCHEDULE_EXACT_ALARM (on every API level) and never declares USE_EXACT_ALARM.
+     */
     @Test
-    fun playManifestHasNoExactAlarmPermissions() {
+    fun playManifestUsesOnlyTheUserGrantedExactAlarm() {
         val main = permissions("main/AndroidManifest.xml")
-        assertFalse("SCHEDULE_EXACT_ALARM must not be in the Play manifest", SCHEDULE_EXACT_ALARM in main)
+        assertTrue("scheduled tasks need SCHEDULE_EXACT_ALARM", SCHEDULE_EXACT_ALARM in main)
+        assertEquals("SCHEDULE_EXACT_ALARM must apply to every API level", "", main.getValue(SCHEDULE_EXACT_ALARM))
         assertFalse("USE_EXACT_ALARM must not be in the shared manifest", USE_EXACT_ALARM in main)
+        assertFalse("USE_EXACT_ALARM must not be in the Play manifest", USE_EXACT_ALARM in permissions("woowtech/AndroidManifest.xml"))
         assertFalse("the upstream flavor must not get a manifest of its own", File(app, "upstream/AndroidManifest.xml").exists())
+        val receivers = manifest("main/AndroidManifest.xml").getElementsByTagName("receiver")
+        val names = (0 until receivers.length).map { (receivers.item(it) as Element).getAttributeNS(androidNs, "name") }
+        assertTrue(names.toString(), ".task.TriggerAlarmReceiver" in names)
+    }
+
+    /**
+     * After a reboot the alarms are gone; the boot receiver re-arms them, resumes the computer connection the user left on
+     * (the outbound relay), and never starts phone recovery.
+     */
+    @Test
+    fun bootReceiverRearmsSchedulesAndNeverStartsPhoneRecovery() {
+        val receivers = manifest("main/AndroidManifest.xml").getElementsByTagName("receiver")
+        val restore = (0 until receivers.length).map { receivers.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".task.ScheduleRestoreReceiver" }
+        val actions = restore.getElementsByTagName("action")
+        assertEquals(setOf("android.intent.action.BOOT_COMPLETED", "android.intent.action.MY_PACKAGE_REPLACED",
+            "android.intent.action.TIME_SET", "android.intent.action.TIMEZONE_CHANGED",
+            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"),
+            (0 until actions.length).map { (actions.item(it) as Element).getAttributeNS(androidNs, "name") }.toSet())
+        // 只看代码行(注释里可以提到它们)
+        val code = File(app, "main/java/com/wangzan101/mika/task/ScheduleRestoreReceiver.kt").readLines()
+            .filterNot { val t = it.trimStart(); t.startsWith("*") || t.startsWith("/*") || t.startsWith("//") }.joinToString("\n")
+        listOf("BootRestoreHandler", "PhoneServices", "cap.phone", "deviceAccess").forEach {
+            assertFalse("ScheduleRestoreReceiver must not use $it", it in code)
+        }
+    }
+
+    /**
+     * Owner decision 2026-11-18: the Play edition connects a computer only through the outbound relay, with no device
+     * permissions. The service is not exported (no adb entry that turns on the USB mode), its foreground-service
+     * declaration (also entered in Play Console) says what it keeps open, and in this flavor the runtime never listens on
+     * the phone and offers no screen state, wake or unlock.
+     */
+    @Test
+    fun computerConnectionIsTheOutboundRelayOnly() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val relay = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".mcp.McpService" }
+        assertEquals("false", relay.getAttributeNS(androidNs, "exported"))
+        assertEquals("", relay.getAttributeNS(androidNs, "permission"))
+        assertEquals("specialUse", relay.getAttributeNS(androidNs, "foregroundServiceType"))
+        val properties = relay.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "outbound connection to the user's paired remote gateway" in subtype)
+        assertTrue(subtype, "no screen, wake or unlock access" in subtype)
+        assertFalse(subtype, "private-network" in subtype || "USB" in subtype)
+        val runtime = File(app, "main/java/com/wangzan101/mika/mcp/McpRuntime.kt").readText()
+        assertTrue("McpRuntime listens on the phone in the Play edition",
+            "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in runtime)
+        assertTrue("McpRuntime offers screen state, wake or unlock", "device = null" in runtime && "deviceAccess = false" in runtime)
+        val service = File(app, "main/java/com/wangzan101/mika/mcp/McpService.kt").readText()
+        assertTrue("McpService turns on USB for adb in the Play edition", "relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess" in service)
+        val relayUi = File(app, "main/java/com/wangzan101/mika/ui/RelaySection.kt").readText()
+        assertFalse("the relay page offers wake and unlock", "setRelayDeviceAccess" in relayUi)
     }
 
     @Test
@@ -60,7 +122,7 @@ class WoowtechManifestTest {
             "android.permission.WRITE_SECURE_SETTINGS",
             "android.permission.READ_MEDIA_IMAGES",
             "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "com.android.alarm.permission.SET_ALARM",
         ).forEach { assertFalse("Play manifest requests $it", it in requested) }
         val components = listOf("service", "provider", "receiver", "activity")
             .flatMap { tag -> main.getElementsByTagName(tag).let { nodes ->
@@ -68,6 +130,27 @@ class WoowtechManifestTest {
             } }
         listOf("MikaAccessibilityService", "HelperHandoffProvider", "BootRestoreReceiver", "SelfCheckTargetActivity")
             .forEach { forbidden -> assertFalse("Play manifest still exposes $forbidden", components.any { it.endsWith(forbidden) }) }
+    }
+
+    /**
+     * Owner decision 2026-11-18: the Play edition keeps the one web page the user asked to keep open after a task, like the
+     * direct-download edition. The foreground-service declaration (also entered in Play Console) has to say so, and the
+     * browser must not drop its page keeper for this flavor again.
+     */
+    @Test
+    fun taskServiceDeclaresTheKeptPage() {
+        val services = manifest("main/AndroidManifest.xml").getElementsByTagName("service")
+        val task = (0 until services.length).map { services.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == ".task.TaskService" }
+        val properties = task.getElementsByTagName("property")
+        val subtype = (0 until properties.length).map { properties.item(it) as Element }
+            .single { it.getAttributeNS(androidNs, "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" }
+            .getAttributeNS(androidNs, "value")
+        assertTrue(subtype, "keeps the one web page the user asked to keep open" in subtype)
+        assertTrue(subtype, "at most two hours" in subtype)
+        assertFalse(subtype, "phone task" in subtype || "virtual display" in subtype)
+        val webStack = File(app, "main/java/com/wangzan101/mika/cap/web/WebStack.kt").readText()
+        assertFalse("WebStack drops the page keeper for the Play flavor", "FLAVOR == \"woowtech\"" in webStack)
     }
 
     @Test

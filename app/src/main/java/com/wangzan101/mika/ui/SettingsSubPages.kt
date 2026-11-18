@@ -206,6 +206,13 @@ fun DuringWorkScreen(
     var editingLimit by remember { mutableStateOf(false) }
     var customLimit by remember { mutableStateOf("") }
     PageScaffold(stringResource(R.string.settings_during_work), onBack) {
+        // 商店版付款永远先问:说明文字在商店版的资源里另写(见 PlayApprovalPolicy)
+        GroupLabel(AutonomyCopy.GROUP)
+        GroupCard {
+            ListRow(null, AutonomyCopy.TITLE, AutonomyCopy.SUBTITLE, first = true, onClick = { onAutonomous(!autonomous) }) {
+                MikaSwitch(autonomous, onAutonomous, Modifier.testTag("work-autonomous"))
+            }
+        }
         GroupCard {
             ListRow(MikaIcons.Sun, stringResource(R.string.settings_keep_on), stringResource(R.string.settings_keep_on_sub), first = true, onClick = { onKeepScreenOn(!keepScreenOn) }) {
                 MikaSwitch(keepScreenOn, onKeepScreenOn, Modifier.testTag("work-keep-screen-on"))
@@ -226,6 +233,17 @@ fun DuringWorkScreen(
             onPick = { onStepLimit(it); editingLimit = false },
             onDismiss = { editingLimit = false },
         )
+        // 允许助手改自己的设置:默认关,打开后任务里才有 settings_list、settings_set(商店版只有外观和屏幕常亮)
+        GroupCard {
+            ListRow(
+                MikaIcons.Spark, stringResource(R.string.settings_self_config),
+                stringResource(R.string.settings_self_config_sub),
+                first = true,
+                onClick = { onSelfConfig(!selfConfig) },
+            ) {
+                MikaSwitch(selfConfig, onSelfConfig, Modifier.testTag("work-self-config"))
+            }
+        }
     }
 }
 

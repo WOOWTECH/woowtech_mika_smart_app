@@ -29,7 +29,6 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
 import com.wangzan101.mika.settings.ProviderConfig
 import com.wangzan101.mika.settings.ProviderStore
-import com.wangzan101.mika.settings.PlayModelProviderPolicy
 import com.wangzan101.mika.ui.components.ButtonKind
 import com.wangzan101.mika.ui.components.ButtonSize
 import com.wangzan101.mika.ui.components.GroupCard
@@ -57,6 +56,9 @@ enum class SignInKind(val account: AccountProvider?, val label: String, val tag:
 
     companion object {
         fun of(account: AccountProvider): SignInKind = entries.first { it.account == account }
+
+        /** 「用账号登录」列出的几家。Owner decision 2026-11-18:商店版和直接下载版一样,ChatGPT、xAI / Grok、OpenRouter 都列。 */
+        val offered: List<SignInKind> get() = entries
     }
 }
 
@@ -86,8 +88,7 @@ internal fun ModelSetupUi.signInState(kind: SignInKind): Triple<String?, Boolean
 internal fun AccountSignInGroup(ui: ModelSetupUi, onOpen: (SignInKind) -> Unit, openProvider: (String) -> Unit) {
     GroupLabel(ModelsCopy.SIGN_IN_GROUP)
     GroupCard {
-        val kinds = if (PlayModelProviderPolicy.enabled) listOf(SignInKind.ChatGpt) else SignInKind.entries
-        kinds.forEachIndexed { i, kind ->
+        SignInKind.offered.forEachIndexed { i, kind ->
             val (signedIn, running, _) = ui.signInState(kind)
             Box(Modifier.testTag("signin-${kind.tag}")) {
                 ListRow(

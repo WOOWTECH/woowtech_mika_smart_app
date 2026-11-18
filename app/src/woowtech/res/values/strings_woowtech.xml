@@ -25,9 +25,13 @@
     <string name="drawer_phone_not_ready">Chat, browser, and memory are available</string>
     <string name="settings_all_ready_detail">Model ready · Chat and browser available</string>
     <string name="settings_memory_sub">Memories, skills, and website sign-ins</string>
-    <!-- The Play edition has no autonomous mode, computing environment, repair page or in-app updates. -->
+    <!-- The Play edition has no computing environment, repair page or in-app updates. -->
     <string name="settings_advanced_sub">Network proxy &amp; MCP servers</string>
-    <string name="settings_during_work_sub">Keep screen on, step limit &amp; parallel tasks</string>
+    <string name="settings_during_work_sub">Autonomous mode, keep screen on, step limit &amp; parallel tasks</string>
+    <!-- Owner decision 2026-11-18: autonomous mode is offered, but paying always asks first (PlayApprovalPolicy). -->
+    <string name="dev_autonomy_sub">When on, woowtech agent finishes the task without stopping to ask. Paying always asks you first, on or off.</string>
+    <!-- No phone control in this edition: the self-settings tool only has appearance and screen-on (SelfConfigImpl). -->
+    <string name="settings_self_config_sub">When on, tasks get one tool to read and change these preferences (appearance, screen-on). Models, API keys and anything that deletes data are never included</string>
     <string name="net_proxy_row_sub">For model requests, account sign-in and the in-app browser</string>
     <string name="net_proxy_hint">Used for woowtech agent’s own connections (chat, model lists, account sign-in) and the in-app browser. Addresses on this phone or your local network (localhost, 192.168.x.x, 10.x.x.x, names ending in .local) always connect directly. It may include user:password@, stored encrypted on this phone. Leave empty for a direct connection.</string>
     <string name="net_proxy_container_only">https:// proxies aren’t used for woowtech agent’s connections, which stay direct. Use http:// or socks5:// instead.</string>

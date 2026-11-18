@@ -78,4 +78,6 @@
     <string name="sandbox_script">Menjalankan skrip</string>
     <string name="sandbox_online">online</string>
     <string name="runtime_preparing">Menyiapkan</string>
+    <string name="task_retry_network">Koneksi terputus. Mencoba lagi (percobaan ke-%1$d)…</string>
+    <string name="task_retry_busy">Layanan model sedang sibuk. Mencoba lagi (percobaan ke-%1$d)…</string>
 </resources>

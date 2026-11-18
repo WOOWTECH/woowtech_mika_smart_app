@@ -19,6 +19,7 @@ import com.wangzan101.mika.core.mcp.McpUsb
 import com.wangzan101.mika.core.shell.HelperHandoff
 import com.wangzan101.mika.core.remote.RemoteTasks
 import com.wangzan101.mika.settings.McpSettings
+import com.wangzan101.mika.settings.PlayTransportPolicy
 import com.wangzan101.mika.settings.McpUsbSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -97,7 +98,8 @@ class McpRuntime(
         relayDiscovery.refresh()
     }
 
-    fun listen(): McpModes.Listen = McpModes.listen(settings.enabled.value, usb.enabled.value)
+    fun listen(): McpModes.Listen =
+        McpModes.listen(settings.enabled.value, usb.enabled.value, relayOnly = !PlayTransportPolicy.allowsLocalComputerAccess)
 
     /** 设置页上局域网那种的开关。 */
     fun setEnabled(on: Boolean) {

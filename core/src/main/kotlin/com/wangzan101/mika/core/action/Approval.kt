@@ -30,8 +30,14 @@ enum class ConfirmChoice { Once, Deny;
 
 /** 询问 / 自主:此刻是不是自主模式(中途换成自主时,正在跑的任务从下一步起照它)。由设置提供,测试里换成固定值。 */
 fun interface ApprovalSettings {
-    /** 自主模式:连付款也不先问。 */
+    /** 自主模式:连付款也不先问(除非 [paymentsAlwaysAsk])。 */
     fun autonomous(): Boolean
+
+    /**
+     * 付款永远先问,自主模式也一样(商店版,owner decision 2026-11-18)。自主模式里别的照旧不问,
+     * 只有花钱的那一步照询问时一样要用户这一次的同意。
+     */
+    fun paymentsAlwaysAsk(): Boolean = false
 
     companion object {
         /** 询问(默认):付款和工具声明要问的那几步(见 [Risk.ask])先问。 */

@@ -155,6 +155,25 @@ class ReasoningSettingsTest {
         assertNull(ReasoningOptions.of(old.configFor(ModelRole.Main)!!, oldListed))
     }
 
+    // 列表写明的回复上限(Anthropic 列表的 max_tokens)随列表存下,建模型时交给适配器;旧版本存的列表没有这一项,按型号认
+    @Test fun replyLimitSurvivesReloadAndReachesTheAdapter() {
+        val s = store()
+        val listed = ListedModel("claude-m", maxOutputTokens = 64_000)
+        val p = s.connect("A", ProviderConfig.Kind.Anthropic, "https://api.anthropic.example", "k", listOf(listed))
+        s.use(ModelRole.Main, p.id, "claude-m", caps)
+        val reloaded = store()
+        assertEquals(listed, reloaded.provider(p.id)!!.models!!.single())
+        reloaded.modelFor(ModelRole.Main)
+        assertEquals(64_000, setups.last().modelOutputTokens)
+
+        val file = tmp.root.resolve("providers.json")
+        file.writeText(file.readText().replace(Regex(""","maxOutputTokens":\d+"""), ""))
+        val old = store()
+        assertNull(old.provider(p.id)!!.models!!.single().maxOutputTokens)
+        old.modelFor(ModelRole.Main)
+        assertNull(setups.last().modelOutputTokens)
+    }
+
     @Test fun metadataRefreshKeepsTheSavedChoiceButAllowsResettingAnUnavailableLevel() {
         val s = store()
         val p = connected(s)

@@ -122,6 +122,22 @@ class McpUsbSettingsTest {
         assertFalse(u.enabled.value)
     }
 
+    /** 商店版(relayOnly):电脑连接只走远程网关,开关开着也不监听局域网和 USB;电脑经 adb 也打不开 USB 方式。 */
+    @Test fun relayOnlyNeverListensOnThePhone() {
+        val n = network()
+        val u = usb()
+        n.setEnabled(true)
+        u.enable()
+        assertEquals(McpModes.Listen.Off, McpModes.listen(n.enabled.value, u.enabled.value, relayOnly = true))
+        u.disable()
+        McpModes.apply(McpModes.ACTION_USB_ON, n, u, relayOnly = true)
+        assertFalse(u.enabled.value)
+        // 通知上的「关闭」照样全关
+        McpModes.apply(McpModes.ACTION_TURN_OFF, n, u, relayOnly = true)
+        assertFalse(n.enabled.value)
+        assertEquals(McpModes.Listen.Off, McpModes.listen(n.enabled.value, u.enabled.value))
+    }
+
     @Test fun usbOffLeavesTheNetworkModeAlone() {
         val n = network()
         n.setEnabled(true)

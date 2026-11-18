@@ -82,4 +82,6 @@
     <string name="sandbox_script">Executando um script</string>
     <string name="sandbox_online">online</string>
     <string name="runtime_preparing">Preparando</string>
+    <string name="task_retry_network">A conexão caiu. Tentando de novo (tentativa %1$d)…</string>
+    <string name="task_retry_busy">O serviço do modelo está ocupado. Tentando de novo (tentativa %1$d)…</string>
 </resources>

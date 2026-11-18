@@ -15,7 +15,6 @@ import android.util.Log
 import com.wangzan101.mika.chat.AndroidBranchWorkspace
 import com.wangzan101.mika.chat.ConversationDeleter
 import com.wangzan101.mika.chat.ConversationStore
-import com.wangzan101.mika.core.cap.sandbox.SandboxStatus
 import com.wangzan101.mika.cap.sandbox.AndroidSandbox
 import com.wangzan101.mika.cap.sandbox.Attachments
 import com.wangzan101.mika.ui.AttachFiles
@@ -228,7 +227,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
     }
 
     /** 全局的询问 / 自主和各任务自己的那一份;开发者选项里的「自主模式」经它改。 */
-    val approvalControl: ApprovalControl by lazy { ApprovalControl(approvals) }
+    /** 询问 / 自主;商店版付款永远先问(自主模式也一样,见 [com.wangzan101.mika.settings.PlayApprovalPolicy])。 */
+    val approvalControl: ApprovalControl by lazy { ApprovalControl(approvals, com.wangzan101.mika.settings.PlayApprovalPolicy.paymentsAlwaysAsk) }
 
     /** 各 Run 的队列与展示状态跟 App 进程走，Service 重建时继续使用同一份。 */
     val taskState = TaskCenterState()
@@ -292,9 +292,8 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             runNotes = memory.notes,
             learning = AppLearningActions(app, memory),
             memoryItems = memory.items(),
-            // 附件进对话的工作区,不需要运行环境已准备好:设备支持就给附件按钮
-            sandboxReady = SandboxState.get(app).status.map { it !is SandboxStatus.Unsupported }
-                .stateIn(scope, SharingStarted.Eagerly, SandboxState.get(app).status.value !is SandboxStatus.Unsupported),
+            // 附件进对话的工作区,模型用文件工具读(不需要 Linux 运行环境):任何设备都给附件按钮
+            sandboxReady = kotlinx.coroutines.flow.MutableStateFlow(true),
             sharedFiles = taskState.sharedFiles,
             activities = taskState.activities,
             steers = taskState.steers,
@@ -333,7 +332,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         // Play edition: do not start the shell helper, accessibility recovery, or cross-app capsule.
         // 上次进程被杀时没结束的运行:现在就标为中断并告知,不等任务服务起来
         runRecovery.recover().let { if (it.isNotEmpty()) Log.w("MikaTask", "${it.size} runs interrupted by process restart") }
-        // 商店版沒有背景定時操控任務，不重啟舊版排程。
+        // 先对一下设备时区:没记过就记下当前的(升级上来的用户也有基线),和记下的不同就重算当地时间计划(关着时改了时区也补上);
+        // 再把定时任务的闹钟布置好
+        scope.launch(Dispatchers.IO) { runCatching { TriggerRuntime.syncTimeZone(this@MikaApp); TriggerRuntime.rearm(this@MikaApp) } }
         // Play edition does not expose USB shell control.
         // 上次导出写到一半被杀留下的空壳条目
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }

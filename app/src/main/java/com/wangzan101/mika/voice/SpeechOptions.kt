@@ -17,7 +17,7 @@ object SpeechOptions {
     data class Group(val provider: Provider, val models: List<String>)
 
     /** 能做转写的服务商各一组;列表里只留像语音模型的。 */
-    fun groups(providers: List<Provider>): List<Group> = providers.filter { PlayModelProviderPolicy.permits(it.kind, it.baseUrl) && Transcriber.supports(it) }.map { p ->
+    fun groups(providers: List<Provider>): List<Group> = providers.filter { PlayModelProviderPolicy.allows(it.kind, it.baseUrl) && Transcriber.supports(it) }.map { p ->
         Group(p, p.models.orEmpty().filter(Transcriber::looksLikeSpeech).map { it.id })
     }
 

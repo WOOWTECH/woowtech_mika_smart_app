@@ -44,6 +44,7 @@ import com.wangzan101.mika.MikaApp
 import com.wangzan101.mika.core.action.ConfirmChoice
 import com.wangzan101.mika.core.agent.AgentLoop
 import com.wangzan101.mika.core.agent.FailKind
+import com.wangzan101.mika.core.agent.RetryNotice
 import com.wangzan101.mika.core.agent.ModelRouter
 import com.wangzan101.mika.core.memory.MemoryExtractor
 import com.wangzan101.mika.core.memory.MemoryStore
@@ -461,6 +462,8 @@ class TaskRun(
                 e is RunEvent.State && e.name == "reply_interrupted" -> steerJoin.interrupted(e.detail)
                 e is RunEvent.State && e.name == "reply_finished_before_steer" -> steerJoin.finished(e.detail)
                 e is RunEvent.State && e.name == "steer_received" -> joinSteer(e.detail)
+                // 模型请求一时失败、要重试:卡片上说一声(断线还是服务忙、第几次),下一步的状态会把它换掉
+                e is RunEvent.State && e.name == "model_retry" -> RetryNotice.parse(e.detail)?.let { retryNote(it) }
             }
         }
     }
@@ -490,6 +493,12 @@ class TaskRun(
 
     /** 本任务的沙箱:一个任务一份(导出额度按任务算),工作区是本对话的。 */
     private val sandbox by lazy { AndroidSandbox(service, SandboxState.get(service), onShared = ::addShared) }
+
+    /**
+     * 商店版交给模型的工作区:同一个对话工作区里的附件、网页下载和写出来的文件,只有读、写、搜、导出,
+     * 不跑任何命令或脚本(见 [AndroidSandbox.filesOnly])。照片、PDF、Office 文件由 read_file 直接读。
+     */
+    private val workspaceFiles by lazy { AndroidSandbox.filesOnly(service, onShared = ::addShared) }
 
     /** 沙箱导出了一个文件(share_file 或 `mika share`)。 */
     fun addShared(f: SharedFile) = synchronized(service.taskState.shownLock) { _sharedFiles.value = _sharedFiles.value + f }
@@ -773,13 +782,21 @@ class TaskRun(
                 provenance, if (conditionCheck) setOf("web", "sandbox") else null, readOnly = conditionCheck,
                 stepBudget = stepLimit)
             // External MCP is outbound only. Keep each connection inside this run's resource scope;
-            // the server allowlist and the normal tool approval rules still apply.
-            if (!conditionCheck && provenance.origin == RunOrigin.Ui) {
+            // the server allowlist and the normal tool approval rules still apply. Like main, every run except a
+            // condition check gets them (scheduled tasks too); child tasks share the parent's connections.
+            if (!conditionCheck) {
                 mcpConnections = (service.application as MikaApp).mcpServers.connectionsFor(
                     resources,
                     resultStore = com.wangzan101.mika.mcp.ConversationMcpResultStore(SandboxDirs(service), conversationId),
                     workspace = conversationId,
                 )
+                // 连接失败、超过总时限没连上的只在任务卡片上提示一句,不打断任务;详情在设置页的健康状态里
+                mcpConnections?.failures?.let { failures ->
+                    val names = (service.application as MikaApp).mcpServers.servers.value.associate { it.id to it.name }
+                    McpRunNotice.text(failures, names)?.let { note ->
+                        (_state.value as? TaskState.Running)?.let { publish(it.copy(note = note)) }
+                    }
+                }
             }
             val runApproval = approvalControl.start(remote = provenance.origin == RunOrigin.Mcp).also { approval = it }
             val childRunner = if (provenance.origin == RunOrigin.Ui && web != null) ChildAgentRunner(
@@ -788,13 +805,13 @@ class TaskRun(
                         web = web, webPacing = { PagePacing.human() }, webPlacePace = { PlacePace.of(catalog.sitePace(it)) },
                         webIdleScroll = { IdleScroll(Random.Default) },
                         appPacing = { pace.appPacing() }, appPace = { PlacePace.of(catalog.appPace(it)) }, appIdleScroll = { IdleScroll(Random.Default) },
-                        sandbox = null, workspace = { conversationId }, runSpec = childSpec,
+                        sandbox = workspaceFiles, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision,
                         mcpServers = mcpEndpoints())
                     AgentLoop(model, childTools, PlayAiSafetyPrompt.identity(service.packageName), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
-                        confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
+                        confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedWithoutGate,
                         reviewFinalAnswer = false, flags = speed, outwardPacing = OutwardPacing.human())
                 },
                 store = (service.application as MikaApp).childRuns,
@@ -803,7 +820,8 @@ class TaskRun(
             val tools = toolDispatcher(null, model.capabilities.vision, catalog, recordFrames = true, vision = vision?.let { VisionService(it, BitmapImageOps) },
                 // 设置里允许 Mika 改自己时,才把 settings_list、settings_set 发给模型
                 selfConfig = if (FeatureFlags.get(service).selfConfig()) {
-                    com.wangzan101.mika.settings.SelfConfigImpl(FeatureFlags.get(service))
+                    // 商店版没有操作手机:不给操作节奏、静音、悬浮胶囊这几项
+                    com.wangzan101.mika.settings.SelfConfigImpl(FeatureFlags.get(service), phoneControl = false)
                 } else null,
                 stableRefs = speed.inlineScreen, inlineScreen = speed.inlineScreen,
                 adaptiveVision = speed.adaptiveVision,
@@ -820,15 +838,15 @@ class TaskRun(
                 // 上传只认本对话工作区里的普通文件(与沙箱同一套路径规则);技能目录、工作区外一律越界
                 workspacePath = web?.let { { p: String -> sandbox.uploadCheck(conversationId, p) } },
                 // 工作区 = 对话:同一对话的追问接着用上一轮的文件,不同对话互不可见
-                sandbox = null, workspace = { conversationId },
+                sandbox = workspaceFiles, workspace = { conversationId },
                 onSandboxCommand = { sandboxNote(StatusCopy.sandboxCommand(it, sandboxOnline())) },
                 onSandboxProgress = { sandboxNote(StatusCopy.sandboxProgress(it, sandboxOnline())) },
                 onSandboxPreparing = { sandboxNote(StatusCopy.RUNTIME_PREPARING) },
                 onSandboxScript = { sandboxNote(StatusCopy.sandboxScript(sandboxOnline())) },
                 imageOps = BitmapImageOps, runSpec = runSpec,
                 userScreens = userScreens,
-                scheduleTrigger = null,
-                scheduleAdmin = null,
+                scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
+                scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
                 childHost = childRunner,
                 // 用户要求时写下或改写个人技能(和自学收下的放在同一处,设置里立刻能看到)
                 personalSkills = memoryRuntime.skills(),
@@ -860,10 +878,11 @@ class TaskRun(
                 reviewFinalAnswer = false,
                 inputTimeoutMs = TaskService.INPUT_TIMEOUT_MS,
                 // 询问 / 自主:询问时只有花钱的一步先问(有确认关卡和 request_confirmation);自主时连付款也不问。
-                // 开工时询问、中途换成自主的,下一步起不再问;开工时自主的,换成询问留给下一个任务
+                // 开工时询问、中途换成自主的,下一步起不再问;开工时自主的,换成询问留给下一个任务。
+                // 商店版付款永远先问:自主时也有确认关卡,只有花钱的一步要同意(见 PlayApprovalPolicy)
                 confirmations = runApproval.gate(),
                 approvals = runApproval,
-                autonomous = runApproval.startedAutonomous,
+                autonomous = runApproval.startedWithoutGate,
                 confirmTimeoutMs = TaskService.CONFIRM_TIMEOUT_MS,
                 selfPackage = service.packageName,
                 flags = speed,
@@ -1269,6 +1288,11 @@ class TaskRun(
     private fun sandboxNote(text: String) {
         val s = _state.value as? TaskState.Running ?: return
         publish(s.copy(note = text))
+    }
+
+    private fun retryNote(n: RetryNotice) {
+        val s = _state.value as? TaskState.Running ?: return
+        publish(s.copy(note = ModelRetryCopy.note(n)))
     }
 
     private fun sandboxOnline() = (sandbox.status() as? SandboxStatus.Ready)?.network == true

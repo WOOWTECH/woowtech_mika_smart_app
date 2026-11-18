@@ -49,7 +49,7 @@ internal object OtlpSender {
 
     fun endpoint(text: String): HttpUrl? = text.trim().toHttpUrlOrNull()?.takeIf {
         it.username.isEmpty() && it.password.isEmpty() && it.fragment == null &&
-            (it.isHttps || LocalHosts.isLocal(it.host)) && PlayTransportPolicy.permits(it.toString())
+            (it.isHttps || LocalHosts.isLocal(it.host)) && PlayTransportPolicy.allows(it.toString())
     }
 
     fun validHeader(name: String, value: String): Boolean = value.isEmpty() ||
