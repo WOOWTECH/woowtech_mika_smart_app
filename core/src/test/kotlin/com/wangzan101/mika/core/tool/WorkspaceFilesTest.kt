@@ -4,6 +4,7 @@ import com.wangzan101.mika.core.agent.AgentLoop
 import com.wangzan101.mika.core.agent.FakeModel
 import com.wangzan101.mika.core.agent.TaskState
 import com.wangzan101.mika.core.cap.sandbox.FakeSandbox
+import com.wangzan101.mika.core.cap.web.FakeWebPort
 import com.wangzan101.mika.core.model.ModelReply
 import com.wangzan101.mika.core.model.Part
 import com.wangzan101.mika.core.model.StopReason
@@ -39,8 +40,9 @@ private fun read(path: String) = call("read_file", buildJsonObject { put("path",
 class WorkspaceFilesTest {
     private val sb = FakeSandbox(runsCommands = false)
     private val inbox get() = File(sb.workspaceDir("conv"), "inbox").apply { mkdirs() }
+    /** 商店版的样子:没有手机屏幕,只有内置浏览器和对话的工作区。 */
     private fun dispatcher(vision: Boolean = true, ops: ImageOps? = null) =
-        toolDispatcher(visionEnabled = vision, sandbox = sb, workspace = { "conv" }, imageOps = ops)
+        toolDispatcher(visionEnabled = vision, web = FakeWebPort(), sandbox = sb, workspace = { "conv" }, imageOps = ops)
 
     @Test fun fileToolsAreOfferedWithoutCommandsOrScripts() = runTest {
         val d = dispatcher()
@@ -54,7 +56,7 @@ class WorkspaceFilesTest {
         assertTrue(prompt, "There is no command line here" in prompt)
         assertFalse(prompt, "Linux sandbox" in prompt)
         // 直接下载版的沙箱照旧:命令和文件工具都有
-        val full = toolDispatcher(sandbox = FakeSandbox(), workspace = { "conv" })
+        val full = toolDispatcher(web = FakeWebPort(), sandbox = FakeSandbox(), workspace = { "conv" })
         assertTrue(full.definitions().any { it.name == "run_command" })
     }
 
@@ -128,7 +130,7 @@ class WorkspaceFilesTest {
     @Test fun directDownloadWorkspaceStillReturnsDocumentsAsBinary() = runTest {
         val full = FakeSandbox()
         File(full.workspaceDir("conv"), "a.pdf").writeBytes(byteArrayOf(0x25, 0x50, 0x44, 0x46, 0, -1, -2, 7))
-        val r = toolDispatcher(sandbox = full, workspace = { "conv" }).execute(read("a.pdf")).content
+        val r = toolDispatcher(web = FakeWebPort(), sandbox = full, workspace = { "conv" }).execute(read("a.pdf")).content
         assertEquals("not_text", r.s("error"))
     }
 }
