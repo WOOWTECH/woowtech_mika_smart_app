@@ -99,6 +99,13 @@ public final class ModelConnectionCheck {
     }
 
     private static func classify(_ error: Error) -> Failure {
+        if let account = error as? ModelAccountError {
+            switch account {
+            case .signInExpired, .unauthorized, .planNotEligible, .planNotAllowed: return .authentication
+            case .planLimitReached: return .rateLimited
+            case .contentRefused, .contextTooLong: return .rejected
+            }
+        }
         guard let error = error as? HTTPChatModelError else { return .network }
         switch error {
         case .invalidConfiguration: return .configuration
