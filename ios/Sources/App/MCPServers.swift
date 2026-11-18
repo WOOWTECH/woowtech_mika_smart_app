@@ -33,10 +33,6 @@ final class MCPServers: ObservableObject {
     @Published private(set) var servers: [Server] = []
     @Published private(set) var errorText: AppText?
     @Published private(set) var noticeText: AppText?
-    /// The add form; cleared when the page or the app is left.
-    @Published var nameDraft = ""
-    @Published var endpointDraft = ""
-    @Published var tokenDraft = ""
     /// Invalidates conversation snapshots before a server's endpoint, tool
     /// choice or connection changes, or a server goes away.
     var onConnectionChange: (() -> Void)?
@@ -106,11 +102,7 @@ final class MCPServers: ObservableObject {
         self.init(sessions: [(MCPServerRecord(id: Self.singleServerID, name: name, enabled: true, legacy: false), session)])
     }
 
-    var canAdd: Bool {
-        directory != nil && servers.count < MCPServerDirectory.maximumServers
-            && !nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !endpointDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    var canAddServer: Bool { directory != nil && servers.count < MCPServerDirectory.maximumServers }
 
     func server(id: UUID) -> Server? { servers.first { $0.id == id } }
 
@@ -127,18 +119,18 @@ final class MCPServers: ObservableObject {
     }
 
     /// Saves a new server from the add form. Its endpoint and token are checked
-    /// before anything is written; no connection request is sent.
-    @discardableResult func add() -> UUID? {
+    /// before anything is written; no connection request is sent. The form
+    /// keeps what is typed itself, so nothing typed is published here.
+    @discardableResult func add(name: String, endpoint: String, token: String) -> UUID? {
         guard let directory else { return nil }
         errorText = nil; noticeText = nil
-        let token = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            let record = try directory.add(name: nameDraft, endpoint: endpointDraft, token: token.isEmpty ? nil : token,
+            let record = try directory.add(name: name, endpoint: endpoint, token: token.isEmpty ? nil : token,
                                            to: servers.map(\.record))
             let server = Server(record: record, session: makeSession(directory.store(for: record)))
             wire(server)
             servers.append(server)
-            clearDrafts()
             noticeText = .mcpServerAdded
             return record.id
         } catch {
@@ -201,12 +193,7 @@ final class MCPServers: ObservableObject {
         allowsNetwork && servers.contains { $0.record.enabled && $0.session.canConnect }
     }
 
-    func clearDrafts() { nameDraft = ""; endpointDraft = ""; tokenDraft = "" }
-
-    func appWillLeaveForeground() {
-        clearDrafts()
-        servers.forEach { $0.session.appWillLeaveForeground() }
-    }
+    func appWillLeaveForeground() { servers.forEach { $0.session.appWillLeaveForeground() } }
 
     func appDidBecomeActive() { servers.forEach { $0.session.appDidBecomeActive() } }
 
