@@ -1147,6 +1147,13 @@ final class WoowAssistantUITests: XCTestCase {
         let endpointField = app.secureTextFields["mcp.add.endpoint"]
         revealMCP(endpointField, in: app)
         enter(endpoint, into: endpointField)
+        // The field keeps all of it: in CI run 44332295841 iOS covered it with
+        // Automatic Strong Password and only one character stayed.
+        let typed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", String(repeating: "•", count: endpoint.count)),
+            object: endpointField
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 10), .completed, "The endpoint field keeps every typed character")
         revealMCP(app.buttons["mcp.add.save"], in: app)
         app.buttons["mcp.add.save"].tap()
     }

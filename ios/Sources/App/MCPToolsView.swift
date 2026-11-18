@@ -159,6 +159,7 @@ private struct MCPServerAddForm: View {
                         .onSubmit { focused = nil }
                         .accessibilityIdentifier("mcp.add.name")
                     SecureField(localizer.text(.mcpEndpoint), text: $endpoint)
+                        .mcpSecretEntry()
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -172,6 +173,7 @@ private struct MCPServerAddForm: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     SecureField(localizer.text(.mcpToken), text: $token)
+                        .mcpSecretEntry()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .privacySensitive()
@@ -262,6 +264,7 @@ private struct MCPServerDetail: View {
                             .accessibilityIdentifier("mcp.testIsolation")
                     }
                     SecureField(localizer.text(.mcpEndpoint), text: $session.endpointDraft)
+                        .mcpSecretEntry()
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -277,6 +280,7 @@ private struct MCPServerDetail: View {
                         .foregroundStyle(.secondary)
                     // Like the Play build's optional access token (Bearer header).
                     SecureField(localizer.text(.mcpToken), text: $session.tokenDraft)
+                        .mcpSecretEntry()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .privacySensitive()
@@ -507,5 +511,16 @@ private enum MCPPageStyle {
 
     static func card(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color(red: 26.0 / 255, green: 26.0 / 255, blue: 29.0 / 255) : .white
+    }
+}
+
+private extension View {
+    /// The endpoint and token are secrets, not passwords. With a name field
+    /// above them, iOS read the form as a sign-up form and covered both with
+    /// Automatic Strong Password (CI run 44332295841: no keyboard came up and
+    /// the endpoint kept one character). An explicit non-password content
+    /// type keeps iOS from generating, filling or offering to save a password.
+    func mcpSecretEntry() -> some View {
+        textContentType(.oneTimeCode)
     }
 }
