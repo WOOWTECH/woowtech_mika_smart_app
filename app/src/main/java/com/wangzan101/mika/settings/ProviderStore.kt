@@ -237,13 +237,15 @@ data class RoleChoices(
 /**
  * 建一个模型客户端时额外给的:[headers] 每个请求都带(客户端标识、会话号,见 [ClientHeaders]);
  * [maxOutputTokens] 限制回复长度(连接测试用),null 按适配器默认;[reasoningEffort] 是这个用途选的思考强度;
- * [thinkingTypes] 是模型列表写明这个模型接受的思考方式(见 [ListedModel.thinkingTypes]),没说为 null。
+ * [thinkingTypes] 是模型列表写明这个模型接受的思考方式(见 [ListedModel.thinkingTypes]),没说为 null;
+ * [modelOutputTokens] 是模型列表写明这个模型一次最多能回多少(见 [ListedModel.maxOutputTokens]),没说为 null。
  */
 data class ClientSetup(
     val headers: Map<String, String> = emptyMap(),
     val maxOutputTokens: Int? = null,
     val reasoningEffort: String? = null,
     val thinkingTypes: List<String>? = null,
+    val modelOutputTokens: Int? = null,
 )
 
 /** 「测试并保存」试调用(见 [ProviderStore.probe])的结果。 */
@@ -565,7 +567,7 @@ class ProviderStore(
         ))
         modelFactory(configured, apiKey(cfg.id), listed?.endpoint, ClientSetup(
             headers(p?.sessionHeader, session), reasoningEffort = _roles.value.reasoningEffort(role),
-            thinkingTypes = listed?.thinkingTypes,
+            thinkingTypes = listed?.thinkingTypes, modelOutputTokens = listed?.maxOutputTokens,
         )).metered(source, usage)
     }
 
@@ -792,6 +794,7 @@ class ProviderStore(
                 baseUrl, apiKey.orEmpty(), cfg.model, cfg.capabilities, http,
                 maxTokens = setup.maxOutputTokens,
                 headers = setup.headers, reasoningEffort = setup.reasoningEffort, thinkingTypes = setup.thinkingTypes,
+                outputTokens = setup.modelOutputTokens,
             )
             ProviderConfig.Kind.Gemini ->
                 GeminiModel(baseUrl, apiKey.orEmpty(), cfg.model, cfg.capabilities, http, setup.headers, setup.maxOutputTokens,
@@ -944,6 +947,7 @@ class ProviderStore(
                 reasoning = m["reasoning"]?.jsonPrimitive?.booleanOrNull,
                 reasoningEfforts = m["reasoningEfforts"]?.jsonArray?.map { it.jsonPrimitive.content },
                 thinkingTypes = m["thinkingTypes"]?.jsonArray?.map { it.jsonPrimitive.content },
+                maxOutputTokens = m["maxOutputTokens"]?.jsonPrimitive?.intOrNull,
                 chat = m["chat"]?.jsonPrimitive?.booleanOrNull,
                 endpoint = (m["api"] as? JsonObject)?.let { a ->
                     ModelProtocol.of(a["protocol"]?.jsonPrimitive?.content)?.let { protocol ->
@@ -1029,6 +1033,7 @@ class ProviderStore(
                                         m.reasoning?.let { put("reasoning", it) }
                                         m.reasoningEfforts?.let { levels -> putJsonArray("reasoningEfforts") { levels.forEach { add(it) } } }
                                         m.thinkingTypes?.let { types -> putJsonArray("thinkingTypes") { types.forEach { add(it) } } }
+                                        m.maxOutputTokens?.let { put("maxOutputTokens", it) }
                                         m.chat?.let { put("chat", it) }
                                         m.endpoint?.let { e ->
                                             putJsonObject("api") {
