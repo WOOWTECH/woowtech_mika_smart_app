@@ -48,7 +48,10 @@ try {
   assert.match(privacy, /30 days/);
   assert.doesNotMatch(privacy, /OWNER_KEY|REPORT_ADMIN_KEY/);
   for (const text of ['渥屋助理（woowtech agent）隱私權政策', 'woowtech agent (渥屋助理) Privacy Policy', 'WOOW TECH CO., LTD.',
-    '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>'])
+    '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>',
+    'ChatGPT、xAI（Grok）或 OpenRouter 帳號', 'ChatGPT, xAI (Grok) or OpenRouter account',
+    '<h2>xAI（Grok）與 OpenRouter 帳號登入</h2>', '<h2>xAI (Grok) and OpenRouter sign-in</h2>',
+    'OpenRouter 的 Keys 頁面', "OpenRouter's Keys page"])
     assert.ok(privacy.includes(text), 'privacy policy covers: ' + text);
   assert.doesNotMatch(privacy, /Play edition|商店版|Google Play 版|WoowTech Assistant/, 'one app name, no edition wording');
   response = await fetch(origin + '/privacy/play', { method: 'HEAD', headers: { host: 'assistant-relay.woowtech.io' } });
