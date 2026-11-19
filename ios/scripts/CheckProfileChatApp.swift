@@ -1723,6 +1723,47 @@ private enum CheckProfileChatApp {
         }
     }
 
+    @MainActor static func skillSaveSkipsDuplicateExtraction() async throws {
+        let markdown = """
+        ---
+        name: order-coffee
+        display: 點咖啡
+        description: 使用者要照常點咖啡時用
+        aliases: ["點咖啡"]
+        ---
+        ## 入口
+        先問要哪一家店。
+        ## 步骤
+        1. 選擇咖啡。
+        ## 容易出错的地方
+        不要重複下單。
+        ## 怎样算办成
+        拿到訂單編號。
+        ## 什么时候停下交给用户
+        要付款的時候。
+        """
+        for succeeds in [true, false] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, "enable extraction")
+            let quote = "把點咖啡的做法存成技能"
+            let command = try memoryCommand("skill_save", ["markdown": succeeds ? markdown : "invalid", "quote": quote])
+            let extraction = #"{"ops":[{"op":"add","kind":"procedure","content":"點咖啡的做法","quote":"點咖啡的做法"}]}"#
+            let model = ScriptedModel([.init(command), .init(finished), .init(extraction)])
+            let session = env.session(model)
+            let task = try start(session, draft: quote)
+            await task.value
+            await env.store.memoryOrganizingFinished()
+            let calls = await model.requests.count
+            if succeeds {
+                try check(env.reopen().skills.installed.count == 1, "successful skill save is durable")
+                try check(env.reopen().memory.memories.isEmpty && calls == 2, "successful skill save does not create a duplicate pending procedure")
+            } else {
+                try check(env.reopen().skills.installed.isEmpty && env.reopen().memory.memories.count == 1 && calls == 3,
+                          "failed skill save still permits ordinary extraction")
+            }
+        }
+    }
+
     @MainActor static func memoryNotesThroughExtraction() async throws {
         for outcome in ["newMemory", "empty", "failure", "cancel"] {
             let env = try Environment(); defer { try? env.close() }
@@ -2079,6 +2120,7 @@ private enum CheckProfileChatApp {
             try await group("chatLearningLikePlay", chatLearningLikePlay)
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
+            try await group("skillSaveSkipsDuplicateExtraction", skillSaveSkipsDuplicateExtraction)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
             try await group("toolForgetSkipsExtraction", toolForgetSkipsExtraction)
             try await group("mcpRemoteCallThenMemorySave", mcpRemoteCallThenMemorySave)
@@ -2108,6 +2150,7 @@ private enum CheckProfileChatApp {
 
 #if !PROFILE_CHAT_APP_STANDALONE
 final class ProfileChatAppIntegrationTests: XCTestCase {
+    @MainActor func testSkillSaveSkipsDuplicateExtraction() async throws { try await CheckProfileChatApp.skillSaveSkipsDuplicateExtraction() }
     @MainActor func testChatRepliesIgnoreLearningChanges() async throws { try await CheckProfileChatApp.chatRepliesIgnoreLearningChanges() }
     @MainActor func testCrossInstanceApprovalAndCancellation() async throws {
         try await CheckProfileChatApp.crossInstanceApprovalAndCancellation()

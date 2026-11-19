@@ -148,7 +148,7 @@ public struct ChatSkillCatalog: Sendable {
             // A Chinese goal is usually one word: a name inside the sentence counts too.
             else if names.contains(where: { $0.contains(token) || ($0.count >= 2 && token.contains($0)) }) { points = 60 }
             else if terms.contains(token) { points = 50 }
-            else if terms.contains(where: { $0.contains(token) }) { points = 40 }
+            else if terms.contains(where: { !$0.isEmpty && ($0.contains(token) || ($0.count >= 2 && token.contains($0))) }) { points = 40 }
             else if description.contains(token) { points = 20 }
             else { points = 0 }
             return total + points
@@ -181,7 +181,7 @@ public struct ChatSkillCatalog: Sendable {
         let item = ChatSkillItem(kind: ChatSkillItem.personalKind, name: skill.name,
                                  display: one("display").flatMap { $0.isEmpty ? nil : $0 } ?? skill.name,
                                  description: (trial ? "[unverified: check the result when trying it] " : "") + (one("description") ?? ""),
-                                 aliases: many("aliases"), terms: many("apps") + many("domains"),
+                                 aliases: many("aliases"), terms: many("terms") + many("apps") + many("domains"),
                                  files: [ChatSkillItem.mainFile])
         let body = ChatSkillFrontMatter.parse(skill.markdown).body
         let valid = one("name") == skill.name && !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

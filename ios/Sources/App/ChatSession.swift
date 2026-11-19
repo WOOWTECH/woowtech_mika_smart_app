@@ -309,6 +309,8 @@ final class ChatSession: ObservableObject {
     /// The request whose own memory tool forgot an entry; its words are not
     /// organized again afterwards (see LearningStore.rememberAfterReply).
     private var memoryForgotRequestID: UUID?
+    /// A successful skill save already handled this request's procedure.
+    private var skillSavedRequestID: UUID?
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
     private var mcpFormatCorrections = 0
@@ -1112,7 +1114,7 @@ final class ChatSession: ObservableObject {
                 }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
-                if self.localCommandRefusedRequestID != id {
+                if self.localCommandRefusedRequestID != id && self.skillSavedRequestID != id {
                     self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
                         expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
                         preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [],
@@ -1665,9 +1667,11 @@ final class ChatSession: ObservableObject {
             save: { [weak self] markdown, version in
                 guard let self, self.requestID == id else { throw CancellationError() }
                 // The model's own save, like Play's: it keeps this request going.
-                return try self.learning.commitChatSkillSave(markdown, version: version, expectedGeneration: generation,
-                                                             availableToolNames: toolNames,
-                                                             builtinNames: self.chatSkillCatalog().builtinNames)
+                let receipt = try self.learning.commitChatSkillSave(markdown, version: version, expectedGeneration: generation,
+                                                                    availableToolNames: toolNames,
+                                                                    builtinNames: self.chatSkillCatalog().builtinNames)
+                self.skillSavedRequestID = id
+                return receipt
             },
             onStep: { [weak self] step in
                 guard let self, self.requestID == id else { return }
