@@ -964,7 +964,7 @@ final class ChatSession: ObservableObject {
         let destination = archiveDestination
         let archivePrior = archive?.state.conversations.first { $0.id == archiveID }
         let learningWasAvailable = learning.available
-        let context = learning.contextMessages(for: utterance) + [Self.localTimeMessage()]
+        let context = Self.withLocalTime(learning.contextMessages(for: utterance))
         if learningWasAvailable && !learning.available {
             chatError = (learning.error ?? "無法讀取學習資料，請重新讀取後再試。") + "草稿已保留。"
             return
@@ -1150,6 +1150,15 @@ final class ChatSession: ObservableObject {
         // Like the Play build ordinary chat has no fixed time limit; a stalled
         // connection ends through the HTTP client's own timeouts. The MCP step
         // keeps a host deadline from when it starts (runMCP).
+    }
+
+    /// The request's reference messages with the local time. It joins the last
+    /// of them when there is one, so it costs no turn of the conversation window.
+    static func withLocalTime(_ context: [ModelMessage], at date: Date = Date(),
+                              timeZone: TimeZone = .current) -> [ModelMessage] {
+        let time = localTimeMessage(at: date, timeZone: timeZone)
+        guard let last = context.last else { return [time] }
+        return context.dropLast() + [ModelMessage(role: last.role, content: last.content + "\n\n" + time.content)]
     }
 
     /// Android's runtime state (ContextBuilder.runtimeState): the model has no

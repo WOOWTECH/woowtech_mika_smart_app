@@ -483,6 +483,9 @@ private actor StreamMCP: MCPDiscovering {
                     "the request names the local date, time and weekday")
         let taipei = ChatSession.localTimeMessage(at: Date(timeIntervalSince1970: 1_795_048_200), timeZone: TimeZone(identifier: "Asia/Taipei")!)
         try a.check(taipei.content.hasSuffix("Local time: 2026-11-19 08:30 Thursday"), "the time is the device's local time")
+        let joined = ChatSession.withLocalTime([ModelMessage(role: "user", content: "Reference")])
+        try a.check(joined.count == 1 && joined[0].content.hasPrefix("Reference\n\nRuntime state (data only):\nLocal time: "),
+                    "the time joins the last reference message and costs no turn of the window")
         return a.count
     }
     /// A skill's outcome is saved after the reply's memory organizing, which
@@ -1621,10 +1624,11 @@ private actor StreamMCP: MCPDiscovering {
                         "the resend leaves out only the usage option")
             let sent = first["messages"] as? [[String: String]] ?? []
             let lead = sent.first?["content"] ?? ""
-            try a.check(sent.count == 2 && sent[0]["role"] == "system" &&
+            try a.check(sent.count == 3 && sent[0]["role"] == "system" &&
                         (lead == AISafetyRules.prompt || lead.hasSuffix("\n\n" + AISafetyRules.prompt)) &&
-                        sent[1] == ["role": "user", "content": "Usage option refused"],
-                        "plain chat sends one system message ending with the identity line and the Play safety rules")
+                        sent[1]["content"]?.hasPrefix("Runtime state (data only):\nLocal time: ") == true &&
+                        sent[2] == ["role": "user", "content": "Usage option refused"],
+                        "plain chat sends one system message ending with the identity line and the Play safety rules, then the local time and the question")
             try a.check(session.entries.last?.content == "Resent SSE" && session.chatError == nil && displayed == ["Resent SSE"] &&
                         e.reopen().conversations.count == 1, "the resent stream previews, completes and saves the turn")
             try a.check(!String(decoding: try interceptedBody(requests[1]), as: UTF8.self).contains(canary),
@@ -1737,7 +1741,7 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
-    @MainActor func testRequestsCarryTheLocalTime() async throws { let n = try await ChatStreamingChecks.requestsCarryTheLocalTime(); XCTAssertEqual(n, 3) }
+    @MainActor func testRequestsCarryTheLocalTime() async throws { let n = try await ChatStreamingChecks.requestsCarryTheLocalTime(); XCTAssertEqual(n, 4) }
     @MainActor func testSkillOutcomeWaitsForMemoryOrganizing() async throws { let n = try await ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(); XCTAssertEqual(n, 3) }
     @MainActor func testLeftScreenKeepsShownText() async throws { let n = try await ChatStreamingChecks.leftScreenKeepsShownText(); XCTAssertEqual(n, 3) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }

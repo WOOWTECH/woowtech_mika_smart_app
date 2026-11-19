@@ -988,8 +988,12 @@ private enum CheckProfileChatApp {
         let latestPairs = (4..<19).flatMap { index in
             [ModelMessage(role: "user", content: prompts[index]), ModelMessage(role: "assistant", content: answers[index])]
         }
-        try check(last == latestPairs + context + [ModelMessage(role: "user", content: prompts[19])],
-                  "Final client input contains exactly the latest fifteen complete pairs, unchanged context and complete current words")
+        // The local time joins the last reference message, so it costs no turn.
+        let sentContext = last[last.count - 2]
+        try check(Array(last.prefix(30)) == latestPairs && last.last == ModelMessage(role: "user", content: prompts[19])
+                  && sentContext.role == context[0].role
+                  && sentContext.content.hasPrefix(context[0].content + "\n\nRuntime state (data only):\nLocal time: "),
+                  "Final client input contains exactly the latest fifteen complete pairs, the context with the local time and complete current words")
         try check(last.count == 32 && requests[19].count == 33,
                   "Window and additional flow system message are counted independently")
         try check(session.chatNotice == "本次傳送最近 15 輪對話、本輪完整訊息及參考資料；較早 4 輪仍在畫面中，但未傳送。",
