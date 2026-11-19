@@ -298,6 +298,9 @@ final class ChatSession: ObservableObject {
     /// The interface language for text a web task writes into the conversation.
     var interfaceLanguage: @MainActor () -> AppDisplayLanguage = { .traditionalChinese }
     private var memoryReceiptRequestID: UUID?
+    /// The request whose own memory tool forgot an entry; its words are not
+    /// organized again afterwards (see LearningStore.rememberAfterReply).
+    private var memoryForgotRequestID: UUID?
     private var mcpPhase = "idle"
     private var mcpModelCalls = 0
     private var mcpFormatCorrections = 0
@@ -1104,7 +1107,8 @@ final class ChatSession: ObservableObject {
                 if self.localCommandRefusedRequestID != id {
                     self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
                         expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
-                        preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
+                        preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [],
+                        toolForgot: self.memoryForgotRequestID == id)
                 }
                 self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
                     priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
@@ -1620,6 +1624,7 @@ final class ChatSession: ObservableObject {
                         conversationID: conversationID)
                     memoryReceipt = receipt
                     memoryReceiptRequestID = requestID
+                    if receipt.note.kind == .forgot { memoryForgotRequestID = requestID }
                     try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
                 } catch { try refuse(toolName, error) }
             }
@@ -1826,6 +1831,7 @@ final class ChatSession: ObservableObject {
                                                         conversationID: conversationID)
             memoryReceipt = receipt
             memoryReceiptRequestID = requestID
+            if receipt.note.kind == .forgot { memoryForgotRequestID = requestID }
             return .committedReceipt(json: try receipt.resultJSON())
         }
     }
@@ -1881,6 +1887,7 @@ final class ChatSession: ObservableObject {
         profileReceiptRequestID = nil
         memoryReceipt = nil
         memoryReceiptRequestID = nil
+        memoryForgotRequestID = nil
         chatError = nil; chatNotice = "已開啟新對話；已確認的記憶與技能保留。"
         shownSendBlocker = nil
     }

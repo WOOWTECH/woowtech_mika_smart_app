@@ -1761,6 +1761,41 @@ private enum CheckProfileChatApp {
         }
     }
 
+    /// Like Android's RunLearning: a reply whose own tool forgot a memory is not
+    /// organized again. On the iPhone the organizer read the same words and then
+    /// forgot the similar memory the person had kept.
+    @MainActor static func toolForgetSkipsExtraction() async throws {
+        for path in ["chat", "mcp"] {
+            let env = try Environment(); defer { try? env.close() }
+            try check(env.store.updatePreferences { $0.autoRemember = true }, path + ": enable background extraction")
+            try check(env.store.mutateMemory {
+                _ = try $0.add(kind: .preference, content: "Prefer jasmine tea", keywords: ["tea"])
+                _ = try $0.add(kind: .preference, content: "Prefer green tea", keywords: ["tea"])
+            }, path + ": seed two similar memories")
+            guard let jasmine = env.store.memory.memories.first(where: { $0.content == "Prefer jasmine tea" })?.id else {
+                throw CheckFailure(check: path + ": jasmine memory ID")
+            }
+            let quote = "Please forget my tea preference, the jasmine one"
+            // What the organizer answered on the iPhone: the same words, aimed at what was left.
+            let organizer = ##"{"ops":[{"op":"forget","target":"#1","quote":"forget my tea preference"}]}"##
+            let model = ScriptedModel([.init(try memoryCommand("memory_search", ["query": "tea"])),
+                                       .init(try memoryEdit(jasmine, quote: quote)), .init(finished), .init(organizer)])
+            let connection = path == "mcp" ? try await connectedMCP(LearningMCPServer()) : nil
+            defer { connection?.disconnect() }
+            let session = env.session(model)
+            let running: Task<Void, Never>
+            if let connection { running = try startMCP(session, connection: connection, draft: quote) }
+            else { running = try start(session, draft: quote) }
+            await running.value
+            try await until(path + ": background learning idle") { !env.store.isLearning }
+            let calls = await model.requests
+            try check(session.chatError == nil && session.entries.count == 2 && calls.count == 3,
+                      path + ": after its tool forgot a memory, the reply ends without an organizer request")
+            try check(env.reopen().memory.memories.map(\.content) == ["Prefer green tea"],
+                      path + ": only the memory the person named is forgotten")
+        }
+    }
+
     #if DEBUG
     @MainActor static func actualUIFixtureMCPLearning() async throws {
         let env = try Environment(); defer { try? env.close() }
@@ -2045,6 +2080,7 @@ private enum CheckProfileChatApp {
             try await group("memoryWriteFailureAndPriorReceipt", memoryWriteFailureAndPriorReceipt)
             try await group("memoryPostCommitAndLateCancellation", memoryPostCommitAndLateCancellation)
             try await group("memoryNotesThroughExtraction", memoryNotesThroughExtraction)
+            try await group("toolForgetSkipsExtraction", toolForgetSkipsExtraction)
             try await group("mcpRemoteCallThenMemorySave", mcpRemoteCallThenMemorySave)
             try await group("mcpSlowServerDoesNotBlockTheOthers", mcpSlowServerDoesNotBlockTheOthers)
             try await group("mcpProfileReceiptSurvivesRemoteFailure", mcpProfileReceiptSurvivesRemoteFailure)
@@ -2146,6 +2182,9 @@ final class ProfileChatAppIntegrationTests: XCTestCase {
     }
     @MainActor func testMemoryToolNotesSurviveActualBackgroundExtraction() async throws {
         try await CheckProfileChatApp.memoryNotesThroughExtraction()
+    }
+    @MainActor func testToolForgetSkipsBackgroundExtraction() async throws {
+        try await CheckProfileChatApp.toolForgetSkipsExtraction()
     }
     #if DEBUG
     @MainActor func testActualUIFixtureEdits() async throws {
