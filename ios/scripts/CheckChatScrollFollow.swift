@@ -204,6 +204,33 @@ enum CheckChatScrollFollow {
         swinging.conversationChanged()
         expect(swinging.observe(sample(800, 800)))
 
+        // Lazy layout can report a new maximum on every scroll even though
+        // no transcript data changed. Only three scrolls may be issued.
+        var progressive = ChatScrollFollowPolicy()
+        var progressiveGranted = 0
+        for step in 0..<30 {
+            let height = 3000.0 + Double(step * 20)
+            if progressive.observe(sample(height, height - 1000), contentRevision: 1) {
+                progressiveGranted += 1
+            }
+        }
+        expect(progressiveGranted == ChatScrollFollowPolicy.maximumTailScrollsWithoutGrowth)
+        // A real streaming update restores the budget even if its geometry
+        // is smaller than a previous lazy-layout maximum.
+        expect(progressive.observe(sample(3200, 2200), contentRevision: 2))
+        expect(progressive.observe(sample(3220, 2220), contentRevision: 3))
+
+        // A real content update cannot pull someone reading earlier text.
+        progressive.beginDrag()
+        progressive.userDraggedTowardEarlierContent()
+        expect(!progressive.observe(sample(3220, 2500), contentRevision: 3))
+        progressive.endDrag()
+        expect(progressive.settle(expectedRevision: progressive.pendingSettleRevision!))
+        expect(!progressive.followsTail)
+        expect(!progressive.observe(sample(3300, 2580), contentRevision: 4))
+        progressive.userRequestedLatest()
+        expect(progressive.observe(sample(3320, 2600), contentRevision: 5))
+
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }

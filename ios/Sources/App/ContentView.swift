@@ -1002,7 +1002,7 @@ private struct ChatView: View {
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
-            if updateFollow({ $0.observe(position, hasTranscript: hasTranscript) }) {
+            if updateFollow({ $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }) {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
             scheduleScrollSettle()

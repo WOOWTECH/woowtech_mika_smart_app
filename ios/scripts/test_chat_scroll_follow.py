@@ -30,7 +30,7 @@ class ChatScrollFollowTests(unittest.TestCase):
     def test_mutation_restoring_empty_state_tail_follow_fails(self):
         source = POLICY.read_text()
         guard = 'guard hasTranscript, current.isValid else { return false }'
-        self.assertEqual(source.count(guard), 1)
+        self.assertGreaterEqual(source.count(guard), 1)
         result = self.compile_and_run(source.replace(guard, 'guard current.isValid else { return false }'))
         self.assertNotEqual(result.returncode, 0, 'The old empty-state tail behavior must fail the regression')
 
@@ -38,7 +38,7 @@ class ChatScrollFollowTests(unittest.TestCase):
     def test_mutation_removing_the_scroll_budget_fails(self):
         source = POLICY.read_text()
         budget = 'guard wanted, tailScrollsWithoutGrowth < Self.maximumTailScrollsWithoutGrowth else { return false }'
-        self.assertEqual(source.count(budget), 1)
+        self.assertEqual(source.count(budget), 2)
         result = self.compile_and_run(source.replace(budget, 'guard wanted else { return false }'))
         self.assertNotEqual(result.returncode, 0, 'Endless tail scrolls without new content must fail the regression')
 

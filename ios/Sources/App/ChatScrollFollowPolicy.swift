@@ -34,6 +34,7 @@ struct ChatScrollFollowPolicy {
     /// and more wait for new content or the person.
     private var tailScrollsWithoutGrowth = 0
     private var tallestContent = 0.0
+    private var contentRevision: UInt64?
     static let maximumTailScrollsWithoutGrowth = 3
 
     var pendingSettleRevision: Int? { isSettling ? movementRevision : nil }
@@ -134,6 +135,22 @@ struct ChatScrollFollowPolicy {
         return true
     }
 
+    /// A content revision is supplied by the transcript model, not geometry.
+    /// Layout remeasurement cannot renew the budget, even if every measured
+    /// height exceeds the previous maximum.
+    mutating func observe(_ current: ChatTranscriptViewport, contentRevision: UInt64,
+                          hasTranscript: Bool = true) -> Bool {
+        let wanted = wantsTailScroll(current, hasTranscript: hasTranscript)
+        guard hasTranscript, current.isValid else { return false }
+        if self.contentRevision != contentRevision {
+            self.contentRevision = contentRevision
+            tailScrollsWithoutGrowth = 0
+        }
+        guard wanted, tailScrollsWithoutGrowth < Self.maximumTailScrollsWithoutGrowth else { return false }
+        tailScrollsWithoutGrowth += 1
+        return true
+    }
+
     private mutating func wantsTailScroll(_ current: ChatTranscriptViewport, hasTranscript: Bool) -> Bool {
         // Empty-state examples are browsed independently of transcript follow.
         // Do not record their geometry: the first real message starts fresh.
@@ -172,6 +189,7 @@ struct ChatScrollFollowPolicy {
         followsTail = true
         previous = nil
         tallestContent = 0
+        contentRevision = nil
         tailScrollsWithoutGrowth = 0
         isDragging = false
         isSettling = false

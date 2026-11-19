@@ -238,8 +238,16 @@ final class ChatSession: ObservableObject {
     @Published var baseURLDraft = ""
     @Published var modelDraft = ""
     @Published var keyDraft = ""
-    @Published private(set) var entries: [ChatEntry] = []
-    @Published private(set) var replyPreview: ChatReplyPreview?
+    /// Changes only when transcript data changes, never on a layout pass.
+    private(set) var transcriptContentRevision: UInt64 = 0
+    @Published private(set) var entries: [ChatEntry] = [] {
+        didSet { transcriptContentRevision &+= 1 }
+    }
+    @Published private(set) var replyPreview: ChatReplyPreview? {
+        didSet {
+            if replyPreview != oldValue { transcriptContentRevision &+= 1 }
+        }
+    }
     /// Photos and files waiting for the next prompt, in the order picked (Android's tray).
     @Published private(set) var pendingAttachments: [ChatAttachmentItem] = []
     /// While picked files are copied, "+" and send wait, as on Android.
