@@ -189,19 +189,19 @@ public struct MemoryToolRun: Sendable {
             guard MemorySafety.matches(positive, quote), !messages.contains(where: { MemorySafety.matches(negative, $0) }) else {
                 throw MemoryToolError.editNotRequested
             }
+            // Like Android's memory_forget, the ID this run's search returned
+            // selects the record, also among several results: nobody can say a
+            // stored ID, and the model asks in plain words when it cannot tell.
             guard let candidates, let rawID = request.target,
                   let id = candidates.first(where: { $0.uuidString == rawID }) else { throw MemoryToolError.notFound }
-            if candidates.count > 1 {
-                let pattern = "(?<![A-Za-z0-9_-])" + NSRegularExpression.escapedPattern(for: rawID) + "(?![A-Za-z0-9_-])"
-                guard quote.range(of: pattern, options: .regularExpression) != nil else {
-                    throw MemoryToolError.ambiguousTarget
-                }
-            }
             targetID = id
         }
         if op != .delete {
+            // An update may keep names and numbers the record already holds:
+            // they came from the person when it was saved, not from a tool.
+            let saved = snapshot.memories.first { $0.id == targetID }.map { [$0.content] + $0.keywords } ?? []
             guard ([request.content!] + (request.keywords ?? [])).allSatisfy({
-                MemoryToolGrounding.supported($0, quote: quote, utterances: utterances)
+                MemoryToolGrounding.supported($0, quote: quote, utterances: utterances + saved)
             }) else { throw MemoryToolError.contentNotFromUser }
         }
         let sourceQuote = quote.trimmingCharacters(in: .whitespacesAndNewlines)

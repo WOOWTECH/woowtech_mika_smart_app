@@ -48,11 +48,15 @@ struct ChatReplyBlocksView: View {
         }
     }
 
+    /// A cell keeps its text on one line, at its own width: its size does not
+    /// depend on the width the grid tries in each layout pass, so the table has
+    /// the same height every time (a wrapping cell could change it from pass to
+    /// pass inside the lazy transcript). A wide table scrolls sideways.
     private func cell(_ text: AttributedString, heading: Bool) -> some View {
         Text(text)
             .font(.system(size: 14.5, weight: heading ? .semibold : .regular))
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(minWidth: 56, maxWidth: 240, alignment: .leading)
+            .fixedSize()
+            .frame(minWidth: 56, alignment: .leading)
             .padding(.horizontal, 10).padding(.vertical, 7)
     }
 }

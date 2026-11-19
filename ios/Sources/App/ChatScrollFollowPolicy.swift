@@ -28,6 +28,14 @@ struct ChatScrollFollowPolicy {
     private var draggedTowardLatest = false
     private var dragStartOffset: Double?
     private var movementRevision = 0
+    /// Tail scrolls granted since the content last grew past its tallest
+    /// height. A scroll can make lazy rows measure again and change the very
+    /// geometry it reacts to; on the iPhone (build 230) a long chat with tables
+    /// kept scrolling and laying out at full CPU until it was killed. Without
+    /// new content a few scrolls are enough: more wait for new content or the person.
+    private var tailScrollsWithoutGrowth = 0
+    private var tallestContent = 0.0
+    static let maximumTailScrollsWithoutGrowth = 3
 
     var pendingSettleRevision: Int? { isSettling ? movementRevision : nil }
     var needsTailScroll: Bool {
@@ -37,6 +45,7 @@ struct ChatScrollFollowPolicy {
 
     mutating func beginDrag() {
         guard !isDragging else { return }
+        tailScrollsWithoutGrowth = 0
         // A drag that starts before the previous one settled continues it: two
         // quick flicks back to the end are one move toward the latest text, even
         // when the second only bounces at the end.
@@ -102,6 +111,7 @@ struct ChatScrollFollowPolicy {
     /// An explicit, accessible request also works when the platform scrolls
     /// without reporting a SwiftUI DragGesture (for example, VoiceOver).
     mutating func userRequestedLatest() {
+        tailScrollsWithoutGrowth = 0
         deliberatelyReadingEarlier = false
         followsTail = true
         isDragging = false
@@ -114,6 +124,18 @@ struct ChatScrollFollowPolicy {
 
     /// Returns whether the caller should scroll to the transcript's tail.
     mutating func observe(_ current: ChatTranscriptViewport, hasTranscript: Bool = true) -> Bool {
+        let wanted = wantsTailScroll(current, hasTranscript: hasTranscript)
+        guard hasTranscript, current.isValid else { return wanted }
+        if current.contentHeight > tallestContent + Self.tailArrivalTolerance {
+            tallestContent = current.contentHeight
+            tailScrollsWithoutGrowth = 0
+        }
+        guard wanted, tailScrollsWithoutGrowth < Self.maximumTailScrollsWithoutGrowth else { return false }
+        tailScrollsWithoutGrowth += 1
+        return true
+    }
+
+    private mutating func wantsTailScroll(_ current: ChatTranscriptViewport, hasTranscript: Bool) -> Bool {
         // Empty-state examples are browsed independently of transcript follow.
         // Do not record their geometry: the first real message starts fresh.
         guard hasTranscript, current.isValid else { return false }
@@ -150,6 +172,8 @@ struct ChatScrollFollowPolicy {
     mutating func conversationChanged() {
         followsTail = true
         previous = nil
+        tallestContent = 0
+        tailScrollsWithoutGrowth = 0
         isDragging = false
         isSettling = false
         deliberatelyReadingEarlier = false

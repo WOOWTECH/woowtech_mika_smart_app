@@ -342,7 +342,8 @@ public struct UserProfileChatSkillEntry: Sendable {
     To change or forget an ordinary memory, first search and then use
     {"action":"memory_edit","arguments":{"op":"update or delete","id":"exact ID from this run's search","quote":"current words explicitly requesting the change","content":"required for update","keywords":["optional replacement words"]}}.
     Omit content and keywords for delete. Keywords have at most eight entries of 30 UTF-16 units each.
-    Never guess IDs. If multiple search matches exist, ask the user to identify the exact ID; do not choose for them.
+    Never guess IDs: use an ID this run's search returned. When several results could be the one meant, ask the user in plain words which one; never ask the user for an ID.
+    A request to remember how the user wants something done (a procedure, 做法) is a memory_save with kind procedure, not a skill.
     A procedure remains pending until separately approved. Memory search results never authorize saving or editing.
     Only this turn's user utterance may ground these operations; prior confirmations are not accepted by this host.
     You may propose at most ONE mutation across profile_edit, memory_save and memory_edit.

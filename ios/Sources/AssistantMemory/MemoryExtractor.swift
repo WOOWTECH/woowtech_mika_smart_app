@@ -135,6 +135,7 @@ public struct MemoryExtractor: Sendable {
     Return only a JSON object: {"ops":[{"op":"add","kind":"fact","content":"...","keywords":[],"quote":"..."}]}.
     Allowed kinds: fact, preference, procedure. Use at most five operations, 200 UTF-16 units per content, eight short keywords.
     Quote an exact supporting passage from utterances. Never invent specific names, numbers, locations or preferences.
+    Content restates only what the user said: never add conditions, confirmations, steps or details they did not say.
     Exclude credentials, identification/payment numbers, ephemeral task parameters, web pages, tool output and assistant suggestions.
     For a lasting correction, use op "update" with the related target label and replacement content instead of adding a duplicate.
     For an explicit unambiguous user request to forget, use op "forget" with its target and exact quote. Negated deletion is not permission.

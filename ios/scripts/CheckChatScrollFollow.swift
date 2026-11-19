@@ -187,6 +187,23 @@ enum CheckChatScrollFollow {
         expect(emptyBrowsing.observe(sample(600, 600), hasTranscript: true))
         expect(!emptyBrowsing.observe(sample(600, 500), hasTranscript: true))
 
+        // A tail scroll can make lazy rows measure again, so the geometry can
+        // swing between two heights with the reader's place unchanged. Without
+        // new content the scrolls stop after a few: layout and scrolling cannot
+        // feed each other forever. New content or the person's request resumes them.
+        var swinging = ChatScrollFollowPolicy()
+        var granted = 0
+        for step in 0..<40 where swinging.observe(step % 2 == 0 ? sample(3000, 2000) : sample(2900, 1900)) { granted += 1 }
+        expect(granted == ChatScrollFollowPolicy.maximumTailScrollsWithoutGrowth)
+        expect(swinging.followsTail)
+        expect(swinging.observe(sample(3300, 2300)))
+        for _ in 0..<6 { _ = swinging.observe(sample(3200, 2200)); _ = swinging.observe(sample(3300, 2300)) }
+        expect(!swinging.observe(sample(3200, 2200)))
+        swinging.userRequestedLatest()
+        expect(swinging.observe(sample(3300, 2300)))
+        swinging.conversationChanged()
+        expect(swinging.observe(sample(800, 800)))
+
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }
