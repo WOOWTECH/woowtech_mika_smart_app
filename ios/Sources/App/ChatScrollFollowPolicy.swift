@@ -30,9 +30,8 @@ struct ChatScrollFollowPolicy {
     private var movementRevision = 0
     /// Tail scrolls granted since the content last grew past its tallest
     /// height. A scroll can make lazy rows measure again and change the very
-    /// geometry it reacts to; on the iPhone (build 230) a long chat with tables
-    /// kept scrolling and laying out at full CPU until it was killed. Without
-    /// new content a few scrolls are enough: more wait for new content or the person.
+    /// geometry it reacts to; without new content a few scrolls are enough,
+    /// and more wait for new content or the person.
     private var tailScrollsWithoutGrowth = 0
     private var tallestContent = 0.0
     static let maximumTailScrollsWithoutGrowth = 3

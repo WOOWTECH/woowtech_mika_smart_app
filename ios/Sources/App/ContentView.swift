@@ -530,6 +530,15 @@ private enum AppSection: String, CaseIterable, Identifiable, Equatable {
 
 }
 
+/// Holds the chat's follow policy where SwiftUI does not watch it. On the
+/// iPhone (builds 230 and 232) a long chat with tables froze at full CPU, its
+/// memory growing, when the policy was @State: each geometry report changed it,
+/// which redrew the chat, whose new layout could report new geometry again.
+@MainActor
+private final class ChatScrollFollowBox {
+    var policy = ChatScrollFollowPolicy()
+}
+
 @MainActor
 private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     static var defaultValue: ChatTranscriptViewport? = nil
@@ -569,7 +578,10 @@ private struct ChatView: View {
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
-    @State private var scrollFollow = ChatScrollFollowPolicy()
+    @State private var scrollFollowBox = ChatScrollFollowBox()
+    /// Whether the return-to-latest button shows (!followsTail): the only part
+    /// of following that redraws the chat.
+    @State private var showsReturnToLatest = false
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
@@ -599,6 +611,20 @@ private struct ChatView: View {
         case .failed(.recognition): return .voiceRecognitionError
         case .failed(.timeout): return .voiceTimeout
         }
+    }
+
+    /// The follow policy, read without redrawing the chat.
+    private var scrollFollow: ChatScrollFollowPolicy { scrollFollowBox.policy }
+
+    /// Changes the follow policy. Only a change of the return button redraws the
+    /// chat: geometry arrives on every layout pass, and redrawing for each
+    /// report let a long chat's layout and its reports feed each other.
+    @discardableResult
+    private func updateFollow<Result>(_ change: (inout ChatScrollFollowPolicy) -> Result) -> Result {
+        let result = change(&scrollFollowBox.policy)
+        let shows = !scrollFollowBox.policy.followsTail
+        if showsReturnToLatest != shows { showsReturnToLatest = shows }
+        return result
     }
 
     private func cancelScrollSettle() {
@@ -790,7 +816,7 @@ private struct ChatView: View {
         scrollSettleTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
-            let settled = scrollFollow.settle(expectedRevision: revision)
+            let settled = updateFollow { $0.settle(expectedRevision: revision) }
             if settled && scrollFollow.needsTailScroll {
                 // A no-op drag may have paused scrolling while a new fragment
                 // arrived. Catch up only after its final offset is known.
@@ -898,9 +924,11 @@ private struct ChatView: View {
             GeometryReader { content in
                 Color.clear.preference(key: ChatTranscriptViewportPreferenceKey.self,
                     value: ChatTranscriptViewport(
-                        contentHeight: Double(content.size.height),
-                        bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY),
-                        viewportHeight: viewportHeight))
+                        // Whole points: a fraction of a point between two layout
+                        // passes is not a change worth following.
+                        contentHeight: Double(content.size.height).rounded(),
+                        bottomY: Double(content.frame(in: .named("chat.transcript.viewport")).maxY).rounded(),
+                        viewportHeight: viewportHeight.rounded()))
             }
         }
     }
@@ -961,12 +989,12 @@ private struct ChatView: View {
         // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
             .onChanged { drag in
-                scrollFollow.beginDrag()
-                if drag.translation.height > 4 { scrollFollow.userDraggedTowardEarlierContent() }
-                if drag.translation.height < -4 { scrollFollow.userDraggedTowardLatestContent() }
+                updateFollow { $0.beginDrag() }
+                if drag.translation.height > 4 { updateFollow { $0.userDraggedTowardEarlierContent() } }
+                if drag.translation.height < -4 { updateFollow { $0.userDraggedTowardLatestContent() } }
             }
             .onEnded { _ in
-                scrollFollow.endDrag()
+                updateFollow { $0.endDrag() }
                 scheduleScrollSettle()
             })
         .onPreferenceChange(ChatTranscriptViewportPreferenceKey.self) { position in
@@ -974,14 +1002,14 @@ private struct ChatView: View {
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
-            if scrollFollow.observe(position, hasTranscript: hasTranscript) {
+            if updateFollow({ $0.observe(position, hasTranscript: hasTranscript) }) {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
             scheduleScrollSettle()
         }
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
-            scrollFollow.conversationChanged()
+            updateFollow { $0.conversationChanged() }
             if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
@@ -989,17 +1017,17 @@ private struct ChatView: View {
         .onChange(of: session.isSubmitting) { _, submitting in
             guard submitting else { return }
             cancelScrollSettle()
-            scrollFollow.userSubmitted()
+            updateFollow { $0.userSubmitted() }
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .onChange(of: scrollToTailRequest) { _, _ in
             proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
         }
         .overlay(alignment: .bottomTrailing) {
-            if !scrollFollow.followsTail && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
+            if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
                 Button {
                     cancelScrollSettle()
-                    scrollFollow.userRequestedLatest()
+                    updateFollow { $0.userRequestedLatest() }
                     scrollToTailRequest += 1
                 } label: {
                     Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
@@ -1150,7 +1178,7 @@ private struct ChatView: View {
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
                     cancelScrollSettle()
-                    scrollFollow.userSubmitted()
+                    updateFollow { $0.userSubmitted() }
                     scrollToTailRequest += 1
                 }
             } label: {
