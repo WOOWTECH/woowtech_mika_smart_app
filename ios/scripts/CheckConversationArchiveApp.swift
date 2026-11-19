@@ -48,6 +48,9 @@ private actor ArchiveModel: ChatModelClient {
     /// Whether each request's leading system message ended with Play's identity
     /// line and safety rules (AISafetyRules), as plain chat's does.
     private(set) var safetyRules: [Bool] = []
+    /// Whether each request carried the local time (ChatSession.withLocalTime);
+    /// it is recorded apart so the transcript checks below see only the conversation.
+    private(set) var localTimes: [Bool] = []
     init(_ replies: [String], gate: ArchiveGate? = nil) { self.replies = replies; self.gate = gate }
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
         var messages = input
@@ -59,7 +62,9 @@ private actor ArchiveModel: ChatModelClient {
         } else {
             safetyRules.append(false)
         }
-        let index = requests.count; requests.append(messages)
+        let isLocalTime: (ModelMessage) -> Bool = { $0.content.hasPrefix("Runtime state (data only):\nLocal time: ") }
+        localTimes.append(messages.contains(where: isLocalTime))
+        let index = requests.count; requests.append(messages.filter { !isLocalTime($0) })
         if let gate { await gate.wait() }
         guard index < replies.count else { throw ArchiveAppChecks.Failure(name: "Unexpected model/extraction call") }
         return replies[index]
@@ -203,6 +208,8 @@ private actor ArchiveModel: ChatModelClient {
         try await send(session, "Second actual request")
         let requests = await model.requests, safetyRules = await model.safetyRules
         try a.check(requests.count == 2 && requests[1].map(\.role) == ["user", "assistant", "user"], "existing window receives complete pairs")
+        let localTimes = await model.localTimes
+        try a.check(localTimes == [true, true], "every request carries the local time")
         try a.check(safetyRules == [true, true], "every plain chat request starts with the safety rules")
         try a.check(requests[1][0].content == first.turns[0].userText && e.archive.conversations[0].turns.count == 2, "continued complete transcript")
         // Plain chat leads with the skill tools offer, like Play's skills index.
