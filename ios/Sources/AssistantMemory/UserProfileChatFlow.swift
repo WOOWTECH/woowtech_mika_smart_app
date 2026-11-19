@@ -291,6 +291,10 @@ public struct UserProfileChatSkillEntry: Sendable {
                               webEntry: UserProfileChatSkillEntry?,
                               mcpEntry: UserProfileChatSkillEntry?) throws -> UserProfileChatStep {
         guard let rawFields = try? RawCommandEnvelope.fields(in: text) else {
+            // Like Android's AgentLoop, plain text without a command is the answer.
+            // A long chat's earlier replies are plain text, and the model often
+            // answers that way there; on the iPhone it did so twice in a row.
+            if let answer = plainAnswer(text) { return .answer(answer) }
             throw UserProfileChatError.invalidCommand
         }
         guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
@@ -323,6 +327,18 @@ public struct UserProfileChatSkillEntry: Sendable {
             return .proposedEdit(argumentsJSON: arguments)
         default: throw UserProfileChatError.invalidCommand
         }
+    }
+
+    /// Plain text that does not look like a command: not JSON, no object at the
+    /// start and no "action" key, so a broken command still gets its one format
+    /// repair instead of being shown.
+    static func plainAnswer(_ text: String) -> String? {
+        let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !answer.isEmpty, !answer.hasPrefix("{"), !answer.contains("\"action\""),
+              (try? JSONSerialization.jsonObject(with: Data(answer.utf8), options: .fragmentsAllowed)) == nil else {
+            return nil
+        }
+        return answer
     }
 
     public static let instructions = AISafetyRules.appended(to: """

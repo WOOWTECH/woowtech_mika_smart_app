@@ -63,7 +63,8 @@ private actor HeldProfileChatResponse: ChatModelClient {
     }
 
     static func malformedAndLimited() async throws {
-        for invalid in ["ordinary prose", #"{"action":"finish","answer":"x","extra":true}"#,
+        for invalid in ["{ordinary prose", #"Saving it: {"action":"memory_save","arguments":{}}"#, "[1, 2]",
+                        #"{"action":"finish","answer":"x","extra":true}"#,
                         #"{"action":"finish","answer":" "}"#, #"{"action":"profile_edit","arguments":[]}"#,
                         #"{"action":"shell","command":"echo x"}"#, "[\(proposal)]",
                         #"{"action":"finish","\u0061ction":"finish","answer":"x"}"#,
@@ -73,11 +74,19 @@ private actor HeldProfileChatResponse: ChatModelClient {
             try expect(value == .answer("已儲存，下次對話生效。"), "One format repair can return a normal answer")
             try expect(turn.modelCalls == 2 && !turn.didCommit, "Repair never interprets invalid data as an operation")
         }
-        let repeated = try flow(), wrong = ProfileChatResponses(["bad", "bad", finish])
+        let repeated = try flow(), wrong = ProfileChatResponses(["{bad", "{bad", finish])
         try await error(.invalidCommand) { _ = try await repeated.advance(client: wrong, configuration: config, apiKey: "dummy") }
         try expect(repeated.modelCalls == 2, "Only one format repair")
         let tooLarge = try flow(), large = ProfileChatResponses([String(repeating: "x", count: UserProfileChatFlow.maximumResponseBytes + 1)])
         try await error(.responseTooLarge) { _ = try await tooLarge.advance(client: large, configuration: config, apiKey: "dummy") }
+        // Like Android's AgentLoop, plain text without a command is the answer, with
+        // no repair: on the iPhone a long chat's reply was stopped after two of them.
+        for prose in ["ordinary prose", "| 站台 | 金額 |\n|---|---:|\n| A | 1 |", "[Odoo](https://example.invalid) 的訂單"] {
+            let turn = try flow(), model = ProfileChatResponses([prose])
+            let value = try await turn.advance(client: model, configuration: config, apiKey: "dummy")
+            try expect(value == .answer(prose) && turn.modelCalls == 1 && !turn.didCommit,
+                       "Plain text is the answer without a format repair")
+        }
         let longAnswer = String(repeating: "長", count: 12_000), longTurn = try flow()
         let longReply = try await longTurn.advance(client: ProfileChatResponses([#"{"action":"finish","answer":"\#(longAnswer)"}"#]),
                                                    configuration: config, apiKey: "dummy")
@@ -88,7 +97,7 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try twice.recordCommitted(entryID: nil)
         try await error(.callLimit) { _ = try await twice.advance(client: model, configuration: config, apiKey: "dummy") }
         try expect(twice.didCommit, "Later failure never erases a real committed receipt")
-        let lateRepair = try flow(), repaired = ProfileChatResponses([proposal, "bad", finish])
+        let lateRepair = try flow(), repaired = ProfileChatResponses([proposal, "{bad", finish])
         _ = try await lateRepair.advance(client: repaired, configuration: config, apiKey: "dummy")
         try lateRepair.recordCommitted(entryID: nil)
         _ = try await lateRepair.advance(client: repaired, configuration: config, apiKey: "dummy")
