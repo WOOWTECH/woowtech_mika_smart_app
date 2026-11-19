@@ -398,7 +398,7 @@ private struct MikaVisualPalette {
     var secondaryInk: Color { dark ? rgb(164, 165, 173) : rgb(95, 96, 104) }
     var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }
     var assistant: Color { dark ? .white.opacity(13.0 / 255) : .black.opacity(9.0 / 255) }
-    var glass: Color { dark ? surface.opacity(184.0 / 255) : .white.opacity(184.0 / 255) }
+    var disabledControl: Color { dark ? rgb(38, 38, 41) : rgb(246, 246, 246) }
     var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }
     var scrim: Color { .black.opacity(0.32) }
 }
@@ -1186,7 +1186,7 @@ private struct ChatView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(session.canAttemptSend ? Color.white : palette.secondaryInk)
                     .frame(width: 40, height: 40)
-                    .background(session.canAttemptSend ? palette.accent : palette.assistant, in: Circle())
+                    .background(session.canAttemptSend ? palette.accent : palette.disabledControl, in: Circle())
             }
             .disabled(!session.canAttemptSend)
             .accessibilityLabel(localizer.text(.shellSend))
@@ -1195,7 +1195,7 @@ private struct ChatView: View {
         .frame(minHeight: 52)
         .layoutPriority(1)
         .padding(6)
-        .background(palette.glass, in: Capsule())
+        .background(palette.surface, in: Capsule())
         .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
     }
 

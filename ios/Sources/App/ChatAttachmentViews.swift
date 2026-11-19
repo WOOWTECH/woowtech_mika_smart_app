@@ -137,7 +137,7 @@ struct ChatAttachmentTray: View {
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 20, height: 20)
-                                .background(Color.black.opacity(0.65), in: Circle())
+                                .background(Color.black, in: Circle())
                         }
                         .buttonStyle(.plain)
                         .offset(x: 6, y: -6)
