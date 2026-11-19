@@ -63,6 +63,12 @@ final class ChatAttachmentUITests: XCTestCase {
         assertContains(identifiedText("chat.message.1.assistant"), "收到附件 1 個（圖片 0）")
         let notice = app.descendants(matching: .any)["chat.attach.notice"].firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 10), "An unseen photo is explained, never dropped silently")
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        XCTAssertTrue(transcript.waitForExistence(timeout: 10))
+        XCTAssertLessThanOrEqual(transcript.frame.maxY, notice.frame.minY,
+                                 "The transcript viewport must end above the attachment notice")
+        XCTAssertLessThanOrEqual(notice.frame.maxY, chatDraftControl(in: app).frame.minY,
+                                 "The notice must remain above the composer")
         tap("chat.attach.notice.dismiss")
 
         navigate("settings")

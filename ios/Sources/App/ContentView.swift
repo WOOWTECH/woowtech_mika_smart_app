@@ -984,7 +984,6 @@ private struct ChatView: View {
         }
         .coordinateSpace(name: "chat.transcript.viewport")
         .accessibilityIdentifier("chat.transcript")
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         // A simultaneous drag observes scrolling without taking the long
         // press away from the message menu or the streaming reply's text.
         .simultaneousGesture(DragGesture(minimumDistance: 5)
@@ -1048,6 +1047,9 @@ private struct ChatView: View {
             .onAppear { transcriptViewportHeight = viewport.size.height }
             .onChange(of: viewport.size.height) { _, height in transcriptViewportHeight = height }
         }
+        // Keep scrolling content inside the space assigned above the status and
+        // composer, including while the keyboard or attachment panel moves them.
+        .clipped()
         .overlay(alignment: .top) {
             if let messageToast {
                 ChatToastView(toast: messageToast).padding(.top, 8).transition(.opacity)
@@ -1205,11 +1207,15 @@ private struct ChatView: View {
         VStack(spacing: 12) {
             chatHeader
             transcript
-            chatStatus
-            quoteChip
-            attachmentRows
-            composer
-            attachPanel
+            VStack(spacing: 12) {
+                chatStatus
+                quoteChip
+                attachmentRows
+                composer
+                attachPanel
+            }
+            .layoutPriority(1)
+            .background(palette.background)
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
