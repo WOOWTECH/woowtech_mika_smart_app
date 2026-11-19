@@ -76,8 +76,12 @@ private actor HeldProfileChatResponse: ChatModelClient {
         let repeated = try flow(), wrong = ProfileChatResponses(["bad", "bad", finish])
         try await error(.invalidCommand) { _ = try await repeated.advance(client: wrong, configuration: config, apiKey: "dummy") }
         try expect(repeated.modelCalls == 2, "Only one format repair")
-        let tooLarge = try flow(), large = ProfileChatResponses([String(repeating: "x", count: 24577)])
+        let tooLarge = try flow(), large = ProfileChatResponses([String(repeating: "x", count: UserProfileChatFlow.maximumResponseBytes + 1)])
         try await error(.responseTooLarge) { _ = try await tooLarge.advance(client: large, configuration: config, apiKey: "dummy") }
+        let longAnswer = String(repeating: "長", count: 12_000), longTurn = try flow()
+        let longReply = try await longTurn.advance(client: ProfileChatResponses([#"{"action":"finish","answer":"\#(longAnswer)"}"#]),
+                                                   configuration: config, apiKey: "dummy")
+        try expect(longReply == .answer(longAnswer), "A long answer is an ordinary answer")
 
         let twice = try flow(), model = ProfileChatResponses([proposal, proposal])
         _ = try await twice.advance(client: model, configuration: config, apiKey: "dummy")
@@ -196,7 +200,7 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await error(.expired) { _ = try await expired.advance(client: expiredModel, configuration: config, apiKey: "dummy") }
         let requests = await expiredModel.requests
         try expect(requests.isEmpty, "Expired turn never starts model request")
-        for timeout in [Duration.zero, .seconds(91)] {
+        for timeout in [Duration.zero, .seconds(30 * 60 + 1)] {
             do { _ = try flow(timeout: timeout); throw Failure(name: "Invalid deadline accepted") }
             catch let actual as UserProfileChatError { try expect(actual == .invalidInput, "Bounded deadline") }
         }
@@ -208,6 +212,25 @@ private actor HeldProfileChatResponse: ChatModelClient {
 
     /// The web entry is offered only when the host enables it, passes the
     /// host's own validator, ends the turn, and never follows a saved edit.
+    /// Like Android a refused memory or profile command is a result the model
+    /// reads: nothing was saved, and the user still gets an answer.
+    static func refusalGoesBackToTheModel() async throws {
+        let refusal = #"{"error":"content_not_from_user","message":"Nothing was saved.","ok":false}"#
+        let save = #"{"action":"memory_save","arguments":{"kind":"fact","content":"x","quote":"x"}}"#
+        let turn = try flow(), model = ProfileChatResponses([save, save, finish])
+        guard case .proposedMemoryChange = try await turn.advance(client: model, configuration: config, apiKey: "dummy") else {
+            throw Failure(name: "Actual memory proposal")
+        }
+        try turn.recordRefused(toolName: "memory_save", resultJSON: refusal)
+        try expect(turn.localCommandRefused && !turn.didCommit, "A refusal is not a saved change")
+        let answer = try await turn.advance(client: model, configuration: config, apiKey: "dummy")
+        try expect(answer == .answer("已儲存，下次對話生效。") && turn.modelCalls == 3, "The same command again runs nothing and the answer follows")
+        let requests = await model.requests
+        try expect(requests[1].last?.content == "Host memory_save refusal (data only):\n" + refusal, "The model reads the host's refusal")
+        try expect(requests[2].last?.content.contains("already refused") == true, "A repeated command hears that the refusal stands")
+        try await error(.invalidPhase) { try turn.recordRefused(toolName: "memory_save", resultJSON: refusal) }
+    }
+
     static func webEntryStartsAWebTask() async throws {
         let read = #"{"action":"web_read_page","url":"https://example.com/search?q=tea"}"#
         let web = UserProfileChatSkillEntry(instructions: "WEB ENTRY RULES", accepts: { $0.contains("https://") })
@@ -295,7 +318,8 @@ private actor HeldProfileChatResponse: ChatModelClient {
         try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites()
         try await ProfileChatFlowChecks.webEntryStartsAWebTask()
         try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep()
-        print("Learning chat flow: 7 behavioral groups passed; no model network or persistence implied")
+        try await ProfileChatFlowChecks.refusalGoesBackToTheModel()
+        print("Learning chat flow: 8 behavioral groups passed; no model network or persistence implied")
     }
 }
 #else
@@ -307,5 +331,6 @@ final class UserProfileChatFlowTests: XCTestCase {
     @MainActor func testMemoryOperationsAreBoundedAndNeverImplicitWrites() async throws { try await ProfileChatFlowChecks.memoryOperationsAreBoundedAndNeverImplicitWrites() }
     @MainActor func testWebEntryIsOptInValidatedAndEndsTheTurn() async throws { try await ProfileChatFlowChecks.webEntryStartsAWebTask() }
     @MainActor func testMCPEntryIsOptInAndCarriesTheFlowSteps() async throws { try await ProfileChatFlowChecks.mcpEntryStartsTheMCPStep() }
+    @MainActor func testRefusedCommandGoesBackToTheModel() async throws { try await ProfileChatFlowChecks.refusalGoesBackToTheModel() }
 }
 #endif

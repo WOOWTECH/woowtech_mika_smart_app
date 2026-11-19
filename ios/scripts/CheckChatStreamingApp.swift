@@ -80,6 +80,46 @@ private final class CompleteSequenceClient: ReferenceDispatchBoundChatModelClien
     }
     var counts: (complete: Int, stream: Int) { lock.lock(); defer { lock.unlock() }; return (requests, 0) }
 }
+/// Keeps what each request sent.
+private final class RecordingClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sent: [[ModelMessage]] = []
+    var requests: [[ModelMessage]] { lock.lock(); defer { lock.unlock() }; return sent }
+    private func keep(_ messages: [ModelMessage]) { lock.lock(); sent.append(messages); lock.unlock() }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        keep(messages)
+        return "Recorded reply"
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
+/// Reads a personal skill and answers; the skill's judgment is ready while the
+/// reply's memory organizing is still running.
+private final class SkillAndOrganizingClient: ReferenceDispatchBoundChatModelClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var isJudged = false
+    private var judged: Bool { lock.lock(); defer { lock.unlock() }; return isJudged }
+    private func markJudged() { lock.lock(); isJudged = true; lock.unlock() }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
+        if messages.first?.content.hasPrefix("You judge whether") == true {
+            markJudged()
+            return #"{"outcome":"done","reason":""}"#
+        }
+        if messages.contains(where: { $0.content.hasPrefix("Propose durable personal memories") }) {
+            while !judged { try await Task.sleep(nanoseconds: 2_000_000) }
+            try await Task.sleep(nanoseconds: 80_000_000)
+            return #"{"ops":[]}"#
+        }
+        if messages.last?.content.hasPrefix("Host skill_read result") == true { return #"{"action":"finish","answer":"Skill answer."}"# }
+        return #"{"action":"skill_read","arguments":{"name":"short-check"}}"#
+    }
+    func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
+                  onDispatch: @escaping @Sendable () -> Void) async throws -> String {
+        onDispatch(); return try await complete(messages: messages, configuration: configuration, apiKey: apiKey)
+    }
+}
 private struct CompleteOnlyClient: ReferenceDispatchBoundChatModelClient {
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String { "Complete-only adapter reply" }
     func complete(messages: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
@@ -430,6 +470,55 @@ private actor StreamMCP: MCPDiscovering {
         session.appLeftScreen()
         client.finish(HTTPChatModelError.transportFailure, at: 1); await nothing.value
         try a.check(session.replyPreview == nil && ended(session, .failed), "with no text shown yet the cut stays 沒有完成")
+        return a.count
+    }
+    /// Android's runtime state: every request tells the model the local time.
+    static func requestsCarryTheLocalTime() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        let client = RecordingClient(), session = e.session(client)
+        await (try start(session, "What is today's date?")).value
+        let sent = client.requests.first ?? []
+        try a.check(sent.last?.content == "What is today's date?", "the user's message stays last")
+        try a.check(sent.contains { $0.role == "user" && $0.content.range(of: #"^Runtime state \(data only\):\nLocal time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} [A-Z][a-z]+day$"#, options: .regularExpression) != nil },
+                    "the request names the local date, time and weekday")
+        let taipei = ChatSession.localTimeMessage(at: Date(timeIntervalSince1970: 1_795_048_200), timeZone: TimeZone(identifier: "Asia/Taipei")!)
+        try a.check(taipei.content.hasSuffix("Local time: 2026-11-19 08:30 Thursday"), "the time is the device's local time")
+        return a.count
+    }
+    /// A skill's outcome is saved after the reply's memory organizing, which
+    /// changing the skills would otherwise void.
+    static func skillOutcomeWaitsForMemoryOrganizing() async throws -> Int {
+        var a = Assertions(); let e = try StreamEnvironment(); defer { e.close() }
+        _ = e.learning.updatePreferences { $0.useMemory = true; $0.autoRemember = true }
+        let skill = """
+        ---
+        name: short-check
+        description: Use when the user asks for a short check.
+        ---
+        ## 入口
+        The user asks for a short check.
+
+        ## 步驟
+        1. Answer in one sentence.
+
+        ## 容易出錯的地方
+        Do not add more.
+
+        ## 怎樣算辦成
+        One sentence.
+
+        ## 什麼時候停下交給使用者
+        When the question is unclear.
+        """
+        _ = try e.learning.commitChatSkillSave(skill, version: nil, expectedGeneration: e.learning.generation,
+                                               availableToolNames: [], builtinNames: [])
+        try a.check(e.learning.skills.installed.first?.status == .trial, "the skill starts on trial")
+        let session = e.session(SkillAndOrganizingClient())
+        await (try start(session, "Please do a short check")).value
+        try await wait("the judged skill becomes regular") { e.learning.skills.installed.first?.status == .active }
+        try a.check(session.entries.last?.content == "Skill answer.", "the answer arrived")
+        try a.check(e.learning.notice == nil && e.learning.error == nil && !e.learning.isLearning,
+                    "the memory organizing of the same reply finished without a notice")
         return a.count
     }
     static func boundsFallbackAndSaveFailure() async throws -> Int {
@@ -790,9 +879,9 @@ private actor StreamMCP: MCPDiscovering {
             try await wait("oversize structured request") { client.counts.stream == 1 }
             client.emit(#"{"action":"finish","answer":"safe"#)
             try await wait("oversize initial preview") { session.replyPreview?.text == "safe" }
-            client.emit(String(repeating: "x", count: 24 * 1024)); await task.value
+            client.emit(String(repeating: "x", count: UserProfileChatFlow.maximumResponseBytes)); await task.value
             try a.check(session.replyPreview == nil && ended(session, .failed),
-                        "24 KiB whole-command bound ends the turn")
+                        "the whole-command bound ends the turn")
             try a.check(noSavedAnswer(e.archive) && client.counts.stream == 1,
                         "oversized command cannot commit or retry")
         }
@@ -1616,6 +1705,7 @@ private actor StreamMCP: MCPDiscovering {
         do {
             var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.leftScreenKeepsShownText(),
+                ChatStreamingChecks.requestsCarryTheLocalTime(), ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
                 ChatStreamingChecks.structuredToolsApplyDirectly(), ChatStreamingChecks.structuredStreamingAnswerAndReview(),
                 ChatStreamingChecks.structuredStreamingRejectionsAndCancellation(), ChatStreamingChecks.actualHTTPStream(),
@@ -1647,6 +1737,8 @@ final class ChatStreamingAppTests: XCTestCase {
     @MainActor func testConsentBeforeFirstSend() async throws { let n = try await ChatStreamingChecks.consentBeforeFirstSend(); XCTAssertEqual(n, 8) }
     @MainActor func testIncrementalCompletion() async throws { let n = try await ChatStreamingChecks.incrementalCompletion(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testCancellationFailureAndGeneration() async throws { let n = try await ChatStreamingChecks.cancellationFailureAndGeneration(); XCTAssertGreaterThan(n, 0) }
+    @MainActor func testRequestsCarryTheLocalTime() async throws { let n = try await ChatStreamingChecks.requestsCarryTheLocalTime(); XCTAssertEqual(n, 3) }
+    @MainActor func testSkillOutcomeWaitsForMemoryOrganizing() async throws { let n = try await ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(); XCTAssertEqual(n, 3) }
     @MainActor func testLeftScreenKeepsShownText() async throws { let n = try await ChatStreamingChecks.leftScreenKeepsShownText(); XCTAssertEqual(n, 3) }
     @MainActor func testBoundsFallbackAndSaveFailure() async throws { let n = try await ChatStreamingChecks.boundsFallbackAndSaveFailure(); XCTAssertGreaterThan(n, 0) }
     @MainActor func testRestoreCancelsPreview() async throws { let n = try await ChatStreamingChecks.restoreCancelsPreview(); XCTAssertGreaterThan(n, 0) }

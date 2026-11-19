@@ -79,7 +79,7 @@ extension MCPConversationChecks {
         try c.expect(globalEvents.filter { $0 == .correctingCommand }.count == 3, "global rather than per-tool correction bound")
         try c.expect(globalEvents.contains { if case .completed(let step) = $0 { return step.result == ok }; return false }, "earlier completion remains published after correction exhaustion")
 
-        let oversized = Model([String(repeating: "x", count: 24 * 1024 + 1), finish]), sizeRecord = Record(), sizeExecutor = Executor()
+        let oversized = Model([String(repeating: "x", count: MCPConversationRunner.maximumModelResponseBytes + 1), finish]), sizeRecord = Record(), sizeExecutor = Executor()
         count += try await expect(.modelResponseTooLarge) {
             _ = try await run(oversized, sizeExecutor, event: { await sizeRecord.event($0) })
         }

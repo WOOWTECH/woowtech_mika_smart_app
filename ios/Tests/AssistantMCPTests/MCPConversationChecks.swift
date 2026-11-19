@@ -240,7 +240,7 @@ enum MCPConversationChecks {
         let oddModel = Model([try call(), finish])
         let odd = try await run(oddModel, Executor([.object(["isError": .string("false")])]))
         try c.expect(odd.stopReason == .finished && odd.steps.first?.isError == true, "a malformed isError never claims success")
-        count += try await expect(.modelResponseTooLarge) { _ = try await run(Model([String(repeating: "x", count: 24 * 1024 + 1)]), Executor()) }
+        count += try await expect(.modelResponseTooLarge) { _ = try await run(Model([String(repeating: "x", count: MCPConversationRunner.maximumModelResponseBytes + 1)]), Executor()) }
         count += try await expect(.invalidCatalog) { _ = try await run(Model([finish]), Executor(), tools: [tool, tool]) }
         count += try await expect(.invalidLimits) { _ = try await run(Model([finish]), Executor(), limits: .init(maximumModelCalls: 61)) }
         count += try await expect(.invalidLimits) { _ = try await run(Model([finish]), Executor(), limits: .init(timeout: .seconds(30 * 60 + 1))) }

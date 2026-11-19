@@ -324,6 +324,9 @@ final class ChatSession: ObservableObject {
     private var requestID: UUID?
     /// The request that was still arriving when the app left the screen (keptReply).
     private var requestLeftScreen: UUID?
+    /// The request whose memory or profile command the host refused: organizing
+    /// its words into memory afterwards would save what was just turned down.
+    private var localCommandRefusedRequestID: UUID?
     /// Read-only completion handle for joining an already captured task after cancellation.
     var capturedArchiveRequest: Task<Void, Never>? { request }
 
@@ -961,7 +964,7 @@ final class ChatSession: ObservableObject {
         let destination = archiveDestination
         let archivePrior = archive?.state.conversations.first { $0.id == archiveID }
         let learningWasAvailable = learning.available
-        let context = learning.contextMessages(for: utterance)
+        let context = learning.contextMessages(for: utterance) + [Self.localTimeMessage()]
         if learningWasAvailable && !learning.available {
             chatError = (learning.error ?? "無法讀取學習資料，請重新讀取後再試。") + "草稿已保留。"
             return
@@ -1098,9 +1101,11 @@ final class ChatSession: ObservableObject {
                 }
                 // Deliver first. Extraction receives the user's own utterance and
                 // relevant saved memories, never the model reply or MCP/web content.
-                self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
-                    expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
-                    preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
+                if self.localCommandRefusedRequestID != id {
+                    self.learning.rememberAfterReply(utterance: utterance, conversationID: self.conversationID,
+                        expectedGeneration: learningGeneration, client: client, configuration: configuration, apiKey: key,
+                        preservingToolNotes: self.memoryReceiptRequestID == id ? [self.memoryReceipt?.note].compactMap { $0 } : [])
+                }
                 self.learnFromSkillStep(requestID: id, goal: utterance, answer: reply,
                     priorTurns: self.entries.dropLast(2).suffix(4).map(\.content),
                     client: client, configuration: configuration, key: key)
@@ -1147,7 +1152,18 @@ final class ChatSession: ObservableObject {
         // keeps a host deadline from when it starts (runMCP).
     }
 
-    /// Just past the MCP runner's own limit; a web task or skill step after it cancels it.
+    /// Android's runtime state (ContextBuilder.runtimeState): the model has no
+    /// other way to know what "today" or "this month" means.
+    static func localTimeMessage(at date: Date = Date(), timeZone: TimeZone = .current) -> ModelMessage {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm EEEE"
+        return ModelMessage(role: "user", content: "Runtime state (data only):\nLocal time: " + formatter.string(from: date))
+    }
+
+    /// Just past the MCP runner's own limit; a web task after it cancels it.
     private func startMCPDeadline(requestID id: UUID) {
         deadline?.cancel()
         deadline = Task { [weak self] in
@@ -1327,7 +1343,7 @@ final class ChatSession: ObservableObject {
         // One system message: the skill tools offer, the web task offer and the
         // MCP catalog when there are any, then Play's identity line and safety
         // rules (AISafetyRules).
-        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true) },
+        let offer = Self.plainChatOffer(skills: skillIndex.map { ChatSkillPrompts.entry(index: $0, plainChat: true, mcpOffered: mcpOffer != nil) },
                                         web: webOffer, mcp: mcpOffer)
         let messages = [AISafetyRules.systemMessage(instructions: offer)] + input
         // A reply that is exactly one skill tool command starts the skill tools
@@ -1338,6 +1354,8 @@ final class ChatSession: ObservableObject {
                 return .mcp(MCPConversationEntry(command: command), memory: nil)
             }
             guard skillIndex != nil, ChatSkillCommand.parseEntry(text) != nil else { return .plain(text, allowsWeb: webOffer != nil) }
+            // With MCP tools offered the skill tools run inside the MCP step.
+            if mcpOffer != nil { return .mcp(MCPConversationEntry(command: ChatSkillCommand.unfenced(text)), memory: nil) }
             return .answer(try await runSkillTools(entryRaw: text, conversation: input, utterance: utterance, memoryOn: false,
                                                    generation: generation, configuration: configuration, key: key,
                                                    client: client, requestID: id))
@@ -1512,7 +1530,7 @@ final class ChatSession: ObservableObject {
                                      skillIndex: String?? = nil, web: UserProfileChatSkillEntry? = nil,
                                      mcp: String? = nil) async throws -> ChatPathReply {
         let skillEntry = skillIndex.map {
-            UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false),
+            UserProfileChatSkillEntry(instructions: ChatSkillPrompts.entry(index: $0, plainChat: false, mcpOffered: mcp != nil),
                                       accepts: { ChatSkillCommand.parseEntry($0) != nil })
         }
         let mcpEntry = mcp.map {
@@ -1521,6 +1539,18 @@ final class ChatSession: ObservableObject {
         let flow = try UserProfileChatFlow(messages: messages, skillEntry: skillEntry, webEntry: web, mcpEntry: mcpEntry)
         var memoryRun = MemoryToolRun(state: memoryState, utterances: [utterance])
         defer { flow.cancel() }
+        /// The model reads why a command was refused and still answers the user.
+        func refuse(_ toolName: String, _ error: Error) throws {
+            guard let refusal = LocalToolRefusal.resultJSON(for: error) else { throw error }
+            localCommandRefusedRequestID = requestID
+            try flow.recordRefused(toolName: toolName, resultJSON: refusal)
+        }
+        /// What the chat did so far, for the MCP step that goes on from here.
+        func continuingInMCP(command: String) -> MCPConversationEntry {
+            MCPConversationEntry(command: command, exchange: flow.exchange, modelCalls: flow.modelCalls,
+                                 searchedLocally: flow.searchedMemory, mutatedLocally: flow.didCommit,
+                                 refusedLocally: flow.localCommandRefused)
+        }
         while true {
             // Like the Play build, learning data changed during the reply,
             // by the user or by the model's own tool call, never stops it.
@@ -1537,6 +1567,8 @@ final class ChatSession: ObservableObject {
             switch step {
             case .answer(let answer): return .answer(answer)
             case .skillEntry(let json):
+                // With MCP tools offered the skill tools run inside the MCP step.
+                if mcp != nil { return .mcp(continuingInMCP(command: ChatSkillCommand.unfenced(json)), memory: memoryRun) }
                 flow.cancel()
                 return .answer(try await runSkillTools(entryRaw: json, conversation: messages, utterance: utterance, memoryOn: true,
                                                        generation: generation, configuration: configuration, key: key, client: client, requestID: requestID))
@@ -1546,38 +1578,41 @@ final class ChatSession: ObservableObject {
             case .mcpEntry(let json):
                 // The MCP step goes on from here: what the flow did and the
                 // local search and change it already used come along.
-                let entry = MCPConversationEntry(command: MCPConversationEntry.command(in: json) ?? json,
-                    exchange: flow.exchange, modelCalls: flow.modelCalls,
-                    searchedLocally: flow.searchedMemory, mutatedLocally: flow.didCommit)
-                return .mcp(entry, memory: memoryRun)
+                return .mcp(continuingInMCP(command: MCPConversationEntry.command(in: json) ?? json), memory: memoryRun)
             case .proposedEdit(let arguments):
-                guard learning.available, learning.memory.preferences.useMemory,
-                      learning.generation == generation, learning.profile.revision == state.revision else {
-                    throw UserProfileToolError.staleRevision
-                }
-                // Only the actual draft sent for this run is evidence. Context,
-                // old messages and model replies cannot authorize an edit.
-                let proposal = try UserProfileToolRequest.parse(arguments).prepare(state: state, utterances: [utterance])
-                // Like the Play build, profile_edit applies without a review.
-                try flow.validateReview()
-                let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
-                profileReceipt = receipt // Retained even if the next model call fails.
-                profileReceiptRequestID = requestID
-                try flow.recordCommitted(entryID: receipt.id)
+                do {
+                    guard learning.available, learning.memory.preferences.useMemory,
+                          learning.generation == generation, learning.profile.revision == state.revision else {
+                        throw UserProfileToolError.staleRevision
+                    }
+                    // Only the actual draft sent for this run is evidence. Context,
+                    // old messages and model replies cannot authorize an edit.
+                    let proposal = try UserProfileToolRequest.parse(arguments).prepare(state: state, utterances: [utterance])
+                    // Like the Play build, profile_edit applies without a review.
+                    try flow.validateReview()
+                    let receipt = try learning.commitProfileTool(proposal, expectedGeneration: generation)
+                    profileReceipt = receipt // Retained even if the next model call fails.
+                    profileReceiptRequestID = requestID
+                    try flow.recordCommitted(entryID: receipt.id)
+                } catch { try refuse("profile_edit", error) }
             case .memorySearch(let arguments):
-                try validateMemoryRun(memoryRun, generation: generation)
-                let found = try memoryRun.search(argumentsJSON: arguments)
-                try flow.recordMemorySearchResult(found.resultJSON())
+                do {
+                    try validateMemoryRun(memoryRun, generation: generation)
+                    let found = try memoryRun.search(argumentsJSON: arguments)
+                    try flow.recordMemorySearchResult(found.resultJSON())
+                } catch { try refuse("memory_search", error) }
             case .proposedMemoryChange(let toolName, let arguments):
-                try validateMemoryRun(memoryRun, generation: generation)
-                let review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments)
-                // Memory tools also apply directly, with an undo note in the chat.
-                try flow.validateReview()
-                let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
-                    conversationID: conversationID)
-                memoryReceipt = receipt
-                memoryReceiptRequestID = requestID
-                try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
+                do {
+                    try validateMemoryRun(memoryRun, generation: generation)
+                    let review = try memoryRun.prepare(toolName: toolName, argumentsJSON: arguments)
+                    // Memory tools also apply directly, with an undo note in the chat.
+                    try flow.validateReview()
+                    let receipt = try learning.commitMemoryTool(review, expectedGeneration: generation,
+                        conversationID: conversationID)
+                    memoryReceipt = receipt
+                    memoryReceiptRequestID = requestID
+                    try flow.recordMemoryCommitted(toolName: toolName, resultJSON: receipt.resultJSON())
+                } catch { try refuse(toolName, error) }
             }
         }
     }
@@ -1599,16 +1634,10 @@ final class ChatSession: ObservableObject {
             .union(memoryOn ? ["memory_search", "memory_save", "memory_edit", "profile_edit"] : [])
     }
 
-    private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
-                               generation: UUID, configuration: ModelConfiguration, key: String,
-                               client: any ChatModelClient, requestID id: UUID) async throws -> String {
-        guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
-        // Like Play there is no fixed chat deadline once tools run; the step keeps
-        // its own call and time limits.
-        deadline?.cancel(); deadline = nil
-        replyPreview = nil
+    private func makeSkillToolRun(conversation: [ModelMessage], utterance: String, memoryOn: Bool,
+                                  generation: UUID, requestID id: UUID) -> ChatSkillToolRun {
         let toolNames = Self.chatSkillToolNames(memoryOn: memoryOn)
-        let run = ChatSkillToolRun(conversation: conversation,
+        return ChatSkillToolRun(conversation: conversation,
             catalog: { [weak self] in self?.chatSkillCatalog() ?? ChatSkillCatalog(bundled: nil, skills: SkillsState()) },
             utterances: [utterance],
             save: { [weak self] markdown, version in
@@ -1622,6 +1651,18 @@ final class ChatSession: ObservableObject {
                 guard let self, self.requestID == id else { return }
                 self.skillStep = step
             })
+    }
+
+    private func runSkillTools(entryRaw: String, conversation: [ModelMessage], utterance: String, memoryOn: Bool,
+                               generation: UUID, configuration: ModelConfiguration, key: String,
+                               client: any ChatModelClient, requestID id: UUID) async throws -> String {
+        guard let entry = ChatSkillCommand.parseEntry(entryRaw) else { throw ChatSkillRunError.invalidCommand }
+        // Like Play there is no fixed chat deadline once tools run; the step keeps
+        // its own call and time limits.
+        deadline?.cancel(); deadline = nil
+        replyPreview = nil
+        let run = makeSkillToolRun(conversation: conversation, utterance: utterance, memoryOn: memoryOn,
+                                   generation: generation, requestID: id)
         defer {
             pendingSkillLearning = ChatSkillLearningInput(requestID: id, used: run.usedSkills, completedTools: run.completedTools)
         }
@@ -1660,8 +1701,9 @@ final class ChatSession: ObservableObject {
     /// The MCP step of a request: MCPConversationRunner over every connected
     /// server's catalog, starting with the chat's first MCP command. Like the
     /// Play build, selected tools and offered resources run with no per-call
-    /// approval: the tool selection in MCP settings is the limit. The model may
-    /// end it with a web task or a skill tool, which then gets the MCP results.
+    /// approval: the tool selection in MCP settings is the limit. Like Android's
+    /// single tool list the skill tools run inside this step, between MCP calls.
+    /// The model may end it with a web task, which then gets the MCP results.
     private func runMCP(entry: MCPConversationEntry, catalog: MCPChatCatalog, messages: [ModelMessage],
                         utterance: String, profileState: UserProfileState, memoryRun: MemoryToolRun,
                         generation: UUID, allowsLearning: Bool, configuration: ModelConfiguration,
@@ -1684,42 +1726,51 @@ final class ChatSession: ObservableObject {
                 return try await self.performMCPLocal(proposal, lease: lease, turn: turn, requestID: requestID)
             }
         } else { local = nil }
-        // The web task first when there is one, then the skill tools, as the chat offers them.
         var handoffs: [MCPConversationHandoff] = []
         if let web {
             handoffs.append(MCPConversationHandoff(
                 instructions: ChatWebTaskPrompts.entryInstructions(searchTemplate: web.searchTemplate),
                 actions: ChatWebCommand.entryActions, accepts: { (try? ChatWebCommand.parseEntry($0)) != nil }))
         }
-        let skillOffer = handoffs.count
-        handoffs.append(MCPConversationHandoff(
-            instructions: ChatSkillPrompts.entry(index: chatSkillCatalog().index(), plainChat: false),
-            actions: ChatSkillCommand.toolNames, accepts: { ChatSkillCommand.parseEntry($0) != nil }))
+        let skills = makeSkillToolRun(conversation: [], utterance: utterance, memoryOn: allowsLearning,
+                                      generation: generation, requestID: requestID)
+        let hostTools = MCPConversationHostTools(instructions: ChatSkillPrompts.insideMCP(index: chatSkillCatalog().index()),
+            actions: ChatSkillCommand.toolNames, accepts: { ChatSkillCommand.parseEntry($0) != nil },
+            run: { raw in try await MainActor.run { skills.perform(try ChatSkillCommand.parse(raw)) } })
+        defer {
+            // The outcome judge sees every tool that returned success in this request.
+            pendingSkillLearning = ChatSkillLearningInput(requestID: requestID, used: skills.usedSkills,
+                                                          completedTools: mcpCompletedTools + skills.completedTools)
+        }
         let result = try await MCPConversationRunner(client: client).run(
             messages: messages, configuration: configuration, apiKey: key,
             tools: catalog.catalog.tools, resources: catalog.catalog.resources, executor: catalog.catalog,
-            entry: entry, handoffs: handoffs,
+            entry: entry, handoffs: handoffs, hostTools: hostTools,
             onEvent: { [weak self] event in
                 await self?.receiveMCP(event, requestID: requestID)
             }, handleLocal: local)
         guard self.requestID == requestID else { throw CancellationError() }
-        // The MCP step is over: a web task or skill step after it keeps running
-        // in the background like any other, and has no MCP deadline.
+        // The MCP step is over: a web task after it keeps running in the
+        // background like any other, and has no MCP deadline.
         isMCPRun = false
         deadline?.cancel(); deadline = nil
         if result.stopReason == .handedOff, let handoff = result.handoff {
-            if handoff.offer == skillOffer {
-                return .answer(try await runSkillTools(entryRaw: handoff.command, conversation: messages + handoff.exchange,
-                                                       utterance: utterance, memoryOn: allowsLearning, generation: generation,
-                                                       configuration: configuration, key: key, client: client,
-                                                       requestID: requestID))
-            }
             // The runner accepted it with this same validator.
             return .web(try ChatWebCommand.parseEntry(handoff.command), raw: ChatWebCommand.unfenced(handoff.command),
                         exchange: handoff.exchange)
         }
         guard result.stopReason == .finished, let answer = result.answer else { throw MCPChatStop(reason: result.stopReason) }
         return .answer(answer)
+    }
+
+    /// The MCP tools and resources that returned success in this request.
+    private var mcpCompletedTools: [String] {
+        mcpSteps.filter { !$0.isError }.map { step in
+            switch step.proposal.action {
+            case .callTool(let name, _): return name
+            case .readResource: return "read_resource"
+            }
+        }
     }
 
     /// Local learning and the remote MCP connection are separate capabilities.
@@ -1729,6 +1780,16 @@ final class ChatSession: ObservableObject {
                                  turn: MCPLearningTurn, requestID: UUID) async throws -> MCPLocalOutcome {
         try lease.check()
         guard self.requestID == requestID else { throw CancellationError() }
+        do { return try applyMCPLocal(proposal, turn: turn, requestID: requestID) }
+        catch {
+            // The model reads why it was refused and goes on with the request.
+            guard let refusal = LocalToolRefusal.resultJSON(for: error) else { throw error }
+            localCommandRefusedRequestID = requestID
+            return .refused(json: refusal)
+        }
+    }
+
+    private func applyMCPLocal(_ proposal: MCPLocalProposal, turn: MCPLearningTurn, requestID: UUID) throws -> MCPLocalOutcome {
         switch proposal.action {
         case .memorySearch:
             try validateMemoryRun(turn.memory, generation: turn.generation)
@@ -1765,7 +1826,7 @@ final class ChatSession: ObservableObject {
         switch event {
         case .requestingModel(let count): mcpPhase = "requestingModel"; mcpModelCalls = count
         case .correctingCommand: mcpPhase = "correctingCommand"; mcpFormatCorrections += 1
-        case .executing: mcpPhase = "executing"; mcpSentCount += 1
+        case .executing: mcpPhase = "executing"; mcpSentCount += 1; skillStep = nil
         case .completed(let step):
             mcpPhase = "receivedResult"
             mcpSteps.append(step)

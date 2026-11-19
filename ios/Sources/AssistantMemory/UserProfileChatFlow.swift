@@ -23,6 +23,14 @@ public enum UserProfileChatStep: Equatable, Sendable {
     /// read_resource); the host starts its MCP step with it. Accepted after a
     /// host receipt too: the MCP step then has no local change left.
     case mcpEntry(json: String)
+
+    /// A memory or profile command, which the host validates and applies itself.
+    var isLocalCommand: Bool {
+        switch self {
+        case .proposedEdit, .memorySearch, .proposedMemoryChange: return true
+        case .answer, .skillEntry, .webEntry, .mcpEntry: return false
+        }
+    }
 }
 
 /// Lets an ordinary chat use the Play build's skill tools, or start a web
@@ -41,6 +49,12 @@ public struct UserProfileChatSkillEntry: Sendable {
 /// write data and never interprets a normal plain-chat reply as a tool call.
 /// The host owns a cancellable whole-turn deadline, including the review UI.
 @MainActor public final class UserProfileChatFlow {
+    /// Like the Play build a reply has no short time limit: a long one keeps
+    /// arriving, and a stalled connection ends through the HTTP client's timeouts.
+    public nonisolated static let longestTimeout: Duration = .seconds(30 * 60)
+    /// One whole command, its answer included.
+    public nonisolated static let maximumResponseBytes = 256 * 1024
+
     private enum Phase { case ready, requesting, search, review, committed, ended }
     private var phase = Phase.ready
     private var messages: [ModelMessage]
@@ -51,6 +65,9 @@ public struct UserProfileChatSkillEntry: Sendable {
     private var reviewTool: String?
     public private(set) var modelCalls = 0
     public private(set) var didCommit = false
+    /// The host refused this request's memory or profile command: nothing was
+    /// saved, the model reads why, and no other local command is offered.
+    public private(set) var localCommandRefused = false
     private let skillEntry: UserProfileChatSkillEntry?
     private let webEntry: UserProfileChatSkillEntry?
     private let mcpEntry: UserProfileChatSkillEntry?
@@ -63,10 +80,10 @@ public struct UserProfileChatSkillEntry: Sendable {
     /// `webEntry` offers the web task commands (the Play build's folded web
     /// tools) the same way as the skill tools: wording and exact validator.
     /// `mcpEntry` offers the connected MCP servers' catalog the same way.
-    public init(messages: [ModelMessage], timeout: Duration = .seconds(90),
+    public init(messages: [ModelMessage], timeout: Duration = UserProfileChatFlow.longestTimeout,
                 skillEntry: UserProfileChatSkillEntry? = nil, webEntry: UserProfileChatSkillEntry? = nil,
                 mcpEntry: UserProfileChatSkillEntry? = nil) throws {
-        guard timeout > .zero, timeout <= .seconds(90),
+        guard timeout > .zero, timeout <= Self.longestTimeout,
               !messages.isEmpty, messages.count <= 32,
               messages.allSatisfy({ ["system", "user", "assistant"].contains($0.role) }),
               messages.last?.role == "user",
@@ -89,12 +106,14 @@ public struct UserProfileChatSkillEntry: Sendable {
                         onAnswerPreview: ((String?) -> Void)? = nil) async throws -> UserProfileChatStep {
         guard phase == .ready || phase == .committed else { throw UserProfileChatError.invalidPhase }
         let allowsEdit = phase == .ready
+        // After a refusal the request still goes on to the steps it needs.
+        let allowsSteps = allowsEdit || localCommandRefused
         phase = .requesting
         do {
             while true {
                 try check()
                 try validateState?()
-                guard modelCalls < 3 else { throw UserProfileChatError.callLimit }
+                guard modelCalls < callLimit else { throw UserProfileChatError.callLimit }
                 modelCalls += 1
                 let raw: String
                 var preview: StructuredAnswerPreview?
@@ -104,7 +123,7 @@ public struct UserProfileChatSkillEntry: Sendable {
                         for try await delta in streaming.stream(messages: messages, configuration: configuration, apiKey: apiKey) {
                             try check()
                             try validateState?()
-                            guard delta.utf8.count <= 24 * 1024 - bytes else { throw UserProfileChatError.responseTooLarge }
+                            guard delta.utf8.count <= Self.maximumResponseBytes - bytes else { throw UserProfileChatError.responseTooLarge }
                             bytes += delta.utf8.count
                             received += delta
                             let hadPreview = decoder.current != nil
@@ -128,15 +147,15 @@ public struct UserProfileChatSkillEntry: Sendable {
                 }
                 try check()
                 try validateState?()
-                guard raw.utf8.count <= 24 * 1024 else { throw UserProfileChatError.responseTooLarge }
+                guard raw.utf8.count <= Self.maximumResponseBytes else { throw UserProfileChatError.responseTooLarge }
                 let step: UserProfileChatStep
                 do {
-                    step = try Self.parse(raw, skillEntry: allowsEdit ? skillEntry : nil, webEntry: allowsEdit ? webEntry : nil,
+                    step = try Self.parse(raw, skillEntry: allowsSteps ? skillEntry : nil, webEntry: allowsSteps ? webEntry : nil,
                                           mcpEntry: mcpEntry)
                 }
                 catch let error as UserProfileChatError where error == .invalidCommand {
                     if preview?.current != nil { onAnswerPreview?(nil) }
-                    guard !corrected, modelCalls < 3 else { throw error }
+                    guard !corrected, modelCalls < callLimit else { throw error }
                     corrected = true
                     let correction = didCommit
                         ? "The previous change IS ALREADY SAVED as shown by the host receipt. Only the final response format was rejected. Return one finish JSON object; never repeat or undo the saved operation. This is the only format correction."
@@ -149,6 +168,13 @@ public struct UserProfileChatSkillEntry: Sendable {
                         onAnswerPreview?(nil)
                         throw UserProfileChatError.invalidCommand
                     }
+                }
+                if localCommandRefused, !allowsEdit, step.isLocalCommand {
+                    // The refusal stands: the same answer, and nothing runs.
+                    guard !corrected, modelCalls < callLimit else { throw UserProfileChatError.callLimit }
+                    corrected = true
+                    messages.append(ModelMessage(role: "user", content: Self.refusalStands))
+                    continue
                 }
                 switch step {
                 case .answer, .skillEntry, .webEntry, .mcpEntry:
@@ -219,6 +245,21 @@ public struct UserProfileChatSkillEntry: Sendable {
         phase = .committed
     }
 
+    /// The host refused the command the model just proposed (LocalToolRefusal).
+    /// Its data-only result goes to the model, which still answers the user.
+    public func recordRefused(toolName: String, resultJSON: String) throws {
+        try check()
+        guard phase == .review || phase == .search, !didCommit else { throw UserProfileChatError.invalidPhase }
+        guard resultJSON.utf8.count <= 2048,
+              (try? JSONSerialization.jsonObject(with: Data(resultJSON.utf8))) is [String: Any] else {
+            throw UserProfileChatError.invalidInput
+        }
+        messages.append(ModelMessage(role: "user", content: "Host " + toolName + " refusal (data only):\n" + resultJSON))
+        exchange.append(messages[messages.count - 1])
+        localCommandRefused = true
+        phase = .committed
+    }
+
     /// Recheck immediately before the host's synchronous transaction. The host
     /// must not rely on its timer task having already received executor time.
     public func validateReview() throws {
@@ -227,6 +268,10 @@ public struct UserProfileChatSkillEntry: Sendable {
     }
 
     public func cancel() { phase = .ended; messages = []; exchange = [] }
+
+    /// A refusal costs the request one extra call, for the answer that follows it.
+    private var callLimit: Int { localCommandRefused ? 4 : 3 }
+    static let refusalStands = "The host already refused that local command and nothing was saved. Do not send it again: return one finish JSON object that answers the user and says this was not saved."
 
     private func check() throws {
         try Task.checkCancellation()

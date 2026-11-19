@@ -73,6 +73,7 @@ public struct MemoryExtractor: Sendable {
                 if proposal.op == "add" {
                     guard let kindName = proposal.kind, let kind = MemoryKind(rawValue: kindName),
                           !state.memories.contains(where: { $0.kind == kind && $0.content == content }),
+                          !state.memories.contains(where: { MemorySafety.restates($0.content, content) }),
                           additions.insert(kindName + "\n" + content).inserted else { continue }
                     operations.append(.add(kind, content, words, quote))
                 } else if let target = target, touched.insert(target.id).inserted {

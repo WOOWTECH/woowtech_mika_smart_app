@@ -236,7 +236,8 @@ enum SkillsCoreFixtures {
         let seed = try install(into: &state)
         let cases: [(SkillStatus, SkillResult, Bool, SkillStatus)] = [
             (.trial, .verified, false, .active), (.trial, .unverified, true, .trial),
-            (.trial, .failed, false, .suspended), (.trial, .verifierRejected, false, .suspended),
+            (.trial, .failed, false, .trial), (.trial, .failed, true, .trial),
+            (.trial, .verifierRejected, false, .trial), (.trial, .verifierRejected, true, .suspended),
             (.trial, .unreviewed, true, .trial), (.active, .verified, true, .active),
             (.active, .unverified, true, .active), (.active, .failed, true, .active),
             (.active, .verifierRejected, true, .suspended), (.active, .verifierRejected, false, .active),

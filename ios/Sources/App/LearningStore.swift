@@ -470,6 +470,9 @@ final class LearningStore: ObservableObject, SkillAuthoringStoring {
         }
     }
 
+    /// Returns when the memory organizing of the latest reply is over, if one runs.
+    func memoryOrganizingFinished() async { await extraction?.value }
+
     func cancelLearning() {
         generation = UUID()
         extractionID = nil

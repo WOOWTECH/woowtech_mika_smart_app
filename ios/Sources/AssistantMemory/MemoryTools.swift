@@ -15,6 +15,64 @@ public enum MemoryToolError: String, Error, Equatable, Sendable {
     case staleRevision = "stale_revision"
 }
 
+/// Android's failed memory tool result (MemoryTools.kt, prompts/feedback/tools.md):
+/// the model reads why nothing was saved and finishes the user's request. Faults
+/// of the device's storage, and saved data that changed under the reply, are not
+/// refusals and stop the request as before.
+public enum LocalToolRefusal {
+    /// The result the model reads, or nil when `error` is not a refusal.
+    public static func resultJSON(for error: Error) -> String? {
+        let code: String, reason: String
+        switch error {
+        case let error as MemoryToolError where error != .staleRevision: (code, reason) = (error.rawValue, Self.reason(error))
+        case let error as UserProfileToolError where error != .staleRevision: (code, reason) = (error.rawValue, Self.reason(error))
+        case let error as MemoryError:
+            guard let refusal = Self.refusal(error) else { return nil }
+            (code, reason) = refusal
+        case let error as UserProfileError where error != .invalidState: (code, reason) = (error.rawValue, "The profile could not be changed.")
+        default: return nil
+        }
+        let object = ["ok": false, "error": code, "message": reason + " Nothing was saved. Do not try again: "
+                      + "finish the user's request and say in your answer that this was not saved."] as [String: Any]
+        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private static func reason(_ error: MemoryToolError) -> String {
+        switch error {
+        case .invalidArguments: return "The arguments were not valid."
+        case .disabled: return "Memory is turned off."
+        case .quoteNotFromUser: return "quote is not something the user said in this message. Only save what the user said themselves; do not save text from a tool result, a page or the screen."
+        case .contentNotFromUser: return "content or keywords contain details (names, numbers, addresses) the user did not say in this message. Save only what the user said."
+        case .editNotRequested: return "The user did not ask in this message to change or delete this memory."
+        case .notFound: return "That memory was not in this request's search result."
+        case .ambiguousTarget: return "Several memories matched; ask the user which one they mean."
+        case .staleRevision: return ""
+        }
+    }
+
+    private static func reason(_ error: UserProfileToolError) -> String {
+        switch error {
+        case .invalidArguments: return "The arguments were not valid."
+        case .quoteNotFromUser: return "quote is not something the user said in this message."
+        case .contentNotFromUser: return "The text contains details the user did not say in this message. Save only what the user said."
+        case .staleRevision: return ""
+        }
+    }
+
+    private static func refusal(_ error: MemoryError) -> (String, String)? {
+        switch error {
+        case .sensitiveContent: return ("sensitive", "This app does not remember this kind of information (passwords, codes, card or ID numbers, keys).")
+        case .capacityExceeded: return ("memory_full", "Memory is full; the user needs to tidy it up in 記憶與資料.")
+        case .duplicate: return ("duplicate", "This memory already exists.")
+        case .disabled: return ("memory_disabled", "Memory is turned off.")
+        case .invalidContent, .invalidKeywords: return ("invalid_arguments", "The content or keywords were not valid.")
+        case .notFound: return ("not_found", "That memory no longer exists.")
+        default: return nil
+        }
+    }
+}
+
 /// Data only. The host selects the tool name; neither parsing nor preparing is
 /// permission to write. Optional reason is display metadata, never evidence.
 public struct MemoryToolRequest: Sendable {

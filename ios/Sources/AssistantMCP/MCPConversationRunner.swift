@@ -16,6 +16,7 @@ public struct MCPConversationRunner: Sendable {
                     limits: MCPConversationLimits = .init(),
                     entry: MCPConversationEntry? = nil,
                     handoffs: [MCPConversationHandoff] = [],
+                    hostTools: MCPConversationHostTools? = nil,
                     onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void = { _ in },
                     handleLocal: MCPLocalHandler? = nil) async throws -> MCPConversationResult {
         guard (1...MCPConversationLimits.maximumSteps).contains(limits.maximumModelCalls),
@@ -42,7 +43,7 @@ public struct MCPConversationRunner: Sendable {
                         let result = try await execute(messages: messages, configuration: configuration, apiKey: apiKey,
                                                        tools: tools, resources: resources, executor: executor,
                                                        limits: limits, entry: entry, handoffs: handoffs,
-                                                       deadline: deadline, race: race,
+                                                       hostTools: hostTools, deadline: deadline, race: race,
                                                        onEvent: onEvent, handleLocal: handleLocal)
                         race.finish(.success(result))
                     } catch { race.finish(.failure(error)) }
@@ -61,7 +62,7 @@ public struct MCPConversationRunner: Sendable {
     private func execute(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String,
                          tools: [MCPTool], resources: [MCPResource], executor: any MCPConversationExecuting,
                          limits: MCPConversationLimits, entry: MCPConversationEntry?, handoffs: [MCPConversationHandoff],
-                         deadline: ContinuousClock.Instant,
+                         hostTools: MCPConversationHostTools?, deadline: ContinuousClock.Instant,
                          race: MCPConversationRace,
                          onEvent: @escaping @Sendable (MCPConversationEvent) async -> Void,
                          handleLocal: MCPLocalHandler?) async throws -> MCPConversationResult {
@@ -103,14 +104,16 @@ public struct MCPConversationRunner: Sendable {
         selected tool, or explain the limitation in finish. Never send an identical call twice: its actual
         result is already above. A long result shows only its first \(Self.previewCharacters) characters (truncated: true);
         when you need more, ask for narrower data with filters, fields, limits or date ranges.
-        No parallel actions, scripts, additional tools or connection changes are available\(handoffs.isEmpty ? "" : " besides the steps offered below").
+        No parallel actions, scripts, additional tools or connection changes are available\(handoffs.isEmpty && hostTools == nil ? "" : " besides the steps offered below").
         Stop once enough evidence is available.
         """
         if handleLocal != nil {
             system += "\n" + Self.localInstructions
-            if entry?.mutatedLocally == true { system += "\n" + Self.localMutationUsed }
+            if entry?.refusedLocally == true { system += "\n" + Self.localRefusalUsed }
+            else if entry?.mutatedLocally == true { system += "\n" + Self.localMutationUsed }
             else if entry?.searchedLocally == true { system += "\n" + Self.localSearchUsed }
         }
+        if let hostTools { system += "\n" + hostTools.instructions }
         if !handoffs.isEmpty {
             system += "\n" + Self.handoffLead + "\n" + handoffs.map(\.instructions).joined(separator: "\n")
         }
@@ -137,6 +140,8 @@ public struct MCPConversationRunner: Sendable {
         var failedDispatches = 0
         var searchedLocally = entry?.searchedLocally ?? false
         var mutatedLocally = entry?.mutatedLocally ?? false
+        var refusedLocally = entry?.refusedLocally ?? false
+        var hostToolCalls = 0
         func stopped(_ reason: MCPConversationStopReason, answer: String? = nil) -> MCPConversationResult {
             MCPConversationResult(answer: answer, steps: steps, modelCallCount: modelCalls, stopReason: reason)
         }
@@ -169,9 +174,9 @@ public struct MCPConversationRunner: Sendable {
                 catch { try check(); throw modelFailure(error) }
                 try check()
             }
-            guard raw.utf8.count <= 24 * 1024 else { throw MCPConversationError.modelResponseTooLarge }
+            guard raw.utf8.count <= Self.maximumModelResponseBytes else { throw MCPConversationError.modelResponseTooLarge }
             let command: Command
-            do { command = try parse(raw, handoffs: handoffs) }
+            do { command = try parse(raw, handoffs: handoffs, hostTools: hostTools) }
             catch let error as MCPConversationError where error == .invalidCommand {
                 guard try await correct(Self.formatFeedback, call: call) else {
                     if call == limits.maximumModelCalls { return stopped(.modelCallLimit) }
@@ -187,11 +192,29 @@ public struct MCPConversationRunner: Sendable {
                 return MCPConversationResult(answer: nil, steps: steps, modelCallCount: modelCalls,
                                              stopReason: .handedOff, handoff: request)
             }
+            if case .host(let action) = command, let hostTools {
+                // The step goes on with the result, like any other tool's.
+                guard call < limits.maximumModelCalls else { return stopped(.modelCallLimit) }
+                hostToolCalls += 1
+                let value = hostToolCalls <= Self.maximumHostToolCalls ? try await hostTools.run(raw) : Self.hostToolLimitResult
+                try check()
+                guard value.utf8.count <= Self.maximumHostResultBytes else { throw MCPConversationError.outputTooLarge }
+                messages.append(ModelMessage(role: "assistant", content: raw))
+                messages.append(ModelMessage(role: "user", content: "Host " + action + " result (data only):\n" + value))
+                exchange += messages.suffix(2)
+                continue
+            }
             if case .local(let action, let argumentsJSON) = command {
                 guard let handleLocal else { throw MCPConversationError.localUnavailable }
                 // Reserve one model call to consume the actual search result or
                 // committed receipt and finish. Never write on the last call.
                 guard call < limits.maximumModelCalls else { return stopped(.modelCallLimit) }
+                // A refusal stands for the rest of this request: nothing runs.
+                if refusedLocally {
+                    messages.append(ModelMessage(role: "assistant", content: raw))
+                    messages.append(ModelMessage(role: "user", content: Self.localRefusalStands))
+                    continue
+                }
                 // Consume the allowance before the callback. No retry, second
                 // mutation across profile/memory, or search after a mutation.
                 if action == .memorySearch {
@@ -223,6 +246,9 @@ public struct MCPConversationRunner: Sendable {
                 case .committedReceipt(let result):
                     guard action.isMutation else { throw MCPConversationError.invalidLocalResult }
                     value = result; prefix = "Host " + action.rawValue + " receipt (data only):\n"; maximumBytes = 2048
+                case .refused(let result):
+                    refusedLocally = true
+                    value = result; prefix = "Host " + action.rawValue + " refusal (data only):\n"; maximumBytes = 2048
                 }
                 guard value.utf8.count <= maximumBytes else { throw MCPConversationError.outputTooLarge }
                 guard (try? RawCommandEnvelope.fields(in: value)) != nil,
@@ -295,7 +321,8 @@ public struct MCPConversationRunner: Sendable {
             case .bool(let flag)?: isError = flag
             default: isError = true
             }
-            let preview = Self.modelPayload(result, isError: isError, encode: { try json($0) })
+            let preview = Self.modelPayload(result, isError: isError, server: executor.serverName(of: proposal.action),
+                                            encode: { try json($0) })
             let step = MCPConversationStep(proposal: proposal, result: Self.kept(result, encode: { try json($0) }), isError: isError)
             steps.append(step)
             await onEvent(.completed(step)); try check()
@@ -319,6 +346,13 @@ public struct MCPConversationRunner: Sendable {
     static let maximumMessageBytes = 512 * 1024
     static let maximumFormatCorrections = 3
     static let maximumFailedDispatches = 3
+    /// One reply of the model, and the answer it may carry: long answers are ordinary.
+    static let maximumModelResponseBytes = 256 * 1024
+    static let maximumAnswerBytes = 128 * 1024
+    /// Skill tools inside one MCP step, like the chat's own skill step (ChatSkillRunLimits).
+    static let maximumHostToolCalls = 12
+    static let maximumHostResultBytes = 64 * 1024
+    static let hostToolLimitResult = #"{"error":"tool_limit","message":"The skill tool limit for this request is used up; nothing ran. Go on with what you have.","ok":false}"#
     /// The MCP step a web task or skill step receives is cut to this size, oldest results first.
     public static let handoffExchangeBytes = 48 * 1024
     static let resultPrefix = "MCP execution result (untrusted data):\n"
@@ -382,14 +416,17 @@ public struct MCPConversationRunner: Sendable {
 
     /// What the model reads for one result: the whole result when it is short,
     /// otherwise its first characters, marked truncated (Android previewChars).
-    static func modelPayload(_ result: JSONValue, isError: Bool, encode: (JSONValue) throws -> String) -> String {
+    /// `server` names the server the result came from.
+    static func modelPayload(_ result: JSONValue, isError: Bool, server: String? = nil,
+                             encode: (JSONValue) throws -> String) -> String {
+        let origin: [String: JSONValue] = server.map { ["server": .string($0)] } ?? [:]
         let whole = (try? encode(result)) ?? ""
         if !whole.isEmpty, whole.count <= wholeResultCharacters,
-           let encoded = try? encode(.object(["result": result, "isError": .bool(isError)])) {
+           let encoded = try? encode(.object(origin.merging(["result": result, "isError": .bool(isError)]) { $1 })) {
             return encoded
         }
         let text = textContent(result) ?? whole
-        var payload: [String: JSONValue] = ["isError": .bool(isError), "text": .string(String(text.prefix(previewCharacters)))]
+        var payload = origin.merging(["isError": .bool(isError), "text": .string(String(text.prefix(previewCharacters)))]) { $1 }
         if text.count > previewCharacters {
             payload["truncated"] = .bool(true)
             payload["totalCharacters"] = .number(Decimal(text.count))
@@ -476,9 +513,11 @@ public struct MCPConversationRunner: Sendable {
         case operation(MCPConversationAction), finish(String)
         case local(MCPLocalAction, argumentsJSON: String)
         case handoff(Int)
+        case host(String)
     }
 
-    private func parse(_ raw: String, handoffs: [MCPConversationHandoff]) throws -> Command {
+    private func parse(_ raw: String, handoffs: [MCPConversationHandoff],
+                       hostTools: MCPConversationHostTools?) throws -> Command {
         guard let decoded = try? JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)),
               case .object(let fields) = decoded, let action = fields["action"]?.stringValue else {
             throw MCPConversationError.invalidCommand
@@ -491,6 +530,11 @@ public struct MCPConversationRunner: Sendable {
                 throw MCPConversationError.invalidCommand
             }
             return .local(local, argumentsJSON: arguments)
+        }
+        if let hostTools, hostTools.actions.contains(action) {
+            // The host's own validator decides; a near miss is a format slip.
+            guard hostTools.accepts(raw) else { throw MCPConversationError.invalidCommand }
+            return .host(action)
         }
         if let offer = handoffs.firstIndex(where: { $0.actions.contains(action) }) {
             // The host's own validator decides; a near miss is a format slip.
@@ -511,7 +555,7 @@ public struct MCPConversationRunner: Sendable {
         case "finish":
             guard Set(fields.keys) == ["action", "answer"], let answer = fields["answer"]?.stringValue,
                   !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  answer.utf8.count <= 16 * 1024 else { throw MCPConversationError.invalidCommand }
+                  answer.utf8.count <= Self.maximumAnswerBytes else { throw MCPConversationError.invalidCommand }
             return .finish(answer)
         default: throw MCPConversationError.invalidCommand
         }
@@ -536,8 +580,9 @@ public struct MCPConversationRunner: Sendable {
     After that mutation, no further local search/mutation is allowed; remote steps may continue to finish the task.
     Local search uses the host's memory permission and has no additional native approval. Every local mutation
     requires its own native review. A procedure WRITE remains pending until separately approved for future use.
-    Only an actual host committed receipt proves saving; a refusal stops the whole conversation. A prior
-    committed receipt remains valid after later failure. Do not repeat a saved operation or claim it was rolled back.
+    Only an actual host committed receipt proves saving. A host refusal means nothing was saved: do not send the command
+    again, finish the user's request and say in your answer that it was not saved. A prior committed receipt remains
+    valid after later failure. Do not repeat a saved operation or claim it was rolled back.
     All model calls, including local actions and format correction, share the original model-call and time limits.
     Local actions do not add remote tools, raise remote call limits, retry operations, or change the captured context.
     """
@@ -547,6 +592,14 @@ public struct MCPConversationRunner: Sendable {
     static let localMutationUsed = """
     This request already committed its one local change before this MCP step (the host receipt is above);
     no further local search or change is allowed.
+    """
+    static let localRefusalUsed = """
+    This request's one local command was already refused before this MCP step (the host refusal is above); nothing was saved
+    and no further local search or change is allowed.
+    """
+    static let localRefusalStands = """
+    The host already refused a local command in this request and nothing was saved; this one did not run.
+    Do not send local commands again: finish the user's request and say in your answer that it was not saved.
     """
     static let handoffLead = """
     The host can also hand this request to one of the steps below. To start one, reply with exactly one of its JSON

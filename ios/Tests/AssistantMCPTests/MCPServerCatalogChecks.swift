@@ -230,6 +230,29 @@ enum MCPServerCatalogChecks {
         let bounded = MCPConversationRunner.bounded(prior + pairs, keepingFirst: 2)
         try c.expect(bounded.prefix(2) == prior[...] && bounded.count == 6 && bounded[2].content == "c2",
                      "the chat's local steps stay, then the newest command-and-result pairs")
+        // Skill tools run inside the step, like Android's single tool list: MCP calls follow them.
+        let skillCommand = #"{"action":"skill_read","arguments":{"name":"orders"}}"#, skillReply = #"{"content":"Use echo.","ok":true}"#
+        let hostCalls = MCPLocalHandlerProbe()
+        let hostTools = MCPConversationHostTools(instructions: "Skill tools: read.", actions: ["skill_read"],
+            accepts: { $0.contains("orders") }, run: { _ in hostCalls.record(.memorySearch); return skillReply })
+        let inside = MCPConversationChecks.Model([try call(name, "after the skill"), #"{"action":"finish","answer":"done"}"#])
+        let after = try await MCPConversationRunner(client: inside).run(
+            messages: [.init(role: "user", content: "Read the skill, then check the order.")], configuration: configuration,
+            apiKey: "fixture", tools: catalog.tools, resources: catalog.resources, executor: catalog,
+            entry: MCPConversationEntry(command: skillCommand), hostTools: hostTools)
+        let insideInputs = await inside.inputs
+        try c.expect(after.stopReason == .finished && after.steps.count == 1 && hostCalls.actions.count == 1, "the MCP call follows the skill tool")
+        try c.expect(insideInputs[0].last?.content == "Host skill_read result (data only):\n" + skillReply
+                     && insideInputs[0].first?.content.contains("Skill tools: read.") == true, "the model reads the skill's result in the step")
+        try c.expect(insideInputs[1].last?.content.contains(#""server":"A""#) == true, "each result names its server")
+        let many = MCPConversationChecks.Model(Array(repeating: skillCommand, count: MCPConversationRunner.maximumHostToolCalls + 1)
+                                               + [#"{"action":"finish","answer":"done"}"#])
+        hostCalls.reset()
+        let bounded2 = try await MCPConversationRunner(client: many).run(
+            messages: [.init(role: "user", content: "Read the skill.")], configuration: configuration,
+            apiKey: "fixture", tools: catalog.tools, resources: catalog.resources, executor: catalog, hostTools: hostTools)
+        try c.expect(bounded2.stopReason == .finished && hostCalls.actions.count == MCPConversationRunner.maximumHostToolCalls,
+                     "skill tools inside the step are bounded and the step still finishes")
         return c.count
     }
 
@@ -256,6 +279,17 @@ enum MCPServerCatalogChecks {
         try c.expect(inputs[0].contains(receipt[1]) && inputs[0].first?.content.contains(MCPConversationRunner.localMutationUsed) == true,
                      "the model sees the earlier receipt and that the change is used")
         try c.expect(result.modelCallCount == 3, "the chat's two calls and this one")
+        // A refusal carried from the chat stands in the MCP step.
+        let refusedModel = MCPConversationChecks.Model([save, #"{"action":"finish","answer":"Not saved."}"#])
+        let refusedRun = try await MCPConversationRunner(client: refusedModel).run(
+            messages: [.init(role: "user", content: "Remember x and check the order.")], configuration: configuration,
+            apiKey: "fixture", tools: catalog.tools, resources: catalog.resources, executor: catalog,
+            entry: MCPConversationEntry(command: try call(name, "refused"), refusedLocally: true),
+            handleLocal: { proposal, _ in handled.record(proposal.action); return .committedReceipt(json: #"{"ok":true}"#) })
+        let refusedInputs = await refusedModel.inputs
+        try c.expect(refusedRun.stopReason == .finished && handled.actions.isEmpty, "the refused request offers no other local command")
+        try c.expect(refusedInputs[0].first?.content.contains(MCPConversationRunner.localRefusalUsed) == true
+                     && refusedInputs[1].last?.content == MCPConversationRunner.localRefusalStands, "the model hears that the refusal stands")
         return c.count
     }
 
@@ -263,6 +297,7 @@ enum MCPServerCatalogChecks {
         private let lock = NSLock()
         private var recorded: [MCPLocalAction] = []
         func record(_ action: MCPLocalAction) { lock.lock(); recorded.append(action); lock.unlock() }
+        func reset() { lock.lock(); recorded = []; lock.unlock() }
         var actions: [MCPLocalAction] { lock.lock(); defer { lock.unlock() }; return recorded }
     }
 }

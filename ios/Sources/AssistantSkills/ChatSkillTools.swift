@@ -16,6 +16,8 @@ public enum ChatSkillCommand: Equatable, Sendable {
     public static let toolNames: Set<String> = ["skill_search", "skill_read", "skill_save"]
     /// Play allows the raw document twice SkillDrafter.MAX_CHARS before validation.
     static let maxMarkdown = SkillDocument.maxUTF16Count * 2
+    /// One whole command, a long final answer included.
+    static let maxCommandBytes = 256 * 1024
 
     public var toolName: String? {
         switch self {
@@ -30,7 +32,7 @@ public enum ChatSkillCommand: Equatable, Sendable {
     public static func parse(_ text: String) throws -> ChatSkillCommand {
         let body = unfenced(text)
         // Duplicate top-level keys are refused, as for the chat's other commands.
-        guard body.utf8.count <= 32 * 1024, (try? RawCommandEnvelope.fields(in: body)) != nil,
+        guard body.utf8.count <= maxCommandBytes, (try? RawCommandEnvelope.fields(in: body)) != nil,
               let object = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
               let action = object["action"] as? String else { throw ChatSkillRunError.invalidCommand }
         if action == "finish" {
@@ -134,11 +136,22 @@ public enum ChatSkillPrompts {
     /// How the plain-chat offer begins; synthetic UI fixtures recognize it.
     public static let plainChatLead = "Answer normally. To use a skill tool instead, reply with exactly one of these JSON objects and nothing else; the host runs it and gives you the result."
 
-    public static func entry(index: String?, plainChat: Bool) -> String {
+    /// `mcpOffered`: the request also offers MCP tools. The skill tools then run
+    /// inside the MCP step, like Android's single tool list for a task.
+    public static func entry(index: String?, plainChat: Bool, mcpOffered: Bool = false) -> String {
         let lead = plainChat
             ? plainChatLead
-            : "Besides the actions above you may use a skill tool: reply with exactly one of these JSON objects; the host runs it and gives you the result. Memory and profile actions are not offered after a skill tool in the same request."
-        return ([lead, commands, index].compactMap { $0 }).joined(separator: "\n")
+            : "Besides the actions above you may use a skill tool: reply with exactly one of these JSON objects; the host runs it and gives you the result."
+                + (mcpOffered ? "" : " Memory and profile actions are not offered after a skill tool in the same request.")
+        return ([lead, mcpOffered ? staysWithMCP : nil, commands, index].compactMap { $0 }).joined(separator: "\n")
+    }
+
+    static let staysWithMCP = "The MCP tools stay available after a skill tool: when a skill fits the request, read it first, then make the MCP calls it needs."
+
+    /// How the MCP step offers the skill tools, which run between its MCP calls.
+    public static func insideMCP(index: String?) -> String {
+        (["You may also use a skill tool at any point: reply with exactly one of these JSON objects; the host runs it and gives you the result.",
+          staysWithMCP, commands, index].compactMap { $0 }).joined(separator: "\n")
     }
 
     /// The system message of the skill tools step.
@@ -197,9 +210,7 @@ public enum ChatSkillPrompts {
             if let command = pending {
                 guard toolCalls < limits.toolCalls else { throw ChatSkillRunError.toolCallLimit }
                 toolCalls += 1
-                let result = execute(command)
-                // Results are sorted-key JSON; a quote inside a string value is escaped.
-                if let tool = command.toolName, result.contains("\"ok\":true") { completedTools.append(tool) }
+                let result = perform(command)
                 messages.append(ModelMessage(role: "user", content:
                     "Host \(command.toolName ?? "") result (data only):\n" + result))
                 pending = nil
@@ -222,6 +233,15 @@ public enum ChatSkillPrompts {
             messages.append(ModelMessage(role: "assistant", content: ChatSkillCommand.unfenced(raw)))
             pending = next
         }
+    }
+
+    /// One tool call of this run or of the step it runs inside (the MCP step),
+    /// counted for the outcome judge when it succeeds.
+    public func perform(_ command: ChatSkillCommand) -> String {
+        let result = execute(command)
+        // Results are sorted-key JSON; a quote inside a string value is escaped.
+        if let tool = command.toolName, result.contains("\"ok\":true") { completedTools.append(tool) }
+        return result
     }
 
     /// One tool call, as Play's tool result JSON ({"ok":true,...} or

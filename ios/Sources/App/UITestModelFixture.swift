@@ -207,7 +207,7 @@ actor UITestChatModelClient: ChatModelClient {
     }
 
     func complete(messages input: [ModelMessage], configuration: ModelConfiguration, apiKey: String) async throws -> String {
-        // MCP first: its prompts also start a web task or a skill tool after the MCP step.
+        // MCP first: its prompts also use a skill tool or start a web task in the MCP step.
         if let reply = UITestMCPFixtureModel.reply(to: input) { return reply }
         if input.first?.role == "system", input.first?.content.contains(ChatWebTaskPrompts.entryLead) == true,
            !(input.first?.content.hasPrefix("Ordinary chat with an available profile_edit tool.") ?? true),
@@ -372,10 +372,10 @@ enum UITestMCPFixtureModel {
     static let twoServersPrompt = "[fixture:mcp-two] hello"
     static let webPrompt = "[fixture:mcp-web]"
     static let skillPrompt = "[fixture:mcp-skill]"
+    static let skillFirstPrompt = "[fixture:mcp-after-skill]"
     static let prompts: Set<String> = ["[fixture:mcp] hello", "[fixture:mcp-resource]", "[fixture:mcp-error]",
-                                       memoryPrompt, profilePrompt, twoServersPrompt, webPrompt, skillPrompt]
+                                       memoryPrompt, profilePrompt, twoServersPrompt, webPrompt, skillPrompt, skillFirstPrompt]
     static let runnerLead = "You operate selected MCP tools"
-    static let skillStepLead = "You are in the skill tools step"
 
     static func reply(to input: [ModelMessage]) -> String? {
         guard let system = input.first, system.role == "system" else { return nil }
@@ -387,12 +387,6 @@ enum UITestMCPFixtureModel {
             return next(prompt: prompt ?? "", latest: latest, results: results)
         }
         guard let prompt else { return nil }
-        if instructions.hasPrefix(skillStepLead) {
-            // The skill step after an MCP step sees its results.
-            guard prompt == skillPrompt else { return nil }
-            guard latest.hasPrefix("Host skill_search result") else { return nil }
-            return finish("FIXTURE_SKILL_AFTER_MCP：" + (results.last.map(resultText) ?? "no MCP result"))
-        }
         // A plain or memory chat that offers the MCP catalog.
         guard instructions.contains(MCPCombinedCatalog.entryLead), input.last?.role == "user" else { return nil }
         if prompt == profilePrompt, instructions.hasPrefix("Ordinary chat with an available profile_edit tool.") {
@@ -405,9 +399,12 @@ enum UITestMCPFixtureModel {
         switch prompt {
         case "[fixture:mcp-resource]": return #"{"action":"read_resource","uri":"fixture://guide"}"#
         case "[fixture:mcp-error]": return call(echo, "error")
+        case skillFirstPrompt: return skillSearch
         default: return call(echo, "hello")
         }
     }
+
+    private static var skillSearch: String { json(["action": "skill_search", "arguments": ["query": "fixture"]]) }
 
     /// The MCP step's next command.
     private static func next(prompt: String, latest: String, results: [ModelMessage]) -> String {
@@ -431,8 +428,17 @@ enum UITestMCPFixtureModel {
             guard latest.hasPrefix("MCP execution result") else { return call(echo, "hello") }
             return ChatWebTaskUITestModel.entry(for: webPrompt) ?? finish("FIXTURE_NO_WEB_TASK")
         case skillPrompt:
+            // The step goes on after a skill tool, with the MCP results it has.
+            if latest.hasPrefix("Host skill_search result") {
+                return finish("FIXTURE_SKILL_AFTER_MCP：" + (results.last.map(resultText) ?? "no MCP result"))
+            }
             guard latest.hasPrefix("MCP execution result") else { return call(echo, "hello") }
-            return json(["action": "skill_search", "arguments": ["query": "fixture"]])
+            return skillSearch
+        case skillFirstPrompt:
+            // A skill tool first: the MCP tools are still there afterwards.
+            if latest.hasPrefix("Host skill_search result") { return call(echo, "hello") }
+            guard latest.hasPrefix("MCP execution result"), let last = results.last else { return skillSearch }
+            return finish("FIXTURE_MCP_AFTER_SKILL：" + resultText(last))
         case "[fixture:mcp-resource]":
             if latest.hasPrefix("MCP execution result") { return finish(resultText(results.last!)) }
             return #"{"action":"read_resource","uri":"fixture://guide"}"#

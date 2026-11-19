@@ -174,6 +174,15 @@ public struct MCPCombinedCatalog: MCPConversationExecuting {
         resourceRoutes[uri].map { (serverNames[$0.server], $0.target) }
     }
 
+    public func serverName(of action: MCPConversationAction) -> String? {
+        let name: String?
+        switch action {
+        case .callTool(let tool, _): name = owner(ofTool: tool)?.server
+        case .readResource(let uri): name = owner(ofResource: uri)?.server
+        }
+        return name.map { $0.isEmpty ? "MCP server" : String($0.prefix(200)) }
+    }
+
     public func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         guard let route = toolRoutes[name] else { throw MCPError.toolNotAllowed }
         return try await executors[route.server].callAuthorizedTool(name: route.target, arguments: arguments)

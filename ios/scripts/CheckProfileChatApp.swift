@@ -886,11 +886,13 @@ private enum CheckProfileChatApp {
 
     @MainActor static func groundingAndOrdinary() async throws {
         let env = try Environment(); defer { try? env.close() }
-        let model = ScriptedModel([.init(proposal)])
+        let model = ScriptedModel([.init(proposal), .init(finished)])
         let session = env.session(model), bytes = try env.bytes()
         let running = try start(session, draft: "Explain how profile review works")
         await running.value
-        try check(session.profileReceipt == nil && ended(session, .failed), "Model quote cannot stand in for actual submitted request")
+        try check(session.profileReceipt == nil && session.entries.last?.outcome == nil
+                  && session.entries.last?.content == "Synthetic answer after commit",
+                  "Model quote cannot stand in for actual submitted request; the model hears why and still answers")
         try check((try env.bytes()) == bytes, "Unrelated model proposal cannot write")
 
         let disabled = try Environment(); defer { try? disabled.close() }
@@ -1216,15 +1218,19 @@ private enum CheckProfileChatApp {
             let server = LearningMCPServer(), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
             let duplicate = #"{"action":"memory_save","arguments":{"kind":"preference","content":"Prefer jasmine tea","content":"Prefer jasmine tea","quote":"Please remember Prefer jasmine tea"}}"#
-            let model = ScriptedModel([.init(disabled ? try memorySave() : duplicate)])
+            let model = ScriptedModel(disabled ? [.init(try memorySave())] : [.init(duplicate), .init(finished)])
             let session = env.session(model), running = try startMCP(session, connection: connection)
             await running.value
             let requests = await model.requests, calls = await server.calls.count
             // With memory off, the chat offers no local tools, so the text is only a reply.
-            try check((disabled ? session.entries.last?.outcome == nil : ended(session, .failed)) && session.memoryReceipt == nil,
-                      "Disabled or duplicate-key local command stops before any receipt")
-            try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == 1,
+            try check(session.entries.last?.outcome == nil && session.memoryReceipt == nil,
+                      "Disabled or duplicate-key local command ends before any receipt, and the user gets an answer")
+            try check(env.reopen().memory.memories.isEmpty && calls == 0 && requests.count == (disabled ? 1 : 2),
                       "Disabled/duplicate command never writes, dispatches or repairs permission")
+            if !disabled {
+                try check(requests[1].last?.content.hasPrefix("Host memory_save refusal (data only):") == true,
+                          "The model reads why the duplicate-key command was refused")
+            }
             if disabled {
                 try check(requests.first?.first?.content.contains("Separately, the host offers local") == false,
                           "Disabled memory does not advertise local tools")
@@ -1234,11 +1240,15 @@ private enum CheckProfileChatApp {
             let env = try Environment(); defer { try? env.close() }
             let server = LearningMCPServer(resultText: utterance), connection = try await connectedMCP(server)
             defer { connection.disconnect() }
-            let model = ScriptedModel([.init(remoteRead), .init(try memorySave())])
+            let model = ScriptedModel([.init(remoteRead), .init(try memorySave()), .init(finished)])
             let session = env.session(model), running = try startMCP(session, connection: connection, draft: "Read the selected service")
             await running.value
-            try check(session.mcpSteps.count == 1 && ended(session, .failed) && session.memoryReceipt == nil,
-                      "Actual remote text cannot become the user's memory permission")
+            let requests = await model.requests
+            try check(session.mcpSteps.count == 1 && session.memoryReceipt == nil && session.entries.last?.outcome == nil
+                      && session.entries.last?.content == "Synthetic answer after commit",
+                      "Actual remote text cannot become the user's memory permission, and the answer still arrives")
+            try check(requests.last?.last?.content.hasPrefix("Host memory_save refusal (data only):") == true,
+                      "The model reads why nothing was saved")
             try check(env.reopen().memory.memories.isEmpty,
                       "Counterfeit quote is rejected before any disk write")
         }
@@ -1600,13 +1610,14 @@ private enum CheckProfileChatApp {
                 responses.append(.init(try memoryCommand("memory_search", ["query": scenario == "emptySearch" ? "unmatchedsynthetic" : "jasmine tea"])))
             }
             responses.append(.init(try memoryEdit(scenario == "guessedID" ? UUID() : id, quote: quote, content: "Prefer green tea")))
+            responses.append(.init(finished))
             let model = ScriptedModel(responses), session = env.session(model)
             let running = try start(session, draft: prompt)
             let before = env.store.memory, bytes = try env.bytes() // After legitimate context markUsed.
             await running.value
-            try check(session.memoryReceipt == nil && ended(session, .failed)
-                      && session.entries.last?.content.contains("記憶工具未通過") == true,
-                      scenario + " cannot reach write review with ungrounded target or request")
+            try check(session.memoryReceipt == nil && session.entries.last?.outcome == nil
+                      && session.entries.last?.content == "Synthetic answer after commit",
+                      scenario + " cannot reach a write with an ungrounded target or request; the user still gets an answer")
             try check((try env.bytes()) == bytes && env.reopen().memory == before && env.store.notes.isEmpty,
                       scenario + " writes nothing after context capture")
             let requests = await model.requests
@@ -1620,8 +1631,9 @@ private enum CheckProfileChatApp {
                               "Guessed or ungrounded edit is tested against a successfully searched real ID")
                 }
             }
-            try check(requests.count == responses.count && session.draft.isEmpty && ended(session, .failed),
-                      scenario + " stops without retries or fabricated success")
+            try check(requests.count == responses.count && session.draft.isEmpty
+                      && requests.last?.last?.content.hasPrefix("Host memory_edit refusal (data only):") == true,
+                      scenario + " tells the model why, without retries or fabricated success")
         }
     }
 

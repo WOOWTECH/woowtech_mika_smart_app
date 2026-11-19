@@ -10,6 +10,13 @@ import Foundation
 public protocol MCPConversationExecuting: Sendable {
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue
     func readResource(uri: String) async throws -> JSONValue
+    /// The user's name for the server behind an action, so the model can tell
+    /// the results of several servers apart. Never a URL or a token.
+    func serverName(of action: MCPConversationAction) -> String?
+}
+
+public extension MCPConversationExecuting {
+    func serverName(of action: MCPConversationAction) -> String? { nil }
 }
 
 extension MCPClient: MCPConversationExecuting {}
@@ -94,11 +101,14 @@ public struct MCPConversationEntry: Sendable {
     /// The runner's own allowance is what is left of them.
     public let searchedLocally: Bool
     public let mutatedLocally: Bool
+    /// The chat's local command was refused: no other is offered in this request.
+    public let refusedLocally: Bool
 
     public init(command: String, exchange: [ModelMessage] = [], modelCalls: Int = 1,
-                searchedLocally: Bool = false, mutatedLocally: Bool = false) {
+                searchedLocally: Bool = false, mutatedLocally: Bool = false, refusedLocally: Bool = false) {
         self.command = command; self.exchange = exchange; self.modelCalls = modelCalls
         self.searchedLocally = searchedLocally; self.mutatedLocally = mutatedLocally
+        self.refusedLocally = refusedLocally
     }
 
     /// The MCP command a chat reply consists of, without a surrounding code
@@ -131,6 +141,21 @@ public struct MCPConversationHandoff: Sendable {
 
     public init(instructions: String, actions: Set<String>, accepts: @escaping @Sendable (String) -> Bool) {
         self.instructions = instructions; self.actions = actions; self.accepts = accepts
+    }
+}
+
+/// Tools the host runs inside the MCP step, which then goes on: the chat's
+/// skill tools, like Android's single tool list for a task.
+public struct MCPConversationHostTools: Sendable {
+    public let instructions: String
+    public let actions: Set<String>
+    public let accepts: @Sendable (String) -> Bool
+    /// Runs one accepted command and returns its result as JSON text.
+    public let run: @Sendable (String) async throws -> String
+
+    public init(instructions: String, actions: Set<String>, accepts: @escaping @Sendable (String) -> Bool,
+                run: @escaping @Sendable (String) async throws -> String) {
+        self.instructions = instructions; self.actions = actions; self.accepts = accepts; self.run = run
     }
 }
 

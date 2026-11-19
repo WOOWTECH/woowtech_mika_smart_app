@@ -349,6 +349,17 @@ enum MCPLocalToolsChecks {
                               local: { try await remoteFailureHost.handle($0, $1) })
         }
         try c.expect(await remoteFailureHost.receipts == 1, "remote failure does not discard prior host commit")
+        // Like Android a refused command is a result the model reads; the run goes on.
+        let refusal = #"{"error":"content_not_from_user","ok":false}"#, refusedHost = Record()
+        let refusedModel = Model([remote(), local(.memorySave), local(.memorySave), remote(1), finish])
+        let refused = try await run(refusedModel, local: { proposal, _ in
+            await refusedHost.observe(proposal); return .refused(json: refusal)
+        })
+        try c.expect(refused.stopReason == .finished && refused.steps.count == 2, "a refusal does not stop the request")
+        try c.expect(await refusedHost.local.count == 1, "the same command again never reaches the host")
+        let refusedInputs = await refusedModel.inputs
+        try c.expect(refusedInputs[2].last?.content == "Host memory_save refusal (data only):\n" + refusal, "the model reads the refusal")
+        try c.expect(refusedInputs[3].last?.content.contains("already refused") == true, "a repeat hears that the refusal stands")
         return c.count + extra
     }
 

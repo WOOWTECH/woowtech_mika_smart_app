@@ -292,6 +292,14 @@ final class MCPConversationUITests: XCTestCase {
         assertAnswer("FIXTURE_SKILL_AFTER_MCP：FIXTURE_CALL_2: hello", index: 3)
     }
 
+    /// Like Android's single tool list a skill tool may come first: the MCP
+    /// tools are still there after it, in the same request.
+    func testASkillToolThenAnMCPCallInOneRequest() {
+        send("[fixture:mcp-after-skill]")
+        assertAnswer("FIXTURE_MCP_AFTER_SKILL：FIXTURE_CALL_1: hello")
+        assertAudit(attempts: 1, results: 1)
+    }
+
     /// The single server of earlier versions becomes the first server of the
     /// list with its endpoint, access token and tool choice.
     func testEarlierSingleServerMovesIntoTheList() {

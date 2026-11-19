@@ -74,13 +74,18 @@ enum SkillOutcomeRules {
     static func record(_ result: SkillResult, on skill: inout PersonalSkill, followed: Bool) {
         skill.outcomes = Array((skill.outcomes + [result]).suffix(5))
         if skill.status == .trial {
+            // Android SkillOutcomes.record: a judgment of the answer alone cannot
+            // prove the skill failed, since it may miss a successful tool call. A
+            // trial stays available; a verifier rejection is stronger evidence.
             if result == .verified { skill.status = .active }
-            else if result == .failed || result == .verifierRejected { skill.status = .suspended }
+            else if result == .verifierRejected, followed || shouldSuspend(skill.outcomes) { skill.status = .suspended }
         } else if skill.status == .active {
-            let window = skill.outcomes.filter { $0 != .unreviewed }.suffix(3)
-            if (followed && result == .verifierRejected) || window.filter({ $0 != .verified }).count >= 2 {
-                skill.status = .suspended
-            }
+            if (followed && result == .verifierRejected) || shouldSuspend(skill.outcomes) { skill.status = .suspended }
         }
+    }
+
+    /// Two of the last three reviewed results were not verified.
+    private static func shouldSuspend(_ outcomes: [SkillResult]) -> Bool {
+        outcomes.filter { $0 != .unreviewed }.suffix(3).filter { $0 != .verified }.count >= 2
     }
 }

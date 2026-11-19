@@ -30,6 +30,9 @@ public struct MCPLocalProposal: Identifiable, Sendable {
 public enum MCPLocalOutcome: Sendable {
     case searchResult(json: String)
     case committedReceipt(json: String)
+    /// The host validated the command and refused it: nothing was saved. The
+    /// model reads why (a small JSON object) and goes on with the request.
+    case refused(json: String)
     case declined
 }
 
