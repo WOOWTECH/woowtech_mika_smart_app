@@ -99,6 +99,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.persistence
 
+  AssistantDocuments:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources/AssistantDocuments]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant.documents
+
   WoowAssistant:
     type: application
     platform: iOS
@@ -114,6 +123,7 @@ targets:
       - target: AssistantMemory
       - target: AssistantSkills
       - target: AssistantPersistence
+      - target: AssistantDocuments
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.woowtech.assistant
@@ -191,6 +201,17 @@ targets:
     dependencies:
       - target: AssistantPersistence
 
+  AssistantDocumentsTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - Tests/AssistantDocumentsTests
+      - path: ../test-fixtures/documents/parity-v1.json
+        buildPhase: resources
+    dependencies:
+      - target: AssistantDocuments
+
   WoowAssistantUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -219,6 +240,7 @@ targets:
       - Tests/AssistantDomainTests/TaskNotificationChecks.swift
     dependencies:
       - target: WoowAssistant
+      - target: AssistantDocuments
       - target: AssistantBrowser
       - target: AssistantSkills
       - target: AssistantDomain
@@ -238,6 +260,7 @@ schemes:
         AssistantMemoryTests: [test]
         AssistantSkillsTests: [test]
         AssistantPersistenceTests: [test]
+        AssistantDocumentsTests: [test]
         WoowAssistantUITests: [test]
         AssistantBrowserIntegrationTests: [test]
     test:
@@ -248,5 +271,6 @@ schemes:
         - AssistantMemoryTests
         - AssistantSkillsTests
         - AssistantPersistenceTests
+        - AssistantDocumentsTests
         - WoowAssistantUITests
         - AssistantBrowserIntegrationTests

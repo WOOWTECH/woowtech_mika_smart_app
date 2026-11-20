@@ -4,6 +4,7 @@ import UIKit
 import AssistantSkills
 import AssistantPersistence
 import AssistantBrowser
+import AssistantDocuments
 
 @MainActor
 struct ContentView: View {
@@ -586,6 +587,7 @@ private struct ChatView: View {
     @State private var attachmentPreview: ChatAttachmentPreviewTarget?
     @State private var selectingText: ChatSelectTextTarget?
     @State private var reportTarget: AIResponseReportTarget?
+    @State private var documentTarget: DocumentExportSource?
     @State private var messageToast: ChatToast?
     /// The transcript's visible height; see blockedCardFitsTranscript.
     @State private var transcriptViewportHeight: CGFloat = 0
@@ -777,6 +779,8 @@ private struct ChatView: View {
             }
         case .selectText:
             selectingText = ChatSelectTextTarget(text: session.plainText(of: entry))
+        case .exportDocument:
+            documentTarget = DocumentExportSource(content: entry.content)
         case .report:
             reportTarget = AIResponseReportTarget(
                 reference: AIResponseReference(conversationID: session.conversationID, messageKey: entry.id.uuidString),
@@ -1187,6 +1191,15 @@ private struct ChatView: View {
                 voice.cancel()
                 isEditingDraft = false
                 showsAttachPanel = false
+                // Only explicit local export requests with a saved source open this flow.
+                // A request with attachments/quotes continues through the normal chat path.
+                if session.pendingAttachments.isEmpty, session.pendingQuote == nil,
+                   let format = DocumentExportRequest.parse(session.draft),
+                   let entry = session.entries.last, entry.role == "assistant",
+                   session.messageActionTargets.replies.contains(entry.id) {
+                    documentTarget = DocumentExportSource(content: entry.content, format: format)
+                    return
+                }
                 session.attemptSend(mcp: mcp)
                 if session.isSubmitting {
                     // Only an accepted send restores follow.
@@ -1263,6 +1276,7 @@ private struct ChatView: View {
             .sheet(isPresented: $showsMCPResults) { MCPResultsView(steps: session.mcpSteps, owners: session.mcpStepOwners) }
             .sheet(item: $selectingText) { ChatSelectTextSheet(target: $0, text: menuText) }
             .sheet(item: $reportTarget) { AIResponseReportSheet(target: $0, delivery: AIResponseReportService.shared, localizer: localizer) }
+            .sheet(item: $documentTarget) { DocumentExportView(source: $0, localizer: localizer) }
             // App Review 5.1.2(i): a main model set up before the consent existed asks before the first send.
             .sheet(item: Binding(get: { session.pendingSendConsent }, set: { _ in })) { prompt in
                 ModelConsentSheet(prompt: prompt, localizer: localizer,

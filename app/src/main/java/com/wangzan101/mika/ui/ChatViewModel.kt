@@ -385,6 +385,17 @@ class ChatViewModel(
     /** 用户在对话页上关掉留在后台的那一页。 */
     fun closeKeptPage() = closeKept()
 
+    private val _documentExport = MutableStateFlow<com.wangzan101.mika.document.DocumentExportSession?>(null)
+    internal val documentExport = _documentExport.asStateFlow()
+
+    internal fun openDocument(source: String, title: String, language: String,
+        format: com.wangzan101.mika.core.document.DocumentFormat = com.wangzan101.mika.core.document.DocumentFormat.PDF) {
+        if (source.isBlank() || _documentExport.value != null) return
+        _documentExport.value = com.wangzan101.mika.document.DocumentExportSession(scope, source, title, language, format)
+    }
+
+    internal fun closeDocument() { if (_documentExport.value?.busy != true) _documentExport.value = null }
+
     private val _ui = MutableStateFlow(ChatUi())
     val ui: StateFlow<ChatUi> = _ui.asStateFlow()
 

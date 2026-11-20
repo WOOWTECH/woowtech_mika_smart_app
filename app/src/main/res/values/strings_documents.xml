@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">Export document</string>
+    <string name="document_close">Close</string>
+    <string name="document_default_title">Answer</string>
+    <string name="document_title">Document title</string>
+    <string name="document_source">Source Markdown</string>
+    <string name="document_source_note">This is a copy of the selected completed answer. Edit the title and source before generating; the original chat stays unchanged.</string>
+    <string name="document_local_note">Generated on this device. No model request or upload. Supports headings, paragraphs, lists and pipe tables; other Markdown stays literal.</string>
+    <string name="document_csv_note">CSV exports only one selected table, with UTF-8 BOM. For spreadsheet safety, cells beginning with =, +, -, @ after whitespace, or a leading tab/newline, receive an apostrophe prefix. This changes cell values: formulas and negative numbers become text; the apostrophe may be visible. Review before use.</string>
+    <string name="document_choose_table">Choose one table, then generate CSV.</string>
+    <string name="document_table_choice">Table %1$d: %2$s (%3$d rows)</string>
+    <string name="document_generate">Generate / retry</string>
+    <string name="document_generating">Generating on this device…</string>
+    <string name="document_ready">Ready to preview, save or share. Temporary files are kept for up to 24 hours after use, then cleaned on the next export. Save a copy to keep it.</string>
+    <string name="document_preview">Preview file</string>
+    <string name="document_save">Save to Files…</string>
+    <string name="document_share">Share…</string>
+    <string name="document_regenerate">Generate again</string>
+    <string name="document_share_opened">Share sheet opened. Delivery is not confirmed; dismissing it does not mean the file was sent.</string>
+    <string name="document_save_picker">Choose a save location. Nothing has been saved yet.</string>
+    <string name="document_saving">Writing file…</string>
+    <string name="document_saved">File saved.</string>
+    <string name="document_save_cancelled">Save cancelled. No file was written.</string>
+    <string name="document_save_failed">Could not finish saving. The destination may contain a partial file. Choose Save again to retry.</string>
+    <string name="document_failed">Could not complete this action. Retry, or edit the source and generate again.</string>
+    <string name="document_empty">Enter a title and nonempty source.</string>
+    <string name="document_too_large">Document is too large. Limit: 1 MiB UTF-8 source, 64 tables, 64 columns and 5,000 rows per table, 50,000 total cells including headers; 10,000 sections, 50,000 list items, PDF 512 pages and files 16 MiB. Reduce the source and retry.</string>
+    <string name="document_ragged">Table rows must have exactly the same number of cells as the header. Fix missing or extra cells and retry.</string>
+    <string name="document_empty_table">A table needs a nonempty header and at least one nonempty data row.</string>
+    <string name="document_missing_table">CSV needs a pipe table with a header, separator row and data rows. Edit the source or choose HTML/PDF.</string>
+    <string name="document_cache_full">Temporary document storage is full. Recent shared files are retained for 24 hours so other apps can read them. Retry after they expire.</string>
+    <string name="document_no_answer">There is no completed latest answer to export. Select a completed assistant answer from the conversation.</string>
+    <string name="document_source_window">Showing up to 1,500 source characters at a time. Edits affect this section only; exports include the complete source.</string>
+    <string name="document_previous">Previous source section</string>
+    <string name="document_next">Next source section</string>
+    <string name="document_csv_preview">Only the first 64 KiB is shown. The generated CSV, saved file and shared file contain the complete selected table.</string>
+    <string name="document_invalid_title">Use a nonempty title of at most 1,024 UTF-8 bytes, without control characters.</string>
+    <string name="document_invalid_language">The document language tag is invalid. Reopen the export with a supported app language.</string>
+    <string name="document_invalid_content">The source contains unsupported control characters or an invalid section. Edit it and retry.</string>
+</resources>

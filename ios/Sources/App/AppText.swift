@@ -678,6 +678,34 @@ enum AppText: Equatable {
     case settingsSeesImagesUser
     case chatAttachImagesNotSeen(count: Int)
     case chatMessageCopy
+    case documentAction
+    case documentSource
+    case documentLocalNotice
+    case documentTitle
+    case documentFormat
+    case documentTable
+    case documentChooseTable
+    case documentNoTable
+    case documentCSVNotice
+    case documentGenerating
+    case documentGenerate
+    case documentInvalid
+    case documentPreview
+    case documentPreviewPartial
+    case documentSave
+    case documentShare
+    case documentSaving
+    case documentShareOpened
+    case documentSaved
+    case documentCancelled
+    case documentDeliveryFailed
+    case documentActivityCompleted
+    case documentCreated
+    case documentStorageFull
+    case documentGenerationFailed
+    case documentMissing
+    case documentPreviewFailed
+    case documentProtectedCells(count: Int)
     case chatMessageCopied
     case chatMessageQuote
     case chatMessageQuoteFailed
@@ -1706,6 +1734,34 @@ enum AppText: Equatable {
         case .settingsSeesImagesUser: return "settings.seesImages.user"
         case .chatAttachImagesNotSeen: return "chat.attach.imagesNotSeen"
         case .chatMessageCopy: return "chat.message.copy"
+        case .documentAction: return "document.action"
+        case .documentSource: return "document.source"
+        case .documentLocalNotice: return "document.localNotice"
+        case .documentTitle: return "document.title"
+        case .documentFormat: return "document.format"
+        case .documentTable: return "document.table"
+        case .documentChooseTable: return "document.chooseTable"
+        case .documentNoTable: return "document.noTable"
+        case .documentCSVNotice: return "document.csvNotice"
+        case .documentGenerating: return "document.generating"
+        case .documentGenerate: return "document.generate"
+        case .documentInvalid: return "document.invalid"
+        case .documentPreview: return "document.preview"
+        case .documentPreviewPartial: return "document.preview.partial"
+        case .documentSave: return "document.save"
+        case .documentShare: return "document.share"
+        case .documentSaving: return "document.saving"
+        case .documentShareOpened: return "document.shareOpened"
+        case .documentSaved: return "document.saved"
+        case .documentCancelled: return "document.cancelled"
+        case .documentDeliveryFailed: return "document.deliveryFailed"
+        case .documentActivityCompleted: return "document.activityCompleted"
+        case .documentCreated: return "document.created"
+        case .documentStorageFull: return "document.storageFull"
+        case .documentGenerationFailed: return "document.generationFailed"
+        case .documentMissing: return "document.missing"
+        case .documentPreviewFailed: return "document.previewFailed"
+        case .documentProtectedCells: return "document.protectedCells"
         case .chatMessageCopied: return "chat.message.copied"
         case .chatMessageQuote: return "chat.message.quote"
         case .chatMessageQuoteFailed: return "chat.message.quoteFailed"
@@ -2061,6 +2117,7 @@ enum AppText: Equatable {
 
     var arguments: [CVarArg] {
         switch self {
+        case .documentProtectedCells(let count): return [Int64(count)]
         case .learningRemembered(let value): return [value]
         case .learningUpdated(let value): return [value]
         case .learningUpdatedWas(let value, let was): return [value, was]
@@ -2850,6 +2907,34 @@ enum AppText: Equatable {
         case .settingsSeesImagesUser: return "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。"
         case .chatAttachImagesNotSeen: return "這個模型不能看圖，%lld 張圖片沒有交給模型。可到設定的模型頁打開「能看圖」。"
         case .chatMessageCopy: return "複製"
+        case .documentAction: return "產生文件"
+        case .documentSource: return "來源回答"
+        case .documentLocalNotice: return "文件在本機產生。僅包含這則回答的文字與表格；附件與圖片不會嵌入。請預覽內容後再儲存或分享。"
+        case .documentTitle: return "文件標題／檔名"
+        case .documentFormat: return "文件格式"
+        case .documentTable: return "要匯出的表格"
+        case .documentChooseTable: return "請選擇一個表格"
+        case .documentNoTable: return "這則回答沒有可匯出的表格。請選擇含有表格的回答。"
+        case .documentCSVNotice: return "CSV 僅匯出所選表格。疑似公式的儲存格會加上單引號，作為文字處理；預覽可確認變化。試算表軟體仍可能自動轉換日期、數字及前導零。"
+        case .documentGenerating: return "文件產生中"
+        case .documentGenerate: return "產生文件"
+        case .documentInvalid: return "內容為空、表格欄位不一致或超出支援大小，無法產生文件。請先調整來源內容。"
+        case .documentPreview: return "預覽文件"
+        case .documentPreviewPartial: return "此處僅預覽前 64 KiB，完整內容仍保留在檔案中。"
+        case .documentSave: return "儲存檔案"
+        case .documentShare: return "分享檔案"
+        case .documentSaving: return "請在系統介面選擇儲存位置。"
+        case .documentShareOpened: return "已開啟系統分享介面，尚未確認分享結果。"
+        case .documentSaved: return "文件已匯出至選擇的位置。"
+        case .documentCancelled: return "已取消操作。"
+        case .documentDeliveryFailed: return "無法完成檔案交付，請確認目的地或稍後再試。"
+        case .documentActivityCompleted: return "系統回報操作完成；這不代表接收者已收到文件。"
+        case .documentCreated: return "文件已產生，可預覽、儲存或分享。"
+        case .documentStorageFull: return "可用空間或暫存額度不足，請釋出空間後重試。"
+        case .documentGenerationFailed: return "文件產生失敗，請重試或縮小內容。"
+        case .documentMissing: return "暫存檔已不存在，請重新產生文件。"
+        case .documentPreviewFailed: return "無法預覽文件，請關閉預覽後重試。"
+        case .documentProtectedCells: return "已將 %lld 個疑似公式的儲存格加上單引號，避免當成公式執行。"
         case .chatMessageCopied: return "已複製"
         case .chatMessageQuote: return "引用"
         case .chatMessageQuoteFailed: return "沒能引用這則訊息"

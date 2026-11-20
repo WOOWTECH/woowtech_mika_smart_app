@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_export">匯出文件</string>
+    <string name="document_close">關閉</string>
+    <string name="document_default_title">回答</string>
+    <string name="document_title">文件標題</string>
+    <string name="document_source">Markdown 來源</string>
+    <string name="document_source_note">這是所選完整回答的副本。產生前可編輯標題與來源，原始對話不會變更。</string>
+    <string name="document_local_note">在此裝置產生，不會呼叫模型或上傳。支援標題、段落、清單與直線分隔表格；其他 Markdown 保留原文。</string>
+    <string name="document_csv_note">CSV 僅匯出一個選定表格，採用 UTF-8 BOM。為避免試算表執行公式，忽略前置空白後以 =、+、-、@ 開頭，或前置空白含定位字元或換行的儲存格，會加上單引號。這會改變儲存格值：公式與負數變成文字，單引號可能顯示。請先檢查。</string>
+    <string name="document_choose_table">請選擇一個表格，再產生 CSV。</string>
+    <string name="document_table_choice">表格 %1$d：%2$s（%3$d 列）</string>
+    <string name="document_generate">產生／重試</string>
+    <string name="document_generating">正在此裝置產生…</string>
+    <string name="document_ready">可預覽、儲存或分享。暫存檔使用後保留 24 小時，之後於下次匯出時清理。如需保留，請儲存副本。</string>
+    <string name="document_preview">預覽檔案</string>
+    <string name="document_save">儲存到檔案…</string>
+    <string name="document_share">分享…</string>
+    <string name="document_regenerate">重新產生</string>
+    <string name="document_share_opened">已開啟分享選單，尚未確認送達。關閉選單不代表檔案已送出。</string>
+    <string name="document_save_picker">請選擇儲存位置。目前尚未儲存。</string>
+    <string name="document_saving">正在寫入檔案…</string>
+    <string name="document_saved">檔案已儲存。</string>
+    <string name="document_save_cancelled">已取消儲存，未寫入檔案。</string>
+    <string name="document_save_failed">無法完成儲存，目的地可能留有未完成的檔案。請再次選擇儲存以重試。</string>
+    <string name="document_failed">無法完成此操作。請重試，或編輯來源後重新產生。</string>
+    <string name="document_empty">請輸入標題及非空白的來源。</string>
+    <string name="document_too_large">文件過大。限制：UTF-8 來源 1 MiB、64 個表格、每表格 64 欄與 5,000 列、含標題列共 50,000 個儲存格；10,000 個段落、50,000 個清單項目、PDF 512 頁、檔案 16 MiB。請縮減來源後重試。</string>
+    <string name="document_ragged">每列儲存格數量須與標題列相同。請修正缺少或多出的儲存格後重試。</string>
+    <string name="document_empty_table">表格需要非空白標題列及至少一列非空白資料。</string>
+    <string name="document_missing_table">CSV 需要含標題列、分隔列與資料列的直線分隔表格。請編輯來源或選擇 HTML／PDF。</string>
+    <string name="document_cache_full">文件暫存空間已滿。近期分享的檔案會保留 24 小時，供其他 App 讀取。請於到期後重試。</string>
+    <string name="document_no_answer">目前沒有可匯出的最新完整回答。請從對話中選擇助理的完整回答。</string>
+    <string name="document_source_window">每次顯示最多 1,500 個來源字元。編輯只影響本段，匯出會包含完整來源。</string>
+    <string name="document_previous">上一段來源</string>
+    <string name="document_next">下一段來源</string>
+    <string name="document_csv_preview">僅顯示前 64 KiB。產生、儲存及分享的 CSV 檔案均包含所選表格的完整內容。</string>
+    <string name="document_invalid_title">請使用非空白、不含控制字元且最多 1,024 個 UTF-8 位元組的標題。</string>
+    <string name="document_invalid_language">文件語言標籤無效。請使用支援的 App 語言重新開啟匯出。</string>
+    <string name="document_invalid_content">來源含有不支援的控制字元或無效段落。請編輯後重試。</string>
+</resources>

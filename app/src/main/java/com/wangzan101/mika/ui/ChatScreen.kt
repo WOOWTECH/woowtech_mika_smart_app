@@ -183,6 +183,7 @@ fun ChatScreen(
     openSpeechModel: () -> Unit = {},
 ) {
     val ui by vm.ui.collectAsState()
+    val documentExport by vm.documentExport.collectAsState()
     val others by vm.otherRunning.collectAsState()
     val keptAny by vm.keptPage.collectAsState()
     // 只管这个对话留下的那一页
@@ -355,7 +356,18 @@ fun ChatScreen(
             onText = { input = it },
             mode = ui.composer,
             hasHistory = ui.exchanges.isNotEmpty(),
-            onSend = { if (vm.send(input, check)) input = "" },
+            onSend = {
+                val format = com.wangzan101.mika.core.document.DocumentCommand.parse(input,
+                    hasAttachments = ui.attachments.isNotEmpty() || ui.importing || ui.overLimit > 0 || ui.rejectedAttachments.isNotEmpty(),
+                    hasQuote = ui.quote != null, busy = ui.exchanges.any { it.status.isActive() })
+                if (format != null) {
+                    val answer = (ui.exchanges.lastOrNull()?.status as? ExchangeStatus.Done)?.answer
+                    if (!answer.isNullOrBlank()) {
+                        vm.openDocument(answer, context.getString(R.string.document_default_title), context.resources.configuration.locales[0].toLanguageTag(), format)
+                        input = ""
+                    } else Toast.makeText(context, R.string.document_no_answer, Toast.LENGTH_SHORT).show()
+                } else if (vm.send(input, check)) input = ""
+            },
             onStop = vm::cancel,
             attachPanel = if (ui.attachEnabled && ui.composer == ComposerMode.Idle) ({
                 AttachPanelHost(ui.attachments, onPicked = vm::attach, onToggle = vm::toggleAttachment)
@@ -422,6 +434,9 @@ fun ChatScreen(
                     }
                 },
                 onDismiss = { closeMenu() },
+                onExport = m.documentSource?.takeIf { m.from == QuoteMessage.From.Mika && it.isNotBlank() }?.let { source -> {
+                    closeMenu { vm.openDocument(source, context.getString(R.string.document_default_title), context.resources.configuration.locales[0].toLanguageTag()) }
+                } },
                 onBranch = branchTurn?.let { turn -> {
                     closeMenu {
                         scope.launch {
@@ -464,6 +479,7 @@ fun ChatScreen(
                 onWithdraw = pending?.let { n -> ({ closeMenu { vm.withdrawSteer(n.id) } }) },
             )
         }
+        documentExport?.let { com.wangzan101.mika.document.DocumentExportDialog(it, vm::closeDocument) }
     }
 }
 
@@ -656,7 +672,7 @@ private fun DraftText(text: String, generating: Boolean) {
 @Composable
 private fun FinishedReply(text: String, key: String) {
     Box(Modifier.padding(bottom = 4.dp)) {
-        AnswerArea(key, text, Modifier.fillMaxWidth().answerSurface()) {
+        AnswerArea(key, text, Modifier.fillMaxWidth().answerSurface(), exportable = true) {
             MarkdownText(text, AnswerText.copy(color = MikaTheme.colors.ink), streaming = false)
         }
     }
@@ -667,10 +683,11 @@ private fun FinishedReply(text: String, key: String) {
  * [modifier] 是回答的底,抬起的那张是同样的字放在白卡上。选择文字时选区的把手在单独的弹出窗口里,拖把手不会带出侧栏。
  */
 @Composable
-private fun AnswerArea(key: String, answer: String, modifier: Modifier, content: @Composable () -> Unit) {
+private fun AnswerArea(key: String, answer: String, modifier: Modifier, exportable: Boolean = false, content: @Composable () -> Unit) {
     val plain = remember(answer) { MarkdownModel.toPlainText(answer) }
     MessageArea(
         key, QuoteMessage.From.Mika, plain, "selectable-answer", modifier,
+        documentSource = answer.takeIf { exportable },
         lifted = {
             LiftedMessage(MikaShapes.AnswerBubble, MikaTheme.colors.surface) {
                 MarkdownText(answer, AnswerText.copy(color = MikaTheme.colors.ink), Modifier.padding(horizontal = 14.dp, vertical = 12.dp), streaming = false)
@@ -1002,7 +1019,7 @@ private fun StatusCard(
         }
         // 长按整块回答弹菜单;复制、引用的只是回答的字,不带上面的提示和下面的来源
         is ExchangeStatus.Done -> Box(Modifier.padding(bottom = 12.dp)) {
-            AnswerArea(key, status.answer, Modifier.fillMaxWidth().answerSurface()) {
+            AnswerArea(key, status.answer, Modifier.fillMaxWidth().answerSurface(), exportable = true) {
                 Column {
                     status.unverifiedLine?.let { line ->
                         Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {

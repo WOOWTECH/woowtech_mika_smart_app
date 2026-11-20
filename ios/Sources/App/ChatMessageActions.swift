@@ -72,7 +72,7 @@ struct ChatMessageMenuText {
 }
 
 enum ChatMessageAction {
-    case copy, quote, selectText, report, branch, askAgain
+    case copy, quote, selectText, exportDocument, report, branch, askAgain
 }
 
 /// The long-press menu on one message (Android MessageMenu): copy, quote and
@@ -96,6 +96,9 @@ struct ChatMessageMenu: ViewModifier {
         item(.copy, text.copy, symbol: "doc.on.doc", id: "copy")
         if targets.saved.contains(entry.id) { item(.quote, text.quote, symbol: "text.quote", id: "quote") }
         item(.selectText, text.selectText, symbol: "selection.pin.in.out", id: "selectText")
+        if entry.role == "assistant" && targets.replies.contains(entry.id) {
+            item(.exportDocument, text.localizer.text(.documentAction), symbol: "doc.badge.plus", id: "document")
+        }
         if entry.role == "assistant" && targets.saved.contains(entry.id) {
             item(.report, text.report, symbol: "ladybug", id: "report")
         }

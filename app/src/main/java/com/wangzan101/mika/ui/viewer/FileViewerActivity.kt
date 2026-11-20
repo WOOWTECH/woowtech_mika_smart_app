@@ -6,6 +6,7 @@ import com.wangzan101.mika.i18n.AppLanguage
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -54,6 +55,7 @@ object FileViewer {
         ViewerKinds.of(runCatching { context.contentResolver.getType(uri) }.getOrNull(), name)
 
     fun open(context: Context, uri: Uri, name: String) {
+        com.wangzan101.mika.document.DocumentFiles.retain(context, uri)
         if (kindOf(context, uri, name) == null) { openElsewhere(context, uri, name); return }
         val intent = Intent(context, FileViewerActivity::class.java).setData(uri).putExtra(FileViewerActivity.EXTRA_NAME, name)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -63,6 +65,7 @@ object FileViewer {
 
     /** 用其他应用打开:系统的选择面板,没有能打开的 App 时提示一句。 */
     fun openElsewhere(context: Context, uri: Uri, name: String) {
+        com.wangzan101.mika.document.DocumentFiles.retain(context, uri)
         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeOf(context, uri))
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         start(context, Intent.createChooser(intent, name), tr(R.string.viewer_no_open_app))
@@ -70,8 +73,10 @@ object FileViewer {
 
     /** 分享:把文件发给别的 App(带读取授权)。 */
     fun share(context: Context, uri: Uri, name: String) {
+        com.wangzan101.mika.document.DocumentFiles.retain(context, uri)
         val intent = Intent(Intent.ACTION_SEND).setType(mimeOf(context, uri)).putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply { clipData = ClipData.newRawUri(name, uri) }
         start(context, Intent.createChooser(intent, name), tr(R.string.viewer_no_share_app))
     }
 

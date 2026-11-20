@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "AssistantMCP", targets: ["AssistantMCP"]),
         .library(name: "AssistantMemory", targets: ["AssistantMemory"]),
         .library(name: "AssistantSkills", targets: ["AssistantSkills"]),
+        .library(name: "AssistantDocuments", targets: ["AssistantDocuments"]),
         .library(name: "AssistantPersistence", targets: ["AssistantPersistence"])
     ],
     targets: [
@@ -27,6 +28,8 @@ let package = Package(
         .target(name: "AssistantMemory", dependencies: ["AssistantModels"], path: "Sources/AssistantMemory"),
         .target(name: "AssistantSkills", dependencies: ["AssistantModels"], path: "Sources/AssistantSkills", resources: [.process("Resources")]),
         .target(name: "AssistantPersistence", path: "Sources/AssistantPersistence"),
+        .target(name: "AssistantDocuments", path: "Sources/AssistantDocuments"),
+        .testTarget(name: "AssistantDocumentsTests", dependencies: ["AssistantDocuments"], path: "Tests/AssistantDocumentsTests"),
         .testTarget(name: "AssistantMemoryTests", dependencies: ["AssistantMemory", "AssistantModels"], path: "Tests/AssistantMemoryTests"),
         .testTarget(name: "AssistantSkillsTests", dependencies: ["AssistantSkills", "AssistantModels", "AssistantPersistence"], path: "Tests/AssistantSkillsTests"),
         .testTarget(name: "AssistantPersistenceTests", dependencies: ["AssistantPersistence"], path: "Tests/AssistantPersistenceTests"),

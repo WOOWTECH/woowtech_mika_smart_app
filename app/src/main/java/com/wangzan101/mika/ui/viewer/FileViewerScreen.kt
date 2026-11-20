@@ -101,7 +101,7 @@ private val MonoText = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 1
 
 /** 读进来的内容;PDF 不在这里,它按页现读现画。 */
 private sealed interface Loaded {
-    data class Text(val text: String, val truncated: Boolean) : Loaded
+    data class Text(val text: String, val truncated: Boolean, val documentCsv: Boolean = false) : Loaded
     data class Html(val html: String) : Loaded
     class Picture(val bitmap: Bitmap) : Loaded
 }
@@ -134,6 +134,7 @@ fun FileViewerScreen(uri: Uri, name: String, kind: ViewerKind?, onBack: () -> Un
 @Composable
 private fun LoadedView(uri: Uri, kind: ViewerKind, openElsewhere: () -> Unit) {
     val context = LocalContext.current
+    val staticDocument = uri.authority == com.wangzan101.mika.chat.AttachFilesProvider.authority(context.packageName) && uri.pathSegments.firstOrNull() == "documents"
     val result by produceState<Result<Loaded>?>(null, uri, kind) {
         value = withContext(Dispatchers.IO) { runCatching { load(context, uri, kind) } }
     }
@@ -142,7 +143,7 @@ private fun LoadedView(uri: Uri, kind: ViewerKind, openElsewhere: () -> Unit) {
         loaded == null -> Loading()
         loaded.isFailure -> Failure(stringResource(R.string.viewer_read_error), openElsewhere)
         else -> when (val l = loaded.getOrThrow()) {
-            is Loaded.Html -> HtmlView(l.html)
+            is Loaded.Html -> HtmlView(l.html, staticDocument)
             is Loaded.Picture -> PictureView(l.bitmap)
             is Loaded.Text -> if (kind == ViewerKind.Markdown) MarkdownView(l) else PlainTextView(l)
         }
@@ -162,8 +163,10 @@ private fun load(context: Context, uri: Uri, kind: ViewerKind): Loaded = when (k
     )
     else -> {
         // 多读一个字节,用来判断是不是被截断了;截在多字节字符中间时解码会换成替代符,不影响前面的内容
+        val documentCsv = uri.authority == com.wangzan101.mika.chat.AttachFilesProvider.authority(context.packageName) && uri.pathSegments.firstOrNull() == "documents"
+        val cap = if (documentCsv) 64 * 1024 else TEXT_CAP
         val bytes = open(context, uri).use { input ->
-            val buf = ByteArray(TEXT_CAP + 1)
+            val buf = ByteArray(cap + 1)
             var n = 0
             while (n < buf.size) {
                 val r = input.read(buf, n, buf.size - n)
@@ -172,9 +175,9 @@ private fun load(context: Context, uri: Uri, kind: ViewerKind): Loaded = when (k
             }
             buf.copyOf(n)
         }
-        val truncated = bytes.size > TEXT_CAP
-        val text = String(bytes, 0, minOf(bytes.size, TEXT_CAP), Charsets.UTF_8).removePrefix("\uFEFF")
-        Loaded.Text(text, truncated)
+        val truncated = bytes.size > cap
+        val text = String(bytes, 0, minOf(bytes.size, cap), Charsets.UTF_8).removePrefix("\uFEFF")
+        Loaded.Text(text, truncated, documentCsv)
     }
 }
 
@@ -206,7 +209,7 @@ private fun PlainTextView(l: Loaded.Text) {
             Modifier.fillMaxSize().testTag("viewer.text"),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
         ) {
-            if (l.truncated) item { TruncatedNote(Modifier.padding(bottom = 12.dp)) }
+            if (l.truncated) item { TruncatedNote(Modifier.padding(bottom = 12.dp), documentCsv = l.documentCsv) }
             itemsIndexed(chunks) { _, chunk -> Text(chunk, style = MonoText, color = c.ink) }
             item { Box(Modifier.windowInsetsPadding(WindowInsets.navigationBars)) }
         }
@@ -216,7 +219,7 @@ private fun PlainTextView(l: Loaded.Text) {
 /** 网页:一个新的 WebView,脚本打开、可双指缩放、按宽视口排版;点链接交给系统处理。 */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun HtmlView(html: String) {
+private fun HtmlView(html: String, staticDocument: Boolean = false) {
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
@@ -227,6 +230,7 @@ private fun HtmlView(html: String) {
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
                 setBackgroundColor(android.graphics.Color.WHITE)
+                if (staticDocument) com.wangzan101.mika.document.StaticDocumentPreview.restrict(this)
                 loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
             }
         },
@@ -421,6 +425,6 @@ private fun Failure(message: String, openElsewhere: () -> Unit, modifier: Modifi
 }
 
 @Composable
-private fun TruncatedNote(modifier: Modifier = Modifier) {
-    Text(stringResource(R.string.viewer_truncated), modifier, style = MikaType.Caption, color = MikaTheme.colors.ink3)
+private fun TruncatedNote(modifier: Modifier = Modifier, documentCsv: Boolean = false) {
+    Text(stringResource(if (documentCsv) R.string.document_csv_preview else R.string.viewer_truncated), modifier, style = MikaType.Caption, color = MikaTheme.colors.ink3)
 }

@@ -64,6 +64,8 @@ internal class MessageTarget(
     val text: String,
     val bounds: Rect,
     val lifted: @Composable () -> Unit,
+    /** Present only for a completed assistant answer; never use stripped copy text for export. */
+    val documentSource: String? = null,
 )
 
 /** 对话页给消息的长按菜单:[selecting] 是此刻处在「选择文字」里的那一条,[open] 弹出菜单。 */
@@ -84,6 +86,7 @@ internal fun MessageArea(
     text: String,
     selectTag: String,
     modifier: Modifier = Modifier,
+    documentSource: String? = null,
     lifted: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -97,7 +100,7 @@ internal fun MessageArea(
     // 在窗口里的位置和大小(不裁掉滚出列表的部分);只在回调里读,不引起重组
     val bounds = remember { mutableStateOf(Rect.Zero) }
     // 手势一直用最新的这一份(流式回答时会不停重组),不因重组重启、丢掉按到一半的长按
-    val open by rememberUpdatedState({ host.open(MessageTarget(key, from, text, bounds.value, lifted)) })
+    val open by rememberUpdatedState({ host.open(MessageTarget(key, from, text, bounds.value, lifted, documentSource)) })
     Box(
         Modifier
             .onGloballyPositioned { bounds.value = Rect(it.positionInWindow(), it.size.toSize()) }
@@ -130,6 +133,7 @@ internal fun MessageMenu(
     onWithdraw: (() -> Unit)? = null,
     onBranch: (() -> Unit)? = null,
     onBranchRetry: (() -> Unit)? = null,
+    onExport: (() -> Unit)? = null,
 ) {
     LongPressMenu(
         target.bounds, progress, pane = stringResource(R.string.chat_message_actions), tag = "message-menu",
@@ -137,6 +141,7 @@ internal fun MessageMenu(
             add(MenuEntry(stringResource(R.string.chat_copy), MikaIcons.Copy, "message-menu-copy", onClick = onCopy))
             add(MenuEntry(stringResource(R.string.chat_quote), MikaIcons.Quote, "message-menu-quote", onClick = onQuote))
             add(MenuEntry(stringResource(R.string.chat_select_text), MikaIcons.SelectText, "message-menu-select", onClick = onSelect))
+            onExport?.let { add(MenuEntry(stringResource(R.string.document_export), MikaIcons.Doc, "message-menu-export", onClick = it)) }
             onBranch?.let { add(MenuEntry(stringResource(R.string.chat_branch), MikaIcons.Route, "message-menu-branch", onClick = it)) }
             onBranchRetry?.let { add(MenuEntry(stringResource(R.string.chat_branch_retry), MikaIcons.Route, "message-menu-branch-retry", onClick = it)) }
             onEdit?.let { add(MenuEntry(stringResource(R.string.chat_edit_message), MikaIcons.Edit, "message-menu-edit", onClick = it)) }
