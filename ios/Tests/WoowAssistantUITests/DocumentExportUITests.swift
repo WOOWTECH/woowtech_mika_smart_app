@@ -40,8 +40,7 @@ final class DocumentExportUITests: XCTestCase {
         XCTAssertTrue((app.textViews["document.preview.content"].firstMatch.value as? String ?? "").contains("'=1+1"))
         tap("document.preview.done")
         tap("document.save", reveal: true)
-        let cancel = app.buttons["取消"].firstMatch
-        ready(cancel); cancel.tap()
+        cancelSavePicker()
         assertText("document.status", contains: "已取消操作")
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "文件已匯出")).firstMatch.exists)
         capture("csv-save-cancelled")
@@ -104,6 +103,24 @@ final class DocumentExportUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"),
                                                                      object: element)], timeout: 10), .completed)
         XCTAssertTrue(element.isEnabled)
+    }
+
+    private func cancelSavePicker() {
+        // Recent Files pickers can open inside a folder without a Cancel button
+        // (native-5 screenshot/AX). Exercise their actual sheet dismissal, too.
+        let save = app.buttons["DOCPicker.actionButton"].firstMatch
+        ready(save)
+        let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["取消", "Cancel"])).firstMatch
+        if cancel.exists {
+            ready(cancel); cancel.tap()
+        } else {
+            let bar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"].firstMatch
+            ready(bar)
+            bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: save)], timeout: 10), .completed)
     }
 
     private func reveal(_ id: String) {
