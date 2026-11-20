@@ -45,7 +45,9 @@
 
 另已通過 60 項 CI 清單／啟動診斷腳本測試、1053 個文案鍵的雙語資源一致性檢查、42 處 UI 啟動語言檢查、`git diff --check`、字串／XML／共用 JSON 格式檢查。修正了新測試未登錄 CI 清單、文件文案未進入產生器及診斷白名單缺漏；這些腳本測試不代表原生或商用驗收。
 
-本機 iOS 原生編譯／測試、Android 編譯／測試已依序排入 `heavy.sh`，等待另一工作區後續 Gradle 釋出共用資源。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。另已送出限定 iOS CI [44697157866](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44697157866)，來源 `06a4b812`，當時仍排隊；此來源尚未包含後續 `20ad338b` 新增的 HTML 原生預覽斷言。
+CI [44697157866](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44697157866)（來源 `06a4b812`）已取得原始證據：253 項可攜式測試全過，337 項腳本測試有 1 項失敗，原生 UI 未執行。失敗是新增文件 WKWebView 尚未納入音訊用途盤點；`b9662745` 已依靜態、已轉義內容與禁止媒體的 CSP 完成盤點，並明確限制自動／行內／AirPlay 播放，該案例針對性回歸通過。證據 artifact `14612031954` SHA-256 `fadb310288f0a67dd26695f6c9840f76927118c365414dab476eae59417699af` 已核對。新的限定 CI [44699145821](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44699145821) 來源 `b9662745`，包含 HTML 原生預覽斷言，結果待取得。
+
+MacBook 原生建置第 1 輪（`b9662745`，236.73 秒）在產生 App 時失敗：外部目錄的 Xcode 專案無法解析相對路徑 `Configuration/Info-Debug.plist`，未執行原生測試。已修正本機 driver，改於 `ios/` 產生既有 ignore 規則涵蓋的 Xcode 專案，DerivedData／證據仍在獨立目錄。原生第 2 輪與 Android 編譯／測試已依序排入 `heavy.sh`，等待另一工作區釋出模擬器／Gradle 資源。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。
 
 另已準備 4 項 iOS 原生 PDF／檔案生命週期測試、2 個原生 UI 流程（PDF／CSV／HTML 預覽、儲存取消），以及 Kotlin 核心／UI 狀態與 Android 原生測試。這些原生與 Android 案例尚未執行，不是通過數。API 35+ 的 Android PDF 文字擷取案例在較舊系統會有明示 skip；skip 不代表該平台內容完整性已驗證。
 
