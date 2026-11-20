@@ -19,7 +19,7 @@ APP_SOURCES = LANGUAGE_APP_SOURCES + [
     "BrowserUploadFixture", "BrowserLoginFixture",
     "BrowserWorkspace", "ChatSession", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "RecentConversationAccess", "NewConversationProtection", "BrowserSession", "LearningKeychainStore",
     "UITestModelFixture", "MCPSettings", "LiveModelUITestSupport", "ModelSettings",
-    "LearningStore", "LearningRunContext", "UITestMCPFixture", "MCPSession",
+    "LearningStore", "LearningRunContext", "UITestMCPFixture", "MCPSession", "MCPServers",
     "ChatWebTaskTab", "ChatWebTaskSession", "ChatWebTaskFixture", "ChatLearning",
 ]
 MODULES = [

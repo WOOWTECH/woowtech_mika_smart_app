@@ -187,6 +187,50 @@ enum CheckChatScrollFollow {
         expect(emptyBrowsing.observe(sample(600, 600), hasTranscript: true))
         expect(!emptyBrowsing.observe(sample(600, 500), hasTranscript: true))
 
+        // A tail scroll can make lazy rows measure again, so the geometry can
+        // swing between two heights with the reader's place unchanged. Without
+        // new content the scrolls stop after a few: layout and scrolling cannot
+        // feed each other forever. New content or the person's request resumes them.
+        var swinging = ChatScrollFollowPolicy()
+        var granted = 0
+        for step in 0..<40 where swinging.observe(step % 2 == 0 ? sample(3000, 2000) : sample(2900, 1900)) { granted += 1 }
+        expect(granted == ChatScrollFollowPolicy.maximumTailScrollsWithoutGrowth)
+        expect(swinging.followsTail)
+        expect(swinging.observe(sample(3300, 2300)))
+        for _ in 0..<6 { _ = swinging.observe(sample(3200, 2200)); _ = swinging.observe(sample(3300, 2300)) }
+        expect(!swinging.observe(sample(3200, 2200)))
+        swinging.userRequestedLatest()
+        expect(swinging.observe(sample(3300, 2300)))
+        swinging.conversationChanged()
+        expect(swinging.observe(sample(800, 800)))
+
+        // Lazy layout can report a new maximum on every scroll even though
+        // no transcript data changed. Only three scrolls may be issued.
+        var progressive = ChatScrollFollowPolicy()
+        var progressiveGranted = 0
+        for step in 0..<30 {
+            let height = 3000.0 + Double(step * 20)
+            if progressive.observe(sample(height, height - 1000), contentRevision: 1) {
+                progressiveGranted += 1
+            }
+        }
+        expect(progressiveGranted == ChatScrollFollowPolicy.maximumTailScrollsWithoutGrowth)
+        // A real streaming update restores the budget even if its geometry
+        // is smaller than a previous lazy-layout maximum.
+        expect(progressive.observe(sample(3200, 2200), contentRevision: 2))
+        expect(progressive.observe(sample(3220, 2220), contentRevision: 3))
+
+        // A real content update cannot pull someone reading earlier text.
+        progressive.beginDrag()
+        progressive.userDraggedTowardEarlierContent()
+        expect(!progressive.observe(sample(3220, 2500), contentRevision: 3))
+        progressive.endDrag()
+        expect(progressive.settle(expectedRevision: progressive.pendingSettleRevision!))
+        expect(!progressive.followsTail)
+        expect(!progressive.observe(sample(3300, 2580), contentRevision: 4))
+        progressive.userRequestedLatest()
+        expect(progressive.observe(sample(3320, 2600), contentRevision: 5))
+
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }

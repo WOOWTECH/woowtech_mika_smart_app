@@ -35,8 +35,26 @@ enum CheckChatReplyMarkdown {
 
         let table = "| A | B |\n|---|---|\n| one | **two** |"
         let tableResult = ChatReplyMarkdown.parse(table)
-        expect(tableResult.visibleText == table, "Unsupported table layout remains legible verbatim")
+        expect(tableResult.visibleText == table, "The accessible text keeps the table verbatim")
         expect(!hasLink(tableResult), "Table fallback never creates a link")
+        // Like Android, the bubble lays a table out as a grid and code in a box.
+        expect(tableResult.hasRichBlocks && tableResult.blocks.count == 1, "A table is its own block")
+        if case .table(let header, let rows)? = tableResult.blocks.first {
+            expect(header.map { String($0.characters) } == ["A", "B"], "Table header cells without pipes")
+            expect(rows.map { $0.map { String($0.characters) } } == [["one", "two"]], "Table rows keep inline text, skip the rule line")
+            expect(rows[0][1].runs.contains { $0.inlinePresentationIntent != nil }, "A cell keeps its bold")
+        } else { expect(false, "Table block") }
+        let ragged = ChatReplyMarkdown.parse("| A | B |\n|---|---|\n| only |\n| x | y | z |\nAfter")
+        if case .table(_, let rows)? = ragged.blocks.first {
+            expect(rows.map(\.count) == [2, 2], "Short and long rows fit the header")
+        } else { expect(false, "Ragged table block") }
+        expect(ragged.blocks.count == 2, "Text after a table is its own block")
+        let fenced = ChatReplyMarkdown.parse("Intro\n\n```swift\nlet x = 1\n  let y = 2\n```\nAfter")
+        expect(fenced.blocks.count == 3, "Text, code and text blocks in order")
+        if case .code(let lines)? = fenced.blocks.dropFirst().first {
+            expect(lines == ["let x = 1", "  let y = 2"], "Code keeps its exact lines")
+        } else { expect(false, "Code block") }
+        expect(!ChatReplyMarkdown.parse("plain **text**\n- item").hasRichBlocks, "Plain replies stay one Text")
 
         for (source, reason) in [
             ("![alt](https://example.org/image.png)", ChatReplyMarkdown.Fallback.image),

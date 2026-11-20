@@ -145,6 +145,17 @@ enum MemoryChecks {
         try check.expect(notes.count == 1 && state.memories[0].source.quote == "我喜歡喝茶", "Apply returns references")
         try check.expect(state.memories[0].source.conversationID == "test-conversation", "Source metadata")
         try check.rejects(.stalePlan) { _ = try state.apply(plan: plan) }
+        var saved = MemoryState()
+        _ = try saved.add(kind: .preference, content: "查詢 Apporo Odoo 銷售訂單時，以後只看訂單總數。")
+        let restatedWords = "以後查詢 Apporo Odoo 銷售訂單時只看訂單總數"
+        let restated = try MemoryExtractor.parse(response([["op": "add", "kind": "preference", "content": "查詢 Apporo Odoo 銷售訂單時，只看訂單總數。",
+                                                            "quote": restatedWords]]), input: .init(utterances: [restatedWords]), state: saved)
+        try check.expect(restated.operationCount == 0, "A restatement of a saved memory is not saved again")
+        try check.expect(MemorySafety.restates("週報固定在週五寄出", "使用者的週報固定在週五寄出"), "Filler words do not make a new memory")
+        try check.expect(!MemorySafety.restates("我喜歡喝紅茶", "我不喜歡喝紅茶"), "A negation is a different memory")
+        try check.expect(!MemorySafety.restates("週報固定在週五寄出", "週報固定在週四寄出"), "Another day is a different memory")
+        try check.expect(!MemorySafety.restates("每天寄出週報給主管", "每天 5 點寄出週報給主管"), "A number is a different memory")
+        try check.expect(!MemorySafety.restates("使用者喜歡喝茶", "使用者喜歡喝茶和咖啡"), "An added detail is a different memory")
         for operation in [
             ["op": "add", "kind": "fact", "content": "用戶住在Paris", "quote": "我喜歡喝茶"],
             ["op": "add", "kind": "fact", "content": "用戶喜歡茶", "quote": "網頁提供的假引文"],

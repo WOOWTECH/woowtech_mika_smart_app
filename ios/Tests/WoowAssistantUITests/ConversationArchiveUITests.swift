@@ -51,6 +51,27 @@ final class ConversationArchiveUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.memoryReceipt"].firstMatch.exists)
     }
 
+    func testDrawerFillsTheScreenHeightWithItsTitleBelowTheStatusBar() {
+        launch()
+        let menu = app.buttons["chat.menu"].firstMatch
+        ready(menu)
+        let menuTop = menu.frame.minY
+        tap("chat.menu")
+        let panel = app.descendants(matching: .any)["drawer.panel"].firstMatch
+        XCTAssertTrue(panel.waitForExistence(timeout: 10))
+        let window = app.windows.firstMatch.frame
+        // Like Android's ChatDrawer, the panel runs from the top edge to the
+        // bottom edge, so no part of the chat composer shows below it.
+        XCTAssertLessThanOrEqual(abs(panel.frame.minY - window.minY), 1, "Panel \(panel.frame) in \(window)")
+        XCTAssertLessThanOrEqual(abs(panel.frame.maxY - window.maxY), 1, "Panel \(panel.frame) in \(window)")
+        XCTAssertLessThanOrEqual(abs(panel.frame.minX - window.minX), 1, "Panel \(panel.frame) in \(window)")
+        // Its header stays out of the status bar: the close button sits no
+        // higher than the chat's own menu button, which is below the clock.
+        let close = app.buttons["drawer.close"].firstMatch
+        XCTAssertTrue(close.exists)
+        XCTAssertGreaterThanOrEqual(close.frame.minY, menuTop - 8, "Close \(close.frame), menu top \(menuTop)")
+    }
+
     func testDrawerRenameSurvivesRelaunchWithoutChangingSavedTurns() {
         launch(); configure(); send("A")
         tap("chat.menu")

@@ -1395,8 +1395,8 @@
       "key": "mcp.explanation",
       "parameters": [],
       "translations": {
-        "zh-Hant": "連接外部 MCP 伺服器後，可選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，存取權杖只保存在這台裝置。在對話裡打開「本次對話使用 MCP 工具」就會自動連線；模型會直接執行允許的工具，不會每次先問你，工具說明和結果會送給你設定的模型。",
-        "en": "Connect an external MCP server and choose which tools the assistant can use; all are allowed by default. The server must use HTTPS, and the access token stays on this device. Turn on “Use MCP tools in this chat” and the app connects by itself. The model runs allowed tools without asking each time, and tool descriptions and results go to the model you set up."
+        "zh-Hant": "可以連接多個外部 MCP 伺服器，並為每個伺服器選擇允許助理使用的工具，預設全部允許。伺服器須使用 HTTPS，網址和存取權杖只保存在這台裝置的 Keychain。已啟用的伺服器在每個對話都能用，不需要另外打開：助理需要時會自動連線，直接執行允許的工具，不會每次先問你；工具說明和結果會送給你設定的模型。連不上的伺服器那次會略過，不影響其他伺服器。",
+        "en": "Connect one or more external MCP servers and choose which tools the assistant may use on each; all are allowed by default. Servers must use HTTPS, and their URLs and access tokens stay in this device’s Keychain. Enabled servers work in every chat with nothing to turn on: the app connects when needed and the model runs allowed tools without asking each time. Tool descriptions and results go to the model you set up. A server that can’t be reached is skipped for that reply without affecting the others."
       }
     },
     {
@@ -1665,8 +1665,8 @@
       "key": "mcp.selection.limit",
       "parameters": [],
       "translations": {
-        "zh-Hant": "每次對話最多 64 個工具、說明合計 128 KB，格式不符的工具不能使用；超出的工具維持關閉。",
-        "en": "A chat can use at most 64 tools, with up to 128 KB of tool descriptions and no malformed tool; the rest stay off."
+        "zh-Hant": "一個伺服器最多提供 256 個工具、說明合計 224 KB，格式不符的工具不能使用；超出的工具維持關閉。",
+        "en": "A server can offer at most 256 tools, with up to 224 KB of tool descriptions and no malformed tool; the rest stay off."
       }
     },
     {
@@ -1897,6 +1897,244 @@
           "one": "%lld tool selected for chat",
           "other": "%lld tools selected for chat"
         }
+      }
+    },
+    {
+      "case": "mcpServersSection",
+      "key": "mcp.servers.section",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "伺服器",
+        "en": "Servers"
+      }
+    },
+    {
+      "case": "mcpServersEmpty",
+      "key": "mcp.servers.empty",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "還沒有 MCP 伺服器",
+        "en": "No MCP server added"
+      }
+    },
+    {
+      "case": "mcpServersEmptyDetail",
+      "key": "mcp.servers.empty.detail",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增外部 MCP 伺服器，把它的工具交給助理。",
+        "en": "Add an external MCP server to give its tools to the assistant."
+      }
+    },
+    {
+      "case": "mcpServersStatus",
+      "key": "mcpServersStatus",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "已儲存 %lld 個伺服器"
+        },
+        "en": {
+          "one": "%lld server saved",
+          "other": "%lld servers saved"
+        }
+      }
+    },
+    {
+      "case": "mcpServersStored",
+      "key": "mcp.servers.stored",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "網址和存取權杖已安全儲存；不顯示網址。",
+        "en": "URLs and access tokens are stored securely; URLs are hidden."
+      }
+    },
+    {
+      "case": "mcpAddServer",
+      "key": "mcp.add.server",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增伺服器",
+        "en": "Add server"
+      }
+    },
+    {
+      "case": "mcpAddSection",
+      "key": "mcp.add.section",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "新增 MCP 伺服器",
+        "en": "Add an MCP server"
+      }
+    },
+    {
+      "case": "mcpTestAll",
+      "key": "mcp.test.all",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "測試全部",
+        "en": "Test all"
+      }
+    },
+    {
+      "case": "mcpBackToServers",
+      "key": "mcp.back.to.servers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "所有伺服器",
+        "en": "All servers"
+      }
+    },
+    {
+      "case": "mcpServerName",
+      "key": "mcp.server.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "名稱",
+        "en": "Name"
+      }
+    },
+    {
+      "case": "mcpServerDefaultName",
+      "key": "mcp.server.default.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 伺服器",
+        "en": "MCP server"
+      }
+    },
+    {
+      "case": "mcpServerEnabled",
+      "key": "mcp.server.enabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在對話中使用這個伺服器",
+        "en": "Use this server in chats"
+      }
+    },
+    {
+      "case": "mcpServerDisabled",
+      "key": "mcp.server.disabled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已停用",
+        "en": "Off"
+      }
+    },
+    {
+      "case": "mcpServerStatusOK",
+      "key": "mcpServerStatusOK",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "可用 · %lld 個工具"
+        },
+        "en": {
+          "one": "Available · %lld tool",
+          "other": "Available · %lld tools"
+        }
+      }
+    },
+    {
+      "case": "mcpServerStatusFailed",
+      "key": "mcp.server.status.failed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連線失敗",
+        "en": "Connection failed"
+      }
+    },
+    {
+      "case": "mcpDeleteServer",
+      "key": "mcp.delete.server",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除伺服器",
+        "en": "Delete server"
+      }
+    },
+    {
+      "case": "mcpDeleteServerQuestion",
+      "key": "mcp.delete.server.question",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除這個伺服器在此裝置儲存的端點、存取權杖和工具選擇？其他伺服器不受影響。",
+        "en": "Delete the endpoint, access token and tool choices this device saved for this server? Other servers stay."
+      }
+    },
+    {
+      "case": "mcpDeleteServerConfirm",
+      "key": "mcp.delete.server.confirm",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "刪除",
+        "en": "Delete"
+      }
+    },
+    {
+      "case": "mcpServerAdded",
+      "key": "mcp.server.added",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已新增並存入此裝置的 Keychain；尚未送出連線請求。",
+        "en": "Added and saved in this device’s Keychain; no connection request has been sent."
+      }
+    },
+    {
+      "case": "mcpServerRenamed",
+      "key": "mcp.server.renamed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已更改名稱。",
+        "en": "Name changed."
+      }
+    },
+    {
+      "case": "mcpServerRemoved",
+      "key": "mcp.server.removed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已刪除這個伺服器的端點、存取權杖和工具選擇。",
+        "en": "This server’s endpoint, access token and tool choices were deleted."
+      }
+    },
+    {
+      "case": "mcpInvalidServerName",
+      "key": "mcp.invalid.server.name",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "名稱要有 1 到 40 個字、只有一行，也不能包含伺服器網址或存取權杖。",
+        "en": "Use a name of 1 to 40 characters on one line that contains neither the server URL nor the access token."
+      }
+    },
+    {
+      "case": "mcpTooManyServers",
+      "key": "mcp.too.many.servers",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "最多可以儲存 16 個 MCP 伺服器。",
+        "en": "You can save at most 16 MCP servers."
+      }
+    },
+    {
+      "case": "mcpNameSeparator",
+      "key": "mcp.name.separator",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "、",
+        "en": ", "
       }
     },
     {
@@ -3423,6 +3661,552 @@
       "translations": {
         "zh-Hant": "填 API Key",
         "en": "Enter an API key"
+      }
+    },
+    {
+      "case": "signinGroup",
+      "key": "signin.group",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用帳號登入 · 不用填 Key",
+        "en": "Sign in with an account · no key needed"
+      }
+    },
+    {
+      "case": "signinRowChatGPT",
+      "key": "signin.row.chatgpt",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用 Plus / Pro 方案的額度",
+        "en": "Uses your Plus / Pro plan"
+      }
+    },
+    {
+      "case": "signinRowXAI",
+      "key": "signin.row.xai",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用 SuperGrok 或 X Premium+ 訂閱",
+        "en": "Uses your SuperGrok or X Premium+ subscription"
+      }
+    },
+    {
+      "case": "signinRunning",
+      "key": "signin.running",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入中…",
+        "en": "Signing in…"
+      }
+    },
+    {
+      "case": "signinSignedIn",
+      "key": "signin.signedIn",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已登入",
+        "en": "Signed in"
+      }
+    },
+    {
+      "case": "signinSignedOut",
+      "key": "signin.signedOut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已退出登入",
+        "en": "Signed out"
+      }
+    },
+    {
+      "case": "signinBusy",
+      "key": "signin.busy",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "另一個登入還沒結束，先完成或取消它。",
+        "en": "Another sign-in is in progress. Finish or cancel it first."
+      }
+    },
+    {
+      "case": "signinUseKey",
+      "key": "signin.useKey",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "改用 API Key",
+        "en": "Use an API key instead"
+      }
+    },
+    {
+      "case": "signinContinue",
+      "key": "signin.continue",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "繼續登入",
+        "en": "Continue"
+      }
+    },
+    {
+      "case": "signinStoredNote",
+      "key": "signin.storedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入資訊只加密存在這台裝置上，不會寫進日誌。",
+        "en": "Sign-in details are stored encrypted on this device only and are never written to logs."
+      }
+    },
+    {
+      "case": "signinCopied",
+      "key": "signin.copied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已複製",
+        "en": "Copied"
+      }
+    },
+    {
+      "case": "signinSetMain",
+      "key": "signin.setMain",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "設為主模型",
+        "en": "Set as main model"
+      }
+    },
+    {
+      "case": "signinSetMainNote",
+      "key": "signin.setMainNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "渥屋助理辦事時用它",
+        "en": "woowtech agent uses it to get things done"
+      }
+    },
+    {
+      "case": "signinSignOutNote",
+      "key": "signin.signOutNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "只清這台裝置上的登入資訊",
+        "en": "Only clears the sign-in on this device"
+      }
+    },
+    {
+      "case": "signinListing",
+      "key": "signin.listing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在列出模型…",
+        "en": "Listing models…"
+      }
+    },
+    {
+      "case": "signinListFailed",
+      "key": "signin.listFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "列模型失敗",
+        "en": "Couldn’t list models"
+      }
+    },
+    {
+      "case": "signinRefresh",
+      "key": "signin.refresh",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "重新整理",
+        "en": "Refresh"
+      }
+    },
+    {
+      "case": "chatgptTitle",
+      "key": "chatgpt.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用你的 ChatGPT 方案",
+        "en": "Use your ChatGPT plan"
+      }
+    },
+    {
+      "case": "chatgptBody",
+      "key": "chatgpt.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用你 ChatGPT 方案裡包含的用量（或額度餘額）完成渥屋助理裡符合條件的 AI 請求。ChatGPT Plus 和 Pro 可用。渥屋助理本身免費，不另外收費。",
+        "en": "Complete eligible AI requests in woowtech agent with usage included in your ChatGPT plan or credits balance. Works with ChatGPT Plus and Pro. woowtech agent itself is free; nothing is charged by woowtech agent."
+      }
+    },
+    {
+      "case": "chatgptContinue",
+      "key": "chatgpt.continue",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "使用 ChatGPT 繼續",
+        "en": "Continue with ChatGPT"
+      }
+    },
+    {
+      "case": "chatgptWaiting",
+      "key": "chatgpt.waiting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請在瀏覽器裡完成登入，再回到渥屋助理。",
+        "en": "Finish signing in in your browser, then come back to woowtech agent."
+      }
+    },
+    {
+      "case": "chatgptAccount",
+      "key": "chatgpt.account",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "帳號",
+        "en": "Account"
+      }
+    },
+    {
+      "case": "chatgptSignOut",
+      "key": "chatgpt.signOut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "退出登入",
+        "en": "Sign out"
+      }
+    },
+    {
+      "case": "chatgptManageUsage",
+      "key": "chatgpt.manageUsage",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "管理用量",
+        "en": "Manage usage"
+      }
+    },
+    {
+      "case": "chatgptPlanNote",
+      "key": "chatgpt.planNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "使用 ChatGPT 方案額度。Plus 每 5 小時的額度和其他用你方案的 App 共用；Pro 沒有 5 小時的限制。",
+        "en": "Using ChatGPT plan. On Plus, the 5-hour limit is shared with other apps that use your plan; Pro has no 5-hour limit."
+      }
+    },
+    {
+      "case": "chatgptSignedOutNote",
+      "key": "chatgpt.signedOutNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置上已退出登入。點「使用 ChatGPT 繼續」就能接著用方案；選好的模型都還在。",
+        "en": "Signed out on this device. Continue with ChatGPT to use your plan again; your model choices are kept."
+      }
+    },
+    {
+      "case": "chatgptRevokeUnconfirmed",
+      "key": "chatgpt.revokeUnconfirmed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置上已退出登入，但 ChatGPT 那邊沒有確認。也可以在 ChatGPT 設定裡中斷與渥屋助理的連線。",
+        "en": "Signed out on this device, but ChatGPT didn’t confirm it. You can also disconnect woowtech agent in your ChatGPT settings."
+      }
+    },
+    {
+      "case": "chatgptPageDone",
+      "key": "chatgpt.pageDone",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入成功，回到渥屋助理。",
+        "en": "Signed in. Return to woowtech agent."
+      }
+    },
+    {
+      "case": "chatgptFailDenied",
+      "key": "chatgpt.fail.denied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已取消登入。如果授權頁提示「所需權限不可用」：用方案額度需要 ChatGPT Plus 或 Pro，免費帳號可以改用其他服務商的 API Key。",
+        "en": "Sign-in was cancelled. If the page said the required permission isn’t available: using your plan needs ChatGPT Plus or Pro. With a free account, add another provider’s API key instead."
+      }
+    },
+    {
+      "case": "chatgptFailMismatch",
+      "key": "chatgpt.fail.mismatch",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入回來的資訊和這次對不上，請再試一次。",
+        "en": "The sign-in reply didn’t match this attempt. Please try again."
+      }
+    },
+    {
+      "case": "chatgptFailNoClient",
+      "key": "chatgpt.fail.noClient",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "ChatGPT 沒有完成對渥屋助理的註冊，請再試一次。",
+        "en": "ChatGPT didn’t finish registering woowtech agent. Please try again."
+      }
+    },
+    {
+      "case": "chatgptFailTimedOut",
+      "key": "chatgpt.fail.timedOut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入逾時了，請再試一次。",
+        "en": "Sign-in timed out. Please try again."
+      }
+    },
+    {
+      "case": "chatgptFailExchange",
+      "key": "chatgpt.fail.exchange",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "ChatGPT 拒絕了這次登入（錯誤：%1$@），請再試一次。",
+        "en": "ChatGPT rejected this sign-in (error: %1$@). Please try again."
+      }
+    },
+    {
+      "case": "chatgptFailCodeExpired",
+      "key": "chatgpt.fail.codeExpired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入碼過期或已用過，請再登入一次。",
+        "en": "The sign-in code expired or was already used. Please sign in again."
+      }
+    },
+    {
+      "case": "chatgptFailRegion",
+      "key": "chatgpt.fail.region",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "目前網路所在的地區不被 OpenAI 支援，換個網路再試。",
+        "en": "OpenAI doesn’t support the region your network is in. Try another network."
+      }
+    },
+    {
+      "case": "chatgptFailBlocked",
+      "key": "chatgpt.fail.blocked",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請求被 OpenAI 的防護攔下了，換個網路或稍後再試。",
+        "en": "OpenAI’s protection blocked the request. Try another network or try again later."
+      }
+    },
+    {
+      "case": "chatgptFailIDToken",
+      "key": "chatgpt.fail.idToken",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "核對不了你的 ChatGPT 帳號，請再試一次。",
+        "en": "Couldn’t verify your ChatGPT account. Please try again."
+      }
+    },
+    {
+      "case": "chatgptFailNoPlan",
+      "key": "chatgpt.fail.noPlan",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "沒有允許渥屋助理使用你的 ChatGPT 方案。請重新登入並允許使用方案額度（需要 Plus 或 Pro）。",
+        "en": "woowtech agent wasn’t allowed to use your ChatGPT plan. Sign in again and allow plan usage (needs Plus or Pro)."
+      }
+    },
+    {
+      "case": "chatgptFailNetwork",
+      "key": "chatgpt.fail.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連不上 ChatGPT，請檢查網路後再試。",
+        "en": "Couldn’t reach ChatGPT. Check your network and try again."
+      }
+    },
+    {
+      "case": "signinXAITitle",
+      "key": "signin.xai.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用 xAI 帳號登入",
+        "en": "Sign in with xAI"
+      }
+    },
+    {
+      "case": "signinXAIBody",
+      "key": "signin.xai.body",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "用你的 SuperGrok 或 X Premium+ 訂閱在渥屋助理裡用 Grok，不用另外買 API 額度。請求直接發給 xAI。",
+        "en": "Use Grok in woowtech agent with your SuperGrok or X Premium+ subscription, with no separate API credit to buy. Requests go straight to xAI."
+      }
+    },
+    {
+      "case": "signinXAIRisk",
+      "key": "signin.xai.risk",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這項登入借用 xAI 官方命令列工具的公開登入入口，不是 xAI 專門給渥屋助理開的。xAI 可能限制這種用法；有的訂閱檔位登入成功後仍不能呼叫（會提示 403），那時請改用 xAI 的 API Key。",
+        "en": "This sign-in borrows the public sign-in entry of xAI’s official command-line tool; xAI did not set it up for woowtech agent. xAI may restrict this use, and some subscription tiers still can’t make calls after signing in (you’ll see 403). If that happens, use an xAI API key instead."
+      }
+    },
+    {
+      "case": "signinXAIStarting",
+      "key": "signin.xai.starting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "正在打開 xAI 的確認頁…",
+        "en": "Opening the xAI confirmation page…"
+      }
+    },
+    {
+      "case": "signinXAICodeTitle",
+      "key": "signin.xai.codeTitle",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在瀏覽器裡確認",
+        "en": "Confirm in your browser"
+      }
+    },
+    {
+      "case": "signinXAICodeBody",
+      "key": "signin.xai.codeBody",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已打開 xAI 的確認頁。核對頁面上的碼和下面一樣，然後點同意。",
+        "en": "The xAI confirmation page is open. Check that the code there matches the one below, then approve."
+      }
+    },
+    {
+      "case": "signinXAICodeValid",
+      "key": "signin.xai.codeValid",
+      "parameters": [
+        {
+          "name": "minutes",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "%1$lld 分鐘內有效",
+        "en": "Valid for %1$lld min"
+      }
+    },
+    {
+      "case": "signinXAICopyReopen",
+      "key": "signin.xai.copyReopen",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "複製碼並重新打開確認頁",
+        "en": "Copy the code and reopen the page"
+      }
+    },
+    {
+      "case": "signinXAIWaiting",
+      "key": "signin.xai.waiting",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "等你在瀏覽器裡確認…",
+        "en": "Waiting for you to confirm in the browser…"
+      }
+    },
+    {
+      "case": "signinXAINote403",
+      "key": "signin.xai.note403",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "如果呼叫時提示 403：說明你的訂閱檔位不能用這個介面，可以改用 xAI 的 API Key。",
+        "en": "If calls fail with 403, your subscription tier can’t use this API. Use an xAI API key instead."
+      }
+    },
+    {
+      "case": "accountSignedInNoteXAI",
+      "key": "account.signedInNote.xai",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "在用你的 xAI / Grok 訂閱。額度和這個帳號的其他客戶端共用。這項登入借用 xAI 官方命令列工具的公開登入入口，風險見登入前的說明。",
+        "en": "Using your xAI / Grok subscription. Usage is shared with other clients on this account. This sign-in reuses the public sign-in client of xAI’s official command-line tool; see the notice shown before you continue."
+      }
+    },
+    {
+      "case": "accountSignedOutNote",
+      "key": "account.signedOutNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這台裝置上已退出登入。要連 xAI 那邊的授權一起撤掉，到 xAI 帳號設定裡斷開。選好的模型都還在。",
+        "en": "Signed out on this device. To revoke the grant on xAI too, disconnect it in your xAI account settings. Model choices are kept."
+      }
+    },
+    {
+      "case": "accountManageXAI",
+      "key": "account.manage.xai",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "打開 xAI 帳號",
+        "en": "Open xAI account"
+      }
+    },
+    {
+      "case": "accountFailDenied",
+      "key": "account.fail.denied",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已取消登入。",
+        "en": "Sign-in was cancelled."
+      }
+    },
+    {
+      "case": "accountFailExpired",
+      "key": "account.fail.expired",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入碼過期或已用過，請再試一次。",
+        "en": "The sign-in code expired or was already used. Please try again."
+      }
+    },
+    {
+      "case": "accountFailTimedOut",
+      "key": "account.fail.timedOut",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入逾時了，請再試一次。",
+        "en": "Sign-in timed out. Please try again."
+      }
+    },
+    {
+      "case": "accountFailRejected",
+      "key": "account.fail.rejected",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "登入被拒絕了（錯誤：%1$@），請再試一次。",
+        "en": "Sign-in was rejected (error: %1$@). Please try again."
+      }
+    },
+    {
+      "case": "accountFailNoSub",
+      "key": "account.fail.noSub",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這個帳號沒有可用的 xAI 訂閱。",
+        "en": "This account does not have a usable xAI subscription."
+      }
+    },
+    {
+      "case": "accountFailNetwork",
+      "key": "account.fail.network",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "連不上登入服務，請檢查網路後再試。",
+        "en": "Could not reach the sign-in service. Check the network and try again."
+      }
+    },
+    {
+      "case": "accountFailIssuer",
+      "key": "account.fail.issuer",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "登入地址不對，已停止，沒有繼續傳送。",
+        "en": "The sign-in address was not allowed, so nothing was sent."
       }
     },
     {
@@ -6217,6 +7001,15 @@
       }
     },
     {
+      "case": "chatReplyInterruptedNote",
+      "key": "chat.reply.interruptedNote",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "（App 離開畫面後連線中斷，回覆到這裡為止。可以再問一次。）",
+        "en": "(The connection dropped after the app left the screen, so the reply stops here. You can ask again.)"
+      }
+    },
+    {
       "case": "chatModelFailedUnreadable",
       "key": "chat.modelFailed.unreadable",
       "parameters": [],
@@ -6251,6 +7044,70 @@
       "translations": {
         "zh-Hant": "呼叫模型失敗：伺服器端出錯（HTTP %1$lld）。請到設定 › 模型檢查。",
         "en": "The model call failed: the server returned an error (HTTP %1$lld). Check Settings › Models."
+      }
+    },
+    {
+      "case": "chatModelFailedSignedOut",
+      "key": "chat.modelFailed.signedOut",
+      "parameters": [
+        {
+          "name": "account",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：%1$@ 登入已失效，請重新登入。請到設定 › 模型檢查。",
+        "en": "The model call failed: the %1$@ sign-in has expired; sign in again. Check Settings › Models."
+      }
+    },
+    {
+      "case": "chatModelFailedChatGPTLimit",
+      "key": "chat.modelFailed.chatgptLimit",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：ChatGPT 額度用完了。請稍後再試。",
+        "en": "The model call failed: the ChatGPT usage limit has been reached. Try again later."
+      }
+    },
+    {
+      "case": "chatModelFailedChatGPTNotEligible",
+      "key": "chat.modelFailed.chatgptNotEligible",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：這個帳號不能在其他 App 使用 ChatGPT 額度。請到設定 › 模型檢查。",
+        "en": "The model call failed: this account can’t use its ChatGPT plan in other apps. Check Settings › Models."
+      }
+    },
+    {
+      "case": "chatModelFailedPlan",
+      "key": "chat.modelFailed.plan",
+      "parameters": [
+        {
+          "name": "account",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：你的 %1$@ 訂閱方案不能使用這個介面，請改用 xAI 的 API Key。",
+        "en": "The model call failed: your %1$@ plan can’t use this API. Use an xAI API key instead."
+      }
+    },
+    {
+      "case": "chatModelFailedRefused",
+      "key": "chat.modelFailed.refused",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：模型拒絕處理這些內容。",
+        "en": "The model call failed: the model refused to handle this content."
+      }
+    },
+    {
+      "case": "chatModelFailedContext",
+      "key": "chat.modelFailed.context",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "呼叫模型失敗：對話內容超出模型的上下文長度。",
+        "en": "The model call failed: the conversation is longer than the model’s context."
       }
     },
     {
@@ -7543,6 +8400,15 @@
       }
     },
     {
+      "case": "storedChatMcpChanged",
+      "key": "stored.chat.mcpChanged",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "MCP 連線或設定在回覆時變更，已停止；沒有執行任何 MCP 工具。",
+        "en": "The MCP connection or settings changed during the reply, so it stopped. No MCP tool ran."
+      }
+    },
+    {
       "case": "storedContextIncompleteHistory",
       "key": "stored.context.incompleteHistory",
       "parameters": [],
@@ -8494,15 +9360,6 @@
       }
     },
     {
-      "case": "chatUseMCP",
-      "key": "chat.useMCP",
-      "parameters": [],
-      "translations": {
-        "zh-Hant": "本次對話使用 MCP 工具",
-        "en": "Use MCP tools in this chat"
-      }
-    },
-    {
       "case": "chatReceiptProfile",
       "key": "chat.receipt.profile",
       "parameters": [],
@@ -8532,6 +9389,40 @@
       "translations": {
         "zh-Hant": "檢視工具結果（%1$lld）",
         "en": "View tool results (%1$lld)"
+      }
+    },
+    {
+      "case": "chatMcpUnavailable",
+      "key": "chat.mcpUnavailable",
+      "parameters": [
+        {
+          "name": "names",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "MCP 伺服器連線失敗：%1$@",
+        "en": "MCP servers unavailable: %1$@"
+      }
+    },
+    {
+      "case": "chatMcpOmitted",
+      "key": "chatMcpOmitted",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "plural": "count",
+      "translations": {
+        "zh-Hant": {
+          "other": "這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。"
+        },
+        "en": {
+          "one": "%lld MCP tool or resource went past the limit for one reply and wasn’t offered to the model.",
+          "other": "%lld MCP tools or resources went past the limit for one reply and weren’t offered to the model."
+        }
       }
     },
     {

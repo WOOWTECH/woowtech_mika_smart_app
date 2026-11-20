@@ -52,24 +52,35 @@ import Foundation
     }
 }
 
-/// Deterministic in-process server. No URLSession or production endpoint is used.
+/// Deterministic in-process servers (MCPFixtureServer). No URLSession or
+/// production endpoint is used. Server A offers fixture_echo and a resource;
+/// server B offers a tool with the same name, so the chat must tell them apart;
+/// the down server never completes its handshake.
 actor UITestMCPFixture: MCPDiscovering {
     private var count = 0
     private let holdLease: Bool
-    init(arguments: [String] = ProcessInfo.processInfo.arguments) {
+    private let server: MCPFixtureServer
+    init(endpoint: URL = MCPFixtureServer.a.endpoint, arguments: [String] = ProcessInfo.processInfo.arguments) {
         holdLease = UITestMCPLeaseControl.enabled(arguments: arguments)
+        server = MCPFixtureServer(endpoint: endpoint) ?? .down
+    }
+    /// The model-facing name of a fixture tool (MCPCombinedCatalog, Android's naming).
+    nonisolated static func modelName(_ tool: String, on server: MCPFixtureServer = .a) -> String {
+        MCPToolNaming.names(server: server.record.key, tools: [tool])[0]
     }
     func initialize() async throws -> MCPServerInfo {
-        MCPServerInfo(protocolVersion: "2025-03-26", capabilities: ["tools", "resources"])
+        guard server != .down else { throw MCPError.transportFailure }
+        return MCPServerInfo(protocolVersion: "2025-03-26", capabilities: server == .a ? ["tools", "resources"] : ["tools"])
     }
     func listTools() async throws -> [MCPTool] {
-        [MCPTool(name: "fixture_echo", inputSchema: .object([
+        [MCPTool(name: "fixture_echo", description: server == .b ? "Echo text on the second fixture server." : nil,
+                 inputSchema: .object([
             "type": .string("object"), "properties": .object(["text": .object(["type": .string("string")])]),
             "required": .array([.string("text")]), "additionalProperties": .bool(false)
         ]))]
     }
     func listResources() async throws -> [MCPResource] {
-        [MCPResource(uri: "fixture://guide", name: "Fixture guide", mimeType: "text/plain")]
+        server == .a ? [MCPResource(uri: "fixture://guide", name: "Fixture guide", mimeType: "text/plain")] : []
     }
     func callAuthorizedTool(name: String, arguments: JSONValue) async throws -> JSONValue {
         try Task.checkCancellation()
@@ -78,14 +89,15 @@ actor UITestMCPFixture: MCPDiscovering {
             try await UITestMCPLeaseControl.shared.wait()
         }
         count += 1
+        let label = server == .b ? "FIXTURE_B_CALL_" : "FIXTURE_CALL_"
         return .object([
             "isError": .bool(text == "error"),
             "content": .array([.object(["type": .string("text"),
-                "text": .string("FIXTURE_CALL_\(count): \(text)")])])
+                "text": .string("\(label)\(count): \(text)")])])
         ])
     }
     func readResource(uri: String) async throws -> JSONValue {
-        guard uri == "fixture://guide" else { throw MCPError.invalidRequest }
+        guard server == .a, uri == "fixture://guide" else { throw MCPError.invalidRequest }
         try Task.checkCancellation()
         return .object(["contents": .array([.object([
             "uri": .string(uri), "mimeType": .string("text/plain"), "text": .string("FIXTURE_RESOURCE_OK")

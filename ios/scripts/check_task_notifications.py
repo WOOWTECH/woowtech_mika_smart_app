@@ -22,7 +22,7 @@ LANGUAGE_NOTIFICATION_SOURCES = ["AppLanguage", "AppLanguageStore", "AppLanguage
 APPS = LANGUAGE_NOTIFICATION_SOURCES + [
     "BrowserUploadFixture", "BrowserLoginFixture", "BrowserWorkspace",
     "ChatSession", "ChatAttachmentModels", "ChatAttachmentPreparation", "ChatAttachmentReader", "ChatAttachmentUITestFixture", "ConversationArchiveStore", "BrowserSession", "LearningKeychainStore", "UITestModelFixture", "MCPSettings",
-    "LiveModelUITestSupport", "ModelSettings", "LearningStore", "UITestMCPFixture", "MCPSession",
+    "LiveModelUITestSupport", "ModelSettings", "LearningStore", "UITestMCPFixture", "MCPSession", "MCPServers",
     "LearningRunContext", "TaskNotificationCenterAdapter", "TaskNotificationStore", "TaskNotificationChatBridge",
     "ChatWebTaskTab", "ChatWebTaskSession", "ChatWebTaskFixture", "ChatLearning",
 ]

@@ -73,6 +73,7 @@ public struct MemoryExtractor: Sendable {
                 if proposal.op == "add" {
                     guard let kindName = proposal.kind, let kind = MemoryKind(rawValue: kindName),
                           !state.memories.contains(where: { $0.kind == kind && $0.content == content }),
+                          !state.memories.contains(where: { MemorySafety.restates($0.content, content) }),
                           additions.insert(kindName + "\n" + content).inserted else { continue }
                     operations.append(.add(kind, content, words, quote))
                 } else if let target = target, touched.insert(target.id).inserted {
@@ -134,6 +135,7 @@ public struct MemoryExtractor: Sendable {
     Return only a JSON object: {"ops":[{"op":"add","kind":"fact","content":"...","keywords":[],"quote":"..."}]}.
     Allowed kinds: fact, preference, procedure. Use at most five operations, 200 UTF-16 units per content, eight short keywords.
     Quote an exact supporting passage from utterances. Never invent specific names, numbers, locations or preferences.
+    Content restates only what the user said: never add conditions, confirmations, steps or details they did not say.
     Exclude credentials, identification/payment numbers, ephemeral task parameters, web pages, tool output and assistant suggestions.
     For a lasting correction, use op "update" with the related target label and replacement content instead of adding a duplicate.
     For an explicit unambiguous user request to forget, use op "forget" with its target and exact quote. Negated deletion is not permission.

@@ -27,6 +27,8 @@ private struct MCPOfferedCatalog: Encodable {
     let resources: [MCPResource]
 }
 
+/// One MCP server: its connection, catalog and tool choice. MCPServers keeps
+/// one for each saved server.
 @MainActor
 final class MCPSession: ObservableObject {
     enum Phase: Equatable {
@@ -70,36 +72,19 @@ final class MCPSession: ObservableObject {
     /// The saved tool choice; nil means every tool, the Play default.
     private var allowedTools: [String]?
     private var resumeWhenActive = false
+    /// Changes whenever the connection closes or a new one starts. A chat
+    /// request keeps the value it connected with (MCPServers.chatCatalog()), so
+    /// nothing runs on a connection that is not the one it was offered.
+    private(set) var connectionEpoch = 0
 
-    init() {
-        let store: MCPSettingsStore?
-        var failure: AppText?
-        do { store = try MCPSettingsStore.makeDefault() }
-        catch { store = nil; failure = Self.settingsMessage(error) }
-        #if DEBUG
-        let fixture = ProcessInfo.processInfo.arguments.contains("-UITestMode")
-            && ProcessInfo.processInfo.arguments.contains("-UITestMCPFixture")
-        if fixture {
-            allowsNetwork = true
-            clientFactory = { _ in UITestMCPFixture() }
-            tokenClientFactory = nil
-        } else {
-            allowsNetwork = MCPSettingsStore.networkAllowed()
-            clientFactory = { MCPClient(endpoint: $0) }
-            tokenClientFactory = { MCPClient(endpoint: $0, token: $1) }
-        }
-        #else
-        allowsNetwork = MCPSettingsStore.networkAllowed()
-        clientFactory = { MCPClient(endpoint: $0) }
-        tokenClientFactory = { MCPClient(endpoint: $0, token: $1) }
-        #endif
-        repository = store
-        guard let store else {
-            errorText = failure
-            phase = .failed
-            return
-        }
-        loadSavedState(from: store)
+    /// A saved server; production clients carry its access token.
+    init(repository: any MCPEndpointStoring, allowsNetwork: Bool,
+         tokenClientFactory: @escaping @Sendable (URL, String?) -> any MCPDiscovering) {
+        self.repository = repository
+        self.allowsNetwork = allowsNetwork
+        clientFactory = { tokenClientFactory($0, nil) }
+        self.tokenClientFactory = tokenClientFactory
+        loadSavedState(from: repository)
         // Never load the credentials into a published property or start networking here.
     }
 
@@ -130,14 +115,17 @@ final class MCPSession: ObservableObject {
 
     var isBusy: Bool { phase == .connecting || phase == .discovering }
     var canUseInConversation: Bool { phase == .connected && (!selectedToolNames.isEmpty || !resources.isEmpty) }
-    /// Like the Play build, a saved server is ready for chats without a manual
-    /// connect: a chat that uses MCP connects by itself (chatConnection()).
-    var isAvailableForChats: Bool { repository != nil && hasStoredEndpoint && allowsNetwork }
+    /// Like the Play build, a saved server needs no manual connect: every chat
+    /// request connects it by itself (chatConnection()).
+    var canConnectForChats: Bool { repository != nil && hasStoredEndpoint && allowsNetwork }
     /// Android lists up to 30 resource URIs in its resource_read tool.
     static let offeredResourceLimit = 30
-    /// MCPConversationRunner accepts at most this many tools, in a catalog of at most this size.
-    static let selectionLimit = 64
-    static let catalogByteLimit = 128 * 1024
+    /// MCPConversationRunner accepts at most this many tools in a catalog of at
+    /// most 256 KB for all servers together (MCPCombinedCatalog); one server
+    /// leaves room for the server names added to the descriptions. Every tool
+    /// starts allowed, like Android, within these limits.
+    static let selectionLimit = MCPCombinedCatalog.maximumTools
+    static let catalogByteLimit = 224 * 1024
     /// Encoded size of each tool the runner would accept, and of the catalog
     /// without tools; measured with the catalog.
     private var toolBytes: [String: Int] = [:]
@@ -204,6 +192,31 @@ final class MCPSession: ObservableObject {
         }
     }
 
+    /// Like Android's isAllowedNow, checked before each call of a chat request:
+    /// the same connection, and the tool still selected or the resource offered.
+    func allows(_ action: MCPConversationAction, epoch: Int) -> Bool {
+        guard phase == .connected, connectionEpoch == epoch, client != nil else { return false }
+        switch action {
+        case .callTool(let name, _): return selectedToolNames.contains(name)
+        case .readResource(let uri): return resources.contains { $0.uri == uri }
+        }
+    }
+
+    /// The server was deleted: its items are gone, so nothing may use it again.
+    func closeForRemoval() {
+        stopWork()
+        clearCatalog()
+        endpointDraft = ""
+        tokenDraft = ""
+        hasStoredEndpoint = false
+        hasStoredToken = false
+        allowedTools = nil
+        resumeWhenActive = false
+        errorText = nil
+        noticeText = nil
+        phase = .notConfigured
+    }
+
     func conversationConnection() throws -> (any MCPDiscovering, [MCPTool], [MCPResource]) {
         guard canUseInConversation, let client else { throw MCPError.notInitialized }
         return (client, tools.filter { selectedToolNames.contains($0.name) }, resources)
@@ -216,7 +229,7 @@ final class MCPSession: ObservableObject {
             guard canUseInConversation else { throw MCPChatAvailability.noTools }
             return try conversationConnection()
         }
-        guard isAvailableForChats else { throw MCPChatAvailability.notConfigured }
+        guard canConnectForChats else { throw MCPChatAvailability.notConfigured }
         guard let pending = isBusy ? request : beginConnection(keepCatalog: true) else {
             throw MCPChatAvailability.unreachable
         }
@@ -342,6 +355,7 @@ final class MCPSession: ObservableObject {
         let connection = tokenClientFactory.map { $0(endpoint, token) } ?? clientFactory(endpoint)
         let id = UUID()
         requestID = id
+        connectionEpoch += 1
         client = connection
         phase = .connecting
         let task = Task { [weak self] () -> Bool in
@@ -463,6 +477,7 @@ final class MCPSession: ObservableObject {
 
     private func stopWork(notify: Bool = true) {
         if notify { onConnectionChange?() }
+        connectionEpoch += 1
         requestID = nil // Invalidate before cancellation, so late replies cannot restore the UI.
         request?.cancel()
         request = nil
