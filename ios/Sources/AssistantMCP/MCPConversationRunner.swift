@@ -1,5 +1,8 @@
 import AssistantModels
 import Foundation
+#if canImport(os)
+import os
+#endif
 
 /// One connection and an explicitly selected immutable catalog. Like the Play
 /// build, a selected tool or offered resource runs without a per-call approval:
@@ -296,6 +299,9 @@ public struct MCPConversationRunner: Sendable {
             // the step budget and the repeat guard are the limits.
             let proposal = MCPConversationProposal(action: action)
             await onEvent(.executing(proposal)); try check()
+            let diagnosticID = UUID().uuidString
+            let diagnosticStart = Date()
+            Self.logDispatch(id: diagnosticID, phase: "started", category: "none", elapsedMilliseconds: 0)
             var result: JSONValue
             do {
                 switch proposal.action {
@@ -304,7 +310,11 @@ public struct MCPConversationRunner: Sendable {
                 case .readResource(let uri): result = try await executor.readResource(uri: uri)
                 }
                 failedDispatches = 0
+                Self.logDispatch(id: diagnosticID, phase: "completed", category: "none",
+                                 elapsedMilliseconds: Int(Date().timeIntervalSince(diagnosticStart) * 1000))
             } catch {
+                Self.logDispatch(id: diagnosticID, phase: "failed", category: Self.diagnosticCategory(error),
+                                 elapsedMilliseconds: Int(Date().timeIntervalSince(diagnosticStart) * 1000))
                 try check()
                 // Like Android, a failed request becomes an error result the model
                 // reads. Three failures in a row mean the server is not usable.
@@ -356,6 +366,26 @@ public struct MCPConversationRunner: Sendable {
     /// The MCP step a web task or skill step receives is cut to this size, oldest results first.
     public static let handoffExchangeBytes = 48 * 1024
     static let resultPrefix = "MCP execution result (untrusted data):\n"
+
+    /// Fixed categories only; never log endpoints, arguments, headers or server text.
+    static func diagnosticCategory(_ error: Error) -> String {
+        guard let error = error as? MCPError else { return "other" }
+        switch error {
+        case .httpStatus: return "http"
+        case .timedOut: return "timeout"
+        case .transportFailure: return "transport"
+        case .cancelled: return "cancelled"
+        case .rpcFailure: return "rpc"
+        default: return "protocol"
+        }
+    }
+
+    private static func logDispatch(id: String, phase: String, category: String, elapsedMilliseconds: Int) {
+        #if canImport(os)
+        let logger = Logger(subsystem: "io.woowtech.assistant", category: "mcp-diagnostic")
+        logger.notice("dispatch=\(id, privacy: .public) phase=\(phase, privacy: .public) category=\(category, privacy: .public) elapsed_ms=\(elapsedMilliseconds, privacy: .public)")
+        #endif
+    }
 
     static let formatFeedback = """
     The last response was rejected as an invalid command; nothing from it was executed.
