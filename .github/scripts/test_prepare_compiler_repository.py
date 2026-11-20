@@ -33,7 +33,7 @@ class RepositoryTest(unittest.TestCase):
         self.stack = contextlib.ExitStack()
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.dict(os.environ, CI='true', GITHUB_ACTIONS='true',
-                                          RUNNER_TEMP=str(self.runner_temp), GITHUB_ENV=str(self.env_file)))
+                                          RUNNER_TEMP=str(self.runner_temp), GITHUB_ENV=str(self.env_file), COMPILER_DOWNLOAD_TOKEN=''))
         self.data = {s.NAME: b'fixture compiler', s.POM_NAME: b'<project>unchanged fixture dependencies</project>'}
         for key, value in [('SIZE', len(self.data[s.NAME])), ('SHA256', hashlib.sha256(self.data[s.NAME]).hexdigest()),
                            ('SHA1', hashlib.sha1(self.data[s.NAME]).hexdigest()), ('POM_SIZE', len(self.data[s.POM_NAME])),
@@ -114,6 +114,26 @@ class RepositoryTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'GET failed'):s.prepare(self.repo)
         self.assertIn('"http_status": "504"',out.getvalue());self.assertNotIn('SECRET',out.getvalue())
         self.assertEqual(self.env_file.read_text(),'');self.assertEqual(list(self.runner_temp.iterdir()),[])
+
+    def test_api_authentication_uses_stdin_only(self):
+        result = subprocess.CompletedProcess([], 0, b'200', b'')
+        token = 'github_test_secret'
+        with patch.dict(os.environ, COMPILER_DOWNLOAD_TOKEN=token), patch.object(s.subprocess, 'run', return_value=result) as run:
+            s.download(self.root / s.NAME, s.API_URL, api=True)
+            args = run.call_args.args[0]
+            self.assertNotIn(token, ' '.join(args))
+            self.assertNotIn('--location-trusted', args)
+            self.assertIn('--config', args)
+            self.assertEqual(run.call_args.kwargs['input'], ('header = "Authorization: Bearer ' + token + '"\n').encode())
+            s.download(self.root / s.POM_NAME, s.POM_URL)
+            self.assertIsNone(run.call_args.kwargs['input'])
+
+    def test_auth_rejects_header_injection_and_unexpected_host(self):
+        for token, url in [('bad\nheader', s.API_URL), ('valid_token', 'https://other.invalid/')]:
+            with patch.dict(os.environ, COMPILER_DOWNLOAD_TOKEN=token), patch.object(s.subprocess, 'run') as run:
+                with self.assertRaisesRegex(RuntimeError, 'authentication'):
+                    s.download(self.root / s.NAME, url, api=True)
+                run.assert_not_called()
 
     def test_bad_status_not_exposed(self):
         result=subprocess.CompletedProcess([],22,b'https://signed.invalid/SECRET',b'')

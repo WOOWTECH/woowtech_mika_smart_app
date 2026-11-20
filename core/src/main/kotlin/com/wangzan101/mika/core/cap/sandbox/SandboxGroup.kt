@@ -159,7 +159,7 @@ internal object SearchFiles : SandboxTool {
 
 internal object CreateDocument : SandboxTool {
     override val verb = Verb.WriteFile
-    override val label = "產生文件"
+    override val label = "生成文档"
     override val entry = Entry.Opens
     override val risk = Risk.Write
     override val def = com.wangzan101.mika.core.document.documentToolDefinition(
