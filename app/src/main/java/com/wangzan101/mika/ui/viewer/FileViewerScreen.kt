@@ -155,9 +155,11 @@ fun FileViewerScreen(uri: Uri, name: String, kind: ViewerKind?, onBack: () -> Un
                     if (!saving) try { saveAs.launch(name) } catch (e: android.content.ActivityNotFoundException) {
                         android.widget.Toast.makeText(context, R.string.viewer_save_failed, android.widget.Toast.LENGTH_SHORT).show()
                     }
-                })
-                BarIconButton(MikaIcons.Share, stringResource(R.string.share), { FileViewer.share(context, uri, name) })
-                BarIconButton(MikaIcons.External, stringResource(R.string.viewer_open_elsewhere), openElsewhere)
+                }, modifier = Modifier.testTag("viewer.save"))
+                BarIconButton(MikaIcons.Share, stringResource(R.string.share), { FileViewer.share(context, uri, name) },
+                    modifier = Modifier.testTag("viewer.share"))
+                BarIconButton(MikaIcons.External, stringResource(R.string.viewer_open_elsewhere), openElsewhere,
+                    modifier = Modifier.testTag("viewer.open_elsewhere"))
             })
             Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
                 when (kind) {

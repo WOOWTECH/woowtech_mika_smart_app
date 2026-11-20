@@ -4,9 +4,14 @@ import com.wangzan101.mika.ChineseUi
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,6 +41,20 @@ class FileViewerScreenTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("viewer.loading").fetchSemanticsNodes().isEmpty() }
     }
 
+    private fun viewerAction(tag: String): androidx.compose.ui.test.SemanticsNodeInteraction {
+        // A first WebView can change Context resources while Compose retains its rendered locale.
+        // On POCO the visible label was 另存副本 but both Contexts returned Save a copy.
+        // Locate by identity, while still checking the actual accessibility label and click action.
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(tag).fetchSemanticsNodes().size == 1
+        }
+        val action = compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().assertHasClickAction()
+        val labels = action.fetchSemanticsNode().config[SemanticsProperties.ContentDescription]
+        org.junit.Assert.assertTrue("Viewer action must retain an accessibility label", labels.any { it.isNotBlank() })
+        android.util.Log.i("DocumentAcceptance", "action=$tag labels=$labels")
+        return action
+    }
+
     @Test fun markdownFileIsRendered() {
         show(file("notes.md", "# 周报\n\n本周完成了 **三件事**。\n\n- 第一项\n- 第二项\n"), "notes.md")
         compose.onNodeWithTag("viewer.markdown").assertIsDisplayed()
@@ -52,7 +71,7 @@ class FileViewerScreenTest {
 
     @Test fun saveCopyCanOpenSystemPickerAndCancel() {
         show(file("document-save.csv", "中文,123\r\n"), "document-save.csv")
-        compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
+        viewerAction("viewer.save").performClick()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val deadline = android.os.SystemClock.uptimeMillis() + 10000
         var opened = false
@@ -125,7 +144,7 @@ class FileViewerScreenTest {
         show(Uri.fromFile(File(context.cacheDir, name).apply { writeBytes(content) }), name)
         verifyPreview(extension)
         try {
-            compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
+            viewerAction("viewer.save").performClick()
             clickSystemNode { node ->
                 node.packageName?.toString()?.contains("documentsui") == true &&
                     (node.text?.toString()?.equals("SAVE", ignoreCase = true) == true || node.viewIdResourceName == "android:id/button1")
@@ -171,7 +190,7 @@ class FileViewerScreenTest {
             android.content.IntentFilter("document.test.SHARE_RECEIVED"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         try {
             show(uri, card.name)
-            compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.share)).performClick()
+            viewerAction("viewer.share").performClick()
             clickSystemNode { it.text?.toString() == "Document test receiver" }
             org.junit.Assert.assertTrue("Receiver did not report", received.await(10, java.util.concurrent.TimeUnit.SECONDS))
             org.junit.Assert.assertNull(result?.getStringExtra("error"))
@@ -189,6 +208,8 @@ class FileViewerScreenTest {
         assertNull(FileViewer.kindOf(context, uri, "archive.zip"))
         show(uri, "archive.zip")
         compose.onNodeWithTag("viewer.unsupported").assertIsDisplayed()
-        compose.onNodeWithText(context.getString(com.wangzan101.mika.R.string.viewer_open_elsewhere)).assertIsDisplayed()
+        compose.onNode(hasAnyAncestor(hasTestTag("viewer.unsupported")) and hasClickAction())
+            .assertIsDisplayed().assertIsEnabled()
+        viewerAction("viewer.open_elsewhere")
     }
 }
