@@ -10,7 +10,7 @@ final class DocumentExportUITests: XCTestCase {
 
     func testSelectedAnswerCSVPreviewAndSaveCancellation() {
         launch()
-        send("Report\n\n| Item | Value |\n| --- | --- |\n| Formula | =1+1 |\n| Code | 00123 |")
+        send("Report\n\n| Item | Value |\n| --- | --- |\n| Formula | =1+1 |\n| Code | 00123 |\n\n<script>alert('DOC_SCRIPT')</script>")
         let reply = app.descendants(matching: .any)["chat.message.1.assistant"].firstMatch
         ready(reply); reply.press(forDuration: 1)
         tap("chat.messageMenu.document")
@@ -31,6 +31,21 @@ final class DocumentExportUITests: XCTestCase {
         assertText("document.status", contains: "已取消操作")
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "文件已匯出")).firstMatch.exists)
         capture("csv-save-cancelled")
+
+        // Exercise the real restricted WKWebView, including escaped untrusted
+        // content. A successful writer alone does not prove preview navigation.
+        let html = app.segmentedControls["document.format"].buttons["HTML"]
+        for _ in 0..<6 where !html.isHittable { app.swipeDown() }
+        ready(html); html.tap()
+        tap("document.generate", reveal: true)
+        assertText("document.status", contains: "文件已產生")
+        tap("document.preview", reveal: true)
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 10))
+        let literal = web.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "<script>alert('DOC_SCRIPT')</script>")).firstMatch
+        XCTAssertTrue(literal.waitForExistence(timeout: 15), "HTML must load and display script markup as inert text")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        capture("html-inert-script-preview")
     }
 
     func testExplicitLocalRequestCreatesPDFWithoutAnotherModelTurn() {
