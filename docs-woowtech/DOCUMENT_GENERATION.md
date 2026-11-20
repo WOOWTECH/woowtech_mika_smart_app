@@ -98,9 +98,9 @@ swift test --package-path ios --jobs 2 --filter AssistantDocumentsTests
 
 本工作區的原生測試與共用測試均使用去識別的合成文件；模型 fixture 只能證明本機串接，不能當成商用模型或真實業務驗收。
 
-本機裝置包已準備：版本 `0.1.0 (248)`，Release／arm64，來源 `3f2e2f0094fb990908dbd5b5cbe7dbc1c21d52fd`；93.07 秒、exit 0、來源前後相同。現有開發描述檔與簽章身份相符，9 個 framework 與 App 的嚴格簽章驗證通過。IPA 內 `source-commit.txt`、`document-build.json`、版本與 Mach-O 雜湊逐項核對，ZIP CRC 通過。這是 MacBook 本機產物，並非 GitHub 產出的裝置包；檔案 `WoowAssistant-documents-248-local.ipa`，SHA-256 `5abe4c929ca4056fd6bf08e69d4d4f894bafadfeccf53d5281c8615960045f37`。尚未安裝，也未算作實機驗收。
+本機裝置包已準備：版本 `0.1.0 (248)`，Release／arm64，來源 `3f2e2f0094fb990908dbd5b5cbe7dbc1c21d52fd`；93.07 秒、exit 0、來源前後相同。現有開發描述檔與簽章身份相符，9 個 framework 與 App 的嚴格簽章驗證通過。IPA 內 `source-commit.txt`、`document-build.json`、版本與 Mach-O 雜湊逐項核對，ZIP CRC 通過。這是 MacBook 本機產物，並非 GitHub 產出的裝置包；檔案 `WoowAssistant-documents-248-local.ipa`，SHA-256 `5abe4c929ca4056fd6bf08e69d4d4f894bafadfeccf53d5281c8615960045f37`。已依使用者新增的 iPad 授權安裝；系統回讀為 248 版，尚未完成文件實機驗收。
 
-使用者回覆「可以繼續了」後已重新盤點裝置：原 iPhone 未出現；USB registry 可見 iPad（第 9 代）與 POCO C85。iPadOS 26.6.1、已有配對、`passcodeRequired=false`、`unlockedSinceBoot=true`，DDI `isUsable/contentIsCompatible=true`；目前等待使用者確認是否將這台不同裝置納入文件實測。POCO 沒有列入 `adb devices`，只知道 USB 可見，尚未證明 ADB 缺席原因。沒有啟動 WDA、安裝或改動裝置資料；兩個測試容器已在建置後恢復。原 iPhone 的對話故障不能由 iPad 文件驗收代替。
+使用者明確回覆「可以去用ipad」後，已在 USB iPad（第 9 代，iPadOS 26.6.1）將原 223 版直接升級為 248 版，未卸載或重置資料；`devicectl` 安裝、版本回讀與啟動均成功。實際畫面可見正常首頁及「模型已設定」，尚未發出模型請求。獨立操作 runner 使用現有開發簽章、未更新開發者入口網站；初次設定的手動／自動簽章衝突已在測試工具修正。`ipad-03` 的 runner 能啟動，但在第一個步驟前出現 `Timed out while enabling automation mode`，exit 65、74.43 秒、來源未變。xcresult 的 1 個 failure 是 runner 初始化失敗，不能當作已執行的文件案例。另以 pymobiledevice3 11.61.0 的 USB userspace 通道唯讀擷取畫面，已親見系統要求「將 Touch ID 用於『XCTest』／Enable UI Automation」；這是已確認的人工生物辨識阻礙，並非推測裝置鎖定或 USB 斷線。等待使用者在 iPad 指紋確認，不反覆重開 runner，未使用替代輸入繞過提示。畫面、原始 log、xcresult、安裝與啟動 receipts 保留在 `ipad-248-progress.json` 所列證據中。文件產生、預覽、Files 儲存／取消、分享與接收端此輪仍為未測。POCO C85 雖 USB 可見，但尚未列入 ADB；原 iPhone 未出現，其對話故障不能由 iPad 驗收代替。
 
 
 需要保留的驗證證據：Swift/Kotlin 測試退出碼、iOS/Android 編譯結果、PDF 頁數與末端文字、HTML 靜態內容、CSV 引號與公式防護、系統儲存/分享取消與實際接收端開啟。執行結果保存在 MacBook `Documents/WOOWTECH-iOS-validation/documents-20261120`，未執行的項目不得列為通過。
