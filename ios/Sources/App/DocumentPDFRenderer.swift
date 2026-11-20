@@ -65,10 +65,13 @@ private struct PDFText {
     init(_ text: String, size: CGFloat, language: String, bold: Bool = false) {
         fontSize = size
         string = text as NSString
-        let systemFont = CTFontCreateUIFontForLanguage(.system, size, language as CFString)
-            ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
-        let font = bold ? (CTFontCreateCopyWithSymbolicTraits(systemFont, size, nil, .traitBold, .traitBold) ?? systemFont)
-            : systemFont
+        // Use a document font instead of the private system UI font. PDFKit
+        // separates the UI font's low underscore glyphs from the surrounding
+        // text, corrupting copied identifiers even when the page looks correct.
+        // Core Text still selects language-appropriate fallback glyphs for CJK.
+        let baseFont = CTFontCreateWithName("Helvetica" as CFString, size, nil)
+        let font = bold ? (CTFontCreateCopyWithSymbolicTraits(baseFont, size, nil, .traitBold, .traitBold) ?? baseFont)
+            : baseFont
         let attributes: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,
             NSAttributedString.Key(kCTLanguageAttributeName as String): language,

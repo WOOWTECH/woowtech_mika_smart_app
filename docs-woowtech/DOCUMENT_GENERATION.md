@@ -45,11 +45,16 @@
 
 另已通過 60 項 CI 清單／啟動診斷腳本測試、1053 個文案鍵的雙語資源一致性檢查、42 處 UI 啟動語言檢查、`git diff --check`、字串／XML／共用 JSON 格式檢查。修正了新測試未登錄 CI 清單、文件文案未進入產生器及診斷白名單缺漏；這些腳本測試不代表原生或商用驗收。
 
-CI [44697157866](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44697157866)（來源 `06a4b812`）已取得原始證據：253 項可攜式測試全過，337 項腳本測試有 1 項失敗，原生 UI 未執行。失敗是新增文件 WKWebView 尚未納入音訊用途盤點；`b9662745` 已依靜態、已轉義內容與禁止媒體的 CSP 完成盤點，並明確限制自動／行內／AirPlay 播放，該案例針對性回歸通過。證據 artifact `14612031954` SHA-256 `fadb310288f0a67dd26695f6c9840f76927118c365414dab476eae59417699af` 已核對。新的限定 CI [44699145821](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44699145821) 來源 `b9662745`，包含 HTML 原生預覽斷言，結果待取得。
+CI [44697157866](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44697157866)（來源 `06a4b812`）已取得原始證據：253 項可攜式測試全過，337 項腳本測試有 1 項失敗，原生 UI 未執行。失敗是新增文件 WKWebView 尚未納入音訊用途盤點；`b9662745` 已依靜態、已轉義內容與禁止媒體的 CSP 完成盤點，並明確限制自動／行內／AirPlay 播放，該案例針對性回歸通過。證據 artifact `14612031954` SHA-256 `fadb310288f0a67dd26695f6c9840f76927118c365414dab476eae59417699af` 已核對。新的限定 CI [44699145821](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44699145821) 來源 `b9662745`，包含 HTML 原生預覽斷言，已通過可攜式／腳本／語言檢查與建置，正執行原生測試，最終結果待取得。
 
-MacBook 原生建置第 1 輪（`b9662745`，236.73 秒）在產生 App 時失敗：外部目錄的 Xcode 專案無法解析相對路徑 `Configuration/Info-Debug.plist`，未執行原生測試。已修正本機 driver，改於 `ios/` 產生既有 ignore 規則涵蓋的 Xcode 專案，DerivedData／證據仍在獨立目錄。原生第 2 輪與 Android 編譯／測試已依序排入 `heavy.sh`，等待另一工作區釋出模擬器／Gradle 資源。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。
+MacBook 原生建置第 1 輪（`b9662745`）的相對 Info.plist 路徑問題已修正。第 2 輪 `native-2` 在乾淨 `d0019f5f`（執行程式仍為 `b9662745`）建置成功並實際執行 **29 項：26 通過、3 失敗、0 skip**，393.71 秒、退出碼 1；前後來源完全相同。其中 23 項文件核心全過、3 項真實檔案 IO／生命週期通過。失敗為兩個文件 UI 啟動案例，以及中文跨頁 PDF 的英文結尾文字擷取。
 
-另已準備 4 項 iOS 原生 PDF／檔案生命週期測試、2 個原生 UI 流程（PDF／CSV／HTML 預覽、儲存取消），以及 Kotlin 核心／UI 狀態與 Android 原生測試。這些原生與 Android 案例尚未執行，不是通過數。API 35+ 的 Android PDF 文字擷取案例在較舊系統會有明示 skip；skip 不代表該平台內容完整性已驗證。
+- UI：兩份相符裝置／時間／App UUID 的崩潰紀錄停在 `UITestModelFixture.repository` 的隔離資料 reset，而非文件畫面。發現本機 driver 使用 `CODE_SIGNING_ALLOWED=NO`，與官方 CI 的 `CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES` 不同；已對齊官方模擬器臨時簽章，保留原 reset 旗標、案例與斷言，待原生回歸。失敗時新增截圖、前景 App 元素階層與狀態附件。
+- PDF：第 3 輪只重跑該失敗案例，304.62 秒、退出碼 1，來源無變，保存實際 8 頁 PDF 與擷取文字。頁面上的三個結尾均完整，但 PDFKit 將下劃線移到文字後方。Mac Core Text／PDFKit 單變量控制重現：系統 UI 字型的 `DOCUMENT_END_MARKER` 擷取錯序，Helvetica、Arial、Times、Courier 均完整；ActualText 標記無法解決該擷取現象。採最小的 Helvetica 文件字型修補，Core Text 保留中文後備字形；原來的完整字串斷言未放寬，iOS 回歸待取得。第 3 輪測試結束後，僅中止額外的 `simctl diagnose` 收集（原設定最長 600 秒）；未中斷測試，xcresult 與兩份附件完整匯出。
+
+Android `android-1` 同樣綁定乾淨 `d0019f5f`，前後來源相同，497.58 秒、退出碼 0。JUnit 原始 XML 為 **18 項通過、0 failure／error／skip**：core 14、app upstream 4。Apporo／Woowtech Debug Kotlin 與 upstream AndroidTest Kotlin 編譯通過，Gradle 為 84 項工作實際執行。**儀器測試未執行**，編譯成功不等於裝置驗收；這輪不重跑已成功的 Android 工作。
+
+仍待原生文件 UI 完整操作、修補後 PDF 回歸，以及 Android 裝置上的 4 項原生測試。API 35+ 的 Android PDF 文字擷取案例在較舊系統會明示 skip；skip 不代表該平台內容完整性已驗證。
 
 共用 `test-fixtures/documents/parity-v1.json` 由兩平台測試讀取，核對相同表格資料、精確 CSV 位元內容與 HTML 轉義。
 

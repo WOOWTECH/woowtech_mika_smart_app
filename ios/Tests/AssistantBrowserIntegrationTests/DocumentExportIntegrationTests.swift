@@ -20,7 +20,16 @@ final class DocumentExportIntegrationTests: XCTestCase {
         XCTAssertTrue(data.starts(with: Data("%PDF-".utf8)))
         let document = try XCTUnwrap(PDFDocument(data: data))
         XCTAssertGreaterThan(document.pageCount, 2)
-        let text = try XCTUnwrap(document.string).filter { !$0.isWhitespace }
+        let extracted = try XCTUnwrap(document.string)
+        // Keep the real output beside the assertion so a glyph/encoding problem
+        // can be distinguished from pagination dropping source content.
+        let pdf = XCTAttachment(data: data, uniformTypeIdentifier: "com.adobe.pdf")
+        pdf.name = "chinese-pagination.pdf"; pdf.lifetime = .keepAlways
+        add(pdf)
+        let extraction = XCTAttachment(string: extracted)
+        extraction.name = "chinese-pagination-extracted.txt"; extraction.lifetime = .keepAlways
+        add(extraction)
+        let text = extracted.filter { !$0.isWhitespace }
         for sentinel in ["中文跨頁報告", "PARAGRAPH_END_MARKER", "TABLE_END_MARKER", "最後一列不可遺失", "DOCUMENT_END_MARKER"] {
             XCTAssertTrue(text.contains(sentinel), "Missing PDF text: \(sentinel)")
         }

@@ -6,7 +6,19 @@ final class DocumentExportUITests: XCTestCase {
     private let app = XCUIApplication()
     private let namespace = UUID().uuidString
     override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 240 }
-    override func tearDownWithError() throws { app.terminate() }
+    override func tearDownWithError() throws {
+        defer { app.terminate() }
+        if let testRun, testRun.failureCount > 0 {
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "document-failure-screen"; screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let state = app.state
+            let hierarchy = state == .runningForeground ? app.debugDescription : "App is not in the foreground."
+            let diagnostics = XCTAttachment(string: "App state: \(state.rawValue)\n\(hierarchy)")
+            diagnostics.name = "document-failure-state-and-AX"; diagnostics.lifetime = .keepAlways
+            add(diagnostics)
+        }
+    }
 
     func testSelectedAnswerCSVPreviewAndSaveCancellation() {
         launch()
