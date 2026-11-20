@@ -1,5 +1,7 @@
 package com.wangzan101.mika.cap.sandbox
 
+import com.wangzan101.mika.document.DocumentPdf
+
 import android.content.Context
 import android.net.ConnectivityManager
 import android.util.Log
@@ -319,6 +321,9 @@ class AndroidSandbox internal constructor(
         val first = rel.substringBefore(File.separatorChar)
         return if (first == rel) null else File(work, first) to rel.substringAfter(File.separatorChar).replace(File.separatorChar, '/')
     }
+
+    override suspend fun renderDocumentPdf(document: com.wangzan101.mika.core.document.Document): ByteArray =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { DocumentPdf.render(document) }
 
     override fun freeBytes(): Long = dirs.root.takeIf { it.exists() }?.usableSpace ?: dirs.root.parentFile?.usableSpace ?: 0L
 

@@ -60,6 +60,9 @@ interface SandboxPort {
     /** 存到手机的「下载/Mika」,返回 "Download/Mika/<名字>"。 */
     suspend fun share(file: File, name: String): String
 
+    suspend fun renderDocumentPdf(document: com.wangzan101.mika.core.document.Document): ByteArray =
+        throw SandboxError("pdf_unsupported", "PDF generation is unavailable on this platform.", recoverable = true)
+
     fun freeBytes(): Long
     fun workspaceBytes(workspace: String): Long
 
