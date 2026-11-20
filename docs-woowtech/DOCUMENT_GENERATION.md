@@ -41,9 +41,13 @@
 
 ## 驗證與尚未完成項
 
-2026-11-20 本輪實際結果：`git diff --check`、兩份 iOS 字串檔 `plutil -lint`、Android 文件字串與 FileProvider XML 解析、共用 JSON 解析通過。Swift、Gradle 與原生 UI 測試尚未開始，不列為通過。另一個 Codex 工作區持續執行 Gradle，本案的 `heavy.sh` 等待外部作業結束。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。
+2026-11-20 本輪已在 MacBook 實際完成 Swift 可攜式編譯並執行 23 項文件測試：22 通過、1 失敗（退出碼 1，111.04 秒）。失敗是共用 CSV 測試預期值經 Foundation JSON 字串轉換後失去前導 BOM；輸出 CSV 有 BOM。提交 `5850870f` 改以完整 UTF-8 位元組比較，修正後的 Swift 回歸仍待執行，不把此修正直接列為通過。首輪編譯期間只變更 UI 測試、CI 清單及文件；可攜式文件模組未變更，前後來源紀錄已保存。
 
-已準備 23 個 Swift 核心測試方法、iOS 原生 PDF／檔案生命週期測試、2 個原生 UI 流程，以及 Kotlin 核心／UI 狀態與 Android 原生測試。這些是待執行案例，不是通過數。API 35+ 的 Android PDF 文字擷取案例在較舊系統會有明示 skip；skip 不代表該平台內容完整性已驗證。
+另已通過 60 項 CI 清單／啟動診斷腳本測試、1053 個文案鍵的雙語資源一致性檢查、42 處 UI 啟動語言檢查、`git diff --check`、字串／XML／共用 JSON 格式檢查。修正了新測試未登錄 CI 清單、文件文案未進入產生器及診斷白名單缺漏；這些腳本測試不代表原生或商用驗收。
+
+本機 Swift 回歸、iOS 原生編譯／測試、Android 編譯／測試已按此順序排入 `heavy.sh`。另一工作區完成 Gradle 後啟動 Android 模擬器，本案等待其釋出共用資源。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。另已送出限定 iOS CI [44697157866](https://github.com/WOOWTECH/woowtech_mika_smart_app/actions/runs/44697157866)，來源 `06a4b812`，當時仍排隊；此來源尚未包含後續 `20ad338b` 新增的 HTML 原生預覽斷言。
+
+另已準備 4 項 iOS 原生 PDF／檔案生命週期測試、2 個原生 UI 流程（PDF／CSV／HTML 預覽、儲存取消），以及 Kotlin 核心／UI 狀態與 Android 原生測試。這些原生與 Android 案例尚未執行，不是通過數。API 35+ 的 Android PDF 文字擷取案例在較舊系統會有明示 skip；skip 不代表該平台內容完整性已驗證。
 
 共用 `test-fixtures/documents/parity-v1.json` 由兩平台測試讀取，核對相同表格資料、精確 CSV 位元內容與 HTML 轉義。
 
