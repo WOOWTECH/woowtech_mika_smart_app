@@ -117,7 +117,7 @@ class RepositoryTest(unittest.TestCase):
 
     def test_api_authentication_uses_stdin_only(self):
         result = subprocess.CompletedProcess([], 0, b'200', b'')
-        token = 'github_test_secret'
+        token = 'github_test.jwt-token~+/=='
         with patch.dict(os.environ, COMPILER_DOWNLOAD_TOKEN=token), patch.object(s.subprocess, 'run', return_value=result) as run:
             s.download(self.root / s.NAME, s.API_URL, api=True)
             args = run.call_args.args[0]

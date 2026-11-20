@@ -55,7 +55,7 @@ def download(target, url, api=False):
         args += ['--header', 'Accept: application/octet-stream', '--header', 'X-GitHub-Api-Version: 2022-11-28']
         token = os.environ.get('COMPILER_DOWNLOAD_TOKEN', '')
         if token:
-            if url != API_URL or not re.fullmatch(r'[A-Za-z0-9_]+', token):
+            if url != API_URL or not re.fullmatch(r'[A-Za-z0-9._~+/-]+=*', token):
                 raise RuntimeError('Invalid compiler download authentication configuration')
             # stdin keeps the credential out of process arguments and receipts.
             # curl strips Authorization on cross-host redirects; never use location-trusted.
