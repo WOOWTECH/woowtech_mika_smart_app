@@ -1,5 +1,6 @@
 package com.wangzan101.mika.document
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -16,7 +17,8 @@ import java.io.OutputStream
 import java.util.Locale
 
 /** Native, searchable text with Android font fallback (including Chinese). No WebView/print service. */
-internal class DocumentPdf(private val model: DocumentModel, private val checkActive: () -> Unit = {}) {
+internal class DocumentPdf(context: Context, private val model: DocumentModel, private val checkActive: () -> Unit = {}) {
+    private val documentTypeface = DocumentPdfFont.get(context)
     private val pdf = PdfDocument()
     private var page: PdfDocument.Page? = null
     private var pageCount = 0
@@ -52,7 +54,7 @@ internal class DocumentPdf(private val model: DocumentModel, private val checkAc
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.BLACK
             textSize = size
-            typeface = if (bold) Typeface.create("sans-serif", Typeface.BOLD) else Typeface.create("sans-serif", Typeface.NORMAL)
+            typeface = Typeface.create(documentTypeface, if (bold) Typeface.BOLD else Typeface.NORMAL)
             textLocale = Locale.forLanguageTag(model.language)
         }
         return StaticLayout.Builder.obtain(value, 0, value.length, paint, width)

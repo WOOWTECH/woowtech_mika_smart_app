@@ -4,6 +4,9 @@ import android.content.Intent
 import android.annotation.TargetApi
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.os.Build
@@ -31,6 +34,34 @@ class DocumentDeviceTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
 
+    @Test
+    @SdkSuppress(minSdkVersion = 35)
+    @TargetApi(35)
+    fun documentFontKeepsCJKAndRadicalCodePointsDistinct() {
+        val typeface = DocumentPdfFont.get(context)
+        val expected = "CJK_中文_RADICAL_⽂_END"
+        val file = File(context.cacheDir, "font-control-${UUID.randomUUID()}.pdf")
+        val pdf = PdfDocument()
+        try {
+            for (style in listOf(Typeface.NORMAL, Typeface.BOLD)) {
+                val page = pdf.startPage(PdfDocument.PageInfo.Builder(595, 842, style + 1).create())
+                val paint = Paint().apply { textSize = 16f; this.typeface = Typeface.create(typeface, style) }
+                page.canvas.drawText(expected, 36f, 60f, paint)
+                pdf.finishPage(page)
+            }
+            file.outputStream().use(pdf::writeTo)
+            PdfRenderer(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)).use { renderer ->
+                for (index in 0 until renderer.pageCount) renderer.openPage(index).use { page ->
+                    assertEquals(expected, page.textContents.joinToString("") { it.text }.trim())
+                }
+            }
+        } finally {
+            val evidence = File(context.filesDir, "document-test-evidence").apply { mkdirs() }
+            if (file.exists()) file.copyTo(File(evidence, "unicode-font.pdf"), overwrite = true)
+            pdf.close(); file.delete()
+        }
+    }
+
     @Test fun longChineseTableProducesMultiplePagesWithVisibleContentOnLastPage() {
         val file = File(context.cacheDir, "pdf-test-${UUID.randomUUID()}.pdf")
         val tail = "最後一行中文"
@@ -39,7 +70,7 @@ class DocumentDeviceTest {
             DocumentSection.Paragraph(tail.repeat(40)),
         ))
         try {
-            file.outputStream().use { DocumentPdf(model).write(it) }
+            file.outputStream().use { DocumentPdf(context, model).write(it) }
             PdfRenderer(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)).use { renderer ->
                 assertTrue(renderer.pageCount > 8)
                 renderer.openPage(renderer.pageCount - 1).use { page ->
@@ -66,6 +97,9 @@ class DocumentDeviceTest {
     fun api35ExtractedTextPreservesTallHeadersCellTailsAndCrossPanelRowIdentity() {
         assumeTrue("PDF text extraction requires API 35+", Build.VERSION.SDK_INT >= 35)
         val file = File(context.cacheDir, "pdf-text-test-${UUID.randomUUID()}.pdf")
+        val evidence = File(context.filesDir, "document-test-evidence")
+        evidence.deleteRecursively() // Only this synthetic case's previous diagnostic output.
+        val extractedPages = mutableListOf<String>()
         val headerLines = (1..180).map { "欄位說明${it.toString().padStart(3, '0')}" }
         val cellLines = (1..240).map { "CELL_LINE_${it.toString().padStart(3, '0')}" }
         val headerTail = "HEADER_LAST_9Q"
@@ -78,12 +112,14 @@ class DocumentDeviceTest {
             ),
         )
         try {
-            file.outputStream().use { DocumentPdf(DocumentModel("文字完整性", "zh-Hant", listOf(table))).write(it) }
+            file.outputStream().use { DocumentPdf(context, DocumentModel("文字完整性", "zh-Hant", listOf(table))).write(it) }
             val pages = PdfRenderer(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)).use { renderer ->
                 assertTrue("Fixture must exercise pagination", renderer.pageCount > 5)
                 (0 until renderer.pageCount).map { index ->
                     renderer.openPage(index).use { page ->
-                        page.textContents.joinToString("\n") { it.text }.filterNot(Char::isWhitespace)
+                        val text = page.textContents.joinToString("\n") { it.text }
+                        extractedPages += "PAGE ${index + 1}\n$text"
+                        text.filterNot(Char::isWhitespace)
                     }
                 }
             }
@@ -103,7 +139,12 @@ class DocumentDeviceTest {
             assertTrue(lastPanel.contains("欄5–6"))
             assertTrue(lastPanel.contains("#1"))
             assertTrue(lastPanel.contains("#2"))
-        } finally { file.delete() }
+        } finally {
+            evidence.mkdirs()
+            if (file.exists()) file.copyTo(File(evidence, "pagination.pdf"), overwrite = true)
+            File(evidence, "extracted.txt").writeText(extractedPages.joinToString("\n\n"))
+            file.delete()
+        }
     }
 
     @Test fun staticPreviewHasNoScriptFileContentOrNetworkAccess() {

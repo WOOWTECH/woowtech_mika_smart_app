@@ -54,7 +54,7 @@ internal object DocumentFiles {
                         when (format) {
                             DocumentFormat.HTML -> output.write(DocumentWriters.html(model).toByteArray(Charsets.UTF_8))
                             DocumentFormat.CSV -> output.write(DocumentWriters.csv(model, tableIndex))
-                            DocumentFormat.PDF -> DocumentPdf(model) { coroutine.ensureActive() }.write(output)
+                            DocumentFormat.PDF -> DocumentPdf(context, model) { coroutine.ensureActive() }.write(output)
                         }
                     }
                     coroutine.ensureActive()
