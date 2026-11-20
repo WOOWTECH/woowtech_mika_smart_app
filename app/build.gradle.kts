@@ -214,8 +214,8 @@ androidComponents {
             variant.enableUnitTest = variant.flavorName in setOf("woowtech", "apporoplay") &&
                 providers.gradleProperty("playTransportTests").isPresent
             // Explicit cloud acceptance only; ordinary branded release builds still omit test APKs.
-            variant.androidTest.enable = variant.flavorName == "apporo" &&
-                providers.gradleProperty("apporoAlignmentTests").isPresent
+            variant.androidTest.enable = providers.gradleProperty("documentAcceptanceTests").isPresent ||
+                (variant.flavorName == "apporo" && providers.gradleProperty("apporoAlignmentTests").isPresent)
         }
     }
     // WOOWTECH fork: -c 里有 zh-rTW 时,aapt2 连它的上层 values-zh(上游的简体界面,没换品牌名)也留下,woowtech 变体排除它。

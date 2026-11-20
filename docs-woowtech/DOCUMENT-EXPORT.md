@@ -114,3 +114,34 @@ adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.docu
 - Full core CI uncovered 10 remaining failures among 3026 cases: missing document tool prompt resource, stale entry lists/snapshots, and changed compaction indices after the new schema. The description now loads from `prompts/tools/create_document.md` with the same text and channel-specific delivery placeholder. No production compression algorithm change. At the fixed 80K test window, OpenAI-compatible/Responses/Anthropic fixtures compact at 12/21/30; Gemini stays 12/22. Existing cache-prefix/share assertions remain.
 - Updated only the reviewed tool-list/size snapshots and expected tool/compaction lists. Local targeted suite: 59 cases passed again without `-PupdateSnapshots` (`/tmp/document-ci-regressions-verify.log`). Full GitHub verification of this follow-up is pending at commit time.
 - Raw download evidence: `build/document-acceptance/ci-8f6b5974/cli.log`; original core CI failure XML: sibling `core/` directory. These build artifacts remain local.
+
+
+## Latest direct-brand emulator revalidation (2026-11-20)
+
+Product source baseline: `3ac6e042`. Rebuilt both direct debug APKs, then both Android test APKs. Only the test opt-in and preview assertions/evidence capture changed after that baseline; no product behavior, package, signing configuration or version sequence changed.
+
+- Added `-PdocumentAcceptanceTests` to enable branded Android test APKs for both direct WOOWTECH and Apporo. Existing `-PapporoAlignmentTests` remains supported. Ordinary branded builds still omit instrumentation.
+- Added actual format-specific preview assertions and synthetic sample screenshots before each SAF save. Reviewed all six captured previews: Chinese/table HTML, paginated PDF view and CSV text are readable in both brands.
+- AVD `woow_relay_contract`, Android 16 / API 36 arm64. A cold-boot System UI ANR was dismissed with Wait before starting tests; its screenshot is preserved as `ready.png`.
+- Apporo (`com.apporo.assistant`): **OK (13 tests)**, single run, **150.789s**. The three formats each passed system save/readback and real chooser/independent test-APK URI access; PDF multipage/overflow, MediaStore exports, existing viewers and save cancellation also passed.
+- WOOWTECH (`io.woowtech.agent`): first run **12/13**. Two installed test APKs advertised the same receiver label; PDF sharing selected a receiver that did not report to the WOOWTECH test. After disabling only the Apporo test package, CSV/HTML sharing passed, and the isolated PDF sharing rerun was **OK (1 test)** in **15.268s**. All 13 distinct WOOWTECH cases have passing evidence, not a single all-green run. Preserve both logs.
+- WOOWTECH main and test APKs were locally signed with the existing WOOWTECH certificate and installed with `-r`; no product uninstall/data clear. These are debug acceptance artifacts, not public release APKs. Both product manifests exclude DocumentShareReceiverActivity.
+- Cleanup restored the pre-existing Apporo test package to enabled and removed only the newly installed WOOWTECH test package to avoid duplicate chooser targets. Product packages/data remain installed.
+- Evidence: `build/document-acceptance/latest-3ac6e042/`: `artifacts.json` (four APK hashes), `apporo-instrumentation.log`, `woowtech-instrumentation.log`, `woowtech-share-pdf-recheck.log`, `{apporo,woowtech}-preview-{html,pdf,csv}.png`. Build logs: `/tmp/document-latest-platform-build.log`, `/tmp/document-both-brand-tests-build.log`.
+
+Reproduction:
+
+```sh
+./gradlew :app:assembleApporoDebug :app:assembleWoowtechDebug :app:assembleApporoDebugAndroidTest :app:assembleWoowtechDebugAndroidTest -PdocumentAcceptanceTests --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process
+adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.document.DocumentPdfTest,com.wangzan101.mika.cap.sandbox.DocumentExportDeviceTest,com.wangzan101.mika.ui.viewer.FileViewerScreenTest com.apporo.assistant.test/androidx.test.runner.AndroidJUnitRunner
+# For WOOWTECH use io.woowtech.agent.test; install main+test with matching certificates.
+# Keep only the target brand's test receiver enabled during chooser tests, then restore test-package state.
+```
+
+### POCO and store-channel boundary
+
+- POCO still absent from USB/ADB. Apporo relay initialize returned HTTP 200 and `0.1.37-apporo.10`, but this version label does not identify the new document commit.
+- A bounded read-only relay task attempted installed-package/version preflight. It terminated with `gaveup`: system commands reported `no_app_open`, and opening Settings reported `phone_unavailable`. Only a partial package list was returned, not verified version codes/device identity. No packages were installed/removed and no settings changed on the phone. This is NOT document acceptance.
+- Requested USB debugging connection/authorization. Latest direct APKs have not been deployed to the physical POCO in this round.
+- Store coordination worktree `assistant-store-documents-20261120` remained clean at `9ec745e0`, without the shared document engine/store adapter. Requested the integrated store commit/artifacts through its coordination file and user; cannot use direct APK evidence for store packages/AABs.
+- These instrumented cases exercise generation/export components and real preview/save/share UI. They do not establish a real-model natural-language conversation through tool selection and attachment navigation. Third-party spreadsheet behavior, store delivery and physical-device acceptance remain separate pending items.

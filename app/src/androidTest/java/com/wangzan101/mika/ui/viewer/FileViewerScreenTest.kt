@@ -100,6 +100,20 @@ class FileViewerScreenTest {
         }
     }
 
+    private fun verifyPreview(extension: String) {
+        val tag = when (extension) { "html" -> "viewer.html"; "pdf" -> "viewer.pdf"; else -> "viewer.text" }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag(tag).assertIsDisplayed()
+        // Preserve the synthetic sample preview for visual acceptance on each device/brand.
+        android.os.SystemClock.sleep(1_000)
+        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        org.junit.Assert.assertNotNull("Preview screenshot unavailable", screenshot)
+        File(context.cacheDir, "document-preview-$extension.png").outputStream().use {
+            screenshot!!.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        screenshot!!.recycle()
+    }
+
     @Test fun saveCopyWritesExactBytes() = saveCopy("csv")
     @Test fun saveHtmlWritesExactBytes() = saveCopy("html")
     @Test fun savePdfWritesExactBytes() = saveCopy("pdf")
@@ -109,6 +123,7 @@ class FileViewerScreenTest {
         val content = sample(extension)
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         show(Uri.fromFile(File(context.cacheDir, name).apply { writeBytes(content) }), name)
+        verifyPreview(extension)
         try {
             compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
             clickSystemNode { node ->
