@@ -208,6 +208,12 @@ enum ChatPathReply {
     }
 }
 
+/// Draft edits should update the composer without invalidating the transcript.
+@MainActor
+final class ChatDraft: ObservableObject {
+    @Published var text = ""
+}
+
 @MainActor
 final class ChatSession: ObservableObject {
     /// MCP runs keep a host deadline; ordinary chat has none, like the Play build.
@@ -232,7 +238,11 @@ final class ChatSession: ObservableObject {
     @Published private(set) var archiveNotice: String?
     private var pendingArchiveSave: (record: ArchivedConversation, expected: ArchivedConversation?)?
     var canRetryArchiveSave: Bool { pendingArchiveSave != nil && !isSubmitting }
-    @Published var draft = ""
+    let draftModel = ChatDraft()
+    var draft: String {
+        get { draftModel.text }
+        set { draftModel.text = newValue }
+    }
     @Published private(set) var pendingQuote: ConversationQuote.Quote?
     private var quoteSource: ArchivedConversation?
     @Published var baseURLDraft = ""

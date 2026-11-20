@@ -279,6 +279,27 @@ private actor StreamMCP: MCPDiscovering {
             await Task.yield()
         }
     }
+    static func draftIsolation() throws -> Int {
+        var a = Assertions()
+        let e = try StreamEnvironment(); defer { e.close() }
+        let session = e.session(StreamClient())
+        var sessionChanges = 0, draftChanges = 0
+        let sessionObserver = session.objectWillChange.sink { _ in sessionChanges += 1 }
+        let draftObserver = session.draftModel.objectWillChange.sink { _ in draftChanges += 1 }
+        session.draft = "英文"
+        session.draftModel.text += "中文"
+        try a.check(session.draft == "英文中文" && session.draftModel.text == session.draft,
+                    "composer and session share the exact draft")
+        try a.check(sessionChanges == 0 && draftChanges == 2,
+                    "draft edits notify the composer without publishing a session change")
+        try a.check(session.canAttemptSend, "Chinese draft enables send")
+        session.draft = "  \n"
+        try a.check(!session.canAttemptSend, "whitespace draft cannot enable send")
+        session.draft = ""
+        try a.check(draftChanges == 4 && sessionChanges == 0, "clearing draft updates only its observer")
+        withExtendedLifetime((sessionObserver, draftObserver)) {}
+        return a.count
+    }
     #if DEBUG
     /// Run the real DEBUG adapter with an immediate recording sleeper. This
     /// checks its emitted fragments and the UI tests' interaction windows
@@ -1707,7 +1728,7 @@ private actor StreamMCP: MCPDiscovering {
 @main enum ChatStreamingMain {
     @MainActor static func main() async {
         do {
-            var groups = try await [ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
+            var groups = try await [ChatStreamingChecks.draftIsolation(), ChatStreamingChecks.incrementalCompletion(), ChatStreamingChecks.cancellationFailureAndGeneration(),
                 ChatStreamingChecks.leftScreenKeepsShownText(),
                 ChatStreamingChecks.requestsCarryTheLocalTime(), ChatStreamingChecks.skillOutcomeWaitsForMemoryOrganizing(),
                 ChatStreamingChecks.boundsFallbackAndSaveFailure(), ChatStreamingChecks.restoreCancelsPreview(),
@@ -1726,6 +1747,7 @@ private actor StreamMCP: MCPDiscovering {
 }
 #else
 final class ChatStreamingAppTests: XCTestCase {
+    @MainActor func testDraftIsolation() throws { XCTAssertEqual(try ChatStreamingChecks.draftIsolation(), 5) }
     #if DEBUG
     @MainActor func testFixtureInteractionWindows() async throws {
         let n = try await ChatStreamingChecks.fixtureInteractionWindows(); XCTAssertEqual(n, 8)

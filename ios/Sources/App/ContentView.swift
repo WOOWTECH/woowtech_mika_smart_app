@@ -547,6 +547,15 @@ private struct ChatTranscriptViewportPreferenceKey: PreferenceKey {
     }
 }
 
+/// Only this subtree observes keystrokes; transcript layout does not.
+@MainActor
+private struct ChatDraftObserver<Content: View>: View {
+    @ObservedObject var draft: ChatDraft
+    let content: (Binding<String>) -> Content
+
+    var body: some View { content($draft.text) }
+}
+
 @MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
@@ -936,7 +945,7 @@ private struct ChatView: View {
     @ViewBuilder private var welcomeRows: some View {
         // Android hides the welcome while the blocked card is up.
         if session.entries.isEmpty && session.replyPreview == nil && session.webTask == nil && session.shownSendBlocker == nil {
-            ChatEmptyState(draft: $session.draft, palette: palette, localizer: localizer)
+            ChatEmptyState(draft: Binding(get: { session.draft }, set: { session.draft = $0 }), palette: palette, localizer: localizer)
         }
         if !session.hasStoredKey && session.shownSendBlocker == nil {
             Text(verbatim: localizer.text(.chatModelSetupHint))
@@ -1142,12 +1151,12 @@ private struct ChatView: View {
     /// keyboard, so at accessibility sizes the draft scrolls after three.
     private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
 
-    private var composer: some View {
+    private func composer(draft: Binding<String>) -> some View {
         HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
-                      text: $session.draft, axis: .vertical)
+                      text: draft, axis: .vertical)
                 .lineLimit(draftLineLimit)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
@@ -1211,7 +1220,9 @@ private struct ChatView: View {
                 chatStatus
                 quoteChip
                 attachmentRows
-                composer
+                ChatDraftObserver(draft: session.draftModel) { draft in
+                    composer(draft: draft)
+                }
                 attachPanel
             }
             .layoutPriority(1)
