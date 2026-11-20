@@ -30,7 +30,7 @@ FIXTURE_CLASSES = frozenset({
     "BrowserLearningUITests", "MemoryUITests",
     "MemoryRaceUITests", "MemoryToolUITests",
     "MCPConversationUITests", "MCPLearningUITests", "NotificationUITests",
-    "ChatWebTaskUITests", "ModelAccountSignInUITests",
+    "ChatWebTaskUITests", "ModelAccountSignInUITests", "DocumentExportUITests",
 })
 
 
