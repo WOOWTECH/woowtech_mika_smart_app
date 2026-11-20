@@ -398,7 +398,8 @@ private struct MikaVisualPalette {
     var secondaryInk: Color { dark ? rgb(164, 165, 173) : rgb(95, 96, 104) }
     var accent: Color { dark ? rgb(97, 131, 252) : rgb(64, 105, 251) }
     var assistant: Color { dark ? .white.opacity(13.0 / 255) : .black.opacity(9.0 / 255) }
-    var disabledControl: Color { dark ? rgb(38, 38, 41) : rgb(246, 246, 246) }
+    var glass: Color { surface.opacity(184.0 / 255) }
+    var disabledControl: Color { rgb(118, 118, 128).opacity((dark ? 56.0 : 31.0) / 255) }
     var hair: Color { dark ? .white.opacity(20.0 / 255) : .black.opacity(18.0 / 255) }
     var scrim: Color { .black.opacity(0.32) }
 }
@@ -559,6 +560,7 @@ private struct ChatDraftObserver<Content: View>: View {
 @MainActor
 private struct ChatView: View {
     @ObservedObject var session: ChatSession
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     /// Every chat may use the enabled servers; there is no switch per chat.
     let mcp: MCPServers
     @Binding var showsDrawer: Bool
@@ -1206,8 +1208,16 @@ private struct ChatView: View {
         .frame(minHeight: 52)
         .layoutPriority(1)
         .padding(6)
-        .background(palette.surface, in: Capsule())
+        .background {
+            if reduceTransparency {
+                Capsule().fill(palette.surface)
+            } else {
+                Capsule().fill(.ultraThinMaterial)
+                    .overlay(Capsule().fill(palette.glass))
+            }
+        }
         .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.12), radius: 14, y: 4)
     }
 
     private var photoPickerLimit: Int { max(1, ChatAttachmentLimits.maximumCount - session.pendingAttachments.count) }
@@ -1226,7 +1236,13 @@ private struct ChatView: View {
                 attachPanel
             }
             .layoutPriority(1)
-            .background(palette.background)
+            .background {
+                LinearGradient(stops: [
+                    .init(color: palette.background.opacity(0), location: 0),
+                    .init(color: palette.background, location: 0.6),
+                    .init(color: palette.background, location: 1)
+                ], startPoint: .top, endPoint: .bottom)
+            }
         }
         .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(palette.background)
