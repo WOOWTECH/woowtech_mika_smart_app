@@ -9,7 +9,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -66,10 +67,11 @@ class DocumentExportUITest {
             }
         }
         compose.onNodeWithTag("document-export").assertIsDisplayed()
+        assertAppInForeground()
         compose.onNodeWithTag("document-csv")
-            .performScrollTo().assertIsEnabled().performClick().assertIsSelected()
+            .performScrollTo().assertIsEnabled().performTouchInput { click() }.assertIsSelected()
         compose.onNodeWithTag("document-generate")
-            .performScrollTo().assertIsEnabled().performClick()
+            .performScrollTo().assertIsEnabled().performTouchInput { click() }
 
         val deadline = SystemClock.uptimeMillis() + 15_000
         while (onMain { session.busy } && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(50)
@@ -82,6 +84,7 @@ class DocumentExportUITest {
         assertEquals("$title.csv", document.file.name)
         assertTrue(document.file.isFile)
         assertArrayEquals(EXPECTED_BYTES.toByteArray(Charsets.UTF_8), document.file.readBytes())
+        assertAppInForeground()
         screenshot("ui-generated.png")
         document.file.copyTo(File(context.filesDir, "document-test-evidence/ui.csv"), overwrite = true)
 
@@ -89,7 +92,7 @@ class DocumentExportUITest {
         val monitor = instrumentation.addMonitor(FileViewerActivity::class.java.name, null, false)
         try {
             compose.onNodeWithTag("document-preview")
-                .performScrollTo().assertIsEnabled().performClick()
+                .performScrollTo().assertIsEnabled().performTouchInput { click() }
             val actualViewer = requireNotNull(
                 instrumentation.waitForMonitorWithTimeout(monitor, 15_000) as? FileViewerActivity,
             ) { "Preview button must open the real FileViewerActivity" }
@@ -103,6 +106,7 @@ class DocumentExportUITest {
             }
             compose.onNodeWithTag("viewer.text").assertIsDisplayed()
             compose.onNodeWithText(EXPECTED_PREVIEW).assertIsDisplayed()
+            assertAppInForeground()
             screenshot("ui-preview.png")
         } finally {
             instrumentation.removeMonitor(monitor)
@@ -118,6 +122,13 @@ class DocumentExportUITest {
         val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
         try { File(root, name).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
         finally { bitmap.recycle() }
+    }
+
+    private fun assertAppInForeground() {
+        // Compose semantics can still be queried while an ANR/system dialog covers
+        // the app. Such a run must not be accepted as an interactive UI pass.
+        val root = requireNotNull(instrumentation.uiAutomation.rootInActiveWindow)
+        assertEquals("A system window covers the document UI", context.packageName, root.packageName?.toString())
     }
 
     @After fun releaseOnlyThisFixture() {
