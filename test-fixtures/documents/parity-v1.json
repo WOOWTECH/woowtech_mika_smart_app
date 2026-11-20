@@ -24,5 +24,6 @@
       "=1+1"
     ]
   ],
-  "expectedCSV": "﻿\"項目\",\"值\"\r\n\"名稱\",\"台北,南港\"\r\n\"引號\",\"含 \"\"引號\"\"\"\r\n\"管線\",\"a|b\"\r\n\"公式\",\"'=1+1\"\r\n"
+  "expectedCSV": "﻿\"項目\",\"值\"\r\n\"名稱\",\"台北,南港\"\r\n\"引號\",\"含 \"\"引號\"\"\"\r\n\"管線\",\"a|b\"\r\n\"公式\",\"'=1+1\"\r\n",
+  "expectedCSVUTF8Base64": "77u/IumgheebriIsIuWAvCINCiLlkI3nqLEiLCLlj7DljJcs5Y2X5rivIg0KIuW8leiZnyIsIuWQqyAiIuW8leiZnyIiIg0KIueuoee3miIsImF8YiINCiLlhazlvI8iLCInPTErMSINCg=="
 }

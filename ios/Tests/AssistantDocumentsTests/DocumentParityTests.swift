@@ -14,7 +14,10 @@ final class DocumentParityTests: XCTestCase {
                                                        title: XCTUnwrap(fixture["title"] as? String),
                                                        language: XCTUnwrap(fixture["language"] as? String))
         XCTAssertEqual(report.tables.first?.rows, fixture["rows"] as? [[String]])
-        XCTAssertEqual(try report.csv(tableIndex: 0), fixture["expectedCSV"] as? String)
+        // Compare wire bytes: bridging JSON strings through Foundation can strip
+        // a leading U+FEFF, which is required in the actual CSV file.
+        let expected = try XCTUnwrap(Data(base64Encoded: XCTUnwrap(fixture["expectedCSVUTF8Base64"] as? String)))
+        XCTAssertEqual(Data(try report.csv(tableIndex: 0).utf8), expected)
         let html = try report.html()
         XCTAssertTrue(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"))
         XCTAssertFalse(html.contains("<script>"))
