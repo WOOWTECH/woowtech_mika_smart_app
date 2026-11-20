@@ -35,7 +35,9 @@ final class DocumentExportUITests: XCTestCase {
         tap("document.preview", reveal: true)
         let content = app.descendants(matching: .any)["document.preview.content"].firstMatch
         XCTAssertTrue(content.waitForExistence(timeout: 10))
-        XCTAssertTrue((app.textViews["document.csv.content"].value as? String ?? "").contains("'=1+1"))
+        // The SwiftUI preview wrapper publishes this identifier on the native
+        // text view, overriding its makeUIView identifier (native-4 AX evidence).
+        XCTAssertTrue((app.textViews["document.preview.content"].firstMatch.value as? String ?? "").contains("'=1+1"))
         tap("document.preview.done")
         tap("document.save", reveal: true)
         let cancel = app.buttons["取消"].firstMatch
