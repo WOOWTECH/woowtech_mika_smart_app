@@ -17,19 +17,19 @@ final class DocumentExportUITests: XCTestCase {
         let csv = app.segmentedControls["document.format"].buttons["CSV"]
         ready(csv); csv.tap()
         tap("document.generate")
-        assertText("document.status", contains: "File created")
+        assertText("document.status", contains: "文件已產生")
         reveal("document.protectedCells")
-        assertText("document.protectedCells", contains: "1 cells")
+        assertText("document.protectedCells", contains: "1 個")
         tap("document.preview", reveal: true)
         let content = app.descendants(matching: .any)["document.preview.content"].firstMatch
         XCTAssertTrue(content.waitForExistence(timeout: 10))
         XCTAssertTrue((app.textViews["document.csv.content"].value as? String ?? "").contains("'=1+1"))
         tap("document.preview.done")
         tap("document.save", reveal: true)
-        let cancel = app.buttons["Cancel"].firstMatch
+        let cancel = app.buttons["取消"].firstMatch
         ready(cancel); cancel.tap()
-        assertText("document.status", contains: "cancelled")
-        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "File exported")).firstMatch.exists)
+        assertText("document.status", contains: "已取消操作")
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "文件已匯出")).firstMatch.exists)
         capture("csv-save-cancelled")
     }
 
@@ -42,10 +42,10 @@ final class DocumentExportUITests: XCTestCase {
         tap("chat.send")
         XCTAssertTrue(app.textFields["document.title"].waitForExistence(timeout: 10))
         tap("document.generate")
-        assertText("document.status", contains: "File created")
+        assertText("document.status", contains: "文件已產生")
         tap("document.preview", reveal: true)
         XCTAssertTrue(app.descendants(matching: .any)["document.preview.content"].firstMatch.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Unable to preview the document. Close the preview and try again."].exists)
+        XCTAssertFalse(app.staticTexts["無法預覽文件，請關閉預覽後重試。"].exists)
         capture("pdf-preview")
         tap("document.preview.done")
         tap("document.done")
@@ -55,7 +55,7 @@ final class DocumentExportUITests: XCTestCase {
     }
 
     private func launch() {
-        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-UITestMode",
+        app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW", "-UITestMode",
                                "-UITestNamespace", namespace, "-UITestResetStorage", "-UITestMCPFixture", "-WoowSkipOnboarding"]
         app.launchEnvironment = [:]
         app.launch()

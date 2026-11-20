@@ -41,7 +41,7 @@
 
 ## 驗證與尚未完成項
 
-2026-11-20 本輪實際結果：`git diff --check`、兩份 iOS 字串檔 `plutil -lint`、Android 文件字串與 FileProvider XML 解析、共用 JSON 解析通過。Swift、Gradle 與原生 UI 測試尚未開始，不列為通過。原因是另一個 Codex 工作區持續執行 Gradle；本案的 `heavy.sh` 等待外部作業結束，且清理約 3.4 GiB 可重建快取後，可用空間又因另一輪建置降至約 14 GiB，低於本次使用者核准的 15 GiB 起跑門檻。
+2026-11-20 本輪實際結果：`git diff --check`、兩份 iOS 字串檔 `plutil -lint`、Android 文件字串與 FileProvider XML 解析、共用 JSON 解析通過。Swift、Gradle 與原生 UI 測試尚未開始，不列為通過。另一個 Codex 工作區持續執行 Gradle，本案的 `heavy.sh` 等待外部作業結束。使用者已明確解除本案 15 GiB 起跑及 8 GiB 停止門檻；空間不再是起跑限制。
 
 已準備 23 個 Swift 核心測試方法、iOS 原生 PDF／檔案生命週期測試、2 個原生 UI 流程，以及 Kotlin 核心／UI 狀態與 Android 原生測試。這些是待執行案例，不是通過數。API 35+ 的 Android PDF 文字擷取案例在較舊系統會有明示 skip；skip 不代表該平台內容完整性已驗證。
 
@@ -63,7 +63,7 @@ swift test --package-path ios --jobs 2 --filter AssistantDocumentsTests
   :app:compileUpstreamDebugAndroidTestKotlin
 ```
 
-以上命令仍須包在 `heavy.sh` 與磁碟監控內。Android 使用 JDK 17 與本機 SDK 36；依專案既有規則，單元／儀器測試在 upstream flavor 執行，品牌版本另外編譯驗證。MacBook 的 `bounded.py`、`native.py` 與快取清理紀錄保留在前述證據目錄；磁碟低於 8 GiB 即停止，沒有永久降低本機保護規則。
+以上命令仍須包在 `heavy.sh` 與磁碟監控內，本案逐次設定 `HEAVY_OWNER_DISK_FLOOR_GIB=0`，不修改共用預設。Android 使用 JDK 17 與本機 SDK 36；依專案既有規則，單元／儀器測試在 upstream flavor 執行，品牌版本另外編譯驗證。MacBook 的 `bounded.py`、`native.py` 與快取清理紀錄保留在前述證據目錄；持續記錄用量，實際檔案系統／建置錯誤仍須如實處理。
 
 本工作區的原生測試與共用測試均使用去識別的合成文件；模型 fixture 只能證明本機串接，不能當成商用模型或真實業務驗收。
 

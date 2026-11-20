@@ -11,17 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DocumentFocusedScopesTests(unittest.TestCase):
-    def test_actual_repository_methods_form_the_chat_attachment_scope(self):
+    def test_actual_repository_methods_form_the_document_scope(self):
         catalog = ios17.ui_inventory(ROOT)
         expected = set(catalog["shards"]["ui-documents"]["tests"])
         groups = ios17.validate_document_scopes(catalog)
         self.assertEqual(set(groups), {"documents-chat"})
         self.assertEqual(set(groups["documents-chat"]), expected)
-        self.assertEqual(len(expected), 3)
+        self.assertEqual(len(expected), 5)
         self.assertIn("WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
                       expected)
         self.assertEqual(catalog["document_focused_scopes"], groups)
-        self.assertEqual(ios17.UI_SHARDS["ui-documents"], ["ChatAttachmentUITests"])
+        self.assertIn("WoowAssistantUITests/DocumentExportUITests/testSelectedAnswerCSVPreviewAndSaveCancellation", expected)
+        self.assertEqual(ios17.UI_SHARDS["ui-documents"], ["ChatAttachmentUITests", "DocumentExportUITests"])
+        self.assertIn("AssistantDocumentsTests", ios17.TEST_SCOPES["core"])
         for scope, methods in groups.items():
             self.assertNotIn(scope, ios17.UI_SHARDS)
             self.assertEqual(ios17.selected_ui_tests(catalog, scope), methods)

@@ -52,24 +52,26 @@ UI_SHARDS = {
     "ui-learning": ["BrowserLearningUITests"],
     "ui-memory": ["MemoryUITests", "MemoryRaceUITests"],
     "ui-memory-tools": ["MemoryToolUITests"],
-    "ui-documents": ["ChatAttachmentUITests"],
+    "ui-documents": ["ChatAttachmentUITests", "DocumentExportUITests"],
     "ui-mcp": ["MCPConversationUITests", "MCPLearningUITests"],
 }
 LIVE_UI_CLASSES = {"LiveMCPUITests", "LiveMCPConversationUITests", "LiveModelUITests"}
 
-# Focused selection within ui-documents (the chat attachment cases), not an
+# Focused selection within ui-documents (attachments and generated documents), not an
 # additional partition owner. Its methods are checked against the Swift source.
 DOCUMENT_SCOPES = {
     "documents-chat": [
         "WoowAssistantUITests/ChatAttachmentUITests/testPlusOpensAttachPanelWithAndroidTilesAndClosesBackToKeyboard",
         "WoowAssistantUITests/ChatAttachmentUITests/testTrayShowsPhotoAndFileRemovesOneAndSendsAttachmentAlone",
         "WoowAssistantUITests/ChatAttachmentUITests/testPhotoReachesModelOnlyAfterSeesImagesIsOn",
+        "WoowAssistantUITests/DocumentExportUITests/testSelectedAnswerCSVPreviewAndSaveCancellation",
+        "WoowAssistantUITests/DocumentExportUITests/testExplicitLocalRequestCreatesPDFWithoutAnotherModelTurn",
     ],
 }
 
 TEST_SCOPES = {
     "all": [],
-    "core": ["AssistantDomainTests", "AssistantModelsTests", "AssistantMCPTests", "AssistantMemoryTests", "AssistantSkillsTests", "AssistantPersistenceTests", "AssistantBrowserIntegrationTests"],
+    "core": ["AssistantDomainTests", "AssistantModelsTests", "AssistantMCPTests", "AssistantMemoryTests", "AssistantSkillsTests", "AssistantPersistenceTests", "AssistantDocumentsTests", "AssistantBrowserIntegrationTests"],
     "workspace": ["AssistantDomainTests/BrowserLibraryTests", "AssistantDomainTests/BrowserPolicyTests", "AssistantDomainTests/BrowserManualLANAccessTests", "AssistantDomainTests/BrowserNavigationIntentTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/BrowserWorkspaceUITests", "WoowAssistantUITests/BrowserLoginUITests", "WoowAssistantUITests/BrowserSiteModesUITests", "WoowAssistantUITests/BrowserSearchUITests", "WoowAssistantUITests/BrowserExternalOpenUITests"],
     "parity": ["AssistantMCPTests", "AssistantSkillsTests", "AssistantDomainTests", "AssistantBrowserIntegrationTests", "WoowAssistantUITests/MCPConversationUITests", "WoowAssistantUITests/BrowserInteractionUITests", "WoowAssistantUITests/BrowserLearningUITests", "WoowAssistantUITests/MemoryUITests", "WoowAssistantUITests/MemoryRaceUITests"],
     "startup": ["WoowAssistantUITests/WoowAssistantUITests"],
