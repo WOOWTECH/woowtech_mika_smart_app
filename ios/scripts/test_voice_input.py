@@ -78,6 +78,12 @@ class VoiceInputStandaloneTests(unittest.TestCase):
         self.assertEqual(constructors, {
             "Sources/App/BrowserSession.swift",
             "Sources/App/ChatWebTaskTab.swift",
+            # Generated documents are inert: all content is escaped by
+            # DocumentReport.html, CSP forbids media/resources, JavaScript is
+            # disabled, and navigation is limited to the initial about:blank.
+            # This is not a browser/audio participant. Native HTML preview is
+            # checked separately; this inventory does not claim quiescence.
+            "Sources/App/DocumentExportView.swift",
         }, "Review the audio admission inventory when a new direct constructor appears")
 
     def test_revocation_type_rejects_synchronous_nonisolated_call(self):

@@ -357,6 +357,9 @@ private struct DocumentHTMLPreview: UIViewRepresentable {
         configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        configuration.mediaTypesRequiringUserActionForPlayback = .all
+        configuration.allowsInlineMediaPlayback = false
+        configuration.allowsAirPlayForMediaPlayback = false
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.allowsLinkPreview = false
