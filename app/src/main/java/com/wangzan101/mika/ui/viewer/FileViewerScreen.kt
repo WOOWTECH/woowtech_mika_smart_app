@@ -129,7 +129,7 @@ fun FileViewerScreen(uri: Uri, name: String, kind: ViewerKind?, onBack: () -> Un
     ) { destination ->
         if (destination == null) {
             android.widget.Toast.makeText(context, R.string.viewer_save_cancelled, android.widget.Toast.LENGTH_SHORT).show()
-        } else scope.launch {
+        } else scope.launch(Dispatchers.Main.immediate) {
             saving = true
             val saved = withContext(Dispatchers.IO) {
                 try {

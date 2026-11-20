@@ -71,6 +71,85 @@ class FileViewerScreenTest {
         compose.onNodeWithTag("viewer.text").assertIsDisplayed()
     }
 
+    private fun clickSystemNode(find: (android.view.accessibility.AccessibilityNodeInfo) -> Boolean) {
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        fun search(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+            if (node == null) return null
+            if (find(node)) return node
+            for (i in 0 until node.childCount) search(node.getChild(i))?.let { return it }
+            return null
+        }
+        val deadline = android.os.SystemClock.uptimeMillis() + 15_000
+        while (android.os.SystemClock.uptimeMillis() < deadline) {
+            var found = search(automation.rootInActiveWindow)
+            while (found != null && !found.isClickable) found = found.parent
+            if (found?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true) return
+            android.os.SystemClock.sleep(100)
+        }
+        throw AssertionError("System control not found; active package=${automation.rootInActiveWindow?.packageName}")
+    }
+
+    @Test fun saveCopyWritesExactBytes() {
+        val name = "document-save-${System.currentTimeMillis()}.csv"
+        val content = "\uFEFF中文,123\r\n測試,完整內容\r\n"
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        show(file(name, content), name)
+        try {
+            compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
+            clickSystemNode { node ->
+                node.packageName?.toString()?.contains("documentsui") == true &&
+                    (node.text?.toString()?.equals("SAVE", ignoreCase = true) == true || node.viewIdResourceName == "android:id/button1")
+            }
+            val deadline = android.os.SystemClock.uptimeMillis() + 10_000
+            var bytes = byteArrayOf()
+            while (android.os.SystemClock.uptimeMillis() < deadline) {
+                bytes = android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                    automation.executeShellCommand("cat /sdcard/Download/$name")
+                ).use { it.readBytes() }
+                if (bytes.contentEquals(content.toByteArray())) break
+                android.os.SystemClock.sleep(200)
+            }
+            org.junit.Assert.assertArrayEquals(content.toByteArray(), bytes)
+            compose.onNodeWithTag("viewer.text").assertIsDisplayed()
+        } finally {
+            automation.executeShellCommand("rm -f /sdcard/Download/$name").close()
+            File(context.cacheDir, name).delete()
+        }
+    }
+
+    @Test fun shareReceiverReadsGrantedAttachment() = kotlinx.coroutines.runBlocking {
+        val dir = File(context.cacheDir, "share-receiver-test").apply { mkdirs() }
+        val content = "\uFEFF中文,123\r\n接收端,完整內容\r\n".toByteArray()
+        val source = File(dir, "receiver.csv").apply { writeBytes(content) }
+        val card = com.wangzan101.mika.cap.sandbox.AndroidFdSys.gate.openRead(dir, source.name).use {
+            com.wangzan101.mika.cap.sandbox.ShareExporter(context).export(it, source.name)
+        }
+        val uri = Uri.parse(card.uri)
+        val received = java.util.concurrent.CountDownLatch(1)
+        var result: android.content.Intent? = null
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, intent: android.content.Intent) {
+                result = intent
+                received.countDown()
+            }
+        }
+        androidx.core.content.ContextCompat.registerReceiver(context, receiver,
+            android.content.IntentFilter("document.test.SHARE_RECEIVED"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+        try {
+            show(uri, card.name)
+            compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.share)).performClick()
+            clickSystemNode { it.text?.toString() == "Document test receiver" }
+            org.junit.Assert.assertTrue("Receiver did not report", received.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            org.junit.Assert.assertNull(result?.getStringExtra("error"))
+            org.junit.Assert.assertEquals(uri.toString(), result?.getStringExtra("uri"))
+            org.junit.Assert.assertArrayEquals(content, result?.getByteArrayExtra("bytes"))
+        } finally {
+            context.unregisterReceiver(receiver)
+            context.contentResolver.delete(uri, null, null)
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun unsupportedFileFallsBackToOtherApps() {
         val uri = file("archive.zip", "PK")
         assertNull(FileViewer.kindOf(context, uri, "archive.zip"))
