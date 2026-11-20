@@ -80,7 +80,7 @@ adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.docu
 - POCO 目前未透過 ADB 連線；不能把模擬器當成 POCO 實機驗收。
 - WOOWTECH 原先 debug 簽章不符的障礙已解決：以既有正式憑證重簽本機驗收包後，`install -r` 覆蓋成功，主畫面啟動 Status: ok，firstInstallTime 保留。僅為模擬器 Debug 驗收包，不能當公開更新包。未證明所有使用者資料逐項保留。
 - Numbers 開啟實際 CSV 遇 macOS「node 控制 Numbers」權限提示並逾時（-1712），待使用者在系統視窗允許，不能宣稱試算表相容性通過。
-- 系統另存與跨 App 接收已補驗 CSV：從預覽按另存、系統 SAVE 寫入下載資料夾，再重新開檔讀回比對；分享則從真實系統選單選擇獨立測試接收 Activity，由另一套件讀取 URI 並回報 bytes，逐位元相同。這不代表 LINE、郵件或所有第三方 App 均已驗收；HTML/PDF 的同流程 UI 操作尚未逐格式重跑。
+- 系統另存與跨 App 接收已補驗 CSV：從預覽按另存、系統 SAVE 寫入下載資料夾，再重新開檔讀回比對；分享則從真實系統選單選擇獨立測試接收 Activity，由另一套件讀取 URI 並回報 bytes，逐位元相同。這不代表 LINE、郵件或所有第三方 App 均已驗收；HTML/PDF 已在後續補測同一系統另存與分享接收流程，見下方紀錄。
 - 真實模型對話 → 產檔 → 附件 → 預覽的整段真人操作、背景/程序重建、目標手機不常見字形，仍須驗收。
 - 商店渠道、Play AAB 與 iOS 不在本輪驗證範圍。共用測試可引用；各渠道的平台差異驗證仍須由整合方完成。
 
@@ -95,3 +95,12 @@ adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.docu
 - 修正後 `assembleApporoDebug`、`assembleApporoDebugAndroidTest`、`assembleWoowtechDebug` 全部成功（3m41s，`/tmp/document-delivery-fixed-build.log`）。核心未改，不重複執行先前 62 項共用測試。
 - WOOWTECH 最新修正驗收包再次同簽章覆蓋並啟動；證據 `woowtech-signature.txt`、`woowtech-update.txt`、`woowtech-launch.txt/png`。正式憑證 SHA-256 符合既有發布規格；未更改 Gradle、CI、包名、版本序列或金鑰。
 - Numbers 再次因 macOS 自動化權限未完成而逾時；已請使用者處理。POCO 仍無 ADB，已請使用者接線解鎖。此兩項不算通過。
+
+### 三種格式補測與 GitHub 交付
+
+- HTML、PDF、CSV 分別執行 SAF 另存後讀回與真實分享選單 → 獨立套件接收，六個案例均有通過紀錄；與原有七項合計十三個不同平台案例各有通過紀錄。
+- `delivery-all-formats.log` 第一輪 3/6（前三項受 System UI ANR 對話框遮擋，active package=android）；排除遮擋後其餘三項通過。只重跑受遮擋的 PDF 分享、HTML 另存、CSV 分享，`delivery-formats-recheck.log` **OK (3 tests)**，48.955 秒。不宣稱單輪全綠或真機通過。
+- 測試樣本由共用 Document／DocumentPdf 產生，獨立接收端以實際 URI 授權讀取後比對 bytes；系統另存檔另行開啟讀取比對 bytes。產物本身不變；此次只擴充 androidTest。
+- 分支已推送 `origin/feature/document-export`；Draft PR：<https://github.com/WOOWTECH/woowtech_mika_smart_app/pull/45>。
+- PR 的部分 CI 在 `.github/scripts/prepare-compiler-repository.py` 下載官方 Kotlin 編譯器 asset 的 GET 階段收到 HTTP403，尚未到程式編譯。來源為 GitHub JetBrains 官方 asset API `598635327`；已交接建置配置負責對話，未擅改 CI。品牌來源與 WOOW release plan 檢查曾通過，不能視為整體 CI 通過。
+- 仍未合併 main／公開發布：POCO、Numbers 授權、真實模型端到端與生命週期等界線仍依前文；Debug 驗收包不作正式下載包。

@@ -89,11 +89,26 @@ class FileViewerScreenTest {
         throw AssertionError("System control not found; active package=${automation.rootInActiveWindow?.packageName}")
     }
 
-    @Test fun saveCopyWritesExactBytes() {
-        val name = "document-save-${System.currentTimeMillis()}.csv"
-        val content = "\uFEFF中文,123\r\n測試,完整內容\r\n"
+    private fun sample(extension: String): ByteArray {
+        val document = com.wangzan101.mika.core.document.Document("文件交付驗收", listOf(
+            com.wangzan101.mika.core.document.Document.Section("table", columns = listOf("中文", "數值"),
+                rows = listOf(listOf("完整內容", "123")))))
+        return when (extension) {
+            "pdf" -> com.wangzan101.mika.document.DocumentPdf.render(document)
+            "html" -> document.html().toByteArray()
+            else -> document.csv(null).toByteArray()
+        }
+    }
+
+    @Test fun saveCopyWritesExactBytes() = saveCopy("csv")
+    @Test fun saveHtmlWritesExactBytes() = saveCopy("html")
+    @Test fun savePdfWritesExactBytes() = saveCopy("pdf")
+
+    private fun saveCopy(extension: String) {
+        val name = "document-save-${System.currentTimeMillis()}.$extension"
+        val content = sample(extension)
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        show(file(name, content), name)
+        show(Uri.fromFile(File(context.cacheDir, name).apply { writeBytes(content) }), name)
         try {
             compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
             clickSystemNode { node ->
@@ -106,21 +121,25 @@ class FileViewerScreenTest {
                 bytes = android.os.ParcelFileDescriptor.AutoCloseInputStream(
                     automation.executeShellCommand("cat /sdcard/Download/$name")
                 ).use { it.readBytes() }
-                if (bytes.contentEquals(content.toByteArray())) break
+                if (bytes.contentEquals(content)) break
                 android.os.SystemClock.sleep(200)
             }
-            org.junit.Assert.assertArrayEquals(content.toByteArray(), bytes)
-            compose.onNodeWithTag("viewer.text").assertIsDisplayed()
+            org.junit.Assert.assertArrayEquals(content, bytes)
+            compose.onNodeWithText(name).assertIsDisplayed()
         } finally {
             automation.executeShellCommand("rm -f /sdcard/Download/$name").close()
             File(context.cacheDir, name).delete()
         }
     }
 
-    @Test fun shareReceiverReadsGrantedAttachment() = kotlinx.coroutines.runBlocking {
+    @Test fun shareReceiverReadsGrantedAttachment() = shareAttachment("csv")
+    @Test fun shareHtmlReceiverReadsGrantedAttachment() = shareAttachment("html")
+    @Test fun sharePdfReceiverReadsGrantedAttachment() = shareAttachment("pdf")
+
+    private fun shareAttachment(extension: String) = kotlinx.coroutines.runBlocking {
         val dir = File(context.cacheDir, "share-receiver-test").apply { mkdirs() }
-        val content = "\uFEFF中文,123\r\n接收端,完整內容\r\n".toByteArray()
-        val source = File(dir, "receiver.csv").apply { writeBytes(content) }
+        val content = sample(extension)
+        val source = File(dir, "receiver.$extension").apply { writeBytes(content) }
         val card = com.wangzan101.mika.cap.sandbox.AndroidFdSys.gate.openRead(dir, source.name).use {
             com.wangzan101.mika.cap.sandbox.ShareExporter(context).export(it, source.name)
         }
