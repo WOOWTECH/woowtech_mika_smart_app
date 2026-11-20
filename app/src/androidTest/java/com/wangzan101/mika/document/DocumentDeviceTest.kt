@@ -98,7 +98,9 @@ class DocumentDeviceTest {
         assumeTrue("PDF text extraction requires API 35+", Build.VERSION.SDK_INT >= 35)
         val file = File(context.cacheDir, "pdf-text-test-${UUID.randomUUID()}.pdf")
         val evidence = File(context.filesDir, "document-test-evidence")
-        evidence.deleteRecursively() // Only this synthetic case's previous diagnostic output.
+        // Keep other cases' evidence, regardless of JUnit execution order.
+        File(evidence, "pagination.pdf").delete()
+        File(evidence, "extracted.txt").delete()
         val extractedPages = mutableListOf<String>()
         val headerLines = (1..180).map { "欄位說明${it.toString().padStart(3, '0')}" }
         val cellLines = (1..240).map { "CELL_LINE_${it.toString().padStart(3, '0')}" }
