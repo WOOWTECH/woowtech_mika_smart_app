@@ -9867,6 +9867,269 @@
         "zh-Hant": "看看",
         "en": "Take a look"
       }
+    },
+    {
+      "case": "documentAction",
+      "key": "document.action",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "產生文件",
+        "en": "Create document"
+      }
+    },
+    {
+      "case": "documentSource",
+      "key": "document.source",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "來源回答",
+        "en": "Source answer"
+      }
+    },
+    {
+      "case": "documentLocalNotice",
+      "key": "document.localNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件在本機產生。僅包含這則回答的文字與表格；附件與圖片不會嵌入。請預覽內容後再儲存或分享。",
+        "en": "Files are generated locally from this answer's text and tables. Attachments and images are not embedded. Preview before saving or sharing."
+      }
+    },
+    {
+      "case": "documentTitle",
+      "key": "document.title",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件標題／檔名",
+        "en": "Document title / filename"
+      }
+    },
+    {
+      "case": "documentFormat",
+      "key": "document.format",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件格式",
+        "en": "Document format"
+      }
+    },
+    {
+      "case": "documentTable",
+      "key": "document.table",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "要匯出的表格",
+        "en": "Table to export"
+      }
+    },
+    {
+      "case": "documentChooseTable",
+      "key": "document.chooseTable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請選擇一個表格",
+        "en": "Choose one table"
+      }
+    },
+    {
+      "case": "documentNoTable",
+      "key": "document.noTable",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "這則回答沒有可匯出的表格。請選擇含有表格的回答。",
+        "en": "This answer has no exportable table. Choose an answer containing a table."
+      }
+    },
+    {
+      "case": "documentCSVNotice",
+      "key": "document.csvNotice",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "CSV 僅匯出所選表格。疑似公式的儲存格會加上單引號，作為文字處理；預覽可確認變化。試算表軟體仍可能自動轉換日期、數字及前導零。",
+        "en": "CSV exports only the selected table. Cells that resemble formulas receive a leading apostrophe to treat them as text; review the preview. Spreadsheet apps may still convert dates, numbers and leading zeros."
+      }
+    },
+    {
+      "case": "documentGenerating",
+      "key": "document.generating",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件產生中",
+        "en": "Creating document"
+      }
+    },
+    {
+      "case": "documentGenerate",
+      "key": "document.generate",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "產生文件",
+        "en": "Generate file"
+      }
+    },
+    {
+      "case": "documentInvalid",
+      "key": "document.invalid",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "內容為空、表格欄位不一致或超出支援大小，無法產生文件。請先調整來源內容。",
+        "en": "The source is empty, has inconsistent table columns, or exceeds the supported size. Revise the source before exporting."
+      }
+    },
+    {
+      "case": "documentPreview",
+      "key": "document.preview",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "預覽文件",
+        "en": "Preview document"
+      }
+    },
+    {
+      "case": "documentPreviewPartial",
+      "key": "document.preview.partial",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "此處僅預覽前 64 KiB，完整內容仍保留在檔案中。",
+        "en": "Preview shows the first 64 KiB. The file contains the complete content."
+      }
+    },
+    {
+      "case": "documentSave",
+      "key": "document.save",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "儲存檔案",
+        "en": "Save file"
+      }
+    },
+    {
+      "case": "documentShare",
+      "key": "document.share",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "分享檔案",
+        "en": "Share file"
+      }
+    },
+    {
+      "case": "documentSaving",
+      "key": "document.saving",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "請在系統介面選擇儲存位置。",
+        "en": "Choose a destination in the system dialog."
+      }
+    },
+    {
+      "case": "documentShareOpened",
+      "key": "document.shareOpened",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已開啟系統分享介面，尚未確認分享結果。",
+        "en": "System share sheet opened. No sharing result is confirmed yet."
+      }
+    },
+    {
+      "case": "documentSaved",
+      "key": "document.saved",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件已匯出至選擇的位置。",
+        "en": "File exported to the selected destination."
+      }
+    },
+    {
+      "case": "documentCancelled",
+      "key": "document.cancelled",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "已取消操作。",
+        "en": "Operation cancelled."
+      }
+    },
+    {
+      "case": "documentDeliveryFailed",
+      "key": "document.deliveryFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法完成檔案交付，請確認目的地或稍後再試。",
+        "en": "File delivery failed. Check the destination or try again."
+      }
+    },
+    {
+      "case": "documentActivityCompleted",
+      "key": "document.activityCompleted",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "系統回報操作完成；這不代表接收者已收到文件。",
+        "en": "The system reported the activity completed. This does not confirm receipt by the recipient."
+      }
+    },
+    {
+      "case": "documentCreated",
+      "key": "document.created",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件已產生，可預覽、儲存或分享。",
+        "en": "File created. You can preview, save or share it."
+      }
+    },
+    {
+      "case": "documentStorageFull",
+      "key": "document.storageFull",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "可用空間或暫存額度不足，請釋出空間後重試。",
+        "en": "Available storage or the temporary-file allowance is full. Free space and retry."
+      }
+    },
+    {
+      "case": "documentGenerationFailed",
+      "key": "document.generationFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "文件產生失敗，請重試或縮小內容。",
+        "en": "Could not create the file. Retry or reduce the content."
+      }
+    },
+    {
+      "case": "documentMissing",
+      "key": "document.missing",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "暫存檔已不存在，請重新產生文件。",
+        "en": "The temporary file is missing. Generate it again."
+      }
+    },
+    {
+      "case": "documentPreviewFailed",
+      "key": "document.previewFailed",
+      "parameters": [],
+      "translations": {
+        "zh-Hant": "無法預覽文件，請關閉預覽後重試。",
+        "en": "Unable to preview the document. Close the preview and try again."
+      }
+    },
+    {
+      "case": "documentProtectedCells",
+      "key": "document.protectedCells",
+      "parameters": [
+        {
+          "name": "count",
+          "type": "Int"
+        }
+      ],
+      "translations": {
+        "zh-Hant": {
+          "other": "已將 %lld 個疑似公式的儲存格加上單引號，避免當成公式執行。"
+        },
+        "en": {
+          "one": "Added an apostrophe to %lld cell resembling a formula so it is treated as text.",
+          "other": "Added an apostrophe to %lld cells resembling formulas so they are treated as text."
+        }
+      },
+      "plural": "count"
     }
   ]
 }

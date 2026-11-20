@@ -1042,4 +1042,3 @@
 "document.generationFailed" = "文件產生失敗，請重試或縮小內容。";
 "document.missing" = "暫存檔已不存在，請重新產生文件。";
 "document.previewFailed" = "無法預覽文件，請關閉預覽後重試。";
-"document.protectedCells" = "已將 %lld 個疑似公式的儲存格加上單引號，避免當成公式執行。";

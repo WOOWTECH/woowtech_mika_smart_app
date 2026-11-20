@@ -44,6 +44,20 @@
 			<string>這次有 %lld 個 MCP 工具或資源超出一次回覆的上限，沒有提供給模型。</string>
 		</dict>
 	</dict>
+	<key>document.protectedCells</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>other</key>
+			<string>已將 %lld 個疑似公式的儲存格加上單引號，避免當成公式執行。</string>
+		</dict>
+	</dict>
 	<key>drawer.recent.turns</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

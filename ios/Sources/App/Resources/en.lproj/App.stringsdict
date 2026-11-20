@@ -50,6 +50,22 @@
 			<string>%lld MCP tools or resources went past the limit for one reply and weren’t offered to the model.</string>
 		</dict>
 	</dict>
+	<key>document.protectedCells</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Added an apostrophe to %lld cell resembling a formula so it is treated as text.</string>
+			<key>other</key>
+			<string>Added an apostrophe to %lld cells resembling formulas so they are treated as text.</string>
+		</dict>
+	</dict>
 	<key>drawer.recent.turns</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

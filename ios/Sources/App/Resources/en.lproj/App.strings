@@ -1042,4 +1042,3 @@
 "document.generationFailed" = "Could not create the file. Retry or reduce the content.";
 "document.missing" = "The temporary file is missing. Generate it again.";
 "document.previewFailed" = "Unable to preview the document. Close the preview and try again.";
-"document.protectedCells" = "Added an apostrophe to %lld cells resembling formulas so they are treated as text.";
