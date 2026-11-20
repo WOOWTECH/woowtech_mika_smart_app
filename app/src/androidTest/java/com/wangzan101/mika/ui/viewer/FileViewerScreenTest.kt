@@ -76,6 +76,6 @@ class FileViewerScreenTest {
         assertNull(FileViewer.kindOf(context, uri, "archive.zip"))
         show(uri, "archive.zip")
         compose.onNodeWithTag("viewer.unsupported").assertIsDisplayed()
-        compose.onNodeWithText("用其他应用打开").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(com.wangzan101.mika.R.string.viewer_open_elsewhere)).assertIsDisplayed()
     }
 }

@@ -56,6 +56,32 @@
 
 ## 測試與交付狀態
 
-測試結果待本次執行完成後填入。POCO 目前未透過 ADB 連線，不能把模擬器結果當成 POCO 實機通過。
+2026-11-20 驗證紀錄：
+
+- 共用提交 `4d4cf8ec`；直裝接線提交 `655fa978`。後續僅修正既有 viewer 測試寫死簡體中文的斷言，改用目前語系資源。
+- 62 項核心測試通過：DocumentTest 5、ToolDispatcherSandboxTest 25、ToolRiskTest 6、PromptSurfaceTest 6、SystemPromptTest 20。最後一次沒有更新 snapshots。
+- `assembleWoowtechDebug`、`assembleApporoDebug`、`assembleApporoDebugAndroidTest` 成功。兩品牌正式來源均未再修改；測試 APK 在語系斷言修正後另行重建成功。
+- Android 16 arm64 AVD `woow_relay_contract`，Apporo package `com.apporo.assistant`：PDF 分頁與超量拒絕 2 項、HTML/CSV/PDF 經實際 AndroidFdSys/MediaStore 匯出並逐位元讀回 1 項、文字/Markdown/不支援格式預覽 3 項、系統另存 picker 開啟及取消 1 項，合計 7 個案例均有通過紀錄，並非單輪全部通過。
+- 首輪 6/7，舊測試硬編簡體中文，Apporo 實際文案為英文。改用字串資源後三項預覽通過；該輪另存遭模擬器 System UI ANR 對話框遮擋，從 UI hierarchy 確認並按 Wait 後，單獨重跑另存案例通過。保留失敗日誌，不視為產品無異常證明。
+- APK 產生的 9 頁 PDF 再經 macOS PDFKit 讀取：NFKC 正規化後標題、300/300 段落、200/200 表格重複文字、最後 END-OF-DOCUMENT 均存在；表格核對排除重複表頭與頁碼。首尾頁 PNG 已人工視覺檢查，中文/格線/末列可讀。
+- 十種既有語系的四個另存提示字串皆存在且不重複；未新增第三方套件。
+
+可重現命令（JAVA_HOME 使用本機 JDK17、ANDROID_HOME 使用本機 Android SDK）：
+
+```sh
+./gradlew :core:test --tests '*DocumentTest' --tests '*ToolDispatcherSandboxTest' --tests '*ToolRiskTest' --tests '*PromptSurfaceTest' --tests '*SystemPromptTest' :app:assembleWoowtechDebug :app:assembleApporoDebug :app:assembleApporoDebugAndroidTest -PapporoAlignmentTests --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process --console=plain
+adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.document.DocumentPdfTest,com.wangzan101.mika.cap.sandbox.DocumentExportDeviceTest,com.wangzan101.mika.ui.viewer.FileViewerScreenTest com.apporo.assistant.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+本機證據在本工作樹 `build/document-acceptance/`：`instrumentation.log`（首輪）、`viewer-locale-final.log`（語系修正後）、`save-picker-after-systemui.log`（排除系統 ANR 後）、`document-acceptance.pdf/html/csv`、PDFKit 抽字與首尾頁 PNG、建置日誌。核心 XML 在 `core/build/test-results/test/`。`build/` 不進 Git；整合方可直接讀取共享工作區。
+
+尚未通過／未驗收：
+
+- POCO 目前未透過 ADB 連線；不能把模擬器當成 POCO 實機驗收。
+- WOOWTECH APK 已建置，但此 AVD 已有不同簽章的 `io.woowtech.agent`；覆蓋安裝遭 UPDATE_INCOMPATIBLE 拒絕。未解除安裝或清除舊資料；品牌自身安裝/啟動 smoke 待隔離裝置或對應簽章包。
+- Numbers 開啟實際 CSV 遇 macOS「node 控制 Numbers」權限提示並逾時（-1712），待使用者在系統視窗允許，不能宣稱試算表相容性通過。
+- 系統另存的「完成寫入並重開」與外部分享接收端尚未做 UI 端到端驗收；已通過的是 MediaStore 附件讀回與 picker 取消。
+- 真實模型對話 → 產檔 → 附件 → 預覽的整段真人操作、背景/程序重建、目標手機不常見字形，仍須驗收。
+- 商店渠道、Play AAB 與 iOS 不在本輪驗證範圍。共用測試可引用；各渠道的平台差異驗證仍須由整合方完成。
 
 尚未合併 main 或公開發布。測試 APK 是開發驗證用途，不是使用者正式更新包。
