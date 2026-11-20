@@ -75,13 +75,23 @@ adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.docu
 
 本機證據在本工作樹 `build/document-acceptance/`：`instrumentation.log`（首輪）、`viewer-locale-final.log`（語系修正後）、`save-picker-after-systemui.log`（排除系統 ANR 後）、`document-acceptance.pdf/html/csv`、PDFKit 抽字與首尾頁 PNG、建置日誌。核心 XML 在 `core/build/test-results/test/`。`build/` 不進 Git；整合方可直接讀取共享工作區。
 
-尚未通過／未驗收：
+後續驗收與限制（含本輪補測狀態）：
 
 - POCO 目前未透過 ADB 連線；不能把模擬器當成 POCO 實機驗收。
-- WOOWTECH APK 已建置，但此 AVD 已有不同簽章的 `io.woowtech.agent`；覆蓋安裝遭 UPDATE_INCOMPATIBLE 拒絕。未解除安裝或清除舊資料；品牌自身安裝/啟動 smoke 待隔離裝置或對應簽章包。
+- WOOWTECH 原先 debug 簽章不符的障礙已解決：以既有正式憑證重簽本機驗收包後，`install -r` 覆蓋成功，主畫面啟動 Status: ok，firstInstallTime 保留。僅為模擬器 Debug 驗收包，不能當公開更新包。未證明所有使用者資料逐項保留。
 - Numbers 開啟實際 CSV 遇 macOS「node 控制 Numbers」權限提示並逾時（-1712），待使用者在系統視窗允許，不能宣稱試算表相容性通過。
-- 系統另存的「完成寫入並重開」與外部分享接收端尚未做 UI 端到端驗收；已通過的是 MediaStore 附件讀回與 picker 取消。
+- 系統另存與跨 App 接收已補驗 CSV：從預覽按另存、系統 SAVE 寫入下載資料夾，再重新開檔讀回比對；分享則從真實系統選單選擇獨立測試接收 Activity，由另一套件讀取 URI 並回報 bytes，逐位元相同。這不代表 LINE、郵件或所有第三方 App 均已驗收；HTML/PDF 的同流程 UI 操作尚未逐格式重跑。
 - 真實模型對話 → 產檔 → 附件 → 預覽的整段真人操作、背景/程序重建、目標手機不常見字形，仍須驗收。
 - 商店渠道、Play AAB 與 iOS 不在本輪驗證範圍。共用測試可引用；各渠道的平台差異驗證仍須由整合方完成。
 
 尚未合併 main 或公開發布。測試 APK 是開發驗證用途，不是使用者正式更新包。
+
+## 補充驗收與修正（2026-11-20）
+
+- 新增 `saveCopyWritesExactBytes` 與 `shareReceiverReadsGrantedAttachment`：修正後同輪 **OK (2 tests)**，`build/document-acceptance/delivery-e2e-fixed.log`，30.889 秒。此前 7 個平台案例加本次 2 個，共 9 個案例各有通過紀錄。
+- 實際另存觸發 Compose instrumentation 的無 Looper Toast 錯誤，現將另存 callback coroutine 明確指定 `Dispatchers.Main.immediate`，資料複製仍在 IO 執行。此錯誤是在測試環境重現，不宣稱先前已在真人裝置重現。
+- 接收 Activity 僅在 `androidTest`，使用 Java 可於獨立測試 APK 程序執行，接受檔案 MIME 後讀取系統授予的 URI；不發送到聯絡人，不進產品 APK。測試原本宣告單一 CSV MIME 沒有出現在選單，改為一般檔案接收器後通過。
+- 模擬器冷啟動後發生 System UI ANR，以 UI hierarchy 確認後按 Wait 再執行本輪。首次失敗保留於 `delivery-e2e.log`、`share-e2e-recheck.log`，沒有刪除失敗證據。
+- 修正後 `assembleApporoDebug`、`assembleApporoDebugAndroidTest`、`assembleWoowtechDebug` 全部成功（3m41s，`/tmp/document-delivery-fixed-build.log`）。核心未改，不重複執行先前 62 項共用測試。
+- WOOWTECH 最新修正驗收包再次同簽章覆蓋並啟動；證據 `woowtech-signature.txt`、`woowtech-update.txt`、`woowtech-launch.txt/png`。正式憑證 SHA-256 符合既有發布規格；未更改 Gradle、CI、包名、版本序列或金鑰。
+- Numbers 再次因 macOS 自動化權限未完成而逾時；已請使用者處理。POCO 仍無 ADB，已請使用者接線解鎖。此兩項不算通過。
