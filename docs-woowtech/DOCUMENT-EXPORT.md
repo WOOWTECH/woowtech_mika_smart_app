@@ -104,3 +104,13 @@ adb -s emulator-5554 shell am instrument -w -r -e class com.wangzan101.mika.docu
 - 分支已推送 `origin/feature/document-export`；Draft PR：<https://github.com/WOOWTECH/woowtech_mika_smart_app/pull/45>。
 - PR 的部分 CI 在 `.github/scripts/prepare-compiler-repository.py` 下載官方 Kotlin 編譯器 asset 的 GET 階段收到 HTTP403，尚未到程式編譯。來源為 GitHub JetBrains 官方 asset API `598635327`；已交接建置配置負責對話，未擅改 CI。品牌來源與 WOOW release plan 檢查曾通過，不能視為整體 CI 通過。
 - 仍未合併 main／公開發布：POCO、Numbers 授權、真實模型端到端與生命週期等界線仍依前文；Debug 驗收包不作正式下載包。
+
+
+## CI recovery (2026-11-20)
+
+- `0216f899` / `8f6b5974`: compiler asset API requests now use the step-scoped GitHub token via curl stdin config. The existing HTTPS, deadline, pinned size/SHA256/SHA1 and atomic publication checks remain. Tokens are absent from command arguments and receipts. The first revision rejected the runner token alphabet; the follow-up accepts standard Bearer syntax and tests header-injection rejection.
+- Actual GitHub run `44712565160` and brand runs `44712565001`, `44712565010`, `44712564995`: all seven compiler preparation steps succeeded. Saved CLI log shows JAR/POM HTTP 200 and `repository_ready`. Prior 403 logs lack response diagnostics, so anonymous rate limiting is not established as the definitive cause.
+- Local `.github/scripts` regression suite: 19 tests passed; translation check: 1980 resources / 10 languages. Added create_document labels fixed the previously failing Android ToolLabelsTest; the complete Android job passed on `8f6b5974`.
+- Full core CI uncovered 10 remaining failures among 3026 cases: missing document tool prompt resource, stale entry lists/snapshots, and changed compaction indices after the new schema. The description now loads from `prompts/tools/create_document.md` with the same text and channel-specific delivery placeholder. No production compression algorithm change. At the fixed 80K test window, OpenAI-compatible/Responses/Anthropic fixtures compact at 12/21/30; Gemini stays 12/22. Existing cache-prefix/share assertions remain.
+- Updated only the reviewed tool-list/size snapshots and expected tool/compaction lists. Local targeted suite: 59 cases passed again without `-PupdateSnapshots` (`/tmp/document-ci-regressions-verify.log`). Full GitHub verification of this follow-up is pending at commit time.
+- Raw download evidence: `build/document-acceptance/ci-8f6b5974/cli.log`; original core CI failure XML: sibling `core/` directory. These build artifacts remain local.

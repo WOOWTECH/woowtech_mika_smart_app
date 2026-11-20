@@ -11,7 +11,7 @@ import kotlinx.serialization.json.put
 
 /** Single document tool schema. Channel adapters supply their own delivery instruction. */
 internal fun documentToolDefinition(deliveryHint: String): ToolDef = ToolDef("create_document",
-        "Generate a local HTML, PDF or CSV document from known source content. Never invent missing source content; ask when source or table selection is ambiguous. document contains title and sections: heading(text, level 1-6), paragraph(text), bulletList/orderedList(items: string[]), table(columns: string[], rows: string[][]). Text is literal, not markup. Max 250000 characters, 200 sections, 12 columns and 1000 rows per table. CSV exports one table, with formula protection (apostrophe prefix); disclose this to the user. $deliveryHint",
+        com.wangzan101.mika.core.prompt.Prompts.tool("create_document", "delivery_hint" to deliveryHint),
         mapOf(
             "format" to buildJsonObject { put("type", "string"); put("enum", JsonArray(listOf("html", "pdf", "csv").map(::JsonPrimitive))) },
             "document" to buildJsonObject {
