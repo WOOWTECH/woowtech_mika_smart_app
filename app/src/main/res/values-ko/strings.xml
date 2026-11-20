@@ -47,4 +47,8 @@
     <string name="model_reasoning_high">높음</string>
     <string name="model_reasoning_xhigh">매우 높음</string>
     <string name="model_reasoning_max">최대</string>
+    <string name="viewer_save_as">사본 저장</string>
+    <string name="viewer_saved">파일이 저장되었습니다</string>
+    <string name="viewer_save_cancelled">저장이 취소되었습니다</string>
+    <string name="viewer_save_failed">파일을 저장할 수 없습니다. 저장 공간을 확인하고 다시 시도하세요.</string>
 </resources>

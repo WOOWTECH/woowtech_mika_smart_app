@@ -6,6 +6,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -46,6 +48,27 @@ class FileViewerScreenTest {
         show(file("run.log", "line one\nline two: ok\n"), "run.log")
         compose.onNodeWithTag("viewer.text").assertIsDisplayed()
         compose.onNodeWithText("line two: ok", substring = true).assertIsDisplayed()
+    }
+
+    @Test fun saveCopyCanOpenSystemPickerAndCancel() {
+        show(file("document-save.csv", "中文,123\r\n"), "document-save.csv")
+        compose.onNodeWithContentDescription(context.getString(com.wangzan101.mika.R.string.viewer_save_as)).performClick()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val deadline = android.os.SystemClock.uptimeMillis() + 10000
+        var opened = false
+        while (android.os.SystemClock.uptimeMillis() < deadline) {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            if (root?.packageName?.toString()?.contains("documentsui") == true) { opened = true; break }
+            android.os.SystemClock.sleep(100)
+        }
+        org.junit.Assert.assertTrue("System document picker did not open", opened)
+        val cancelDeadline = android.os.SystemClock.uptimeMillis() + 5000
+        while (android.os.SystemClock.uptimeMillis() < cancelDeadline &&
+            instrumentation.uiAutomation.rootInActiveWindow?.packageName?.toString() != context.packageName) {
+            instrumentation.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+            android.os.SystemClock.sleep(300)
+        }
+        compose.onNodeWithTag("viewer.text").assertIsDisplayed()
     }
 
     @Test fun unsupportedFileFallsBackToOtherApps() {
