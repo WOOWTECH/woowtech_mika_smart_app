@@ -398,14 +398,11 @@ jobs:
           Path('build/app-configuration.json').write_text(json.dumps(flags, indent=2) + '\n')
           assert all(value is True for value in flags.values()), 'Built App must expose its Documents folder through native Files'
           PY
-      - name: Test
-        # The previous 22-case full UI matrix took 31m34s for this step.
-        # Eleven additional UI cases and hosted DOM integration need their own
-        # time plus xcresult export. Login declares 420 seconds for the complete
-        # login/tab/relaunch/logout flow; other cases retain their own limits.
-        # Small focused scopes need bounded bootstrap feedback.
-        # Other scopes retain their previous limit; this does not retry a case.
-        timeout-minutes: ${{ contains(fromJSON('["documents-chat","ui-notifications"]'), inputs.test_scope) && 20 || 55 }}
+      - name: Prepare focused simulator
+        # Keep bootstrap within its own bound, as in the full-regression job.
+        # Run 44715367632 completed all five UI cases but exhausted the shared
+        # 20-minute step after simulator preparation and result finalization.
+        timeout-minutes: 10
         run: |
           simulator_options=()
           if [ "$WOOW_FRESH_SIMULATOR" = true ]; then simulator_options+=(--fresh); fi
@@ -415,6 +412,13 @@ jobs:
           xcrun simctl bootstatus "$device_id" -b 2>&1 | tee build/simulator-boot.log
           xcrun simctl list runtimes -j | python3 scripts/prepare_simulator_webkit.py \
             --runtime "$WOOW_SIM_RUNTIME" --products build/DerivedData/Build/Products/Debug-iphonesimulator
+      - name: Test
+        # Preserve each scope's existing execution bound and per-case limits.
+        # A failed preparation skips this step; always() evidence and cleanup
+        # below still run. No case is retried or omitted.
+        timeout-minutes: ${{ contains(fromJSON('["documents-chat","ui-notifications"]'), inputs.test_scope) && 20 || 55 }}
+        run: |
+          device_id="$(cat build/test-simulator-id.txt)"
           test_filters=()
           maximum_case_seconds=300
           case '${{ inputs.test_scope }}' in
