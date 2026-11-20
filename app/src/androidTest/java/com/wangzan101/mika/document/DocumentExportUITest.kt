@@ -49,6 +49,11 @@ class DocumentExportUITest {
 
     @Test fun csvDialogGeneratesAndOpensRealPreview() {
         try {
+            // Connect before creating the dialog; retrieving the active root is
+            // asynchronous when UiAutomation is first attached.
+            instrumentation.uiAutomation.serviceInfo = instrumentation.uiAutomation.serviceInfo.apply {
+                flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
             listOf("ui-generated.png", "ui-preview.png", "ui-failure.png", "ui.csv").forEach {
                 File(context.filesDir, "document-test-evidence/$it").delete()
             }
@@ -127,7 +132,13 @@ class DocumentExportUITest {
     private fun assertAppInForeground() {
         // Compose semantics can still be queried while an ANR/system dialog covers
         // the app. Such a run must not be accepted as an interactive UI pass.
-        val root = requireNotNull(instrumentation.uiAutomation.rootInActiveWindow)
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        var activeRoot = instrumentation.uiAutomation.rootInActiveWindow
+        while (activeRoot == null && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(50)
+            activeRoot = instrumentation.uiAutomation.rootInActiveWindow
+        }
+        val root = requireNotNull(activeRoot) { "No accessible active window after UiAutomation connected" }
         assertEquals("A system window covers the document UI", context.packageName, root.packageName?.toString())
     }
 

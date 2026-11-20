@@ -108,14 +108,17 @@ final class DocumentExportUITests: XCTestCase {
     private func cancelSavePicker() {
         // Recent Files pickers can open inside a folder without a Cancel button
         // (native-5 screenshot/AX). Exercise their actual sheet dismissal, too.
-        let save = app.buttons["DOCPicker.actionButton"].firstMatch
+        let bar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"].firstMatch
+        ready(bar)
+        // iOS 26.2 exposes the visible Save label without an identifier;
+        // iOS 27 also supplies DOCPicker.actionButton. Scope both to Files.
+        let save = bar.buttons.matching(NSPredicate(
+            format: "identifier == %@ OR label IN %@", "DOCPicker.actionButton", ["儲存", "Save"])).firstMatch
         ready(save)
         let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["取消", "Cancel"])).firstMatch
         if cancel.exists {
             ready(cancel); cancel.tap()
         } else {
-            let bar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"].firstMatch
-            ready(bar)
             bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
                 .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
         }
