@@ -3,10 +3,12 @@ import AssistantSkills
 import AssistantModels
 import Combine
 import Foundation
+import OSLog
 import WebKit
 
 @MainActor
 final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate, WebResearchExecuting {
+    private static let navigationLog = Logger(subsystem: "io.woowtech.assistant", category: "browser-policy")
     private var storedWebView: WKWebView?
     private var webViewURLObservation: NSKeyValueObservation?
     private var webViewLoadObservations: [NSKeyValueObservation] = []
@@ -827,7 +829,18 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
               automated ? permitted(url) : manualPermitted(url),
               !automated || navigationAction.request.httpMethod == "GET" || postPermitted,
               !automated || restrictedOrigin == nil || Self.origin(url) == restrictedOrigin else {
-            decisionHandler(.cancel); error = "此導覽不在目前允許的公開網站範圍內。"
+            decisionHandler(.cancel)
+            // A rejected embedded frame must not replace a successfully loaded
+            // document's status. Keep the same denial for every frame, and
+            // report main-document/new-window failures to the person.
+            if navigationAction.targetFrame?.isMainFrame != false {
+                error = "此導覽不在目前允許的公開網站範圍內。"
+            }
+            // Only bounded categories: never log the URL, query, host or body.
+            let frame = navigationAction.targetFrame.map { $0.isMainFrame ? "main" : "subframe" } ?? "new_window"
+            let rawScheme = navigationAction.request.url?.scheme?.lowercased() ?? "none"
+            let scheme = ["http", "https", "about", "data", "blob", "file", "none"].contains(rawScheme) ? rawScheme : "other"
+            Self.navigationLog.notice("navigation_rejected frame=\(frame, privacy: .public) scheme=\(scheme, privacy: .public) automated=\(automated, privacy: .public)")
             if !isRunning, navigationAction.targetFrame?.isMainFrame == true { failManualLoad(.policyRejected) }
             return
         }

@@ -9,6 +9,30 @@ import AssistantSkills
 /// Real, locally rendered WebKit documents. Failure/late delegate callbacks
 /// below are explicitly synthetic; no external request or model is involved.
 final class BrowserSessionNavigationTests: XCTestCase {
+    @MainActor func testRejectedSubframeKeepsReadyMainDocumentButMainFrameRejectionReportsError() async throws {
+        let host = try Host(); defer { host.close() }
+        _ = try await host.load(marker: "READY MAIN DOCUMENT")
+        let probe = RejectedFrameProbe(browser: host.browser)
+        host.browser.webView.navigationDelegate = probe
+
+        // WebKit creates the real subframe action; the production policy still
+        // rejects its data URL. No external request or synthetic action is used.
+        _ = try await host.browser.webView.evaluateJavaScript(
+            "var frame = document.createElement('iframe'); frame.src = 'data:text/html,REJECTED_FRAME'; document.body.appendChild(frame); true")
+        try await waitUntil { probe.decisions.contains { $0.mainFrame == false } }
+        XCTAssertTrue(probe.decisions.filter { !$0.mainFrame }.allSatisfy { $0.policy == .cancel })
+        XCTAssertNil(host.browser.error, "An embedded frame must not mark the loaded top-level page as failed")
+        XCTAssertEqual(host.browser.status, "頁面已載入")
+        XCTAssertEqual(host.browser.current?.text, "READY MAIN DOCUMENT\nLocal action")
+
+        _ = try await host.browser.webView.evaluateJavaScript("location.href = 'about:blank'; true")
+        try await waitUntil { probe.decisions.contains { $0.mainFrame } }
+        XCTAssertTrue(probe.decisions.filter { $0.mainFrame }.allSatisfy { $0.policy == .cancel })
+        XCTAssertNotNil(host.browser.error, "The same denial must remain visible for the main document")
+        XCTAssertNil(host.browser.current)
+        XCTAssertEqual(host.browser.status, "載入未完成")
+    }
+
     @MainActor func testExternalOpenTracksTheActualWebKitDocumentAndRevokesOnTermination() async throws {
         let host = try Host(); defer { host.close() }
         XCTAssertNil(host.browser.externalOpenURL)
@@ -168,6 +192,20 @@ final class BrowserSessionNavigationTests: XCTestCase {
         }
         XCTAssertTrue(condition(), "Local observation must reach its expected terminal state")
         guard condition() else { throw FixtureFailure.didNotFinish }
+    }
+
+    @MainActor private final class RejectedFrameProbe: NSObject, WKNavigationDelegate {
+        let browser: BrowserSession
+        var decisions: [(mainFrame: Bool, policy: WKNavigationActionPolicy)] = []
+        init(browser: BrowserSession) { self.browser = browser }
+
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            browser.webView(webView, decidePolicyFor: action) { policy in
+                self.decisions.append((action.targetFrame?.isMainFrame == true, policy))
+                decisionHandler(.cancel)
+            }
+        }
     }
 
     private enum FixtureFailure: Error { case missingScene, didNotFinish }
