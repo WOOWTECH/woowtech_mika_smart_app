@@ -56,7 +56,7 @@ struct ContentView: View {
             Text(pendingNewConversationProtection?.warningKeys.map { localizer.text($0) }.joined(separator: "\n") ?? "")
         }
         .tint(palette.accent)
-        .background(palette.background)
+        .mikaPageCanvas(palette.background)
         .appLanguage(languages)
         .preferredColorScheme(preferences.preferredColorScheme)
         .firstLaunchOnboarding(session: session, languages: languages, accent: palette.accent)
@@ -273,8 +273,8 @@ struct ContentView: View {
                                  selection = .memory
                                  showsDrawer = false
                              })
-                        .frame(maxWidth: 720)
-                        .frame(maxWidth: .infinity)
+                        .mikaReadableColumn()
+                        .mikaPageCanvas(palette.background)
                 case .settings:
                     MikaAlignedSettingsView(session: session, preferences: preferences, notifications: notifications,
                                             languages: languages,
@@ -1159,7 +1159,9 @@ private struct ChatView: View {
     private var draftLineLimit: ClosedRange<Int> { dynamicTypeSize.isAccessibilitySize ? 1...3 : 1...5 }
 
     private func composer(draft: Binding<String>) -> some View {
-        HStack(alignment: .bottom, spacing: 4) {
+        // Same pill at one line; bounded corners leave room for multiline text.
+        let shape = RoundedRectangle(cornerRadius: 32, style: .continuous)
+        return HStack(alignment: .bottom, spacing: 4) {
             attachToggle
             // Return adds a line; the keyboard toolbar Done closes editing without sending.
             TextField(localizer.text(session.entries.isEmpty ? .shellMessagePlaceholder : .shellMessageContinuationPlaceholder),
@@ -1224,13 +1226,13 @@ private struct ChatView: View {
         .padding(6)
         .background {
             if reduceTransparency {
-                Capsule().fill(palette.surface)
+                shape.fill(palette.surface)
             } else {
-                Capsule().fill(.ultraThinMaterial)
-                    .overlay(Capsule().fill(palette.glass))
+                shape.fill(.ultraThinMaterial)
+                    .overlay(shape.fill(palette.glass))
             }
         }
-        .overlay(Capsule().stroke(palette.hair, lineWidth: 0.5))
+        .overlay(shape.stroke(palette.hair, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.12), radius: 14, y: 4)
     }
 

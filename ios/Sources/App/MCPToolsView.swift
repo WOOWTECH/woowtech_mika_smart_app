@@ -31,7 +31,8 @@ struct MCPToolsView: View {
             }
         }
         .tint(MCPPageStyle.accent(colorScheme))
-        .background(MCPPageStyle.background(colorScheme))
+        .mikaReadableColumn()
+        .mikaPageCanvas(MCPPageStyle.background(colorScheme))
         // Each page clears what was typed when it or the app is left. The
         // connections themselves are the app's (ContentView): like the Play
         // build they stay set up, and one that started here may finish for a chat.
@@ -489,7 +490,7 @@ private struct MCPPageHeader: View {
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
             .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.04), radius: 6, y: 2)
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 4)
     }

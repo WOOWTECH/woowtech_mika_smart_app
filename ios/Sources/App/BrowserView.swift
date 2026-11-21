@@ -64,6 +64,7 @@ struct BrowserView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.top, isStartPage ? 12 : 4)
+            .mikaReadableColumn(maxWidth: isStartPage ? MikaPageLayout.readableWidth : .infinity)
             .overlay(alignment: .topLeading) { loadObservation }
             if !isStartPage { progressLine }
             if isStartPage {
@@ -74,6 +75,7 @@ struct BrowserView: View {
                         .disabled(!workspace.available || workspace.isClearingWebsiteData)
                     Spacer()
                 }.padding(.horizontal, 20)
+                    .mikaReadableColumn()
             }
             if workspace.isClearingWebsiteData {
                 ProgressView(localizer.text(.browserClearing))
@@ -107,6 +109,7 @@ struct BrowserView: View {
             }
             .font(.subheadline)
             .padding(.horizontal, 20)
+            .mikaReadableColumn(maxWidth: isStartPage ? MikaPageLayout.readableWidth : .infinity)
             ZStack {
                 BrowserWebView(webView: browser.webView, coveredByResearch: pageCovered,
                                onDetach: { [browser] in browser.setPageHostVisible(false) })

@@ -55,7 +55,8 @@ struct MemoryDataView: View {
             header
             contentList
         }
-        .background(palette.background)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.background)
         // The root tab and the chat drawer both supply a NavigationStack.
         // Keep its title and the centered principal item on the same resolved language.
         .navigationTitle(copy.text(.title))
@@ -168,7 +169,7 @@ struct MemoryDataView: View {
                 .background(palette.surface, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 4)
     }

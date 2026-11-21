@@ -10,6 +10,7 @@ import WebKit
 @MainActor
 struct WebsiteSignInsView: View {
     @ObservedObject var workspace: BrowserWorkspace
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.appLocalizer) private var localizer
     @Environment(\.dismiss) private var dismiss
     @State private var picked: BrowserSignInSite?
@@ -57,6 +58,9 @@ struct WebsiteSignInsView: View {
                     ProgressView().accessibilityIdentifier("signIns.clearing")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .mikaReadableColumn()
+            .mikaPageCanvas(BrowserPalette(colorScheme).background)
             .navigationTitle(copy.text(.webLogins))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -119,6 +123,7 @@ struct WebsiteSignInsView: View {
 @MainActor
 struct SavedRoutesView: View {
     @ObservedObject var store: LearningStore
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.appLocalizer) private var localizer
     @State private var confirmClear = false
 
@@ -144,6 +149,9 @@ struct SavedRoutesView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .mikaReadableColumn()
+        .mikaPageCanvas(BrowserPalette(colorScheme).background)
         .navigationTitle(copy.text(.routeTitle))
         .navigationBarTitleDisplayMode(.inline)
         .alert(copy.text(.routesClearTitle), isPresented: $confirmClear) {

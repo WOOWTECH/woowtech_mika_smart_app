@@ -137,7 +137,8 @@ struct MikaAlignedSettingsView<MCPDestination: View, MemoryDestination: View>: V
             }
             .padding(.horizontal, 16)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(localizer.text(.settingsHomeTitle))
         .navigationBarTitleDisplayMode(.inline)
         // Reads the system state only; never asks for permission.
@@ -215,7 +216,8 @@ private struct MikaAdvancedSettingsView<MCPDestination: View>: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 20)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(localizer.text(.settingsAdvancedTitle))
         .navigationBarTitleDisplayMode(.inline)
     }

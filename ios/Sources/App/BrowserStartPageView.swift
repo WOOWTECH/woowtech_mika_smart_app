@@ -50,7 +50,8 @@ struct BrowserStartPageView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-        .background(palette.background)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.background)
         .accessibilityIdentifier("browser.start")
         .confirmationDialog(localizer.text(.browserClearHistoryQuestion), isPresented: $confirmClearHistory,
                             titleVisibility: .visible) {

@@ -119,7 +119,8 @@ import UIKit
             }
             .padding(.horizontal, 16)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(copy.text(.title))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingFeedback) {
@@ -173,7 +174,8 @@ import UIKit
             }
             .padding(16)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(copy.text(.licenseTitle))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -227,7 +229,8 @@ import UIKit
                 }
                 .padding(16)
             }
-            .background(palette.page)
+            .mikaReadableColumn()
+            .mikaPageCanvas(palette.page)
             .navigationTitle(copy.text(.feedback))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(copy.text(.close), action: close) } }

@@ -110,11 +110,13 @@ struct MikaModelSettingsDetailView: View {
                 withAnimation { proxy.scrollTo("models.addForm", anchor: .top) }
             }
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Android hides it while the keyboard is up, leaving the room to the form.
             if let onboardingNext, field == nil {
                 OnboardingNextBar(localizer: localizer, enabled: session.savedSettings != nil, next: onboardingNext)
+                    .mikaReadableColumn()
             }
         }
         .navigationTitle(localizer.text(onboarding ? .modelSetupTitle : .settingsHomeModel))
@@ -679,7 +681,8 @@ struct ModelMainPickerView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 24)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(localizer.text(.settingsModelMain))
         .navigationBarTitleDisplayMode(.inline)
         .textInputAutocapitalization(.never)
@@ -824,7 +827,8 @@ struct ModelProviderDetailView: View {
                 content(provider)
             }
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(provider?.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: tester.state) { _, state in if state == .passed { retestPassed() } }

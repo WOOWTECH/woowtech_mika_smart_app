@@ -58,7 +58,8 @@ import AssistantDomain
             }
             .padding(.horizontal, 16).padding(.bottom, 20)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(localizer.text(.settingsNotificationsTitle))
         .navigationBarTitleDisplayMode(.inline)
         // Reads the system state only, never asks: on opening and on every

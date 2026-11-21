@@ -64,7 +64,8 @@ struct MikaLanguageAppearanceView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 20)
         }
-        .background(palette.page)
+        .mikaReadableColumn()
+        .mikaPageCanvas(palette.page)
         .navigationTitle(localizer.text(.languageAppearanceTitle))
         .navigationBarTitleDisplayMode(.inline)
     }
