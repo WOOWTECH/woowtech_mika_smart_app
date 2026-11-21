@@ -131,7 +131,15 @@ final class ChatAttachmentUITests: XCTestCase {
                 && transcript.frame.contains(completed.frame)
                 && completed.frame.maxY <= mikaUnobscuredBottom(in: self.app)
         }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 10), .completed,
+        let visibleResult = XCTWaiter.wait(for: [visible], timeout: 10)
+        if visibleResult != .completed {
+            print("TRANSCRIPT_BOUNDARY reply=\(completed.frame) viewport=\(transcript.frame) keyboardTop=\(mikaUnobscuredBottom(in: app))")
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Fourth reply visibility failure"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        XCTAssertEqual(visibleResult, .completed,
                        "The eighth entry must be a visible completed reply without a recovery scroll")
 
         // A fresh edit and two native panel transitions prove interaction after completion.

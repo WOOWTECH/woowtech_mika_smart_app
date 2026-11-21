@@ -916,27 +916,20 @@ private struct ChatView: View {
     /// shows above the input bar instead, so a blocked send is never silent.
     private var blockedCardFitsTranscript: Bool { transcriptViewportHeight >= 200 }
 
-    /// Keep the existing recent/history groups stable while rendering both eagerly.
-    private static let eagerRecentEntries = 6
-
     private func transcriptContent(viewportHeight: Double) -> some View {
         // Which messages can be quoted or branched from, read once per render.
         let targets = session.messageActionTargets
         let rows = Array(session.entries.enumerated())
-        let historyEnd = max(0, rows.count - Self.eagerRecentEntries)
         return VStack(alignment: .leading, spacing: 16) {
             welcomeRows
             // A lazy history container can remeasure indefinitely when the keyboard
             // changes the viewport. On a physical iPad, the same eight-entry archive
             // (table and PDF/CSV attachments) froze before send at ~100% CPU; changing
             // only this container to VStack kept input and submission responsive.
-            // Do not restore deferred layout here without that device regression.
-            VStack(alignment: .leading, spacing: 16) {
-                messageRows(rows[..<historyEnd], targets: targets)
-            }
-            // New messages, streaming content and the tail retain measured positions
-            // before an explicit follow-to-bottom request (including older iOS).
-            messageRows(rows[historyEnd...], targets: targets)
+            // Keep one ForEach identity domain, too: appending a turn must not move
+            // existing messages between history/recent containers during tail layout.
+            // Do not restore deferred layout here without the device regression.
+            messageRows(rows[...], targets: targets)
             tailRows
         }
         .padding(.vertical, 4)
