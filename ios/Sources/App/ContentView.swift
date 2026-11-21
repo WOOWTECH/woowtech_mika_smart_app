@@ -1044,17 +1044,24 @@ private struct ChatView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if showsReturnToLatest && (!session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil) {
-                Button {
-                    cancelScrollSettle()
-                    updateFollow { $0.userRequestedLatest() }
-                    scrollToTailRequest += 1
-                } label: {
-                    Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
+                // A landscape keyboard plus a multiline draft and notice can
+                // leave less height than this button. The transcript must stay
+                // clipped, so defer the overlay until the whole control fits.
+                // As an overlay this does not change the transcript's geometry.
+                ViewThatFits(in: .vertical) {
+                    Button {
+                        cancelScrollSettle()
+                        updateFollow { $0.userRequestedLatest() }
+                        scrollToTailRequest += 1
+                    } label: {
+                        Label(localizer.text(.shellReturnToLatest), systemImage: "arrow.down")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accent)
+                    .accessibilityIdentifier("chat.returnToLatest")
+                    .padding(12)
+                    Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accent)
-                .accessibilityIdentifier("chat.returnToLatest")
-                .padding(12)
             }
         }
     }
