@@ -606,6 +606,7 @@ private struct ChatView: View {
     @State private var scrollToTailRequest = 0
     @State private var scrollSettleTask: Task<Void, Never>?
     @State private var scheduledSettleRevision: Int?
+    @State private var viewportSettleTask: Task<Void, Never>?
     private var palette: MikaVisualPalette { MikaVisualPalette(colorScheme) }
     private var webTaskColors: ChatWebTaskColors {
         ChatWebTaskColors(ink: palette.ink, secondaryInk: palette.secondaryInk, accent: palette.accent,
@@ -652,6 +653,18 @@ private struct ChatView: View {
         scrollSettleTask?.cancel()
         scrollSettleTask = nil
         scheduledSettleRevision = nil
+    }
+
+    private func keyboardViewportWillChange() {
+        viewportSettleTask?.cancel()
+        updateFollow { $0.beginViewportTransition() }
+        let duration = keyboardDock.animationDuration + 0.1
+        viewportSettleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            if updateFollow({ $0.finishViewportTransition() }) { scrollToTailRequest += 1 }
+            viewportSettleTask = nil
+        }
     }
 
     /// Notices, the copying caption and the tray above the input bar (Android ChatScreen).
@@ -1028,6 +1041,7 @@ private struct ChatView: View {
         }
         .onChange(of: session.conversationID) { _, _ in
             cancelScrollSettle()
+            viewportSettleTask?.cancel(); viewportSettleTask = nil
             updateFollow { $0.conversationChanged() }
             if !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
@@ -1361,6 +1375,12 @@ private struct ChatView: View {
             .onDisappear { voice.cancel() }
             .onChange(of: session.conversationID) { _, _ in voice.cancel() }
             .onChange(of: session.isSubmitting) { _, submitting in if submitting { voice.cancel() } }
+            .onReceive(keyboardDock.$frameInWindow) { _ in keyboardViewportWillChange() }
+            .onChange(of: showsAttachPanel) { _, _ in keyboardViewportWillChange() }
+            .onDisappear {
+                viewportSettleTask?.cancel(); viewportSettleTask = nil
+                _ = updateFollow { $0.finishViewportTransition() }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { voice.cancel(interrupted: true) }
             }

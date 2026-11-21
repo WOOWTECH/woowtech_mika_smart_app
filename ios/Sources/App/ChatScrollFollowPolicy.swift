@@ -23,6 +23,7 @@ struct ChatScrollFollowPolicy {
     private var previous: ChatTranscriptViewport?
     private var isDragging = false
     private var isSettling = false
+    private var isViewportTransitioning = false
     private var deliberatelyReadingEarlier = false
     private var draggedTowardEarlier = false
     private var draggedTowardLatest = false
@@ -39,7 +40,8 @@ struct ChatScrollFollowPolicy {
 
     var pendingSettleRevision: Int? { isSettling ? movementRevision : nil }
     var needsTailScroll: Bool {
-        guard followsTail, !isDragging, !isSettling, let previous, previous.isValid else { return false }
+        guard followsTail, !isDragging, !isSettling, !isViewportTransitioning,
+              let previous, previous.isValid else { return false }
         return previous.bottomY - previous.viewportHeight > Self.tailArrivalTolerance
     }
 
@@ -122,6 +124,21 @@ struct ChatScrollFollowPolicy {
         movementRevision += 1
     }
 
+    /// Only a known keyboard/panel transition starts this hold, never geometry.
+    /// UIKit can adjust the content offset after reporting the new viewport.
+    /// That movement must not masquerade as the reader scrolling upward.
+    mutating func beginViewportTransition() { isViewportTransitioning = true }
+
+    /// One bounded follow opportunity after the external transition settles.
+    /// Explicit dragging and an existing earlier-reading hold remain authoritative.
+    mutating func finishViewportTransition() -> Bool {
+        guard isViewportTransitioning else { return false }
+        isViewportTransitioning = false
+        guard followsTail, !isDragging, !isSettling else { return false }
+        tailScrollsWithoutGrowth = 0
+        return true
+    }
+
     /// Returns whether the caller should scroll to the transcript's tail.
     mutating func observe(_ current: ChatTranscriptViewport, hasTranscript: Bool = true) -> Bool {
         let wanted = wantsTailScroll(current, hasTranscript: hasTranscript)
@@ -156,7 +173,7 @@ struct ChatScrollFollowPolicy {
         // Do not record their geometry: the first real message starts fresh.
         guard hasTranscript, current.isValid else { return false }
         defer { previous = current }
-        guard let previous else { return followsTail && !isDragging && !isSettling }
+        guard let previous else { return followsTail && !isDragging && !isSettling && !isViewportTransitioning }
         let oldOffset = previous.contentHeight - previous.bottomY
         let newOffset = current.contentHeight - current.bottomY
         let moved = abs(newOffset - oldOffset) > 0.5
@@ -164,6 +181,7 @@ struct ChatScrollFollowPolicy {
         let viewportChanged = abs(current.viewportHeight - previous.viewportHeight) > 0.5
         if isSettling && (moved || viewportChanged) { movementRevision += 1 }
         if isDragging || isSettling { return false }
+        if isViewportTransitioning { return false }
         // Subtracting bottomY from contentHeight cancels growth that occurs in
         // the same layout pass. A smaller offset means the visible origin moved
         // toward earlier content, even if the transcript also grew. Never let
@@ -193,6 +211,7 @@ struct ChatScrollFollowPolicy {
         tailScrollsWithoutGrowth = 0
         isDragging = false
         isSettling = false
+        isViewportTransitioning = false
         deliberatelyReadingEarlier = false
         draggedTowardEarlier = false
         draggedTowardLatest = false
@@ -200,5 +219,9 @@ struct ChatScrollFollowPolicy {
         movementRevision += 1
     }
 
-    mutating func userSubmitted() { conversationChanged() }
+    mutating func userSubmitted() {
+        let transitioning = isViewportTransitioning
+        conversationChanged()
+        isViewportTransitioning = transitioning
+    }
 }
