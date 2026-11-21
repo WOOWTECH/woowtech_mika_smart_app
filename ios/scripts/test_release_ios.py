@@ -337,8 +337,8 @@ class BuildTests(unittest.TestCase):
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"
                 if "otool" in args: return b"Load command 1\ncmd LC_BUILD_VERSION\nplatform IOS\nminos 17.0\nsdk 26.2\n"
-                if "--extract-certificates" in args:
-                    Path(args[3] + "0").write_bytes(CERT)
+                if len(args) == 4 and args[2].startswith("--extract-certificates="):
+                    Path(args[2].split("=", 1)[1] + "0").write_bytes(CERT)
                 return b""
             for signed in [False, True]:
                 with self.subTest(signed=signed), patch.object(release, "run", side_effect=fake_run):
@@ -375,8 +375,8 @@ class BuildTests(unittest.TestCase):
             def fake_run(args, label, **kwargs):
                 if "lipo" in args: return b"arm64"
                 if "otool" in args: return b"Load command 1\ncmd LC_BUILD_VERSION\nplatform IOS\nminos 17.0\nsdk 26.2\n"
-                if "--extract-certificates" in args:
-                    Path(args[3] + "0").write_bytes(CERT)
+                if len(args) == 4 and args[2].startswith("--extract-certificates="):
+                    Path(args[2].split("=", 1)[1] + "0").write_bytes(CERT)
                 return b""
             with patch.object(release, "run", side_effect=fake_run):
                 self.assertTrue(release.verify_app(app, signed=True, identity=DIGEST)["signature_verified"])

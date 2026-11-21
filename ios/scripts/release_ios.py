@@ -281,7 +281,9 @@ def verify_app(app, signed=False, identity=None, expected_build_number=None):
         # actual certificate used by this build, not merely an intact seal.
         with tempfile.TemporaryDirectory(prefix="woow-cert-check-") as directory:
             prefix = str(Path(directory) / "cert")
-            run(["codesign", "-d", "--extract-certificates", prefix, str(app)], "驗證簽章憑證")
+            # The optional long-option value must use '='; a separate prefix
+            # is interpreted by codesign as another code path to inspect.
+            run(["codesign", "-d", "--extract-certificates=" + prefix, str(app)], "驗證簽章憑證")
             leaf = Path(prefix + "0")
             if not identity or not leaf.is_file() or hashlib.sha1(leaf.read_bytes()).hexdigest().upper() != identity:
                 raise ReleaseError("App 未使用指定 distribution 憑證簽章。")
