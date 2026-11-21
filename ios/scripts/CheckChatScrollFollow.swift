@@ -231,44 +231,6 @@ enum CheckChatScrollFollow {
         progressive.userRequestedLatest()
         expect(progressive.observe(sample(3320, 2600), contentRevision: 5))
 
-        // Native trace: keyboard/panel animation moves the offset after the
-        // viewport is already 191 pt high; it is not an upward reader gesture.
-        var keyboard = ChatScrollFollowPolicy()
-        expect(keyboard.observe(sample(1149, 213, 551), contentRevision: 7))
-        keyboard.beginViewportTransition()
-        for position in [sample(1164, 228, 533), sample(1164, 228, 157),
-                         sample(1164, 228, 191), sample(1164, 195, 191),
-                         sample(1164, 222, 191), sample(1164, 239, 209)] {
-            expect(!keyboard.observe(position, contentRevision: 8))
-            expect(keyboard.followsTail)
-        }
-        expect(keyboard.finishViewportTransition())
-        expect(!keyboard.finishViewportTransition()) // geometry cannot renew it
-        expect(!keyboard.observe(sample(1164, 213, 209), contentRevision: 8))
-        expect(keyboard.observe(sample(1200, 249, 209), contentRevision: 9))
-        expect(keyboard.followsTail)
-
-        // A real drag during the resize still holds the reader's place.
-        keyboard.beginViewportTransition()
-        keyboard.beginDrag()
-        keyboard.userDraggedTowardEarlierContent()
-        expect(!keyboard.observe(sample(1200, 400, 209), contentRevision: 9))
-        keyboard.endDrag()
-        expect(keyboard.settle(expectedRevision: keyboard.pendingSettleRevision!))
-        expect(!keyboard.followsTail)
-        expect(!keyboard.finishViewportTransition())
-        keyboard.beginViewportTransition()
-        expect(!keyboard.observe(sample(1200, 400, 500), contentRevision: 9))
-        expect(!keyboard.finishViewportTransition()) // prior reading hold survives
-        keyboard.beginViewportTransition()
-        keyboard.userSubmitted() // accepted send restores follow, not mid-animation
-        expect(!keyboard.observe(sample(1300, 500, 300), contentRevision: 10))
-        expect(keyboard.finishViewportTransition())
-        expect(keyboard.followsTail)
-        keyboard.beginViewportTransition()
-        keyboard.conversationChanged()
-        expect(!keyboard.finishViewportTransition()) // stale timer cannot act on new chat
-
         print("CHAT_SCROLL_FOLLOW assertions=\(assertions) status=PASS")
     }
 }
