@@ -46,6 +46,9 @@ try {
   assert.match(privacy, /io\.woowtech\.assistant/);
   assert.match(privacy, /woowtech@designsmart\.com\.tw/);
   assert.match(privacy, /30 days/);
+  for (const text of ['xAI', 'OpenRouter', 'Connect a computer (remote gateway)', '連接電腦（遠端閘道）', 'Generating, saving and sharing documents', '產生、儲存及分享文件', 'November 21, 2026']) assert.ok(privacy.includes(text), text);
+  assert.ok(page.includes('remote access must then be enabled in the app'));
+  assert.doesNotMatch(page, /does not use this site's sign-in/);
   assert.doesNotMatch(privacy, /OWNER_KEY|REPORT_ADMIN_KEY/);
   for (const text of ['渥屋助理（woowtech agent）隱私權政策', 'woowtech agent (渥屋助理) Privacy Policy', 'WOOW TECH CO., LTD.',
     '自動記住我說過的事', 'Remember what I say', '使用 ChatGPT 繼續', 'Continue with ChatGPT', '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>'])
@@ -55,6 +58,25 @@ try {
   assert.equal(response.status, 200, 'privacy policy answers HEAD for link checkers');
   assert.match(response.headers.get('content-type'), /text\/html/);
   assert.equal(await response.text(), '');
+
+  response = await fetch(origin + '/privacy/ios', { headers: { host: 'assistant-relay.woowtech.io' } });
+  assert.equal(response.status, 200, 'iOS privacy policy works without sign-in');
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.match(response.headers.get('content-security-policy'), /style-src 'self'/);
+  const iosPrivacy = await response.text();
+  for (const text of ['渥屋助理（woowtech agent）iOS 隱私權政策', 'woowtech agent (渥屋助理) iOS Privacy Policy', 'WOOW TECH CO., LTD.',
+    'woowtech@designsmart.com.tw', '從做過的事裡學（技能和操作路線）', 'Learn from past tasks (skills and routes)',
+    '<h2>刪除資料</h2>', '<h2>Deleting your data</h2>', '<link rel="stylesheet" href="/privacy/ios.css">'])
+    assert.ok(iosPrivacy.includes(text), 'iOS privacy policy covers: ' + text);
+  assert.doesNotMatch(iosPrivacy, /<style|<script|<!--|OWNER_KEY|REPORT_ADMIN_KEY|ChatGPT|Baidu|百度/,
+    'no inline style or script, no draft notes, no feature the iOS 1.0 app lacks');
+  response = await fetch(origin + '/privacy/ios', { method: 'HEAD', headers: { host: 'assistant-relay.woowtech.io' } });
+  assert.equal(response.status, 200, 'iOS privacy policy answers HEAD for link checkers');
+  assert.equal(await response.text(), '');
+  response = await fetch(origin + '/privacy/ios.css', { headers: { host: 'assistant-relay.woowtech.io' } });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/css/);
+  assert.match(await response.text(), /^body\{.*ul\{margin:\.6em 0;padding-left:1\.4em\}li\{margin:\.25em 0\}$/s);
 
   const reportId = '123e4567-e89b-42d3-a456-426614174000';
   const reportBody = { id: reportId, reason: 'incorrect', note: 'test note', response: 'test response', created_at_ms: Date.now() };
@@ -157,7 +179,7 @@ try {
   assert.equal(response.status, 204);
   response = await fetch(origin + "/device", { headers: { host: "assistant-relay.woowtech.io", authorization: `Bearer ${paired.deviceToken}` } });
   assert.equal(response.status, 401);
-  console.log("PASS: page security, Play privacy policy (GET/HEAD), report intake/deletion/per-IP limit, owner auth, concurrent single-use pairing, offline/online state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
+  console.log("PASS: page security, Play privacy policy (GET/HEAD), iOS privacy policy (GET/HEAD/CSS), report intake/deletion/per-IP limit, owner auth, concurrent single-use pairing, offline/online state, mika-relay.v2 forwarding, transparent 502/504/204, cross-origin rejection, body limit, device revoke");
 } finally {
   child?.kill("SIGTERM");
   if (child) await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 3000))]);

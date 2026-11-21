@@ -5,6 +5,7 @@ import cliLicense from '../downloads/LICENSE.txt';
 import appIntegration from '../docs/app-integration.md';
 import { ReportInbox } from './reports';
 import { privacyPlayHtml, privacyPlayCss } from './privacy-play';
+import { privacyIosHtml, privacyIosCss } from './privacy-ios';
 export { AccountAuth };
 export { ReportInbox };
 
@@ -125,8 +126,8 @@ function html(message = "", code = "", bad = false): string {
   return `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#6183FC"><title>渥屋助理遠端中繼</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head><body><header><div><span class="brand">woowtech</span><span>遠端中繼</span></div></header><main><section class="hero"><p class="eyebrow">The Smart Space Solution</p><h1>連接你的渥屋助理</h1><p>沿用 Mika 的遠端流程，透過 WoowTech 自有中繼安全地連接手機。</p></section>${notice}${pairing}<section class="card endpoint"><h2>手機要填的閘道位址</h2><code>${ORIGIN}</code><p>渥屋助理 → 設定 → 連接電腦 → 遠端。配對後仍須另外開啟遠端存取。</p></section><section class="card"><h2>管理手機配對</h2><form id="admin" action="/admin" method="post"><label for="owner">管理金鑰</label><input id="owner" name="owner_key" type="password" required autocomplete="current-password"><p>管理金鑰只用來產生配對碼與撤銷裝置，不是手機存取權杖。</p><div class="actions"><button name="action" value="status">查詢手機狀態</button><button name="action" value="pair">產生配對碼</button><button class="secondary" id="revoke" name="action" value="revoke">解除手機配對</button><input id="confirm" type="hidden" name="confirm" value=""></div></form></section><section class="grid"><article class="card"><h2>電腦端</h2><p>MCP 端點是 <code>${ORIGIN}/mcp</code>。Authorization 使用手機提供的存取權杖，不能填配對碼或管理金鑰。</p></article><article class="card"><h2>斷線處理</h2><p>網路中斷會重連；手機關閉遠端存取則停止重連。收到 delivery_unknown 時先查任務，避免重複執行修改操作。</p></article></section><section class="card privacy"><h2>資料與隱私</h2><p>HTTPS/WSS 在這個中繼終止，中繼技術上可讀取轉送的標頭、任務與結果；它不是電腦到手機的端對端加密。離線請求不排隊，重新連線不自動重送。</p></section><footer>單一管理者 · 單一手機 · WoowTech 自有中繼</footer></main></body></html>`;
 }
 
-// Top of the signed-out homepage: the Google Play package only sends AI response reports here.
-const PLAY_NOTE = `<section class="play-note"><p>Google Play 上的渥屋助理（io.woowtech.assistant）沒有自己的帳號，也不使用本站的登入或遠端手機連線；它只用這個服務傳送 AI 回覆檢舉。隱私權政策：<a href="/privacy/play">/privacy/play</a></p><p lang="en">The Google Play app woowtech agent (io.woowtech.assistant) has no accounts of its own and does not use this site's sign-in or remote phone connection; it only uses this service to send AI response reports. Privacy policy: <a href="/privacy/play">/privacy/play</a></p></section>`;
+// Signed-out homepage: reports and optional computer pairing for current Play releases.
+const PLAY_NOTE = `<section class="play-note"><p>Google Play 上的渥屋助理（io.woowtech.assistant）使用本站的 AI 回覆檢舉服務；支援「連接電腦」的版本也可選擇登入本站並配對，以轉送對話任務。配對後仍須在 App 開啟遠端存取。隱私權政策：<a href="/privacy/play">/privacy/play</a></p><p lang="en">The Google Play app woowtech agent (io.woowtech.assistant) uses this site for AI response reports. Versions with Connect a computer can also optionally sign in and pair here to forward conversation tasks; remote access must then be enabled in the app. Privacy policy: <a href="/privacy/play">/privacy/play</a></p></section>`;
 
 function accountPage(message='',code='',tenant=''):string {
  const page=html(message,code);
@@ -154,6 +155,11 @@ export default {
       return security(new Response(request.method === 'HEAD' ? null : privacyPlayHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
     if (url.pathname === '/privacy/play.css' && request.method === 'GET')
       return security(new Response(privacyPlayCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
+    // The App Store iOS app links here from its consent screen and About page.
+    if (url.pathname === '/privacy/ios' && (request.method === 'GET' || request.method === 'HEAD'))
+      return security(new Response(request.method === 'HEAD' ? null : privacyIosHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+    if (url.pathname === '/privacy/ios.css' && request.method === 'GET')
+      return security(new Response(privacyIosCss, { headers: { 'content-type': 'text/css; charset=utf-8' } }));
     if (url.pathname === '/api/v1/ai-reports' || /^\/api\/v1\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname) || url.pathname === '/admin/ai-reports' || /^\/admin\/ai-reports\/[0-9a-f-]+$/i.test(url.pathname)) {
       if (request.headers.has('origin')) return security(failure(403, 'browser_not_allowed', true));
       const admin = url.pathname.startsWith('/admin/');
