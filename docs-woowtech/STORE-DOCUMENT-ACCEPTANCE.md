@@ -3,7 +3,7 @@
 This candidate integrates the existing shared HTML/PDF/CSV implementation into both Play package IDs:
 `io.woowtech.assistant` and `com.apporo.assistant.play`. It is based on Play alignment commit `7cb0abf9`, with
 Apporo's flavor and identity restored from `6dc10a4e` and `b0e762c1`. Package IDs, version sequences and signing
-configuration remain unchanged. It is not a Google Play publication.
+configuration remain unchanged in the original acceptance build. The subsequent signed release submission is recorded below; submission is not Google approval or delivery to a device.
 
 ## One shared implementation
 
@@ -80,3 +80,20 @@ this report or the repository. Source fingerprints, build logs and test XML iden
 This does not claim Play delivery/signing, store approval, iOS acceptance, all third-party spreadsheet compatibility,
 or external contact/cloud delivery. The store integration owner retains responsibility for the final channel/build
 matrix, version bump, signing and publication.
+
+
+## Signed production update submission — 2026-11-21
+
+Release source: `3db759327eaa67327d01cd03eefbd8ec69a09ac2` (only version metadata changed after the device acceptance source). WOOWTECH is `io.woowtech.assistant`, version `0.1.37-play.4`, code 4. Apporo is `com.apporo.assistant.play`, version `0.1.37-play.2`, code 2.
+
+Both release AABs were signed with their existing upload keys and accepted by Google Play Console. `jarsigner`, `bundletool validate`, certificate comparison, manifest identity/version/debuggable checks, 16 KB page alignment and excluded direct-channel components all passed. No Linux runtime assets, accessibility/phone-control/sandbox services or direct APK-install/all-packages/overlay/all-files permissions were found. Targeted `*Play*Test` checks passed 6/6 on each brand. An initial incorrectly scoped Gradle invocation also ran the broader WOOW suite and failed 17 direct-only/known locale expectations; its log and results are retained, not reported as a full-suite pass.
+
+- WOOW AAB SHA-256: `4b98a21edf1d26e71306990d1801d52ce6584f9c7f6bccde2288a76ac11a162e`.
+- Apporo AAB SHA-256: `82be354fbac7beb433da0c3c2cd82c733457437a3dc3800b8a4a9dea1df74d94`.
+- Private artifact/certificate/manifest receipts: `~/.local/share/woowtech-mika/release/document-update-20261121/verified-bundles.json`.
+
+Both production updates were submitted for 100% rollout within their existing countries. Console showed the submitted versions under review changes, with automated pre-review checks still running. Nonblocking warnings concern missing mapping/native debug-symbol files. The previously entered WOOW app-access instructions were preserved. Screenshots and text are in `build/store-document-acceptance/*submission.*`.
+
+The public Android privacy notices and homepage descriptions were updated from source `dbcc2b37` on `release/play-privacy-20261121` for optional xAI/OpenRouter login, relay access and locally generated/exported documents. Both Workers passed type checks and smoke tests. Production policy content, unchanged iOS policy content, GET/HEAD/CSS, health, reviewer video and existing OAuth redirect paths were checked. Deployments: WOOW `a70a9ae8-2dca-4406-a7e2-5a01218e8d56`; Apporo `449225d5-c10d-4ea1-9ed8-de40d951fd22`. Private receipts are in `assistant-play-privacy-20261121/build/privacy-release/`.
+
+POCO still holds the earlier store-channel debug acceptance APKs. Google Play's distribution signing and download/update path have not been validated on POCO; no existing package/data was removed to change signatures. Approval and availability remain controlled by Google.
