@@ -1053,7 +1053,7 @@ final class WoowAssistantUITests: XCTestCase {
         // Like the Play build's optional access token: checked, saved, never shown.
         let token = app.secureTextFields["mcp.token"]
         revealMCP(token, in: app, upward: false)
-        enter("two words", into: token)
+        enter("two words", into: token, submit: false)
         assertKeyboardDoneDismisses("mcp.dismissKeyboard", in: app)
         revealMCP(app.buttons["mcp.save"], in: app)
         app.buttons["mcp.save"].tap()
@@ -1144,11 +1144,11 @@ final class WoowAssistantUITests: XCTestCase {
         let nameField = app.textFields["mcp.add.name"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
         revealMCP(nameField, in: app, upward: false)
-        enter(name, into: nameField)
+        enter(name, into: nameField, submit: !checkKeyboardDone)
         if checkKeyboardDone { assertKeyboardDoneDismisses("mcp.dismissKeyboard", in: app) }
         let endpointField = app.secureTextFields["mcp.add.endpoint"]
         revealMCP(endpointField, in: app)
-        enter(endpoint, into: endpointField)
+        enter(endpoint, into: endpointField, submit: !checkKeyboardDone)
         // The field keeps all of it: in CI run 44332295841 iOS covered it with
         // Automatic Strong Password and only one character stayed.
         let typed = XCTNSPredicateExpectation(
@@ -1291,7 +1291,7 @@ final class WoowAssistantUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [typed], timeout: 10), .completed)
     }
 
-    private func enter(_ text: String, into field: XCUIElement) {
+    private func enter(_ text: String, into field: XCUIElement, submit: Bool = true) {
         waitUntilHittable(field)
         // On iPad (runs 43606357170 and 43649836107) a tap on the 自訂 address
         // field that had just appeared sometimes left it unfocused, and typing
@@ -1301,7 +1301,8 @@ final class WoowAssistantUITests: XCTestCase {
         let keyboardWasUp = keyboard.exists
         field.tap()
         if !keyboardWasUp && !keyboard.waitForExistence(timeout: 5) && field.isHittable { field.tap() }
-        field.typeText(text + "\n")
+        // A Done-bar check must keep focus until it taps the bar itself.
+        field.typeText(text + (submit ? "\n" : ""))
     }
 
     private func enterChatDraft(_ text: String, in app: XCUIApplication) {
