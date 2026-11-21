@@ -930,7 +930,7 @@ private struct ChatView: View {
             // bar while the list was scrolled to its end. Older messages keep one
             // LazyVStack throughout, so the first message never swaps the list.
             welcomeRows
-            LazyVStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 messageRows(rows[..<lazyEnd], targets: targets)
             }
             // The latest messages, the reply on its way and the tail stay out of
