@@ -573,6 +573,7 @@ private struct ChatView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var messageFontSize: CGFloat = 15.5
     @StateObject private var voice = ChatVoiceViewModel()
     #if DEBUG
     @ObservedObject private var voiceFixture = VoiceUITestFixture.shared
@@ -741,7 +742,7 @@ private struct ChatView: View {
         return HStack {
             if user { Spacer(minLength: 40) }
             bubbleText(user: user, words: words, reply: reply)
-                .font(.system(size: 15.5))
+                .font(.system(size: messageFontSize))
                 .lineSpacing(user ? 1 : 4)
                 .foregroundStyle(user ? Color.white : palette.ink)
                 .accessibilityIdentifier("chat.message.\(index).\(entry.role)")
@@ -971,7 +972,7 @@ private struct ChatView: View {
         if let preview = session.replyPreview {
             // Like Play's DraftText: the reply grows in place, without a status line.
             Text(ChatReplyMarkdown.render(preview.text, streaming: true))
-                .font(.system(size: 15.5)).lineSpacing(4)
+                .font(.system(size: messageFontSize)).lineSpacing(4)
                 .foregroundStyle(palette.ink).textSelection(.enabled)
                 .accessibilityIdentifier("chat.partialReply")
                 .frame(maxWidth: .infinity, alignment: .leading)

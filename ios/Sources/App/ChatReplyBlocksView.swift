@@ -7,6 +7,8 @@ import SwiftUI
 struct ChatReplyBlocksView: View {
     let blocks: [ChatReplyMarkdown.Block]
     let ink: Color
+    @ScaledMetric(relativeTo: .footnote) private var codeFontSize: CGFloat = 13.5
+    @ScaledMetric(relativeTo: .subheadline) private var tableFontSize: CGFloat = 14.5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -17,7 +19,7 @@ struct ChatReplyBlocksView: View {
                 case .code(let lines):
                     ScrollView(.horizontal, showsIndicators: false) {
                         Text(verbatim: lines.joined(separator: "\n"))
-                            .font(.system(size: 13.5, design: .monospaced))
+                            .font(.system(size: codeFontSize, design: .monospaced))
                             .fixedSize(horizontal: true, vertical: true)
                             .padding(.horizontal, 12).padding(.vertical, 10)
                     }
@@ -54,7 +56,7 @@ struct ChatReplyBlocksView: View {
     /// pass inside the lazy transcript). A wide table scrolls sideways.
     private func cell(_ text: AttributedString, heading: Bool) -> some View {
         Text(text)
-            .font(.system(size: 14.5, weight: heading ? .semibold : .regular))
+            .font(.system(size: tableFontSize, weight: heading ? .semibold : .regular))
             .fixedSize()
             .frame(minWidth: 56, alignment: .leading)
             .padding(.horizontal, 10).padding(.vertical, 7)
