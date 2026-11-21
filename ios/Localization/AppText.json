@@ -6343,8 +6343,36 @@
         }
       ],
       "translations": {
+        "zh-Hant": "沒能新增：%1$@",
+        "en": "Couldn’t add: %1$@"
+      }
+    },
+    {
+      "case": "chatAttachTooLarge",
+      "key": "chat.attach.tooLarge",
+      "parameters": [
+        {
+          "name": "names",
+          "type": "String"
+        }
+      ],
+      "translations": {
         "zh-Hant": "沒能新增：%1$@（單個檔案不超過 200 MB）",
         "en": "Couldn’t add: %1$@ (each file must be 200 MB or less)"
+      }
+    },
+    {
+      "case": "chatAttachInsufficientSpace",
+      "key": "chat.attach.insufficientSpace",
+      "parameters": [
+        {
+          "name": "names",
+          "type": "String"
+        }
+      ],
+      "translations": {
+        "zh-Hant": "沒能新增：%1$@。裝置儲存空間不足，請騰出空間後再試。",
+        "en": "Couldn’t add: %1$@. There isn’t enough storage on this device. Free up space and try again."
       }
     },
     {

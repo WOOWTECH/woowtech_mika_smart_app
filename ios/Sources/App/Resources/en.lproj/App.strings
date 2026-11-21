@@ -661,7 +661,9 @@
 "chat.attach.remove" = "Remove %1$@";
 "chat.attach.full" = "Up to %1$lld attachments at a time";
 "chat.attach.overLimit" = "Up to %1$lld attachments at a time; %2$lld more were not added";
-"chat.attach.refused" = "Couldn’t add: %1$@ (each file must be 200 MB or less)";
+"chat.attach.refused" = "Couldn’t add: %1$@";
+"chat.attach.tooLarge" = "Couldn’t add: %1$@ (each file must be 200 MB or less)";
+"chat.attach.insufficientSpace" = "Couldn’t add: %1$@. There isn’t enough storage on this device. Free up space and try again.";
 "settings.seesImages" = "Can see images";
 "settings.seesImages.unconfirmed" = "Not confirmed: turn this on if it can see images, and photos attached in chat go straight to it.";
 "settings.seesImages.user" = "As you set it. When on, photos attached in chat go straight to the main model.";

@@ -673,6 +673,8 @@ enum AppText: Equatable {
     case chatAttachFull(limit: Int)
     case chatAttachOverLimit(limit: Int, count: Int)
     case chatAttachRefused(names: String)
+    case chatAttachTooLarge(names: String)
+    case chatAttachInsufficientSpace(names: String)
     case settingsSeesImages
     case settingsSeesImagesUnconfirmed
     case settingsSeesImagesUser
@@ -1729,6 +1731,8 @@ enum AppText: Equatable {
         case .chatAttachFull: return "chat.attach.full"
         case .chatAttachOverLimit: return "chat.attach.overLimit"
         case .chatAttachRefused: return "chat.attach.refused"
+        case .chatAttachTooLarge: return "chat.attach.tooLarge"
+        case .chatAttachInsufficientSpace: return "chat.attach.insufficientSpace"
         case .settingsSeesImages: return "settings.seesImages"
         case .settingsSeesImagesUnconfirmed: return "settings.seesImages.unconfirmed"
         case .settingsSeesImagesUser: return "settings.seesImages.user"
@@ -2166,6 +2170,8 @@ enum AppText: Equatable {
         case .chatAttachFull(let limit): return [Int64(limit)]
         case .chatAttachOverLimit(let limit, let count): return [Int64(limit), Int64(count)]
         case .chatAttachRefused(let names): return [names]
+        case .chatAttachTooLarge(let names): return [names]
+        case .chatAttachInsufficientSpace(let names): return [names]
         case .chatAttachImagesNotSeen(let count): return [Int64(count)]
         case .chatQuotingAssistant(let text): return [text]
         case .chatQuotingYou(let text): return [text]
@@ -2901,7 +2907,9 @@ enum AppText: Equatable {
         case .chatAttachRemove: return "去掉%1$@"
         case .chatAttachFull: return "一次最多 %1$lld 個附件"
         case .chatAttachOverLimit: return "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上"
-        case .chatAttachRefused: return "沒能新增：%1$@（單個檔案不超過 200 MB）"
+        case .chatAttachRefused: return "沒能新增：%1$@"
+        case .chatAttachTooLarge: return "沒能新增：%1$@（單個檔案不超過 200 MB）"
+        case .chatAttachInsufficientSpace: return "沒能新增：%1$@。裝置儲存空間不足，請騰出空間後再試。"
         case .settingsSeesImages: return "能看圖"
         case .settingsSeesImagesUnconfirmed: return "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。"
         case .settingsSeesImagesUser: return "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。"

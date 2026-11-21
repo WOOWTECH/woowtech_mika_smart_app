@@ -120,18 +120,25 @@ enum ChatAttachmentLines {
     }
 }
 
+/// A refusal keeps its cause so small files are never described as oversized.
+struct ChatAttachmentImportFailure: Equatable, Sendable {
+    enum Reason: Equatable, Sendable { case tooLarge, insufficientSpace, unavailable }
+    let name: String
+    let reason: Reason
+}
+
 /// What happened to one batch from a picker; shown above the input bar.
 struct ChatAttachmentImportOutcome: Equatable, Sendable {
     var added: [ChatAttachmentItem] = []
-    /// Names refused for size, space or an unreadable source.
-    var refused: [String] = []
+    /// Each file retains its size, storage-space or other import failure.
+    var refused: [ChatAttachmentImportFailure] = []
     /// How many were left out because the tray was already full.
     var overflow = 0
 }
 
 enum ChatAttachmentNotice: Equatable {
     case overLimit(Int)
-    case refused([String])
+    case refused([ChatAttachmentImportFailure])
     case cameraUnavailable
     /// Photos were sent as notes only because the model is not marked "能看圖".
     case imagesNotSeen(Int)
@@ -145,6 +152,13 @@ enum ChatAttachmentNotice: Equatable {
 /// one folder per conversation like Android's per-chat inbox.
 struct ChatAttachmentStore: Sendable {
     let root: URL
+    private let availableCapacity: (@Sendable () -> Int64)?
+
+    /// Tests inject the capacity probe, never different storage limits.
+    init(root: URL, availableCapacity: (@Sendable () -> Int64)? = nil) {
+        self.root = root
+        self.availableCapacity = availableCapacity
+    }
 
     /// Same scope as the conversation archive ("personal", or an isolated UI test
     /// namespace), so test runs never touch or reveal the user's own files.
@@ -185,9 +199,17 @@ struct ChatAttachmentStore: Sendable {
                 .conforms(to: .image) == true ? "照片.jpg" : "檔案")
             if let key = file.dedupeKey ?? dedupeIdentity(name: name, size: size), seen.contains(key) { continue }
             guard room > 0 else { outcome.overflow += 1; continue }
-            guard size >= 0, size <= ChatAttachmentLimits.maximumFileBytes, freeBytes() - size >= ChatAttachmentLimits.minimumFreeBytes,
-                  conversationBytes + size <= ChatAttachmentLimits.maximumConversationBytes else {
-                outcome.refused.append(name); continue
+            guard size >= 0 else {
+                outcome.refused.append(.init(name: name, reason: .unavailable)); continue
+            }
+            guard size <= ChatAttachmentLimits.maximumFileBytes else {
+                outcome.refused.append(.init(name: name, reason: .tooLarge)); continue
+            }
+            guard freeBytes() - size >= ChatAttachmentLimits.minimumFreeBytes else {
+                outcome.refused.append(.init(name: name, reason: .insufficientSpace)); continue
+            }
+            guard conversationBytes + size <= ChatAttachmentLimits.maximumConversationBytes else {
+                outcome.refused.append(.init(name: name, reason: .unavailable)); continue
             }
             let unique = ChatAttachmentNaming.uniqued(name, taken: taken)
             let id = UUID()
@@ -197,7 +219,7 @@ struct ChatAttachmentStore: Sendable {
                 try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try manager.moveItem(at: file.temporaryURL, to: destination)
             } catch {
-                outcome.refused.append(name); continue
+                outcome.refused.append(.init(name: name, reason: .unavailable)); continue
             }
             let kind = file.dedupeKey != nil || ChatAttachmentNaming.kind(forName: unique) == .photo ? ChatAttachmentKind.photo : .file
             let item = ChatAttachmentItem(id: id, kind: kind, name: unique, byteCount: size,
@@ -258,6 +280,7 @@ struct ChatAttachmentStore: Sendable {
     }
 
     private func freeBytes() -> Int64 {
+        if let availableCapacity { return availableCapacity() }
         let values = try? root.deletingLastPathComponent()
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         return values?.volumeAvailableCapacityForImportantUsage ?? Int64.max / 2

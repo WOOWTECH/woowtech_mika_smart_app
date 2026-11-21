@@ -25,8 +25,18 @@ struct ChatAttachmentText {
     func overLimit(_ n: Int) -> String {
         localizer.text(.chatAttachOverLimit(limit: ChatAttachmentLimits.maximumCount, count: n))
     }
-    func refused(_ names: [String]) -> String {
-        localizer.text(.chatAttachRefused(names: names.joined(separator: localizer.language == .english ? ", " : "、")))
+    func refused(_ failures: [ChatAttachmentImportFailure]) -> String {
+        let reasons: [ChatAttachmentImportFailure.Reason] = [.insufficientSpace, .tooLarge, .unavailable]
+        return reasons.compactMap { reason -> String? in
+            let names = failures.filter { $0.reason == reason }.map(\.name)
+            guard !names.isEmpty else { return nil }
+            let joined = names.joined(separator: localizer.language == .english ? ", " : "、")
+            switch reason {
+            case .insufficientSpace: return localizer.text(.chatAttachInsufficientSpace(names: joined))
+            case .tooLarge: return localizer.text(.chatAttachTooLarge(names: joined))
+            case .unavailable: return localizer.text(.chatAttachRefused(names: joined))
+            }
+        }.joined(separator: "\n")
     }
     func imagesNotSeen(_ n: Int) -> String { localizer.text(.chatAttachImagesNotSeen(count: n)) }
 }
@@ -193,7 +203,7 @@ struct ChatAttachmentNoticeRow: View {
     private var message: String {
         switch notice {
         case .overLimit(let n): return text.overLimit(n)
-        case .refused(let names): return text.refused(names)
+        case .refused(let failures): return text.refused(failures)
         case .cameraUnavailable: return text.noCamera
         case .imagesNotSeen(let n): return text.imagesNotSeen(n)
         case .trayFull: return text.full()

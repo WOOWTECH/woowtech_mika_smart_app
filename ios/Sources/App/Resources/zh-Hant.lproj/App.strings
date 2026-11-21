@@ -661,7 +661,9 @@
 "chat.attach.remove" = "去掉%1$@";
 "chat.attach.full" = "一次最多 %1$lld 個附件";
 "chat.attach.overLimit" = "一次最多 %1$lld 個附件，另外 %2$lld 個沒加上";
-"chat.attach.refused" = "沒能新增：%1$@（單個檔案不超過 200 MB）";
+"chat.attach.refused" = "沒能新增：%1$@";
+"chat.attach.tooLarge" = "沒能新增：%1$@（單個檔案不超過 200 MB）";
+"chat.attach.insufficientSpace" = "沒能新增：%1$@。裝置儲存空間不足，請騰出空間後再試。";
 "settings.seesImages" = "能看圖";
 "settings.seesImages.unconfirmed" = "未確認：它能看圖就打開，聊天附上的圖片會直接交給它看。";
 "settings.seesImages.user" = "按你的設定。打開時，聊天附上的圖片會直接交給主模型看。";
