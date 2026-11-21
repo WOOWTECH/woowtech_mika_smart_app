@@ -90,6 +90,99 @@ final class ChatAttachmentUITests: XCTestCase {
         assertRecentTitle("照片和檔案")
     }
 
+    /// Synthetic PNG/TXT attachments and fixed model replies through the real UI/session.
+    /// This covers the six-entry boundary, not the physical iPad PDF/CSV reproduction.
+    func testSixEntryTranscriptAcceptsFourthTurnWithKeyboardAttachmentsAndMemory() {
+        launch(attachments: true); configure()
+        addFixtureAttachments()
+        let files = sendFixtureTurn("Boundary files", userIndex: 0)
+        assertContains(files, "收到附件 1 個（圖片 0）")
+        XCTAssertTrue(identifiedText("chat.message.0.attachments").exists)
+        tap("chat.attach.notice.dismiss")
+
+        let table = sendFixtureTurn("**Boundary table**\n\n| Item | Value |\n| --- | --- |\n| Tea | 42 |\n\n",
+                                    userIndex: 2, expectedReply: "測試回覆：Boundary table")
+        ready(table)
+        // Rich tables keep their source rows in the combined AX label; inline bold is formatted.
+        assertContains(table, "| Tea | 42 |")
+        XCTAssertFalse(table.label.contains("**Boundary table**"))
+        sendFixtureTurn("[fixture:remember] 我喜歡喝茶", userIndex: 4)
+        let note = app.staticTexts["chat.memoryNote.0"].firstMatch
+        assertContains(note, "用戶喜歡喝茶")
+        XCTAssertFalse(identifiedText("chat.message.6.user").exists, "Three completed turns are six entries")
+
+        let draft = chatDraftControl(in: app)
+        let fourth = "Boundary fourth"
+        write(fourth, field: draft, scroll: false)
+        cycleAttachmentPanelKeepingDraft(fourth)
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        XCTAssertTrue(transcript.waitForExistence(timeout: 10))
+        ready(note)
+        XCTAssertFalse(note.frame.isEmpty)
+        XCTAssertTrue(app.frame.contains(note.frame))
+        XCTAssertLessThanOrEqual(note.frame.maxY, transcript.frame.minY,
+                                 "The real learning header must be visible when crossing six entries")
+        // Send with the keyboard up. The ordinary fixture may finish before AX observes seven alone.
+        tap("chat.send")
+        assertLabel(identifiedText("chat.message.6.user"), fourth)
+        let completed = completedFixtureReply(userIndex: 6, containing: "測試回覆：" + fourth)
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            completed.exists && completed.isHittable && !completed.frame.isEmpty
+                && transcript.frame.contains(completed.frame)
+                && completed.frame.maxY <= mikaUnobscuredBottom(in: self.app)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 10), .completed,
+                       "The eighth entry must be a visible completed reply without a recovery scroll")
+
+        // A fresh edit and two native panel transitions prove interaction after completion.
+        write("Still responsive", field: draft, scroll: false)
+        cycleAttachmentPanelKeepingDraft("Still responsive")
+        assertContains(completed, "測試回覆：" + fourth)
+        XCTAssertFalse(identifiedText("chat.message.8.user").exists, "The post-completion draft stays unsent")
+        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+    }
+
+    @discardableResult
+    private func sendFixtureTurn(_ prompt: String, userIndex: Int, expectedReply: String? = nil) -> XCUIElement {
+        write(prompt, field: chatDraftControl(in: app), scroll: false)
+        tap("chat.dismissKeyboard"); tap("chat.send")
+        return completedFixtureReply(userIndex: userIndex, containing: expectedReply ?? "測試回覆：" + prompt)
+    }
+
+    private func completedFixtureReply(userIndex: Int, containing expected: String) -> XCUIElement {
+        let reply = identifiedText("chat.message.\(userIndex + 1).assistant")
+        assertContains(reply, expected)
+        assertLabel(app.staticTexts["chat.status"].firstMatch, "模型已設定")
+        XCTAssertFalse(app.buttons["chat.cancel"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.error"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.archiveNotice"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat.learningError"].firstMatch.exists)
+        return reply
+    }
+
+    private func cycleAttachmentPanelKeepingDraft(_ expected: String) {
+        let draft = chatDraftControl(in: app)
+        let keyboard = app.keyboards.firstMatch
+        let panel = app.otherElements["chat.attach.panel"].firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 15))
+        tap("chat.attach.toggle")
+        XCTAssertTrue(panel.waitForExistence(timeout: 15))
+        let keyboardGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: keyboard)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardGone], timeout: 15), .completed)
+        XCTAssertEqual(draft.value as? String, expected)
+        tap("chat.attach.toggle")
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 15))
+        let panelGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: panel)
+        XCTAssertEqual(XCTWaiter.wait(for: [panelGone], timeout: 15), .completed)
+        XCTAssertEqual(draft.value as? String, expected)
+        for control in [draft, app.buttons["chat.attach.toggle"].firstMatch, app.buttons["chat.send"].firstMatch] {
+            ready(control)
+            XCTAssertFalse(control.frame.isEmpty)
+            XCTAssertTrue(app.frame.contains(control.frame))
+            XCTAssertLessThanOrEqual(control.frame.maxY, mikaUnobscuredBottom(in: app))
+        }
+    }
+
     // MARK: - Helpers (same native paths as ChatStreamingUITests)
 
     private func launch(reset: Bool = true, attachments: Bool = false) {
