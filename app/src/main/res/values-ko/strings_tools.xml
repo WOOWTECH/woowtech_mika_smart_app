@@ -76,4 +76,5 @@
     <string name="tool_describe_screen">이미지로 화면 설명</string>
     <string name="tool_find_visually">이미지로 요소 찾기</string>
     <string name="tool_do_steps">여러 단계를 이어서</string>
+    <string name="tool_create_document">문서 생성</string>
 </resources>

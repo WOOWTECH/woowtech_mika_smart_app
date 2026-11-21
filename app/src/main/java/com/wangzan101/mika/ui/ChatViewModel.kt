@@ -1528,6 +1528,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "运行自带脚本" to R.string.tool_run_script,
             "读文件" to R.string.tool_read_file,
             "写文件" to R.string.tool_write_file,
+            "生成文档" to R.string.tool_create_document,
             "搜索文件" to R.string.tool_search_files,
             "导出文件" to R.string.tool_export_file,
             "打开网页" to R.string.tool_open_page,

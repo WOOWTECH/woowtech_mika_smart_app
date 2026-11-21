@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The apporoplay flavor (Apporo's Google Play edition): the woowtech Play manifest's removals, plus Apporo's browser
-     entry. Unlike src/apporo, no exact-alarm permissions: the Play editions have no alarm capability. -->
+     entry. The shared Play manifest uses the user-granted SCHEDULE_EXACT_ALARM permission. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 

@@ -156,8 +156,8 @@ android {
             // aapt2 留 zh-rTW 时会连带留下上游简体的 values-zh,所以 woowtech 变体另外传 --exclude-configs zh(文件末尾的 onVariants)。
             resourceConfigurations += listOf("en", "b+zh+Hant", "zh-rTW")
         }
-        // Google Play edition of the Apporo brand: the woowtech Play edition's features (no phone control, sandbox,
-        // OCR or exact alarms) with Apporo's name, look and brand.properties. Its own package, data and signature.
+        // Google Play edition of the Apporo brand: the woowtech Play edition's features (no phone control, executable sandbox,
+        // or OCR) with Apporo's name, look and brand.properties. Its own package, data and signature.
         create("apporoplay") {
             dimension = "brand"
             applicationId = "com.apporo.assistant.play"
@@ -213,7 +213,7 @@ androidComponents {
             // Play editions: the Play policy tests run on request (-PplayTransportTests)
             variant.enableUnitTest = variant.flavorName in setOf("woowtech", "apporoplay") &&
                 providers.gradleProperty("playTransportTests").isPresent
-            // Explicit cloud acceptance only; ordinary branded release builds still omit test APKs.
+            // Explicit device acceptance only; ordinary branded release builds still omit test APKs.
             variant.androidTest.enable = providers.gradleProperty("documentAcceptanceTests").isPresent ||
                 (variant.flavorName == "apporo" && providers.gradleProperty("apporoAlignmentTests").isPresent)
         }
