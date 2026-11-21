@@ -141,6 +141,10 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            // The opaque canvas has a known appearance. Automatic toolbar
+            // contrast chose white text on the light canvas after rotating an
+            // iPad with the keyboard open, including the system status bar.
+            .toolbarColorScheme(colorScheme, for: .navigationBar)
             .toolbar { rootToolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) { fixtureObservation }
           }
