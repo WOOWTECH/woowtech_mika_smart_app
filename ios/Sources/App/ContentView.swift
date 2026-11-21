@@ -1008,6 +1008,13 @@ private struct ChatView: View {
         ScrollView {
             transcriptContent(viewportHeight: viewportHeight)
         }
+        // The keyboard's inherited animation is for the composer. Animating
+        // transcript scroll offsets at the same time can leave an earlier target
+        // after a completed reply and look like an upward reader gesture.
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
         .coordinateSpace(name: "chat.transcript.viewport")
         .accessibilityIdentifier("chat.transcript")
         // A simultaneous drag observes scrolling without taking the long
