@@ -1014,7 +1014,14 @@ private struct ChatView: View {
             // to pin to the tail. This also leaves VoiceOver scrolling alone.
             guard let position else { return }
             let hasTranscript = !session.entries.isEmpty || session.replyPreview != nil || session.webTask != nil
-            if updateFollow({ $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }) {
+            let followed = scrollFollow.followsTail
+            let shouldScroll = updateFollow { $0.observe(position, contentRevision: session.transcriptContentRevision, hasTranscript: hasTranscript) }
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-UITestTranscriptDiagnostics") {
+                print("TRANSCRIPT_TRACE revision=\(session.transcriptContentRevision) height=\(position.contentHeight) bottom=\(position.bottomY) viewport=\(position.viewportHeight) followed=\(followed) following=\(scrollFollow.followsTail) scroll=\(shouldScroll) submitting=\(session.isSubmitting)")
+            }
+#endif
+            if shouldScroll {
                 proxy.scrollTo("chat.transcript.tail", anchor: .bottom)
             }
             scheduleScrollSettle()

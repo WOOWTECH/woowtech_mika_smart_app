@@ -197,6 +197,7 @@ final class ChatAttachmentUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["-AppleLanguages", "(zh-Hant)", "-AppleLocale", "zh_TW",
                                "-UITestMode", "-UITestNamespace", namespace, "-WoowSkipOnboarding"]
+        app.launchArguments.append("-UITestTranscriptDiagnostics")
         if reset { app.launchArguments.append("-UITestResetStorage") }
         if attachments { app.launchArguments.append("-UITestAttachments") }
         app.launchEnvironment = [:]; app.launch()
